@@ -106,7 +106,7 @@ export default function DashboardPage() {
           onOpenMovie={openMovie}
         />
 
-        <Show when={!user()">
+        <Show when={!user()}>
           <GuestBanner onLogin={handleLogin} />
         </Show>
 
