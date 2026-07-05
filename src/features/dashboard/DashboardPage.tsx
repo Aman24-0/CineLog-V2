@@ -4,7 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "@solidjs/router";
 import { auth, db } from "~/core/firebase";
-import { login } from "~/core/firebase/auth";
+import { login, completeRedirectLogin } from "~/core/firebase/auth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import type { WatchlistItem, User } from "~/shared/types";
@@ -27,6 +27,18 @@ export default function DashboardPage() {
   let unsubSnap: (() => void) | null = null;
 
   onMount(() => {
+    // Complete the redirect login flow if returning from Google
+    completeRedirectLogin()
+  .then((result) => {
+    if (result?.user) {
+      showToast("Signed in successfully! 🎉", "success");
+    }
+  })
+  .catch((error) => {
+    console.error(error);
+    alert(JSON.stringify(error, null, 2));
+  });
+
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u as User | null);
       setLoading(false);
@@ -85,17 +97,12 @@ export default function DashboardPage() {
   };
 
   const handleLogin = async () => {
-  console.log("Login clicked");
-
-  try {
-    const result = await login();
-    console.log("SUCCESS", result.user);
-    showToast("Signed in successfully!", "success");
-  } catch (error) {
-    console.error("LOGIN ERROR", error);
-    alert(String(error));
-  }
-};
+    try {
+      await login();
+    } catch (error) {
+      showToast("Sign in failed. Please try again.", "error");
+    }
+  };
 
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-8 space-y-8">
