@@ -1,0 +1,11 @@
+node_modules
+.output
+.netlify
+dist
+
+.env
+.env.local
+.env.production
+
+.vscode
+.DS_Store
