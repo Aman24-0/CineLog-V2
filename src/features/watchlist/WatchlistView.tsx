@@ -37,14 +37,13 @@ export default function WatchlistView() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { setDetailsId } = useModalState();
-  const { watchlist, loading } = useVault();
+  const { watchlist, loading, isGuest, error } = useVault();
 
   const [search, setSearch] = createSignal("");
   const [filters, setFilters] = createSignal<VaultFilters>(defaultFilters);
   const [showFilter, setShowFilter] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
   const [viewMode, setViewMode] = createSignal<"grid" | "timeline">("grid");
-  const [isGuest] = createSignal(false); // Mock guest state
 
   let prevViewMode = "grid";
   createEffect(() => {
@@ -162,6 +161,12 @@ export default function WatchlistView() {
     setSearch("");
   };
 
+  const handleReload = () => {
+    if (typeof window !== "undefined") {
+      window.location.reload();
+    }
+  };
+
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-10">
       <div
@@ -193,63 +198,77 @@ export default function WatchlistView() {
         when={!loading()}
         fallback={<LoadingSkeleton />}
       >
-        <Show when={viewMode() === "grid"}>
-          <VaultGrid
-            items={filtered().slice(0, displayLimit())}
-            isGuest={isGuest()}
-            onOpenMovie={openMovie}
-            onLogin={handleLogin}
-            onClearFilters={clearFilters}
-          />
-          <Show when={filtered().length > displayLimit()}>
-            <div class="flex items-center justify-center gap-2 py-8 type-caption" style="color: var(--p)">
-              <Icon name="progress_activity" class="animate-spin text-sm" aria-hidden="true" />
-              <span>Loading more titles…</span>
-            </div>
+        <Show 
+          when={!error()} 
+          fallback={
+            <EmptyState
+              isGuest={false}
+              onLogin={() => {}}
+              title="Error Loading Vault"
+              message={error() || "An unknown error occurred."}
+              actionText="Reload Page"
+              onAction={handleReload}
+            />
+          }
+        >
+          <Show when={viewMode() === "grid"}>
+            <VaultGrid
+              items={filtered().slice(0, displayLimit())}
+              isGuest={isGuest()}
+              onOpenMovie={openMovie}
+              onLogin={handleLogin}
+              onClearFilters={clearFilters}
+            />
+            <Show when={filtered().length > displayLimit()}>
+              <div class="flex items-center justify-center gap-2 py-8 type-caption" style="color: var(--p)">
+                <Icon name="progress_activity" class="animate-spin text-sm" aria-hidden="true" />
+                <span>Loading more titles…</span>
+              </div>
+            </Show>
           </Show>
-        </Show>
 
-        <Show when={viewMode() === "timeline"}>
-          <Show
-            when={timelineItems().length > 0}
-            fallback={
-              <EmptyState
-                isGuest={isGuest()}
-                onLogin={handleLogin}
-                title="No Dates Found"
-                message="Timeline shows completed titles with a Watch Date set. Add dates in the edit panel."
-                actionText="Clear Filters"
-                onAction={clearFilters}
-              />
-            }
-          >
-            <div class="relative space-y-10 animate-fade-in pb-10" role="feed" aria-label="Watch history timeline">
-              <div
-                class="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-px pointer-events-none"
-                style="background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08) 40px, rgba(255,255,255,0.08) calc(100% - 40px), transparent)"
-                aria-hidden="true"
-              />
-              <For each={groupedTimeline()}>
-                {(group) => (
-                  <div class="relative" role="group" aria-label={group.label}>
-                    <div
-                      class="sticky z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full ml-10 mb-5"
-                      style="top: 150px; background: var(--p); color: #0c0e14; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Outfit', sans-serif; box-shadow: 0 0 15px var(--p-glow)"
-                    >
-                      <Icon name="event" style="font-size: 14px; color: #0c0e14" aria-hidden="true" />
-                      {group.label}
+          <Show when={viewMode() === "timeline"}>
+            <Show
+              when={timelineItems().length > 0}
+              fallback={
+                <EmptyState
+                  isGuest={isGuest()}
+                  onLogin={handleLogin}
+                  title="No Dates Found"
+                  message="Timeline shows completed titles with a Watch Date set. Add dates in the edit panel."
+                  actionText="Clear Filters"
+                  onAction={clearFilters}
+                />
+              }
+            >
+              <div class="relative space-y-10 animate-fade-in pb-10" role="feed" aria-label="Watch history timeline">
+                <div
+                  class="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-px pointer-events-none"
+                  style="background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08) 40px, rgba(255,255,255,0.08) calc(100% - 40px), transparent)"
+                  aria-hidden="true"
+                />
+                <For each={groupedTimeline()}>
+                  {(group) => (
+                    <div class="relative" role="group" aria-label={group.label}>
+                      <div
+                        class="sticky z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full ml-10 mb-5"
+                        style="top: 150px; background: var(--p); color: #0c0e14; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Outfit', sans-serif; box-shadow: 0 0 15px var(--p-glow)"
+                      >
+                        <Icon name="event" style="font-size: 14px; color: #0c0e14" aria-hidden="true" />
+                        {group.label}
+                      </div>
+                      <div class="space-y-4 timeline-stagger">
+                        <For each={group.items}>
+                          {(m) => (
+                            <VaultCard item={m} date={resolveTimelineDate(m)} onOpenMovie={openMovie} />
+                          )}
+                        </For>
+                      </div>
                     </div>
-                    <div class="space-y-4 timeline-stagger">
-                      <For each={group.items}>
-                        {(m) => (
-                          <VaultCard item={m} date={resolveTimelineDate(m)} onOpenMovie={openMovie} />
-                        )}
-                      </For>
-                    </div>
-                  </div>
-                )}
-              </For>
-            </div>
+                  )}
+                </For>
+              </div>
+            </Show>
           </Show>
         </Show>
       </Show>
