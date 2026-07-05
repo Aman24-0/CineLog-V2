@@ -1,3 +1,4 @@
+// src/entry-server.tsx
 import { createHandler, StartServer } from "@solidjs/start/server";
 
 export default createHandler(() => (
@@ -11,6 +12,19 @@ export default createHandler(() => (
             content="width=device-width, initial-scale=1"
           />
           <link rel="icon" href="/favicon.ico" />
+          
+          {/* Google Fonts & Material Symbols */}
+          <link rel="preconnect" href="https://fonts.googleapis.com" />
+          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
+            rel="stylesheet"
+          />
+          <link
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+            rel="stylesheet"
+          />
+          
           {assets}
         </head>
         <body>
