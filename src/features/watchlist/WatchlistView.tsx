@@ -1,0 +1,277 @@
+// src/features/watchlist/WatchlistView.tsx
+import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup } from "solid-js";
+import { useNavigate } from "@solidjs/router";
+import Icon from "~/shared/ui/Icon";
+import { useToast } from "~/shared/hooks/useToast";
+import { useModalState } from "~/shared/hooks/useModalState";
+import { useVault } from "./useVault";
+import { resolveTimelineDate } from "~/shared/utils/date";
+import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import VaultHeader from "./components/VaultHeader";
+import VaultSearch from "./components/VaultSearch";
+import VaultFilters from "./components/VaultFilters";
+import VaultGrid from "./components/VaultGrid";
+import VaultCard from "./components/VaultCard";
+import EmptyState from "./components/EmptyState";
+import LoadingSkeleton from "./components/LoadingSkeleton";
+
+const defaultFilters: VaultFilters = {
+  type: "all",
+  status: "all",
+  region: "all",
+  genre: "all",
+  platform: "all",
+  sort: "recent",
+  tag: "all",
+  imdbMin: "",
+  imdbMax: "",
+  rtMin: "",
+  rtMax: "",
+  yearMin: "",
+  yearMax: "",
+  runtimeMin: "",
+  runtimeMax: ""
+};
+
+export default function WatchlistView() {
+  const navigate = useNavigate();
+  const { showToast } = useToast();
+  const { setDetailsId } = useModalState();
+  const { watchlist, loading } = useVault();
+
+  const [search, setSearch] = createSignal("");
+  const [filters, setFilters] = createSignal<VaultFilters>(defaultFilters);
+  const [showFilter, setShowFilter] = createSignal(false);
+  const [displayLimit, setDisplayLimit] = createSignal(20);
+  const [viewMode, setViewMode] = createSignal<"grid" | "timeline">("grid");
+  const [isGuest] = createSignal(false); // Mock guest state
+
+  let prevViewMode = "grid";
+  createEffect(() => {
+    const mode = viewMode();
+    if (mode === "timeline" && prevViewMode !== "timeline") {
+      setFilters({ ...defaultFilters, status: "Completed", sort: "watch_desc" });
+    } else if (mode === "grid" && prevViewMode === "timeline") {
+      setFilters({ ...defaultFilters, status: "all", sort: "recent" });
+    }
+    prevViewMode = mode;
+  });
+
+  const handleScroll = () => {
+    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+      setDisplayLimit((prev) => prev + 20);
+    }
+  };
+  onMount(() => window.addEventListener("scroll", handleScroll, { passive: true }));
+  onCleanup(() => window.removeEventListener("scroll", handleScroll));
+
+  const uniqueGenres = createMemo(() => [...new Set(watchlist().flatMap((m) => m.genresList || []))].filter(Boolean).sort());
+  const uniquePlatforms = createMemo(() => [...new Set(watchlist().flatMap((m) => m.platformsList || []))].filter(Boolean).sort());
+  const uniqueTags = createMemo(() => [...new Set(watchlist().map((m) => m.tag).filter(Boolean))].sort());
+
+  const filtered = createMemo(() => {
+    let f = watchlist();
+    if (search()) {
+      const s = search().toLowerCase();
+      f = f.filter(
+        (m) =>
+          (m.title || m.name || "").toLowerCase().includes(s) ||
+          (m.castList && m.castList.some((c) => c.toLowerCase().includes(s)))
+      );
+    }
+    if (filters().type !== "all") f = f.filter((m) => m.media_type === filters().type);
+    if (filters().status !== "all")
+      f = f.filter((m) => m.status === filters().status || (filters().status === "Planned" && m.status === "Plan to Watch"));
+    if (filters().region !== "all") f = f.filter((m) => (m.region || "International") === filters().region);
+    if (filters().genre !== "all") f = f.filter((m) => m.genresList?.includes(filters().genre));
+    if (filters().platform !== "all") f = f.filter((m) => m.platformsList?.includes(filters().platform));
+    if (filters().tag !== "all") f = f.filter((m) => m.tag === filters().tag);
+
+    const inRange = (value: string | number | undefined, min: string, max: string) => {
+      const n = Number(value);
+      if (min !== "" && (isNaN(n) || n < Number(min))) return false;
+      if (max !== "" && (isNaN(n) || n > Number(max))) return false;
+      return true;
+    };
+    f = f.filter((m) => {
+      const year = parseInt((m.release_date || m.first_air_date || "").substring(0, 4)) || NaN;
+      const rt = Number((m.rtRating || "").replace("%", "")) || NaN;
+      return (
+        inRange(m.imdbRating, filters().imdbMin, filters().imdbMax) &&
+        inRange(rt, filters().rtMin, filters().rtMax) &&
+        inRange(year, filters().yearMin, filters().yearMax) &&
+        inRange(m.runtime, filters().runtimeMin, filters().runtimeMax)
+      );
+    });
+
+    return f.sort((a, b) => {
+      if (filters().sort === "watch_desc" || filters().sort === "watch_asc") {
+        const dA = resolveTimelineDate(a),
+          dB = resolveTimelineDate(b);
+        const hasA = dA !== null,
+          hasB = dB !== null;
+        if (hasA && !hasB) return -1;
+        if (!hasA && hasB) return 1;
+        if (!hasA && !hasB) return 0;
+        return filters().sort === "watch_desc" ? (dB.getTime() - dA.getTime()) : (dA.getTime() - dB.getTime());
+      }
+      if (filters().sort === "year_desc")
+        return (parseInt((b.release_date || b.first_air_date || "").substring(0, 4)) || 0) - (parseInt((a.release_date || a.first_air_date || "").substring(0, 4)) || 0);
+      if (filters().sort === "rating_desc") return (b.rating || 0) - (a.rating || 0);
+      if (filters().sort === "title_asc") return (a.title || a.name || "").localeCompare(b.title || b.name || "");
+      return (b.addedAt instanceof Date ? b.addedAt.getTime() : 0) - (a.addedAt instanceof Date ? a.addedAt.getTime() : 0);
+    });
+  });
+
+  const activeFilterCount = createMemo(
+    () =>
+      Object.entries(filters()).filter(([key, value]) => {
+        if (key === "sort") return value !== "recent";
+        return value !== "all" && value !== "";
+      }).length
+  );
+
+  const timelineItems = createMemo(() => filtered().filter((m) => m.status === "Completed" && resolveTimelineDate(m) !== null));
+
+  const groupedTimeline = createMemo(() => {
+    const list = timelineItems().slice(0, displayLimit());
+    const groups: { label: string; items: WatchlistItem[] }[] = [];
+    let currentGroup: { label: string; items: WatchlistItem[] } | null = null;
+    list.forEach((m) => {
+      const dateObj = resolveTimelineDate(m);
+      const monthYear = !dateObj ? "Unknown Date" : dateObj.toLocaleString("en-US", { month: "long", year: "numeric" });
+      if (!currentGroup || currentGroup.label !== monthYear) {
+        currentGroup = { label: monthYear, items: [] };
+        groups.push(currentGroup);
+      }
+      currentGroup.items.push(m);
+    });
+    return groups;
+  });
+
+  const openMovie = (id: string) => {
+    setDetailsId(id);
+  };
+
+  const handleLogin = () => {
+    showToast("Login functionality not yet wired up in this view.");
+  };
+
+  const clearFilters = () => {
+    setFilters({ ...defaultFilters, status: "all" });
+    setSearch("");
+  };
+
+  return (
+    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-10">
+      <div
+        class="sticky top-0 z-40 pt-4 pb-5 -mx-5 px-5 border-b mb-6"
+        style="background: rgba(5,6,10,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-color: var(--border)"
+      >
+        <VaultHeader
+          viewMode={viewMode}
+          setViewMode={setViewMode}
+          activeFilterCount={activeFilterCount}
+          onFilterClick={() => setShowFilter(true)}
+        />
+        <VaultSearch
+          value={search}
+          onInput={(v) => {
+            setSearch(v);
+            setDisplayLimit(30);
+          }}
+          hasActiveFilters={() => activeFilterCount() > 0}
+          onClearAll={clearFilters}
+        />
+      </div>
+
+      <div class="sr-only" aria-live="polite" aria-atomic="true">
+        {filtered().length > 0 ? `${filtered().length} title${filtered().length !== 1 ? "s" : ""} found` : "No titles found"}
+      </div>
+
+      <Show
+        when={!loading()}
+        fallback={<LoadingSkeleton />}
+      >
+        <Show when={viewMode() === "grid"}>
+          <VaultGrid
+            items={filtered().slice(0, displayLimit())}
+            isGuest={isGuest()}
+            onOpenMovie={openMovie}
+            onLogin={handleLogin}
+            onClearFilters={clearFilters}
+          />
+          <Show when={filtered().length > displayLimit()}>
+            <div class="flex items-center justify-center gap-2 py-8 type-caption" style="color: var(--p)">
+              <Icon name="progress_activity" class="animate-spin text-sm" aria-hidden="true" />
+              <span>Loading more titles…</span>
+            </div>
+          </Show>
+        </Show>
+
+        <Show when={viewMode() === "timeline"}>
+          <Show
+            when={timelineItems().length > 0}
+            fallback={
+              <EmptyState
+                isGuest={isGuest()}
+                onLogin={handleLogin}
+                title="No Dates Found"
+                message="Timeline shows completed titles with a Watch Date set. Add dates in the edit panel."
+                actionText="Clear Filters"
+                onAction={clearFilters}
+              />
+            }
+          >
+            <div class="relative space-y-10 animate-fade-in pb-10" role="feed" aria-label="Watch history timeline">
+              <div
+                class="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-px pointer-events-none"
+                style="background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08) 40px, rgba(255,255,255,0.08) calc(100% - 40px), transparent)"
+                aria-hidden="true"
+              />
+              <For each={groupedTimeline()}>
+                {(group) => (
+                  <div class="relative" role="group" aria-label={group.label}>
+                    <div
+                      class="sticky z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full ml-10 mb-5"
+                      style="top: 150px; background: var(--p); color: #0c0e14; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Outfit', sans-serif; box-shadow: 0 0 15px var(--p-glow)"
+                    >
+                      <Icon name="event" style="font-size: 14px; color: #0c0e14" aria-hidden="true" />
+                      {group.label}
+                    </div>
+                    <div class="space-y-4 timeline-stagger">
+                      <For each={group.items}>
+                        {(m) => (
+                          <VaultCard item={m} date={resolveTimelineDate(m)} onOpenMovie={openMovie} />
+                        )}
+                      </For>
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+        </Show>
+      </Show>
+
+      <Show when={showFilter()}>
+        <VaultFilters
+          filters={filters()}
+          setFilters={(v) => {
+            setFilters(v);
+            setDisplayLimit(20);
+          }}
+          uniqueGenres={uniqueGenres()}
+          uniquePlatforms={uniquePlatforms()}
+          uniqueTags={uniqueTags()}
+          onClose={() => setShowFilter(false)}
+          onFilterChange={() => {}}
+          onClear={() => {
+            clearFilters();
+            setDisplayLimit(20);
+          }}
+        />
+      </Show>
+    </div>
+  );
+}
