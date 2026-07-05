@@ -1,11 +1,21 @@
+import DashboardHeader from "./components/DashboardHeader";
+
 export default function DashboardPage() {
   return (
-    <main class="flex min-h-screen flex-col items-center justify-center gap-4 bg-black text-white">
-      <h1 class="text-5xl font-bold">Dashboard</h1>
+    <div class="min-h-screen bg-black text-white">
+      <DashboardHeader />
 
-      <p class="text-zinc-400">
-        CineLog V2 Dashboard Module
-      </p>
-    </main>
+      <main class="p-6">
+        <div class="rounded-2xl border border-zinc-800 p-10 text-center">
+          <h2 class="text-3xl font-bold">
+            Dashboard
+          </h2>
+
+          <p class="mt-4 text-zinc-500">
+            Phase 2 Migration in Progress...
+          </p>
+        </div>
+      </main>
+    </div>
   );
 }
