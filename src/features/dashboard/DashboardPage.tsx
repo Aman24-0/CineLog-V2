@@ -85,11 +85,15 @@ export default function DashboardPage() {
   };
 
   const handleLogin = async () => {
+  console.log("Login clicked");
+
   try {
-    await login();
-    showToast("Signed in successfully! 🎉", "success");
-  } catch (error: any) {
-    alert(JSON.stringify(error, null, 2));
+    const result = await login();
+    console.log("SUCCESS", result.user);
+    showToast("Signed in successfully!", "success");
+  } catch (error) {
+    console.error("LOGIN ERROR", error);
+    alert(String(error));
   }
 };
 
