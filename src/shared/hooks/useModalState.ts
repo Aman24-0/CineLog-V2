@@ -1,13 +1,12 @@
+// src/shared/hooks/useModalState.ts
 import { createSignal } from "solid-js";
+import type { WatchlistItem } from "~/shared/types";
 
-const [detailsId, setDetailsId] = createSignal<string | null>(null);
-const [previewSource, setPreviewSource] = createSignal<string | null>(null);
+const [selectedItem, setSelectedItem] = createSignal<WatchlistItem | null>(null);
 
 export function useModalState() {
   return {
-    detailsId,
-    setDetailsId,
-    previewSource,
-    setPreviewSource
+    selectedItem,
+    setSelectedItem
   };
 }
