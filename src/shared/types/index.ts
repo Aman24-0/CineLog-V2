@@ -46,3 +46,21 @@ export interface User {
   email?: string | null;
   photoURL?: string | null;
 }
+
+export interface VaultFilters {
+  type: string;
+  status: string;
+  region: string;
+  genre: string;
+  platform: string;
+  sort: string;
+  tag: string;
+  imdbMin: string;
+  imdbMax: string;
+  rtMin: string;
+  rtMax: string;
+  yearMin: string;
+  yearMax: string;
+  runtimeMin: string;
+  runtimeMax: string;
+}
