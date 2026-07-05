@@ -1,7 +1,6 @@
 // src/core/firebase/auth.ts
 import {
-  signInWithRedirect,
-  getRedirectResult,
+  signInWithPopup,
   signOut,
   onAuthStateChanged
 } from "firebase/auth";
@@ -9,10 +8,7 @@ import {
 import { auth, googleProvider } from "./config";
 
 export const login = () =>
-  signInWithRedirect(auth, googleProvider);
-
-export const completeRedirectLogin = () =>
-  getRedirectResult(auth);
+  signInWithPopup(auth, googleProvider);
 
 export const logout = () =>
   signOut(auth);
