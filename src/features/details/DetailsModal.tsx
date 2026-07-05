@@ -3,6 +3,7 @@ import { Show, onMount, onCleanup, Portal, createSignal, createEffect, createMem
 import { auth } from "~/core/firebase";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
+import { useVault } from "~/features/watchlist/useVault";
 import {
   updateStatus as svcUpdateStatus,
   updateRating as svcUpdateRating,
@@ -18,10 +19,13 @@ import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
 import EpisodeTracker from "./components/EpisodeTracker";
+import SimilarTitles from "./components/SimilarTitles";
+import FranchiseInfo from "./components/FranchiseInfo";
 import Icon from "~/shared/ui/Icon";
 
 export default function DetailsModal() {
   const { selectedItem, setSelectedItem } = useModalState();
+  const { watchlist } = useVault();
   const { showToast } = useToast();
   const { tmdb, omdb, loading, error, retry } = useDetails(selectedItem);
 
@@ -68,6 +72,12 @@ export default function DetailsModal() {
   };
 
   const close = () => setSelectedItem(null);
+
+  const handleSelectItem = (item: any) => {
+    setSelectedItem(item);
+    const container = document.querySelector(".overflow-y-auto.hide-scrollbar.w-full");
+    if (container) container.scrollTo({ top: 0, behavior: "smooth" });
+  };
 
   const handleSave = async () => {
     const uid = auth.currentUser?.uid;
@@ -139,7 +149,6 @@ export default function DetailsModal() {
         episode: newEpisode
       });
 
-      // Auto-update status to 'Watching' if currently 'Planned'
       if (item.status === "Planned" || item.status === "Plan to Watch") {
         await svcUpdateStatus(uid, item.id, "Watching");
         setSelectedItem({ ...item, status: "Watching", season: newSeason, episode: newEpisode });
@@ -261,6 +270,22 @@ export default function DetailsModal() {
                             onMarkCompleted={handleMarkCompleted}
                           />
                         </div>
+                      </Show>
+
+                      <Show when={selectedItem()}>
+                        <FranchiseInfo
+                          currentItem={selectedItem()!}
+                          watchlist={watchlist()}
+                          onSelect={handleSelectItem}
+                        />
+                      </Show>
+
+                      <Show when={selectedItem()}>
+                        <SimilarTitles
+                          currentItem={selectedItem()!}
+                          watchlist={watchlist()}
+                          onSelect={handleSelectItem}
+                        />
                       </Show>
                     </div>
                   </div>
