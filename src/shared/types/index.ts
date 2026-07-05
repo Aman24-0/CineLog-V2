@@ -64,3 +64,29 @@ export interface VaultFilters {
   runtimeMin: string;
   runtimeMax: string;
 }
+
+export interface TMDBGenre {
+  id: number;
+  name: string;
+}
+
+export interface TMDBDetails {
+  id: number;
+  title?: string;
+  name?: string;
+  backdrop_path?: string | null;
+  poster_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  runtime?: number;
+  episode_run_time?: number[];
+  vote_average?: number;
+  overview?: string;
+  genres?: TMDBGenre[];
+  media_type?: "movie" | "tv";
+}
+
+export interface OMDbRatings {
+  imdb?: string;
+  rt?: string;
+}
