@@ -1,5 +1,5 @@
-import LoadingScreen from "~/shared/ui/LoadingScreen";
+import { DashboardPage } from "~/features/dashboard";
 
 export default function Home() {
-  return <LoadingScreen />;
+  return <DashboardPage />;
 }
