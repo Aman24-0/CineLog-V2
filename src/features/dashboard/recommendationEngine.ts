@@ -16,15 +16,7 @@ const getAddedAtTime = (date: WatchlistItem["addedAt"]): number => {
   return 0;
 };
 
-export function getRecommendation(
-  watchlist: WatchlistItem[],
-  shuffleTick: number
-): RecommendationResult {
-  if (watchlist.length === 0) {
-    return { item: null, badge: "", isResume: false, canShuffle: false };
-  }
-
-  // 1. Continue Watching
+export function pickContinueWatching(watchlist: WatchlistItem[]): WatchlistItem | null {
   const continueWatching = watchlist
     .filter(
       (m) =>
@@ -37,53 +29,88 @@ export function getRecommendation(
       const tB = b.watchProgress?.updatedAt ? new Date(b.watchProgress.updatedAt).getTime() : 0;
       return tB - tA;
     });
+  return continueWatching[0] || null;
+}
+
+export function pickRandomPlanned(watchlist: WatchlistItem[], forcedPlannedId: string | null): WatchlistItem | null {
+  const plannedList = watchlist.filter(
+    (m) => m.status === "Planned" || m.status === "Plan to Watch"
+  );
+  if (plannedList.length === 0) return null;
+  
+  if (forcedPlannedId) {
+    const forced = plannedList.find((m) => m.id === forcedPlannedId);
+    if (forced) return forced;
+  }
+  
+  // Fallback to first planned if no forced ID
+  return plannedList[0];
+}
+
+export function pickHighestRated(watchlist: WatchlistItem[]): WatchlistItem | null {
+  const rated = watchlist
+    .filter((m) => m.status !== "Completed")
+    .sort((a, b) => {
+      const imdbA = parseFloat(a.imdbRating || "0") || 0;
+      const imdbB = parseFloat(b.imdbRating || "0") || 0;
+      if (imdbB !== imdbA) return imdbB - imdbA;
+      
+      const userA = a.rating || 0;
+      const userB = b.rating || 0;
+      return userB - userA;
+    });
+  return rated[0] || null;
+}
+
+export function pickRecentlyAdded(watchlist: WatchlistItem[]): WatchlistItem | null {
+  const recentlyAdded = [...watchlist].sort(
+    (a, b) => getAddedAtTime(b.addedAt) - getAddedAtTime(a.addedAt)
+  );
+  return recentlyAdded[0] || watchlist[0] || null;
+}
+
+export function getRecommendation(
+  watchlist: WatchlistItem[],
+  forcedPlannedId: string | null
+): RecommendationResult {
+  if (watchlist.length === 0) {
+    return { item: null, badge: "", isResume: false, canShuffle: false };
+  }
 
   const plannedList = watchlist.filter(
     (m) => m.status === "Planned" || m.status === "Plan to Watch"
   );
-
   const canShuffle = plannedList.length > 0;
 
-  // If user clicked shuffle, force pick from planned list
-  if (shuffleTick > 0 && plannedList.length > 0) {
-    // Use tick to pseudo-randomly select, avoiding immediate repeats if > 1 item
-    const index = plannedList.length > 1 ? shuffleTick % plannedList.length : 0;
+  // 1. Continue Watching
+  const continueWatchingItem = pickContinueWatching(watchlist);
+  if (continueWatchingItem) {
     return {
-      item: plannedList[index],
-      badge: "PICK FOR TONIGHT",
-      isResume: false,
-      canShuffle
-    };
-  }
-
-  if (continueWatching.length > 0) {
-    return {
-      item: continueWatching[0],
+      item: continueWatchingItem,
       badge: "CONTINUE WATCHING",
       isResume: true,
-      canShuffle
+      canShuffle: false // Hide shuffle during Continue Watching
     };
   }
 
+  // 2. Random Planned Pick
   if (plannedList.length > 0) {
-    // Initial random pick on load
-    const index = Math.floor(Math.random() * plannedList.length);
-    return {
-      item: plannedList[index],
-      badge: "RECOMMENDED",
-      isResume: false,
-      canShuffle
-    };
+    const plannedItem = pickRandomPlanned(watchlist, forcedPlannedId);
+    if (plannedItem) {
+      return {
+        item: plannedItem,
+        badge: "RECOMMENDED",
+        isResume: false,
+        canShuffle
+      };
+    }
   }
 
-  // 3. Highly Rated Unwatched
-  const highlyRated = watchlist
-    .filter((m) => m.status !== "Completed" && (m.rating || 0) > 0)
-    .sort((a, b) => (b.rating || 0) - (a.rating || 0));
-
-  if (highlyRated.length > 0) {
+  // 3. Highest Rated
+  const highestRated = pickHighestRated(watchlist);
+  if (highestRated) {
     return {
-      item: highlyRated[0],
+      item: highestRated,
       badge: "RECOMMENDED",
       isResume: false,
       canShuffle: false
@@ -91,12 +118,9 @@ export function getRecommendation(
   }
 
   // 4. Recently Added
-  const recentlyAdded = [...watchlist].sort(
-    (a, b) => getAddedAtTime(b.addedAt) - getAddedAtTime(a.addedAt)
-  );
-
+  const recentlyAdded = pickRecentlyAdded(watchlist);
   return {
-    item: recentlyAdded[0] || watchlist[0],
+    item: recentlyAdded,
     badge: "RECENTLY ADDED",
     isResume: false,
     canShuffle: false
