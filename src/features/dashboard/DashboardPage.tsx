@@ -89,10 +89,8 @@ export default function DashboardPage() {
     await login();
     showToast("Signed in successfully! 🎉", "success");
   } catch (error: any) {
-    console.error(error);
-    alert(error.code + "\n\n" + error.message);
-  }
-};
+  alert(JSON.stringify(error, null, 2));
+}
 
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-8 space-y-8">
