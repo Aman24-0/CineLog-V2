@@ -36,7 +36,7 @@ const defaultFilters: VaultFilters = {
 export default function WatchlistView() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { setDetailsId } = useModalState();
+  const { setSelectedItem } = useModalState();
   const { watchlist, loading, isGuest, error } = useVault();
 
   const [search, setSearch] = createSignal("");
@@ -149,7 +149,8 @@ export default function WatchlistView() {
   });
 
   const openMovie = (id: string) => {
-    setDetailsId(id);
+    const item = watchlist().find((m) => m.id === id);
+    if (item) setSelectedItem(item);
   };
 
   const handleLogin = () => {
