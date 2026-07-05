@@ -23,7 +23,7 @@ export default function DashboardPage() {
   const [user, setUser] = createSignal<User | null>(null);
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [loading, setLoading] = createSignal(true);
-  const [shuffleTick, setShuffleTick] = createSignal(0);
+  const [forcedPlannedId, setForcedPlannedId] = createSignal<string | null>(null);
 
   let unsubSnap: (() => void) | null = null;
 
@@ -50,11 +50,30 @@ export default function DashboardPage() {
     });
   });
 
-  const recommendation = createMemo(() => getRecommendation(watchlist(), shuffleTick()));
+  const recommendation = createMemo(() => getRecommendation(watchlist(), forcedPlannedId()));
 
   const openMovie = (id: string) => {
     const item = watchlist().find((m) => m.id === id);
     if (item) setSelectedItem(item);
+  };
+
+  const handleShuffle = () => {
+    const planned = watchlist().filter(
+      (m) => m.status === "Planned" || m.status === "Plan to Watch"
+    );
+    if (planned.length === 0) return;
+    
+    if (planned.length === 1) {
+      setForcedPlannedId(planned[0].id);
+      return;
+    }
+    
+    let nextItem = planned[Math.floor(Math.random() * planned.length)];
+    // Avoid showing the same title twice in a row
+    while (nextItem.id === forcedPlannedId()) {
+      nextItem = planned[Math.floor(Math.random() * planned.length)];
+    }
+    setForcedPlannedId(nextItem.id);
   };
 
   const handleLogin = async () => {
@@ -77,7 +96,7 @@ export default function DashboardPage() {
           canShuffle={recommendation().canShuffle}
           isGuest={!user()}
           onLogin={handleLogin}
-          onShuffle={() => setShuffleTick((t) => t + 1)}
+          onShuffle={handleShuffle}
           onOpenMovie={openMovie}
         />
 
