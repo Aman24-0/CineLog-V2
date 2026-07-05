@@ -27,17 +27,6 @@ export default function DashboardPage() {
   let unsubSnap: (() => void) | null = null;
 
   onMount(() => {
-    // Complete the redirect login flow if returning from Google
-    completeRedirectLogin().catch((error) => {
-  console.error(error);
-  alert(
-    "CODE: " + error.code +
-    "\n\nMESSAGE: " + error.message +
-    "\n\nFULL:\n" +
-    JSON.stringify(error, null, 2)
-  );
-});
-
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u as User | null);
       setLoading(false);
@@ -98,6 +87,7 @@ export default function DashboardPage() {
   const handleLogin = async () => {
     try {
       await login();
+      showToast("Signed in successfully! 🎬", "success");
     } catch (error) {
       showToast("Sign in failed. Please try again.", "error");
     }
@@ -116,7 +106,7 @@ export default function DashboardPage() {
           onOpenMovie={openMovie}
         />
 
-        <Show when={!user()}>
+        <Show when={!user()">
           <GuestBanner onLogin={handleLogin} />
         </Show>
 
