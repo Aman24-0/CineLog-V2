@@ -10,9 +10,9 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
-    "@solidjs/router": "^0.13.2",
-    "@solidjs/start": "^1.0.0",
-    "solid-js": "^1.8.17"
+    "@solidjs/router": "^0.14.5",
+    "@solidjs/start": "^1.0.10",
+    "solid-js": "^1.9.3"
   },
   "devDependencies": {
     "@types/node": "^20.12.7",
@@ -26,6 +26,6 @@
     "prettier-plugin-tailwindcss": "^0.5.14",
     "tailwindcss": "^3.4.3",
     "typescript": "^5.4.5",
-    "vinxi": "^0.3.11"
+    "vinxi": "^0.5.7"
   }
 }
