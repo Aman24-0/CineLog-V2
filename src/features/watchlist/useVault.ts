@@ -3,13 +3,25 @@ import { createSignal, onMount, onCleanup } from "solid-js";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { auth, db } from "~/core/firebase";
-import type { WatchlistItem } from "~/shared/types";
+import { useToast } from "~/shared/hooks/useToast";
+import {
+  updateStatus as svcUpdateStatus,
+  updateRating as svcUpdateRating,
+  updateNotes as svcUpdateNotes,
+  updateWatchDate as svcUpdateWatchDate,
+  updateSeasonEpisode as svcUpdateSeasonEpisode,
+  updateWatchProgress as svcUpdateWatchProgress,
+  deleteWatchlistItem as svcDeleteWatchlistItem
+} from "./watchlistService";
+import type { WatchlistItem, WatchProgress } from "~/shared/types";
 
 export function useVault() {
+  const { showToast } = useToast();
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [isGuest, setIsGuest] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
+  const [uid, setUid] = createSignal<string | null>(null);
 
   let unsubSnap: (() => void) | null = null;
   let unsubAuth: (() => void) | null = null;
@@ -17,6 +29,7 @@ export function useVault() {
   onMount(() => {
     unsubAuth = onAuthStateChanged(auth, (u) => {
       setIsGuest(!u);
+      setUid(u?.uid || null);
       
       if (unsubSnap) {
         unsubSnap();
@@ -24,11 +37,9 @@ export function useVault() {
       }
       
       if (u) {
-        // Keep loading true until the first snapshot or error is received
         setLoading(true);
         setError(null);
         
-        // V1 Exact Firestore path: users/{uid}/watchlist ordered by addedAt desc
         const q = query(
           collection(db, "users", u.uid, "watchlist"), 
           orderBy("addedAt", "desc")
@@ -61,10 +72,107 @@ export function useVault() {
     if (unsubSnap) unsubSnap();
   });
 
+  const updateStatus = async (itemId: string, status: string) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcUpdateStatus(uid()!, itemId, status);
+      showToast("Status updated!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to update status.", "error");
+      throw err;
+    }
+  };
+
+  const updateRating = async (itemId: string, rating: number) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcUpdateRating(uid()!, itemId, rating);
+      showToast("Rating updated!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to update rating.", "error");
+      throw err;
+    }
+  };
+
+  const updateNotes = async (itemId: string, notes: string) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcUpdateNotes(uid()!, itemId, notes);
+      showToast("Notes saved!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to save notes.", "error");
+      throw err;
+    }
+  };
+
+  const updateWatchDate = async (itemId: string, watchDate: string) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcUpdateWatchDate(uid()!, itemId, watchDate);
+      showToast("Watch date updated!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to update watch date.", "error");
+      throw err;
+    }
+  };
+
+  const updateSeasonEpisode = async (itemId: string, season: number, episode: number) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcUpdateSeasonEpisode(uid()!, itemId, season, episode);
+      showToast("Episode progress updated!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to update episode progress.", "error");
+      throw err;
+    }
+  };
+
+  const updateWatchProgress = async (itemId: string, progress: WatchProgress) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    const item = watchlist().find((m) => m.id === itemId);
+    try {
+      // Preserve V1 behavior: mark as 'Watching' if currently 'Planned'
+      if (item && (item.status === "Planned" || item.status === "Plan to Watch")) {
+        await svcUpdateStatus(uid()!, itemId, "Watching");
+      }
+      await svcUpdateWatchProgress(uid()!, itemId, progress);
+      showToast("Progress saved!", "success");
+    } catch (err) {
+      console.error("Update failed:", err);
+      showToast("Failed to save progress.", "error");
+      throw err;
+    }
+  };
+
+  const deleteWatchlistItem = async (itemId: string) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
+    try {
+      await svcDeleteWatchlistItem(uid()!, itemId);
+      showToast("Item deleted.", "success");
+    } catch (err) {
+      console.error("Delete failed:", err);
+      showToast("Failed to delete item.", "error");
+      throw err;
+    }
+  };
+
   return {
     watchlist,
     loading,
     isGuest,
-    error
+    error,
+    uid,
+    updateStatus,
+    updateRating,
+    updateNotes,
+    updateWatchDate,
+    updateSeasonEpisode,
+    updateWatchProgress,
+    deleteWatchlistItem
   };
 }
