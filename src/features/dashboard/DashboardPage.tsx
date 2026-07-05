@@ -28,16 +28,15 @@ export default function DashboardPage() {
 
   onMount(() => {
     // Complete the redirect login flow if returning from Google
-    completeRedirectLogin()
-  .then((result) => {
-    if (result?.user) {
-      showToast("Signed in successfully! 🎉", "success");
-    }
-  })
-  .catch((error) => {
-    console.error(error);
-    alert(JSON.stringify(error, null, 2));
-  });
+    completeRedirectLogin().catch((error) => {
+  console.error(error);
+  alert(
+    "CODE: " + error.code +
+    "\n\nMESSAGE: " + error.message +
+    "\n\nFULL:\n" +
+    JSON.stringify(error, null, 2)
+  );
+});
 
     const unsubAuth = onAuthStateChanged(auth, (u) => {
       setUser(u as User | null);
