@@ -4,7 +4,7 @@ import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "@solidjs/router";
 import { auth, db } from "~/core/firebase";
-import { login, completeRedirectLogin } from "~/core/firebase/auth";
+import { login } from "~/core/firebase/auth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import type { WatchlistItem, User } from "~/shared/types";
@@ -17,7 +17,7 @@ import GuestBanner from "./components/GuestBanner";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { setDetailsId } = useModalState();
+  const { setSelectedItem } = useModalState();
 
   const [user, setUser] = createSignal<User | null>(null);
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
@@ -81,21 +81,19 @@ export default function DashboardPage() {
   });
 
   const openMovie = (id: string) => {
-    setDetailsId(id);
+    const cleanId = id.startsWith("RESUME_") ? id.replace("RESUME_", "") : id;
+    const item = watchlist().find((m) => m.id === cleanId);
+    if (item) setSelectedItem(item);
   };
 
   const handleLogin = async () => {
-  try {
-    await login();
-    showToast("Signed in successfully! 🎉", "success");
-  } catch (error: any) {
-    console.error(error);
-    alert(
-      "CODE: " + error.code +
-      "\n\nMESSAGE: " + error.message
-    );
-  }
-};
+    try {
+      await login();
+      showToast("Signed in successfully! 🎬", "success");
+    } catch (error) {
+      showToast("Sign in failed. Please try again.", "error");
+    }
+  };
 
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-8 space-y-8">
