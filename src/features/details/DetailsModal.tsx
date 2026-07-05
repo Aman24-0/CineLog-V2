@@ -7,7 +7,9 @@ import {
   updateStatus as svcUpdateStatus,
   updateRating as svcUpdateRating,
   updateNotes as svcUpdateNotes,
-  updateWatchDate as svcUpdateWatchDate
+  updateWatchDate as svcUpdateWatchDate,
+  updateSeasonEpisode as svcUpdateSeasonEpisode,
+  updateWatchProgress as svcUpdateWatchProgress
 } from "~/features/watchlist/watchlistService";
 import { useDetails } from "./useDetails";
 import DetailsHeader from "./components/DetailsHeader";
@@ -15,6 +17,7 @@ import DetailsOverview from "./components/DetailsOverview";
 import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
+import EpisodeTracker from "./components/EpisodeTracker";
 import Icon from "~/shared/ui/Icon";
 
 export default function DetailsModal() {
@@ -120,6 +123,49 @@ export default function DetailsModal() {
     setIsEditing(false);
   };
 
+  const handleEpisodeChange = async (newSeason: number, newEpisode: number) => {
+    const uid = auth.currentUser?.uid;
+    const item = selectedItem();
+    if (!uid || !item) return;
+
+    try {
+      await svcUpdateSeasonEpisode(uid, item.id, newSeason, newEpisode);
+      await svcUpdateWatchProgress(uid, item.id, {
+        currentTime: 0,
+        duration: (item.runtime || 0) * 60,
+        server: null,
+        updatedAt: new Date().toISOString(),
+        season: newSeason,
+        episode: newEpisode
+      });
+
+      // Auto-update status to 'Watching' if currently 'Planned'
+      if (item.status === "Planned" || item.status === "Plan to Watch") {
+        await svcUpdateStatus(uid, item.id, "Watching");
+        setSelectedItem({ ...item, status: "Watching", season: newSeason, episode: newEpisode });
+      } else {
+        setSelectedItem({ ...item, season: newSeason, episode: newEpisode });
+      }
+    } catch (err) {
+      console.error("Failed to update episode:", err);
+      showToast("Failed to update progress.", "error");
+    }
+  };
+
+  const handleMarkCompleted = async () => {
+    const uid = auth.currentUser?.uid;
+    const item = selectedItem();
+    if (!uid || !item) return;
+
+    try {
+      await svcUpdateStatus(uid, item.id, "Completed");
+      setSelectedItem({ ...item, status: "Completed" });
+      showToast("Marked as Completed!", "success");
+    } catch (err) {
+      showToast("Failed to update status.", "error");
+    }
+  };
+
   onMount(() => {
     document.body.style.overflow = "hidden";
     const handleEsc = (e: KeyboardEvent) => {
@@ -204,6 +250,17 @@ export default function DetailsModal() {
                         }
                       >
                         <DetailsOverview details={tmdb()} omdb={omdb()} />
+                      </Show>
+
+                      <Show when={selectedItem()?.media_type === "tv"}>
+                        <div class="mt-6">
+                          <EpisodeTracker
+                            item={selectedItem()!}
+                            details={tmdb()}
+                            onChange={handleEpisodeChange}
+                            onMarkCompleted={handleMarkCompleted}
+                          />
+                        </div>
                       </Show>
                     </div>
                   </div>
