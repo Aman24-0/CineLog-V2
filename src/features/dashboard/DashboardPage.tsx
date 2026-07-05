@@ -1,5 +1,5 @@
 // src/features/dashboard/DashboardPage.tsx
-import { createSignal, createMemo, createEffect, onMount, onCleanup, Show } from "solid-js";
+import { createSignal, createMemo, onMount, onCleanup, Show } from "solid-js";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "@solidjs/router";
@@ -13,6 +13,7 @@ import StatsGrid from "./components/StatsGrid";
 import ContinueWatching from "./components/ContinueWatching";
 import RecentlyAdded from "./components/RecentlyAdded";
 import GuestBanner from "./components/GuestBanner";
+import { getRecommendation } from "./recommendationEngine";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
@@ -22,7 +23,7 @@ export default function DashboardPage() {
   const [user, setUser] = createSignal<User | null>(null);
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [loading, setLoading] = createSignal(true);
-  const [randomItem, setRandomItem] = createSignal<WatchlistItem | null>(null);
+  const [shuffleTick, setShuffleTick] = createSignal(0);
 
   let unsubSnap: (() => void) | null = null;
 
@@ -49,40 +50,10 @@ export default function DashboardPage() {
     });
   });
 
-  const plannedList = createMemo(() =>
-    watchlist().filter((m) => m.status === "Planned" || m.status === "Plan to Watch")
-  );
-
-  const pickRandom = () => {
-    if (!user()) {
-      showToast("Sign in to shuffle your vault! 🔒");
-      handleLogin();
-      return;
-    }
-    const p = plannedList();
-    if (p.length > 0) {
-      setRandomItem(p[Math.floor(Math.random() * p.length)]);
-    } else {
-      showToast("Planned list is empty! Add some titles first.");
-    }
-  };
-
-  createEffect(() => {
-    const p = plannedList();
-    if (p.length > 0 && !randomItem()) {
-      setRandomItem(p[Math.floor(Math.random() * p.length)]);
-    }
-  });
-
-  const featuredItem = createMemo(() => {
-    if (randomItem()) return randomItem();
-    if (watchlist().length > 0) return watchlist()[0];
-    return null;
-  });
+  const recommendation = createMemo(() => getRecommendation(watchlist(), shuffleTick()));
 
   const openMovie = (id: string) => {
-    const cleanId = id.startsWith("RESUME_") ? id.replace("RESUME_", "") : id;
-    const item = watchlist().find((m) => m.id === cleanId);
+    const item = watchlist().find((m) => m.id === id);
     if (item) setSelectedItem(item);
   };
 
@@ -100,11 +71,13 @@ export default function DashboardPage() {
       <Show when={!loading()} fallback={<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div></div>}>
         
         <HeroSection
-          item={featuredItem()}
+          item={recommendation().item}
+          badge={recommendation().badge}
+          isResume={recommendation().isResume}
+          canShuffle={recommendation().canShuffle}
           isGuest={!user()}
-          isRandomPlanned={plannedList().some((m) => m.id === featuredItem()?.id)}
           onLogin={handleLogin}
-          onShuffle={pickRandom}
+          onShuffle={() => setShuffleTick((t) => t + 1)}
           onOpenMovie={openMovie}
         />
 
