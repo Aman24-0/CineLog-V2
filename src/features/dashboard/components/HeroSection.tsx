@@ -16,12 +16,11 @@ interface HeroSectionProps {
 }
 
 export default function HeroSection(props: HeroSectionProps) {
-  const bgImg = () => {
-    if (!props.item) return "";
-    return props.item.backdrop_path
-      ? `https://image.tmdb.org/t/p/w780${props.item.backdrop_path}`
-      : props.item.poster_path
-        ? `https://image.tmdb.org/t/p/w500${props.item.poster_path}`
+  const bgImg = (item: WatchlistItem) => {
+    return item.backdrop_path
+      ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}`
+      : item.poster_path
+        ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
         : "";
   };
 
@@ -61,10 +60,10 @@ export default function HeroSection(props: HeroSectionProps) {
       }
     >
       {(item) => (
-        <div class="featured-hero" role="region" aria-label={`Featured: ${item().title || item().name}`}>
-          <Show when={bgImg()}>
+        <div class="featured-hero animate-fade-in" role="region" aria-label={`Featured: ${item().title || item().name}`}>
+          <Show when={bgImg(item())}>
             <img
-              src={bgImg()}
+              src={bgImg(item())}
               class="backdrop-img absolute inset-0"
               onLoad={(e) => e.currentTarget.classList.add("img-loaded")}
               alt=""
@@ -98,7 +97,7 @@ export default function HeroSection(props: HeroSectionProps) {
               <Show when={item().media_type === "tv"}>
                 <span class="type-caption bg-white/10 px-2 py-0.5 rounded text-gray-400">Series</span>
               </Show>
-              <Show when={item().runtime}>
+              <Show when={item().runtime && item().runtime > 0}>
                 <span class="type-caption text-gray-400">{formatRuntime(item().runtime)}</span>
               </Show>
               <Show when={item().imdbRating || item().rating}>
