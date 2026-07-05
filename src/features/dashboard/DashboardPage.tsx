@@ -85,13 +85,17 @@ export default function DashboardPage() {
   };
 
   const handleLogin = async () => {
-    try {
-      await login();
-      showToast("Signed in successfully! 🎬", "success");
-    } catch (error) {
-      showToast("Sign in failed. Please try again.", "error");
-    }
-  };
+  try {
+    await login();
+    showToast("Signed in successfully! 🎉", "success");
+  } catch (error: any) {
+    console.error(error);
+    alert(
+      "CODE: " + error.code +
+      "\n\nMESSAGE: " + error.message
+    );
+  }
+};
 
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-8 space-y-8">
