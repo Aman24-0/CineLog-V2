@@ -1,10 +1,11 @@
-import { Component } from "solid-js";
+// src/shared/ui/Icon.tsx
+import { Component, JSX } from "solid-js";
 
 type IconProps = {
   name: string;
   fill?: boolean;
   class?: string;
-  style?: string;
+  style?: string | JSX.CSSProperties;
   "aria-hidden"?: boolean | "true" | "false";
   "aria-label"?: string;
 };
