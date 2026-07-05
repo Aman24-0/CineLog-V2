@@ -1,10 +1,13 @@
 // src/features/details/components/DetailsHeader.tsx
 import { Show } from "solid-js";
+import Icon from "~/shared/ui/Icon";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
 interface DetailsHeaderProps {
   baseItem: WatchlistItem | null;
   details: TMDBDetails | null;
+  isEditing: boolean;
+  onEditToggle: () => void;
 }
 
 export default function DetailsHeader(props: DetailsHeaderProps) {
@@ -69,6 +72,22 @@ export default function DetailsHeader(props: DetailsHeaderProps) {
             <p class="type-caption text-gray-400 mt-2">{genres()}</p>
           </Show>
         </div>
+        
+        <Show when={props.baseItem}>
+          <button
+            onClick={() => props.onEditToggle()}
+            class="w-10 h-10 rounded-full flex items-center justify-center active:scale-95 transition-all mt-1 shrink-0"
+            style={
+              props.isEditing
+                ? "background: var(--p); color: #000; border: 1px solid var(--p); box-shadow: 0 0 16px var(--p-glow)"
+                : "background: rgba(255,255,255,0.07); color: #9ca3af; border: 1px solid rgba(255,255,255,0.10); backdrop-filter: blur(8px);"
+            }
+            aria-label={props.isEditing ? "Exit edit mode" : "Edit this entry"}
+            aria-pressed={props.isEditing}
+          >
+            <Icon name={props.isEditing ? "check" : "edit"} class="text-sm" aria-hidden="true" />
+          </button>
+        </Show>
       </div>
     </div>
   );
