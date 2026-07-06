@@ -1839,3 +1839,229 @@
   }
   .dashboard-hero-backdrop { transform: scale(1) !important; }
 }
+
+/* ============================================================
+   PHASE 2.2 SPRINT 4 — VAULT LIVING SHELVES
+   Adaptive status-grouped browsing with deduplication.
+   ============================================================ */
+
+/* Vault shelf — a status-grouped section with header + rail */
+.vault-shelf {
+  margin-top: var(--sp-6);
+}
+.vault-shelf:first-child {
+  margin-top: 0;
+}
+
+.vault-shelf-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+.vault-shelf-title-cluster {
+  display: flex;
+  flex-direction: column;
+  gap: 0.125rem;
+  min-width: 0;
+}
+.vault-shelf-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+@media (min-width: 640px) {
+  .vault-shelf-title { font-size: 1.5rem; }
+}
+.vault-shelf-title-icon {
+  font-size: 16px;
+  color: var(--p);
+}
+.vault-shelf-count {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.vault-shelf-action {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--p);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  margin: -0.375rem -0.625rem;
+  border-radius: var(--radius-sm);
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.vault-shelf-action:hover { color: var(--text-strong); background: var(--p-dim); }
+.vault-shelf-action:active { transform: scale(0.96); }
+
+/* Vault shelf rail — horizontal scroll with snap */
+.vault-shelf-rail {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  padding-bottom: var(--sp-2);
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+}
+.vault-shelf-rail > * {
+  scroll-snap-align: start;
+  flex-shrink: 0;
+}
+.vault-shelf-rail::-webkit-scrollbar { display: none; }
+.vault-shelf-rail { scrollbar-width: none; -ms-overflow-style: none; }
+
+/* Vault shelf expanded — full grid (when user taps "See All") */
+.vault-shelf-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-3);
+}
+@media (min-width: 640px) {
+  .vault-shelf-grid { grid-template-columns: repeat(4, 1fr); }
+}
+@media (min-width: 1024px) {
+  .vault-shelf-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+/* Quick-filter tabs — inline status pills */
+.quick-filter-bar {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.quick-filter-bar::-webkit-scrollbar { display: none; }
+
+.quick-filter-tab {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.4375rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+}
+.quick-filter-tab:hover {
+  background: var(--tier-2);
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+}
+.quick-filter-tab:active {
+  transform: scale(0.96);
+}
+.quick-filter-tab[data-active="true"] {
+  background: var(--p);
+  border-color: var(--p);
+  color: #05060a;
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.quick-filter-tab-count {
+  font-size: 0.5rem;
+  opacity: 0.7;
+}
+
+/* Vault context bar — result count + active filter context */
+.vault-context-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: 0.5rem 0;
+  margin-bottom: var(--sp-3);
+}
+.vault-context-count {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.vault-context-count strong {
+  color: var(--text-strong);
+  font-weight: 800;
+}
+
+/* Scroll to top button */
+.scroll-to-top {
+  position: fixed;
+  bottom: calc(var(--nav-total-height) + var(--sp-4));
+  right: var(--sp-4);
+  z-index: 30;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--hairline-2);
+  box-shadow: var(--shadow-elevated);
+  color: var(--text-strong);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+  opacity: 0;
+  transform: translateY(8px);
+  pointer-events: none;
+}
+.scroll-to-top[data-visible="true"] {
+  opacity: 1;
+  transform: translateY(0);
+  pointer-events: auto;
+}
+.scroll-to-top:hover {
+  background: var(--tier-3);
+  border-color: var(--hairline-3);
+}
+.scroll-to-top:active {
+  transform: scale(0.92);
+  transition-duration: var(--dur-fast);
+}
+
+/* Vault shelf card variant — slightly larger than compact for shelf display */
+.vault-shelf-card {
+  width: 120px;
+  flex-shrink: 0;
+}
+@media (min-width: 640px) {
+  .vault-shelf-card { width: 140px; }
+}
