@@ -8,6 +8,22 @@ export interface WatchProgress {
   episode?: number;
 }
 
+/**
+ * CachedSeasonInfo — per-season episode count, cached on the WatchlistItem
+ * when the user opens the Details page or updates their episode tracker.
+ *
+ * This cache lets the shared progress engine compute SERIES-WIDE progress
+ * (sum across all seasons) WITHOUT requiring every dashboard card to fetch
+ * TMDB details. The Details modal writes this cache via `updateSeasons()`
+ * whenever `props.details.seasons` is available.
+ *
+ * Only `season_number > 0` entries are stored (specials / season 0 excluded).
+ */
+export interface CachedSeasonInfo {
+  number: number;   // season_number (1-indexed, excludes 0 = specials)
+  count: number;    // episode_count for this season
+}
+
 export interface WatchlistItem {
   id: string;
   title?: string;
@@ -24,7 +40,17 @@ export interface WatchlistItem {
   region?: string;
   season?: number;
   episode?: number;
-  totalEps?: number;
+  totalEps?: number;           // legacy: per-season or per-series episode count (ambiguous — prefer `seasons`)
+  /**
+   * Cached season structure for TV series. Written by the Details modal
+   * whenever TMDB details are fetched. Consumed by the shared progress
+   * engine to compute series-wide completion percentage.
+   *
+   * Migration: items added before this field existed will not have it.
+   * The progress engine falls back to `totalEps` (treated as season 1
+   * count) when `seasons` is missing — see `getEpisodeProgress()`.
+   */
+  seasons?: CachedSeasonInfo[];
   runtime?: number;
   genresList?: string[];
   platformsList?: string[];

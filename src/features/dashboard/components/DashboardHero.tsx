@@ -2,7 +2,7 @@
 import { Show, createSignal, createMemo } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
-import { isWatchable } from "~/shared/utils/progress";
+import { isWatchable, getEpisodeProgress } from "~/shared/utils/progress";
 import { Button } from "~/shared/ui/primitives";
 import type { WatchlistItem } from "~/shared/types";
 import type { RecommendationResult } from "../recommendationEngine";
@@ -66,20 +66,25 @@ export default function DashboardHero(props: DashboardHeroProps) {
   const runtime = () =>
     (item()?.runtime ?? 0) > 0 ? formatRuntime(item()!.runtime) : null;
 
-  // Progress for Continue Watching context — uses episode/season only (no currentTime)
+  // Progress for Continue Watching context — uses the SHARED progress engine.
+  // Same `getEpisodeProgress()` call that the Details page, ContinueRail,
+  // Vault, and Stats use. NO duplicate formula here. The percentage is
+  // SERIES-WIDE (sum across all seasons).
+  //
+  // The hero doesn't have TMDB details, but the engine falls back to the
+  // `seasons` cache on the WatchlistItem (populated when the user opens
+  // the Details page). For items without a cache, it falls back further
+  // to `m.totalEps` as season 1's count.
   const progress = createMemo(() => {
     const m = item();
     if (!m || !isWatchable(m)) return null;
-    if (m.media_type !== "tv") return null; // Movies don't have episode progress
-
-    const season = m.season || 1;
-    const episode = m.episode || 1;
-    const totalEps = m.totalEps || 0;
-    const pct = totalEps > 0 ? Math.min(100, Math.max(0, (episode / totalEps) * 100)) : 0;
-
+    // Movies don't have episode-based progress.
+    const ep = getEpisodeProgress(m);
+    if (!ep) return null;
     return {
-      pct: Math.round(pct),
-      episodeInfo: `S${season} E${episode}${totalEps > 0 ? ` / ${totalEps}` : ""}`
+      pct: ep.pct,
+      episodeInfo: ep.label,
+      seriesLabel: ep.seriesLabel
     };
   });
 

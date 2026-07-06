@@ -1,5 +1,6 @@
 // src/features/details/components/EpisodeTracker.tsx
 import { createSignal, createMemo, createEffect, Show } from "solid-js";
+import { getEpisodeProgress, resolveSeasons } from "~/shared/utils/progress";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
 interface EpisodeTrackerProps {
@@ -12,8 +13,14 @@ interface EpisodeTrackerProps {
 /**
  * Episode Tracker — V2 cinematic styling.
  *
- * Logic unchanged from V1 (per spec: preserve tracker logic).
- * Visual treatment updated to match the new cinematic Details page:
+ * PROGRESS:
+ *   Uses the shared progress engine (`getEpisodeProgress`) — the single
+ *   source of truth. The percentage shown here is SERIES-WIDE (sum of
+ *   completed episodes across all seasons ÷ total episodes across all
+ *   seasons). This is the SAME value rendered on the Dashboard Hero,
+ *   Continue Watching rail, Vault, and Stats — no duplicate formulas.
+ *
+ * Visual treatment:
  *  - Glass surface with refined border
  *  - Larger touch targets (44px minimum)
  *  - Premium progress bar with gradient + shimmer
@@ -28,30 +35,36 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
     setEpisode(props.item.episode || 1);
   });
 
+  // Pull the normalized season list through the SAME resolver the engine uses.
+  // This guarantees the +/- buttons agree with the progress bar.
+  const seasonList = createMemo(() => resolveSeasons(props.item, props.details));
+
   const totalEps = createMemo(() => {
-    const seasonData = props.details?.seasons?.find(
-      (s) => s.season_number === season()
-    );
-    return seasonData?.episode_count || props.item.totalEps || 0;
+    const current = seasonList().find((s) => s.number === season());
+    return current?.count || props.item.totalEps || 0;
   });
 
   const finalSeason = createMemo(() => {
-    const seasons = props.details?.seasons?.filter((s) => s.season_number > 0);
-    if (!seasons || seasons.length === 0) return 1;
-    return Math.max(...seasons.map((s) => s.season_number));
+    const list = seasonList();
+    if (list.length === 0) return 1;
+    return list[list.length - 1].number;
   });
 
+  // SINGLE SOURCE OF TRUTH — same function used everywhere else in the app.
+  // We project the user's in-progress season/episode onto the item so the
+  // preview matches what will be persisted on save.
   const progress = createMemo(() => {
-    const total = totalEps() > 0 ? totalEps() : 1;
-    return Math.min(100, Math.max(0, (episode() / total) * 100));
+    const previewItem: WatchlistItem = {
+      ...props.item,
+      season: season(),
+      episode: episode()
+    };
+    return getEpisodeProgress(previewItem, props.details);
   });
 
   const isCompletedEligible = createMemo(() => {
-    return (
-      totalEps() > 0 &&
-      episode() === totalEps() &&
-      season() === finalSeason()
-    );
+    const p = progress();
+    return !!p && p.isAtEnd;
   });
 
   const incrementEpisode = () => {
@@ -86,7 +99,7 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
 
   return (
     <div class="v2-info-group animate-fade-up">
-      {/* Header row */}
+      {/* Header row — current position + series-wide % */}
       <div class="flex justify-between items-center">
         <span class="type-micro" style={{ color: "var(--text-muted)" }}>
           Current Progress
@@ -111,7 +124,8 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
           </button>
           <button
             onClick={incrementSeason}
-            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 transition-all"
+            disabled={season() >= finalSeason()}
+            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Season plus"
           >
@@ -137,7 +151,8 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
           </button>
           <button
             onClick={incrementEpisode}
-            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 transition-all"
+            disabled={totalEps() > 0 && episode() >= totalEps()}
+            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Episode plus"
           >
@@ -146,19 +161,38 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
         </div>
       </div>
 
-      {/* Progress Bar */}
+      {/* Progress Bar — SERIES-WIDE percentage from the shared engine */}
       <div>
         <div class="flex justify-between items-center mb-2">
-          <span class="type-micro" style={{ color: "var(--text-muted)" }}>Progress</span>
+          <span class="type-micro" style={{ color: "var(--text-muted)" }}>
+            Series Progress
+          </span>
           <span class="type-micro" style={{ color: "var(--p)", "font-weight": 800 }}>
-            {Math.round(progress())}%
+            {progress()?.pct ?? 0}%
           </span>
         </div>
-        <div class="progress-premium">
+        <div
+          class="progress-premium"
+          role="progressbar"
+          aria-valuenow={progress()?.pct ?? 0}
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-label={`${progress()?.pct ?? 0}% of series complete`}
+        >
           <div
             class="progress-premium-fill"
-            style={{ width: `${progress()}%` }}
+            style={{ width: `${progress()?.pct ?? 0}%` }}
           />
+        </div>
+        <div class="flex justify-between items-center mt-2">
+          <span class="type-micro" style={{ color: "var(--text-muted)" }}>
+            {progress()?.label}
+          </span>
+          <Show when={progress()?.seriesLabel && progress()!.seriesLabel !== "—"}>
+            <span class="type-micro" style={{ color: "var(--text-dim)" }}>
+              {progress()!.seriesLabel}
+            </span>
+          </Show>
         </div>
       </div>
 

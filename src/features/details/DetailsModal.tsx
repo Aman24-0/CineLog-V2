@@ -11,8 +11,10 @@ import {
   updateNotes as svcUpdateNotes,
   updateWatchDate as svcUpdateWatchDate,
   updateSeasonEpisode as svcUpdateSeasonEpisode,
-  updateWatchProgress as svcUpdateWatchProgress
+  updateWatchProgress as svcUpdateWatchProgress,
+  updateSeasons as svcUpdateSeasons
 } from "~/features/watchlist/watchlistService";
+import type { CachedSeasonInfo } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
 import { useDetails } from "./useDetails";
 import CinematicHero from "./components/CinematicHero";
@@ -114,6 +116,46 @@ export default function DetailsModal() {
 
   const hasTrailer = createMemo(() => pickTrailer(tmdb()) !== null);
 
+  /**
+   * Cache `details.seasons` onto the watchlist item in Firestore so the
+   * shared progress engine can compute SERIES-WIDE progress on the
+   * Dashboard / Continue Watching / Vault without needing to refetch
+   * TMDB details. We only write when the cache is missing or stale, and
+   * only for TV titles. Specials (season_number === 0) are excluded.
+   *
+   * This is a ONE-WAY migration: once cached, the engine prefers the
+   * cached value over re-fetching. We do NOT overwrite if the user has
+   * a newer cache (e.g. a new season was announced) unless counts differ.
+   */
+  createEffect(() => {
+    const item = selectedItem();
+    const details = tmdb();
+    const uid = auth.currentUser?.uid;
+    if (!item || !details || !uid) return;
+    if (item.media_type !== "tv") return;
+    if (!details.seasons || details.seasons.length === 0) return;
+
+    const fresh: CachedSeasonInfo[] = details.seasons
+      .filter((s) => s.season_number > 0 && s.episode_count > 0)
+      .map((s) => ({ number: s.season_number, count: s.episode_count }))
+      .sort((a, b) => a.number - b.number);
+    if (fresh.length === 0) return;
+
+    const cached = item.seasons;
+    const isStale =
+      !cached ||
+      cached.length !== fresh.length ||
+      cached.some(
+        (c, i) => c.number !== fresh[i].number || c.count !== fresh[i].count
+      );
+    if (!isStale) return;
+
+    // Fire-and-forget — non-blocking; failure is non-fatal (engine falls back).
+    svcUpdateSeasons(uid, item.id, fresh).catch((err: unknown) =>
+      console.warn("Failed to cache seasons on item:", err)
+    );
+  });
+
   const handleSave = async () => {
     const uid = auth.currentUser?.uid;
     const item = selectedItem();
@@ -210,9 +252,44 @@ export default function DetailsModal() {
         episode: newEpisode
       });
 
+      // If the cached seasons are missing OR don't include the season the
+      // user just navigated to, opportunistically refresh the cache from
+      // the freshly-fetched TMDB details. This keeps the progress engine
+      // accurate even when the user jumps to a season that wasn't cached.
+      const details = tmdb();
+      if (details?.seasons && item.media_type === "tv") {
+        const fresh: CachedSeasonInfo[] = details.seasons
+          .filter((s) => s.season_number > 0 && s.episode_count > 0)
+          .map((s) => ({ number: s.season_number, count: s.episode_count }))
+          .sort((a, b) => a.number - b.number);
+        const cached = item.seasons || [];
+        const needsRefresh =
+          fresh.length > 0 &&
+          (cached.length !== fresh.length ||
+            cached.some(
+              (c, i) =>
+                i >= fresh.length ||
+                c.number !== fresh[i].number ||
+                c.count !== fresh[i].count
+            ));
+        if (needsRefresh) {
+          // Non-blocking; the engine falls back to `details` for this session.
+          svcUpdateSeasons(uid, item.id, fresh).catch(() => {});
+        }
+      }
+
       if (item.status === "Planned" || item.status === "Plan to Watch") {
         await svcUpdateStatus(uid, item.id, "Watching");
-        setSelectedItem({ ...item, status: "Watching", season: newSeason, episode: newEpisode });
+        setSelectedItem({
+          ...item,
+          status: "Watching",
+          season: newSeason,
+          episode: newEpisode,
+          seasons: item.seasons || (tmdb()?.seasons
+            ?.filter((s) => s.season_number > 0 && s.episode_count > 0)
+            .map((s) => ({ number: s.season_number, count: s.episode_count }))
+            .sort((a, b) => a.number - b.number) as CachedSeasonInfo[] | undefined)
+        });
       } else {
         setSelectedItem({ ...item, season: newSeason, episode: newEpisode });
       }

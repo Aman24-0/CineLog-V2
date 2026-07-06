@@ -46,20 +46,15 @@ export default function VaultHeader(props: VaultHeaderProps) {
           </button>
         </div>
 
-        {/* Filter button */}
+        {/* Filter button — turns into the active accent color when
+            filters are applied, so the user has a clear "active filter
+            indicator" without opening the drawer. */}
         <button
           onClick={() => props.onFilterClick()}
-          class="flex items-center gap-2 px-4 py-2 rounded-full type-meta border active:scale-95 transition-all"
-          style={{
-            background: "var(--tier-1)",
-            "border-color": "var(--hairline-2)",
-            color: "var(--text-soft)",
-            "font-size": "0.625rem",
-            "font-weight": 700,
-            "letter-spacing": "0.12em",
-            "text-transform": "uppercase"
-          }}
+          class="filter-button"
+          data-active={props.activeFilterCount() > 0}
           aria-label={`Filter vault${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
+          aria-pressed={props.activeFilterCount() > 0}
         >
           <Icon name="tune" style="font-size: 14px" aria-hidden="true" />
           <span class="hidden sm:inline">Filter</span>

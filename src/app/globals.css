@@ -52,12 +52,15 @@
 
     /* Active-state tokens — shared across ALL components for consistent contrast.
        --active-bg: the accent color used for active/selected backgrounds
-       --active-text: the text color on top of --active-bg (always dark for contrast)
+       --active-text: the text color on top of --active-bg (PER THEME — see below)
        --active-border: the border color for active/selected states
        --active-glow: the box-shadow glow for active states
-       These ensure that active controls are ALWAYS readable, regardless of theme. */
+
+       These ensure that active controls are ALWAYS readable, regardless of theme.
+       Each theme overrides --active-text below to be either dark or white
+       depending on the luminance of its --p. */
     --active-bg: var(--p);
-    --active-text: #05060a;
+    --active-text: #05060a;   /* default for light accents — overridden per theme */
     --active-border: var(--p);
     --active-glow: 0 0 12px var(--p-glow);
 
@@ -67,16 +70,31 @@
     --nav-safe-area: env(safe-area-inset-bottom, 0px);
     --nav-total-height: calc(var(--nav-height) + var(--nav-safe-area));
   }
+}
 
-  body.theme-pearl      { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15); --p-dim: rgba(255,255,255,0.06); }
-  body.theme-sage       { --p: #a8ff78; --p2: #ff78c4; --p-glow: rgba(168,255,120,0.22); --p-dim: rgba(168,255,120,0.08); }
-  body.theme-matrix     { --p: #39ff14; --p2: #00f5a0; --p-glow: rgba(57,255,20,0.22);  --p-dim: rgba(57,255,20,0.08); }
-  body.theme-netflix    { --p: #ff2d55; --p2: #ff9500; --p-glow: rgba(255,45,85,0.22);  --p-dim: rgba(255,45,85,0.08); }
-  body.theme-interstellar { --p: #00c2ff; --p2: #f9a620; --p-glow: rgba(0,194,255,0.22); --p-dim: rgba(0,194,255,0.08); }
-  body.theme-neonhorizon { --p: #ff2af0; --p2: #00ffe7; --p-glow: rgba(255,42,240,0.22); --p-dim: rgba(255,42,240,0.08); }
-  body.theme-vibranium  { --p: #9d4edd; --p2: #06ffd4; --p-glow: rgba(157,78,221,0.22); --p-dim: rgba(157,78,221,0.08); }
-  body.theme-cinematic  { --p: #FFD700; --p2: #FF6B00; --p-glow: rgba(255,215,0,0.40); --p-dim: rgba(255,215,0,0.10); --void: #000; --deep: #000; --surface: #111111; --raised: #171722; --border: rgba(255,215,0,0.1); }
+/* Theme overrides — declared OUTSIDE @layer base so Tailwind/Vite's CSS
+   optimizer does NOT tree-shake them. Previously these lived inside
+   `@layer base`, where they were silently stripped from the production
+   build, leaving --p (and therefore --active-bg) empty for every theme.
+   That was the actual root cause of "active state visibility is still
+   broken": the CSS rules referenced var(--active-bg) which resolved to
+   empty string, so every active control rendered with a transparent
+   background. Moving them here guarantees they ship in the final CSS. */
 
+/* Per-theme active-text: white on darker accents, dark on lighter accents.
+   This is the actual fix for "active state visibility" — previously
+   --active-text was hardcoded dark, which made selected controls unreadable
+   on Netflix red, Vibranium purple, and Neon Horizon pink. */
+.theme-pearl        { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15);  --p-dim: rgba(255,255,255,0.06);  --active-text: #05060a; }
+.theme-sage         { --p: #a8ff78; --p2: #ff78c4; --p-glow: rgba(168,255,120,0.22); --p-dim: rgba(168,255,120,0.08); --active-text: #05060a; }
+.theme-matrix       { --p: #39ff14; --p2: #00f5a0; --p-glow: rgba(57,255,20,0.22);   --p-dim: rgba(57,255,20,0.08);   --active-text: #05060a; }
+.theme-netflix      { --p: #ff2d55; --p2: #ff9500; --p-glow: rgba(255,45,85,0.22);   --p-dim: rgba(255,45,85,0.08);   --active-text: #ffffff; }
+.theme-interstellar { --p: #00c2ff; --p2: #f9a620; --p-glow: rgba(0,194,255,0.22);   --p-dim: rgba(0,194,255,0.08);   --active-text: #05060a; }
+.theme-neonhorizon  { --p: #ff2af0; --p2: #00ffe7; --p-glow: rgba(255,42,240,0.22);  --p-dim: rgba(255,42,240,0.08);  --active-text: #ffffff; }
+.theme-vibranium    { --p: #9d4edd; --p2: #06ffd4; --p-glow: rgba(157,78,221,0.22);  --p-dim: rgba(157,78,221,0.08);  --active-text: #ffffff; }
+.theme-cinematic    { --p: #FFD700; --p2: #FF6B00; --p-glow: rgba(255,215,0,0.40);   --p-dim: rgba(255,215,0,0.10);   --active-text: #05060a; --void: #000; --deep: #000; --surface: #111111; --raised: #171722; --border: rgba(255,215,0,0.1); }
+
+@layer base {
   body {
     background-color: var(--void);
     color: var(--text);
@@ -503,7 +521,7 @@
   font-family: 'Outfit', sans-serif;
   font-size: 0.625rem; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase;
-  box-shadow: 0 0 16px var(--p-glow), 0 4px 12px rgba(0,0,0,0.4);
+  box-shadow: var(--active-glow), 0 4px 12px rgba(0,0,0,0.4), inset 0 0 0 1px var(--active-border);
   position: sticky;
   top: 120px;
   z-index: 30;
@@ -610,27 +628,33 @@
 }
 .filter-input-premium::placeholder { color: var(--text-dim); }
 
-/* Premium filter chip (active filter indicators) */
+/* Premium filter chip (active filter indicators).
+   Each chip represents an ACTIVE filter — they only render when a filter
+   is applied. So they should look "active" by default: filled with the
+   accent color, high-contrast text, and a glow. Previously these used
+   --text-soft on --tier-3 which was nearly invisible. */
 .filter-chip {
   display: inline-flex; align-items: center; gap: 0.375rem;
-  padding: 0.375rem 0.75rem;
+  padding: 0.4375rem 0.75rem;
   border-radius: var(--radius-pill);
-  background: var(--tier-3);
-  border: 1px solid var(--hairline-2);
+  background: var(--active-bg);
+  border: 1px solid var(--active-border);
   font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem; font-weight: 700;
+  font-size: 0.5625rem; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase;
-  color: var(--text-soft);
+  color: var(--active-text);
   cursor: pointer;
+  box-shadow: var(--active-glow);
   transition: background var(--dur-fast) var(--ease-out),
               border-color var(--dur-fast) var(--ease-out),
               color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+              transform var(--dur-fast) var(--ease-spring),
+              box-shadow var(--dur-fast) var(--ease-out);
 }
 .filter-chip:hover {
-  background: color-mix(in srgb, var(--p) 12%, var(--tier-3));
-  border-color: color-mix(in srgb, var(--p) 40%, transparent);
-  color: var(--text-strong);
+  /* Keep the active fill on hover — just intensify the glow + slight lift */
+  box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.4);
+  transform: translateY(-1px);
 }
 .filter-chip:active { transform: scale(0.95); }
 
@@ -673,7 +697,8 @@
 .view-toggle-btn[data-active="true"] {
   background: var(--active-bg);
   color: var(--active-text);
-  box-shadow: var(--active-glow);
+  box-shadow: var(--active-glow), inset 0 0 0 1px var(--active-border);
+  font-weight: 800;
 }
 .view-toggle-btn[data-active="false"] {
   background: transparent;
@@ -682,6 +707,45 @@
 .view-toggle-btn[data-active="false"]:hover {
   color: var(--text-strong);
   background: rgba(255,255,255,0.04);
+}
+
+/* Premium filter button (in the Vault header). When filters are ACTIVE,
+   the button itself becomes filled with the accent color — this is the
+   "active filter indicator" the user sees before opening the drawer. */
+.filter-button {
+  display: inline-flex; align-items: center; gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.filter-button:hover {
+  background: var(--tier-2);
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+}
+.filter-button:active { transform: scale(0.95); }
+.filter-button[data-active="true"] {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
+  box-shadow: var(--active-glow);
+  font-weight: 800;
+}
+.filter-button[data-active="true"]:hover {
+  background: var(--active-bg);
+  color: var(--active-text);
+  box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.4);
 }
 
 /* Premium filter count badge */
@@ -1147,6 +1211,8 @@
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
+  box-shadow: var(--active-glow), inset 0 0 0 1px var(--active-border);
+  font-weight: 800;
 }
 .action-dock-btn-primary {
   background: var(--active-bg);
@@ -2000,7 +2066,11 @@
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
-  box-shadow: var(--active-glow);
+  box-shadow: var(--active-glow), inset 0 0 0 1px var(--active-border);
+  font-weight: 800;
+}
+.quick-filter-tab[data-active="true"] .quick-filter-tab-count {
+  opacity: 0.85;
 }
 .quick-filter-tab-count {
   font-size: 0.5rem;

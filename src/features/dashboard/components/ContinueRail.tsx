@@ -2,7 +2,7 @@
 import { For, Show, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { EmptyState } from "~/shared/ui/primitives";
-import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
+import { getContinueWatchingList, getEpisodeProgress } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface ContinueRailProps {
@@ -13,28 +13,19 @@ interface ContinueRailProps {
 /**
  * ContinueRail — rich Continue Watching rail with progress.
  *
- * Uses the shared progress engine (isWatchable gate + getContinueWatchingList).
+ * Uses the shared progress engine (getEpisodeProgress + getContinueWatchingList).
  * Only status === "Watching" titles appear — no legacy V1 progress data.
  *
- * Progress is calculated from season/episode only (no currentTime).
+ * The percentage is SERIES-WIDE (sum of completed episodes across all
+ * seasons ÷ total episodes across all seasons). This is the SAME value
+ * shown on the Dashboard Hero, Details page, Vault, and Stats — there is
+ * no other formula anywhere in the codebase.
  */
 const ContinueRail: Component<ContinueRailProps> = (props) => {
   const continueList = createMemo(() => getContinueWatchingList(props.watchlist));
 
-  const getProgress = (m: WatchlistItem) => {
-    if (!isWatchable(m)) return null;
-    if (m.media_type !== "tv") return null;
-
-    const season = m.season || 1;
-    const episode = m.episode || 1;
-    const totalEps = m.totalEps || 0;
-    const pct = totalEps > 0 ? Math.min(100, Math.max(0, (episode / totalEps) * 100)) : 0;
-
-    return {
-      pct: Math.round(pct),
-      episodeInfo: `S${season} E${episode}${totalEps > 0 ? ` / ${totalEps}` : ""}`
-    };
-  };
+  // Single source of truth — no local formula.
+  const getProgress = (m: WatchlistItem) => getEpisodeProgress(m);
 
   const bgImg = (m: WatchlistItem) => {
     const path = m.backdrop_path || m.poster_path;
@@ -71,7 +62,7 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                   }
                 }}
                 tabindex={0}
-                aria-label={`Resume ${m.title || m.name}${progress ? ` — ${progress.episodeInfo}, ${progress.pct}%` : ""}`}
+                aria-label={`Resume ${m.title || m.name}${progress ? ` — ${progress.label}, ${progress.pct}%` : ""}`}
                 style={{ "scroll-snap-align": "start" }}
               >
                 {/* Backdrop image */}
@@ -136,7 +127,7 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                         aria-valuenow={progress!.pct}
                         aria-valuemin={0}
                         aria-valuemax={100}
-                        aria-label={`${progress!.pct}% through season`}
+                        aria-label={`${progress!.pct}% of series complete`}
                       >
                         <div
                           class="continue-rail-card-progress-fill"
@@ -152,7 +143,7 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                   {/* Meta */}
                   <span class="continue-rail-card-meta">
                     <Show when={progress}>
-                      {progress!.episodeInfo}
+                      {progress!.label}
                     </Show>
                     <Show when={!progress}>
                       {m.media_type === "tv" ? "Series" : "Movie"}

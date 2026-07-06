@@ -1,7 +1,7 @@
 // src/features/watchlist/watchlistService.ts
 import { doc, updateDoc, deleteDoc, collection, addDoc } from "firebase/firestore";
 import { db } from "~/core/firebase";
-import type { WatchProgress, VaultFilters } from "~/shared/types";
+import type { WatchProgress, VaultFilters, CachedSeasonInfo } from "~/shared/types";
 
 const watchlistDoc = (uid: string, itemId: string) =>
   doc(db, "users", uid, "watchlist", String(itemId));
@@ -28,6 +28,23 @@ export const updateSeasonEpisode = (
     season,
     episode
   });
+
+/**
+ * updateSeasons — persist the cached season structure for a TV series.
+ *
+ * This cache is consumed by the shared progress engine to compute
+ * SERIES-WIDE progress without needing to re-fetch TMDB details on
+ * every dashboard render. The Details modal writes it whenever
+ * `props.details.seasons` is available.
+ *
+ * Only `season_number > 0` entries are stored (specials excluded).
+ */
+export const updateSeasons = (
+  uid: string,
+  itemId: string,
+  seasons: CachedSeasonInfo[]
+) =>
+  updateDoc(watchlistDoc(uid, itemId), { seasons });
 
 export const updateWatchProgress = (
   uid: string,

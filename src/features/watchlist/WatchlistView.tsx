@@ -505,10 +505,17 @@ export default function WatchlistView() {
         </Show>
       </Show>
 
-      {/* Filter drawer */}
+      {/* Filter drawer — rendered via Portal at body level so the fixed
+          bottom nav can never cover the Apply / Clear buttons. */}
       <Show when={showFilter()}>
         <Suspense fallback={
-          <div class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(8px)">
+          <div class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
+            style={{
+              background: "rgba(0,0,0,0.75)",
+              "backdrop-filter": "blur(8px)",
+              "padding-bottom": "var(--nav-total-height)"
+            }}
+          >
             <div class="w-full max-w-sm p-10 flex justify-center">
               <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div>
             </div>
