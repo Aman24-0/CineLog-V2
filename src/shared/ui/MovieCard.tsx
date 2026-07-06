@@ -1,11 +1,13 @@
 // src/shared/ui/MovieCard.tsx
 import { createSignal, Show, Component } from "solid-js";
 import Icon from "./Icon";
+import HighlightText from "./HighlightText";
 import { formatRuntime } from "~/shared/utils/format";
 import type { WatchlistItem } from "~/shared/types";
 
 interface MovieCardProps {
   movie: WatchlistItem;
+  search?: string;
   onClick: () => void;
 }
 
@@ -120,7 +122,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
         <div class="absolute bottom-0 left-0 w-full p-2" style="z-index: 3">
           <p class="type-card-title mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap">
-            {title()}
+            <HighlightText text={title()} search={props.search} />
           </p>
 
           <p class="type-subtitle mb-1.5" aria-hidden="true">
