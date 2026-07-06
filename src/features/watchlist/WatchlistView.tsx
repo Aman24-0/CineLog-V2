@@ -71,12 +71,16 @@ export default function WatchlistView() {
   const filtered = createMemo(() => {
     let f = watchlist();
     if (search()) {
-      const s = search().toLowerCase();
-      f = f.filter(
-        (m) =>
-          (m.title || m.name || "").toLowerCase().includes(s) ||
-          (m.castList && m.castList.some((c) => c.toLowerCase().includes(s)))
-      );
+      const s = search().toLowerCase().trim();
+      f = f.filter((m) => {
+        const fields = [
+          m.title, m.name, m.tag, m.notes,
+          ...(m.castList || []),
+          ...(m.genresList || []),
+          ...(m.platformsList || [])
+        ].join(" ").toLowerCase();
+        return fields.includes(s);
+      });
     }
     if (filters().type !== "all") f = f.filter((m) => m.media_type === filters().type);
     if (filters().status !== "all")
@@ -105,18 +109,19 @@ export default function WatchlistView() {
 
     return f.sort((a, b) => {
       if (filters().sort === "watch_desc" || filters().sort === "watch_asc") {
-        const dA = resolveTimelineDate(a),
-          dB = resolveTimelineDate(b);
-        const hasA = dA !== null,
-          hasB = dB !== null;
+        const dA = resolveTimelineDate(a), dB = resolveTimelineDate(b);
+        const hasA = dA !== null, hasB = dB !== null;
         if (hasA && !hasB) return -1;
         if (!hasA && hasB) return 1;
         if (!hasA && !hasB) return 0;
         return filters().sort === "watch_desc" ? (dB.getTime() - dA.getTime()) : (dA.getTime() - dB.getTime());
       }
-      if (filters().sort === "year_desc")
-        return (parseInt((b.release_date || b.first_air_date || "").substring(0, 4)) || 0) - (parseInt((a.release_date || a.first_air_date || "").substring(0, 4)) || 0);
+      if (filters().sort === "year_desc") return (parseInt((b.release_date || b.first_air_date || "").substring(0, 4)) || 0) - (parseInt((a.release_date || a.first_air_date || "").substring(0, 4)) || 0);
       if (filters().sort === "rating_desc") return (b.rating || 0) - (a.rating || 0);
+      if (filters().sort === "imdb_desc") return (parseFloat(b.imdbRating || "0") || 0) - (parseFloat(a.imdbRating || "0") || 0);
+      if (filters().sort === "imdb_asc") return (parseFloat(a.imdbRating || "0") || 0) - (parseFloat(b.imdbRating || "0") || 0);
+      if (filters().sort === "runtime_asc") return (a.runtime || 0) - (b.runtime || 0);
+      if (filters().sort === "updated") return (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime());
       if (filters().sort === "title_asc") return (a.title || a.name || "").localeCompare(b.title || b.name || "");
       return (b.addedAt instanceof Date ? b.addedAt.getTime() : 0) - (a.addedAt instanceof Date ? a.addedAt.getTime() : 0);
     });
@@ -129,6 +134,33 @@ export default function WatchlistView() {
         return value !== "all" && value !== "";
       }).length
   );
+
+  const chips = createMemo(() => {
+    const f = filters();
+    const chips = [];
+    if (f.type !== "all") chips.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
+    if (f.status !== "all") chips.push({ label: f.status, key: "status" });
+    if (f.region !== "all") chips.push({ label: f.region, key: "region" });
+    if (f.genre !== "all") chips.push({ label: f.genre, key: "genre" });
+    if (f.platform !== "all") chips.push({ label: f.platform, key: "platform" });
+    if (f.tag !== "all") chips.push({ label: f.tag, key: "tag" });
+    if (f.imdbMin) chips.push({ label: `IMDb > ${f.imdbMin}`, key: "imdbMin" });
+    if (f.imdbMax) chips.push({ label: `IMDb < ${f.imdbMax}`, key: "imdbMax" });
+    if (f.rtMin) chips.push({ label: `RT > ${f.rtMin}`, key: "rtMin" });
+    if (f.rtMax) chips.push({ label: `RT < ${f.rtMax}`, key: "rtMax" });
+    if (f.yearMin) chips.push({ label: `Year > ${f.yearMin}`, key: "yearMin" });
+    if (f.yearMax) chips.push({ label: `Year < ${f.yearMax}`, key: "yearMax" });
+    if (f.runtimeMin) chips.push({ label: `RT > ${f.runtimeMin}m`, key: "runtimeMin" });
+    if (f.runtimeMax) chips.push({ label: `RT < ${f.runtimeMax}m`, key: "runtimeMax" });
+    return chips;
+  });
+
+  const clearFilter = (key: string) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: key.startsWith("imdb") || key.startsWith("rt") || key.startsWith("year") || key.startsWith("runtime") ? "" : "all"
+    }));
+  };
 
   const timelineItems = createMemo(() => filtered().filter((m) => m.status === "Completed" && resolveTimelineDate(m) !== null));
 
@@ -189,6 +221,22 @@ export default function WatchlistView() {
           hasActiveFilters={() => activeFilterCount() > 0}
           onClearAll={clearFilters}
         />
+        
+        <Show when={chips().length > 0}>
+          <div class="flex gap-2 flex-wrap mt-4">
+            <For each={chips()}>
+              {(chip) => (
+                <button
+                  onClick={() => clearFilter(chip.key)}
+                  class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-[#1a1a1a] border border-white/10 text-gray-300 hover:bg-white/5 active:scale-95 transition-all"
+                >
+                  {chip.label}
+                  <Icon name="close" class="text-sm" />
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
 
       <div class="sr-only" aria-live="polite" aria-atomic="true">
@@ -216,6 +264,7 @@ export default function WatchlistView() {
             <VaultGrid
               items={filtered().slice(0, displayLimit())}
               isGuest={isGuest()}
+              search={search()}
               onOpenMovie={openMovie}
               onLogin={handleLogin}
               onClearFilters={clearFilters}
@@ -285,7 +334,6 @@ export default function WatchlistView() {
           uniquePlatforms={uniquePlatforms()}
           uniqueTags={uniqueTags()}
           onClose={() => setShowFilter(false)}
-          onFilterChange={() => {}}
           onClear={() => {
             clearFilters();
             setDisplayLimit(20);
