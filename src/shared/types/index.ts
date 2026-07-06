@@ -32,8 +32,10 @@ export interface WatchlistItem {
   franchises?: Record<string, number>;
   watchProgress?: WatchProgress;
   addedAt?: { seconds: number; nanoseconds: number } | string | Date;
+  updatedAt?: string;
   imdbRating?: string;
   rtRating?: string;
+  tmdbRating?: string;
   release_date?: string;
   first_air_date?: string;
   newSeasonAvailable?: boolean;
@@ -65,8 +67,22 @@ export interface VaultFilters {
   runtimeMax: string;
 }
 
+export interface FilterPreset {
+  id: string;
+  name: string;
+  filters: VaultFilters;
+  createdAt?: any;
+}
+
 export interface TMDBGenre {
   id: number;
+  name: string;
+}
+
+export interface TMDBSeason {
+  id: number;
+  season_number: number;
+  episode_count: number;
   name: string;
 }
 
@@ -83,6 +99,7 @@ export interface TMDBDetails {
   vote_average?: number;
   overview?: string;
   genres?: TMDBGenre[];
+  seasons?: TMDBSeason[];
   media_type?: "movie" | "tv";
 }
 
