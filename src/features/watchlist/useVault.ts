@@ -1,5 +1,5 @@
 // src/features/watchlist/useVault.ts
-import { createSignal, onMount, onCleanup } from "solid-js";
+import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
 import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { auth, db } from "~/core/firebase";
@@ -11,19 +11,24 @@ import {
   updateWatchDate as svcUpdateWatchDate,
   updateSeasonEpisode as svcUpdateSeasonEpisode,
   updateWatchProgress as svcUpdateWatchProgress,
-  deleteWatchlistItem as svcDeleteWatchlistItem
+  deleteWatchlistItem as svcDeleteWatchlistItem,
+  savePreset as svcSavePreset,
+  deletePreset as svcDeletePreset,
+  renamePreset as svcRenamePreset
 } from "./watchlistService";
-import type { WatchlistItem, WatchProgress } from "~/shared/types";
+import type { WatchlistItem, WatchProgress, FilterPreset, VaultFilters } from "~/shared/types";
 
-export function useVault() {
+const useVaultLogic = () => {
   const { showToast } = useToast();
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
+  const [presets, setPresets] = createSignal<FilterPreset[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [isGuest, setIsGuest] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [uid, setUid] = createSignal<string | null>(null);
 
   let unsubSnap: (() => void) | null = null;
+  let unsubPresets: (() => void) | null = null;
   let unsubAuth: (() => void) | null = null;
 
   onMount(() => {
@@ -34,6 +39,10 @@ export function useVault() {
       if (unsubSnap) {
         unsubSnap();
         unsubSnap = null;
+      }
+      if (unsubPresets) {
+        unsubPresets();
+        unsubPresets = null;
       }
       
       if (u) {
@@ -59,8 +68,17 @@ export function useVault() {
             setError("Failed to load vault data. Please try again later.");
           }
         );
+
+        unsubPresets = onSnapshot(
+          collection(db, "users", u.uid, "presets"),
+          (snap) => {
+            setPresets(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FilterPreset));
+          },
+          (err) => console.error("Error fetching presets:", err)
+        );
       } else {
         setWatchlist([]);
+        setPresets([]);
         setLoading(false);
         setError(null);
       }
@@ -70,6 +88,7 @@ export function useVault() {
   onCleanup(() => {
     if (unsubAuth) unsubAuth();
     if (unsubSnap) unsubSnap();
+    if (unsubPresets) unsubPresets();
   });
 
   const updateStatus = async (itemId: string, status: string) => {
@@ -78,7 +97,6 @@ export function useVault() {
       await svcUpdateStatus(uid()!, itemId, status);
       showToast("Status updated!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to update status.", "error");
       throw err;
     }
@@ -90,7 +108,6 @@ export function useVault() {
       await svcUpdateRating(uid()!, itemId, rating);
       showToast("Rating updated!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to update rating.", "error");
       throw err;
     }
@@ -102,7 +119,6 @@ export function useVault() {
       await svcUpdateNotes(uid()!, itemId, notes);
       showToast("Notes saved!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to save notes.", "error");
       throw err;
     }
@@ -114,7 +130,6 @@ export function useVault() {
       await svcUpdateWatchDate(uid()!, itemId, watchDate);
       showToast("Watch date updated!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to update watch date.", "error");
       throw err;
     }
@@ -126,7 +141,6 @@ export function useVault() {
       await svcUpdateSeasonEpisode(uid()!, itemId, season, episode);
       showToast("Episode progress updated!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to update episode progress.", "error");
       throw err;
     }
@@ -136,14 +150,11 @@ export function useVault() {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     const item = watchlist().find((m) => m.id === itemId);
     try {
-      // Preserve V1 behavior: mark as 'Watching' if currently 'Planned'
       if (item && (item.status === "Planned" || item.status === "Plan to Watch")) {
         await svcUpdateStatus(uid()!, itemId, "Watching");
       }
       await svcUpdateWatchProgress(uid()!, itemId, progress);
-      showToast("Progress saved!", "success");
     } catch (err) {
-      console.error("Update failed:", err);
       showToast("Failed to save progress.", "error");
       throw err;
     }
@@ -155,14 +166,44 @@ export function useVault() {
       await svcDeleteWatchlistItem(uid()!, itemId);
       showToast("Item deleted.", "success");
     } catch (err) {
-      console.error("Delete failed:", err);
       showToast("Failed to delete item.", "error");
       throw err;
     }
   };
 
+  const savePreset = async (name: string, filters: VaultFilters) => {
+    if (!uid()) return;
+    try {
+      await svcSavePreset(uid()!, name, filters);
+      showToast("Preset saved!", "success");
+    } catch (err) {
+      showToast("Failed to save preset.", "error");
+    }
+  };
+
+  const deletePreset = async (presetId: string) => {
+    if (!uid()) return;
+    try {
+      await svcDeletePreset(uid()!, presetId);
+      showToast("Preset deleted.", "success");
+    } catch (err) {
+      showToast("Failed to delete preset.", "error");
+    }
+  };
+
+  const renamePreset = async (presetId: string, name: string) => {
+    if (!uid()) return;
+    try {
+      await svcRenamePreset(uid()!, presetId, name);
+      showToast("Preset renamed.", "success");
+    } catch (err) {
+      showToast("Failed to rename preset.", "error");
+    }
+  };
+
   return {
     watchlist,
+    presets,
     loading,
     isGuest,
     error,
@@ -173,6 +214,24 @@ export function useVault() {
     updateWatchDate,
     updateSeasonEpisode,
     updateWatchProgress,
-    deleteWatchlistItem
+    deleteWatchlistItem,
+    savePreset,
+    deletePreset,
+    renamePreset
   };
+};
+
+const VaultContext = createContext<ReturnType<typeof useVaultLogic>>();
+
+export const VaultProvider: ParentComponent = (props) => {
+  const vault = useVaultLogic();
+  return (
+    <VaultContext.Provider value={vault}>
+      {props.children}
+    </VaultContext.Provider>
+  );
+};
+
+export function useVault() {
+  return useContext(VaultContext)!;
 }
