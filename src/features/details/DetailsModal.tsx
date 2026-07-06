@@ -1,5 +1,6 @@
 // src/features/details/DetailsModal.tsx
-import { Show, onMount, onCleanup, Portal, createSignal, createEffect, createMemo, lazy, Suspense } from "solid-js";
+import { Show, onMount, onCleanup, createSignal, createEffect, createMemo, lazy, Suspense } from "solid-js";
+import { Portal } from "solid-js/web";
 import { auth } from "~/core/firebase";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
