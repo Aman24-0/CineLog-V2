@@ -24,6 +24,7 @@ import Icon from "~/shared/ui/Icon";
 const EpisodeTracker = lazy(() => import("./components/EpisodeTracker"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
 const FranchiseInfo = lazy(() => import("./components/FranchiseInfo"));
+const TrailerSection = lazy(() => import("./components/TrailerSection"));
 
 export default function DetailsModal() {
   const { selectedItem, setSelectedItem } = useModalState();
@@ -261,6 +262,12 @@ export default function DetailsModal() {
                         }
                       >
                         <DetailsOverview details={tmdb()} omdb={omdb()} />
+                      </Show>
+
+                      <Show when={tmdb()}>
+                        <Suspense fallback={<div class="mt-6 h-48 glass-surface rounded-2xl animate-pulse"></div>}>
+                          <TrailerSection details={tmdb()} />
+                        </Suspense>
                       </Show>
 
                       <Show when={selectedItem()?.media_type === "tv"}>

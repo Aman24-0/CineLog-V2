@@ -86,6 +86,16 @@ export interface TMDBSeason {
   name: string;
 }
 
+export interface TMDBVideo {
+  id: string;
+  key: string;
+  name: string;
+  site: string; // "YouTube" | "Vimeo" | ...
+  type: string; // "Trailer" | "Teaser" | "Clip" | ...
+  official?: boolean;
+  published_at?: string;
+}
+
 export interface TMDBDetails {
   id: number;
   title?: string;
@@ -97,13 +107,28 @@ export interface TMDBDetails {
   runtime?: number;
   episode_run_time?: number[];
   vote_average?: number;
+  vote_count?: number;
   overview?: string;
+  tagline?: string;
+  homepage?: string;
   genres?: TMDBGenre[];
   seasons?: TMDBSeason[];
   media_type?: "movie" | "tv";
+  // Populated when fetchTmdbDetails requests append=response=videos
+  videos?: {
+    results?: TMDBVideo[];
+  };
 }
 
 export interface OMDbRatings {
   imdb?: string;
   rt?: string;
+  // Extra fields available from OMDb for richer metadata
+  director?: string;
+  actors?: string;
+  writer?: string;
+  plot?: string;
+  rated?: string;
+  year?: string;
+  runtime?: string;
 }
