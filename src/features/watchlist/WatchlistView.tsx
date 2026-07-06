@@ -9,6 +9,7 @@ import { login } from "~/core/firebase/auth";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
+import { isWatchable } from "~/shared/utils/progress";
 import { resolveTimelineDate } from "~/shared/utils/date";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 import VaultHeader from "./components/VaultHeader";
@@ -158,7 +159,7 @@ export default function WatchlistView() {
     const effectiveStatus = activeStatusTab() !== "all" ? activeStatusTab() : filters().status;
 
     if (effectiveStatus === "in-progress") {
-      f = f.filter((m) => m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed");
+      f = f.filter(isWatchable);
     } else if (effectiveStatus !== "all") {
       f = f.filter((m) => m.status === effectiveStatus || (effectiveStatus === "Planned" && m.status === "Plan to Watch"));
     }
@@ -450,7 +451,7 @@ export default function WatchlistView() {
                   {(group) => (
                     <div class="relative" role="group" aria-label={group.label}>
                       <div class="timeline-month-pill">
-                        <Icon name="event" style="font-size: 14px; color: #05060a" aria-hidden="true" />
+                        <Icon name="event" style="font-size: 14px; color: var(--active-text)" aria-hidden="true" />
                         {group.label}
                       </div>
                       <div class="space-y-3 timeline-stagger">

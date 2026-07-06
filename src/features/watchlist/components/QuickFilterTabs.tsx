@@ -1,5 +1,6 @@
 // src/features/watchlist/components/QuickFilterTabs.tsx
 import { For, Show, Component } from "solid-js";
+import { isWatchable } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface QuickFilterTabsProps {
@@ -47,9 +48,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
     const list = props.watchlist();
     if (value === "all") return list.length;
     if (value === "in-progress") {
-      return list.filter(
-        (m) => m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed"
-      ).length;
+      return list.filter(isWatchable).length;
     }
     if (value === "Planned") {
       return list.filter((m) => m.status === "Planned" || m.status === "Plan to Watch").length;

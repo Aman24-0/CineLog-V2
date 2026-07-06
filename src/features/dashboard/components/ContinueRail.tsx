@@ -2,6 +2,7 @@
 import { For, Show, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { EmptyState } from "~/shared/ui/primitives";
+import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface ContinueRailProps {
@@ -12,53 +13,26 @@ interface ContinueRailProps {
 /**
  * ContinueRail — rich Continue Watching rail with progress.
  *
- * Each card shows:
- *  - 16:9 backdrop image with cinematic gradient overlay
- *  - Title (1-line clamp)
- *  - Progress bar with gradient fill + percentage
- *  - Episode info (S1 E5) or time remaining (1h 23m left)
- *  - Hover: center play button appears for quick resume
+ * Uses the shared progress engine (isWatchable gate + getContinueWatchingList).
+ * Only status === "Watching" titles appear — no legacy V1 progress data.
  *
- * The rail is horizontally scrollable with scroll-snap for a premium
- * browsing experience. Cards are 280px wide — wide enough for rich info
- * but narrow enough to show 1-2 cards on mobile.
- *
- * Empty state: premium EmptyState primitive with "No titles in progress".
+ * Progress is calculated from season/episode only (no currentTime).
  */
 const ContinueRail: Component<ContinueRailProps> = (props) => {
-  const continueList = createMemo(() => {
-    return props.watchlist
-      .filter((m) => {
-        if (!m.watchProgress || m.watchProgress.currentTime <= 0) return false;
-        if (m.status === "Completed") return false;
-        return true;
-      })
-      .sort((a, b) => {
-        const tA = a.watchProgress?.updatedAt ? new Date(a.watchProgress.updatedAt).getTime() : 0;
-        const tB = b.watchProgress?.updatedAt ? new Date(b.watchProgress.updatedAt).getTime() : 0;
-        return tB - tA;
-      });
-  });
+  const continueList = createMemo(() => getContinueWatchingList(props.watchlist));
 
   const getProgress = (m: WatchlistItem) => {
-    const runtimeBasedDuration = Number(m.runtime) > 0 ? Number(m.runtime) * 60 : 0;
-    const fallbackDuration = m.media_type === "tv" ? 45 * 60 : 120 * 60;
-    const effectiveDuration =
-      Number(m.watchProgress?.duration) > 0
-        ? Math.max(Number(m.watchProgress?.duration), runtimeBasedDuration || 0)
-        : runtimeBasedDuration || fallbackDuration;
+    if (!isWatchable(m)) return null;
+    if (m.media_type !== "tv") return null;
 
-    const pct = effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (Number(m.watchProgress?.currentTime || 0) / effectiveDuration) * 100))
-      : 0;
-
-    const remaining = Math.max(0, effectiveDuration - Number(m.watchProgress?.currentTime || 0));
-    const remainingMins = Math.floor(remaining / 60);
+    const season = m.season || 1;
+    const episode = m.episode || 1;
+    const totalEps = m.totalEps || 0;
+    const pct = totalEps > 0 ? Math.min(100, Math.max(0, (episode / totalEps) * 100)) : 0;
 
     return {
       pct: Math.round(pct),
-      remaining: remainingMins < 60 ? `${remainingMins}m left` : `${Math.floor(remainingMins / 60)}h ${remainingMins % 60}m left`,
-      episodeInfo: m.media_type === "tv" ? `S${m.season || 1} E${m.episode || 1}` : null
+      episodeInfo: `S${season} E${episode}${totalEps > 0 ? ` / ${totalEps}` : ""}`
     };
   };
 
@@ -97,7 +71,7 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                   }
                 }}
                 tabindex={0}
-                aria-label={`Resume ${m.title || m.name} — ${progress.pct}% watched, ${progress.remaining}`}
+                aria-label={`Resume ${m.title || m.name}${progress ? ` — ${progress.episodeInfo}, ${progress.pct}%` : ""}`}
                 style={{ "scroll-snap-align": "start" }}
               >
                 {/* Backdrop image */}
@@ -153,30 +127,36 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                 <div class="continue-rail-card-content">
                   <h4 class="continue-rail-card-title">{m.title || m.name}</h4>
 
-                  {/* Progress bar */}
-                  <div class="continue-rail-card-progress">
-                    <div
-                      class="continue-rail-card-progress-bar"
-                      role="progressbar"
-                      aria-valuenow={progress.pct}
-                      aria-valuemin={0}
-                      aria-valuemax={100}
-                      aria-label={`${progress.pct}% watched`}
-                    >
+                  {/* Progress bar — only for TV with episode data */}
+                  <Show when={progress}>
+                    <div class="continue-rail-card-progress">
                       <div
-                        class="continue-rail-card-progress-fill"
-                        style={{ width: `${progress.pct}%` }}
-                      />
+                        class="continue-rail-card-progress-bar"
+                        role="progressbar"
+                        aria-valuenow={progress!.pct}
+                        aria-valuemin={0}
+                        aria-valuemax={100}
+                        aria-label={`${progress!.pct}% through season`}
+                      >
+                        <div
+                          class="continue-rail-card-progress-fill"
+                          style={{ width: `${progress!.pct}%` }}
+                        />
+                      </div>
+                      <span class="continue-rail-card-progress-text">
+                        {progress!.pct}%
+                      </span>
                     </div>
-                    <span class="continue-rail-card-progress-text">
-                      {progress.pct}%
-                    </span>
-                  </div>
+                  </Show>
 
                   {/* Meta */}
                   <span class="continue-rail-card-meta">
-                    {progress.episodeInfo ? `${progress.episodeInfo} · ` : ""}
-                    {progress.remaining}
+                    <Show when={progress}>
+                      {progress!.episodeInfo}
+                    </Show>
+                    <Show when={!progress}>
+                      {m.media_type === "tv" ? "Series" : "Movie"}
+                    </Show>
                   </span>
                 </div>
               </div>

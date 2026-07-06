@@ -1,5 +1,6 @@
 // src/features/dashboard/recommendationEngine.ts
 import type { WatchlistItem } from "~/shared/types";
+import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
 
 export interface RecommendationResult {
   item: WatchlistItem | null;
@@ -18,20 +19,14 @@ const getAddedAtTime = (date: WatchlistItem["addedAt"]): number => {
   return 0;
 };
 
+/**
+ * pickContinueWatching — the most recently watched Watching title.
+ *
+ * Uses the shared progress engine (isWatchable gate). Only status === "Watching"
+ * titles are considered — no legacy V1 progress data can leak in.
+ */
 export function pickContinueWatching(watchlist: WatchlistItem[]): WatchlistItem | null {
-  const continueWatching = watchlist
-    .filter(
-      (m) =>
-        m.watchProgress &&
-        m.watchProgress.currentTime > 0 &&
-        m.status !== "Completed"
-    )
-    .sort((a, b) => {
-      const tA = a.watchProgress?.updatedAt ? new Date(a.watchProgress.updatedAt).getTime() : 0;
-      const tB = b.watchProgress?.updatedAt ? new Date(b.watchProgress.updatedAt).getTime() : 0;
-      return tB - tA;
-    });
-  return continueWatching[0] || null;
+  return getContinueWatchingList(watchlist)[0] || null;
 }
 
 export function pickRandomPlanned(watchlist: WatchlistItem[], forcedPlannedId: string | null): WatchlistItem | null {
@@ -45,7 +40,6 @@ export function pickRandomPlanned(watchlist: WatchlistItem[], forcedPlannedId: s
     if (forced) return forced;
   }
 
-  // Fallback to first planned if no forced ID
   return plannedList[0];
 }
 
@@ -71,11 +65,6 @@ export function pickRecentlyAdded(watchlist: WatchlistItem[]): WatchlistItem | n
   return recentlyAdded[0] || watchlist[0] || null;
 }
 
-/**
- * Random Featured Pick — used for shuffle and fallback.
- *
- * Priority: Planned → Watching → Completed (fallback only)
- */
 export function pickRandomFeatured(
   watchlist: WatchlistItem[],
   excludeId: string | null,
@@ -117,24 +106,10 @@ export function pickRandomFeatured(
 /**
  * Context-Aware Hero Recommendation.
  *
- * Answers "what should I watch today?" by adapting to the user's state:
- *
- *  1. CONTINUE — if the user has titles in progress (watchProgress.currentTime > 0,
- *     status !== Completed), pick the most recently watched. This is the
- *     strongest signal: the user is actively watching something.
- *
- *  2. TONIGHT — if no in-progress titles but the user has Planned items, pick
- *     a random planned title. This is "tonight's pick" — something new to start.
- *
- *  3. HISTORY — if the vault has only Completed items, pick from history.
- *     This is a fallback so the hero is never empty.
- *
- *  4. EMPTY — vault is empty, show guest/empty CTA.
- *
- * The `seed` + `excludeId` only affect the TONIGHT and HISTORY contexts
- * (where randomization makes sense). CONTINUE always picks the most recent
- * in-progress item — no randomization, because the user wants to resume
- * what they were watching, not a random in-progress title.
+ * 1. CONTINUE — most recently watched Watching title (isWatchable gate)
+ * 2. TONIGHT — random planned title
+ * 3. HISTORY — fallback to completed
+ * 4. EMPTY
  */
 export function getRecommendation(
   watchlist: WatchlistItem[],
@@ -145,14 +120,14 @@ export function getRecommendation(
     return { item: null, badge: "", isResume: false, canShuffle: false, context: "empty" };
   }
 
-  // 1. CONTINUE — most recently watched in-progress title
+  // 1. CONTINUE — most recently watched Watching title
   const continueItem = pickContinueWatching(watchlist);
   if (continueItem) {
     return {
       item: continueItem,
       badge: "CONTINUE WATCHING",
       isResume: true,
-      canShuffle: false, // No shuffle for continue — user wants to resume, not randomize
+      canShuffle: false,
       context: "continue"
     };
   }
@@ -169,7 +144,7 @@ export function getRecommendation(
     };
   }
 
-  // 3. HISTORY — fallback to any item (watching or completed)
+  // 3. HISTORY — fallback
   if (plannedItem) {
     const s = plannedItem.status;
     return {

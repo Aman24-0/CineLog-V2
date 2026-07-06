@@ -2,6 +2,7 @@
 import { createMemo } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useVault } from "~/features/watchlist/useVault";
+import { isWatchable } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface GreetingBlockProps {
@@ -54,9 +55,7 @@ export default function GreetingBlock(props: GreetingBlockProps) {
       return "Your cinematic universe awaits";
     }
 
-    const inProgress = list.filter(
-      (m) => m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed"
-    ).length;
+    const inProgress = list.filter(isWatchable).length;
     const planned = list.filter(
       (m) => m.status === "Planned" || m.status === "Plan to Watch"
     ).length;

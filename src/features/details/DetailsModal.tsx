@@ -198,9 +198,12 @@ export default function DetailsModal() {
 
     try {
       await svcUpdateSeasonEpisode(uid, item.id, newSeason, newEpisode);
+      // V2: No streaming playback progress. Only season/episode is tracked.
+      // The watchProgress object is kept for updatedAt sorting (used by
+      // Continue Watching ordering), but currentTime/duration are always 0.
       await svcUpdateWatchProgress(uid, item.id, {
         currentTime: 0,
-        duration: (item.runtime || 0) * 60,
+        duration: 0,
         server: null,
         updatedAt: new Date().toISOString(),
         season: newSeason,

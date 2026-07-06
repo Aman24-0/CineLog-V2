@@ -57,7 +57,44 @@ const useVaultLogic = () => {
         unsubSnap = onSnapshot(
           q,
           (snap) => {
-            setWatchlist(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as WatchlistItem));
+            const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as WatchlistItem);
+
+            // V2 PROGRESS MIGRATION:
+            // Clear legacy V1 watchProgress from non-Watching titles.
+            // V1 stored playback percentages (currentTime) on Planned titles
+            // from third-party streaming integration. V2 has no streaming —
+            // progress is manual (season/episode) and only valid for Watching.
+            // We strip watchProgress from any title whose status !== "Watching"
+            // so it never appears in Continue Watching, In Progress shelves,
+            // or progress statistics.
+            //
+            // This is a read-time migration — we don't write back to Firestore
+            // (avoids unnecessary writes). The gate in progress.ts (isWatchable)
+            // also enforces this at the logic level, so even if we missed a
+            // title here, it still won't leak into progress UI.
+            const migrated = items.map((m) => {
+              if (m.status !== "Watching" && m.watchProgress) {
+                // Preserve season/episode (they're valid tracker data) but
+                // strip the playback fields (currentTime, duration, server)
+                // that came from V1 streaming.
+                return {
+                  ...m,
+                  watchProgress: m.watchProgress.season || m.watchProgress.episode
+                    ? {
+                        season: m.watchProgress.season,
+                        episode: m.watchProgress.episode,
+                        updatedAt: m.watchProgress.updatedAt,
+                        currentTime: 0,
+                        duration: 0,
+                        server: null
+                      }
+                    : undefined
+                };
+              }
+              return m;
+            });
+
+            setWatchlist(migrated);
             setLoading(false);
             setError(null);
           },

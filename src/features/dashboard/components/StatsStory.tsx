@@ -1,5 +1,6 @@
 // src/features/dashboard/components/StatsStory.tsx
 import { createMemo, Show, Component } from "solid-js";
+import { isWatchable } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface StatsStoryProps {
@@ -56,10 +57,8 @@ const StatsStory: Component<StatsStoryProps> = (props) => {
       (m) => m.status === "Completed" && m.watchDate?.startsWith(currentYear)
     ).length;
 
-    // 2. In Progress — currently watching
-    const inProgress = list.filter(
-      (m) => m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed"
-    ).length;
+    // 2. In Progress — currently watching (isWatchable gate)
+    const inProgress = list.filter(isWatchable).length;
     const watching = list.filter((m) => m.status === "Watching").length;
 
     // 3. Top Genre

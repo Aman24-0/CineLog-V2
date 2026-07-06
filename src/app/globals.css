@@ -50,6 +50,17 @@
     --radius-modal: 32px;
     --touch-min: 44px;
 
+    /* Active-state tokens — shared across ALL components for consistent contrast.
+       --active-bg: the accent color used for active/selected backgrounds
+       --active-text: the text color on top of --active-bg (always dark for contrast)
+       --active-border: the border color for active/selected states
+       --active-glow: the box-shadow glow for active states
+       These ensure that active controls are ALWAYS readable, regardless of theme. */
+    --active-bg: var(--p);
+    --active-text: #05060a;
+    --active-border: var(--p);
+    --active-glow: 0 0 12px var(--p-glow);
+
     /* Bottom navigation: 4rem bar + iOS safe-area inset. Pages apply this as
        bottom padding so content never scrolls underneath the nav. */
     --nav-height: 4rem;
@@ -300,7 +311,7 @@
 .card-premium:active { transform: translateY(0) scale(0.98); transition-duration: var(--dur-fast); }
 
 /* Premium button system */
-.btn-primary { font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.75rem 1.5rem; border-radius: var(--radius-pill); background: var(--p); color: #05060a; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 0 0 1px var(--p), 0 4px 16px var(--p-glow), 0 2px 8px rgba(0,0,0,0.4); transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base) var(--ease-out), filter var(--dur-base) var(--ease-out); }
+.btn-primary { font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.75rem 1.5rem; border-radius: var(--radius-pill); background: var(--active-bg); color: var(--active-text); border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; box-shadow: 0 0 0 1px var(--p), 0 4px 16px var(--p-glow), 0 2px 8px rgba(0,0,0,0.4); transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base) var(--ease-out), filter var(--dur-base) var(--ease-out); }
 .btn-primary:hover { filter: brightness(1.08); box-shadow: 0 0 0 1px var(--p), 0 6px 24px var(--p-glow), 0 4px 12px rgba(0,0,0,0.5); }
 .btn-primary:active { transform: scale(0.96); transition-duration: var(--dur-fast); }
 .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
@@ -487,8 +498,8 @@
   border-radius: var(--radius-pill);
   margin-left: 2.5rem;
   margin-bottom: 1.25rem;
-  background: var(--p);
-  color: #05060a;
+  background: var(--active-bg);
+  color: var(--active-text);
   font-family: 'Outfit', sans-serif;
   font-size: 0.625rem; font-weight: 800;
   letter-spacing: 0.08em; text-transform: uppercase;
@@ -660,9 +671,9 @@
   cursor: pointer;
 }
 .view-toggle-btn[data-active="true"] {
-  background: var(--p);
-  color: #05060a;
-  box-shadow: 0 0 12px var(--p-glow);
+  background: var(--active-bg);
+  color: var(--active-text);
+  box-shadow: var(--active-glow);
 }
 .view-toggle-btn[data-active="false"] {
   background: transparent;
@@ -679,8 +690,8 @@
   min-width: 1.25rem; height: 1.25rem;
   padding: 0 0.375rem;
   border-radius: var(--radius-pill);
-  background: var(--p);
-  color: #05060a;
+  background: var(--active-bg);
+  color: var(--active-text);
   font-family: 'Outfit', sans-serif;
   font-size: 0.625rem; font-weight: 800;
   box-shadow: 0 0 8px var(--p-glow);
@@ -1133,20 +1144,20 @@
   transition-duration: var(--dur-fast);
 }
 .action-dock-btn[data-active="true"] {
-  background: var(--p-dim);
-  border-color: color-mix(in srgb, var(--p) 40%, transparent);
-  color: var(--p);
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
 }
 .action-dock-btn-primary {
-  background: var(--p);
-  border-color: var(--p);
-  color: #05060a;
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
   font-weight: 800;
 }
 .action-dock-btn-primary:hover {
-  background: var(--p);
+  background: var(--active-bg);
   filter: brightness(1.08);
-  color: #05060a;
+  color: var(--active-text);
 }
 .action-dock-divider {
   width: 1px;
@@ -1986,10 +1997,10 @@
   transform: scale(0.96);
 }
 .quick-filter-tab[data-active="true"] {
-  background: var(--p);
-  border-color: var(--p);
-  color: #05060a;
-  box-shadow: 0 0 12px var(--p-glow);
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
+  box-shadow: var(--active-glow);
 }
 .quick-filter-tab-count {
   font-size: 0.5rem;

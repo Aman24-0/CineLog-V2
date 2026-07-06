@@ -293,7 +293,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
                 class="px-3 py-2 rounded-xl type-meta active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
                 style={{
                   background: "var(--p)",
-                  color: "#05060a",
+                  color: "var(--active-text)",
                   "font-size": "0.5625rem",
                   "font-weight": 800
                 }}

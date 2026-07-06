@@ -1,6 +1,7 @@
 // src/features/watchlist/useVaultSections.ts
 import { createMemo, Accessor } from "solid-js";
 import { resolveTimelineDate } from "~/shared/utils/date";
+import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 export interface VaultSection {
@@ -76,19 +77,9 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
     const claimed = new Set<string>();
     const result: VaultSection[] = [];
 
-    // 1. In Progress — items with active watch progress
-    const inProgress = list
-      .filter((m) => {
-        if (claimed.has(m.id)) return false;
-        return m.watchProgress &&
-          m.watchProgress.currentTime > 0 &&
-          m.status !== "Completed";
-      })
-      .sort((a, b) => {
-        const tA = a.watchProgress?.updatedAt ? new Date(a.watchProgress.updatedAt).getTime() : 0;
-        const tB = b.watchProgress?.updatedAt ? new Date(b.watchProgress.updatedAt).getTime() : 0;
-        return tB - tA;
-      });
+    // 1. In Progress — items with status === "Watching" (isWatchable gate)
+    //    Uses the shared progress engine — no legacy V1 data can leak in.
+    const inProgress = getContinueWatchingList(list.filter((m) => !claimed.has(m.id)));
 
     if (inProgress.length > 0) {
       inProgress.forEach((m) => claimed.add(m.id));
@@ -189,14 +180,14 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
     const list = args.watchlist();
     if (args.flatMode() || list.length === 0) return 0;
     // Count items that would be in shelves 1-4 (not "All Titles")
+    // Uses isWatchable for progress, status checks for others
     return list.filter((m) => {
-      const inProgress = m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed";
-      const watching = m.status === "Watching";
+      const inProgress = isWatchable(m); // status === "Watching"
       const planned = m.status === "Planned" || m.status === "Plan to Watch";
       const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
       const recentCompleted = m.status === "Completed" &&
         (resolveTimelineDate(m)?.getTime() || 0) >= ninetyDaysAgo;
-      return inProgress || watching || planned || recentCompleted;
+      return inProgress || planned || recentCompleted;
     }).length;
   });
 

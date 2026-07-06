@@ -77,7 +77,7 @@ export default function TrailerSection(props: TrailerSectionProps) {
                     class="material-symbols-outlined"
                     style={{
                       "font-size": "32px",
-                      color: "#05060a",
+                      color: "var(--active-text)",
                       "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
                     }}
                     aria-hidden="true"

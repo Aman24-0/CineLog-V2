@@ -2,6 +2,7 @@
 import { Show, createSignal, createMemo } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
+import { isWatchable } from "~/shared/utils/progress";
 import { Button } from "~/shared/ui/primitives";
 import type { WatchlistItem } from "~/shared/types";
 import type { RecommendationResult } from "../recommendationEngine";
@@ -65,29 +66,20 @@ export default function DashboardHero(props: DashboardHeroProps) {
   const runtime = () =>
     (item()?.runtime ?? 0) > 0 ? formatRuntime(item()!.runtime) : null;
 
-  // Progress for Continue Watching context
+  // Progress for Continue Watching context — uses episode/season only (no currentTime)
   const progress = createMemo(() => {
     const m = item();
-    if (!m?.watchProgress || m.watchProgress.currentTime <= 0) return null;
+    if (!m || !isWatchable(m)) return null;
+    if (m.media_type !== "tv") return null; // Movies don't have episode progress
 
-    const runtimeBasedDuration = Number(m.runtime) > 0 ? Number(m.runtime) * 60 : 0;
-    const fallbackDuration = m.media_type === "tv" ? 45 * 60 : 120 * 60;
-    const effectiveDuration =
-      Number(m.watchProgress.duration) > 0
-        ? Math.max(Number(m.watchProgress.duration), runtimeBasedDuration || 0)
-        : runtimeBasedDuration || fallbackDuration;
-
-    const pct = effectiveDuration > 0
-      ? Math.min(100, Math.max(0, (Number(m.watchProgress.currentTime || 0) / effectiveDuration) * 100))
-      : 0;
-
-    const remaining = Math.max(0, effectiveDuration - Number(m.watchProgress.currentTime || 0));
-    const remainingMins = Math.floor(remaining / 60);
+    const season = m.season || 1;
+    const episode = m.episode || 1;
+    const totalEps = m.totalEps || 0;
+    const pct = totalEps > 0 ? Math.min(100, Math.max(0, (episode / totalEps) * 100)) : 0;
 
     return {
       pct: Math.round(pct),
-      remaining: remainingMins < 60 ? `${remainingMins}m left` : `${Math.floor(remainingMins / 60)}h ${remainingMins % 60}m left`,
-      episodeInfo: m.media_type === "tv" ? `S${m.season || 1} E${m.episode || 1}` : null
+      episodeInfo: `S${season} E${episode}${totalEps > 0 ? ` / ${totalEps}` : ""}`
     };
   });
 
@@ -241,7 +233,7 @@ export default function DashboardHero(props: DashboardHeroProps) {
             </Show>
           </div>
 
-          {/* Progress bar (Continue Watching context only) */}
+          {/* Progress bar (Continue Watching context only — TV shows with episode progress) */}
           <Show when={progress()}>
             <div class="dashboard-hero-progress">
               <div class="progress-premium mb-1">
@@ -252,8 +244,7 @@ export default function DashboardHero(props: DashboardHeroProps) {
               </div>
               <div class="flex justify-between items-center">
                 <span class="type-micro" style={{ color: "var(--text-soft)" }}>
-                  {progress()!.episodeInfo ? `${progress()!.episodeInfo} · ` : ""}
-                  {progress()!.remaining}
+                  {progress()!.episodeInfo}
                 </span>
                 <span class="type-micro" style={{ color: "var(--p2)" }}>
                   {progress()!.pct}%

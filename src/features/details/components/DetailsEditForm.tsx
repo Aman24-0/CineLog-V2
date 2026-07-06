@@ -96,7 +96,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           class="flex-[2] type-button py-3 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
           style={{
             background: "var(--p)",
-            color: "#05060a",
+            color: "var(--active-text)",
             "box-shadow": "0 0 24px var(--p-glow)"
           }}
           disabled={!props.isDirty || props.isSaving}

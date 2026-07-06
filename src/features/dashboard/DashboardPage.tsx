@@ -6,6 +6,7 @@ import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { login } from "~/core/firebase/auth";
 import PageContainer from "~/shared/ui/PageContainer";
+import { isWatchable } from "~/shared/utils/progress";
 import GreetingBlock from "./components/GreetingBlock";
 import DashboardHero from "./components/DashboardHero";
 import DashboardSection from "./components/DashboardSection";
@@ -90,11 +91,10 @@ export default function DashboardPage() {
     }
   };
 
-  // Check if there are any in-progress items (controls ContinueRail visibility)
+  // Check if there are any watchable items (status === "Watching")
+  // Controls ContinueRail visibility — uses the shared progress engine
   const hasInProgress = createMemo(() =>
-    watchlist().some(
-      (m) => m.watchProgress && m.watchProgress.currentTime > 0 && m.status !== "Completed"
-    )
+    watchlist().some(isWatchable)
   );
 
   return (
