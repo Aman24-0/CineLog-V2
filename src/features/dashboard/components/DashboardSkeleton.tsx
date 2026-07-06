@@ -1,83 +1,93 @@
 // src/features/dashboard/components/DashboardSkeleton.tsx
-import { For } from "solid-js";
 import { Skeleton } from "~/shared/ui/primitives";
 
 /**
- * Premium loading skeleton for the Dashboard.
+ * V2.2 Sprint 3 Dashboard Skeleton — mirrors the new cinematic layout.
  *
- * Mirrors the actual dashboard layout: hero → stats → continue watching →
- * recently added. Uses the Skeleton primitive so shimmer is consistent
- * across the app.
- *
- * SSR-safe: pure JSX + CSS, no client-only APIs.
+ * Layout:
+ *  - Greeting skeleton (eyebrow + title + subtitle)
+ *  - Hero skeleton (full-bleed backdrop + poster + title + meta + actions)
+ *  - Continue Watching skeleton (label + rail of cards)
+ *  - Recently Added skeleton (label + rail of posters)
+ *  - Stats Story skeleton (label + glass panel with cells)
  */
 export default function DashboardSkeleton() {
   return (
-    <div class="space-y-8 animate-fade-in">
+    <div class="page-enter">
+      {/* Greeting skeleton */}
+      <div class="greeting-block">
+        <Skeleton width="80px" height="0.5625rem" variant="text" />
+        <Skeleton width="180px" height="2rem" />
+        <Skeleton width="220px" height="0.875rem" variant="text" />
+      </div>
+
       {/* Hero skeleton */}
-      <div class="hero-premium" style={{ height: "240px" }}>
+      <div class="dashboard-hero">
         <div
-          class="absolute inset-0 skeleton-base"
-          style={{ "border-radius": "var(--radius-xl)" }}
-          aria-hidden="true"
+          class="skeleton-base"
+          style={{ position: "absolute", inset: 0, "border-radius": "var(--radius-xl)" }}
         />
-        <div
-          class="absolute bottom-4 left-4 right-4 flex flex-col gap-2 z-10"
-          aria-hidden="true"
-        >
-          <Skeleton width="70%" height="2rem" />
-          <Skeleton width="40%" height="0.75rem" variant="text" />
-          <div class="flex gap-2 mt-2">
-            <Skeleton width="100px" height="2rem" radius="var(--radius-pill)" />
-            <Skeleton width="100px" height="2rem" radius="var(--radius-pill)" />
+        <div class="dashboard-hero-content">
+          <div class="dashboard-hero-poster">
+            <div class="skeleton-base" style={{ width: "100%", height: "100%" }} />
+          </div>
+          <div class="flex-1 min-w-0">
+            <Skeleton width="70%" height="2rem" />
+            <div class="flex gap-2 mt-2">
+              <Skeleton width="50px" height="1.25rem" radius="var(--radius-pill)" />
+              <Skeleton width="60px" height="1.25rem" radius="var(--radius-pill)" />
+              <Skeleton width="70px" height="1.25rem" radius="var(--radius-pill)" />
+            </div>
+            <div class="flex gap-2 mt-3">
+              <Skeleton width="100px" height="2.5rem" radius="var(--radius-pill)" />
+              <Skeleton width="100px" height="2.5rem" radius="var(--radius-pill)" />
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats skeleton */}
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <For each={Array.from({ length: 4 })}>
-          {() => (
-            <div class="stat-premium" style={{ cursor: "default" }}>
-              <Skeleton width="24px" height="24px" radius="var(--radius-sm)" />
-              <Skeleton width="2.5rem" height="2rem" />
-              <Skeleton width="60%" height="0.625rem" variant="text" />
-            </div>
-          )}
-        </For>
-      </div>
-
       {/* Continue Watching skeleton */}
-      <div>
-        <Skeleton width="140px" height="0.875rem" variant="text" />
-        <div class="flex gap-4 overflow-hidden mt-4 pb-2">
-          <For each={Array.from({ length: 3 })}>
-            {() => (
-              <Skeleton
-                width="256px"
-                height="144px"
-                radius="var(--radius-lg)"
-                class="shrink-0"
-              />
-            )}
-          </For>
+      <div class="dashboard-section">
+        <Skeleton width="140px" height="0.5625rem" variant="text" style={{ "margin-bottom": "var(--sp-3)" }} />
+        <div class="flex gap-3 overflow-hidden pb-2">
+          {Array.from({ length: 3 }).map(() => (
+            <Skeleton
+              width="280px"
+              height="158px"
+              radius="var(--radius-lg)"
+              class="shrink-0"
+            />
+          ))}
         </div>
       </div>
 
       {/* Recently Added skeleton */}
-      <div>
-        <Skeleton width="120px" height="0.875rem" variant="text" />
-        <div class="flex gap-3 overflow-hidden mt-4 pb-2">
-          <For each={Array.from({ length: 5 })}>
-            {() => (
-              <Skeleton
-                width="100px"
-                height="150px"
-                radius="var(--radius-card)"
-                class="shrink-0"
-              />
-            )}
-          </For>
+      <div class="dashboard-section">
+        <Skeleton width="120px" height="0.5625rem" variant="text" style={{ "margin-bottom": "var(--sp-3)" }} />
+        <div class="flex gap-3 overflow-hidden pb-2">
+          {Array.from({ length: 5 }).map(() => (
+            <div class="shrink-0" style={{ width: "120px" }}>
+              <Skeleton width="100%" height="0" radius="var(--radius-card)" style={{ "aspect-ratio": "2 / 3" }} />
+              <Skeleton width="80%" height="0.75rem" style={{ "margin-top": "0.5rem" }} />
+              <Skeleton width="60%" height="0.5rem" variant="text" style={{ "margin-top": "0.25rem" }} />
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {/* Stats Story skeleton */}
+      <div class="dashboard-section">
+        <Skeleton width="80px" height="0.5625rem" variant="text" style={{ "margin-bottom": "var(--sp-3)" }} />
+        <div class="stats-story">
+          <div class="stats-story-grid">
+            {Array.from({ length: 4 }).map(() => (
+              <div class="stats-story-cell">
+                <Skeleton width="2.5rem" height="2rem" />
+                <Skeleton width="60px" height="0.5rem" variant="text" />
+                <Skeleton width="80px" height="0.6875rem" variant="text" />
+              </div>
+            ))}
+          </div>
         </div>
       </div>
     </div>

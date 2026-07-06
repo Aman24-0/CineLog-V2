@@ -6,6 +6,8 @@ export interface RecommendationResult {
   badge: string;
   isResume: boolean;
   canShuffle: boolean;
+  /** Context label for the hero — drives the "what should I watch today?" answer */
+  context: "continue" | "tonight" | "history" | "empty" | "guest";
 }
 
 const getAddedAtTime = (date: WatchlistItem["addedAt"]): number => {
@@ -37,12 +39,12 @@ export function pickRandomPlanned(watchlist: WatchlistItem[], forcedPlannedId: s
     (m) => m.status === "Planned" || m.status === "Plan to Watch"
   );
   if (plannedList.length === 0) return null;
-  
+
   if (forcedPlannedId) {
     const forced = plannedList.find((m) => m.id === forcedPlannedId);
     if (forced) return forced;
   }
-  
+
   // Fallback to first planned if no forced ID
   return plannedList[0];
 }
@@ -54,7 +56,7 @@ export function pickHighestRated(watchlist: WatchlistItem[]): WatchlistItem | nu
       const imdbA = parseFloat(a.imdbRating || "0") || 0;
       const imdbB = parseFloat(b.imdbRating || "0") || 0;
       if (imdbB !== imdbA) return imdbB - imdbA;
-      
+
       const userA = a.rating || 0;
       const userB = b.rating || 0;
       return userB - userA;
@@ -70,25 +72,9 @@ export function pickRecentlyAdded(watchlist: WatchlistItem[]): WatchlistItem | n
 }
 
 /**
- * Random Featured Pick for the Hero banner.
+ * Random Featured Pick — used for shuffle and fallback.
  *
- * Priority order (per Phase 2.1 Sprint 2 spec):
- *   1. Planned  (status === "Planned" || "Plan to Watch")
- *   2. Watching (status === "Watching")
- *   3. Completed (only if no Planned or Watching items exist)
- *
- * Do NOT randomly suggest Completed content by default — Completed items
- * are only used as a last-resort fallback so the hero is never empty on a
- * vault that contains only completed titles.
- *
- * Behavior:
- *  - Excludes the previously shown hero (`excludeId`) so shuffle never repeats.
- *  - Deterministic given (watchlist, excludeId, seed) — this lets createMemo
- *    recompute safely on Firestore snapshots without re-rolling the pick.
- *    The seed is bumped explicitly by the user (shuffle button) or randomized
- *    once per fresh app load (see DashboardPage onMount).
- *  - Excludes any item whose status is "Archived" (defensive — type currently
- *    has no Archived status, but this guards against future soft-delete flags).
+ * Priority: Planned → Watching → Completed (fallback only)
  */
 export function pickRandomFeatured(
   watchlist: WatchlistItem[],
@@ -100,7 +86,6 @@ export function pickRandomFeatured(
   const isArchived = (m: WatchlistItem) => (m.status as string) === "Archived";
   const notExcluded = (m: WatchlistItem) => (excludeId ? m.id !== excludeId : true);
 
-  // Build priority pools
   const planned = watchlist.filter(
     (m) => !isArchived(m) && notExcluded(m) &&
       (m.status === "Planned" || m.status === "Plan to Watch")
@@ -112,7 +97,6 @@ export function pickRandomFeatured(
     (m) => !isArchived(m) && notExcluded(m) && m.status === "Completed"
   );
 
-  // Priority: Planned → Watching → Completed (fallback only)
   let pool: WatchlistItem[];
 
   if (planned.length > 0) {
@@ -122,8 +106,6 @@ export function pickRandomFeatured(
   } else if (completed.length > 0) {
     pool = completed;
   } else {
-    // All items excluded (e.g. single-item vault + excludeId set) — fall back
-    // to the full list so the hero is never empty.
     pool = watchlist.filter((m) => !isArchived(m));
     if (pool.length === 0) return null;
   }
@@ -132,31 +114,72 @@ export function pickRandomFeatured(
   return pool[idx];
 }
 
+/**
+ * Context-Aware Hero Recommendation.
+ *
+ * Answers "what should I watch today?" by adapting to the user's state:
+ *
+ *  1. CONTINUE — if the user has titles in progress (watchProgress.currentTime > 0,
+ *     status !== Completed), pick the most recently watched. This is the
+ *     strongest signal: the user is actively watching something.
+ *
+ *  2. TONIGHT — if no in-progress titles but the user has Planned items, pick
+ *     a random planned title. This is "tonight's pick" — something new to start.
+ *
+ *  3. HISTORY — if the vault has only Completed items, pick from history.
+ *     This is a fallback so the hero is never empty.
+ *
+ *  4. EMPTY — vault is empty, show guest/empty CTA.
+ *
+ * The `seed` + `excludeId` only affect the TONIGHT and HISTORY contexts
+ * (where randomization makes sense). CONTINUE always picks the most recent
+ * in-progress item — no randomization, because the user wants to resume
+ * what they were watching, not a random in-progress title.
+ */
 export function getRecommendation(
   watchlist: WatchlistItem[],
   excludeId: string | null,
   seed: number
 ): RecommendationResult {
   if (watchlist.length === 0) {
-    return { item: null, badge: "", isResume: false, canShuffle: false };
+    return { item: null, badge: "", isResume: false, canShuffle: false, context: "empty" };
   }
 
-  const item = pickRandomFeatured(watchlist, excludeId, seed);
+  // 1. CONTINUE — most recently watched in-progress title
+  const continueItem = pickContinueWatching(watchlist);
+  if (continueItem) {
+    return {
+      item: continueItem,
+      badge: "CONTINUE WATCHING",
+      isResume: true,
+      canShuffle: false, // No shuffle for continue — user wants to resume, not randomize
+      context: "continue"
+    };
+  }
 
-  // Determine badge based on the picked item's status (mirrors priority logic)
-  const badge = (() => {
-    if (!item) return "";
-    const s = item.status;
-    if (s === "Planned" || s === "Plan to Watch") return "FEATURED PICK";
-    if (s === "Watching") return "NOW WATCHING";
-    if (s === "Completed") return "FROM YOUR HISTORY";
-    return "FEATURED PICK";
-  })();
+  // 2. TONIGHT — random planned pick
+  const plannedItem = pickRandomFeatured(watchlist, excludeId, seed);
+  if (plannedItem && (plannedItem.status === "Planned" || plannedItem.status === "Plan to Watch")) {
+    return {
+      item: plannedItem,
+      badge: "TONIGHT'S PICK",
+      isResume: false,
+      canShuffle: watchlist.length > 1,
+      context: "tonight"
+    };
+  }
 
-  return {
-    item,
-    badge,
-    isResume: false, // Continue Watching is a separate section
-    canShuffle: watchlist.length > 1
-  };
+  // 3. HISTORY — fallback to any item (watching or completed)
+  if (plannedItem) {
+    const s = plannedItem.status;
+    return {
+      item: plannedItem,
+      badge: s === "Watching" ? "NOW WATCHING" : "FROM YOUR HISTORY",
+      isResume: false,
+      canShuffle: watchlist.length > 1,
+      context: s === "Watching" ? "tonight" : "history"
+    };
+  }
+
+  return { item: null, badge: "", isResume: false, canShuffle: false, context: "empty" };
 }
