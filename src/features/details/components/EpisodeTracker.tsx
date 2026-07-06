@@ -94,7 +94,7 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
           <button
             onClick={decrementSeason}
             disabled={season() <= 1}
-            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
             aria-label="Season minus"
           >
@@ -120,7 +120,7 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
           <button
             onClick={decrementEpisode}
             disabled={episode() <= 1}
-            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
             style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
             aria-label="Episode minus"
           >

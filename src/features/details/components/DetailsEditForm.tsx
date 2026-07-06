@@ -81,16 +81,24 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       <div class="flex gap-3 pt-2">
         <button
           onClick={props.onCancel}
-          class="flex-1 type-button py-3 rounded-xl border transition-all active:scale-95"
-          style="background: var(--raised); color: var(--muted); border-color: var(--border)"
+          class="flex-1 type-button py-3 rounded-xl border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            background: "var(--raised)",
+            color: "rgba(232,234,240,0.85)",
+            "border-color": "var(--border-active)"
+          }}
           disabled={props.isSaving}
         >
           Cancel
         </button>
         <button
           onClick={props.onSave}
-          class="flex-[2] type-button py-3 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95"
-          style="background: var(--p); color: #05060a; box-shadow: 0 0 24px var(--p-glow);"
+          class="flex-[2] type-button py-3 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          style={{
+            background: "var(--p)",
+            color: "#05060a",
+            "box-shadow": "0 0 24px var(--p-glow)"
+          }}
           disabled={!props.isDirty || props.isSaving}
         >
           <Show when={!props.isSaving} fallback={<Icon name="progress_activity" class="animate-spin" />}>
