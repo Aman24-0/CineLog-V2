@@ -3,6 +3,7 @@ import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup, 
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
 import { useToast } from "~/shared/hooks/useToast";
+import { login } from "~/core/firebase/auth";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "./useVault";
 import { resolveTimelineDate } from "~/shared/utils/date";
@@ -258,8 +259,13 @@ export default function WatchlistView() {
     if (item) setSelectedItem(item);
   };
 
-  const handleLogin = () => {
-    showToast("Login functionality not yet wired up in this view.");
+  const handleLogin = async () => {
+    try {
+      await login();
+      showToast("Signed in successfully! 🎬", "success");
+    } catch {
+      showToast("Sign in failed. Please try again.", "error");
+    }
   };
 
   const clearFilters = () => {

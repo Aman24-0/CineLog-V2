@@ -1,4 +1,5 @@
 // src/features/watchlist/components/EmptyState.tsx
+import { Show } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 
 interface EmptyStateProps {
@@ -48,5 +49,3 @@ export default function EmptyState(props: EmptyStateProps) {
     </Show>
   );
 }
-
-import { Show } from "solid-js";
