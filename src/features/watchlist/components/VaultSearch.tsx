@@ -9,27 +9,31 @@ interface VaultSearchProps {
   onClearAll: () => void;
 }
 
+/**
+ * Premium Vault search bar.
+ *
+ * Uses .search-premium CSS for:
+ *  - Refined focus state (accent border + glow ring)
+ *  - Background elevation on focus (tier-1 → tier-2)
+ *  - Smooth transitions
+ *
+ * The clear button appears when there's text OR active filters, using a
+ * destructive red accent so it's visually distinct from the search action.
+ */
 export default function VaultSearch(props: VaultSearchProps) {
   return (
-    <div
-      class="flex items-center gap-3 rounded-xl px-4 py-3 border transition-all"
-      style="background: var(--surface); border-color: var(--border)"
-      onFocusIn={(e) => {
-        e.currentTarget.style.borderColor = "var(--p)";
-        e.currentTarget.style.boxShadow = "0 0 0 3px var(--p-dim)";
-      }}
-      onFocusOut={(e) => {
-        e.currentTarget.style.borderColor = "var(--border)";
-        e.currentTarget.style.boxShadow = "none";
-      }}
-    >
-      <Icon name="search" style="color: var(--dim); flex-shrink: 0" aria-hidden="true" />
+    <div class="search-premium">
+      <Icon
+        name="search"
+        style="color: var(--text-muted); flex-shrink: 0; font-size: 18px"
+        aria-hidden="true"
+      />
       <input
         value={props.value()}
         onInput={(e) => props.onInput(e.currentTarget.value)}
-        placeholder="Search title, cast, genre, tag, platform..."
-        class="bg-transparent border-none w-full outline-none type-metadata"
-        style="color: var(--text)"
+        placeholder="Search title, cast, director, genre, platform, year..."
+        class="bg-transparent border-none w-full outline-none type-body"
+        style={{ color: "var(--text-strong)", "font-size": "0.875rem" }}
         aria-label="Search vault"
         type="search"
         autocomplete="off"
@@ -38,8 +42,18 @@ export default function VaultSearch(props: VaultSearchProps) {
       <Show when={props.value().length > 0 || props.hasActiveFilters()}>
         <button
           onClick={() => props.onClearAll()}
-          class="type-caption px-3 py-1.5 rounded-full shrink-0 active:scale-95 transition-all"
-          style="background: rgba(255,45,85,0.15); border: 1px solid rgba(255,45,85,0.4); color: #ff2d55"
+          class="type-meta shrink-0 active:scale-95 transition-all"
+          style={{
+            background: "rgba(255,45,85,0.12)",
+            border: "1px solid rgba(255,45,85,0.35)",
+            color: "#ff2d55",
+            padding: "0.375rem 0.75rem",
+            "border-radius": "var(--radius-pill)",
+            "font-size": "0.5625rem",
+            "font-weight": 700,
+            "letter-spacing": "0.12em",
+            "text-transform": "uppercase"
+          }}
           aria-label="Clear search and filters"
         >
           Clear

@@ -11,37 +11,60 @@ interface EmptyStateProps {
   onAction: () => void;
 }
 
+/**
+ * Premium empty state for the Vault.
+ *
+ * Two variants:
+ *  - Guest: glass surface with accent CTA (sign-in prompt)
+ *  - Filtered/empty: minimal centered state with secondary action
+ *
+ * Uses .empty-premium* CSS classes from the design system for consistency
+ * with the dashboard empty states.
+ */
 export default function EmptyState(props: EmptyStateProps) {
   return (
     <Show
       when={!props.isGuest}
       fallback={
-        <div class="empty-state py-16 rounded-[2rem] border glass-surface" style="border-color: var(--border-active)">
-          <div class="empty-state-icon" aria-hidden="true">
-            <Icon name="video_library" fill style="color: var(--p); font-size: 36px" />
+        // Guest variant — glass surface, prominent CTA
+        <div
+          class="empty-premium rounded-[2rem] border"
+          style={{
+            "border-color": "var(--hairline-2)",
+            background: "var(--glass-bg)",
+            "backdrop-filter": "blur(20px)",
+            "-webkit-backdrop-filter": "blur(20px)",
+            "box-shadow": "var(--shadow-premium)"
+          }}
+        >
+          <div class="empty-premium-icon" aria-hidden="true">
+            <Icon name="video_library" fill style="color: var(--p); font-size: 32px" />
           </div>
-          <p class="empty-state-title">{props.title}</p>
-          <p class="empty-state-body">{props.message}</p>
+          <p class="empty-premium-title">{props.title}</p>
+          <p class="empty-premium-body">{props.message}</p>
           <button
             onClick={() => props.onAction()}
-            class="type-button px-8 py-3 rounded-full text-black shadow-lg active:scale-95 mt-2"
-            style="background: var(--p); box-shadow: 0 0 16px var(--p-glow)"
+            class="btn-primary"
+            style={{ "margin-top": "var(--sp-2)" }}
+            aria-label={props.actionText}
           >
             {props.actionText}
           </button>
         </div>
       }
     >
-      <div class="empty-state py-16 animate-fade-in">
-        <div class="empty-state-icon" aria-hidden="true">
-          <Icon name="sentiment_dissatisfied" style="color: var(--muted); font-size: 36px" />
+      {/* Signed-in empty / no matches variant */}
+      <div class="empty-premium animate-fade-in" style={{ padding: "var(--sp-12) var(--sp-6)" }}>
+        <div class="empty-premium-icon" aria-hidden="true">
+          <Icon name="sentiment_dissatisfied" style="color: var(--text-muted); font-size: 32px" />
         </div>
-        <p class="empty-state-title">{props.title}</p>
-        <p class="empty-state-body">{props.message}</p>
+        <p class="empty-premium-title">{props.title}</p>
+        <p class="empty-premium-body">{props.message}</p>
         <button
           onClick={() => props.onAction()}
-          class="type-button px-6 py-3 rounded-full active:scale-95 mt-2"
-          style="background: var(--raised); border: 1px solid var(--border-active); color: var(--muted)"
+          class="btn-ghost"
+          style={{ "margin-top": "var(--sp-2)" }}
+          aria-label={props.actionText}
         >
           {props.actionText}
         </button>

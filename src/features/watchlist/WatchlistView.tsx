@@ -75,10 +75,12 @@ export default function WatchlistView() {
   const onSearchInput = (v: string) => {
     setSearchInput(v);
     if (searchTimer) clearTimeout(searchTimer);
+    // 120ms debounce — snappy enough to feel instant, but avoids re-filtering
+    // the entire vault on every keystroke for very large vaults.
     searchTimer = setTimeout(() => {
       setSearch(v);
       setDisplayLimit(30);
-    }, 200);
+    }, 120);
   };
 
   // Clear search input + debounced search together
@@ -145,8 +147,13 @@ export default function WatchlistView() {
     if (search()) {
       const s = search().toLowerCase().trim();
       f = f.filter((m) => {
+        // Comprehensive multi-field search:
+        //   title, original_title, name, original_name, tag, notes, director,
+        //   castList (actors), genresList, platformsList, release year
+        const year = (m.release_date || m.first_air_date || "").substring(0, 4);
         const fields = [
-          m.title, m.name, m.tag, m.notes, m.director,
+          m.title, m.original_title, m.name, m.original_name,
+          m.tag, m.notes, m.director, year,
           ...(m.castList || []),
           ...(m.genresList || []),
           ...(m.platformsList || [])
@@ -281,9 +288,15 @@ export default function WatchlistView() {
 
   return (
     <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in" style={{ "padding-bottom": "var(--sp-10)" }}>
+      {/* Sticky header — search + view toggle + filter chips */}
       <div
-        class="sticky top-0 z-40 pt-4 pb-5 -mx-5 px-5 border-b mb-6"
-        style="background: rgba(5,6,10,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-color: var(--border)"
+        class="sticky top-0 z-40 pt-4 pb-4 -mx-5 px-5 mb-6"
+        style={{
+          background: "rgba(5,6,10,0.88)",
+          "backdrop-filter": "blur(24px)",
+          "-webkit-backdrop-filter": "blur(24px)",
+          "border-bottom": "1px solid var(--hairline)"
+        }}
       >
         <VaultHeader
           viewMode={viewMode}
@@ -297,17 +310,19 @@ export default function WatchlistView() {
           hasActiveFilters={() => activeFilterCount() > 0}
           onClearAll={clearFilters}
         />
-        
+
+        {/* Premium active filter chips */}
         <Show when={chips().length > 0}>
-          <div class="flex gap-2 flex-wrap mt-4">
+          <div class="flex gap-2 flex-wrap mt-3">
             <For each={chips()}>
               {(chip) => (
                 <button
                   onClick={() => clearFilter(chip.key)}
-                  class="flex items-center gap-1 px-3 py-1.5 rounded-full text-xs font-bold bg-[#1a1a1a] border border-white/10 text-gray-300 hover:bg-white/5 active:scale-95 transition-all"
+                  class="filter-chip"
+                  aria-label={`Remove filter: ${chip.label}`}
                 >
                   {chip.label}
-                  <Icon name="close" class="text-sm" />
+                  <Icon name="close" style="font-size: 12px" aria-hidden="true" />
                 </button>
               )}
             </For>
@@ -367,23 +382,21 @@ export default function WatchlistView() {
                 />
               }
             >
-              <div class="relative space-y-10 animate-fade-in pb-10" role="feed" aria-label="Watch history timeline">
+              <div class="relative space-y-8 animate-fade-in pb-10" role="feed" aria-label="Watch history timeline">
+                {/* Premium timeline rail */}
                 <div
-                  class="absolute left-[1.25rem] top-5 bottom-5 w-0.5 -translate-x-px pointer-events-none"
-                  style="background: linear-gradient(to bottom, transparent, rgba(255,255,255,0.08) 40px, rgba(255,255,255,0.08) calc(100% - 40px), transparent)"
+                  class="timeline-rail"
                   aria-hidden="true"
                 />
                 <For each={groupedTimeline()}>
                   {(group) => (
                     <div class="relative" role="group" aria-label={group.label}>
-                      <div
-                        class="sticky z-30 inline-flex items-center gap-2 px-4 py-2 rounded-full ml-10 mb-5"
-                        style="top: 150px; background: var(--p); color: #0c0e14; font-size: 10px; font-weight: 800; letter-spacing: 0.08em; text-transform: uppercase; font-family: 'Outfit', sans-serif; box-shadow: 0 0 15px var(--p-glow)"
-                      >
-                        <Icon name="event" style="font-size: 14px; color: #0c0e14" aria-hidden="true" />
+                      {/* Premium sticky month pill */}
+                      <div class="timeline-month-pill">
+                        <Icon name="event" style="font-size: 14px; color: #05060a" aria-hidden="true" />
                         {group.label}
                       </div>
-                      <div class="space-y-4 timeline-stagger">
+                      <div class="space-y-3 timeline-stagger">
                         <For each={group.items}>
                           {(m) => (
                             <VaultCard item={m} date={resolveTimelineDate(m)} onOpenMovie={openMovie} />

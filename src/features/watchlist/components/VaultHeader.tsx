@@ -1,4 +1,5 @@
 // src/features/watchlist/components/VaultHeader.tsx
+import { Show } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 
 interface VaultHeaderProps {
@@ -8,74 +9,65 @@ interface VaultHeaderProps {
   onFilterClick: () => void;
 }
 
+/**
+ * Premium Vault header — title + view toggle + filter button.
+ *
+ * Layout: [VAULT title] ........ [view toggle] [filter button]
+ *
+ * - View toggle uses .view-toggle / .view-toggle-btn CSS for clear active state
+ * - Filter button shows a .filter-count-badge when filters are active
+ * - Sticky-safe: the parent sticky container handles the blur background
+ */
 export default function VaultHeader(props: VaultHeaderProps) {
   return (
     <div class="flex justify-between items-center mb-4">
       <h2 class="type-page-title text-white">VAULT</h2>
+
       <div class="flex items-center gap-3">
         {/* View mode toggle */}
-        <div
-          class="flex p-1 rounded-full border shadow-sm"
-          style="background: var(--surface); border-color: var(--border-active)"
-          role="group"
-          aria-label="View mode"
-        >
+        <div class="view-toggle" role="group" aria-label="View mode">
           <button
             onClick={() => props.setViewMode("grid")}
-            class="w-9 h-9 rounded-full flex items-center justify-center transition-all"
-            style={{
-              background: props.viewMode() === "grid" ? "var(--p)" : "transparent",
-              color: props.viewMode() === "grid" ? "#0c0e14" : "rgba(232,234,240,0.65)",
-              "box-shadow": props.viewMode() === "grid" ? "0 0 12px var(--p-glow)" : "none"
-            }}
+            class="view-toggle-btn"
+            data-active={props.viewMode() === "grid"}
             aria-label="Grid view"
             aria-pressed={props.viewMode() === "grid"}
           >
-            <Icon name="grid_view" class="text-sm" aria-hidden="true" />
+            <Icon name="grid_view" style="font-size: 14px" aria-hidden="true" />
           </button>
           <button
             onClick={() => props.setViewMode("timeline")}
-            class="w-9 h-9 rounded-full flex items-center justify-center transition-all"
-            style={{
-              background: props.viewMode() === "timeline" ? "var(--p)" : "transparent",
-              color: props.viewMode() === "timeline" ? "#0c0e14" : "rgba(232,234,240,0.65)",
-              "box-shadow": props.viewMode() === "timeline" ? "0 0 12px var(--p-glow)" : "none"
-            }}
+            class="view-toggle-btn"
+            data-active={props.viewMode() === "timeline"}
             aria-label="Timeline view"
             aria-pressed={props.viewMode() === "timeline"}
           >
-            <Icon name="timeline" class="text-sm" aria-hidden="true" />
+            <Icon name="timeline" style="font-size: 14px" aria-hidden="true" />
           </button>
         </div>
+
         {/* Filter button */}
         <button
           onClick={() => props.onFilterClick()}
-          class="flex items-center gap-2 px-4 py-2.5 rounded-full type-caption border active:scale-95 transition-all"
+          class="flex items-center gap-2 px-4 py-2 rounded-full type-meta border active:scale-95 transition-all"
           style={{
-            background: "var(--surface)",
-            "border-color": "var(--border-active)",
-            // Use full text color instead of muted (42% opacity) for readability
-            color: "rgba(232,234,240,0.85)"
+            background: "var(--tier-1)",
+            "border-color": "var(--hairline-2)",
+            color: "var(--text-soft)",
+            "font-size": "0.625rem",
+            "font-weight": 700,
+            "letter-spacing": "0.12em",
+            "text-transform": "uppercase"
           }}
           aria-label={`Filter vault${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
         >
-          <Icon name="tune" class="text-sm" aria-hidden="true" />
+          <Icon name="tune" style="font-size: 14px" aria-hidden="true" />
           <span class="hidden sm:inline">Filter</span>
-          {props.activeFilterCount() > 0 && (
-            <span
-              class="px-2 py-0.5 rounded-full type-caption"
-              style={{
-                background: "var(--p)",
-                // Black on accent works for the default sage/green themes;
-                // for very light themes (--pearl = #fff) we still get contrast.
-                color: "#0c0e14",
-                "font-weight": 800
-              }}
-              aria-hidden="true"
-            >
+          <Show when={props.activeFilterCount() > 0}>
+            <span class="filter-count-badge" aria-hidden="true">
               {props.activeFilterCount()}
             </span>
-          )}
+          </Show>
         </button>
       </div>
     </div>

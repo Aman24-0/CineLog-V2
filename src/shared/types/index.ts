@@ -12,6 +12,8 @@ export interface WatchlistItem {
   id: string;
   title?: string;
   name?: string;
+  original_title?: string;     // original/native title (e.g. foreign-language films)
+  original_name?: string;      // original series title
   media_type: "movie" | "tv";
   poster_path?: string | null;
   backdrop_path?: string | null;

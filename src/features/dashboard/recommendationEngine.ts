@@ -72,8 +72,16 @@ export function pickRecentlyAdded(watchlist: WatchlistItem[]): WatchlistItem | n
 /**
  * Random Featured Pick for the Hero banner.
  *
+ * Priority order (per Phase 2.1 Sprint 2 spec):
+ *   1. Planned  (status === "Planned" || "Plan to Watch")
+ *   2. Watching (status === "Watching")
+ *   3. Completed (only if no Planned or Watching items exist)
+ *
+ * Do NOT randomly suggest Completed content by default — Completed items
+ * are only used as a last-resort fallback so the hero is never empty on a
+ * vault that contains only completed titles.
+ *
  * Behavior:
- *  - Picks a random movie or series from the entire Vault.
  *  - Excludes the previously shown hero (`excludeId`) so shuffle never repeats.
  *  - Deterministic given (watchlist, excludeId, seed) — this lets createMemo
  *    recompute safely on Firestore snapshots without re-rolling the pick.
@@ -89,17 +97,36 @@ export function pickRandomFeatured(
 ): WatchlistItem | null {
   if (watchlist.length === 0) return null;
 
-  // Defensive: filter out any future "Archived" soft-delete flag without
-  // narrowing the literal union type today. Cast through string so TS allows
-  // the comparison even though "Archived" isn't in the current union.
   const isArchived = (m: WatchlistItem) => (m.status as string) === "Archived";
+  const notExcluded = (m: WatchlistItem) => (excludeId ? m.id !== excludeId : true);
 
-  const eligible = watchlist.filter(
-    (m) => !isArchived(m) && (excludeId ? m.id !== excludeId : true)
+  // Build priority pools
+  const planned = watchlist.filter(
+    (m) => !isArchived(m) && notExcluded(m) &&
+      (m.status === "Planned" || m.status === "Plan to Watch")
+  );
+  const watching = watchlist.filter(
+    (m) => !isArchived(m) && notExcluded(m) && m.status === "Watching"
+  );
+  const completed = watchlist.filter(
+    (m) => !isArchived(m) && notExcluded(m) && m.status === "Completed"
   );
 
-  // If exclusion empties the pool (single-item vault), fall back to full list.
-  const pool = eligible.length > 0 ? eligible : watchlist;
+  // Priority: Planned → Watching → Completed (fallback only)
+  let pool: WatchlistItem[];
+
+  if (planned.length > 0) {
+    pool = planned;
+  } else if (watching.length > 0) {
+    pool = watching;
+  } else if (completed.length > 0) {
+    pool = completed;
+  } else {
+    // All items excluded (e.g. single-item vault + excludeId set) — fall back
+    // to the full list so the hero is never empty.
+    pool = watchlist.filter((m) => !isArchived(m));
+    if (pool.length === 0) return null;
+  }
 
   const idx = Math.abs(seed | 0) % pool.length;
   return pool[idx];
@@ -116,10 +143,20 @@ export function getRecommendation(
 
   const item = pickRandomFeatured(watchlist, excludeId, seed);
 
+  // Determine badge based on the picked item's status (mirrors priority logic)
+  const badge = (() => {
+    if (!item) return "";
+    const s = item.status;
+    if (s === "Planned" || s === "Plan to Watch") return "FEATURED PICK";
+    if (s === "Watching") return "NOW WATCHING";
+    if (s === "Completed") return "FROM YOUR HISTORY";
+    return "FEATURED PICK";
+  })();
+
   return {
     item,
-    badge: item ? "FEATURED PICK" : "",
-    isResume: false, // Continue Watching is now a separate section
+    badge,
+    isResume: false, // Continue Watching is a separate section
     canShuffle: watchlist.length > 1
   };
 }

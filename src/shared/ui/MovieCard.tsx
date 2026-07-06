@@ -12,6 +12,21 @@ interface MovieCardProps {
   onClick: () => void;
 }
 
+/**
+ * Premium MovieCard — CineLog's visual identity.
+ *
+ * Design:
+ *  - 2:3 poster ratio with refined gradient overlay (top + bottom fade)
+ *  - Status-aware badge (top-left): Planned=accent, Watching=green, Completed=blue
+ *  - Tag / New Season badge (top-right)
+ *  - Bottom info cluster: 2-line title, year·type·runtime metadata, 3 rating chips
+ *  - Premium hover: card lifts, border glows accent, poster dims + scales
+ *  - Touch feedback via .vault-card-premium active state
+ *  - Image loading: shimmer skeleton → fade-in
+ *
+ * The card is shared between Vault grid and RecentlyAdded rail, so it must
+ * be self-contained and not depend on parent context.
+ */
 const MovieCard: Component<MovieCardProps> = (props) => {
   const [imgLoaded, setImgLoaded] = createSignal(false);
   const [imgError, setImgError] = createSignal(false);
@@ -22,12 +37,23 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const statusLabel = () => {
     const s = props.movie.status;
-    if (s === "Plan to Watch") return "Planned";
+    if (s === "Plan to Watch" || s === "Planned") return "Planned";
     if (s === "Watching") return "Watching";
     if (s === "Completed") return "Completed";
-    if (s === "Planned") return "Planned";
     return s || "New";
   };
+
+  // Status-aware badge class for color coding
+  const statusBadgeClass = () => {
+    const s = props.movie.status;
+    if (s === "Plan to Watch" || s === "Planned") return "status-badge-planned";
+    if (s === "Watching") return "status-badge-watching";
+    if (s === "Completed") return "status-badge-completed";
+    return "status-badge-planned";
+  };
+
+  // First platform for visibility (if available)
+  const firstPlatform = () => props.movie.platformsList?.[0];
 
   return (
     <div
@@ -38,12 +64,13 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           props.onClick();
         }
       }}
-      class="movie-card animate-fade-up"
+      class="vault-card-premium animate-fade-up touch-ripple"
       role="button"
       tabindex={0}
       aria-label={`${title()}${year() ? `, ${year()}` : ""} — ${statusLabel()}`}
     >
-      <div class="movie-card-inner">
+      <div class="vault-card-inner">
+        {/* Loading skeleton */}
         <Show when={!imgLoaded() && !imgError()}>
           <div class="poster-loading" aria-hidden="true">
             <div
@@ -59,17 +86,18 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           </div>
         </Show>
 
+        {/* Poster image with fallback */}
         <Show
           when={props.movie.poster_path && !imgError()}
           fallback={
             <div
               class="absolute inset-0 flex flex-col items-center justify-center gap-2"
-              style="background: linear-gradient(145deg, #1a1a1a, #111); z-index: 1"
+              style="background: linear-gradient(145deg, var(--tier-3), var(--tier-2)); z-index: 1"
               aria-hidden="true"
             >
-              <Icon name="movie" style="color: rgba(255,255,255,0.08); font-size: 36px" />
+              <Icon name="movie" style="color: var(--text-dim); font-size: 36px" />
               <span
-                style="color: rgba(255,255,255,0.08); font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Azeret Mono', monospace"
+                style="color: var(--text-dim); font-size: 8px; font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; font-family: 'Azeret Mono', monospace"
               >
                 No Poster
               </span>
@@ -78,7 +106,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         >
           <img
             src={tmdbImage(props.movie.poster_path, "w500")}
-            class={`movie-card-poster${imgLoaded() ? " img-loaded" : ""}`}
+            class={`vault-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
             decoding="async"
             alt=""
@@ -91,14 +119,16 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           />
         </Show>
 
+        {/* Status badge (top-left) — status-aware color */}
         <div
-          class="tag-chip absolute top-2 left-2"
-          style="color: var(--p); z-index: 3; max-width: calc(100% - 60px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
+          class={`tag-chip absolute top-2 left-2 ${statusBadgeClass()}`}
+          style="z-index: 3; max-width: calc(100% - 60px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           aria-hidden="true"
         >
           {statusLabel()}
         </div>
 
+        {/* Tag / New Season badge (top-right) */}
         <Show
           when={props.movie.newSeasonAvailable}
           fallback={
@@ -114,15 +144,17 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           }
         >
           <div
-            class="tag-chip absolute top-2 right-2"
-            style="color: var(--p); border-color: color-mix(in srgb, var(--p) 55%, transparent); box-shadow: 0 0 12px var(--p-glow); z-index: 3; white-space: nowrap; max-width: none"
+            class="badge-glow absolute top-2 right-2"
+            style="z-index: 3; white-space: nowrap; max-width: none; font-size: 7px; padding: 3px 8px;"
             aria-hidden="true"
           >
             New Season
           </div>
         </Show>
 
+        {/* Bottom info cluster */}
         <div class="absolute bottom-0 left-0 w-full p-2.5" style="z-index: 3">
+          {/* Title — 2-line clamp for longer titles */}
           <p
             class="type-card-title mb-0.5"
             style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; min-height: 1.7em;"
@@ -130,6 +162,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             <HighlightText text={title()} search={props.search} />
           </p>
 
+          {/* Metadata row: year · type · runtime · platform */}
           <p class="type-subtitle mb-1.5" aria-hidden="true">
             {year()}
             {year() ? " · " : ""}
@@ -137,51 +170,46 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             <Show when={props.movie.runtime && props.movie.runtime > 0}>
               {" · "}{formatRuntime(props.movie.runtime)}
             </Show>
+            <Show when={firstPlatform()}>
+              {" · "}{firstPlatform()}
+            </Show>
           </p>
 
+          {/* Rating chips — 3 independent sources */}
           <div
             class="grid w-full"
             style="grid-template-columns: repeat(3, 1fr); gap: 2px;"
             aria-label={`Ratings: IMDb ${props.movie.imdbRating || "N/A"}, RT ${props.movie.rtRating || "N/A"}, My score ${props.movie.rating || "N/A"}`}
           >
             <div
-              class="rating-pill justify-center"
-              style="border-color: rgba(245,197,24,0.3); padding: 2px 3px; border-radius: 5px; gap: 2px; min-width: 0"
+              class="rating-chip rating-chip-imdb justify-center"
               role="img"
               aria-label={`IMDb: ${props.movie.imdbRating || "-"}`}
             >
               <Icon name="star" fill style="color: #f5c518; font-size: 8px; flex-shrink: 0" />
-              <span
-                style="color: #f5c518; font-size: 7.5px; font-weight: 700; line-height: 1; font-family: 'Outfit', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-              >
+              <span style="color: #f5c518;">
                 {props.movie.imdbRating || "—"}
               </span>
             </div>
 
             <div
-              class="rating-pill justify-center"
-              style="border-color: rgba(255,90,80,0.3); padding: 2px 3px; border-radius: 5px; gap: 2px; min-width: 0"
+              class="rating-chip rating-chip-rt justify-center"
               role="img"
               aria-label={`Rotten Tomatoes: ${props.movie.rtRating || "-"}`}
             >
               <span style="font-size: 7px; line-height: 1; flex-shrink: 0" aria-hidden="true">🍅</span>
-              <span
-                style="color: #ff7878; font-size: 7.5px; font-weight: 700; line-height: 1; font-family: 'Outfit', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-              >
+              <span style="color: #ff7878;">
                 {props.movie.rtRating || "—"}
               </span>
             </div>
 
             <div
-              class="rating-pill justify-center"
-              style="border-color: color-mix(in srgb, var(--p) 35%, transparent); padding: 2px 3px; border-radius: 5px; gap: 2px; min-width: 0"
+              class="rating-chip rating-chip-user justify-center"
               role="img"
               aria-label={`My score: ${props.movie.rating || "Not rated"}`}
             >
               <Icon name="person" fill style="color: var(--p); font-size: 8px; flex-shrink: 0" />
-              <span
-                style="color: var(--p); font-size: 7.5px; font-weight: 700; line-height: 1; font-family: 'Outfit', sans-serif; overflow: hidden; text-overflow: ellipsis; white-space: nowrap"
-              >
+              <span style="color: var(--p);">
                 {props.movie.rating || "—"}
               </span>
             </div>
