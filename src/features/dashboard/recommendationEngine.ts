@@ -69,60 +69,57 @@ export function pickRecentlyAdded(watchlist: WatchlistItem[]): WatchlistItem | n
   return recentlyAdded[0] || watchlist[0] || null;
 }
 
+/**
+ * Random Featured Pick for the Hero banner.
+ *
+ * Behavior:
+ *  - Picks a random movie or series from the entire Vault.
+ *  - Excludes the previously shown hero (`excludeId`) so shuffle never repeats.
+ *  - Deterministic given (watchlist, excludeId, seed) — this lets createMemo
+ *    recompute safely on Firestore snapshots without re-rolling the pick.
+ *    The seed is bumped explicitly by the user (shuffle button) or randomized
+ *    once per fresh app load (see DashboardPage onMount).
+ *  - Excludes any item whose status is "Archived" (defensive — type currently
+ *    has no Archived status, but this guards against future soft-delete flags).
+ */
+export function pickRandomFeatured(
+  watchlist: WatchlistItem[],
+  excludeId: string | null,
+  seed: number
+): WatchlistItem | null {
+  if (watchlist.length === 0) return null;
+
+  // Defensive: filter out any future "Archived" soft-delete flag without
+  // narrowing the literal union type today. Cast through string so TS allows
+  // the comparison even though "Archived" isn't in the current union.
+  const isArchived = (m: WatchlistItem) => (m.status as string) === "Archived";
+
+  const eligible = watchlist.filter(
+    (m) => !isArchived(m) && (excludeId ? m.id !== excludeId : true)
+  );
+
+  // If exclusion empties the pool (single-item vault), fall back to full list.
+  const pool = eligible.length > 0 ? eligible : watchlist;
+
+  const idx = Math.abs(seed | 0) % pool.length;
+  return pool[idx];
+}
+
 export function getRecommendation(
   watchlist: WatchlistItem[],
-  forcedPlannedId: string | null
+  excludeId: string | null,
+  seed: number
 ): RecommendationResult {
   if (watchlist.length === 0) {
     return { item: null, badge: "", isResume: false, canShuffle: false };
   }
 
-  const plannedList = watchlist.filter(
-    (m) => m.status === "Planned" || m.status === "Plan to Watch"
-  );
-  const canShuffle = plannedList.length > 0;
+  const item = pickRandomFeatured(watchlist, excludeId, seed);
 
-  // 1. Continue Watching
-  const continueWatchingItem = pickContinueWatching(watchlist);
-  if (continueWatchingItem) {
-    return {
-      item: continueWatchingItem,
-      badge: "CONTINUE WATCHING",
-      isResume: true,
-      canShuffle: false // Hide shuffle during Continue Watching
-    };
-  }
-
-  // 2. Random Planned Pick
-  if (plannedList.length > 0) {
-    const plannedItem = pickRandomPlanned(watchlist, forcedPlannedId);
-    if (plannedItem) {
-      return {
-        item: plannedItem,
-        badge: "RECOMMENDED",
-        isResume: false,
-        canShuffle
-      };
-    }
-  }
-
-  // 3. Highest Rated
-  const highestRated = pickHighestRated(watchlist);
-  if (highestRated) {
-    return {
-      item: highestRated,
-      badge: "RECOMMENDED",
-      isResume: false,
-      canShuffle: false
-    };
-  }
-
-  // 4. Recently Added
-  const recentlyAdded = pickRecentlyAdded(watchlist);
   return {
-    item: recentlyAdded,
-    badge: "RECENTLY ADDED",
-    isResume: false,
-    canShuffle: false
+    item,
+    badge: item ? "FEATURED PICK" : "",
+    isResume: false, // Continue Watching is now a separate section
+    canShuffle: watchlist.length > 1
   };
 }

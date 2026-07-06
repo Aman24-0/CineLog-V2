@@ -1,11 +1,10 @@
 // src/features/dashboard/DashboardPage.tsx
-import { createSignal, createMemo, onMount, onCleanup, Show } from "solid-js";
+import { createSignal, createMemo, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { login } from "~/core/firebase/auth";
-import type { User } from "~/shared/types";
 import HeroSection from "./components/HeroSection";
 import StatsGrid from "./components/StatsGrid";
 import ContinueWatching from "./components/ContinueWatching";
@@ -19,9 +18,24 @@ export default function DashboardPage() {
   const { setSelectedItem } = useModalState();
   const { watchlist, loading, isGuest } = useVault();
 
-  const [forcedPlannedId, setForcedPlannedId] = createSignal<string | null>(null);
+  // Hero rotation state:
+  //  - heroSeed: deterministic seed for the random pick. Bumped on shuffle
+  //    and randomized once per fresh app load (onMount). Stable across
+  //    Firestore snapshots so the hero doesn't re-roll on every status update.
+  //  - excludeId: previous hero id, so shuffle never repeats the same item.
+  const [heroSeed, setHeroSeed] = createSignal(0);
+  const [excludeId, setExcludeId] = createSignal<string | null>(null);
 
-  const recommendation = createMemo(() => getRecommendation(watchlist(), forcedPlannedId()));
+  const recommendation = createMemo(() =>
+    getRecommendation(watchlist(), excludeId(), heroSeed())
+  );
+
+  // Random hero on every fresh app load. onMount only runs on the client,
+  // so SSR renders with seed=0 (no hero, watchlist is empty on server anyway)
+  // and there is no hydration mismatch.
+  onMount(() => {
+    setHeroSeed(Math.floor(Math.random() * 1_000_000));
+  });
 
   const openMovie = (id: string) => {
     const item = watchlist().find((m) => m.id === id);
@@ -29,21 +43,10 @@ export default function DashboardPage() {
   };
 
   const handleShuffle = () => {
-    const planned = watchlist().filter(
-      (m) => m.status === "Planned" || m.status === "Plan to Watch"
-    );
-    if (planned.length === 0) return;
-    
-    if (planned.length === 1) {
-      setForcedPlannedId(planned[0].id);
-      return;
-    }
-    
-    let nextItem = planned[Math.floor(Math.random() * planned.length)];
-    while (nextItem.id === forcedPlannedId()) {
-      nextItem = planned[Math.floor(Math.random() * planned.length)];
-    }
-    setForcedPlannedId(nextItem.id);
+    if (watchlist().length === 0) return;
+    const current = recommendation().item;
+    if (current) setExcludeId(current.id);
+    setHeroSeed((s) => s + Math.floor(Math.random() * 997) + 1);
   };
 
   const handleLogin = async () => {
