@@ -1,7 +1,8 @@
 // src/features/watchlist/components/VaultFilters.tsx
-import { For, onMount, onCleanup, Show, Component } from "solid-js";
+import { For, onMount, onCleanup, Show, createSignal, Component } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import type { VaultFilters as FilterType } from "~/shared/types";
+import { useVault } from "../useVault";
+import type { VaultFilters as FilterType, FilterPreset } from "~/shared/types";
 
 interface VaultFiltersProps {
   filters: FilterType;
@@ -11,7 +12,6 @@ interface VaultFiltersProps {
   uniqueTags: string[];
   onClose: () => void;
   onClear: () => void;
-  onFilterChange: (status: string) => void;
 }
 
 const RangeFilter: Component<{
@@ -72,8 +72,17 @@ const FilterSel: Component<{
 );
 
 export default function VaultFilters(props: VaultFiltersProps) {
+  const { presets, savePreset, deletePreset } = useVault();
+  const [presetName, setPresetName] = createSignal("");
+
   onMount(() => (document.body.style.overflow = "hidden"));
   onCleanup(() => (document.body.style.overflow = ""));
+
+  const handleSavePreset = async () => {
+    if (!presetName().trim()) return;
+    await savePreset(presetName().trim(), props.filters);
+    setPresetName("");
+  };
 
   return (
     <div
@@ -109,10 +118,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
           <FilterSel
             label="Status"
             val={props.filters.status}
-            set={(v) => {
-              props.setFilters({ ...props.filters, status: v });
-              props.onFilterChange(v);
-            }}
+            set={(v) => props.setFilters({ ...props.filters, status: v })}
             opts={[
               { l: "All", v: "all" },
               { l: "Planned", v: "Planned" },
@@ -168,13 +174,51 @@ export default function VaultFilters(props: VaultFiltersProps) {
             set={(v) => props.setFilters({ ...props.filters, sort: v })}
             opts={[
               { l: "Recently Added", v: "recent" },
-              { l: "Watch Date ↓", v: "watch_desc" },
-              { l: "Watch Date ↑", v: "watch_asc" },
-              { l: "Release Year ↓", v: "year_desc" },
-              { l: "Rating ↓", v: "rating_desc" },
-              { l: "Title A–Z", v: "title_asc" }
+              { l: "Recently Updated", v: "updated" },
+              { l: "Watch Date", v: "watch_desc" },
+              { l: "Release Year", v: "year_desc" },
+              { l: "User Rating", v: "rating_desc" },
+              { l: "IMDb High → Low", v: "imdb_desc" },
+              { l: "IMDb Low → High", v: "imdb_asc" },
+              { l: "Runtime", v: "runtime_asc" },
+              { l: "Alphabetical", v: "title_asc" }
             ]}
           />
+          
+          <div class="pt-4 border-t border-white/5">
+            <p class="type-label mb-2">Presets</p>
+            <div class="flex gap-2 mb-4">
+              <input
+                value={presetName()}
+                onInput={(e) => setPresetName(e.currentTarget.value)}
+                placeholder="New preset name"
+                class="flex-1 bg-[#0c0e14] border border-white/10 rounded-xl px-3 py-2 type-metadata text-white outline-none focus:border-[var(--p)]"
+              />
+              <button onClick={handleSavePreset} class="px-3 py-2 rounded-xl text-xs font-bold text-black" style="background: var(--p)">Save</button>
+            </div>
+            <div class="space-y-2 max-h-32 overflow-y-auto hide-scrollbar">
+              <For each={presets()}>
+                {(preset) => (
+                  <div class="flex items-center justify-between gap-2 bg-[#0c0e14] border border-white/5 rounded-xl p-2">
+                    <button 
+                      class="flex-1 text-left text-sm text-white px-2 truncate hover:text-[var(--p)] transition-colors"
+                      onClick={() => props.setFilters(preset.filters)}
+                    >
+                      {preset.name}
+                    </button>
+                    <button 
+                      onClick={() => deletePreset(preset.id)}
+                      class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-lg transition-colors"
+                      aria-label={`Delete ${preset.name}`}
+                    >
+                      <Icon name="delete" class="text-sm" />
+                    </button>
+                  </div>
+                )}
+              </For>
+            </div>
+          </div>
+
         </div>
 
         <div
