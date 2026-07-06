@@ -1,13 +1,11 @@
 // src/features/dashboard/DashboardPage.tsx
 import { createSignal, createMemo, onMount, onCleanup, Show } from "solid-js";
-import { onAuthStateChanged } from "firebase/auth";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
 import { useNavigate } from "@solidjs/router";
-import { auth, db } from "~/core/firebase";
-import { login } from "~/core/firebase/auth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
-import type { WatchlistItem, User } from "~/shared/types";
+import { useVault } from "~/features/watchlist/useVault";
+import { login } from "~/core/firebase/auth";
+import type { User } from "~/shared/types";
 import HeroSection from "./components/HeroSection";
 import StatsGrid from "./components/StatsGrid";
 import ContinueWatching from "./components/ContinueWatching";
@@ -19,36 +17,9 @@ export default function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { setSelectedItem } = useModalState();
+  const { watchlist, loading, isGuest } = useVault();
 
-  const [user, setUser] = createSignal<User | null>(null);
-  const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
-  const [loading, setLoading] = createSignal(true);
   const [forcedPlannedId, setForcedPlannedId] = createSignal<string | null>(null);
-
-  let unsubSnap: (() => void) | null = null;
-
-  onMount(() => {
-    const unsubAuth = onAuthStateChanged(auth, (u) => {
-      setUser(u as User | null);
-      setLoading(false);
-      
-      if (unsubSnap) unsubSnap();
-      
-      if (u) {
-        const q = query(collection(db, "users", u.uid, "watchlist"), orderBy("addedAt", "desc"));
-        unsubSnap = onSnapshot(q, (snap) => {
-          setWatchlist(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as WatchlistItem));
-        });
-      } else {
-        setWatchlist([]);
-      }
-    });
-
-    onCleanup(() => {
-      unsubAuth();
-      if (unsubSnap) unsubSnap();
-    });
-  });
 
   const recommendation = createMemo(() => getRecommendation(watchlist(), forcedPlannedId()));
 
@@ -69,7 +40,6 @@ export default function DashboardPage() {
     }
     
     let nextItem = planned[Math.floor(Math.random() * planned.length)];
-    // Avoid showing the same title twice in a row
     while (nextItem.id === forcedPlannedId()) {
       nextItem = planned[Math.floor(Math.random() * planned.length)];
     }
@@ -94,17 +64,17 @@ export default function DashboardPage() {
           badge={recommendation().badge}
           isResume={recommendation().isResume}
           canShuffle={recommendation().canShuffle}
-          isGuest={!user()}
+          isGuest={isGuest()}
           onLogin={handleLogin}
           onShuffle={handleShuffle}
           onOpenMovie={openMovie}
         />
 
-        <Show when={!user()}>
+        <Show when={isGuest()}>
           <GuestBanner onLogin={handleLogin} />
         </Show>
 
-        <Show when={user() && watchlist().length > 0}>
+        <Show when={!isGuest() && watchlist().length > 0}>
           <StatsGrid
             watchlist={watchlist()}
             onNavigate={(status: string) => navigate(`/watchlist?status=${status}`)}
