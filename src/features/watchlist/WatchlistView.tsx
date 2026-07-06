@@ -59,11 +59,36 @@ export default function WatchlistView() {
   const { setSelectedItem } = useModalState();
   const { watchlist, loading, isGuest, error } = useVault();
 
+  // searchInput: raw input value (updates instantly as user types)
+  // search: debounced value used by the filter (updates 200ms after typing
+  // stops). Prevents re-filtering the entire vault on every keystroke when
+  // the user is typing a long query.
+  const [searchInput, setSearchInput] = createSignal("");
   const [search, setSearch] = createSignal("");
   const [filters, setFilters] = createSignal<VaultFilters>(defaultFilters);
   const [showFilter, setShowFilter] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
   const [viewMode, setViewMode] = createSignal<"grid" | "timeline">("grid");
+
+  let searchTimer: ReturnType<typeof setTimeout> | null = null;
+  const onSearchInput = (v: string) => {
+    setSearchInput(v);
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => {
+      setSearch(v);
+      setDisplayLimit(30);
+    }, 200);
+  };
+
+  // Clear search input + debounced search together
+  const clearSearch = () => {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+    setSearchInput("");
+    setSearch("");
+  };
 
   // Read `?status=` from the URL (set by Dashboard stat cards) and apply it
   // as the initial status filter. Reactivity: if the param changes while the
@@ -100,6 +125,14 @@ export default function WatchlistView() {
   onMount(() => {
     window.addEventListener("scroll", handleScroll, { passive: true });
     onCleanup(() => window.removeEventListener("scroll", handleScroll));
+    // Clear any pending search debounce timer when the view unmounts so we
+    // don't trigger a state update on a disposed component.
+    onCleanup(() => {
+      if (searchTimer) {
+        clearTimeout(searchTimer);
+        searchTimer = null;
+      }
+    });
   });
 
   const uniqueGenres = createMemo(() => [...new Set(watchlist().flatMap((m) => m.genresList || []))].filter(Boolean).sort());
@@ -112,7 +145,7 @@ export default function WatchlistView() {
       const s = search().toLowerCase().trim();
       f = f.filter((m) => {
         const fields = [
-          m.title, m.name, m.tag, m.notes,
+          m.title, m.name, m.tag, m.notes, m.director,
           ...(m.castList || []),
           ...(m.genresList || []),
           ...(m.platformsList || [])
@@ -231,7 +264,7 @@ export default function WatchlistView() {
 
   const clearFilters = () => {
     setFilters({ ...defaultFilters, status: "all" });
-    setSearch("");
+    clearSearch();
   };
 
   const handleReload = () => {
@@ -253,11 +286,8 @@ export default function WatchlistView() {
           onFilterClick={() => setShowFilter(true)}
         />
         <VaultSearch
-          value={search}
-          onInput={(v) => {
-            setSearch(v);
-            setDisplayLimit(30);
-          }}
+          value={searchInput}
+          onInput={onSearchInput}
           hasActiveFilters={() => activeFilterCount() > 0}
           onClearAll={clearFilters}
         />

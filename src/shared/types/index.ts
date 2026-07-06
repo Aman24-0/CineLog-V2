@@ -27,6 +27,7 @@ export interface WatchlistItem {
   genresList?: string[];
   platformsList?: string[];
   castList?: string[];
+  director?: string;          // e.g. "Christopher Nolan" (searchable)
   tag?: string;
   seasonDates?: Record<string, { start: string; end: string }>;
   franchises?: Record<string, number>;
