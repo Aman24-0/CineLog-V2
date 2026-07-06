@@ -3,6 +3,7 @@ import { createSignal, Show, Component } from "solid-js";
 import Icon from "./Icon";
 import HighlightText from "./HighlightText";
 import { formatRuntime } from "~/shared/utils/format";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 
 interface MovieCardProps {
@@ -76,7 +77,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           }
         >
           <img
-            src={`https://image.tmdb.org/t/p/w500${props.movie.poster_path}`}
+            src={tmdbImage(props.movie.poster_path, "w500")}
             class={`movie-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
             alt=""
@@ -91,7 +92,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
         <div
           class="tag-chip absolute top-2 left-2"
-          style="color: var(--p); z-index: 3; max-width: none; white-space: nowrap; overflow: visible; text-overflow: clip;"
+          style="color: var(--p); z-index: 3; max-width: calc(100% - 60px); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
           aria-hidden="true"
         >
           {statusLabel()}
@@ -102,8 +103,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           fallback={
             <Show when={props.movie.tag}>
               <div
-                class="tag-chip absolute top-2 right-2 text-white"
-                style="z-index: 3; max-width: 60px"
+                class="tag-chip absolute top-2 right-2"
+                style="z-index: 3; max-width: 60px; color: rgba(255,255,255,0.85); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;"
                 aria-hidden="true"
               >
                 {props.movie.tag}
@@ -120,8 +121,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           </div>
         </Show>
 
-        <div class="absolute bottom-0 left-0 w-full p-2" style="z-index: 3">
-          <p class="type-card-title mb-0.5 overflow-hidden text-ellipsis whitespace-nowrap">
+        <div class="absolute bottom-0 left-0 w-full p-2.5" style="z-index: 3">
+          <p
+            class="type-card-title mb-0.5"
+            style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; min-height: 1.7em;"
+          >
             <HighlightText text={title()} search={props.search} />
           </p>
 
@@ -135,7 +139,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           </p>
 
           <div
-            class="grid gap-2px w-full"
+            class="grid w-full"
             style="grid-template-columns: repeat(3, 1fr); gap: 2px;"
             aria-label={`Ratings: IMDb ${props.movie.imdbRating || "N/A"}, RT ${props.movie.rtRating || "N/A"}, My score ${props.movie.rating || "N/A"}`}
           >
