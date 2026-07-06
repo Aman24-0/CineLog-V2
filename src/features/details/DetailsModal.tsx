@@ -1,5 +1,5 @@
 // src/features/details/DetailsModal.tsx
-import { Show, onMount, onCleanup, Portal, createSignal, createEffect, createMemo } from "solid-js";
+import { Show, onMount, onCleanup, Portal, createSignal, createEffect, createMemo, lazy, Suspense } from "solid-js";
 import { auth } from "~/core/firebase";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
@@ -18,10 +18,11 @@ import DetailsOverview from "./components/DetailsOverview";
 import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
-import EpisodeTracker from "./components/EpisodeTracker";
-import SimilarTitles from "./components/SimilarTitles";
-import FranchiseInfo from "./components/FranchiseInfo";
 import Icon from "~/shared/ui/Icon";
+
+const EpisodeTracker = lazy(() => import("./components/EpisodeTracker"));
+const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
+const FranchiseInfo = lazy(() => import("./components/FranchiseInfo"));
 
 export default function DetailsModal() {
   const { selectedItem, setSelectedItem } = useModalState();
@@ -263,29 +264,35 @@ export default function DetailsModal() {
 
                       <Show when={selectedItem()?.media_type === "tv"}>
                         <div class="mt-6">
-                          <EpisodeTracker
-                            item={selectedItem()!}
-                            details={tmdb()}
-                            onChange={handleEpisodeChange}
-                            onMarkCompleted={handleMarkCompleted}
-                          />
+                          <Suspense fallback={<div class="glass-surface p-5 rounded-2xl border border-white/5 mb-6 h-48 animate-pulse"></div>}>
+                            <EpisodeTracker
+                              item={selectedItem()!}
+                              details={tmdb()}
+                              onChange={handleEpisodeChange}
+                              onMarkCompleted={handleMarkCompleted}
+                            />
+                          </Suspense>
                         </div>
                       </Show>
 
                       <Show when={selectedItem()}>
-                        <FranchiseInfo
-                          currentItem={selectedItem()!}
-                          watchlist={watchlist()}
-                          onSelect={handleSelectItem}
-                        />
+                        <Suspense fallback={<div class="mt-6 h-24 glass-surface rounded-2xl animate-pulse"></div>}>
+                          <FranchiseInfo
+                            currentItem={selectedItem()!}
+                            watchlist={watchlist()}
+                            onSelect={handleSelectItem}
+                          />
+                        </Suspense>
                       </Show>
 
                       <Show when={selectedItem()}>
-                        <SimilarTitles
-                          currentItem={selectedItem()!}
-                          watchlist={watchlist()}
-                          onSelect={handleSelectItem}
-                        />
+                        <Suspense fallback={<div class="mt-6 h-24 glass-surface rounded-2xl animate-pulse"></div>}>
+                          <SimilarTitles
+                            currentItem={selectedItem()!}
+                            watchlist={watchlist()}
+                            onSelect={handleSelectItem}
+                          />
+                        </Suspense>
                       </Show>
                     </div>
                   </div>
