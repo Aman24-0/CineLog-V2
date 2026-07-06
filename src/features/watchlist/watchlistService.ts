@@ -1,7 +1,7 @@
 // src/features/watchlist/watchlistService.ts
-import { doc, updateDoc, deleteDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, collection, addDoc } from "firebase/firestore";
 import { db } from "~/core/firebase";
-import type { WatchProgress } from "~/shared/types";
+import type { WatchProgress, VaultFilters } from "~/shared/types";
 
 const watchlistDoc = (uid: string, itemId: string) =>
   doc(db, "users", uid, "watchlist", String(itemId));
@@ -40,3 +40,16 @@ export const updateWatchProgress = (
 
 export const deleteWatchlistItem = (uid: string, itemId: string) =>
   deleteDoc(watchlistDoc(uid, itemId));
+
+export const savePreset = async (uid: string, name: string, filters: VaultFilters) => {
+  const presetsRef = collection(db, "users", uid, "presets");
+  return addDoc(presetsRef, { name, filters, createdAt: new Date().toISOString() });
+};
+
+export const deletePreset = async (uid: string, presetId: string) => {
+  return deleteDoc(doc(db, "users", uid, "presets", presetId));
+};
+
+export const renamePreset = async (uid: string, presetId: string, name: string) => {
+  return updateDoc(doc(db, "users", uid, "presets", presetId), { name });
+};
