@@ -16,6 +16,7 @@ import {
 import { useDetails } from "./useDetails";
 import DetailsHeader from "./components/DetailsHeader";
 import DetailsOverview from "./components/DetailsOverview";
+import DetailsRatings from "./components/DetailsRatings";
 import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
@@ -261,6 +262,11 @@ export default function DetailsModal() {
                           />
                         }
                       >
+                        <DetailsRatings
+                          details={tmdb()}
+                          omdb={omdb()}
+                          baseItem={selectedItem()}
+                        />
                         <DetailsOverview details={tmdb()} omdb={omdb()} />
                       </Show>
 
