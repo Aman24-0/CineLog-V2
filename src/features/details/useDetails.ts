@@ -29,8 +29,8 @@ export function useDetails(baseItem: () => WatchlistItem | null) {
   return {
     tmdb: () => data()?.tmdb ?? null,
     omdb: () => data()?.omdb ?? null,
-    loading: data.loading,
-    error: data.error,
+    loading: () => data.loading,
+    error: () => data.error,
     retry
   };
 }

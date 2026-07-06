@@ -45,7 +45,7 @@ const StatsGrid: Component<StatsGridProps> = (props) => {
     const platforms = list.flatMap((m) => m.platformsList || []);
     const topPlatform = mode(platforms);
     
-    const runtimes = list.map((m) => m.runtime).filter((r) => r && r > 0);
+    const runtimes = list.map((m) => m.runtime).filter((r): r is number => !!r && r > 0);
     const avgRuntime = runtimes.length > 0 ? Math.round(runtimes.reduce((a, b) => a + b, 0) / runtimes.length) : "-";
     
     return { topGenre, avgImdb, movies, series, completedThisYear, topPlatform, avgRuntime };

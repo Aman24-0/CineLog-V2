@@ -46,7 +46,7 @@ export default function VaultCard(props: VaultCardProps) {
               class="poster-img absolute inset-0 w-full h-full object-cover"
               onLoad={(e) => {
                 e.currentTarget.classList.add("img-loaded");
-                e.currentTarget.previousSibling?.classList.add("hidden");
+                e.currentTarget.previousElementSibling?.classList.add("hidden");
               }}
               alt=""
               aria-hidden="true"

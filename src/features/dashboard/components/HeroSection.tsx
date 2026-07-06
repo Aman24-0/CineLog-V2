@@ -97,7 +97,7 @@ export default function HeroSection(props: HeroSectionProps) {
               <Show when={item().media_type === "tv"}>
                 <span class="type-caption bg-white/10 px-2 py-0.5 rounded text-gray-400">Series</span>
               </Show>
-              <Show when={item().runtime && item().runtime > 0}>
+              <Show when={(item().runtime ?? 0) > 0}>
                 <span class="type-caption text-gray-400">{formatRuntime(item().runtime)}</span>
               </Show>
               <Show when={item().imdbRating || item().rating}>

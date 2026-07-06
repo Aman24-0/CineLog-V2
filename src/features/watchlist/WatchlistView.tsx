@@ -1,6 +1,6 @@
 // src/features/watchlist/WatchlistView.tsx
 import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup, lazy, Suspense } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
@@ -15,6 +15,24 @@ import EmptyState from "./components/EmptyState";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 
 const VaultFilters = lazy(() => import("./components/VaultFilters"));
+
+// Convert any of Firestore Timestamp ({seconds, nanoseconds}), Date, or ISO
+// string into a numeric epoch-ms value (or 0 if missing/unparseable) for use
+// inside sort comparators. Without this, `addedAt` from Firestore silently
+// fails the `instanceof Date` check and `new Date({...})` returns Invalid Date.
+const toMs = (v: any): number => {
+  if (!v) return 0;
+  if (v instanceof Date) return isNaN(v.getTime()) ? 0 : v.getTime();
+  if (typeof v === "string") {
+    const d = new Date(v);
+    return isNaN(d.getTime()) ? 0 : d.getTime();
+  }
+  if (typeof v === "object" && typeof v.seconds === "number") {
+    return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
+  }
+  return 0;
+};
+const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 
 const defaultFilters: VaultFilters = {
   type: "all",
@@ -36,6 +54,7 @@ const defaultFilters: VaultFilters = {
 
 export default function WatchlistView() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { showToast } = useToast();
   const { setSelectedItem } = useModalState();
   const { watchlist, loading, isGuest, error } = useVault();
@@ -45,6 +64,19 @@ export default function WatchlistView() {
   const [showFilter, setShowFilter] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
   const [viewMode, setViewMode] = createSignal<"grid" | "timeline">("grid");
+
+  // Read `?status=` from the URL (set by Dashboard stat cards) and apply it
+  // as the initial status filter. Reactivity: if the param changes while the
+  // view is mounted, the filter is updated too. "all" / missing param = no
+  // status filter. We also normalize the legacy "Plan to Watch" status to
+  // "Planned" so the filter chips match.
+  createEffect(() => {
+    const status = searchParams.status;
+    if (typeof status === "string" && status) {
+      const next = status === "all" ? "all" : status;
+      setFilters((prev) => (prev.status === next ? prev : { ...prev, status: next }));
+    }
+  });
 
   let prevViewMode = "grid";
   createEffect(() => {
@@ -62,12 +94,17 @@ export default function WatchlistView() {
       setDisplayLimit((prev) => prev + 20);
     }
   };
-  onMount(() => window.addEventListener("scroll", handleScroll, { passive: true }));
-  onCleanup(() => window.removeEventListener("scroll", handleScroll));
+  // Register both add AND remove inside onMount — onMount only runs on the
+  // client, so window is guaranteed to exist. onCleanup at top level would
+  // fire during SSR (scope disposal) and crash with "window is not defined".
+  onMount(() => {
+    window.addEventListener("scroll", handleScroll, { passive: true });
+    onCleanup(() => window.removeEventListener("scroll", handleScroll));
+  });
 
   const uniqueGenres = createMemo(() => [...new Set(watchlist().flatMap((m) => m.genresList || []))].filter(Boolean).sort());
   const uniquePlatforms = createMemo(() => [...new Set(watchlist().flatMap((m) => m.platformsList || []))].filter(Boolean).sort());
-  const uniqueTags = createMemo(() => [...new Set(watchlist().map((m) => m.tag).filter(Boolean))].sort());
+  const uniqueTags = createMemo(() => [...new Set(watchlist().map((m) => m.tag).filter((t): t is string => !!t))].sort());
 
   const filtered = createMemo(() => {
     let f = watchlist();
@@ -115,16 +152,18 @@ export default function WatchlistView() {
         if (hasA && !hasB) return -1;
         if (!hasA && hasB) return 1;
         if (!hasA && !hasB) return 0;
-        return filters().sort === "watch_desc" ? (dB.getTime() - dA.getTime()) : (dA.getTime() - dB.getTime());
+        return filters().sort === "watch_desc"
+          ? (dB!.getTime() - dA!.getTime())
+          : (dA!.getTime() - dB!.getTime());
       }
       if (filters().sort === "year_desc") return (parseInt((b.release_date || b.first_air_date || "").substring(0, 4)) || 0) - (parseInt((a.release_date || a.first_air_date || "").substring(0, 4)) || 0);
       if (filters().sort === "rating_desc") return (b.rating || 0) - (a.rating || 0);
       if (filters().sort === "imdb_desc") return (parseFloat(b.imdbRating || "0") || 0) - (parseFloat(a.imdbRating || "0") || 0);
       if (filters().sort === "imdb_asc") return (parseFloat(a.imdbRating || "0") || 0) - (parseFloat(b.imdbRating || "0") || 0);
       if (filters().sort === "runtime_asc") return (a.runtime || 0) - (b.runtime || 0);
-      if (filters().sort === "updated") return (new Date(b.updatedAt || 0).getTime()) - (new Date(a.updatedAt || 0).getTime());
+      if (filters().sort === "updated") return toAddedAtMs(b.updatedAt) - toAddedAtMs(a.updatedAt);
       if (filters().sort === "title_asc") return (a.title || a.name || "").localeCompare(b.title || b.name || "");
-      return (b.addedAt instanceof Date ? b.addedAt.getTime() : 0) - (a.addedAt instanceof Date ? a.addedAt.getTime() : 0);
+      return toAddedAtMs(b.addedAt) - toAddedAtMs(a.addedAt);
     });
   });
 

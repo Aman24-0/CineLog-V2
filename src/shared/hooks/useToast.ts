@@ -14,13 +14,18 @@ export interface Toast {
 
 const [toasts, setToasts] = createSignal<Toast[]>([]);
 
+// Monotonic counter — Date.now() can collide on rapid successive calls
+// (e.g. double-tap), which would cause setTimeout's filter() to remove
+// both toasts at once. A counter guarantees uniqueness.
+let toastIdSeq = 0;
+
 export function useToast() {
   const showToast = (
     msg: string,
     type: ToastType = "info",
     duration = 2500
   ) => {
-    const id = Date.now();
+    const id = ++toastIdSeq;
 
     setToasts((prev) => [
       ...prev,
