@@ -6,19 +6,23 @@ import { useToast } from "~/shared/hooks/useToast";
 import { login, logout } from "~/core/firebase/auth";
 
 /**
- * Sticky application header.
+ * Sticky application header — V2 simplified.
  *
- * Layout: [logo + CineLog title] ........ [notification] [avatar/profile]
+ * Layout: [wordmark] ........ [avatar]
+ *
+ * Design principles:
+ *  - The wordmark is the single primary element. No subtitle, no tagline.
+ *  - The avatar is the single secondary element. No notification bell
+ *    (moved to future profile page).
+ *  - Generous padding for breathing room.
+ *  - Translucent backdrop blur so content scrolls cleanly underneath.
  *
  * Behavior:
- *  - When signed out: avatar shows a generic account icon; clicking prompts
- *    Google sign-in.
- *  - When signed in: avatar shows the user's photoURL (or initial fallback);
- *    clicking signs out (with a toast).
- *  - Notification bell is a placeholder for Phase 2.
+ *  - Signed out: avatar shows a generic account icon; clicking prompts sign-in.
+ *  - Signed in: avatar shows the user's photoURL (or initial fallback);
+ *    clicking signs out.
  *
- * The header is sticky (top: 0) and uses a translucent backdrop blur so page
- * content scrolls cleanly underneath.
+ * The header is sticky (top: 0) and uses safe-area-inset-top for iOS notch.
  */
 export default function AppHeader() {
   const { user, isSignedIn } = useAuth();
@@ -47,119 +51,74 @@ export default function AppHeader() {
     }
   };
 
-  const handleNotifications = () => {
-    showToast("Notifications coming in Phase 2", "info", 2000);
-  };
-
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between px-5 py-3 backdrop-blur"
+      class="sticky top-0 z-30 flex items-center justify-between backdrop-blur"
       style={{
-        background: "rgba(5,6,10,0.85)",
-        "border-bottom": "1px solid var(--border)",
-        // Reserve space for iOS status bar via safe-area-inset-top.
-        "padding-top": "calc(0.75rem + env(safe-area-inset-top, 0px))"
+        background: "rgba(5,6,10,0.80)",
+        "border-bottom": "1px solid var(--hairline)",
+        "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
+        "padding-bottom": "0.875rem",
+        "padding-left": "1.25rem",
+        "padding-right": "1.25rem"
       }}
       role="banner"
     >
-      {/* Logo + title */}
-      <div class="flex items-center gap-3 min-w-0">
-        <div
-          class="flex h-9 w-9 items-center justify-center rounded-xl shrink-0"
-          style="background: var(--p-dim);"
-          aria-hidden="true"
-        >
-          <Icon name="movie_filter" fill style="color: var(--p); font-size: 20px" />
-        </div>
-        <div class="min-w-0">
-          <h1 class="font-headline text-xl leading-none tracking-wide">
-            CINE<span style="color: var(--p)">LOG</span>
-          </h1>
-          <p class="type-caption hidden sm:block" style="margin-top: 2px">
-            Personal Movie Vault
-          </p>
-        </div>
-      </div>
+      {/* Wordmark — single primary element */}
+      <h1
+        class="font-headline leading-none tracking-wide m-0"
+        style={{ "font-size": "1.5rem" }}
+      >
+        CINE<span style="color: var(--p)">LOG</span>
+      </h1>
 
-      {/* Right cluster: notifications + avatar */}
-      <div class="flex items-center gap-2">
-        <button
-          type="button"
-          onClick={handleNotifications}
-          class="relative flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            color: "var(--muted)",
-            border: "1px solid var(--border)"
-          }}
-          aria-label="Notifications (coming in Phase 2)"
-        >
-          <Icon name="notifications" style="font-size: 18px" />
-          {/* Unread dot placeholder */}
-          <span
-            aria-hidden="true"
-            style={{
-              position: "absolute",
-              top: "7px",
-              right: "8px",
-              width: "6px",
-              height: "6px",
-              "border-radius": "50%",
-              background: "var(--p)",
-              "box-shadow": "0 0 6px var(--p-glow)"
-            }}
-          />
-        </button>
-
-        <button
-          type="button"
-          onClick={handleAvatarClick}
-          class="flex items-center gap-2 rounded-full transition-all active:scale-95 overflow-hidden"
-          style={{
-            background: "rgba(255,255,255,0.05)",
-            border: "1px solid var(--border)",
-            "padding-right": "0.5rem",
-            "padding-left": "0.25rem",
-            "padding-top": "0.125rem",
-            "padding-bottom": "0.125rem"
-          }}
-          aria-label={isSignedIn() ? `Signed in as ${user()?.displayName || user()?.email || "user"} — click to sign out` : "Sign in"}
-        >
-          <Show
-            when={user()?.photoURL}
-            fallback={
-              <div
-                class="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
-                style={{
-                  background: "var(--p-dim)",
-                  color: "var(--p)",
-                  "font-weight": 700,
-                  "font-size": "13px",
-                  "font-family": "'Outfit', sans-serif"
-                }}
-                aria-hidden="true"
-              >
-                {initial()}
-              </div>
-            }
-          >
-            <img
-              src={user()!.photoURL!}
-              alt=""
-              class="h-8 w-8 rounded-full object-cover shrink-0"
-              referrerpolicy="no-referrer"
-            />
-          </Show>
-          <Show when={isSignedIn()}>
-            <span
-              class="hidden sm:block max-w-[100px] truncate"
-              style={{ color: "var(--text)", "font-size": "12px", "font-weight": 600 }}
+      {/* Avatar — single secondary element */}
+      <button
+        type="button"
+        onClick={handleAvatarClick}
+        class="flex items-center gap-2 rounded-full transition-all active:scale-95 overflow-hidden focus-ring"
+        style={{
+          background: "rgba(255,255,255,0.04)",
+          border: "1px solid var(--hairline)",
+          padding: "0.25rem",
+          "padding-right": "0.625rem"
+        }}
+        aria-label={isSignedIn() ? `Signed in as ${user()?.displayName || user()?.email || "user"} — click to sign out` : "Sign in"}
+      >
+        <Show
+          when={user()?.photoURL}
+          fallback={
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
+              style={{
+                background: "var(--p-dim)",
+                color: "var(--p)",
+                "font-weight": 700,
+                "font-size": "13px",
+                "font-family": "'Outfit', sans-serif"
+              }}
+              aria-hidden="true"
             >
-              {user()?.displayName || user()?.email}
-            </span>
-          </Show>
-        </button>
-      </div>
+              {initial()}
+            </div>
+          }
+        >
+          <img
+            src={user()!.photoURL!}
+            alt=""
+            class="h-8 w-8 rounded-full object-cover shrink-0"
+            referrerpolicy="no-referrer"
+          />
+        </Show>
+        <Show when={isSignedIn()}>
+          <span
+            class="hidden sm:block max-w-[120px] truncate"
+            style={{ color: "var(--text-body)", "font-size": "0.8125rem", "font-weight": 600 }}
+          >
+            {user()?.displayName || user()?.email}
+          </span>
+        </Show>
+      </button>
     </header>
   );
 }

@@ -244,14 +244,14 @@ export default function DetailsModal() {
                   </button>
 
                   <div class="overflow-y-auto hide-scrollbar w-full">
-                    <DetailsHeader 
-                      baseItem={selectedItem()} 
-                      details={tmdb()} 
+                    <DetailsHeader
+                      baseItem={selectedItem()}
+                      details={tmdb()}
                       isEditing={isEditing()}
                       onEditToggle={() => (isEditing() ? handleCancel() : setIsEditing(true))}
                     />
-                    <div class="px-6 md:px-8 pb-10 relative z-10">
-                      <Show 
+                    <div class="px-6 md:px-8 pb-10 relative z-10 page-rhythm-tight">
+                      <Show
                         when={!isEditing()}
                         fallback={
                           <DetailsEditForm
@@ -264,23 +264,26 @@ export default function DetailsModal() {
                           />
                         }
                       >
-                        <DetailsRatings
-                          details={tmdb()}
-                          omdb={omdb()}
-                          baseItem={selectedItem()}
-                        />
-                        <DetailsOverview details={tmdb()} omdb={omdb()} />
-                      </Show>
+                        {/* Primary group: ratings + overview */}
+                        <div class="v2-info-group">
+                          <DetailsRatings
+                            details={tmdb()}
+                            omdb={omdb()}
+                            baseItem={selectedItem()}
+                          />
+                          <DetailsOverview details={tmdb()} omdb={omdb()} />
+                        </div>
 
-                      <Show when={tmdb()}>
-                        <Suspense fallback={<div class="mt-6 h-48 glass-surface rounded-2xl animate-pulse"></div>}>
-                          <TrailerSection details={tmdb()} />
-                        </Suspense>
-                      </Show>
+                        {/* Secondary: trailer (lazy) */}
+                        <Show when={tmdb()}>
+                          <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
+                            <TrailerSection details={tmdb()} />
+                          </Suspense>
+                        </Show>
 
-                      <Show when={selectedItem()?.media_type === "tv"}>
-                        <div class="mt-6">
-                          <Suspense fallback={<div class="glass-surface p-5 rounded-2xl border border-white/5 mb-6 h-48 animate-pulse"></div>}>
+                        {/* Secondary: episode tracker (TV only, lazy) */}
+                        <Show when={selectedItem()?.media_type === "tv"}>
+                          <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
                             <EpisodeTracker
                               item={selectedItem()!}
                               details={tmdb()}
@@ -288,27 +291,28 @@ export default function DetailsModal() {
                               onMarkCompleted={handleMarkCompleted}
                             />
                           </Suspense>
-                        </div>
-                      </Show>
+                        </Show>
 
-                      <Show when={selectedItem()}>
-                        <Suspense fallback={<div class="mt-6 h-24 glass-surface rounded-2xl animate-pulse"></div>}>
-                          <FranchiseInfo
-                            currentItem={selectedItem()!}
-                            watchlist={watchlist()}
-                            onSelect={handleSelectItem}
-                          />
-                        </Suspense>
-                      </Show>
+                        {/* Tertiary: franchise + similar (lazy) */}
+                        <Show when={selectedItem()}>
+                          <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
+                            <FranchiseInfo
+                              currentItem={selectedItem()!}
+                              watchlist={watchlist()}
+                              onSelect={handleSelectItem}
+                            />
+                          </Suspense>
+                        </Show>
 
-                      <Show when={selectedItem()}>
-                        <Suspense fallback={<div class="mt-6 h-24 glass-surface rounded-2xl animate-pulse"></div>}>
-                          <SimilarTitles
-                            currentItem={selectedItem()!}
-                            watchlist={watchlist()}
-                            onSelect={handleSelectItem}
-                          />
-                        </Suspense>
+                        <Show when={selectedItem()}>
+                          <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
+                            <SimilarTitles
+                              currentItem={selectedItem()!}
+                              watchlist={watchlist()}
+                              onSelect={handleSelectItem}
+                            />
+                          </Suspense>
+                        </Show>
                       </Show>
                     </div>
                   </div>

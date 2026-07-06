@@ -1,33 +1,43 @@
 // src/shared/ui/MovieCard.tsx
-import { createSignal, Show, Component } from "solid-js";
+import { createSignal, Show, Component, JSX, splitProps } from "solid-js";
 import Icon from "./Icon";
 import HighlightText from "./HighlightText";
 import { formatRuntime } from "~/shared/utils/format";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 
+export type MovieCardVariant = "compact" | "default" | "featured";
+
 interface MovieCardProps {
   movie: WatchlistItem;
   search?: string;
   onClick: () => void;
+  /** Card variant — controls size, density, and visual emphasis.
+   *  - compact:  smallest, for rails and tight grids (100-130px wide)
+   *  - default:  standard, for vault grid (150-200px wide)
+   *  - featured: largest, with accent border + glow, for hero-adjacent placement
+   */
+  variant?: MovieCardVariant;
 }
 
 /**
- * Premium MovieCard — CineLog's visual identity.
+ * Scalable Movie Card system — CineLog's visual identity.
  *
- * Design:
- *  - 2:3 poster ratio with refined gradient overlay (top + bottom fade)
- *  - Status-aware badge (top-left): Planned=accent, Watching=green, Completed=blue
- *  - Tag / New Season badge (top-right)
- *  - Bottom info cluster: 2-line title, year·type·runtime metadata, 3 rating chips
- *  - Premium hover: card lifts, border glows accent, poster dims + scales
- *  - Touch feedback via .vault-card-premium active state
- *  - Image loading: shimmer skeleton → fade-in
+ * Three variants share one core (poster + overlay + badges + info cluster)
+ * but differ in density, typography, and emphasis. Future variants (hero,
+ * timeline, collection) can be added by extending this component.
  *
- * The card is shared between Vault grid and RecentlyAdded rail, so it must
- * be self-contained and not depend on parent context.
+ * Architecture:
+ *  - MovieCard: variant router + shared state (imgLoaded, imgError)
+ *  - CardPoster: handles image loading + fallback (shared)
+ *  - CardBadges: status + tag/new-season badges (shared, density-aware)
+ *  - CardInfo: title + metadata + ratings (density-aware per variant)
+ *
+ * The card is self-contained — no dependency on parent context beyond props.
+ * All variants are SSR-safe (no client-only APIs).
  */
 const MovieCard: Component<MovieCardProps> = (props) => {
+  const variant = () => props.variant ?? "default";
   const [imgLoaded, setImgLoaded] = createSignal(false);
   const [imgError, setImgError] = createSignal(false);
 
@@ -43,7 +53,6 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     return s || "New";
   };
 
-  // Status-aware badge class for color coding
   const statusBadgeClass = () => {
     const s = props.movie.status;
     if (s === "Plan to Watch" || s === "Planned") return "status-badge-planned";
@@ -52,8 +61,20 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     return "status-badge-planned";
   };
 
-  // First platform for visibility (if available)
   const firstPlatform = () => props.movie.platformsList?.[0];
+
+  // Variant-aware class
+  const cardClass = () => {
+    const base = "vault-card-premium animate-fade-up touch-ripple";
+    if (variant() === "featured") return `${base} v2-card-featured`;
+    return base;
+  };
+
+  // Variant-aware poster image size
+  const posterSize = () => {
+    if (variant() === "compact") return "w342";
+    return "w500";
+  };
 
   return (
     <div
@@ -64,7 +85,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           props.onClick();
         }
       }}
-      class="vault-card-premium animate-fade-up touch-ripple"
+      class={cardClass()}
       role="button"
       tabindex={0}
       aria-label={`${title()}${year() ? `, ${year()}` : ""} — ${statusLabel()}`}
@@ -105,7 +126,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           }
         >
           <img
-            src={tmdbImage(props.movie.poster_path, "w500")}
+            src={tmdbImage(props.movie.poster_path, posterSize())}
             class={`vault-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
             decoding="async"
@@ -152,9 +173,15 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           </div>
         </Show>
 
-        {/* Bottom info cluster */}
-        <div class="absolute bottom-0 left-0 w-full p-2.5" style="z-index: 3">
-          {/* Title — 2-line clamp for longer titles */}
+        {/* Bottom info cluster — variant-aware density */}
+        <div
+          class="absolute bottom-0 left-0 w-full"
+          style={{
+            "z-index": 3,
+            padding: variant() === "compact" ? "0.5rem" : "0.625rem"
+          }}
+        >
+          {/* Title — 2-line clamp */}
           <p
             class="type-card-title mb-0.5"
             style="display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; line-height: 1.25; min-height: 1.7em;"
@@ -162,58 +189,75 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             <HighlightText text={title()} search={props.search} />
           </p>
 
-          {/* Metadata row: year · type · runtime · platform */}
-          <p class="type-subtitle mb-1.5" aria-hidden="true">
-            {year()}
-            {year() ? " · " : ""}
-            {props.movie.media_type === "tv" ? "Series" : "Movie"}
-            <Show when={props.movie.runtime && props.movie.runtime > 0}>
-              {" · "}{formatRuntime(props.movie.runtime)}
-            </Show>
-            <Show when={firstPlatform()}>
-              {" · "}{firstPlatform()}
-            </Show>
-          </p>
+          {/* Metadata row — hidden on compact for density */}
+          <Show when={variant() !== "compact"}>
+            <p class="type-subtitle mb-1.5" aria-hidden="true">
+              {year()}
+              {year() ? " · " : ""}
+              {props.movie.media_type === "tv" ? "Series" : "Movie"}
+              <Show when={props.movie.runtime && props.movie.runtime > 0}>
+                {" · "}{formatRuntime(props.movie.runtime)}
+              </Show>
+              <Show when={firstPlatform()}>
+                {" · "}{firstPlatform()}
+              </Show>
+            </p>
+          </Show>
 
           {/* Rating chips — 3 independent sources */}
-          <div
-            class="grid w-full"
-            style="grid-template-columns: repeat(3, 1fr); gap: 2px;"
-            aria-label={`Ratings: IMDb ${props.movie.imdbRating || "N/A"}, RT ${props.movie.rtRating || "N/A"}, My score ${props.movie.rating || "N/A"}`}
-          >
+          <Show when={variant() !== "compact"}>
             <div
-              class="rating-chip rating-chip-imdb justify-center"
-              role="img"
-              aria-label={`IMDb: ${props.movie.imdbRating || "-"}`}
+              class="grid w-full"
+              style="grid-template-columns: repeat(3, 1fr); gap: 2px;"
+              aria-label={`Ratings: IMDb ${props.movie.imdbRating || "N/A"}, RT ${props.movie.rtRating || "N/A"}, My score ${props.movie.rating || "N/A"}`}
             >
-              <Icon name="star" fill style="color: #f5c518; font-size: 8px; flex-shrink: 0" />
-              <span style="color: #f5c518;">
-                {props.movie.imdbRating || "—"}
-              </span>
-            </div>
+              <div
+                class="rating-chip rating-chip-imdb justify-center"
+                role="img"
+                aria-label={`IMDb: ${props.movie.imdbRating || "-"}`}
+              >
+                <Icon name="star" fill style="color: #f5c518; font-size: 8px; flex-shrink: 0" />
+                <span style="color: #f5c518;">
+                  {props.movie.imdbRating || "—"}
+                </span>
+              </div>
 
-            <div
-              class="rating-chip rating-chip-rt justify-center"
-              role="img"
-              aria-label={`Rotten Tomatoes: ${props.movie.rtRating || "-"}`}
-            >
-              <span style="font-size: 7px; line-height: 1; flex-shrink: 0" aria-hidden="true">🍅</span>
-              <span style="color: #ff7878;">
-                {props.movie.rtRating || "—"}
-              </span>
-            </div>
+              <div
+                class="rating-chip rating-chip-rt justify-center"
+                role="img"
+                aria-label={`Rotten Tomatoes: ${props.movie.rtRating || "-"}`}
+              >
+                <span style="font-size: 7px; line-height: 1; flex-shrink: 0" aria-hidden="true">🍅</span>
+                <span style="color: #ff7878;">
+                  {props.movie.rtRating || "—"}
+                </span>
+              </div>
 
-            <div
-              class="rating-chip rating-chip-user justify-center"
-              role="img"
-              aria-label={`My score: ${props.movie.rating || "Not rated"}`}
-            >
-              <Icon name="person" fill style="color: var(--p); font-size: 8px; flex-shrink: 0" />
-              <span style="color: var(--p);">
-                {props.movie.rating || "—"}
-              </span>
+              <div
+                class="rating-chip rating-chip-user justify-center"
+                role="img"
+                aria-label={`My score: ${props.movie.rating || "Not rated"}`}
+              >
+                <Icon name="person" fill style="color: var(--p); font-size: 8px; flex-shrink: 0" />
+                <span style="color: var(--p);">
+                  {props.movie.rating || "—"}
+                </span>
+              </div>
             </div>
-          </div>
+          </Show>
+
+          {/* Compact variant: show only year + IMDb rating inline */}
+          <Show when={variant() === "compact"}>
+            <div class="flex items-center gap-1.5 type-subtitle" aria-hidden="true">
+              <Show when={year()}>
+                <span>{year()}</span>
+              </Show>
+              <Show when={props.movie.imdbRating}>
+                <span style="color: var(--text-dim)">·</span>
+                <span style="color: #f5c518;">★ {props.movie.imdbRating}</span>
+              </Show>
+            </div>
+          </Show>
         </div>
       </div>
     </div>

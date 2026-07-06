@@ -2,6 +2,7 @@
 import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup, lazy, Suspense } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
+import PageContainer from "~/shared/ui/PageContainer";
 import { useToast } from "~/shared/hooks/useToast";
 import { login } from "~/core/firebase/auth";
 import { useModalState } from "~/shared/hooks/useModalState";
@@ -287,7 +288,7 @@ export default function WatchlistView() {
   };
 
   return (
-    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in" style={{ "padding-bottom": "var(--sp-10)" }}>
+    <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       {/* Sticky header — search + view toggle + filter chips */}
       <div
         class="sticky top-0 z-40 pt-4 pb-4 -mx-5 px-5 mb-6"
@@ -437,6 +438,6 @@ export default function WatchlistView() {
           />
         </Suspense>
       </Show>
-    </div>
+    </PageContainer>
   );
 }

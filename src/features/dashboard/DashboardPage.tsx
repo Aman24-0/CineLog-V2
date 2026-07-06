@@ -5,6 +5,7 @@ import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { login } from "~/core/firebase/auth";
+import PageContainer from "~/shared/ui/PageContainer";
 import HeroSection from "./components/HeroSection";
 import StatsGrid from "./components/StatsGrid";
 import ContinueWatching from "./components/ContinueWatching";
@@ -13,6 +14,22 @@ import GuestBanner from "./components/GuestBanner";
 import DashboardSkeleton from "./components/DashboardSkeleton";
 import { getRecommendation } from "./recommendationEngine";
 
+/**
+ * Dashboard (Home) page — V2 page rhythm.
+ *
+ * Architecture:
+ *  - PageContainer establishes consistent horizontal padding + max-width
+ *  - page-rhythm class on the inner container gives consistent space-y-6
+ *    between all sections (no manual spacing)
+ *  - Each section is a self-contained component with its own header
+ *
+ * Hierarchy (top → bottom):
+ *  1. Hero — random featured pick (or guest CTA / empty state)
+ *  2. Guest banner (preview mode only)
+ *  3. Stats grid + insights (signed-in, non-empty vault only)
+ *  4. Continue Watching rail
+ *  5. Recently Added rail
+ */
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -52,14 +69,11 @@ export default function DashboardPage() {
   };
 
   return (
-    <div
-      class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in"
-      style={{ "padding-top": "var(--sp-6)", "padding-bottom": "var(--sp-10)" }}
-    >
+    <PageContainer width="narrow">
       <div class="ambient-glow" aria-hidden="true" />
 
       <Show when={!loading()} fallback={<DashboardSkeleton />}>
-        <div class="space-y-6 relative">
+        <div class="page-rhythm relative page-enter">
           <HeroSection
             item={recommendation().item}
             badge={recommendation().badge}
@@ -93,6 +107,6 @@ export default function DashboardPage() {
           />
         </div>
       </Show>
-    </div>
+    </PageContainer>
   );
 }

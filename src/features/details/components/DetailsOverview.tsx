@@ -7,6 +7,16 @@ interface DetailsOverviewProps {
   omdb: OMDbRatings | null;
 }
 
+/**
+ * Details overview — V2 information hierarchy.
+ *
+ * Layout:
+ *  - Overview paragraph (primary reading content)
+ *  - Cast & crew metadata rows (secondary, using v2-meta-row system)
+ *
+ * The v2-meta-row grid (5rem label / 1fr value) creates perfect alignment
+ * across all key-value pairs, giving the details page a clean editorial feel.
+ */
 export default function DetailsOverview(props: DetailsOverviewProps) {
   const cast = () =>
     (props.omdb?.actors || "")
@@ -19,55 +29,47 @@ export default function DetailsOverview(props: DetailsOverviewProps) {
   const rated = () => props.omdb?.rated?.trim();
 
   return (
-    <div class="mt-6 space-y-6 animate-fade-in">
-      {/* Overview */}
+    <div class="space-y-5">
+      {/* Overview — primary reading content */}
       <div>
-        <h3 class="type-section-title mb-2">Overview</h3>
-        <p class="type-metadata text-gray-400 leading-relaxed">
+        <div class="v2-info-group-label mb-2">Overview</div>
+        <p class="type-body" style={{ color: "var(--text-soft)", "line-height": 1.6 }}>
           {props.details?.overview || "No overview available."}
         </p>
       </div>
 
-      {/* Cast & Crew */}
+      {/* Cast & crew — secondary metadata */}
       <Show when={director() || writer() || cast().length > 0 || rated()}>
-        <div class="space-y-3">
+        <div class="space-y-2.5">
+          <div class="v2-info-group-label">Cast & Crew</div>
           <Show when={director()}>
-            <div class="flex gap-3">
-              <span class="type-label w-20 shrink-0" style="color: var(--muted)">Director</span>
-              <span class="type-metadata text-gray-300 flex-1">{director()}</span>
+            <div class="v2-meta-row">
+              <span class="v2-meta-label">Director</span>
+              <span class="v2-meta-value">{director()}</span>
             </div>
           </Show>
           <Show when={writer()}>
-            <div class="flex gap-3">
-              <span class="type-label w-20 shrink-0" style="color: var(--muted)">Writer</span>
-              <span class="type-metadata text-gray-300 flex-1">{writer()}</span>
+            <div class="v2-meta-row">
+              <span class="v2-meta-label">Writer</span>
+              <span class="v2-meta-value">{writer()}</span>
             </div>
           </Show>
           <Show when={cast().length > 0}>
-            <div class="flex gap-3">
-              <span class="type-label w-20 shrink-0" style="color: var(--muted)">Cast</span>
-              <div class="flex-1 flex flex-wrap gap-1.5">
+            <div class="v2-meta-row">
+              <span class="v2-meta-label">Cast</span>
+              <div class="flex flex-wrap gap-1.5">
                 <For each={cast()}>
                   {(name) => (
-                    <span
-                      class="type-caption px-2 py-1 rounded-md"
-                      style={{
-                        background: "rgba(255,255,255,0.04)",
-                        color: "rgba(232,234,240,0.7)",
-                        border: "1px solid var(--border)"
-                      }}
-                    >
-                      {name}
-                    </span>
+                    <span class="v2-pill">{name}</span>
                   )}
                 </For>
               </div>
             </div>
           </Show>
           <Show when={rated()}>
-            <div class="flex gap-3">
-              <span class="type-label w-20 shrink-0" style="color: var(--muted)">Rated</span>
-              <span class="type-metadata text-gray-300 flex-1">{rated()}</span>
+            <div class="v2-meta-row">
+              <span class="v2-meta-label">Rated</span>
+              <span class="v2-meta-value">{rated()}</span>
             </div>
           </Show>
         </div>

@@ -34,7 +34,7 @@ const RecentlyAdded: Component<RecentlyAddedProps> = (props) => {
           <For each={recentItems()}>
             {(m) => (
               <div class="w-[100px] sm:w-[130px] shrink-0" role="listitem">
-                <MovieCard movie={m} onClick={() => props.onOpenMovie(m.id)} />
+                <MovieCard movie={m} variant="compact" onClick={() => props.onOpenMovie(m.id)} />
               </div>
             )}
           </For>
