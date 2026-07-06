@@ -28,7 +28,7 @@ export default function DetailsHeader(props: DetailsHeaderProps) {
     ).split("-")[0];
 
   const runtime = () =>
-    props.details?.runtime || props.details?.episode_run_time?.[0];
+    props.details?.runtime || props.details?.episode_run_time?.[0] || props.baseItem?.runtime;
 
   const genres = () =>
     props.details?.genres?.map((g) => g.name).join(", ");
@@ -60,14 +60,24 @@ export default function DetailsHeader(props: DetailsHeaderProps) {
           >
             {title()}
           </h2>
-          <p class="type-subtitle mt-1.5">
-            {year()}
-            {year() ? " · " : ""}
-            {props.baseItem?.media_type === "tv" || props.details?.media_type === "tv"
-              ? "SERIES"
-              : "MOVIE"}
-            <Show when={runtime()}> {" · "}{runtime()}m</Show>
-          </p>
+          <div class="flex items-center gap-2 mt-1.5">
+            <p class="type-subtitle">
+              {year()}
+              {year() ? " · " : ""}
+              {props.baseItem?.media_type === "tv" || props.details?.media_type === "tv"
+                ? "SERIES"
+                : "MOVIE"}
+              <Show when={runtime()}> {" · "}{runtime()}m</Show>
+            </p>
+            <Show when={props.baseItem?.newSeasonAvailable}>
+              <span 
+                class="type-caption px-2 py-0.5 rounded-full"
+                style="background: var(--p-dim); color: var(--p); border: 1px solid var(--p); box-shadow: 0 0 8px var(--p-glow);"
+              >
+                New Season
+              </span>
+            </Show>
+          </div>
           <Show when={genres()}>
             <p class="type-caption text-gray-400 mt-2">{genres()}</p>
           </Show>
