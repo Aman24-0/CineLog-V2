@@ -9,7 +9,10 @@ const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
 
   return (
-    <div class="min-h-screen bg-black pb-16 text-white">
+    <div
+      class="min-h-screen bg-black text-white"
+      style={{ "padding-bottom": "var(--nav-total-height)" }}
+    >
       {props.children}
 
       <ToastContainer />

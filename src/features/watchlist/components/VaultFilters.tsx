@@ -223,7 +223,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
 
         <div
           class="grid grid-cols-2 gap-3 px-6 pt-4 flex-shrink-0"
-          style="border-top: 1px solid var(--border); padding-bottom: max(16px, calc(env(safe-area-inset-bottom, 0px) + 80px));"
+          style="border-top: 1px solid var(--border); padding-bottom: calc(var(--nav-safe-area) + 80px);"
         >
           <button
             onClick={() => props.onClear()}

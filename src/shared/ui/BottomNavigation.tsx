@@ -24,7 +24,15 @@ export default function BottomNavigation() {
     showToast(`${label} is coming in Phase 2`, "info", 2000);
 
   return (
-    <nav class="fixed bottom-0 left-0 flex h-16 w-full border-t border-zinc-800 bg-black">
+    <nav
+      class="fixed bottom-0 left-0 flex w-full border-t border-zinc-800 bg-black"
+      style={{
+        height: "var(--nav-total-height)",
+        "padding-bottom": "var(--nav-safe-area)",
+        "z-index": 40
+      }}
+      aria-label="Primary navigation"
+    >
       <NavButton
         icon="dashboard"
         label="Home"

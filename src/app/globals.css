@@ -49,6 +49,12 @@
     --radius-2xl: 28px;
     --radius-modal: 32px;
     --touch-min: 44px;
+
+    /* Bottom navigation: 4rem bar + iOS safe-area inset. Pages apply this as
+       bottom padding so content never scrolls underneath the nav. */
+    --nav-height: 4rem;
+    --nav-safe-area: env(safe-area-inset-bottom, 0px);
+    --nav-total-height: calc(var(--nav-height) + var(--nav-safe-area));
   }
 
   body.theme-pearl      { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15); --p-dim: rgba(255,255,255,0.06); }

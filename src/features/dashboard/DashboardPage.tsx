@@ -59,7 +59,7 @@ export default function DashboardPage() {
   };
 
   return (
-    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-8 space-y-8">
+    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in space-y-8" style={{ "padding-top": "var(--sp-6)", "padding-bottom": "var(--sp-8)" }}>
       <Show when={!loading()} fallback={<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div></div>}>
         
         <HeroSection

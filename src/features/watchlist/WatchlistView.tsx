@@ -241,7 +241,7 @@ export default function WatchlistView() {
   };
 
   return (
-    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in pb-10">
+    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in" style={{ "padding-bottom": "var(--sp-10)" }}>
       <div
         class="sticky top-0 z-40 pt-4 pb-5 -mx-5 px-5 border-b mb-6"
         style="background: rgba(5,6,10,0.92); backdrop-filter: blur(24px); -webkit-backdrop-filter: blur(24px); border-color: var(--border)"
