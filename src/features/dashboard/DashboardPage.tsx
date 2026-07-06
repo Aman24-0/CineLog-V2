@@ -10,6 +10,7 @@ import StatsGrid from "./components/StatsGrid";
 import ContinueWatching from "./components/ContinueWatching";
 import RecentlyAdded from "./components/RecentlyAdded";
 import GuestBanner from "./components/GuestBanner";
+import DashboardSkeleton from "./components/DashboardSkeleton";
 import { getRecommendation } from "./recommendationEngine";
 
 export default function DashboardPage() {
@@ -18,11 +19,6 @@ export default function DashboardPage() {
   const { setSelectedItem } = useModalState();
   const { watchlist, loading, isGuest } = useVault();
 
-  // Hero rotation state:
-  //  - heroSeed: deterministic seed for the random pick. Bumped on shuffle
-  //    and randomized once per fresh app load (onMount). Stable across
-  //    Firestore snapshots so the hero doesn't re-roll on every status update.
-  //  - excludeId: previous hero id, so shuffle never repeats the same item.
   const [heroSeed, setHeroSeed] = createSignal(0);
   const [excludeId, setExcludeId] = createSignal<string | null>(null);
 
@@ -30,9 +26,6 @@ export default function DashboardPage() {
     getRecommendation(watchlist(), excludeId(), heroSeed())
   );
 
-  // Random hero on every fresh app load. onMount only runs on the client,
-  // so SSR renders with seed=0 (no hero, watchlist is empty on server anyway)
-  // and there is no hydration mismatch.
   onMount(() => {
     setHeroSeed(Math.floor(Math.random() * 1_000_000));
   });
@@ -59,42 +52,46 @@ export default function DashboardPage() {
   };
 
   return (
-    <div class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in space-y-8" style={{ "padding-top": "var(--sp-6)", "padding-bottom": "var(--sp-8)" }}>
-      <Show when={!loading()} fallback={<div class="flex justify-center py-20"><div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div></div>}>
-        
-        <HeroSection
-          item={recommendation().item}
-          badge={recommendation().badge}
-          isResume={recommendation().isResume}
-          canShuffle={recommendation().canShuffle}
-          isGuest={isGuest()}
-          onLogin={handleLogin}
-          onShuffle={handleShuffle}
-          onOpenMovie={openMovie}
-        />
+    <div
+      class="px-5 max-w-2xl lg:max-w-none lg:px-12 mx-auto relative z-10 animate-fade-in"
+      style={{ "padding-top": "var(--sp-6)", "padding-bottom": "var(--sp-10)" }}
+    >
+      <div class="ambient-glow" aria-hidden="true" />
 
-        <Show when={isGuest()}>
-          <GuestBanner onLogin={handleLogin} />
-        </Show>
-
-        <Show when={!isGuest() && watchlist().length > 0}>
-          <StatsGrid
-            watchlist={watchlist()}
-            onNavigate={(status: string) => navigate(`/watchlist?status=${status}`)}
+      <Show when={!loading()} fallback={<DashboardSkeleton />}>
+        <div class="space-y-6 relative">
+          <HeroSection
+            item={recommendation().item}
+            badge={recommendation().badge}
+            isResume={recommendation().isResume}
+            canShuffle={recommendation().canShuffle}
+            isGuest={isGuest()}
+            onLogin={handleLogin}
+            onShuffle={handleShuffle}
+            onOpenMovie={openMovie}
           />
-        </Show>
 
-        <ContinueWatching
-          watchlist={watchlist()}
-          onOpenMovie={openMovie}
-        />
+          <Show when={isGuest()}>
+            <GuestBanner onLogin={handleLogin} />
+          </Show>
 
-        <RecentlyAdded
-          watchlist={watchlist()}
-          onOpenMovie={openMovie}
-          onNavigate={() => navigate("/watchlist")}
-        />
+          <Show when={!isGuest() && watchlist().length > 0}>
+            <StatsGrid
+              watchlist={watchlist()}
+              onNavigate={(status: string) =>
+                navigate(`/watchlist?status=${status}`)
+              }
+            />
+          </Show>
 
+          <ContinueWatching watchlist={watchlist()} onOpenMovie={openMovie} />
+
+          <RecentlyAdded
+            watchlist={watchlist()}
+            onOpenMovie={openMovie}
+            onNavigate={() => navigate("/watchlist")}
+          />
+        </div>
       </Show>
     </div>
   );

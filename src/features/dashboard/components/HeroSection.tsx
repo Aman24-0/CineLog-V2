@@ -1,6 +1,7 @@
 // src/features/dashboard/components/HeroSection.tsx
 import { Show } from "solid-js";
-import Icon from "~/shared/ui/Icon";
+import { Button } from "~/shared/ui/primitives";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -17,59 +18,84 @@ interface HeroSectionProps {
 
 export default function HeroSection(props: HeroSectionProps) {
   const bgImg = (item: WatchlistItem) => {
-    return item.backdrop_path
-      ? `https://image.tmdb.org/t/p/w780${item.backdrop_path}`
-      : item.poster_path
-        ? `https://image.tmdb.org/t/p/w500${item.poster_path}`
-        : "";
+    const path = item.backdrop_path || item.poster_path;
+    return path ? tmdbImage(path, item.backdrop_path ? "w780" : "w500") : "";
   };
+
+  const title = (item: WatchlistItem) => item.title || item.name || "Untitled";
+  const year = (item: WatchlistItem) =>
+    (item.release_date || item.first_air_date || "").split("-")[0];
+  const runtime = (item: WatchlistItem) =>
+    (item.runtime ?? 0) > 0 ? formatRuntime(item.runtime) : null;
 
   return (
     <Show
       when={props.item}
       fallback={
-        <div class="featured-hero flex flex-col items-center justify-center text-center p-6" role="region" aria-label="Featured title">
+        <div
+          class="hero-premium flex flex-col items-center justify-center text-center p-6"
+          role="region"
+          aria-label="Featured title"
+        >
           <Show
             when={props.isGuest}
             fallback={
-              <div class="empty-state">
-                <div class="empty-state-icon" aria-hidden="true">
-                  <Icon name="movie_filter" fill style="color: var(--p); font-size: 36px" />
+              <div class="empty-premium" style={{ padding: "var(--sp-6)" }}>
+                <div class="empty-premium-icon" aria-hidden="true">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "32px", color: "var(--p)", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                  >
+                    movie_filter
+                  </span>
                 </div>
-                <p class="empty-state-title">Empty Vault</p>
-                <p class="empty-state-body">Search for movies and series to start building your collection.</p>
+                <p class="empty-premium-title">Empty Vault</p>
+                <p class="empty-premium-body">
+                  Search for movies and series to start building your collection.
+                </p>
               </div>
             }
           >
-            <div class="empty-state">
-              <div class="empty-state-icon" aria-hidden="true">
-                <Icon name="clapperboard" fill style="color: var(--p); font-size: 36px" />
+            <div class="empty-premium" style={{ padding: "var(--sp-6)" }}>
+              <div class="empty-premium-icon" aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "32px", color: "var(--p)", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                >
+                  clapperboard
+                </span>
               </div>
-              <p class="empty-state-title">Your Universe Awaits</p>
-              <p class="empty-state-body mb-2">Track every movie and series you watch, all in one place.</p>
-              <button
+              <p class="empty-premium-title">Your Universe Awaits</p>
+              <p class="empty-premium-body" style={{ "max-width": "320px" }}>
+                Track every movie and series you watch, all in one place.
+              </p>
+              <Button
+                variant="primary"
+                size="md"
+                icon="login"
                 onClick={() => props.onLogin()}
-                class="type-button px-6 py-3 rounded-full text-black active:scale-95 mt-2"
-                style="background: var(--p); box-shadow: 0 0 20px var(--p-glow)"
+                style={{ "margin-top": "var(--sp-3)" }}
+                aria-label="Sign in to begin"
               >
                 Sign In to Begin
-              </button>
+              </Button>
             </div>
           </Show>
         </div>
       }
     >
       {(item) => (
-        <div class="featured-hero animate-fade-in" role="region" aria-label={`Featured: ${item().title || item().name}`}>
+        <div
+          class="hero-premium animate-fade-in"
+          role="region"
+          aria-label={`Featured: ${title(item())}`}
+        >
           <Show when={bgImg(item())}>
             <img
               src={bgImg(item())}
               class="backdrop-img absolute inset-0"
               loading="eager"
               decoding="async"
-              // fetchpriority is a hint to the browser to prioritize this image
-              // for LCP (Largest Contentful Paint). It's a non-standard attribute
-              // in TS JSX types but widely supported.
               {...{ fetchpriority: "high" } as any}
               onLoad={(e) => e.currentTarget.classList.add("img-loaded")}
               alt=""
@@ -77,67 +103,137 @@ export default function HeroSection(props: HeroSectionProps) {
             />
           </Show>
 
-          <div class="backdrop-gradient" aria-hidden="true" />
-
           <Show when={props.badge}>
             <div
-              class="absolute top-4 left-4 lg:top-5 lg:left-5 z-10"
-              style="background: rgba(0,0,0,0.65); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.12); padding: 5px 12px; border-radius: 100px; display: flex; align-items: center; gap: 6px; box-shadow: 0 2px 8px rgba(0,0,0,0.5)"
+              class="absolute top-4 left-4 lg:top-5 lg:left-5 z-10 badge-accent"
               aria-label={props.badge}
             >
-              <Icon name="auto_awesome" style="color: var(--p); font-size: 13px" aria-hidden="true" />
-              <span class="type-caption text-white">{props.badge}</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                auto_awesome
+              </span>
+              {props.badge}
+            </div>
+          </Show>
+
+          <Show when={item().newSeasonAvailable}>
+            <div
+              class="absolute top-4 right-4 lg:top-5 lg:right-5 z-10 badge-glow"
+              aria-label="New season available"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                new_releases
+              </span>
+              New Season
             </div>
           </Show>
 
           <div class="absolute bottom-0 left-0 w-full p-4 lg:p-6 flex flex-col gap-2 z-10">
             <h2
-              class="font-headline text-3xl lg:text-5xl text-white leading-none"
-              style="text-shadow: 0 2px 24px rgba(0,0,0,0.9), 0 1px 4px rgba(0,0,0,1); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden"
+              class="type-display-lg text-white"
+              style={{
+                "text-shadow": "0 2px 24px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1)",
+                display: "-webkit-box",
+                "-webkit-line-clamp": "2",
+                "-webkit-box-orient": "vertical",
+                overflow: "hidden",
+                "max-width": "100%"
+              }}
             >
-              {item().title || item().name}
+              {title(item())}
             </h2>
 
-            <div class="flex items-center gap-3 type-metadata text-gray-300 flex-wrap">
-              <span>{(item().release_date || item().first_air_date || "").split("-")[0]}</span>
-              <Show when={item().media_type === "tv"}>
-                <span class="type-caption bg-white/10 px-2 py-0.5 rounded text-gray-400">Series</span>
+            <div
+              class="flex items-center gap-2 type-meta flex-wrap"
+              style={{ color: "var(--text-soft)" }}
+            >
+              <Show when={year(item())}>
+                <span>{year(item())}</span>
+                <span style={{ color: "var(--text-dim)" }}>·</span>
               </Show>
-              <Show when={(item().runtime ?? 0) > 0}>
-                <span class="type-caption text-gray-400">{formatRuntime(item().runtime)}</span>
+              <span>{item().media_type === "tv" ? "Series" : "Movie"}</span>
+              <Show when={runtime(item())}>
+                <span style={{ color: "var(--text-dim)" }}>·</span>
+                <span>{runtime(item())}</span>
               </Show>
               <Show when={item().imdbRating || item().rating}>
-                <span class="rating-pill" aria-label={`IMDb: ${item().imdbRating || item().rating}`}>
-                  <Icon name="star" fill style="color: #f5c518; font-size: 11px" aria-hidden="true" />
-                  {item().imdbRating || item().rating}
+                <span style={{ color: "var(--text-dim)" }}>·</span>
+                <span
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full"
+                  style={{
+                    background: "rgba(0,0,0,0.6)",
+                    border: "1px solid rgba(255,255,255,0.10)",
+                    "backdrop-filter": "blur(8px)"
+                  }}
+                  aria-label={`Rating: ${item().imdbRating || item().rating}`}
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{
+                      "font-size": "11px",
+                      color: "#f5c518",
+                      "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                    }}
+                    aria-hidden="true"
+                  >
+                    star
+                  </span>
+                  <span
+                    style={{
+                      "font-family": "'Azeret Mono', monospace",
+                      "font-size": "10px",
+                      "font-weight": 700,
+                      color: "#f5c518"
+                    }}
+                  >
+                    {item().imdbRating || item().rating}
+                  </span>
                 </span>
               </Show>
             </div>
 
             <Show when={item().genresList && item().genresList!.length > 0}>
-              <p class="type-caption text-gray-400 truncate">{item().genresList!.join(", ")}</p>
+              <p
+                class="type-meta truncate"
+                style={{ color: "var(--text-muted)", "max-width": "100%" }}
+              >
+                {item().genresList!.join(" · ")}
+              </p>
             </Show>
 
-            <div class="flex items-center gap-3 mt-1 flex-wrap">
-              <button
+            <div class="flex items-center gap-3 mt-2 flex-wrap">
+              <Button
+                variant="primary"
+                size="md"
+                icon={props.isResume ? "play_arrow" : "info"}
+                iconFill={props.isResume}
                 onClick={() => props.onOpenMovie(item().id)}
-                class="type-button bg-white text-black px-6 py-2.5 rounded-full flex items-center gap-2 active:scale-95 shrink-0"
-                style="box-shadow: 0 4px 16px rgba(0,0,0,0.6)"
-                aria-label={props.isResume ? `Resume ${item().title || item().name}` : `View details for ${item().title || item().name}`}
+                aria-label={
+                  props.isResume
+                    ? `Resume ${title(item())}`
+                    : `View details for ${title(item())}`
+                }
               >
-                <Icon name={props.isResume ? "play_arrow" : "info"} fill class="text-xl" aria-hidden="true" /> 
                 {props.isResume ? "Resume" : "Details"}
-              </button>
-              
+              </Button>
+
               <Show when={props.canShuffle}>
-                <button
+                <Button
+                  variant="ghost"
+                  size="md"
+                  icon="shuffle"
                   onClick={() => props.onShuffle()}
-                  class="type-button px-6 py-2.5 rounded-full flex items-center gap-2 active:scale-95 shrink-0"
-                  style="background: rgba(255,255,255,0.10); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.20); color: white; box-shadow: 0 2px 8px rgba(0,0,0,0.4)"
-                  aria-label="Shuffle to a random planned title"
+                  aria-label="Shuffle to another featured pick"
                 >
-                  <Icon name="shuffle" class="text-xl" aria-hidden="true" /> Shuffle
-                </button>
+                  Shuffle
+                </Button>
               </Show>
             </div>
           </div>

@@ -1,6 +1,7 @@
 // src/features/dashboard/components/ContinueWatching.tsx
 import { For, Show, createMemo, Component } from "solid-js";
-import Icon from "~/shared/ui/Icon";
+import { SectionHeader, EmptyState } from "~/shared/ui/primitives";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 
 interface ContinueWatchingProps {
@@ -30,67 +31,72 @@ const ContinueWatching: Component<ContinueWatchingProps> = (props) => {
       Number(m.watchProgress?.duration) > 0
         ? Math.max(Number(m.watchProgress?.duration), runtimeBasedDuration || 0)
         : runtimeBasedDuration || fallbackDuration;
-    
+
     const pct = effectiveDuration > 0
       ? Math.min(100, Math.max(0, (Number(m.watchProgress?.currentTime || 0) / effectiveDuration) * 100))
       : 0;
-      
-    return { 
-      pct: Math.round(pct), 
-      effectiveDuration, 
-      current: Number(m.watchProgress?.currentTime || 0) 
-    };
+
+    return { pct: Math.round(pct), effectiveDuration, current: Number(m.watchProgress?.currentTime || 0) };
   };
 
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
-    if (mins < 60) return `${mins} min`;
+    if (mins < 60) return `${mins}m`;
     const h = Math.floor(mins / 60);
     const m = mins % 60;
     return `${h}h ${m}m`;
   };
 
+  const bgImg = (m: WatchlistItem) => {
+    const path = m.backdrop_path || m.poster_path;
+    return path ? tmdbImage(path, "w500") : "";
+  };
+
   return (
     <div class="animate-fade-up" role="region" aria-label="Continue watching">
-      <p class="type-section-title mb-4 mt-8 px-1">Continue Watching</p>
-      
-      <Show 
+      <SectionHeader title="Continue Watching" icon="play_circle" />
+
+      <Show
         when={continueWatchingList().length > 0}
         fallback={
-          <div class="empty-state py-8">
-            <div class="empty-state-icon" aria-hidden="true">
-              <Icon name="play_circle" style="color: var(--muted); font-size: 36px" />
-            </div>
-            <p class="empty-state-title">No titles in progress</p>
-            <p class="empty-state-body">Start watching something to see it here.</p>
-          </div>
+          <EmptyState
+            icon="play_circle"
+            iconFill
+            title="No titles in progress"
+            message="Start watching something to see it here."
+          />
         }
       >
-        <div class="flex gap-4 overflow-x-auto hide-scrollbar pb-4" role="list">
+        <div class="rail-premium hide-scrollbar" role="list">
           <For each={continueWatchingList()}>
             {(m) => {
               const progress = getProgress(m);
-              const bgImg = m.backdrop_path
-                ? `https://image.tmdb.org/t/p/w500${m.backdrop_path}`
-                : m.poster_path
-                  ? `https://image.tmdb.org/t/p/w500${m.poster_path}`
-                  : "";
+              const img = bgImg(m);
 
               return (
                 <div
-                  class="continue-card relative w-64 h-36 shrink-0 cursor-pointer group"
+                  class="continue-premium relative w-64 h-36 shrink-0 cursor-pointer group touch-ripple"
                   role="listitem"
+                  onClick={() => props.onOpenMovie(m.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter" || e.key === " ") {
+                      e.preventDefault();
+                      props.onOpenMovie(m.id);
+                    }
+                  }}
+                  tabindex={0}
+                  aria-label={`Resume ${m.title || m.name} — ${progress.pct}% watched`}
                 >
-                  <Show 
-                    when={bgImg} 
+                  <Show
+                    when={img}
                     fallback={
-                      <div class="absolute inset-0 flex items-center justify-center" style="background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%); background-size: 300% 100%; animation: shimmer 1.4s ease-in-out infinite;" aria-hidden="true">
-                        <Icon name="movie" class="text-4xl text-gray-700" />
+                      <div class="absolute inset-0 flex items-center justify-center skeleton-base" aria-hidden="true">
+                        <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--text-dim)" }} aria-hidden="true">movie</span>
                       </div>
                     }
                   >
                     <img
-                      src={bgImg}
+                      src={img}
                       class="continue-card-img absolute inset-0"
                       loading="lazy"
                       decoding="async"
@@ -101,65 +107,81 @@ const ContinueWatching: Component<ContinueWatchingProps> = (props) => {
                   </Show>
 
                   <div class="continue-card-gradient" aria-hidden="true" />
-                  
+
                   <Show when={m.newSeasonAvailable}>
-                    <div
-                      class="absolute top-2 right-2 z-20 tag-chip"
-                      style="color: var(--p); border-color: color-mix(in srgb, var(--p) 55%, transparent); box-shadow: 0 0 12px var(--p-glow);"
-                      aria-hidden="true"
-                    >
+                    <div class="absolute top-2 right-2 z-20 badge-glow" aria-label="New season available">
                       New Season
                     </div>
                   </Show>
 
                   <div
                     class="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 group-focus:opacity-100"
-                    style="transition: opacity 200ms ease-out"
+                    style={{ transition: "opacity 200ms ease-out" }}
                     aria-hidden="true"
                   >
                     <div
                       class="w-12 h-12 rounded-full flex items-center justify-center border"
-                      style="background: rgba(0,0,0,0.60); backdrop-filter: blur(8px); border-color: color-mix(in srgb, var(--p2) 60%, transparent); box-shadow: 0 0 16px var(--p-glow)"
+                      style={{
+                        background: "rgba(0,0,0,0.60)",
+                        "backdrop-filter": "blur(8px)",
+                        "border-color": "color-mix(in srgb, var(--p2) 60%, transparent)",
+                        "box-shadow": "0 0 16px var(--p-glow)"
+                      }}
                     >
-                      <Icon name="play_arrow" fill style="color: var(--p2); font-size: 24px" />
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "24px", color: "var(--p2)", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                        aria-hidden="true"
+                      >
+                        play_arrow
+                      </span>
                     </div>
                   </div>
 
                   <div class="absolute bottom-0 left-0 w-full p-3.5 z-10">
-                    <h4 class="type-card-title truncate mb-2">{m.title || m.name}</h4>
+                    <h4 class="type-card-title truncate mb-2" style={{ "font-size": "0.75rem" }}>
+                      {m.title || m.name}
+                    </h4>
 
                     <div
-                      class="w-full h-1 rounded-full overflow-hidden mb-2"
-                      style="background: rgba(255,255,255,0.12)"
+                      class="progress-premium mb-2"
                       role="progressbar"
                       aria-valuenow={progress.pct}
                       aria-valuemin={0}
                       aria-valuemax={100}
                       aria-label={`${progress.pct}% watched`}
                     >
-                      <div
-                        class="h-full rounded-full"
-                        style={`width: ${progress.pct}%; background: var(--p2); box-shadow: 0 0 6px var(--p-glow); transition: width 500ms ease-out`}
-                      />
+                      <div class="progress-premium-fill" style={{ width: `${progress.pct}%` }} />
                     </div>
 
                     <div class="flex justify-between items-center mb-2">
-                      <span class="type-caption" style="color: rgba(255,255,255,0.55)">
-                        {m.media_type === "tv" 
-                          ? `S${m.season || 1} E${m.episode || 1}` 
-                          : `${formatTime(progress.current)} / ${formatTime(progress.effectiveDuration)}`
-                        }
+                      <span class="type-meta" style={{ "font-size": "0.5rem", color: "rgba(255,255,255,0.55)" }}>
+                        {m.media_type === "tv"
+                          ? `S${m.season || 1} E${m.episode || 1}`
+                          : `${formatTime(progress.current)} / ${formatTime(progress.effectiveDuration)}`}
                       </span>
-                      <span class="type-caption" style="color: var(--p2)">{progress.pct}%</span>
+                      <span class="type-meta" style={{ "font-size": "0.5rem", color: "var(--p2)" }}>
+                        {progress.pct}%
+                      </span>
                     </div>
 
-                    <button 
-                      onClick={() => props.onOpenMovie(m.id)}
-                      class="w-full py-1.5 rounded-lg type-caption font-bold flex items-center justify-center gap-1 active:scale-95 transition-transform"
-                      style="background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--p2)"
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        props.onOpenMovie(m.id);
+                      }}
+                      class="w-full py-1.5 rounded-lg type-meta flex items-center justify-center gap-1 active:scale-95 transition-transform"
+                      style={{
+                        background: "rgba(0,0,0,0.5)",
+                        color: "white",
+                        border: "1px solid color-mix(in srgb, var(--p2) 40%, transparent)",
+                        "font-size": "0.5625rem",
+                        "font-weight": 700
+                      }}
                       aria-label={`Resume ${m.title || m.name}`}
                     >
-                      <Icon name="play_arrow" class="text-sm" /> Resume
+                      <span class="material-symbols-outlined" style={{ "font-size": "12px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }} aria-hidden="true">play_arrow</span>
+                      Resume
                     </button>
                   </div>
                 </div>
