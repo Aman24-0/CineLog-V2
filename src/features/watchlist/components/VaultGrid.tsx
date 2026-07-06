@@ -7,6 +7,7 @@ import EmptyState from "./EmptyState";
 interface VaultGridProps {
   items: WatchlistItem[];
   isGuest: boolean;
+  search: string;
   onOpenMovie: (id: string) => void;
   onLogin: () => void;
   onClearFilters: () => void;
@@ -31,7 +32,7 @@ export default function VaultGrid(props: VaultGridProps) {
         <For each={props.items}>
           {(m) => (
             <div role="listitem">
-              <MovieCard movie={m} onClick={() => props.onOpenMovie(m.id)} />
+              <MovieCard movie={m} search={props.search} onClick={() => props.onOpenMovie(m.id)} />
             </div>
           )}
         </For>
