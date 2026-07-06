@@ -207,3 +207,27 @@
 
 .section-title { font-family: 'Azeret Mono', monospace; font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.14em; color: var(--p); margin-bottom: var(--sp-4); margin-top: var(--sp-6); display: flex; align-items: center; gap: var(--sp-2); }
 .section-title::before { content: ''; display: inline-block; width: 3px; height: 12px; background: var(--p); border-radius: 2px; flex-shrink: 0; box-shadow: 0 0 6px var(--p-glow); }
+
+/* Mobile safe-area + narrow viewport tuning (360–412px) */
+@supports (padding: env(safe-area-inset-left)) {
+  body {
+    padding-left: env(safe-area-inset-left, 0px);
+    padding-right: env(safe-area-inset-right, 0px);
+  }
+}
+
+/* Prevent any horizontal overflow from child elements on narrow screens */
+@media (max-width: 412px) {
+  html, body {
+    max-width: 100vw;
+  }
+  /* Ensure media cards never overflow grid columns */
+  .movie-card, .movie-card-inner {
+    max-width: 100%;
+  }
+  /* Tighten padding on the smallest screens so content has room */
+  .px-5 {
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+}
