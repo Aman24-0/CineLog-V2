@@ -1,5 +1,6 @@
 // src/features/details/components/FranchiseInfo.tsx
 import { For, Show, createMemo } from "solid-js";
+import DetailSection from "./DetailSection";
 import type { WatchlistItem } from "~/shared/types";
 
 interface FranchiseInfoProps {
@@ -19,6 +20,13 @@ const FRANCHISES = [
   { name: "Lord of the Rings", keywords: ["lord of the rings", "hobbit", "fellowship of the ring", "two towers", "return of the king"] }
 ];
 
+/**
+ * Franchise Info — shows other titles from the same franchise.
+ *
+ * Uses the DetailSection wrapper for consistent spacing. The franchise list
+ * is numbered with accent badges. The current item is highlighted with a
+ * dot indicator.
+ */
 export default function FranchiseInfo(props: FranchiseInfoProps) {
   const detectedFranchise = createMemo(() => {
     const title = (props.currentItem.title || props.currentItem.name || "").toLowerCase();
@@ -28,7 +36,7 @@ export default function FranchiseInfo(props: FranchiseInfoProps) {
   const franchiseItems = createMemo(() => {
     const franchise = detectedFranchise();
     if (!franchise) return [];
-    
+
     return props.watchlist
       .filter((m) => {
         const itemTitle = (m.title || m.name || "").toLowerCase();
@@ -43,30 +51,47 @@ export default function FranchiseInfo(props: FranchiseInfoProps) {
 
   return (
     <Show when={detectedFranchise() && franchiseItems().length > 1}>
-      <div class="mt-6 animate-fade-in">
-        <h3 class="type-section-title mb-4">{detectedFranchise()!.name}</h3>
+      <DetailSection label={detectedFranchise()!.name} icon="auto_awesome">
         <div class="space-y-2">
           <For each={franchiseItems()}>
             {(item, i) => (
               <div
-                class="flex items-center gap-3 p-3 rounded-xl border border-white/5 hover:border-[color:var(--p)] hover:bg-white/5 cursor-pointer transition-all"
+                class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all v2-card"
+                style={{ "border-radius": "var(--radius-md)" }}
                 onClick={() => props.onSelect(item)}
               >
-                <div class="w-8 h-8 rounded-full flex items-center justify-center bg-[var(--p-dim)] text-[var(--p)] font-bold text-sm">
+                <div
+                  class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
+                  style={{
+                    background: "var(--p-dim)",
+                    color: "var(--p)",
+                    "font-weight": 800,
+                    "font-size": "0.75rem",
+                    "font-family": "'Bebas Neue', cursive"
+                  }}
+                >
                   {i() + 1}
                 </div>
                 <div class="flex-1 min-w-0">
-                  <p class="text-sm font-bold text-white truncate">{item.title || item.name}</p>
-                  <p class="text-xs text-gray-500">{item.release_date || item.first_air_date || "Unknown Date"}</p>
+                  <p class="type-body-sm truncate" style={{ color: "var(--text-strong)", "font-weight": 700 }}>
+                    {item.title || item.name}
+                  </p>
+                  <p class="type-micro" style={{ color: "var(--text-muted)" }}>
+                    {item.release_date || item.first_air_date || "Unknown Date"}
+                  </p>
                 </div>
                 <Show when={item.id === props.currentItem.id}>
-                  <div class="w-2 h-2 rounded-full bg-[var(--p)]" />
+                  <div
+                    class="w-2 h-2 rounded-full shrink-0"
+                    style={{ background: "var(--p)", "box-shadow": "0 0 8px var(--p-glow)" }}
+                    aria-label="Current item"
+                  />
                 </Show>
               </div>
             )}
           </For>
         </div>
-      </div>
+      </DetailSection>
     </Show>
   );
 }

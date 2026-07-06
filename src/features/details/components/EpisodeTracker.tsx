@@ -1,6 +1,5 @@
 // src/features/details/components/EpisodeTracker.tsx
 import { createSignal, createMemo, createEffect, Show } from "solid-js";
-import Icon from "~/shared/ui/Icon";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
 interface EpisodeTrackerProps {
@@ -10,11 +9,20 @@ interface EpisodeTrackerProps {
   onMarkCompleted: () => void;
 }
 
+/**
+ * Episode Tracker — V2 cinematic styling.
+ *
+ * Logic unchanged from V1 (per spec: preserve tracker logic).
+ * Visual treatment updated to match the new cinematic Details page:
+ *  - Glass surface with refined border
+ *  - Larger touch targets (44px minimum)
+ *  - Premium progress bar with gradient + shimmer
+ *  - Cleaner typography using V2 type tokens
+ */
 export default function EpisodeTracker(props: EpisodeTrackerProps) {
   const [season, setSeason] = createSignal(props.item.season || 1);
   const [episode, setEpisode] = createSignal(props.item.episode || 1);
 
-  // Sync local state if the underlying item changes (e.g., Firestore update)
   createEffect(() => {
     setSeason(props.item.season || 1);
     setEpisode(props.item.episode || 1);
@@ -77,43 +85,44 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
   };
 
   return (
-    <div class="glass-surface p-5 rounded-2xl border border-white/5 mb-6 animate-fade-up">
-      <div class="flex justify-between items-center mb-4">
-        <span class="type-caption text-gray-400 flex items-center gap-2">
-          <Icon name="video_library" class="text-[14px]" style="color: var(--p)" /> Tracker
+    <div class="v2-info-group animate-fade-up">
+      {/* Header row */}
+      <div class="flex justify-between items-center">
+        <span class="type-micro" style={{ color: "var(--text-muted)" }}>
+          Current Progress
         </span>
-        <span class="type-metadata font-black text-white">
+        <span class="type-headline-sm" style={{ color: "var(--text-strong)" }}>
           S{season()} E{episode()}
         </span>
       </div>
 
       {/* Season Control */}
-      <div class="flex items-center justify-between mb-3">
-        <span class="type-metadata text-gray-300">Season {season()}</span>
+      <div class="flex items-center justify-between">
+        <span class="type-body-soft">Season {season()}</span>
         <div class="flex gap-2">
           <button
             onClick={decrementSeason}
             disabled={season() <= 1}
             class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
+            style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Season minus"
           >
-            <Icon name="remove" />
+            <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">remove</span>
           </button>
           <button
             onClick={incrementSeason}
             class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 transition-all"
-            style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
+            style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Season plus"
           >
-            <Icon name="add" />
+            <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">add</span>
           </button>
         </div>
       </div>
 
       {/* Episode Control */}
-      <div class="flex items-center justify-between mb-4">
-        <span class="type-metadata text-gray-300">
+      <div class="flex items-center justify-between">
+        <span class="type-body-soft">
           Episode {episode()} / {totalEps() || "?"}
         </span>
         <div class="flex gap-2">
@@ -121,44 +130,49 @@ export default function EpisodeTracker(props: EpisodeTrackerProps) {
             onClick={decrementEpisode}
             disabled={episode() <= 1}
             class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 disabled:opacity-40 disabled:cursor-not-allowed transition-all"
-            style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
+            style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Episode minus"
           >
-            <Icon name="remove" />
+            <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">remove</span>
           </button>
           <button
             onClick={incrementEpisode}
             class="w-11 h-11 rounded-xl flex items-center justify-center border active:scale-95 transition-all"
-            style="background: var(--p-dim); color: var(--p); border-color: var(--p)"
+            style={{ background: "var(--p-dim)", color: "var(--p)", "border-color": "color-mix(in srgb, var(--p) 30%, transparent)" }}
             aria-label="Episode plus"
           >
-            <Icon name="add" />
+            <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">add</span>
           </button>
         </div>
       </div>
 
       {/* Progress Bar */}
-      <div class="flex justify-between items-center mb-2">
-        <span class="type-caption text-gray-500">Progress</span>
-        <span class="type-caption font-bold" style="color: var(--p)">{Math.round(progress())}%</span>
-      </div>
-      <div class="w-full h-2 bg-black rounded-full overflow-hidden mb-4">
-        <div
-          class="h-full rounded-full animate-bar-grow"
-          style={{
-            width: `${progress()}%`,
-            background: "var(--p)",
-            "box-shadow": "0 0 10px var(--p-glow)",
-            transition: "width 500ms ease-out"
-          }}
-        />
+      <div>
+        <div class="flex justify-between items-center mb-2">
+          <span class="type-micro" style={{ color: "var(--text-muted)" }}>Progress</span>
+          <span class="type-micro" style={{ color: "var(--p)", "font-weight": 800 }}>
+            {Math.round(progress())}%
+          </span>
+        </div>
+        <div class="progress-premium">
+          <div
+            class="progress-premium-fill"
+            style={{ width: `${progress()}%` }}
+          />
+        </div>
       </div>
 
+      {/* Mark as Completed */}
       <Show when={isCompletedEligible()}>
         <button
           onClick={() => props.onMarkCompleted()}
-          class="w-full rounded-xl py-2 type-caption active:scale-95 transition-transform"
-          style="background: var(--p-dim); color: var(--p); border: 1px solid var(--p)"
+          class="w-full rounded-xl py-3 type-micro active:scale-95 transition-transform"
+          style={{
+            background: "var(--p-dim)",
+            color: "var(--p)",
+            border: "1px solid color-mix(in srgb, var(--p) 30%, transparent)",
+            "font-weight": 800
+          }}
           aria-label="Mark as Completed"
         >
           ✓ Mark as Completed

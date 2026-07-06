@@ -13,20 +13,50 @@ import {
   updateSeasonEpisode as svcUpdateSeasonEpisode,
   updateWatchProgress as svcUpdateWatchProgress
 } from "~/features/watchlist/watchlistService";
+import { pickTrailer } from "~/core/tmdb/tmdb";
 import { useDetails } from "./useDetails";
-import DetailsHeader from "./components/DetailsHeader";
-import DetailsOverview from "./components/DetailsOverview";
-import DetailsRatings from "./components/DetailsRatings";
+import CinematicHero from "./components/CinematicHero";
+import HeroContentCluster from "./components/HeroContentCluster";
+import ActionDock from "./components/ActionDock";
+import RatingCluster from "./components/RatingCluster";
+import MetadataGrid from "./components/MetadataGrid";
+import DetailSection from "./components/DetailSection";
 import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
-import Icon from "~/shared/ui/Icon";
 
 const EpisodeTracker = lazy(() => import("./components/EpisodeTracker"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
 const FranchiseInfo = lazy(() => import("./components/FranchiseInfo"));
 const TrailerSection = lazy(() => import("./components/TrailerSection"));
 
+/**
+ * DetailsModal — V2 Cinematic Details Page.
+ *
+ * NEW INFORMATION ARCHITECTURE:
+ *  1. CinematicHero — full-bleed backdrop with multi-layer gradients + parallax
+ *  2. HeroContentCluster — floating poster + title + tagline + quick-meta
+ *  3. ActionDock — floating glass bar: Status | Trailer | Rate | Edit
+ *  4. RatingCluster — user rating prominent, IMDb/RT secondary
+ *  5. Overview — paragraph (DetailSection)
+ *  6. MetadataGrid — responsive grid of metadata cells (DetailSection)
+ *  7. EpisodeTracker — TV only (DetailSection)
+ *  8. Related — Franchise + Similar (DetailSection)
+ *
+ * SIGNATURE INTERACTION: "Adaptive Backdrop"
+ *  - The backdrop has parallax scroll (moves up at 0.3x speed, fades out)
+ *  - The backdrop visually continues into content via cinematic-ambient layer
+ *  - No hard cut-off — the hero fades into the content surface
+ *
+ * TRAILER INTEGRATION:
+ *  - Trailer button lives in the ActionDock (not a separate section)
+ *  - Clicking expands an inline player below the action dock
+ *  - If no trailer: button is hidden, no empty space
+ *
+ * STATUS CYCLING:
+ *  - The primary action button cycles: Planned → Watching → Completed → Planned
+ *  - Updates Firestore immediately (no need to open edit mode for status changes)
+ */
 export default function DetailsModal() {
   const { selectedItem, setSelectedItem } = useModalState();
   const { watchlist } = useVault();
@@ -35,6 +65,7 @@ export default function DetailsModal() {
 
   const [isEditing, setIsEditing] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
+  const [showTrailer, setShowTrailer] = createSignal(false);
   const [form, setFormState] = createSignal({
     status: "Planned",
     rating: "",
@@ -42,12 +73,9 @@ export default function DetailsModal() {
     notes: ""
   });
 
-  let resetTick = 0;
-
   createEffect(() => {
     const item = selectedItem();
     if (item) {
-      resetTick++;
       setFormState({
         status: item.status || "Planned",
         rating: item.rating?.toString() || "",
@@ -55,6 +83,7 @@ export default function DetailsModal() {
         notes: item.notes || ""
       });
       setIsEditing(false);
+      setShowTrailer(false);
     }
   });
 
@@ -79,9 +108,11 @@ export default function DetailsModal() {
 
   const handleSelectItem = (item: any) => {
     setSelectedItem(item);
-    const container = document.querySelector(".overflow-y-auto.hide-scrollbar.w-full");
+    const container = document.querySelector(".cinematic-scroll");
     if (container) container.scrollTo({ top: 0, behavior: "smooth" });
   };
+
+  const hasTrailer = createMemo(() => pickTrailer(tmdb()) !== null);
 
   const handleSave = async () => {
     const uid = auth.currentUser?.uid;
@@ -137,6 +168,29 @@ export default function DetailsModal() {
     setIsEditing(false);
   };
 
+  // Status cycling: Planned → Watching → Completed → Planned
+  const handleStatusCycle = async () => {
+    const uid = auth.currentUser?.uid;
+    const item = selectedItem();
+    if (!uid || !item) return;
+
+    const currentStatus = item.status || "Planned";
+    const nextStatus =
+      currentStatus === "Planned" || currentStatus === "Plan to Watch"
+        ? "Watching"
+        : currentStatus === "Watching"
+          ? "Completed"
+          : "Planned";
+
+    try {
+      await svcUpdateStatus(uid, item.id, nextStatus);
+      setSelectedItem({ ...item, status: nextStatus });
+      showToast(`Status: ${nextStatus}`, "success", 1500);
+    } catch (err) {
+      showToast("Failed to update status.", "error");
+    }
+  };
+
   const handleEpisodeChange = async (newSeason: number, newEpisode: number) => {
     const uid = auth.currentUser?.uid;
     const item = selectedItem();
@@ -185,6 +239,8 @@ export default function DetailsModal() {
       if (e.key === "Escape") {
         if (isEditing()) {
           handleCancel();
+        } else if (showTrailer()) {
+          setShowTrailer(false);
         } else {
           close();
         }
@@ -206,54 +262,64 @@ export default function DetailsModal() {
           role="dialog"
           aria-modal="true"
         >
-          <div class="absolute inset-0 bg-[#08090b] overflow-hidden pointer-events-none">
+          {/* Ambient backdrop continuation — blurred tint behind the modal */}
+          <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
             <Show when={selectedItem()?.backdrop_path}>
               <img
                 src={`https://image.tmdb.org/t/p/w500${selectedItem()?.backdrop_path}`}
-                class="backdrop-ambient"
-                loading="lazy"
-                decoding="async"
+                class="cinematic-ambient"
                 alt=""
                 aria-hidden="true"
               />
             </Show>
-            <div class="absolute inset-0 bg-black/80" />
+            <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
           </div>
 
           <div
             class="w-full max-w-xl lg:max-w-[800px] relative z-10"
             onClick={(e) => e.stopPropagation()}
           >
-            <Show
-              when={!loading()}
-              fallback={<DetailsSkeleton />}
-            >
-              <Show
-                when={!error()}
-                fallback={<DetailsError onRetry={retry} />}
-              >
-                <div
-                  class="bg-[#08090b]/80 backdrop-blur-3xl rounded-t-[2.5rem] sm:rounded-[2.5rem] overflow-hidden border border-white/10 relative max-h-[95vh] modal-sheet-enter flex flex-col"
-                >
-                  <button
-                    onClick={close}
-                    class="absolute top-4 right-4 z-[100] bg-black/50 backdrop-blur-md border border-white/10 p-2.5 rounded-full hover:bg-black/80 active:scale-95 transition-all"
-                    aria-label="Close details"
-                  >
-                    <Icon name="close" class="text-sm text-white" aria-hidden="true" />
-                  </button>
-
-                  <div class="overflow-y-auto hide-scrollbar w-full">
-                    <DetailsHeader
+            <Show when={!loading()} fallback={<DetailsSkeleton />}>
+              <Show when={!error()} fallback={<DetailsError onRetry={retry} />}>
+                <div class="cinematic-modal modal-sheet-enter">
+                  {/* Scrollable content area */}
+                  <div class="cinematic-scroll">
+                    {/* 1. Cinematic hero — full-bleed backdrop with parallax */}
+                    <CinematicHero
                       baseItem={selectedItem()}
                       details={tmdb()}
-                      isEditing={isEditing()}
-                      onEditToggle={() => (isEditing() ? handleCancel() : setIsEditing(true))}
+                      onClose={close}
                     />
-                    <div class="px-6 md:px-8 pb-10 relative z-10 page-rhythm-tight">
-                      <Show
-                        when={!isEditing()}
-                        fallback={
+
+                    {/* 2. Floating poster + title cluster */}
+                    <HeroContentCluster
+                      baseItem={selectedItem()}
+                      details={tmdb()}
+                    />
+
+                    {/* 3. Action dock — floating glass bar */}
+                    <ActionDock
+                      item={selectedItem()}
+                      hasTrailer={hasTrailer()}
+                      onPlayTrailer={() => setShowTrailer((v) => !v)}
+                      onEdit={() => (isEditing() ? handleCancel() : setIsEditing(true))}
+                      onStatusCycle={handleStatusCycle}
+                    />
+
+                    {/* Inline trailer expansion */}
+                    <Show when={showTrailer() && hasTrailer()}>
+                      <div class="detail-section" style={{ "margin-top": "1rem" }}>
+                        <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
+                          <TrailerSection details={tmdb()} inline />
+                        </Suspense>
+                      </div>
+                    </Show>
+
+                    {/* Content area — switches between view and edit */}
+                    <Show
+                      when={!isEditing()}
+                      fallback={
+                        <DetailSection style={{ "margin-top": "1.5rem" }}>
                           <DetailsEditForm
                             form={form}
                             setForm={setForm}
@@ -262,27 +328,50 @@ export default function DetailsModal() {
                             isSaving={isSaving()}
                             isDirty={isDirty()}
                           />
-                        }
-                      >
-                        {/* Primary group: ratings + overview */}
-                        <div class="v2-info-group">
-                          <DetailsRatings
+                        </DetailSection>
+                      }
+                    >
+                      {/* 4. Rating cluster — user rating prominent */}
+                      <Show when={tmdb() || omdb()}>
+                        <DetailSection style={{ "margin-top": "1.5rem" }}>
+                          <RatingCluster
                             details={tmdb()}
                             omdb={omdb()}
                             baseItem={selectedItem()}
                           />
-                          <DetailsOverview details={tmdb()} omdb={omdb()} />
-                        </div>
+                        </DetailSection>
+                      </Show>
 
-                        {/* Secondary: trailer (lazy) */}
-                        <Show when={tmdb()}>
-                          <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
-                            <TrailerSection details={tmdb()} />
-                          </Suspense>
-                        </Show>
+                      {/* 5. Overview */}
+                      <Show when={tmdb()?.overview}>
+                        <DetailSection label="Overview" icon="description">
+                          <p class="type-body" style={{ color: "var(--text-soft)", "line-height": 1.65 }}>
+                            {tmdb()!.overview}
+                          </p>
+                        </DetailSection>
+                      </Show>
 
-                        {/* Secondary: episode tracker (TV only, lazy) */}
-                        <Show when={selectedItem()?.media_type === "tv"}>
+                      {/* 6. Cast & Crew (if available from OMDb) */}
+                      <Show when={omdb()?.director || omdb()?.writer || omdb()?.actors}>
+                        <DetailSection label="Cast & Crew" icon="groups">
+                          <CastCrewGrid omdb={omdb()} />
+                        </DetailSection>
+                      </Show>
+
+                      {/* 7. Metadata grid */}
+                      <Show when={tmdb()}>
+                        <DetailSection label="Details" icon="info">
+                          <MetadataGrid
+                            baseItem={selectedItem()}
+                            details={tmdb()}
+                            omdb={omdb()}
+                          />
+                        </DetailSection>
+                      </Show>
+
+                      {/* 8. Episode tracker (TV only) */}
+                      <Show when={selectedItem()?.media_type === "tv"}>
+                        <DetailSection label="Progress" icon="video_library">
                           <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
                             <EpisodeTracker
                               item={selectedItem()!}
@@ -291,30 +380,30 @@ export default function DetailsModal() {
                               onMarkCompleted={handleMarkCompleted}
                             />
                           </Suspense>
-                        </Show>
-
-                        {/* Tertiary: franchise + similar (lazy) */}
-                        <Show when={selectedItem()}>
-                          <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
-                            <FranchiseInfo
-                              currentItem={selectedItem()!}
-                              watchlist={watchlist()}
-                              onSelect={handleSelectItem}
-                            />
-                          </Suspense>
-                        </Show>
-
-                        <Show when={selectedItem()}>
-                          <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
-                            <SimilarTitles
-                              currentItem={selectedItem()!}
-                              watchlist={watchlist()}
-                              onSelect={handleSelectItem}
-                            />
-                          </Suspense>
-                        </Show>
+                        </DetailSection>
                       </Show>
-                    </div>
+
+                      {/* 9. Related — franchise + similar */}
+                      <Show when={selectedItem()}>
+                        <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
+                          <FranchiseInfo
+                            currentItem={selectedItem()!}
+                            watchlist={watchlist()}
+                            onSelect={handleSelectItem}
+                          />
+                        </Suspense>
+                      </Show>
+
+                      <Show when={selectedItem()}>
+                        <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
+                          <SimilarTitles
+                            currentItem={selectedItem()!}
+                            watchlist={watchlist()}
+                            onSelect={handleSelectItem}
+                          />
+                        </Suspense>
+                      </Show>
+                    </Show>
                   </div>
                 </div>
               </Show>
@@ -323,5 +412,47 @@ export default function DetailsModal() {
         </div>
       </Portal>
     </Show>
+  );
+}
+
+/**
+ * CastCrewGrid — inline cast & crew display using v2-meta-row system.
+ * Extracted here to keep DetailsModal readable.
+ */
+function CastCrewGrid(props: { omdb: any }) {
+  const cast = () =>
+    (props.omdb?.actors || "")
+      .split(",")
+      .map((s: string) => s.trim())
+      .filter(Boolean);
+
+  const director = () => props.omdb?.director?.trim();
+  const writer = () => props.omdb?.writer?.trim();
+
+  return (
+    <div class="space-y-2.5">
+      <Show when={director()}>
+        <div class="v2-meta-row">
+          <span class="v2-meta-label">Director</span>
+          <span class="v2-meta-value">{director()}</span>
+        </div>
+      </Show>
+      <Show when={writer()}>
+        <div class="v2-meta-row">
+          <span class="v2-meta-label">Writer</span>
+          <span class="v2-meta-value">{writer()}</span>
+        </div>
+      </Show>
+      <Show when={cast().length > 0}>
+        <div class="v2-meta-row">
+          <span class="v2-meta-label">Cast</span>
+          <div class="flex flex-wrap gap-1.5">
+            {cast().map((name: string) => (
+              <span class="v2-pill">{name}</span>
+            ))}
+          </div>
+        </div>
+      </Show>
+    </div>
   );
 }

@@ -99,6 +99,26 @@ export interface TMDBVideo {
   published_at?: string;
 }
 
+export interface TMDBProductionCompany {
+  id: number;
+  name: string;
+  logo_path?: string | null;
+  origin_country?: string;
+}
+
+export interface TMDBNetwork {
+  id: number;
+  name: string;
+  logo_path?: string | null;
+  origin_country?: string;
+}
+
+export interface TMDBSpokenLanguage {
+  english_name: string;
+  iso_639_1: string;
+  name: string;
+}
+
 export interface TMDBDetails {
   id: number;
   title?: string;
@@ -117,6 +137,23 @@ export interface TMDBDetails {
   genres?: TMDBGenre[];
   seasons?: TMDBSeason[];
   media_type?: "movie" | "tv";
+  status?: string;                    // "Released" | "Ended" | "Returning Series" | etc.
+  // Movie-specific
+  production_companies?: TMDBProductionCompany[];
+  production_countries?: { iso_3166_1: string; name: string }[];
+  spoken_languages?: TMDBSpokenLanguage[];
+  imdb_id?: string;
+  budget?: number;
+  revenue?: number;
+  // TV-specific
+  number_of_seasons?: number;
+  number_of_episodes?: number;
+  networks?: TMDBNetwork[];
+  origin_country?: string[];
+  original_name?: string;
+  original_title?: string;
+  in_production?: boolean;
+  last_air_date?: string;
   // Populated when fetchTmdbDetails requests append=response=videos
   videos?: {
     results?: TMDBVideo[];
