@@ -99,6 +99,16 @@ const ContinueWatching: Component<ContinueWatchingProps> = (props) => {
                   </Show>
 
                   <div class="continue-card-gradient" aria-hidden="true" />
+                  
+                  <Show when={m.newSeasonAvailable}>
+                    <div
+                      class="absolute top-2 right-2 z-20 tag-chip"
+                      style="color: var(--p); border-color: color-mix(in srgb, var(--p) 55%, transparent); box-shadow: 0 0 12px var(--p-glow);"
+                      aria-hidden="true"
+                    >
+                      New Season
+                    </div>
+                  </Show>
 
                   <div
                     class="absolute inset-0 flex items-center justify-center z-10 opacity-0 group-hover:opacity-100 group-focus:opacity-100"
