@@ -1,5 +1,5 @@
 // src/features/watchlist/WatchlistView.tsx
-import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup } from "solid-js";
+import { createSignal, createEffect, createMemo, For, Show, onMount, onCleanup, lazy, Suspense } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
 import { useToast } from "~/shared/hooks/useToast";
@@ -9,11 +9,12 @@ import { resolveTimelineDate } from "~/shared/utils/date";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 import VaultHeader from "./components/VaultHeader";
 import VaultSearch from "./components/VaultSearch";
-import VaultFilters from "./components/VaultFilters";
 import VaultGrid from "./components/VaultGrid";
 import VaultCard from "./components/VaultCard";
 import EmptyState from "./components/EmptyState";
 import LoadingSkeleton from "./components/LoadingSkeleton";
+
+const VaultFilters = lazy(() => import("./components/VaultFilters"));
 
 const defaultFilters: VaultFilters = {
   type: "all",
@@ -324,21 +325,29 @@ export default function WatchlistView() {
       </Show>
 
       <Show when={showFilter()}>
-        <VaultFilters
-          filters={filters()}
-          setFilters={(v) => {
-            setFilters(v);
-            setDisplayLimit(20);
-          }}
-          uniqueGenres={uniqueGenres()}
-          uniquePlatforms={uniquePlatforms()}
-          uniqueTags={uniqueTags()}
-          onClose={() => setShowFilter(false)}
-          onClear={() => {
-            clearFilters();
-            setDisplayLimit(20);
-          }}
-        />
+        <Suspense fallback={
+          <div class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in" style="background: rgba(0,0,0,0.75); backdrop-filter: blur(8px)">
+            <div class="w-full max-w-sm p-10 flex justify-center">
+              <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white"></div>
+            </div>
+          </div>
+        }>
+          <VaultFilters
+            filters={filters()}
+            setFilters={(v) => {
+              setFilters(v);
+              setDisplayLimit(20);
+            }}
+            uniqueGenres={uniqueGenres()}
+            uniquePlatforms={uniquePlatforms()}
+            uniqueTags={uniqueTags()}
+            onClose={() => setShowFilter(false)}
+            onClear={() => {
+              clearFilters();
+              setDisplayLimit(20);
+            }}
+          />
+        </Suspense>
       </Show>
     </div>
   );
