@@ -48,6 +48,8 @@ export default function SimilarTitles(props: SimilarTitlesProps) {
                     <img
                       src={`https://image.tmdb.org/t/p/w200${item.poster_path}`}
                       class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                      loading="lazy"
+                      decoding="async"
                       alt={item.title || item.name}
                     />
                   </Show>

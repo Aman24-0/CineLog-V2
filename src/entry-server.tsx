@@ -16,6 +16,8 @@ export default createHandler(() => (
           {/* Google Fonts & Material Symbols */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+          {/* Preconnect to TMDB image CDN so poster fetches skip TLS handshake */}
+          <link rel="preconnect" href="https://image.tmdb.org" crossorigin="anonymous" />
           <link
             href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
             rel="stylesheet"

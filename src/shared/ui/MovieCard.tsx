@@ -80,6 +80,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             src={tmdbImage(props.movie.poster_path, "w500")}
             class={`movie-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
+            decoding="async"
             alt=""
             aria-hidden="true"
             onLoad={(e) => {

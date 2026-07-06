@@ -51,6 +51,7 @@ export default function TrailerSection(props: TrailerSectionProps) {
                   class="absolute inset-0 w-full h-full object-cover"
                   style="filter: brightness(0.55)"
                   loading="lazy"
+                  decoding="async"
                 />
                 <div
                   class="relative z-10 flex items-center justify-center w-16 h-16 rounded-full transition-transform group-hover:scale-110 group-active:scale-95"

@@ -44,6 +44,8 @@ export default function VaultCard(props: VaultCardProps) {
             <img
               src={`https://image.tmdb.org/t/p/w200${props.item.poster_path}`}
               class="poster-img absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+              decoding="async"
               onLoad={(e) => {
                 e.currentTarget.classList.add("img-loaded");
                 e.currentTarget.previousElementSibling?.classList.add("hidden");

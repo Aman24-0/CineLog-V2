@@ -65,6 +65,12 @@ export default function HeroSection(props: HeroSectionProps) {
             <img
               src={bgImg(item())}
               class="backdrop-img absolute inset-0"
+              loading="eager"
+              decoding="async"
+              // fetchpriority is a hint to the browser to prioritize this image
+              // for LCP (Largest Contentful Paint). It's a non-standard attribute
+              // in TS JSX types but widely supported.
+              {...{ fetchpriority: "high" } as any}
               onLoad={(e) => e.currentTarget.classList.add("img-loaded")}
               alt=""
               aria-hidden="true"

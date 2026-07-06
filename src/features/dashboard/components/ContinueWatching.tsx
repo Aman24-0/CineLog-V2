@@ -92,6 +92,8 @@ const ContinueWatching: Component<ContinueWatchingProps> = (props) => {
                     <img
                       src={bgImg}
                       class="continue-card-img absolute inset-0"
+                      loading="lazy"
+                      decoding="async"
                       onLoad={(e) => e.currentTarget.classList.add("img-loaded")}
                       alt=""
                       aria-hidden="true"

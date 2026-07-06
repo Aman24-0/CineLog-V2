@@ -211,6 +211,8 @@ export default function DetailsModal() {
               <img
                 src={`https://image.tmdb.org/t/p/w500${selectedItem()?.backdrop_path}`}
                 class="backdrop-ambient"
+                loading="lazy"
+                decoding="async"
                 alt=""
                 aria-hidden="true"
               />

@@ -57,6 +57,8 @@ export default function DetailsHeader(props: DetailsHeaderProps) {
           <img
             src={backdropUrl()}
             class="backdrop-img absolute inset-0"
+            loading="lazy"
+            decoding="async"
             alt=""
             aria-hidden="true"
           />
@@ -91,6 +93,7 @@ export default function DetailsHeader(props: DetailsHeaderProps) {
                 "box-shadow": "0 8px 24px rgba(0,0,0,0.7), 0 0 0 1px rgba(255,255,255,0.08)"
               }}
               loading="lazy"
+              decoding="async"
             />
           </Show>
         </div>
