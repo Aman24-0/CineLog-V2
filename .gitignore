@@ -2,6 +2,7 @@ node_modules
 .output
 .netlify
 dist
+.vinxi
 
 .env
 .env.local

@@ -3,6 +3,7 @@ import { createSignal } from "solid-js";
 export type AppView =
   | "dashboard"
   | "watchlist"
+  | "discover"
   | "search"
   | "franchises"
   | "upcoming"

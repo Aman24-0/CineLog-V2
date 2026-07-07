@@ -13,15 +13,15 @@ export default function BottomNavigation() {
   // page the user is actually on, regardless of how they navigated.
   const path = () => location.pathname;
 
-  const go = (view: "dashboard" | "watchlist" | "search" | "upcoming", href: string) => {
+  const go = (view: "dashboard" | "watchlist" | "discover" | "upcoming", href: string) => {
     setView(view);
     navigate(href);
   };
 
-  // Search and Upcoming routes don't exist yet (Phase 2). Surface this to
+  // Upcoming route doesn't exist yet (future phase). Surface this to
   // the user instead of letting the button appear dead.
   const comingSoon = (label: string) =>
-    showToast(`${label} is coming in Phase 2`, "info", 2000);
+    showToast(`${label} is coming soon`, "info", 2000);
 
   return (
     <nav
@@ -48,10 +48,10 @@ export default function BottomNavigation() {
       />
 
       <NavButton
-        icon="search"
-        label="Search"
-        active={false}
-        onClick={() => comingSoon("Search")}
+        icon="explore"
+        label="Discover"
+        active={path() === "/discover"}
+        onClick={() => go("discover", "/discover")}
       />
 
       <NavButton
