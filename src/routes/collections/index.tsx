@@ -1,4 +1,4 @@
-// src/routes/collections.tsx
+// src/routes/collections/index.tsx
 import { lazy } from "solid-js";
 
 const CollectionsPage = lazy(() => import("~/features/collections/CollectionsPage"));
