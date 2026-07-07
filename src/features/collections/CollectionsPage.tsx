@@ -5,31 +5,48 @@ import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
-import { useToast } from "~/shared/hooks/useToast";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { Collection } from "~/shared/types";
+import { findInVault } from "~/shared/utils/vaultMatch";
+import type { Collection, CollectionEntry } from "~/shared/types";
 
-/**
- * CollectionsPage — the signature collections experience.
- *
- * Three sections:
- *   1. FEATURED CURATED — cinematic banners for CineLog curated collections
- *      (MCU Chronological, Star Wars Timeline, etc.) with progress rings
- *   2. YOUR COLLECTIONS — user-created folders (Favorites first)
- *      with create-new-folder CTA
- *   3. OFFICIAL — TMDB collections detected from the vault (future)
- *
- * Navigation: accessible via Vault header "Collections" button.
- * No bottom nav tab — this is a route, not a tab.
- */
 export default function CollectionsPage() {
   const navigate = useNavigate();
   const { watchlist } = useVault();
   const { userCollections, curatedCollections, loading, createCollection, getCollectionProgress } = useCollections();
-  const { showToast } = useToast();
 
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
+
+  // Featured universe — rotate daily
+  const featured = createMemo(() => {
+    const curated = curatedCollections();
+    if (curated.length === 0) return null;
+    const dayOfYear = Math.floor(Date.now() / 86400000);
+    return curated[dayOfYear % curated.length];
+  });
+
+  const featuredProgress = createMemo(() => {
+    const f = featured();
+    return f ? getCollectionProgress(f, watchlist()) : { owned: 0, total: 0, pct: 0 };
+  });
+
+  const featuredBackdrop = createMemo(() => {
+    const f = featured();
+    return f?.backdrop_path ? tmdbImage(f.backdrop_path, "w1280") : "";
+  });
+
+  // Continue Your Universe — curated collections the user has started but not completed
+  const inProgressUniverses = createMemo(() => {
+    return curatedCollections()
+      .map((col) => ({ col, progress: getCollectionProgress(col, watchlist()) }))
+      .filter(({ progress }) => progress.owned > 0 && progress.pct < 100)
+      .sort((a, b) => b.progress.pct - a.progress.pct);
+  });
+
+  // Find the next missing entry for a collection
+  const nextMissing = (col: Collection): CollectionEntry | null => {
+    return col.entries.find((e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })) ?? null;
+  };
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -39,145 +56,277 @@ export default function CollectionsPage() {
     setShowCreate(false);
   };
 
+  const titleOf = (e: CollectionEntry) => e.title || e.name || "Untitled";
+
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <ScrollToTop />
+      <div class="ambient-glow" aria-hidden="true" />
 
-      {/* Header */}
-      <div class="collections-eyebrow-block">
-        <p class="collections-eyebrow">Collections</p>
-        <h1 class="collections-page-title">Your Cinematic Universe</h1>
-        <p class="collections-page-subtitle">
-          Curated timelines, official collections, and your own folders — all in one place.
-        </p>
-      </div>
-
-      {/* SECTION 1 — Featured Curated Collections */}
-      <section class="collections-section">
-        <div class="collections-section-label">
-          <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">auto_awesome</span>
-          Curated Collections
+      <div class="page-enter relative">
+        {/* Page eyebrow */}
+        <div class="collections-eyebrow-block">
+          <p class="collections-eyebrow">Collections</p>
+          <h1 class="collections-page-title">Cinematic Universes</h1>
+          <p class="collections-page-subtitle">
+            Explore interconnected sagas, curated timelines, and your personal collections.
+          </p>
         </div>
-        <div class="collections-featured-grid">
-          <For each={curatedCollections()}>
-            {(col) => {
-              const progress = createMemo(() => getCollectionProgress(col, watchlist()));
-              const backdrop = () => col.backdrop_path ? tmdbImage(col.backdrop_path, "w780") : "";
-              return (
+
+        {/* === FEATURED UNIVERSE HERO === */}
+        <Show when={featured()}>
+          <section
+            class="universe-hero animate-fade-in"
+            role="region"
+            aria-label={`Featured universe: ${featured()!.name}`}
+          >
+            <Show when={featuredBackdrop()}>
+              <img
+                src={featuredBackdrop()}
+                class="universe-hero-backdrop"
+                loading="eager"
+                decoding="async"
+                {...{ fetchpriority: "high" } as any}
+                alt=""
+                aria-hidden="true"
+              />
+            </Show>
+            <div class="universe-hero-overlay" aria-hidden="true" />
+
+            <div class="universe-hero-badge" aria-label="Featured Universe">
+              <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">
+                auto_awesome
+              </span>
+              Featured Universe
+            </div>
+
+            <div class="universe-hero-content">
+              <h2 class="universe-hero-title">{featured()!.name}</h2>
+              <Show when={featured()!.description}>
+                <p class="universe-hero-description">{featured()!.description}</p>
+              </Show>
+
+              <div class="universe-hero-footer">
+                <div class="universe-hero-progress">
+                  <div class="universe-hero-ring" style={{ "--progress": `${featuredProgress().pct}%` }}>
+                    <span class="universe-hero-ring-pct">{featuredProgress().pct}%</span>
+                  </div>
+                  <div class="universe-hero-progress-text">
+                    <span class="universe-hero-progress-owned">{featuredProgress().owned} of {featuredProgress().total}</span>
+                    <span class="universe-hero-progress-label">in your vault</span>
+                  </div>
+                </div>
                 <button
                   type="button"
-                  class="collections-featured-card"
-                  onClick={() => navigate(`/collections/${col.id}`)}
-                  aria-label={`Open ${col.name}`}
+                  class="btn-primary"
+                  onClick={() => navigate(`/collections/${featured()!.id}`)}
+                  aria-label={`Enter ${featured()!.name}`}
                 >
-                  <Show when={backdrop()}>
-                    <img
-                      src={backdrop()}
-                      class="collections-featured-backdrop"
-                      loading="lazy"
-                      decoding="async"
-                      alt=""
-                      aria-hidden="true"
-                    />
-                  </Show>
-                  <div class="collections-featured-overlay" aria-hidden="true" />
-                  <div class="collections-featured-content">
-                    <p class="collections-featured-name">{col.name}</p>
-                    <div class="collections-featured-meta">
-                      <span>{col.entries.length} titles</span>
-                      <Show when={progress().owned > 0}>
-                        <span> · {progress().owned} in vault</span>
-                      </Show>
-                    </div>
-                    {/* Progress ring */}
-                    <Show when={progress().total > 0}>
-                      <div
-                        class="collections-featured-ring"
-                        style={{ "--progress": `${progress().pct}%` }}
-                      >
-                        <span class="collections-featured-ring-pct">{progress().pct}%</span>
-                      </div>
-                    </Show>
-                  </div>
+                  <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">arrow_forward</span>
+                  Enter Universe
                 </button>
-              );
-            }}
-          </For>
-        </div>
-      </section>
-
-      {/* SECTION 2 — Your Collections (user folders) */}
-      <section class="collections-section">
-        <div class="collections-section-label">
-          <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">folder</span>
-          Your Collections
-          <button
-            type="button"
-            class="collections-section-action"
-            onClick={() => setShowCreate(true)}
-            aria-label="Create new collection"
-          >
-            <span class="material-symbols-outlined" style="font-size: 14px" aria-hidden="true">add</span>
-            New
-          </button>
-        </div>
-
-        <Show when={showCreate()}>
-          <div class="collections-create-bar">
-            <input
-              type="text"
-              class="collections-create-input"
-              placeholder="Collection name…"
-              value={newName()}
-              onInput={(e) => setNewName(e.currentTarget.value)}
-              onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setShowCreate(false); }}
-              aria-label="New collection name"
-            />
-            <button class="btn-primary" onClick={handleCreate} disabled={!newName().trim()}>Create</button>
-            <button class="btn-ghost" onClick={() => setShowCreate(false)}>Cancel</button>
-          </div>
+              </div>
+            </div>
+          </section>
         </Show>
 
-        <Show when={!loading() && userCollections().length > 0} fallback={
-          <Show when={!loading()} fallback={
-            <div class="collections-folder-skeleton" />
-          }>
-            <div class="collections-empty-folders">
-              <p class="type-body-soft" style={{ "text-align": "center", "max-width": "260px" }}>
-                No folders yet. Create one to organize your titles.
-              </p>
+        {/* === CONTINUE YOUR UNIVERSE === */}
+        <Show when={inProgressUniverses().length > 0}>
+          <section class="collections-fold">
+            <div class="collections-fold-label">
+              <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">play_circle</span>
+              Continue Your Universe
             </div>
-          </Show>
-        }>
-          <div class="collections-folder-grid">
-            <For each={userCollections()}>
+            <div class="universe-continue-rail hide-scrollbar" role="list">
+              <For each={inProgressUniverses().slice(0, 6)}>
+                {({ col, progress }) => {
+                  const next = nextMissing(col);
+                  return (
+                    <button
+                      type="button"
+                      class="universe-continue-card"
+                      role="listitem"
+                      onClick={() => navigate(`/collections/${col.id}`)}
+                      aria-label={`Continue ${col.name} — ${progress.pct}% complete`}
+                      style={{ "scroll-snap-align": "start" }}
+                    >
+                      <div class="universe-continue-poster">
+                        <Show when={col.backdrop_path}>
+                          <img
+                            src={tmdbImage(col.backdrop_path, "w500")}
+                            class="universe-continue-img"
+                            loading="lazy"
+                            decoding="async"
+                            alt=""
+                            aria-hidden="true"
+                          />
+                        </Show>
+                        <div class="universe-continue-overlay" aria-hidden="true" />
+                        <div class="universe-continue-ring" style={{ "--progress": `${progress.pct}%` }}>
+                          <span class="universe-continue-ring-pct">{progress.pct}%</span>
+                        </div>
+                      </div>
+                      <div class="universe-continue-info">
+                        <p class="universe-continue-name">{col.name}</p>
+                        <Show when={next}>
+                          <p class="universe-continue-next">
+                            Next: {titleOf(next!)}
+                          </p>
+                        </Show>
+                      </div>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </section>
+        </Show>
+
+        {/* === CINEMATIC UNIVERSES === */}
+        <section class="collections-fold">
+          <div class="collections-fold-label">
+            <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">auto_awesome</span>
+            All Universes
+          </div>
+          <div class="universe-grid">
+            <For each={curatedCollections()}>
               {(col) => {
                 const progress = createMemo(() => getCollectionProgress(col, watchlist()));
+                const backdrop = () => col.backdrop_path ? tmdbImage(col.backdrop_path, "w780") : "";
+                const missing = () => progress().total - progress().owned;
                 return (
+                  <button
+                    type="button"
+                    class="universe-banner-card"
+                    onClick={() => navigate(`/collections/${col.id}`)}
+                    aria-label={`Open ${col.name}`}
+                  >
+                    <Show when={backdrop()}>
+                      <img
+                        src={backdrop()}
+                        class="universe-banner-backdrop"
+                        loading="lazy"
+                        decoding="async"
+                        alt=""
+                        aria-hidden="true"
+                      />
+                    </Show>
+                    <div class="universe-banner-overlay" aria-hidden="true" />
+                    <div class="universe-banner-content">
+                      <p class="universe-banner-name">{col.name}</p>
+                      <div class="universe-banner-meta">
+                        <span>{col.entries.length} titles</span>
+                        <Show when={progress().owned > 0}>
+                          <span> · {progress().pct}%</span>
+                        </Show>
+                        <Show when={missing() > 0 && progress().owned > 0}>
+                          <span> · {missing()} missing</span>
+                        </Show>
+                      </div>
+                    </div>
+                    {/* Progress bar at the bottom edge */}
+                    <Show when={progress().total > 0}>
+                      <div class="universe-banner-progress-bar">
+                        <div class="universe-banner-progress-fill" style={{ width: `${progress().pct}%` }} />
+                      </div>
+                    </Show>
+                  </button>
+                );
+              }}
+            </For>
+          </div>
+        </section>
+
+        {/* === YOUR COLLECTIONS === */}
+        <section class="collections-fold">
+          <div class="collections-fold-label">
+            <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">folder</span>
+            Your Collections
+            <button
+              type="button"
+              class="collections-fold-action"
+              onClick={() => setShowCreate(true)}
+              aria-label="Create new collection"
+            >
+              <span class="material-symbols-outlined" style="font-size: 14px" aria-hidden="true">add</span>
+              New
+            </button>
+          </div>
+
+          <Show when={showCreate()}>
+            <div class="collections-create-bar">
+              <input
+                type="text"
+                class="collections-create-input"
+                placeholder="Collection name…"
+                value={newName()}
+                onInput={(e) => setNewName(e.currentTarget.value)}
+                onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setShowCreate(false); }}
+                aria-label="New collection name"
+              />
+              <button class="btn-primary" onClick={handleCreate} disabled={!newName().trim()} style={{ "font-size": "0.5625rem" }}>Create</button>
+              <button class="btn-ghost" onClick={() => setShowCreate(false)} style={{ "font-size": "0.5625rem" }}>Cancel</button>
+            </div>
+          </Show>
+
+          <Show when={!loading() && userCollections().length > 0} fallback={
+            <Show when={!loading()} fallback={
+              <div class="collections-folder-skeleton" />
+            }>
+              <div class="collections-empty-folders">
+                <p class="type-body-soft" style={{ "text-align": "center", "max-width": "260px" }}>
+                  No folders yet. Create one to organize your titles.
+                </p>
+              </div>
+            </Show>
+          }>
+            <div class="collections-folder-grid">
+              <For each={userCollections()}>
+                {(col) => (
                   <button
                     type="button"
                     class={`collections-folder-card${col.isFavorites ? " collections-folder-favorites" : ""}`}
                     onClick={() => navigate(`/collections/${col.id}`)}
                     aria-label={`Open ${col.name}`}
                   >
-                    <div class="collections-folder-icon">
-                      <Show when={col.isFavorites} fallback={
-                        <span class="material-symbols-outlined" style="font-size: 28px; color: var(--text-soft)" aria-hidden="true">folder</span>
-                      }>
-                        <span class="material-symbols-outlined" style="font-size: 28px; color: #f5c518; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" aria-hidden="true">favorite</span>
-                      </Show>
-                    </div>
+                    {/* Poster collage preview — first 3 entries' posters */}
+                    <Show when={col.entries.length > 0} fallback={
+                      <div class="collections-folder-icon">
+                        <Show when={col.isFavorites} fallback={
+                          <span class="material-symbols-outlined" style="font-size: 28px; color: var(--text-soft)" aria-hidden="true">folder</span>
+                        }>
+                          <span class="material-symbols-outlined" style="font-size: 28px; color: #f5c518; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" aria-hidden="true">favorite</span>
+                        </Show>
+                      </div>
+                    }>
+                      <div class="collections-folder-collage">
+                        <For each={col.entries.slice(0, 3)}>
+                          {(entry) => (
+                            <Show when={entry.poster_path}>
+                              <img
+                                src={tmdbImage(entry.poster_path, "w92")}
+                                class="collections-folder-collage-img"
+                                loading="lazy"
+                                decoding="async"
+                                alt=""
+                                aria-hidden="true"
+                              />
+                            </Show>
+                          )}
+                        </For>
+                      </div>
+                    </Show>
                     <p class="collections-folder-name">{col.name}</p>
                     <p class="collections-folder-count">
                       {col.entries.length} title{col.entries.length !== 1 ? "s" : ""}
                     </p>
                   </button>
-                );
-              }}
-            </For>
-          </div>
-        </Show>
-      </section>
+                )}
+              </For>
+            </div>
+          </Show>
+        </section>
+      </div>
     </PageContainer>
   );
 }

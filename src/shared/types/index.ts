@@ -444,51 +444,59 @@ export interface TasteProfile {
 /** Collection type discriminator */
 export type CollectionType = "official" | "curated" | "user";
 
+/** Viewing order modes for curated universes */
+export type ViewingOrder = "chronological" | "release" | "saga" | "custom";
+
 /**
  * CollectionEntry — a single title within a collection.
- * For curated collections, entries are manually ordered (mixed movie + TV).
- * For official collections, entries come from TMDB in release order.
- * For user collections, entries are user-ordered.
  */
 export interface CollectionEntry {
-  /** TMDB id (as string for Firestore compatibility) */
   id: string;
   media_type: "movie" | "tv";
-  /** Title (cached for display without re-fetching) */
   title?: string;
   name?: string;
   poster_path?: string | null;
   backdrop_path?: string | null;
   release_date?: string;
   first_air_date?: string;
-  /** Manual order index (0-based) — for curated and user collections */
   order?: number;
+  /** Entry type for curated universes — "Movie", "Series", "Special", "One-Shot" */
+  entryType?: string;
+  /** Phase/saga label for grouping (e.g. "Phase 1", "Infinity Saga") */
+  phase?: string;
+}
+
+/**
+ * ViewingOrderOption — a named viewing order for a curated universe.
+ * Each order is just a different sort of the same entries.
+ * The entries array stays in the default (chronological) order;
+ * viewing orders apply a re-index on display.
+ */
+export interface ViewingOrderOption {
+  id: ViewingOrder;
+  label: string;
+  /** Optional description shown when this order is selected */
+  description?: string;
 }
 
 /**
  * Collection — the universal shape for all three collection types.
- * Stored in Firestore for user collections; defined in code for curated;
- * fetched from TMDB for official.
  */
 export interface Collection {
-  /** Firestore doc id for user collections; slug for curated; "tmdb-{id}" for official */
   id: string;
   name: string;
   type: CollectionType;
-  /** Description / overview */
   description?: string;
-  /** Cover backdrop path (TMDB image path) */
   backdrop_path?: string | null;
   poster_path?: string | null;
-  /** The titles in this collection, in their defined order */
   entries: CollectionEntry[];
-  /** For official collections: the TMDB collection ID */
   tmdbCollectionId?: number;
-  /** For curated collections: optional tags for filtering */
   tags?: string[];
-  /** Timestamps (user collections only) */
   createdAt?: string;
   updatedAt?: string;
-  /** Whether this is the permanent Favorites folder (user collections only) */
   isFavorites?: boolean;
+  /** Curated universes: available viewing orders (chronological, release, saga) */
+  viewingOrders?: ViewingOrderOption[];
+  /** Curated universes: the default viewing order */
+  defaultOrder?: ViewingOrder;
 }

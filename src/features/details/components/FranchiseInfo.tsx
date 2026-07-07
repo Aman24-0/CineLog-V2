@@ -45,7 +45,8 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
       "Star Wars": "star-wars-timeline",
       "Lord of the Rings": "middle-earth",
       "The Dark Knight": "dark-knight-trilogy",
-      "John Wick": "john-wick"
+      "John Wick": "john-wick",
+      "Harry Potter": "harry-potter"
     };
     return slugMap[name] ?? null;
   });
