@@ -445,7 +445,10 @@ export interface TasteProfile {
 export type CollectionType = "official" | "curated" | "user";
 
 /** Viewing order modes for curated universes */
-export type ViewingOrder = "chronological" | "release" | "saga" | "custom";
+export type ViewingOrder = "chronological" | "release" | "saga" | "story" | "custom";
+
+/** Timeline data provider */
+export type TimelineProvider = "official" | "cinelog" | "personal";
 
 /**
  * CollectionEntry — a single title within a collection.
@@ -464,6 +467,20 @@ export interface CollectionEntry {
   entryType?: string;
   /** Phase/saga label for grouping (e.g. "Phase 1", "Infinity Saga") */
   phase?: string;
+  /** In-universe story year (e.g. 1943 for Captain America: The First Avenger) */
+  storyYear?: number;
+  /** User-pinned entry (always visible at top in custom order) */
+  isPinned?: boolean;
+  /** User-hidden entry (excluded from timeline view) */
+  isHidden?: boolean;
+  /** User note attached to this entry */
+  userNote?: string;
+  /** User's custom position override for drag-and-drop reordering */
+  customOrder?: number;
+  /** User-inserted custom entry (not linked to TMDB) */
+  isCustomEntry?: boolean;
+  /** Cached runtime from TMDB */
+  runtime?: number;
 }
 
 /**
@@ -499,4 +516,83 @@ export interface Collection {
   viewingOrders?: ViewingOrderOption[];
   /** Curated universes: the default viewing order */
   defaultOrder?: ViewingOrder;
+  /** Parent franchise slug (e.g. "marvel", "dc") */
+  franchiseId?: string;
+  /** Accent color for the universe (e.g. "#E62429" for MCU red) */
+  accentColor?: string;
+  /** Accent gradient for hero overlays */
+  accentGradient?: string;
+  /** User folder emoji */
+  emoji?: string;
+  /** Custom cover image path (TMDB or user-provided) */
+  coverImagePath?: string;
+  /** Custom background image path */
+  backgroundImagePath?: string;
+  /** Whether the folder is archived */
+  isArchived?: boolean;
+  /** Whether the folder is marked as favorite */
+  isFavorite?: boolean;
+  /** Whether this is a smart (rule-based) collection */
+  isSmart?: boolean;
+  /** Rules for smart collections */
+  smartRules?: SmartRule[];
+  /** Sort mode for entries */
+  sortOrder?: "manual" | "date" | "title" | "rating";
+  /** ISO timestamp of last title watched in this universe */
+  lastWatchedAt?: string;
+}
+
+/* ============================================================
+   FRANCHISE → UNIVERSE HIERARCHY
+   Franchise > Universe > Timeline > Title
+   ============================================================ */
+
+export interface Franchise {
+  id: string;
+  name: string;
+  /** Material Symbols icon name */
+  icon?: string;
+  /** TMDB backdrop path for the franchise hero */
+  backdrop_path?: string | null;
+  /** Accent color for the franchise */
+  accentColor?: string;
+  /** Child universes */
+  universes: UniverseRef[];
+}
+
+export interface UniverseRef {
+  id: string;
+  name: string;
+  type: "curated" | "official";
+  /** If this universe is a curated collection, link to its CURATED_COLLECTIONS entry */
+  collectionId?: string;
+  /** If this universe comes from TMDB, the collection ID */
+  tmdbCollectionId?: number;
+}
+
+/* ============================================================
+   UNIVERSE PREFERENCES — per-user universe personalization
+   Persisted in Firestore: users/{uid}/universePreferences/{universeId}
+   ============================================================ */
+
+export interface UniversePreferences {
+  universeId: string;
+  isAdded: boolean;
+  isHidden: boolean;
+  isPinned: boolean;
+  preferredOrder?: ViewingOrder;
+  preferredProvider?: TimelineProvider;
+  /** Entry-level overrides: entryId → partial CollectionEntry fields */
+  customOverrides?: Record<string, Partial<CollectionEntry>>;
+  addedAt?: string;
+}
+
+/* ============================================================
+   SMART COLLECTIONS — rule-based auto-populated folders
+   ============================================================ */
+
+export interface SmartRule {
+  field: "director" | "genre" | "franchise" | "year" | "rating" | "status" | "keyword";
+  operator: "is" | "contains" | "gte" | "lte" | "between";
+  value: string | number | [number, number];
 }

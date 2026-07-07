@@ -7,15 +7,25 @@ import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { findInVault } from "~/shared/utils/vaultMatch";
+import FranchiseGrid from "./components/FranchiseGrid";
+import UniverseSuggestions from "./components/UniverseSuggestions";
+import FolderEditor from "./components/FolderEditor";
+import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import type { Collection, CollectionEntry } from "~/shared/types";
 
 export default function CollectionsPage() {
   const navigate = useNavigate();
   const { watchlist } = useVault();
-  const { userCollections, curatedCollections, loading, createCollection, getCollectionProgress } = useCollections();
+  const {
+    userCollections, curatedCollections, loading,
+    createCollection, getCollectionProgress,
+    pinnedUniverses, addedUniverses
+  } = useCollections();
 
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
+  const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
+  const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
 
   // Featured universe — rotate daily
   const featured = createMemo(() => {
@@ -130,6 +140,47 @@ export default function CollectionsPage() {
           </section>
         </Show>
 
+        {/* === PINNED UNIVERSES === */}
+        <Show when={pinnedUniverses().length > 0}>
+          <section class="collections-fold">
+            <div class="collections-fold-label">
+              <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">push_pin</span>
+              Pinned
+            </div>
+            <div class="universe-pinned-rail hide-scrollbar" role="list">
+              <For each={pinnedUniverses()}>
+                {(col) => {
+                  const progress = createMemo(() => getCollectionProgress(col, watchlist()));
+                  return (
+                    <button
+                      type="button"
+                      class="universe-pinned-card"
+                      role="listitem"
+                      onClick={() => navigate(`/collections/${col.id}`)}
+                      aria-label={`Open ${col.name}`}
+                    >
+                      <Show when={col.backdrop_path}>
+                        <img
+                          src={tmdbImage(col.backdrop_path, "w92")}
+                          style={{ width: "32px", height: "20px", "object-fit": "cover", "border-radius": "4px" }}
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          aria-hidden="true"
+                        />
+                      </Show>
+                      <span class="universe-pinned-name">{col.name}</span>
+                      <span style={{ "font-size": "0.4375rem", color: "var(--text-muted)", "font-family": "'Azeret Mono', monospace" }}>
+                        {progress().pct}%
+                      </span>
+                    </button>
+                  );
+                }}
+              </For>
+            </div>
+          </section>
+        </Show>
+
         {/* === CONTINUE YOUR UNIVERSE === */}
         <Show when={inProgressUniverses().length > 0}>
           <section class="collections-fold">
@@ -182,60 +233,17 @@ export default function CollectionsPage() {
           </section>
         </Show>
 
-        {/* === CINEMATIC UNIVERSES === */}
+        {/* === FRANCHISE EXPLORER (replaces flat "All Universes") === */}
         <section class="collections-fold">
           <div class="collections-fold-label">
             <span class="material-symbols-outlined" style="font-size: 12px; color: var(--p)" aria-hidden="true">auto_awesome</span>
-            All Universes
+            Explore Universes
           </div>
-          <div class="universe-grid">
-            <For each={curatedCollections()}>
-              {(col) => {
-                const progress = createMemo(() => getCollectionProgress(col, watchlist()));
-                const backdrop = () => col.backdrop_path ? tmdbImage(col.backdrop_path, "w780") : "";
-                const missing = () => progress().total - progress().owned;
-                return (
-                  <button
-                    type="button"
-                    class="universe-banner-card"
-                    onClick={() => navigate(`/collections/${col.id}`)}
-                    aria-label={`Open ${col.name}`}
-                  >
-                    <Show when={backdrop()}>
-                      <img
-                        src={backdrop()}
-                        class="universe-banner-backdrop"
-                        loading="lazy"
-                        decoding="async"
-                        alt=""
-                        aria-hidden="true"
-                      />
-                    </Show>
-                    <div class="universe-banner-overlay" aria-hidden="true" />
-                    <div class="universe-banner-content">
-                      <p class="universe-banner-name">{col.name}</p>
-                      <div class="universe-banner-meta">
-                        <span>{col.entries.length} titles</span>
-                        <Show when={progress().owned > 0}>
-                          <span> · {progress().pct}%</span>
-                        </Show>
-                        <Show when={missing() > 0 && progress().owned > 0}>
-                          <span> · {missing()} missing</span>
-                        </Show>
-                      </div>
-                    </div>
-                    {/* Progress bar at the bottom edge */}
-                    <Show when={progress().total > 0}>
-                      <div class="universe-banner-progress-bar">
-                        <div class="universe-banner-progress-fill" style={{ width: `${progress().pct}%` }} />
-                      </div>
-                    </Show>
-                  </button>
-                );
-              }}
-            </For>
-          </div>
+          <FranchiseGrid />
         </section>
+
+        {/* === UNIVERSE SUGGESTIONS === */}
+        <UniverseSuggestions />
 
         {/* === YOUR COLLECTIONS === */}
         <section class="collections-fold">
@@ -250,6 +258,16 @@ export default function CollectionsPage() {
             >
               <span class="material-symbols-outlined" style="font-size: 14px" aria-hidden="true">add</span>
               New
+            </button>
+            <button
+              type="button"
+              class="collections-smart-btn"
+              onClick={() => setShowSmartBuilder(true)}
+              aria-label="Create smart collection"
+              style={{ "margin-left": "auto" }}
+            >
+              <span class="material-symbols-outlined" style="font-size: 12px" aria-hidden="true">auto_awesome</span>
+              Smart
             </button>
           </div>
 
@@ -287,9 +305,10 @@ export default function CollectionsPage() {
                     type="button"
                     class={`collections-folder-card${col.isFavorites ? " collections-folder-favorites" : ""}`}
                     onClick={() => navigate(`/collections/${col.id}`)}
+                    onContextMenu={(e) => { e.preventDefault(); setEditingFolder(col); }}
                     aria-label={`Open ${col.name}`}
                   >
-                    {/* Poster collage preview — first 3 entries' posters */}
+                    {/* Poster collage preview */}
                     <Show when={col.entries.length > 0} fallback={
                       <div class="collections-folder-icon">
                         <Show when={col.isFavorites} fallback={
@@ -316,10 +335,26 @@ export default function CollectionsPage() {
                         </For>
                       </div>
                     </Show>
-                    <p class="collections-folder-name">{col.name}</p>
+                    <div style={{ display: "flex", "align-items": "center", gap: "4px" }}>
+                      <Show when={col.emoji}><span style={{ "font-size": "0.875rem" }}>{col.emoji}</span></Show>
+                      <p class="collections-folder-name">{col.name}</p>
+                    </div>
                     <p class="collections-folder-count">
-                      {col.entries.length} title{col.entries.length !== 1 ? "s" : ""}
+                      {col.isSmart ? "Smart" : `${col.entries.length} title${col.entries.length !== 1 ? "s" : ""}`}
                     </p>
+                    <Show when={col.accentColor}>
+                      <div style={{ width: "8px", height: "8px", "border-radius": "50%", background: col.accentColor, "margin-left": "4px" }} aria-hidden="true" />
+                    </Show>
+                    {/* Edit button */}
+                    <button
+                      type="button"
+                      class="timeline-edit-action"
+                      style={{ "margin-left": "auto", "margin-top": "-4px" }}
+                      onClick={(e) => { e.stopPropagation(); setEditingFolder(col); }}
+                      aria-label={`Edit ${col.name}`}
+                    >
+                      <span class="material-symbols-outlined" style="font-size: 14px" aria-hidden="true">more_vert</span>
+                    </button>
                   </button>
                 )}
               </For>
@@ -327,6 +362,19 @@ export default function CollectionsPage() {
           </Show>
         </section>
       </div>
+
+      {/* Folder editor modal */}
+      <Show when={editingFolder()}>
+        <FolderEditor
+          collection={editingFolder()!}
+          onClose={() => setEditingFolder(null)}
+        />
+      </Show>
+
+      {/* Smart collection builder */}
+      <Show when={showSmartBuilder()}>
+        <SmartCollectionBuilder onClose={() => setShowSmartBuilder(false)} />
+      </Show>
     </PageContainer>
   );
 }

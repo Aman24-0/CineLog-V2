@@ -188,3 +188,134 @@ export function detectFranchise(title: string): FranchiseDefinition | null {
 export function findFranchiseByName(name: string): FranchiseDefinition | null {
   return FRANCHISES.find((f) => f.name === name) ?? null;
 }
+
+/* ============================================================
+   FRANCHISE → UNIVERSE HIERARCHY
+   The permanent hierarchy powering the Collections experience.
+   Franchise > Universe > Timeline > Title
+   ============================================================ */
+
+import type { Franchise as FranchiseHierarchy } from "~/shared/types";
+
+export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
+  {
+    id: "marvel",
+    name: "Marvel",
+    icon: "shield",
+    backdrop_path: "/9BBtojrJ1JyKr3t4mCMzYsBa9eT.jpg",
+    accentColor: "#E62429",
+    universes: [
+      { id: "mcu", name: "MCU", type: "curated", collectionId: "mcu-chronological" },
+      { id: "sony-spider-verse", name: "Sony Spider-Verse", type: "official", tmdbCollectionId: 531770 },
+      { id: "x-men", name: "X-Men", type: "official", tmdbCollectionId: 748 },
+      { id: "fantastic-four", name: "Fantastic Four", type: "official", tmdbCollectionId: 1676 },
+      { id: "blade", name: "Blade", type: "official", tmdbCollectionId: 9771 }
+    ]
+  },
+  {
+    id: "dc",
+    name: "DC",
+    icon: "flash",
+    backdrop_path: "/5SUpUS6MRMwApH6UqxxFfS3xGYq.jpg",
+    accentColor: "#0078D7",
+    universes: [
+      { id: "dceu", name: "DCEU", type: "curated", collectionId: "dceu" },
+      { id: "dcu", name: "DCU", type: "curated", collectionId: "dcu" },
+      { id: "batman-universe", name: "Batman Universe", type: "curated", collectionId: "batman-universe" },
+      { id: "dark-knight-trilogy", name: "Dark Knight Trilogy", type: "curated", collectionId: "dark-knight-trilogy" },
+      { id: "arrowverse", name: "Arrowverse", type: "curated", collectionId: "arrowverse" },
+      { id: "dc-animated", name: "DC Animated", type: "curated", collectionId: "dc-animated" }
+    ]
+  },
+  {
+    id: "star-wars",
+    name: "Star Wars",
+    icon: "rocket_launch",
+    backdrop_path: "/d8duYyyC9J5T825Hg7grmaabfxQ.jpg",
+    accentColor: "#FFE81F",
+    universes: [
+      { id: "skywalker-saga", name: "Skywalker Saga", type: "curated", collectionId: "star-wars-timeline" },
+      { id: "mandoverse", name: "Mandoverse", type: "curated", collectionId: "mandoverse" },
+      { id: "star-wars-legends", name: "Legends", type: "curated", collectionId: "star-wars-legends" }
+    ]
+  },
+  {
+    id: "middle-earth",
+    name: "Middle Earth",
+    icon: "landscape",
+    backdrop_path: "/9deGfFCcrun4q3OFCb4zOhmRJ6P.jpg",
+    accentColor: "#8B6914",
+    universes: [
+      { id: "lotr", name: "The Lord of the Rings", type: "curated", collectionId: "middle-earth" },
+      { id: "the-hobbit", name: "The Hobbit", type: "official", tmdbCollectionId: 121938 }
+    ]
+  },
+  {
+    id: "wizarding-world",
+    name: "Wizarding World",
+    icon: "auto_fix_high",
+    backdrop_path: "/8NG2cq1Z7x2wbe2fNJxfgMgx9I7.jpg",
+    accentColor: "#7B5EA7",
+    universes: [
+      { id: "harry-potter", name: "Harry Potter", type: "curated", collectionId: "harry-potter" },
+      { id: "fantastic-beasts", name: "Fantastic Beasts", type: "official", tmdbCollectionId: 413639 }
+    ]
+  },
+  {
+    id: "spy-thriller",
+    name: "Spy & Thriller",
+    icon: "person",
+    backdrop_path: null,
+    universes: [
+      { id: "james-bond", name: "James Bond", type: "curated", collectionId: "james-bond" },
+      { id: "mission-impossible", name: "Mission: Impossible", type: "official", tmdbCollectionId: 537 },
+      { id: "bourne", name: "Bourne", type: "official", tmdbCollectionId: 2422 },
+      { id: "john-wick", name: "John Wick", type: "curated", collectionId: "john-wick" }
+    ]
+  },
+  {
+    id: "sci-fi-saga",
+    name: "Sci-Fi Sagas",
+    icon: "science_fiction",
+    backdrop_path: null,
+    universes: [
+      { id: "dune", name: "Dune", type: "official", tmdbCollectionId: 886484 },
+      { id: "the-matrix", name: "The Matrix", type: "official", tmdbCollectionId: 2344 },
+      { id: "avatar", name: "Avatar", type: "official", tmdbCollectionId: 858363 },
+      { id: "planet-of-the-apes", name: "Planet of the Apes", type: "official", tmdbCollectionId: 173855 },
+      { id: "alien", name: "Alien", type: "official", tmdbCollectionId: 8091 }
+    ]
+  },
+  {
+    id: "adventure",
+    name: "Adventure",
+    icon: "explore",
+    backdrop_path: null,
+    universes: [
+      { id: "indiana-jones", name: "Indiana Jones", type: "official", tmdbCollectionId: 84 },
+      { id: "jurassic-park", name: "Jurassic Park", type: "official", tmdbCollectionId: 328 },
+      { id: "pirates-caribbean", name: "Pirates of the Caribbean", type: "official", tmdbCollectionId: 295 },
+      { id: "transformers", name: "Transformers", type: "official", tmdbCollectionId: 86038 }
+    ]
+  },
+  {
+    id: "horror",
+    name: "Horror Universes",
+    icon: "horror",
+    backdrop_path: null,
+    universes: [
+      { id: "conjuring", name: "The Conjuring Universe", type: "official", tmdbCollectionId: 313086 },
+      { id: "monsterverse", name: "MonsterVerse", type: "official", tmdbCollectionId: 578261 },
+      { id: "alien-vs-predator", name: "Alien vs Predator", type: "official", tmdbCollectionId: 158140 }
+    ]
+  },
+  {
+    id: "fast-saga",
+    name: "Fast Saga",
+    icon: "speed",
+    backdrop_path: null,
+    universes: [
+      { id: "fast-furious", name: "Fast & Furious", type: "official", tmdbCollectionId: 948485 }
+    ]
+  }
+];

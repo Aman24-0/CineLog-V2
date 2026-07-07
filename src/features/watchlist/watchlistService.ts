@@ -239,3 +239,102 @@ export const renameUserCollection = async (
   if (col.isFavorites) return; // Favorites cannot be renamed
   await updateDoc(collectionDoc(uid, collectionId), { name: newName, updatedAt: new Date().toISOString() });
 };
+
+/**
+ * updateCollectionMeta — update collection metadata fields.
+ * Supports description, accentColor, accentGradient, emoji, coverImagePath,
+ * backgroundImagePath, sortOrder, isArchived, isFavorite, isSmart, smartRules.
+ */
+export const updateCollectionMeta = async (
+  uid: string,
+  collectionId: string,
+  meta: Partial<Pick<Collection, 
+    'description' | 'accentColor' | 'accentGradient' | 'emoji' |
+    'coverImagePath' | 'backgroundImagePath' | 'sortOrder' | 
+    'isArchived' | 'isFavorite' | 'isSmart' | 'smartRules'
+  >>
+): Promise<void> => {
+  await updateDoc(collectionDoc(uid, collectionId), {
+    ...meta,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+/**
+ * duplicateUserCollection — create a copy of a user collection.
+ * The copy has a new ID and " (Copy)" appended to the name.
+ */
+export const duplicateUserCollection = async (
+  uid: string,
+  collectionId: string
+): Promise<void> => {
+  const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
+  const docSnap = snap.docs.find((d) => d.id === collectionId);
+  if (!docSnap) return;
+  const col = docSnap.data() as Collection;
+  if (col.isFavorites) return;
+  
+  const now = new Date().toISOString();
+  const newColRef = doc(collection(db, "users", uid, "collections"));
+  const newCollection: Collection = {
+    ...col,
+    id: newColRef.id,
+    name: `${col.name} (Copy)`,
+    isFavorites: false,
+    createdAt: now,
+    updatedAt: now
+  };
+  await setDoc(newColRef, newCollection);
+};
+
+/**
+ * updateEntryOrder — persist reordered entries after drag-and-drop.
+ * Also used for pin/hide/notes changes on individual entries.
+ */
+export const updateEntryOrder = async (
+  uid: string,
+  collectionId: string,
+  entries: CollectionEntry[]
+): Promise<void> => {
+  await updateDoc(collectionDoc(uid, collectionId), {
+    entries,
+    updatedAt: new Date().toISOString()
+  });
+};
+
+/**
+ * createSmartCollection — create a rule-based smart collection.
+ */
+export const createSmartCollection = async (
+  uid: string,
+  name: string,
+  rules: Collection['smartRules']
+): Promise<void> => {
+  const now = new Date().toISOString();
+  const colRef = doc(collection(db, "users", uid, "collections"));
+  const newCollection: Collection = {
+    id: colRef.id,
+    name,
+    type: "user",
+    entries: [],
+    isSmart: true,
+    smartRules: rules,
+    createdAt: now,
+    updatedAt: now
+  };
+  await setDoc(colRef, newCollection);
+};
+
+/**
+ * updateSmartRules — update the rules for a smart collection.
+ */
+export const updateSmartRules = async (
+  uid: string,
+  collectionId: string,
+  rules: Collection['smartRules']
+): Promise<void> => {
+  await updateDoc(collectionDoc(uid, collectionId), {
+    smartRules: rules,
+    updatedAt: new Date().toISOString()
+  });
+};
