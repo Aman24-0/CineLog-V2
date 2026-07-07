@@ -14,6 +14,7 @@ import "./app/globals.css";
 import { theme } from "./core/theme";
 import AppShell from "./app/AppShell";
 import { VaultProvider } from "~/features/watchlist/useVault";
+import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
 
 // Read the signal so the createEffect is tracked. The return value is
 // discarded — the effect is what matters.
@@ -22,17 +23,19 @@ void theme;
 export default function App() {
   return (
     <VaultProvider>
-      <Router
-        root={(props) => (
-          <AppShell>
-            <Suspense fallback={<div>Loading...</div>}>
-              {props.children}
-            </Suspense>
-          </AppShell>
-        )}
-      >
-        <FileRoutes />
-      </Router>
+      <CollectionsProvider>
+        <Router
+          root={(props) => (
+            <AppShell>
+              <Suspense fallback={<div>Loading...</div>}>
+                {props.children}
+              </Suspense>
+            </AppShell>
+          )}
+        >
+          <FileRoutes />
+        </Router>
+      </CollectionsProvider>
     </VaultProvider>
   );
 }

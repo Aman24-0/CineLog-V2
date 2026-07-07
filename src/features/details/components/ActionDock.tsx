@@ -9,7 +9,7 @@ interface ActionDockProps {
    * User-owned vault item — null when the title is NOT in the vault.
    * When null, the dock shows "Add to Vault" as the primary action and
    * hides Edit/Rate (those are user-owned actions). When present, the
-   * dock shows the status cycle + Edit/Rate as before.
+   * dock shows the status cycle + Folder + Edit/Rate as before.
    */
   vaultItem?: WatchlistItem | null;
   hasTrailer: boolean;
@@ -18,6 +18,8 @@ interface ActionDockProps {
   onStatusCycle: () => void;
   /** Called when the user taps "Add to Vault" on a non-vault title */
   onAddToVault: () => void;
+  /** Called when the user taps "Folder" — opens the AddToFolder sheet */
+  onOpenFolders?: () => void;
   /** Whether an add-to-vault operation is in flight (shows spinner) */
   isAdding?: boolean;
 }
@@ -139,9 +141,28 @@ export default function ActionDock(props: ActionDockProps) {
         </button>
       </Show>
 
-      {/* Rate + Edit — user-owned actions, only when in vault */}
+      {/* Folder + Rate + Edit — user-owned actions, only when in vault */}
       <Show when={inVault()}>
         <div class="action-dock-divider" aria-hidden="true" />
+
+        {/* Folder — opens the AddToFolder sheet for managing user collections */}
+        <Show when={props.onOpenFolders}>
+          <button
+            type="button"
+            onClick={() => props.onOpenFolders?.()}
+            class="action-dock-btn"
+            aria-label="Add to folder"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "16px" }}
+              aria-hidden="true"
+            >
+              folder
+            </span>
+            <span class="hidden sm:inline">Folder</span>
+          </button>
+        </Show>
 
         <button
           type="button"

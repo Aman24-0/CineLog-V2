@@ -1,8 +1,8 @@
 // src/features/details/components/FranchiseInfo.tsx
 import { Show, createMemo, Component } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import DetailSection from "./DetailSection";
 import { detectFranchise } from "~/shared/data/franchises";
-import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import type { WatchlistItem } from "~/shared/types";
 
 interface FranchiseInfoProps {
@@ -12,32 +12,22 @@ interface FranchiseInfoProps {
 }
 
 /**
- * FranchiseInfo — a TRIGGER for the Collection modal.
+ * FranchiseInfo — a TRIGGER that navigates to a curated collection page
+ * when the current title belongs to a known franchise.
  *
- * When the current title belongs to a known franchise, this renders a
- * cinematic banner that opens the CollectionModal when tapped. The
- * banner shows the franchise name, a preview of how many titles the
- * user owns vs the total, and a "View Collection" call to action.
- *
- * Previously this component rendered a full list of vault items from
- * the same franchise — which was limited to only what the user owned.
- * Now it's a trigger: tapping it opens the full TMDB collection with
- * all entries (owned + missing), timeline, progress, and stats.
- *
- * DETECTION:
- *   Uses the shared `detectFranchise` from `src/shared/data/franchises.ts`
- *   — the single source of truth for franchise definitions. No more
- *   duplicated keyword tables.
+ * Detects the franchise via the shared detectFranchise function, then
+ * links to /collections/{curated-slug} if a curated collection exists
+ * for that franchise. If no curated collection exists, links to the
+ * Collections page as a fallback.
  */
 const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
-  const { openCollection } = useCollectionModal();
+  const navigate = useNavigate();
 
   const franchise = createMemo(() => {
     const title = props.currentItem.title || props.currentItem.name || "";
     return detectFranchise(title);
   });
 
-  // Count how many vault items belong to this franchise (for the preview)
   const ownedCount = createMemo(() => {
     const f = franchise();
     if (!f) return 0;
@@ -47,10 +37,25 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
     }).length;
   });
 
+  // Map franchise names to curated collection slugs
+  const curatedSlug = createMemo(() => {
+    const name = franchise()?.name ?? "";
+    const slugMap: Record<string, string> = {
+      "Marvel Cinematic Universe": "mcu-chronological",
+      "Star Wars": "star-wars-timeline",
+      "Lord of the Rings": "middle-earth",
+      "The Dark Knight": "dark-knight-trilogy",
+      "John Wick": "john-wick"
+    };
+    return slugMap[name] ?? null;
+  });
+
   const handleOpenCollection = () => {
-    const f = franchise();
-    if (f) {
-      openCollection(f, String(props.currentItem.id));
+    const slug = curatedSlug();
+    if (slug) {
+      navigate(`/collections/${slug}`);
+    } else {
+      navigate("/collections");
     }
   };
 
@@ -63,13 +68,11 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
           onClick={handleOpenCollection}
           aria-label={`View ${franchise()!.name} collection`}
         >
-          {/* Icon */}
           <div class="franchise-trigger-icon">
             <span class="material-symbols-outlined" style="font-size: 24px; color: var(--p)" aria-hidden="true">
               collection
             </span>
           </div>
-          {/* Text */}
           <div class="franchise-trigger-text">
             <p class="franchise-trigger-name">{franchise()!.name}</p>
             <p class="franchise-trigger-meta">
@@ -79,7 +82,6 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
               View full collection
             </p>
           </div>
-          {/* Chevron */}
           <span class="material-symbols-outlined franchise-trigger-chevron" aria-hidden="true">
             chevron_right
           </span>

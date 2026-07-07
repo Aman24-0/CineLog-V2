@@ -432,3 +432,63 @@ export interface TasteProfile {
   /** True when the user has no vault signal at all (guest or empty) */
   isColdStart: boolean;
 }
+
+/* ============================================================
+   COLLECTION ENGINE — Phase 2.x
+   Three collection types sharing one UI:
+     1. Official TMDB Collections (fetched from /collection/{id})
+     2. Curated CineLog Collections (manually ordered, mixed movie+TV)
+     3. User Collections (user-created folders, Spotify-like)
+   ============================================================ */
+
+/** Collection type discriminator */
+export type CollectionType = "official" | "curated" | "user";
+
+/**
+ * CollectionEntry — a single title within a collection.
+ * For curated collections, entries are manually ordered (mixed movie + TV).
+ * For official collections, entries come from TMDB in release order.
+ * For user collections, entries are user-ordered.
+ */
+export interface CollectionEntry {
+  /** TMDB id (as string for Firestore compatibility) */
+  id: string;
+  media_type: "movie" | "tv";
+  /** Title (cached for display without re-fetching) */
+  title?: string;
+  name?: string;
+  poster_path?: string | null;
+  backdrop_path?: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  /** Manual order index (0-based) — for curated and user collections */
+  order?: number;
+}
+
+/**
+ * Collection — the universal shape for all three collection types.
+ * Stored in Firestore for user collections; defined in code for curated;
+ * fetched from TMDB for official.
+ */
+export interface Collection {
+  /** Firestore doc id for user collections; slug for curated; "tmdb-{id}" for official */
+  id: string;
+  name: string;
+  type: CollectionType;
+  /** Description / overview */
+  description?: string;
+  /** Cover backdrop path (TMDB image path) */
+  backdrop_path?: string | null;
+  poster_path?: string | null;
+  /** The titles in this collection, in their defined order */
+  entries: CollectionEntry[];
+  /** For official collections: the TMDB collection ID */
+  tmdbCollectionId?: number;
+  /** For curated collections: optional tags for filtering */
+  tags?: string[];
+  /** Timestamps (user collections only) */
+  createdAt?: string;
+  updatedAt?: string;
+  /** Whether this is the permanent Favorites folder (user collections only) */
+  isFavorites?: boolean;
+}

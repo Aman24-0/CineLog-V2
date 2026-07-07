@@ -29,6 +29,7 @@ import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
 import YourActivityCard from "./components/YourActivityCard";
+import AddToFolderSheet from "./components/AddToFolderSheet";
 
 const SeasonNavigator = lazy(() => import("./components/SeasonNavigator"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
@@ -72,6 +73,7 @@ export default function DetailsModal() {
   const [isSaving, setIsSaving] = createSignal(false);
   const [isAdding, setIsAdding] = createSignal(false);
   const [showTrailer, setShowTrailer] = createSignal(false);
+  const [showFolders, setShowFolders] = createSignal(false);
   const [form, setFormState] = createSignal({
     status: "Planned",
     rating: "",
@@ -433,6 +435,7 @@ export default function DetailsModal() {
                       onEdit={() => (isEditing() ? handleCancel() : setIsEditing(true))}
                       onStatusCycle={handleStatusCycle}
                       onAddToVault={handleAddToVault}
+                      onOpenFolders={() => setShowFolders(true)}
                       isAdding={isAdding()}
                     />
 
@@ -548,6 +551,14 @@ export default function DetailsModal() {
             </Show>
           </div>
         </div>
+
+        {/* AddToFolderSheet — opens from ActionDock "Folder" button (vault only) */}
+        <Show when={showFolders() && vaultItem()}>
+          <AddToFolderSheet
+            item={vaultItem()!}
+            onClose={() => setShowFolders(false)}
+          />
+        </Show>
       </Portal>
     </Show>
   );

@@ -4747,3 +4747,199 @@
   color: var(--text-soft);
   flex-shrink: 0;
 }
+
+/* ============================================================
+   COLLECTION ENGINE — Collections Page + Detail Page + Folder Sheet
+   ============================================================ */
+
+/* ---------- Collections Page ---------- */
+.collections-eyebrow-block { margin-bottom: var(--sp-5); }
+.collections-eyebrow {
+  font-family: 'Azeret Mono', monospace; font-size: 0.6875rem; font-weight: 700;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--p); margin: 0 0 var(--sp-1);
+}
+.collections-page-title {
+  font-family: 'Bebas Neue', cursive; font-size: 2.5rem; line-height: 1;
+  letter-spacing: 0.03em; color: var(--text-strong); margin: 0 0 var(--sp-2);
+}
+.collections-page-subtitle {
+  font-family: 'Outfit', sans-serif; font-size: 0.9375rem; font-weight: 400;
+  line-height: 1.5; color: var(--text-soft); margin: 0; max-width: 320px;
+}
+.collections-section { display: flex; flex-direction: column; gap: var(--sp-3); margin-bottom: var(--sp-8); }
+.collections-section-label {
+  font-family: 'Azeret Mono', monospace; font-size: 0.6875rem; font-weight: 700;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-strong);
+  display: inline-flex; align-items: center; gap: var(--sp-2);
+}
+.collections-section-label::before {
+  content: ''; width: 3px; height: 12px; background: var(--p); border-radius: 2px;
+  flex-shrink: 0; box-shadow: 0 0 6px var(--p-glow);
+}
+.collections-section-action {
+  margin-left: auto; background: transparent; border: none; cursor: pointer;
+  padding: 0.25rem 0.5rem; font-family: 'Azeret Mono', monospace; font-size: 0.5rem;
+  font-weight: 700; letter-spacing: 0.1em; text-transform: uppercase; color: var(--p);
+  border-radius: var(--radius-sm); display: inline-flex; align-items: center; gap: 0.25rem;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.collections-section-action:hover { background: var(--p-dim); }
+
+/* Featured curated grid */
+.collections-featured-grid { display: flex; flex-direction: column; gap: var(--sp-3); }
+.collections-featured-card {
+  position: relative; width: 100%; height: 140px; border-radius: var(--radius-lg);
+  overflow: hidden; border: 1px solid var(--hairline); cursor: pointer; text-align: left;
+  transition: transform var(--dur-base) var(--ease-spring), border-color var(--dur-base) var(--ease-out);
+  background: var(--tier-2);
+}
+@media (min-width: 640px) { .collections-featured-card { height: 180px; } }
+.collections-featured-card:hover { transform: translateY(-2px); border-color: var(--hairline-2); }
+.collections-featured-backdrop {
+  position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover;
+  filter: brightness(0.5) saturate(0.9);
+}
+.collections-featured-overlay {
+  position: absolute; inset: 0; pointer-events: none; z-index: 1;
+  background: linear-gradient(to right, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.4) 60%, transparent 100%);
+}
+.collections-featured-content {
+  position: absolute; inset: 0; z-index: 2; padding: var(--sp-4);
+  display: flex; flex-direction: column; justify-content: center; gap: var(--sp-1);
+}
+.collections-featured-name {
+  font-family: 'Bebas Neue', cursive; font-size: 1.5rem; line-height: 1;
+  letter-spacing: 0.03em; color: var(--text-strong); margin: 0;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+}
+@media (min-width: 640px) { .collections-featured-name { font-size: 1.875rem; } }
+.collections-featured-meta {
+  font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600;
+  letter-spacing: 0.08em; color: var(--text-soft); margin: 0;
+}
+.collections-featured-ring {
+  position: absolute; bottom: var(--sp-4); right: var(--sp-4);
+  width: 40px; height: 40px; border-radius: 50%;
+  background: conic-gradient(var(--p) var(--progress), var(--tier-3) var(--progress));
+  display: flex; align-items: center; justify-content: center; box-shadow: 0 0 12px var(--p-glow);
+}
+.collections-featured-ring::before {
+  content: ''; position: absolute; inset: 3px; border-radius: 50%; background: var(--tier-1);
+}
+.collections-featured-ring-pct {
+  position: relative; z-index: 1; font-family: 'Bebas Neue', cursive; font-size: 0.875rem; color: var(--p);
+}
+
+/* Folder grid */
+.collections-folder-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3);
+}
+@media (min-width: 640px) { .collections-folder-grid { grid-template-columns: repeat(3, 1fr); } }
+.collections-folder-card {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: var(--sp-2); padding: var(--sp-5) var(--sp-3); border-radius: var(--radius-lg);
+  background: var(--tier-2); border: 1px solid var(--hairline); cursor: pointer; text-align: center;
+  transition: transform var(--dur-base) var(--ease-spring), border-color var(--dur-base) var(--ease-out);
+}
+.collections-folder-card:hover { transform: translateY(-2px); border-color: var(--hairline-2); }
+.collections-folder-favorites { border-color: color-mix(in srgb, #f5c518 20%, var(--hairline)); }
+.collections-folder-icon { display: flex; align-items: center; justify-content: center; }
+.collections-folder-name {
+  font-family: 'Outfit', sans-serif; font-size: 0.8125rem; font-weight: 700; color: var(--text-strong); margin: 0;
+  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+}
+.collections-folder-count {
+  font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600; letter-spacing: 0.08em;
+  color: var(--text-muted); margin: 0;
+}
+
+/* Create bar */
+.collections-create-bar { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
+.collections-create-input {
+  flex: 1; background: var(--tier-2); border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md); padding: 0.625rem 0.875rem;
+  font-family: 'Outfit', sans-serif; font-size: 0.875rem; font-weight: 600; color: var(--text-strong);
+  outline: none; transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.collections-create-input:focus { border-color: var(--p); box-shadow: 0 0 0 3px var(--p-dim); }
+
+.collections-empty-folders { padding: var(--sp-6) var(--sp-4); display: flex; justify-content: center; }
+.collections-folder-skeleton {
+  height: 100px; border-radius: var(--radius-lg);
+  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 300% 100%; animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* ---------- Collection Detail Page ---------- */
+.collections-back-btn {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; height: 36px; border-radius: 50%;
+  background: var(--tier-2); border: 1px solid var(--hairline-2);
+  color: var(--text-soft); cursor: pointer; margin-bottom: var(--sp-4);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.collections-back-btn:hover { background: var(--tier-3); color: var(--text-strong); }
+.collections-detail-empty { padding: var(--sp-10); display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); }
+
+.collection-detail-hero { position: relative; width: 100%; height: 240px; border-radius: var(--radius-xl); overflow: hidden; }
+@media (min-width: 640px) { .collection-detail-hero { height: 320px; } }
+.collection-detail-hero-backdrop { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; filter: brightness(0.55) saturate(0.9); }
+.collection-detail-hero-overlay { position: absolute; inset: 0; pointer-events: none; z-index: 1; background: linear-gradient(to top, var(--tier-1) 0%, rgba(10,11,14,0.95) 8%, rgba(10,11,14,0.70) 22%, rgba(10,11,14,0.30) 45%, transparent 100%), linear-gradient(to bottom, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.20) 15%, transparent 30%); }
+.collection-detail-hero-content { position: absolute; bottom: 0; left: 0; right: 0; z-index: 2; padding: var(--sp-5); display: flex; flex-direction: column; gap: var(--sp-2); }
+.collection-detail-hero-eyebrow { font-family: 'Azeret Mono', monospace; font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.18em; text-transform: uppercase; color: var(--p); margin: 0; }
+.collection-detail-hero-title { font-family: 'Bebas Neue', cursive; font-size: 2.25rem; line-height: 0.95; letter-spacing: 0.02em; color: var(--text-strong); margin: 0; text-shadow: 0 2px 24px rgba(0,0,0,0.95); }
+@media (min-width: 640px) { .collection-detail-hero-title { font-size: 3rem; } }
+.collection-detail-hero-description { font-family: 'Outfit', sans-serif; font-size: 0.8125rem; font-weight: 400; line-height: 1.5; color: var(--text-soft); margin: 0; max-width: 480px; display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+.collection-detail-progress { display: flex; align-items: center; gap: var(--sp-3); margin-top: var(--sp-2); }
+.collection-detail-ring { width: 44px; height: 44px; border-radius: 50%; background: conic-gradient(var(--p) var(--progress), var(--tier-3) var(--progress)); display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: 0 0 12px var(--p-glow); }
+.collection-detail-ring::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--tier-1); }
+.collection-detail-ring-pct { position: relative; z-index: 1; font-family: 'Bebas Neue', cursive; font-size: 0.875rem; color: var(--p); }
+.collection-detail-progress-text { display: flex; flex-direction: column; }
+.collection-detail-progress-owned { font-family: 'Outfit', sans-serif; font-size: 0.875rem; font-weight: 700; color: var(--text-strong); }
+.collection-detail-progress-label { font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.collection-detail-stats { display: flex; gap: var(--sp-2); padding: var(--sp-3) 0; overflow-x: auto; -ms-overflow-style: none; scrollbar-width: none; }
+.collection-detail-stats::-webkit-scrollbar { display: none; }
+.collection-detail-stat-cell { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: var(--sp-2) var(--sp-3); border-radius: var(--radius-md); background: var(--tier-2); border: 1px solid var(--hairline); flex-shrink: 0; min-width: 60px; }
+.collection-detail-stat-value { font-family: 'Bebas Neue', cursive; font-size: 1.25rem; line-height: 1; color: var(--text-strong); }
+.collection-detail-stat-label { font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text-muted); }
+
+.collection-detail-timeline-section { padding: var(--sp-3) 0; display: flex; flex-direction: column; gap: var(--sp-3); }
+.collection-detail-timeline-label { font-family: 'Azeret Mono', monospace; font-size: 0.6875rem; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--text-strong); display: inline-flex; align-items: center; gap: var(--sp-2); }
+.collection-detail-timeline-label::before { content: ''; width: 3px; height: 12px; background: var(--p); border-radius: 2px; flex-shrink: 0; box-shadow: 0 0 6px var(--p-glow); }
+.collection-detail-timeline { display: flex; flex-direction: column; gap: var(--sp-2); }
+.collection-detail-timeline-item { display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-2); border-radius: var(--radius-md); background: var(--tier-2); border: 1px solid var(--hairline); cursor: pointer; text-align: left; width: 100%; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring); }
+.collection-detail-timeline-item:hover { border-color: var(--hairline-2); background: var(--tier-3); transform: translateX(2px); }
+.collection-detail-timeline-missing { opacity: 0.75; }
+.collection-detail-timeline-number { width: 28px; height: 28px; border-radius: 50%; background: var(--p-dim); color: var(--p); font-family: 'Bebas Neue', cursive; font-size: 0.875rem; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+.collection-detail-timeline-poster { position: relative; width: 40px; height: 60px; border-radius: var(--radius-sm); overflow: hidden; background: var(--tier-3); border: 1px solid var(--hairline); flex-shrink: 0; }
+.collection-detail-timeline-poster-img { width: 100%; height: 100%; object-fit: cover; }
+.collection-detail-timeline-poster-fallback { width: 100%; height: 100%; display: flex; align-items: center; justify-content: center; }
+.collection-detail-timeline-status { position: absolute; top: 2px; right: 2px; display: flex; align-items: center; justify-content: center; border-radius: 50%; }
+.collection-detail-timeline-status-completed { width: 14px; height: 14px; background: #4ade80; color: #000; }
+.collection-detail-timeline-status-watching { width: 8px; height: 8px; background: var(--p); box-shadow: 0 0 6px var(--p-glow); }
+.collection-detail-timeline-status-planned { width: 6px; height: 6px; background: var(--text-muted); }
+.collection-detail-timeline-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.collection-detail-timeline-title { font-family: 'Outfit', sans-serif; font-size: 0.875rem; font-weight: 700; color: var(--text-strong); margin: 0; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
+.collection-detail-timeline-meta { font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600; letter-spacing: 0.06em; color: var(--text-muted); margin: 0; text-transform: uppercase; }
+.collection-detail-timeline-missing-badge { display: flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 50%; background: var(--p-dim); color: var(--p); font-size: 0.875rem; font-weight: 800; flex-shrink: 0; border: 1px solid color-mix(in srgb, var(--p) 25%, transparent); }
+
+/* ---------- AddToFolderSheet ---------- */
+.folder-sheet-item {
+  display: flex; align-items: center; gap: var(--sp-3); padding: var(--sp-3);
+  border-radius: var(--radius-md); background: var(--tier-2); border: 1px solid var(--hairline);
+  cursor: pointer; text-align: left; width: 100%; transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.folder-sheet-item:hover { border-color: var(--hairline-2); background: var(--tier-3); }
+.folder-sheet-item-checked { border-color: color-mix(in srgb, var(--p) 30%, transparent); background: color-mix(in srgb, var(--p-dim) 40%, var(--tier-2)); }
+.folder-sheet-item-icon { display: flex; align-items: center; justify-content: center; width: 32px; height: 32px; border-radius: var(--radius-sm); background: var(--tier-1); flex-shrink: 0; }
+.folder-sheet-item-name { flex: 1; min-width: 0; font-family: 'Outfit', sans-serif; font-size: 0.875rem; font-weight: 700; color: var(--text-strong); }
+.folder-sheet-item-count { font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 700; color: var(--text-muted); flex-shrink: 0; }
+.folder-sheet-check { font-size: 18px; color: var(--p); flex-shrink: 0; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.folder-sheet-create-btn {
+  display: flex; align-items: center; gap: var(--sp-2); width: 100%; padding: var(--sp-3);
+  border-radius: var(--radius-md); background: transparent; border: 1px dashed var(--hairline-2);
+  cursor: pointer; font-family: 'Azeret Mono', monospace; font-size: 0.5625rem; font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase; color: var(--p); transition: background var(--dur-fast) var(--ease-out);
+}
+.folder-sheet-create-btn:hover { background: var(--p-dim); }

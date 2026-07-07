@@ -1,10 +1,13 @@
 // src/features/watchlist/watchlistService.ts
-import { doc, updateDoc, deleteDoc, collection, addDoc, setDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, collection, addDoc, setDoc, getDocs, query as fsQuery } from "firebase/firestore";
 import { db } from "~/core/firebase";
-import type { WatchProgress, VaultFilters, CachedSeasonInfo, WatchlistItem } from "~/shared/types";
+import type { WatchProgress, VaultFilters, CachedSeasonInfo, WatchlistItem, Collection, CollectionEntry } from "~/shared/types";
 
 const watchlistDoc = (uid: string, itemId: string) =>
   doc(db, "users", uid, "watchlist", String(itemId));
+
+const collectionDoc = (uid: string, collectionId: string) =>
+  doc(db, "users", uid, "collections", collectionId);
 
 export const updateStatus = (uid: string, itemId: string, status: string) =>
   updateDoc(watchlistDoc(uid, itemId), { status });
@@ -117,4 +120,122 @@ export const deletePreset = async (uid: string, presetId: string) => {
 
 export const renamePreset = async (uid: string, presetId: string, name: string) => {
   return updateDoc(doc(db, "users", uid, "presets", presetId), { name });
+};
+
+/* ============================================================
+   COLLECTION SERVICE — User collection CRUD operations
+   ============================================================ */
+
+/**
+ * createUserCollection — create a new user collection (folder).
+ * Uses setDoc with a generated id so the doc is created immediately.
+ */
+export const createUserCollection = async (
+  uid: string,
+  name: string,
+  isFavorites = false
+): Promise<Collection> => {
+  const now = new Date().toISOString();
+  const colRef = doc(collection(db, "users", uid, "collections"));
+  const newCollection: Collection = {
+    id: colRef.id,
+    name,
+    type: "user",
+    entries: [],
+    createdAt: now,
+    updatedAt: now,
+    isFavorites
+  };
+  await setDoc(colRef, newCollection);
+  return newCollection;
+};
+
+/**
+ * ensureFavoritesExists — create the Favorites folder if it doesn't exist.
+ * Called on sign-in. Idempotent — safe to call every time.
+ */
+export const ensureFavoritesExists = async (uid: string): Promise<void> => {
+  try {
+    const q = fsQuery(collection(db, "users", uid, "collections"));
+    const snap = await getDocs(q);
+    const hasFavorites = snap.docs.some((d) => (d.data() as Collection)?.isFavorites);
+    if (!hasFavorites) {
+      await createUserCollection(uid, "Favorites", true);
+    }
+  } catch (err) {
+    console.warn("Failed to ensure Favorites exists:", err);
+  }
+};
+
+/**
+ * addToUserCollection — add a title to a user collection.
+ * If the title is already in the collection, it's a no-op (idempotent).
+ */
+export const addToUserCollection = async (
+  uid: string,
+  collectionId: string,
+  entry: CollectionEntry
+): Promise<void> => {
+  const colRef = collectionDoc(uid, collectionId);
+  // Fetch current entries, append, and write back
+  const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
+  const docSnap = snap.docs.find((d) => d.id === collectionId);
+  if (!docSnap) return;
+  const col = docSnap.data() as Collection;
+  if (col.entries.some((e) => e.id === entry.id && e.media_type === entry.media_type)) return;
+  const entries = [...col.entries, { ...entry, order: col.entries.length }];
+  await updateDoc(colRef, { entries, updatedAt: new Date().toISOString() });
+};
+
+/**
+ * removeFromUserCollection — remove a title from a user collection.
+ */
+export const removeFromUserCollection = async (
+  uid: string,
+  collectionId: string,
+  entryId: string,
+  entryMediaType: string
+): Promise<void> => {
+  const colRef = collectionDoc(uid, collectionId);
+  const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
+  const docSnap = snap.docs.find((d) => d.id === collectionId);
+  if (!docSnap) return;
+  const col = docSnap.data() as Collection;
+  const entries = col.entries
+    .filter((e) => !(e.id === entryId && e.media_type === entryMediaType))
+    .map((e, i) => ({ ...e, order: i }));
+  await updateDoc(colRef, { entries, updatedAt: new Date().toISOString() });
+};
+
+/**
+ * deleteUserCollection — delete a user collection (folder).
+ * The Favorites folder cannot be deleted.
+ */
+export const deleteUserCollection = async (
+  uid: string,
+  collectionId: string
+): Promise<void> => {
+  const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
+  const docSnap = snap.docs.find((d) => d.id === collectionId);
+  if (!docSnap) return;
+  const col = docSnap.data() as Collection;
+  if (col.isFavorites) return; // Favorites cannot be deleted
+  await deleteDoc(collectionDoc(uid, collectionId));
+};
+
+/**
+ * renameUserCollection — rename a user collection.
+ * The Favorites folder cannot be renamed.
+ */
+export const renameUserCollection = async (
+  uid: string,
+  collectionId: string,
+  newName: string
+): Promise<void> => {
+  const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
+  const docSnap = snap.docs.find((d) => d.id === collectionId);
+  if (!docSnap) return;
+  const col = docSnap.data() as Collection;
+  if (col.isFavorites) return; // Favorites cannot be renamed
+  await updateDoc(collectionDoc(uid, collectionId), { name: newName, updatedAt: new Date().toISOString() });
 };

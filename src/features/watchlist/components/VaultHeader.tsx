@@ -1,5 +1,6 @@
 // src/features/watchlist/components/VaultHeader.tsx
 import { Show } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
 
 interface VaultHeaderProps {
@@ -10,20 +11,32 @@ interface VaultHeaderProps {
 }
 
 /**
- * Premium Vault header — title + view toggle + filter button.
+ * Premium Vault header — title + collections link + view toggle + filter button.
  *
- * Layout: [VAULT title] ........ [view toggle] [filter button]
+ * Layout: [VAULT title] ........ [Collections] [view toggle] [filter button]
  *
- * - View toggle uses .view-toggle / .view-toggle-btn CSS for clear active state
- * - Filter button shows a .filter-count-badge when filters are active
- * - Sticky-safe: the parent sticky container handles the blur background
+ * The Collections button navigates to /collections — the dedicated
+ * Collections page. It's not a bottom nav tab; it's a sibling of the Vault.
  */
 export default function VaultHeader(props: VaultHeaderProps) {
+  const navigate = useNavigate();
+
   return (
     <div class="flex justify-between items-center mb-4">
       <h2 class="type-page-title text-white">VAULT</h2>
 
       <div class="flex items-center gap-3">
+        {/* Collections link */}
+        <button
+          onClick={() => navigate("/collections")}
+          class="filter-button"
+          data-active={false}
+          aria-label="Open Collections"
+        >
+          <Icon name="collections_bookmark" style="font-size: 14px" aria-hidden="true" />
+          <span class="hidden sm:inline">Collections</span>
+        </button>
+
         {/* View mode toggle */}
         <div class="view-toggle" role="group" aria-label="View mode">
           <button
@@ -46,9 +59,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           </button>
         </div>
 
-        {/* Filter button — turns into the active accent color when
-            filters are applied, so the user has a clear "active filter
-            indicator" without opening the drawer. */}
+        {/* Filter button */}
         <button
           onClick={() => props.onFilterClick()}
           class="filter-button"
