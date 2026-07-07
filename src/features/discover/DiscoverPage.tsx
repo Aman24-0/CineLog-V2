@@ -4,7 +4,7 @@ import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { login } from "~/core/firebase/auth";
-import { updateStatus as svcUpdateStatus, updateWatchProgress as svcUpdateWatchProgress } from "~/features/watchlist/watchlistService";
+import { addToVault as svcAddToVault } from "~/features/watchlist/watchlistService";
 import { auth } from "~/core/firebase";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -52,7 +52,7 @@ import DiscoverSkeleton from "./components/DiscoverSkeleton";
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useVault();
   const { showToast } = useToast();
-  const { setSelectedItem } = useModalState();
+  const { openTitle } = useModalState();
 
   // The taste seam — every other hook consumes this
   const { profile: taste } = useDiscoverTaste({
@@ -88,31 +88,28 @@ export default function DiscoverPage() {
   };
 
   // Open the Details modal for a TMDB title.
-  // We convert the TMDBTitle to a minimal WatchlistItem shape so the
-  // existing DetailsModal (which expects WatchlistItem) can render it.
-  // The modal will fetch full TMDB details on its own.
-  const openTitle = (title: TMDBTitle) => {
-    const item: WatchlistItem = {
+  // Uses the shared openTitle helper which resolves vault ownership
+  // automatically — no fake status defaults, no state pollution.
+  const handleOpenTitle = (title: TMDBTitle) => {
+    const baseItem: WatchlistItem = {
       id: String(title.id),
       title: title.title,
       name: title.name,
       media_type: title.media_type,
       poster_path: title.poster_path,
       backdrop_path: title.backdrop_path,
-      status: "Planned", // default — the modal will show real status if it's in vault
+      status: "Planned", // placeholder — openTitle ignores this for non-vault titles
       release_date: title.release_date,
       first_air_date: title.first_air_date,
       genresList: title.genres,
       director: title.director
     };
-    // If the title is already in the vault, use the real vault item so
-    // the modal shows the correct status, rating, progress, etc.
-    const existing = watchlist().find((m) => String(m.id) === String(title.id));
-    setSelectedItem(existing || item);
+    openTitle(baseItem, watchlist());
   };
 
   // Add a TMDB title to the vault as "Planned" (one-tap save).
-  // This is the primary "save" action on every Discover card.
+  // Uses the new addToVault service (setDoc merge) — fixes the previous
+  // silent-fail bug where updateStatus no-op'd on non-existent docs.
   const addToVault = async (title: TMDBTitle) => {
     const uid = auth.currentUser?.uid;
     if (!uid) {
@@ -129,17 +126,20 @@ export default function DiscoverPage() {
       return;
     }
     try {
-      // Use the existing service — status "Planned" + a watchProgress
-      // stub so the title shows up in the Vault's "Planned" shelf.
-      await svcUpdateStatus(uid, String(title.id), "Planned");
-      await svcUpdateWatchProgress(uid, String(title.id), {
-        currentTime: 0,
-        duration: 0,
-        server: null,
-        updatedAt: new Date().toISOString(),
-        season: 1,
-        episode: 1
-      });
+      const item: WatchlistItem = {
+        id: String(title.id),
+        title: title.title,
+        name: title.name,
+        media_type: title.media_type,
+        poster_path: title.poster_path,
+        backdrop_path: title.backdrop_path,
+        status: "Planned",
+        release_date: title.release_date,
+        first_air_date: title.first_air_date,
+        genresList: title.genres,
+        director: title.director
+      };
+      await svcAddToVault(uid, item);
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {
@@ -185,7 +185,7 @@ export default function DiscoverPage() {
             loading={spotlightLoading}
             isGuest={isGuest()}
             vault={watchlist()}
-            onDetails={openTitle}
+            onDetails={handleOpenTitle}
             onAddToVault={addToVault}
             onReroll={handleReroll}
           />
@@ -216,7 +216,7 @@ export default function DiscoverPage() {
                     <TrajectoryCard
                       trajectory={traj}
                       vault={watchlist()}
-                      onOpenTitle={openTitle}
+                      onOpenTitle={handleOpenTitle}
                       onAddToVault={addToVault}
                     />
                   )}
@@ -239,7 +239,7 @@ export default function DiscoverPage() {
                   <TasteSurface
                     surface={surface}
                     vault={watchlist()}
-                    onOpenTitle={openTitle}
+                    onOpenTitle={handleOpenTitle}
                     onAddToVault={addToVault}
                   />
                 )}
@@ -253,7 +253,7 @@ export default function DiscoverPage() {
               clusters={clusters}
               loading={clusters.loading}
               vault={watchlist()}
-              onOpenTitle={openTitle}
+              onOpenTitle={handleOpenTitle}
             />
           </section>
 

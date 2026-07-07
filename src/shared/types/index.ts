@@ -115,6 +115,43 @@ export interface TMDBSeason {
   name: string;
 }
 
+/**
+ * TMDBEpisode — a single episode's metadata from the /tv/{id}/season/{n}
+ * endpoint. This is the richest per-episode data TMDB exposes.
+ *
+ * Used by the SeasonNavigator in the Details modal to render episode
+ * cards with stills, titles, runtimes, air dates, overviews, and
+ * vote averages. Episode data is TMDB-sourced (not user-owned) —
+ * the user-owned state is which episode the user is currently on,
+ * which lives on WatchlistItem.season/episode.
+ */
+export interface TMDBEpisode {
+  id: number;
+  episode_number: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  runtime: number | null;
+  still_path: string | null;
+  vote_average: number;
+  vote_count: number;
+}
+
+/**
+ * TMDBSeasonDetails — the response from /tv/{id}/season/{n}.
+ * Includes the episode list for that season.
+ */
+export interface TMDBSeasonDetails {
+  id: number;
+  season_number: number;
+  name: string;
+  overview: string;
+  air_date: string | null;
+  episodes: TMDBEpisode[];
+  poster_path: string | null;
+}
+
 export interface TMDBVideo {
   id: string;
   key: string;

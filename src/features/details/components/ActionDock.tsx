@@ -1,24 +1,42 @@
 // src/features/details/components/ActionDock.tsx
-import { Show, createSignal } from "solid-js";
+import { Show } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 
 interface ActionDockProps {
+  /** TMDB identity — always present */
   item: WatchlistItem | null;
+  /**
+   * User-owned vault item — null when the title is NOT in the vault.
+   * When null, the dock shows "Add to Vault" as the primary action and
+   * hides Edit/Rate (those are user-owned actions). When present, the
+   * dock shows the status cycle + Edit/Rate as before.
+   */
+  vaultItem?: WatchlistItem | null;
   hasTrailer: boolean;
   onPlayTrailer: () => void;
   onEdit: () => void;
   onStatusCycle: () => void;
+  /** Called when the user taps "Add to Vault" on a non-vault title */
+  onAddToVault: () => void;
+  /** Whether an add-to-vault operation is in flight (shows spinner) */
+  isAdding?: boolean;
 }
 
 /**
  * ActionDock — floating glass bar with primary actions.
  *
- * Layout: [Status] | [Trailer] [Rate] [Edit]
+ * OWNERSHIP-AWARE LAYOUT:
  *
- * - Status: cycles Planned → Watching → Completed (primary, accent when active)
- * - Trailer: shows only if a trailer exists (opens inline expansion)
- * - Rate: quick star rating (opens edit mode focused on rating)
- * - Edit: opens full edit form
+ *   Vault title (vaultItem present):
+ *     [Status cycle] | [Trailer] [Rate] [Edit]
+ *
+ *   Non-vault title (vaultItem null):
+ *     [+ Add to Vault] | [Trailer]
+ *
+ * The Edit and Rate buttons are user-owned actions — they only make
+ * sense when the title is in the vault. For non-vault titles, the
+ * primary CTA is "Add to Vault", which calls onAddToVault (the parent
+ * handles the actual Firestore write via the addToVault service).
  *
  * The dock uses .action-dock CSS for the frosted glass surface. On mobile
  * the buttons stack compactly; on desktop they have more breathing room.
@@ -26,8 +44,10 @@ interface ActionDockProps {
  * Touch targets: all buttons are 44px tall (touch-min) for accessibility.
  */
 export default function ActionDock(props: ActionDockProps) {
+  const inVault = () => !!props.vaultItem;
+
   const statusLabel = () => {
-    const s = props.item?.status;
+    const s = props.vaultItem?.status;
     if (s === "Plan to Watch" || s === "Planned") return "Planned";
     if (s === "Watching") return "Watching";
     if (s === "Completed") return "Completed";
@@ -35,36 +55,72 @@ export default function ActionDock(props: ActionDockProps) {
   };
 
   const statusActive = () => {
-    const s = props.item?.status;
+    const s = props.vaultItem?.status;
     return s === "Watching" || s === "Completed";
+  };
+
+  const statusIcon = () => {
+    const label = statusLabel();
+    if (label === "Watching") return "play_circle";
+    if (label === "Completed") return "task_alt";
+    return "bookmark";
   };
 
   return (
     <div class="action-dock">
-      {/* Status — primary action */}
-      <button
-        type="button"
-        onClick={() => props.onStatusCycle()}
-        class={`action-dock-btn action-dock-btn-primary${statusActive() ? "" : ""}`}
-        data-active={statusActive()}
-        aria-label={`Watch status: ${statusLabel()}. Click to change.`}
+      <Show
+        when={inVault()}
+        fallback={
+          /* Non-vault title: primary CTA is "Add to Vault" */
+          <button
+            type="button"
+            onClick={() => props.onAddToVault()}
+            disabled={props.isAdding}
+            class="action-dock-btn action-dock-btn-primary"
+            data-active="true"
+            aria-label="Add to your vault"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{
+                "font-size": "16px",
+                "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}
+              aria-hidden="true"
+            >
+              {props.isAdding ? "progress_activity" : "add"}
+            </span>
+            <span class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Vault"}</span>
+          </button>
+        }
       >
-        <span
-          class="material-symbols-outlined"
-          style={{
-            "font-size": "16px",
-            "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-          }}
-          aria-hidden="true"
+        {/* Vault title: status cycle (primary) */}
+        <button
+          type="button"
+          onClick={() => props.onStatusCycle()}
+          class="action-dock-btn action-dock-btn-primary"
+          data-active={statusActive()}
+          aria-label={`Watch status: ${statusLabel()}. Click to change.`}
         >
-          {statusLabel() === "Watching" ? "play_circle" : statusLabel() === "Completed" ? "task_alt" : "bookmark"}
-        </span>
-        <span class="hidden sm:inline">{statusLabel()}</span>
-      </button>
+          <span
+            class="material-symbols-outlined"
+            style={{
+              "font-size": "16px",
+              "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+            }}
+            aria-hidden="true"
+          >
+            {statusIcon()}
+          </span>
+          <span class="hidden sm:inline">{statusLabel()}</span>
+        </button>
+      </Show>
 
-      <div class="action-dock-divider" aria-hidden="true" />
+      <Show when={inVault() && props.hasTrailer}>
+        <div class="action-dock-divider" aria-hidden="true" />
+      </Show>
 
-      {/* Trailer */}
+      {/* Trailer — always available (TMDB data, not user-owned) */}
       <Show when={props.hasTrailer}>
         <button
           type="button"
@@ -83,48 +139,51 @@ export default function ActionDock(props: ActionDockProps) {
         </button>
       </Show>
 
-      {/* Rate */}
-      <button
-        type="button"
-        onClick={() => props.onEdit()}
-        class="action-dock-btn"
-        aria-label="Rate this title"
-      >
-        <span
-          class="material-symbols-outlined"
-          style={{
-            "font-size": "16px",
-            color: props.item?.rating ? "#f5c518" : undefined,
-            "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-          }}
-          aria-hidden="true"
-        >
-          star
-        </span>
-        <Show when={props.item?.rating}>
-          <span style={{ color: "#f5c518" }}>{props.item!.rating}</span>
-        </Show>
-        <Show when={!props.item?.rating}>
-          <span class="hidden sm:inline">Rate</span>
-        </Show>
-      </button>
+      {/* Rate + Edit — user-owned actions, only when in vault */}
+      <Show when={inVault()}>
+        <div class="action-dock-divider" aria-hidden="true" />
 
-      {/* Edit */}
-      <button
-        type="button"
-        onClick={() => props.onEdit()}
-        class="action-dock-btn"
-        aria-label="Edit details"
-      >
-        <span
-          class="material-symbols-outlined"
-          style={{ "font-size": "16px" }}
-          aria-hidden="true"
+        <button
+          type="button"
+          onClick={() => props.onEdit()}
+          class="action-dock-btn"
+          aria-label="Rate this title"
         >
-          edit
-        </span>
-        <span class="hidden sm:inline">Edit</span>
-      </button>
+          <span
+            class="material-symbols-outlined"
+            style={{
+              "font-size": "16px",
+              color: props.vaultItem?.rating ? "#f5c518" : undefined,
+              "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+            }}
+            aria-hidden="true"
+          >
+            star
+          </span>
+          <Show when={props.vaultItem?.rating}>
+            <span style={{ color: "#f5c518" }}>{props.vaultItem!.rating}</span>
+          </Show>
+          <Show when={!props.vaultItem?.rating}>
+            <span class="hidden sm:inline">Rate</span>
+          </Show>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => props.onEdit()}
+          class="action-dock-btn"
+          aria-label="Edit details"
+        >
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "16px" }}
+            aria-hidden="true"
+          >
+            edit
+          </span>
+          <span class="hidden sm:inline">Edit</span>
+        </button>
+      </Show>
     </div>
   );
 }

@@ -1,27 +1,20 @@
 import { useNavigate, useLocation } from "@solidjs/router";
 import NavButton from "./NavButton";
 import { useAppState } from "~/shared/hooks/useAppState";
-import { useToast } from "~/shared/hooks/useToast";
 
 export default function BottomNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
   const { setView } = useAppState();
-  const { showToast } = useToast();
 
   // Active state is derived from the current URL so the highlight matches the
   // page the user is actually on, regardless of how they navigated.
   const path = () => location.pathname;
 
-  const go = (view: "dashboard" | "watchlist" | "discover" | "upcoming", href: string) => {
+  const go = (view: "dashboard" | "watchlist" | "discover" | "search", href: string) => {
     setView(view);
     navigate(href);
   };
-
-  // Upcoming route doesn't exist yet (future phase). Surface this to
-  // the user instead of letting the button appear dead.
-  const comingSoon = (label: string) =>
-    showToast(`${label} is coming soon`, "info", 2000);
 
   return (
     <nav
@@ -55,10 +48,10 @@ export default function BottomNavigation() {
       />
 
       <NavButton
-        icon="calendar_month"
-        label="Upcoming"
-        active={false}
-        onClick={() => comingSoon("Upcoming")}
+        icon="search"
+        label="Search"
+        active={path() === "/search"}
+        onClick={() => go("search", "/search")}
       />
     </nav>
   );

@@ -1,9 +1,10 @@
 // src/core/tmdb/tmdb.ts
-import type { TMDBDetails } from "~/shared/types";
+import type { TMDBDetails, TMDBSeasonDetails } from "~/shared/types";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
 const IMG_BASE = "https://image.tmdb.org/t/p";
+const API = "https://api.themoviedb.org/3";
 
 /**
  * Build a TMDB image URL. Sizes follow TMDB's documented w-pixel conventions.
@@ -21,9 +22,31 @@ export const fetchTmdbDetails = async (
   // append=response=videos pulls trailer/teaser clips in a single request,
   // avoiding a second round-trip when the Details modal opens.
   const res = await fetch(
-    `https://api.themoviedb.org/3/${mediaType}/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=videos`
+    `${API}/${mediaType}/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=videos`
   );
   if (!res.ok) throw new Error("Failed to fetch TMDB details");
+  return res.json();
+};
+
+/**
+ * fetchSeasonDetails — fetch the episode list for a single TV season.
+ *
+ * Used by the SeasonNavigator in the Details modal. Each season is
+ * fetched lazily — only when the user expands that season's accordion —
+ * so opening the Details modal doesn't pay for all seasons upfront.
+ *
+ * The response includes episode stills, titles, runtimes, air dates,
+ * overviews, and vote averages. Episode data is TMDB-sourced (not
+ * user-owned).
+ */
+export const fetchSeasonDetails = async (
+  tvId: string | number,
+  seasonNumber: number
+): Promise<TMDBSeasonDetails> => {
+  const res = await fetch(
+    `${API}/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_KEY}&language=en-US`
+  );
+  if (!res.ok) throw new Error(`Failed to fetch season ${seasonNumber}`);
   return res.json();
 };
 

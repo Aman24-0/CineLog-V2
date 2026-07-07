@@ -4,9 +4,15 @@ import { formatRuntime } from "~/shared/utils/format";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 
 interface MetadataGridProps {
+  /** TMDB identity — always present */
   baseItem: WatchlistItem | null;
   details: TMDBDetails | null;
   omdb: OMDbRatings | null;
+  /**
+   * User-owned vault item — null when the title is NOT in the vault.
+   * The "Your Status" cell only renders when this is present.
+   */
+  vaultItem?: WatchlistItem | null;
 }
 
 interface MetaCell {
@@ -19,6 +25,11 @@ interface MetaCell {
  *
  * Shows only fields that exist — missing data is hidden gracefully.
  * Grid: 2 columns on mobile, 3 columns on sm+.
+ *
+ * OWNERSHIP BOUNDARY:
+ *   The "Your Status" cell is user-owned — it only renders when
+ *   `vaultItem` is present. All other cells are TMDB-sourced and
+ *   always allowed.
  *
  * Data sources:
  *  - Year (from release_date / first_air_date)
@@ -33,12 +44,14 @@ interface MetaCell {
  *  - Network (TV only — from networks)
  *  - Studio (Movie — from production_companies)
  *  - TMDB Score (from vote_average)
+ *  - Your Status (from vaultItem — user-owned, vault-only)
  */
 export default function MetadataGrid(props: MetadataGridProps) {
   const cells = createMemo<MetaCell[]>(() => {
     const d = props.details;
     const b = props.baseItem;
     const o = props.omdb;
+    const v = props.vaultItem;
     const list: MetaCell[] = [];
 
     // Year
@@ -102,9 +115,9 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "TMDB Score", value: d.vote_average.toFixed(1) });
     }
 
-    // User status (from Firestore)
-    if (b?.status) {
-      const statusLabel = b.status === "Plan to Watch" ? "Planned" : b.status;
+    // User status (from vaultItem — user-owned, vault-only)
+    if (v?.status) {
+      const statusLabel = v.status === "Plan to Watch" ? "Planned" : v.status;
       list.push({ label: "Your Status", value: statusLabel });
     }
 

@@ -1232,6 +1232,344 @@
   flex-shrink: 0;
 }
 
+/* ============================================================
+   PHASE 2.x — SEASON NAVIGATOR (Episode Experience)
+   The cinematic episode companion. Replaces the old +/- EpisodeTracker
+   with a spatial episode map: expandable season accordion + episode
+   cards with stills, titles, runtimes, air dates, overviews.
+   ============================================================ */
+
+.season-navigator {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+/* Series-wide progress summary — top of the navigator (vault titles only) */
+.season-navigator-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+}
+.season-navigator-summary-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.season-navigator-summary-pct {
+  display: flex;
+  align-items: center;
+}
+.season-navigator-bar {
+  height: 6px;
+}
+
+/* Season accordion list */
+.season-navigator-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* Individual season accordion */
+.season-accordion {
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  transition: border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out);
+}
+.season-accordion-expanded {
+  border-color: var(--hairline-2);
+  box-shadow: var(--shadow-premium);
+}
+.season-accordion-current {
+  border-color: color-mix(in srgb, var(--p) 25%, transparent);
+}
+
+/* Season header — tap to expand/collapse */
+.season-accordion-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.season-accordion-header:hover {
+  background: rgba(255,255,255,0.02);
+}
+.season-accordion-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.season-accordion-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.season-accordion-current-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--p);
+  box-shadow: 0 0 8px var(--p-glow);
+  flex-shrink: 0;
+}
+.season-accordion-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.season-accordion-chevron {
+  font-size: 20px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+  transition: transform var(--dur-base) var(--ease-out);
+}
+
+/* Loading skeleton for season episodes */
+.season-accordion-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-4) var(--sp-3);
+}
+.season-accordion-skeleton {
+  height: 80px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.05) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+.season-accordion-empty {
+  padding: var(--sp-3) var(--sp-4);
+  text-align: center;
+}
+
+/* Episode list — inside an expanded season */
+.episode-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: 0 var(--sp-3) var(--sp-3);
+}
+
+/* Episode card — horizontal layout: still + body */
+.episode-card {
+  display: grid;
+  grid-template-columns: 96px 1fr;
+  gap: var(--sp-3);
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+@media (min-width: 640px) {
+  .episode-card {
+    grid-template-columns: 120px 1fr;
+  }
+}
+.episode-card:hover {
+  border-color: var(--hairline-2);
+  background: var(--tier-2);
+}
+.episode-card-current {
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  background: color-mix(in srgb, var(--p-dim) 50%, var(--tier-1));
+}
+.episode-card-watched {
+  opacity: 0.85;
+}
+
+/* Episode still — 16:9 thumbnail with number overlay */
+.episode-card-still-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline);
+}
+.episode-card-still {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.92);
+  transition: transform var(--dur-base) var(--ease-smooth);
+}
+.episode-card:hover .episode-card-still {
+  transform: scale(1.04);
+  filter: brightness(1);
+}
+.episode-card-still-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.episode-card-number {
+  position: absolute;
+  bottom: 4px;
+  left: 4px;
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  background: rgba(0,0,0,0.72);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-strong);
+}
+.episode-card-watched-badge {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--p);
+  color: var(--active-text);
+}
+
+/* Episode body — title, meta, overview, action */
+.episode-card-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+.episode-card-header {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.episode-card-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.episode-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+.episode-card-overview {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+}
+.episode-card-overview-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.episode-card-expand {
+  align-self: flex-start;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--p);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.episode-card-expand:hover {
+  color: var(--text-strong);
+}
+
+/* Episode actions — vault-aware */
+.episode-card-actions {
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+}
+.episode-card-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.375rem 0.625rem;
+  border-radius: var(--radius-pill);
+  border: 1px solid;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.episode-card-action-watch {
+  background: var(--p-dim);
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  color: var(--p);
+}
+.episode-card-action-watch:hover {
+  background: var(--p);
+  color: var(--active-text);
+}
+.episode-card-action-add {
+  background: var(--tier-3);
+  border-color: var(--hairline-2);
+  color: var(--text-soft);
+}
+.episode-card-action-add:hover {
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+}
+.episode-card-current-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--p);
+}
+
 /* Rating cluster — user rating prominent */
 .rating-cluster {
   display: flex;
@@ -3071,4 +3409,472 @@
 .discover-guest-nudge {
   padding: var(--sp-8) var(--sp-4);
   text-align: center;
+}
+
+/* ============================================================
+   PHASE 2.x — SEARCH V2
+   The intentional discovery-by-query experience. Search is the
+   INTENTIONAL path; Discover is the SERENDIPITOUS path. They must
+   feel different — Search is about finding a specific thing.
+   ============================================================ */
+
+.search-eyebrow-block {
+  margin-bottom: var(--sp-5);
+}
+.search-eyebrow {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--p);
+  margin: 0 0 var(--sp-1);
+}
+.search-page-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 2.5rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0 0 var(--sp-2);
+}
+.search-page-subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 320px;
+}
+
+/* Search bar — the primary interaction */
+.search-bar-form {
+  margin-bottom: var(--sp-6);
+  position: sticky;
+  top: 0;
+  z-index: 30;
+  padding: var(--sp-3) 0;
+  background: rgba(5,6,10,0.92);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+  border-bottom: 1px solid var(--hairline);
+  margin-left: calc(-1 * var(--sp-5));
+  margin-right: calc(-1 * var(--sp-5));
+  padding-left: var(--sp-5);
+  padding-right: var(--sp-5);
+}
+.search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-pill);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.search-bar:focus-within {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+.search-bar-icon {
+  font-size: 20px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+.search-bar-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  -webkit-appearance: none;
+}
+.search-bar-input::placeholder {
+  color: var(--text-muted);
+}
+.search-bar-input::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+}
+.search-bar-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--tier-3);
+  border: none;
+  cursor: pointer;
+  color: var(--text-soft);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.search-bar-clear:hover {
+  background: var(--hairline-2);
+  color: var(--text-strong);
+}
+
+/* Cold-start state (no query) */
+.search-cold-start {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-6);
+}
+
+/* Search section — reusable wrapper */
+.search-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+.search-section-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+.search-section-label::before {
+  content: '';
+  width: 3px;
+  height: 12px;
+  background: var(--p);
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 6px var(--p-glow);
+}
+.search-section-action {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0.25rem 0.5rem;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--p);
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.search-section-action:hover {
+  background: var(--p-dim);
+}
+
+/* Recent searches — chip list */
+.search-recent-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--sp-2);
+}
+.search-recent-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  cursor: pointer;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-body);
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.search-recent-chip:hover {
+  background: var(--tier-3);
+  border-color: var(--hairline-3);
+  color: var(--text-strong);
+}
+.search-recent-remove {
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: 50%;
+  transition: color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.search-recent-remove:hover {
+  color: var(--text-strong);
+  background: var(--hairline-2);
+}
+
+/* Trending rail — horizontal scroll-snap */
+.search-rail {
+  display: flex;
+  gap: var(--sp-3);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: var(--sp-2);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.search-rail::-webkit-scrollbar { display: none; }
+.search-rail-card {
+  flex-shrink: 0;
+  width: 110px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scroll-snap-align: start;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+@media (min-width: 640px) {
+  .search-rail-card { width: 130px; }
+}
+.search-rail-card:hover { transform: translateY(-3px); }
+.search-rail-card:active { transform: scale(0.97); }
+.search-rail-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-premium);
+  background: var(--tier-3);
+}
+.search-rail-poster-vault {
+  border-color: color-mix(in srgb, var(--p) 40%, transparent);
+  box-shadow: var(--shadow-premium), 0 0 0 1px color-mix(in srgb, var(--p) 20%, transparent);
+}
+.search-rail-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.92);
+  transition: transform var(--dur-base) var(--ease-smooth);
+}
+.search-rail-card:hover .search-rail-poster-img {
+  transform: scale(1.04);
+  filter: brightness(1);
+}
+.search-rail-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-rail-vault-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--p);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+.search-rail-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-body);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+}
+.search-rail-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  text-transform: uppercase;
+}
+
+/* Genre grid — cold-start browse */
+.search-genre-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2);
+}
+@media (min-width: 480px) {
+  .search-genre-grid { grid-template-columns: repeat(4, 1fr); }
+}
+.search-genre-pill {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-2);
+  border-radius: var(--radius-lg);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.search-genre-pill:hover {
+  background: var(--tier-3);
+  border-color: var(--hairline-2);
+  transform: translateY(-2px);
+}
+.search-genre-pill:active {
+  transform: scale(0.96);
+}
+.search-genre-icon {
+  font-size: 24px;
+  color: var(--p);
+}
+.search-genre-pill {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+/* Results list — vertical rows */
+.search-results-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.search-result-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+.search-result-row:hover {
+  border-color: var(--hairline-2);
+  background: var(--tier-3);
+}
+.search-result-row-vault {
+  border-color: color-mix(in srgb, var(--p) 25%, transparent);
+  background: color-mix(in srgb, var(--p-dim) 30%, var(--tier-2));
+}
+.search-result-main {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  text-align: left;
+}
+.search-result-poster {
+  width: 48px;
+  height: 72px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+.search-result-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.search-result-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.search-result-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.search-result-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.search-result-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 0;
+  text-transform: uppercase;
+}
+.search-result-pill {
+  flex-shrink: 0;
+}
+.search-result-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--p-dim);
+  border: 1px solid color-mix(in srgb, var(--p) 30%, transparent);
+  color: var(--p);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.search-result-add:hover {
+  background: var(--p);
+  color: var(--active-text);
+}
+
+/* Loading skeleton */
+.search-loading {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.search-result-skeleton {
+  height: 88px;
+  border-radius: var(--radius-md);
+  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Empty state — quiet, cinematic */
+.search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-10) var(--sp-4);
+}
+.search-empty-icon {
+  font-size: 48px;
+  color: var(--text-dim);
 }

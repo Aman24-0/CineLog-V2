@@ -6,7 +6,14 @@ import type { TMDBDetails, OMDbRatings, WatchlistItem } from "~/shared/types";
 interface RatingClusterProps {
   details: TMDBDetails | null;
   omdb: OMDbRatings | null;
+  /** TMDB identity — always present */
   baseItem: WatchlistItem | null;
+  /**
+   * User-owned vault item — null when the title is NOT in the vault.
+   * The "Your Rating" slot only renders when this is present AND has a
+   * rating > 0. Non-vault titles show only IMDb / RT (TMDB-sourced).
+   */
+  vaultItem?: WatchlistItem | null;
 }
 
 /**
@@ -14,21 +21,22 @@ interface RatingClusterProps {
  *
  * Layout: [User Rating (large)] | [IMDb row] [RT row]
  *
- * The user's own rating is the most prominent (large Bebas Neue number
- * with accent glow), because it's the rating that matters most to the user.
- * IMDb and RT are secondary rows on the right.
+ * OWNERSHIP BOUNDARY:
+ *   The user's own rating is a user-owned state. The "Your Rating"
+ *   slot only renders when `vaultItem` is present AND has a rating > 0.
+ *   Non-vault titles show only IMDb / RT rows (TMDB-sourced data).
+ *   If neither IMDb nor RT exists AND the title isn't in the vault,
+ *   the entire cluster is hidden (no empty "Not Rated" slot for
+ *   titles the user doesn't own).
  *
- * If the user hasn't rated: shows "—" with "Not Rated" label.
- * If IMDb/RT are missing: those rows are hidden gracefully.
- *
- * TMDB rating is intentionally NOT shown — the three sources (User, IMDb,
- * RT) are independent and unambiguous.
+ * TMDB rating is intentionally NOT shown — the three sources (User,
+ * IMDb, RT) are independent and unambiguous.
  */
 export default function RatingCluster(props: RatingClusterProps) {
   const { user } = useAuth();
 
   const userRating = () => {
-    const r = props.baseItem?.rating;
+    const r = props.vaultItem?.rating;
     if (typeof r !== "number" || r <= 0) return null;
     return r;
   };
@@ -52,22 +60,25 @@ export default function RatingCluster(props: RatingClusterProps) {
     return "Guest";
   });
 
+  // Show the cluster when there's ANY rating to display.
+  // For non-vault titles: only IMDb/RT.
+  // For vault titles: user rating OR IMDb/RT.
   const hasAnyRating = () => userRating() !== null || imdb() !== null || rt() !== null;
 
   return (
     <Show when={hasAnyRating()}>
       <div class="rating-cluster">
-        {/* Primary: user rating */}
-        <div class="rating-cluster-primary">
-          <span class="rating-cluster-value">
-            {userRating() !== null ? userRating()!.toFixed(1) : "—"}
-          </span>
-          <span class="rating-cluster-label">
-            {userRating() !== null ? "Your Rating" : "Not Rated"}
-          </span>
-        </div>
+        {/* Primary: user rating — ONLY when in vault AND rated */}
+        <Show when={userRating() !== null}>
+          <div class="rating-cluster-primary">
+            <span class="rating-cluster-value">
+              {userRating()!.toFixed(1)}
+            </span>
+            <span class="rating-cluster-label">Your Rating</span>
+          </div>
+        </Show>
 
-        {/* Secondary: IMDb + RT */}
+        {/* Secondary: IMDb + RT (always TMDB-sourced, always allowed) */}
         <div class="rating-cluster-secondary">
           <Show when={imdb()}>
             <div class="rating-cluster-row">

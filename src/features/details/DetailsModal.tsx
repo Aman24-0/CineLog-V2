@@ -12,9 +12,10 @@ import {
   updateWatchDate as svcUpdateWatchDate,
   updateSeasonEpisode as svcUpdateSeasonEpisode,
   updateWatchProgress as svcUpdateWatchProgress,
-  updateSeasons as svcUpdateSeasons
+  updateSeasons as svcUpdateSeasons,
+  addToVault as svcAddToVault
 } from "~/features/watchlist/watchlistService";
-import type { CachedSeasonInfo } from "~/shared/types";
+import type { CachedSeasonInfo, WatchlistItem } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
 import { useDetails } from "./useDetails";
 import CinematicHero from "./components/CinematicHero";
@@ -27,7 +28,7 @@ import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
 
-const EpisodeTracker = lazy(() => import("./components/EpisodeTracker"));
+const SeasonNavigator = lazy(() => import("./components/SeasonNavigator"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
 const FranchiseInfo = lazy(() => import("./components/FranchiseInfo"));
 const TrailerSection = lazy(() => import("./components/TrailerSection"));
@@ -35,29 +36,30 @@ const TrailerSection = lazy(() => import("./components/TrailerSection"));
 /**
  * DetailsModal — V2 Cinematic Details Page.
  *
- * NEW INFORMATION ARCHITECTURE:
- *  1. CinematicHero — full-bleed backdrop with multi-layer gradients + parallax
- *  2. HeroContentCluster — floating poster + title + tagline + quick-meta
- *  3. ActionDock — floating glass bar: Status | Trailer | Rate | Edit
- *  4. RatingCluster — user rating prominent, IMDb/RT secondary
- *  5. Overview — paragraph (DetailSection)
- *  6. MetadataGrid — responsive grid of metadata cells (DetailSection)
- *  7. EpisodeTracker — TV only (DetailSection)
- *  8. Related — Franchise + Similar (DetailSection)
+ * OWNERSHIP BOUNDARY (Phase 2.x refactor):
+ *   The modal now carries TWO items: `baseItem` (TMDB identity, always
+ *   present) and `vaultItem` (user-owned state, null when not in vault).
+ *   Every user-owned section (status pill, user rating, episode tracker,
+ *   edit form, "Your Status" metadata cell) renders ONLY when vaultItem
+ *   is present. Non-vault titles show pure TMDB metadata + an
+ *   "Add to Vault" primary CTA in the ActionDock.
+ *
+ *   When the user adds a non-vault title from the modal, `handleAddToVault`
+ *   writes the new vault entry via `addToVault` (setDoc merge — fixes the
+ *   previous silent-fail bug) and updates the modal's vaultItem state in
+ *   place. The modal re-renders with user-owned UI enabled — no remount.
+ *
+ * EPISODE EXPERIENCE (Phase 2.x):
+ *   The old +/- EpisodeTracker is replaced by SeasonNavigator — an
+ *   expandable season accordion with episode cards. "Mark as Watched"
+ *   on an episode advances the tracker via the same handleEpisodeChange
+ *   flow (single source of truth). For non-vault titles, episode cards
+ *   show "Add to Vault to Track" instead.
  *
  * SIGNATURE INTERACTION: "Adaptive Backdrop"
  *  - The backdrop has parallax scroll (moves up at 0.3x speed, fades out)
  *  - The backdrop visually continues into content via cinematic-ambient layer
  *  - No hard cut-off — the hero fades into the content surface
- *
- * TRAILER INTEGRATION:
- *  - Trailer button lives in the ActionDock (not a separate section)
- *  - Clicking expands an inline player below the action dock
- *  - If no trailer: button is hidden, no empty space
- *
- * STATUS CYCLING:
- *  - The primary action button cycles: Planned → Watching → Completed → Planned
- *  - Updates Firestore immediately (no need to open edit mode for status changes)
  */
 export default function DetailsModal() {
   const { selectedItem, setSelectedItem } = useModalState();
@@ -67,6 +69,7 @@ export default function DetailsModal() {
 
   const [isEditing, setIsEditing] = createSignal(false);
   const [isSaving, setIsSaving] = createSignal(false);
+  const [isAdding, setIsAdding] = createSignal(false);
   const [showTrailer, setShowTrailer] = createSignal(false);
   const [form, setFormState] = createSignal({
     status: "Planned",
@@ -75,30 +78,38 @@ export default function DetailsModal() {
     notes: ""
   });
 
+  // Derived: the baseItem and vaultItem from the new SelectedItem shape
+  const baseItem = createMemo(() => selectedItem()?.baseItem ?? null);
+  const vaultItem = createMemo(() => selectedItem()?.vaultItem ?? null);
+  const inVault = createMemo(() => vaultItem() !== null);
+
   createEffect(() => {
-    const item = selectedItem();
-    if (item) {
+    const v = vaultItem();
+    if (v) {
       setFormState({
-        status: item.status || "Planned",
-        rating: item.rating?.toString() || "",
-        watchDate: item.watchDate || "",
-        notes: item.notes || ""
+        status: v.status || "Planned",
+        rating: v.rating?.toString() || "",
+        watchDate: v.watchDate || "",
+        notes: v.notes || ""
       });
-      setIsEditing(false);
-      setShowTrailer(false);
+    } else {
+      // Non-vault title — reset the form to defaults (no user-owned state)
+      setFormState({ status: "Planned", rating: "", watchDate: "", notes: "" });
     }
+    setIsEditing(false);
+    setShowTrailer(false);
   });
 
   const isDirty = createMemo(() => {
-    const item = selectedItem();
-    if (!item) return false;
+    const v = vaultItem();
+    if (!v) return false;
     const currentRating = Number(form().rating);
-    const itemRating = item.rating || 0;
+    const itemRating = v.rating || 0;
     return (
-      form().status !== (item.status || "Planned") ||
+      form().status !== (v.status || "Planned") ||
       currentRating !== itemRating ||
-      form().notes !== (item.notes || "") ||
-      form().watchDate !== (item.watchDate || "")
+      form().notes !== (v.notes || "") ||
+      form().watchDate !== (v.watchDate || "")
     );
   });
 
@@ -108,8 +119,11 @@ export default function DetailsModal() {
 
   const close = () => setSelectedItem(null);
 
-  const handleSelectItem = (item: any) => {
-    setSelectedItem(item);
+  const handleSelectItem = (item: WatchlistItem) => {
+    // When navigating to a related title, use the openTitle helper so the
+    // ownership boundary is respected (vaultItem is resolved from the vault).
+    const existing = watchlist().find((m) => String(m.id) === String(item.id)) ?? null;
+    setSelectedItem({ baseItem: existing ?? item, vaultItem: existing });
     const container = document.querySelector(".cinematic-scroll");
     if (container) container.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -117,22 +131,16 @@ export default function DetailsModal() {
   const hasTrailer = createMemo(() => pickTrailer(tmdb()) !== null);
 
   /**
-   * Cache `details.seasons` onto the watchlist item in Firestore so the
-   * shared progress engine can compute SERIES-WIDE progress on the
-   * Dashboard / Continue Watching / Vault without needing to refetch
-   * TMDB details. We only write when the cache is missing or stale, and
-   * only for TV titles. Specials (season_number === 0) are excluded.
-   *
-   * This is a ONE-WAY migration: once cached, the engine prefers the
-   * cached value over re-fetching. We do NOT overwrite if the user has
-   * a newer cache (e.g. a new season was announced) unless counts differ.
+   * Cache `details.seasons` onto the watchlist item — ONLY if the title
+   * is in the vault (no point caching for non-vault titles; the cache is
+   * consumed by the progress engine which only runs on vault items).
    */
   createEffect(() => {
-    const item = selectedItem();
+    const v = vaultItem();
     const details = tmdb();
     const uid = auth.currentUser?.uid;
-    if (!item || !details || !uid) return;
-    if (item.media_type !== "tv") return;
+    if (!v || !details || !uid) return;
+    if (v.media_type !== "tv") return;
     if (!details.seasons || details.seasons.length === 0) return;
 
     const fresh: CachedSeasonInfo[] = details.seasons
@@ -141,7 +149,7 @@ export default function DetailsModal() {
       .sort((a, b) => a.number - b.number);
     if (fresh.length === 0) return;
 
-    const cached = item.seasons;
+    const cached = v.seasons;
     const isStale =
       !cached ||
       cached.length !== fresh.length ||
@@ -150,20 +158,49 @@ export default function DetailsModal() {
       );
     if (!isStale) return;
 
-    // Fire-and-forget — non-blocking; failure is non-fatal (engine falls back).
-    svcUpdateSeasons(uid, item.id, fresh).catch((err: unknown) =>
+    svcUpdateSeasons(uid, v.id, fresh).catch((err: unknown) =>
       console.warn("Failed to cache seasons on item:", err)
     );
   });
 
+  /**
+   * handleAddToVault — add the currently-open non-vault title to the vault.
+   * Uses the new `addToVault` service (setDoc merge) which fixes the
+   * previous silent-fail bug. After adding, updates the modal's vaultItem
+   * state in place so the UI upgrades to vault-owned mode without a remount.
+   */
+  const handleAddToVault = async () => {
+    const uid = auth.currentUser?.uid;
+    const b = baseItem();
+    if (!uid) {
+      showToast("Sign in to save titles to your vault.", "error");
+      return;
+    }
+    if (!b) return;
+
+    setIsAdding(true);
+    try {
+      const newItem = await svcAddToVault(uid, b);
+      // Upgrade the modal state: now the title IS in the vault.
+      setSelectedItem({ baseItem: newItem, vaultItem: newItem });
+      const name = b.title || b.name || "Title";
+      showToast(`Added "${name}" to your vault`, "success", 1800);
+    } catch (err) {
+      console.error("Failed to add to vault:", err);
+      showToast("Failed to add. Try again.", "error");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   const handleSave = async () => {
     const uid = auth.currentUser?.uid;
-    const item = selectedItem();
+    const v = vaultItem();
     if (!uid) {
       showToast("Please sign in to save changes.", "error");
       return;
     }
-    if (!item) return;
+    if (!v) return;
 
     if (Number(form().rating) < 0 || Number(form().rating) > 10) {
       showToast("Rating must be between 0 and 10.", "error");
@@ -173,22 +210,37 @@ export default function DetailsModal() {
     setIsSaving(true);
     try {
       const updates = [];
-      if (form().status !== (item.status || "Planned")) {
-        updates.push(svcUpdateStatus(uid, item.id, form().status));
+      if (form().status !== (v.status || "Planned")) {
+        updates.push(svcUpdateStatus(uid, v.id, form().status));
       }
-      if (Number(form().rating) !== (item.rating || 0)) {
-        updates.push(svcUpdateRating(uid, item.id, Number(form().rating)));
+      if (Number(form().rating) !== (v.rating || 0)) {
+        updates.push(svcUpdateRating(uid, v.id, Number(form().rating)));
       }
-      if (form().notes !== (item.notes || "")) {
-        updates.push(svcUpdateNotes(uid, item.id, form().notes));
+      if (form().notes !== (v.notes || "")) {
+        updates.push(svcUpdateNotes(uid, v.id, form().notes));
       }
-      if (form().watchDate !== (item.watchDate || "")) {
-        updates.push(svcUpdateWatchDate(uid, item.id, form().watchDate));
+      if (form().watchDate !== (v.watchDate || "")) {
+        updates.push(svcUpdateWatchDate(uid, v.id, form().watchDate));
       }
 
       await Promise.all(updates);
       showToast("Saved successfully!", "success");
       setIsEditing(false);
+      // Update vaultItem in place so the UI reflects the saved state.
+      // Cast form().status to the WatchlistItem status union — the form
+      // is typed as string because DetailsEditForm uses a <select>, but
+      // the values are always one of the 4 valid statuses.
+      const updatedVault: WatchlistItem = {
+        ...v,
+        status: form().status as WatchlistItem["status"],
+        rating: Number(form().rating) || v.rating,
+        watchDate: form().watchDate,
+        notes: form().notes
+      };
+      setSelectedItem({
+        baseItem: { ...baseItem()!, ...updatedVault },
+        vaultItem: updatedVault
+      });
     } catch (err) {
       console.error("Save failed:", err);
       showToast("Failed to save changes.", "error");
@@ -198,25 +250,25 @@ export default function DetailsModal() {
   };
 
   const handleCancel = () => {
-    const item = selectedItem();
-    if (item) {
+    const v = vaultItem();
+    if (v) {
       setFormState({
-        status: item.status || "Planned",
-        rating: item.rating?.toString() || "",
-        watchDate: item.watchDate || "",
-        notes: item.notes || ""
+        status: v.status || "Planned",
+        rating: v.rating?.toString() || "",
+        watchDate: v.watchDate || "",
+        notes: v.notes || ""
       });
     }
     setIsEditing(false);
   };
 
-  // Status cycling: Planned → Watching → Completed → Planned
+  // Status cycling: Planned → Watching → Completed → Planned (vault only)
   const handleStatusCycle = async () => {
     const uid = auth.currentUser?.uid;
-    const item = selectedItem();
-    if (!uid || !item) return;
+    const v = vaultItem();
+    if (!uid || !v) return;
 
-    const currentStatus = item.status || "Planned";
+    const currentStatus = v.status || "Planned";
     const nextStatus =
       currentStatus === "Planned" || currentStatus === "Plan to Watch"
         ? "Watching"
@@ -225,8 +277,9 @@ export default function DetailsModal() {
           : "Planned";
 
     try {
-      await svcUpdateStatus(uid, item.id, nextStatus);
-      setSelectedItem({ ...item, status: nextStatus });
+      await svcUpdateStatus(uid, v.id, nextStatus);
+      const updated: WatchlistItem = { ...v, status: nextStatus as WatchlistItem["status"] };
+      setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
       showToast(`Status: ${nextStatus}`, "success", 1500);
     } catch (err) {
       showToast("Failed to update status.", "error");
@@ -235,15 +288,12 @@ export default function DetailsModal() {
 
   const handleEpisodeChange = async (newSeason: number, newEpisode: number) => {
     const uid = auth.currentUser?.uid;
-    const item = selectedItem();
-    if (!uid || !item) return;
+    const v = vaultItem();
+    if (!uid || !v) return;
 
     try {
-      await svcUpdateSeasonEpisode(uid, item.id, newSeason, newEpisode);
-      // V2: No streaming playback progress. Only season/episode is tracked.
-      // The watchProgress object is kept for updatedAt sorting (used by
-      // Continue Watching ordering), but currentTime/duration are always 0.
-      await svcUpdateWatchProgress(uid, item.id, {
+      await svcUpdateSeasonEpisode(uid, v.id, newSeason, newEpisode);
+      await svcUpdateWatchProgress(uid, v.id, {
         currentTime: 0,
         duration: 0,
         server: null,
@@ -252,17 +302,14 @@ export default function DetailsModal() {
         episode: newEpisode
       });
 
-      // If the cached seasons are missing OR don't include the season the
-      // user just navigated to, opportunistically refresh the cache from
-      // the freshly-fetched TMDB details. This keeps the progress engine
-      // accurate even when the user jumps to a season that wasn't cached.
+      // Opportunistically refresh the seasons cache (same as before)
       const details = tmdb();
-      if (details?.seasons && item.media_type === "tv") {
+      if (details?.seasons && v.media_type === "tv") {
         const fresh: CachedSeasonInfo[] = details.seasons
           .filter((s) => s.season_number > 0 && s.episode_count > 0)
           .map((s) => ({ number: s.season_number, count: s.episode_count }))
           .sort((a, b) => a.number - b.number);
-        const cached = item.seasons || [];
+        const cached = v.seasons || [];
         const needsRefresh =
           fresh.length > 0 &&
           (cached.length !== fresh.length ||
@@ -273,26 +320,18 @@ export default function DetailsModal() {
                 c.count !== fresh[i].count
             ));
         if (needsRefresh) {
-          // Non-blocking; the engine falls back to `details` for this session.
-          svcUpdateSeasons(uid, item.id, fresh).catch(() => {});
+          svcUpdateSeasons(uid, v.id, fresh).catch(() => {});
         }
       }
 
-      if (item.status === "Planned" || item.status === "Plan to Watch") {
-        await svcUpdateStatus(uid, item.id, "Watching");
-        setSelectedItem({
-          ...item,
-          status: "Watching",
-          season: newSeason,
-          episode: newEpisode,
-          seasons: item.seasons || (tmdb()?.seasons
-            ?.filter((s) => s.season_number > 0 && s.episode_count > 0)
-            .map((s) => ({ number: s.season_number, count: s.episode_count }))
-            .sort((a, b) => a.number - b.number) as CachedSeasonInfo[] | undefined)
-        });
+      let updated: WatchlistItem;
+      if (v.status === "Planned" || v.status === "Plan to Watch") {
+        await svcUpdateStatus(uid, v.id, "Watching");
+        updated = { ...v, status: "Watching", season: newSeason, episode: newEpisode };
       } else {
-        setSelectedItem({ ...item, season: newSeason, episode: newEpisode });
+        updated = { ...v, season: newSeason, episode: newEpisode };
       }
+      setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
     } catch (err) {
       console.error("Failed to update episode:", err);
       showToast("Failed to update progress.", "error");
@@ -301,12 +340,13 @@ export default function DetailsModal() {
 
   const handleMarkCompleted = async () => {
     const uid = auth.currentUser?.uid;
-    const item = selectedItem();
-    if (!uid || !item) return;
+    const v = vaultItem();
+    if (!uid || !v) return;
 
     try {
-      await svcUpdateStatus(uid, item.id, "Completed");
-      setSelectedItem({ ...item, status: "Completed" });
+      await svcUpdateStatus(uid, v.id, "Completed");
+      const updated: WatchlistItem = { ...v, status: "Completed" };
+      setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
       showToast("Marked as Completed!", "success");
     } catch (err) {
       showToast("Failed to update status.", "error");
@@ -344,9 +384,9 @@ export default function DetailsModal() {
         >
           {/* Ambient backdrop continuation — blurred tint behind the modal */}
           <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
-            <Show when={selectedItem()?.backdrop_path}>
+            <Show when={baseItem()?.backdrop_path}>
               <img
-                src={`https://image.tmdb.org/t/p/w500${selectedItem()?.backdrop_path}`}
+                src={`https://image.tmdb.org/t/p/w500${baseItem()?.backdrop_path}`}
                 class="cinematic-ambient"
                 alt=""
                 aria-hidden="true"
@@ -366,24 +406,28 @@ export default function DetailsModal() {
                   <div class="cinematic-scroll">
                     {/* 1. Cinematic hero — full-bleed backdrop with parallax */}
                     <CinematicHero
-                      baseItem={selectedItem()}
+                      baseItem={baseItem()}
                       details={tmdb()}
                       onClose={close}
                     />
 
-                    {/* 2. Floating poster + title cluster */}
+                    {/* 2. Floating poster + title cluster (ownership-aware) */}
                     <HeroContentCluster
-                      baseItem={selectedItem()}
+                      baseItem={baseItem()}
                       details={tmdb()}
+                      vaultItem={vaultItem()}
                     />
 
-                    {/* 3. Action dock — floating glass bar */}
+                    {/* 3. Action dock — floating glass bar (ownership-aware) */}
                     <ActionDock
-                      item={selectedItem()}
+                      item={baseItem()}
+                      vaultItem={vaultItem()}
                       hasTrailer={hasTrailer()}
                       onPlayTrailer={() => setShowTrailer((v) => !v)}
                       onEdit={() => (isEditing() ? handleCancel() : setIsEditing(true))}
                       onStatusCycle={handleStatusCycle}
+                      onAddToVault={handleAddToVault}
+                      isAdding={isAdding()}
                     />
 
                     {/* Inline trailer expansion */}
@@ -395,9 +439,9 @@ export default function DetailsModal() {
                       </div>
                     </Show>
 
-                    {/* Content area — switches between view and edit */}
+                    {/* Content area — switches between view and edit (edit is vault-only) */}
                     <Show
-                      when={!isEditing()}
+                      when={!isEditing() || !inVault()}
                       fallback={
                         <DetailSection style={{ "margin-top": "1.5rem" }}>
                           <DetailsEditForm
@@ -411,13 +455,14 @@ export default function DetailsModal() {
                         </DetailSection>
                       }
                     >
-                      {/* 4. Rating cluster — user rating prominent */}
+                      {/* 4. Rating cluster — ownership-aware (user rating only when in vault) */}
                       <Show when={tmdb() || omdb()}>
                         <DetailSection style={{ "margin-top": "1.5rem" }}>
                           <RatingCluster
                             details={tmdb()}
                             omdb={omdb()}
-                            baseItem={selectedItem()}
+                            baseItem={baseItem()}
+                            vaultItem={vaultItem()}
                           />
                         </DetailSection>
                       </Show>
@@ -438,46 +483,51 @@ export default function DetailsModal() {
                         </DetailSection>
                       </Show>
 
-                      {/* 7. Metadata grid */}
+                      {/* 7. Metadata grid — ownership-aware */}
                       <Show when={tmdb()}>
                         <DetailSection label="Details" icon="info">
                           <MetadataGrid
-                            baseItem={selectedItem()}
+                            baseItem={baseItem()}
                             details={tmdb()}
                             omdb={omdb()}
+                            vaultItem={vaultItem()}
                           />
                         </DetailSection>
                       </Show>
 
-                      {/* 8. Episode tracker (TV only) */}
-                      <Show when={selectedItem()?.media_type === "tv"}>
-                        <DetailSection label="Progress" icon="video_library">
+                      {/* 8. Season Navigator (TV only) — replaces old EpisodeTracker */}
+                      <Show when={baseItem()?.media_type === "tv" && tmdb()?.seasons}>
+                        <DetailSection
+                          label={inVault() ? "Episodes" : "Episode Guide"}
+                          icon="video_library"
+                        >
                           <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
-                            <EpisodeTracker
-                              item={selectedItem()!}
+                            <SeasonNavigator
+                              item={baseItem()!}
                               details={tmdb()}
-                              onChange={handleEpisodeChange}
-                              onMarkCompleted={handleMarkCompleted}
+                              vaultItem={vaultItem()}
+                              onEpisodeChange={handleEpisodeChange}
+                              onAddToVault={handleAddToVault}
                             />
                           </Suspense>
                         </DetailSection>
                       </Show>
 
                       {/* 9. Related — franchise + similar */}
-                      <Show when={selectedItem()}>
+                      <Show when={baseItem()}>
                         <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
                           <FranchiseInfo
-                            currentItem={selectedItem()!}
+                            currentItem={baseItem()!}
                             watchlist={watchlist()}
                             onSelect={handleSelectItem}
                           />
                         </Suspense>
                       </Show>
 
-                      <Show when={selectedItem()}>
+                      <Show when={baseItem()}>
                         <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
                           <SimilarTitles
-                            currentItem={selectedItem()!}
+                            currentItem={baseItem()!}
                             watchlist={watchlist()}
                             onSelect={handleSelectItem}
                           />

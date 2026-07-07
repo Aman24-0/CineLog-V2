@@ -58,7 +58,7 @@ export default function WatchlistView() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { showToast } = useToast();
-  const { setSelectedItem } = useModalState();
+  const { openTitle } = useModalState();
   const { watchlist, loading, isGuest, error } = useVault();
 
   const [searchInput, setSearchInput] = createSignal("");
@@ -291,7 +291,7 @@ export default function WatchlistView() {
 
   const openMovie = (id: string) => {
     const item = watchlist().find((m) => m.id === id);
-    if (item) setSelectedItem(item);
+    if (item) openTitle(item, watchlist());
   };
 
   const handleLogin = async () => {

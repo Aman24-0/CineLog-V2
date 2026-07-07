@@ -5,8 +5,16 @@ import { formatRuntime } from "~/shared/utils/format";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
 interface HeroContentClusterProps {
+  /** TMDB identity — always present */
   baseItem: WatchlistItem | null;
+  /** TMDB details — fetched on demand */
   details: TMDBDetails | null;
+  /**
+   * User-owned vault item — null when the title is NOT in the vault.
+   * User-owned UI (status pill, new-season badge) only renders when
+   * this is present. This is the ownership boundary.
+   */
+  vaultItem?: WatchlistItem | null;
 }
 
 /**
@@ -19,8 +27,12 @@ interface HeroContentClusterProps {
  * (or below on mobile) with the display title, tagline, and quick metadata
  * pills (year, type, runtime, status).
  *
- * This is a separate component from CinematicHero because the hero is full-bleed
- * (no horizontal padding) while this cluster has padding to align with content.
+ * OWNERSHIP BOUNDARY:
+ *   The status pill ("Watching" / "Completed" / "Planned") and the
+ *   "New Season" badge are user-owned states. They only render when
+ *   `vaultItem` is present — i.e. when the title is actually in the
+ *   user's vault. Non-vault titles show only TMDB metadata (year,
+ *   type, runtime, genres).
  */
 export default function HeroContentCluster(props: HeroContentClusterProps) {
   const [posterLoaded, setPosterLoaded] = createSignal(false);
@@ -56,8 +68,10 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
     return path ? tmdbImage(path, "w342") : "";
   };
 
+  // Status pill — ONLY from the vault item. Never from baseItem.status
+  // (which may be a fake default set by Discover/Search for non-vault titles).
   const statusLabel = () => {
-    const s = props.baseItem?.status;
+    const s = props.vaultItem?.status;
     if (s === "Plan to Watch" || s === "Planned") return "Planned";
     if (s === "Watching") return "Watching";
     if (s === "Completed") return "Completed";
@@ -106,7 +120,7 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           <p class="hero-tagline">{tagline()}</p>
         </Show>
 
-        {/* Quick metadata pills */}
+        {/* Quick metadata pills — TMDB data only (year, type, runtime) */}
         <div class="hero-quick-meta">
           <Show when={year()}>
             <span class="v2-pill">{year()}</span>
@@ -115,12 +129,14 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           <Show when={runtime() && runtime()! > 0}>
             <span class="v2-pill">{formatRuntime(runtime())}</span>
           </Show>
+          {/* Status pill — user-owned, only when in vault */}
           <Show when={statusLabel()}>
             <span class={`v2-pill ${statusLabel() === "Watching" ? "v2-pill-success" : statusLabel() === "Completed" ? "v2-pill-info" : "v2-pill-accent"}`}>
               {statusLabel()}
             </span>
           </Show>
-          <Show when={props.baseItem?.newSeasonAvailable}>
+          {/* New Season badge — user-owned signal, only when in vault */}
+          <Show when={props.vaultItem?.newSeasonAvailable}>
             <span class="v2-pill v2-pill-accent">New Season</span>
           </Show>
         </div>

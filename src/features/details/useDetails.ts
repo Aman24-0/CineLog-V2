@@ -3,12 +3,21 @@ import { createResource, createSignal } from "solid-js";
 import { fetchTmdbDetails } from "~/core/tmdb/tmdb";
 import { fetchOmdbRatings } from "~/core/omdb/omdb";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
+import type { SelectedItem } from "~/shared/hooks/useModalState";
 
-export function useDetails(baseItem: () => WatchlistItem | null) {
+/**
+ * useDetails — fetches TMDB + OMDb details for the currently-selected title.
+ *
+ * Takes a `SelectedItem | null` (the new ownership-boundary shape) and
+ * derives the baseItem for the fetch. The baseItem is always the TMDB
+ * identity — vaultItem is irrelevant for fetching details (TMDB doesn't
+ * know about the user's vault).
+ */
+export function useDetails(selected: () => SelectedItem | null) {
   const [retryTick, setRetryTick] = createSignal(0);
 
   const source = () => {
-    const item = baseItem();
+    const item = selected()?.baseItem;
     if (!item) return null;
     return { item, tick: retryTick() };
   };

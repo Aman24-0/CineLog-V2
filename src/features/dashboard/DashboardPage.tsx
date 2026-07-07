@@ -56,7 +56,7 @@ import { getRecommendation } from "./recommendationEngine";
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
-  const { setSelectedItem } = useModalState();
+  const { openTitle } = useModalState();
   const { watchlist, loading, isGuest } = useVault();
 
   const [heroSeed, setHeroSeed] = createSignal(0);
@@ -72,7 +72,7 @@ export default function DashboardPage() {
 
   const openMovie = (id: string) => {
     const item = watchlist().find((m) => m.id === id);
-    if (item) setSelectedItem(item);
+    if (item) openTitle(item, watchlist());
   };
 
   const handleShuffle = () => {

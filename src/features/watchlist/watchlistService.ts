@@ -1,7 +1,7 @@
 // src/features/watchlist/watchlistService.ts
-import { doc, updateDoc, deleteDoc, collection, addDoc } from "firebase/firestore";
+import { doc, updateDoc, deleteDoc, collection, addDoc, setDoc } from "firebase/firestore";
 import { db } from "~/core/firebase";
-import type { WatchProgress, VaultFilters, CachedSeasonInfo } from "~/shared/types";
+import type { WatchProgress, VaultFilters, CachedSeasonInfo, WatchlistItem } from "~/shared/types";
 
 const watchlistDoc = (uid: string, itemId: string) =>
   doc(db, "users", uid, "watchlist", String(itemId));
@@ -54,6 +54,47 @@ export const updateWatchProgress = (
   updateDoc(watchlistDoc(uid, itemId), {
     watchProgress
   });
+
+/**
+ * addToVault — create a new vault entry for a title that isn't in the vault yet.
+ *
+ * Uses `setDoc({ merge: true })` so the document is created if it doesn't
+ * exist, or updated if it does (idempotent — safe to call on a title that's
+ * already in the vault). This fixes the previous silent-fail bug where
+ * `updateStatus` was used to add new titles but `updateDoc` no-ops on
+ * non-existent documents.
+ *
+ * The `item` shape is the full WatchlistItem — callers construct it from
+ * TMDB data (Discover, Search, Details) and pass it in. We add `addedAt`
+ * and `updatedAt` timestamps so the Vault's "Recently Added" shelf works.
+ *
+ * Returns the item that was written (with timestamps) so callers can
+ * update the modal's vaultItem state without a refetch.
+ */
+export const addToVault = async (
+  uid: string,
+  item: WatchlistItem
+): Promise<WatchlistItem> => {
+  const now = new Date().toISOString();
+  const itemWithTimestamps: WatchlistItem = {
+    ...item,
+    status: item.status || "Planned",
+    season: item.season ?? 1,
+    episode: item.episode ?? 1,
+    addedAt: item.addedAt || now,
+    updatedAt: now,
+    watchProgress: item.watchProgress || {
+      currentTime: 0,
+      duration: 0,
+      server: null,
+      updatedAt: now,
+      season: item.season ?? 1,
+      episode: item.episode ?? 1
+    }
+  };
+  await setDoc(watchlistDoc(uid, String(item.id)), itemWithTimestamps, { merge: true });
+  return itemWithTimestamps;
+};
 
 export const deleteWatchlistItem = (uid: string, itemId: string) =>
   deleteDoc(watchlistDoc(uid, itemId));
