@@ -4142,3 +4142,123 @@
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* ============================================================
+   SIMILAR TITLES — "You May Also Like" rail (TMDB recommendations)
+   ============================================================ */
+
+.similar-title-card {
+  min-width: 100px;
+  width: 100px;
+  flex-shrink: 0;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  scroll-snap-align: start;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+@media (min-width: 640px) {
+  .similar-title-card { width: 120px; min-width: 120px; }
+}
+.similar-title-card:hover { transform: translateY(-3px); }
+.similar-title-card:active { transform: scale(0.97); }
+
+.similar-title-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-premium);
+  background: var(--tier-3);
+}
+.similar-title-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.92);
+  transition: transform var(--dur-base) var(--ease-smooth), filter var(--dur-base) var(--ease-out);
+}
+.similar-title-card:hover .similar-title-poster-img {
+  transform: scale(1.05);
+  filter: brightness(1);
+}
+.similar-title-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.similar-title-vault-dot {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--p);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+
+.similar-title-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--text-body);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+}
+.similar-title-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   CINEMATIC CLOSE BUTTON — safe-area-aware
+   Uses calc(env(safe-area-inset-top) + var(--sp-4)) so the button
+   is never hidden under the mobile browser address bar or PWA header.
+   Works across Android Chrome, Samsung Internet, Edge Mobile, PWAs.
+   ============================================================ */
+
+.cinematic-close-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-4));
+  right: var(--sp-4);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-strong);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
+}
+.cinematic-close-btn:hover {
+  background: rgba(0,0,0,0.70);
+}
+.cinematic-close-btn:active {
+  transform: scale(0.95);
+}
+
+/* Trailer close button — also safe-area-aware */
+.cinematic-trailer-close {
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) !important;
+}

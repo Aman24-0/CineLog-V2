@@ -1,6 +1,6 @@
 // src/features/dashboard/components/StatsStory.tsx
 import { createMemo, Show, Component } from "solid-js";
-import { isWatchable } from "~/shared/utils/progress";
+import { getInProgressCount } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 interface StatsStoryProps {
@@ -57,9 +57,12 @@ const StatsStory: Component<StatsStoryProps> = (props) => {
       (m) => m.status === "Completed" && m.watchDate?.startsWith(currentYear)
     ).length;
 
-    // 2. In Progress — currently watching (isWatchable gate)
-    const inProgress = list.filter(isWatchable).length;
-    const watching = list.filter((m) => m.status === "Watching").length;
+    // 2. In Progress — uses the SHARED progress engine (getInProgressCount).
+    //    This is the SAME source of truth used by Continue Watching, Vault
+    //    shelves, and the QuickFilterTabs. Only status === "Watching" counts.
+    //    Previously this was `inProgress + watching` which double-counted
+    //    because both variables filtered for status === "Watching".
+    const inProgress = getInProgressCount(list);
 
     // 3. Top Genre
     const genres = list.flatMap((m) => m.genresList || []);
@@ -86,9 +89,9 @@ const StatsStory: Component<StatsStoryProps> = (props) => {
         onClick: () => props.onNavigate("Completed")
       },
       {
-        value: String(inProgress + watching),
+        value: String(inProgress),
         label: "In Progress",
-        sub: inProgress > 0 ? `${inProgress} resumable` : `${watching} watching`,
+        sub: inProgress > 0 ? `${inProgress} resumable` : "none watching",
         accent: inProgress > 0,
         onClick: () => props.onNavigate("Watching")
       },

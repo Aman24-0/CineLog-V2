@@ -131,17 +131,12 @@ export default function CinematicHero(props: CinematicHeroProps) {
         </button>
       </Show>
 
-      {/* Close button — top right, always visible (closes the whole modal) */}
+      {/* Close button — top right, always visible (closes the whole modal).
+          Uses safe-area-inset-top so it's never hidden under the mobile
+          browser address bar / PWA header. */}
       <button
         onClick={props.onClose}
-        class="absolute top-4 right-4 z-20 flex items-center justify-center w-10 h-10 rounded-full transition-all active:scale-95"
-        style={{
-          background: "rgba(0,0,0,0.50)",
-          "backdrop-filter": "blur(12px)",
-          "-webkit-backdrop-filter": "blur(12px)",
-          border: "1px solid rgba(255,255,255,0.10)",
-          color: "var(--text-strong)"
-        }}
+        class="cinematic-close-btn"
         aria-label="Close details"
       >
         <span
