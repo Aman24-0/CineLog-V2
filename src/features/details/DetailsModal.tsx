@@ -15,6 +15,7 @@ import {
   updateSeasons as svcUpdateSeasons,
   addToVault as svcAddToVault
 } from "~/features/watchlist/watchlistService";
+import { findInVault } from "~/shared/utils/vaultMatch";
 import type { CachedSeasonInfo, WatchlistItem } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
 import { useDetails } from "./useDetails";
@@ -27,6 +28,7 @@ import DetailSection from "./components/DetailSection";
 import DetailsSkeleton from "./components/DetailsSkeleton";
 import DetailsError from "./components/DetailsError";
 import DetailsEditForm from "./components/DetailsEditForm";
+import YourActivityCard from "./components/YourActivityCard";
 
 const SeasonNavigator = lazy(() => import("./components/SeasonNavigator"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
@@ -120,9 +122,10 @@ export default function DetailsModal() {
   const close = () => setSelectedItem(null);
 
   const handleSelectItem = (item: WatchlistItem) => {
-    // When navigating to a related title, use the openTitle helper so the
-    // ownership boundary is respected (vaultItem is resolved from the vault).
-    const existing = watchlist().find((m) => String(m.id) === String(item.id)) ?? null;
+    // When navigating to a related title, use findInVault to respect the
+    // ownership boundary AND avoid TMDB ID namespace collisions (movie/1398
+    // vs tv/1398 are different titles).
+    const existing = findInVault(watchlist(), item);
     setSelectedItem({ baseItem: existing ?? item, vaultItem: existing });
     const container = document.querySelector(".cinematic-scroll");
     if (container) container.scrollTo({ top: 0, behavior: "smooth" });
@@ -455,7 +458,20 @@ export default function DetailsModal() {
                         </DetailSection>
                       }
                     >
-                      {/* 4. Rating cluster — ownership-aware (user rating only when in vault) */}
+                      {/* 4. Your Activity card — user-owned data (vault only).
+                          Personal info (status, watch date, rating, notes)
+                          lives HERE, separate from TMDB metadata. This is
+                          the ownership boundary made visible. */}
+                      <Show when={inVault() && vaultItem()}>
+                        <DetailSection style={{ "margin-top": "1.5rem" }}>
+                          <YourActivityCard
+                            vaultItem={vaultItem()!}
+                            onEdit={() => setIsEditing(true)}
+                          />
+                        </DetailSection>
+                      </Show>
+
+                      {/* 5. Rating cluster — ownership-aware (user rating only when in vault) */}
                       <Show when={tmdb() || omdb()}>
                         <DetailSection style={{ "margin-top": "1.5rem" }}>
                           <RatingCluster
@@ -467,7 +483,7 @@ export default function DetailsModal() {
                         </DetailSection>
                       </Show>
 
-                      {/* 5. Overview */}
+                      {/* 6. Overview */}
                       <Show when={tmdb()?.overview}>
                         <DetailSection label="Overview" icon="description">
                           <p class="type-body" style={{ color: "var(--text-soft)", "line-height": 1.65 }}>
@@ -476,14 +492,14 @@ export default function DetailsModal() {
                         </DetailSection>
                       </Show>
 
-                      {/* 6. Cast & Crew (if available from OMDb) */}
+                      {/* 7. Cast & Crew (if available from OMDb) */}
                       <Show when={omdb()?.director || omdb()?.writer || omdb()?.actors}>
                         <DetailSection label="Cast & Crew" icon="groups">
                           <CastCrewGrid omdb={omdb()} />
                         </DetailSection>
                       </Show>
 
-                      {/* 7. Metadata grid — ownership-aware */}
+                      {/* 8. Metadata grid — ownership-aware */}
                       <Show when={tmdb()}>
                         <DetailSection label="Details" icon="info">
                           <MetadataGrid
@@ -495,7 +511,7 @@ export default function DetailsModal() {
                         </DetailSection>
                       </Show>
 
-                      {/* 8. Season Navigator (TV only) — replaces old EpisodeTracker */}
+                      {/* 9. Season Navigator (TV only) — replaces old EpisodeTracker */}
                       <Show when={baseItem()?.media_type === "tv" && tmdb()?.seasons}>
                         <DetailSection
                           label={inVault() ? "Episodes" : "Episode Guide"}
@@ -513,7 +529,7 @@ export default function DetailsModal() {
                         </DetailSection>
                       </Show>
 
-                      {/* 9. Related — franchise + similar */}
+                      {/* 10. Related — franchise + similar */}
                       <Show when={baseItem()}>
                         <Suspense fallback={<div class="h-24 v2-card animate-pulse"></div>}>
                           <FranchiseInfo

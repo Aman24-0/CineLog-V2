@@ -115,11 +115,10 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "TMDB Score", value: d.vote_average.toFixed(1) });
     }
 
-    // User status (from vaultItem — user-owned, vault-only)
-    if (v?.status) {
-      const statusLabel = v.status === "Plan to Watch" ? "Planned" : v.status;
-      list.push({ label: "Your Status", value: statusLabel });
-    }
+    // NOTE: "Your Status" used to live here but has been moved to the
+    // YourActivityCard — the dedicated user-owned section above the
+    // MetadataGrid. This keeps TMDB metadata (this grid) cleanly
+    // separated from user-owned data (the activity card).
 
     return list;
   });

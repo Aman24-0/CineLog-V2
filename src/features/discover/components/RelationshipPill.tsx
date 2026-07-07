@@ -1,6 +1,7 @@
 // src/features/discover/components/RelationshipPill.tsx
 import { Show, createMemo, Component } from "solid-js";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import { findInVault } from "~/shared/utils/vaultMatch";
 
 interface RelationshipPillProps {
   item: TMDBTitle;
@@ -39,9 +40,7 @@ const FRANCHISES: { name: string; keywords: string[] }[] = [
  * Without it, Discover is just another TMDB browser.
  */
 const RelationshipPill: Component<RelationshipPillProps> = (props) => {
-  const vaultItem = createMemo(() =>
-    props.vault.find((m) => String(m.id) === String(props.item.id))
-  );
+  const vaultItem = createMemo(() => findInVault(props.vault, props.item));
 
   const pill = createMemo<{ label: string; cls: string } | null>(() => {
     const v = vaultItem();

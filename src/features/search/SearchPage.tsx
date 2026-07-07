@@ -71,7 +71,12 @@ export default function SearchPage() {
     removeRecent,
     clearRecent,
     isInVault,
-    hasQuery
+    hasQuery,
+    genreBrowse,
+    browseGenre,
+    loadMoreGenre,
+    clearGenre,
+    isGenreBrowse
   } = useSearch({ vault: watchlist });
 
   const [searchInputEl, setSearchInputEl] = createSignal<HTMLInputElement | null>(null);
@@ -184,8 +189,9 @@ export default function SearchPage() {
         </div>
       </form>
 
-      {/* Active query results OR cold-start state */}
-      <Show when={hasQuery()} fallback={
+      {/* Genre browse mode OR text-search results OR cold-start state */}
+      <Show when={isGenreBrowse()} fallback={
+        <Show when={hasQuery()} fallback={
         <div class="search-cold-start">
           {/* Recent searches */}
           <Show when={recentSearches().length > 0}>
@@ -289,8 +295,8 @@ export default function SearchPage() {
                   <button
                     type="button"
                     class="search-genre-pill"
-                    onClick={() => { setQuery(g.label); commitSearch(g.label); }}
-                    aria-label={`Browse ${g.label} movies`}
+                    onClick={() => browseGenre(g.label)}
+                    aria-label={`Browse ${g.label} titles`}
                   >
                     <span class="material-symbols-outlined search-genre-icon" aria-hidden="true">{g.icon}</span>
                     {g.label}
@@ -371,6 +377,83 @@ export default function SearchPage() {
             </Show>
           </Show>
         </Show>
+      </Show>
+      }>
+        {/* GENRE BROWSE MODE — flat paginated list of titles in the selected genre.
+            Uses TMDB discover by genre ID, not text search, so "Horror" returns
+            actual Horror films. Infinite scroll via loadMoreGenre. */}
+        <section class="search-section">
+          {/* Genre header with back button */}
+          <div class="search-genre-header">
+            <button
+              type="button"
+              class="search-genre-back"
+              onClick={clearGenre}
+              aria-label="Back to search"
+            >
+              <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+            </button>
+            <div class="search-genre-header-text">
+              <p class="search-genre-eyebrow">Browsing</p>
+              <h2 class="search-genre-title">{genreBrowse().genre}</h2>
+            </div>
+          </div>
+
+          {/* Results — flat list (movies + series interleaved), vault-aware */}
+          <Show when={!genreBrowse().loading || genreBrowse().items.length > 0} fallback={
+            <div class="search-loading" aria-hidden="true">
+              <For each={[1, 2, 3, 4, 5, 6]}>
+                {() => <div class="search-result-skeleton" />}
+              </For>
+            </div>
+          }>
+            <div class="search-results-list">
+              <For each={genreBrowse().items}>
+                {(t) => (
+                  <SearchResultRow
+                    title={t}
+                    inVault={isInVault(t)}
+                    onOpen={() => handleOpenTitle(t)}
+                    onAdd={() => handleAddToVault(t)}
+                  />
+                )}
+              </For>
+            </div>
+
+            {/* Infinite scroll trigger + loading more indicator */}
+            <Show when={genreBrowse().hasMore}>
+              <div
+                class="search-load-more"
+                onClick={() => loadMoreGenre()}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    loadMoreGenre();
+                  }
+                }}
+                role="button"
+                tabindex={0}
+                aria-label="Load more results"
+              >
+                <Show when={!genreBrowse().loading} fallback={
+                  <span class="search-load-more-loading">
+                    <span class="material-symbols-outlined animate-spin" style="font-size: 16px" aria-hidden="true">progress_activity</span>
+                    Loading more…
+                  </span>
+                }>
+                  <span class="search-load-more-text">Load more</span>
+                </Show>
+              </div>
+            </Show>
+
+            {/* End of results */}
+            <Show when={!genreBrowse().hasMore && genreBrowse().items.length > 0}>
+              <p class="search-end-of-results type-micro">
+                You've reached the end of {genreBrowse().genre}
+              </p>
+            </Show>
+          </Show>
+        </section>
       </Show>
     </PageContainer>
   );

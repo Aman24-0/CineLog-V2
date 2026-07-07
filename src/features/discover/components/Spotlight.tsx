@@ -2,6 +2,8 @@
 import { Show, createSignal, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { Button } from "~/shared/ui/primitives";
+import { isWatchable, getEpisodeProgress } from "~/shared/utils/progress";
+import { findInVault } from "~/shared/utils/vaultMatch";
 import type { SpotlightPick, WatchlistItem } from "~/shared/types";
 
 interface SpotlightProps {
@@ -66,9 +68,12 @@ const Spotlight: Component<SpotlightProps> = (props) => {
     pick()?.title.vote_average ? pick()!.title.vote_average!.toFixed(1) : null;
 
   // Vault relationship — is this title already in the vault?
-  const vaultItem = createMemo(() =>
-    props.vault.find((m) => String(m.id) === String(pick()?.title.id))
-  );
+  // Uses findInVault (matches on id AND media_type) to avoid TMDB namespace
+  // collisions (movie/1398 vs tv/1398 are different titles).
+  const vaultItem = createMemo(() => {
+    const p = pick();
+    return p ? findInVault(props.vault, p.title) : null;
+  });
   const inVault = () => !!vaultItem();
   const vaultStatusLabel = () => {
     const s = vaultItem()?.status;

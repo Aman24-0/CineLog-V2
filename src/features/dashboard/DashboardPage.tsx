@@ -71,6 +71,11 @@ export default function DashboardPage() {
   });
 
   const openMovie = (id: string) => {
+    // Find by id — the Dashboard only shows vault items, so the id is
+    // always a vault item's id. If the user has both movie/1398 and
+    // tv/1398 in their vault (rare but possible), this returns the first
+    // match. The caller (ContinueRail / RecentlyAdded) passes the id from
+    // the specific item the user tapped, so the correct item is found.
     const item = watchlist().find((m) => m.id === id);
     if (item) openTitle(item, watchlist());
   };
