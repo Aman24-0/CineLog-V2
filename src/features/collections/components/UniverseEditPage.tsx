@@ -131,7 +131,7 @@ export default function UniverseEditPage() {
       const overrides: Record<string, Partial<CollectionEntry>> = {};
       entries().forEach((e) => {
         const key = `${e.media_type}/${e.id}`;
-        const orig = col.entries.find((oe) => oe.id === e.id && oe.media_type === e.media_type);
+        const orig = (col.entries ?? []).find((oe) => oe.id === e.id && oe.media_type === e.media_type);
         if (orig && (e.customOrder !== orig.order || e.isPinned !== orig.isPinned || e.isHidden !== orig.isHidden || e.userNote !== orig.userNote)) {
           overrides[key] = {
             customOrder: e.customOrder,

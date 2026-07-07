@@ -55,7 +55,7 @@ export default function CollectionsPage() {
 
   // Find the next missing entry for a collection
   const nextMissing = (col: Collection): CollectionEntry | null => {
-    return col.entries.find((e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })) ?? null;
+    return (col.entries ?? []).find((e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })) ?? null;
   };
 
   const handleCreate = async () => {
@@ -309,7 +309,7 @@ export default function CollectionsPage() {
                     aria-label={`Open ${col.name}`}
                   >
                     {/* Poster collage preview */}
-                    <Show when={col.entries.length > 0} fallback={
+                    <Show when={(col.entries ?? []).length > 0} fallback={
                       <div class="collections-folder-icon">
                         <Show when={col.isFavorites} fallback={
                           <span class="material-symbols-outlined" style="font-size: 28px; color: var(--text-soft)" aria-hidden="true">folder</span>
@@ -319,7 +319,7 @@ export default function CollectionsPage() {
                       </div>
                     }>
                       <div class="collections-folder-collage">
-                        <For each={col.entries.slice(0, 3)}>
+                        <For each={(col.entries ?? []).slice(0, 3)}>
                           {(entry) => (
                             <Show when={entry.poster_path}>
                               <img
@@ -340,7 +340,7 @@ export default function CollectionsPage() {
                       <p class="collections-folder-name">{col.name}</p>
                     </div>
                     <p class="collections-folder-count">
-                      {col.isSmart ? "Smart" : `${col.entries.length} title${col.entries.length !== 1 ? "s" : ""}`}
+                      {col.isSmart ? "Smart" : `${(col.entries ?? []).length} title${(col.entries ?? []).length !== 1 ? "s" : ""}`}
                     </p>
                     <Show when={col.accentColor}>
                       <div style={{ width: "8px", height: "8px", "border-radius": "50%", background: col.accentColor, "margin-left": "4px" }} aria-hidden="true" />

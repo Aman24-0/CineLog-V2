@@ -38,7 +38,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
   /** Apply user overrides to entries */
   const mergedEntries = createMemo(() => {
     const overrides = props.overrides ?? {};
-    return props.collection.entries.map((e) => {
+    return (props.collection.entries ?? []).map((e) => {
       const override = overrides[`${e.media_type}/${e.id}`];
       if (!override) return e;
       return { ...e, ...override };

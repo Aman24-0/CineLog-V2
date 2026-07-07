@@ -52,7 +52,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
 
   /** Find the next missing entry for the "Continue" card */
   const nextMissing = createMemo((): CollectionEntry | null => {
-    return props.collection.entries.find(
+    return (props.collection.entries ?? []).find(
       (e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })
     ) ?? null;
   });

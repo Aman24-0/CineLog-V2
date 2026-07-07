@@ -9,6 +9,18 @@ const watchlistDoc = (uid: string, itemId: string) =>
 const collectionDoc = (uid: string, collectionId: string) =>
   doc(db, "users", uid, "collections", collectionId);
 
+/** Normalize a Firestore document to a Collection, ensuring entries is always an array */
+const normalizeCollection = (docId: string, data: Record<string, unknown>): Collection => {
+  const { entries: rawEntries, ...rest } = data;
+  return {
+    id: docId,
+    name: (rest.name as string) ?? "",
+    type: (rest.type as Collection["type"]) ?? "user",
+    ...rest,
+    entries: Array.isArray(rawEntries) ? rawEntries as CollectionEntry[] : [],
+  } as Collection;
+};
+
 export const updateStatus = (uid: string, itemId: string, status: string) =>
   updateDoc(watchlistDoc(uid, itemId), { status });
 
@@ -181,7 +193,7 @@ export const addToUserCollection = async (
   const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
   const docSnap = snap.docs.find((d) => d.id === collectionId);
   if (!docSnap) return;
-  const col = docSnap.data() as Collection;
+  const col = normalizeCollection(docSnap.id, docSnap.data());
   if (col.entries.some((e) => e.id === entry.id && e.media_type === entry.media_type)) return;
   const entries = [...col.entries, { ...entry, order: col.entries.length }];
   await updateDoc(colRef, { entries, updatedAt: new Date().toISOString() });
@@ -200,7 +212,7 @@ export const removeFromUserCollection = async (
   const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
   const docSnap = snap.docs.find((d) => d.id === collectionId);
   if (!docSnap) return;
-  const col = docSnap.data() as Collection;
+  const col = normalizeCollection(docSnap.id, docSnap.data());
   const entries = col.entries
     .filter((e) => !(e.id === entryId && e.media_type === entryMediaType))
     .map((e, i) => ({ ...e, order: i }));
@@ -218,7 +230,7 @@ export const deleteUserCollection = async (
   const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
   const docSnap = snap.docs.find((d) => d.id === collectionId);
   if (!docSnap) return;
-  const col = docSnap.data() as Collection;
+  const col = normalizeCollection(docSnap.id, docSnap.data());
   if (col.isFavorites) return; // Favorites cannot be deleted
   await deleteDoc(collectionDoc(uid, collectionId));
 };
@@ -235,7 +247,7 @@ export const renameUserCollection = async (
   const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
   const docSnap = snap.docs.find((d) => d.id === collectionId);
   if (!docSnap) return;
-  const col = docSnap.data() as Collection;
+  const col = normalizeCollection(docSnap.id, docSnap.data());
   if (col.isFavorites) return; // Favorites cannot be renamed
   await updateDoc(collectionDoc(uid, collectionId), { name: newName, updatedAt: new Date().toISOString() });
 };
@@ -271,9 +283,9 @@ export const duplicateUserCollection = async (
   const snap = await getDocs(fsQuery(collection(db, "users", uid, "collections")));
   const docSnap = snap.docs.find((d) => d.id === collectionId);
   if (!docSnap) return;
-  const col = docSnap.data() as Collection;
+  const col = normalizeCollection(docSnap.id, docSnap.data());
   if (col.isFavorites) return;
-  
+
   const now = new Date().toISOString();
   const newColRef = doc(collection(db, "users", uid, "collections"));
   const newCollection: Collection = {
