@@ -76,20 +76,27 @@ export const addToVault = async (
   item: WatchlistItem
 ): Promise<WatchlistItem> => {
   const now = new Date().toISOString();
+  // Strip null/undefined values before writing — Firestore accepts null but
+  // mixing null and missing fields can cause orderBy query issues. Converting
+  // null to undefined ensures the field is simply absent in the document.
+  const cleanItem = Object.fromEntries(
+    Object.entries(item).filter(([, v]) => v !== null && v !== undefined)
+  ) as WatchlistItem;
+
   const itemWithTimestamps: WatchlistItem = {
-    ...item,
-    status: item.status || "Planned",
-    season: item.season ?? 1,
-    episode: item.episode ?? 1,
-    addedAt: item.addedAt || now,
+    ...cleanItem,
+    status: cleanItem.status || "Planned",
+    season: cleanItem.season ?? 1,
+    episode: cleanItem.episode ?? 1,
+    addedAt: cleanItem.addedAt || now,
     updatedAt: now,
-    watchProgress: item.watchProgress || {
+    watchProgress: cleanItem.watchProgress || {
       currentTime: 0,
       duration: 0,
       server: null,
       updatedAt: now,
-      season: item.season ?? 1,
-      episode: item.episode ?? 1
+      season: cleanItem.season ?? 1,
+      episode: cleanItem.episode ?? 1
     }
   };
   await setDoc(watchlistDoc(uid, String(item.id)), itemWithTimestamps, { merge: true });

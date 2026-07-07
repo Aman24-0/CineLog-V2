@@ -5,8 +5,6 @@ import type { WatchlistItem } from "~/shared/types";
 interface YourActivityCardProps {
   /** User-owned vault item — always present (parent gates on vaultItem) */
   vaultItem: WatchlistItem;
-  /** Called when the user taps "Edit" — opens the edit form */
-  onEdit: () => void;
 }
 
 /**
@@ -22,21 +20,23 @@ interface YourActivityCardProps {
  *   titles show only TMDB metadata; vault titles show this card ABOVE
  *   the TMDB metadata as the user's personal anchor.
  *
+ *   This is a PURE INFORMATION card — no Edit button. The Edit action
+ *   lives exclusively in the ActionDock to avoid duplication. The card
+ *   just displays the user's current state.
+ *
  * LAYOUT:
  *   A glass card with a 2×2 grid of activity cells:
  *     ┌─────────────┬─────────────┐
  *     │ Watch Status │ Watch Date  │
  *     ├─────────────┼─────────────┤
- *     │ Your Rating  │ Date Added  │ (future)
+ *     │ Your Rating  │ Date Added  │
  *     └─────────────┴─────────────┘
- *   Plus a row of quick actions (Edit).
+ *   Plus a notes preview (if any).
  *
  * FUTURE SCALABILITY:
  *   The card is designed to grow. Future fields (rewatch count, personal
  *   notes preview, last watched timestamp) can be added as new cells
- *   without changing the component's architecture. The `vaultItem` prop
- *   is the single source of truth — whatever fields the WatchlistItem
- *   type gains, this card can display them.
+ *   without changing the component's architecture.
  */
 const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   const statusLabel = () => {
@@ -82,7 +82,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
 
   return (
     <div class="your-activity-card animate-fade-up">
-      {/* Header — accent bar + "Your Activity" label + Edit action */}
+      {/* Header — accent bar + "Your Activity" label (no Edit button — that's in the ActionDock) */}
       <div class="your-activity-header">
         <div class="your-activity-label">
           <span class="material-symbols-outlined your-activity-icon" aria-hidden="true">
@@ -90,15 +90,6 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           </span>
           Your Activity
         </div>
-        <button
-          type="button"
-          class="your-activity-edit"
-          onClick={() => props.onEdit()}
-          aria-label="Edit your activity"
-        >
-          <span class="material-symbols-outlined" style="font-size: 14px" aria-hidden="true">edit</span>
-          Edit
-        </button>
       </div>
 
       {/* Activity cells — 2×2 grid */}

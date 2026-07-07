@@ -33,7 +33,6 @@ import YourActivityCard from "./components/YourActivityCard";
 const SeasonNavigator = lazy(() => import("./components/SeasonNavigator"));
 const SimilarTitles = lazy(() => import("./components/SimilarTitles"));
 const FranchiseInfo = lazy(() => import("./components/FranchiseInfo"));
-const TrailerSection = lazy(() => import("./components/TrailerSection"));
 
 /**
  * DetailsModal — V2 Cinematic Details Page.
@@ -407,11 +406,15 @@ export default function DetailsModal() {
                 <div class="cinematic-modal modal-sheet-enter">
                   {/* Scrollable content area */}
                   <div class="cinematic-scroll">
-                    {/* 1. Cinematic hero — full-bleed backdrop with parallax */}
+                    {/* 1. Cinematic hero — full-bleed backdrop with parallax.
+                        When trailer is active, the iframe replaces the backdrop. */}
                     <CinematicHero
                       baseItem={baseItem()}
                       details={tmdb()}
                       onClose={close}
+                      trailerActive={showTrailer() && hasTrailer()}
+                      trailerKey={pickTrailer(tmdb())?.key ?? null}
+                      onCloseTrailer={() => setShowTrailer(false)}
                     />
 
                     {/* 2. Floating poster + title cluster (ownership-aware) */}
@@ -433,15 +436,6 @@ export default function DetailsModal() {
                       isAdding={isAdding()}
                     />
 
-                    {/* Inline trailer expansion */}
-                    <Show when={showTrailer() && hasTrailer()}>
-                      <div class="detail-section" style={{ "margin-top": "1rem" }}>
-                        <Suspense fallback={<div class="h-48 v2-card animate-pulse"></div>}>
-                          <TrailerSection details={tmdb()} inline />
-                        </Suspense>
-                      </div>
-                    </Show>
-
                     {/* Content area — switches between view and edit (edit is vault-only) */}
                     <Show
                       when={!isEditing() || !inVault()}
@@ -461,13 +455,11 @@ export default function DetailsModal() {
                       {/* 4. Your Activity card — user-owned data (vault only).
                           Personal info (status, watch date, rating, notes)
                           lives HERE, separate from TMDB metadata. This is
-                          the ownership boundary made visible. */}
+                          the ownership boundary made visible. Pure info card —
+                          Edit lives in the ActionDock to avoid duplication. */}
                       <Show when={inVault() && vaultItem()}>
                         <DetailSection style={{ "margin-top": "1.5rem" }}>
-                          <YourActivityCard
-                            vaultItem={vaultItem()!}
-                            onEdit={() => setIsEditing(true)}
-                          />
+                          <YourActivityCard vaultItem={vaultItem()!} />
                         </DetailSection>
                       </Show>
 

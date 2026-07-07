@@ -4,6 +4,7 @@ import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { auth } from "~/core/firebase";
+import { login } from "~/core/firebase/auth";
 import { addToVault as svcAddToVault } from "~/features/watchlist/watchlistService";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -108,18 +109,28 @@ export default function SearchPage() {
       showToast("Sign in to save titles to your vault.", "error");
       return;
     }
+    if (isGuest()) {
+      try {
+        await login();
+        showToast("Signed in — try saving again.", "success");
+      } catch {
+        showToast("Sign in failed. Please try again.", "error");
+      }
+      return;
+    }
     try {
       const item: WatchlistItem = {
         id: String(title.id),
         title: title.title,
         name: title.name,
         media_type: title.media_type,
-        poster_path: title.poster_path,
-        backdrop_path: title.backdrop_path,
+        poster_path: title.poster_path ?? undefined,
+        backdrop_path: title.backdrop_path ?? undefined,
         status: "Planned",
         release_date: title.release_date,
         first_air_date: title.first_air_date,
-        genresList: title.genres
+        genresList: title.genres,
+        director: title.director
       };
       await svcAddToVault(uid, item);
       const name = title.title || title.name || "Title";
