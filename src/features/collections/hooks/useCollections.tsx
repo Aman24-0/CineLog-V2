@@ -69,23 +69,36 @@ const useCollectionsLogic = () => {
         // Subscribe to user collections
         const q = query(collection(db, "users", u.uid, "collections"), orderBy("createdAt", "desc"));
         unsub = onSnapshot(q, (snap) => {
-          const items = snap.docs.map((d) => {
-            const data = d.data();
-            return {
-              id: d.id,
-              ...data,
-              // Ensure entries is always an array — Firestore docs may lack this field
-              entries: Array.isArray(data.entries) ? data.entries : [],
-            } as Collection;
-          });
-          // Sort: Favorites first, then by createdAt
-          items.sort((a, b) => {
-            if (a.isFavorites && !b.isFavorites) return -1;
-            if (!a.isFavorites && b.isFavorites) return 1;
-            return 0;
-          });
-          setUserCollections(items);
-          setLoading(false);
+          try {
+            const items = snap.docs.map((d) => {
+              const data = d.data();
+              const rawEntries = data.entries;
+              // Robustly normalize entries: must be an array of non-null objects
+              const entries = Array.isArray(rawEntries)
+                ? rawEntries.filter((e: unknown): e is CollectionEntry => e != null && typeof e === "object")
+                : [];
+              return {
+                id: d.id,
+                name: (data.name as string) ?? "Untitled",
+                type: (data.type as Collection["type"]) ?? "user",
+                ...data,
+                entries,
+                // Guard smartRules: Firestore may store sparse arrays as Maps
+                smartRules: Array.isArray(data.smartRules) ? data.smartRules : undefined,
+              } as Collection;
+            });
+            // Sort: Favorites first, then by createdAt
+            items.sort((a, b) => {
+              if (a.isFavorites && !b.isFavorites) return -1;
+              if (!a.isFavorites && b.isFavorites) return 1;
+              return 0;
+            });
+            setUserCollections(items);
+            setLoading(false);
+          } catch (err) {
+            console.error("[useCollections] onSnapshot processing error:", err);
+            setLoading(false);
+          }
         }, (err) => {
           console.error("Collections fetch error:", err);
           setLoading(false);
@@ -94,9 +107,16 @@ const useCollectionsLogic = () => {
         // Fetch universe preferences
         try {
           const prefs = await fetchAllPreferences(u.uid);
-          setUniversePrefs(prefs);
-        } catch {
-          // Preferences may not exist yet — that's fine
+          // Normalize: ensure boolean fields are actual booleans, not undefined
+          const safePrefs = prefs.map((p) => ({
+            ...p,
+            isAdded: p.isAdded === true,
+            isHidden: p.isHidden === true,
+            isPinned: p.isPinned === true,
+          }));
+          setUniversePrefs(safePrefs);
+        } catch (err) {
+          console.warn("[useCollections] Failed to fetch universe preferences:", err);
         }
       } else {
         setUserCollections([]);
@@ -428,8 +448,8 @@ const useCollectionsLogic = () => {
   /** Compute progress for a collection against the vault */
   const getCollectionProgress = (col: Collection, vault: WatchlistItem[]): { owned: number; total: number; pct: number; completed: number; watching: number; missing: number; totalRuntime: number } => {
     // For smart collections, evaluate rules against vault
-    let entries = col.entries ?? [];
-    if (col.isSmart && col.smartRules && col.smartRules.length > 0) {
+    let entries = (col.entries ?? []).filter((e): e is CollectionEntry => e != null && typeof e === "object");
+    if (col.isSmart && Array.isArray(col.smartRules) && col.smartRules.length > 0) {
       const matched = evaluateSmartRules(col.smartRules, vault);
       entries = matched.map((v) => ({
         id: String(v.id),

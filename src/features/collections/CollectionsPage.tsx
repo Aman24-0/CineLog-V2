@@ -1,5 +1,5 @@
 // src/features/collections/CollectionsPage.tsx
-import { For, Show, createSignal, createMemo } from "solid-js";
+import { For, Show, createSignal, createMemo, ErrorBoundary } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -73,7 +73,23 @@ export default function CollectionsPage() {
       <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
-      <div class="page-enter relative">
+      <ErrorBoundary
+        fallback={(err) => {
+          console.error("[CollectionsPage] Render error:", err);
+          return (
+            <div class="page-enter" style={{ padding: "var(--sp-8)", "text-align": "center" }}>
+              <p class="type-body-soft">Something went wrong loading collections.</p>
+              <p style={{ "font-size": "0.75rem", color: "var(--text-dim)", "margin-top": "var(--sp-2)" }}>
+                {String(err)}
+              </p>
+              <button class="btn-ghost" style={{ "margin-top": "var(--sp-4)" }} onClick={() => window.location.reload()}>
+                Reload
+              </button>
+            </div>
+          );
+        }}
+      >
+        <div class="page-enter relative">
         {/* Page eyebrow */}
         <div class="collections-eyebrow-block">
           <p class="collections-eyebrow">Collections</p>
@@ -375,6 +391,7 @@ export default function CollectionsPage() {
       <Show when={showSmartBuilder()}>
         <SmartCollectionBuilder onClose={() => setShowSmartBuilder(false)} />
       </Show>
+      </ErrorBoundary>
     </PageContainer>
   );
 }

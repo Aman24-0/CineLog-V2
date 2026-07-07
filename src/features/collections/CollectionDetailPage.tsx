@@ -1,5 +1,5 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createMemo, createSignal } from "solid-js";
+import { Show, createMemo, createSignal, ErrorBoundary } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -86,24 +86,41 @@ export default function CollectionDetailPage() {
           </div>
         </div>
       }>
-        <div class="page-enter relative">
-          {/* Universe Dashboard — enhanced hero + stats + actions */}
-          <UniverseDashboard
-            collection={currentCollection()!}
-            activeOrder={activeOrder()}
-            activeProvider={activeProvider()}
-            onOrderChange={setActiveOrder}
-            onProviderChange={setActiveProvider}
-          />
+        <ErrorBoundary
+          fallback={(err) => {
+            console.error("[CollectionDetailPage] Render error:", err);
+            return (
+              <div class="page-enter">
+                <button type="button" class="collections-back-btn" onClick={() => navigate("/collections")} aria-label="Back to Collections">
+                  <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+                </button>
+                <div class="collections-detail-empty">
+                  <p class="type-body-soft" style={{ "text-align": "center" }}>Something went wrong loading this collection.</p>
+                  <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+                </div>
+              </div>
+            );
+          }}
+        >
+          <div class="page-enter relative">
+            {/* Universe Dashboard — enhanced hero + stats + actions */}
+            <UniverseDashboard
+              collection={currentCollection()!}
+              activeOrder={activeOrder()}
+              activeProvider={activeProvider()}
+              onOrderChange={setActiveOrder}
+              onProviderChange={setActiveProvider}
+            />
 
-          {/* Timeline Engine — supports all viewing orders and providers */}
-          <TimelineEngine
-            collection={currentCollection()!}
-            order={activeOrder()}
-            provider={activeProvider()}
-            onOpenEntry={handleOpenEntry}
-          />
-        </div>
+            {/* Timeline Engine — supports all viewing orders and providers */}
+            <TimelineEngine
+              collection={currentCollection()!}
+              order={activeOrder()}
+              provider={activeProvider()}
+              onOpenEntry={handleOpenEntry}
+            />
+          </div>
+        </ErrorBoundary>
       </Show>
     </PageContainer>
   );

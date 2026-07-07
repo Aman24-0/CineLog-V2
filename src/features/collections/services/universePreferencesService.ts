@@ -66,5 +66,17 @@ export async function saveTimelineOverrides(
 export async function fetchAllPreferences(uid: string): Promise<UniversePreferences[]> {
   const q = fsQuery(collection(db, "users", uid, "universePreferences"));
   const snap = await getDocs(q);
-  return snap.docs.map((d) => ({ universeId: d.id, ...d.data() } as UniversePreferences));
+  return snap.docs.map((d) => {
+    const data = d.data();
+    return {
+      universeId: d.id,
+      isAdded: data.isAdded === true,
+      isHidden: data.isHidden === true,
+      isPinned: data.isPinned === true,
+      preferredOrder: data.preferredOrder,
+      preferredProvider: data.preferredProvider,
+      customOverrides: data.customOverrides,
+      addedAt: data.addedAt,
+    } as UniversePreferences;
+  });
 }

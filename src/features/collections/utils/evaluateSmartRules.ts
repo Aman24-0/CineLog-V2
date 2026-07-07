@@ -12,7 +12,7 @@ export function evaluateSmartRules(
   rules: SmartRule[],
   vault: WatchlistItem[]
 ): WatchlistItem[] {
-  if (!rules.length) return [];
+  if (!Array.isArray(rules) || !rules.length) return [];
   return vault.filter((item) => rules.every((rule) => matchRule(item, rule)));
 }
 
@@ -29,7 +29,7 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
     case "genre": {
       const val = String(rule.value).toLowerCase();
       return rule.operator === "contains"
-        ? (item.genresList?.some((g) => g.toLowerCase() === val) || false)
+        ? (Array.isArray(item.genresList) && item.genresList.some((g) => g.toLowerCase() === val) || false)
         : false;
     }
     case "franchise": {
@@ -40,7 +40,7 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
         : false;
     }
     case "year": {
-      const itemYear = parseInt((item.release_date || item.first_air_date || "").split("-")[0] || "0");
+      const itemYear = parseInt(String(item.release_date || item.first_air_date || "").split("-")[0] || "0");
       if (!itemYear) return false;
       if (rule.operator === "gte") return itemYear >= Number(rule.value);
       if (rule.operator === "lte") return itemYear <= Number(rule.value);
