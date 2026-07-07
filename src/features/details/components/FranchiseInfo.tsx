@@ -1,6 +1,8 @@
 // src/features/details/components/FranchiseInfo.tsx
-import { For, Show, createMemo } from "solid-js";
+import { Show, createMemo, Component } from "solid-js";
 import DetailSection from "./DetailSection";
+import { detectFranchise } from "~/shared/data/franchises";
+import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import type { WatchlistItem } from "~/shared/types";
 
 interface FranchiseInfoProps {
@@ -9,89 +11,82 @@ interface FranchiseInfoProps {
   onSelect: (item: WatchlistItem) => void;
 }
 
-const FRANCHISES = [
-  { name: "Marvel Cinematic Universe", keywords: ["avengers", "iron man", "captain america", "thor", "black panther", "doctor strange", "spider-man", "guardians of the galaxy", "black widow", "hawkeye", "eternals", "shang-chi", "ant-man", "captain marvel"] },
-  { name: "DC Extended Universe", keywords: ["batman", "superman", "wonder woman", "aquaman", "flash", "justice league", "suicide squad", "man of steel", "black adam", "shazam"] },
-  { name: "Harry Potter", keywords: ["harry potter", "deathly hallows", "philosopher's stone", "chamber of secrets", "prisoner of azkaban", "goblet of fire", "order of the phoenix", "half-blood prince", "fantastic beasts"] },
-  { name: "Mission Impossible", keywords: ["mission impossible"] },
-  { name: "John Wick", keywords: ["john wick"] },
-  { name: "Fast & Furious", keywords: ["fast and furious", "fast & furious", "furious", "tokyo drift"] },
-  { name: "Star Wars", keywords: ["star wars", "empire strikes back", "return of the jedi", "force awakens", "last jedi", "rise of skywalker"] },
-  { name: "Lord of the Rings", keywords: ["lord of the rings", "hobbit", "fellowship of the ring", "two towers", "return of the king"] }
-];
-
 /**
- * Franchise Info — shows other titles from the same franchise.
+ * FranchiseInfo — a TRIGGER for the Collection modal.
  *
- * Uses the DetailSection wrapper for consistent spacing. The franchise list
- * is numbered with accent badges. The current item is highlighted with a
- * dot indicator.
+ * When the current title belongs to a known franchise, this renders a
+ * cinematic banner that opens the CollectionModal when tapped. The
+ * banner shows the franchise name, a preview of how many titles the
+ * user owns vs the total, and a "View Collection" call to action.
+ *
+ * Previously this component rendered a full list of vault items from
+ * the same franchise — which was limited to only what the user owned.
+ * Now it's a trigger: tapping it opens the full TMDB collection with
+ * all entries (owned + missing), timeline, progress, and stats.
+ *
+ * DETECTION:
+ *   Uses the shared `detectFranchise` from `src/shared/data/franchises.ts`
+ *   — the single source of truth for franchise definitions. No more
+ *   duplicated keyword tables.
  */
-export default function FranchiseInfo(props: FranchiseInfoProps) {
-  const detectedFranchise = createMemo(() => {
-    const title = (props.currentItem.title || props.currentItem.name || "").toLowerCase();
-    return FRANCHISES.find((f) => f.keywords.some((k) => title.includes(k)));
+const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
+  const { openCollection } = useCollectionModal();
+
+  const franchise = createMemo(() => {
+    const title = props.currentItem.title || props.currentItem.name || "";
+    return detectFranchise(title);
   });
 
-  const franchiseItems = createMemo(() => {
-    const franchise = detectedFranchise();
-    if (!franchise) return [];
-
-    return props.watchlist
-      .filter((m) => {
-        const itemTitle = (m.title || m.name || "").toLowerCase();
-        return franchise.keywords.some((k) => itemTitle.includes(k));
-      })
-      .sort((a, b) => {
-        const dateA = a.release_date || a.first_air_date || "";
-        const dateB = b.release_date || b.first_air_date || "";
-        return dateA.localeCompare(dateB);
-      });
+  // Count how many vault items belong to this franchise (for the preview)
+  const ownedCount = createMemo(() => {
+    const f = franchise();
+    if (!f) return 0;
+    return props.watchlist.filter((m) => {
+      const itemTitle = (m.title || m.name || "").toLowerCase();
+      return f.keywords.some((k) => itemTitle.includes(k));
+    }).length;
   });
+
+  const handleOpenCollection = () => {
+    const f = franchise();
+    if (f) {
+      openCollection(f, String(props.currentItem.id));
+    }
+  };
 
   return (
-    <Show when={detectedFranchise() && franchiseItems().length > 1}>
-      <DetailSection label={detectedFranchise()!.name} icon="auto_awesome">
-        <div class="space-y-2">
-          <For each={franchiseItems()}>
-            {(item, i) => (
-              <div
-                class="flex items-center gap-3 p-3 rounded-xl border cursor-pointer transition-all v2-card"
-                style={{ "border-radius": "var(--radius-md)" }}
-                onClick={() => props.onSelect(item)}
-              >
-                <div
-                  class="w-8 h-8 rounded-full flex items-center justify-center shrink-0"
-                  style={{
-                    background: "var(--p-dim)",
-                    color: "var(--p)",
-                    "font-weight": 800,
-                    "font-size": "0.75rem",
-                    "font-family": "'Bebas Neue', cursive"
-                  }}
-                >
-                  {i() + 1}
-                </div>
-                <div class="flex-1 min-w-0">
-                  <p class="type-body-sm truncate" style={{ color: "var(--text-strong)", "font-weight": 700 }}>
-                    {item.title || item.name}
-                  </p>
-                  <p class="type-micro" style={{ color: "var(--text-muted)" }}>
-                    {item.release_date || item.first_air_date || "Unknown Date"}
-                  </p>
-                </div>
-                <Show when={item.id === props.currentItem.id}>
-                  <div
-                    class="w-2 h-2 rounded-full shrink-0"
-                    style={{ background: "var(--p)", "box-shadow": "0 0 8px var(--p-glow)" }}
-                    aria-label="Current item"
-                  />
-                </Show>
-              </div>
-            )}
-          </For>
-        </div>
+    <Show when={franchise()}>
+      <DetailSection label={franchise()!.name} icon="auto_awesome">
+        <button
+          type="button"
+          class="franchise-trigger"
+          onClick={handleOpenCollection}
+          aria-label={`View ${franchise()!.name} collection`}
+        >
+          {/* Icon */}
+          <div class="franchise-trigger-icon">
+            <span class="material-symbols-outlined" style="font-size: 24px; color: var(--p)" aria-hidden="true">
+              collection
+            </span>
+          </div>
+          {/* Text */}
+          <div class="franchise-trigger-text">
+            <p class="franchise-trigger-name">{franchise()!.name}</p>
+            <p class="franchise-trigger-meta">
+              {ownedCount() > 0
+                ? `${ownedCount()} title${ownedCount() !== 1 ? "s" : ""} in your vault · `
+                : "Not in your vault yet · "}
+              View full collection
+            </p>
+          </div>
+          {/* Chevron */}
+          <span class="material-symbols-outlined franchise-trigger-chevron" aria-hidden="true">
+            chevron_right
+          </span>
+        </button>
       </DetailSection>
     </Show>
   );
-}
+};
+
+export default FranchiseInfo;

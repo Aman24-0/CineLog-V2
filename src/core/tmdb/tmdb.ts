@@ -1,5 +1,5 @@
 // src/core/tmdb/tmdb.ts
-import type { TMDBDetails, TMDBSeasonDetails } from "~/shared/types";
+import type { TMDBDetails, TMDBSeasonDetails, TMDBCollection } from "~/shared/types";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -47,6 +47,28 @@ export const fetchSeasonDetails = async (
     `${API}/tv/${tvId}/season/${seasonNumber}?api_key=${TMDB_KEY}&language=en-US`
   );
   if (!res.ok) throw new Error(`Failed to fetch season ${seasonNumber}`);
+  return res.json();
+};
+
+/**
+ * fetchCollectionDetails — fetch a TMDB movie collection by its ID.
+ *
+ * TMDB groups movie franchises into "collections" (e.g. "The Avengers
+ * Collection" id=86311, "Harry Potter Collection" id=1241). The response
+ * includes the collection's name, overview, backdrop, poster, and all
+ * parts (individual movies) with their TMDB metadata.
+ *
+ * For franchises that DON'T have a TMDB collection (TV shows, cross-media
+ * franchises like MCU, or franchises TMDB doesn't group), the CollectionModal
+ * falls back to keyword-based search via searchMulti.
+ */
+export const fetchCollectionDetails = async (
+  collectionId: number
+): Promise<TMDBCollection> => {
+  const res = await fetch(
+    `${API}/collection/${collectionId}?api_key=${TMDB_KEY}&language=en-US`
+  );
+  if (!res.ok) throw new Error(`Failed to fetch collection ${collectionId}`);
   return res.json();
 };
 

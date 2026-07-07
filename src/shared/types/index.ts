@@ -208,6 +208,8 @@ export interface TMDBDetails {
   imdb_id?: string;
   budget?: number;
   revenue?: number;
+  /** Populated for movies that belong to a TMDB collection (e.g. "The Avengers Collection") */
+  belongs_to_collection?: TMDBCollectionRef | null;
   // TV-specific
   number_of_seasons?: number;
   number_of_episodes?: number;
@@ -221,6 +223,50 @@ export interface TMDBDetails {
   videos?: {
     results?: TMDBVideo[];
   };
+}
+
+/**
+ * TMDBCollectionRef — the lightweight reference on TMDBDetails.belongs_to_collection.
+ * Only present for movies that belong to a TMDB collection.
+ */
+export interface TMDBCollectionRef {
+  id: number;
+  name: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+}
+
+/**
+ * TMDBCollectionPart — a single title within a TMDB collection.
+ * Returned by the /collection/{id} endpoint.
+ */
+export interface TMDBCollectionPart {
+  adult: boolean;
+  backdrop_path: string | null;
+  genre_ids: number[];
+  id: number;
+  original_language: string;
+  original_title: string;
+  overview: string;
+  poster_path: string | null;
+  release_date: string;
+  title: string;
+  video: boolean;
+  vote_average: number;
+  vote_count: number;
+}
+
+/**
+ * TMDBCollection — the full response from /collection/{id}.
+ * Contains the collection's metadata + all parts (titles).
+ */
+export interface TMDBCollection {
+  id: number;
+  name: string;
+  overview: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  parts: TMDBCollectionPart[];
 }
 
 export interface OMDbRatings {

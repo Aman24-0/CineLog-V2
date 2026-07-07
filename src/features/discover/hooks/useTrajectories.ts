@@ -15,19 +15,7 @@ import {
   searchMulti,
   genreIdFor
 } from "~/core/tmdb/discover";
-
-/* Franchise keyword table — mirrored from FranchiseInfo + useDiscoverTaste
-   so we can search TMDB for missing entries in an active franchise. */
-const FRANCHISES: { name: string; keywords: string[] }[] = [
-  { name: "Marvel Cinematic Universe", keywords: ["avengers", "iron man", "captain america", "thor", "black panther", "doctor strange", "spider-man", "guardians of the galaxy", "black widow", "hawkeye", "eternals", "shang-chi", "ant-man", "captain marvel"] },
-  { name: "DC Extended Universe", keywords: ["batman", "superman", "wonder woman", "aquaman", "flash", "justice league", "suicide squad", "man of steel", "black adam", "shazam"] },
-  { name: "Harry Potter", keywords: ["harry potter", "deathly hallows", "philosopher's stone", "chamber of secrets", "prisoner of azkaban", "goblet of fire", "order of the phoenix", "half-blood prince", "fantastic beasts"] },
-  { name: "Mission Impossible", keywords: ["mission impossible"] },
-  { name: "John Wick", keywords: ["john wick"] },
-  { name: "Fast & Furious", keywords: ["fast and furious", "fast & furious", "furious", "tokyo drift"] },
-  { name: "Star Wars", keywords: ["star wars", "empire strikes back", "return of the jedi", "force awakens", "last jedi", "rise of skywalker"] },
-  { name: "Lord of the Rings", keywords: ["lord of the rings", "hobbit", "fellowship of the ring", "two towers", "return of the king"] }
-];
+import { FRANCHISES } from "~/shared/data/franchises";
 
 interface UseTrajectoriesArgs {
   taste: Accessor<TasteProfile>;
