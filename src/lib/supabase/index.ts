@@ -217,5 +217,23 @@ export type {
   DashboardListResult
 } from "./repositories";
 
+export { DiscoverRepository, getDiscoverRepository } from "./repositories";
+
+export type {
+  CuratedUniverseRow,
+  CuratedUniverseEntryRow,
+  UserUniverseSubscriptionRow,
+  MediaIdentity,
+  UserMediaIdentity,
+  VaultState,
+  CollectionMembership,
+  UniverseMembership,
+  DiscoverMetadata,
+  UserMediaContext,
+  DiscoverResult,
+  DiscoverListResult,
+  DiscoverBooleanResult
+} from "./repositories";
+
 
 

@@ -119,3 +119,27 @@ export type {
   DashboardResult,
   DashboardListResult
 } from "./dashboard";
+
+// ---- DiscoverRepository (Phase 4) -----------------------------------------
+// Modular: discover/ subfolder. READ-ONLY layer that answers "what is
+// this media's relationship to the user's library?".
+// NOTE: VaultRow / CollectionRow / CollectionEntryRow / MediaType are
+// NOT re-exported here from the discover barrel — they are already
+// exported from the vault / collection barrels (same generated types).
+export { DiscoverRepository, getDiscoverRepository } from "./discover";
+
+export type {
+  CuratedUniverseRow,
+  CuratedUniverseEntryRow,
+  UserUniverseSubscriptionRow,
+  MediaIdentity,
+  UserMediaIdentity,
+  VaultState,
+  CollectionMembership,
+  UniverseMembership,
+  DiscoverMetadata,
+  UserMediaContext,
+  DiscoverResult,
+  DiscoverListResult,
+  DiscoverBooleanResult
+} from "./discover";
