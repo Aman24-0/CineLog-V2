@@ -159,3 +159,18 @@ export type {
   EpisodeProgressListResult,
   EpisodeProgressWriteResult
 } from "./episodeProgress";
+
+// ---- PresetRepository (Phase 12.1) ----------------------------------------
+// Modular: preset/ subfolder. Manages the `user_presets` table —
+// user-saved vault filter presets. Foundation only (not wired into app).
+export { PresetRepository, getPresetRepository } from "./preset";
+
+export type {
+  PresetRow,
+  PresetInsert,
+  PresetUpdate,
+  CreatePresetPayload,
+  PresetResult,
+  PresetListResult,
+  PresetWriteResult
+} from "./preset";
