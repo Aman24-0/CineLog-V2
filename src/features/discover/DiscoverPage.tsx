@@ -4,24 +4,18 @@
 // --------------------------------
 // Discover now uses the shared useUserLibrary hook (same vault data
 // source as Dashboard). No useVault(). No Firebase auth shim.
-// No feature-to-feature dependency.
 //
 // Architecture:
 //   DiscoverPage → useUserLibrary → userLibraryAdapter → DashboardRepository → Supabase
 import { createSignal, createMemo, Show, For } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
-import { useToast } from "~/shared/hooks/useToast";
-import { useModalState } from "~/shared/hooks/useModalState";
-import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { getClient } from "~/lib/supabase/client";
-import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import PageContainer from "~/shared/ui/PageContainer";
-import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
 import { useSpotlight } from "./hooks/useSpotlight";
 import { useTrajectories } from "./hooks/useTrajectories";
 import { useTasteSurfaces } from "./hooks/useTasteSurfaces";
 import { useCosmos } from "./hooks/useCosmos";
+import { useDiscoverActions } from "./useDiscoverActions";
 import Spotlight from "./components/Spotlight";
 import TrajectoryCard from "./components/TrajectoryCard";
 import TasteSurface from "./components/TasteSurface";
@@ -36,38 +30,27 @@ import DiscoverSkeleton from "./components/DiscoverSkeleton";
  * *progress*. Discover answers "What should I discover?" — it's about
  * *serendipity* and *taste expansion*.
  *
- * The mindset difference shows up in every decision:
- *   - Dashboard shows what the user already has. Discover shows what
- *     they don't have yet.
- *   - Dashboard's primary action is "Resume". Discover's primary actions
- *     are "Details" and "Add to Vault".
- *   - Dashboard has stats about the past. Discover has trajectories
- *     pointing forward.
- *
  * FOUR FOLDS:
  *   0. Spotlight     — one title, hand-picked, re-rollable
  *   1. Trajectories  — 4 intent-based clusters (Tonight's Pick, Because
  *                      You Watched, Hidden Gems, Continue the Franchise)
  *   2. Your Taste    — vault-derived surfaces ("Because you loved X",
  *                      "Continue the franchise", "Directors you love")
- *   3. Cosmos        — themed ambient browse (experimental, reframed
- *                      TMDB categories)
+ *   3. Cosmos        — themed ambient browse (experimental)
  *
  * ARCHITECTURE:
  *   Every hook consumes `TasteProfile` (from useDiscoverTaste), not the
  *   vault directly. This is the seam for future AI recommendations —
  *   swap the source of TasteProfile and the UI doesn't change.
+ *
+ * Action handlers (openTitle / addToVault / login) live in
+ * `useDiscoverActions` to keep this file under the 250-line limit.
  */
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
-  const { showToast } = useToast();
-  const { openTitle } = useModalState();
 
   // The taste seam — every other hook consumes this
-  const { profile: taste } = useDiscoverTaste({
-    watchlist,
-    isGuest
-  });
+  const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Spotlight state
   const [spotlightSeed, setSpotlightSeed] = createSignal(0);
@@ -77,107 +60,23 @@ export default function DiscoverPage() {
     taste,
     vault: watchlist,
     excludeId: spotlightExclude,
-    seed: spotlightSeed
+    seed: spotlightSeed,
   });
 
-  // Trajectories
   const { trajectories } = useTrajectories({ taste, vault: watchlist });
-
-  // Taste surfaces
   const { surfaces } = useTasteSurfaces({ taste, vault: watchlist });
-
-  // Cosmos
   const { clusters } = useCosmos({ taste });
+
+  const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({
+    watchlist,
+    isGuest,
+  });
 
   // Re-roll the Spotlight
   const handleReroll = () => {
     const current = spotlightPick();
     if (current) setSpotlightExclude(current.title.id);
     setSpotlightSeed((s) => s + Math.floor(Math.random() * 997) + 1);
-  };
-
-  // Open the Details modal for a TMDB title.
-  // Uses the shared openTitle helper which resolves vault ownership
-  // automatically — no fake status defaults, no state pollution.
-  const handleOpenTitle = (title: TMDBTitle) => {
-    const baseItem: WatchlistItem = {
-      id: String(title.id),
-      title: title.title,
-      name: title.name,
-      media_type: title.media_type,
-      poster_path: title.poster_path,
-      backdrop_path: title.backdrop_path,
-      status: "Planned", // placeholder — openTitle ignores this for non-vault titles
-      release_date: title.release_date,
-      first_air_date: title.first_air_date,
-      genresList: title.genres,
-      director: title.director
-    };
-    openTitle(baseItem, watchlist());
-  };
-
-  // Add a TMDB title to the vault as "Planned" (one-tap save).
-  // Uses the new addToVault service (setDoc merge) — fixes the previous
-  // silent-fail bug where updateStatus no-op'd on non-existent docs.
-  const addToVault = async (title: TMDBTitle) => {
-    const uid = getCurrentUid();
-    if (!uid) {
-      showToast("Sign in to save titles to your vault.", "error");
-      return;
-    }
-    if (isGuest()) {
-      try {
-        const supabase = getClient();
-        const { error: oauthError } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
-          }
-        });
-        if (oauthError) throw oauthError;
-        showToast("Signed in — try saving again.", "success");
-      } catch {
-        showToast("Sign in failed. Please try again.", "error");
-      }
-      return;
-    }
-    try {
-      const item: WatchlistItem = {
-        id: String(title.id),
-        title: title.title,
-        name: title.name,
-        media_type: title.media_type,
-        poster_path: title.poster_path,
-        backdrop_path: title.backdrop_path,
-        status: "Planned",
-        release_date: title.release_date,
-        first_air_date: title.first_air_date,
-        genresList: title.genres,
-        director: title.director
-      };
-      await createVaultItemInSupabase(uid, item);
-      const name = title.title || title.name || "Title";
-      showToast(`Added "${name}" to your vault`, "success", 1800);
-    } catch (err) {
-      console.error("Failed to add to vault:", err);
-      showToast("Failed to save. Try again.", "error");
-    }
-  };
-
-  const handleLogin = async () => {
-    try {
-      const supabase = getClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
-        }
-      });
-      if (error) throw error;
-      showToast("Signed in to CineLog", "success");
-    } catch {
-      showToast("Sign in failed. Please try again.", "error");
-    }
   };
 
   // Loading state — show skeleton until taste profile is ready
@@ -187,7 +86,7 @@ export default function DiscoverPage() {
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <div class="ambient-glow" aria-hidden="true" />
 
-      {/* Page-level eyebrow — sets the "discover" mindset, distinct from Dashboard's greeting */}
+      {/* Page-level eyebrow — sets the "discover" mindset */}
       <div class="discover-eyebrow-block">
         <p class="discover-eyebrow">Discover</p>
         <h1 class="discover-page-title">What's next?</h1>
