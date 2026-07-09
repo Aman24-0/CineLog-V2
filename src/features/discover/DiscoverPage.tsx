@@ -3,9 +3,9 @@ import { createSignal, createMemo, Show, For } from "solid-js";
 import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { login } from "~/core/firebase/auth";
 import { addToVault as svcAddToVault } from "~/features/watchlist/watchlistService";
-import { auth } from "~/core/firebase";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
@@ -111,7 +111,7 @@ export default function DiscoverPage() {
   // Uses the new addToVault service (setDoc merge) — fixes the previous
   // silent-fail bug where updateStatus no-op'd on non-existent docs.
   const addToVault = async (title: TMDBTitle) => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) {
       showToast("Sign in to save titles to your vault.", "error");
       return;

@@ -1,8 +1,9 @@
 // src/features/watchlist/useVault.ts
 import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
-import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { auth, db } from "~/core/firebase";
+import { db } from "~/core/firebase";
+import { onSessionChange } from "~/lib/supabase/session";
+import type { Session } from "~/lib/supabase/session";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   updateStatus as svcUpdateStatus,
@@ -32,10 +33,16 @@ const useVaultLogic = () => {
   let unsubAuth: (() => void) | null = null;
 
   onMount(() => {
-    unsubAuth = onAuthStateChanged(auth, (u) => {
-      setIsGuest(!u);
-      setUid(u?.uid || null);
-      
+    // Phase 6.2 — auth state now comes from the Supabase session via the
+    // central auth provider's session subscription. Previously this used
+    // Firebase's onAuthStateChanged(auth, ...); it now uses
+    // onSessionChange from the Supabase foundation. The uid is extracted
+    // from session.user.id (Supabase) instead of u.uid (Firebase).
+    const subscription = onSessionChange((_event, session: Session | null) => {
+      const supabaseUid = session?.user?.id ?? null;
+      setIsGuest(!supabaseUid);
+      setUid(supabaseUid);
+
       if (unsubSnap) {
         unsubSnap();
         unsubSnap = null;
@@ -44,16 +51,16 @@ const useVaultLogic = () => {
         unsubPresets();
         unsubPresets = null;
       }
-      
-      if (u) {
+
+      if (supabaseUid) {
         setLoading(true);
         setError(null);
-        
+
         const q = query(
-          collection(db, "users", u.uid, "watchlist"), 
+          collection(db, "users", supabaseUid, "watchlist"),
           orderBy("addedAt", "desc")
         );
-        
+
         unsubSnap = onSnapshot(
           q,
           (snap) => {
@@ -107,7 +114,7 @@ const useVaultLogic = () => {
         );
 
         unsubPresets = onSnapshot(
-          collection(db, "users", u.uid, "presets"),
+          collection(db, "users", supabaseUid, "presets"),
           (snap) => {
             setPresets(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FilterPreset));
           },
@@ -120,6 +127,7 @@ const useVaultLogic = () => {
         setError(null);
       }
     });
+    unsubAuth = () => subscription.unsubscribe();
   });
 
   onCleanup(() => {

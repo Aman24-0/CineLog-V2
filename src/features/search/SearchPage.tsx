@@ -3,7 +3,7 @@ import { For, Show, createSignal, createMemo, onMount } from "solid-js";
 import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
-import { auth } from "~/core/firebase";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { login } from "~/core/firebase/auth";
 import { addToVault as svcAddToVault } from "~/features/watchlist/watchlistService";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -104,7 +104,7 @@ export default function SearchPage() {
   };
 
   const handleAddToVault = async (title: TMDBTitle) => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) {
       showToast("Sign in to save titles to your vault.", "error");
       return;

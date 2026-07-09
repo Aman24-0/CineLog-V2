@@ -1,7 +1,7 @@
 // src/features/details/DetailsModal.tsx
 import { Show, onMount, onCleanup, createSignal, createEffect, createMemo, lazy, Suspense } from "solid-js";
 import { Portal } from "solid-js/web";
-import { auth } from "~/core/firebase";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
@@ -142,7 +142,7 @@ export default function DetailsModal() {
   createEffect(() => {
     const v = vaultItem();
     const details = tmdb();
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!v || !details || !uid) return;
     if (v.media_type !== "tv") return;
     if (!details.seasons || details.seasons.length === 0) return;
@@ -174,7 +174,7 @@ export default function DetailsModal() {
    * state in place so the UI upgrades to vault-owned mode without a remount.
    */
   const handleAddToVault = async () => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     const b = baseItem();
     if (!uid) {
       showToast("Sign in to save titles to your vault.", "error");
@@ -198,7 +198,7 @@ export default function DetailsModal() {
   };
 
   const handleSave = async () => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     const v = vaultItem();
     if (!uid) {
       showToast("Please sign in to save changes.", "error");
@@ -268,7 +268,7 @@ export default function DetailsModal() {
 
   // Status cycling: Planned → Watching → Completed → Planned (vault only)
   const handleStatusCycle = async () => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     const v = vaultItem();
     if (!uid || !v) return;
 
@@ -291,7 +291,7 @@ export default function DetailsModal() {
   };
 
   const handleEpisodeChange = async (newSeason: number, newEpisode: number) => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     const v = vaultItem();
     if (!uid || !v) return;
 
@@ -343,7 +343,7 @@ export default function DetailsModal() {
   };
 
   const handleMarkCompleted = async () => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     const v = vaultItem();
     if (!uid || !v) return;
 

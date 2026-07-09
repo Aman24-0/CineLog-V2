@@ -109,3 +109,34 @@ export function useAuth() {
     isSignedIn: () => user() !== null
   };
 }
+
+/**
+ * getCurrentUid — synchronous accessor for the current user's uid.
+ *
+ * Reads from the same module-level `user` signal that `useAuth()`
+ * exposes, so it is always consistent with the reactive auth state.
+ * Returns `null` when no user is signed in (or before the first
+ * auth-state event fires).
+ *
+ * This is the SINGLE source of truth for the current user's identity
+ * outside of Solid components — service functions, event handlers,
+ * and non-reactive code should call this instead of reading
+ * `auth.currentUser?.uid` (which was the old Firebase path).
+ *
+ * The signal is module-level, so this function works WITHOUT a
+ * reactive context (it does not need `createRoot` or a component).
+ */
+export function getCurrentUid(): string | null {
+  return user()?.uid ?? null;
+}
+
+/**
+ * getCurrentUser — synchronous accessor for the full current user
+ * object. Same source as {@link getCurrentUid} but returns the
+ * complete `{ uid, displayName, email, photoURL }` shape.
+ *
+ * Returns `null` when no user is signed in.
+ */
+export function getCurrentUser(): User | null {
+  return user();
+}

@@ -1,8 +1,10 @@
 // src/features/collections/hooks/useCollections.ts
 import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent, Accessor, createMemo } from "solid-js";
-import { onAuthStateChanged } from "firebase/auth";
 import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
-import { auth, db } from "~/core/firebase";
+import { db } from "~/core/firebase";
+import { onSessionChange } from "~/lib/supabase/session";
+import type { Session } from "~/lib/supabase/session";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
 import {
   createUserCollection as svcCreateUserCollection,
   ensureFavoritesExists,
@@ -60,14 +62,19 @@ const useCollectionsLogic = () => {
   let unsubAuth: (() => void) | null = null;
 
   onMount(() => {
-    unsubAuth = onAuthStateChanged(auth, async (u) => {
+    // Phase 6.2 — auth state now comes from the Supabase session via
+    // onSessionChange. Previously this used Firebase's
+    // onAuthStateChanged(auth, ...); the uid is now extracted from
+    // session.user.id (Supabase) instead of u.uid (Firebase).
+    const subscription = onSessionChange(async (_event, session: Session | null) => {
+      const supabaseUid = session?.user?.id ?? null;
       if (unsub) { unsub(); unsub = null; }
-      if (u) {
+      if (supabaseUid) {
         // Ensure Favorites folder exists
-        ensureFavoritesExists(u.uid).catch(() => {});
+        ensureFavoritesExists(supabaseUid).catch(() => {});
 
         // Subscribe to user collections
-        const q = query(collection(db, "users", u.uid, "collections"), orderBy("createdAt", "desc"));
+        const q = query(collection(db, "users", supabaseUid, "collections"), orderBy("createdAt", "desc"));
         unsub = onSnapshot(q, (snap) => {
           try {
             const items = snap.docs.map((d) => {
@@ -106,7 +113,7 @@ const useCollectionsLogic = () => {
 
         // Fetch universe preferences
         try {
-          const prefs = await fetchAllPreferences(u.uid);
+          const prefs = await fetchAllPreferences(supabaseUid);
           // Normalize: ensure boolean fields are actual booleans, not undefined
           const safePrefs = prefs.map((p) => ({
             ...p,
@@ -124,6 +131,7 @@ const useCollectionsLogic = () => {
         setLoading(false);
       }
     });
+    unsubAuth = () => subscription.unsubscribe();
   });
 
   onCleanup(() => {
@@ -188,7 +196,7 @@ const useCollectionsLogic = () => {
   // ─── Collection CRUD ─────────────────────────────────────────
 
   const createCollection = async (name: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to create collections.", "error"); return; }
     try {
       await svcCreateUserCollection(uid, name);
@@ -200,7 +208,7 @@ const useCollectionsLogic = () => {
   };
 
   const addToCollection = async (collectionId: string, entry: CollectionEntry): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to save to collections.", "error"); return; }
     try {
       await svcAddToUserCollection(uid, collectionId, entry);
@@ -213,7 +221,7 @@ const useCollectionsLogic = () => {
   };
 
   const removeFromCollection = async (collectionId: string, entryId: string, mediaType: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcRemoveFromUserCollection(uid, collectionId, entryId, mediaType);
@@ -223,7 +231,7 @@ const useCollectionsLogic = () => {
   };
 
   const deleteCollection = async (collectionId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcDeleteUserCollection(uid, collectionId);
@@ -235,7 +243,7 @@ const useCollectionsLogic = () => {
   };
 
   const renameCollection = async (collectionId: string, newName: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcRenameUserCollection(uid, collectionId, newName);
@@ -247,7 +255,7 @@ const useCollectionsLogic = () => {
   };
 
   const updateCollectionMeta = async (collectionId: string, meta: Parameters<typeof svcUpdateCollectionMeta>[2]): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcUpdateCollectionMeta(uid, collectionId, meta);
@@ -259,7 +267,7 @@ const useCollectionsLogic = () => {
   };
 
   const duplicateCollection = async (collectionId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcDuplicateUserCollection(uid, collectionId);
@@ -271,7 +279,7 @@ const useCollectionsLogic = () => {
   };
 
   const reorderEntries = async (collectionId: string, entries: CollectionEntry[]): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcUpdateEntryOrder(uid, collectionId, entries);
@@ -282,7 +290,7 @@ const useCollectionsLogic = () => {
   };
 
   const createSmartCollection = async (name: string, rules: SmartRule[]): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to create collections.", "error"); return; }
     try {
       await svcCreateSmartCollection(uid, name, rules);
@@ -294,7 +302,7 @@ const useCollectionsLogic = () => {
   };
 
   const updateSmartRules = async (collectionId: string, rules: SmartRule[]): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcUpdateSmartRules(uid, collectionId, rules);
@@ -306,7 +314,7 @@ const useCollectionsLogic = () => {
   // ─── Universe Preferences Operations ─────────────────────────
 
   const addUniverseToPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to add universes.", "error"); return; }
     try {
       await svcAddUniverse(uid, universeId);
@@ -326,7 +334,7 @@ const useCollectionsLogic = () => {
   };
 
   const removeUniverseFromPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcRemoveUniverse(uid, universeId);
@@ -338,7 +346,7 @@ const useCollectionsLogic = () => {
   };
 
   const hideUniverseFromPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcHideUniverse(uid, universeId);
@@ -351,7 +359,7 @@ const useCollectionsLogic = () => {
   };
 
   const restoreUniverseToPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcRestoreUniverse(uid, universeId);
@@ -365,7 +373,7 @@ const useCollectionsLogic = () => {
   };
 
   const pinUniverseInPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcPinUniverse(uid, universeId);
@@ -378,7 +386,7 @@ const useCollectionsLogic = () => {
   };
 
   const unpinUniverseInPrefs = async (universeId: string): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcUnpinUniverse(uid, universeId);
@@ -391,7 +399,7 @@ const useCollectionsLogic = () => {
   };
 
   const setUniversePreferredOrder = async (universeId: string, order: ViewingOrder): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcSetPreferredOrder(uid, universeId, order);
@@ -404,7 +412,7 @@ const useCollectionsLogic = () => {
   };
 
   const setUniversePreferredProvider = async (universeId: string, provider: TimelineProvider): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcSetPreferredProvider(uid, universeId, provider);
@@ -417,7 +425,7 @@ const useCollectionsLogic = () => {
   };
 
   const saveOverrides = async (universeId: string, overrides: Record<string, Partial<CollectionEntry>>): Promise<void> => {
-    const uid = auth.currentUser?.uid;
+    const uid = getCurrentUid();
     if (!uid) return;
     try {
       await svcSaveTimelineOverrides(uid, universeId, overrides);
