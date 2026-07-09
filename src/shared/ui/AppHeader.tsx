@@ -111,7 +111,7 @@ export default function AppHeader() {
             </div>
           }
         >
-          <img
+          <img loading="lazy" decoding="async"
             src={user()!.photoURL!}
             alt=""
             class="h-8 w-8 rounded-full object-cover shrink-0"

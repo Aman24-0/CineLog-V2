@@ -1,5 +1,6 @@
 // src/core/omdb/omdb.ts
 import type { OMDbRatings } from "~/shared/types";
+import { cachedFetch, buildCacheKey, OMDb_TTL } from "~/shared/utils/apiCache";
 
 export const OMDB_KEY = import.meta.env.VITE_OMDB_API_KEY;
 
@@ -26,11 +27,17 @@ interface OMDbResponse {
 export const fetchOmdbRatings = async (title: string): Promise<OMDbRatings | null> => {
   if (!title) return null;
   try {
-    const res = await fetch(
-      `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_KEY}`
+    const data = await cachedFetch<OMDbResponse>(
+      buildCacheKey("omdb:ratings", { title }),
+      OMDb_TTL,
+      async () => {
+        const res = await fetch(
+          `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_KEY}`
+        );
+        if (!res.ok) return { Response: "False" } as OMDbResponse;
+        return res.json() as Promise<OMDbResponse>;
+      }
     );
-    if (!res.ok) return null;
-    const data: OMDbResponse = await res.json();
     if (data.Response === "True") {
       const rt = data.Ratings?.find((r) => r.Source === "Rotten Tomatoes")?.Value || "-";
       return {

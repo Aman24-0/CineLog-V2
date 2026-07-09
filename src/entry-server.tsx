@@ -11,7 +11,30 @@ export default createHandler(() => (
             name="viewport"
             content="width=device-width, initial-scale=1, viewport-fit=cover"
           />
+          <title>CineLog V2 — Your Cinematic Watchlist</title>
+          <meta
+            name="description"
+            content="CineLog V2 — track your movies and TV shows, discover new favorites, and build curated collections. A modern watchlist app for cinephiles."
+          />
+          <meta name="theme-color" content="#7c3aed" />
+          <meta name="apple-mobile-web-app-capable" content="yes" />
+          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta name="apple-mobile-web-app-title" content="CineLog" />
           <link rel="icon" href="/favicon.ico" />
+          <link rel="manifest" href="/manifest.json" />
+          <link rel="canonical" href="https://cinelog.app" />
+
+          {/* Open Graph */}
+          <meta property="og:type" content="website" />
+          <meta property="og:title" content="CineLog V2 — Your Cinematic Watchlist" />
+          <meta property="og:description" content="Track your movies and TV shows, discover new favorites, and build curated collections." />
+          <meta property="og:site_name" content="CineLog V2" />
+          <meta property="og:url" content="https://cinelog.app" />
+
+          {/* Twitter Card */}
+          <meta name="twitter:card" content="summary_large_image" />
+          <meta name="twitter:title" content="CineLog V2 — Your Cinematic Watchlist" />
+          <meta name="twitter:description" content="Track your movies and TV shows, discover new favorites, and build curated collections." />
 
           {/* Google Fonts & Material Symbols */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -26,7 +49,7 @@ export default createHandler(() => (
             href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
             rel="stylesheet"
           />
-          
+
           {assets}
         </head>
         <body>

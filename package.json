@@ -10,6 +10,7 @@
     "format": "prettier --write \"src/**/*.{ts,tsx,css}\""
   },
   "dependencies": {
+    "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.14.5",
     "@solidjs/start": "^1.0.10",
     "@supabase/supabase-js": "^2.110.2",

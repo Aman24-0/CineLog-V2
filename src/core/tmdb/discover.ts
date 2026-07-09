@@ -1,6 +1,7 @@
 // src/core/tmdb/discover.ts
 import { TMDB_KEY } from "./tmdb";
 import type { TMDBTitle } from "~/shared/types";
+import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 
 /**
  * Discover API — the read-only TMDB layer for Discover V2.
@@ -124,10 +125,16 @@ export async function discoverMovies(opts: {
   if (opts.withRuntimeLte != null) params.set("with_runtime.lte", String(opts.withRuntimeLte));
   if (opts.withKeywords != null) params.set("with_keywords", String(opts.withKeywords));
 
-  const res = await fetch(`${API}/discover/movie?${params}`);
-  if (!res.ok) throw new Error(`discoverMovies failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeList(json.results, "movie");
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:discover/movie", { q: params.toString() }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(`${API}/discover/movie?${params}`);
+      if (!r.ok) throw new Error(`discoverMovies failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "movie");
 }
 
 /** discover/tv — same idea, for TV-based trajectories. */
@@ -152,10 +159,16 @@ export async function discoverTv(opts: {
   if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
   if (opts.firstAirDateGte) params.set("first_air_date.gte", opts.firstAirDateGte);
 
-  const res = await fetch(`${API}/discover/tv?${params}`);
-  if (!res.ok) throw new Error(`discoverTv failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeList(json.results, "tv");
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:discover/tv", { q: params.toString() }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(`${API}/discover/tv?${params}`);
+      if (!r.ok) throw new Error(`discoverTv failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "tv");
 }
 
 /**
@@ -166,12 +179,18 @@ export async function getRecommendations(
   mediaType: "movie" | "tv",
   id: number | string
 ): Promise<TMDBTitle[]> {
-  const res = await fetch(
-    `${API}/${mediaType}/${id}/recommendations?api_key=${TMDB_KEY}&language=en-US&page=1`
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:recommendations", { type: mediaType, id: String(id) }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/${mediaType}/${id}/recommendations?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getRecommendations failed: ${r.status}`);
+      return r.json();
+    }
   );
-  if (!res.ok) throw new Error(`getRecommendations failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeList(json.results, mediaType);
+  return normalizeList(res.results, mediaType);
 }
 
 /**
@@ -182,12 +201,18 @@ export async function getTrending(
   mediaType: "movie" | "tv" | "all" = "all",
   window: "day" | "week" = "week"
 ): Promise<TMDBTitle[]> {
-  const res = await fetch(
-    `${API}/trending/${mediaType}/${window}?api_key=${TMDB_KEY}&language=en-US`
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:trending", { type: mediaType, window }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/trending/${mediaType}/${window}?api_key=${TMDB_KEY}&language=en-US`
+      );
+      if (!r.ok) throw new Error(`getTrending failed: ${r.status}`);
+      return r.json();
+    }
   );
-  if (!res.ok) throw new Error(`getTrending failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeList(json.results);
+  return normalizeList(res.results);
 }
 
 /**
@@ -196,12 +221,18 @@ export async function getTrending(
  * /movie/top_rated, language=en-US.
  */
 export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
-  const res = await fetch(
-    `${API}/movie/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:top_rated"),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/movie/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getTopRatedMovies failed: ${r.status}`);
+      return r.json();
+    }
   );
-  if (!res.ok) throw new Error(`getTopRatedMovies failed: ${res.status}`);
-  const json = await res.json();
-  return normalizeList(json.results, "movie");
+  return normalizeList(res.results, "movie");
 }
 
 /**
@@ -216,12 +247,17 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
     page: "1",
     include_adult: "false"
   });
-  const res = await fetch(`${API}/search/multi?${params}`);
-  if (!res.ok) throw new Error(`searchMulti failed: ${res.status}`);
-  const json = await res.json();
-  // search/multi returns person results too — filter those out
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:search/multi", { q: query }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(`${API}/search/multi?${params}`);
+      if (!r.ok) throw new Error(`searchMulti failed: ${r.status}`);
+      return r.json();
+    }
+  );
   return normalizeList(
-    (json.results || []).filter((r: TMDBRawItem) => r.media_type === "movie" || r.media_type === "tv")
+    (res.results || []).filter((r: TMDBRawItem) => r.media_type === "movie" || r.media_type === "tv")
   );
 }
 
