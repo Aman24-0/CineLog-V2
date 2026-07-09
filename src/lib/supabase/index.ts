@@ -235,5 +235,29 @@ export type {
   DiscoverBooleanResult
 } from "./repositories";
 
+// ---- Hooks (Phase 5 — hook foundation) ------------------------------------
+// UI components import hooks from here. Repositories are NEVER used
+// directly by components — the hooks are the sole bridge:
+//
+//     Component → Hook → Repository → Supabase → Database
+//
+export {
+  useSupabaseAuth,
+  useVault,
+  useProfile,
+  useCollections,
+  useDashboard,
+  useDiscover
+} from "./hooks";
+
+export type {
+  UseSupabaseAuthReturn,
+  UseVaultReturn,
+  UseProfileReturn,
+  UseCollectionsReturn,
+  UseDashboardReturn,
+  UseDiscoverReturn
+} from "./hooks";
+
 
 
