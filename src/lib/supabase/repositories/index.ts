@@ -67,3 +67,35 @@ export type {
   ProfileResult,
   ProfileWriteResult
 } from "./profile";
+
+// ---- CollectionRepository (Phase 4) ---------------------------------------
+// Modular: collection/ subfolder covering both `collections` and
+// `collection_entries` tables (Database Bible §04 + §05).
+// NOTE: SortModeType / CollectionViewType / SortDirection are NOT
+// re-exported here from the collection barrel — they are already
+// exported from the profile / vault barrels (they alias the same
+// generated enums). Re-exporting them again would cause duplicate
+// identifier errors.
+export { CollectionRepository, getCollectionRepository } from "./collection";
+
+export type {
+  CollectionRow,
+  CollectionEntryRow,
+  CollectionInsert,
+  CollectionUpdate,
+  CollectionEntryInsert,
+  CollectionEntryUpdate,
+  CollectionType,
+  CreateCollectionPayload,
+  UpdateCollectionPayload,
+  CollectionEntryIdentity,
+  AddItemPayload,
+  MoveItemPayload,
+  CollectionSortField,
+  CollectionSort,
+  CollectionPagination,
+  CollectionListFilter,
+  CollectionSearchQuery,
+  CollectionResult,
+  CollectionWriteResult
+} from "./collection";

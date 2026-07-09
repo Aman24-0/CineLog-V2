@@ -179,5 +179,29 @@ export type {
   ProfileWriteResult
 } from "./repositories";
 
+export { CollectionRepository, getCollectionRepository } from "./repositories";
+
+export type {
+  CollectionRow,
+  CollectionEntryRow,
+  CollectionInsert,
+  CollectionUpdate,
+  CollectionEntryInsert,
+  CollectionEntryUpdate,
+  CollectionType,
+  CreateCollectionPayload,
+  UpdateCollectionPayload,
+  CollectionEntryIdentity,
+  AddItemPayload,
+  MoveItemPayload,
+  CollectionSortField,
+  CollectionSort,
+  CollectionPagination,
+  CollectionListFilter,
+  CollectionSearchQuery,
+  CollectionResult,
+  CollectionWriteResult
+} from "./repositories";
+
 
 
