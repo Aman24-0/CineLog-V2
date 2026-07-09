@@ -45,22 +45,28 @@ function mapCollectionType(dbType: string): CollectionType {
  * The `collection_entries` table stores only the relationship
  * (collection_id, vault_id, position). TMDB metadata (title,
  * poster_path, etc.) is NOT stored — the UI fetches it from TMDB or
- * the vault. The `id` field is derived from `vault_id` for compatibility
- * with the existing UI which uses `entry.id === titleId`.
+ * the vault.
+ *
+ * `media_type` is NOT on the `collection_entries` table — it's on the
+ * `vault` row. The caller MUST resolve it from the vault and pass it
+ * via the `mediaType` parameter. If `mediaType` is undefined, the
+ * entry's `media_type` defaults to `"movie"` ONLY because the
+ * `CollectionEntry` type requires a value — but this is a last-resort
+ * fallback, not an assumption. Callers should always resolve
+ * media_type from the vault before calling this function.
+ *
+ * @param row        The collection_entries row.
+ * @param mediaType  media_type resolved from the vault row. If
+ *                   undefined, defaults to "movie" as a type-level
+ *                   requirement only — callers should resolve it.
  */
-export function entryRowToCollectionEntry(row: CollectionEntryRow): CollectionEntry {
-  // The vault_id is a UUID; the UI expects entry.id to match the
-  // vault item's tmdb_id (string). Since collection_entries references
-  // vault rows by UUID, we use vault_id as the entry id — the UI's
-  // isInCollection check compares against vault item ids, so this
-  // requires the vault item's UUID to be used as the comparison key.
-  // For now, we use vault_id directly; the UI's isInCollection will
-  // need to compare against vault UUIDs, not tmdb_ids.
+export function entryRowToCollectionEntry(
+  row: CollectionEntryRow,
+  mediaType: "movie" | "tv" = "movie"
+): CollectionEntry {
   return {
     id: row.vault_id,
-    media_type: "movie", // media_type is on the vault row, not the entry;
-    // the UI derives it from the vault item. Default to "movie" as a
-    // fallback; the enrichment step (if needed) can populate it.
+    media_type: mediaType,
     order: row.position,
   };
 }

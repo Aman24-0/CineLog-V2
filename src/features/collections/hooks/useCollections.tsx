@@ -12,7 +12,6 @@ import type { Session } from "~/lib/supabase/session";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
-import { evaluateSmartRules } from "~/features/collections/utils/evaluateSmartRules";
 import {
   createCollectionInSupabase,
   deleteCollectionInSupabase,
@@ -28,7 +27,10 @@ import {
   reorderEntriesInCollection,
 } from "../collectionEntryAdapter";
 import { useUniversePrefsLogic } from "./useUniversePrefs";
-import type { Collection, CollectionEntry, WatchlistItem, SmartRule } from "~/shared/types";
+import { createCollectionQueries } from "./collectionQueries";
+import { COLLECTION_FEATURE_SUPPORT, UnsupportedFeatureError, detectUnsupportedMetaFields } from "../collectionErrors";
+import type { CollectionMetaInput } from "../collectionErrors";
+import type { Collection, CollectionEntry, SmartRule } from "~/shared/types";
 
 const useCollectionsLogic = () => {
   const { showToast } = useToast();
@@ -124,17 +126,20 @@ const useCollectionsLogic = () => {
     } catch (err) { console.error("Failed to rename:", err); showToast("Failed to rename.", "error"); }
   };
 
-  const updateCollectionMeta = async (collectionId: string, meta: { name?: string; description?: string | null; color?: string | null; coverUrl?: string | null; bannerUrl?: string | null; accentColor?: string; emoji?: string; isArchived?: boolean }): Promise<void> => {
+  const updateCollectionMeta = async (collectionId: string, meta: CollectionMetaInput): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
-      await updateCollectionMetaInSupabase(collectionId, {
-        name: meta.name, description: meta.description,
-        coverUrl: meta.coverUrl, bannerUrl: meta.bannerUrl,
-        color: meta.color ?? meta.accentColor ?? null,
-      });
+      // Phase 8.1 — separate supported from unsupported fields.
+      // Unsupported fields produce an explicit warning (never silent).
+      const { supported, dropped } = detectUnsupportedMetaFields(meta);
+      await updateCollectionMetaInSupabase(collectionId, supported);
       await refreshCollections(uid);
-      showToast("Updated", "success", 1500);
+      if (dropped) {
+        showToast(`Saved, but unsupported: ${dropped.droppedFields.join(", ")}`, "info", 3000);
+      } else {
+        showToast("Updated", "success", 1500);
+      }
     } catch (err) { console.error("Failed to update:", err); showToast("Failed to update.", "error"); }
   };
 
@@ -157,50 +162,49 @@ const useCollectionsLogic = () => {
     } catch (err) { console.error("Failed to reorder:", err); showToast("Failed to reorder.", "error"); }
   };
 
-  const createSmartCollection = async (name: string, _rules: SmartRule[]): Promise<void> => {
+  const createSmartCollection = async (name: string, rules: SmartRule[]): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to create collections.", "error"); return; }
     try {
+      // Phase 8.1 — Smart collection rules are NOT persisted. The
+      // collections table has no JSONB or rules column (Database Bible
+      // §04 defines collection_type='smart' but no rules column).
+      // We create the collection with type='smart' so the UI can
+      // identify it, but the rules themselves are client-side only.
+      // The user is explicitly warned — no silent data loss.
       await createCollectionInSupabase(uid, name, { collectionType: "smart" as "user" | "curated" | "smart" });
       await refreshCollections(uid);
-      showToast(`Created smart collection "${name}"`, "success", 1500);
+      if (rules.length > 0) {
+        showToast(
+          `Created "${name}". Rules are evaluated live — not saved (schema limitation).`,
+          "info",
+          3000
+        );
+      } else {
+        showToast(`Created smart collection "${name}"`, "success", 1500);
+      }
     } catch (err) { console.error("Failed to create smart collection:", err); showToast("Failed to create smart collection.", "error"); }
   };
 
-  const updateSmartRules = async (_collectionId: string, _rules: SmartRule[]): Promise<void> => {
-    void _collectionId; void _rules;
-  };
-
-  // ─── Queries ─────────────────────────────────────────────────
-  const isInCollection = (collectionId: string, titleId: string, mediaType: string): boolean => {
-    const col = userCollections().find((c) => c.id === collectionId);
-    if (!col) return false;
-    return (col.entries ?? []).some((e) => e.id === titleId && e.media_type === mediaType);
-  };
-
-  const collectionsForTitle = (titleId: string, mediaType: string): Collection[] =>
-    userCollections().filter((c) => (c.entries ?? []).some((e) => e.id === titleId && e.media_type === mediaType));
-
-  const getCollectionProgress = (col: Collection, vault: WatchlistItem[]) => {
-    let entries = (col.entries ?? []).filter((e): e is CollectionEntry => e != null && typeof e === "object");
-    if (col.isSmart && Array.isArray(col.smartRules) && col.smartRules.length > 0) {
-      const matched = evaluateSmartRules(col.smartRules, vault);
-      entries = matched.map((v) => ({ id: String(v.id), media_type: v.media_type, title: v.title, name: v.name, poster_path: v.poster_path, backdrop_path: v.backdrop_path, release_date: v.release_date, first_air_date: v.first_air_date, runtime: v.runtime }));
+  const updateSmartRules = async (collectionId: string, rules: SmartRule[]): Promise<void> => {
+    // Phase 8.1 — Smart collection rules CANNOT be persisted. The
+    // collections table has no JSONB or rules column. Instead of
+    // silently ignoring (the old behavior), we throw an explicit
+    // UnsupportedFeatureError. The hook catches it and shows a toast.
+    void collectionId;
+    if (rules.length > 0) {
+      const err = new UnsupportedFeatureError(
+        "smartRules",
+        COLLECTION_FEATURE_SUPPORT.smartRules.limitation,
+        "Smart collection rules cannot be saved — the database schema does not support persisting rules."
+      );
+      console.warn(err.message);
+      showToast("Rules are evaluated live and cannot be saved (schema limitation).", "info", 3000);
     }
-    const total = entries.length;
-    const owned = entries.filter((e) => vault.some((v) => String(v.id) === String(e.id) && v.media_type === e.media_type)).length;
-    const completed = entries.filter((e) => { const v = vault.find((v) => String(v.id) === String(e.id) && v.media_type === e.media_type); return v?.status === "Completed"; }).length;
-    const watching = entries.filter((e) => { const v = vault.find((v) => String(v.id) === String(e.id) && v.media_type === e.media_type); return v?.status === "Watching"; }).length;
-    const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
-    const totalRuntime = entries.reduce((sum, e) => sum + (e.runtime ?? 0), 0);
-    return { owned, total, pct, completed, watching, missing: total - owned, totalRuntime };
   };
 
-  const resolveSmartCollection = (col: Collection, vault: WatchlistItem[]): CollectionEntry[] => {
-    if (!col.isSmart || !col.smartRules) return col.entries ?? [];
-    const matched = evaluateSmartRules(col.smartRules, vault);
-    return matched.map((v) => ({ id: String(v.id), media_type: v.media_type, title: v.title, name: v.name, poster_path: v.poster_path, backdrop_path: v.backdrop_path, release_date: v.release_date, first_air_date: v.first_air_date, runtime: v.runtime }));
-  };
+  // ─── Queries (delegated to collectionQueries.ts) ─────────────
+  const queries = createCollectionQueries(userCollections);
 
   return {
     userCollections, curatedCollections: curated, allCollections, loading,
@@ -208,7 +212,7 @@ const useCollectionsLogic = () => {
     createCollection, addToCollection, removeFromCollection, deleteCollection,
     renameCollection, updateCollectionMeta, duplicateCollection, reorderEntries,
     createSmartCollection, updateSmartRules,
-    isInCollection, collectionsForTitle, getCollectionProgress, resolveSmartCollection,
+    ...queries,
   };
 };
 
