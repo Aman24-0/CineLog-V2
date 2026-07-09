@@ -3,7 +3,7 @@ import { Show, createMemo } from "solid-js";
 import Icon from "./Icon";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
-import { login, logout } from "~/core/firebase/auth";
+import { getClient } from "~/lib/supabase/client";
 
 /**
  * Sticky application header — V2 simplified.
@@ -34,16 +34,24 @@ export default function AppHeader() {
   });
 
   const handleAvatarClick = async () => {
+    const supabase = getClient();
     if (isSignedIn()) {
       try {
-        await logout();
+        const { error } = await supabase.auth.signOut();
+        if (error) throw error;
         showToast("Signed out", "info");
       } catch {
         showToast("Sign out failed", "error");
       }
     } else {
       try {
-        await login();
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+          }
+        });
+        if (error) throw error;
         showToast("Signed in successfully! 🎬", "success");
       } catch {
         showToast("Sign in failed. Please try again.", "error");

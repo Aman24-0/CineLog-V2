@@ -4,7 +4,7 @@ import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { login } from "~/core/firebase/auth";
+import { getClient } from "~/lib/supabase/client";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -111,7 +111,14 @@ export default function SearchPage() {
     }
     if (isGuest()) {
       try {
-        await login();
+        const supabase = getClient();
+        const { error } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+          }
+        });
+        if (error) throw error;
         showToast("Signed in — try saving again.", "success");
       } catch {
         showToast("Sign in failed. Please try again.", "error");

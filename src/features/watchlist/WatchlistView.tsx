@@ -5,7 +5,7 @@ import Icon from "~/shared/ui/Icon";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useToast } from "~/shared/hooks/useToast";
-import { login } from "~/core/firebase/auth";
+import { getClient } from "~/lib/supabase/client";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
@@ -296,7 +296,14 @@ export default function WatchlistView() {
 
   const handleLogin = async () => {
     try {
-      await login();
+      const supabase = getClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+        }
+      });
+      if (error) throw error;
       showToast("Signed in successfully! 🎬", "success");
     } catch {
       showToast("Sign in failed. Please try again.", "error");
