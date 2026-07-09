@@ -1,28 +1,32 @@
 // src/features/watchlist/useVault.ts
 //
-// Phase 7.2 — Complete Vault Migration
-// --------------------------------------
-// The Vault feature now uses Supabase as its SINGLE source of truth.
-// All reads AND writes go through vaultAdapter → VaultRepository → Supabase.
+// Phase 10.3 — Compatibility Wrapper
+// -----------------------------------
+// useVault() is now a COMPATIBILITY WRAPPER around useUserLibrary().
+// The READ path (watchlist, loading, isGuest, error) delegates entirely
+// to the shared UserLibraryProvider. Only the WRITE methods (which call
+// vaultAdapter + episodeProgressAdapter) and PRESETS (Firestore) remain.
 //
-// Firestore is no longer used for vault items. The watchlistService
-// (Firestore) is NOT imported. There are no optimistic-update workarounds
-// — after each write, the vault is re-fetched from Supabase so the UI
-// always reflects the authoritative state.
+// DEPRECATED: New code should use useUserLibrary() directly. This wrapper
+// exists only so existing consumers (CollectionsPage, WatchlistView,
+// DetailsModal, etc.) continue working without modification.
 //
-// PRESETS remain on Firestore for now (there is no Supabase PresetRepository
-// or presets table). This is the only remaining Firestore dependency in
-// this file and is clearly delimited below. Presets are filter
-// configurations, not vault items.
+// Architecture:
+//   App → UserLibraryProvider → useUserLibrary() → useVault() (compat) → consumers
+//
+// The provider owns the SINGLE fetch + auth subscription + state.
+// This wrapper adds only vault-specific WRITE methods + presets on top.
 import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
 import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "~/core/firebase";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
 import { useToast } from "~/shared/hooks/useToast";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
+import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import type { UserLibrary } from "~/shared/hooks/useUserLibrary";
 import {
   deleteVaultItemInSupabase,
-  fetchVaultFromSupabase,
   toggleFavoriteInSupabase,
   togglePinnedInSupabase,
   updateNotesInSupabase,
@@ -40,58 +44,51 @@ import {
   deletePreset as svcDeletePreset,
   renamePreset as svcRenamePreset
 } from "./watchlistService";
-import type { WatchlistItem, WatchProgress, FilterPreset, VaultFilters } from "~/shared/types";
+import type { WatchProgress, FilterPreset, VaultFilters } from "~/shared/types";
 
-const useVaultLogic = () => {
+/**
+ * Vault interface — extends UserLibrary with vault-specific write methods
+ * and presets.
+ */
+export interface VaultStore extends UserLibrary {
+  readonly presets: () => FilterPreset[];
+  readonly uid: () => string | null;
+  readonly updateStatus: (itemId: string, status: string) => Promise<void>;
+  readonly updateRating: (itemId: string, rating: number) => Promise<void>;
+  readonly updateNotes: (itemId: string, notes: string) => Promise<void>;
+  readonly updateWatchDate: (itemId: string, watchDate: string) => Promise<void>;
+  readonly updateSeasonEpisode: (itemId: string, season: number, episode: number) => Promise<void>;
+  readonly updateWatchProgress: (itemId: string, progress: WatchProgress) => Promise<void>;
+  readonly deleteWatchlistItem: (itemId: string) => Promise<void>;
+  readonly toggleFavorite: (itemId: string) => Promise<void>;
+  readonly togglePinned: (itemId: string) => Promise<void>;
+  readonly updateProgress: (itemId: string, progressMinutes: number) => Promise<void>;
+  readonly savePreset: (name: string, filters: VaultFilters) => Promise<void>;
+  readonly deletePreset: (presetId: string) => Promise<void>;
+  readonly renamePreset: (presetId: string, name: string) => Promise<void>;
+}
+
+const useVaultLogic = (): VaultStore => {
+  // READ path: delegate to the shared UserLibraryProvider
+  const library = useUserLibrary();
+  const { watchlist, loading, isGuest, error, refresh } = library;
+
   const { showToast } = useToast();
-  const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [presets, setPresets] = createSignal<FilterPreset[]>([]);
-  const [loading, setLoading] = createSignal(true);
-  const [isGuest, setIsGuest] = createSignal(true);
-  const [error, setError] = createSignal<string | null>(null);
-  const [uid, setUid] = createSignal<string | null>(null);
 
+  // Presets still need their own Firestore onSnapshot (no Supabase table yet)
   let unsubPresets: (() => void) | null = null;
   let unsubAuth: (() => void) | null = null;
 
-  /**
-   * Refresh the vault from Supabase (the single source of truth).
-   * Called on session change and after every write.
-   */
-  const refreshVault = async (supabaseUid: string) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const items = await fetchVaultFromSupabase(supabaseUid);
-      setWatchlist(items);
-      setLoading(false);
-      setError(null);
-    } catch (err) {
-      console.error("[useVault] Supabase error fetching vault:", err);
-      setWatchlist([]);
-      setLoading(false);
-      setError("Failed to load vault data. Please try again later.");
-    }
-  };
-
   onMount(() => {
+    // Subscribe to auth for presets subscription lifecycle only.
+    // The vault data itself is handled by UserLibraryProvider.
     const subscription = onSessionChange(async (_event, session: Session | null) => {
       const supabaseUid = session?.user?.id ?? null;
-      setIsGuest(!supabaseUid);
-      setUid(supabaseUid);
-
-      if (unsubPresets) {
-        unsubPresets();
-        unsubPresets = null;
-      }
+      if (unsubPresets) { unsubPresets(); unsubPresets = null; }
 
       if (supabaseUid) {
-        // Vault items: READ from Supabase
-        await refreshVault(supabaseUid);
-
         // PRESETS: still on Firestore (no Supabase PresetRepository).
-        // This is the ONLY Firestore dependency remaining in useVault.
-        // It will be migrated when a presets table is added to Supabase.
         unsubPresets = onSnapshot(
           collection(db, "users", supabaseUid, "presets"),
           (snap) => {
@@ -100,10 +97,7 @@ const useVaultLogic = () => {
           (err) => console.error("Error fetching presets:", err)
         );
       } else {
-        setWatchlist([]);
         setPresets([]);
-        setLoading(false);
-        setError(null);
       }
     });
     unsubAuth = () => subscription.unsubscribe();
@@ -114,9 +108,12 @@ const useVaultLogic = () => {
     if (unsubPresets) unsubPresets();
   });
 
+  // uid — derived from the auth provider (same source as UserLibraryProvider)
+  const uid = () => getCurrentUid();
+
   // ---- Write operations (ALL via Supabase through vaultAdapter) ----
-  // After each write, refreshVault is called to re-fetch the authoritative
-  // state from Supabase. No optimistic updates — single source of truth.
+  // After each write, refresh() is called to re-fetch from the provider.
+  // This triggers the SINGLE fetch in UserLibraryProvider — no duplicate.
 
   const updateStatus = async (itemId: string, status: string) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
@@ -124,12 +121,9 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await updateStatusInSupabase(uid()!, itemId, item.media_type, status);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Status updated!", "success");
-    } catch (err) {
-      showToast("Failed to update status.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to update status.", "error"); throw err; }
   };
 
   const updateRating = async (itemId: string, rating: number) => {
@@ -138,12 +132,9 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await updateRatingInSupabase(uid()!, itemId, item.media_type, rating);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Rating updated!", "success");
-    } catch (err) {
-      showToast("Failed to update rating.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to update rating.", "error"); throw err; }
   };
 
   const updateNotes = async (itemId: string, notes: string) => {
@@ -152,12 +143,9 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await updateNotesInSupabase(uid()!, itemId, item.media_type, notes);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Notes saved!", "success");
-    } catch (err) {
-      showToast("Failed to save notes.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to save notes.", "error"); throw err; }
   };
 
   const updateWatchDate = async (itemId: string, watchDate: string) => {
@@ -166,12 +154,9 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await updateWatchDateInSupabase(uid()!, itemId, item.media_type, watchDate);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Watch date updated!", "success");
-    } catch (err) {
-      showToast("Failed to update watch date.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to update watch date.", "error"); throw err; }
   };
 
   const updateSeasonEpisode = async (itemId: string, season: number, episode: number) => {
@@ -179,16 +164,10 @@ const useVaultLogic = () => {
     try {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
-      // Phase 7.3 — persists to the `episode_progress` table via
-      // EpisodeProgressRepository. The vault row's UUID is resolved
-      // from the TMDB identity inside the adapter.
       await updateSeasonEpisodeInSupabase(uid()!, itemId, item.media_type, season, episode);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Episode progress updated!", "success");
-    } catch (err) {
-      showToast("Failed to update episode progress.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to update episode progress.", "error"); throw err; }
   };
 
   const updateWatchProgress = async (itemId: string, progress: WatchProgress) => {
@@ -198,16 +177,11 @@ const useVaultLogic = () => {
       if (item && (item.status === "Planned" || item.status === "Plan to Watch")) {
         await updateStatusInSupabase(uid()!, itemId, item.media_type, "Watching");
       }
-      // Phase 7.3 — persists the season/episode from the WatchProgress
-      // object to the `episode_progress` table.
       if (item) {
         await updateWatchProgressInSupabase(uid()!, itemId, item.media_type, progress);
       }
-      await refreshVault(uid()!);
-    } catch (err) {
-      showToast("Failed to save progress.", "error");
-      throw err;
-    }
+      await refresh();
+    } catch (err) { showToast("Failed to save progress.", "error"); throw err; }
   };
 
   const deleteWatchlistItem = async (itemId: string) => {
@@ -216,12 +190,9 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await deleteVaultItemInSupabase(uid()!, itemId, item.media_type);
-      await refreshVault(uid()!);
+      await refresh();
       showToast("Item deleted.", "success");
-    } catch (err) {
-      showToast("Failed to delete item.", "error");
-      throw err;
-    }
+    } catch (err) { showToast("Failed to delete item.", "error"); throw err; }
   };
 
   const toggleFavorite = async (itemId: string) => {
@@ -229,14 +200,9 @@ const useVaultLogic = () => {
     try {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
-      // is_favorite state is not on the WatchlistItem — fetch from the
-      // repo to get the current value, then toggle.
       await toggleFavoriteInSupabase(uid()!, itemId, item.media_type, false);
-      await refreshVault(uid()!);
-    } catch (err) {
-      showToast("Failed to toggle favorite.", "error");
-      throw err;
-    }
+      await refresh();
+    } catch (err) { showToast("Failed to toggle favorite.", "error"); throw err; }
   };
 
   const togglePinned = async (itemId: string) => {
@@ -245,11 +211,8 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await togglePinnedInSupabase(uid()!, itemId, item.media_type, false);
-      await refreshVault(uid()!);
-    } catch (err) {
-      showToast("Failed to toggle pin.", "error");
-      throw err;
-    }
+      await refresh();
+    } catch (err) { showToast("Failed to toggle pin.", "error"); throw err; }
   };
 
   const updateProgress = async (itemId: string, progressMinutes: number) => {
@@ -258,79 +221,48 @@ const useVaultLogic = () => {
       const item = watchlist().find((m) => m.id === itemId);
       if (!item) throw new Error("Item not found in vault");
       await updateProgressInSupabase(uid()!, itemId, item.media_type, progressMinutes);
-      await refreshVault(uid()!);
-    } catch (err) {
-      showToast("Failed to update progress.", "error");
-      throw err;
-    }
+      await refresh();
+    } catch (err) { showToast("Failed to update progress.", "error"); throw err; }
   };
 
   // ---- Presets (still Firestore — no Supabase table yet) ----
-
   const savePreset = async (name: string, filters: VaultFilters) => {
     if (!uid()) return;
-    try {
-      await svcSavePreset(uid()!, name, filters);
-      showToast("Preset saved!", "success");
-    } catch (err) {
-      showToast("Failed to save preset.", "error");
-    }
+    try { await svcSavePreset(uid()!, name, filters); showToast("Preset saved!", "success"); }
+    catch { showToast("Failed to save preset.", "error"); }
   };
-
   const deletePreset = async (presetId: string) => {
     if (!uid()) return;
-    try {
-      await svcDeletePreset(uid()!, presetId);
-      showToast("Preset deleted.", "success");
-    } catch (err) {
-      showToast("Failed to delete preset.", "error");
-    }
+    try { await svcDeletePreset(uid()!, presetId); showToast("Preset deleted.", "success"); }
+    catch { showToast("Failed to delete preset.", "error"); }
   };
-
   const renamePreset = async (presetId: string, name: string) => {
     if (!uid()) return;
-    try {
-      await svcRenamePreset(uid()!, presetId, name);
-      showToast("Preset renamed.", "success");
-    } catch (err) {
-      showToast("Failed to rename preset.", "error");
-    }
+    try { await svcRenamePreset(uid()!, presetId, name); showToast("Preset renamed.", "success"); }
+    catch { showToast("Failed to rename preset.", "error"); }
   };
 
   return {
-    watchlist,
-    presets,
-    loading,
-    isGuest,
-    error,
-    uid,
-    updateStatus,
-    updateRating,
-    updateNotes,
-    updateWatchDate,
-    updateSeasonEpisode,
-    updateWatchProgress,
-    deleteWatchlistItem,
-    toggleFavorite,
-    togglePinned,
-    updateProgress,
-    savePreset,
-    deletePreset,
-    renamePreset
+    watchlist, loading, isGuest, error,
+    presets, uid,
+    updateStatus, updateRating, updateNotes, updateWatchDate,
+    updateSeasonEpisode, updateWatchProgress, deleteWatchlistItem,
+    toggleFavorite, togglePinned, updateProgress,
+    savePreset, deletePreset, renamePreset,
+    refresh
   };
 };
 
-const VaultContext = createContext<ReturnType<typeof useVaultLogic>>();
+const VaultContext = createContext<VaultStore>();
 
 export const VaultProvider: ParentComponent = (props) => {
   const vault = useVaultLogic();
-  return (
-    <VaultContext.Provider value={vault}>
-      {props.children}
-    </VaultContext.Provider>
-  );
+  return <VaultContext.Provider value={vault}>{props.children}</VaultContext.Provider>;
 };
 
-export function useVault() {
-  return useContext(VaultContext)!;
+/** @deprecated Use useUserLibrary() directly for read-only access. */
+export function useVault(): VaultStore {
+  const ctx = useContext(VaultContext);
+  if (!ctx) throw new Error("useVault must be used within a VaultProvider");
+  return ctx;
 }

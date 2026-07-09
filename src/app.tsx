@@ -13,6 +13,7 @@ import "./app/globals.css";
 // (the root cause of "active state visibility is still broken").
 import { theme } from "./core/theme";
 import AppShell from "./app/AppShell";
+import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
 
@@ -22,20 +23,22 @@ void theme;
 
 export default function App() {
   return (
-    <VaultProvider>
-      <CollectionsProvider>
-        <Router
-          root={(props) => (
-            <AppShell>
-              <Suspense fallback={<div>Loading...</div>}>
-                {props.children}
-              </Suspense>
-            </AppShell>
-          )}
-        >
-          <FileRoutes />
-        </Router>
-      </CollectionsProvider>
-    </VaultProvider>
+    <UserLibraryProvider>
+      <VaultProvider>
+        <CollectionsProvider>
+          <Router
+            root={(props) => (
+              <AppShell>
+                <Suspense fallback={<div>Loading...</div>}>
+                  {props.children}
+                </Suspense>
+              </AppShell>
+            )}
+          >
+            <FileRoutes />
+          </Router>
+        </CollectionsProvider>
+      </VaultProvider>
+    </UserLibraryProvider>
   );
 }
