@@ -13,7 +13,7 @@ import type { WatchlistItem, TMDBDetails, CachedSeasonInfo } from "~/shared/type
  *   No currentTime, no streaming playback percentage, no legacy logic.
  *
  *   *** SERIES-WIDE PROGRESS ***
- *   The percentage represents overall SERIES completion, never per-season:
+ *   The percentage represents overall SERIES completion:
  *
  *       completedEpisodesAcrossAllSeasons
  *       ----------------------------------
@@ -31,32 +31,9 @@ import type { WatchlistItem, TMDBDetails, CachedSeasonInfo } from "~/shared/type
  *
  * SEASON DATA SOURCES (in priority order):
  *   1. `m.seasons` — cached on the WatchlistItem by the Details modal.
- *      Available everywhere; no fetch needed.
- *   2. `details.seasons` — passed in by callers that have TMDB details
- *      (currently only the Details modal / EpisodeTracker).
+ *   2. `details.seasons` — passed in by callers that have TMDB details.
  *   3. `m.totalEps` (legacy) — treated as season 1's episode count.
- *      Used only for items cached before the `seasons` field existed.
  *   4. `[]` (empty) — no data; progress returns pct=0 with a label only.
- *
- * MIGRATION:
- *   Legacy V1 data may contain watchProgress with currentTime > 0 on Planned
- *   titles. The `isWatchable` gate ensures these are never shown as "in
- *   progress". The `useVault` hook also clears invalid watchProgress on load.
- *
- * USAGE:
- *   import { isWatchable, getContinueWatchingList, getEpisodeProgress } from "~/shared/utils/progress";
- *
- *   // Gate: only Watching titles participate
- *   if (isWatchable(item)) { ... }
- *
- *   // List: all resumable titles (Watching only)
- *   const continueList = getContinueWatchingList(watchlist);
- *
- *   // Progress — single source of truth for percentages everywhere
- *   const progress = getEpisodeProgress(item, tmdbDetails);
- *   // → { pct: 73, season: 3, episode: 1, totalEps: 8, totalSeasons: 3,
- *   //    seriesTotalEps: 26, seriesCompletedEps: 19, isAtEnd: false,
- *   //    label: "S3 E1 / 8", seriesLabel: "19 / 26 eps" }
  */
 
 /**

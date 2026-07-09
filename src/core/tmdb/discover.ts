@@ -2,6 +2,13 @@
 import { TMDB_KEY } from "./tmdb";
 import type { TMDBTitle } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
+import { GENRE_ID, genreIdFor } from "./genres";
+import { normalizeList, type TMDBRawItem } from "./discoverNormalize";
+
+// Re-export genre helpers + raw type so existing consumers can keep
+// importing from discover.ts.
+export { GENRE_ID, genreIdFor };
+export type { TMDBRawItem };
 
 /**
  * Discover API — the read-only TMDB layer for Discover V2.
@@ -10,85 +17,11 @@ import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
  * Firestore; adding to vault goes through the existing useVault flow.
  *
  * All endpoints are server-safe (plain fetch, no client-only APIs).
- * The TMDB genre map is inlined so we don't need a separate fetch to
- * resolve `genre_ids` to names.
+ * Genre maps live in `./genres.ts`. Normalization lives in
+ * `./discoverNormalize.ts`.
  */
 
 const API = "https://api.themoviedb.org/3";
-
-/* ------------------------------------------------------------------
-   TMDB genre maps (movie + tv). Inlined so discover cards can render
-   genre names without a second round-trip.
-   ------------------------------------------------------------------ */
-const MOVIE_GENRES: Record<number, string> = {
-  28: "Action", 12: "Adventure", 16: "Animation", 35: "Comedy",
-  80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
-  14: "Fantasy", 36: "History", 27: "Horror", 10402: "Music",
-  9648: "Mystery", 10749: "Romance", 878: "Sci-Fi", 10770: "TV Movie",
-  53: "Thriller", 10752: "War", 37: "Western"
-};
-const TV_GENRES: Record<number, string> = {
-  10759: "Action & Adventure", 16: "Animation", 35: "Comedy",
-  80: "Crime", 99: "Documentary", 18: "Drama", 10751: "Family",
-  10762: "Kids", 9648: "Mystery", 10763: "News", 10764: "Reality",
-  10765: "Sci-Fi & Fantasy", 10766: "Soap", 10767: "Talk",
-  10768: "War & Politics", 37: "Western"
-};
-
-const resolveGenres = (ids: number[] | undefined, mediaType: "movie" | "tv"): string[] => {
-  if (!ids || ids.length === 0) return [];
-  const map = mediaType === "tv" ? TV_GENRES : MOVIE_GENRES;
-  return ids.map((id) => map[id]).filter(Boolean);
-};
-
-/* ------------------------------------------------------------------
-   Normalization — TMDB returns slightly different shapes for movie
-   vs tv and for /discover vs /trending vs /recommendations. This
-   single function unifies them into TMDBTitle.
-   ------------------------------------------------------------------ */
-interface TMDBRawItem {
-  id: number;
-  title?: string;
-  name?: string;
-  media_type?: string;
-  poster_path?: string | null;
-  backdrop_path?: string | null;
-  overview?: string;
-  release_date?: string;
-  first_air_date?: string;
-  vote_average?: number;
-  vote_count?: number;
-  genre_ids?: number[];
-}
-
-const normalize = (raw: TMDBRawItem, fallbackMediaType?: "movie" | "tv"): TMDBTitle | null => {
-  if (!raw || !raw.id) return null;
-  // trending endpoints return media_type on every item; /discover/movie doesn't
-  const mediaType = (raw.media_type as "movie" | "tv") || fallbackMediaType || "movie";
-  if (mediaType !== "movie" && mediaType !== "tv") return null;
-  return {
-    id: raw.id,
-    title: raw.title,
-    name: raw.name,
-    media_type: mediaType,
-    poster_path: raw.poster_path ?? null,
-    backdrop_path: raw.backdrop_path ?? null,
-    overview: raw.overview,
-    release_date: raw.release_date,
-    first_air_date: raw.first_air_date,
-    vote_average: raw.vote_average,
-    vote_count: raw.vote_count,
-    genre_ids: raw.genre_ids,
-    genres: resolveGenres(raw.genre_ids, mediaType)
-  };
-};
-
-const normalizeList = (items: TMDBRawItem[] | undefined, fallbackMediaType?: "movie" | "tv"): TMDBTitle[] => {
-  if (!Array.isArray(items)) return [];
-  return items
-    .map((i) => normalize(i, fallbackMediaType))
-    .filter((t): t is TMDBTitle => t !== null);
-};
 
 /* ------------------------------------------------------------------
    Endpoint wrappers. Each returns TMDBTitle[] (already normalized).
@@ -288,32 +221,4 @@ export async function fetchTitleDirector(
   const creator = crew.find((c) => c.job === "Creator") ||
     crew.find((c) => c.job === "Executive Producer" && c.department === "Production");
   return creator?.name;
-}
-
-/** Genre ID helpers — callers pass genre names, we resolve to IDs. */
-export const GENRE_ID = {
-  movie: MOVIE_GENRES,
-  tv: TV_GENRES
-} as const;
-
-/** Reverse lookup: genre name → ID, for the user's preferred media type. */
-export function genreIdFor(name: string, mediaType: "movie" | "tv"): number | undefined {
-  const map = mediaType === "tv" ? TV_GENRES : MOVIE_GENRES;
-  for (const [id, n] of Object.entries(map)) {
-    if (n.toLowerCase() === name.toLowerCase()) return Number(id);
-  }
-  // Common-name fallbacks so "Sci-Fi" resolves even if the user stored "Science Fiction"
-  const aliases: Record<string, string> = {
-    "sci-fi": "Sci-Fi",
-    "science fiction": "Sci-Fi",
-    "scifi": "Sci-Fi",
-    "action & adventure": "Action & Adventure"
-  };
-  const alias = aliases[name.toLowerCase()];
-  if (alias) {
-    for (const [id, n] of Object.entries(map)) {
-      if (n === alias) return Number(id);
-    }
-  }
-  return undefined;
 }
