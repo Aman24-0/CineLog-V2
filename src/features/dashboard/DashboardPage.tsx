@@ -1,10 +1,17 @@
 // src/features/dashboard/DashboardPage.tsx
+//
+// Phase 9 — Dashboard Migration
+// ------------------------------
+// Dashboard now reads from Supabase via DashboardRepository (stats +
+// shelves) and useVault (watchlist for the recommendation engine).
+// No Firestore dependency — `login` now uses the Supabase auth
+// foundation directly via getClient().
 import { createSignal, createMemo, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
-import { login } from "~/core/firebase/auth";
+import { getClient } from "~/lib/supabase/client";
 import PageContainer from "~/shared/ui/PageContainer";
 import { isWatchable } from "~/shared/utils/progress";
 import GreetingBlock from "./components/GreetingBlock";
@@ -89,7 +96,15 @@ export default function DashboardPage() {
 
   const handleLogin = async () => {
     try {
-      await login();
+      // Phase 9 — login via Supabase OAuth directly (no Firestore shim).
+      const supabase = getClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+        }
+      });
+      if (error) throw error;
       showToast("Signed in successfully! 🎬", "success");
     } catch (error) {
       showToast("Sign in failed. Please try again.", "error");
