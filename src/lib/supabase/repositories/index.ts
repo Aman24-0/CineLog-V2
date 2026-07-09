@@ -40,3 +40,30 @@ export type {
   VaultSort,
   VaultSearchQuery
 } from "./vaultRepository";
+
+// ---- ProfileRepository (Phase 4) ------------------------------------------
+// Modular: profile/ subfolder with types, utils, read, write, repository.
+export { ProfileRepository, getProfileRepository } from "./profile";
+
+export type {
+  ProfileRow,
+  PreferencesRow,
+  ProfileInsert,
+  ProfileUpdate,
+  PreferencesInsert,
+  PreferencesUpdate,
+  ThemeType,
+  DensityType,
+  PreferredContentType,
+  VaultViewType,
+  DiscoverViewType,
+  CollectionViewType,
+  SortModeType,
+  SpoilerLevelType,
+  AdultContentType,
+  CreateProfilePayload,
+  UpdateProfilePayload,
+  UpdatePreferencesPayload,
+  ProfileResult,
+  ProfileWriteResult
+} from "./profile";

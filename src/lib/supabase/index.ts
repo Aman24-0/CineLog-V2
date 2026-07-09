@@ -154,5 +154,30 @@ export type {
   VaultSearchQuery
 } from "./repositories";
 
+export { ProfileRepository, getProfileRepository } from "./repositories";
+
+export type {
+  ProfileRow,
+  PreferencesRow,
+  ProfileInsert,
+  ProfileUpdate,
+  PreferencesInsert,
+  PreferencesUpdate,
+  ThemeType,
+  DensityType,
+  PreferredContentType,
+  VaultViewType,
+  DiscoverViewType,
+  CollectionViewType,
+  SortModeType,
+  SpoilerLevelType,
+  AdultContentType,
+  CreateProfilePayload,
+  UpdateProfilePayload,
+  UpdatePreferencesPayload,
+  ProfileResult,
+  ProfileWriteResult
+} from "./repositories";
+
 
 
