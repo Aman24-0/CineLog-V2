@@ -1,24 +1,18 @@
 // src/features/watchlist/useVault.ts
 //
-// Phase 10.3 — Compatibility Wrapper
-// -----------------------------------
+// Phase 12.2 — Complete Presets Migration & Firebase Removal
+// ----------------------------------------------------------
 // useVault() is now a COMPATIBILITY WRAPPER around useUserLibrary().
 // The READ path (watchlist, loading, isGuest, error) delegates entirely
-// to the shared UserLibraryProvider. Only the WRITE methods (which call
-// vaultAdapter + episodeProgressAdapter) and PRESETS (Firestore) remain.
+// to the shared UserLibraryProvider. WRITE methods call vaultAdapter +
+// episodeProgressAdapter. PRESETS now use Supabase via presetAdapter.
 //
-// DEPRECATED: New code should use useUserLibrary() directly. This wrapper
-// exists only so existing consumers (CollectionsPage, WatchlistView,
-// DetailsModal, etc.) continue working without modification.
+// ZERO Firestore dependencies. ZERO Firebase imports.
 //
 // Architecture:
 //   App → UserLibraryProvider → useUserLibrary() → useVault() (compat) → consumers
-//
-// The provider owns the SINGLE fetch + auth subscription + state.
-// This wrapper adds only vault-specific WRITE methods + presets on top.
+//   Presets: useVault → presetAdapter → PresetRepository → Supabase
 import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
-import { collection, onSnapshot } from "firebase/firestore";
-import { db } from "~/core/firebase";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
 import { useToast } from "~/shared/hooks/useToast";
@@ -40,16 +34,13 @@ import {
   updateWatchProgressInSupabase
 } from "./episodeProgressAdapter";
 import {
-  savePreset as svcSavePreset,
-  deletePreset as svcDeletePreset,
-  renamePreset as svcRenamePreset
-} from "./watchlistService";
+  fetchPresetsFromSupabase,
+  createPresetInSupabase,
+  renamePresetInSupabase,
+  deletePresetFromSupabase
+} from "./presetAdapter";
 import type { WatchProgress, FilterPreset, VaultFilters } from "~/shared/types";
 
-/**
- * Vault interface — extends UserLibrary with vault-specific write methods
- * and presets.
- */
 export interface VaultStore extends UserLibrary {
   readonly presets: () => FilterPreset[];
   readonly uid: () => string | null;
@@ -69,33 +60,29 @@ export interface VaultStore extends UserLibrary {
 }
 
 const useVaultLogic = (): VaultStore => {
-  // READ path: delegate to the shared UserLibraryProvider
   const library = useUserLibrary();
   const { watchlist, loading, isGuest, error, refresh } = library;
 
   const { showToast } = useToast();
   const [presets, setPresets] = createSignal<FilterPreset[]>([]);
 
-  // Presets still need their own Firestore onSnapshot (no Supabase table yet)
-  let unsubPresets: (() => void) | null = null;
   let unsubAuth: (() => void) | null = null;
 
+  /** Refresh presets from Supabase (single source of truth). */
+  const refreshPresets = async (userId: string) => {
+    try {
+      const items = await fetchPresetsFromSupabase(userId);
+      setPresets(items);
+    } catch (err) {
+      console.error("[useVault] Error fetching presets:", err);
+    }
+  };
+
   onMount(() => {
-    // Subscribe to auth for presets subscription lifecycle only.
-    // The vault data itself is handled by UserLibraryProvider.
     const subscription = onSessionChange(async (_event, session: Session | null) => {
       const supabaseUid = session?.user?.id ?? null;
-      if (unsubPresets) { unsubPresets(); unsubPresets = null; }
-
       if (supabaseUid) {
-        // PRESETS: still on Firestore (no Supabase PresetRepository).
-        unsubPresets = onSnapshot(
-          collection(db, "users", supabaseUid, "presets"),
-          (snap) => {
-            setPresets(snap.docs.map((d) => ({ id: d.id, ...d.data() }) as FilterPreset));
-          },
-          (err) => console.error("Error fetching presets:", err)
-        );
+        await refreshPresets(supabaseUid);
       } else {
         setPresets([]);
       }
@@ -105,16 +92,11 @@ const useVaultLogic = (): VaultStore => {
 
   onCleanup(() => {
     if (unsubAuth) unsubAuth();
-    if (unsubPresets) unsubPresets();
   });
 
-  // uid — derived from the auth provider (same source as UserLibraryProvider)
   const uid = () => getCurrentUid();
 
-  // ---- Write operations (ALL via Supabase through vaultAdapter) ----
-  // After each write, refresh() is called to re-fetch from the provider.
-  // This triggers the SINGLE fetch in UserLibraryProvider — no duplicate.
-
+  // ---- Vault write operations (via Supabase) ----
   const updateStatus = async (itemId: string, status: string) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
@@ -225,21 +207,32 @@ const useVaultLogic = (): VaultStore => {
     } catch (err) { showToast("Failed to update progress.", "error"); throw err; }
   };
 
-  // ---- Presets (still Firestore — no Supabase table yet) ----
+  // ---- Presets (via Supabase through presetAdapter) ----
   const savePreset = async (name: string, filters: VaultFilters) => {
     if (!uid()) return;
-    try { await svcSavePreset(uid()!, name, filters); showToast("Preset saved!", "success"); }
-    catch { showToast("Failed to save preset.", "error"); }
+    try {
+      await createPresetInSupabase(uid()!, name, filters);
+      await refreshPresets(uid()!);
+      showToast("Preset saved!", "success");
+    } catch { showToast("Failed to save preset.", "error"); }
   };
+
   const deletePreset = async (presetId: string) => {
     if (!uid()) return;
-    try { await svcDeletePreset(uid()!, presetId); showToast("Preset deleted.", "success"); }
-    catch { showToast("Failed to delete preset.", "error"); }
+    try {
+      await deletePresetFromSupabase(presetId);
+      await refreshPresets(uid()!);
+      showToast("Preset deleted.", "success");
+    } catch { showToast("Failed to delete preset.", "error"); }
   };
+
   const renamePreset = async (presetId: string, name: string) => {
     if (!uid()) return;
-    try { await svcRenamePreset(uid()!, presetId, name); showToast("Preset renamed.", "success"); }
-    catch { showToast("Failed to rename preset.", "error"); }
+    try {
+      await renamePresetInSupabase(presetId, name);
+      await refreshPresets(uid()!);
+      showToast("Preset renamed.", "success");
+    } catch { showToast("Failed to rename preset.", "error"); }
   };
 
   return {
