@@ -1,10 +1,25 @@
 // src/features/watchlist/useVault.ts
+//
+// Phase 7.1 — Vault READ Migration
+// ----------------------------------
+// Vault READS now come from Supabase (via vaultAdapter → VaultRepository).
+// Vault WRITES still go to Firestore (via watchlistService).
+//
+// The Firestore onSnapshot for watchlist items has been replaced with a
+// Supabase fetch. After each write (to Firestore), the local `watchlist`
+// signal is optimistically updated so the UI reflects the change
+// immediately — the Supabase data itself stays stale until Phase 7.2
+// (write migration) adds dual-write.
+//
+// The Firestore onSnapshot for PRESETS remains unchanged (no Supabase
+// PresetRepository exists yet).
 import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
-import { collection, query, orderBy, onSnapshot } from "firebase/firestore";
+import { collection, onSnapshot } from "firebase/firestore";
 import { db } from "~/core/firebase";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
 import { useToast } from "~/shared/hooks/useToast";
+import { fetchVaultFromSupabase } from "./vaultAdapter";
 import {
   updateStatus as svcUpdateStatus,
   updateRating as svcUpdateRating,
@@ -28,91 +43,70 @@ const useVaultLogic = () => {
   const [error, setError] = createSignal<string | null>(null);
   const [uid, setUid] = createSignal<string | null>(null);
 
-  let unsubSnap: (() => void) | null = null;
   let unsubPresets: (() => void) | null = null;
   let unsubAuth: (() => void) | null = null;
 
+  /**
+   * Refresh the vault from Supabase (Phase 7.1 read path).
+   * Called on session change and can be called manually after writes.
+   */
+  const refreshVault = async (supabaseUid: string) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const items = await fetchVaultFromSupabase(supabaseUid);
+
+      // V2 PROGRESS MIGRATION (preserved from the Firestore version):
+      // Clear legacy V1 watchProgress from non-Watching titles.
+      const migrated = items.map((m) => {
+        if (m.status !== "Watching" && m.watchProgress) {
+          return {
+            ...m,
+            watchProgress: m.watchProgress.season || m.watchProgress.episode
+              ? {
+                  season: m.watchProgress.season,
+                  episode: m.watchProgress.episode,
+                  updatedAt: m.watchProgress.updatedAt,
+                  currentTime: 0,
+                  duration: 0,
+                  server: null
+                }
+              : undefined
+          };
+        }
+        return m;
+      });
+
+      setWatchlist(migrated);
+      setLoading(false);
+      setError(null);
+    } catch (err) {
+      console.error("[useVault] Supabase error fetching vault:", err);
+      setWatchlist([]);
+      setLoading(false);
+      setError("Failed to load vault data. Please try again later.");
+    }
+  };
+
   onMount(() => {
-    // Phase 6.2 — auth state now comes from the Supabase session via the
-    // central auth provider's session subscription. Previously this used
-    // Firebase's onAuthStateChanged(auth, ...); it now uses
-    // onSessionChange from the Supabase foundation. The uid is extracted
-    // from session.user.id (Supabase) instead of u.uid (Firebase).
-    const subscription = onSessionChange((_event, session: Session | null) => {
+    // Phase 6.2 — auth state from Supabase session.
+    // Phase 7.1 — vault READS from Supabase (replaces Firestore onSnapshot).
+    const subscription = onSessionChange(async (_event, session: Session | null) => {
       const supabaseUid = session?.user?.id ?? null;
       setIsGuest(!supabaseUid);
       setUid(supabaseUid);
 
-      if (unsubSnap) {
-        unsubSnap();
-        unsubSnap = null;
-      }
+      // Tear down any existing preset subscription
       if (unsubPresets) {
         unsubPresets();
         unsubPresets = null;
       }
 
       if (supabaseUid) {
-        setLoading(true);
-        setError(null);
+        // READ from Supabase (Phase 7.1)
+        await refreshVault(supabaseUid);
 
-        const q = query(
-          collection(db, "users", supabaseUid, "watchlist"),
-          orderBy("addedAt", "desc")
-        );
-
-        unsubSnap = onSnapshot(
-          q,
-          (snap) => {
-            const items = snap.docs.map((d) => ({ id: d.id, ...d.data() }) as WatchlistItem);
-
-            // V2 PROGRESS MIGRATION:
-            // Clear legacy V1 watchProgress from non-Watching titles.
-            // V1 stored playback percentages (currentTime) on Planned titles
-            // from third-party streaming integration. V2 has no streaming —
-            // progress is manual (season/episode) and only valid for Watching.
-            // We strip watchProgress from any title whose status !== "Watching"
-            // so it never appears in Continue Watching, In Progress shelves,
-            // or progress statistics.
-            //
-            // This is a read-time migration — we don't write back to Firestore
-            // (avoids unnecessary writes). The gate in progress.ts (isWatchable)
-            // also enforces this at the logic level, so even if we missed a
-            // title here, it still won't leak into progress UI.
-            const migrated = items.map((m) => {
-              if (m.status !== "Watching" && m.watchProgress) {
-                // Preserve season/episode (they're valid tracker data) but
-                // strip the playback fields (currentTime, duration, server)
-                // that came from V1 streaming.
-                return {
-                  ...m,
-                  watchProgress: m.watchProgress.season || m.watchProgress.episode
-                    ? {
-                        season: m.watchProgress.season,
-                        episode: m.watchProgress.episode,
-                        updatedAt: m.watchProgress.updatedAt,
-                        currentTime: 0,
-                        duration: 0,
-                        server: null
-                      }
-                    : undefined
-                };
-              }
-              return m;
-            });
-
-            setWatchlist(migrated);
-            setLoading(false);
-            setError(null);
-          },
-          (err) => {
-            console.error("Firestore error fetching vault:", err);
-            setWatchlist([]);
-            setLoading(false);
-            setError("Failed to load vault data. Please try again later.");
-          }
-        );
-
+        // PRESETS still read from Firestore (no Supabase PresetRepository yet)
         unsubPresets = onSnapshot(
           collection(db, "users", supabaseUid, "presets"),
           (snap) => {
@@ -132,14 +126,29 @@ const useVaultLogic = () => {
 
   onCleanup(() => {
     if (unsubAuth) unsubAuth();
-    if (unsubSnap) unsubSnap();
     if (unsubPresets) unsubPresets();
   });
+
+  // ---- Optimistic update helper ----
+  /**
+   * Optimistically update a single item in the local watchlist signal.
+   * Called after each Firestore write so the UI reflects the change
+   * immediately (the Supabase read path won't see the Firestore write
+   * until Phase 7.2 adds dual-write).
+   */
+  const optimisticUpdate = (itemId: string, patch: Partial<WatchlistItem>) => {
+    setWatchlist((prev) =>
+      prev.map((item) => (item.id === itemId ? { ...item, ...patch } : item))
+    );
+  };
+
+  // ---- Write operations (all still use Firestore via watchlistService) ----
 
   const updateStatus = async (itemId: string, status: string) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcUpdateStatus(uid()!, itemId, status);
+      optimisticUpdate(itemId, { status: status as WatchlistItem["status"] });
       showToast("Status updated!", "success");
     } catch (err) {
       showToast("Failed to update status.", "error");
@@ -151,6 +160,7 @@ const useVaultLogic = () => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcUpdateRating(uid()!, itemId, rating);
+      optimisticUpdate(itemId, { rating });
       showToast("Rating updated!", "success");
     } catch (err) {
       showToast("Failed to update rating.", "error");
@@ -162,6 +172,7 @@ const useVaultLogic = () => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcUpdateNotes(uid()!, itemId, notes);
+      optimisticUpdate(itemId, { notes });
       showToast("Notes saved!", "success");
     } catch (err) {
       showToast("Failed to save notes.", "error");
@@ -173,6 +184,7 @@ const useVaultLogic = () => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcUpdateWatchDate(uid()!, itemId, watchDate);
+      optimisticUpdate(itemId, { watchDate });
       showToast("Watch date updated!", "success");
     } catch (err) {
       showToast("Failed to update watch date.", "error");
@@ -184,6 +196,7 @@ const useVaultLogic = () => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcUpdateSeasonEpisode(uid()!, itemId, season, episode);
+      optimisticUpdate(itemId, { season, episode });
       showToast("Episode progress updated!", "success");
     } catch (err) {
       showToast("Failed to update episode progress.", "error");
@@ -197,8 +210,10 @@ const useVaultLogic = () => {
     try {
       if (item && (item.status === "Planned" || item.status === "Plan to Watch")) {
         await svcUpdateStatus(uid()!, itemId, "Watching");
+        optimisticUpdate(itemId, { status: "Watching" });
       }
       await svcUpdateWatchProgress(uid()!, itemId, progress);
+      optimisticUpdate(itemId, { watchProgress: progress });
     } catch (err) {
       showToast("Failed to save progress.", "error");
       throw err;
@@ -209,6 +224,8 @@ const useVaultLogic = () => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
       await svcDeleteWatchlistItem(uid()!, itemId);
+      // Optimistic: remove from local signal
+      setWatchlist((prev) => prev.filter((item) => item.id !== itemId));
       showToast("Item deleted.", "success");
     } catch (err) {
       showToast("Failed to delete item.", "error");
