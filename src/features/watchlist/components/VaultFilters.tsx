@@ -1,9 +1,10 @@
 // src/features/watchlist/components/VaultFilters.tsx
-import { For, onMount, onCleanup, Show, createSignal, Component } from "solid-js";
+import { onMount, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
 import Icon from "~/shared/ui/Icon";
 import { useVault } from "../useVault";
 import type { VaultFilters as FilterType } from "~/shared/types";
+import VaultFiltersContent from "./VaultFiltersContent";
 
 interface VaultFiltersProps {
   filters: FilterType;
@@ -16,111 +17,29 @@ interface VaultFiltersProps {
 }
 
 /**
- * Premium filter select — styled dropdown with custom chevron.
- * Uses .filter-select-premium CSS for consistent appearance.
- */
-const FilterSel: Component<{
-  label: string;
-  val: string;
-  set: (v: string) => void;
-  opts: { l: string; v: string }[] | string[];
-}> = (props) => {
-  const id = `filter-${props.label.toLowerCase().replace(/\s/g, "-")}`;
-  return (
-    <div class="flex flex-col gap-1.5">
-      <label class="type-meta" for={id} style={{ "font-size": "0.5625rem" }}>
-        {props.label}
-      </label>
-      <select
-        id={id}
-        value={props.val}
-        onChange={(e) => props.set(e.currentTarget.value)}
-        class="filter-select-premium"
-      >
-        <For each={props.opts}>
-          {(o) => (
-            <option value={typeof o === "string" ? o : o.v}>
-              {typeof o === "string" ? o : o.l}
-            </option>
-          )}
-        </For>
-      </select>
-    </div>
-  );
-};
-
-/**
- * Premium range filter — two inputs side by side.
- * Uses .filter-input-premium CSS for consistent appearance.
- */
-const RangeFilter: Component<{
-  label: string;
-  min: string;
-  max: string;
-  setMin: (v: string) => void;
-  setMax: (v: string) => void;
-  minPlaceholder?: string;
-  maxPlaceholder?: string;
-}> = (props) => (
-  <div class="flex flex-col gap-1.5">
-    <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
-      {props.label}
-    </span>
-    <div class="grid grid-cols-2 gap-2">
-      <input
-        value={props.min}
-        onInput={(e) => props.setMin(e.currentTarget.value)}
-        type="number"
-        placeholder={props.minPlaceholder || "Min"}
-        aria-label={`${props.label} minimum`}
-        class="filter-input-premium"
-      />
-      <input
-        value={props.max}
-        onInput={(e) => props.setMax(e.currentTarget.value)}
-        type="number"
-        placeholder={props.maxPlaceholder || "Max"}
-        aria-label={`${props.label} maximum`}
-        class="filter-input-premium"
-      />
-    </div>
-  </div>
-);
-
-/**
- * Premium filter drawer.
+ * VaultFilters — premium filter drawer (orchestration only).
  *
  * LAYOUT FIX (Issue 3 — "Filter modal bottom bug"):
- *   The bottom sheet is now rendered via <Portal> at document.body level
- *   so it can NEVER be covered by the fixed bottom navigation (z-index
- *   stacking-context issue). The outer container adds
- *   `padding-bottom: var(--nav-total-height)` so the sheet sits ABOVE
- *   the bottom nav, and the sheet's `max-height` uses `100dvh` (dynamic
- *   viewport height) so it never extends behind the mobile URL bar.
+ *   The bottom sheet is rendered via <Portal> at document.body level so
+ *   it can NEVER be covered by the fixed bottom navigation. The outer
+ *   container adds `padding-bottom: var(--nav-total-height)` so the sheet
+ *   sits ABOVE the bottom nav, and the sheet's `max-height` uses `100dvh`
+ *   so it never extends behind the mobile URL bar.
  *
  *   The internal scroll area uses `overscroll-contain: contain` to
- *   prevent scroll chaining to the body when the user reaches the top
- *   or bottom of the filter list.
+ *   prevent scroll chaining to the body. The Apply / Clear buttons live
+ *   in a sticky footer INSIDE the sheet (always visible regardless of
+ *   scroll position).
  *
- *   The Apply / Clear buttons live in a sticky footer INSIDE the sheet
- *   (not absolutely positioned) — they are always visible regardless of
- *   scroll position, and the footer's `padding-bottom` accounts for both
- *   the iOS safe-area inset AND the bottom nav height.
- *
- * Accessibility: role=dialog, aria-modal, focus trap via backdrop click.
+ * The scrollable content (Content / Ratings / Sort / Presets sections)
+ * lives in VaultFiltersContent. FilterSel + RangeFilter primitives live
+ * in FilterControls.
  */
 export default function VaultFilters(props: VaultFiltersProps) {
   const { presets, savePreset, deletePreset } = useVault();
-  const [presetName, setPresetName] = createSignal("");
 
   onMount(() => (document.body.style.overflow = "hidden"));
   onCleanup(() => (document.body.style.overflow = ""));
-
-  const handleSavePreset = async () => {
-    if (!presetName().trim()) return;
-    await savePreset(presetName().trim(), props.filters);
-    setPresetName("");
-  };
 
   return (
     <Portal>
@@ -130,10 +49,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
           background: "rgba(0,0,0,0.75)",
           "backdrop-filter": "blur(12px)",
           "-webkit-backdrop-filter": "blur(12px)",
-          /* Lift the sheet ABOVE the bottom nav on mobile so the Apply /
-             Clear buttons can never be hidden behind it. On desktop the
-             nav is centered (sm:items-center) so this padding is harmless. */
-          "padding-bottom": "var(--nav-total-height)"
+          "padding-bottom": "var(--nav-total-height)",
         }}
         onClick={() => props.onClose()}
         role="dialog"
@@ -143,14 +59,9 @@ export default function VaultFilters(props: VaultFiltersProps) {
         <div
           class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
           style={{
-            /* 100dvh (dynamic viewport height) handles mobile URL-bar
-               resize. Subtract the nav height + safe-area top inset so
-               the sheet fits entirely above the bottom nav and below
-               any mobile browser chrome. */
-            "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
-            /* Cap at 90dvh on desktop so the centered sheet doesn't fill
-               the whole screen on tall monitors. */
-            "min-height": "0"
+            "max-height":
+              "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
+            "min-height": "0",
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -162,7 +73,10 @@ export default function VaultFilters(props: VaultFiltersProps) {
           />
 
           {/* Header */}
-          <div class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0" style="border-bottom: 1px solid var(--hairline)">
+          <div
+            class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0"
+            style="border-bottom: 1px solid var(--hairline)"
+          >
             <div class="flex items-center gap-2">
               <Icon name="tune" style="color: var(--p); font-size: 18px" aria-hidden="true" />
               <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
@@ -172,219 +86,39 @@ export default function VaultFilters(props: VaultFiltersProps) {
             <button
               onClick={() => props.onClose()}
               class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
-              style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-soft)", border: "1px solid var(--hairline)" }}
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                color: "var(--text-soft)",
+                border: "1px solid var(--hairline)",
+              }}
               aria-label="Close filters"
             >
               <Icon name="close" style="font-size: 16px" aria-hidden="true" />
             </button>
           </div>
 
-          {/* Scrollable filter content — overscroll-contain prevents
-              scroll chaining to the body when the user reaches the
-              top or bottom of the list. */}
-          <div
-            class="flex-1 overflow-y-auto hide-scrollbar px-6 py-4 space-y-4"
-            style={{ "overscroll-behavior": "contain", "-webkit-overscroll-behavior": "contain" }}
-          >
-            {/* CONTENT section */}
-            <div>
-              <p class="filter-section-title">Content</p>
-              <div class="space-y-3">
-                <FilterSel
-                  label="Status"
-                  val={props.filters.status}
-                  set={(v) => props.setFilters({ ...props.filters, status: v })}
-                  opts={[
-                    { l: "All", v: "all" },
-                    { l: "Planned", v: "Planned" },
-                    { l: "Watching", v: "Watching" },
-                    { l: "Completed", v: "Completed" }
-                  ]}
-                />
-                <FilterSel
-                  label="Type"
-                  val={props.filters.type}
-                  set={(v) => props.setFilters({ ...props.filters, type: v })}
-                  opts={[
-                    { l: "All", v: "all" },
-                    { l: "Movies", v: "movie" },
-                    { l: "Series", v: "tv" }
-                  ]}
-                />
-                <FilterSel
-                  label="Region"
-                  val={props.filters.region}
-                  set={(v) => props.setFilters({ ...props.filters, region: v })}
-                  opts={[
-                    { l: "All", v: "all" },
-                    { l: "Indian", v: "Indian" },
-                    { l: "International", v: "International" }
-                  ]}
-                />
-                <FilterSel
-                  label="Genre"
-                  val={props.filters.genre}
-                  set={(v) => props.setFilters({ ...props.filters, genre: v })}
-                  opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
-                />
-                <FilterSel
-                  label="Platform"
-                  val={props.filters.platform}
-                  set={(v) => props.setFilters({ ...props.filters, platform: v })}
-                  opts={[{ l: "All Platforms", v: "all" }, ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))]}
-                />
-                <FilterSel
-                  label="Tag"
-                  val={props.filters.tag}
-                  set={(v) => props.setFilters({ ...props.filters, tag: v })}
-                  opts={[{ l: "All Tags", v: "all" }, ...props.uniqueTags.map((t) => ({ l: t, v: t }))]}
-                />
-              </div>
-            </div>
-
-            {/* RATINGS & METRICS section */}
-            <div>
-              <p class="filter-section-title">Ratings & Metrics</p>
-              <div class="space-y-3">
-                <RangeFilter
-                  label="IMDb"
-                  min={props.filters.imdbMin}
-                  max={props.filters.imdbMax}
-                  setMin={(v) => props.setFilters({ ...props.filters, imdbMin: v })}
-                  setMax={(v) => props.setFilters({ ...props.filters, imdbMax: v })}
-                  minPlaceholder="0"
-                  maxPlaceholder="10"
-                />
-                <RangeFilter
-                  label="Rotten Tomatoes %"
-                  min={props.filters.rtMin}
-                  max={props.filters.rtMax}
-                  setMin={(v) => props.setFilters({ ...props.filters, rtMin: v })}
-                  setMax={(v) => props.setFilters({ ...props.filters, rtMax: v })}
-                  minPlaceholder="0"
-                  maxPlaceholder="100"
-                />
-                <RangeFilter
-                  label="Year"
-                  min={props.filters.yearMin}
-                  max={props.filters.yearMax}
-                  setMin={(v) => props.setFilters({ ...props.filters, yearMin: v })}
-                  setMax={(v) => props.setFilters({ ...props.filters, yearMax: v })}
-                  minPlaceholder="1990"
-                  maxPlaceholder="2026"
-                />
-                <RangeFilter
-                  label="Runtime (min)"
-                  min={props.filters.runtimeMin}
-                  max={props.filters.runtimeMax}
-                  setMin={(v) => props.setFilters({ ...props.filters, runtimeMin: v })}
-                  setMax={(v) => props.setFilters({ ...props.filters, runtimeMax: v })}
-                  minPlaceholder="Min"
-                  maxPlaceholder="Max"
-                />
-              </div>
-            </div>
-
-            {/* SORT section */}
-            <div>
-              <p class="filter-section-title">Sort By</p>
-              <FilterSel
-                label="Order"
-                val={props.filters.sort}
-                set={(v) => props.setFilters({ ...props.filters, sort: v })}
-                opts={[
-                  { l: "Recently Added", v: "recent" },
-                  { l: "Recently Updated", v: "updated" },
-                  { l: "Watch Date", v: "watch_desc" },
-                  { l: "Release Year", v: "year_desc" },
-                  { l: "User Rating", v: "rating_desc" },
-                  { l: "IMDb High → Low", v: "imdb_desc" },
-                  { l: "IMDb Low → High", v: "imdb_asc" },
-                  { l: "Runtime", v: "runtime_asc" },
-                  { l: "Alphabetical", v: "title_asc" }
-                ]}
-              />
-            </div>
-
-            {/* PRESETS section */}
-            <div>
-              <p class="filter-section-title">Presets</p>
-              <div class="flex gap-2 mb-3">
-                <input
-                  value={presetName()}
-                  onInput={(e) => setPresetName(e.currentTarget.value)}
-                  onKeyDown={(e) => {
-                    if (e.key === "Enter") handleSavePreset();
-                  }}
-                  placeholder="New preset name"
-                  class="filter-input-premium"
-                  style={{ flex: 1 }}
-                />
-                <button
-                  onClick={handleSavePreset}
-                  disabled={!presetName().trim()}
-                  class="px-3 py-2 rounded-xl type-meta active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
-                  style={{
-                    background: "var(--p)",
-                    color: "var(--active-text)",
-                    "font-size": "0.5625rem",
-                    "font-weight": 800
-                  }}
-                  aria-label="Save current filters as preset"
-                >
-                  Save
-                </button>
-              </div>
-              <div class="space-y-2 max-h-40 overflow-y-auto hide-scrollbar" style={{ "overscroll-behavior": "contain" }}>
-                <Show
-                  when={presets().length > 0}
-                  fallback={
-                    <p class="type-body-soft" style={{ "font-size": "0.75rem", "text-align": "center", padding: "var(--sp-3)" }}>
-                      No presets saved yet
-                    </p>
-                  }
-                >
-                  <For each={presets()}>
-                    {(preset) => (
-                      <div
-                        class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
-                        style={{ background: "var(--tier-1)", border: "1px solid var(--hairline)" }}
-                      >
-                        <button
-                          class="flex-1 text-left text-sm text-white px-1 truncate hover:text-[var(--p)] transition-colors flex items-center gap-2"
-                          onClick={() => props.setFilters(preset.filters)}
-                        >
-                          <Icon name="bookmark" style="font-size: 14px; color: var(--p)" aria-hidden="true" />
-                          <span class="truncate">{preset.name}</span>
-                        </button>
-                        <button
-                          onClick={() => deletePreset(preset.id)}
-                          class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
-                          aria-label={`Delete ${preset.name}`}
-                        >
-                          <Icon name="delete" style="font-size: 14px" aria-hidden="true" />
-                        </button>
-                      </div>
-                    )}
-                  </For>
-                </Show>
-              </div>
-            </div>
-          </div>
+          <VaultFiltersContent
+            filters={props.filters}
+            setFilters={props.setFilters}
+            uniqueGenres={props.uniqueGenres}
+            uniquePlatforms={props.uniquePlatforms}
+            uniqueTags={props.uniqueTags}
+            presets={presets}
+            onSavePreset={(name) => savePreset(name, props.filters)}
+            onDeletePreset={(id) => deletePreset(id)}
+          />
 
           {/* Sticky footer — Apply / Clear buttons.
               The padding-bottom accounts for BOTH the iOS safe-area inset
-              AND the bottom nav height, since the modal sits above the nav.
-              This guarantees the buttons are ALWAYS reachable, even on
-              iPhone X+ with the home indicator and a tall nav bar. */}
+              AND the bottom nav height so buttons are always reachable. */}
           <div
             class="grid grid-cols-2 gap-3 px-6 pt-4 pb-4 flex-shrink-0"
             style={{
               "border-top": "1px solid var(--hairline)",
               "padding-bottom": "calc(env(safe-area-inset-bottom, 0px) + var(--sp-5))",
-              "background": "var(--glass-bg-strong)",
+              background: "var(--glass-bg-strong)",
               "backdrop-filter": "blur(20px)",
-              "-webkit-backdrop-filter": "blur(20px)"
+              "-webkit-backdrop-filter": "blur(20px)",
             }}
           >
             <button

@@ -1,0 +1,238 @@
+// src/features/watchlist/components/VaultFiltersContent.tsx
+import { For, Show, createSignal, type Accessor } from "solid-js";
+import Icon from "~/shared/ui/Icon";
+import { FilterSel, RangeFilter } from "./FilterControls";
+import type { VaultFilters as FilterType } from "~/shared/types";
+import type { FilterPreset } from "~/shared/types";
+
+/**
+ * VaultFiltersContent — the scrollable body of the filter drawer.
+ *
+ * Four sections, each with a `filter-section-title`:
+ *   1. Content — Status / Type / Region / Genre / Platform / Tag dropdowns
+ *   2. Ratings & Metrics — IMDb / RT / Year / Runtime range inputs
+ *   3. Sort By — single dropdown with 9 sort options
+ *   4. Presets — save/load/delete named filter presets
+ */
+export interface VaultFiltersContentProps {
+  filters: FilterType;
+  setFilters: (v: FilterType) => void;
+  uniqueGenres: string[];
+  uniquePlatforms: string[];
+  uniqueTags: string[];
+  presets: Accessor<FilterPreset[]>;
+  onSavePreset: (name: string) => Promise<void>;
+  onDeletePreset: (id: string) => void;
+}
+
+export default function VaultFiltersContent(props: VaultFiltersContentProps) {
+  const [presetName, setPresetName] = createSignal("");
+
+  const handleSavePreset = async () => {
+    if (!presetName().trim()) return;
+    await props.onSavePreset(presetName().trim());
+    setPresetName("");
+  };
+
+  return (
+    <div
+      class="flex-1 overflow-y-auto hide-scrollbar px-6 py-4 space-y-4"
+      style={{ "overscroll-behavior": "contain", "-webkit-overscroll-behavior": "contain" }}
+    >
+      {/* CONTENT section */}
+      <div>
+        <p class="filter-section-title">Content</p>
+        <div class="space-y-3">
+          <FilterSel
+            label="Status"
+            val={props.filters.status}
+            set={(v) => props.setFilters({ ...props.filters, status: v })}
+            opts={[
+              { l: "All", v: "all" },
+              { l: "Planned", v: "Planned" },
+              { l: "Watching", v: "Watching" },
+              { l: "Completed", v: "Completed" },
+            ]}
+          />
+          <FilterSel
+            label="Type"
+            val={props.filters.type}
+            set={(v) => props.setFilters({ ...props.filters, type: v })}
+            opts={[
+              { l: "All", v: "all" },
+              { l: "Movies", v: "movie" },
+              { l: "Series", v: "tv" },
+            ]}
+          />
+          <FilterSel
+            label="Region"
+            val={props.filters.region}
+            set={(v) => props.setFilters({ ...props.filters, region: v })}
+            opts={[
+              { l: "All", v: "all" },
+              { l: "Indian", v: "Indian" },
+              { l: "International", v: "International" },
+            ]}
+          />
+          <FilterSel
+            label="Genre"
+            val={props.filters.genre}
+            set={(v) => props.setFilters({ ...props.filters, genre: v })}
+            opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
+          />
+          <FilterSel
+            label="Platform"
+            val={props.filters.platform}
+            set={(v) => props.setFilters({ ...props.filters, platform: v })}
+            opts={[{ l: "All Platforms", v: "all" }, ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))]}
+          />
+          <FilterSel
+            label="Tag"
+            val={props.filters.tag}
+            set={(v) => props.setFilters({ ...props.filters, tag: v })}
+            opts={[{ l: "All Tags", v: "all" }, ...props.uniqueTags.map((t) => ({ l: t, v: t }))]}
+          />
+        </div>
+      </div>
+
+      {/* RATINGS & METRICS section */}
+      <div>
+        <p class="filter-section-title">Ratings & Metrics</p>
+        <div class="space-y-3">
+          <RangeFilter
+            label="IMDb"
+            min={props.filters.imdbMin}
+            max={props.filters.imdbMax}
+            setMin={(v) => props.setFilters({ ...props.filters, imdbMin: v })}
+            setMax={(v) => props.setFilters({ ...props.filters, imdbMax: v })}
+            minPlaceholder="0"
+            maxPlaceholder="10"
+          />
+          <RangeFilter
+            label="Rotten Tomatoes %"
+            min={props.filters.rtMin}
+            max={props.filters.rtMax}
+            setMin={(v) => props.setFilters({ ...props.filters, rtMin: v })}
+            setMax={(v) => props.setFilters({ ...props.filters, rtMax: v })}
+            minPlaceholder="0"
+            maxPlaceholder="100"
+          />
+          <RangeFilter
+            label="Year"
+            min={props.filters.yearMin}
+            max={props.filters.yearMax}
+            setMin={(v) => props.setFilters({ ...props.filters, yearMin: v })}
+            setMax={(v) => props.setFilters({ ...props.filters, yearMax: v })}
+            minPlaceholder="1990"
+            maxPlaceholder="2026"
+          />
+          <RangeFilter
+            label="Runtime (min)"
+            min={props.filters.runtimeMin}
+            max={props.filters.runtimeMax}
+            setMin={(v) => props.setFilters({ ...props.filters, runtimeMin: v })}
+            setMax={(v) => props.setFilters({ ...props.filters, runtimeMax: v })}
+            minPlaceholder="Min"
+            maxPlaceholder="Max"
+          />
+        </div>
+      </div>
+
+      {/* SORT section */}
+      <div>
+        <p class="filter-section-title">Sort By</p>
+        <FilterSel
+          label="Order"
+          val={props.filters.sort}
+          set={(v) => props.setFilters({ ...props.filters, sort: v })}
+          opts={[
+            { l: "Recently Added", v: "recent" },
+            { l: "Recently Updated", v: "updated" },
+            { l: "Watch Date", v: "watch_desc" },
+            { l: "Release Year", v: "year_desc" },
+            { l: "User Rating", v: "rating_desc" },
+            { l: "IMDb High → Low", v: "imdb_desc" },
+            { l: "IMDb Low → High", v: "imdb_asc" },
+            { l: "Runtime", v: "runtime_asc" },
+            { l: "Alphabetical", v: "title_asc" },
+          ]}
+        />
+      </div>
+
+      {/* PRESETS section */}
+      <div>
+        <p class="filter-section-title">Presets</p>
+        <div class="flex gap-2 mb-3">
+          <input
+            value={presetName()}
+            onInput={(e) => setPresetName(e.currentTarget.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") handleSavePreset();
+            }}
+            placeholder="New preset name"
+            class="filter-input-premium"
+            style={{ flex: 1 }}
+          />
+          <button
+            onClick={handleSavePreset}
+            disabled={!presetName().trim()}
+            class="px-3 py-2 rounded-xl type-meta active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            style={{
+              background: "var(--p)",
+              color: "var(--active-text)",
+              "font-size": "0.5625rem",
+              "font-weight": 800,
+            }}
+            aria-label="Save current filters as preset"
+          >
+            Save
+          </button>
+        </div>
+        <div
+          class="space-y-2 max-h-40 overflow-y-auto hide-scrollbar"
+          style={{ "overscroll-behavior": "contain" }}
+        >
+          <Show
+            when={props.presets().length > 0}
+            fallback={
+              <p
+                class="type-body-soft"
+                style={{
+                  "font-size": "0.75rem",
+                  "text-align": "center",
+                  padding: "var(--sp-3)",
+                }}
+              >
+                No presets saved yet
+              </p>
+            }
+          >
+            <For each={props.presets()}>
+              {(preset) => (
+                <div
+                  class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
+                  style={{ background: "var(--tier-1)", border: "1px solid var(--hairline)" }}
+                >
+                  <button
+                    class="flex-1 text-left text-sm text-white px-1 truncate hover:text-[var(--p)] transition-colors flex items-center gap-2"
+                    onClick={() => props.setFilters(preset.filters)}
+                  >
+                    <Icon name="bookmark" style="font-size: 14px; color: var(--p)" aria-hidden="true" />
+                    <span class="truncate">{preset.name}</span>
+                  </button>
+                  <button
+                    onClick={() => props.onDeletePreset(preset.id)}
+                    class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
+                    aria-label={`Delete ${preset.name}`}
+                  >
+                    <Icon name="delete" style="font-size: 14px" aria-hidden="true" />
+                  </button>
+                </div>
+              )}
+            </For>
+          </Show>
+        </div>
+      </div>
+    </div>
+  );
+}
