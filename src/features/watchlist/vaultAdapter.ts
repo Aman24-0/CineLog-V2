@@ -1,35 +1,47 @@
 /**
- * CineLog V2 — Vault Read Adapter
+ * CineLog V2 — Vault Adapter (Full Supabase Migration)
  * ---------------------------------------------------------------------
- * Phase 7.1 — Vault READ Migration
+ * Phase 7.2 — Complete Vault Migration
  *
- * Maps Supabase `VaultRow` (snake_case, lowercase enum status) to the
- * application's `WatchlistItem` (camelCase, Title Case status) so the
- * existing UI components can consume Supabase data without modification.
- *
- * Also provides `fetchVaultFromSupabase` — a helper that loads ALL vault
- * items for a user by calling `VaultRepository.getVaultByStatus` for each
- * of the 5 statuses in parallel and merging the results. The
- * VaultRepository does not expose a "get all" method, so this adapter
- * composes the existing repository methods (no repository modification
- * needed, no duplicated query logic).
+ * The SOLE bridge between the application's `WatchlistItem` shape and
+ * the Supabase `vault` table. All Vault reads and writes go through
+ * this adapter → VaultRepository → Supabase. There is exactly ONE
+ * source of truth: Supabase PostgreSQL.
  *
  * Architecture:
- *   useVault (context) → vaultAdapter → VaultRepository → Supabase
+ *   UI → useVault() → vaultAdapter → VaultRepository → Supabase → PostgreSQL
  *
- * Write path (unchanged):
- *   useVault (context) → watchlistService → Firestore
+ * No Firestore. No watchlistService. No optimistic workarounds.
  *
- * The adapter is READ-ONLY — it never writes. After a Firestore write,
- * the caller (useVault) optimistically updates the local signal.
+ * Field mapping (WatchlistItem ↔ VaultRow):
+ *   WatchlistItem.id (string)        ↔ vault.tmdb_id (number)
+ *   WatchlistItem.media_type          ↔ vault.media_type (enum)
+ *   WatchlistItem.status (Title Case) ↔ vault.status (lowercase enum)
+ *   WatchlistItem.rating              ↔ vault.rating
+ *   WatchlistItem.notes               ↔ vault.notes
+ *   WatchlistItem.watchDate           ↔ vault.watched_on
+ *   WatchlistItem.addedAt             ↔ vault.created_at (auto)
+ *   WatchlistItem.updatedAt           ↔ vault.updated_at (auto)
+ *   (isFavorite — UI computes from favorites shelf)
+ *   (isPinned — UI computes from pinned shelf)
+ *
+ * TMDB metadata fields (title, poster_path, genresList, etc.) are NOT
+ * stored in the vault table — the UI fetches them from TMDB. The vault
+ * table stores only user-owned state (status, rating, notes, etc.).
  */
 
 import { getVaultRepository } from "~/lib/supabase/repositories";
-import type { VaultRow, VaultStatus } from "~/lib/supabase/repositories";
+import type {
+  CreateVaultItemPayload,
+  VaultIdentity,
+  VaultRow,
+  VaultStatus,
+  VaultUpdate
+} from "~/lib/supabase/repositories";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
-// Status mapping: Supabase lowercase enum → Firestore Title Case
+// Status mapping: Firestore Title Case ↔ Supabase lowercase enum
 // ---------------------------------------------------------------------------
 
 /**
@@ -40,11 +52,9 @@ import type { WatchlistItem } from "~/shared/types";
  * Firestore: "Planned" | "Watching" | "Completed" | "Plan to Watch"
  *
  * "on_hold" and "dropped" have no exact Firestore equivalent — both map
- * to "Plan to Watch" (the closest existing status). This is a
- * transitional mapping; once the UI is updated to support the full
- * 5-status enum, this can be simplified to a direct case conversion.
+ * to "Plan to Watch" (the closest existing status).
  */
-const STATUS_MAP: Record<VaultStatus, WatchlistItem["status"]> = {
+const STATUS_TO_UI: Record<VaultStatus, WatchlistItem["status"]> = {
   planned: "Planned",
   watching: "Watching",
   completed: "Completed",
@@ -52,79 +62,53 @@ const STATUS_MAP: Record<VaultStatus, WatchlistItem["status"]> = {
   dropped: "Plan to Watch"
 };
 
+/**
+ * Reverse map: Firestore Title Case → Supabase lowercase enum.
+ * "Plan to Watch" maps to "planned" (the closest Supabase status).
+ */
+const STATUS_TO_DB: Record<WatchlistItem["status"], VaultStatus> = {
+  Planned: "planned",
+  Watching: "watching",
+  Completed: "completed",
+  "Plan to Watch": "planned"
+};
+
 // ---------------------------------------------------------------------------
-// Row → WatchlistItem mapping
+// READ: VaultRow → WatchlistItem
 // ---------------------------------------------------------------------------
 
 /**
  * Map a single Supabase `VaultRow` to the application's `WatchlistItem`.
- *
- * Field mapping:
- *   vault.tmdb_id (number)   → WatchlistItem.id (string)
- *   vault.media_type          → WatchlistItem.media_type (same)
- *   vault.status (lowercase)  → WatchlistItem.status (Title Case)
- *   vault.rating              → WatchlistItem.rating
- *   vault.notes               → WatchlistItem.notes
- *   vault.watched_on          → WatchlistItem.watchDate
- *   vault.created_at          → WatchlistItem.addedAt
- *   vault.updated_at          → WatchlistItem.updatedAt
- *
- * TMDB metadata fields (title, poster_path, genresList, etc.) are NOT
- * stored in the Supabase vault table — they are left undefined. The UI
- * already handles undefined TMDB fields via conditional rendering
- * (<Show when={item.poster_path}>).
- *
- * TV episode tracking fields (season, episode, seasons) are also NOT in
- * the vault table — they live in the `episode_progress` table. They are
- * left undefined here; a future phase can enrich the items with
- * episode_progress data.
  */
 export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
   return {
     id: String(row.tmdb_id),
     media_type: row.media_type,
-    status: STATUS_MAP[row.status] ?? "Planned",
+    status: STATUS_TO_UI[row.status] ?? "Planned",
     rating: row.rating ?? undefined,
     notes: row.notes ?? undefined,
     watchDate: row.watched_on ?? undefined,
     addedAt: row.created_at,
-    updatedAt: row.updated_at,
-    // TMDB metadata fields — not in vault table, left undefined
-    // (UI handles via conditional rendering)
-    // TV episode fields — in episode_progress table, left undefined
-    // (future phase can enrich)
+    updatedAt: row.updated_at
   };
 }
-
-// ---------------------------------------------------------------------------
-// fetchVaultFromSupabase — load ALL vault items for a user
-// ---------------------------------------------------------------------------
 
 /**
  * Load ALL non-deleted vault items for a user from Supabase, ordered by
  * `created_at` desc (matching the previous Firestore `orderBy("addedAt",
  * "desc")`).
  *
- * The VaultRepository does not expose a "get all" method, so this helper
- * calls `getVaultByStatus` for each of the 5 statuses in parallel and
- * merges the results. Each call returns at most 1000 items (the default
- * limit); for users with more than 1000 items per status, pagination
- * would be needed (not a concern for CineLog's scale).
- *
- * @param userId  The Supabase user id (= auth.users.id).
- * @returns An array of `WatchlistItem` (empty if no items or error).
+ * Calls `VaultRepository.getVaultByStatus` for each of the 5 statuses
+ * in parallel and merges the results.
  */
 export async function fetchVaultFromSupabase(userId: string): Promise<WatchlistItem[]> {
   const repo = getVaultRepository();
   const statuses: VaultStatus[] = ["planned", "watching", "completed", "on_hold", "dropped"];
 
-  // Fetch all 5 statuses in parallel.
   const results = await Promise.all(
     statuses.map((status) => repo.getVaultByStatus(userId, status, { pagination: { limit: 1000 } }))
   );
 
-  // Check for errors — if any status query failed, log and skip it
-  // (partial data is better than no data).
   const allRows: VaultRow[] = [];
   for (const result of results) {
     if (result.error) {
@@ -134,8 +118,6 @@ export async function fetchVaultFromSupabase(userId: string): Promise<WatchlistI
     allRows.push(...result.data);
   }
 
-  // Map to WatchlistItem and sort by created_at desc (matching the
-  // previous Firestore orderBy("addedAt", "desc")).
   const items = allRows.map(vaultRowToWatchlistItem);
   items.sort((a, b) => {
     const timeA = typeof a.addedAt === "string" ? new Date(a.addedAt).getTime() : 0;
@@ -144,4 +126,225 @@ export async function fetchVaultFromSupabase(userId: string): Promise<WatchlistI
   });
 
   return items;
+}
+
+// ---------------------------------------------------------------------------
+// WRITE: WatchlistItem → VaultRow operations
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a `VaultIdentity` from a `WatchlistItem`.
+ * The composite key is (user_id, tmdb_id, media_type).
+ */
+export function vaultIdentity(userId: string, item: WatchlistItem): VaultIdentity {
+  return {
+    userId,
+    tmdbId: Number(item.id),
+    mediaType: item.media_type
+  };
+}
+
+/**
+ * Create a new vault item in Supabase from a `WatchlistItem`.
+ *
+ * Used by Search, Discover, and Details when a user adds a title to
+ * their vault. The `WatchlistItem` carries TMDB metadata (title,
+ * poster_path, etc.) which is NOT stored in the vault table — only
+ * the user-owned state (status, rating, notes) is persisted.
+ *
+ * @returns The created `WatchlistItem` (with timestamps from Supabase).
+ */
+export async function createVaultItemInSupabase(
+  userId: string,
+  item: WatchlistItem
+): Promise<WatchlistItem> {
+  const repo = getVaultRepository();
+  const payload: CreateVaultItemPayload = {
+    userId,
+    tmdbId: Number(item.id),
+    mediaType: item.media_type,
+    status: STATUS_TO_DB[item.status ?? "Planned"] ?? "planned",
+    rating: item.rating,
+    notes: item.notes,
+    watchedOn: item.watchDate
+  };
+
+  const { data, error } = await repo.createVaultItem(payload);
+  if (error) throw error;
+  if (!data) throw new Error("[vaultAdapter] createVaultItem returned no data");
+
+  // Return a WatchlistItem that merges the original TMDB metadata with
+  // the persisted vault state so the caller's modal state is complete.
+  return { ...item, ...vaultRowToWatchlistItem(data) };
+}
+
+/**
+ * Update a vault item's status in Supabase.
+ */
+export async function updateStatusInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  status: string
+): Promise<void> {
+  const repo = getVaultRepository();
+  const vaultStatus = STATUS_TO_DB[status as WatchlistItem["status"]] ?? "planned";
+  const { error } = await repo.updateStatus(
+    { userId, tmdbId: Number(itemId), mediaType },
+    vaultStatus
+  );
+  if (error) throw error;
+}
+
+/**
+ * Update a vault item's rating in Supabase.
+ */
+export async function updateRatingInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  rating: number
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateRating(
+    { userId, tmdbId: Number(itemId), mediaType },
+    rating
+  );
+  if (error) throw error;
+}
+
+/**
+ * Update a vault item's notes in Supabase.
+ */
+export async function updateNotesInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  notes: string
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateNotes(
+    { userId, tmdbId: Number(itemId), mediaType },
+    notes
+  );
+  if (error) throw error;
+}
+
+/**
+ * Update a vault item's watch date in Supabase (maps to `watched_on`).
+ */
+export async function updateWatchDateInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  watchDate: string
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    { watched_on: watchDate }
+  );
+  if (error) throw error;
+}
+
+/**
+ * Update a vault item's progress (minutes) in Supabase.
+ * Used for movies; TV episode progress lives in `episode_progress`.
+ */
+export async function updateProgressInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  progressMinutes: number
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateProgress(
+    { userId, tmdbId: Number(itemId), mediaType },
+    progressMinutes
+  );
+  if (error) throw error;
+}
+
+/**
+ * Toggle the `is_favorite` flag on a vault item.
+ */
+export async function toggleFavoriteInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  currentValue: boolean
+): Promise<void> {
+  const repo = getVaultRepository();
+  const update: VaultUpdate = { is_favorite: !currentValue };
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    update
+  );
+  if (error) throw error;
+}
+
+/**
+ * Toggle the `is_pinned` flag on a vault item.
+ */
+export async function togglePinnedInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  currentValue: boolean
+): Promise<void> {
+  const repo = getVaultRepository();
+  const update: VaultUpdate = { is_pinned: !currentValue };
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    update
+  );
+  if (error) throw error;
+}
+
+/**
+ * Soft-delete a vault item in Supabase (sets `deleted_at`).
+ */
+export async function deleteVaultItemInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"]
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.deleteVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType }
+  );
+  if (error) throw error;
+}
+
+/**
+ * Restore a soft-deleted vault item in Supabase (clears `deleted_at`).
+ */
+export async function restoreVaultItemInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"]
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.restoreVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType }
+  );
+  if (error) throw error;
+}
+
+/**
+ * General-purpose vault item update (for fields not covered by the
+ * targeted updaters above).
+ */
+export async function updateVaultItemInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  update: VaultUpdate
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    update
+  );
+  if (error) throw error;
 }

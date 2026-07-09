@@ -6,15 +6,12 @@ import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import {
-  updateStatus as svcUpdateStatus,
-  updateRating as svcUpdateRating,
-  updateNotes as svcUpdateNotes,
-  updateWatchDate as svcUpdateWatchDate,
-  updateSeasonEpisode as svcUpdateSeasonEpisode,
-  updateWatchProgress as svcUpdateWatchProgress,
-  updateSeasons as svcUpdateSeasons,
-  addToVault as svcAddToVault
-} from "~/features/watchlist/watchlistService";
+  createVaultItemInSupabase,
+  updateNotesInSupabase,
+  updateRatingInSupabase,
+  updateStatusInSupabase,
+  updateWatchDateInSupabase
+} from "~/features/watchlist/vaultAdapter";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { CachedSeasonInfo, WatchlistItem } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
@@ -162,9 +159,9 @@ export default function DetailsModal() {
       );
     if (!isStale) return;
 
-    svcUpdateSeasons(uid, v.id, fresh).catch((err: unknown) =>
-      console.warn("Failed to cache seasons on item:", err)
-    );
+    // Phase 7.2 — seasons cache is not stored in the Supabase vault table.
+    // TV episode tracking lives in the `episode_progress` table (future phase).
+    // The seasons cache will be re-fetched from TMDB on each Details open.
   });
 
   /**
@@ -184,7 +181,7 @@ export default function DetailsModal() {
 
     setIsAdding(true);
     try {
-      const newItem = await svcAddToVault(uid, b);
+      const newItem = await createVaultItemInSupabase(uid, b);
       // Upgrade the modal state: now the title IS in the vault.
       setSelectedItem({ baseItem: newItem, vaultItem: newItem });
       const name = b.title || b.name || "Title";
@@ -215,16 +212,16 @@ export default function DetailsModal() {
     try {
       const updates = [];
       if (form().status !== (v.status || "Planned")) {
-        updates.push(svcUpdateStatus(uid, v.id, form().status));
+        updates.push(updateStatusInSupabase(uid, v.id, v.media_type, form().status));
       }
       if (Number(form().rating) !== (v.rating || 0)) {
-        updates.push(svcUpdateRating(uid, v.id, Number(form().rating)));
+        updates.push(updateRatingInSupabase(uid, v.id, v.media_type, Number(form().rating)));
       }
       if (form().notes !== (v.notes || "")) {
-        updates.push(svcUpdateNotes(uid, v.id, form().notes));
+        updates.push(updateNotesInSupabase(uid, v.id, v.media_type, form().notes));
       }
       if (form().watchDate !== (v.watchDate || "")) {
-        updates.push(svcUpdateWatchDate(uid, v.id, form().watchDate));
+        updates.push(updateWatchDateInSupabase(uid, v.id, v.media_type, form().watchDate));
       }
 
       await Promise.all(updates);
@@ -281,7 +278,7 @@ export default function DetailsModal() {
           : "Planned";
 
     try {
-      await svcUpdateStatus(uid, v.id, nextStatus);
+      await updateStatusInSupabase(uid, v.id, v.media_type, nextStatus);
       const updated: WatchlistItem = { ...v, status: nextStatus as WatchlistItem["status"] };
       setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
       showToast(`Status: ${nextStatus}`, "success", 1500);
@@ -296,41 +293,13 @@ export default function DetailsModal() {
     if (!uid || !v) return;
 
     try {
-      await svcUpdateSeasonEpisode(uid, v.id, newSeason, newEpisode);
-      await svcUpdateWatchProgress(uid, v.id, {
-        currentTime: 0,
-        duration: 0,
-        server: null,
-        updatedAt: new Date().toISOString(),
-        season: newSeason,
-        episode: newEpisode
-      });
-
-      // Opportunistically refresh the seasons cache (same as before)
-      const details = tmdb();
-      if (details?.seasons && v.media_type === "tv") {
-        const fresh: CachedSeasonInfo[] = details.seasons
-          .filter((s) => s.season_number > 0 && s.episode_count > 0)
-          .map((s) => ({ number: s.season_number, count: s.episode_count }))
-          .sort((a, b) => a.number - b.number);
-        const cached = v.seasons || [];
-        const needsRefresh =
-          fresh.length > 0 &&
-          (cached.length !== fresh.length ||
-            cached.some(
-              (c, i) =>
-                i >= fresh.length ||
-                c.number !== fresh[i].number ||
-                c.count !== fresh[i].count
-            ));
-        if (needsRefresh) {
-          svcUpdateSeasons(uid, v.id, fresh).catch(() => {});
-        }
-      }
-
+      // Phase 7.2 — TV episode tracking lives in the `episode_progress`
+      // table, not the `vault` table. For now, episode changes update the
+      // modal state locally; the episode_progress repository will be wired
+      // in a future phase. If the item is Planned, upgrade to Watching.
       let updated: WatchlistItem;
       if (v.status === "Planned" || v.status === "Plan to Watch") {
-        await svcUpdateStatus(uid, v.id, "Watching");
+        await updateStatusInSupabase(uid, v.id, v.media_type, "Watching");
         updated = { ...v, status: "Watching", season: newSeason, episode: newEpisode };
       } else {
         updated = { ...v, season: newSeason, episode: newEpisode };
@@ -348,7 +317,7 @@ export default function DetailsModal() {
     if (!uid || !v) return;
 
     try {
-      await svcUpdateStatus(uid, v.id, "Completed");
+      await updateStatusInSupabase(uid, v.id, v.media_type, "Completed");
       const updated: WatchlistItem = { ...v, status: "Completed" };
       setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
       showToast("Marked as Completed!", "success");

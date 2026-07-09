@@ -5,7 +5,7 @@ import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { login } from "~/core/firebase/auth";
-import { addToVault as svcAddToVault } from "~/features/watchlist/watchlistService";
+import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
@@ -139,7 +139,7 @@ export default function DiscoverPage() {
         genresList: title.genres,
         director: title.director
       };
-      await svcAddToVault(uid, item);
+      await createVaultItemInSupabase(uid, item);
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {
