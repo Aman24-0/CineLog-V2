@@ -38,6 +38,7 @@ import type {
   VaultStatus,
   VaultUpdate
 } from "~/lib/supabase/repositories";
+import { enrichWithEpisodeProgressAsync } from "./episodeProgressAdapter";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -99,7 +100,9 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
  * "desc")`).
  *
  * Calls `VaultRepository.getVaultByStatus` for each of the 5 statuses
- * in parallel and merges the results.
+ * in parallel, merges the results, then enriches TV items with their
+ * latest episode progress (season/episode/watchProgress) via a batch
+ * query to the `episode_progress` table.
  */
 export async function fetchVaultFromSupabase(userId: string): Promise<WatchlistItem[]> {
   const repo = getVaultRepository();
@@ -118,14 +121,20 @@ export async function fetchVaultFromSupabase(userId: string): Promise<WatchlistI
     allRows.push(...result.data);
   }
 
+  // Map to WatchlistItem
   const items = allRows.map(vaultRowToWatchlistItem);
-  items.sort((a, b) => {
+
+  // Enrich TV items with episode progress (season/episode/watchProgress)
+  const enrichedItems = await enrichWithEpisodeProgressAsync(items, allRows);
+
+  // Sort by created_at desc (matching the previous Firestore orderBy)
+  enrichedItems.sort((a, b) => {
     const timeA = typeof a.addedAt === "string" ? new Date(a.addedAt).getTime() : 0;
     const timeB = typeof b.addedAt === "string" ? new Date(b.addedAt).getTime() : 0;
     return timeB - timeA;
   });
 
-  return items;
+  return enrichedItems;
 }
 
 // ---------------------------------------------------------------------------

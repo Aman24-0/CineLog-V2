@@ -143,3 +143,19 @@ export type {
   DiscoverListResult,
   DiscoverBooleanResult
 } from "./discover";
+
+// ---- EpisodeProgressRepository (Phase 7.3) --------------------------------
+// Modular: episodeProgress/ subfolder. Manages the `episode_progress`
+// table (Database Bible §06) — per-episode TV/Anime progress tracking.
+// NOTE: EpisodeProgressRow is NOT re-exported here — it is already
+// exported from the dashboard barrel (same generated type).
+export { EpisodeProgressRepository, getEpisodeProgressRepository } from "./episodeProgress";
+
+export type {
+  EpisodeProgressInsert,
+  EpisodeProgressUpdate,
+  UpsertEpisodeProgressPayload,
+  EpisodeProgressResult,
+  EpisodeProgressListResult,
+  EpisodeProgressWriteResult
+} from "./episodeProgress";

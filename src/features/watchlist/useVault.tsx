@@ -32,6 +32,10 @@ import {
   updateWatchDateInSupabase
 } from "./vaultAdapter";
 import {
+  updateSeasonEpisodeInSupabase,
+  updateWatchProgressInSupabase
+} from "./episodeProgressAdapter";
+import {
   savePreset as svcSavePreset,
   deletePreset as svcDeletePreset,
   renamePreset as svcRenamePreset
@@ -170,31 +174,36 @@ const useVaultLogic = () => {
     }
   };
 
-  const updateSeasonEpisode = async (itemId: string, _season: number, _episode: number) => {
-    // TV episode tracking lives in the `episode_progress` table, not the
-    // `vault` table. The vault table has no `season`/`episode` columns.
-    // This method is kept for API compatibility but currently no-ops on
-    // the vault row itself. Episode progress will be migrated when the
-    // EpisodeProgressRepository is wired in a future phase.
-    void itemId; void _season; void _episode;
+  const updateSeasonEpisode = async (itemId: string, season: number, episode: number) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
-    showToast("Episode progress saved!", "success");
+    try {
+      const item = watchlist().find((m) => m.id === itemId);
+      if (!item) throw new Error("Item not found in vault");
+      // Phase 7.3 — persists to the `episode_progress` table via
+      // EpisodeProgressRepository. The vault row's UUID is resolved
+      // from the TMDB identity inside the adapter.
+      await updateSeasonEpisodeInSupabase(uid()!, itemId, item.media_type, season, episode);
+      await refreshVault(uid()!);
+      showToast("Episode progress updated!", "success");
+    } catch (err) {
+      showToast("Failed to update episode progress.", "error");
+      throw err;
+    }
   };
 
-  const updateWatchProgress = async (itemId: string, _progress: WatchProgress) => {
-    // Watch progress (V1 streaming fields) is not stored in the Supabase
-    // vault table. The vault table uses `progress_minutes` for movies.
-    // TV episode progress lives in `episode_progress`. This method is
-    // kept for API compatibility; the progress engine derives state from
-    // status + episode_progress, not from this field.
-    void itemId; void _progress;
+  const updateWatchProgress = async (itemId: string, progress: WatchProgress) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     const item = watchlist().find((m) => m.id === itemId);
     try {
       if (item && (item.status === "Planned" || item.status === "Plan to Watch")) {
         await updateStatusInSupabase(uid()!, itemId, item.media_type, "Watching");
-        await refreshVault(uid()!);
       }
+      // Phase 7.3 — persists the season/episode from the WatchProgress
+      // object to the `episode_progress` table.
+      if (item) {
+        await updateWatchProgressInSupabase(uid()!, itemId, item.media_type, progress);
+      }
+      await refreshVault(uid()!);
     } catch (err) {
       showToast("Failed to save progress.", "error");
       throw err;

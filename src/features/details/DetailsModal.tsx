@@ -12,6 +12,7 @@ import {
   updateStatusInSupabase,
   updateWatchDateInSupabase
 } from "~/features/watchlist/vaultAdapter";
+import { updateSeasonEpisodeInSupabase } from "~/features/watchlist/episodeProgressAdapter";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { CachedSeasonInfo, WatchlistItem } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
@@ -293,10 +294,9 @@ export default function DetailsModal() {
     if (!uid || !v) return;
 
     try {
-      // Phase 7.2 — TV episode tracking lives in the `episode_progress`
-      // table, not the `vault` table. For now, episode changes update the
-      // modal state locally; the episode_progress repository will be wired
-      // in a future phase. If the item is Planned, upgrade to Watching.
+      // Phase 7.3 — persists episode progress to the `episode_progress`
+      // table via EpisodeProgressRepository. If the item is Planned,
+      // upgrade to Watching first.
       let updated: WatchlistItem;
       if (v.status === "Planned" || v.status === "Plan to Watch") {
         await updateStatusInSupabase(uid, v.id, v.media_type, "Watching");
@@ -304,6 +304,8 @@ export default function DetailsModal() {
       } else {
         updated = { ...v, season: newSeason, episode: newEpisode };
       }
+      // Persist the episode progress to Supabase
+      await updateSeasonEpisodeInSupabase(uid, v.id, v.media_type, newSeason, newEpisode);
       setSelectedItem({ baseItem: { ...baseItem()!, ...updated }, vaultItem: updated });
     } catch (err) {
       console.error("Failed to update episode:", err);
