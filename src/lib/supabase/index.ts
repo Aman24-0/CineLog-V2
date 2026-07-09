@@ -40,13 +40,19 @@
  *   requireUser              — guard: validated server-side user
  *   SessionRequiredError     — error class for guard failures
  *
+ * Repositories (Phase 4 — repository foundation)
+ *   VaultRepository (class)  — type-safe data-access layer for `vault`
+ *   getVaultRepository()     — default instance accessor
+ *   + vault types            — VaultRow, VaultIdentity, VaultStatus,
+ *                              MediaType, CreateVaultItemPayload, etc.
+ *
  * Phase scope
  * -----------
- * The auth + session modules are the authentication *foundation*
- * only. They are NOT wired into the application — `useAuth` and
- * `src/core/firebase/auth.ts` remain the sole source of auth truth
- * until the migration explicitly cuts over (Integration Guide §07,
- * Phase 4).
+ * The auth, session, and repository modules are the *foundation*
+ * only. They are NOT wired into the application — `useAuth`,
+ * `src/core/firebase/auth.ts`, `watchlistService.ts`, and `useVault.tsx`
+ * remain the sole source of truth until the migration explicitly cuts
+ * over (Integration Guide §07, Phase 4–5).
  *
  * `database.types.ts` is the OFFICIAL output of the Supabase CLI
  * `gen types typescript` command, generated directly from the live
@@ -127,6 +133,26 @@ export type {
   SessionChangeCallback,
   SessionSubscription
 } from "./session";
+
+// ---- Repositories (Phase 4) -----------------------------------------------
+// Re-exported from the repositories barrel so the internal folder
+// layout (one file per table) can evolve without touching call-sites.
+export { VaultRepository, getVaultRepository } from "./repositories";
+
+export type {
+  VaultRow,
+  VaultInsert,
+  VaultUpdate,
+  MediaType,
+  VaultStatus,
+  VaultIdentity,
+  CreateVaultItemPayload,
+  VaultSortField,
+  SortDirection,
+  VaultPagination,
+  VaultSort,
+  VaultSearchQuery
+} from "./repositories";
 
 
 
