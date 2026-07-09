@@ -7,12 +7,14 @@
  *
  * Re-exports
  * ----------
+ * Client accessors
  *   getClient()              — environment-aware accessor (PRIMARY API)
  *   getBrowserClient()       — singleton, browser only
  *   createBrowserClient()    — factory, browser only
  *   createServerClient()     — factory, server only (per-request)
  *   SupabaseClient (type)    — for typed consumers (repositories etc.)
  *
+ * Database types (Phase 2 — CLI-generated, do not hand-edit)
  *   Database (type)          — generated database schema types
  *   Tables, TablesInsert,
  *   TablesUpdate             — per-table helper types for repositories
@@ -20,8 +22,32 @@
  *   Constants                — runtime constant map of enum values
  *   Json                     — JSON value type used by jsonb columns
  *
- * Phase 2 scope
- * -------------
+ * Auth wrappers (Phase 3 — authentication foundation)
+ *   signUp, signIn, signOut,
+ *   getCurrentUser,
+ *   getCurrentSession,
+ *   refreshSession,
+ *   resetPassword,
+ *   updatePassword           — imperative auth actions
+ *   + input/output types     — EmailPasswordCredentials, SignOutScope,
+ *                              UpdatePasswordPayload, etc.
+ *
+ * Session helpers (Phase 3 — authentication foundation)
+ *   onSessionChange          — subscribe to auth-state events
+ *   getServerSession         — SSR-only session reader
+ *   getBrowserSession        — browser-only session reader
+ *   requireSession           — guard: throw if no session
+ *   requireUser              — guard: validated server-side user
+ *   SessionRequiredError     — error class for guard failures
+ *
+ * Phase scope
+ * -----------
+ * The auth + session modules are the authentication *foundation*
+ * only. They are NOT wired into the application — `useAuth` and
+ * `src/core/firebase/auth.ts` remain the sole source of auth truth
+ * until the migration explicitly cuts over (Integration Guide §07,
+ * Phase 4).
+ *
  * `database.types.ts` is the OFFICIAL output of the Supabase CLI
  * `gen types typescript` command, generated directly from the live
  * Supabase project. It is committed UNMODIFIED — do not hand-edit;
@@ -31,12 +57,9 @@
  *     npx supabase gen types typescript \
  *         --project-id <your-project-ref> \
  *         > src/lib/supabase/database.types.ts
- *
- * Nothing in this barrel is consumed by the application yet. The
- * Firebase backend remains the sole source of truth until the
- * migration explicitly cuts over.
  */
 
+// ---- Client accessors (Phase 1) -------------------------------------------
 export { getBrowserClient, createBrowserClient } from "./browser";
 export type { SupabaseClient } from "./browser";
 
@@ -44,11 +67,9 @@ export { createServerClient } from "./server";
 
 export { getClient } from "./client";
 
-// Phase 2 — official Supabase CLI generated database types.
-// Re-exported as type-only / value-only to match the CLI output exactly.
-// `isolatedModules: true` in tsconfig.json requires `export type` for
-// type-only re-exports; `Constants` is a runtime value so it uses a
-// normal `export`.
+// ---- Database types (Phase 2) ---------------------------------------------
+// Type-only re-exports because tsconfig.json has `isolatedModules: true`.
+// `Constants` is a runtime value so it uses a normal `export`.
 export type {
   Json,
   Database,
@@ -60,5 +81,52 @@ export type {
 } from "./database.types";
 
 export { Constants } from "./database.types";
+
+// ---- Auth wrappers (Phase 3) ----------------------------------------------
+// Functions are runtime values; types are re-exported as type-only.
+export {
+  signUp,
+  signIn,
+  signOut,
+  getCurrentUser,
+  getCurrentSession,
+  refreshSession,
+  resetPassword,
+  updatePassword
+} from "./auth";
+
+export type {
+  EmailPasswordCredentials,
+  SignUpMetadata,
+  EmailRedirectOptions,
+  UpdatePasswordPayload,
+  SignOutScope,
+  GetSessionResult,
+  SignOutResult,
+  ResetPasswordResult,
+  // SDK types re-exported via ./auth for caller convenience.
+  AuthError,
+  AuthResponse,
+  AuthTokenResponsePassword,
+  Session,
+  User,
+  UserResponse
+} from "./auth";
+
+// ---- Session helpers (Phase 3) --------------------------------------------
+export {
+  onSessionChange,
+  getServerSession,
+  getBrowserSession,
+  requireSession,
+  requireUser,
+  SessionRequiredError
+} from "./session";
+
+export type {
+  SessionChangeCallback,
+  SessionSubscription
+} from "./session";
+
 
 
