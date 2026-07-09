@@ -1,3 +1,4 @@
+import { toError } from "../shared";
 /**
  * CineLog V2 — Discover Repository: Internal Helpers
  * ---------------------------------------------------------------------
@@ -21,17 +22,6 @@ import { getClient } from "../../client";
  *
  * Supabase errors are already `Error` instances in v2, but the union
  * type includes `null`. This helper keeps call-sites tidy.
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
-
-// ---------------------------------------------------------------------------
-// Column-selection helpers — request only the columns the discover
-// layer needs (Database Bible §12: "Avoid unnecessary select(*)")
-// ---------------------------------------------------------------------------
 
 /**
  * Compact column list for vault rows returned to the discover layer.
@@ -88,3 +78,6 @@ export type { TypedSupabaseClient } from "./discover.types";
 export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
   return client ?? getClient();
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

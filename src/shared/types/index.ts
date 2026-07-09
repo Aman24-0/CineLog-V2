@@ -100,7 +100,7 @@ export interface FilterPreset {
   id: string;
   name: string;
   filters: VaultFilters;
-  createdAt?: any;
+  createdAt?: string;
 }
 
 export interface TMDBGenre {

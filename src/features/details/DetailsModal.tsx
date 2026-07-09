@@ -14,7 +14,7 @@ import {
 } from "~/features/watchlist/vaultAdapter";
 import { updateSeasonEpisodeInSupabase } from "~/features/watchlist/episodeProgressAdapter";
 import { findInVault } from "~/shared/utils/vaultMatch";
-import type { CachedSeasonInfo, WatchlistItem } from "~/shared/types";
+import type { CachedSeasonInfo, WatchlistItem, OMDbRatings } from "~/shared/types";
 import { pickTrailer } from "~/core/tmdb/tmdb";
 import { useDetails } from "./useDetails";
 import CinematicHero from "./components/CinematicHero";
@@ -539,7 +539,7 @@ export default function DetailsModal() {
  * CastCrewGrid — inline cast & crew display using v2-meta-row system.
  * Extracted here to keep DetailsModal readable.
  */
-function CastCrewGrid(props: { omdb: any }) {
+function CastCrewGrid(props: { omdb: OMDbRatings | null }) {
   const cast = () =>
     (props.omdb?.actors || "")
       .split(",")

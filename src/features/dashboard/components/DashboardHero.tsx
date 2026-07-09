@@ -159,7 +159,7 @@ export default function DashboardHero(props: DashboardHeroProps) {
           class={`dashboard-hero-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
           loading="eager"
           decoding="async"
-          {...{ fetchpriority: "high" } as any}
+          {...({ fetchpriority: "high" } as Record<string, string>)}
           onLoad={() => setBackdropLoaded(true)}
           alt=""
           aria-hidden="true"

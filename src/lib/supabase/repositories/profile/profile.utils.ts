@@ -1,3 +1,4 @@
+import { toError } from "../shared";
 /**
  * CineLog V2 — Profile Repository: Internal Helpers
  * ---------------------------------------------------------------------
@@ -130,25 +131,7 @@ export function toPreferencesUpdate(
 }
 
 // ---------------------------------------------------------------------------
-// Error normalisation
-// ---------------------------------------------------------------------------
-
-/**
- * Normalise a Supabase / PostgREST error into a plain `Error`.
- *
- * Supabase errors are already `Error` instances in v2, but the union
- * type includes `null`. This helper keeps call-sites tidy:
- *
- *     return { data: null, error: toError(result.error) };
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
-
-// ---------------------------------------------------------------------------
-// Date helpers
+// Account deletion timestamp helper
 // ---------------------------------------------------------------------------
 
 /**
@@ -163,3 +146,6 @@ export function computeScheduledDeletionAt(
 ): string {
   return new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString();
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

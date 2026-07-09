@@ -211,7 +211,7 @@ export default function CollectionModal() {
                         class="collection-hero-backdrop"
                         loading="eager"
                         decoding="async"
-                        {...{ fetchpriority: "high" } as any}
+                        {...({ fetchpriority: "high" } as Record<string, string>)}
                         alt=""
                         aria-hidden="true"
                       />

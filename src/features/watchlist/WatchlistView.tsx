@@ -22,18 +22,7 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
 
 const VaultFilters = lazy(() => import("./components/VaultFilters"));
 
-const toMs = (v: any): number => {
-  if (!v) return 0;
-  if (v instanceof Date) return isNaN(v.getTime()) ? 0 : v.getTime();
-  if (typeof v === "string") {
-    const d = new Date(v);
-    return isNaN(d.getTime()) ? 0 : d.getTime();
-  }
-  if (typeof v === "object" && typeof v.seconds === "number") {
-    return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
-  }
-  return 0;
-};
+import { toMs } from "~/shared/utils/vaultStatus";
 const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 
 const defaultFilters: VaultFilters = {

@@ -23,7 +23,7 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
       return rule.operator === "contains"
         ? (item.director?.toLowerCase().includes(val) ?? false)
         : rule.operator === "is"
-          ? (item.director?.toLowerCase() === val ?? false)
+          ? (item.director?.toLowerCase() ?? "") === val
           : false;
     }
     case "genre": {

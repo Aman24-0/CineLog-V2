@@ -1,7 +1,7 @@
 /**
  * CineLog V2 — Episode Progress Repository: Internal Helpers
  * ---------------------------------------------------------------------
- * Error normalisation + payload mapping.
+ * Validation + payload mapping.
  */
 
 import type {
@@ -11,15 +11,6 @@ import type {
   UpsertEpisodeProgressPayload
 } from "./episodeProgress.types";
 import { getClient } from "../../client";
-
-/**
- * Normalise a Supabase error into a plain `Error`.
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
 
 /**
  * Map an `UpsertEpisodeProgressPayload` to the snake-case
@@ -57,3 +48,6 @@ export type { TypedSupabaseClient } from "./episodeProgress.types";
 export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
   return client ?? getClient();
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

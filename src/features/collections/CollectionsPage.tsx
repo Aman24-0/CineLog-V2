@@ -112,7 +112,7 @@ export default function CollectionsPage() {
                 class="universe-hero-backdrop"
                 loading="eager"
                 decoding="async"
-                {...{ fetchpriority: "high" } as any}
+                {...({ fetchpriority: "high" } as Record<string, string>)}
                 alt=""
                 aria-hidden="true"
               />

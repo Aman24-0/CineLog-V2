@@ -79,7 +79,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             class="universe-detail-hero-backdrop"
             loading="eager"
             decoding="async"
-            {...{ fetchpriority: "high" } as any}
+            {...({ fetchpriority: "high" } as Record<string, string>)}
             alt=""
             aria-hidden="true"
           />

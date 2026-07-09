@@ -93,7 +93,7 @@ export default function CinematicHero(props: CinematicHeroProps) {
           class={`cinematic-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
           loading="eager"
           decoding="async"
-          {...{ fetchpriority: "high" } as any}
+          {...({ fetchpriority: "high" } as Record<string, string>)}
           onLoad={() => setBackdropLoaded(true)}
           alt=""
           aria-hidden="true"

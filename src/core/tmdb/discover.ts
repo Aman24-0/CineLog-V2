@@ -243,14 +243,14 @@ export async function fetchTitleDirector(
   );
   if (!res.ok) return undefined;
   const json = await res.json();
-  const crew = json.crew || [];
+  const crew: Array<{ job: string; name: string; department?: string }> = json.crew || [];
   // Movies: look for "Director". TV: look for "Creator" (sometimes "Executive Producer").
   if (mediaType === "movie") {
-    const dir = crew.find((c: any) => c.job === "Director");
+    const dir = crew.find((c) => c.job === "Director");
     return dir?.name;
   }
-  const creator = crew.find((c: any) => c.job === "Creator") ||
-    crew.find((c: any) => c.job === "Executive Producer" && c.department === "Production");
+  const creator = crew.find((c) => c.job === "Creator") ||
+    crew.find((c) => c.job === "Executive Producer" && c.department === "Production");
   return creator?.name;
 }
 

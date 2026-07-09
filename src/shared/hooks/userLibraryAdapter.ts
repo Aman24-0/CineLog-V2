@@ -24,20 +24,9 @@
 import { getDashboardRepository } from "~/lib/supabase/repositories";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
+import { STATUS_TO_UI } from "~/shared/utils/vaultStatus";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import type { WatchlistItem, WatchProgress } from "~/shared/types";
-
-// ---------------------------------------------------------------------------
-// Status mapping (lowercase Supabase enum → Title Case UI)
-// ---------------------------------------------------------------------------
-
-const STATUS_TO_UI: Record<string, WatchlistItem["status"]> = {
-  planned: "Planned",
-  watching: "Watching",
-  completed: "Completed",
-  on_hold: "Plan to Watch",
-  dropped: "Plan to Watch"
-};
 
 // ---------------------------------------------------------------------------
 // VaultRow → WatchlistItem (with optional episode progress)

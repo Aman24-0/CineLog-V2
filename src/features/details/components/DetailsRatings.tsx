@@ -1,5 +1,5 @@
 // src/features/details/components/DetailsRatings.tsx
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, type JSX } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { useAuth } from "~/shared/hooks/useAuth";
 import type { TMDBDetails, OMDbRatings, WatchlistItem } from "~/shared/types";
@@ -123,12 +123,12 @@ export default function DetailsRatings(props: DetailsRatingsProps) {
 }
 
 interface RatingCardProps {
-  icon: any;
+  icon: JSX.Element;
   value: string;
   label: string;
   color: string;
   ariaLabel: string;
-  footer?: any;
+  footer?: JSX.Element;
 }
 
 function RatingCard(props: RatingCardProps) {

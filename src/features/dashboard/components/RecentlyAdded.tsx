@@ -1,6 +1,7 @@
 // src/features/dashboard/components/RecentlyAdded.tsx
 import { For, Show, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { toMs } from "~/shared/utils/vaultStatus";
 import type { WatchlistItem } from "~/shared/types";
 
 interface RecentlyAddedProps {
@@ -27,20 +28,7 @@ interface RecentlyAddedProps {
 const RecentlyAdded: Component<RecentlyAddedProps> = (props) => {
   const recentItems = createMemo(() => props.watchlist.slice(0, 10));
 
-  const toMs = (v: any): number => {
-    if (!v) return 0;
-    if (v instanceof Date) return v.getTime();
-    if (typeof v === "string") {
-      const d = new Date(v);
-      return isNaN(d.getTime()) ? 0 : d.getTime();
-    }
-    if (typeof v === "object" && typeof v.seconds === "number") {
-      return v.seconds * 1000 + Math.floor((v.nanoseconds || 0) / 1e6);
-    }
-    return 0;
-  };
-
-  const timeAgo = (addedAt: any): string => {
+  const timeAgo = (addedAt: unknown): string => {
     const ms = toMs(addedAt);
     if (ms === 0) return "";
     const diff = Date.now() - ms;

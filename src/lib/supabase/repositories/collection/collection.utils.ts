@@ -1,3 +1,4 @@
+import { toError } from "../shared";
 /**
  * CineLog V2 — Collection Repository: Internal Helpers
  * ---------------------------------------------------------------------
@@ -134,17 +135,6 @@ export function toPositionUpdate(newPosition: number): CollectionEntryUpdate {
  *
  * Supabase errors are already `Error` instances in v2, but the union
  * type includes `null`. This helper keeps call-sites tidy.
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
-
-// ---------------------------------------------------------------------------
-// Query composition helpers — sort + pagination
-// ---------------------------------------------------------------------------
-
 /**
  * Apply a sort spec to a query builder. Returns the builder so it can
  * be chained. No-op if `sort` is undefined.
@@ -206,3 +196,6 @@ export async function computeNextPosition(
   if (error || !data) return 0;
   return (data.position as number) + 1;
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

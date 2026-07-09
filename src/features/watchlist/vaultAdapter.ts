@@ -55,24 +55,7 @@ import type { WatchlistItem } from "~/shared/types";
  * "on_hold" and "dropped" have no exact Firestore equivalent — both map
  * to "Plan to Watch" (the closest existing status).
  */
-const STATUS_TO_UI: Record<VaultStatus, WatchlistItem["status"]> = {
-  planned: "Planned",
-  watching: "Watching",
-  completed: "Completed",
-  on_hold: "Plan to Watch",
-  dropped: "Plan to Watch"
-};
-
-/**
- * Reverse map: Firestore Title Case → Supabase lowercase enum.
- * "Plan to Watch" maps to "planned" (the closest Supabase status).
- */
-const STATUS_TO_DB: Record<WatchlistItem["status"], VaultStatus> = {
-  Planned: "planned",
-  Watching: "watching",
-  Completed: "completed",
-  "Plan to Watch": "planned"
-};
+import { STATUS_TO_UI, STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 
 // ---------------------------------------------------------------------------
 // READ: VaultRow → WatchlistItem
@@ -172,7 +155,7 @@ export async function createVaultItemInSupabase(
     userId,
     tmdbId: Number(item.id),
     mediaType: item.media_type,
-    status: STATUS_TO_DB[item.status ?? "Planned"] ?? "planned",
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
     watchedOn: item.watchDate
@@ -197,7 +180,7 @@ export async function updateStatusInSupabase(
   status: string
 ): Promise<void> {
   const repo = getVaultRepository();
-  const vaultStatus = STATUS_TO_DB[status as WatchlistItem["status"]] ?? "planned";
+  const vaultStatus = (STATUS_TO_DB[status as WatchlistItem["status"]] ?? "planned") as VaultStatus;
   const { error } = await repo.updateStatus(
     { userId, tmdbId: Number(itemId), mediaType },
     vaultStatus

@@ -96,7 +96,7 @@ export default function HeroSection(props: HeroSectionProps) {
               class="backdrop-img absolute inset-0"
               loading="eager"
               decoding="async"
-              {...{ fetchpriority: "high" } as any}
+              {...({ fetchpriority: "high" } as Record<string, string>)}
               onLoad={(e) => e.currentTarget.classList.add("img-loaded")}
               alt=""
               aria-hidden="true"

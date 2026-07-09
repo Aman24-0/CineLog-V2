@@ -4,7 +4,7 @@ import type { WatchlistItem } from "~/shared/types";
 // Firestore returns timestamps as { seconds, nanoseconds } objects (or as
 // Timestamp instances which expose the same shape). Normalize any of those,
 // plus Date / ISO string, to a JS Date — or null if not parseable.
-const toDate = (value: any): Date | null => {
+const toDate = (value: WatchlistItem["addedAt"]): Date | null => {
   if (!value) return null;
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
   if (typeof value === "string") {

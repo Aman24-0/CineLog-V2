@@ -1,3 +1,4 @@
+import { toError } from "../shared";
 /**
  * CineLog V2 — Dashboard Repository: Internal Helpers
  * ---------------------------------------------------------------------
@@ -23,17 +24,6 @@ import type { DashboardPagination, TypedSupabaseClient } from "./dashboard.types
  *
  * Supabase errors are already `Error` instances in v2, but the union
  * type includes `null`. This helper keeps call-sites tidy.
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
-
-// ---------------------------------------------------------------------------
-// Pagination
-// ---------------------------------------------------------------------------
-
 /**
  * Apply a pagination spec to a query builder. Returns the builder so it
  * can be chained. No-op if `pagination` is undefined.
@@ -118,3 +108,6 @@ export type { TypedSupabaseClient } from "./dashboard.types";
 export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
   return client ?? getClient();
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

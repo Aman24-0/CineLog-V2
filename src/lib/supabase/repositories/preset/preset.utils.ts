@@ -1,3 +1,4 @@
+import { toError } from "../shared";
 /**
  * CineLog V2 — Preset Repository: Internal Helpers
  * ---------------------------------------------------------------------
@@ -60,19 +61,6 @@ export function toRenameUpdate(name: string): PresetUpdate {
 }
 
 // ---------------------------------------------------------------------------
-// Error normalisation
-// ---------------------------------------------------------------------------
-
-/**
- * Normalise a Supabase / PostgREST error into a plain `Error`.
- */
-export function toError(error: unknown): Error | null {
-  if (error === null || error === undefined) return null;
-  if (error instanceof Error) return error;
-  return new Error(String(error));
-}
-
-// ---------------------------------------------------------------------------
 // Typed client accessor
 // ---------------------------------------------------------------------------
 
@@ -81,3 +69,6 @@ export type { TypedSupabaseClient } from "./preset.types";
 export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
   return client ?? getClient();
 }
+
+// Re-export toError from shared (eliminates duplicate)
+export { toError } from "../shared";

@@ -112,7 +112,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                   <select
                     class="smart-rule-select"
                     value={rule.field}
-                    onChange={(e) => updateRule(index(), { field: e.currentTarget.value as SmartRule["field"], operator: OPERATOR_OPTIONS[e.currentTarget.value]?.[0]?.value ?? "contains", value: "" })}
+                    onChange={(e) => updateRule(index(), { field: e.currentTarget.value as SmartRule["field"], operator: (OPERATOR_OPTIONS[e.currentTarget.value]?.[0]?.value ?? "contains") as SmartRule["operator"], value: "" })}
                   >
                     <For each={FIELD_OPTIONS}>
                       {(opt) => <option value={opt.value}>{opt.label}</option>}

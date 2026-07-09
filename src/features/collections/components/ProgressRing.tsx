@@ -62,8 +62,8 @@ export default function ProgressRing(props: ProgressRingProps) {
           stroke={props.accentColor ?? "var(--p)"}
           stroke-width={strokeWidth()}
           stroke-linecap="round"
-          stroke-dasharray={circumference()}
-          stroke-dashoffset={offset()}
+          stroke-dasharray={String(circumference())}
+          stroke-dashoffset={String(offset())}
           style={{
             transition: "stroke-dashoffset 0.8s var(--ease-smooth)"
           }}

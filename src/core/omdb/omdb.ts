@@ -3,6 +3,26 @@ import type { OMDbRatings } from "~/shared/types";
 
 export const OMDB_KEY = import.meta.env.VITE_OMDB_API_KEY;
 
+/** OMDb API rating entry shape */
+interface OMDbRatingEntry {
+  Source: string;
+  Value: string;
+}
+
+/** OMDb API response shape (subset of fields we use) */
+interface OMDbResponse {
+  Response: string;
+  Ratings?: OMDbRatingEntry[];
+  imdbRating?: string;
+  Director?: string;
+  Actors?: string;
+  Writer?: string;
+  Plot?: string;
+  Rated?: string;
+  Year?: string;
+  Runtime?: string;
+}
+
 export const fetchOmdbRatings = async (title: string): Promise<OMDbRatings | null> => {
   if (!title) return null;
   try {
@@ -10,13 +30,12 @@ export const fetchOmdbRatings = async (title: string): Promise<OMDbRatings | nul
       `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_KEY}`
     );
     if (!res.ok) return null;
-    const data = await res.json();
+    const data: OMDbResponse = await res.json();
     if (data.Response === "True") {
-      const rt = data.Ratings?.find((r: any) => r.Source === "Rotten Tomatoes")?.Value || "-";
+      const rt = data.Ratings?.find((r) => r.Source === "Rotten Tomatoes")?.Value || "-";
       return {
         imdb: data.imdbRating && data.imdbRating !== "N/A" ? data.imdbRating : "-",
         rt,
-        // Extra metadata for the details page (all optional, may be "N/A")
         director: data.Director && data.Director !== "N/A" ? data.Director : undefined,
         actors: data.Actors && data.Actors !== "N/A" ? data.Actors : undefined,
         writer: data.Writer && data.Writer !== "N/A" ? data.Writer : undefined,
@@ -27,7 +46,7 @@ export const fetchOmdbRatings = async (title: string): Promise<OMDbRatings | nul
       };
     }
     return null;
-  } catch (e) {
+  } catch {
     return null;
   }
 };
