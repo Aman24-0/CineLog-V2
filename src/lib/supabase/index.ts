@@ -203,5 +203,19 @@ export type {
   CollectionWriteResult
 } from "./repositories";
 
+export { DashboardRepository, getDashboardRepository } from "./repositories";
+
+export type {
+  EpisodeProgressRow,
+  DashboardPagination,
+  VaultStatusCounts,
+  VaultCounts,
+  CollectionCounts,
+  DashboardStats,
+  ContinueWatchingItem,
+  DashboardResult,
+  DashboardListResult
+} from "./repositories";
+
 
 

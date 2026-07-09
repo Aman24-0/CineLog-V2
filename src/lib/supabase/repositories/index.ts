@@ -99,3 +99,23 @@ export type {
   CollectionResult,
   CollectionWriteResult
 } from "./collection";
+
+// ---- DashboardRepository (Phase 4) ----------------------------------------
+// Modular: dashboard/ subfolder. READ-ONLY aggregation layer over
+// vault / collections / collection_entries / episode_progress.
+// NOTE: VaultRow / CollectionRow / CollectionEntryRow are NOT
+// re-exported here from the dashboard barrel — they are already
+// exported from the vault / collection barrels (same generated types).
+export { DashboardRepository, getDashboardRepository } from "./dashboard";
+
+export type {
+  EpisodeProgressRow,
+  DashboardPagination,
+  VaultStatusCounts,
+  VaultCounts,
+  CollectionCounts,
+  DashboardStats,
+  ContinueWatchingItem,
+  DashboardResult,
+  DashboardListResult
+} from "./dashboard";
