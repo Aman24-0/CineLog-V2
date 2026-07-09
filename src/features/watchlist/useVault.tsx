@@ -11,10 +11,8 @@
 //
 // Architecture:
 //   App → UserLibraryProvider → useUserLibrary() → useVault() (compat) → consumers
-//   Presets: useVault → presetAdapter → PresetRepository → Supabase
-import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
-import { onSessionChange } from "~/lib/supabase/session";
-import type { Session } from "~/lib/supabase/session";
+//   Presets: useVault → useVaultPresets → presetAdapter → PresetRepository → Supabase
+import { createContext, useContext, ParentComponent } from "solid-js";
 import { useToast } from "~/shared/hooks/useToast";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -27,22 +25,17 @@ import {
   updateProgressInSupabase,
   updateRatingInSupabase,
   updateStatusInSupabase,
-  updateWatchDateInSupabase
+  updateWatchDateInSupabase,
 } from "./vaultAdapter";
 import {
   updateSeasonEpisodeInSupabase,
-  updateWatchProgressInSupabase
+  updateWatchProgressInSupabase,
 } from "./episodeProgressAdapter";
-import {
-  fetchPresetsFromSupabase,
-  createPresetInSupabase,
-  renamePresetInSupabase,
-  deletePresetFromSupabase
-} from "./presetAdapter";
-import type { WatchProgress, FilterPreset, VaultFilters } from "~/shared/types";
+import { useVaultPresets } from "./useVaultPresets";
+import type { WatchProgress, VaultFilters } from "~/shared/types";
 
 export interface VaultStore extends UserLibrary {
-  readonly presets: () => FilterPreset[];
+  readonly presets: () => import("~/shared/types").FilterPreset[];
   readonly uid: () => string | null;
   readonly updateStatus: (itemId: string, status: string) => Promise<void>;
   readonly updateRating: (itemId: string, rating: number) => Promise<void>;
@@ -62,96 +55,59 @@ export interface VaultStore extends UserLibrary {
 const useVaultLogic = (): VaultStore => {
   const library = useUserLibrary();
   const { watchlist, loading, isGuest, error, refresh } = library;
-
   const { showToast } = useToast();
-  const [presets, setPresets] = createSignal<FilterPreset[]>([]);
+  const uid = () => getCurrentUid();
+  const presetsMgr = useVaultPresets();
 
-  let unsubAuth: (() => void) | null = null;
+  // Helper: find a vault item by id (throws if not found).
+  const findItem = (itemId: string) => {
+    const item = watchlist().find((m) => m.id === itemId);
+    if (!item) throw new Error("Item not found in vault");
+    return item;
+  };
 
-  /** Refresh presets from Supabase (single source of truth). */
-  const refreshPresets = async (userId: string) => {
+  // Helper: run a Supabase write, refresh the library, show a success toast
+  // (only if successMsg is non-empty — toggleFavorite/togglePinned are silent
+  // on success in the original implementation).
+  const runWrite = async (
+    itemId: string,
+    op: (uid: string, itemId: string, mediaType: "movie" | "tv") => Promise<unknown>,
+    successMsg: string,
+    errorMsg: string,
+  ) => {
+    if (!uid()) return showToast("Please sign in to make changes.", "error");
     try {
-      const items = await fetchPresetsFromSupabase(userId);
-      setPresets(items);
+      const item = findItem(itemId);
+      await op(uid()!, itemId, item.media_type);
+      await refresh();
+      if (successMsg) showToast(successMsg, "success");
     } catch (err) {
-      console.error("[useVault] Error fetching presets:", err);
+      showToast(errorMsg, "error");
+      throw err;
     }
   };
 
-  onMount(() => {
-    const subscription = onSessionChange(async (_event, session: Session | null) => {
-      const supabaseUid = session?.user?.id ?? null;
-      if (supabaseUid) {
-        await refreshPresets(supabaseUid);
-      } else {
-        setPresets([]);
-      }
-    });
-    unsubAuth = () => subscription.unsubscribe();
-  });
-
-  onCleanup(() => {
-    if (unsubAuth) unsubAuth();
-  });
-
-  const uid = () => getCurrentUid();
-
   // ---- Vault write operations (via Supabase) ----
-  const updateStatus = async (itemId: string, status: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateStatusInSupabase(uid()!, itemId, item.media_type, status);
-      await refresh();
-      showToast("Status updated!", "success");
-    } catch (err) { showToast("Failed to update status.", "error"); throw err; }
-  };
+  const updateStatus = (itemId: string, status: string) =>
+    runWrite(itemId, (u, id, mt) => updateStatusInSupabase(u, id, mt, status), "Status updated!", "Failed to update status.");
+  const updateRating = (itemId: string, rating: number) =>
+    runWrite(itemId, (u, id, mt) => updateRatingInSupabase(u, id, mt, rating), "Rating updated!", "Failed to update rating.");
+  const updateNotes = (itemId: string, notes: string) =>
+    runWrite(itemId, (u, id, mt) => updateNotesInSupabase(u, id, mt, notes), "Notes saved!", "Failed to save notes.");
+  const updateWatchDate = (itemId: string, watchDate: string) =>
+    runWrite(itemId, (u, id, mt) => updateWatchDateInSupabase(u, id, mt, watchDate), "Watch date updated!", "Failed to update watch date.");
+  const updateSeasonEpisode = (itemId: string, season: number, episode: number) =>
+    runWrite(itemId, (u, id, mt) => updateSeasonEpisodeInSupabase(u, id, mt, season, episode), "Episode progress updated!", "Failed to update episode progress.");
+  const deleteWatchlistItem = (itemId: string) =>
+    runWrite(itemId, (u, id, mt) => deleteVaultItemInSupabase(u, id, mt), "Item deleted.", "Failed to delete item.");
+  const toggleFavorite = (itemId: string) =>
+    runWrite(itemId, (u, id, mt) => toggleFavoriteInSupabase(u, id, mt, false), "", "Failed to toggle favorite.");
+  const togglePinned = (itemId: string) =>
+    runWrite(itemId, (u, id, mt) => togglePinnedInSupabase(u, id, mt, false), "", "Failed to toggle pin.");
+  const updateProgress = (itemId: string, progressMinutes: number) =>
+    runWrite(itemId, (u, id, mt) => updateProgressInSupabase(u, id, mt, progressMinutes), "", "Failed to update progress.");
 
-  const updateRating = async (itemId: string, rating: number) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateRatingInSupabase(uid()!, itemId, item.media_type, rating);
-      await refresh();
-      showToast("Rating updated!", "success");
-    } catch (err) { showToast("Failed to update rating.", "error"); throw err; }
-  };
-
-  const updateNotes = async (itemId: string, notes: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateNotesInSupabase(uid()!, itemId, item.media_type, notes);
-      await refresh();
-      showToast("Notes saved!", "success");
-    } catch (err) { showToast("Failed to save notes.", "error"); throw err; }
-  };
-
-  const updateWatchDate = async (itemId: string, watchDate: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateWatchDateInSupabase(uid()!, itemId, item.media_type, watchDate);
-      await refresh();
-      showToast("Watch date updated!", "success");
-    } catch (err) { showToast("Failed to update watch date.", "error"); throw err; }
-  };
-
-  const updateSeasonEpisode = async (itemId: string, season: number, episode: number) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateSeasonEpisodeInSupabase(uid()!, itemId, item.media_type, season, episode);
-      await refresh();
-      showToast("Episode progress updated!", "success");
-    } catch (err) { showToast("Failed to update episode progress.", "error"); throw err; }
-  };
-
+  // ---- Watch progress (special: auto-upgrades Planned → Watching) ----
   const updateWatchProgress = async (itemId: string, progress: WatchProgress) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     const item = watchlist().find((m) => m.id === itemId);
@@ -163,86 +119,22 @@ const useVaultLogic = (): VaultStore => {
         await updateWatchProgressInSupabase(uid()!, itemId, item.media_type, progress);
       }
       await refresh();
-    } catch (err) { showToast("Failed to save progress.", "error"); throw err; }
-  };
-
-  const deleteWatchlistItem = async (itemId: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await deleteVaultItemInSupabase(uid()!, itemId, item.media_type);
-      await refresh();
-      showToast("Item deleted.", "success");
-    } catch (err) { showToast("Failed to delete item.", "error"); throw err; }
-  };
-
-  const toggleFavorite = async (itemId: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await toggleFavoriteInSupabase(uid()!, itemId, item.media_type, false);
-      await refresh();
-    } catch (err) { showToast("Failed to toggle favorite.", "error"); throw err; }
-  };
-
-  const togglePinned = async (itemId: string) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await togglePinnedInSupabase(uid()!, itemId, item.media_type, false);
-      await refresh();
-    } catch (err) { showToast("Failed to toggle pin.", "error"); throw err; }
-  };
-
-  const updateProgress = async (itemId: string, progressMinutes: number) => {
-    if (!uid()) return showToast("Please sign in to make changes.", "error");
-    try {
-      const item = watchlist().find((m) => m.id === itemId);
-      if (!item) throw new Error("Item not found in vault");
-      await updateProgressInSupabase(uid()!, itemId, item.media_type, progressMinutes);
-      await refresh();
-    } catch (err) { showToast("Failed to update progress.", "error"); throw err; }
-  };
-
-  // ---- Presets (via Supabase through presetAdapter) ----
-  const savePreset = async (name: string, filters: VaultFilters) => {
-    if (!uid()) return;
-    try {
-      await createPresetInSupabase(uid()!, name, filters);
-      await refreshPresets(uid()!);
-      showToast("Preset saved!", "success");
-    } catch { showToast("Failed to save preset.", "error"); }
-  };
-
-  const deletePreset = async (presetId: string) => {
-    if (!uid()) return;
-    try {
-      await deletePresetFromSupabase(presetId);
-      await refreshPresets(uid()!);
-      showToast("Preset deleted.", "success");
-    } catch { showToast("Failed to delete preset.", "error"); }
-  };
-
-  const renamePreset = async (presetId: string, name: string) => {
-    if (!uid()) return;
-    try {
-      await renamePresetInSupabase(presetId, name);
-      await refreshPresets(uid()!);
-      showToast("Preset renamed.", "success");
-    } catch { showToast("Failed to rename preset.", "error"); }
+    } catch (err) {
+      showToast("Failed to save progress.", "error");
+      throw err;
+    }
   };
 
   return {
     watchlist, loading, isGuest, error,
-    presets, uid,
+    presets: presetsMgr.presets, uid,
     updateStatus, updateRating, updateNotes, updateWatchDate,
     updateSeasonEpisode, updateWatchProgress, deleteWatchlistItem,
     toggleFavorite, togglePinned, updateProgress,
-    savePreset, deletePreset, renamePreset,
-    refresh
+    savePreset: presetsMgr.savePreset,
+    deletePreset: presetsMgr.deletePreset,
+    renamePreset: presetsMgr.renamePreset,
+    refresh,
   };
 };
 

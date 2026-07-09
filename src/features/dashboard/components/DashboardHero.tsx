@@ -6,6 +6,7 @@ import { isWatchable, getEpisodeProgress } from "~/shared/utils/progress";
 import { Button } from "~/shared/ui/primitives";
 import type { WatchlistItem } from "~/shared/types";
 import type { RecommendationResult } from "../recommendationEngine";
+import DashboardGuestHero from "./DashboardGuestHero";
 
 interface DashboardHeroProps {
   recommendation: RecommendationResult;
@@ -32,7 +33,7 @@ interface DashboardHeroProps {
  *
  *  - HISTORY: Shows a completed title with "Watch Again" context. Fallback.
  *
- *  - EMPTY/GUEST: Shows a cinematic empty state with sign-in CTA.
+ *  - EMPTY/GUEST: Delegates to DashboardGuestHero (sign-in CTA or empty vault).
  *
  * Visual language inherited from the Details page:
  *  - Full-bleed backdrop with multi-layer gradients (dashboard-hero-overlay)
@@ -70,80 +71,21 @@ export default function DashboardHero(props: DashboardHeroProps) {
   // Same `getEpisodeProgress()` call that the Details page, ContinueRail,
   // Vault, and Stats use. NO duplicate formula here. The percentage is
   // SERIES-WIDE (sum across all seasons).
-  //
-  // The hero doesn't have TMDB details, but the engine falls back to the
-  // `seasons` cache on the WatchlistItem (populated when the user opens
-  // the Details page). For items without a cache, it falls back further
-  // to `m.totalEps` as season 1's count.
   const progress = createMemo(() => {
     const m = item();
     if (!m || !isWatchable(m)) return null;
-    // Movies don't have episode-based progress.
     const ep = getEpisodeProgress(m);
     if (!ep) return null;
     return {
       pct: ep.pct,
       episodeInfo: ep.label,
-      seriesLabel: ep.seriesLabel
+      seriesLabel: ep.seriesLabel,
     };
   });
 
-  // Empty / Guest state
+  // Empty / Guest state — delegate to the guest hero component.
   if (!item() || props.isGuest) {
-    return (
-      <div class="guest-hero animate-fade-in">
-        <div class="guest-hero-content">
-          <div
-            class="flex items-center justify-center w-16 h-16 rounded-2xl mb-2"
-            style={{
-              background: "var(--p-dim)",
-              border: "1px solid color-mix(in srgb, var(--p) 25%, transparent)",
-              "box-shadow": "0 0 24px var(--p-glow)"
-            }}
-            aria-hidden="true"
-          >
-            <span
-              class="material-symbols-outlined"
-              style={{
-                "font-size": "32px",
-                color: "var(--p)",
-                "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-              }}
-              aria-hidden="true"
-            >
-              {props.isGuest ? "clapperboard" : "movie_filter"}
-            </span>
-          </div>
-
-          <span class="greeting-eyebrow">
-            {props.isGuest ? "Preview Mode" : "Empty Vault"}
-          </span>
-
-          <h2 class="type-display-sm" style={{ "text-align": "center" }}>
-            {props.isGuest ? "Your Universe Awaits" : "Start Your Collection"}
-          </h2>
-
-          <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px" }}>
-            {props.isGuest
-              ? "Sign in to build your personal cinematic universe, track progress, and get tailored recommendations."
-              : "Search for movies and series to start building your collection."}
-          </p>
-
-          <Show when={props.isGuest}>
-            <Button
-              variant="primary"
-              size="md"
-              icon="login"
-              onClick={props.onLogin}
-              style={{ "margin-top": "0.5rem" }}
-              aria-label="Sign in to begin"
-            >
-              Sign In to Begin
-            </Button>
-          </Show>
-        </div>
-      </div>
-    );
+    return <DashboardGuestHero isGuest={props.isGuest} onLogin={props.onLogin} />;
   }
 
   return (
@@ -292,3 +234,4 @@ export default function DashboardHero(props: DashboardHeroProps) {
     </div>
   );
 }
+
