@@ -23,8 +23,8 @@
  * Guide §07, Phase 4–5).
  */
 
-// ---- VaultRepository (Phase 4) --------------------------------------------
-export { VaultRepository, getVaultRepository } from "./vaultRepository";
+// ---- VaultRepository (Phase 14.1 — modularized) ---------------------------
+export { VaultRepository, getVaultRepository } from "./vault";
 
 export type {
   VaultRow,
@@ -39,7 +39,7 @@ export type {
   VaultPagination,
   VaultSort,
   VaultSearchQuery
-} from "./vaultRepository";
+} from "./vault";
 
 // ---- ProfileRepository (Phase 4) ------------------------------------------
 // Modular: profile/ subfolder with types, utils, read, write, repository.
