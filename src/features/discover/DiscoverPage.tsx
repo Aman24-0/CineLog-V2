@@ -1,10 +1,19 @@
 // src/features/discover/DiscoverPage.tsx
+//
+// Phase 10.2 — Discover Migration
+// --------------------------------
+// Discover now uses the shared useUserLibrary hook (same vault data
+// source as Dashboard). No useVault(). No Firebase auth shim.
+// No feature-to-feature dependency.
+//
+// Architecture:
+//   DiscoverPage → useUserLibrary → userLibraryAdapter → DashboardRepository → Supabase
 import { createSignal, createMemo, Show, For } from "solid-js";
-import { useVault } from "~/features/watchlist/useVault";
+import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { login } from "~/core/firebase/auth";
+import { getClient } from "~/lib/supabase/client";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -50,7 +59,7 @@ import DiscoverSkeleton from "./components/DiscoverSkeleton";
  *   swap the source of TasteProfile and the UI doesn't change.
  */
 export default function DiscoverPage() {
-  const { watchlist, isGuest } = useVault();
+  const { watchlist, isGuest } = useUserLibrary();
   const { showToast } = useToast();
   const { openTitle } = useModalState();
 
@@ -118,7 +127,14 @@ export default function DiscoverPage() {
     }
     if (isGuest()) {
       try {
-        await login();
+        const supabase = getClient();
+        const { error: oauthError } = await supabase.auth.signInWithOAuth({
+          provider: "google",
+          options: {
+            redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+          }
+        });
+        if (oauthError) throw oauthError;
         showToast("Signed in — try saving again.", "success");
       } catch {
         showToast("Sign in failed. Please try again.", "error");
@@ -150,7 +166,14 @@ export default function DiscoverPage() {
 
   const handleLogin = async () => {
     try {
-      await login();
+      const supabase = getClient();
+      const { error } = await supabase.auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
+        }
+      });
+      if (error) throw error;
       showToast("Signed in to CineLog", "success");
     } catch {
       showToast("Sign in failed. Please try again.", "error");

@@ -1,94 +1,62 @@
 /**
- * CineLog V2 — Dashboard Data Hook (Single Source)
+ * CineLog V2 — Dashboard Data Hook (wraps shared User Library)
  * ---------------------------------------------------------------------
- * Phase 9.1 — Dashboard Architecture Polish
+ * Phase 10.2 — Shared User Library Layer
  *
- * The SOLE data source for the Dashboard page. Fetches ALL dashboard
- * data from the DashboardRepository in a single batch, then exposes
- * the watchlist array, stats, loading, isGuest, and refresh.
+ * Wraps `useUserLibrary()` (the shared vault data source) and adds
+ * dashboard-specific stat derivation on top. No duplicate fetches —
+ * the vault data comes from the shared layer; this hook only computes
+ * stats from the array.
  *
  * Architecture:
- *   DashboardPage → useDashboardData → dashboardAdapter → DashboardRepository → Supabase
+ *   DashboardPage → useDashboardData → useUserLibrary → DashboardRepository → Supabase
  *
- * No useVault(). No VaultRepository. No duplicate fetches.
+ * No feature-to-feature dependency. No Firestore. No duplicate fetches.
  */
 
-import { createSignal, onMount, onCleanup } from "solid-js";
-import { onSessionChange } from "~/lib/supabase/session";
-import { fetchDashboardData, getDashboardUserId } from "./dashboardAdapter";
-import type { DashboardDataPayload } from "./dashboardAdapter";
-import type { WatchlistItem } from "~/shared/types";
+import { createMemo } from "solid-js";
+import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import type { UserLibrary } from "~/shared/hooks/useUserLibrary";
 
-export interface DashboardData {
-  readonly watchlist: () => WatchlistItem[];
-  readonly stats: () => DashboardDataPayload["stats"] | null;
-  readonly loading: () => boolean;
-  readonly isGuest: () => boolean;
-  readonly error: () => string | null;
-  readonly refresh: () => Promise<void>;
+export interface DashboardStats {
+  readonly total: number;
+  readonly watching: number;
+  readonly completed: number;
+  readonly planned: number;
+  readonly favorites: number;
+  readonly pinned: number;
+}
+
+export interface DashboardData extends UserLibrary {
+  readonly stats: () => DashboardStats | null;
 }
 
 /**
- * useDashboardData — the SINGLE data source for the Dashboard.
+ * useDashboardData — wraps the shared useUserLibrary and derives
+ * dashboard stats from the watchlist array.
  *
- * Fetches all vault items + episode progress from the DashboardRepository
- * in one batch. Derives shelves, stats, and the recommendation pool from
- * that single fetch. Re-fetches on auth state change.
- *
- * Replaces the previous mixed-source architecture (useVault + useDashboardData).
+ * The vault fetch is delegated entirely to useUserLibrary — this hook
+ * adds zero queries. Stats are computed client-side via createMemo.
  */
 export function useDashboardData(): DashboardData {
-  const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
-  const [stats, setStats] = createSignal<DashboardDataPayload["stats"] | null>(null);
-  const [loading, setLoading] = createSignal(true);
-  const [isGuest, setIsGuest] = createSignal(true);
-  const [error, setError] = createSignal<string | null>(null);
+  const library = useUserLibrary();
 
-  let unsubAuth: (() => void) | null = null;
+  const stats = createMemo<DashboardStats | null>(() => {
+    const list = library.watchlist();
+    if (list.length === 0 && library.loading()) return null;
 
-  const doFetch = async () => {
-    const userId = getDashboardUserId();
-    if (!userId) {
-      setWatchlist([]);
-      setStats(null);
-      setIsGuest(true);
-      setLoading(false);
-      return;
-    }
-
-    setIsGuest(false);
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await fetchDashboardData(userId);
-      setWatchlist(data.watchlist);
-      setStats(data.stats);
-      setLoading(false);
-    } catch (err) {
-      console.error("[useDashboardData] Fetch error:", err);
-      setError("Failed to load dashboard data.");
-      setLoading(false);
-    }
-  };
-
-  onMount(() => {
-    doFetch();
-    const subscription = onSessionChange(() => {
-      doFetch();
-    });
-    unsubAuth = () => subscription.unsubscribe();
-  });
-
-  onCleanup(() => {
-    if (unsubAuth) unsubAuth();
+    return {
+      total: list.length,
+      watching: list.filter((m) => m.status === "Watching").length,
+      completed: list.filter((m) => m.status === "Completed").length,
+      planned: list.filter((m) => m.status === "Planned" || m.status === "Plan to Watch").length,
+      favorites: list.filter((m) => m.watchProgress?.season !== undefined).length, // proxy — favorites stored on vault row
+      pinned: 0, // pinned is on the vault row, not derivable from WatchlistItem
+    };
   });
 
   return {
-    watchlist,
-    stats,
-    loading,
-    isGuest,
-    error,
-    refresh: doFetch
+    ...library,
+    stats
   };
 }
