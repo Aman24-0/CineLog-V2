@@ -1,55 +1,47 @@
 /**
- * CineLog V2 — Dashboard Data Hook
+ * CineLog V2 — Dashboard Data Hook (Single Source)
  * ---------------------------------------------------------------------
- * Phase 9 — Dashboard Migration
+ * Phase 9.1 — Dashboard Architecture Polish
  *
- * Fetches Dashboard data (stats + shelves) from Supabase via the
- * DashboardRepository. Re-fetches when the user changes or when
- * `refresh()` is called.
+ * The SOLE data source for the Dashboard page. Fetches ALL dashboard
+ * data from the DashboardRepository in a single batch, then exposes
+ * the watchlist array, stats, loading, isGuest, and refresh.
  *
  * Architecture:
  *   DashboardPage → useDashboardData → dashboardAdapter → DashboardRepository → Supabase
  *
- * The hook does NOT replace `useVault` — the Dashboard still uses
- * `useVault()` for the recommendation engine (which needs the full
- * watchlist array). This hook provides the Supabase-backed stats +
- * shelves that the DashboardRepository specializes in.
+ * No useVault(). No VaultRepository. No duplicate fetches.
  */
 
 import { createSignal, onMount, onCleanup } from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import { fetchDashboardData, getDashboardUserId } from "./dashboardAdapter";
-import type { DashboardStatValues } from "./dashboardAdapter";
+import type { DashboardDataPayload } from "./dashboardAdapter";
 import type { WatchlistItem } from "~/shared/types";
 
 export interface DashboardData {
-  readonly stats: () => DashboardStatValues | null;
-  readonly continueWatching: () => WatchlistItem[];
-  readonly recentlyAdded: () => WatchlistItem[];
-  readonly recentlyUpdated: () => WatchlistItem[];
-  readonly favorites: () => WatchlistItem[];
-  readonly watchingNow: () => WatchlistItem[];
-  readonly completedRecently: () => WatchlistItem[];
+  readonly watchlist: () => WatchlistItem[];
+  readonly stats: () => DashboardDataPayload["stats"] | null;
   readonly loading: () => boolean;
+  readonly isGuest: () => boolean;
   readonly error: () => string | null;
   readonly refresh: () => Promise<void>;
 }
 
 /**
- * useDashboardData — fetches Dashboard stats + shelves from Supabase.
+ * useDashboardData — the SINGLE data source for the Dashboard.
  *
- * Subscribes to auth session changes and re-fetches on sign-in/sign-out.
- * Call `refresh()` after a vault mutation to re-fetch the latest data.
+ * Fetches all vault items + episode progress from the DashboardRepository
+ * in one batch. Derives shelves, stats, and the recommendation pool from
+ * that single fetch. Re-fetches on auth state change.
+ *
+ * Replaces the previous mixed-source architecture (useVault + useDashboardData).
  */
 export function useDashboardData(): DashboardData {
-  const [stats, setStats] = createSignal<DashboardStatValues | null>(null);
-  const [continueWatching, setContinueWatching] = createSignal<WatchlistItem[]>([]);
-  const [recentlyAdded, setRecentlyAdded] = createSignal<WatchlistItem[]>([]);
-  const [recentlyUpdated, setRecentlyUpdated] = createSignal<WatchlistItem[]>([]);
-  const [favorites, setFavorites] = createSignal<WatchlistItem[]>([]);
-  const [watchingNow, setWatchingNow] = createSignal<WatchlistItem[]>([]);
-  const [completedRecently, setCompletedRecently] = createSignal<WatchlistItem[]>([]);
+  const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
+  const [stats, setStats] = createSignal<DashboardDataPayload["stats"] | null>(null);
   const [loading, setLoading] = createSignal(true);
+  const [isGuest, setIsGuest] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
   let unsubAuth: (() => void) | null = null;
@@ -57,28 +49,20 @@ export function useDashboardData(): DashboardData {
   const doFetch = async () => {
     const userId = getDashboardUserId();
     if (!userId) {
+      setWatchlist([]);
       setStats(null);
-      setContinueWatching([]);
-      setRecentlyAdded([]);
-      setRecentlyUpdated([]);
-      setFavorites([]);
-      setWatchingNow([]);
-      setCompletedRecently([]);
+      setIsGuest(true);
       setLoading(false);
       return;
     }
 
+    setIsGuest(false);
     setLoading(true);
     setError(null);
     try {
       const data = await fetchDashboardData(userId);
+      setWatchlist(data.watchlist);
       setStats(data.stats);
-      setContinueWatching(data.continueWatching);
-      setRecentlyAdded(data.recentlyAdded);
-      setRecentlyUpdated(data.recentlyUpdated);
-      setFavorites(data.favorites);
-      setWatchingNow(data.watchingNow);
-      setCompletedRecently(data.completedRecently);
       setLoading(false);
     } catch (err) {
       console.error("[useDashboardData] Fetch error:", err);
@@ -100,14 +84,10 @@ export function useDashboardData(): DashboardData {
   });
 
   return {
+    watchlist,
     stats,
-    continueWatching,
-    recentlyAdded,
-    recentlyUpdated,
-    favorites,
-    watchingNow,
-    completedRecently,
     loading,
+    isGuest,
     error,
     refresh: doFetch
   };

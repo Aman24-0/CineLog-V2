@@ -1,16 +1,17 @@
 // src/features/dashboard/DashboardPage.tsx
 //
-// Phase 9 — Dashboard Migration
-// ------------------------------
-// Dashboard now reads from Supabase via DashboardRepository (stats +
-// shelves) and useVault (watchlist for the recommendation engine).
-// No Firestore dependency — `login` now uses the Supabase auth
-// foundation directly via getClient().
+// Phase 9.1 — Dashboard Architecture Polish
+// ------------------------------------------
+// Dashboard now has exactly ONE source of data: useDashboardData() →
+// DashboardRepository → Supabase. No useVault(). No VaultRepository.
+// No duplicate fetches. No Firestore.
+//
+// Architecture:
+//   DashboardPage → useDashboardData → dashboardAdapter → DashboardRepository → Supabase
 import { createSignal, createMemo, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
-import { useVault } from "~/features/watchlist/useVault";
 import { getClient } from "~/lib/supabase/client";
 import PageContainer from "~/shared/ui/PageContainer";
 import { isWatchable } from "~/shared/utils/progress";
@@ -21,56 +22,23 @@ import ContinueRail from "./components/ContinueRail";
 import RecentlyAdded from "./components/RecentlyAdded";
 import StatsStory from "./components/StatsStory";
 import DashboardSkeleton from "./components/DashboardSkeleton";
-import { getRecommendation } from "./recommendationEngine";
+import { getDashboardRecommendation } from "./dashboardRecommendation";
+import { useDashboardData } from "./useDashboardData";
 
-/**
- * Dashboard (Home) page — V2.2 Sprint 3 Cinematic Dashboard.
- *
- * NEW INFORMATION HIERARCHY:
- *  1. GreetingBlock — temporal greeting + personalization
- *  2. DashboardHero — context-aware: Continue Watching → Tonight's Pick → Empty
- *  3. ContinueRail — rich progress cards with quick resume (only if in-progress items)
- *  4. RecentlyAdded — poster rail with "added X ago" timestamps
- *  5. StatsStory — storytelling stats panel (This Year / In Progress / Top Genre / Avg IMDb)
- *
- * SIGNATURE INTERACTION: "Context-Aware Hero"
- *  - The hero answers "what should I watch today?" by adapting to the user's state:
- *    Continue (in-progress) → Tonight (planned) → History (completed) → Empty
- *  - This is the strongest signal: the user opens CineLog and immediately knows
- *    what to watch next.
- *
- * DESIGN LANGUAGE:
- *  - Inherits the Details page cinematic language:
- *    - Full-bleed backdrop with multi-layer gradients
- *    - Floating poster (desktop only)
- *    - Display title (Bebas Neue)
- *    - v2-pill quick-meta
- *    - btn-primary + btn-ghost actions
- *  - DashboardSection uses the same accent-bar label pattern as DetailSection
- *
- * MOBILE FIRST:
- *  - Hero poster hidden on mobile (thumb-zone optimization)
- *  - ContinueRail cards 280px (1 card visible on mobile, 2-3 on desktop)
- *  - RecentlyAdded cards 120px (3-4 on mobile, 5-6 on desktop)
- *  - StatsStory 2x2 grid on mobile, 1x4 on desktop
- *
- * PERFORMANCE:
- *  - Hero backdrop eager + fetchpriority=high (LCP)
- *  - All rail images lazy-loaded
- *  - Recommendation memoized (only recomputes on watchlist/seed change)
- *  - DashboardSkeleton mirrors real layout (no layout shift)
- */
 export default function DashboardPage() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { openTitle } = useModalState();
-  const { watchlist, loading, isGuest } = useVault();
+
+  // Phase 9.1 — SINGLE data source: useDashboardData (DashboardRepository).
+  // No useVault(). No VaultRepository. No duplicate fetches.
+  const { watchlist, loading, isGuest } = useDashboardData();
 
   const [heroSeed, setHeroSeed] = createSignal(0);
   const [excludeId, setExcludeId] = createSignal<string | null>(null);
 
   const recommendation = createMemo(() =>
-    getRecommendation(watchlist(), excludeId(), heroSeed())
+    getDashboardRecommendation(watchlist(), excludeId(), heroSeed())
   );
 
   onMount(() => {
@@ -78,11 +46,6 @@ export default function DashboardPage() {
   });
 
   const openMovie = (id: string) => {
-    // Find by id — the Dashboard only shows vault items, so the id is
-    // always a vault item's id. If the user has both movie/1398 and
-    // tv/1398 in their vault (rare but possible), this returns the first
-    // match. The caller (ContinueRail / RecentlyAdded) passes the id from
-    // the specific item the user tapped, so the correct item is found.
     const item = watchlist().find((m) => m.id === id);
     if (item) openTitle(item, watchlist());
   };
@@ -96,7 +59,6 @@ export default function DashboardPage() {
 
   const handleLogin = async () => {
     try {
-      // Phase 9 — login via Supabase OAuth directly (no Firestore shim).
       const supabase = getClient();
       const { error } = await supabase.auth.signInWithOAuth({
         provider: "google",
@@ -111,8 +73,6 @@ export default function DashboardPage() {
     }
   };
 
-  // Check if there are any watchable items (status === "Watching")
-  // Controls ContinueRail visibility — uses the shared progress engine
   const hasInProgress = createMemo(() =>
     watchlist().some(isWatchable)
   );
@@ -123,10 +83,8 @@ export default function DashboardPage() {
 
       <Show when={!loading()} fallback={<DashboardSkeleton />}>
         <div class="page-enter relative">
-          {/* 1. Greeting — temporal + personal */}
           <GreetingBlock watchlist={watchlist()} />
 
-          {/* 2. Hero — context-aware */}
           <DashboardHero
             recommendation={recommendation()}
             isGuest={isGuest()}
@@ -135,14 +93,12 @@ export default function DashboardPage() {
             onOpenMovie={openMovie}
           />
 
-          {/* 3. Continue Watching rail — only if in-progress items */}
           <Show when={hasInProgress()}>
             <DashboardSection label="Continue Watching" icon="play_circle">
               <ContinueRail watchlist={watchlist()} onOpenMovie={openMovie} />
             </DashboardSection>
           </Show>
 
-          {/* 4. Recently Added — richer browsing context */}
           <DashboardSection
             label="Recently Added"
             icon="schedule"
@@ -156,7 +112,6 @@ export default function DashboardPage() {
             />
           </DashboardSection>
 
-          {/* 5. Stats Story — only for signed-in users with non-empty vault */}
           <Show when={!isGuest() && watchlist().length > 0}>
             <DashboardSection label="Your Story" icon="insights">
               <StatsStory

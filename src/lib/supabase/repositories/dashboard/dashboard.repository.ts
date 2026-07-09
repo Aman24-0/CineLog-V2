@@ -37,6 +37,7 @@ import {
 } from "./dashboard.stats";
 import { getContinueWatching } from "./dashboard.continue";
 import {
+  getAllVaultItems,
   getCompletedRecently,
   getFavorites,
   getPinnedItems,
@@ -87,6 +88,13 @@ export class DashboardRepository {
   /** Collection counts by type (user / curated / smart). */
   getCollectionCounts(userId: string): Promise<DashboardResult<CollectionCounts>> {
     return getCollectionCounts(this.supabase, userId);
+  }
+
+  // ---- All vault items (single source for dashboard derivation) --------
+
+  /** Fetch ALL non-deleted vault items for the dashboard (single source). */
+  getAllVaultItems(userId: string): Promise<DashboardListResult<VaultRow>> {
+    return getAllVaultItems(this.supabase, userId);
   }
 
   // ---- Continue Watching (Bible §03 rules) ----------------------------

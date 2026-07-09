@@ -183,3 +183,30 @@ export async function getCompletedRecently(
   const { data, error } = await paginated;
   return { data: (data ?? []) as VaultRow[], error: toError(error) };
 }
+
+// ===========================================================================
+// All vault items — single fetch for dashboard derivation
+// ===========================================================================
+
+/**
+ * Fetch ALL non-deleted vault items for a user, ordered by `created_at` desc.
+ *
+ * This is the SINGLE data source for the dashboard — shelves, stats, and
+ * the recommendation engine are all derived from this array client-side,
+ * avoiding duplicate fetches.
+ *
+ * @returns All vault rows (empty if none or error).
+ */
+export async function getAllVaultItems(
+  supabase: TypedSupabaseClient,
+  userId: string
+): Promise<DashboardListResult<VaultRow>> {
+  const { data, error } = await supabase
+    .from(VAULT_TABLE)
+    .select(VAULT_DASHBOARD_COLUMNS)
+    .eq("user_id", userId)
+    .is("deleted_at", null)
+    .order("created_at", { ascending: false });
+
+  return { data: (data ?? []) as VaultRow[], error: toError(error) };
+}
