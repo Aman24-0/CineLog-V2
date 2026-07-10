@@ -97,6 +97,22 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
           {props.error.stack ? `\n\n${props.error.stack}` : ""}
         </pre>
       </Show>
+
+      {/* Also show the error message in production so the user can
+          report what went wrong. The full stack is dev-only. */}
+      <Show when={!import.meta.env.DEV}>
+        <p style={{
+          "margin-top": "var(--sp-4)",
+          "max-width": "500px",
+          "font-size": "12px",
+          "color": "var(--text-dim)",
+          "font-family": "'Azeret Mono', monospace",
+          "word-break": "break-word",
+          "opacity": 0.6,
+        }}>
+          {props.error.message}
+        </p>
+      </Show>
     </div>
   );
 }

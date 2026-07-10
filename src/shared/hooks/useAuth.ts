@@ -87,10 +87,16 @@ export function useAuth() {
   onMount(() => {
     listenerCount++;
     if (!unsub) {
-      unsub = onSessionChange((_event, session) => {
-        setUser(mapSupabaseUser(session));
-        setAuthReady(true);
-      }).unsubscribe;
+      try {
+        const subscription = onSessionChange((_event, session) => {
+          setUser(mapSupabaseUser(session));
+          setAuthReady(true);
+        });
+        unsub = () => subscription.unsubscribe();
+      } catch (err) {
+        console.error("[useAuth] Auth subscription failed:", err);
+        setAuthReady(true); // Mark as ready so UI doesn't hang
+      }
     }
   });
 

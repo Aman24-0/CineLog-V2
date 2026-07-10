@@ -30,7 +30,12 @@ export const [theme, setTheme] = createSignal<Theme>(
 // that specifically select `body.theme-*`.
 if (!isServer) {
   document.documentElement.classList.add(`theme-${theme()}`);
-  document.body.classList.add(`theme-${theme()}`);
+  // Guard body access — during early hydration document.body may not
+  // be available yet if this module is imported before the body element
+  // is fully parsed.
+  if (document.body) {
+    document.body.classList.add(`theme-${theme()}`);
+  }
 }
 
 // The createEffect only touches document/localStorage on the client.
