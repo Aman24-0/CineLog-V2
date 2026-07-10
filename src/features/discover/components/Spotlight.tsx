@@ -208,7 +208,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             {/* Not in the mood — re-rolls the Spotlight, secondary placement */}
             <button
               type="button"
-              class="spotlight-reroll"
+              class="spotlight-reroll focus-ring"
               onClick={props.onReroll}
               aria-label="Not in the mood — show me a different Spotlight"
             >

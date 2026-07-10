@@ -22,6 +22,12 @@ interface EmptyStateProps {
  *
  * Accessibility: the icon is decorative (aria-hidden), the title is an
  * <h3>, and the action button has an aria-label combining action + title.
+ *
+ * Polished:
+ *  - Action button has .focus-ring for keyboard users.
+ *  - role="status" so screen readers announce the empty state.
+ *  - aria-live="polite" so dynamic empty states (after async loads)
+ *    get announced when they appear.
  */
 const EmptyState: Component<EmptyStateProps> = (props) => {
   return (
@@ -29,6 +35,7 @@ const EmptyState: Component<EmptyStateProps> = (props) => {
       class={`empty-premium${props.class ? ` ${props.class}` : ""}`}
       style={props.style}
       role="status"
+      aria-live="polite"
     >
       <div class="empty-premium-icon" aria-hidden="true">
         <span
@@ -38,7 +45,7 @@ const EmptyState: Component<EmptyStateProps> = (props) => {
             color: "var(--p)",
             "font-variation-settings": props.iconFill
               ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
-              : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24",
           }}
         >
           {props.icon}
@@ -55,7 +62,7 @@ const EmptyState: Component<EmptyStateProps> = (props) => {
         <button
           type="button"
           onClick={() => props.onAction?.()}
-          class="btn-primary"
+          class="btn-primary focus-ring"
           style={{ "margin-top": "var(--sp-2)" }}
           aria-label={`${props.actionLabel} — ${props.title}`}
         >

@@ -62,7 +62,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
         {(tab) => (
           <button
             type="button"
-            class="quick-filter-tab"
+            class="quick-filter-tab focus-ring"
             data-active={props.active() === tab.value}
             onClick={() => props.onSelect(tab.value)}
             role="tab"

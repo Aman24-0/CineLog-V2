@@ -14,8 +14,8 @@
   transition: transform var(--dur-base) var(--ease-spring),
               opacity var(--dur-base) var(--ease-out);
 }
-.vault-card-premium:hover { transform: translateY(-5px) scale(1.035); }
-.vault-card-premium:active { transform: translateY(0) scale(0.92); transition-duration: var(--dur-fast); }
+.vault-card-premium:hover { transform: translateY(-4px) scale(1.03); }
+.vault-card-premium:active { transform: translateY(0) scale(0.94); transition-duration: var(--dur-fast); }
 
 .vault-card-inner {
   aspect-ratio: 2/3;
@@ -565,7 +565,10 @@
   align-items: center;
   justify-content: center;
   transition: opacity var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+              transform var(--dur-base) var(--ease-spring),
+              background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
   opacity: 0;
   transform: translateY(8px);
   pointer-events: none;
@@ -577,11 +580,17 @@
 }
 .scroll-to-top:hover {
   background: var(--tier-3);
-  border-color: var(--hairline-3);
+  border-color: var(--p);
+  color: var(--p);
+  box-shadow: var(--shadow-elevated), 0 0 16px var(--p-glow);
 }
 .scroll-to-top:active {
   transform: scale(0.92);
   transition-duration: var(--dur-fast);
+}
+.scroll-to-top:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
 }
 
 /* Vault shelf card variant — slightly larger than compact for shelf display */

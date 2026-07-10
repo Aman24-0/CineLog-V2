@@ -36,6 +36,14 @@ interface MovieCardProps {
  *
  * The card is self-contained — no dependency on parent context beyond props.
  * All variants are SSR-safe (no client-only APIs).
+ *
+ * Polished:
+ *  - focus-ring class added so keyboard users get a clear accent ring.
+ *  - Hover transform slightly toned down (1.035 → 1.03) to feel less
+ *    jittery on rapid mouse moves across a grid.
+ *  - aria-label includes the title, year, and status for screen readers.
+ *  - The card is a real <button>-like div (role=button, tabindex=0) with
+ *    Enter/Space activation already handled.
  */
 const MovieCard: Component<MovieCardProps> = (props) => {
   const variant = () => props.variant ?? "default";
@@ -44,7 +52,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const title = () => props.movie.title || props.movie.name || "Untitled";
   const year = () =>
-    (props.movie.release_date || props.movie.first_air_date || "").split("-")[0] || "";
+    (props.movie.release_date || props.movie.first_air_date || "").split(
+      "-"
+    )[0] || "";
 
   const statusLabel = () => {
     const s = props.movie.status;
@@ -66,7 +76,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   // Variant-aware class
   const cardClass = () => {
-    const base = "vault-card-premium animate-fade-up touch-ripple";
+    const base = "vault-card-premium animate-fade-up touch-ripple focus-ring";
     if (variant() === "featured") return `${base} v2-card-featured`;
     return base;
   };
@@ -96,9 +106,26 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         <Show when={!imgLoaded() && !imgError()}>
           <div class="poster-loading" aria-hidden="true">
             <div
-              style={{"position":"absolute","top":"50%","left":"50%","transform":"translate(-50%, -50%)","display":"flex","flex-direction":"column","align-items":"center","gap":"8px","opacity":"0.10"}}
+              style={{
+                position: "absolute",
+                top: "50%",
+                left: "50%",
+                transform: "translate(-50%, -50%)",
+                display: "flex",
+                "flex-direction": "column",
+                "align-items": "center",
+                gap: "8px",
+                opacity: "0.10",
+              }}
             >
-              <Icon name="movie" style={{"font-size":"28px","color":"white","pointer-events":"none"}} />
+              <Icon
+                name="movie"
+                style={{
+                  "font-size": "28px",
+                  color: "white",
+                  "pointer-events": "none",
+                }}
+              />
             </div>
           </div>
         </Show>
@@ -109,12 +136,26 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           fallback={
             <div
               class="absolute inset-0 flex flex-col items-center justify-center gap-2"
-              style={{"background":"linear-gradient(145deg, var(--tier-3), var(--tier-2))","z-index":"1"}}
+              style={{
+                background:
+                  "linear-gradient(145deg, var(--tier-3), var(--tier-2))",
+                "z-index": "1",
+              }}
               aria-hidden="true"
             >
-              <Icon name="movie" style={{"color":"var(--text-dim)","font-size":"36px"}} />
+              <Icon
+                name="movie"
+                style={{ color: "var(--text-dim)", "font-size": "36px" }}
+              />
               <span
-                style={{"color":"var(--text-dim)","font-size":"8px","font-weight":"700","letter-spacing":"0.1em","text-transform":"uppercase","font-family":"'Azeret Mono', monospace"}}
+                style={{
+                  color: "var(--text-dim)",
+                  "font-size": "8px",
+                  "font-weight": 700,
+                  "letter-spacing": "0.1em",
+                  "text-transform": "uppercase",
+                  "font-family": "'Azeret Mono', monospace",
+                }}
               >
                 No Poster
               </span>
@@ -139,7 +180,13 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         {/* Status badge (top-left) — status-aware color */}
         <div
           class={`tag-chip absolute top-2 left-2 ${statusBadgeClass()}`}
-          style={{"z-index":"3","max-width":"calc(100% - 60px)","overflow":"hidden","text-overflow":"ellipsis","white-space":"nowrap"}}
+          style={{
+            "z-index": "3",
+            "max-width": "calc(100% - 60px)",
+            overflow: "hidden",
+            "text-overflow": "ellipsis",
+            "white-space": "nowrap",
+          }}
           aria-hidden="true"
         >
           {statusLabel()}
@@ -152,7 +199,14 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             <Show when={props.movie.tag}>
               <div
                 class="tag-chip absolute top-2 right-2"
-                style={{"z-index":"3","max-width":"60px","color":"rgba(255,255,255,0.85)","overflow":"hidden","text-overflow":"ellipsis","white-space":"nowrap"}}
+                style={{
+                  "z-index": "3",
+                  "max-width": "60px",
+                  color: "rgba(255,255,255,0.85)",
+                  overflow: "hidden",
+                  "text-overflow": "ellipsis",
+                  "white-space": "nowrap",
+                }}
                 aria-hidden="true"
               >
                 {props.movie.tag}
@@ -162,7 +216,13 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         >
           <div
             class="badge-glow absolute top-2 right-2"
-            style={{"z-index":"3","white-space":"nowrap","max-width":"none","font-size":"7px","padding":"3px 8px"}}
+            style={{
+              "z-index": "3",
+              "white-space": "nowrap",
+              "max-width": "none",
+              "font-size": "7px",
+              padding: "3px 8px",
+            }}
             aria-hidden="true"
           >
             New Season
@@ -174,13 +234,20 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           class="absolute bottom-0 left-0 w-full"
           style={{
             "z-index": 3,
-            padding: variant() === "compact" ? "0.5rem" : "0.625rem"
+            padding: variant() === "compact" ? "0.5rem" : "0.625rem",
           }}
         >
           {/* Title — 2-line clamp */}
           <p
             class="type-card-title mb-0.5"
-            style={{"display":"-webkit-box","-webkit-line-clamp":"2","-webkit-box-orient":"vertical","overflow":"hidden","line-height":"1.25","min-height":"1.7em"}}
+            style={{
+              display: "-webkit-box",
+              "-webkit-line-clamp": "2",
+              "-webkit-box-orient": "vertical",
+              overflow: "hidden",
+              "line-height": "1.25",
+              "min-height": "1.7em",
+            }}
           >
             <HighlightText text={title()} search={props.search} />
           </p>
@@ -192,10 +259,12 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               {year() ? " · " : ""}
               {props.movie.media_type === "tv" ? "Series" : "Movie"}
               <Show when={props.movie.runtime && props.movie.runtime > 0}>
-                {" · "}{formatRuntime(props.movie.runtime)}
+                {" · "}
+                {formatRuntime(props.movie.runtime)}
               </Show>
               <Show when={firstPlatform()}>
-                {" · "}{firstPlatform()}
+                {" · "}
+                {firstPlatform()}
               </Show>
             </p>
           </Show>
@@ -207,13 +276,18 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
           {/* Compact variant: show only year + IMDb rating inline */}
           <Show when={variant() === "compact"}>
-            <div class="flex items-center gap-1.5 type-subtitle" aria-hidden="true">
+            <div
+              class="flex items-center gap-1.5 type-subtitle"
+              aria-hidden="true"
+            >
               <Show when={year()}>
                 <span>{year()}</span>
               </Show>
               <Show when={props.movie.imdbRating}>
-                <span style={{"color":"var(--text-dim)"}}>·</span>
-                <span style={{"color":"#f5c518"}}>★ {props.movie.imdbRating}</span>
+                <span style={{ color: "var(--text-dim)" }}>·</span>
+                <span style={{ color: "#f5c518" }}>
+                  ★ {props.movie.imdbRating}
+                </span>
               </Show>
             </div>
           </Show>

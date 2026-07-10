@@ -29,7 +29,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
         {/* Collections link */}
         <button
           onClick={() => navigate("/collections")}
-          class="filter-button"
+          class="filter-button focus-ring"
           data-active={false}
           aria-label="Open Collections"
         >
@@ -41,7 +41,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
         <div class="view-toggle" role="group" aria-label="View mode">
           <button
             onClick={() => props.setViewMode("grid")}
-            class="view-toggle-btn"
+            class="view-toggle-btn focus-ring"
             data-active={props.viewMode() === "grid"}
             aria-label="Grid view"
             aria-pressed={props.viewMode() === "grid"}
@@ -50,7 +50,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           </button>
           <button
             onClick={() => props.setViewMode("timeline")}
-            class="view-toggle-btn"
+            class="view-toggle-btn focus-ring"
             data-active={props.viewMode() === "timeline"}
             aria-label="Timeline view"
             aria-pressed={props.viewMode() === "timeline"}
@@ -62,7 +62,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
         {/* Filter button */}
         <button
           onClick={() => props.onFilterClick()}
-          class="filter-button"
+          class="filter-button focus-ring"
           data-active={props.activeFilterCount() > 0}
           aria-label={`Filter vault${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
           aria-pressed={props.activeFilterCount() > 0}

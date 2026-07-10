@@ -103,7 +103,7 @@ export default function CollectionsPage() {
                 {String(err)}
               </p>
               <button
-                class="btn-ghost"
+                class="btn-ghost focus-ring"
                 style={{ "margin-top": "var(--sp-4)" }}
                 onClick={() => window.location.reload()}
               >
@@ -154,7 +154,7 @@ export default function CollectionsPage() {
               Your Collections
               <button
                 type="button"
-                class="collections-fold-action"
+                class="collections-fold-action focus-ring"
                 onClick={() => setShowCreate(true)}
                 aria-label="Create new collection"
               >
@@ -169,7 +169,7 @@ export default function CollectionsPage() {
               </button>
               <button
                 type="button"
-                class="collections-smart-btn"
+                class="collections-smart-btn focus-ring"
                 onClick={() => setShowSmartBuilder(true)}
                 aria-label="Create smart collection"
                 style={{ "margin-left": "auto" }}
@@ -200,7 +200,7 @@ export default function CollectionsPage() {
                   aria-label="New collection name"
                 />
                 <button
-                  class="btn-primary"
+                  class="btn-primary focus-ring"
                   onClick={handleCreate}
                   disabled={!newName().trim()}
                   style={{ "font-size": "0.5625rem" }}
@@ -208,7 +208,7 @@ export default function CollectionsPage() {
                   Create
                 </button>
                 <button
-                  class="btn-ghost"
+                  class="btn-ghost focus-ring"
                   onClick={() => setShowCreate(false)}
                   style={{ "font-size": "0.5625rem" }}
                 >
@@ -237,7 +237,7 @@ export default function CollectionsPage() {
               Subscribed Universes
               <button
                 type="button"
-                class="collections-fold-action"
+                class="collections-fold-action focus-ring"
                 onClick={() => setShowAddUniverse(true)}
                 aria-label="Add universe"
                 style={{ "margin-left": "auto" }}
@@ -270,7 +270,7 @@ export default function CollectionsPage() {
                 <For each={subscribedUniverses()}>
                   {(uni) => (
                     <div
-                      class="collections-folder-card"
+                      class="collections-folder-card focus-ring"
                       onClick={() => navigate(`/collections/${uni.id}`)}
                       role="button"
                       tabindex={0}

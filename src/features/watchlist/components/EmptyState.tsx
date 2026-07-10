@@ -20,6 +20,13 @@ interface EmptyStateProps {
  *
  * Uses .empty-premium* CSS classes from the design system for consistency
  * with the dashboard empty states.
+ *
+ * Polished:
+ *  - role="status" + aria-live so screen readers announce state changes.
+ *  - .focus-ring on action buttons for keyboard users.
+ *  - Guest variant uses glass surface with elevated shadow for depth.
+ *  - Signed-in variant uses sentiment_dissatisfied icon to feel
+ *    empathetic (not punitive) when filters return no results.
  */
 export default function EmptyState(props: EmptyStateProps) {
   return (
@@ -34,17 +41,23 @@ export default function EmptyState(props: EmptyStateProps) {
             background: "var(--glass-bg)",
             "backdrop-filter": "blur(20px)",
             "-webkit-backdrop-filter": "blur(20px)",
-            "box-shadow": "var(--shadow-premium)"
+            "box-shadow": "var(--shadow-premium)",
           }}
+          role="status"
+          aria-live="polite"
         >
           <div class="empty-premium-icon" aria-hidden="true">
-            <Icon name="video_library" fill style={{"color":"var(--p)","font-size":"32px"}} />
+            <Icon
+              name="video_library"
+              fill
+              style={{ color: "var(--p)", "font-size": "32px" }}
+            />
           </div>
           <p class="empty-premium-title">{props.title}</p>
           <p class="empty-premium-body">{props.message}</p>
           <button
             onClick={() => props.onAction()}
-            class="btn-primary"
+            class="btn-primary focus-ring"
             style={{ "margin-top": "var(--sp-2)" }}
             aria-label={props.actionText}
           >
@@ -54,15 +67,23 @@ export default function EmptyState(props: EmptyStateProps) {
       }
     >
       {/* Signed-in empty / no matches variant */}
-      <div class="empty-premium animate-fade-in" style={{ padding: "var(--sp-12) var(--sp-6)" }}>
+      <div
+        class="empty-premium animate-fade-in"
+        style={{ padding: "var(--sp-12) var(--sp-6)" }}
+        role="status"
+        aria-live="polite"
+      >
         <div class="empty-premium-icon" aria-hidden="true">
-          <Icon name="sentiment_dissatisfied" style={{"color":"var(--text-muted)","font-size":"32px"}} />
+          <Icon
+            name="sentiment_dissatisfied"
+            style={{ color: "var(--text-muted)", "font-size": "32px" }}
+          />
         </div>
         <p class="empty-premium-title">{props.title}</p>
         <p class="empty-premium-body">{props.message}</p>
         <button
           onClick={() => props.onAction()}
-          class="btn-ghost"
+          class="btn-ghost focus-ring"
           style={{ "margin-top": "var(--sp-2)" }}
           aria-label={props.actionText}
         >

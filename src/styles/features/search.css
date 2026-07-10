@@ -349,11 +349,14 @@
   border-radius: var(--radius-md);
   background: var(--tier-2);
   border: 1px solid var(--hairline);
-  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
 }
 .search-result-row:hover {
   border-color: var(--hairline-2);
   background: var(--tier-3);
+}
+.search-result-row:active {
+  transform: scale(0.997);
 }
 .search-result-row-vault {
   border-color: color-mix(in srgb, var(--p) 25%, transparent);

@@ -10,6 +10,12 @@ export interface Toast {
   id: number;
   msg: string;
   type: ToastType;
+  /** Optional action button label (only for "action" type). */
+  actionLabel?: string;
+  /** Optional action handler. When provided with actionLabel, renders a button. */
+  onAction?: () => void;
+  /** Internal: marks the toast as exiting so it can animate out before removal. */
+  exiting?: boolean;
 }
 
 const [toasts, setToasts] = createSignal<Toast[]>([]);
@@ -19,34 +25,65 @@ const [toasts, setToasts] = createSignal<Toast[]>([]);
 // both toasts at once. A counter guarantees uniqueness.
 let toastIdSeq = 0;
 
+// Default duration per type. Errors stay longer because they often
+// require the user to read and understand the message before it
+// disappears. Success toasts are short — they're confirmations, not
+// information the user needs to act on.
+const DEFAULT_DURATION: Record<ToastType, number> = {
+  success: 2000,
+  info: 2800,
+  error: 4000,
+  action: 5000,
+};
+
+const MAX_TOASTS = 3;
+
+/** Remove a toast by id, playing the exit animation first. */
+function dismissToast(id: number) {
+  // Mark as exiting so the ToastContainer can play .toast-exit, then
+  // remove after the animation duration completes.
+  setToasts((prev) =>
+    prev.map((t) => (t.id === id ? { ...t, exiting: true } : t))
+  );
+  // The exit animation is var(--dur-base) = 220ms. Wait slightly longer
+  // to ensure the animation finishes before the element is removed.
+  setTimeout(() => {
+    setToasts((prev) => prev.filter((t) => t.id !== id));
+  }, 260);
+}
+
 export function useToast() {
   const showToast = (
     msg: string,
     type: ToastType = "info",
-    duration = 2500
+    duration: number = DEFAULT_DURATION[type]
   ) => {
     const id = ++toastIdSeq;
 
-    setToasts((prev) => [
-      ...prev,
-      {
-        id,
-        msg,
-        type
+    const newToast: Toast = { id, msg, type };
+
+    setToasts((prev) => {
+      // Cap the stack at MAX_TOASTS — drop the oldest (which is at the
+      // END of the array because the container is column-reverse).
+      const next = [...prev, newToast];
+      if (next.length > MAX_TOASTS) {
+        // Remove oldest non-exiting toast to make room.
+        const oldestIdx = next.findIndex((t) => !t.exiting);
+        if (oldestIdx >= 0) next.splice(oldestIdx, 1);
       }
-    ]);
+      return next;
+    });
 
     if (duration > 0) {
-      setTimeout(() => {
-        setToasts((prev) =>
-          prev.filter((t) => t.id !== id)
-        );
-      }, duration);
+      setTimeout(() => dismissToast(id), duration);
     }
   };
 
+  const dismiss = (id: number) => dismissToast(id);
+
   return {
     toasts,
-    showToast
+    showToast,
+    dismiss,
   };
 }

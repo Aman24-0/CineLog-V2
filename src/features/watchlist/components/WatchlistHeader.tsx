@@ -84,7 +84,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
             {(chip) => (
               <button
                 onClick={() => props.onClearFilter(chip.key)}
-                class="filter-chip"
+                class="filter-chip focus-ring"
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}

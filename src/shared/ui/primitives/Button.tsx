@@ -50,7 +50,7 @@ const Button: Component<ButtonProps> = (props) => {
   return (
     <button
       {...rest}
-      class={`${classBase()}${local.class ? ` ${local.class}` : ""}`}
+      class={`${classBase()} focus-ring${local.class ? ` ${local.class}` : ""}`}
       style={resolvedStyle()}
     >
       {local.icon && (

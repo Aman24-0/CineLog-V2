@@ -53,7 +53,7 @@ export default function SearchHeader(props: SearchHeaderProps) {
           <Show when={props.query()}>
             <button
               type="button"
-              class="search-bar-clear"
+              class="search-bar-clear focus-ring"
               onClick={props.onClear}
               aria-label="Clear search"
             >

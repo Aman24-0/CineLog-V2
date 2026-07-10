@@ -1,7 +1,36 @@
-/* src/styles/components/dialogs.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
+/* src/styles/components/dialogs.css — Phase 14.2 CSS architecture
+   Polished: refined modal/sheet enter animations, backdrop fade, and
+   a unified .modal-backdrop + .modal-surface language. */
 
+/* Bottom-sheet enter (mobile) / pop-in (≥640px) */
+.modal-sheet-enter { animation: sheetUp var(--dur-modal) var(--ease-spring) both; }
+@media (min-width: 640px) {
+  .modal-sheet-enter { animation: popInSpring var(--dur-modal) var(--ease-spring) both; }
+}
 
-.modal-sheet-enter { animation: slideUp var(--dur-modal) var(--ease-spring) both; }
-@media (min-width: 640px) { .modal-sheet-enter { animation: popInSpring var(--dur-modal) var(--ease-spring) both; } }
+/* Backdrop fade — used by AuthModal, DetailsModal, CollectionModal.
+   The backdrop element itself should have class "modal-backdrop" and
+   sit at z-[999998] or higher. */
+.modal-backdrop {
+  animation: fadeIn var(--dur-base) ease-out both;
+}
 
+/* Premium modal surface — shared visual language.
+   Individual modals can compose this with their own layout class. */
+.modal-surface {
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  box-shadow: var(--shadow-hero);
+  position: relative;
+  z-index: 1;
+}
+
+/* Sheet drag-handle (visual affordance for bottom sheets on mobile) */
+.sheet-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--hairline-3);
+  margin: 0 auto var(--sp-3);
+  flex-shrink: 0;
+}

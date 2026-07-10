@@ -2,6 +2,18 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import NavButton from "./NavButton";
 import { useAppState } from "~/shared/hooks/useAppState";
 
+/**
+ * BottomNavigation — primary navigation bar fixed to the viewport bottom.
+ *
+ * Polished: uses design tokens (--tier-1, --hairline) for consistency
+ * with the rest of the app, adds a subtle top-edge hairline glow, and
+ * keeps the safe-area-aware padding so the bar never sits under the
+ * iOS home indicator.
+ *
+ * The bar is opaque (not glass) so content scrolling underneath never
+ * bleeds through — this matches Letterboxd / Trakt / TV Time, which all
+ * use solid bottom bars for thumb-zone stability.
+ */
 export default function BottomNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -18,11 +30,15 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      class="fixed bottom-0 left-0 flex w-full border-t border-zinc-800 bg-black"
+      class="fixed bottom-0 left-0 flex w-full"
       style={{
         height: "var(--nav-total-height)",
         "padding-bottom": "var(--nav-safe-area)",
-        "z-index": 40
+        "z-index": 40,
+        background: "var(--tier-1)",
+        "border-top": "1px solid var(--hairline)",
+        // Subtle top-edge accent glow — barely visible, adds depth.
+        "box-shadow": "0 -1px 0 0 var(--hairline), 0 -8px 24px -8px rgba(0,0,0,0.6)",
       }}
       aria-label="Primary navigation"
     >

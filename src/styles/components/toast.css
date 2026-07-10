@@ -1,0 +1,157 @@
+/* src/styles/components/toast.css — Premium toast system
+   Polished: type-aware styling (success/error/info/action), entrance +
+   exit animations, ARIA-friendly structure, and proper z-index layering.
+   Designed to match the cinematic dark + neon-green identity. */
+
+/* Container — fixed above the bottom nav, centered horizontally.
+   Uses safe-area-inset-bottom so toasts never sit under the iOS home
+   indicator or below the nav bar. pointer-events-none on the container
+   lets clicks pass through to the UI behind; each toast re-enables
+   pointer events on itself. */
+.toast-stack {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-total-height) + var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 9999; /* below modals (999999+), above nav (40) */
+  display: flex;
+  flex-direction: column-reverse; /* newest at bottom, closest to thumb */
+  gap: var(--sp-2);
+  width: min(calc(100vw - var(--sp-8)), 420px);
+  pointer-events: none;
+}
+
+/* Single toast — glass surface with hairline border + accent stripe.
+   The accent stripe (left edge) communicates type at a glance. */
+.toast {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: 0.75rem 1rem 0.75rem 1.125rem;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border: 1px solid var(--hairline-2);
+  box-shadow: var(--shadow-elevated);
+  color: var(--text-strong);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  line-height: 1.4;
+  pointer-events: auto;
+  overflow: hidden;
+  animation: toastIn var(--dur-modal) var(--ease-spring) both;
+}
+
+/* Exit animation — applied via .toast-exit class before removal */
+.toast.toast-exit {
+  animation: toastOut var(--dur-base) var(--ease-in-out) both;
+}
+
+/* Accent stripe (left edge) — type-aware color */
+.toast::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--text-muted);
+  flex-shrink: 0;
+}
+.toast.toast-success::before { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.5); }
+.toast.toast-error::before   { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,0.5); }
+.toast.toast-info::before    { background: var(--p); box-shadow: 0 0 8px var(--p-glow); }
+.toast.toast-action::before  { background: var(--p2); box-shadow: 0 0 8px color-mix(in srgb, var(--p2) 50%, transparent); }
+
+/* Icon — type-aware, sits inside a circular tint */
+.toast-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  font-size: 16px;
+}
+.toast-success .toast-icon { background: rgba(74,222,128,0.12); color: #4ade80; }
+.toast-error   .toast-icon { background: rgba(248,113,113,0.12); color: #f87171; }
+.toast-info    .toast-icon { background: var(--p-dim);           color: var(--p); }
+.toast-action  .toast-icon { background: color-mix(in srgb, var(--p2) 12%, transparent); color: var(--p2); }
+
+/* Body text — wraps up to 2 lines */
+.toast-message {
+  flex: 1;
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  word-break: break-word;
+}
+
+/* Optional action button inside the toast (for "Undo" etc.) */
+.toast-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--p);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  padding: 0.375rem 0.5rem;
+  margin: -0.375rem -0.5rem -0.375rem 0;
+  border-radius: var(--radius-sm);
+  transition: background var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.toast-action-btn:hover { background: var(--p-dim); }
+.toast-action-btn:active { transform: scale(0.96); }
+
+/* Dismiss (X) button — appears on hover for desktop, always tappable on touch */
+.toast-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.toast-close:hover {
+  background: var(--hairline-2);
+  color: var(--text-strong);
+}
+
+/* Reduced motion — toasts just fade, no slide/scale */
+@media (prefers-reduced-motion: reduce) {
+  .toast,
+  .toast.toast-exit {
+    animation-duration: 120ms !important;
+  }
+}
+
+/* Mobile (≤480px) — toasts go full-width minus safe-area padding,
+   and sit slightly lower to stay clear of the iOS PWA home indicator. */
+@media (max-width: 480px) {
+  .toast-stack {
+    width: calc(100vw - var(--sp-6));
+    left: var(--sp-3);
+    right: var(--sp-3);
+    transform: none;
+  }
+  .toast {
+    padding: 0.875rem 1rem 0.875rem 1.25rem;
+    font-size: 0.8125rem;
+  }
+}

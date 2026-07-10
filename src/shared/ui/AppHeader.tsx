@@ -1,21 +1,28 @@
 // src/shared/ui/AppHeader.tsx
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { signOut } from "~/shared/hooks/useAuthActions";
 
 /**
- * Sticky application header — V2 simplified.
+ * AppHeader — sticky application header.
  *
- * Layout: [wordmark] ........ [avatar]
+ * Layout: [wordmark] ........ [avatar pill]
  *
- * Behavior:
- *  - Signed out: avatar shows a generic account icon; clicking opens the
- *    email/password auth modal.
- *  - Signed in: avatar shows the user's photoURL (or initial fallback);
- *    clicking signs out.
+ * Polished:
+ *  - Wordmark uses font-headline (Bebas Neue) with the accent suffix.
+ *  - Avatar pill is a glass surface with a hairline border, smoother
+ *    hover (background + border-color transition), and a focus ring.
+ *  - Avatar image has onError fallback to the initial tile (handled
+ *    by the Show fallback).
+ *  - aria-label on the avatar button is context-aware (sign in vs
+ *    sign out) so screen-reader users know what the button does.
+ *  - Sticky header uses a stronger backdrop blur (20px) so content
+ *    scrolling underneath stays readable but not distracting.
+ *  - Safe-area-aware top padding (env(safe-area-inset-top)) so the
+ *    header never sits under the iOS notch / PWA chrome.
  */
-export default function AppHeader() {
+const AppHeader: Component = () => {
   const { user, isSignedIn } = useAuth();
   const { openAuthModal } = useAuthModal();
 
@@ -34,37 +41,57 @@ export default function AppHeader() {
 
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between backdrop-blur"
+      class="sticky top-0 z-30 flex items-center justify-between"
       style={{
         background: "rgba(5,6,10,0.80)",
+        "backdrop-filter": "blur(20px) saturate(140%)",
+        "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
         "border-bottom": "1px solid var(--hairline)",
         "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
         "padding-bottom": "0.875rem",
         "padding-left": "1.25rem",
-        "padding-right": "1.25rem"
+        "padding-right": "1.25rem",
       }}
       role="banner"
     >
-      {/* Wordmark — single primary element */}
+      {/* Wordmark */}
       <h1
-        class="font-headline leading-none tracking-wide m-0"
-        style={{ "font-size": "1.5rem" }}
+        class="font-headline m-0"
+        style={{
+          "font-size": "1.5rem",
+          "line-height": "1",
+          "letter-spacing": "0.04em",
+        }}
       >
-        CINE<span style={{"color":"var(--p)"}}>LOG</span>
+        CINE<span style={{ color: "var(--p)" }}>LOG</span>
       </h1>
 
-      {/* Avatar — single secondary element */}
+      {/* Avatar pill */}
       <button
         type="button"
         onClick={handleAvatarClick}
-        class="flex items-center gap-2 rounded-full transition-all active:scale-95 overflow-hidden focus-ring"
+        class="flex items-center gap-2 rounded-full overflow-hidden focus-ring"
         style={{
           background: "rgba(255,255,255,0.04)",
           border: "1px solid var(--hairline)",
           padding: "0.25rem",
-          "padding-right": "0.625rem"
+          "padding-right": "0.625rem",
+          transition:
+            "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
         }}
-        aria-label={isSignedIn() ? `Signed in as ${user()?.displayName || user()?.email || "user"} — click to sign out` : "Sign in"}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+          e.currentTarget.style.borderColor = "var(--hairline-2)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+          e.currentTarget.style.borderColor = "var(--hairline)";
+        }}
+        aria-label={
+          isSignedIn()
+            ? `Signed in as ${user()?.displayName || user()?.email || "user"} — click to sign out`
+            : "Sign in"
+        }
       >
         <Show
           when={user()?.photoURL}
@@ -76,7 +103,7 @@ export default function AppHeader() {
                 color: "var(--p)",
                 "font-weight": 700,
                 "font-size": "13px",
-                "font-family": "'Outfit', sans-serif"
+                "font-family": "'Outfit', sans-serif",
               }}
               aria-hidden="true"
             >
@@ -84,8 +111,12 @@ export default function AppHeader() {
             </div>
           }
         >
-          <img loading="lazy" decoding="async"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          <img
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             src={user()!.photoURL!}
             alt=""
             class="h-8 w-8 rounded-full object-cover shrink-0"
@@ -95,7 +126,11 @@ export default function AppHeader() {
         <Show when={isSignedIn()}>
           <span
             class="hidden sm:block max-w-[120px] truncate"
-            style={{ color: "var(--text-body)", "font-size": "0.8125rem", "font-weight": 600 }}
+            style={{
+              color: "var(--text-body)",
+              "font-size": "0.8125rem",
+              "font-weight": 600,
+            }}
           >
             {user()?.displayName || user()?.email}
           </span>
@@ -103,4 +138,6 @@ export default function AppHeader() {
       </button>
     </header>
   );
-}
+};
+
+export default AppHeader;

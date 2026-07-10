@@ -24,7 +24,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
     >
       <button
         type="button"
-        class="search-result-main"
+        class="search-result-main focus-ring"
         onClick={() => props.onOpen()}
         aria-label={`${titleOf(props.title)}${
           yearOf(props.title) ? `, ${yearOf(props.title)}` : ""
@@ -96,7 +96,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
       >
         <button
           type="button"
-          class="search-result-add"
+          class="search-result-add focus-ring"
           onClick={() => props.onAdd()}
           aria-label={`Add ${titleOf(props.title)} to your vault`}
         >

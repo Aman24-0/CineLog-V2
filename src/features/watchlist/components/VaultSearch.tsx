@@ -42,7 +42,7 @@ export default function VaultSearch(props: VaultSearchProps) {
       <Show when={props.value().length > 0 || props.hasActiveFilters()}>
         <button
           onClick={() => props.onClearAll()}
-          class="type-meta shrink-0 active:scale-95 transition-all"
+          class="type-meta shrink-0 active:scale-95 transition-all focus-ring"
           style={{
             background: "rgba(255,45,85,0.12)",
             border: "1px solid rgba(255,45,85,0.35)",
@@ -52,7 +52,8 @@ export default function VaultSearch(props: VaultSearchProps) {
             "font-size": "0.5625rem",
             "font-weight": 700,
             "letter-spacing": "0.12em",
-            "text-transform": "uppercase"
+            "text-transform": "uppercase",
+            "cursor": "pointer"
           }}
           aria-label="Clear search and filters"
         >
