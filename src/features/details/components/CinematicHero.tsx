@@ -45,9 +45,11 @@ interface CinematicHeroProps {
  */
 export default function CinematicHero(props: CinematicHeroProps) {
   const [backdropLoaded, setBackdropLoaded] = createSignal(false);
+  const [backdropError, setBackdropError] = createSignal(false);
   const [scrolled, setScrolled] = createSignal(false);
 
   const backdropUrl = () => {
+    if (backdropError()) return "";
     const path = props.baseItem?.backdrop_path || props.details?.backdrop_path;
     return path ? tmdbImage(path, "w1280") : "";
   };
@@ -86,7 +88,10 @@ export default function CinematicHero(props: CinematicHeroProps) {
 
   return (
     <div class="cinematic-hero" ref={heroRef}>
-      {/* Backdrop layer — HIDDEN when trailer is active */}
+      {/* Backdrop layer — HIDDEN when trailer is active.
+          Falls back to the gradient overlay if the image URL fails
+          to load (broken TMDB path, CDN hiccup, etc.) so the user
+          never sees a broken-image glyph behind the hero. */}
       <Show when={backdropUrl() && !props.trailerActive}>
         <img
           src={backdropUrl()}
@@ -95,6 +100,7 @@ export default function CinematicHero(props: CinematicHeroProps) {
           decoding="async"
           {...({ fetchpriority: "high" } as Record<string, string>)}
           onLoad={() => setBackdropLoaded(true)}
+          onError={() => setBackdropError(true)}
           alt=""
           aria-hidden="true"
         />

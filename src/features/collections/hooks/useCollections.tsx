@@ -44,10 +44,14 @@ const useCollectionsLogic = () => {
   const refreshCollections = async (userId: string) => {
     try {
       const items = await fetchCollectionsFromSupabase(userId);
-      setUserCollections(items);
+      // Defensive: the adapter already returns [] on error, but guard
+      // against an unexpected null/undefined so a downstream .map()
+      // never throws "Cannot read properties of null".
+      setUserCollections(Array.isArray(items) ? items : []);
       setLoading(false);
     } catch (err) {
       console.error("[useCollections] Supabase error:", err);
+      setUserCollections([]);
       setLoading(false);
     }
   };

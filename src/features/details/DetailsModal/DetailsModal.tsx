@@ -109,7 +109,9 @@ export default function DetailsModal() {
           role="dialog"
           aria-modal="true"
         >
-          {/* Ambient backdrop continuation — blurred tint behind the modal */}
+          {/* Ambient backdrop continuation — blurred tint behind the modal.
+              The <img> is decorative; if the TMDB URL fails we hide it so
+              no broken-image glyph bleeds through the blur + tint overlay. */}
           <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
             <Show when={baseItem()?.backdrop_path}>
               <img
@@ -117,6 +119,9 @@ export default function DetailsModal() {
                 class="cinematic-ambient"
                 alt=""
                 aria-hidden="true"
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
               />
             </Show>
             <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />

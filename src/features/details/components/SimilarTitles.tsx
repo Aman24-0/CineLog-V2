@@ -3,6 +3,7 @@ import { For, Show, createResource, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { getRecommendations } from "~/core/tmdb/discover";
 import { isInVault } from "~/shared/utils/vaultMatch";
+import { SafeImage } from "~/shared/ui";
 import DetailSection from "./DetailSection";
 import type { WatchlistItem, TMDBTitle } from "~/shared/types";
 
@@ -118,23 +119,16 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                 aria-label={`${titleOf(t)}${yearOf(t) ? `, ${yearOf(t)}` : ""} — open details`}
               >
                 <div class="similar-title-poster">
-                  <Show
-                    when={t.poster_path || t.backdrop_path}
+                  <SafeImage
+                    src={t.poster_path || t.backdrop_path ? tmdbImage(t.poster_path || t.backdrop_path, "w185") : ""}
+                    alt=""
+                    class="similar-title-poster-img"
                     fallback={
                       <div class="similar-title-poster-fallback" aria-hidden="true">
                         <span class="material-symbols-outlined" style="font-size: 28px; color: var(--text-dim)" aria-hidden="true">movie</span>
                       </div>
                     }
-                  >
-                    <img
-                      src={tmdbImage(t.poster_path || t.backdrop_path, "w185")}
-                      class="similar-title-poster-img"
-                      loading="lazy"
-                      decoding="async"
-                      alt=""
-                      aria-hidden="true"
-                    />
-                  </Show>
+                  />
                   {/* Vault indicator dot — subtle accent if the title is already in the vault */}
                   <Show when={isInVault(props.watchlist, t)}>
                     <span class="similar-title-vault-dot" aria-label="In your vault" />

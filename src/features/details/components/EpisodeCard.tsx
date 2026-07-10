@@ -2,6 +2,7 @@
 import { Show, createSignal, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
+import { SafeImage } from "~/shared/ui";
 import type { TMDBEpisode } from "~/shared/types";
 
 /**
@@ -52,8 +53,10 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
     >
       {/* Still + number overlay */}
       <div class="episode-card-still-wrap">
-        <Show
-          when={stillUrl()}
+        <SafeImage
+          src={stillUrl()}
+          alt=""
+          class="episode-card-still"
           fallback={
             <div class="episode-card-still-fallback" aria-hidden="true">
               <span
@@ -65,16 +68,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               </span>
             </div>
           }
-        >
-          <img
-            src={stillUrl()}
-            class="episode-card-still"
-            loading="lazy"
-            decoding="async"
-            alt=""
-            aria-hidden="true"
-          />
-        </Show>
+        />
         <span class="episode-card-number" aria-hidden="true">
           E{props.episode.episode_number}
         </span>
