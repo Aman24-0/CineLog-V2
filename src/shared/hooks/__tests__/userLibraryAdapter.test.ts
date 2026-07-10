@@ -10,6 +10,13 @@ vi.mock("~/shared/hooks/useAuth", () => ({
   getCurrentUid: vi.fn(),
 }));
 
+// Mock the TMDB batch fetch so tests don't make real network calls.
+// fetchTmdbMetadataBatch is called during fetchUserLibrary to enrich
+// vault items with title/poster metadata from TMDB.
+vi.mock("~/core/tmdb/tmdb", () => ({
+  fetchTmdbMetadataBatch: vi.fn().mockResolvedValue(new Map()),
+}));
+
 import { vaultRowToWatchlistItem, fetchUserLibrary, getUserId } from "../userLibraryAdapter";
 import { getDashboardRepository, getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import { getCurrentUid } from "~/shared/hooks/useAuth";

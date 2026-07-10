@@ -13,12 +13,14 @@
  *
  * This adapter lives in `src/shared/` (not in any feature folder) because
  * it is shared infrastructure — it loads the user's vault and enriches it
- * with episode progress. It contains NO feature-specific logic (no
- * dashboard stats, no discover taste profiles, no TMDB calls).
+ * with episode progress AND TMDB display metadata (title, poster, etc.).
  *
  * Uses DashboardRepository.getAllVaultItems (1 query) + EpisodeProgressRepository
- * batch fetch (1 query) = 2 queries total. This is the most efficient vault
- * fetch path in the codebase.
+ * batch fetch (1 query) + fetchTmdbMetadataBatch (N parallel cached TMDB
+ * requests, deduped via apiCache). The TMDB enrichment is REQUIRED because
+ * the vault table only stores tmdb_id + user state — title, poster_path,
+ * backdrop_path, release_date are all fetched from TMDB on every load.
+ * Without this enrichment, vault items render as "Untitled" / "NO POSTER".
  */
 
 import { getDashboardRepository } from "~/lib/supabase/repositories";
@@ -26,19 +28,23 @@ import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
 import { STATUS_TO_UI } from "~/shared/utils/vaultStatus";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import type { WatchlistItem, WatchProgress } from "~/shared/types";
+import { fetchTmdbMetadataBatch } from "~/core/tmdb/tmdb";
+import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
-// VaultRow → WatchlistItem (with optional episode progress)
+// VaultRow → WatchlistItem (with optional episode progress + TMDB metadata)
 // ---------------------------------------------------------------------------
 
 /**
  * Map a single VaultRow to a WatchlistItem. If episode progress is
- * provided (TV only), populates season/episode/watchProgress.
+ * provided (TV only), populates season/episode/watchProgress. If TMDB
+ * metadata is provided, populates title/name/poster_path/backdrop_path/
+ * release_date/first_air_date/imdbRating so the UI can render the card.
  */
 export function vaultRowToWatchlistItem(
   row: VaultRow,
-  progress?: EpisodeProgressRow | null
+  progress?: EpisodeProgressRow | null,
+  tmdb?: TMDBTitle | null,
 ): WatchlistItem {
   const base: WatchlistItem = {
     id: String(row.tmdb_id),
@@ -49,6 +55,17 @@ export function vaultRowToWatchlistItem(
     watchDate: row.watched_on ?? undefined,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
+    // TMDB display metadata — may be undefined if the TMDB fetch failed,
+    // in which case the UI falls back to "Untitled" / "NO POSTER".
+    title: tmdb?.title,
+    name: tmdb?.name,
+    poster_path: tmdb?.poster_path ?? undefined,
+    backdrop_path: tmdb?.backdrop_path ?? undefined,
+    release_date: tmdb?.release_date,
+    first_air_date: tmdb?.first_air_date,
+    // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
+    tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
+    genresList: tmdb?.genres,
   };
 
   if (progress && row.media_type === "tv") {
@@ -76,14 +93,18 @@ export function vaultRowToWatchlistItem(
 
 /**
  * Fetch the user's complete vault (all non-deleted items) with episode
- * progress enrichment for TV titles.
+ * progress enrichment for TV titles AND TMDB display metadata for all
+ * titles.
  *
- * Uses DashboardRepository.getAllVaultItems (1 query — the most efficient
- * path, selects all non-deleted rows for the user in a single request)
- * + EpisodeProgressRepository.getLatestEpisodeProgressBatch (1 batch
- * query for all TV items).
+ * Pipeline:
+ *   1. DashboardRepository.getAllVaultItems — 1 Supabase query
+ *   2. EpisodeProgressRepository.getLatestEpisodeProgressBatch — 1 query (TV only)
+ *   3. fetchTmdbMetadataBatch — N parallel cached TMDB requests (deduped
+ *      via apiCache, so repeated loads within the TTL are instant)
  *
- * Total: 2 queries. No duplicate fetches.
+ * The TMDB enrichment (step 3) is what populates title, poster_path,
+ * backdrop_path, release_date — without it, vault items show as
+ * "Untitled" / "NO POSTER" because the vault table only stores tmdb_id.
  *
  * @returns Array of WatchlistItem (empty if no items or error).
  */
@@ -112,10 +133,24 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     }
   }
 
-  // 3. Map to WatchlistItem with episode progress enrichment
+  // 3. Batch-fetch TMDB display metadata (title, poster, backdrop, etc.)
+  //    The vault table only stores tmdb_id — title/poster are NOT stored.
+  //    Without this step every vault item renders as "Untitled" / "NO POSTER".
+  //    Requests run in parallel and are cached by apiCache (TMDB_TTL).
+  const tmdbItems = rows.map((r) => ({
+    mediaType: r.media_type,
+    tmdbId: r.tmdb_id,
+  }));
+  const tmdbMap = tmdbItems.length > 0
+    ? await fetchTmdbMetadataBatch(tmdbItems)
+    : new Map<string, TMDBTitle>();
+
+  // 4. Map to WatchlistItem with episode progress + TMDB metadata enrichment
   return rows.map((row) => {
     const progress = progressMap.get(row.id);
-    return vaultRowToWatchlistItem(row, progress);
+    const tmdbKey = `${row.media_type}/${row.tmdb_id}`;
+    const tmdb = tmdbMap.get(tmdbKey) ?? null;
+    return vaultRowToWatchlistItem(row, progress, tmdb);
   });
 }
 

@@ -1,5 +1,5 @@
 // src/core/tmdb/tmdb.ts
-import type { TMDBDetails, TMDBSeasonDetails, TMDBCollection } from "~/shared/types";
+import type { TMDBDetails, TMDBSeasonDetails, TMDBCollection, TMDBTitle } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -37,6 +37,62 @@ export const fetchTmdbDetails = async (
     `/${mediaType}/${id}?language=en-US&append_to_response=videos`
   );
 };
+
+/**
+ * Fetch lightweight TMDB metadata (title, poster, backdrop, release date,
+ * vote average) for a single movie or TV title by its TMDB id.
+ *
+ * Used by the vault enrichment layer (userLibraryAdapter) to fill in
+ * display fields that are NOT stored in the Supabase `vault` table.
+ * The vault only stores user-owned state (status, rating, notes) + the
+ * TMDB id — the title/poster must be fetched from TMDB on every load.
+ *
+ * Returns null on error so the caller can fall back to "Untitled" /
+ * "NO POSTER" placeholders rather than crashing the whole vault render.
+ *
+ * @param mediaType "movie" | "tv"
+ * @param id        TMDB numeric id (as stored in vault.tmdb_id)
+ */
+export async function fetchTmdbMetadata(
+  mediaType: "movie" | "tv",
+  id: number | string,
+): Promise<TMDBTitle | null> {
+  try {
+    const data = await tmdbFetch<TMDBTitle>(
+      `/${mediaType}/${id}?language=en-US`,
+    );
+    return { ...data, media_type: mediaType };
+  } catch (err) {
+    console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Batch-fetch TMDB metadata for multiple vault items.
+ *
+ * Fires all requests in parallel (Promise.allSettled) so one slow/failing
+ * request doesn't block the others. Returns a Map keyed by "{media_type}/{id}"
+ * for O(1) lookup during vault enrichment.
+ *
+ * @param items Array of { mediaType, tmdbId } pairs.
+ * @returns Map<"movie|tv/{id}", TMDBTitle>
+ */
+export async function fetchTmdbMetadataBatch(
+  items: ReadonlyArray<{ mediaType: "movie" | "tv"; tmdbId: number | string }>,
+): Promise<Map<string, TMDBTitle>> {
+  const results = await Promise.allSettled(
+    items.map((item) => fetchTmdbMetadata(item.mediaType, item.tmdbId)),
+  );
+  const map = new Map<string, TMDBTitle>();
+  results.forEach((result, index) => {
+    if (result.status === "fulfilled" && result.value) {
+      const item = items[index];
+      map.set(`${item.mediaType}/${item.tmdbId}`, result.value);
+    }
+  });
+  return map;
+}
 
 export const fetchSeasonDetails = async (
   tvId: string | number,

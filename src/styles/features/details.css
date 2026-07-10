@@ -724,6 +724,15 @@
   display: flex;
   align-items: center;
   gap: 0.5rem;
+  /* Prevent long labels (e.g. "Fast & Furious Collection") from
+     overflowing / overlapping the section content below. The flex
+     container needs min-width: 0 + overflow: hidden so the text
+     truncates instead of pushing layout. */
+  min-width: 0;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .detail-section-label::before {
   content: '';
