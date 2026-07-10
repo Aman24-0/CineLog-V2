@@ -1,12 +1,12 @@
-// src/routes/profile/achievements.tsx
+// src/routes/settings/index.tsx
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import AchievementsPage from "~/features/profile/AchievementsPage";
+import SettingsPage from "~/features/settings/SettingsPage";
 
-export default function AchievementsRoute() {
+export default function SettingsRoute() {
   return (
     <>
-      <Title>CineLog — Achievements</Title>
+      <Title>CineLog — Settings</Title>
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="sec-page" style={{ "padding": "var(--sp-12) var(--sp-5)" }}>
@@ -20,7 +20,7 @@ export default function AchievementsRoute() {
           </div>
         )}
       >
-        <AchievementsPage />
+        <SettingsPage />
       </ErrorBoundary>
     </>
   );

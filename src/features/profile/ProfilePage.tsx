@@ -89,12 +89,6 @@ const ProfilePage: Component = () => {
   // Handle a favorite selection from the picker.
   const handlePickFavorite = async (slot: FavoriteSlot, id: string, _label: string) => {
     setPickerOpen(false);
-    const payload: Partial<Record<FavoriteSlot, string | null>> = {};
-    if (slot === "movie") payload.movie = id;
-    if (slot === "series") payload.series = id;
-    if (slot === "director") payload.director = id;
-    if (slot === "genre") payload.genre = id;
-
     const ok = await saveProfile({
       favoriteMovieId: slot === "movie" ? id : undefined,
       favoriteSeriesId: slot === "series" ? id : undefined,
@@ -221,8 +215,6 @@ const ProfilePage: Component = () => {
                 data={data() ?? null}
                 isEditing={isEditing()}
                 onChooseBanner={() => {
-                  // For now, banner override uses the favorite movie backdrop.
-                  // A full banner picker can be added later.
                   showToast("Banner follows your favorite movie. Set one to change it.", "info");
                 }}
               />

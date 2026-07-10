@@ -13,11 +13,14 @@
 //   ProfilePage → useProfileData → useProfile (Supabase) + useUserLibrary (watchlist)
 //                                 → fetchTmdbMetadata (favorite movie/series/director enrichment)
 //
-// SSR safety: all data fetching happens inside createResource on the
-// client. The hook returns `loading` which is true until the first
-// profile fetch resolves. This prevents SSR hydration mismatches.
+// SSR safety: createResource is NOT used during SSR because it can cause
+// the component to suspend indefinitely when the source (uid) is null.
+// Instead, we use a client-only fetch triggered by createEffect. During
+// SSR, loading is true (from authReady being false), so the skeleton
+// renders. On the client, the effect fetches the profile data.
 
-import { createResource, createSignal, createMemo } from "solid-js";
+import { createSignal, createMemo, createEffect } from "solid-js";
+import { isServer } from "solid-js/web";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -70,12 +73,13 @@ export function useProfileData() {
   const library = useUserLibrary();
 
   const [saving, setSaving] = createSignal(false);
+  const [data, setData] = createSignal<ProfileData | null>(null);
+  const [fetching, setFetching] = createSignal(false);
+  const [fetchError, setFetchError] = createSignal<Error | null>(null);
 
   const uid = createMemo(() => user()?.uid ?? null);
 
   // The loader: fetch the profile row, then enrich favorites with TMDB.
-  // createResource re-runs whenever uid() changes (sign-in / sign-out).
-  // For manual refetch after a save, we call refetch() directly.
   const loader = async (): Promise<ProfileData | null> => {
     const id = uid();
     if (!id) return null;
@@ -106,16 +110,37 @@ export function useProfileData() {
     };
   };
 
-  const [data, { refetch }] = createResource(uid, loader);
+  // Client-only fetch. During SSR, this effect does not run, so data
+  // stays null and loading stays true (from authReady being false),
+  // which causes the skeleton to render.
+  const doFetch = async () => {
+    if (isServer) return;
+    const id = uid();
+    if (!id) return;
 
-  // loading is true while auth is resolving OR while the resource is
-  // fetching. This prevents a blank page when the user first navigates
-  // to /profile — auth hasn't resolved yet, so uid() is null, so
-  // createResource doesn't start, so data.loading is false. Without
-  // this authReady check, all three Show conditions in ProfilePage
-  // would be false and nothing would render.
-  const loading = createMemo(() => !authReady() || data.loading);
-  const error = createMemo(() => data.error ?? null);
+    setFetching(true);
+    setFetchError(null);
+    try {
+      const result = await loader();
+      setData(result);
+    } catch (err) {
+      console.error("[useProfileData] Fetch failed:", err);
+      setFetchError(err instanceof Error ? err : new Error(String(err)));
+    } finally {
+      setFetching(false);
+    }
+  };
+
+  // Trigger fetch when uid changes (sign-in / sign-out / auth ready).
+  createEffect(() => {
+    if (authReady() && uid()) {
+      doFetch();
+    }
+  });
+
+  // loading is true while auth is resolving OR while the fetch is in flight.
+  const loading = createMemo(() => !authReady() || fetching());
+  const error = createMemo(() => fetchError());
 
   /**
    * Save profile fields to Supabase, then refetch so the UI reflects
@@ -129,7 +154,7 @@ export function useProfileData() {
     try {
       const { error: saveError } = await profileRepo.updateProfile(id, payload);
       if (saveError) throw saveError;
-      await refetch();
+      await doFetch();
       return true;
     } catch (err) {
       console.error("[useProfileData] Save failed:", err);
@@ -138,6 +163,8 @@ export function useProfileData() {
       setSaving(false);
     }
   };
+
+  const refetch = () => doFetch();
 
   return {
     data,

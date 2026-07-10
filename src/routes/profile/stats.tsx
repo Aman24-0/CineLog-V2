@@ -1,14 +1,27 @@
 // src/routes/profile/stats.tsx
-import { clientOnly } from "@solidjs/start";
 import { Title } from "@solidjs/meta";
-
-const StatsPage = clientOnly(() => import("~/features/profile/StatsPage"));
+import { ErrorBoundary } from "solid-js";
+import StatsPage from "~/features/profile/StatsPage";
 
 export default function StatsRoute() {
   return (
     <>
       <Title>CineLog — Statistics</Title>
-      <StatsPage />
+      <ErrorBoundary
+        fallback={(error, reset) => (
+          <div class="sec-page" style={{ "padding": "var(--sp-12) var(--sp-5)" }}>
+            <div class="empty-premium" role="alert">
+              <h3 class="empty-premium-title">Something went wrong</h3>
+              <p class="empty-premium-body">{error.message}</p>
+              <button class="btn-primary focus-ring" onClick={() => reset()} style={{ "margin-top": "var(--sp-2)" }}>
+                Retry
+              </button>
+            </div>
+          </div>
+        )}
+      >
+        <StatsPage />
+      </ErrorBoundary>
     </>
   );
 }
