@@ -7,13 +7,17 @@ interface WatchlistSummaryProps {
 }
 
 /**
- * WatchlistSummary — one beautiful sentence.
+ * WatchlistSummary — a story-driven sentence, not a boring stat.
  *
- * "247 Titles — 38 Watching, 192 Completed, 17 Planned."
+ * Instead of "1 Title — 1 Planned", it generates contextual text:
+ *   • Empty: "Your cinematic journey starts here."
+ *   • 1-5: "Your collection has begun."
+ *   • 6-20: "You're building something special."
+ *   • 21-50: "You're a dedicated cinephile."
+ *   • 51-100: "Cinema is clearly your passion."
+ *   • 100+: "You're a true cinema explorer."
  *
- * A grid of stat boxes is a dashboard. A sentence is a bio. It reads
- * as personality: "I'm someone with 247 titles, mostly completed."
- *
+ * Followed by the breakdown sentence.
  * Tappable → /watchlist.
  */
 const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
@@ -27,7 +31,19 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
     return { total: list.length, watching, completed, planned };
   });
 
-  const sentence = createMemo(() => {
+  // Story-driven headline based on collection size.
+  const headline = createMemo((): string => {
+    const total = stats().total;
+    if (total === 0) return "Your cinematic journey starts here.";
+    if (total <= 5) return "Your collection has begun.";
+    if (total <= 20) return "You're building something special.";
+    if (total <= 50) return "You're a dedicated cinephile.";
+    if (total <= 100) return "Cinema is clearly your passion.";
+    return "You're a true cinema explorer.";
+  });
+
+  // Breakdown sentence — only shows non-zero categories.
+  const breakdown = createMemo((): string => {
     const s = stats();
     const parts: string[] = [];
     if (s.watching > 0) parts.push(`${s.watching} watching`);
@@ -40,15 +56,19 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
     <a
       href="/watchlist"
       class="watchlist-summary focus-ring"
-      aria-label={`Open your watchlist — ${stats().total} titles total, ${sentence()}`}
+      aria-label={`Open your watchlist — ${stats().total} titles total${breakdown() ? `, ${breakdown()}` : ""}`}
     >
-      <p class="watchlist-summary-text">
-        <strong>{stats().total}</strong> Titles
-        <Show when={sentence()}>
-          {" — "}
-          {sentence()}
+      <div class="watchlist-summary-content">
+        <p class="watchlist-summary-headline">{headline()}</p>
+        <Show when={stats().total > 0}>
+          <p class="watchlist-summary-text">
+            <strong>{stats().total}</strong> {stats().total !== 1 ? "titles" : "title"}
+            <Show when={breakdown()}>
+              {" — "}{breakdown()}
+            </Show>
+          </p>
         </Show>
-      </p>
+      </div>
       <span class="material-symbols-outlined watchlist-summary-icon" aria-hidden="true">
         chevron_right
       </span>

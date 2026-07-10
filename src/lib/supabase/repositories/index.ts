@@ -43,7 +43,7 @@ export type {
 
 // ---- ProfileRepository (Phase 4) ------------------------------------------
 // Modular: profile/ subfolder with types, utils, read, write, repository.
-export { ProfileRepository, getProfileRepository } from "./profile";
+export { ProfileRepository, getProfileRepository, ensureProfile, checkUsernameAvailability } from "./profile";
 
 export type {
   ProfileRow,

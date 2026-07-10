@@ -1,6 +1,7 @@
 // src/features/collections/utils/evaluateSmartRules.ts
 import type { SmartRule, WatchlistItem } from "~/shared/types";
 import { detectFranchise } from "~/shared/data/franchises";
+import { normalizeGenre } from "~/shared/utils/genres";
 
 /**
  * evaluateSmartRules — filter a vault by a set of smart collection rules.
@@ -29,7 +30,7 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
     case "genre": {
       const val = String(rule.value).toLowerCase();
       return rule.operator === "contains"
-        ? (Array.isArray(item.genresList) && item.genresList.some((g) => g.toLowerCase() === val) || false)
+        ? (Array.isArray(item.genresList) && item.genresList.some((g) => normalizeGenre(g).toLowerCase() === val) || false)
         : false;
     }
     case "franchise": {

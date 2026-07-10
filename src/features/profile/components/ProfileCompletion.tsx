@@ -1,5 +1,5 @@
 // src/features/profile/components/ProfileCompletion.tsx
-import { For, Show, type Component } from "solid-js";
+import { For, Show, createMemo, type Component } from "solid-js";
 import type { ProfileData } from "../useProfileData";
 import type { FavoriteSlot } from "./TasteCard";
 
@@ -15,22 +15,14 @@ interface CompletionItem {
 }
 
 /**
- * ProfileCompletion — an elegant checklist, not a percentage bar.
+ * ProfileCompletion — "Build Your Cine Identity"
  *
- * Shows the user what's missing from their profile. Each item is a
- * tappable CTA that opens the corresponding picker. When all items
- * are complete, the entire section hides (the parent gates on
- * `isComplete()`).
- *
- * Items:
- *   ✓ Add Bio
- *   ✓ Choose Favorite Movie
- *   ✓ Choose Favorite Series
- *   ✓ Choose Favorite Director
- *   ✓ Choose Favorite Genre
+ * An elegant checklist with animated progress. NOT a percentage bar —
+ * it's a checklist with a circular progress indicator that fills as
+ * the user completes each item. Hides automatically when complete.
  */
 const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
-  const items = (): CompletionItem[] => {
+  const items = createMemo((): CompletionItem[] => {
     const p = props.data?.profile;
     return [
       { slot: "bio", label: "Add a bio", done: !!(p?.bio && p.bio.trim().length > 0) },
@@ -39,16 +31,52 @@ const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
       { slot: "director", label: "Choose your favorite director", done: !!p?.favorite_director_id },
       { slot: "genre", label: "Choose your favorite genre", done: !!p?.favorite_genre },
     ];
-  };
+  });
+
+  const completedCount = createMemo(() => items().filter((i) => i.done).length);
+  const totalCount = createMemo(() => items().length);
+  const pct = createMemo(() => Math.round((completedCount() / totalCount()) * 100));
+
+  // SVG circle progress
+  const radius = 20;
+  const circumference = 2 * Math.PI * radius;
+  const dashOffset = createMemo(() => circumference - (pct() / 100) * circumference);
 
   return (
     <div class="completion-card">
-      <p class="completion-title">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">
-          task_alt
-        </span>
-        Complete your profile
-      </p>
+      <div class="completion-header">
+        <div class="completion-progress-ring-wrap">
+          <svg class="completion-progress-ring" width="48" height="48" viewBox="0 0 48 48">
+            <circle
+              cx="24" cy="24" r={radius}
+              fill="none"
+              stroke="var(--tier-1)"
+              stroke-width="3"
+            />
+            <circle
+              cx="24" cy="24" r={radius}
+              fill="none"
+              stroke="var(--p)"
+              stroke-width="3"
+              stroke-linecap="round"
+              stroke-dasharray={String(circumference)}
+              stroke-dashoffset={String(dashOffset())}
+              style={{
+                transition: "stroke-dashoffset 600ms var(--ease-smooth)",
+                filter: "drop-shadow(0 0 4px var(--p-glow))",
+              }}
+              transform="rotate(-90 24 24)"
+            />
+          </svg>
+          <span class="completion-pct">{pct()}%</span>
+        </div>
+        <div class="completion-header-text">
+          <p class="completion-title">Build Your Cine Identity</p>
+          <p class="completion-subtitle">
+            {completedCount()} of {totalCount()} steps complete
+          </p>
+        </div>
+      </div>
       <ul class="completion-list">
         <For each={items()}>
           {(item) => (
@@ -74,6 +102,11 @@ const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
                 </Show>
               </div>
               <span class="completion-label">{item.label}</span>
+              <Show when={!item.done}>
+                <span class="material-symbols-outlined completion-arrow" aria-hidden="true">
+                  chevron_right
+                </span>
+              </Show>
             </li>
           )}
         </For>

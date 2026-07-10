@@ -1,11 +1,19 @@
 // src/features/discover/useDiscoverActions.ts
+import { normalizeGenres } from "~/shared/utils/genres";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
+
 import { useToast } from "~/shared/hooks/useToast";
+
 import { useModalState } from "~/shared/hooks/useModalState";
+
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
+
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
+
 import type { Accessor } from "solid-js";
+
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+
 
 /**
  * useDiscoverActions — action handlers for the Discover page.
@@ -45,7 +53,7 @@ export function useDiscoverActions(
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: title.genres,
+      genresList: normalizeGenres(title.genres as unknown[]),
       director: title.director,
     };
     openTitle(baseItem, args.watchlist());
@@ -69,7 +77,7 @@ export function useDiscoverActions(
         status: "Planned",
         release_date: title.release_date,
         first_air_date: title.first_air_date,
-        genresList: title.genres,
+        genresList: normalizeGenres(title.genres as unknown[]),
         director: title.director,
       };
       await createVaultItemInSupabase(uid, item);

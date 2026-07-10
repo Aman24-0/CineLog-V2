@@ -18,11 +18,16 @@ const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 export function matchSearch(m: WatchlistItem, query: string): boolean {
   const s = query.toLowerCase().trim();
   const year = (m.release_date || m.first_air_date || "").substring(0, 4);
+  const genres = (m.genresList || []).map((g) => {
+    if (typeof g === "string") return g;
+    if (typeof g === "object" && g !== null && "name" in g) return String((g as { name: unknown }).name);
+    return String(g);
+  });
   const fields = [
     m.title, m.original_title, m.name, m.original_name,
     m.tag, m.notes, m.director, year,
     ...(m.castList || []),
-    ...(m.genresList || []),
+    ...genres,
     ...(m.platformsList || []),
   ].join(" ").toLowerCase();
   return fields.includes(s);
@@ -50,7 +55,15 @@ export function filterByAdvanced(
   let out = items;
   if (f.type !== "all") out = out.filter((m) => m.media_type === f.type);
   if (f.region !== "all") out = out.filter((m) => (m.region || "International") === f.region);
-  if (f.genre !== "all") out = out.filter((m) => m.genresList?.includes(f.genre));
+  if (f.genre !== "all") out = out.filter((m) => {
+    if (!m.genresList || !Array.isArray(m.genresList)) return false;
+    return m.genresList.some((g) => {
+      const name = typeof g === "string" ? g
+        : typeof g === "object" && g !== null && "name" in g ? String((g as { name: unknown }).name)
+        : String(g);
+      return name === f.genre;
+    });
+  });
   if (f.platform !== "all") out = out.filter((m) => m.platformsList?.includes(f.platform));
   if (f.tag !== "all") out = out.filter((m) => m.tag === f.tag);
   return out;

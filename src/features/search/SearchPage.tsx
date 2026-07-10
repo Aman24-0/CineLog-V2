@@ -1,19 +1,35 @@
 // src/features/search/SearchPage.tsx
+import { normalizeGenres } from "~/shared/utils/genres";
 import { Show, createSignal, onMount } from "solid-js";
+
 import { useVault } from "~/features/watchlist/useVault";
+
 import { useToast } from "~/shared/hooks/useToast";
+
 import { useModalState } from "~/shared/hooks/useModalState";
+
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
+
 import { getCurrentUid } from "~/shared/hooks/useAuth";
+
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
+
 import PageContainer from "~/shared/ui/PageContainer";
+
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+
 import { useSearch } from "./useSearch";
+
 import SearchHeader from "./SearchHeader";
+
 import SearchGrid from "./SearchGrid";
+
 import SearchResults from "./SearchResults";
+
 import SearchFilters from "./SearchFilters";
+
 
 /**
  * SearchPage — CineLog's intentional discovery-by-query experience.
@@ -85,7 +101,7 @@ export default function SearchPage() {
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: title.genres,
+      genresList: normalizeGenres(title.genres as unknown[]),
     };
     openTitle(baseItem, watchlist());
   };
@@ -113,7 +129,7 @@ export default function SearchPage() {
         status: "Planned",
         release_date: title.release_date,
         first_air_date: title.first_air_date,
-        genresList: title.genres,
+        genresList: normalizeGenres(title.genres as unknown[]),
         director: title.director,
       };
       await createVaultItemInSupabase(uid, item);

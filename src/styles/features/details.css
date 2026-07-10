@@ -134,16 +134,29 @@
   z-index: 2;
   margin-top: -60px;
   padding: 0 1.5rem;
+  padding-bottom: 0.5rem;
   display: flex;
   gap: 1rem;
   align-items: flex-end;
+  overflow: visible;
 }
 @media (min-width: 640px) {
   .hero-content-cluster {
     margin-top: -80px;
     padding: 0 2rem;
+    padding-bottom: 0.5rem;
     gap: 1.5rem;
   }
+}
+
+/* The title container must clip its content so the hero title never
+   overlaps with sections below. Without this, a 3-line Bebas Neue
+   title at 2.25rem extends past the cluster's bottom edge and paints
+   over the "Collection" section below (z-index stacking). */
+.hero-content-cluster .flex-1 {
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
 }
 
 .hero-title {

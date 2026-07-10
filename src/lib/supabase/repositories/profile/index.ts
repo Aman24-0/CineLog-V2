@@ -15,6 +15,7 @@
  */
 
 export { ProfileRepository, getProfileRepository } from "./profile.repository";
+export { ensureProfile, checkUsernameAvailability } from "./profile.lifecycle";
 
 export type {
   // Row / Insert / Update aliases

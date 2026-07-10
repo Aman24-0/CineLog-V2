@@ -21,6 +21,7 @@
 
 import { createMemo, type Accessor } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { normalizeGenre, collectGenres } from "~/shared/utils/genres";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -83,8 +84,10 @@ export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Acce
     // Genres
     const genreMap = new Map<string, number>();
     list.forEach((m) => {
-      m.genresList?.forEach((g) => {
-        genreMap.set(g, (genreMap.get(g) ?? 0) + 1);
+      if (!m.genresList || !Array.isArray(m.genresList)) return;
+      m.genresList.forEach((g) => {
+        const name = normalizeGenre(g);
+        if (name) genreMap.set(name, (genreMap.get(name) ?? 0) + 1);
       });
     });
     const topGenres = Array.from(genreMap.entries())

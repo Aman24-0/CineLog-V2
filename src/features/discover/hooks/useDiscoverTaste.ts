@@ -53,8 +53,12 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
     );
     const signalSource = strongSignalTitles.length >= 3 ? strongSignalTitles : list;
     for (const m of signalSource) {
-      for (const g of m.genresList || []) {
-        genreCounts[g] = (genreCounts[g] || 0) + 1;
+      if (!m.genresList || !Array.isArray(m.genresList)) continue;
+      for (const g of m.genresList) {
+        const name = typeof g === "string" ? g
+          : typeof g === "object" && g !== null && "name" in g ? String((g as { name: unknown }).name)
+          : String(g);
+        if (name) genreCounts[name] = (genreCounts[name] || 0) + 1;
       }
     }
     const topGenres = Object.entries(genreCounts)

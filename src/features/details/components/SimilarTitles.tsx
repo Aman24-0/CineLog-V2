@@ -1,11 +1,19 @@
 // src/features/details/components/SimilarTitles.tsx
+import { normalizeGenres } from "~/shared/utils/genres";
 import { For, Show, createResource, createMemo, Component } from "solid-js";
+
 import { tmdbImage } from "~/core/tmdb/tmdb";
+
 import { getRecommendations } from "~/core/tmdb/discover";
+
 import { isInVault } from "~/shared/utils/vaultMatch";
+
 import { SafeImage } from "~/shared/ui";
+
 import DetailSection from "./DetailSection";
+
 import type { WatchlistItem, TMDBTitle } from "~/shared/types";
+
 
 interface SimilarTitlesProps {
   /** The currently-open title — used to fetch TMDB recommendations */
@@ -88,7 +96,7 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: title.genres
+      genresList: normalizeGenres(title.genres as unknown[]),
     };
     props.onSelect(item);
   };

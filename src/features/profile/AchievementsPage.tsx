@@ -15,6 +15,7 @@
 import { Show, For, createMemo, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { hasGenre, collectGenres } from "~/shared/utils/genres";
 import PageContainer from "~/shared/ui/PageContainer";
 
 interface AchievementDef {
@@ -92,7 +93,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     desc: "Watch 10 Sci-Fi titles.",
     icon: "rocket_launch",
     progress: (list) => {
-      const c = list.filter((m) => m.genresList?.some((g) => g.toLowerCase().includes("sci"))).length;
+      const c = list.filter((m) => hasGenre(m, "sci")).length;
       return { unlocked: c >= 10, current: Math.min(c, 10), target: 10 };
     },
   },
@@ -102,7 +103,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     desc: "Watch 10 Horror titles.",
     icon: "ghost",
     progress: (list) => {
-      const c = list.filter((m) => m.genresList?.some((g) => g.toLowerCase().includes("horror"))).length;
+      const c = list.filter((m) => hasGenre(m, "horror")).length;
       return { unlocked: c >= 10, current: Math.min(c, 10), target: 10 };
     },
   },
@@ -112,7 +113,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     desc: "Watch 15 Drama titles.",
     icon: "theater_comedy",
     progress: (list) => {
-      const c = list.filter((m) => m.genresList?.some((g) => g.toLowerCase().includes("drama"))).length;
+      const c = list.filter((m) => hasGenre(m, "drama")).length;
       return { unlocked: c >= 15, current: Math.min(c, 15), target: 15 };
     },
   },
@@ -122,7 +123,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     desc: "Watch 10 Animation titles.",
     icon: "animation",
     progress: (list) => {
-      const c = list.filter((m) => m.genresList?.some((g) => g.toLowerCase().includes("anim"))).length;
+      const c = list.filter((m) => hasGenre(m, "anim")).length;
       return { unlocked: c >= 10, current: Math.min(c, 10), target: 10 };
     },
   },
@@ -180,7 +181,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
     icon: "palette",
     progress: (list) => {
       const genres = new Set<string>();
-      list.forEach((m) => m.genresList?.forEach((g) => genres.add(g)));
+      collectGenres(list).forEach((g) => genres.add(g));
       return { unlocked: genres.size >= 8, current: Math.min(genres.size, 8), target: 8 };
     },
   },

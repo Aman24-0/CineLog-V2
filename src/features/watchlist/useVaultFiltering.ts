@@ -128,7 +128,16 @@ export function useVaultFiltering(
   });
 
   const uniqueGenres = createMemo(() =>
-    [...new Set(args.watchlist().flatMap((m) => m.genresList || []))]
+    [...new Set(
+      args.watchlist().flatMap((m) => {
+        if (!m.genresList || !Array.isArray(m.genresList)) return [];
+        return m.genresList.map((g) => {
+          if (typeof g === "string") return g;
+          if (typeof g === "object" && g !== null && "name" in g) return String((g as { name: unknown }).name);
+          return String(g);
+        });
+      })
+    )]
       .filter(Boolean)
       .sort(),
   );

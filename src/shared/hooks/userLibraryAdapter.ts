@@ -27,6 +27,7 @@ import { getDashboardRepository } from "~/lib/supabase/repositories";
 import { getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
 import { STATUS_TO_UI } from "~/shared/utils/vaultStatus";
+import { normalizeGenres } from "~/shared/utils/genres";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { fetchTmdbMetadataBatch } from "~/core/tmdb/tmdb";
 import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
@@ -65,7 +66,7 @@ export function vaultRowToWatchlistItem(
     first_air_date: tmdb?.first_air_date,
     // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
     tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
-    genresList: tmdb?.genres,
+    genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
   };
 
   if (progress && row.media_type === "tv") {

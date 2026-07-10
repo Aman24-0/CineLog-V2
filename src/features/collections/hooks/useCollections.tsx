@@ -62,7 +62,17 @@ const useCollectionsLogic = () => {
         const supabaseUid = session?.user?.id ?? null;
         if (supabaseUid) {
           setLoading(true);
-          ensureFavoritesExistsInSupabase(supabaseUid).catch(() => {});
+          // AWAIT ensureFavoritesExists BEFORE refreshing collections.
+          // Previously this was fire-and-forget (.catch(() => {})), which
+          // caused a race condition: multiple onSessionChange events would
+          // each check for Favorites concurrently, find none, and each
+          // create a duplicate. Awaiting ensures the check+create completes
+          // before the collection list is refreshed.
+          try {
+            await ensureFavoritesExistsInSupabase(supabaseUid);
+          } catch (err) {
+            console.error("[useCollections] ensureFavoritesExists failed:", err);
+          }
           await Promise.all([
             refreshCollections(supabaseUid),
             universePrefs.refreshUniversePrefs(supabaseUid),

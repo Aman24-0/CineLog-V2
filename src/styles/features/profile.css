@@ -120,9 +120,16 @@
   height: 96px;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid var(--tier-1);
-  box-shadow: 0 0 0 2px var(--p), 0 0 24px var(--p-glow), 0 8px 32px rgba(0,0,0,0.6);
+  border: 4px solid var(--tier-1);
+  box-shadow: 0 0 0 2px var(--p), 0 0 32px var(--p-glow), 0 12px 40px rgba(0,0,0,0.7);
   background: var(--tier-2);
+  opacity: 0;
+  transform: scale(0.92);
+  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-spring), box-shadow 400ms var(--ease-out);
+}
+.profile-avatar.img-loaded {
+  opacity: 1;
+  transform: scale(1);
 }
 @media (min-width: 640px) {
   .profile-avatar {
@@ -138,13 +145,15 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--p-dim);
+  background: linear-gradient(145deg, var(--p-dim), var(--tier-2));
   color: var(--p);
   font-family: 'Bebas Neue', cursive;
   font-size: 2.5rem;
   line-height: 1;
-  border: 3px solid var(--tier-1);
-  box-shadow: 0 0 0 2px var(--p), 0 0 24px var(--p-glow), 0 8px 32px rgba(0,0,0,0.6);
+  border: 4px solid var(--tier-1);
+  box-shadow: 0 0 0 2px var(--p), 0 0 32px var(--p-glow), 0 12px 40px rgba(0,0,0,0.7);
+  text-shadow: 0 0 16px var(--p-glow);
+  animation: profileAvatarFadeIn 400ms var(--ease-spring) both;
 }
 @media (min-width: 640px) {
   .profile-avatar-fallback {
@@ -504,8 +513,8 @@
 }
 
 /* ============================================================
-   PROFILE COMPLETION CHECKLIST
-   Elegant checklist, not a percentage bar.
+   PROFILE COMPLETION — "Build Your Cine Identity"
+   Elegant checklist with animated circular progress.
    Hides automatically when all items are complete.
    ============================================================ */
 
@@ -519,17 +528,56 @@
   box-shadow: var(--shadow-premium);
 }
 
-.completion-title {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 0 0 var(--sp-3);
+.completion-header {
   display: flex;
   align-items: center;
-  gap: var(--sp-2);
+  gap: var(--sp-4);
+  margin-bottom: var(--sp-4);
+}
+
+.completion-progress-ring-wrap {
+  position: relative;
+  width: 48px;
+  height: 48px;
+  flex-shrink: 0;
+}
+
+.completion-progress-ring {
+  display: block;
+}
+
+.completion-pct {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.completion-header-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.completion-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.completion-subtitle {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  color: var(--text-muted);
+  margin: 2px 0 0;
 }
 
 .completion-list {
@@ -580,6 +628,7 @@
 }
 
 .completion-label {
+  flex: 1;
   font-family: 'Outfit', sans-serif;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -590,26 +639,32 @@
   color: var(--text-dim);
   text-decoration: line-through;
 }
+.completion-arrow {
+  font-size: 16px;
+  color: var(--p);
+  flex-shrink: 0;
+}
 
 /* ============================================================
-   WATCHLIST SUMMARY
-   One beautiful sentence. Tappable → /watchlist.
+   WATCHLIST SUMMARY — story-driven
    ============================================================ */
 
 .watchlist-summary {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  background: var(--tier-2);
+  padding: var(--sp-5);
+  background: linear-gradient(145deg, var(--tier-2), var(--tier-1));
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   cursor: pointer;
-  transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+  text-decoration: none;
+  transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-base) var(--ease-out);
+  box-shadow: var(--shadow-premium);
 }
 .watchlist-summary:hover {
-  background: var(--tier-3);
-  border-color: var(--hairline-2);
+  border-color: color-mix(in srgb, var(--p) 25%, var(--hairline));
+  box-shadow: var(--shadow-elevated), 0 0 16px var(--p-glow);
 }
 .watchlist-summary:active {
   transform: scale(0.997);
@@ -619,12 +674,27 @@
   outline-offset: 2px;
 }
 
+.watchlist-summary-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.watchlist-summary-headline {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.25rem;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
 .watchlist-summary-text {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 400;
   color: var(--text-soft);
   line-height: 1.5;
+  margin: 4px 0 0;
 }
 .watchlist-summary-text strong {
   color: var(--text-strong);
@@ -771,6 +841,11 @@
 /* ============================================================
    ANIMATIONS
    ============================================================ */
+
+@keyframes profileAvatarFadeIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to   { opacity: 1; transform: scale(1); }
+}
 
 .profile-fade-in {
   animation: fadeIn var(--dur-page) var(--ease-smooth) both;

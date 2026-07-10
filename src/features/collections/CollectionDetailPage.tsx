@@ -1,5 +1,6 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createResource, createSignal, createEffect, ErrorBoundary } from "solid-js";
+import { Show, createSignal, createEffect, ErrorBoundary } from "solid-js";
+import { isServer } from "solid-js/web";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -19,16 +20,15 @@ import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, Watch
  *     1. A user collection UUID → looked up in userCollections()
  *     2. A curated universe slug → fetched from Supabase curated_universes
  *
- *   There are NO hardcoded curated collections. Every curated universe
- *   is fetched from the database via fetchCuratedUniverseBySlug().
+ * SSR safety:
+ *   The collection fetch is client-only (guarded by isServer). During SSR,
+ *   loading is true so the skeleton renders. On the client, a createEffect
+ *   resolves the collection — first checking userCollections() (sync),
+ *   then falling back to fetchCuratedUniverseBySlug (async).
  *
- *   The collection is loaded via createResource so Suspense + ErrorBoundary
- *   can handle loading + error states cleanly — no blank screens.
- *
- * REACTIVITY (BUG 1 fix):
+ * REACTIVITY:
  *   Preferences (activeOrder, activeProvider) are applied in a
- *   createEffect — NEVER in the render path. Setting signals during
- *   render is a SolidJS anti-pattern that crashes the component.
+ *   createEffect — NEVER in the render path.
  */
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -40,39 +40,50 @@ export default function CollectionDetailPage() {
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
 
-  // Resolve the collection: user collection (synchronous) or curated universe (async).
-  // The source returns a composite key { id, userCollectionsVersion } so the
-  // resource re-runs when EITHER params.id changes OR userCollections()
-  // populates from Supabase. Without tracking userCollections() in the source,
-  // the fetcher runs once with an empty array, falls through to the curated
-  // universe lookup (which fails for user collection UUIDs), and never
-  // re-runs when userCollections() populates — leaving the user stuck on
-  // "not found" or a black screen during the loading phase (BUG 1 root cause).
-  const [collectionResource] = createResource(
-    // Source: re-run when params.id changes OR when userCollections() changes.
-    // The string concatenation creates a new source value whenever either changes.
-    () => `${params.id}|${userCollections().length}`,
-    async (source: string): Promise<Collection | null> => {
-      // Extract the id from the composite source key.
-      const id = source.split("|")[0];
+  // Client-only state — during SSR these stay at their initial values
+  // (loading=true, collection=null) so the skeleton renders.
+  const [collection, setCollection] = createSignal<Collection | null>(null);
+  const [loading, setLoading] = createSignal(!isServer);
+  const [notFound, setNotFound] = createSignal(false);
+
+  // Resolve the collection. Client-only — does not run during SSR.
+  const resolveCollection = async (id: string) => {
+    if (isServer) return;
+    setLoading(true);
+    setNotFound(false);
+    try {
       // 1. Check user collections first (synchronous lookup).
       const userCol = userCollections().find((c) => c.id === id);
-      if (userCol) return userCol;
-
+      if (userCol) {
+        setCollection(userCol);
+        setLoading(false);
+        return;
+      }
       // 2. Fetch curated universe from Supabase by slug.
       const curated = await fetchCuratedUniverseBySlug(id);
-      return curated;
-    },
-  );
+      if (curated) {
+        setCollection(curated);
+      } else {
+        setNotFound(true);
+      }
+    } catch (err) {
+      console.error("[CollectionDetailPage] Failed to load collection:", err);
+      setNotFound(true);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // The resolved collection (null while loading or if not found).
-  const collection = (): Collection | null => collectionResource() ?? null;
+  // Trigger fetch when params.id changes or userCollections populates.
+  createEffect(() => {
+    const id = params.id;
+    if (id) {
+      void userCollections().length; // track userCollections changes
+      resolveCollection(id);
+    }
+  });
 
   // Apply saved preferences when the collection resolves.
-  // This MUST be a createEffect — it sets signals (setActiveOrder /
-  // setActiveProvider) as a side effect. Setting signals during render
-  // is a SolidJS anti-pattern that crashes the component (BUG 1 root cause).
-  // createEffect runs AFTER render, so signal setters are legal here.
   createEffect(() => {
     const col = collection();
     if (!col) return;
@@ -101,70 +112,69 @@ export default function CollectionDetailPage() {
       <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
-      <Show
-        when={!collectionResource.loading}
-        fallback={
-          <div class="page-enter" style={{ padding: "var(--sp-12)", "text-align": "center" }}>
-            <div class="skeleton-base" style={{ width: "60%", height: "2rem", margin: "0 auto var(--sp-4)" }} />
-            <div class="skeleton-base" style={{ width: "40%", height: "1rem", margin: "0 auto" }} />
-          </div>
-        }
-      >
-        <Show
-          when={collection()}
-          fallback={
-            <div class="page-enter">
-              <button
-                type="button"
-                class="collections-back-btn"
-                onClick={() => navigate("/collections")}
-                aria-label="Back to Collections"
-              >
-                <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
-              </button>
-              <div class="collections-detail-empty">
-                <p class="type-body-soft" style={{ "text-align": "center" }}>Collection not found.</p>
-                <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
-              </div>
-            </div>
-          }
-        >
-          <ErrorBoundary
-            fallback={(err) => {
-              console.error("[CollectionDetailPage] Render error:", err);
-              return (
-                <div class="page-enter">
-                  <button type="button" class="collections-back-btn" onClick={() => navigate("/collections")} aria-label="Back to Collections">
-                    <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
-                  </button>
-                  <div class="collections-detail-empty">
-                    <p class="type-body-soft" style={{ "text-align": "center" }}>Something went wrong loading this collection.</p>
-                    <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
-                  </div>
-                </div>
-              );
-            }}
-          >
-            <div class="page-enter relative">
-              {/* Universe Dashboard — enhanced hero + stats + actions */}
-              <UniverseDashboard
-                collection={collection()!}
-                activeOrder={activeOrder()}
-                activeProvider={activeProvider()}
-                onOrderChange={setActiveOrder}
-                onProviderChange={setActiveProvider}
-              />
+      {/* Loading state */}
+      <Show when={loading()}>
+        <div class="page-enter" style={{ padding: "var(--sp-12)", "text-align": "center" }}>
+          <div class="skeleton-base" style={{ width: "60%", height: "2rem", margin: "0 auto var(--sp-4)" }} />
+          <div class="skeleton-base" style={{ width: "40%", height: "1rem", margin: "0 auto" }} />
+        </div>
+      </Show>
 
-              {/* Timeline Engine — supports all viewing orders and providers */}
-              <TimelineEngine
-                collection={collection()!}
-                order={activeOrder()}
-                provider={activeProvider()}
-                onOpenEntry={handleOpenEntry}
-              />
-            </div>
-          </ErrorBoundary>
-        </Show>
+      {/* Not found state */}
+      <Show when={!loading() && notFound()}>
+        <div class="page-enter">
+          <button
+            type="button"
+            class="collections-back-btn"
+            onClick={() => navigate("/collections")}
+            aria-label="Back to Collections"
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
+          </button>
+          <div class="collections-detail-empty">
+            <p class="type-body-soft" style={{ "text-align": "center" }}>Collection not found.</p>
+            <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+          </div>
+        </div>
+      </Show>
+
+      {/* Loaded state */}
+      <Show when={!loading() && !notFound() && collection()}>
+        <ErrorBoundary
+          fallback={(err) => {
+            console.error("[CollectionDetailPage] Render error:", err);
+            return (
+              <div class="page-enter">
+                <button type="button" class="collections-back-btn" onClick={() => navigate("/collections")} aria-label="Back to Collections">
+                  <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
+                </button>
+                <div class="collections-detail-empty">
+                  <p class="type-body-soft" style={{ "text-align": "center" }}>Something went wrong loading this collection.</p>
+                  <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+                </div>
+              </div>
+            );
+          }}
+        >
+          <div class="page-enter relative">
+            {/* Universe Dashboard — enhanced hero + stats + actions */}
+            <UniverseDashboard
+              collection={collection()!}
+              activeOrder={activeOrder()}
+              activeProvider={activeProvider()}
+              onOrderChange={setActiveOrder}
+              onProviderChange={setActiveProvider}
+            />
+
+            {/* Timeline Engine — supports all viewing orders and providers */}
+            <TimelineEngine
+              collection={collection()!}
+              order={activeOrder()}
+              provider={activeProvider()}
+              onOpenEntry={handleOpenEntry}
+            />
+          </div>
+        </ErrorBoundary>
       </Show>
     </PageContainer>
   );

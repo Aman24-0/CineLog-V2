@@ -1,17 +1,31 @@
 // src/features/collection/CollectionModal.tsx
+import { normalizeGenres } from "~/shared/utils/genres";
 import { Show, onMount, onCleanup, createMemo, createResource } from "solid-js";
+
 import { Portal } from "solid-js/web";
+
 import { tmdbImage } from "~/core/tmdb/tmdb";
+
 import { findInVault } from "~/shared/utils/vaultMatch";
+
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
+
 import { useModalState } from "~/shared/hooks/useModalState";
+
 import { useVault } from "~/features/watchlist/useVault";
+
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+
 import { fetchFranchiseTitles } from "./collectionFetcher";
+
 import CollectionHero from "./components/CollectionHero";
+
 import CollectionStats from "./components/CollectionStats";
+
 import CollectionTimeline from "./components/CollectionTimeline";
+
 import CollectionSkeleton from "./components/CollectionSkeleton";
+
 
 /**
  * CollectionModal — the cinematic collection viewer (orchestration only).
@@ -91,7 +105,7 @@ export default function CollectionModal() {
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: title.genres,
+      genresList: normalizeGenres(title.genres as unknown[]),
     };
     openTitle(baseItem, watchlist());
   };

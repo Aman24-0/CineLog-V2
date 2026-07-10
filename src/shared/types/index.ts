@@ -76,6 +76,10 @@ export interface User {
   displayName?: string | null;
   email?: string | null;
   photoURL?: string | null;
+  /** Auth providers linked to this account (e.g. ["google", "email"]). */
+  providers?: string[];
+  /** Whether the account was created via email/password or OAuth. */
+  createdAt?: string;
 }
 
 export interface VaultFilters {

@@ -80,7 +80,13 @@ function mapSupabaseUser(session: Session | null): User | null {
     email: supabaseUser.email ?? null,
     photoURL: supabaseUser.user_metadata?.avatar_url
       ?? supabaseUser.user_metadata?.picture
-      ?? null
+      ?? null,
+    // Extract linked auth providers from Supabase app_metadata.
+    // This is the SINGLE source of truth for which providers are connected
+    // (google, email, github, apple, etc.). The Account page reads this
+    // array to show "Connected" vs "Available" — NOT hardcoded values.
+    providers: supabaseUser.app_metadata?.providers ?? [],
+    createdAt: supabaseUser.created_at,
   };
 }
 
@@ -111,6 +117,11 @@ export function useAuth() {
         const subscription = onSessionChange((_event, session) => {
           setUser(mapSupabaseUser(session));
           setAuthReady(true);
+          // Auto-populate display_name + username on sign-in.
+          // This runs in the background — the UI doesn't wait for it.
+          if (session?.user) {
+            void ensureProfileForUser(session.user);
+          }
         });
         unsub = () => subscription.unsubscribe();
       } catch (err) {
@@ -165,9 +176,46 @@ async function checkInitialSession() {
     const session = await getBrowserSession();
     setUser(mapSupabaseUser(session));
     setAuthReady(true);
+    // Auto-populate display_name + username on initial session detection.
+    if (session?.user) {
+      void ensureProfileForUser(session.user);
+    }
   } catch (err) {
     console.error("[useAuth] Initial session check failed:", err);
     setAuthReady(true); // Mark as ready so UI doesn't hang
+  }
+}
+
+/**
+ * Ensure the user's profile exists and has a display_name + username.
+ *
+ * Called when a session is detected (both from onSessionChange and
+ * checkInitialSession). Runs in the background — the UI doesn't wait
+ * for it. Uses dynamic import to avoid circular dependencies and keep
+ * the auth hook lightweight.
+ *
+ * If the profile already has a display_name and username (i.e., the
+ * user has set them or they were auto-populated on a previous login),
+ * this is a no-op. The ensureProfile function only auto-populates
+ * fields that are empty or still set to the UUID default.
+ */
+async function ensureProfileForUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+}) {
+  try {
+    const { getBrowserClient } = await import("~/lib/supabase/browser");
+    const { ensureProfile } = await import("~/lib/supabase/repositories");
+    const client = getBrowserClient();
+    await ensureProfile(client, supabaseUser.id, {
+      email: supabaseUser.email ?? null,
+      userMetadata: supabaseUser.user_metadata ?? null,
+    });
+  } catch (err) {
+    // Non-fatal — the profile might already exist from the Supabase trigger.
+    // Log but don't crash the auth flow.
+    console.error("[useAuth] ensureProfile failed:", err);
   }
 }
 

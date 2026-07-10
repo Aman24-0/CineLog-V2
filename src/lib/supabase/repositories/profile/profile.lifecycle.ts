@@ -38,6 +38,11 @@ import type {
   TypedSupabaseClient
 } from "./profile.types";
 import { computeScheduledDeletionAt, toError } from "./profile.utils";
+import {
+  sanitizeUsername,
+  generateUsernameCandidates,
+  displayNameFromMetadata,
+} from "~/shared/utils/username";
 
 // ---------------------------------------------------------------------------
 // Table name constant
@@ -138,4 +143,165 @@ export async function permanentlyDeleteProfile(
     .eq("id", userId);
 
   return { error: toError(error) };
+}
+
+// ---------------------------------------------------------------------------
+// Profile initialization — auto-populate display name + username
+// ---------------------------------------------------------------------------
+
+/**
+ * Ensure a profile exists and has a display_name + username.
+ *
+ * Called on auth state change when a user signs in. If the profile
+ * doesn't exist, it's created with auto-generated display_name and
+ * username from the auth user's metadata.
+ *
+ * If the profile exists but has no display_name (or the display_name
+ * equals the UUID — the Supabase trigger default), it's auto-populated
+ * from the auth user's metadata. Once the user manually edits their
+ * display_name, it's never overwritten.
+ *
+ * Username generation:
+ *   1. Sanitize email local part → base username
+ *   2. Check availability via getProfileByUsername
+ *   3. If taken, try candidates: base24, base_24, base247, ...
+ *   4. First available candidate wins
+ *
+ * @returns The profile row (existing or newly created).
+ */
+export async function ensureProfile(
+  supabase: TypedSupabaseClient,
+  userId: string,
+  authUser: {
+    email?: string | null;
+    userMetadata?: Record<string, unknown> | null;
+  } | null,
+): Promise<ProfileResult<ProfileRow>> {
+  // 1. Check if the profile already exists.
+  const { data: existing, error: fetchError } = await supabase
+    .from(PROFILES_TABLE)
+    .select()
+    .eq("id", userId)
+    .is("deleted_at", null)
+    .maybeSingle();
+
+  if (fetchError) {
+    return { data: null, error: toError(fetchError) };
+  }
+
+  // 2. If profile exists, check if display_name or username need auto-populating.
+  if (existing) {
+    const updates: Partial<ProfileRow> = {};
+    const email = authUser?.email ?? null;
+    const metadata = authUser?.userMetadata ?? null;
+
+    // Auto-populate display_name if it's empty or equals the UUID (trigger default).
+    const needsDisplayName =
+      !existing.display_name ||
+      existing.display_name === userId ||
+      existing.display_name === "CINELOG USER" ||
+      existing.display_name.trim() === "";
+
+    if (needsDisplayName) {
+      updates.display_name = displayNameFromMetadata(metadata, email);
+    }
+
+    // Auto-populate username if it's empty or equals the UUID (trigger default).
+    const needsUsername =
+      !existing.username ||
+      existing.username === userId ||
+      existing.username.trim() === "";
+
+    if (needsUsername && email) {
+      const baseUsername = sanitizeUsername(email);
+      const availableUsername = await findAvailableUsername(supabase, baseUsername);
+      if (availableUsername) {
+        updates.username = availableUsername;
+      }
+    }
+
+    // Only update if there are changes to make.
+    if (Object.keys(updates).length > 0) {
+      const { data: updated, error: updateError } = await supabase
+        .from(PROFILES_TABLE)
+        .update(updates)
+        .eq("id", userId)
+        .is("deleted_at", null)
+        .select()
+        .single();
+      return { data: updated, error: toError(updateError) };
+    }
+
+    return { data: existing, error: null };
+  }
+
+  // 3. Profile doesn't exist — create it with auto-generated fields.
+  const email = authUser?.email ?? null;
+  const metadata = authUser?.userMetadata ?? null;
+  const displayName = displayNameFromMetadata(metadata, email);
+  const baseUsername = email ? sanitizeUsername(email) : "cinephile";
+  const username = email ? await findAvailableUsername(supabase, baseUsername) : baseUsername;
+
+  const { data: created, error: createError } = await supabase
+    .from(PROFILES_TABLE)
+    .insert({
+      id: userId,
+      username: username ?? baseUsername,
+      display_name: displayName,
+      country: "US", // default — user can change later
+    })
+    .select()
+    .single();
+
+  return { data: created, error: toError(createError) };
+}
+
+/**
+ * Check if a username is available (not taken by any other user).
+ *
+ * Usernames are case-insensitive (citext column) so the check is
+ * case-insensitive.
+ */
+export async function checkUsernameAvailability(
+  supabase: TypedSupabaseClient,
+  username: string,
+  excludeUserId?: string,
+): Promise<{ available: boolean; error: Error | null }> {
+  let query = supabase
+    .from(PROFILES_TABLE)
+    .select("id")
+    .eq("username", username)
+    .is("deleted_at", null)
+    .limit(1);
+
+  if (excludeUserId) {
+    query = query.neq("id", excludeUserId);
+  }
+
+  const { data, error } = await query.maybeSingle();
+  return { available: data === null, error: toError(error) };
+}
+
+/**
+ * Find an available username by trying candidates in order.
+ *
+ * @param supabase The Supabase client.
+ * @param baseUsername The sanitized base username (from email).
+ * @returns The first available username, or null if all candidates are taken.
+ */
+async function findAvailableUsername(
+  supabase: TypedSupabaseClient,
+  baseUsername: string,
+): Promise<string | null> {
+  const candidates = generateUsernameCandidates(baseUsername);
+  for (const candidate of candidates) {
+    const { available, error } = await checkUsernameAvailability(supabase, candidate);
+    if (error) {
+      console.error("[ensureProfile] Username availability check failed:", error);
+      continue;
+    }
+    if (available) return candidate;
+  }
+  // Fallback: append a random number to the base
+  return `${baseUsername}${Math.floor(Math.random() * 99999)}`.slice(0, 20);
 }
