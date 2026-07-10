@@ -90,7 +90,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
           <div class="folder-editor-header">
             <h3 class="folder-editor-title">Smart Collection</h3>
             <button type="button" class="folder-editor-close" onClick={props.onClose} aria-label="Close">
-              <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">close</span>
             </button>
           </div>
 
@@ -155,7 +155,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                     onClick={() => removeRule(index())}
                     aria-label="Remove rule"
                   >
-                    <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">close</span>
+                    <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">close</span>
                   </button>
                 </div>
               )}
@@ -163,7 +163,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
           </div>
 
           <button type="button" class="smart-builder-add-rule" onClick={addRule}>
-            <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">add</span>
+            <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
             Add Rule
           </button>
 

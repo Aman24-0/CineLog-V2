@@ -36,7 +36,7 @@ export default function CollectionsFilters(props: CollectionsFiltersProps) {
         <div class="collections-fold-label">
           <span
             class="material-symbols-outlined"
-            style="font-size: 12px; color: var(--p)"
+            style={{"font-size":"12px","color":"var(--p)"}}
             aria-hidden="true"
           >
             auto_awesome
@@ -54,7 +54,7 @@ export default function CollectionsFilters(props: CollectionsFiltersProps) {
         <div class="collections-fold-label">
           <span
             class="material-symbols-outlined"
-            style="font-size: 12px; color: var(--p)"
+            style={{"font-size":"12px","color":"var(--p)"}}
             aria-hidden="true"
           >
             folder
@@ -68,7 +68,7 @@ export default function CollectionsFilters(props: CollectionsFiltersProps) {
           >
             <span
               class="material-symbols-outlined"
-              style="font-size: 14px"
+              style={{"font-size":"14px"}}
               aria-hidden="true"
             >
               add
@@ -84,7 +84,7 @@ export default function CollectionsFilters(props: CollectionsFiltersProps) {
           >
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px"
+              style={{"font-size":"12px"}}
               aria-hidden="true"
             >
               auto_awesome

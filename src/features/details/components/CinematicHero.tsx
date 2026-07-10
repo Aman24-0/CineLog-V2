@@ -46,7 +46,7 @@ interface CinematicHeroProps {
 export default function CinematicHero(props: CinematicHeroProps) {
   const [backdropLoaded, setBackdropLoaded] = createSignal(false);
   const [backdropError, setBackdropError] = createSignal(false);
-  const [scrolled, setScrolled] = createSignal(false);
+  const [_scrolled, setScrolled] = createSignal(false);
 
   const backdropUrl = () => {
     if (backdropError()) return "";

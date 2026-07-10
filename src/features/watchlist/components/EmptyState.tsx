@@ -38,7 +38,7 @@ export default function EmptyState(props: EmptyStateProps) {
           }}
         >
           <div class="empty-premium-icon" aria-hidden="true">
-            <Icon name="video_library" fill style="color: var(--p); font-size: 32px" />
+            <Icon name="video_library" fill style={{"color":"var(--p)","font-size":"32px"}} />
           </div>
           <p class="empty-premium-title">{props.title}</p>
           <p class="empty-premium-body">{props.message}</p>
@@ -56,7 +56,7 @@ export default function EmptyState(props: EmptyStateProps) {
       {/* Signed-in empty / no matches variant */}
       <div class="empty-premium animate-fade-in" style={{ padding: "var(--sp-12) var(--sp-6)" }}>
         <div class="empty-premium-icon" aria-hidden="true">
-          <Icon name="sentiment_dissatisfied" style="color: var(--text-muted); font-size: 32px" />
+          <Icon name="sentiment_dissatisfied" style={{"color":"var(--text-muted)","font-size":"32px"}} />
         </div>
         <p class="empty-premium-title">{props.title}</p>
         <p class="empty-premium-body">{props.message}</p>

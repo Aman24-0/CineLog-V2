@@ -68,17 +68,17 @@ export default function VaultFilters(props: VaultFiltersProps) {
           {/* Mobile drag handle */}
           <div
             class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
-            style="background: var(--hairline-2)"
+            style={{"background":"var(--hairline-2)"}}
             aria-hidden="true"
           />
 
           {/* Header */}
           <div
             class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0"
-            style="border-bottom: 1px solid var(--hairline)"
+            style={{"border-bottom":"1px solid var(--hairline)"}}
           >
             <div class="flex items-center gap-2">
-              <Icon name="tune" style="color: var(--p); font-size: 18px" aria-hidden="true" />
+              <Icon name="tune" style={{"color":"var(--p)","font-size":"18px"}} aria-hidden="true" />
               <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
                 Filters
               </h3>
@@ -93,7 +93,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
               }}
               aria-label="Close filters"
             >
-              <Icon name="close" style="font-size: 16px" aria-hidden="true" />
+              <Icon name="close" style={{"font-size":"16px"}} aria-hidden="true" />
             </button>
           </div>
 

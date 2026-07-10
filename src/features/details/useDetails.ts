@@ -2,7 +2,7 @@
 import { createResource, createSignal } from "solid-js";
 import { fetchTmdbDetails } from "~/core/tmdb/tmdb";
 import { fetchOmdbRatings } from "~/core/omdb/omdb";
-import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
+import type {WatchlistItem} from "~/shared/types";
 import type { SelectedItem } from "~/shared/hooks/useModalState";
 
 /**

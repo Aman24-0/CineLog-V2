@@ -124,14 +124,11 @@ export async function cachedFetch<T>(
   const promise = fetcher();
   setInFlight(key, promise);
 
-  try {
-    const result = await promise;
-    setCached(key, result, ttl);
-    return result;
-  } catch (err) {
-    // Don't cache errors — let the next call retry
-    throw err;
-  }
+  // Don't cache errors — let the next call retry. The await re-throws
+  // naturally if the promise rejects, so no try/catch wrapper needed.
+  const result = await promise;
+  setCached(key, result, ttl);
+  return result;
 }
 
 /**

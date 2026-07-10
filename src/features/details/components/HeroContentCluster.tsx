@@ -101,6 +101,7 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           }
         >
           <img
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             src={posterUrl()}
             class={posterLoaded() ? "img-loaded" : ""}
             loading="eager"

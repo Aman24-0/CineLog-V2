@@ -66,7 +66,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
                       fallback={
                         <span
                           class="material-symbols-outlined"
-                          style="font-size: 28px; color: var(--text-soft)"
+                          style={{"font-size":"28px","color":"var(--text-soft)"}}
                           aria-hidden="true"
                         >
                           folder
@@ -75,7 +75,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
                     >
                       <span
                         class="material-symbols-outlined"
-                        style="font-size: 28px; color: #f5c518; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                        style={{"font-size":"28px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}
                         aria-hidden="true"
                       >
                         favorite
@@ -89,6 +89,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
                     {(entry) => (
                       <Show when={entry.poster_path}>
                         <img
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
                           src={tmdbImage(entry.poster_path, "w92")}
                           class="collections-folder-collage-img"
                           loading="lazy"
@@ -139,7 +140,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
               >
                 <span
                   class="material-symbols-outlined"
-                  style="font-size: 14px"
+                  style={{"font-size":"14px"}}
                   aria-hidden="true"
                 >
                   more_vert

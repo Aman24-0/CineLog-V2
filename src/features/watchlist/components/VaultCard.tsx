@@ -88,7 +88,7 @@ export default function VaultCard(props: VaultCardProps) {
               style={{ background: "var(--tier-3)", border: "1px solid var(--hairline)" }}
               aria-hidden="true"
             >
-              <Icon name="movie" style="color: var(--text-dim); font-size: 20px" />
+              <Icon name="movie" style={{"color":"var(--text-dim)","font-size":"20px"}} />
             </div>
           }
         >
@@ -98,6 +98,7 @@ export default function VaultCard(props: VaultCardProps) {
           >
             <div class="poster-loading" aria-hidden="true" />
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={posterUrl()}
               class="poster-img absolute inset-0 w-full h-full object-cover"
               loading="lazy"
@@ -150,13 +151,13 @@ export default function VaultCard(props: VaultCardProps) {
           <div class="flex items-center gap-2 flex-wrap">
             <Show when={props.item.imdbRating}>
               <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "#f5c518" }}>
-                <Icon name="star" fill style="font-size: 10px; color: #f5c518" aria-hidden="true" />
+                <Icon name="star" fill style={{"font-size":"10px","color":"#f5c518"}} aria-hidden="true" />
                 {props.item.imdbRating}
               </span>
             </Show>
             <Show when={props.item.rating}>
               <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "var(--p)" }}>
-                <Icon name="person" fill style="font-size: 10px; color: var(--p)" aria-hidden="true" />
+                <Icon name="person" fill style={{"font-size":"10px","color":"var(--p)"}} aria-hidden="true" />
                 {props.item.rating}/10
               </span>
             </Show>
@@ -172,7 +173,7 @@ export default function VaultCard(props: VaultCardProps) {
                   "border-radius": "var(--radius-pill)"
                 }}
               >
-                <Icon name="task_alt" style="font-size: 10px" aria-hidden="true" />
+                <Icon name="task_alt" style={{"font-size":"10px"}} aria-hidden="true" />
                 {statusLabel()}
               </span>
             </Show>
@@ -184,7 +185,7 @@ export default function VaultCard(props: VaultCardProps) {
           class="hidden sm:flex self-center pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0"
           aria-hidden="true"
         >
-          <Icon name="chevron_right" style="font-size: 24px; color: var(--p)" />
+          <Icon name="chevron_right" style={{"font-size":"24px","color":"var(--p)"}} />
         </div>
       </div>
     </div>

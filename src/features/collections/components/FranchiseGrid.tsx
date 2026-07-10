@@ -67,6 +67,7 @@ export default function FranchiseGrid() {
                 <div class="franchise-card-left">
                   <Show when={franchise.backdrop_path}>
                     <img
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
                       src={tmdbImage(franchise.backdrop_path, "w342")}
                       class="franchise-card-thumb"
                       loading="lazy"
@@ -124,7 +125,7 @@ export default function FranchiseGrid() {
                               onClick={() => addUniverseToPrefs(uni.id)}
                               aria-label={`Add ${uni.name} to your universes`}
                             >
-                              <span class="material-symbols-outlined" style="font-size: 16px; color: var(--p)" aria-hidden="true">add</span>
+                              <span class="material-symbols-outlined" style={{"font-size":"16px","color":"var(--p)"}} aria-hidden="true">add</span>
                               <span>{uni.name}</span>
                             </button>
                           }>

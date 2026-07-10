@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import { DiscoverRepository } from "../discover/discover.repository";
 import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
 
-const mockVaultState = {
+const _mockVaultState = {
   vault: { id: "vault-1", user_id: "user-1", tmdb_id: 123, media_type: "movie", status: "planned" },
   inVault: true,
 };

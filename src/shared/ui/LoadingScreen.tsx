@@ -7,7 +7,7 @@ export default function LoadingScreen() {
         <Icon
           name="movie_filter"
           class="animate-spin text-5xl"
-          style="color: var(--p)"
+          style={{"color":"var(--p)"}}
         />
       </div>
 

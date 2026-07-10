@@ -17,6 +17,8 @@ import {
   createCollectionInSupabase,
   deleteCollectionInSupabase,
   restoreCollectionInSupabase,
+  renameCollectionInSupabase,
+  ensureFavoritesExistsInSupabase,
 } from "../collectionAdapter";
 import { getCollectionRepository } from "~/lib/supabase/repositories";
 import type { CollectionRow } from "~/lib/supabase/repositories";
@@ -177,6 +179,117 @@ describe("collectionAdapter", () => {
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
       await expect(restoreCollectionInSupabase("col-1")).rejects.toThrow("Restore fail");
+    });
+  });
+
+  // ─── Additional tests: rename + ensureFavorites + smart type ───
+
+  describe("renameCollectionInSupabase", () => {
+    it("calls updateCollection with the new name", async () => {
+      const mockRepo = {
+        updateCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await renameCollectionInSupabase("col-1", "Renamed");
+      expect(mockRepo.updateCollection).toHaveBeenCalledWith("col-1", {
+        name: "Renamed",
+      });
+    });
+
+    it("throws when the repository returns an error", async () => {
+      const err = new Error("Rename failed");
+      const mockRepo = {
+        updateCollection: vi.fn().mockResolvedValue({ data: null, error: err }),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await expect(renameCollectionInSupabase("col-1", "Renamed")).rejects.toBe(
+        err
+      );
+    });
+  });
+
+  describe("ensureFavoritesExistsInSupabase", () => {
+    it("creates a Favorites collection when none exists", async () => {
+      const mockRepo = {
+        searchCollections: vi.fn().mockResolvedValue({ data: [], error: null }),
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null }),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await ensureFavoritesExistsInSupabase("user-1");
+      expect(mockRepo.createCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ name: "Favorites" })
+      );
+    });
+
+    it("does not create when Favorites already exists", async () => {
+      const favoritesRow = { ...mockCollectionRow, name: "Favorites" };
+      const mockRepo = {
+        searchCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [favoritesRow], error: null }),
+        createCollection: vi.fn(),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await ensureFavoritesExistsInSupabase("user-1");
+      expect(mockRepo.createCollection).not.toHaveBeenCalled();
+    });
+
+    it("does not throw when search returns an error", async () => {
+      const mockRepo = {
+        searchCollections: vi.fn().mockResolvedValue({
+          data: [],
+          error: new Error("Search failed"),
+        }),
+        createCollection: vi.fn(),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await expect(
+        ensureFavoritesExistsInSupabase("user-1")
+      ).resolves.toBeUndefined();
+      expect(mockRepo.createCollection).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("createCollectionInSupabase — smart type", () => {
+    it("passes collectionType=smart through to the repository", async () => {
+      const mockRepo = {
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: { ...mockCollectionRow, id: "smart-id" }, error: null }),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await createCollectionInSupabase("user-1", "Smart", {
+        collectionType: "smart",
+      });
+      expect(mockRepo.createCollection).toHaveBeenCalledWith(
+        expect.objectContaining({ collectionType: "smart" })
+      );
+    });
+  });
+
+  describe("fetchCollectionsFromSupabase — parallel entry fetch", () => {
+    it("fetches entries for each collection in parallel", async () => {
+      const mockRepo = {
+        getCollections: vi.fn().mockResolvedValue({
+          data: [mockCollectionRow, { ...mockCollectionRow, id: "col-2" }],
+          error: null,
+        }),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+      vi.mocked(fetchEntriesForCollection).mockResolvedValue([]);
+
+      await fetchCollectionsFromSupabase("user-1");
+      expect(fetchEntriesForCollection).toHaveBeenCalledTimes(2);
+      expect(fetchEntriesForCollection).toHaveBeenCalledWith("col-1");
+      expect(fetchEntriesForCollection).toHaveBeenCalledWith("col-2");
     });
   });
 });

@@ -1,7 +1,6 @@
 // src/features/dashboard/components/GreetingBlock.tsx
 import { createMemo } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
-import { useVault } from "~/features/watchlist/useVault";
 import { isWatchable } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 

@@ -20,13 +20,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
   return (
     <div
       class="glass-surface p-5 rounded-2xl space-y-5 animate-fade-in border mt-4 shadow-xl"
-      style="border-color: var(--border-active)"
+      style={{"border-color":"var(--border-active)"}}
       role="form"
       aria-label="Edit vault entry"
     >
       <div class="grid grid-cols-2 gap-4">
         <div>
-          <label for="edit-status" class="type-label block mb-2" style="color: var(--muted)">Status</label>
+          <label for="edit-status" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Status</label>
           <select
             id="edit-status"
             value={props.form().status}
@@ -39,7 +39,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           </select>
         </div>
         <div>
-          <label for="edit-rating" class="type-label block mb-2" style="color: var(--muted)">My Rating</label>
+          <label for="edit-rating" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Rating</label>
           <input
             id="edit-rating"
             type="number"
@@ -55,7 +55,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       </div>
 
       <div>
-        <label for="edit-watchdate" class="type-label block mb-2" style="color: var(--muted)">Watch Date</label>
+        <label for="edit-watchdate" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Date</label>
         <input
           id="edit-watchdate"
           type="date"
@@ -66,7 +66,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       </div>
 
       <div>
-        <label for="edit-notes" class="type-label block mb-2" style="color: var(--muted)">My Notes</label>
+        <label for="edit-notes" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Notes</label>
         <textarea
           id="edit-notes"
           value={props.form().notes}
@@ -74,7 +74,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all resize-none"
           rows="3"
           placeholder="Write your thoughts, reactions, memorable quotes…"
-          style="resize: vertical; min-height: 80px"
+          style={{"resize":"vertical","min-height":"80px"}}
         />
       </div>
 

@@ -59,7 +59,7 @@ export default function SearchHeader(props: SearchHeaderProps) {
             >
               <span
                 class="material-symbols-outlined"
-                style="font-size: 18px"
+                style={{"font-size":"18px"}}
                 aria-hidden="true"
               >
                 close

@@ -88,7 +88,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}
-                <Icon name="close" style="font-size: 12px" aria-hidden="true" />
+                <Icon name="close" style={{"font-size":"12px"}} aria-hidden="true" />
               </button>
             )}
           </For>

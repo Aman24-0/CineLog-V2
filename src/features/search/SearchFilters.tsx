@@ -34,7 +34,7 @@ export default function SearchFilters(props: SearchFiltersProps) {
         >
           <span
             class="material-symbols-outlined"
-            style="font-size: 18px"
+            style={{"font-size":"18px"}}
             aria-hidden="true"
           >
             arrow_back
@@ -85,7 +85,7 @@ export default function SearchFilters(props: SearchFiltersProps) {
                 <span class="search-load-more-loading">
                   <span
                     class="material-symbols-outlined animate-spin"
-                    style="font-size: 16px"
+                    style={{"font-size":"16px"}}
                     aria-hidden="true"
                   >
                     progress_activity

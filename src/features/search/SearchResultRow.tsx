@@ -38,7 +38,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
               <div class="search-result-poster-fallback" aria-hidden="true">
                 <span
                   class="material-symbols-outlined"
-                  style="font-size: 20px; color: var(--text-dim)"
+                  style={{"font-size":"20px","color":"var(--text-dim)"}}
                   aria-hidden="true"
                 >
                   movie
@@ -47,6 +47,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
             }
           >
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={tmdbImage(
                 props.title.poster_path || props.title.backdrop_path,
                 "w185",
@@ -68,7 +69,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
             {props.title.media_type === "tv" ? "Series" : "Movie"}
             <Show when={imdbOf(props.title)}>
               {" · "}
-              <span style="color: #f5c518">★ {imdbOf(props.title)}</span>
+              <span style={{"color":"#f5c518"}}>★ {imdbOf(props.title)}</span>
             </Show>
           </p>
         </div>
@@ -84,7 +85,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
           >
             <span
               class="material-symbols-outlined"
-              style="font-size: 10px"
+              style={{"font-size":"10px"}}
               aria-hidden="true"
             >
               check
@@ -101,7 +102,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
         >
           <span
             class="material-symbols-outlined"
-            style="font-size: 16px"
+            style={{"font-size":"16px"}}
             aria-hidden="true"
           >
             add

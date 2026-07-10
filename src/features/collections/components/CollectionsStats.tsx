@@ -55,7 +55,7 @@ export default function CollectionsStats(props: CollectionsStatsProps) {
           <div class="collections-fold-label">
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px; color: var(--p)"
+              style={{"font-size":"12px","color":"var(--p)"}}
               aria-hidden="true"
             >
               push_pin
@@ -78,6 +78,7 @@ export default function CollectionsStats(props: CollectionsStatsProps) {
                   >
                     <Show when={col.backdrop_path}>
                       <img
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                         src={tmdbImage(col.backdrop_path, "w92")}
                         style={{
                           width: "32px",
@@ -115,7 +116,7 @@ export default function CollectionsStats(props: CollectionsStatsProps) {
           <div class="collections-fold-label">
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px; color: var(--p)"
+              style={{"font-size":"12px","color":"var(--p)"}}
               aria-hidden="true"
             >
               play_circle
@@ -138,6 +139,7 @@ export default function CollectionsStats(props: CollectionsStatsProps) {
                     <div class="universe-continue-poster">
                       <Show when={col.backdrop_path}>
                         <img
+                          onError={(e) => { e.currentTarget.style.display = "none"; }}
                           src={tmdbImage(col.backdrop_path, "w500")}
                           class="universe-continue-img"
                           loading="lazy"

@@ -1,5 +1,5 @@
 // src/lib/supabase/repositories/__tests__/presetRepository.test.ts
-import { describe, it, expect, vi } from "vitest";
+import {describe, it, expect} from "vitest";
 import { PresetRepository } from "../preset/preset.repository";
 import {
   validateName,

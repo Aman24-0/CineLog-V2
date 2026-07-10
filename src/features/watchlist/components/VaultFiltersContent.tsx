@@ -217,7 +217,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                     class="flex-1 text-left text-sm text-white px-1 truncate hover:text-[var(--p)] transition-colors flex items-center gap-2"
                     onClick={() => props.setFilters(preset.filters)}
                   >
-                    <Icon name="bookmark" style="font-size: 14px; color: var(--p)" aria-hidden="true" />
+                    <Icon name="bookmark" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true" />
                     <span class="truncate">{preset.name}</span>
                   </button>
                   <button
@@ -225,7 +225,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                     class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
                     aria-label={`Delete ${preset.name}`}
                   >
-                    <Icon name="delete" style="font-size: 14px" aria-hidden="true" />
+                    <Icon name="delete" style={{"font-size":"14px"}} aria-hidden="true" />
                   </button>
                 </div>
               )}

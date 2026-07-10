@@ -77,7 +77,7 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
           <Show when={props.isFlatMode() && props.filtered().length > props.displayLimit()}>
             <div
               class="flex items-center justify-center gap-2 py-8 type-caption"
-              style="color: var(--p)"
+              style={{"color":"var(--p)"}}
             >
               <Icon name="progress_activity" class="animate-spin text-sm" aria-hidden="true" />
               <span>Loading more titles…</span>
@@ -158,7 +158,7 @@ function TimelineView(props: TimelineViewProps) {
               <div class="timeline-month-pill">
                 <Icon
                   name="event"
-                  style="font-size: 14px; color: var(--active-text)"
+                  style={{"font-size":"14px","color":"var(--active-text)"}}
                   aria-hidden="true"
                 />
                 {group.label}

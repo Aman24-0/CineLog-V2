@@ -92,6 +92,7 @@ export default function HeroSection(props: HeroSectionProps) {
         >
           <Show when={bgImg(item())}>
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={bgImg(item())}
               class="backdrop-img absolute inset-0"
               loading="eager"

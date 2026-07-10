@@ -33,7 +33,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           data-active={false}
           aria-label="Open Collections"
         >
-          <Icon name="collections_bookmark" style="font-size: 14px" aria-hidden="true" />
+          <Icon name="collections_bookmark" style={{"font-size":"14px"}} aria-hidden="true" />
           <span class="hidden sm:inline">Collections</span>
         </button>
 
@@ -46,7 +46,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
             aria-label="Grid view"
             aria-pressed={props.viewMode() === "grid"}
           >
-            <Icon name="grid_view" style="font-size: 14px" aria-hidden="true" />
+            <Icon name="grid_view" style={{"font-size":"14px"}} aria-hidden="true" />
           </button>
           <button
             onClick={() => props.setViewMode("timeline")}
@@ -55,7 +55,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
             aria-label="Timeline view"
             aria-pressed={props.viewMode() === "timeline"}
           >
-            <Icon name="timeline" style="font-size: 14px" aria-hidden="true" />
+            <Icon name="timeline" style={{"font-size":"14px"}} aria-hidden="true" />
           </button>
         </div>
 
@@ -67,7 +67,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           aria-label={`Filter vault${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
           aria-pressed={props.activeFilterCount() > 0}
         >
-          <Icon name="tune" style="font-size: 14px" aria-hidden="true" />
+          <Icon name="tune" style={{"font-size":"14px"}} aria-hidden="true" />
           <span class="hidden sm:inline">Filter</span>
           <Show when={props.activeFilterCount() > 0}>
             <span class="filter-count-badge" aria-hidden="true">

@@ -1,6 +1,6 @@
 import { createSignal, createEffect } from "solid-js";
 import { isServer } from "solid-js/web";
-import { DEFAULT_THEME, Theme } from "./themes";
+import { DEFAULT_THEME, THEMES, Theme } from "./themes";
 
 // SSR-safe: localStorage and document don't exist on the server. The theme
 // signal initializes to DEFAULT_THEME during SSR and re-hydrates from
@@ -9,8 +9,18 @@ import { DEFAULT_THEME, Theme } from "./themes";
 // during SSR.
 const stored = isServer ? null : localStorage.getItem("cinelog_theme");
 
+// Runtime-validated theme set — used by the type guard below to narrow
+// the untyped localStorage string into a Theme without an `as` cast
+// (which previously triggered an eslint-plugin-solid reactivity crash
+// on TSAsExpression).
+const VALID_THEMES: ReadonlySet<string> = new Set(THEMES);
+
+function isTheme(value: string | null): value is Theme {
+  return value !== null && VALID_THEMES.has(value);
+}
+
 export const [theme, setTheme] = createSignal<Theme>(
-  (stored as Theme) || DEFAULT_THEME
+  isTheme(stored) ? stored : DEFAULT_THEME
 );
 
 // Apply the theme class to <html> (documentElement) — NOT <body>.

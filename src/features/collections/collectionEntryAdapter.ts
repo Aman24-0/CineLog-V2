@@ -45,7 +45,7 @@ export async function fetchEntriesForCollection(collectionId: string): Promise<C
   // Batch-fetch vault rows to resolve media_type for each entry.
   // The collection_entries table has no media_type column — it's on
   // the vault row. We fetch all referenced vault rows in one query.
-  const vaultRepo = getVaultRepository();
+  const _vaultRepo = getVaultRepository();
   const vaultIds = entryRows.map((e) => e.vault_id);
 
   // Build a vault_id → media_type lookup.

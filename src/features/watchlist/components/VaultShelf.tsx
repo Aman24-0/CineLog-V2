@@ -1,7 +1,6 @@
 // src/features/watchlist/components/VaultShelf.tsx
-import { createSignal, For, Show, Component } from "solid-js";
+import {For, Show, Component} from "solid-js";
 import MovieCard from "~/shared/ui/MovieCard";
-import type { WatchlistItem } from "~/shared/types";
 import type { VaultSection } from "../useVaultSections";
 
 interface VaultShelfProps {

@@ -6,7 +6,7 @@ import {
   vaultIdKey,
   buildVaultKeySet,
 } from "../vaultMatch";
-import { makeMovie, makeTVSeries, makeWatchlistItem } from "~/__test-fixtures__/factories";
+import {makeMovie, makeTVSeries} from "~/__test-fixtures__/factories";
 
 describe("findInVault", () => {
   it("returns null for null title", () => {

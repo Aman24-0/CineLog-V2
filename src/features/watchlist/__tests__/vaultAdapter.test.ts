@@ -27,7 +27,7 @@ import {
 } from "../vaultAdapter";
 import { getVaultRepository } from "~/lib/supabase/repositories";
 import type { VaultRow } from "~/lib/supabase/repositories";
-import { makeMovie, makeVaultFilters } from "~/__test-fixtures__/factories";
+import {makeMovie} from "~/__test-fixtures__/factories";
 
 const mockVaultRow = {
   id: "vault-uuid-1",

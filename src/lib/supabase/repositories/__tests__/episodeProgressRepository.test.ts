@@ -1,5 +1,5 @@
 // src/lib/supabase/repositories/__tests__/episodeProgressRepository.test.ts
-import { describe, it, expect, vi } from "vitest";
+import {describe, it, expect} from "vitest";
 import { EpisodeProgressRepository } from "../episodeProgress/episodeProgress.repository";
 import { toInsert, toCompletedUpdate } from "../episodeProgress/episodeProgress.utils";
 import type { EpisodeProgressRow, UpsertEpisodeProgressPayload } from "../episodeProgress/episodeProgress.types";

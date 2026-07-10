@@ -7,7 +7,7 @@ import {
   type TimelineItem,
 } from "../components/timelineSort";
 import { makeCollectionEntry, makeMovie, makeTVSeries } from "~/__test-fixtures__/factories";
-import type { CollectionEntry, ViewingOrder } from "~/shared/types";
+import type {CollectionEntry} from "~/shared/types";
 
 describe("sortAndEnrich", () => {
   const entries: CollectionEntry[] = [

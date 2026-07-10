@@ -102,11 +102,12 @@ const CosmosView: Component<CosmosViewProps> = (props) => {
                                   when={t.poster_path || t.backdrop_path}
                                   fallback={
                                     <div class="cosmos-card-fallback" aria-hidden="true">
-                                      <span class="material-symbols-outlined" style="font-size: 24px; color: var(--text-dim)">movie</span>
+                                      <span class="material-symbols-outlined" style={{"font-size":"24px","color":"var(--text-dim)"}}>movie</span>
                                     </div>
                                   }
                                 >
                                   <img
+                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                                     src={tmdbImage(t.poster_path || t.backdrop_path, "w342")}
                                     class="cosmos-card-img"
                                     loading="lazy"
@@ -125,7 +126,7 @@ const CosmosView: Component<CosmosViewProps> = (props) => {
                                   {yearOf(t) ? `${yearOf(t)} · ` : ""}
                                   {t.media_type === "tv" ? "Series" : "Movie"}
                                   <Show when={imdbOf(t)}>
-                                    {" · "}<span style="color: #f5c518">★ {imdbOf(t)}</span>
+                                    {" · "}<span style={{"color":"#f5c518"}}>★ {imdbOf(t)}</span>
                                   </Show>
                                 </p>
                               </div>

@@ -4,7 +4,6 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import { isWatchable, getEpisodeProgress } from "~/shared/utils/progress";
 import { Button } from "~/shared/ui/primitives";
-import type { WatchlistItem } from "~/shared/types";
 import type { RecommendationResult } from "../recommendationEngine";
 import DashboardGuestHero from "./DashboardGuestHero";
 
@@ -97,6 +96,7 @@ export default function DashboardHero(props: DashboardHeroProps) {
       {/* Backdrop */}
       <Show when={backdropUrl()}>
         <img
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
           src={backdropUrl()}
           class={`dashboard-hero-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
           loading="eager"
@@ -149,6 +149,7 @@ export default function DashboardHero(props: DashboardHeroProps) {
         <div class="dashboard-hero-poster">
           <Show when={posterUrl()}>
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={posterUrl()}
               class={posterLoaded() ? "img-loaded" : ""}
               loading="eager"

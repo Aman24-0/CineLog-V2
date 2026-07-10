@@ -186,7 +186,7 @@ export default function DiscoverPage() {
                 Sign in to make Spotlight yours — every pick adapts to what you love.
               </p>
               <button class="btn-primary" onClick={handleLogin} style={{ margin: "0 auto", display: "flex" }}>
-                <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">login</span>
+                <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">login</span>
                 Sign In to Begin
               </button>
             </div>

@@ -20,7 +20,6 @@ interface UseVaultSectionsArgs {
   flatMode: Accessor<boolean>;
 }
 
-import { toMs } from "~/shared/utils/vaultStatus";
 
 /**
  * useVaultSections — the brain of the Vault browsing experience.

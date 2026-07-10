@@ -6,18 +6,18 @@ export default function DashboardHeader() {
       <div class="flex items-center gap-3">
         <div
           class="flex h-10 w-10 items-center justify-center rounded-xl"
-          style="background: var(--p-dim);"
+          style={{"background":"var(--p-dim)"}}
         >
           <Icon
             name="movie_filter"
             fill
-            style="color: var(--p)"
+            style={{"color":"var(--p)"}}
           />
         </div>
 
         <div>
           <h1 class="text-2xl font-black tracking-wide">
-            CINE<span style="color: var(--p)">LOG</span>
+            CINE<span style={{"color":"var(--p)"}}>LOG</span>
           </h1>
 
           <p class="text-xs text-zinc-500">

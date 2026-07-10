@@ -3,7 +3,6 @@ import { createResource, createMemo, Accessor } from "solid-js";
 import type { TasteProfile, SpotlightPick, WatchlistItem, TMDBTitle } from "~/shared/types";
 import {
   discoverMovies,
-  discoverTv,
   getRecommendations,
   getTopRatedMovies,
   fetchTitleDirector,

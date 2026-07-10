@@ -1,6 +1,6 @@
 // src/features/discover/hooks/useCosmos.ts
 import { createResource, createMemo, Accessor } from "solid-js";
-import type { TasteProfile, TMDBTitle, CosmosCluster } from "~/shared/types";
+import type {TasteProfile, CosmosCluster} from "~/shared/types";
 import {
   discoverMovies,
   discoverTv,

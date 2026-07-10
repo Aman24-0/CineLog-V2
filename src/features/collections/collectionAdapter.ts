@@ -12,7 +12,7 @@
 
 import { getCollectionRepository } from "~/lib/supabase/repositories";
 import type { CollectionRow } from "~/lib/supabase/repositories";
-import type { Collection, CollectionEntry } from "~/shared/types";
+import type {Collection} from "~/shared/types";
 import { collectionRowToCollection } from "./collectionMapper";
 import { fetchEntriesForCollection, addEntryToCollection, removeEntryFromCollection, reorderEntriesInCollection } from "./collectionEntryAdapter";
 

@@ -94,7 +94,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
       <div class="universe-timeline-label">
         <span
           class="material-symbols-outlined"
-          style="font-size: 12px; color: var(--p)"
+          style={{"font-size":"12px","color":"var(--p)"}}
           aria-hidden="true"
         >
           timeline

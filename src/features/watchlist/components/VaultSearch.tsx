@@ -25,7 +25,7 @@ export default function VaultSearch(props: VaultSearchProps) {
     <div class="search-premium">
       <Icon
         name="search"
-        style="color: var(--text-muted); flex-shrink: 0; font-size: 18px"
+        style={{"color":"var(--text-muted)","flex-shrink":"0","font-size":"18px"}}
         aria-hidden="true"
       />
       <input

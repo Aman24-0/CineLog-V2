@@ -7,7 +7,6 @@ import type {
   TasteSurface
 } from "~/shared/types";
 import {
-  discoverMovies,
   getRecommendations,
   searchMulti
 } from "~/core/tmdb/discover";

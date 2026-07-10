@@ -70,7 +70,7 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
           aria-label={`View ${franchise()!.name} collection`}
         >
           <div class="franchise-trigger-icon">
-            <span class="material-symbols-outlined" style="font-size: 24px; color: var(--p)" aria-hidden="true">
+            <span class="material-symbols-outlined" style={{"font-size":"24px","color":"var(--p)"}} aria-hidden="true">
               collection
             </span>
           </div>

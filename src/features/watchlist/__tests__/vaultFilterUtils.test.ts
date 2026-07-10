@@ -15,7 +15,7 @@ import {
   makeTVSeries,
   makeVaultFilters,
 } from "~/__test-fixtures__/factories";
-import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import type {WatchlistItem} from "~/shared/types";
 
 describe("matchSearch", () => {
   it("matches by title (case-insensitive)", () => {

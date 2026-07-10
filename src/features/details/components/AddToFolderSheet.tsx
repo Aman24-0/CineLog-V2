@@ -102,14 +102,14 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
           {/* Drag handle */}
           <div
             class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
-            style="background: var(--hairline-2)"
+            style={{"background":"var(--hairline-2)"}}
             aria-hidden="true"
           />
 
           {/* Header */}
-          <div class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0" style="border-bottom: 1px solid var(--hairline)">
+          <div class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0" style={{"border-bottom":"1px solid var(--hairline)"}}>
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined" style="color: var(--p); font-size: 18px" aria-hidden="true">folder</span>
+              <span class="material-symbols-outlined" style={{"color":"var(--p)","font-size":"18px"}} aria-hidden="true">folder</span>
               <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
                 Add to Folder
               </h3>
@@ -120,7 +120,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
               style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-soft)", border: "1px solid var(--hairline)" }}
               aria-label="Close"
             >
-              <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">close</span>
             </button>
           </div>
 
@@ -145,9 +145,9 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                     >
                       <div class="folder-sheet-item-icon">
                         <Show when={col.isFavorites} fallback={
-                          <span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-soft)" aria-hidden="true">folder</span>
+                          <span class="material-symbols-outlined" style={{"font-size":"18px","color":"var(--text-soft)"}} aria-hidden="true">folder</span>
                         }>
-                          <span class="material-symbols-outlined" style="font-size: 18px; color: #f5c518; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" aria-hidden="true">favorite</span>
+                          <span class="material-symbols-outlined" style={{"font-size":"18px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}} aria-hidden="true">favorite</span>
                         </Show>
                       </div>
                       <span class="folder-sheet-item-name">{col.name}</span>
@@ -163,7 +163,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
           </div>
 
           {/* Create new collection */}
-          <div class="px-6 pt-3 pb-4 flex-shrink-0" style="border-top: 1px solid var(--hairline)">
+          <div class="px-6 pt-3 pb-4 flex-shrink-0" style={{"border-top":"1px solid var(--hairline)"}}>
             <Show when={showCreate()} fallback={
               <button
                 type="button"
@@ -171,7 +171,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                 onClick={() => setShowCreate(true)}
                 aria-label="Create new collection"
               >
-                <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">add</span>
+                <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
                 Create New Collection
               </button>
             }>

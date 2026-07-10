@@ -22,7 +22,7 @@ export interface MovieCardRatingsProps {
 const MovieCardRatings: Component<MovieCardRatingsProps> = (props) => (
   <div
     class="grid w-full"
-    style="grid-template-columns: repeat(3, 1fr); gap: 2px;"
+    style={{"grid-template-columns":"repeat(3, 1fr)","gap":"2px"}}
     aria-label={`Ratings: IMDb ${props.movie.imdbRating || "N/A"}, RT ${props.movie.rtRating || "N/A"}, My score ${props.movie.rating || "N/A"}`}
   >
     <div
@@ -30,26 +30,26 @@ const MovieCardRatings: Component<MovieCardRatingsProps> = (props) => (
       role="img"
       aria-label={`IMDb: ${props.movie.imdbRating || "-"}`}
     >
-      <Icon name="star" fill style="color: #f5c518; font-size: 8px; flex-shrink: 0" />
-      <span style="color: #f5c518;">{props.movie.imdbRating || "—"}</span>
+      <Icon name="star" fill style={{"color":"#f5c518","font-size":"8px","flex-shrink":"0"}} />
+      <span style={{"color":"#f5c518"}}>{props.movie.imdbRating || "—"}</span>
     </div>
     <div
       class="rating-chip rating-chip-rt justify-center"
       role="img"
       aria-label={`Rotten Tomatoes: ${props.movie.rtRating || "-"}`}
     >
-      <span style="font-size: 7px; line-height: 1; flex-shrink: 0" aria-hidden="true">
+      <span style={{"font-size":"7px","line-height":"1","flex-shrink":"0"}} aria-hidden="true">
         🍅
       </span>
-      <span style="color: #ff7878;">{props.movie.rtRating || "—"}</span>
+      <span style={{"color":"#ff7878"}}>{props.movie.rtRating || "—"}</span>
     </div>
     <div
       class="rating-chip rating-chip-user justify-center"
       role="img"
       aria-label={`My score: ${props.movie.rating || "Not rated"}`}
     >
-      <Icon name="person" fill style="color: var(--p); font-size: 8px; flex-shrink: 0" />
-      <span style="color: var(--p);">{props.movie.rating || "—"}</span>
+      <Icon name="person" fill style={{"color":"var(--p)","font-size":"8px","flex-shrink":"0"}} />
+      <span style={{"color":"var(--p)"}}>{props.movie.rating || "—"}</span>
     </div>
   </div>
 );

@@ -1,6 +1,5 @@
 // src/shared/ui/AppHeader.tsx
 import { Show, createMemo } from "solid-js";
-import Icon from "./Icon";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { signOut } from "~/shared/hooks/useAuthActions";
@@ -51,7 +50,7 @@ export default function AppHeader() {
         class="font-headline leading-none tracking-wide m-0"
         style={{ "font-size": "1.5rem" }}
       >
-        CINE<span style="color: var(--p)">LOG</span>
+        CINE<span style={{"color":"var(--p)"}}>LOG</span>
       </h1>
 
       {/* Avatar — single secondary element */}
@@ -86,6 +85,7 @@ export default function AppHeader() {
           }
         >
           <img loading="lazy" decoding="async"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             src={user()!.photoURL!}
             alt=""
             class="h-8 w-8 rounded-full object-cover shrink-0"

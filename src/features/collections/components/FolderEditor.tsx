@@ -89,7 +89,7 @@ export default function FolderEditor(props: FolderEditorProps) {
           <div class="folder-editor-header">
             <h3 class="folder-editor-title">Edit Collection</h3>
             <button type="button" class="folder-editor-close" onClick={props.onClose} aria-label="Close">
-              <span class="material-symbols-outlined" style="font-size: 20px" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">close</span>
             </button>
           </div>
 
@@ -175,18 +175,18 @@ export default function FolderEditor(props: FolderEditorProps) {
           {/* Actions */}
           <div class="folder-editor-actions">
             <button type="button" class="folder-editor-action-btn" onClick={handleArchive}>
-              <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">
+              <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">
                 {props.collection.isArchived ? "unarchive" : "archive"}
               </span>
               {props.collection.isArchived ? "Unarchive" : "Archive"}
             </button>
             <button type="button" class="folder-editor-action-btn" onClick={handleDuplicate}>
-              <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">content_copy</span>
+              <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">content_copy</span>
               Duplicate
             </button>
             <Show when={!props.collection.isFavorites}>
               <button type="button" class="folder-editor-action-btn folder-editor-action-danger" onClick={handleDelete}>
-                <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">delete</span>
+                <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">delete</span>
                 Delete
               </button>
             </Show>

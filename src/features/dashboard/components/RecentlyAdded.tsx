@@ -108,6 +108,7 @@ const RecentlyAdded: Component<RecentlyAddedProps> = (props) => {
                   }
                 >
                   <img
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                     src={posterUrl(m)}
                     loading="lazy"
                     decoding="async"

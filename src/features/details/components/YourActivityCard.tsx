@@ -117,7 +117,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
             <span class="your-activity-cell-empty">Not rated</span>
           }>
             <span class="your-activity-cell-value your-activity-rating">
-              <span class="material-symbols-outlined" style="font-size: 14px; color: #f5c518; font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" aria-hidden="true">star</span>
+              <span class="material-symbols-outlined" style={{"font-size":"14px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}} aria-hidden="true">star</span>
               {userRating()}
             </span>
           </Show>

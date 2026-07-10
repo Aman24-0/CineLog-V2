@@ -2,7 +2,6 @@
 import { Show, createSignal, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { Button } from "~/shared/ui/primitives";
-import { isWatchable, getEpisodeProgress } from "~/shared/utils/progress";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { SpotlightPick, WatchlistItem } from "~/shared/types";
 
@@ -94,6 +93,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
       {/* Backdrop */}
       <Show when={backdropUrl()} fallback={<div class="spotlight-backdrop-fallback" aria-hidden="true" />}>
         <img
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
           src={backdropUrl()}
           class={`spotlight-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
           loading="eager"

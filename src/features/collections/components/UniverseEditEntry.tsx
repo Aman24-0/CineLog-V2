@@ -54,19 +54,20 @@ export default function UniverseEditEntry(props: UniverseEditEntryProps) {
     >
       {/* Drag handle */}
       <div class="timeline-edit-drag-handle" aria-hidden="true">
-        <span class="material-symbols-outlined" style="font-size: 16px; color: var(--text-dim)" aria-hidden="true">drag_indicator</span>
+        <span class="material-symbols-outlined" style={{"font-size":"16px","color":"var(--text-dim)"}} aria-hidden="true">drag_indicator</span>
       </div>
 
       {/* Poster */}
       <div class="universe-timeline-poster">
         <Show when={props.entry.poster_path} fallback={
           <div class="universe-timeline-poster-fallback">
-            <span class="material-symbols-outlined" style="font-size: 20px; color: var(--text-dim)" aria-hidden="true">
+            <span class="material-symbols-outlined" style={{"font-size":"20px","color":"var(--text-dim)"}} aria-hidden="true">
               {props.entry.isCustomEntry ? "edit_note" : "movie"}
             </span>
           </div>
         }>
           <img
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             src={tmdbImage(props.entry.poster_path, "w185")}
             class="universe-timeline-poster-img"
             loading="lazy"
@@ -85,10 +86,10 @@ export default function UniverseEditEntry(props: UniverseEditEntryProps) {
             <span class="universe-timeline-entry-type">{props.entry.entryType}</span>
           </Show>
           <Show when={props.entry.isPinned}>
-            <span style="color: var(--p); font-size: 0.5625rem">Pinned</span>
+            <span style={{"color":"var(--p)","font-size":"0.5625rem"}}>Pinned</span>
           </Show>
           <Show when={isHidden()}>
-            <span style="color: var(--text-soft); font-size: 0.5625rem">Hidden</span>
+            <span style={{"color":"var(--text-soft)","font-size":"0.5625rem"}}>Hidden</span>
           </Show>
         </div>
         {/* Note editing */}
@@ -116,10 +117,10 @@ export default function UniverseEditEntry(props: UniverseEditEntryProps) {
           <span class="material-symbols-outlined" style={`font-size: 16px; color: ${props.entry.isPinned ? "var(--p)" : "var(--text-dim)"}`} aria-hidden="true">push_pin</span>
         </button>
         <button type="button" class="timeline-edit-action" onClick={() => props.onToggleHide(props.index())} aria-label={isHidden() ? "Show" : "Hide"}>
-          <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">{isHidden() ? "visibility" : "visibility_off"}</span>
+          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">{isHidden() ? "visibility" : "visibility_off"}</span>
         </button>
         <button type="button" class="timeline-edit-action" onClick={() => props.onStartNote(props.index())} aria-label="Add note">
-          <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">edit_note</span>
+          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">edit_note</span>
         </button>
       </div>
 

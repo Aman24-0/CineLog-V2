@@ -6,7 +6,7 @@
 // go through collectionAdapter / collectionEntryAdapter → CollectionRepository.
 // Universe preferences go through universePreferencesAdapter → Supabase.
 // No Firestore. No watchlistService. No universePreferencesService.
-import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent, createMemo } from "solid-js";
+import {createContext, useContext, createSignal, onMount, onCleanup, ParentComponent} from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
@@ -180,7 +180,7 @@ const useCollectionsLogic = () => {
       // We create the collection with type='smart' so the UI can
       // identify it, but the rules themselves are client-side only.
       // The user is explicitly warned — no silent data loss.
-      await createCollectionInSupabase(uid, name, { collectionType: "smart" as "user" | "curated" | "smart" });
+      await createCollectionInSupabase(uid, name, { collectionType: "smart" });
       await refreshCollections(uid);
       if (rules.length > 0) {
         showToast(

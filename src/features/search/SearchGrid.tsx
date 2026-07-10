@@ -33,7 +33,7 @@ export default function SearchGrid(props: SearchGridProps) {
           <div class="search-section-label">
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px; color: var(--p)"
+              style={{"font-size":"12px","color":"var(--p)"}}
               aria-hidden="true"
             >
               history
@@ -60,7 +60,7 @@ export default function SearchGrid(props: SearchGridProps) {
                   <span>{q}</span>
                   <span
                     class="material-symbols-outlined search-recent-remove"
-                    style="font-size: 14px"
+                    style={{"font-size":"14px"}}
                     aria-hidden="true"
                     onClick={(e) => {
                       e.stopPropagation();
@@ -82,7 +82,7 @@ export default function SearchGrid(props: SearchGridProps) {
           <div class="search-section-label">
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px; color: var(--p)"
+              style={{"font-size":"12px","color":"var(--p)"}}
               aria-hidden="true"
             >
               trending_up
@@ -111,7 +111,7 @@ export default function SearchGrid(props: SearchGridProps) {
                         <div class="search-rail-poster-fallback" aria-hidden="true">
                           <span
                             class="material-symbols-outlined"
-                            style="font-size: 24px; color: var(--text-dim)"
+                            style={{"font-size":"24px","color":"var(--text-dim)"}}
                             aria-hidden="true"
                           >
                             movie
@@ -120,6 +120,7 @@ export default function SearchGrid(props: SearchGridProps) {
                       }
                     >
                       <img
+                        onError={(e) => { e.currentTarget.style.display = "none"; }}
                         src={tmdbImage(t.poster_path || t.backdrop_path, "w342")}
                         class="search-rail-poster-img"
                         loading="lazy"
@@ -149,7 +150,7 @@ export default function SearchGrid(props: SearchGridProps) {
         <div class="search-section-label">
           <span
             class="material-symbols-outlined"
-            style="font-size: 12px; color: var(--p)"
+            style={{"font-size":"12px","color":"var(--p)"}}
             aria-hidden="true"
           >
             grid_view

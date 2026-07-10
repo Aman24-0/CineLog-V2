@@ -75,6 +75,7 @@ const ContinueRail: Component<ContinueRailProps> = (props) => {
                   }
                 >
                   <img
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                     src={img}
                     class="continue-rail-card-img"
                     loading="lazy"

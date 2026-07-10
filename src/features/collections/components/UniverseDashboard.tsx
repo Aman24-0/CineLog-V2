@@ -75,6 +75,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
       <div class="universe-detail-hero">
         <Show when={backdropUrl()}>
           <img
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
             src={backdropUrl()}
             class="universe-detail-hero-backdrop"
             loading="eager"
@@ -99,7 +100,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
           onClick={() => navigate("/collections")}
           aria-label="Back to Collections"
         >
-          <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+          <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
         </button>
 
         <div class="universe-detail-hero-content">
@@ -153,12 +154,13 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
       <Show when={nextMissing()}>
         <div class="universe-dashboard-continue animate-fade-up">
           <div class="universe-dashboard-continue-label">
-            <span class="material-symbols-outlined" style="font-size: 14px; color: var(--p)" aria-hidden="true">play_circle</span>
+            <span class="material-symbols-outlined" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true">play_circle</span>
             Continue this universe
           </div>
           <div class="universe-dashboard-continue-card">
             <Show when={nextMissing()!.poster_path}>
               <img
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
                 src={tmdbImage(nextMissing()!.poster_path, "w92")}
                 class="universe-dashboard-continue-poster"
                 loading="lazy"
@@ -177,7 +179,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
               </p>
             </div>
             <span class="universe-timeline-missing-badge" aria-label="Not in vault">
-              <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">add</span>
+              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
             </span>
           </div>
         </div>
@@ -211,7 +213,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
           onClick={() => navigate(`/collections/${props.collection.id}/edit`)}
           aria-label="Edit Timeline"
         >
-          <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">edit</span>
+          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">edit</span>
           Edit
         </button>
         <button
@@ -220,7 +222,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
           onClick={togglePin}
           aria-label={isPinned() ? "Unpin universe" : "Pin universe"}
         >
-          <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">push_pin</span>
+          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">push_pin</span>
           {isPinned() ? "Pinned" : "Pin"}
         </button>
       </div>

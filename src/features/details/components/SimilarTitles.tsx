@@ -125,7 +125,7 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                     class="similar-title-poster-img"
                     fallback={
                       <div class="similar-title-poster-fallback" aria-hidden="true">
-                        <span class="material-symbols-outlined" style="font-size: 28px; color: var(--text-dim)" aria-hidden="true">movie</span>
+                        <span class="material-symbols-outlined" style={{"font-size":"28px","color":"var(--text-dim)"}} aria-hidden="true">movie</span>
                       </div>
                     }
                   />
@@ -139,7 +139,7 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                   {yearOf(t) ? `${yearOf(t)} · ` : ""}
                   {t.media_type === "tv" ? "Series" : "Movie"}
                   <Show when={imdbOf(t)}>
-                    {" · "}<span style="color: #f5c518">★ {imdbOf(t)}</span>
+                    {" · "}<span style={{"color":"#f5c518"}}>★ {imdbOf(t)}</span>
                   </Show>
                 </p>
               </div>

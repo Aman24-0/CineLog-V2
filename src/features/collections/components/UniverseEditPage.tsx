@@ -137,7 +137,7 @@ export default function UniverseEditPage() {
         {/* Header */}
         <div class="collections-edit-header">
           <button type="button" class="collections-back-btn" onClick={() => navigate(`/collections/${params.id}`)} aria-label="Back to universe">
-            <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+            <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
           </button>
           <h1 class="collections-edit-title">Edit Timeline</h1>
           <div class="collections-edit-actions">
@@ -157,7 +157,7 @@ export default function UniverseEditPage() {
           {/* Add custom entry */}
           <Show when={showAddCustom()} fallback={
             <button type="button" class="smart-builder-add-rule" onClick={() => setShowAddCustom(true)} style={{ "margin-bottom": "var(--sp-4)" }}>
-              <span class="material-symbols-outlined" style="font-size: 16px" aria-hidden="true">add</span>
+              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
               Add Custom Entry
             </button>
           }>

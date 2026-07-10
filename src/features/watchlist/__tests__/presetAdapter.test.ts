@@ -14,7 +14,7 @@ import {
   deletePresetFromSupabase,
 } from "../presetAdapter";
 import { getPresetRepository } from "~/lib/supabase/repositories";
-import { makeVaultFilters, makeFilterPreset } from "~/__test-fixtures__/factories";
+import {makeVaultFilters} from "~/__test-fixtures__/factories";
 import type { PresetRow } from "~/lib/supabase/repositories";
 
 const mockPresetRow: PresetRow = {

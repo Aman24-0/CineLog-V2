@@ -51,7 +51,7 @@ export default function MetadataGrid(props: MetadataGridProps) {
     const d = props.details;
     const b = props.baseItem;
     const o = props.omdb;
-    const v = props.vaultItem;
+    const _v = props.vaultItem;
     const list: MetaCell[] = [];
 
     // Year

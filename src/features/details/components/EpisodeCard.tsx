@@ -61,7 +61,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             <div class="episode-card-still-fallback" aria-hidden="true">
               <span
                 class="material-symbols-outlined"
-                style="font-size: 24px; color: var(--text-dim)"
+                style={{"font-size":"24px","color":"var(--text-dim)"}}
                 aria-hidden="true"
               >
                 movie
@@ -76,7 +76,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           <span class="episode-card-watched-badge" aria-label="Watched">
             <span
               class="material-symbols-outlined"
-              style="font-size: 12px"
+              style={{"font-size":"12px"}}
               aria-hidden="true"
             >
               check_circle
@@ -99,7 +99,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               <span>{formattedAirDate()}</span>
             </Show>
             <Show when={props.episode.vote_average > 0}>
-              <span style="color: #f5c518">★ {props.episode.vote_average.toFixed(1)}</span>
+              <span style={{"color":"#f5c518"}}>★ {props.episode.vote_average.toFixed(1)}</span>
             </Show>
           </div>
         </div>
@@ -139,7 +139,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               >
                 <span
                   class="material-symbols-outlined"
-                  style="font-size: 14px"
+                  style={{"font-size":"14px"}}
                   aria-hidden="true"
                 >
                   add
@@ -155,7 +155,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
                   <span class="episode-card-current-label">
                     <span
                       class="material-symbols-outlined"
-                      style="font-size: 14px"
+                      style={{"font-size":"14px"}}
                       aria-hidden="true"
                     >
                       play_arrow
@@ -173,7 +173,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               >
                 <span
                   class="material-symbols-outlined"
-                  style="font-size: 14px"
+                  style={{"font-size":"14px"}}
                   aria-hidden="true"
                 >
                   check

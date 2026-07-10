@@ -2,7 +2,6 @@
 import { describe, it, expect } from "vitest";
 import { resolveTimelineDate } from "../date";
 import { makeWatchlistItem } from "~/__test-fixtures__/factories";
-import type { WatchlistItem } from "~/shared/types";
 
 describe("resolveTimelineDate", () => {
   it("returns watchDate when present and valid", () => {

@@ -6,7 +6,6 @@ import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
 import { useModalState } from "~/shared/hooks/useModalState";
-import { tmdbImage } from "~/core/tmdb/tmdb";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
 import UniverseDashboard from "./components/UniverseDashboard";
 import TimelineEngine from "./components/TimelineEngine";
@@ -44,7 +43,7 @@ export default function CollectionDetailPage() {
     return col;
   });
 
-  const progress = createMemo(() => {
+  const _progress = createMemo(() => {
     const col = currentCollection();
     if (!col) return { owned: 0, total: 0, pct: 0, completed: 0, watching: 0, missing: 0, totalRuntime: 0 };
     return getCollectionProgress(col, watchlist());
@@ -78,7 +77,7 @@ export default function CollectionDetailPage() {
             onClick={() => navigate("/collections")}
             aria-label="Back to Collections"
           >
-            <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+            <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
           </button>
           <div class="collections-detail-empty">
             <p class="type-body-soft" style={{ "text-align": "center" }}>Collection not found.</p>
@@ -92,7 +91,7 @@ export default function CollectionDetailPage() {
             return (
               <div class="page-enter">
                 <button type="button" class="collections-back-btn" onClick={() => navigate("/collections")} aria-label="Back to Collections">
-                  <span class="material-symbols-outlined" style="font-size: 18px" aria-hidden="true">arrow_back</span>
+                  <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
                 </button>
                 <div class="collections-detail-empty">
                   <p class="type-body-soft" style={{ "text-align": "center" }}>Something went wrong loading this collection.</p>

@@ -32,9 +32,9 @@ interface TrajectoryCardProps {
  * subtitle adds count context ("3 hidden picks").
  */
 const TrajectoryCard: Component<TrajectoryCardProps> = (props) => {
-  const [expanded, setExpanded] = createSignal(false);
+  const [expanded, _setExpanded] = createSignal(false);
 
-  const allTitles = () => {
+  const _allTitles = () => {
     const t = props.trajectory;
     const list = [t.hero, ...t.supporting];
     if (expanded() && t.expanded) list.push(...t.expanded);
@@ -79,9 +79,10 @@ const TrajectoryCard: Component<TrajectoryCardProps> = (props) => {
         >
           <Show
             when={props.trajectory.hero.poster_path || props.trajectory.hero.backdrop_path}
-            fallback={<div class="trajectory-hero-fallback" aria-hidden="true"><span class="material-symbols-outlined" style="font-size: 32px; color: var(--text-dim)">movie</span></div>}
+            fallback={<div class="trajectory-hero-fallback" aria-hidden="true"><span class="material-symbols-outlined" style={{"font-size":"32px","color":"var(--text-dim)"}}>movie</span></div>}
           >
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={tmdbImage(props.trajectory.hero.poster_path || props.trajectory.hero.backdrop_path, "w342")}
               class="trajectory-hero-img"
               loading="lazy"
@@ -95,7 +96,7 @@ const TrajectoryCard: Component<TrajectoryCardProps> = (props) => {
             <p class="trajectory-hero-title">{heroTitle()}</p>
             <div class="trajectory-hero-meta">
               <Show when={heroYear()}><span>{heroYear()}</span></Show>
-              <Show when={heroImdb()}><span style="color: #f5c518">★ {heroImdb()}</span></Show>
+              <Show when={heroImdb()}><span style={{"color":"#f5c518"}}>★ {heroImdb()}</span></Show>
             </div>
           </div>
 
@@ -116,9 +117,10 @@ const TrajectoryCard: Component<TrajectoryCardProps> = (props) => {
               >
                 <Show
                   when={t.poster_path || t.backdrop_path}
-                  fallback={<div class="trajectory-supporting-fallback" aria-hidden="true"><span class="material-symbols-outlined" style="font-size: 18px; color: var(--text-dim)">movie</span></div>}
+                  fallback={<div class="trajectory-supporting-fallback" aria-hidden="true"><span class="material-symbols-outlined" style={{"font-size":"18px","color":"var(--text-dim)"}}>movie</span></div>}
                 >
                   <img
+                    onError={(e) => { e.currentTarget.style.display = "none"; }}
                     src={tmdbImage(t.poster_path || t.backdrop_path, "w185")}
                     class="trajectory-supporting-img"
                     loading="lazy"
@@ -131,7 +133,7 @@ const TrajectoryCard: Component<TrajectoryCardProps> = (props) => {
                   <p class="trajectory-supporting-title">{supportingTitle(t)}</p>
                   <div class="trajectory-supporting-meta">
                     <Show when={supportingYear(t)}><span>{supportingYear(t)}</span></Show>
-                    <Show when={supportingImdb(t)}><span style="color: #f5c518">★ {supportingImdb(t)}</span></Show>
+                    <Show when={supportingImdb(t)}><span style={{"color":"#f5c518"}}>★ {supportingImdb(t)}</span></Show>
                   </div>
                 </div>
                 <RelationshipPill item={t} vault={props.vault} compact />

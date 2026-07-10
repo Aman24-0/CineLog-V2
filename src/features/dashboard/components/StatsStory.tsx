@@ -1,5 +1,5 @@
 // src/features/dashboard/components/StatsStory.tsx
-import { createMemo, Show, Component } from "solid-js";
+import { createMemo, Show, Component, For } from "solid-js";
 import { getInProgressCount } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -111,7 +111,7 @@ const StatsStory: Component<StatsStoryProps> = (props) => {
   return (
     <div class="stats-story animate-fade-up">
       <div class="stats-story-grid">
-        {cells().map((cell) => (
+        <For each={cells()}>{(cell) => (
           <div
             class="stats-story-cell"
             onClick={cell.onClick}
@@ -140,7 +140,7 @@ const StatsStory: Component<StatsStoryProps> = (props) => {
               <span class="stats-story-sub">{cell.sub}</span>
             </Show>
           </div>
-        ))}
+        )}</For>
       </div>
     </div>
   );

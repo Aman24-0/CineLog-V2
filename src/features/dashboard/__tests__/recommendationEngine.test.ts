@@ -8,7 +8,7 @@ import {
   pickRandomFeatured,
   getRecommendation,
 } from "../recommendationEngine";
-import { makeMovie, makeTVSeries, makeWatchlistItem } from "~/__test-fixtures__/factories";
+import {makeMovie} from "~/__test-fixtures__/factories";
 import type { WatchlistItem } from "~/shared/types";
 
 describe("recommendationEngine", () => {

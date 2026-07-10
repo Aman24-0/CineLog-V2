@@ -1,6 +1,6 @@
 // src/features/dashboard/recommendationEngine.ts
 import type { WatchlistItem } from "~/shared/types";
-import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
+import {getContinueWatchingList} from "~/shared/utils/progress";
 
 export interface RecommendationResult {
   item: WatchlistItem | null;

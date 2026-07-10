@@ -60,6 +60,7 @@ export default function CollectionsHeader(props: CollectionsHeaderProps) {
         >
           <Show when={featuredBackdrop()}>
             <img
+              onError={(e) => { e.currentTarget.style.display = "none"; }}
               src={featuredBackdrop()}
               class="universe-hero-backdrop"
               loading="eager"
@@ -111,7 +112,7 @@ export default function CollectionsHeader(props: CollectionsHeaderProps) {
               >
                 <span
                   class="material-symbols-outlined"
-                  style="font-size: 16px"
+                  style={{"font-size":"16px"}}
                   aria-hidden="true"
                 >
                   arrow_forward

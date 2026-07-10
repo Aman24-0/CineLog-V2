@@ -1,5 +1,5 @@
 // src/shared/ui/ScrollToTop.tsx
-import { createSignal, onMount, onCleanup, Show } from "solid-js";
+import {createSignal, onMount, onCleanup} from "solid-js";
 
 /**
  * ScrollToTop — floating button that appears after the user scrolls.

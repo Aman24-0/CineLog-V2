@@ -9,7 +9,6 @@ import type {
 } from "~/shared/types";
 import {
   discoverMovies,
-  discoverTv,
   getRecommendations,
   getTopRatedMovies,
   searchMulti,

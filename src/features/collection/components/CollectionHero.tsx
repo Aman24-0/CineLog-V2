@@ -26,6 +26,7 @@ export default function CollectionHero(props: CollectionHeroProps) {
     <div class="collection-hero">
       <Show when={props.backdropUrl()}>
         <img
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
           src={props.backdropUrl()}
           class="collection-hero-backdrop"
           loading="eager"
