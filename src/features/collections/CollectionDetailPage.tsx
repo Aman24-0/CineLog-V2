@@ -41,9 +41,20 @@ export default function CollectionDetailPage() {
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
 
   // Resolve the collection: user collection (synchronous) or curated universe (async).
+  // The source returns a composite key { id, userCollectionsVersion } so the
+  // resource re-runs when EITHER params.id changes OR userCollections()
+  // populates from Supabase. Without tracking userCollections() in the source,
+  // the fetcher runs once with an empty array, falls through to the curated
+  // universe lookup (which fails for user collection UUIDs), and never
+  // re-runs when userCollections() populates — leaving the user stuck on
+  // "not found" or a black screen during the loading phase (BUG 1 root cause).
   const [collectionResource] = createResource(
-    () => params.id,
-    async (id: string): Promise<Collection | null> => {
+    // Source: re-run when params.id changes OR when userCollections() changes.
+    // The string concatenation creates a new source value whenever either changes.
+    () => `${params.id}|${userCollections().length}`,
+    async (source: string): Promise<Collection | null> => {
+      // Extract the id from the composite source key.
+      const id = source.split("|")[0];
       // 1. Check user collections first (synchronous lookup).
       const userCol = userCollections().find((c) => c.id === id);
       if (userCol) return userCol;

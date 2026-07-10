@@ -213,7 +213,7 @@ describe("collectionAdapter", () => {
   describe("ensureFavoritesExistsInSupabase", () => {
     it("creates a Favorites collection when none exists", async () => {
       const mockRepo = {
-        searchCollections: vi.fn().mockResolvedValue({ data: [], error: null }),
+        getCollections: vi.fn().mockResolvedValue({ data: [], error: null }),
         createCollection: vi
           .fn()
           .mockResolvedValue({ data: mockCollectionRow, error: null }),
@@ -229,7 +229,7 @@ describe("collectionAdapter", () => {
     it("does not create when Favorites already exists", async () => {
       const favoritesRow = { ...mockCollectionRow, name: "Favorites" };
       const mockRepo = {
-        searchCollections: vi
+        getCollections: vi
           .fn()
           .mockResolvedValue({ data: [favoritesRow], error: null }),
         createCollection: vi.fn(),
@@ -240,11 +240,11 @@ describe("collectionAdapter", () => {
       expect(mockRepo.createCollection).not.toHaveBeenCalled();
     });
 
-    it("does not throw when search returns an error", async () => {
+    it("does not throw when getCollections returns an error", async () => {
       const mockRepo = {
-        searchCollections: vi.fn().mockResolvedValue({
+        getCollections: vi.fn().mockResolvedValue({
           data: [],
-          error: new Error("Search failed"),
+          error: new Error("Fetch failed"),
         }),
         createCollection: vi.fn(),
       };
@@ -253,6 +253,27 @@ describe("collectionAdapter", () => {
       await expect(
         ensureFavoritesExistsInSupabase("user-1")
       ).resolves.toBeUndefined();
+      expect(mockRepo.createCollection).not.toHaveBeenCalled();
+    });
+
+    it("does not create duplicate when 'favorites' (lowercase) exists", async () => {
+      // BUG 3 regression test: the old ilike search matched "favorites"
+      // (case-insensitive) but the exact check `c.name === "Favorites"`
+      // failed → duplicate created. The fix uses getCollections + exact
+      // match, so "favorites" does NOT prevent a new "Favorites" from
+      // being created (they're different names). But if "Favorites"
+      // (exact) already exists, no duplicate is created.
+      const favoritesRow = { ...mockCollectionRow, name: "Favorites" };
+      const otherRow = { ...mockCollectionRow, id: "col-2", name: "My Favorites" };
+      const mockRepo = {
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [otherRow, favoritesRow], error: null }),
+        createCollection: vi.fn(),
+      };
+      vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
+
+      await ensureFavoritesExistsInSupabase("user-1");
       expect(mockRepo.createCollection).not.toHaveBeenCalled();
     });
   });

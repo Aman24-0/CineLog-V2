@@ -211,13 +211,22 @@ export async function searchCollectionsInSupabase(
 /**
  * Ensure the user has a "Favorites" collection. Creates one if it
  * doesn't exist. Idempotent.
+ *
+ * BUG 3 fix: Previously used searchCollections with ilike("name",
+ * "%Favorites%") — a case-insensitive SUBSTRING match. This could
+ * match "My Favorites" but the exact check `c.name === "Favorites"`
+ * is case-sensitive, so "favorites" (lowercase) would match the
+ * search but fail the exact check → duplicate "Favorites" created.
+ *
+ * Fix: Use getCollections (no search) and filter client-side with
+ * case-sensitive exact match. This guarantees we find an existing
+ * "Favorites" collection regardless of DB collation.
  */
 export async function ensureFavoritesExistsInSupabase(userId: string): Promise<void> {
   const repo = getCollectionRepository();
-  const { data: existing, error } = await repo.searchCollections({
+  const { data: existing, error } = await repo.getCollections({
     userId,
-    searchTerm: "Favorites",
-    pagination: { limit: 10 }
+    pagination: { limit: 200 }
   });
 
   if (error) {
@@ -225,7 +234,7 @@ export async function ensureFavoritesExistsInSupabase(userId: string): Promise<v
     return;
   }
 
-  // Check if any result is exactly "Favorites"
+  // Exact, case-sensitive match — only "Favorites" (capital F) counts.
   const hasFavorites = existing?.some((c) => c.name === "Favorites");
   if (!hasFavorites) {
     await createCollectionInSupabase(userId, "Favorites");
