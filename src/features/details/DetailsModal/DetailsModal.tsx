@@ -161,7 +161,7 @@ export default function DetailsModal() {
 
             <Show when={!loading()} fallback={<DetailsSkeleton />}>
               <Show when={!error()} fallback={<DetailsError onRetry={retry} />}>
-                <div class="cinematic-modal modal-sheet-enter">
+                <div class="cinematic-modal">
                   <div class="cinematic-scroll">
                     <DetailsHero
                       baseItem={baseItem}

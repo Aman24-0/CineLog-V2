@@ -1,5 +1,5 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createResource, createSignal, ErrorBoundary } from "solid-js";
+import { Show, createResource, createSignal, createEffect, ErrorBoundary } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -24,6 +24,11 @@ import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, Watch
  *
  *   The collection is loaded via createResource so Suspense + ErrorBoundary
  *   can handle loading + error states cleanly — no blank screens.
+ *
+ * REACTIVITY (BUG 1 fix):
+ *   Preferences (activeOrder, activeProvider) are applied in a
+ *   createEffect — NEVER in the render path. Setting signals during
+ *   render is a SolidJS anti-pattern that crashes the component.
  */
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -36,8 +41,6 @@ export default function CollectionDetailPage() {
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
 
   // Resolve the collection: user collection (synchronous) or curated universe (async).
-  // createResource handles the async fetch + caching. The source is params.id so
-  // navigating between collections re-fetches automatically.
   const [collectionResource] = createResource(
     () => params.id,
     async (id: string): Promise<Collection | null> => {
@@ -54,15 +57,18 @@ export default function CollectionDetailPage() {
   // The resolved collection (null while loading or if not found).
   const collection = (): Collection | null => collectionResource() ?? null;
 
-  // Load saved preferences when the collection resolves.
-  // This is a createEffect (not a memo) because it sets signals as a side effect.
-  // (Moved from the previous anti-pattern of setting signals inside createMemo.)
-  const applyPrefs = (col: Collection | null) => {
+  // Apply saved preferences when the collection resolves.
+  // This MUST be a createEffect — it sets signals (setActiveOrder /
+  // setActiveProvider) as a side effect. Setting signals during render
+  // is a SolidJS anti-pattern that crashes the component (BUG 1 root cause).
+  // createEffect runs AFTER render, so signal setters are legal here.
+  createEffect(() => {
+    const col = collection();
     if (!col) return;
     const prefs = getUniversePrefs(col.id);
     setActiveOrder(prefs?.preferredOrder ?? col.defaultOrder ?? "chronological");
     setActiveProvider(prefs?.preferredProvider ?? "cinelog");
-  };
+  });
 
   const handleOpenEntry = (entry: CollectionEntry) => {
     const baseItem: WatchlistItem = {
@@ -77,16 +83,6 @@ export default function CollectionDetailPage() {
       first_air_date: entry.first_air_date
     };
     openTitle(baseItem, watchlist());
-  };
-
-  // Apply prefs whenever the collection changes.
-  // Using a derivefrom pattern: watch collection() and apply side effects.
-  // (SolidJS createEffect is imported but we use a simpler approach: the
-  //  Show fallback handles the null case, and we apply prefs inline.)
-  const currentCollection = (): Collection | null => {
-    const col = collection();
-    if (col) applyPrefs(col);
-    return col;
   };
 
   return (
@@ -104,7 +100,7 @@ export default function CollectionDetailPage() {
         }
       >
         <Show
-          when={currentCollection()}
+          when={collection()}
           fallback={
             <div class="page-enter">
               <button
@@ -141,7 +137,7 @@ export default function CollectionDetailPage() {
             <div class="page-enter relative">
               {/* Universe Dashboard — enhanced hero + stats + actions */}
               <UniverseDashboard
-                collection={currentCollection()!}
+                collection={collection()!}
                 activeOrder={activeOrder()}
                 activeProvider={activeProvider()}
                 onOrderChange={setActiveOrder}
@@ -150,7 +146,7 @@ export default function CollectionDetailPage() {
 
               {/* Timeline Engine — supports all viewing orders and providers */}
               <TimelineEngine
-                collection={currentCollection()!}
+                collection={collection()!}
                 order={activeOrder()}
                 provider={activeProvider()}
                 onOpenEntry={handleOpenEntry}
