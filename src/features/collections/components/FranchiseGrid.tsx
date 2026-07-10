@@ -119,15 +119,17 @@ export default function FranchiseGrid() {
                       return (
                         <div class="franchise-universe-row">
                           <Show when={hasCollection()} fallback={
-                            <button
-                              type="button"
-                              class="franchise-universe-chip franchise-universe-suggested"
-                              onClick={() => addUniverseToPrefs(uni.id)}
-                              aria-label={`Add ${uni.name} to your universes`}
-                            >
-                              <span class="material-symbols-outlined" style={{"font-size":"16px","color":"var(--p)"}} aria-hidden="true">add</span>
-                              <span>{uni.name}</span>
-                            </button>
+                            <Show when={uni.collectionId}>
+                              <button
+                                type="button"
+                                class="franchise-universe-chip franchise-universe-suggested"
+                                onClick={() => addUniverseToPrefs(uni.collectionId!)}
+                                aria-label={`Add ${uni.name} to your universes`}
+                              >
+                                <span class="material-symbols-outlined" style={{"font-size":"16px","color":"var(--p)"}} aria-hidden="true">add</span>
+                                <span>{uni.name}</span>
+                              </button>
+                            </Show>
                           }>
                             <button
                               type="button"

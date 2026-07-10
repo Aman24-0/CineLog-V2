@@ -1,5 +1,5 @@
 // src/features/collections/CollectionsPage.tsx
-import { Show, createSignal, ErrorBoundary } from "solid-js";
+import { Show, createSignal, ErrorBoundary, lazy, Suspense } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
@@ -8,19 +8,29 @@ import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import CollectionsHeader from "./components/CollectionsHeader";
 import CollectionsStats from "./components/CollectionsStats";
-import CollectionsFilters from "./components/CollectionsFilters";
+import CollectionsGrid from "./components/CollectionsGrid";
+import FranchiseGrid from "./components/FranchiseGrid";
 import type { Collection } from "~/shared/types";
+
+// Lazy-load the AddUniverseModal so it doesn't bloat the initial bundle.
+const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
 
 /**
  * CollectionsPage — orchestration only.
  *
- * Owns top-level state (showCreate, newName, editingFolder, showSmartBuilder)
- * and composes:
- *   - CollectionsHeader (eyebrow + featured universe hero)
- *   - CollectionsStats (pinned + continue-your-universe rails)
- *   - CollectionsFilters (franchise explorer + suggestions + your collections)
+ * ARCHITECTURE (BUG 3 + BUG 5):
+ *   User Collections are PRIMARY. Curated Universes are SECONDARY.
+ *   The page layout reflects this separation:
  *
- * Folder/Smart modal state lives here so the section components stay pure.
+ *     1. Page eyebrow + featured universe hero (CollectionsHeader)
+ *     2. Pinned + Continue-Your-Universe rails (CollectionsStats) — curated
+ *     3. YOUR COLLECTIONS — user-created folders (PRIMARY)
+ *     4. Explore Universes — curated franchise explorer (SECONDARY)
+ *     5. Add Universe button — opens modal to browse/import curated universes
+ *
+ *   Suggested universes are NO LONGER rendered inline. The "Add Universe"
+ *   button opens a modal where users browse, search, and import curated
+ *   universes. This keeps the page focused on user collections.
  */
 export default function CollectionsPage() {
   const { watchlist } = useVault();
@@ -37,6 +47,7 @@ export default function CollectionsPage() {
   const [newName, setNewName] = createSignal("");
   const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
   const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
+  const [showAddUniverse, setShowAddUniverse] = createSignal(false);
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -81,6 +92,7 @@ export default function CollectionsPage() {
         }}
       >
         <div class="page-enter relative">
+          {/* === SECONDARY: Featured universe hero + curated rails === */}
           <CollectionsHeader
             curatedCollections={curatedCollections}
             watchlist={watchlist}
@@ -94,18 +106,119 @@ export default function CollectionsPage() {
             getCollectionProgress={getCollectionProgress}
           />
 
-          <CollectionsFilters
-            loading={loading}
-            userCollections={userCollections}
-            showCreate={showCreate}
-            newName={newName}
-            onNewNameChange={setNewName}
-            onCreate={handleCreate}
-            onCancelCreate={() => setShowCreate(false)}
-            onShowCreate={() => setShowCreate(true)}
-            onShowSmartBuilder={() => setShowSmartBuilder(true)}
-            onEditFolder={(col) => setEditingFolder(col)}
-          />
+          {/* === PRIMARY: YOUR COLLECTIONS (user-created folders) === */}
+          <section class="collections-fold">
+            <div class="collections-fold-label">
+              <span
+                class="material-symbols-outlined"
+                style={{"font-size":"12px","color":"var(--p)"}}
+                aria-hidden="true"
+              >
+                folder
+              </span>
+              Your Collections
+              <button
+                type="button"
+                class="collections-fold-action"
+                onClick={() => setShowCreate(true)}
+                aria-label="Create new collection"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{"font-size":"14px"}}
+                  aria-hidden="true"
+                >
+                  add
+                </span>
+                New
+              </button>
+              <button
+                type="button"
+                class="collections-smart-btn"
+                onClick={() => setShowSmartBuilder(true)}
+                aria-label="Create smart collection"
+                style={{ "margin-left": "auto" }}
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{"font-size":"12px"}}
+                  aria-hidden="true"
+                >
+                  auto_awesome
+                </span>
+                Smart
+              </button>
+            </div>
+
+            <Show when={showCreate()}>
+              <div class="collections-create-bar">
+                <input
+                  type="text"
+                  class="collections-create-input"
+                  placeholder="Collection name…"
+                  value={newName()}
+                  onInput={(e) => setNewName(e.currentTarget.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreate();
+                    if (e.key === "Escape") setShowCreate(false);
+                  }}
+                  aria-label="New collection name"
+                />
+                <button
+                  class="btn-primary"
+                  onClick={handleCreate}
+                  disabled={!newName().trim()}
+                  style={{ "font-size": "0.5625rem" }}
+                >
+                  Create
+                </button>
+                <button
+                  class="btn-ghost"
+                  onClick={() => setShowCreate(false)}
+                  style={{ "font-size": "0.5625rem" }}
+                >
+                  Cancel
+                </button>
+              </div>
+            </Show>
+
+            <CollectionsGrid
+              loading={loading}
+              userCollections={userCollections}
+              onEditFolder={(col) => setEditingFolder(col)}
+            />
+          </section>
+
+          {/* === SECONDARY: Explore Universes (curated, read-only) === */}
+          <section class="collections-fold">
+            <div class="collections-fold-label">
+              <span
+                class="material-symbols-outlined"
+                style={{"font-size":"12px","color":"var(--p)"}}
+                aria-hidden="true"
+              >
+                auto_awesome
+              </span>
+              Explore Universes
+              <button
+                type="button"
+                class="collections-fold-action"
+                onClick={() => setShowAddUniverse(true)}
+                aria-label="Add universe"
+                style={{ "margin-left": "auto" }}
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{"font-size":"14px"}}
+                  aria-hidden="true"
+                >
+                  add
+                </span>
+                Add Universe
+              </button>
+            </div>
+            <FranchiseGrid />
+          </section>
         </div>
 
         {/* Folder editor modal */}
@@ -119,6 +232,13 @@ export default function CollectionsPage() {
         {/* Smart collection builder */}
         <Show when={showSmartBuilder()}>
           <SmartCollectionBuilder onClose={() => setShowSmartBuilder(false)} />
+        </Show>
+
+        {/* Add Universe modal — replaces inline UniverseSuggestions (BUG 3) */}
+        <Show when={showAddUniverse()}>
+          <Suspense fallback={null}>
+            <AddUniverseModal onClose={() => setShowAddUniverse(false)} />
+          </Suspense>
         </Show>
       </ErrorBoundary>
     </PageContainer>

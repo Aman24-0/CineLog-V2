@@ -732,7 +732,6 @@
   background: var(--p);
   border-radius: 2px;
   flex-shrink: 0;
-  box-shadow: 0 0 6px var(--p-glow);
 }
 
 /* Inline trailer expansion — kept for backwards compat but no longer used

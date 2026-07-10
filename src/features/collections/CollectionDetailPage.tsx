@@ -1,5 +1,5 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createMemo, createSignal, ErrorBoundary } from "solid-js";
+import { Show, createMemo, createSignal, createEffect, ErrorBoundary } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -30,21 +30,21 @@ export default function CollectionDetailPage() {
     return null;
   });
 
-  let lastCollectionId: string | null = null;
-  const currentCollection = createMemo(() => {
+  // Load saved preferences when the collection changes.
+  // This MUST be a createEffect (not a createMemo) because it sets signals
+  // (setActiveOrder / setActiveProvider) as a side effect. Setting signals
+  // inside a createMemo is a SolidJS anti-pattern that can cause the memo
+  // to re-execute before the <Show> can render, resulting in a blank page.
+  createEffect(() => {
     const col = collection();
-    if (col && col.id !== lastCollectionId) {
-      lastCollectionId = col.id;
-      // Load saved preferences
-      const prefs = getUniversePrefs(col.id);
-      setActiveOrder(prefs?.preferredOrder ?? col.defaultOrder ?? "chronological");
-      setActiveProvider(prefs?.preferredProvider ?? "cinelog");
-    }
-    return col;
+    if (!col) return;
+    const prefs = getUniversePrefs(col.id);
+    setActiveOrder(prefs?.preferredOrder ?? col.defaultOrder ?? "chronological");
+    setActiveProvider(prefs?.preferredProvider ?? "cinelog");
   });
 
   const _progress = createMemo(() => {
-    const col = currentCollection();
+    const col = collection();
     if (!col) return { owned: 0, total: 0, pct: 0, completed: 0, watching: 0, missing: 0, totalRuntime: 0 };
     return getCollectionProgress(col, watchlist());
   });
@@ -69,7 +69,7 @@ export default function CollectionDetailPage() {
       <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
-      <Show when={currentCollection()} fallback={
+      <Show when={collection()} fallback={
         <div class="page-enter">
           <button
             type="button"
@@ -104,7 +104,7 @@ export default function CollectionDetailPage() {
           <div class="page-enter relative">
             {/* Universe Dashboard — enhanced hero + stats + actions */}
             <UniverseDashboard
-              collection={currentCollection()!}
+              collection={collection()!}
               activeOrder={activeOrder()}
               activeProvider={activeProvider()}
               onOrderChange={setActiveOrder}
@@ -113,7 +113,7 @@ export default function CollectionDetailPage() {
 
             {/* Timeline Engine — supports all viewing orders and providers */}
             <TimelineEngine
-              collection={currentCollection()!}
+              collection={collection()!}
               order={activeOrder()}
               provider={activeProvider()}
               onOpenEntry={handleOpenEntry}
