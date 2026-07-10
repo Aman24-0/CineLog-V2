@@ -22,8 +22,6 @@
 //   a Notion page.
 
 import { Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
-import { useNavigate } from "@solidjs/router";
-import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
@@ -39,11 +37,10 @@ import ProfileSkeleton from "./components/ProfileSkeleton";
 import FavoritesPicker from "./components/FavoritesPicker";
 
 const ProfilePage: Component = () => {
-  const navigate = useNavigate();
   const { user, isSignedIn } = useAuth();
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
-  const { data, loading, saving, saveProfile, watchlist, isGuest } = useProfileData();
+  const { data, loading, error, saving, saveProfile, refetch, watchlist, isGuest } = useProfileData();
 
   // Edit mode — inline editing, no modal.
   const [isEditing, setIsEditing] = createSignal(false);
@@ -174,8 +171,31 @@ const ProfilePage: Component = () => {
           <ProfileSkeleton />
         </Show>
 
+        {/* Error state */}
+        <Show when={error() && !data()}>
+          <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
+            <div class="empty-premium" role="alert" aria-live="assertive">
+              <div class="empty-premium-icon" aria-hidden="true">
+                <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                  error
+                </span>
+              </div>
+              <h3 class="empty-premium-title">Couldn't load profile</h3>
+              <p class="empty-premium-body">Something went wrong loading your profile. Your data is safe — try again.</p>
+              <Button
+                variant="primary"
+                onClick={() => refetch()}
+                style={{ "margin-top": "var(--sp-2)" }}
+                aria-label="Retry loading profile"
+              >
+                Retry
+              </Button>
+            </div>
+          </div>
+        </Show>
+
         {/* Loaded state */}
-        <Show when={!loading() || data()}>
+        <Show when={!loading() && !error() && data()}>
           <Show when={!showGuestState()} fallback={
             /* Guest — prompt to sign in */
             <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>

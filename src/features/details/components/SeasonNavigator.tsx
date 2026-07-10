@@ -10,15 +10,15 @@ interface SeasonNavigatorProps {
   item: WatchlistItem;
   details: TMDBDetails | null;
   /**
-   * User-owned vault item — null when the title is NOT in the vault.
-   * When null, episode cards show "Add to Vault to Track" instead of
+   * User-owned watchlist item — null when the title is NOT in the watchlist.
+   * When null, episode cards show "Add to Watchlist to Track" instead of
    * "Mark as Watched". The season accordion still renders (episode
    * metadata is TMDB data).
    */
   vaultItem?: WatchlistItem | null;
-  /** Called when the user marks an episode as watched (vault titles only) */
+  /** Called when the user marks an episode as watched (watchlist titles only) */
   onEpisodeChange: (season: number, episode: number) => void;
-  /** Called when the user taps "Add to Vault" on a non-vault title's episode */
+  /** Called when the user taps "Add to Watchlist" on a non-watchlist title's episode */
   onAddToVault: () => void;
 }
 

@@ -1,11 +1,10 @@
-/* src/styles/features/index.css — Phase 14.2 CSS architecture
+/* src/styles/features/index.css — CSS architecture
    Barrel file: imports feature-specific CSS in cascade order.
 
-   Each file contains the CSS for a feature area (dashboard, discover,
-   search, watchlist, collections, details). The order matches the
-   original globals.css line order to preserve cascade priority. */
+   Each file contains the CSS for a feature area. The order preserves
+   cascade priority. Dashboard CSS removed — the Dashboard page was
+   deleted and its responsibilities moved to Watchlist + Profile. */
 
-@import "./dashboard.css";
 @import "./discover.css";
 @import "./search.css";
 @import "./watchlist.css";

@@ -66,19 +66,6 @@ export default function CollectionsPage() {
     setShowCreate(false);
   };
 
-  // ─── Smart Collections (dynamic, from vault) ───────────────────
-  const smartCollections = (): Collection[] => {
-    const vault = watchlist();
-    if (vault.length === 0) return [];
-
-    // Favorites — vault items with is_favorite (we don't have that flag
-    // on WatchlistItem directly, so we approximate: items in a "Favorites"
-    // user collection). For now, return an empty list if no Favorites
-    // collection exists. The Favorites user collection is created
-    // automatically by ensureFavoritesExistsInSupabase.
-    return [];
-  };
-
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <ScrollToTop />
@@ -123,25 +110,7 @@ export default function CollectionsPage() {
             </p>
           </div>
 
-          {/* === 1. SMART COLLECTIONS (dynamic, from vault) === */}
-          <Show when={smartCollections().length > 0}>
-            <section class="collections-fold">
-              <div class="collections-fold-label">
-                <span
-                  class="material-symbols-outlined"
-                  style={{"font-size":"12px","color":"var(--p)"}}
-                  aria-hidden="true"
-                >
-                  auto_awesome
-                </span>
-                Smart Collections
-              </div>
-              {/* Smart collections render here — Favorites, Continue Watching, etc.
-                  These are computed from vault state, not stored. */}
-            </section>
-          </Show>
-
-          {/* === 2. USER COLLECTIONS (user-created folders) === */}
+          {/* === USER COLLECTIONS (user-created folders) === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
               <span

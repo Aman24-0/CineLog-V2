@@ -11,3 +11,8 @@ dist
 
 .vscode
 .DS_Store
+
+# Supabase CLI
+.supabase/
+supabase/.branches
+supabase/.temp

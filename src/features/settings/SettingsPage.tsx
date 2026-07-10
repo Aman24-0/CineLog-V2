@@ -18,10 +18,8 @@
 
 import { type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useToast } from "~/shared/hooks/useToast";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import PageContainer from "~/shared/ui/PageContainer";
-import Icon from "~/shared/ui/Icon";
 
 interface SettingsRowDef {
   href?: string;
@@ -34,7 +32,6 @@ interface SettingsRowDef {
 
 const SettingsPage: Component = () => {
   const navigate = useNavigate();
-  const { showToast } = useToast();
 
   const handleSignOut = async () => {
     await signOut();

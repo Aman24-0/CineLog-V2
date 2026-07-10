@@ -1,5 +1,5 @@
 // src/features/profile/components/WatchlistSummary.tsx
-import { createMemo, type Component } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 
 interface WatchlistSummaryProps {
@@ -56,5 +56,4 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
   );
 };
 
-import { Show } from "solid-js";
 export default WatchlistSummary;

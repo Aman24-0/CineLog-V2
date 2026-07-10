@@ -5,15 +5,19 @@
 // ensuring the contracts between layers stay intact.
 //
 // Covered flows:
-//   1. Add to Vault
-//   2. Remove from Vault
+//   1. Add to Watchlist
+//   2. Remove from Watchlist
 //   3. Create Collection
 //   4. Delete Collection
 //   5. Create Preset
 //   6. Delete Preset
-//   7. Dashboard stats derivation
-//   8. Continue Watching selection
-//   9. Discover vault membership check
+//   7. Watchlist fetch (all 5 statuses)
+//   8. Fetch collections (Discover membership check)
+//   9. Preset fetch flow
+//
+// NOTE: Dashboard-specific regression tests (stats derivation, continue
+// watching selection) were removed when the Dashboard page was deleted.
+// Those responsibilities now live in Watchlist + Profile.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
@@ -46,10 +50,9 @@ import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { createVaultItemInSupabase, deleteVaultItemInSupabase, fetchVaultFromSupabase } from "~/features/watchlist/vaultAdapter";
 import { createCollectionInSupabase, deleteCollectionInSupabase, fetchCollectionsFromSupabase } from "~/features/collections/collectionAdapter";
 import { createPresetInSupabase, deletePresetFromSupabase, fetchPresetsFromSupabase } from "~/features/watchlist/presetAdapter";
-import { getRecommendation } from "~/features/dashboard/recommendationEngine";
 
 // Fixtures
-import { makeMovie, makeTVSeries, makeVaultFilters } from "~/__test-fixtures__/factories";
+import { makeMovie, makeVaultFilters } from "~/__test-fixtures__/factories";
 import type { VaultRow, CollectionRow, PresetRow } from "~/lib/supabase/repositories";
 
 const mockVaultRow: VaultRow = {
@@ -102,9 +105,9 @@ describe("Critical Flow Regression Tests", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────
-  // 1. Add to Vault
+  // 1. Add to Watchlist
   // ───────────────────────────────────────────────────────────────────
-  describe("Add to Vault flow", () => {
+  describe("Add to Watchlist flow", () => {
     it("creates a vault item via createVaultItemInSupabase", async () => {
       const mockRepo = {
         createVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
@@ -139,9 +142,9 @@ describe("Critical Flow Regression Tests", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────
-  // 2. Remove from Vault
+  // 2. Remove from Watchlist
   // ───────────────────────────────────────────────────────────────────
-  describe("Remove from Vault flow", () => {
+  describe("Remove from Watchlist flow", () => {
     it("soft-deletes a vault item via deleteVaultItemInSupabase", async () => {
       const mockRepo = {
         deleteVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
@@ -281,9 +284,9 @@ describe("Critical Flow Regression Tests", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────
-  // 7. Dashboard stats derivation
+  // 7. Watchlist fetch (all 5 statuses)
   // ───────────────────────────────────────────────────────────────────
-  describe("Dashboard stats derivation", () => {
+  describe("Watchlist fetch flow", () => {
     it("fetches vault items across all 5 statuses", async () => {
       const mockRepo = {
         getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null }),
@@ -303,40 +306,7 @@ describe("Critical Flow Regression Tests", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────
-  // 8. Continue Watching selection
-  // ───────────────────────────────────────────────────────────────────
-  describe("Continue Watching selection", () => {
-    it("picks the most recently watched Watching item", () => {
-      const watchlist = [
-        makeTVSeries({ id: "old", status: "Watching", watchProgress: { updatedAt: "2024-01-01T00:00:00Z" } as never }),
-        makeTVSeries({ id: "new", status: "Watching", watchProgress: { updatedAt: "2024-06-01T00:00:00Z" } as never }),
-        makeMovie({ id: "planned", status: "Planned" }),
-      ];
-      const result = getRecommendation(watchlist, null, 0);
-      expect(result.context).toBe("continue");
-      expect(result.item?.id).toBe("new");
-      expect(result.isResume).toBe(true);
-    });
-
-    it("falls back to Tonight's Pick when no Watching items", () => {
-      const watchlist = [
-        makeMovie({ id: "1", status: "Planned" }),
-        makeMovie({ id: "2", status: "Planned" }),
-      ];
-      const result = getRecommendation(watchlist, null, 0);
-      expect(result.context).toBe("tonight");
-      expect(result.badge).toBe("TONIGHT'S PICK");
-    });
-
-    it("returns empty context for empty vault", () => {
-      const result = getRecommendation([], null, 0);
-      expect(result.context).toBe("empty");
-      expect(result.item).toBeNull();
-    });
-  });
-
-  // ───────────────────────────────────────────────────────────────────
-  // 9. Fetch collections (Discover membership check)
+  // 8. Fetch collections (Discover membership check)
   // ───────────────────────────────────────────────────────────────────
   describe("Fetch collections flow", () => {
     it("fetches user collections with entries", async () => {
@@ -362,7 +332,7 @@ describe("Critical Flow Regression Tests", () => {
   });
 
   // ───────────────────────────────────────────────────────────────────
-  // 10. Preset fetch flow
+  // 9. Preset fetch flow
   // ───────────────────────────────────────────────────────────────────
   describe("Preset fetch flow", () => {
     it("fetches presets and maps them to FilterPreset", async () => {
