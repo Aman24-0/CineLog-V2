@@ -37,6 +37,9 @@ import {
   getVaultState
 } from "./discover.read";
 import {
+  getAllCuratedUniverses,
+  getCuratedUniverseBySlug,
+  getCuratedUniverseEntries,
   getRelatedUniverses,
   getSubscribedUniverses,
   getUniverseMembership
@@ -44,6 +47,7 @@ import {
 import { getDiscoverMetadata, getUserMediaContext } from "./discover.context";
 import type {
   CollectionMembership,
+  CuratedUniverseEntryRow,
   CuratedUniverseRow,
   DiscoverBooleanResult,
   DiscoverListResult,
@@ -132,6 +136,21 @@ export class DiscoverRepository {
     userId: string
   ): Promise<DiscoverListResult<{ subscription: UserUniverseSubscriptionRow; universe: CuratedUniverseRow }>> {
     return getSubscribedUniverses(this.supabase, userId);
+  }
+
+  /** Get ALL curated universes — the complete developer-managed catalog (Add Universe dialog). */
+  getAllCuratedUniverses(): Promise<DiscoverListResult<CuratedUniverseRow>> {
+    return getAllCuratedUniverses(this.supabase);
+  }
+
+  /** Get a single curated universe by its slug (URL-safe identifier). */
+  getCuratedUniverseBySlug(slug: string): Promise<DiscoverResult<CuratedUniverseRow>> {
+    return getCuratedUniverseBySlug(this.supabase, slug);
+  }
+
+  /** Get all entries for a curated universe, ordered by position ascending. */
+  getCuratedUniverseEntries(universeId: string): Promise<DiscoverListResult<CuratedUniverseEntryRow>> {
+    return getCuratedUniverseEntries(this.supabase, universeId);
   }
 
   // ---- Aggregated context ----------------------------------------------

@@ -31,6 +31,12 @@ import { findInVault } from "~/shared/utils/vaultMatch";
  *   "The Sopranos". The openTitle helper matches on BOTH id AND
  *   media_type (via findInVault) so a search for Stalker never
  *   accidentally opens The Sopranos just because they share ID 1398.
+ *
+ * HISTORY SYNC (BUG 3 fix):
+ *   Opening the modal pushes a history entry so the browser Back button
+ *   closes the modal (instead of navigating away). Closing via the X
+ *   button or ESC pops the history entry. The popstate listener ensures
+ *   the modal closes if the user presses Back.
  */
 export interface SelectedItem {
   /** TMDB identity — always present */
@@ -40,6 +46,30 @@ export interface SelectedItem {
 }
 
 const [selectedItem, setSelectedItem] = createSignal<SelectedItem | null>(null);
+export { setSelectedItem };
+
+// Track whether the current history entry is ours (so we don't pop twice).
+let historyEntryOurs = false;
+
+/**
+ * Internal: push a history entry when the modal opens, and listen for
+ * popstate to close the modal when the user presses Back.
+ */
+function pushHistoryForModal() {
+  if (typeof window === "undefined") return;
+  historyEntryOurs = true;
+  window.history.pushState({ cinelogModal: true }, "");
+  window.addEventListener("popstate", handlePopState);
+}
+
+function handlePopState() {
+  // The user pressed Back — close the modal (don't re-push history).
+  historyEntryOurs = false;
+  setSelectedItem(null);
+  if (typeof window !== "undefined") {
+    window.removeEventListener("popstate", handlePopState);
+  }
+}
 
 /**
  * openTitle — the single entry point for opening the Details modal.
@@ -50,11 +80,8 @@ const [selectedItem, setSelectedItem] = createSignal<SelectedItem | null>(null);
  * the ownership-boundary logic so callers never construct fake
  * WatchlistItems with default statuses.
  *
- * The baseItem may be a real WatchlistItem (from the vault) or a
- * TMDB-derived shape (from Discover / Search). Either way, the helper
- * checks the vault by id AND media_type (via findInVault) and uses the
- * REAL vault item as vaultItem when present — never the passed-in
- * baseItem's status/rating.
+ * Also pushes a browser history entry so the Back button closes the
+ * modal instead of navigating away from the page.
  */
 export function openTitle(baseItem: WatchlistItem, vault: WatchlistItem[]): void {
   const vaultItem = findInVault(vault, baseItem);
@@ -64,12 +91,33 @@ export function openTitle(baseItem: WatchlistItem, vault: WatchlistItem[]): void
   // not from a Discover-constructed fake).
   const finalBase = vaultItem ?? baseItem;
   setSelectedItem({ baseItem: finalBase, vaultItem });
+  pushHistoryForModal();
+}
+
+/**
+ * closeTitle — the single entry point for closing the Details modal.
+ *
+ * Pops the history entry we pushed in openTitle (if it's still ours),
+ * and clears the selectedItem signal.
+ */
+export function closeTitle(): void {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("popstate", handlePopState);
+    if (historyEntryOurs) {
+      historyEntryOurs = false;
+      // Use history.back() so the URL bar stays clean. This triggers
+      // popstate, but we've already removed the listener.
+      window.history.back();
+    }
+  }
+  setSelectedItem(null);
 }
 
 export function useModalState() {
   return {
     selectedItem,
     setSelectedItem,
-    openTitle
+    openTitle,
+    closeTitle
   };
 }

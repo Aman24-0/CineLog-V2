@@ -9,7 +9,7 @@ import {
   on,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useModalState } from "~/shared/hooks/useModalState";
+import { useModalState, setSelectedItem as setSelectedItemDirect } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { useDetails } from "~/features/details/useDetails";
 import DetailsSkeleton from "~/features/details/components/DetailsSkeleton";
@@ -44,7 +44,7 @@ import { useDetailsActions } from "./useDetailsActions";
  *   sections gate on `vaultItem` — never on a fake default status.
  */
 export default function DetailsModal() {
-  const { selectedItem, setSelectedItem } = useModalState();
+  const { selectedItem, closeTitle } = useModalState();
   const { watchlist } = useVault();
   const { tmdb, omdb, loading, error, retry } = useDetails(selectedItem);
 
@@ -76,13 +76,18 @@ export default function DetailsModal() {
     watchlist,
     form,
     resetTo,
-    setSelectedItem,
+    setSelectedItem: (item) => {
+      // The actions hook uses setSelectedItem to switch titles. We don't
+      // need history sync here because the modal stays open — we're just
+      // swapping the content. Import setSelectedItem directly for this.
+      setSelectedItemDirect(item);
+    },
   });
 
   // Reset trailer state whenever the open title changes.
   createEffect(on(vaultItem, () => setShowTrailer(false)));
 
-  const close = () => setSelectedItem(null);
+  const close = () => closeTitle();
 
   onMount(() => {
     document.body.style.overflow = "hidden";
@@ -95,6 +100,8 @@ export default function DetailsModal() {
     };
     window.addEventListener("keydown", handleEsc);
     onCleanup(() => {
+      // Always restore body overflow on unmount — prevents black screen
+      // if the modal unmounts unexpectedly (BUG 1 fix).
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleEsc);
     });
@@ -131,6 +138,27 @@ export default function DetailsModal() {
             class="w-full max-w-xl lg:max-w-[800px] relative z-10"
             onClick={(e) => e.stopPropagation()}
           >
+            {/* Close button — rendered at the modal-container level (NOT inside
+                the hero) so it stays fixed when the user scrolls. Previously
+                the close button was inside .cinematic-hero which has
+                overflow:hidden + scrolls out of view, causing the button to
+                disappear (BUG 2 fix). position:fixed + z-index:30 keeps it
+                above the hero (z:20) and always visible. */}
+            <button
+              onClick={close}
+              class="cinematic-close-btn"
+              aria-label="Close details"
+              style={{ position: "fixed" }}
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
+                close
+              </span>
+            </button>
+
             <Show when={!loading()} fallback={<DetailsSkeleton />}>
               <Show when={!error()} fallback={<DetailsError onRetry={retry} />}>
                 <div class="cinematic-modal modal-sheet-enter">

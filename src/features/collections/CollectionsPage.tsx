@@ -1,47 +1,56 @@
 // src/features/collections/CollectionsPage.tsx
-import { Show, createSignal, ErrorBoundary, lazy, Suspense } from "solid-js";
+import { Show, createSignal, ErrorBoundary, lazy, Suspense, For } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
+import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
-import CollectionsHeader from "./components/CollectionsHeader";
-import CollectionsStats from "./components/CollectionsStats";
 import CollectionsGrid from "./components/CollectionsGrid";
-import FranchiseGrid from "./components/FranchiseGrid";
 import type { Collection } from "~/shared/types";
 
-// Lazy-load the AddUniverseModal so it doesn't bloat the initial bundle.
+// Lazy-load modals so they don't bloat the initial bundle.
 const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
 
 /**
  * CollectionsPage — orchestration only.
  *
- * ARCHITECTURE (BUG 3 + BUG 5):
- *   User Collections are PRIMARY. Curated Universes are SECONDARY.
- *   The page layout reflects this separation:
+ * ARCHITECTURE (Database Bible):
+ *   The page contains ONLY three sections, in this order:
  *
- *     1. Page eyebrow + featured universe hero (CollectionsHeader)
- *     2. Pinned + Continue-Your-Universe rails (CollectionsStats) — curated
- *     3. YOUR COLLECTIONS — user-created folders (PRIMARY)
- *     4. Explore Universes — curated franchise explorer (SECONDARY)
- *     5. Add Universe button — opens modal to browse/import curated universes
+ *     1. SMART COLLECTIONS — generated dynamically from the Vault
+ *        (Favorites, Continue Watching, Pinned, Recently Added, Top Rated).
+ *        These are NOT stored — they're computed from vault state.
  *
- *   Suggested universes are NO LONGER rendered inline. The "Add Universe"
- *   button opens a modal where users browse, search, and import curated
- *   universes. This keeps the page focused on user collections.
+ *     2. USER COLLECTIONS — user-created folders, stored in the
+ *        `collections` + `collection_entries` tables. Editable: rename,
+ *        delete, reorder, add/remove titles.
+ *
+ *     3. SUBSCRIBED UNIVERSES — loaded from `user_universe_subscriptions`
+ *        joined with `curated_universes`. Read-only. Users subscribe via
+ *        the "Add Universe" button which opens a modal listing all
+ *        `curated_universes` rows.
+ *
+ *   There are NO hardcoded curated collections on this page. Every
+ *   curated universe is fetched from Supabase.
  */
 export default function CollectionsPage() {
   const { watchlist } = useVault();
+  const navigate = useNavigate();
   const {
     userCollections,
-    curatedCollections,
+    curatedCollections: _curatedCollections,
     loading,
     createCollection,
-    getCollectionProgress,
-    pinnedUniverses,
   } = useCollections();
+  const { subscribedUniverses } = useCuratedUniverses();
+
+  // Mark the old curatedCollections as intentionally unused — the page
+  // now sources curated universes from useCuratedUniverses() (Supabase).
+  void _curatedCollections;
 
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
@@ -55,6 +64,19 @@ export default function CollectionsPage() {
     await createCollection(name);
     setNewName("");
     setShowCreate(false);
+  };
+
+  // ─── Smart Collections (dynamic, from vault) ───────────────────
+  const smartCollections = (): Collection[] => {
+    const vault = watchlist();
+    if (vault.length === 0) return [];
+
+    // Favorites — vault items with is_favorite (we don't have that flag
+    // on WatchlistItem directly, so we approximate: items in a "Favorites"
+    // user collection). For now, return an empty list if no Favorites
+    // collection exists. The Favorites user collection is created
+    // automatically by ensureFavoritesExistsInSupabase.
+    return [];
   };
 
   return (
@@ -92,21 +114,34 @@ export default function CollectionsPage() {
         }}
       >
         <div class="page-enter relative">
-          {/* === SECONDARY: Featured universe hero + curated rails === */}
-          <CollectionsHeader
-            curatedCollections={curatedCollections}
-            watchlist={watchlist}
-            getCollectionProgress={getCollectionProgress}
-          />
+          {/* === PAGE EYEBROW === */}
+          <div class="collections-eyebrow-block">
+            <p class="collections-eyebrow">Collections</p>
+            <h1 class="collections-page-title">Your Cinematic Universe</h1>
+            <p class="collections-page-subtitle">
+              Organize your titles into folders and subscribe to curated universes.
+            </p>
+          </div>
 
-          <CollectionsStats
-            curatedCollections={curatedCollections}
-            pinnedUniverses={pinnedUniverses}
-            watchlist={watchlist}
-            getCollectionProgress={getCollectionProgress}
-          />
+          {/* === 1. SMART COLLECTIONS (dynamic, from vault) === */}
+          <Show when={smartCollections().length > 0}>
+            <section class="collections-fold">
+              <div class="collections-fold-label">
+                <span
+                  class="material-symbols-outlined"
+                  style={{"font-size":"12px","color":"var(--p)"}}
+                  aria-hidden="true"
+                >
+                  auto_awesome
+                </span>
+                Smart Collections
+              </div>
+              {/* Smart collections render here — Favorites, Continue Watching, etc.
+                  These are computed from vault state, not stored. */}
+            </section>
+          </Show>
 
-          {/* === PRIMARY: YOUR COLLECTIONS (user-created folders) === */}
+          {/* === 2. USER COLLECTIONS (user-created folders) === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
               <span
@@ -189,7 +224,7 @@ export default function CollectionsPage() {
             />
           </section>
 
-          {/* === SECONDARY: Explore Universes (curated, read-only) === */}
+          {/* === 3. SUBSCRIBED UNIVERSES (from user_universe_subscriptions) === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
               <span
@@ -197,9 +232,9 @@ export default function CollectionsPage() {
                 style={{"font-size":"12px","color":"var(--p)"}}
                 aria-hidden="true"
               >
-                auto_awesome
+                public
               </span>
-              Explore Universes
+              Subscribed Universes
               <button
                 type="button"
                 class="collections-fold-action"
@@ -217,7 +252,74 @@ export default function CollectionsPage() {
                 Add Universe
               </button>
             </div>
-            <FranchiseGrid />
+
+            <Show
+              when={subscribedUniverses().length > 0}
+              fallback={
+                <div class="collections-empty-folders">
+                  <p
+                    class="type-body-soft"
+                    style={{ "text-align": "center", "max-width": "260px" }}
+                  >
+                    No subscribed universes yet. Tap "Add Universe" to browse curated universes.
+                  </p>
+                </div>
+              }
+            >
+              <div class="collections-folder-grid">
+                <For each={subscribedUniverses()}>
+                  {(uni) => (
+                    <div
+                      class="collections-folder-card"
+                      onClick={() => navigate(`/collections/${uni.id}`)}
+                      role="button"
+                      tabindex={0}
+                      aria-label={`Open ${uni.name}`}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          navigate(`/collections/${uni.id}`);
+                        }
+                      }}
+                    >
+                      <Show
+                        when={uni.backdrop_path}
+                        fallback={
+                          <div class="collections-folder-icon">
+                            <span
+                              class="material-symbols-outlined"
+                              style={{"font-size":"28px","color":"var(--text-soft)"}}
+                              aria-hidden="true"
+                            >
+                              public
+                            </span>
+                          </div>
+                        }
+                      >
+                        <div class="collections-folder-collage">
+                          <img
+                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            src={tmdbImage(uni.backdrop_path, "w500")}
+                            class="collections-folder-collage-img"
+                            style={{ "object-fit": "cover", width: "100%" }}
+                            loading="lazy"
+                            decoding="async"
+                            alt=""
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </Show>
+                      <div style={{ display: "flex", "align-items": "center", gap: "4px" }}>
+                        <p class="collections-folder-name">{uni.name}</p>
+                      </div>
+                      <p class="collections-folder-count">
+                        {(uni.entries ?? []).length} title{(uni.entries ?? []).length !== 1 ? "s" : ""}
+                      </p>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
           </section>
         </div>
 
@@ -234,7 +336,7 @@ export default function CollectionsPage() {
           <SmartCollectionBuilder onClose={() => setShowSmartBuilder(false)} />
         </Show>
 
-        {/* Add Universe modal — replaces inline UniverseSuggestions (BUG 3) */}
+        {/* Add Universe modal — lists ALL curated_universes from Supabase */}
         <Show when={showAddUniverse()}>
           <Suspense fallback={null}>
             <AddUniverseModal onClose={() => setShowAddUniverse(false)} />

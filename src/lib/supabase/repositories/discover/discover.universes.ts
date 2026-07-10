@@ -22,6 +22,7 @@ import type {
   CuratedUniverseEntryRow,
   CuratedUniverseRow,
   DiscoverListResult,
+  DiscoverResult,
   MediaIdentity,
   TypedSupabaseClient,
   UniverseMembership,
@@ -203,6 +204,74 @@ export async function getSubscribedUniverses(
       })),
     error: null
   };
+}
+
+/**
+ * Get ALL curated universes — the complete developer-managed catalog.
+ *
+ * This is the SINGLE source of truth for what universes exist. The
+ * Add Universe dialog consumes this to list every available universe.
+ * If an admin creates a new universe in Supabase, it appears here
+ * immediately — no frontend changes required.
+ *
+ * Ordered by `name` ascending for stable alphabetical display.
+ *
+ * @returns A list of {@link CuratedUniverseRow}. Empty if the admin
+ *          has created no universes.
+ */
+export async function getAllCuratedUniverses(
+  supabase: TypedSupabaseClient
+): Promise<DiscoverListResult<CuratedUniverseRow>> {
+  const { data, error } = await supabase
+    .from(UNIVERSES_TABLE)
+    .select(UNIVERSE_DISCOVER_COLUMNS)
+    .order("name", { ascending: true });
+
+  return { data: (data ?? []) as CuratedUniverseRow[], error: toError(error) };
+}
+
+/**
+ * Get a single curated universe by its slug (the URL-safe identifier).
+ *
+ * Used by the Collection Detail page to resolve `/collections/{slug}`
+ * → the universe row. Returns null if no universe has that slug.
+ *
+ * @returns The universe row, or null if not found / error.
+ */
+export async function getCuratedUniverseBySlug(
+  supabase: TypedSupabaseClient,
+  slug: string
+): Promise<DiscoverResult<CuratedUniverseRow>> {
+  const { data, error } = await supabase
+    .from(UNIVERSES_TABLE)
+    .select(UNIVERSE_DISCOVER_COLUMNS)
+    .eq("slug", slug)
+    .maybeSingle();
+
+  return { data: data as CuratedUniverseRow | null, error: toError(error) };
+}
+
+/**
+ * Get all entries for a curated universe, ordered by `position` ascending.
+ *
+ * These are developer-managed entries (Database Bible §08) — the user
+ * cannot edit them. Each entry carries a `tmdb_id` + `media_type` that
+ * the UI resolves to display metadata via TMDB.
+ *
+ * @returns A list of {@link CuratedUniverseEntryRow}. Empty if the
+ *          universe has no entries.
+ */
+export async function getCuratedUniverseEntries(
+  supabase: TypedSupabaseClient,
+  universeId: string
+): Promise<DiscoverListResult<CuratedUniverseEntryRow>> {
+  const { data, error } = await supabase
+    .from(UNIVERSE_ENTRIES_TABLE)
+    .select(UNIVERSE_ENTRY_DISCOVER_COLUMNS)
+    .eq("universe_id", universeId)
+    .order("position", { ascending: true });
+
+  return { data: (data ?? []) as CuratedUniverseEntryRow[], error: toError(error) };
 }
 
 /**
