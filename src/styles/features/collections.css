@@ -470,6 +470,9 @@
   font-weight: 700;
   color: var(--text-strong);
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .franchise-trigger-meta {
   font-family: 'Azeret Mono', monospace;
@@ -479,6 +482,9 @@
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 .franchise-trigger-chevron {
   font-size: 20px;

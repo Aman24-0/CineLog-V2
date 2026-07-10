@@ -1,7 +1,9 @@
 // src/routes/collections/[id].tsx
-import { lazy } from "solid-js";
+import { clientOnly } from "@solidjs/start";
 
-const CollectionDetailPage = lazy(() => import("~/features/collections/CollectionDetailPage"));
+// clientOnly prevents SSR hydration mismatches on the collection detail page
+// which depends on Supabase auth state and dynamic collection data.
+const CollectionDetailPage = clientOnly(() => import("~/features/collections/CollectionDetailPage"));
 
 export default function CollectionDetailRoute() {
   return <CollectionDetailPage />;

@@ -1,7 +1,7 @@
 // src/routes/collections/[id]/edit.tsx
-import { lazy } from "solid-js";
+import { clientOnly } from "@solidjs/start";
 
-const UniverseEditPage = lazy(() => import("~/features/collections/components/UniverseEditPage"));
+const UniverseEditPage = clientOnly(() => import("~/features/collections/components/UniverseEditPage"));
 
 export default function UniverseEditRoute() {
   return <UniverseEditPage />;
