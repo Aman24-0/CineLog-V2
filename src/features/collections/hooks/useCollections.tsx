@@ -53,21 +53,25 @@ const useCollectionsLogic = () => {
   };
 
   onMount(() => {
-    const subscription = onSessionChange(async (_event, session: Session | null) => {
-      const supabaseUid = session?.user?.id ?? null;
-      if (supabaseUid) {
-        setLoading(true);
-        ensureFavoritesExistsInSupabase(supabaseUid).catch(() => {});
-        await Promise.all([
-          refreshCollections(supabaseUid),
-          universePrefs.refreshUniversePrefs(supabaseUid),
-        ]);
-      } else {
-        setUserCollections([]);
-        setLoading(false);
-      }
-    });
-    unsubAuth = () => subscription.unsubscribe();
+    try {
+      const subscription = onSessionChange(async (_event, session: Session | null) => {
+        const supabaseUid = session?.user?.id ?? null;
+        if (supabaseUid) {
+          setLoading(true);
+          ensureFavoritesExistsInSupabase(supabaseUid).catch(() => {});
+          await Promise.all([
+            refreshCollections(supabaseUid),
+            universePrefs.refreshUniversePrefs(supabaseUid),
+          ]);
+        } else {
+          setUserCollections([]);
+          setLoading(false);
+        }
+      });
+      unsubAuth = () => subscription.unsubscribe();
+    } catch (err) {
+      console.error("[useCollections] Auth subscription failed:", err);
+    }
   });
 
   onCleanup(() => { if (unsubAuth) unsubAuth(); });

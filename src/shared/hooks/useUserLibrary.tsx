@@ -87,13 +87,21 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   /**
    * The ONE auth subscription. Mounted once in the provider.
    * On session change: clears cache, reloads library.
+   *
+   * Wrapped in try/catch so missing env vars (e.g. during first Vercel
+   * deploy before env vars are set) don't crash the client — the app
+   * still renders, just without auth/session tracking.
    */
   onMount(() => {
     doFetch();
-    const subscription = onSessionChange(() => {
-      doFetch();
-    });
-    unsubAuth = () => subscription.unsubscribe();
+    try {
+      const subscription = onSessionChange(() => {
+        doFetch();
+      });
+      unsubAuth = () => subscription.unsubscribe();
+    } catch (err) {
+      console.error("[UserLibraryProvider] Auth subscription failed:", err);
+    }
   });
 
   onCleanup(() => {

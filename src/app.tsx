@@ -24,24 +24,24 @@ void theme;
 
 export default function App() {
   return (
-    <GlobalErrorBoundary>
-      <UserLibraryProvider>
-        <VaultProvider>
-          <CollectionsProvider>
-            <Router
-              root={(props) => (
+    <Router
+      root={(props) => (
+        <GlobalErrorBoundary>
+          <UserLibraryProvider>
+            <VaultProvider>
+              <CollectionsProvider>
                 <AppShell>
                   <Suspense fallback={<div>Loading...</div>}>
                     {props.children}
                   </Suspense>
                 </AppShell>
-              )}
-            >
-              <FileRoutes />
-            </Router>
-          </CollectionsProvider>
-        </VaultProvider>
-      </UserLibraryProvider>
-    </GlobalErrorBoundary>
+              </CollectionsProvider>
+            </VaultProvider>
+          </UserLibraryProvider>
+        </GlobalErrorBoundary>
+      )}
+    >
+      <FileRoutes />
+    </Router>
   );
 }

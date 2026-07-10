@@ -48,17 +48,21 @@ export function useVaultPresets(): UseVaultPresetsResult {
   };
 
   onMount(() => {
-    const subscription = onSessionChange(
-      async (_event, session: Session | null) => {
-        const supabaseUid = session?.user?.id ?? null;
-        if (supabaseUid) {
-          await refreshPresets(supabaseUid);
-        } else {
-          setPresets([]);
-        }
-      },
-    );
-    unsubAuth = () => subscription.unsubscribe();
+    try {
+      const subscription = onSessionChange(
+        async (_event, session: Session | null) => {
+          const supabaseUid = session?.user?.id ?? null;
+          if (supabaseUid) {
+            await refreshPresets(supabaseUid);
+          } else {
+            setPresets([]);
+          }
+        },
+      );
+      unsubAuth = () => subscription.unsubscribe();
+    } catch (err) {
+      console.error("[useVault] Presets auth subscription failed:", err);
+    }
   });
 
   onCleanup(() => {

@@ -5,10 +5,13 @@
  * Wraps the entire application below the providers. Any uncaught
  * runtime error in any component displays a friendly fallback UI
  * with a retry button and a "Back to Home" link.
+ *
+ * IMPORTANT: The fallback uses window.location (NOT useNavigate) so it
+ * works even if the error occurs outside or before the Router context
+ * is established (e.g. during provider initialization).
  */
 
 import { ErrorBoundary, Show, type JSX, createSignal } from "solid-js";
-import { useNavigate } from "@solidjs/router";
 
 interface GlobalErrorFallbackProps {
   error: Error;
@@ -16,7 +19,6 @@ interface GlobalErrorFallbackProps {
 }
 
 function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
-  const navigate = useNavigate();
   const [retrying, setRetrying] = createSignal(false);
 
   const handleRetry = () => {
@@ -25,7 +27,11 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
   };
 
   const handleHome = () => {
-    navigate("/");
+    // Use window.location instead of useNavigate() so the fallback
+    // works even if the Router context isn't available yet.
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    }
     props.reset();
   };
 
