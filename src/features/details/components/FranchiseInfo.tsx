@@ -62,7 +62,7 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
 
   return (
     <Show when={franchise()}>
-      <DetailSection label={franchise()!.name} icon="auto_awesome">
+      <DetailSection label="Collection" icon="auto_awesome">
         <button
           type="button"
           class="franchise-trigger"

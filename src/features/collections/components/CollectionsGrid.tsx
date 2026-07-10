@@ -44,8 +44,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
       <div class="collections-folder-grid">
         <For each={props.userCollections()}>
           {(col) => (
-            <button
-              type="button"
+            <div
               class={`collections-folder-card${
                 col.isFavorites ? " collections-folder-favorites" : ""
               }`}
@@ -54,7 +53,15 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
                 e.preventDefault();
                 props.onEditFolder(col);
               }}
+              role="button"
+              tabindex={0}
               aria-label={`Open ${col.name}`}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  navigate(`/collections/${col.id}`);
+                }
+              }}
             >
               {/* Poster collage preview */}
               <Show
@@ -146,7 +153,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
                   more_vert
                 </span>
               </button>
-            </button>
+            </div>
           )}
         </For>
       </div>
