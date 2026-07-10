@@ -2,26 +2,26 @@
 //
 // SettingsPage — the settings hub.
 //
-// Settings is NOT inside Profile. The Profile only has a navigation
-// row that links here. This keeps the Profile a portrait, not a
-// control panel.
+// Not Android settings. Not iOS settings. Not Chrome settings.
+// Think Linear, Notion, Arc Browser, Raycast — calm, organized, beautiful.
 //
-// Structure:
-//   • Header (eyebrow + title + back button)
-//   • Preferences section: Appearance, Notifications, Privacy
-//   • Data section: Sync
-//   • Advanced section: Developer
-//   • Account section: Account, Sign Out (LAST — always last)
-//
-// Sign Out is the LAST option in the Account section. It is NEVER
-// placed on the avatar — the avatar navigates to /profile.
+// Sections:
+//   • Account — email, password, providers, delete, sign out
+//   • Appearance — theme, accent, density, motion
+//   • Playback — (future) default status, autoplay
+//   • Notifications — push prefs
+//   • TMDB — API config
+//   • Sync — Supabase, import/export, backup
+//   • Privacy — data, visibility
+//   • Developer — debug tools
+//   • Danger Zone — delete account
 
 import { type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import PageContainer from "~/shared/ui/PageContainer";
 
-interface SettingsRowDef {
+interface SettingRowDef {
   href?: string;
   label: string;
   desc: string;
@@ -38,38 +38,41 @@ const SettingsPage: Component = () => {
     navigate("/discover");
   };
 
-  const preferencesRows: SettingsRowDef[] = [
-    { href: "/settings/appearance", label: "Appearance", desc: "Theme, accent, density", icon: "palette" },
+  const accountRows: SettingRowDef[] = [
+    { href: "/settings/account", label: "Account", desc: "Email, password, providers, sessions", icon: "manage_accounts" },
+  ];
+
+  const preferencesRows: SettingRowDef[] = [
+    { href: "/settings/appearance", label: "Appearance", desc: "Theme, accent, density, motion", icon: "palette" },
     { href: "/settings/notifications", label: "Notifications", desc: "Push preferences", icon: "notifications" },
-    { href: "/settings/privacy", label: "Privacy", desc: "Data visibility", icon: "lock" },
   ];
 
-  const dataRows: SettingsRowDef[] = [
-    { href: "/settings/sync", label: "Sync", desc: "Supabase, import / export", icon: "sync" },
+  const dataRows: SettingRowDef[] = [
+    { href: "/settings/sync", label: "Sync", desc: "Supabase, import / export, backup", icon: "sync" },
+    { href: "/settings/privacy", label: "Privacy", desc: "Data, storage, visibility", icon: "lock" },
   ];
 
-  const advancedRows: SettingsRowDef[] = [
-    { href: "/settings/developer", label: "Developer", desc: "Debug options", icon: "code" },
+  const advancedRows: SettingRowDef[] = [
+    { href: "/settings/developer", label: "Developer", desc: "Debug, feature flags, diagnostics", icon: "code" },
   ];
 
-  const accountRows: SettingsRowDef[] = [
-    { href: "/settings/account", label: "Account", desc: "Email, password, delete", icon: "manage_accounts" },
-    { label: "Sign Out", desc: "End your session", icon: "logout", danger: true, onClick: handleSignOut },
+  const sessionRows: SettingRowDef[] = [
+    { label: "Sign Out", desc: "End your session on this device", icon: "logout", danger: true, onClick: handleSignOut },
   ];
 
-  const renderRow = (row: SettingsRowDef) => {
+  const renderRow = (row: SettingRowDef) => {
     const content = (
       <>
-        <div class={`settings-row-icon${row.danger ? "" : ""}`} aria-hidden="true">
+        <div class="setting-row-icon" aria-hidden="true">
           <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
             {row.icon}
           </span>
         </div>
-        <div class="settings-row-text">
-          <span class="settings-row-label">{row.label}</span>
-          <span class="settings-row-desc">{row.desc}</span>
+        <div class="setting-row-text">
+          <span class="setting-row-label">{row.label}</span>
+          <span class="setting-row-desc">{row.desc}</span>
         </div>
-        <span class="material-symbols-outlined settings-row-chevron" aria-hidden="true">
+        <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">
           {row.onClick ? "logout" : "chevron_right"}
         </span>
       </>
@@ -79,7 +82,7 @@ const SettingsPage: Component = () => {
       return (
         <button
           type="button"
-          class={`settings-row focus-ring${row.danger ? " settings-row-danger" : ""}`}
+          class={`setting-row focus-ring${row.danger ? " setting-row-danger" : ""}`}
           onClick={row.onClick}
           aria-label={row.label}
         >
@@ -90,7 +93,7 @@ const SettingsPage: Component = () => {
     return (
       <a
         href={row.href}
-        class={`settings-row focus-ring${row.danger ? " settings-row-danger" : ""}`}
+        class={`setting-row focus-ring${row.danger ? " setting-row-danger" : ""}`}
         aria-label={row.label}
       >
         {content}
@@ -100,57 +103,61 @@ const SettingsPage: Component = () => {
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
-      <div class="settings-page profile-fade-in">
-        {/* Back button */}
-        <div style={{ padding: "var(--sp-4) var(--sp-5) 0" }}>
-          <a href="/profile" class="settings-back focus-ring" aria-label="Back to profile">
+      <div class="sec-page sec-fade-in">
+        {/* Header */}
+        <div class="sec-header">
+          <a href="/profile" class="sec-back focus-ring" aria-label="Back to profile">
             <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
               arrow_back
             </span>
             Profile
           </a>
-        </div>
-
-        {/* Header */}
-        <div class="settings-header">
-          <p class="settings-eyebrow">Settings</p>
-          <h1 class="settings-title">Preferences</h1>
-          <p class="settings-subtitle">
-            Manage your experience. Sign out is at the bottom, under Account.
+          <p class="sec-eyebrow">Settings</p>
+          <h1 class="sec-title">Preferences</h1>
+          <p class="sec-subtitle">
+            Manage your experience. Sign out is at the bottom.
           </p>
         </div>
 
         {/* Body */}
-        <div class="settings-body">
+        <div class="sec-body">
+          {/* Account */}
+          <section class="sec-section" style={{ "margin-top": "0" }}>
+            <p class="sec-section-label">Account</p>
+            <div class="setting-group">
+              {accountRows.map(renderRow)}
+            </div>
+          </section>
+
           {/* Preferences */}
-          <section class="settings-section">
-            <p class="settings-section-label">Preferences</p>
-            <div class="settings-group">
+          <section class="sec-section">
+            <p class="sec-section-label">Preferences</p>
+            <div class="setting-group">
               {preferencesRows.map(renderRow)}
             </div>
           </section>
 
           {/* Data */}
-          <section class="settings-section">
-            <p class="settings-section-label">Data</p>
-            <div class="settings-group">
+          <section class="sec-section">
+            <p class="sec-section-label">Data</p>
+            <div class="setting-group">
               {dataRows.map(renderRow)}
             </div>
           </section>
 
           {/* Advanced */}
-          <section class="settings-section">
-            <p class="settings-section-label">Advanced</p>
-            <div class="settings-group">
+          <section class="sec-section">
+            <p class="sec-section-label">Advanced</p>
+            <div class="setting-group">
               {advancedRows.map(renderRow)}
             </div>
           </section>
 
-          {/* Account — Sign Out is LAST */}
-          <section class="settings-section">
-            <p class="settings-section-label">Account</p>
-            <div class="settings-group">
-              {accountRows.map(renderRow)}
+          {/* Session — Sign Out is LAST */}
+          <section class="sec-section">
+            <p class="sec-section-label">Session</p>
+            <div class="setting-group">
+              {sessionRows.map(renderRow)}
             </div>
           </section>
         </div>

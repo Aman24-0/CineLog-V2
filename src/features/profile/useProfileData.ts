@@ -65,7 +65,7 @@ export interface ProfileData {
  *   • refetch()   — re-run the loader
  */
 export function useProfileData() {
-  const { user, isSignedIn } = useAuth();
+  const { user, isSignedIn, authReady } = useAuth();
   const profileRepo = useProfile();
   const library = useUserLibrary();
 
@@ -108,7 +108,13 @@ export function useProfileData() {
 
   const [data, { refetch }] = createResource(uid, loader);
 
-  const loading = createMemo(() => data.loading);
+  // loading is true while auth is resolving OR while the resource is
+  // fetching. This prevents a blank page when the user first navigates
+  // to /profile — auth hasn't resolved yet, so uid() is null, so
+  // createResource doesn't start, so data.loading is false. Without
+  // this authReady check, all three Show conditions in ProfilePage
+  // would be false and nothing would render.
+  const loading = createMemo(() => !authReady() || data.loading);
   const error = createMemo(() => data.error ?? null);
 
   /**
@@ -142,7 +148,7 @@ export function useProfileData() {
     refetch,
     // Expose the watchlist for the summary section.
     watchlist: library.watchlist,
-    isGuest: () => !isSignedIn(),
+    isGuest: () => authReady() && !isSignedIn(),
   };
 }
 
