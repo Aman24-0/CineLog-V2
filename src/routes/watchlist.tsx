@@ -7,7 +7,7 @@ const WatchlistView = lazy(() => import("~/features/watchlist/WatchlistView"));
 export default function WatchlistRoute() {
   return (
     <>
-      <Title>CineLog — Vault</Title>
+      <Title>CineLog — Watchlist</Title>
       <WatchlistView />
     </>
   );

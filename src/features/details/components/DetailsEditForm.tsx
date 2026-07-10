@@ -22,7 +22,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       class="glass-surface p-5 rounded-2xl space-y-5 animate-fade-in border mt-4 shadow-xl"
       style={{"border-color":"var(--border-active)"}}
       role="form"
-      aria-label="Edit vault entry"
+      aria-label="Edit watchlist entry"
     >
       <div class="grid grid-cols-2 gap-4">
         <div>

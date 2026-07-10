@@ -153,7 +153,7 @@ export default function WatchlistView() {
             <EmptyState
               isGuest={false}
               onLogin={() => {}}
-              title="Error Loading Vault"
+              title="Error Loading Watchlist"
               message={error() || "An unknown error occurred."}
               actionText="Reload Page"
               onAction={handleReload}

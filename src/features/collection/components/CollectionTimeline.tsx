@@ -106,7 +106,7 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
                 <Show when={item.inVault && !item.status}>
                   <span
                     class="collection-timeline-status collection-timeline-status-planned"
-                    aria-label="In vault"
+                    aria-label="In watchlist"
                   />
                 </Show>
               </div>

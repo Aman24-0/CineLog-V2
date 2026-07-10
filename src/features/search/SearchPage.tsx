@@ -93,12 +93,12 @@ export default function SearchPage() {
   const handleAddToVault = async (title: TMDBTitle) => {
     const uid = getCurrentUid();
     if (!uid) {
-      showToast("Sign in to save titles to your vault.", "error");
+      showToast("Sign in to save titles to your watchlist.", "error");
       openAuthModal();
       return;
     }
     if (isGuest()) {
-      showToast("Sign in to save titles to your vault.", "error");
+      showToast("Sign in to save titles to your watchlist.", "error");
       openAuthModal();
       return;
     }
@@ -118,9 +118,9 @@ export default function SearchPage() {
       };
       await createVaultItemInSupabase(uid, item);
       const name = title.title || title.name || "Title";
-      showToast(`Added "${name}" to your vault`, "success", 1800);
+      showToast(`Added "${name}" to your watchlist`, "success", 1800);
     } catch (err) {
-      console.error("Failed to add to vault:", err);
+      console.error("Failed to add to watchlist:", err);
       showToast("Failed to save. Try again.", "error");
     }
   };

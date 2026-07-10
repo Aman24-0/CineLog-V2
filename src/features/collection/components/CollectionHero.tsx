@@ -65,7 +65,7 @@ export default function CollectionHero(props: CollectionHeroProps) {
               <span class="collection-progress-owned">
                 {props.stats()!.owned} of {props.stats()!.total}
               </span>
-              <span class="collection-progress-label">titles in your vault</span>
+              <span class="collection-progress-label">titles in your watchlist</span>
             </div>
           </div>
         </Show>

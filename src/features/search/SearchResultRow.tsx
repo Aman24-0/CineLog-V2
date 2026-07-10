@@ -81,7 +81,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
         fallback={
           <span
             class="v2-pill v2-pill-accent search-result-pill"
-            aria-label="In your vault"
+            aria-label="In your watchlist"
           >
             <span
               class="material-symbols-outlined"
@@ -90,7 +90,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
             >
               check
             </span>
-            In Vault
+            In Watchlist
           </span>
         }
       >
@@ -98,7 +98,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
           type="button"
           class="search-result-add focus-ring"
           onClick={() => props.onAdd()}
-          aria-label={`Add ${titleOf(props.title)} to your vault`}
+          aria-label={`Add ${titleOf(props.title)} to your watchlist`}
         >
           <span
             class="material-symbols-outlined"

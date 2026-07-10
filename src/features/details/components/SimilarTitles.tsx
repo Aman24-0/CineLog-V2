@@ -131,7 +131,7 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                   />
                   {/* Vault indicator dot — subtle accent if the title is already in the vault */}
                   <Show when={isInVault(props.watchlist, t)}>
-                    <span class="similar-title-vault-dot" aria-label="In your vault" />
+                    <span class="similar-title-vault-dot" aria-label="In your watchlist" />
                   </Show>
                 </div>
                 <p class="similar-title-name">{titleOf(t)}</p>

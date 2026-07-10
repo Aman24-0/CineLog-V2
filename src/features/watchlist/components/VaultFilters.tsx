@@ -54,7 +54,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
-        aria-label="Filter vault"
+        aria-label="Filter watchlist"
       >
         <div
           class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"

@@ -178,7 +178,7 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
                 </Show>
               </p>
             </div>
-            <span class="universe-timeline-missing-badge" aria-label="Not in vault">
+            <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
               <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
             </span>
           </div>

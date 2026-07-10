@@ -94,7 +94,7 @@ export default function DiscoverPage() {
           {isGuest()
             ? "Sign in to make this yours — Spotlight adapts to your taste."
             : taste().isColdStart
-              ? "Add a few titles to your vault and Spotlight will learn your taste."
+              ? "Add a few titles to your watchlist and Spotlight will learn your taste."
               : "Hand-picked from your taste graph. Save what catches your eye."}
         </p>
       </div>

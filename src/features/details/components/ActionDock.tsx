@@ -80,7 +80,7 @@ export default function ActionDock(props: ActionDockProps) {
             disabled={props.isAdding}
             class="action-dock-btn action-dock-btn-primary"
             data-active="true"
-            aria-label="Add to your vault"
+            aria-label="Add to your watchlist"
           >
             <span
               class="material-symbols-outlined"
@@ -92,7 +92,7 @@ export default function ActionDock(props: ActionDockProps) {
             >
               {props.isAdding ? "progress_activity" : "add"}
             </span>
-            <span class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Vault"}</span>
+            <span class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Watchlist"}</span>
           </button>
         }
       >

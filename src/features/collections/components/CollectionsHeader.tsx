@@ -101,7 +101,7 @@ export default function CollectionsHeader(props: CollectionsHeaderProps) {
                   <span class="universe-hero-progress-owned">
                     {featuredProgress().owned} of {featuredProgress().total}
                   </span>
-                  <span class="universe-hero-progress-label">in your vault</span>
+                  <span class="universe-hero-progress-label">in your watchlist</span>
                 </div>
               </div>
               <button

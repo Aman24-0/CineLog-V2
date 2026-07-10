@@ -21,14 +21,14 @@ export default function VaultGrid(props: VaultGridProps) {
         <EmptyState
           isGuest={props.isGuest}
           onLogin={props.onLogin}
-          title={props.isGuest ? "Vault is Empty" : "No Matches"}
+          title={props.isGuest ? "Watchlist is Empty" : "No Matches"}
           message={props.isGuest ? "Sign in to start tracking movies and series." : "No titles match your current filters. Try adjusting or clearing them."}
           actionText={props.isGuest ? "Sign In to Begin" : "Clear Filters"}
           onAction={props.isGuest ? props.onLogin : props.onClearFilters}
         />
       }
     >
-      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in" role="list" aria-label="Vault grid">
+      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in" role="list" aria-label="Watchlist grid">
         <For each={props.items}>
           {(m) => (
             <div role="listitem">

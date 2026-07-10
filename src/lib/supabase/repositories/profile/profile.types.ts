@@ -90,6 +90,13 @@ export interface CreateProfilePayload {
  * columns `deleted_at` / `scheduled_deletion_at` (use the dedicated
  * `scheduleDeletion` / `restoreProfile` / `permanentlyDeleteProfile`
  * methods instead).
+ *
+ * Profile favorites (Phase: Profile page):
+ *   • favoriteMovieId   — TMDB movie id (text) or null to clear
+ *   • favoriteSeriesId  — TMDB tv id (text) or null to clear
+ *   • favoriteDirectorId — TMDB person id (text) or null to clear
+ *   • favoriteGenre     — genre display name (e.g. "Sci-Fi") or null
+ *   • bannerOverridePath — optional TMDB backdrop path or null
  */
 export interface UpdateProfilePayload {
   readonly username?: string;
@@ -99,6 +106,11 @@ export interface UpdateProfilePayload {
   readonly country?: string;
   readonly languageCode?: string;
   readonly timezone?: string;
+  readonly favoriteMovieId?: string | null;
+  readonly favoriteSeriesId?: string | null;
+  readonly favoriteDirectorId?: string | null;
+  readonly favoriteGenre?: string | null;
+  readonly bannerOverridePath?: string | null;
 }
 
 /**

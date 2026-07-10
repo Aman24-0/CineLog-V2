@@ -1,6 +1,5 @@
 // src/features/watchlist/components/VaultHeader.tsx
 import { Show } from "solid-js";
-import { useNavigate } from "@solidjs/router";
 import Icon from "~/shared/ui/Icon";
 
 interface VaultHeaderProps {
@@ -11,32 +10,23 @@ interface VaultHeaderProps {
 }
 
 /**
- * Premium Vault header — title + collections link + view toggle + filter button.
+ * Watchlist header — title + view toggle + filter button.
  *
- * Layout: [VAULT title] ........ [Collections] [view toggle] [filter button]
+ * Navigation restructure (Profile phase):
+ *   The "Collections" button has been REMOVED from this header.
+ *   Collections is now a primary bottom-navigation destination
+ *   (/collections), so a duplicate entry point here would be
+ *   redundant. The Watchlist now focuses purely on the user's
+ *   titles: Watching, Planned, Completed, Dropped, All.
  *
- * The Collections button navigates to /collections — the dedicated
- * Collections page. It's not a bottom nav tab; it's a sibling of the Vault.
+ * Layout: [WATCHLIST title] ........ [view toggle] [filter button]
  */
 export default function VaultHeader(props: VaultHeaderProps) {
-  const navigate = useNavigate();
-
   return (
     <div class="flex justify-between items-center mb-4">
-      <h2 class="type-page-title text-white">VAULT</h2>
+      <h2 class="type-page-title text-white">WATCHLIST</h2>
 
       <div class="flex items-center gap-3">
-        {/* Collections link */}
-        <button
-          onClick={() => navigate("/collections")}
-          class="filter-button focus-ring"
-          data-active={false}
-          aria-label="Open Collections"
-        >
-          <Icon name="collections_bookmark" style={{"font-size":"14px"}} aria-hidden="true" />
-          <span class="hidden sm:inline">Collections</span>
-        </button>
-
         {/* View mode toggle */}
         <div class="view-toggle" role="group" aria-label="View mode">
           <button
@@ -64,7 +54,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           onClick={() => props.onFilterClick()}
           class="filter-button focus-ring"
           data-active={props.activeFilterCount() > 0}
-          aria-label={`Filter vault${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
+          aria-label={`Filter watchlist${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
           aria-pressed={props.activeFilterCount() > 0}
         >
           <Icon name="tune" style={{"font-size":"14px"}} aria-hidden="true" />

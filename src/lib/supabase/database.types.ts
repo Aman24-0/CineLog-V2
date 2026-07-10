@@ -386,11 +386,16 @@ export type Database = {
       profiles: {
         Row: {
           avatar_url: string | null
+          banner_override_path: string | null
           bio: string | null
           country: string
           created_at: string
           deleted_at: string | null
           display_name: string
+          favorite_director_id: string | null
+          favorite_genre: string | null
+          favorite_movie_id: string | null
+          favorite_series_id: string | null
           id: string
           language_code: string
           scheduled_deletion_at: string | null
@@ -400,11 +405,16 @@ export type Database = {
         }
         Insert: {
           avatar_url?: string | null
+          banner_override_path?: string | null
           bio?: string | null
           country: string
           created_at?: string
           deleted_at?: string | null
           display_name: string
+          favorite_director_id?: string | null
+          favorite_genre?: string | null
+          favorite_movie_id?: string | null
+          favorite_series_id?: string | null
           id: string
           language_code?: string
           scheduled_deletion_at?: string | null
@@ -414,11 +424,16 @@ export type Database = {
         }
         Update: {
           avatar_url?: string | null
+          banner_override_path?: string | null
           bio?: string | null
           country?: string
           created_at?: string
           deleted_at?: string | null
           display_name?: string
+          favorite_director_id?: string | null
+          favorite_genre?: string | null
+          favorite_movie_id?: string | null
+          favorite_series_id?: string | null
           id?: string
           language_code?: string
           scheduled_deletion_at?: string | null

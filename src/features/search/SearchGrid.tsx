@@ -130,7 +130,7 @@ export default function SearchGrid(props: SearchGridProps) {
                       />
                     </Show>
                     <Show when={props.isInVault(t)}>
-                      <span class="search-rail-vault-dot" aria-label="In your vault" />
+                      <span class="search-rail-vault-dot" aria-label="In your watchlist" />
                     </Show>
                   </div>
                   <p class="search-rail-title">{titleOf(t)}</p>

@@ -154,7 +154,7 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
         id: "all",
         title: "All Titles",
         icon: "video_library",
-        subtitle: `${remaining.length} title${remaining.length !== 1 ? "s" : ""} in your vault`,
+        subtitle: `${remaining.length} title${remaining.length !== 1 ? "s" : ""} in your watchlist`,
         items: remaining,
         railByDefault: false
       });

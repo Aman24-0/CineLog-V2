@@ -1,22 +1,28 @@
 // src/shared/ui/AppHeader.tsx
 import { Show, createMemo, type Component } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
-import { signOut } from "~/shared/hooks/useAuthActions";
 
 /**
  * AppHeader — sticky application header.
  *
  * Layout: [wordmark] ........ [avatar pill]
  *
+ * Navigation restructure (Profile phase):
+ *   The avatar NO LONGER signs out on click. That was an undiscoverable
+ *   trap-door — users had no way to know clicking the avatar would log
+ *   them out. The avatar now navigates to /profile, which is the
+ *   natural destination for "who am I" actions. Sign out lives inside
+ *   Profile → Settings → Account → Sign Out, where it belongs.
+ *
+ *   When the user is NOT signed in, the avatar opens the AuthModal
+ *   (same as before).
+ *
  * Polished:
  *  - Wordmark uses font-headline (Bebas Neue) with the accent suffix.
  *  - Avatar pill is a glass surface with a hairline border, smoother
  *    hover (background + border-color transition), and a focus ring.
- *  - Avatar image has onError fallback to the initial tile (handled
- *    by the Show fallback).
- *  - aria-label on the avatar button is context-aware (sign in vs
- *    sign out) so screen-reader users know what the button does.
  *  - Sticky header uses a stronger backdrop blur (20px) so content
  *    scrolling underneath stays readable but not distracting.
  *  - Safe-area-aware top padding (env(safe-area-inset-top)) so the
@@ -25,15 +31,16 @@ import { signOut } from "~/shared/hooks/useAuthActions";
 const AppHeader: Component = () => {
   const { user, isSignedIn } = useAuth();
   const { openAuthModal } = useAuthModal();
+  const navigate = useNavigate();
 
   const initial = createMemo(() => {
     const name = user()?.displayName || user()?.email || "";
     return name.charAt(0).toUpperCase() || "?";
   });
 
-  const handleAvatarClick = async () => {
+  const handleAvatarClick = () => {
     if (isSignedIn()) {
-      await signOut();
+      navigate("/profile");
     } else {
       openAuthModal();
     }
@@ -89,7 +96,7 @@ const AppHeader: Component = () => {
         }}
         aria-label={
           isSignedIn()
-            ? `Signed in as ${user()?.displayName || user()?.email || "user"} — click to sign out`
+            ? `View your profile — signed in as ${user()?.displayName || user()?.email || "user"}`
             : "Sign in"
         }
       >

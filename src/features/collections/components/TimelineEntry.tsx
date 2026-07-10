@@ -99,7 +99,7 @@ export default function TimelineEntry(props: TimelineEntryProps) {
       </div>
 
       <Show when={!props.item.inVault}>
-        <span class="universe-timeline-missing-badge" aria-label="Not in vault">
+        <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
           <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
         </span>
       </Show>

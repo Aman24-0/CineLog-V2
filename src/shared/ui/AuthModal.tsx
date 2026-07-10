@@ -234,7 +234,7 @@ const AuthModal: Component<AuthModalProps> = (props) => {
                 }}
               >
                 {mode() === "signin"
-                  ? "Sign in to your CineLog vault"
+                  ? "Sign in to your CineLog watchlist"
                   : "Start tracking your movies and shows"}
               </p>
             </div>

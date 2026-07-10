@@ -90,6 +90,9 @@ export function toProfileInsert(
 /**
  * Map a {@link UpdateProfilePayload} to the snake-case `ProfileUpdate`
  * shape. Only sets fields that are present in the payload.
+ *
+ * Profile favorites are included — they're nullable, so `null` is a
+ * valid "clear this favorite" value. `undefined` means "don't touch".
  */
 export function toProfileUpdate(
   payload: import("./profile.types").UpdateProfilePayload
@@ -102,6 +105,11 @@ export function toProfileUpdate(
   if (payload.country !== undefined) update.country = payload.country;
   if (payload.languageCode !== undefined) update.language_code = payload.languageCode;
   if (payload.timezone !== undefined) update.timezone = payload.timezone;
+  if (payload.favoriteMovieId !== undefined) update.favorite_movie_id = payload.favoriteMovieId;
+  if (payload.favoriteSeriesId !== undefined) update.favorite_series_id = payload.favoriteSeriesId;
+  if (payload.favoriteDirectorId !== undefined) update.favorite_director_id = payload.favoriteDirectorId;
+  if (payload.favoriteGenre !== undefined) update.favorite_genre = payload.favoriteGenre;
+  if (payload.bannerOverridePath !== undefined) update.banner_override_path = payload.bannerOverridePath;
   return update;
 }
 

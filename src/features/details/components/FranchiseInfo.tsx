@@ -78,8 +78,8 @@ const FranchiseInfo: Component<FranchiseInfoProps> = (props) => {
             <p class="franchise-trigger-name">{franchise()!.name}</p>
             <p class="franchise-trigger-meta">
               {ownedCount() > 0
-                ? `${ownedCount()} title${ownedCount() !== 1 ? "s" : ""} in your vault · `
-                : "Not in your vault yet · "}
+                ? `${ownedCount()} title${ownedCount() !== 1 ? "s" : ""} in your watchlist · `
+                : "Not in your watchlist yet · "}
               View full collection
             </p>
           </div>

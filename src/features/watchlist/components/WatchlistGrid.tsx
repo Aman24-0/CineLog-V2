@@ -49,7 +49,7 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
             <EmptyState
               isGuest={props.isGuest()}
               onLogin={props.onLogin}
-              title={props.isGuest() ? "Vault is Empty" : "No Matches"}
+              title={props.isGuest() ? "Watchlist is Empty" : "No Matches"}
               message={
                 props.isGuest()
                   ? "Sign in to start tracking movies and series."

@@ -43,7 +43,7 @@ const RelationshipPill: Component<RelationshipPillProps> = (props) => {
     if (v.rating && v.rating > 0) {
       return { label: `★ Your ${v.rating}`, cls: "v2-pill-accent" };
     }
-    return { label: "In Vault", cls: "v2-pill" };
+    return { label: "In Watchlist", cls: "v2-pill" };
   });
 
   return (
@@ -52,7 +52,7 @@ const RelationshipPill: Component<RelationshipPillProps> = (props) => {
       fallback={
         <span
           class={`relationship-pill-add${props.compact ? " relationship-pill-compact" : ""}`}
-          aria-label="Not in your vault — tap to add"
+          aria-label="Not in your watchlist — tap to add"
         >
           <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
             add
@@ -63,7 +63,7 @@ const RelationshipPill: Component<RelationshipPillProps> = (props) => {
     >
       <span
         class={`v2-pill ${pill()!.cls}${props.compact ? " relationship-pill-compact" : ""}`}
-        aria-label={`${pill()!.label} — in your vault`}
+        aria-label={`${pill()!.label} — in your watchlist`}
       >
         {pill()!.label}
       </span>

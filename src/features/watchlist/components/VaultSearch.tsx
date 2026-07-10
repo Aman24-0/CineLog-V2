@@ -34,7 +34,7 @@ export default function VaultSearch(props: VaultSearchProps) {
         placeholder="Search title, cast, director, genre, platform, year..."
         class="bg-transparent border-none w-full outline-none type-body"
         style={{ color: "var(--text-strong)", "font-size": "0.875rem" }}
-        aria-label="Search vault"
+        aria-label="Search watchlist"
         type="search"
         autocomplete="off"
         spellcheck="false"

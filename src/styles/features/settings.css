@@ -1,0 +1,193 @@
+/* src/styles/features/settings.css — Settings page
+   Clean, calm, premium. Matches the Profile page's editorial tone. */
+
+/* ============================================================
+   PAGE LAYOUT
+   ============================================================ */
+
+.settings-page {
+  position: relative;
+  min-height: 100vh;
+}
+
+.settings-header {
+  padding: var(--sp-6) var(--sp-5) var(--sp-4);
+}
+@media (min-width: 640px) {
+  .settings-header {
+    padding: var(--sp-8) var(--sp-8) var(--sp-4);
+  }
+}
+
+.settings-eyebrow {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p);
+  margin: 0 0 var(--sp-2);
+}
+
+.settings-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 2rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+}
+@media (min-width: 640px) {
+  .settings-title {
+    font-size: 2.5rem;
+  }
+}
+
+.settings-subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text-soft);
+  margin: var(--sp-2) 0 0;
+}
+
+.settings-body {
+  padding: 0 var(--sp-5) var(--sp-12);
+}
+@media (min-width: 640px) {
+  .settings-body {
+    padding: 0 var(--sp-8) var(--sp-12);
+  }
+}
+
+/* ============================================================
+   SETTINGS SECTIONS
+   ============================================================ */
+
+.settings-section {
+  margin-top: var(--sp-6);
+}
+
+.settings-section-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-3);
+  padding: 0 var(--sp-2);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.settings-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--tier-2);
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  text-decoration: none;
+  color: var(--text-body);
+  transition: background var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.settings-row:hover {
+  background: var(--tier-3);
+}
+.settings-row:active {
+  transform: scale(0.997);
+}
+.settings-row:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: -2px;
+}
+
+.settings-row-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-sm);
+  background: var(--p-dim);
+  color: var(--p);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+}
+
+.settings-row-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-row-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.settings-row-desc {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  color: var(--text-muted);
+}
+
+.settings-row-chevron {
+  color: var(--text-dim);
+  font-size: 18px;
+  flex-shrink: 0;
+}
+
+/* Sign Out row — danger styling */
+.settings-row-danger .settings-row-icon {
+  background: rgba(248,113,113,0.12);
+  color: #f87171;
+}
+.settings-row-danger .settings-row-label {
+  color: #f87171;
+}
+.settings-row-danger:hover {
+  background: rgba(248,113,113,0.06);
+}
+
+/* Back button */
+.settings-back {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: transparent;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-pill);
+  color: var(--text-soft);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+}
+.settings-back:hover {
+  background: var(--tier-2);
+  color: var(--text-strong);
+}

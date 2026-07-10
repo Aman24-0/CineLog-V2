@@ -57,7 +57,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
   };
 
   return (
-    <div class="quick-filter-bar" role="tablist" aria-label="Filter vault by status">
+    <div class="quick-filter-bar" role="tablist" aria-label="Filter watchlist by status">
       <For each={TABS}>
         {(tab) => (
           <button
