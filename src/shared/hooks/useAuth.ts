@@ -1,32 +1,41 @@
 // src/shared/hooks/useAuth.ts
 //
-// Phase 6.1 — Auth Provider Integration
+// CineLog V2 — Authentication Provider
 // ---------------------------------------
-// This hook is the application's authentication provider. It was
-// previously backed by Firebase `onAuthStateChanged`; it is now backed
-// by the Supabase Authentication Foundation (`src/lib/supabase/session.ts`).
+// This hook is the application's authentication provider. It is backed
+// by the Supabase Auth via `src/lib/supabase/session.ts`.
 //
-// The PUBLIC API is IDENTICAL to the previous Firebase-backed version:
+// The PUBLIC API:
 //   { user, authReady, isSignedIn }
 //
-// `user` has the same shape as before:
+// `user` has the shape:
 //   { uid, displayName, email, photoURL }
-//
-// This means every existing consumer (DashboardPage, WatchlistView,
-// SearchPage, DiscoverPage, AppHeader, GreetingBlock, DetailsModal,
-// RatingCluster, DetailsRatings) continues to compile and work without
-// any modification. The Firebase auth code in `src/core/firebase/`
-// still exists but is no longer the source of auth truth.
 //
 // Architecture:
 //   Application → useAuth (this file) → onSessionChange → Supabase Auth
+//                                  → getSession() (explicit initial check)
 //
 // SSR safety
 // ----------
-// Mirrors the previous pattern: the `onSessionChange` subscription is
-// registered inside `onMount` (client-only) and cleaned up in
-// `onCleanup`. The module-level signals stay null/false during SSR and
-// resolve after hydration, avoiding hydration mismatches.
+// The `onSessionChange` subscription is registered inside `onMount`
+// (client-only) and cleaned up in `onCleanup`. The module-level signals
+// stay null/false during SSR and resolve after hydration, avoiding
+// hydration mismatches.
+//
+// CRITICAL: OAuth redirect handling
+// ---------------------------------
+// When the browser returns from Google OAuth, the Supabase client's
+// `detectSessionInUrl: true` parses the PKCE code from the URL and
+// exchanges it for a session. This triggers an `onAuthStateChange`
+// event. BUT there is a race condition: if the `onAuthStateChange`
+// listener is registered AFTER the URL has already been parsed, the
+// initial event is missed and the app stays in the signed-out state.
+//
+// To fix this, we explicitly call `supabase.auth.getSession()` on
+// mount. This returns the current session (if any) regardless of
+// whether the listener caught the event. We set `authReady(true)` and
+// `user(...)` from this explicit check, then the listener handles all
+// subsequent changes.
 
 import { createSignal, onMount, onCleanup } from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
@@ -34,10 +43,9 @@ import type { Session } from "~/lib/supabase/session";
 import type { User } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
-// Module-level signals — shared across ALL components (same pattern as the
-// previous Firebase version). Every component that calls `useAuth()` reads
-// from the same `user` / `authReady` signals, so auth state is consistent
-// across the app.
+// Module-level signals — shared across ALL components. Every component that
+// calls `useAuth()` reads from the same `user` / `authReady` signals, so
+// auth state is consistent across the app.
 // ---------------------------------------------------------------------------
 const [user, setUser] = createSignal<User | null>(null);
 const [authReady, setAuthReady] = createSignal(false);
@@ -47,6 +55,10 @@ const [authReady, setAuthReady] = createSignal(false);
 // is cleaned up when the last consumer unmounts.
 let unsub: (() => void) | null = null;
 let listenerCount = 0;
+
+// Guard to ensure the explicit getSession() check only runs once per
+// browser session (not once per component mount).
+let initialSessionChecked = false;
 
 /**
  * Map a Supabase `Session.user` to the application's `User` shape.
@@ -77,15 +89,23 @@ function mapSupabaseUser(session: Session | null): User | null {
  *
  * Returns:
  *   • user()        — the current user `{ uid, displayName, email, photoURL }` or null
- *   • authReady()   — true once the first auth-state event has fired
+ *   • authReady()   — true once the initial session check has completed
  *   • isSignedIn()  — convenience: true when user() is non-null
  *
  * Call inside a Solid component. The hook registers an auth-state
  * listener on mount and cleans it up on unmount.
+ *
+ * On the first mount in a browser session, it also explicitly calls
+ * `getSession()` to ensure the session is detected even if the
+ * `onAuthStateChange` listener missed the initial event (which
+ * happens after OAuth redirects).
  */
 export function useAuth() {
   onMount(() => {
     listenerCount++;
+
+    // Register the onAuthStateChange listener (handles all future
+    // sign-in / sign-out events).
     if (!unsub) {
       try {
         const subscription = onSessionChange((_event, session) => {
@@ -97,6 +117,15 @@ export function useAuth() {
         console.error("[useAuth] Auth subscription failed:", err);
         setAuthReady(true); // Mark as ready so UI doesn't hang
       }
+    }
+
+    // Explicit initial session check — runs ONCE per browser session.
+    // This catches the case where the page loaded with an existing
+    // session (e.g., after OAuth redirect, or on refresh) but the
+    // onAuthStateChange listener hasn't fired yet.
+    if (!initialSessionChecked) {
+      initialSessionChecked = true;
+      checkInitialSession();
     }
   });
 
@@ -114,6 +143,32 @@ export function useAuth() {
     authReady,
     isSignedIn: () => user() !== null
   };
+}
+
+/**
+ * Explicitly check the current session via getSession().
+ *
+ * This is the safety net for OAuth redirects and page refreshes. The
+ * Supabase client with `detectSessionInUrl: true` parses the PKCE
+ * code from the URL and stores the session in localStorage. But the
+ * `onAuthStateChange` event might fire before our listener is
+ * registered. By calling `getSession()` explicitly, we read the
+ * current session state directly and update the signals.
+ *
+ * This function is async but we don't await it — it updates the
+ * module-level signals when it resolves, and the reactive system
+ * picks up the change.
+ */
+async function checkInitialSession() {
+  try {
+    const { getBrowserSession } = await import("~/lib/supabase/session");
+    const session = await getBrowserSession();
+    setUser(mapSupabaseUser(session));
+    setAuthReady(true);
+  } catch (err) {
+    console.error("[useAuth] Initial session check failed:", err);
+    setAuthReady(true); // Mark as ready so UI doesn't hang
+  }
 }
 
 /**

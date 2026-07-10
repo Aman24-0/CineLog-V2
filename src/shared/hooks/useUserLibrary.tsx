@@ -22,9 +22,10 @@
  * It only loads and exposes the user's vault.
  */
 
-import { createContext, useContext, createSignal, onMount, onCleanup, ParentComponent } from "solid-js";
+import { createContext, useContext, createSignal, createEffect, onMount, onCleanup, ParentComponent } from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
+import { useAuth } from "~/shared/hooks/useAuth";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -50,6 +51,7 @@ const UserLibraryContext = createContext<UserLibrary>();
 // ---------------------------------------------------------------------------
 
 export const UserLibraryProvider: ParentComponent = (props) => {
+  const { authReady, user } = useAuth();
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [loading, setLoading] = createSignal(true);
   const [isGuest, setIsGuest] = createSignal(true);
@@ -104,8 +106,15 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     }
   });
 
-  onCleanup(() => {
-    if (unsubAuth) unsubAuth();
+  // Re-fetch when auth state changes (sign-in / sign-out / OAuth redirect).
+  // This is the reactive bridge between useAuth's signals and the library
+  // fetch. Without this, the library would only re-fetch on the
+  // onSessionChange callback, which might miss the initial session
+  // detection from checkInitialSession().
+  createEffect(() => {
+    if (authReady() && user()) {
+      doFetch();
+    }
   });
 
   const library: UserLibrary = {

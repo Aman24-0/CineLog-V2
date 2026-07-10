@@ -40,7 +40,7 @@ const ProfilePage: Component = () => {
   const { user, isSignedIn } = useAuth();
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
-  const { data, loading, error, saving, saveProfile, refetch, watchlist, isGuest } = useProfileData();
+  const { data, loading, error, saving, saveProfile, refetch, watchlist } = useProfileData();
 
   // Edit mode — inline editing, no modal.
   const [isEditing, setIsEditing] = createSignal(false);
@@ -149,9 +149,6 @@ const ProfilePage: Component = () => {
     return name.charAt(0).toUpperCase() || "?";
   });
 
-  // If not signed in, show a guest CTA.
-  const showGuestState = createMemo(() => !isSignedIn() && !loading());
-
   // ESC to exit edit mode.
   onMount(() => {
     const handleEsc = (e: KeyboardEvent) => {
@@ -166,13 +163,34 @@ const ProfilePage: Component = () => {
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
       <div class="profile-page profile-fade-in">
-        {/* Loading state */}
-        <Show when={loading() && !data()}>
+        {/* Loading state — shows while auth is resolving OR data is fetching.
+            This MUST be the first condition so a blank page never appears. */}
+        <Show when={loading()}>
           <ProfileSkeleton />
         </Show>
 
-        {/* Error state */}
-        <Show when={error() && !data()}>
+        {/* Guest state — shows when auth is ready AND user is NOT signed in.
+            This is a TOP-LEVEL Show (not nested inside data()) so it renders
+            even when data() is null (which it always is for guests). */}
+        <Show when={!loading() && !isSignedIn()}>
+          <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
+            <div class="empty-premium" role="status" aria-live="polite">
+              <div class="empty-premium-icon" aria-hidden="true">
+                <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
+                  account_circle
+                </span>
+              </div>
+              <h3 class="empty-premium-title">Sign in to view your profile</h3>
+              <p class="empty-premium-body">Your profile is your portrait as a cinephile. Sign in to make it yours.</p>
+              <Button variant="primary" onClick={() => openAuthModal()} style={{ "margin-top": "var(--sp-2)" }}>
+                Sign In
+              </Button>
+            </div>
+          </div>
+        </Show>
+
+        {/* Error state — shows when the profile fetch failed AND user IS signed in. */}
+        <Show when={!loading() && isSignedIn() && error() && !data()}>
           <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
             <div class="empty-premium" role="alert" aria-live="assertive">
               <div class="empty-premium-icon" aria-hidden="true">
@@ -194,25 +212,9 @@ const ProfilePage: Component = () => {
           </div>
         </Show>
 
-        {/* Loaded state */}
-        <Show when={!loading() && !error() && data()}>
-          <Show when={!showGuestState()} fallback={
-            /* Guest — prompt to sign in */
-            <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
-              <div class="empty-premium">
-                <div class="empty-premium-icon" aria-hidden="true">
-                  <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
-                    account_circle
-                  </span>
-                </div>
-                <h3 class="empty-premium-title">Sign in to view your profile</h3>
-                <p class="empty-premium-body">Your profile is your portrait as a cinephile. Sign in to make it yours.</p>
-                <Button variant="primary" onClick={() => openAuthModal()} style={{ "margin-top": "var(--sp-2)" }}>
-                  Sign In
-                </Button>
-              </div>
-            </div>
-          }>
+        {/* Loaded state — shows when auth is ready, user IS signed in,
+            no error, and data is available. */}
+        <Show when={!loading() && isSignedIn() && !error() && data()}>
             <div class="profile-content">
               {/* === 1. BANNER + IDENTITY === */}
               <ProfileBanner
@@ -389,7 +391,6 @@ const ProfilePage: Component = () => {
                 <QuickLinks />
               </section>
             </div>
-          </Show>
         </Show>
       </div>
 

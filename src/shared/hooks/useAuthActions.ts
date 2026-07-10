@@ -99,7 +99,16 @@ export async function signOut(): Promise<AuthResult> {
  *
  * Redirects the browser to Google's consent screen. After the user
  * authenticates, Google redirects back to Supabase's callback URL,
- * which then redirects to the app's origin.
+ * which then redirects to the app.
+ *
+ * The `redirectTo` URL must be in the Supabase project's allowed
+ * Redirect URLs list. We use the current origin so it works in dev
+ * (localhost:3000) and production (cinelogv2.vercel.app).
+ *
+ * After the redirect, the Supabase client's `detectSessionInUrl: true`
+ * parses the PKCE code, exchanges it for a session, and fires
+ * `onAuthStateChange`. The useAuth hook's explicit `getSession()` call
+ * also catches the session in case the listener missed the event.
  *
  * If the user already has an email/password account with the same
  * verified email, Supabase automatically links the Google identity
@@ -109,11 +118,14 @@ export async function signInWithGoogle(): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/profile`
+        : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo:
-          typeof window !== "undefined" ? window.location.origin : undefined,
+        redirectTo,
       },
     });
     if (error) throw error;
