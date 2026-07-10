@@ -93,3 +93,33 @@ export async function signOut(): Promise<AuthResult> {
     return { success: false, error: msg };
   }
 }
+
+/**
+ * Sign in with Google OAuth.
+ *
+ * Redirects the browser to Google's consent screen. After the user
+ * authenticates, Google redirects back to Supabase's callback URL,
+ * which then redirects to the app's origin.
+ *
+ * If the user already has an email/password account with the same
+ * verified email, Supabase automatically links the Google identity
+ * to the existing account (same user ID, same vault).
+ */
+export async function signInWithGoogle(): Promise<void> {
+  const { showToast } = useToast();
+  try {
+    const supabase = getClient();
+    const { error } = await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: {
+        redirectTo:
+          typeof window !== "undefined" ? window.location.origin : undefined,
+      },
+    });
+    if (error) throw error;
+    // The browser will redirect — no toast needed, the page will reload
+  } catch (err) {
+    const msg = err instanceof Error ? err.message : "Google sign in failed.";
+    showToast(msg, "error");
+  }
+}
