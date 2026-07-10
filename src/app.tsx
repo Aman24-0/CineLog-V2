@@ -2,6 +2,7 @@
 import { Router } from "@solidjs/router";
 import { FileRoutes } from "@solidjs/start/router";
 import { Suspense } from "solid-js";
+import { MetaProvider } from "@solidjs/meta";
 
 import "./app/globals.css";
 // Side-effect import: wires the theme module. Reading `theme()` here
@@ -26,19 +27,21 @@ export default function App() {
   return (
     <Router
       root={(props) => (
-        <GlobalErrorBoundary>
-          <UserLibraryProvider>
-            <VaultProvider>
-              <CollectionsProvider>
-                <AppShell>
-                  <Suspense fallback={<div>Loading...</div>}>
-                    {props.children}
-                  </Suspense>
-                </AppShell>
-              </CollectionsProvider>
-            </VaultProvider>
-          </UserLibraryProvider>
-        </GlobalErrorBoundary>
+        <MetaProvider>
+          <GlobalErrorBoundary>
+            <UserLibraryProvider>
+              <VaultProvider>
+                <CollectionsProvider>
+                  <AppShell>
+                    <Suspense fallback={<div>Loading...</div>}>
+                      {props.children}
+                    </Suspense>
+                  </AppShell>
+                </CollectionsProvider>
+              </VaultProvider>
+            </UserLibraryProvider>
+          </GlobalErrorBoundary>
+        </MetaProvider>
       )}
     >
       <FileRoutes />
