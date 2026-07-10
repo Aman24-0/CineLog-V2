@@ -2,31 +2,23 @@
 import { Show, createMemo } from "solid-js";
 import Icon from "./Icon";
 import { useAuth } from "~/shared/hooks/useAuth";
-import { useToast } from "~/shared/hooks/useToast";
-import { getClient } from "~/lib/supabase/client";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
+import { signOut } from "~/shared/hooks/useAuthActions";
 
 /**
  * Sticky application header — V2 simplified.
  *
  * Layout: [wordmark] ........ [avatar]
  *
- * Design principles:
- *  - The wordmark is the single primary element. No subtitle, no tagline.
- *  - The avatar is the single secondary element. No notification bell
- *    (moved to future profile page).
- *  - Generous padding for breathing room.
- *  - Translucent backdrop blur so content scrolls cleanly underneath.
- *
  * Behavior:
- *  - Signed out: avatar shows a generic account icon; clicking prompts sign-in.
+ *  - Signed out: avatar shows a generic account icon; clicking opens the
+ *    email/password auth modal.
  *  - Signed in: avatar shows the user's photoURL (or initial fallback);
  *    clicking signs out.
- *
- * The header is sticky (top: 0) and uses safe-area-inset-top for iOS notch.
  */
 export default function AppHeader() {
   const { user, isSignedIn } = useAuth();
-  const { showToast } = useToast();
+  const { openAuthModal } = useAuthModal();
 
   const initial = createMemo(() => {
     const name = user()?.displayName || user()?.email || "";
@@ -34,28 +26,10 @@ export default function AppHeader() {
   });
 
   const handleAvatarClick = async () => {
-    const supabase = getClient();
     if (isSignedIn()) {
-      try {
-        const { error } = await supabase.auth.signOut();
-        if (error) throw error;
-        showToast("Signed out", "info");
-      } catch {
-        showToast("Sign out failed", "error");
-      }
+      await signOut();
     } else {
-      try {
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
-          }
-        });
-        if (error) throw error;
-        showToast("Signed in successfully! 🎬", "success");
-      } catch {
-        showToast("Sign in failed. Please try again.", "error");
-      }
+      openAuthModal();
     }
   };
 

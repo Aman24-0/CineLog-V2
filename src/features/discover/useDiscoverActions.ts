@@ -1,8 +1,8 @@
 // src/features/discover/useDiscoverActions.ts
-import { getClient } from "~/lib/supabase/client";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import type { Accessor } from "solid-js";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -13,8 +13,8 @@ import type { TMDBTitle, WatchlistItem } from "~/shared/types";
  * Extracted from DiscoverPage.tsx to keep that file under the 250-line
  * limit. Owns:
  *   - handleOpenTitle: open the Details modal for a TMDB title
- *   - addToVault: one-tap save as "Planned" (with guest → OAuth sign-in flow)
- *   - handleLogin: Google OAuth sign-in for the guest nudge
+ *   - addToVault: one-tap save as "Planned" (with guest → auth modal)
+ *   - handleLogin: open the auth modal for the guest nudge
  */
 export interface UseDiscoverActionsArgs {
   watchlist: Accessor<WatchlistItem[]>;
@@ -24,7 +24,7 @@ export interface UseDiscoverActionsArgs {
 export interface UseDiscoverActionsResult {
   handleOpenTitle: (title: TMDBTitle) => void;
   addToVault: (title: TMDBTitle) => Promise<void>;
-  handleLogin: () => Promise<void>;
+  handleLogin: () => void;
 }
 
 export function useDiscoverActions(
@@ -32,6 +32,7 @@ export function useDiscoverActions(
 ): UseDiscoverActionsResult {
   const { showToast } = useToast();
   const { openTitle } = useModalState();
+  const { openAuthModal } = useAuthModal();
 
   const handleOpenTitle = (title: TMDBTitle) => {
     const baseItem: WatchlistItem = {
@@ -41,7 +42,7 @@ export function useDiscoverActions(
       media_type: title.media_type,
       poster_path: title.poster_path,
       backdrop_path: title.backdrop_path,
-      status: "Planned", // placeholder — openTitle ignores this for non-vault titles
+      status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
       genresList: title.genres,
@@ -52,25 +53,9 @@ export function useDiscoverActions(
 
   const addToVault = async (title: TMDBTitle) => {
     const uid = getCurrentUid();
-    if (!uid) {
+    if (!uid || args.isGuest()) {
       showToast("Sign in to save titles to your vault.", "error");
-      return;
-    }
-    if (args.isGuest()) {
-      try {
-        const supabase = getClient();
-        const { error: oauthError } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo:
-              typeof window !== "undefined" ? window.location.origin : undefined,
-          },
-        });
-        if (oauthError) throw oauthError;
-        showToast("Signed in — try saving again.", "success");
-      } catch {
-        showToast("Sign in failed. Please try again.", "error");
-      }
+      openAuthModal();
       return;
     }
     try {
@@ -96,21 +81,8 @@ export function useDiscoverActions(
     }
   };
 
-  const handleLogin = async () => {
-    try {
-      const supabase = getClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo:
-            typeof window !== "undefined" ? window.location.origin : undefined,
-        },
-      });
-      if (error) throw error;
-      showToast("Signed in to CineLog", "success");
-    } catch {
-      showToast("Sign in failed. Please try again.", "error");
-    }
+  const handleLogin = () => {
+    openAuthModal();
   };
 
   return { handleOpenTitle, addToVault, handleLogin };

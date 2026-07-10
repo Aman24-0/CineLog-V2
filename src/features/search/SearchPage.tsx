@@ -3,8 +3,8 @@ import { Show, createSignal, onMount } from "solid-js";
 import { useVault } from "~/features/watchlist/useVault";
 import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { getClient } from "~/lib/supabase/client";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -45,6 +45,7 @@ export default function SearchPage() {
   const { watchlist, isGuest } = useVault();
   const { showToast } = useToast();
   const { openTitle } = useModalState();
+  const { openAuthModal } = useAuthModal();
 
   const {
     query,
@@ -93,23 +94,12 @@ export default function SearchPage() {
     const uid = getCurrentUid();
     if (!uid) {
       showToast("Sign in to save titles to your vault.", "error");
+      openAuthModal();
       return;
     }
     if (isGuest()) {
-      try {
-        const supabase = getClient();
-        const { error } = await supabase.auth.signInWithOAuth({
-          provider: "google",
-          options: {
-            redirectTo:
-              typeof window !== "undefined" ? window.location.origin : undefined,
-          },
-        });
-        if (error) throw error;
-        showToast("Signed in — try saving again.", "success");
-      } catch {
-        showToast("Sign in failed. Please try again.", "error");
-      }
+      showToast("Sign in to save titles to your vault.", "error");
+      openAuthModal();
       return;
     }
     try {

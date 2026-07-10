@@ -10,9 +10,8 @@
 //   DashboardPage → useDashboardData → dashboardAdapter → DashboardRepository → Supabase
 import { createSignal, createMemo, onMount, Show } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { useToast } from "~/shared/hooks/useToast";
 import { useModalState } from "~/shared/hooks/useModalState";
-import { getClient } from "~/lib/supabase/client";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import PageContainer from "~/shared/ui/PageContainer";
 import { isWatchable } from "~/shared/utils/progress";
 import GreetingBlock from "./components/GreetingBlock";
@@ -27,8 +26,8 @@ import { useDashboardData } from "./useDashboardData";
 
 export default function DashboardPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const { openTitle } = useModalState();
+  const { openAuthModal } = useAuthModal();
 
   // Phase 9.1 — SINGLE data source: useDashboardData (DashboardRepository).
   // No useVault(). No VaultRepository. No duplicate fetches.
@@ -57,20 +56,8 @@ export default function DashboardPage() {
     setHeroSeed((s) => s + Math.floor(Math.random() * 997) + 1);
   };
 
-  const handleLogin = async () => {
-    try {
-      const supabase = getClient();
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: {
-          redirectTo: typeof window !== "undefined" ? window.location.origin : undefined
-        }
-      });
-      if (error) throw error;
-      showToast("Signed in successfully! 🎬", "success");
-    } catch (error) {
-      showToast("Sign in failed. Please try again.", "error");
-    }
+  const handleLogin = () => {
+    openAuthModal();
   };
 
   const hasInProgress = createMemo(() =>

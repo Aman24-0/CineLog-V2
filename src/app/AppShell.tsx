@@ -2,8 +2,10 @@ import { ParentComponent, lazy, Suspense, Show } from "solid-js";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
+import AuthModal from "~/shared/ui/AuthModal";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
 const CollectionModal = lazy(() => import("~/features/collection/CollectionModal"));
@@ -11,6 +13,7 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
 const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
   const { collectionSelectedItem } = useCollectionModal();
+  const { authModalOpen, closeAuthModal } = useAuthModal();
 
   return (
     <div
@@ -24,6 +27,9 @@ const AppShell: ParentComponent = (props) => {
       <ToastContainer />
 
       <BottomNavigation />
+
+      {/* Auth modal — opened from any page when a guest tries to sign in */}
+      <AuthModal show={authModalOpen} onClose={closeAuthModal} />
 
       {/* Details modal — opened from Vault, Discover, Search, or Collection */}
       <Show when={selectedItem()}>
