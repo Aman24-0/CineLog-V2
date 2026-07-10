@@ -1,0 +1,88 @@
+/* src/styles/tokens/colors.css — Phase 14.2 CSS architecture
+   Color + surface + theme-override tokens. Extracted from globals.css
+   with zero CSS modifications. */
+
+@layer base {
+  :root {
+    --void: #000000;
+    --deep: #000000;
+    --surface: #111111;
+    --raised: #1a1a1a;
+    --border: rgba(255,255,255,0.08);
+    --border-active: rgba(255,255,255,0.15);
+    --text: #e8eaf0;
+    --muted: rgba(232,234,240,0.42);
+    --dim: rgba(232,234,240,0.18);
+
+    /* Active-state tokens — shared across ALL components for consistent contrast.
+       --active-bg: the accent color used for active/selected backgrounds
+       --active-text: the text color on top of --active-bg (PER THEME — see below)
+       --active-border: the border color for active/selected states
+       --active-glow: the box-shadow glow for active states
+
+       These ensure that active controls are ALWAYS readable, regardless of theme.
+       Each theme overrides --active-text below to be either dark or white
+       depending on the luminance of its --p. */
+    --active-bg: var(--p);
+    --active-text: #05060a;   /* default for light accents — overridden per theme */
+    --active-border: var(--p);
+    --active-glow: 0 0 12px var(--p-glow);
+  }
+}
+
+/* Theme overrides — declared OUTSIDE @layer base so Tailwind/Vite's CSS
+   optimizer does NOT tree-shake them. Previously these lived inside
+   `@layer base`, where they were silently stripped from the production
+   build, leaving --p (and therefore --active-bg) empty for every theme.
+   That was the actual root cause of "active state visibility is still
+   broken": the CSS rules referenced var(--active-bg) which resolved to
+   empty string, so every active control rendered with a transparent
+   background. Moving them here guarantees they ship in the final CSS. */
+
+/* Per-theme active-text: white on darker accents, dark on lighter accents.
+   This is the actual fix for "active state visibility" — previously
+   --active-text was hardcoded dark, which made selected controls unreadable
+   on Netflix red, Vibranium purple, and Neon Horizon pink. */
+.theme-pearl        { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15);  --p-dim: rgba(255,255,255,0.06);  --active-text: #05060a; }
+.theme-sage         { --p: #a8ff78; --p2: #ff78c4; --p-glow: rgba(168,255,120,0.22); --p-dim: rgba(168,255,120,0.08); --active-text: #05060a; }
+.theme-matrix       { --p: #39ff14; --p2: #00f5a0; --p-glow: rgba(57,255,20,0.22);   --p-dim: rgba(57,255,20,0.08);   --active-text: #05060a; }
+.theme-netflix      { --p: #ff2d55; --p2: #ff9500; --p-glow: rgba(255,45,85,0.22);   --p-dim: rgba(255,45,85,0.08);   --active-text: #ffffff; }
+.theme-interstellar { --p: #00c2ff; --p2: #f9a620; --p-glow: rgba(0,194,255,0.22);   --p-dim: rgba(0,194,255,0.08);   --active-text: #05060a; }
+.theme-neonhorizon  { --p: #ff2af0; --p2: #00ffe7; --p-glow: rgba(255,42,240,0.22);  --p-dim: rgba(255,42,240,0.08);  --active-text: #ffffff; }
+.theme-vibranium    { --p: #9d4edd; --p2: #06ffd4; --p-glow: rgba(157,78,221,0.22);  --p-dim: rgba(157,78,221,0.08);  --active-text: #ffffff; }
+.theme-cinematic    { --p: #FFD700; --p2: #FF6B00; --p-glow: rgba(255,215,0,0.40);   --p-dim: rgba(255,215,0,0.10);   --active-text: #05060a; --void: #000; --deep: #000; --surface: #111111; --raised: #171722; --border: rgba(255,215,0,0.1); }
+
+/* ============================================================
+   PHASE 2.1 — DESIGN SYSTEM
+   CineLog's premium cinematic identity: dark, editorial, with a
+   single accent glow. No copied themes — original composition.
+   ============================================================ */
+
+@layer base {
+  :root {
+    /* Tier-based surface elevation (depth from the void) */
+    --tier-0: #000000;
+    --tier-1: #0a0b0e;
+    --tier-2: #111317;
+    --tier-3: #181b21;
+    --tier-4: #20242c;
+
+    /* Hairline borders (subtle → active) */
+    --hairline: rgba(255,255,255,0.06);
+    --hairline-2: rgba(255,255,255,0.10);
+    --hairline-3: rgba(255,255,255,0.16);
+
+    /* Text scale (refined for editorial hierarchy) */
+    --text-strong: #ffffff;
+    --text-body: #e8eaf0;
+    --text-soft: rgba(232,234,240,0.72);
+    --text-muted: rgba(232,234,240,0.48);
+    --text-dim: rgba(232,234,240,0.24);
+
+    /* Glass tokens */
+    --glass-bg: rgba(17,19,23,0.72);
+    --glass-bg-strong: rgba(17,19,23,0.88);
+    --glass-border: rgba(255,255,255,0.08);
+    --glass-blur: 20px;
+  }
+}

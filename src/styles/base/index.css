@@ -1,0 +1,18 @@
+/* src/styles/base/index.css — Phase 14.2 CSS architecture
+   Barrel file: imports base styles in cascade order.
+
+   NOTE: @tailwind directives (base/tailwind.css) are imported directly
+   in globals.css BEFORE tokens, matching the original file's order.
+   This barrel imports the remaining base styles (body, typography, etc.)
+   which come AFTER tokens in the cascade.
+
+   ORDER:
+   1. reset.css — minimal reset (currently empty; Tailwind provides reset)
+   2. base.css — body, scrollbar, material-symbols, safe-area
+   3. typography.css — type-* classes, font-* classes
+   4. forms.css — form element defaults (currently empty) */
+
+@import "./reset.css";
+@import "./base.css";
+@import "./typography.css";
+@import "./forms.css";

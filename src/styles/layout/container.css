@@ -1,0 +1,5 @@
+/* src/styles/layout/container.css — Phase 14.2 CSS architecture
+   Container layout primitives. The app uses the PageContainer React
+   component (src/shared/ui/PageContainer.tsx) which applies Tailwind
+   classes. No custom container CSS classes exist in the original
+   globals.css — this file is kept for architecture completeness. */

@@ -1,0 +1,5 @@
+/* src/styles/components/badges.css — Phase 14.2 CSS architecture
+   Badge styles. The .badge-accent and .badge-glow classes currently
+   live in components/_phase21.css (lines 342-344 of the original
+   globals.css). They are kept there to avoid CSS modifications.
+   This file is for future badge additions. */

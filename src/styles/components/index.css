@@ -1,0 +1,19 @@
+/* src/styles/components/index.css — Phase 14.2 CSS architecture
+   Barrel file: imports component CSS in cascade order.
+
+   Each file contains the CSS for a category of UI components.
+   The _phase*.css files contain the Phase 2.1/2.2 design-system
+   classes that span multiple categories (typography, surfaces,
+   buttons, badges, etc.) — kept as-is to avoid CSS modifications. */
+
+@import "./buttons.css";
+@import "./cards.css";
+@import "./chips.css";
+@import "./badges.css";
+@import "./dialogs.css";
+@import "./skeleton.css";
+@import "./navigation.css";
+@import "./inputs.css";
+@import "./dropdown.css";
+@import "./_phase21.css";
+@import "./_phase22_sprint1.css";

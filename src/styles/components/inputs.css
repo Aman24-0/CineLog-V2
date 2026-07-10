@@ -1,0 +1,6 @@
+/* src/styles/components/inputs.css — Phase 14.2 CSS architecture
+   Input styles. The .filter-select-premium, .filter-input-premium,
+   and other input classes currently live in features/watchlist.css
+   (from the original globals.css Phase 2.1 Sprint 2 section). They
+   are kept there to avoid CSS modifications. This file is for future
+   input additions. */

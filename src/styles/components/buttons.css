@@ -1,0 +1,42 @@
+/* src/styles/components/buttons.css — Phase 14.2 CSS architecture */
+/* Extracted from globals.css — zero CSS modifications */
+
+/* ============================================================
+   CINEMATIC CLOSE BUTTON — safe-area-aware
+   Uses calc(env(safe-area-inset-top) + var(--sp-4)) so the button
+   is never hidden under the mobile browser address bar or PWA header.
+   Works across Android Chrome, Samsung Internet, Edge Mobile, PWAs.
+   ============================================================ */
+
+.cinematic-close-btn {
+  position: absolute;
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-4));
+  right: var(--sp-4);
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.50);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.10);
+  color: var(--text-strong);
+  cursor: pointer;
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
+}
+.cinematic-close-btn:hover {
+  background: rgba(0,0,0,0.70);
+}
+.cinematic-close-btn:active {
+  transform: scale(0.95);
+}
+
+/* Trailer close button — also safe-area-aware */
+.cinematic-trailer-close {
+  top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) !important;
+}
+
+

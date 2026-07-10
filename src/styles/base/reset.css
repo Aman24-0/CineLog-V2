@@ -1,0 +1,4 @@
+/* src/styles/base/reset.css — Phase 14.2 CSS architecture
+   Minimal reset. Tailwind's @tailwind base provides the full reset
+   (Preflight), so this file is intentionally empty. Kept for
+   architecture completeness — future project-specific resets go here. */

@@ -1,0 +1,16 @@
+/* src/styles/tokens/radius.css — Phase 14.2 CSS architecture
+   Border-radius scale tokens. Extracted from the original :root blocks. */
+
+@layer base {
+  :root {
+    --radius-sm: 8px;
+    --radius-md: 12px;
+    --radius-card: 16px;
+    --radius-lg: 20px;
+    --radius-xl: 24px;
+    --radius-2xl: 28px;
+    --radius-modal: 32px;
+    --radius-pill: 999px;
+    --touch-min: 44px;
+  }
+}

@@ -1,0 +1,6 @@
+/* src/styles/tokens/typography.css — Phase 14.2 CSS architecture
+   Typography-related tokens. The original globals.css did not define
+   font-family CSS variables in :root — font families are hardcoded
+   in the .type-* and .font-* classes in base/typography.css.
+   This file is kept for architecture completeness; future font tokens
+   would go here. */

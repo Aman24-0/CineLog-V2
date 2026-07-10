@@ -1,0 +1,8 @@
+/* src/styles/components/chips.css — Phase 14.2 CSS architecture */
+/* Extracted from globals.css — zero CSS modifications */
+
+
+/* Pills & Tags */
+.tag-chip { background: rgba(0,0,0,0.72); border: 1px solid rgba(255,255,255,0.12); backdrop-filter: blur(8px); padding: var(--sp-1) var(--sp-2); border-radius: 6px; font-family: 'Azeret Mono', monospace; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; transition: background var(--dur-fast) var(--ease-out); box-shadow: 0 1px 4px rgba(0,0,0,0.4); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rating-pill { background: rgba(0,0,0,0.70); backdrop-filter: blur(12px); border: 1px solid rgba(255,255,255,0.10); padding: var(--sp-1) var(--sp-2); border-radius: 8px; display: flex; align-items: center; gap: var(--sp-1); font-family: 'Azeret Mono', monospace; font-size: 9px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: all var(--dur-base) var(--ease-spring); }
+

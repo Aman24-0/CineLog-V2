@@ -1,0 +1,7 @@
+/* src/styles/components/dialogs.css — Phase 14.2 CSS architecture */
+/* Extracted from globals.css — zero CSS modifications */
+
+
+.modal-sheet-enter { animation: slideUp var(--dur-modal) var(--ease-spring) both; }
+@media (min-width: 640px) { .modal-sheet-enter { animation: popInSpring var(--dur-modal) var(--ease-spring) both; } }
+

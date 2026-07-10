@@ -1,0 +1,12 @@
+/* src/styles/layout/index.css — Phase 14.2 CSS architecture
+   Barrel file: imports layout utilities.
+
+   The app uses Tailwind utilities (flex, grid, gap, etc.) for most
+   layout. Custom layout classes (PageContainer, etc.) live in
+   components/. These files are for any project-specific layout
+   primitives that aren't covered by Tailwind. */
+
+@import "./container.css";
+@import "./grid.css";
+@import "./flex.css";
+@import "./spacing.css";

@@ -1,0 +1,5 @@
+/* src/styles/layout/grid.css — Phase 14.2 CSS architecture
+   Grid layout primitives. The app uses Tailwind grid utilities
+   (grid, grid-cols-*, gap-*) and component-level grid classes
+   (.collections-folder-grid, .universe-grid, etc.) defined in
+   features/. No additional grid CSS needed here. */

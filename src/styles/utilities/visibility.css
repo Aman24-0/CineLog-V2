@@ -1,0 +1,4 @@
+/* src/styles/utilities/visibility.css — Phase 14.2 CSS architecture
+   Visibility utilities. The app uses Tailwind's hidden/block utilities
+   for most visibility toggling. Custom visibility classes (if any)
+   would go here. Currently empty. */

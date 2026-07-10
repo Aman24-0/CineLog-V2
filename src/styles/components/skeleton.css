@@ -1,0 +1,5 @@
+/* src/styles/components/skeleton.css — Phase 14.2 CSS architecture
+   Skeleton loading styles. The .skeleton-base and .skeleton-text
+   classes currently live in components/_phase21.css (lines 355-356
+   of the original globals.css). They are kept there to avoid CSS
+   modifications. This file is for future skeleton additions. */

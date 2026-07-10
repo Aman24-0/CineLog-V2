@@ -1,0 +1,7 @@
+/* src/styles/base/tailwind.css — Phase 14.2 CSS architecture */
+/* Extracted from globals.css — zero CSS modifications */
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+

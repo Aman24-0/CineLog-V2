@@ -1,0 +1,4 @@
+/* src/styles/layout/spacing.css — Phase 14.2 CSS architecture
+   Spacing layout primitives. The app uses --sp-* tokens (from
+   tokens/spacing.css) and Tailwind spacing utilities. No custom
+   spacing CSS classes needed here. */

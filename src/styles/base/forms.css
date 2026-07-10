@@ -1,0 +1,4 @@
+/* src/styles/base/forms.css — Phase 14.2 CSS architecture
+   Form element defaults. Currently empty — the app uses component-level
+   classes (.filter-select-premium, .filter-input-premium, etc.) defined
+   in components/. Kept for architecture completeness. */

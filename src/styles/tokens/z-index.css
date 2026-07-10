@@ -1,0 +1,12 @@
+/* src/styles/tokens/z-index.css — Phase 14.2 CSS architecture
+   Z-index + navigation-height tokens. Extracted from the original :root block. */
+
+@layer base {
+  :root {
+    /* Bottom navigation: 4rem bar + iOS safe-area inset. Pages apply this as
+       bottom padding so content never scrolls underneath the nav. */
+    --nav-height: 4rem;
+    --nav-safe-area: env(safe-area-inset-bottom, 0px);
+    --nav-total-height: calc(var(--nav-height) + var(--nav-safe-area));
+  }
+}
