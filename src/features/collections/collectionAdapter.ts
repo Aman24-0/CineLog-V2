@@ -14,7 +14,7 @@ import { getCollectionRepository } from "~/lib/supabase/repositories";
 import type { CollectionRow } from "~/lib/supabase/repositories";
 import type {Collection} from "~/shared/types";
 import { collectionRowToCollection } from "./collectionMapper";
-import { fetchEntriesForCollection, addEntryToCollection, removeEntryFromCollection, reorderEntriesInCollection } from "./collectionEntryAdapter";
+import { fetchEntriesForCollection, addEntryToCollectionByTmdbId, removeEntryFromCollection, reorderEntriesInCollection } from "./collectionEntryAdapter";
 
 // ---------------------------------------------------------------------------
 // READ: Fetch all collections for a user (with entries)
@@ -170,7 +170,7 @@ export async function duplicateCollectionInSupabase(
 
   // 3. Copy entries
   for (const entry of entries) {
-    await addEntryToCollection(newId, entry);
+    await addEntryToCollectionByTmdbId(userId, newId, entry.id, entry.media_type);
   }
 }
 
@@ -283,7 +283,7 @@ export async function ensureFavoritesExistsInSupabase(userId: string): Promise<v
 
 // Re-export entry operations for the hook
 export {
-  addEntryToCollection,
+  addEntryToCollectionByTmdbId,
   removeEntryFromCollection,
   reorderEntriesInCollection,
   fetchEntriesForCollection

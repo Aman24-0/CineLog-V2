@@ -1,37 +1,57 @@
 /**
  * CineLog V2 — Collection Entry Adapter
  * ---------------------------------------------------------------------
- * Phase 8 — Collections Migration
- *
  * Bridges the application's `CollectionEntry` type to the Supabase
  * `collection_entries` table via CollectionRepository.
  *
- * Key challenge: `collection_entries` uses `vault_id` (UUID), but the
- * app's `CollectionEntry.id` is the TMDB id (string). The vault item's
- * UUID must be resolved from the TMDB identity via VaultRepository.
+ * DATA FLOW (the normalization layer):
+ *
+ *   collection_entries table (vault_id + position)
+ *     ↓
+ *   vault table (id, media_type, tmdb_id)
+ *     ↓
+ *   TMDB API (title, poster_path, backdrop_path, release_date, etc.)
+ *     ↓
+ *   NormalizedCollectionEntry (used everywhere in the UI)
+ *
+ * The collection_entries table stores ONLY the relationship:
+ *   (collection_id, vault_id, position)
+ *
+ * Display metadata (title, poster, etc.) is NOT stored — it's hydrated
+ * from TMDB via the vault's tmdb_id. This is the SINGLE normalization
+ * point: every UI component (card, timeline, detail, header) reads
+ * from the same hydrated CollectionEntry.
  */
 
 import { getCollectionRepository } from "~/lib/supabase/repositories";
 import { getVaultRepository } from "~/lib/supabase/repositories";
 import type { VaultRow } from "~/lib/supabase/repositories";
 import type { CollectionEntry } from "~/shared/types";
+import type { TMDBTitle } from "~/shared/types";
 import { entryRowToCollectionEntry } from "./collectionMapper";
-import { UnresolvedMediaTypeError } from "./collectionErrors";
 
 // ---------------------------------------------------------------------------
-// READ: Fetch entries for a collection
+// READ: Fetch entries for a collection (with TMDB hydration)
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch all entries for a collection, ordered by position ascending.
  *
- * Resolves `media_type` for each entry by batch-fetching the vault rows
- * referenced by the entries. If a vault item has been deleted, its
- * entry's media_type is left as the default ("movie") and a warning is
- * logged — the entry is NOT skipped (the UI still shows it, just with
- * an incorrect media_type fallback).
+ * This is the SINGLE normalization point for collection entries:
+ *   1. Fetch collection_entries rows (vault_id + position)
+ *   2. Batch-fetch vault rows (id, media_type, tmdb_id)
+ *   3. Batch-fetch TMDB metadata (title, poster_path, backdrop_path, etc.)
+ *   4. Merge into NormalizedCollectionEntry
  *
- * @returns Mapped `CollectionEntry[]` with media_type resolved from vault.
+ * The returned entries have ALL fields populated:
+ *   id (TMDB id as string), media_type, title, poster_path,
+ *   backdrop_path, release_date, first_air_date, order
+ *
+ * If TMDB fetch fails for an entry, it still appears in the list
+ * with whatever metadata is available (title may be undefined →
+ * UI shows "Untitled" as a genuine fallback, not a data bug).
+ *
+ * @returns Hydrated CollectionEntry[] with TMDB metadata.
  */
 export async function fetchEntriesForCollection(collectionId: string): Promise<CollectionEntry[]> {
   const repo = getCollectionRepository();
@@ -42,46 +62,69 @@ export async function fetchEntriesForCollection(collectionId: string): Promise<C
   }
   if (entryRows.length === 0) return [];
 
-  // Batch-fetch vault rows to resolve media_type for each entry.
-  // The collection_entries table has no media_type column — it's on
-  // the vault row. We fetch all referenced vault rows in one query.
-  const _vaultRepo = getVaultRepository();
+  // Step 1: Batch-fetch vault rows to get tmdb_id + media_type.
+  // We fetch ALL needed fields in one query — no N+1.
   const vaultIds = entryRows.map((e) => e.vault_id);
-
-  // Build a vault_id → media_type lookup.
-  // We use the Supabase client directly for a batch select since
-  // VaultRepository doesn't expose a "get by ids" method.
   const { getClient } = await import("~/lib/supabase/client");
   const supabase = getClient();
   const { data: vaultRows, error: vaultError } = await supabase
     .from("vault")
-    .select("id, media_type")
+    .select("id, media_type, tmdb_id")
     .in("id", vaultIds)
     .is("deleted_at", null);
 
   if (vaultError) {
-    console.error("[collectionEntryAdapter] Error fetching vault rows for media_type:", vaultError);
-    // Fall back to mapping without media_type (will use default)
+    console.error("[collectionEntryAdapter] Error fetching vault rows:", vaultError);
+    // Fall back to mapping without TMDB metadata
     return entryRows.map((row) => entryRowToCollectionEntry(row));
   }
 
-  // Build lookup: vault_id → media_type
-  const mediaTypeByVaultId = new Map<string, "movie" | "tv">();
-  for (const vrow of (vaultRows ?? []) as Pick<VaultRow, "id" | "media_type">[]) {
-    mediaTypeByVaultId.set(vrow.id, vrow.media_type);
+  // Build lookup: vault_id → { media_type, tmdb_id }
+  const vaultInfoByVaultId = new Map<string, { mediaType: "movie" | "tv"; tmdbId: number }>();
+  for (const vrow of (vaultRows ?? []) as Pick<VaultRow, "id" | "media_type" | "tmdb_id">[]) {
+    vaultInfoByVaultId.set(vrow.id, {
+      mediaType: vrow.media_type,
+      tmdbId: vrow.tmdb_id,
+    });
   }
 
-  // Map entries with resolved media_type
-  return entryRows.map((row) => {
-    const mediaType = mediaTypeByVaultId.get(row.vault_id);
-    if (!mediaType) {
-      // Vault item was deleted — log the issue but still return the entry
-      // with a fallback. This is explicitly logged, not silently ignored.
-      console.warn(
-        new UnresolvedMediaTypeError(row.vault_id).message
-      );
+  // Step 2: Batch-fetch TMDB metadata for all entries.
+  // Build the list of { mediaType, tmdbId } pairs for the batch fetch.
+  const tmdbItems: { mediaType: "movie" | "tv"; tmdbId: number }[] = [];
+  for (const row of entryRows) {
+    const info = vaultInfoByVaultId.get(row.vault_id);
+    if (info) {
+      tmdbItems.push({ mediaType: info.mediaType, tmdbId: info.tmdbId });
     }
-    return entryRowToCollectionEntry(row, mediaType ?? "movie");
+  }
+
+  // Use the shared TMDB batch fetch (cached via apiCache).
+  let tmdbMap = new Map<string, TMDBTitle>();
+  if (tmdbItems.length > 0) {
+    try {
+      const { fetchTmdbMetadataBatch } = await import("~/core/tmdb/tmdb");
+      tmdbMap = await fetchTmdbMetadataBatch(tmdbItems);
+    } catch (err) {
+      console.error("[collectionEntryAdapter] TMDB batch fetch failed:", err);
+      // Continue with empty map — entries will have undefined title/poster
+    }
+  }
+
+  // Step 3: Merge everything into hydrated CollectionEntry[].
+  return entryRows.map((row) => {
+    const info = vaultInfoByVaultId.get(row.vault_id);
+    if (!info) {
+      // Vault item was deleted — return entry with defaults
+      console.warn(`[collectionEntryAdapter] Vault item ${row.vault_id} not found (deleted?)`);
+      return entryRowToCollectionEntry(row);
+    }
+
+    // Look up TMDB metadata
+    const tmdbKey = `${info.mediaType}/${info.tmdbId}`;
+    const tmdb = tmdbMap.get(tmdbKey) ?? null;
+
+    // Build the fully hydrated entry
+    return entryRowToCollectionEntry(row, info.mediaType, tmdb, info.tmdbId);
   });
 }
 
@@ -91,9 +134,6 @@ export async function fetchEntriesForCollection(collectionId: string): Promise<C
 
 /**
  * Resolve the vault row's UUID from a TMDB identity.
- *
- * `collection_entries` uses `vault_id` (UUID), but the UI works with
- * `tmdb_id` (string). This helper bridges the gap.
  */
 async function resolveVaultId(
   userId: string,
@@ -107,47 +147,9 @@ async function resolveVaultId(
 }
 
 /**
- * Add a vault item to a collection.
- *
- * The `CollectionEntry.id` is the TMDB id (string). This function
- * resolves it to the vault UUID, then calls `CollectionRepository.addItem`.
- *
- * @returns true on success, false on failure.
- */
-export async function addEntryToCollection(
-  collectionId: string,
-  entry: CollectionEntry
-): Promise<boolean> {
-  // The entry.id is the TMDB id — we need the vault UUID.
-  // Since we don't have the userId here, we rely on the CollectionRepository
-  // to enforce RLS. The vault_id must be a real vault UUID.
-  //
-  // For entries coming from the UI (where entry.id is tmdb_id), we need
-  // to resolve the vault UUID first. But addEntryToCollection is called
-  // from the hook which has the userId. So we accept the vault_id directly
-  // if it's a UUID, or resolve it if it looks like a TMDB id.
-  //
-  // Simplest approach: the hook resolves the vault UUID before calling
-  // this function. For now, we pass entry.id as the vault_id — if the
-  // UI passes a TMDB id, this will fail at the FK constraint. The hook
-  // should call addEntryToCollectionWithTmdbId instead.
-  const repo = getCollectionRepository();
-  const { error } = await repo.addItem({
-    collectionId,
-    vaultId: entry.id, // Should be a vault UUID; see note above
-  });
-  if (error) {
-    console.error("[collectionEntryAdapter] Error adding entry:", error);
-    return false;
-  }
-  return true;
-}
-
-/**
  * Add a vault item to a collection by TMDB id.
  *
  * Resolves the vault UUID from the TMDB identity, then adds the entry.
- * This is the preferred method for UI callers that have TMDB ids.
  */
 export async function addEntryToCollectionByTmdbId(
   userId: string,
@@ -172,9 +174,6 @@ export async function addEntryToCollectionByTmdbId(
 
 /**
  * Remove an entry from a collection.
- *
- * @param collectionId  The collection's UUID.
- * @param vaultId       The vault item's UUID (NOT tmdb_id).
  */
 export async function removeEntryFromCollection(
   collectionId: string,
@@ -191,9 +190,6 @@ export async function removeEntryFromCollection(
 
 /**
  * Reorder entries in a collection.
- *
- * @param collectionId     The collection's UUID.
- * @param orderedVaultIds  Array of vault UUIDs in the desired order.
  */
 export async function reorderEntriesInCollection(
   collectionId: string,
@@ -210,10 +206,6 @@ export async function reorderEntriesInCollection(
 
 /**
  * Move a single entry to a new position within a collection.
- *
- * @param collectionId  The collection's UUID.
- * @param vaultId       The vault item's UUID.
- * @param toPosition    Zero-indexed target position.
  */
 export async function moveEntryInCollection(
   collectionId: string,
@@ -241,3 +233,6 @@ export async function clearCollectionEntries(collectionId: string): Promise<bool
   }
   return true;
 }
+
+// Keep the old addEntryToCollection export for backward compat
+export { addEntryToCollectionByTmdbId as addEntryToCollection };

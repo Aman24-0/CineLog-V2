@@ -13,7 +13,7 @@
  */
 
 import type { CollectionRow, CollectionEntryRow } from "~/lib/supabase/repositories";
-import type { Collection, CollectionEntry, CollectionType } from "~/shared/types";
+import type { Collection, CollectionEntry, CollectionType, TMDBTitle } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
 // Type mapping helpers
@@ -42,31 +42,44 @@ function mapCollectionType(dbType: string): CollectionType {
 /**
  * Map a Supabase `CollectionEntryRow` to the app's `CollectionEntry`.
  *
- * The `collection_entries` table stores only the relationship
- * (collection_id, vault_id, position). TMDB metadata (title,
- * poster_path, etc.) is NOT stored — the UI fetches it from TMDB or
- * the vault.
+ * This is the SINGLE normalization point for collection entries. The
+ * `collection_entries` table stores only the relationship (collection_id,
+ * vault_id, position). Display metadata (title, poster_path, etc.) is
+ * NOT stored — it's hydrated from TMDB via the vault's tmdb_id.
  *
- * `media_type` is NOT on the `collection_entries` table — it's on the
- * `vault` row. The caller MUST resolve it from the vault and pass it
- * via the `mediaType` parameter. If `mediaType` is undefined, the
- * entry's `media_type` defaults to `"movie"` ONLY because the
- * `CollectionEntry` type requires a value — but this is a last-resort
- * fallback, not an assumption. Callers should always resolve
- * media_type from the vault before calling this function.
+ * Parameters:
+ *   row        — The collection_entries row (vault_id, position)
+ *   mediaType  — media_type resolved from the vault row
+ *   tmdb       — TMDB metadata (title, poster_path, etc.) — optional
+ *   tmdbId     — The TMDB id from the vault row — optional
  *
- * @param row        The collection_entries row.
- * @param mediaType  media_type resolved from the vault row. If
- *                   undefined, defaults to "movie" as a type-level
- *                   requirement only — callers should resolve it.
+ * The returned `CollectionEntry.id` is the TMDB id (as a string), NOT
+ * the vault UUID. This is because the UI uses `entry.id` to open the
+ * Details modal, which fetches TMDB details by id. If `tmdbId` is not
+ * available (vault item deleted), falls back to `vault_id`.
+ *
+ * If `tmdb` is provided, the entry will have:
+ *   title, name, poster_path, backdrop_path, release_date, first_air_date
+ * populated from the TMDB metadata. If `tmdb` is null/undefined, these
+ * fields will be `undefined` — the UI shows "Untitled" as a genuine
+ * fallback (not a data bug).
  */
 export function entryRowToCollectionEntry(
   row: CollectionEntryRow,
-  mediaType: "movie" | "tv" = "movie"
+  mediaType: "movie" | "tv" = "movie",
+  tmdb?: TMDBTitle | null,
+  tmdbId?: number
 ): CollectionEntry {
   return {
-    id: row.vault_id,
+    // Use TMDB id as the entry id — the UI opens Details by TMDB id
+    id: tmdbId != null ? String(tmdbId) : row.vault_id,
     media_type: mediaType,
+    title: tmdb?.title ?? undefined,
+    name: tmdb?.name ?? undefined,
+    poster_path: tmdb?.poster_path ?? undefined,
+    backdrop_path: tmdb?.backdrop_path ?? undefined,
+    release_date: tmdb?.release_date ?? undefined,
+    first_air_date: tmdb?.first_air_date ?? undefined,
     order: row.position,
   };
 }
