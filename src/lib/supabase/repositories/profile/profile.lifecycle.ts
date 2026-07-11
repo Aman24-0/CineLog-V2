@@ -40,6 +40,7 @@ import type {
 import { computeScheduledDeletionAt, toError } from "./profile.utils";
 import {
   sanitizeUsername,
+  validateUsername,
   generateUsernameCandidates,
   displayNameFromMetadata,
 } from "~/shared/utils/username";
@@ -316,6 +317,17 @@ export async function ensureProfile(
  *
  * Usernames are case-insensitive (citext column) so the check is
  * case-insensitive.
+ *
+ * This function does NOT validate the username format — it only checks
+ * the database. Use validateUsername() first to check format rules,
+ * then call this to check availability.
+ *
+ * @param supabase The Supabase client.
+ * @param username The username to check (should be pre-sanitized).
+ * @param excludeUserId If provided, exclude this user's current username
+ *   from the check (so the user can "re-save" their own username).
+ * @returns { available, error } — available is true if no other user
+ *   has this username.
  */
 export async function checkUsernameAvailability(
   supabase: TypedSupabaseClient,
@@ -350,6 +362,10 @@ async function findAvailableUsername(
 ): Promise<string | null> {
   const candidates = generateUsernameCandidates(baseUsername);
   for (const candidate of candidates) {
+    // Skip candidates that fail validation (reserved, too short, etc.)
+    const validation = validateUsername(candidate);
+    if (!validation.valid) continue;
+
     const { available, error } = await checkUsernameAvailability(supabase, candidate);
     if (error) {
       console.error("[ensureProfile] Username availability check failed:", error);

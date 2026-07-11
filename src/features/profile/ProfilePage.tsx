@@ -28,6 +28,8 @@ import { useToast } from "~/shared/hooks/useToast";
 import PageContainer from "~/shared/ui/PageContainer";
 import { Button } from "~/shared/ui/primitives";
 import { useProfileData } from "./useProfileData";
+import { useUsernameCheck } from "./useUsernameCheck";
+import { validateUsername, sanitizeUsername } from "~/shared/utils/username";
 import ProfileBanner from "./components/ProfileBanner";
 import BannerEditor, { type BannerType } from "./components/BannerEditor";
 import TasteCard, { type FavoriteSlot } from "./components/TasteCard";
@@ -46,28 +48,58 @@ const ProfilePage: Component = () => {
   // Edit mode — inline editing, no modal.
   const [isEditing, setIsEditing] = createSignal(false);
   const [editName, setEditName] = createSignal("");
+  const [editUsername, setEditUsername] = createSignal("");
   const [editBio, setEditBio] = createSignal("");
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [pickerSlot, setPickerSlot] = createSignal<FavoriteSlot | null>(null);
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
 
+  // Live username availability checker (debounced, 400ms).
+  // Only active during edit mode. Uses the user's current username as
+  // the exclusion so they can re-save their own name.
+  const currentUsername = createMemo(() => data()?.profile?.username ?? "");
+  const uid = createMemo(() => user()?.uid ?? null);
+  const usernameCheck = useUsernameCheck(editUsername, currentUsername, uid);
+
   // Enter edit mode — copy current values to the edit signals.
   const enterEdit = () => {
     const p = data()?.profile;
     setEditName(p?.display_name ?? user()?.displayName ?? "");
+    setEditUsername(p?.username ?? "");
     setEditBio(p?.bio ?? "");
     setIsEditing(true);
   };
 
-  // Save name + bio changes.
+  // Save name + username + bio changes.
   const handleSave = async () => {
     const name = editName().trim();
     if (!name) {
       showToast("Display name cannot be empty.", "error");
       return;
     }
+
+    // Validate username if it changed
+    const cleanUsername = sanitizeUsername(editUsername());
+    const oldUsername = currentUsername();
+    const usernameChanged = cleanUsername !== sanitizeUsername(oldUsername);
+
+    if (usernameChanged) {
+      const validation = validateUsername(cleanUsername);
+      if (!validation.valid) {
+        showToast(validation.message, "error");
+        return;
+      }
+
+      // Check live availability state
+      if (usernameCheck.state() !== "available") {
+        showToast("Username is not available. Try another.", "error");
+        return;
+      }
+    }
+
     const ok = await saveProfile({
       displayName: name,
+      username: usernameChanged ? cleanUsername : undefined,
       bio: editBio().trim() || null,
     });
     if (ok) {
@@ -327,10 +359,58 @@ const ProfilePage: Component = () => {
                   </div>
                 </div>
 
-                {/* Username */}
-                <p class="profile-username">
-                  @{data()?.profile?.username ?? "cinephile"}
-                </p>
+                {/* Username — editable in edit mode with live validation */}
+                <Show
+                  when={!isEditing()}
+                  fallback={
+                    <div class="profile-username-edit-wrap">
+                      <div class="profile-username-input-row">
+                        <span class="profile-username-at">@</span>
+                        <input
+                          type="text"
+                          class="profile-username-input focus-ring"
+                          value={editUsername()}
+                          onInput={(e) => setEditUsername(e.currentTarget.value)}
+                          maxlength={24}
+                          aria-label="Username"
+                          placeholder="username"
+                          autocomplete="off"
+                          spellcheck={false}
+                        />
+                      </div>
+                      {/* Live validation indicator */}
+                      <Show when={editUsername().trim().length > 0}>
+                        <p
+                          class="profile-username-validation"
+                          data-state={usernameCheck.state()}
+                          role="status"
+                          aria-live="polite"
+                        >
+                          <Show when={usernameCheck.state() === "checking"}>
+                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                              progress_activity
+                            </span>
+                          </Show>
+                          <Show when={usernameCheck.state() === "available"}>
+                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                              check_circle
+                            </span>
+                          </Show>
+                          <Show when={usernameCheck.state() === "taken" || usernameCheck.state() === "reserved" || usernameCheck.state() === "invalid"}>
+                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                              cancel
+                            </span>
+                          </Show>
+                          {usernameCheck.message()}
+                        </p>
+                      </Show>
+                    </div>
+                  }
+                >
+                  <p class="profile-username">
+                    @{data()?.profile?.username ?? "cinephile"}
+                  </p>
+                </Show>
 
                 {/* Tagline / Bio */}
                 <Show

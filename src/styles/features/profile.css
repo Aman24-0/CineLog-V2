@@ -271,6 +271,75 @@
   margin: 0 0 var(--sp-2);
 }
 
+/* Username edit field (inline edit mode) */
+.profile-username-edit-wrap {
+  margin: 0 0 var(--sp-2);
+}
+
+.profile-username-input-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  max-width: 300px;
+}
+
+.profile-username-at {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.profile-username-input {
+  flex: 1;
+  min-width: 0;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  padding: 0.375rem 0.5rem;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.profile-username-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+
+/* Live validation indicator */
+.profile-username-validation {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin: 4px 0 0;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.profile-username-validation[data-state="checking"] {
+  color: var(--text-muted);
+}
+.profile-username-validation[data-state="checking"] .profile-username-validation-icon {
+  animation: softPulse 1s ease-in-out infinite;
+}
+
+.profile-username-validation[data-state="available"] {
+  color: #4ade80;
+}
+
+.profile-username-validation[data-state="taken"],
+.profile-username-validation[data-state="reserved"],
+.profile-username-validation[data-state="invalid"] {
+  color: #f87171;
+}
+
 .profile-tagline {
   font-family: 'Outfit', sans-serif;
   font-size: 0.9375rem;

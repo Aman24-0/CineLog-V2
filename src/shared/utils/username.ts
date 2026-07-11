@@ -1,50 +1,263 @@
 /**
- * CineLog V2 — Username Generation Utility
+ * CineLog V2 — Username System
  * ---------------------------------------------------------------------
- * Generates unique, URL-safe usernames from email addresses.
+ * Complete production-grade username system: validation, sanitization,
+ * availability checking, and candidate generation.
  *
- * Algorithm (Telegram/Discord style):
- *   1. Extract the local part of the email (before @)
- *   2. Sanitize: lowercase, remove spaces, keep only [a-z0-9_]
- *   3. If the base username is taken, append incrementing suffixes:
- *      aman → aman24 → aman_24 → aman247 → aman2471 → ...
- *   4. Never exceed 20 characters total
+ * Architecture:
+ *   sanitizeUsername()      — transform raw input into a valid username
+ *   validateUsername()      — check if a username meets all rules
+ *   checkUsernameAvailability() — query the database (in repository layer)
+ *   generateUsernameCandidates() — generate alternatives when taken
+ *   findAvailableUsername() — try candidates until one is available
  *
- * The suffix pattern alternates between numeric and underscore-numeric
- * to maximize the chance of finding a short, readable username.
+ * Username rules (Telegram/GitHub style):
+ *   • Lowercase only (a-z, 0-9, _)
+ *   • 3–24 characters
+ *   • Must start with a letter
+ *   • Cannot start or end with _
+ *   • Cannot contain __ (consecutive underscores)
+ *   • No spaces, no special characters
+ *
+ * Reserved usernames (cannot be claimed by users):
+ *   admin, support, system, official, cinelog, api, root, owner,
+ *   staff, discover, watchlist, collection, collections, settings,
+ *   profile, login, signup, auth, search, movie, series, help,
+ *   about, privacy, terms
  */
 
+// ---------------------------------------------------------------------------
+// Constants
+// ---------------------------------------------------------------------------
+
+export const USERNAME_MIN_LENGTH = 3;
+export const USERNAME_MAX_LENGTH = 24;
+
 /**
- * Sanitize a string into a valid CineLog username.
- * Rules: lowercase, no spaces, only [a-z0-9_], max 20 chars, must start
- * with a letter.
+ * Reserved usernames that cannot be claimed by users.
+ * These are system/route names that would conflict with app URLs
+ * (e.g., /user/admin would be confusing).
+ */
+export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
+  "admin", "support", "system", "official", "cinelog", "api",
+  "root", "owner", "staff", "discover", "watchlist", "collection",
+  "collections", "settings", "profile", "login", "signup", "auth",
+  "search", "movie", "series", "help", "about", "privacy", "terms",
+  "cinema", "film", "tv", "shows", "new", "user", "null", "undefined",
+]);
+
+// ---------------------------------------------------------------------------
+// Types
+// ---------------------------------------------------------------------------
+
+export type UsernameValidationStatus =
+  | "valid"           // Username passes all format rules
+  | "too_short"       // Fewer than USERNAME_MIN_LENGTH characters
+  | "too_long"        // More than USERNAME_MAX_LENGTH characters
+  | "invalid_format"  // Contains disallowed characters or patterns
+  | "reserved"        // Is a reserved system username
+  | "starts_underscore" // Starts with _
+  | "ends_underscore"   // Ends with _
+  | "double_underscore" // Contains __
+  | "must_start_letter"; // Doesn't start with a letter
+
+export interface UsernameValidationResult {
+  status: UsernameValidationStatus;
+  valid: boolean;
+  message: string;
+  sanitized: string; // The sanitized version of the input
+}
+
+// ---------------------------------------------------------------------------
+// Sanitization
+// ---------------------------------------------------------------------------
+
+/**
+ * Sanitize a raw string into a valid username format.
+ *
+ * This does NOT validate — it only transforms. It:
+ *   1. Lowercases everything
+ *   2. Removes all characters except [a-z0-9_]
+ *   3. Collapses consecutive underscores into one
+ *   4. Trims leading/trailing underscores
+ *   5. Truncates to USERNAME_MAX_LENGTH
+ *
+ * Example:
+ *   "Aman Dahayat" → "aman_dahayat"
+ *   "AMAN24" → "aman24"
+ *   "Aman__24" → "aman_24"
+ *   "john.doe@gmail.com" → "john_doe"
+ *
+ * @param input The raw input string (display name, email, or typed username)
+ * @returns The sanitized string (may still need validation)
  */
 export function sanitizeUsername(input: string): string {
+  if (!input) return "";
+
   // Extract local part if it's an email
-  let local = input.includes("@") ? input.split("@")[0] : input;
+  let s = input.includes("@") ? input.split("@")[0] : input;
+
   // Lowercase
-  local = local.toLowerCase();
+  s = s.toLowerCase();
+
   // Replace common separators with underscore
-  local = local.replace(/[\.\-\+]/g, "_");
+  s = s.replace(/[\.\-\+\s]/g, "_");
+
   // Remove any character that's not a-z, 0-9, or _
-  local = local.replace(/[^a-z0-9_]/g, "");
-  // Remove leading underscores/digits (must start with a letter)
-  local = local.replace(/^[^a-z]+/, "");
-  // Collapse multiple underscores
-  local = local.replace(/_+/g, "_");
+  s = s.replace(/[^a-z0-9_]/g, "");
+
+  // Collapse consecutive underscores
+  s = s.replace(/_+/g, "_");
+
+  // Remove leading non-letters (underscores and digits)
+  s = s.replace(/^[^a-z]+/, "");
+
   // Remove trailing underscore
-  local = local.replace(/_$/, "");
-  // Truncate to 20 chars
-  local = local.slice(0, 20);
-  return local || "cinephile";
+  s = s.replace(/_$/, "");
+
+  // Truncate to max length
+  s = s.slice(0, USERNAME_MAX_LENGTH);
+
+  // Re-trim trailing underscore after truncation
+  s = s.replace(/_$/, "");
+
+  return s;
 }
+
+// ---------------------------------------------------------------------------
+// Validation
+// ---------------------------------------------------------------------------
+
+/**
+ * Validate a username against ALL CineLog rules.
+ *
+ * This is a PURE function — no database calls. It checks:
+ *   • Length (3–24 characters)
+ *   • Only [a-z0-9_] characters
+ *   • Starts with a letter
+ *   • No leading/trailing underscore
+ *   • No consecutive underscores (__)
+ *   • Not a reserved username
+ *
+ * For availability checking (is it taken?), use checkUsernameAvailability()
+ * in the repository layer.
+ *
+ * @param username The username to validate (should be pre-sanitized)
+ * @returns Validation result with status, message, and sanitized version
+ */
+export function validateUsername(username: string): UsernameValidationResult {
+  const sanitized = sanitizeUsername(username);
+
+  // Check: empty after sanitization
+  if (!sanitized) {
+    return {
+      status: "invalid_format",
+      valid: false,
+      message: "Username must contain at least one letter.",
+      sanitized: "",
+    };
+  }
+
+  // Check: minimum length
+  if (sanitized.length < USERNAME_MIN_LENGTH) {
+    return {
+      status: "too_short",
+      valid: false,
+      message: `Username must be at least ${USERNAME_MIN_LENGTH} characters.`,
+      sanitized,
+    };
+  }
+
+  // Check: maximum length
+  if (sanitized.length > USERNAME_MAX_LENGTH) {
+    return {
+      status: "too_long",
+      valid: false,
+      message: `Username must be at most ${USERNAME_MAX_LENGTH} characters.`,
+      sanitized: sanitized.slice(0, USERNAME_MAX_LENGTH),
+    };
+  }
+
+  // Check: must start with a letter
+  if (!/^[a-z]/.test(sanitized)) {
+    return {
+      status: "must_start_letter",
+      valid: false,
+      message: "Username must start with a letter.",
+      sanitized,
+    };
+  }
+
+  // Check: only [a-z0-9_] — already guaranteed by sanitizeUsername,
+  // but double-check for safety
+  if (!/^[a-z0-9_]+$/.test(sanitized)) {
+    return {
+      status: "invalid_format",
+      valid: false,
+      message: "Username can only contain letters, numbers, and underscores.",
+      sanitized,
+    };
+  }
+
+  // Check: no leading underscore
+  if (sanitized.startsWith("_")) {
+    return {
+      status: "starts_underscore",
+      valid: false,
+      message: "Username cannot start with an underscore.",
+      sanitized,
+    };
+  }
+
+  // Check: no trailing underscore
+  if (sanitized.endsWith("_")) {
+    return {
+      status: "ends_underscore",
+      valid: false,
+      message: "Username cannot end with an underscore.",
+      sanitized,
+    };
+  }
+
+  // Check: no consecutive underscores
+  if (sanitized.includes("__")) {
+    return {
+      status: "double_underscore",
+      valid: false,
+      message: "Username cannot contain consecutive underscores.",
+      sanitized,
+    };
+  }
+
+  // Check: reserved username
+  if (RESERVED_USERNAMES.has(sanitized)) {
+    return {
+      status: "reserved",
+      valid: false,
+      message: "This username is reserved.",
+      sanitized,
+    };
+  }
+
+  // All checks passed
+  return {
+    status: "valid",
+    valid: true,
+    message: "Username is valid.",
+    sanitized,
+  };
+}
+
+// ---------------------------------------------------------------------------
+// Candidate generation
+// ---------------------------------------------------------------------------
 
 /**
  * Generate username candidates from a base, in order of preference.
  *
  * Pattern: base → base24 → base_24 → base247 → base_247 → ...
  *
- * @param base The sanitized username base (from email).
+ * @param base The sanitized username base (from email or display name).
  * @param maxAttempts Maximum number of candidates to generate.
  * @returns Array of candidate usernames, most preferred first.
  */
@@ -53,7 +266,7 @@ export function generateUsernameCandidates(base: string, maxAttempts = 10): stri
   const suffixes = ["24", "_24", "247", "_247", "2471", "_2471", "24715", "_24715", "247159", "_247159"];
 
   for (let i = 0; i < Math.min(suffixes.length, maxAttempts - 1); i++) {
-    const candidate = `${base}${suffixes[i]}`.slice(0, 20);
+    const candidate = `${base}${suffixes[i]}`.slice(0, USERNAME_MAX_LENGTH);
     if (!candidates.includes(candidate)) {
       candidates.push(candidate);
     }
@@ -62,7 +275,7 @@ export function generateUsernameCandidates(base: string, maxAttempts = 10): stri
   // If we still need more, use random numbers
   while (candidates.length < maxAttempts) {
     const num = Math.floor(Math.random() * 99999) + 1;
-    const candidate = `${base}${num}`.slice(0, 20);
+    const candidate = `${base}${num}`.slice(0, USERNAME_MAX_LENGTH);
     if (!candidates.includes(candidate)) {
       candidates.push(candidate);
     }
@@ -70,6 +283,10 @@ export function generateUsernameCandidates(base: string, maxAttempts = 10): stri
 
   return candidates;
 }
+
+// ---------------------------------------------------------------------------
+// Display name extraction (used by ensureProfile)
+// ---------------------------------------------------------------------------
 
 /**
  * Extract a display name from an email address.
@@ -80,9 +297,7 @@ export function generateUsernameCandidates(base: string, maxAttempts = 10): stri
  */
 export function displayNameFromEmail(email: string): string {
   const local = email.split("@")[0];
-  // Replace separators with spaces
   const name = local.replace(/[\.\-\+_]/g, " ").trim();
-  // Title case each word
   const titled = name
     .split(" ")
     .filter((w) => w.length > 0)
