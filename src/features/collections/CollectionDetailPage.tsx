@@ -21,14 +21,17 @@ import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, Watch
  *     2. A curated universe slug → fetched from Supabase curated_universes
  *
  * SSR safety:
- *   The collection fetch is client-only (guarded by isServer). During SSR,
- *   loading is true so the skeleton renders. On the client, a createEffect
- *   resolves the collection — first checking userCollections() (sync),
- *   then falling back to fetchCuratedUniverseBySlug (async).
+ *   loading is ALWAYS true initially (including SSR) so the skeleton
+ *   renders. The createEffect on the client resolves the collection.
  *
- * REACTIVITY:
- *   Preferences (activeOrder, activeProvider) are applied in a
- *   createEffect — NEVER in the render path.
+ * RACE CONDITION PREVENTION:
+ *   A `resolveEpoch` counter tracks the latest resolveCollection call.
+ *   When userCollections populates (changing from 0 to N), the effect
+ *   re-runs. The previous async fetch (which was searching for a curated
+ *   universe with a UUID) is still in flight. When it resolves, it
+ *   checks if its epoch matches the current one — if not, it ignores
+ *   the result. This prevents stale `notFound = true` from overriding
+ *   a successful collection lookup.
  */
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -40,37 +43,63 @@ export default function CollectionDetailPage() {
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
 
-  // Client-only state — during SSR these stay at their initial values
-  // (loading=true, collection=null) so the skeleton renders.
+  // loading is ALWAYS true initially (including SSR) so the skeleton
+  // renders. Never false until the client resolves the collection.
   const [collection, setCollection] = createSignal<Collection | null>(null);
-  const [loading, setLoading] = createSignal(!isServer);
+  const [loading, setLoading] = createSignal(true);
   const [notFound, setNotFound] = createSignal(false);
 
-  // Resolve the collection. Client-only — does not run during SSR.
+  // Race condition guard — incremented on every resolveCollection call.
+  // When an async result comes back, it checks if its epoch matches
+  // the current one. If not, the result is stale and ignored.
+  let resolveEpoch = 0;
+
+  // Resolve the collection. Client-only.
   const resolveCollection = async (id: string) => {
     if (isServer) return;
+
+    const myEpoch = ++resolveEpoch;
     setLoading(true);
     setNotFound(false);
+
     try {
       // 1. Check user collections first (synchronous lookup).
       const userCol = userCollections().find((c) => c.id === id);
       if (userCol) {
+        // Check for staleness — another resolve might have started.
+        if (myEpoch !== resolveEpoch) return;
         setCollection(userCol);
         setLoading(false);
         return;
       }
-      // 2. Fetch curated universe from Supabase by slug.
+
+      // 2. If userCollections is empty (still loading), DON'T fall through
+      //    to the curated universe lookup yet. Wait for userCollections
+      //    to populate. The createEffect will re-run when
+      //    userCollections().length changes.
+      if (userCollections().length === 0) {
+        // Keep loading true — the effect will re-run when collections load.
+        return;
+      }
+
+      // 3. userCollections has loaded but doesn't contain this ID.
+      //    Try fetching as a curated universe by slug.
       const curated = await fetchCuratedUniverseBySlug(id);
+      if (myEpoch !== resolveEpoch) return; // stale
+
       if (curated) {
         setCollection(curated);
       } else {
         setNotFound(true);
       }
     } catch (err) {
+      if (myEpoch !== resolveEpoch) return; // stale
       console.error("[CollectionDetailPage] Failed to load collection:", err);
       setNotFound(true);
     } finally {
-      setLoading(false);
+      if (myEpoch === resolveEpoch) {
+        setLoading(false);
+      }
     }
   };
 
@@ -112,7 +141,7 @@ export default function CollectionDetailPage() {
       <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
-      {/* Loading state */}
+      {/* Loading state — always renders during SSR + initial client load */}
       <Show when={loading()}>
         <div class="page-enter" style={{ padding: "var(--sp-12)", "text-align": "center" }}>
           <div class="skeleton-base" style={{ width: "60%", height: "2rem", margin: "0 auto var(--sp-4)" }} />
