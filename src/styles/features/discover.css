@@ -1379,8 +1379,16 @@
 .discover-lazy-mount {
   display: contents;
 }
+/* Sentinel MUST have a layout box (not display:none) so IntersectionObserver
+   can detect intersection. 1px height is visually invisible but has geometry. */
 .discover-lazy-sentinel {
-  display: none; /* the sentinel is observed programmatically; never visible */
+  height: 1px;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  pointer-events: none;
+  opacity: 0;
 }
 .discover-lazy-mount[data-visible="true"] > section,
 .discover-lazy-mount[data-visible="true"] > .editorial-card {

@@ -94,6 +94,28 @@ export default function DiscoverPage() {
   const [personalizedTitles, setPersonalizedTitles] = createSignal<TMDBTitle[]>([]);
   const [personalizedLabel, setPersonalizedLabel] = createSignal<string>("");
 
+  // MUST be declared before the createMemo below — createMemo runs its
+  // computation synchronously during component setup, and the memo calls
+  // fetchGenrePersonalization(t). If this const is declared after the
+  // memo, JavaScript's temporal dead zone (TDZ) throws
+  // "Cannot access 'M' before initialization" (M = minified name of
+  // fetchGenrePersonalization). This only triggers when taste() returns
+  // a non-cold-start profile during the initial synchronous run — i.e.
+  // on client-side navigation when the vault is already loaded.
+  const fetchGenrePersonalization = (t: NonNullable<ReturnType<typeof taste>>) => {
+    const topGenre = t.topGenres[0];
+    if (!topGenre) return;
+    setPersonalizedLabel(`Because you love ${topGenre}`);
+    const genreId = genreIdFor(topGenre, "movie");
+    if (!genreId) return;
+    discoverMovies({ withGenres: [genreId], sortBy: "popularity.desc", voteCountGte: 200 })
+      .then((titles) => {
+        const vaultIds = new Set(watchlist().map((w) => w.id));
+        setPersonalizedTitles(titles.filter((t) => !vaultIds.has(String(t.id))).slice(0, 20));
+      })
+      .catch((e) => console.error("[DiscoverPage] personalized fetch:", e));
+  };
+
   createMemo(() => {
     const t = taste();
     if (!t || t.isColdStart) return;
@@ -113,20 +135,6 @@ export default function DiscoverPage() {
     }
     fetchGenrePersonalization(t);
   });
-
-  const fetchGenrePersonalization = (t: NonNullable<ReturnType<typeof taste>>) => {
-    const topGenre = t.topGenres[0];
-    if (!topGenre) return;
-    setPersonalizedLabel(`Because you love ${topGenre}`);
-    const genreId = genreIdFor(topGenre, "movie");
-    if (!genreId) return;
-    discoverMovies({ withGenres: [genreId], sortBy: "popularity.desc", voteCountGte: 200 })
-      .then((titles) => {
-        const vaultIds = new Set(watchlist().map((w) => w.id));
-        setPersonalizedTitles(titles.filter((t) => !vaultIds.has(String(t.id))).slice(0, 20));
-      })
-      .catch((e) => console.error("[DiscoverPage] personalized fetch:", e));
-  };
 
   // === Discover Something Different ===
   const [differentTitles, setDifferentTitles] = createSignal<TMDBTitle[]>([]);

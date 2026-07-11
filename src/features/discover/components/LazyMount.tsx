@@ -1,6 +1,5 @@
 // src/features/discover/components/LazyMount.tsx
 import { createSignal, onMount, onCleanup, Show, type Component, type JSX } from "solid-js";
-import { isServer } from "solid-js/web";
 
 interface LazyMountProps {
   /** Rendered children once the wrapper has been intersected at least once. */
@@ -20,27 +19,22 @@ interface LazyMountProps {
  * LazyMount — IntersectionObserver-gated wrapper for below-the-fold
  * Discover sections.
  *
- * SSR: children render immediately (no IntersectionObserver on server,
- * and we want the below-the-fold sections present in the SSR HTML so
- * the page is complete before hydration).
+ * Initial visible() is ALWAYS false — on both server and client. This
+ * avoids hydration mismatches (SSR and client start with the same
+ * state). On the client, onMount fires and the IntersectionObserver
+ * starts watching the sentinel. When the sentinel scrolls into view
+ * (or within rootMargin), visible() becomes true and children render.
  *
- * Client: on mount, a sentinel is observed. Children render once the
- * sentinel enters the viewport (or comes within `rootMargin` of it).
- * Once intersected, it stays mounted — there's no "un-lazy" path.
- *
- * Why render children during SSR even though they're "lazy": the
- * laziness is about deferring client-side mount effects (data fetches,
- * event listeners) — not about omitting DOM. SSR-included children
- * hydrate cleanly without a flash of empty content.
+ * The sentinel MUST have a layout box (height: 1px, not display: none)
+ * — IntersectionObserver cannot detect intersection for elements with
+ * display: none (they have no box).
  */
 const LazyMount: Component<LazyMountProps> = (props) => {
-  // Server renders children immediately. Client starts hidden and
-  // reveals on intersection.
-  const [visible, setVisible] = createSignal(isServer);
+  const [visible, setVisible] = createSignal(false);
   let sentinel: HTMLDivElement | undefined;
 
   onMount(() => {
-    if (isServer) return;
+    // onMount only runs on the client — no isServer check needed.
     if (!sentinel) {
       setVisible(true);
       return;
