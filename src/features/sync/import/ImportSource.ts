@@ -111,14 +111,13 @@ export interface ImportWizardProps {
 // To add a new source, append it here. The Sync page reads this array.
 // ---------------------------------------------------------------------------
 
-import { CineLogV1ImportSource } from "./sources/cinelogV1Source";
+import { JsonImportSource } from "./sources/jsonImportSource";
 
 export const IMPORT_SOURCES: ImportSource[] = [
-  CineLogV1ImportSource,
+  JsonImportSource,
   // Future sources — registered here when implemented:
   // LetterboxdImportSource,
   // TraktImportSource,
-  // ImdbCsvImportSource,
   // CsvImportSource,
 ];
 
@@ -138,6 +137,13 @@ export interface FutureSource {
 
 export const FUTURE_SOURCES: FutureSource[] = [
   {
+    id: "csv",
+    displayName: "CSV File",
+    description: "Import from a CSV spreadsheet file",
+    icon: "table_chart",
+    accentColor: "#22c55e",
+  },
+  {
     id: "letterboxd",
     displayName: "Letterboxd",
     description: "Import from your Letterboxd diary & watchlist",
@@ -153,9 +159,9 @@ export const FUTURE_SOURCES: FutureSource[] = [
   },
   {
     id: "imdb",
-    displayName: "IMDb CSV",
-    description: "Import from an exported IMDb watchlist CSV",
-    icon: "table_chart",
+    displayName: "IMDb",
+    description: "Import from an exported IMDb watchlist",
+    icon: "movie_info",
     accentColor: "#f5c518",
   },
 ];

@@ -17,18 +17,20 @@ import { useToast } from "~/shared/hooks/useToast";
 import {
   BACKUP_STRATEGIES, FUTURE_BACKUP_STRATEGIES,
   createBackupFromWatchlist, exportBackup, parseBackupFile, previewBackup,
-  restoreBackup, type BackupDocument, type BackupPreview, type RestoreResult,
+  restoreBackup,
+  type ParsedBackup, type BackupPreview, type RestoreResult,
 } from "../backup/BackupService";
 
 const BackupCards: Component = () => {
   const library = useUserLibrary();
   const { showToast } = useToast();
   const [restoreOpen, setRestoreOpen] = createSignal(false);
-  const [restoreDoc, setRestoreDoc] = createSignal<BackupDocument | null>(null);
+  const [parsedBackup, setParsedBackup] = createSignal<ParsedBackup | null>(null);
   const [restorePreview, setRestorePreview] = createSignal<BackupPreview | null>(null);
   const [restoreResult, setRestoreResult] = createSignal<RestoreResult | null>(null);
   const [restoring, setRestoring] = createSignal(false);
   const [restoreError, setRestoreError] = createSignal<string | null>(null);
+  const [progress, setProgress] = createSignal({ processed: 0, total: 0, imported: 0, skipped: 0, failed: 0 });
 
   const handleAction = async (strategyId: string) => {
     if (strategyId === "create") {
@@ -51,20 +53,25 @@ const BackupCards: Component = () => {
   const handleFileSelect = async (file: File) => {
     setRestoreError(null);
     try {
-      const doc = await parseBackupFile(file);
-      setRestoreDoc(doc);
-      setRestorePreview(previewBackup(doc));
+      const parsed = await parseBackupFile(file);
+      setParsedBackup(parsed);
+      setRestorePreview(previewBackup(parsed, library.watchlist()));
     } catch (err) {
       setRestoreError(err instanceof Error ? err.message : "Failed to read backup file.");
     }
   };
 
   const handleRestore = async () => {
-    if (!restoreDoc()) return;
+    if (!parsedBackup()) return;
     setRestoring(true);
     setRestoreError(null);
+    setProgress({ processed: 0, total: parsedBackup()!.items.length, imported: 0, skipped: 0, failed: 0 });
     try {
-      const result = await restoreBackup(restoreDoc()!, library.watchlist());
+      const result = await restoreBackup(parsedBackup()!, library.watchlist(), {
+        onProgress: (processed, total, imported, skipped, failed) => {
+          setProgress({ processed, total, imported, skipped, failed });
+        },
+      });
       setRestoreResult(result);
       void library.refresh();
     } catch (err) {
@@ -76,10 +83,11 @@ const BackupCards: Component = () => {
 
   const handleCloseRestore = () => {
     setRestoreOpen(false);
-    setRestoreDoc(null);
+    setParsedBackup(null);
     setRestorePreview(null);
     setRestoreResult(null);
     setRestoreError(null);
+    setProgress({ processed: 0, total: 0, imported: 0, skipped: 0, failed: 0 });
   };
 
   return (
@@ -150,7 +158,86 @@ const BackupCards: Component = () => {
                 <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
               </button>
 
-              <Show when={!restoreResult()} fallback={
+              {/* Result state */}
+              <Show when={restoreResult()} fallback={
+                <Show when={!restoring()} fallback={
+                  /* Restoring — progress bar */
+                  <div class="sync-restore-preview">
+                    <h2 class="sync-restore-title">Restoring your library…</h2>
+                    <p class="sync-restore-body">Do not close this window.</p>
+                    <div class="v1-wizard-progress">
+                      <div class="v1-wizard-progress-bar">
+                        <div
+                          class="v1-wizard-progress-fill"
+                          style={{ width: `${progress().total > 0 ? (progress().processed / progress().total) * 100 : 0}%` }}
+                        />
+                      </div>
+                      <div class="v1-wizard-progress-stats">
+                        <span>{progress().processed} / {progress().total}</span>
+                        <span>{progress().imported} imported · {progress().skipped} skipped · {progress().failed} failed</span>
+                      </div>
+                    </div>
+                  </div>
+                }>
+                  <Show when={!parsedBackup()} fallback={
+                    /* Preview — show counts + duplicates before confirming */
+                    <div class="sync-restore-preview">
+                      <h2 class="sync-restore-title">Restore Preview</h2>
+                      <p class="sync-restore-body">This backup contains:</p>
+                      <div class="sync-restore-preview-grid">
+                        <span><strong>{restorePreview()!.titles}</strong> titles</span>
+                        <span><strong>{restorePreview()!.movies}</strong> movies</span>
+                        <span><strong>{restorePreview()!.series}</strong> series</span>
+                        <span><strong>{restorePreview()!.ratings}</strong> ratings</span>
+                        <span><strong>{restorePreview()!.notes}</strong> notes</span>
+                      </div>
+                      <Show when={restorePreview()!.duplicates > 0}>
+                        <div class="sync-restore-duplicates">
+                          <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "#fbbf24" }} aria-hidden="true">content_copy</span>
+                          <span>{restorePreview()!.duplicates} titles already in your library (will be skipped) · {restorePreview()!.willImport} new titles will be added</span>
+                        </div>
+                      </Show>
+                      <p class="sync-restore-note">
+                        Titles already in your library will be skipped. No duplicates will be created.
+                      </p>
+                      <Show when={restoreError()}>
+                        <p class="sync-restore-error" role="alert">{restoreError()}</p>
+                      </Show>
+                      <div class="sync-restore-actions">
+                        <button class="btn-ghost focus-ring" onClick={handleCloseRestore}>Cancel</button>
+                        <button class="btn-primary focus-ring" onClick={handleRestore}>
+                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">restore</span>
+                          Restore {restorePreview()!.willImport} Titles
+                        </button>
+                      </div>
+                    </div>
+                  }>
+                    /* Upload — file picker */
+                    <div class="sync-restore-upload">
+                      <h2 class="sync-restore-title">Restore from Backup</h2>
+                      <p class="sync-restore-body">Select a CineLog backup file (.json) to restore your library.</p>
+                      <label class="sync-restore-file-label focus-ring">
+                        <input
+                          type="file"
+                          accept="application/json,.json"
+                          onChange={(e) => {
+                            const file = e.currentTarget.files?.[0];
+                            if (file) void handleFileSelect(file);
+                          }}
+                          style={{ display: "none" }}
+                        />
+                        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">upload_file</span>
+                        Choose backup file
+                      </label>
+                      <Show when={restoreError()}>
+                        <p class="sync-restore-error" role="alert">{restoreError()}</p>
+                      </Show>
+                      <button class="btn-ghost focus-ring sync-restore-cancel" onClick={handleCloseRestore}>Cancel</button>
+                    </div>
+                  </Show>
+                </Show>
+              }>
+                /* Complete — summary */
                 <div class="sync-restore-result">
                   <div class="sync-restore-result-icon" aria-hidden="true">
                     <span class="material-symbols-outlined" style={{ "font-size": "40px", color: "var(--p)" }} aria-hidden="true">check_circle</span>
@@ -159,52 +246,6 @@ const BackupCards: Component = () => {
                   <p class="sync-restore-result-body">{restoreResult()!.summary}</p>
                   <button class="btn-primary focus-ring" onClick={handleCloseRestore}>Done</button>
                 </div>
-              }>
-                <Show when={!restoreDoc()} fallback={
-                  <div class="sync-restore-preview">
-                    <h2 class="sync-restore-title">Restore Preview</h2>
-                    <p class="sync-restore-body">This backup contains:</p>
-                    <div class="sync-restore-preview-grid">
-                      <span><strong>{restorePreview()!.titles}</strong> titles</span>
-                      <span><strong>{restorePreview()!.ratings}</strong> ratings</span>
-                      <span><strong>{restorePreview()!.notes}</strong> notes</span>
-                    </div>
-                    <p class="sync-restore-note">
-                      Titles already in your library will be skipped. No duplicates will be created.
-                    </p>
-                    <Show when={restoreError()}>
-                      <p class="sync-restore-error" role="alert">{restoreError()}</p>
-                    </Show>
-                    <div class="sync-restore-actions">
-                      <button class="btn-ghost focus-ring" onClick={handleCloseRestore} disabled={restoring()}>Cancel</button>
-                      <button class="btn-primary focus-ring" onClick={handleRestore} disabled={restoring()}>
-                        {restoring() ? "Restoring…" : "Restore Now"}
-                      </button>
-                    </div>
-                  </div>
-                }>
-                  <div class="sync-restore-upload">
-                    <h2 class="sync-restore-title">Restore from Backup</h2>
-                    <p class="sync-restore-body">Select a CineLog backup file (.json) to restore your library.</p>
-                    <label class="sync-restore-file-label focus-ring">
-                      <input
-                        type="file"
-                        accept="application/json,.json"
-                        onChange={(e) => {
-                          const file = e.currentTarget.files?.[0];
-                          if (file) void handleFileSelect(file);
-                        }}
-                        style={{ display: "none" }}
-                      />
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">upload_file</span>
-                      Choose backup file
-                    </label>
-                    <Show when={restoreError()}>
-                      <p class="sync-restore-error" role="alert">{restoreError()}</p>
-                    </Show>
-                    <button class="btn-ghost focus-ring sync-restore-cancel" onClick={handleCloseRestore}>Cancel</button>
-                  </div>
-                </Show>
               </Show>
             </div>
           </div>
