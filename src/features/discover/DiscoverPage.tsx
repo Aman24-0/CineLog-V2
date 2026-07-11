@@ -2,35 +2,28 @@
 //
 // DiscoverPage — "Your Personal Movie Curator"
 //
-// A premium personalized discovery experience.
+// FINAL SECTION ORDER (per production spec):
+//   1. Spotlight (existing hero)
+//   2. Continue Your Universes
+//   3. Insight Strip
+//   4. Trending This Week
+//   5. In Theatres Now
+//   6. Because You Love ...
+//   7. Surprise Me
+//   8. Weekend Picks
+//   9. Step Outside Your Taste
+//  10. Hidden Gems
+//  11. Top Rated Movies
+//  12. Top Rated Series
+//  13. New on OTT (provider chips + carousel)
+//  14. Genre Explorer
+//  15. New Seasons
+//  16. Coming Soon
+//  17. Guest Sign-in CTA
 //
-// SECTIONS (in order):
-//   0. Spotlight (existing hero — kept as-is)
-//   1. Premium Insight Strip (upgraded with meaningful labels)
-//   2. Continue Your Universes (missing entries from subscribed universes)
-//   3. Trending This Week
-//   4. In Theatres Now
-//   5. Because You Like... (personalized by top genres + seed title)
-//   6. Discover Something Different (genres the user rarely watches)
-//   7. Weekend Picks (themed mini-collections)
-//   8. Surprise Me (large shuffle card)
-//   9. Hidden Gems
-//  10. Top Rated Movies
-//  11. Top Rated Series
-//  12. Genre Explorer (expandable)
-//  13. New Seasons
-//  14. Coming Soon
-//  15. Guest sign-in nudge
-//
-// Architecture:
-//   - useDiscoverFeeds: fetches all TMDB feeds in parallel (cached)
-//   - useDiscoverTaste: existing taste profile (for personalization)
-//   - useSpotlight: existing hero recommendation
-//   - useCuratedUniverses: existing subscribed universes
-//   - Each section is independent — failures don't block others
-//   - All TMDB calls use cachedFetch (no duplicate requests)
+// Editorial cards are inserted between sections to break up visual repetition.
 
-import { createSignal, createMemo, Show, For, ErrorBoundary, onMount, type Accessor } from "solid-js";
+import { createSignal, createMemo, Show, For, ErrorBoundary, type Accessor } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
@@ -41,94 +34,67 @@ import { useCuratedUniverses } from "~/features/collections/hooks/useCuratedUniv
 import Spotlight from "./components/Spotlight";
 import DiscoverRail from "./components/DiscoverRail";
 import GenreExplorer from "./components/GenreExplorer";
+import OttSection from "./components/OttSection";
+import EditorialCard from "./components/EditorialCard";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
-import { discoverMovies, genreIdFor, getTrending } from "~/core/tmdb/discover";
+import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { TMDBTitle, WatchlistItem, Collection } from "~/shared/types";
+import type { TMDBTitle } from "~/shared/types";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
-  // Spotlight (existing hero)
   const [spotlightSeed, setSpotlightSeed] = createSignal(0);
   const [spotlightExclude, setSpotlightExclude] = createSignal<number | null>(null);
   const { pick: spotlightPick, loading: spotlightLoading } = useSpotlight({
-    taste,
-    vault: watchlist,
-    excludeId: spotlightExclude,
-    seed: spotlightSeed,
+    taste, vault: watchlist, excludeId: spotlightExclude, seed: spotlightSeed,
   });
 
-  // All TMDB feeds in parallel
   const feeds = useDiscoverFeeds("IN");
-
-  // Subscribed universes (for "Continue Your Universes")
   const { subscribedUniverses } = useCuratedUniverses();
+  const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
 
-  const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({
-    watchlist,
-    isGuest,
-  });
-
-  // Re-roll the Spotlight
   const handleReroll = () => {
     const current = spotlightPick();
     if (current) setSpotlightExclude(current.title.id);
     setSpotlightSeed((s) => s + Math.floor(Math.random() * 997) + 1);
   };
 
-  // === SECTION: Continue Your Universes ===
-  // Find subscribed universes where the user is missing entries.
+  // === Continue Your Universes ===
   const continueUniverses = createMemo(() => {
-    const vault = watchlist();
-    const vaultIds = new Set(vault.map((w) => w.id));
+    const vaultIds = new Set(watchlist().map((w) => w.id));
     return subscribedUniverses()
       .map((uni) => {
         const entries = uni.entries ?? [];
-        const missing = entries.filter(
-          (e) => !vaultIds.has(String(e.id)) && e.poster_path
-        );
+        const missing = entries.filter((e) => !vaultIds.has(String(e.id)) && e.poster_path);
         return { universe: uni, missing, total: entries.length };
       })
       .filter((item) => item.missing.length > 0)
       .slice(0, 5);
   });
 
-  // === SECTION: Because You Like... ===
-  // Personalized by top genres + seed title recommendations
+  // === Because You Like... ===
   const [personalizedTitles, setPersonalizedTitles] = createSignal<TMDBTitle[]>([]);
   const [personalizedLabel, setPersonalizedLabel] = createSignal<string>("");
 
   createMemo(() => {
     const t = taste();
     if (!t || t.isColdStart) return;
-
-    // Try seed title first ("Because you watched X")
     if (t.seedTitle) {
       const seed = t.seedTitle;
-      const label = `Because you watched ${seed.title || seed.name || "this"}`;
-      setPersonalizedLabel(label);
-      // Use TMDB recommendations from the seed title
+      setPersonalizedLabel(`Because you watched ${seed.title || seed.name || "this"}`);
       import("~/core/tmdb/discover")
-        .then(({ getRecommendations }) =>
-          getRecommendations(seed.media_type, seed.id)
-        )
+        .then(({ getRecommendations }) => getRecommendations(seed.media_type, seed.id))
         .then((recs) => {
           const vaultIds = new Set(watchlist().map((w) => w.id));
           const filtered = recs.filter((r) => !vaultIds.has(String(r.id))).slice(0, 20);
-          if (filtered.length > 0) {
-            setPersonalizedTitles(filtered);
-          } else {
-            // Fallback to genre-based
-            fetchGenrePersonalization(t);
-          }
+          if (filtered.length > 0) setPersonalizedTitles(filtered);
+          else fetchGenrePersonalization(t);
         })
         .catch(() => fetchGenrePersonalization(t));
       return;
     }
-
-    // Fallback: genre-based ("Because you love Thriller")
     fetchGenrePersonalization(t);
   });
 
@@ -146,27 +112,21 @@ export default function DiscoverPage() {
       .catch((e) => console.error("[DiscoverPage] personalized fetch:", e));
   };
 
-  // === SECTION: Discover Something Different ===
-  // Find genres the user rarely watches and recommend highly-rated titles
+  // === Discover Something Different ===
   const [differentTitles, setDifferentTitles] = createSignal<TMDBTitle[]>([]);
   const [differentLabel, setDifferentLabel] = createSignal<string>("");
 
   createMemo(() => {
     const t = taste();
-    if (!t || t.isColdStart) return;
-    if (t.topGenres.length === 0) return;
-
-    // Find a genre NOT in the user's top 3
+    if (!t || t.isColdStart || t.topGenres.length === 0) return;
     const allGenres = ["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Animation", "Documentary", "Mystery", "Thriller", "Fantasy"];
     const userGenres = new Set(t.topGenres);
     const differentGenre = allGenres.find((g) => !userGenres.has(g));
     if (!differentGenre) return;
-
     const displayName = differentGenre === "Sci-Fi" ? "Science Fiction" : differentGenre;
     setDifferentLabel(`Step outside — try ${differentGenre}`);
     const genreId = genreIdFor(displayName, "movie");
     if (!genreId) return;
-
     discoverMovies({ withGenres: [genreId], sortBy: "vote_average.desc", voteCountGte: 500, voteAverageGte: 7 })
       .then((titles) => {
         const vaultIds = new Set(watchlist().map((w) => w.id));
@@ -175,43 +135,27 @@ export default function DiscoverPage() {
       .catch((e) => console.error("[DiscoverPage] different fetch:", e));
   });
 
-  // === SECTION: Surprise Me ===
-  // A large shuffle card with a random title from top-rated or trending
+  // === Surprise Me ===
   const [surpriseTitle, setSurpriseTitle] = createSignal<TMDBTitle | null>(null);
   const [surpriseLoading, setSurpriseLoading] = createSignal(false);
 
   const rollSurprise = () => {
     setSurpriseLoading(true);
-    // Pick from trending + top rated + hidden gems pool
-    const pool = [
-      ...feeds.trending(),
-      ...feeds.topRatedMovies(),
-      ...feeds.hiddenGems(),
-    ].filter((t) => t.poster_path && t.backdrop_path);
-
-    if (pool.length === 0) {
-      setSurpriseLoading(false);
-      return;
-    }
-
-    // Filter out vault titles
+    const pool = [...feeds.trending(), ...feeds.topRatedMovies(), ...feeds.hiddenGems()]
+      .filter((t) => t.poster_path && t.backdrop_path);
+    if (pool.length === 0) { setSurpriseLoading(false); return; }
     const vaultIds = new Set(watchlist().map((w) => w.id));
     const available = pool.filter((t) => !vaultIds.has(String(t.id)));
     const source = available.length > 0 ? available : pool;
-    const random = source[Math.floor(Math.random() * source.length)];
-    setSurpriseTitle(random);
+    setSurpriseTitle(source[Math.floor(Math.random() * source.length)]);
     setSurpriseLoading(false);
   };
 
-  // Roll once when feeds load
   createMemo(() => {
-    if (feeds.trending().length > 0 && !surpriseTitle()) {
-      rollSurprise();
-    }
+    if (feeds.trending().length > 0 && !surpriseTitle()) rollSurprise();
   });
 
-  // === SECTION: Weekend Picks ===
-  // Themed mini-collections with curated labels
+  // === Weekend Picks ===
   const [weekendPick, setWeekendPick] = createSignal(0);
   const weekendPicks = [
     { label: "Perfect for Tonight", icon: "movie", query: { sortBy: "popularity.desc", voteCountGte: 500 } },
@@ -241,34 +185,49 @@ export default function DiscoverPage() {
     }
   };
 
-  // Fetch the first weekend pick when feeds load
   createMemo(() => {
-    if (feeds.trending().length > 0 && weekendTitles().length === 0 && !weekendLoading()) {
-      fetchWeekendPick(0);
-    }
+    if (feeds.trending().length > 0 && weekendTitles().length === 0 && !weekendLoading()) fetchWeekendPick(0);
   });
 
-  // === Premium insight strip (upgraded with meaningful labels) ===
+  // === Editorial Cards ===
+  // Generate dynamic editorial copy from movie metadata
+  const editorial1 = createMemo(() => {
+    const t = feeds.trending()[0];
+    if (!t) return null;
+    const year = (t.release_date || "").split("-")[0];
+    return {
+      title: t,
+      label: "Tonight's Pick",
+      icon: "popcorn",
+      copy: `${t.title || t.name || "This title"} is trending right now${year ? ` (${year})` : ""}${t.vote_average ? ` with a ${t.vote_average.toFixed(1)} rating` : ""}. Perfect for tonight.`,
+    };
+  });
+
+  const editorial2 = createMemo(() => {
+    const t = feeds.hiddenGems()[0];
+    if (!t) return null;
+    return {
+      title: t,
+      label: "Hidden Masterpiece",
+      icon: "diamond",
+      copy: `A critically acclaimed gem with a ${t.vote_average?.toFixed(1) ?? "high"} rating that deserves more attention. ${t.title || t.name || ""} is a true hidden masterpiece.`,
+    };
+  });
+
+  // === Insight Strip ===
   const insightCards = createMemo(() => {
     const cards: { icon: string; text: string }[] = [];
-    if (feeds.trending().length > 0) {
-      cards.push({ icon: "local_fire_department", text: `${feeds.trending().length} trending now` });
-    }
-    if (feeds.nowPlaying().length > 0) {
-      cards.push({ icon: "theaters", text: `${feeds.nowPlaying().length} in theatres` });
-    }
-    if (feeds.newSeasons().length > 0) {
-      cards.push({ icon: "live_tv", text: `${feeds.newSeasons().length} new episodes` });
-    }
-    if (personalizedTitles().length > 0) {
-      cards.push({ icon: "auto_awesome", text: `${personalizedTitles().length} picks for you` });
-    }
+    if (feeds.trending().length > 0) cards.push({ icon: "local_fire_department", text: `${feeds.trending().length} Trending Today` });
+    if (personalizedTitles().length > 0) cards.push({ icon: "auto_awesome", text: `${personalizedTitles().length} Picks For You` });
+    if (feeds.nowPlaying().length > 0) cards.push({ icon: "theaters", text: `${feeds.nowPlaying().length} In Cinemas` });
+    if (feeds.newSeasons().length > 0) cards.push({ icon: "live_tv", text: `${feeds.newSeasons().length} New Episodes` });
     if (continueUniverses().length > 0) {
-      const totalMissing = continueUniverses().reduce((sum, u) => sum + u.missing.length, 0);
-      cards.push({ icon: "collections_bookmark", text: `${totalMissing} to explore` });
+      const totalMissing = continueUniverses().reduce((sum: number, u) => sum + u.missing.length, 0);
+      cards.push({ icon: "collections_bookmark", text: `${totalMissing} To Explore` });
     }
     if (differentTitles().length > 0) {
-      cards.push({ icon: "explore", text: `Try ${differentLabel().replace("Step outside — try ", "")}` });
+      const genre = differentLabel().replace("Step outside — try ", "");
+      cards.push({ icon: "explore", text: `Try ${genre}` });
     }
     return cards;
   });
@@ -279,7 +238,6 @@ export default function DiscoverPage() {
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <div class="ambient-glow" aria-hidden="true" />
 
-      {/* Page eyebrow */}
       <div class="discover-eyebrow-block">
         <p class="discover-eyebrow">Discover</p>
         <h1 class="discover-page-title">What's next?</h1>
@@ -294,34 +252,11 @@ export default function DiscoverPage() {
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
         <div class="page-enter relative discover-folds">
-          {/* FOLD 0 — Spotlight (existing hero, kept as-is) */}
-          <Spotlight
-            pick={spotlightPick}
-            loading={spotlightLoading}
-            isGuest={isGuest()}
-            vault={watchlist()}
-            onDetails={handleOpenTitle}
-            onAddToVault={addToVault}
-            onReroll={handleReroll}
-          />
+          {/* 1. SPOTLIGHT */}
+          <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
+            vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
 
-          {/* Premium insight strip (upgraded with meaningful labels) */}
-          <Show when={insightCards().length > 0}>
-            <div class="discover-insight-strip">
-              <For each={insightCards()}>
-                {(card) => (
-                  <div class="discover-insight-card">
-                    <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">
-                      {card.icon}
-                    </span>
-                    <span class="discover-insight-label">{card.text}</span>
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
-
-          {/* FOLD 1 — Continue Your Universes */}
+          {/* 2. CONTINUE YOUR UNIVERSES */}
           <Show when={!isGuest() && continueUniverses().length > 0}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
               <section class="discover-fold" aria-label="Continue your universes">
@@ -338,24 +273,10 @@ export default function DiscoverPage() {
                         <div class="discover-continue-posters">
                           <For each={item.missing.slice(0, 3)}>
                             {(entry) => (
-                              <img
-                                src={tmdbImage(entry.poster_path, "w92")}
-                                class="discover-continue-poster"
-                                loading="lazy"
-                                decoding="async"
+                              <img src={tmdbImage(entry.poster_path, "w92")} class="discover-continue-poster" loading="lazy" decoding="async"
                                 alt={entry.title || entry.name || ""}
-                                onClick={() => handleOpenTitle({
-                                  id: Number(entry.id),
-                                  title: entry.title,
-                                  name: entry.name,
-                                  media_type: entry.media_type,
-                                  poster_path: entry.poster_path,
-                                  backdrop_path: entry.backdrop_path,
-                                  release_date: entry.release_date,
-                                  first_air_date: entry.first_air_date,
-                                } as TMDBTitle)}
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
-                              />
+                                onClick={() => handleOpenTitle({ id: Number(entry.id), title: entry.title, name: entry.name, media_type: entry.media_type, poster_path: entry.poster_path, backdrop_path: entry.backdrop_path, release_date: entry.release_date, first_air_date: entry.first_air_date } as TMDBTitle)}
+                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
                             )}
                           </For>
                         </div>
@@ -367,21 +288,44 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* FOLD 2 — Trending This Week */}
+          {/* 3. INSIGHT STRIP */}
+          <Show when={insightCards().length > 0}>
+            <div class="discover-insight-strip">
+              <For each={insightCards()}>
+                {(card) => (
+                  <div class="discover-insight-card">
+                    <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">{card.icon}</span>
+                    <span class="discover-insight-label">{card.text}</span>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+
+          {/* 4. TRENDING THIS WEEK */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
             <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && feeds.trending().length === 0}>
               <DiscoverRail titles={feeds.trending()} onSelect={handleOpenTitle} emptyText="No trending titles available." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 3 — In Theatres Now */}
+          {/* EDITORIAL CARD 1 */}
+          <Show when={editorial1()}>
+            {(ed) => (
+              <ErrorBoundary fallback={() => <div />}>
+                <EditorialCard title={ed().title} label={ed().label} icon={ed().icon} copy={ed().copy} onDetails={handleOpenTitle} />
+              </ErrorBoundary>
+            )}
+          </Show>
+
+          {/* 5. IN THEATRES NOW */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
             <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && feeds.nowPlaying().length === 0}>
               <DiscoverRail titles={feeds.nowPlaying()} onSelect={handleOpenTitle} emptyText="No theatre releases available." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 4 — Because You Like... */}
+          {/* 6. BECAUSE YOU LOVE ... */}
           <Show when={!isGuest() && personalizedTitles().length > 0}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Recommendations" error={e} />}>
               <DiscoverSection label={personalizedLabel()} icon="auto_awesome">
@@ -390,27 +334,17 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* FOLD 5 — Surprise Me (large shuffle card) */}
+          {/* 7. SURPRISE ME */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Surprise Me" error={e} />}>
             <section class="discover-fold" aria-label="Surprise me">
               <div class="discover-fold-label">
                 <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">casino</span>
                 Surprise Me
               </div>
-              <Show when={surpriseTitle() && !surpriseLoading()} fallback={
-                <div class="discover-surprise-skeleton skeleton-base" />
-              }>
+              <Show when={surpriseTitle() && !surpriseLoading()} fallback={<div class="discover-surprise-skeleton skeleton-base" />}>
                 <div class="discover-surprise-card">
                   <Show when={surpriseTitle()?.backdrop_path}>
-                    <img
-                      src={tmdbImage(surpriseTitle()!.backdrop_path, "w780")}
-                      class="discover-surprise-backdrop"
-                      loading="lazy"
-                      decoding="async"
-                      alt=""
-                      aria-hidden="true"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
-                    />
+                    <img src={tmdbImage(surpriseTitle()!.backdrop_path, "w780")} class="discover-surprise-backdrop" loading="lazy" decoding="async" alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   </Show>
                   <div class="discover-surprise-overlay" />
                   <div class="discover-surprise-content">
@@ -421,12 +355,8 @@ export default function DiscoverPage() {
                       {surpriseTitle()?.genres?.length ? ` · ${(surpriseTitle()!.genres ?? []).slice(0, 2).join(", ")}` : ""}
                     </p>
                     <div class="discover-surprise-actions">
-                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)} aria-label="View details">
-                        Details
-                      </button>
-                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to watchlist">
-                        Add to Watchlist
-                      </button>
+                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)} aria-label="View details">Details</button>
+                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to watchlist">Add to Watchlist</button>
                       <button class="btn-ghost focus-ring" onClick={rollSurprise} aria-label="Shuffle for another pick">
                         <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">shuffle</span>
                         Shuffle
@@ -438,7 +368,7 @@ export default function DiscoverPage() {
             </section>
           </ErrorBoundary>
 
-          {/* FOLD 6 — Weekend Picks (themed mini-collections) */}
+          {/* 8. WEEKEND PICKS */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
             <section class="discover-fold" aria-label="Weekend picks">
               <div class="discover-fold-label">
@@ -448,13 +378,7 @@ export default function DiscoverPage() {
               <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
                 <For each={weekendPicks}>
                   {(pick, i) => (
-                    <button
-                      type="button"
-                      class="quick-filter-tab focus-ring"
-                      data-active={weekendPick() === i()}
-                      onClick={() => fetchWeekendPick(i())}
-                      aria-label={pick.label}
-                    >
+                    <button type="button" class="quick-filter-tab focus-ring" data-active={weekendPick() === i()} onClick={() => fetchWeekendPick(i())} aria-label={pick.label}>
                       <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">{pick.icon}</span>
                       {pick.label}
                     </button>
@@ -463,9 +387,7 @@ export default function DiscoverPage() {
               </div>
               <Show when={!weekendLoading()} fallback={
                 <div class="search-rail">
-                  <For each={Array.from({ length: 6 })}>
-                    {() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}
-                  </For>
+                  <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
                 </div>
               }>
                 <DiscoverRail titles={weekendTitles()} onSelect={handleOpenTitle} emptyText="No titles for this category." />
@@ -473,7 +395,7 @@ export default function DiscoverPage() {
             </section>
           </ErrorBoundary>
 
-          {/* FOLD 7 — Discover Something Different */}
+          {/* 9. STEP OUTSIDE YOUR TASTE */}
           <Show when={!isGuest() && differentTitles().length > 0}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Something Different" error={e} />}>
               <DiscoverSection label={differentLabel()} icon="explore">
@@ -482,49 +404,69 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* FOLD 8 — Hidden Gems */}
+          {/* EDITORIAL CARD 2 */}
+          <Show when={editorial2()}>
+            {(ed) => (
+              <ErrorBoundary fallback={() => <div />}>
+                <EditorialCard title={ed().title} label={ed().label} icon={ed().icon} copy={ed().copy} onDetails={handleOpenTitle} />
+              </ErrorBoundary>
+            )}
+          </Show>
+
+          {/* 10. HIDDEN GEMS */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Hidden Gems" error={e} />}>
             <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && feeds.hiddenGems().length === 0}>
               <DiscoverRail titles={feeds.hiddenGems()} onSelect={handleOpenTitle} emptyText="No hidden gems found." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 9 — Top Rated Movies */}
+          {/* 11. TOP RATED MOVIES */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated" error={e} />}>
             <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && feeds.topRatedMovies().length === 0}>
               <DiscoverRail titles={feeds.topRatedMovies()} onSelect={handleOpenTitle} emptyText="No top rated movies available." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 10 — Top Rated Series */}
+          {/* 12. TOP RATED SERIES */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated TV" error={e} />}>
             <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && feeds.topRatedTv().length === 0}>
               <DiscoverRail titles={feeds.topRatedTv()} onSelect={handleOpenTitle} emptyText="No top rated series available." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 11 — Genre Explorer */}
+          {/* 13. NEW ON OTT */}
+          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
+            <section class="discover-fold" aria-label="New on OTT">
+              <div class="discover-fold-label">
+                <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
+                New on OTT
+              </div>
+              <OttSection onSelect={handleOpenTitle} region="IN" />
+            </section>
+          </ErrorBoundary>
+
+          {/* 14. GENRE EXPLORER */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
             <DiscoverSection label="Genre Explorer" icon="palette">
               <GenreExplorer onSelect={handleOpenTitle} />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 12 — New Seasons */}
+          {/* 15. NEW SEASONS */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
             <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && feeds.newSeasons().length === 0}>
               <DiscoverRail titles={feeds.newSeasons()} onSelect={handleOpenTitle} emptyText="No new seasons airing now." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* FOLD 13 — Coming Soon */}
+          {/* 16. COMING SOON */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
             <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && feeds.upcoming().length === 0}>
               <DiscoverRail titles={feeds.upcoming()} onSelect={handleOpenTitle} emptyText="No upcoming releases." />
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* Guest sign-in nudge */}
+          {/* 17. GUEST SIGN-IN CTA */}
           <Show when={isGuest()}>
             <div class="discover-guest-nudge">
               <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px", margin: "0 auto var(--sp-3)" }}>
@@ -542,33 +484,16 @@ export default function DiscoverPage() {
   );
 }
 
-// ---------------------------------------------------------------------------
-// Helper components
-// ---------------------------------------------------------------------------
-
-function DiscoverSection(props: {
-  label: string;
-  icon: string;
-  loading?: boolean;
-  children: import("solid-js").JSX.Element;
-}) {
+function DiscoverSection(props: { label: string; icon: string; loading?: boolean; children: import("solid-js").JSX.Element; }) {
   return (
     <section class="discover-fold" aria-label={props.label}>
       <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">
-          {props.icon}
-        </span>
+        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">{props.icon}</span>
         {props.label}
       </div>
       <Show when={!props.loading} fallback={
         <div class="search-rail">
-          <For each={Array.from({ length: 6 })}>
-            {() => (
-              <div class="search-rail-card" style={{ cursor: "default" }}>
-                <div class="search-rail-poster skeleton-base" />
-              </div>
-            )}
-          </For>
+          <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
         </div>
       }>
         {props.children}
@@ -582,14 +507,10 @@ function DiscoverSectionError(props: { label: string; error: Error }) {
   return (
     <section class="discover-fold">
       <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--text-dim)" }} aria-hidden="true">
-          error
-        </span>
+        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--text-dim)" }} aria-hidden="true">error</span>
         {props.label}
       </div>
-      <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-4)" }}>
-        Couldn't load this section.
-      </p>
+      <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-4)" }}>Couldn't load this section.</p>
     </section>
   );
 }
