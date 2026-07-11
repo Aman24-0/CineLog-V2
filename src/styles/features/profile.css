@@ -99,7 +99,9 @@
   object-fit: cover;
   opacity: 0;
   transform: scale(1.06);
-  filter: brightness(0.5) saturate(0.85);
+  /* Artwork visibility target: 70-80%. No brightness darkening — the
+     overlay handles text legibility at the bottom only. */
+  filter: saturate(0.95);
   transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-smooth), filter 600ms var(--ease-out);
 }
 .profile-banner-img.img-loaded {
@@ -107,8 +109,10 @@
   transform: scale(1);
 }
 
-/* Multi-layer gradient overlay — bottom-to-top dark for text legibility,
-   plus accent-tinted vignette for depth. */
+/* Subtle bottom-only gradient for text readability.
+   The heavy multi-layer dark overlay was removed — artwork is now
+   clearly visible (70-80%) with only a thin bottom gradient so the
+   name/username/tagline below the banner remain legible. */
 .profile-banner-overlay {
   position: absolute;
   inset: 0;
@@ -116,19 +120,9 @@
   background:
     linear-gradient(to top,
       var(--tier-1) 0%,
-      rgba(10,11,14,0.95) 8%,
-      rgba(10,11,14,0.70) 20%,
-      rgba(10,11,14,0.30) 40%,
-      rgba(10,11,14,0.05) 65%,
-      transparent 100%),
-    linear-gradient(to bottom,
-      rgba(0,0,0,0.40) 0%,
-      rgba(0,0,0,0.12) 12%,
-      transparent 25%),
-    radial-gradient(ellipse at 30% 50%,
-      var(--p-glow) 0%,
-      transparent 60%);
-  opacity: 0.8;
+      rgba(10,11,14,0.60) 6%,
+      rgba(10,11,14,0.20) 18%,
+      transparent 35%);
 }
 
 /* Abstract gradient fallback — used when no banner image is set.

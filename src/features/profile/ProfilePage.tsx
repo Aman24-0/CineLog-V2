@@ -184,8 +184,24 @@ const ProfilePage: Component = () => {
     }
   });
 
-  // Avatar display.
-  const avatarUrl = createMemo(() => user()?.photoURL ?? data()?.profile?.avatar_url ?? null);
+  // Avatar display — priority order per spec:
+  //   1. Custom avatar (Firestore profile.avatar_url) — user-uploaded
+  //   2. Firebase Auth photoURL (Google OAuth avatar) — from useAuth().user
+  //   3. Generated initials avatar (fallback)
+  //
+  // The user() signal from useAuth() is reactive — when Google OAuth
+  // completes and the session is mapped, photoURL is populated and the
+  // avatar updates automatically. When the user uploads a custom avatar
+  // via saveProfile(), data()?.profile?.avatar_url is populated and
+  // takes priority. Removing the custom avatar (setting it to null)
+  // falls back through to photoURL automatically.
+  const avatarUrl = createMemo(() => {
+    const custom = data()?.profile?.avatar_url;
+    if (custom) return custom;
+    const photoURL = user()?.photoURL;
+    if (photoURL) return photoURL;
+    return null;
+  });
   const initial = createMemo(() => {
     const name = data()?.profile?.display_name ?? user()?.displayName ?? user()?.email ?? "";
     return name.charAt(0).toUpperCase() || "?";
