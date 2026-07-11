@@ -222,3 +222,184 @@ export async function fetchTitleDirector(
     crew.find((c) => c.job === "Executive Producer" && c.department === "Production");
   return creator?.name;
 }
+
+// ---------------------------------------------------------------------------
+// Discover V2 endpoints — now_playing, upcoming, watch providers, top TV
+// ---------------------------------------------------------------------------
+
+/**
+ * getNowPlaying — movies currently in theatres.
+ * Uses /movie/now_playing with region parameter for localization.
+ */
+export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:now_playing", { region }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/movie/now_playing?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
+      );
+      if (!r.ok) throw new Error(`getNowPlaying failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "movie");
+}
+
+/**
+ * getUpcoming — upcoming movies.
+ * Uses /movie/upcoming with region parameter.
+ */
+export async function getUpcoming(region = "IN"): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:upcoming", { region }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/movie/upcoming?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
+      );
+      if (!r.ok) throw new Error(`getUpcoming failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "movie");
+}
+
+/**
+ * getTopRatedTv — top-rated TV series.
+ * Uses /tv/top_rated.
+ */
+export async function getTopRatedTv(): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:top_rated_tv"),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/tv/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getTopRatedTv failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "tv");
+}
+
+/**
+ * getAiringToday — TV series airing new episodes today.
+ * Uses /tv/airing_today.
+ */
+export async function getAiringToday(): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:airing_today"),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/tv/airing_today?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getAiringToday failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "tv");
+}
+
+/**
+ * getOnTheAir — TV series currently on air (returning shows).
+ * Uses /tv/on_the_air.
+ */
+export async function getOnTheAir(): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:on_the_air"),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/tv/on_the_air?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getOnTheAir failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "tv");
+}
+
+/**
+ * getPopular — popular movies or TV.
+ * Uses /movie/popular or /tv/popular.
+ */
+export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<TMDBTitle[]> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:popular", { type: mediaType }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/${mediaType}/popular?api_key=${TMDB_KEY}&language=en-US&page=1`
+      );
+      if (!r.ok) throw new Error(`getPopular failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, mediaType);
+}
+
+/**
+ * getWatchProviders — available streaming providers for a region.
+ * Returns provider names (e.g. "Netflix", "Amazon Prime Video").
+ * Used to group "Latest on Streaming" by provider.
+ *
+ * Note: TMDB's /watch/providers/movie endpoint returns the list of
+ * providers for a region, but doesn't directly map to "what's new
+ * on Netflix". For the streaming section, we use /discover/movie with
+ * with_watch_providers parameter — but that requires a specific
+ * provider ID. This helper returns the provider list so the UI can
+ * pick providers and then fetch titles for each.
+ */
+export async function getWatchProviderList(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null }>> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:watch_providers_list", { region }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/watch/providers/movie?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
+      );
+      if (!r.ok) throw new Error(`getWatchProviderList failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null }) => ({
+    providerId: p.provider_id,
+    providerName: p.provider_name,
+    logoPath: p.logo_path,
+  }));
+}
+
+/**
+ * discoverMoviesWithProvider — discover movies available on a specific
+ * streaming provider in the user's region.
+ */
+export async function discoverMoviesWithProvider(
+  providerId: number,
+  region = "IN",
+  opts: { sortBy?: string; page?: number } = {}
+): Promise<TMDBTitle[]> {
+  const params = new URLSearchParams({
+    api_key: TMDB_KEY,
+    language: "en-US",
+    sort_by: opts.sortBy || "popularity.desc",
+    "vote_count.gte": "50",
+    page: String(opts.page ?? 1),
+    include_adult: "false",
+    with_watch_providers: String(providerId),
+    watch_region: region,
+  });
+
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:discover/movie_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(`${API}/discover/movie?${params}`);
+      if (!r.ok) throw new Error(`discoverMoviesWithProvider failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "movie");
+}

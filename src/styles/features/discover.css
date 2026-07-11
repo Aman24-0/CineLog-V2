@@ -927,4 +927,51 @@
   text-align: center;
 }
 
+/* ============================================================
+   PREMIUM INSIGHT STRIP — compact stat cards below the hero
+   ============================================================ */
+
+.discover-insight-strip {
+  display: flex;
+  gap: var(--sp-2);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--sp-2) 0 var(--sp-4);
+}
+.discover-insight-strip::-webkit-scrollbar { display: none; }
+
+.discover-insight-card {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.discover-insight-card:hover {
+  border-color: var(--hairline-2);
+}
+
+.discover-insight-count {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1rem;
+  line-height: 1;
+  color: var(--text-strong);
+  letter-spacing: 0.02em;
+}
+
+.discover-insight-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+
 
