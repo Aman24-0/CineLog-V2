@@ -2,17 +2,26 @@
 import { For, Show, type Accessor } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { Collection } from "~/shared/types";
+import type { Collection, CollectionEntry } from "~/shared/types";
 
 /**
  * CollectionsGrid — the user's personal folder grid.
  *
- * Renders a 3-column collage of folder cards. Each card shows a 3-poster
- * collage preview (or a folder icon for empty folders), the folder name
- * + emoji + accent color dot, and a context-menu-trigger edit button.
+ * Premium card system with:
+ *   • 2×2 poster collage (or fan for 1-3 posters)
+ *   • Empty state with icon illustration
+ *   • Collection name + description (2-line clamp)
+ *   • Stats: movie count, series count, updated time
+ *   • Badges: Smart, Pinned, Favorite
+ *   • Accent color glow
+ *   • Three-dot menu for quick actions
  *
- * Empty state: "No folders yet. Create one to organize your titles."
+ * Performance:
+ *   Posters use w92 size (cached by TMDB apiCache). No individual
+ *   fetches — all poster paths come from the collection's entries
+ *   which are already loaded.
  */
+
 export interface CollectionsGridProps {
   loading: Accessor<boolean>;
   userCollections: Accessor<Collection[]>;
@@ -31,11 +40,18 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
           fallback={<div class="collections-folder-skeleton" />}
         >
           <div class="collections-empty-folders">
-            <p
-              class="type-body-soft"
-              style={{ "text-align": "center", "max-width": "260px" }}
-            >
-              No folders yet. Create one to organize your titles.
+            <div class="collections-empty-icon" aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "40px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                create_new_folder
+              </span>
+            </div>
+            <p class="collections-empty-title">No folders yet</p>
+            <p class="collections-empty-desc">
+              Create a folder to organize your titles.
             </p>
           </div>
         </Show>
@@ -44,118 +60,271 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
       <div class="collections-folder-grid">
         <For each={props.userCollections()}>
           {(col) => (
-            <div
-              class={`collections-folder-card${
-                col.isFavorites ? " collections-folder-favorites" : ""
-              }`}
-              onClick={() => navigate(`/collections/${col.id}`)}
-              onContextMenu={(e) => {
-                e.preventDefault();
-                props.onEditFolder(col);
-              }}
-              role="button"
-              tabindex={0}
-              aria-label={`Open ${col.name}`}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  navigate(`/collections/${col.id}`);
-                }
-              }}
-            >
-              {/* Poster collage preview */}
+            <CollectionCard
+              col={col}
+              onOpen={() => navigate(`/collections/${col.id}`)}
+              onEdit={() => props.onEditFolder(col)}
+            />
+          )}
+        </For>
+      </div>
+    </Show>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// CollectionCard — single premium folder card
+// ---------------------------------------------------------------------------
+
+interface CollectionCardProps {
+  col: Collection;
+  onOpen: () => void;
+  onEdit: () => void;
+}
+
+function CollectionCard(props: CollectionCardProps) {
+  const entries = (): CollectionEntry[] => props.col.entries ?? [];
+
+  const movieCount = () => entries().filter((e) => e.media_type === "movie").length;
+  const seriesCount = () => entries().filter((e) => e.media_type === "tv").length;
+  const totalCount = () => entries().length;
+
+  // Get up to 4 posters for the collage
+  const posters = (): { path: string; title: string }[] => {
+    return entries()
+      .filter((e) => e.poster_path)
+      .slice(0, 4)
+      .map((e) => ({ path: e.poster_path as string, title: e.title || e.name || "Untitled" }));
+  };
+
+  // Relative time (e.g. "2 days ago")
+  const updatedText = (): string => {
+    const updated = props.col.updatedAt;
+    if (!updated) return "";
+    try {
+      const date = new Date(updated);
+      const now = new Date();
+      const diffMs = now.getTime() - date.getTime();
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+      const diffMins = Math.floor(diffMs / (1000 * 60));
+      if (diffMins < 1) return "just now";
+      if (diffMins < 60) return `${diffMins}m ago`;
+      if (diffHours < 24) return `${diffHours}h ago`;
+      if (diffDays === 1) return "yesterday";
+      if (diffDays < 7) return `${diffDays}d ago`;
+      if (diffDays < 30) return `${Math.floor(diffDays / 7)}w ago`;
+      if (diffDays < 365) return `${Math.floor(diffDays / 30)}mo ago`;
+      return `${Math.floor(diffDays / 365)}y ago`;
+    } catch {
+      return "";
+    }
+  };
+
+  // Stats text
+  const statsText = (): string => {
+    const parts: string[] = [];
+    if (movieCount() > 0) parts.push(`${movieCount()} ${movieCount() !== 1 ? "Movies" : "Movie"}`);
+    if (seriesCount() > 0) parts.push(`${seriesCount()} ${seriesCount() !== 1 ? "Series" : "Series"}`);
+    if (parts.length === 0 && totalCount() > 0) parts.push(`${totalCount()} Titles`);
+    return parts.join(" · ");
+  };
+
+  // Accent color style
+  const accentStyle = (): Record<string, string> => {
+    const color = props.col.accentColor;
+    if (!color) return {};
+    return {
+      "--card-accent": color,
+      "--card-accent-glow": `${color}33`,
+    };
+  };
+
+  return (
+    <div
+      class={`collection-card${props.col.isFavorites ? " collection-card-favorites" : ""}${props.col.isSmart ? " collection-card-smart" : ""}`}
+      style={accentStyle()}
+      onClick={() => props.onOpen()}
+      onContextMenu={(e) => {
+        e.preventDefault();
+        props.onEdit();
+      }}
+      role="button"
+      tabindex={0}
+      aria-label={`${props.col.name}, ${statsText() || "empty collection"}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          props.onOpen();
+        }
+      }}
+    >
+      {/* Poster collage area */}
+      <div class="collection-card-collage-area">
+        <Show
+          when={posters().length > 0}
+          fallback={
+            <div class="collection-card-empty-art" aria-hidden="true">
               <Show
-                when={(col.entries ?? []).length > 0}
+                when={props.col.isFavorites}
                 fallback={
-                  <div class="collections-folder-icon">
-                    <Show
-                      when={col.isFavorites}
-                      fallback={
-                        <span
-                          class="material-symbols-outlined"
-                          style={{"font-size":"28px","color":"var(--text-soft)"}}
-                          aria-hidden="true"
-                        >
-                          folder
-                        </span>
-                      }
-                    >
-                      <span
-                        class="material-symbols-outlined"
-                        style={{"font-size":"28px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}}
-                        aria-hidden="true"
-                      >
-                        favorite
-                      </span>
-                    </Show>
-                  </div>
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "36px", color: "var(--text-dim)" }}
+                    aria-hidden="true"
+                  >
+                    folder_open
+                  </span>
                 }
-              >
-                <div class="collections-folder-collage">
-                  <For each={(col.entries ?? []).slice(0, 3)}>
-                    {(entry) => (
-                      <Show when={entry.poster_path}>
-                        <img
-                          onError={(e) => { e.currentTarget.style.display = "none"; }}
-                          src={tmdbImage(entry.poster_path, "w92")}
-                          class="collections-folder-collage-img"
-                          loading="lazy"
-                          decoding="async"
-                          alt=""
-                          aria-hidden="true"
-                        />
-                      </Show>
-                    )}
-                  </For>
-                </div>
-              </Show>
-              <div style={{ display: "flex", "align-items": "center", gap: "4px" }}>
-                <Show when={col.emoji}>
-                  <span style={{ "font-size": "0.875rem" }}>{col.emoji}</span>
-                </Show>
-                <p class="collections-folder-name">{col.name}</p>
-              </div>
-              <p class="collections-folder-count">
-                {col.isSmart
-                  ? "Smart"
-                  : `${(col.entries ?? []).length} title${
-                      (col.entries ?? []).length !== 1 ? "s" : ""
-                    }`}
-              </p>
-              <Show when={col.accentColor}>
-                <div
-                  style={{
-                    width: "8px",
-                    height: "8px",
-                    "border-radius": "50%",
-                    background: col.accentColor,
-                    "margin-left": "4px",
-                  }}
-                  aria-hidden="true"
-                />
-              </Show>
-              {/* Edit button */}
-              <button
-                type="button"
-                class="timeline-edit-action"
-                style={{ "margin-left": "auto", "margin-top": "-4px" }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  props.onEditFolder(col);
-                }}
-                aria-label={`Edit ${col.name}`}
               >
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
+                  style={{ "font-size": "36px", color: "#f5c518", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40" }}
                   aria-hidden="true"
                 >
-                  more_vert
+                  favorite
                 </span>
-              </button>
+              </Show>
+              <Show when={totalCount() === 0}>
+                <span class="collection-card-empty-text">No titles yet</span>
+              </Show>
             </div>
-          )}
-        </For>
+          }
+        >
+          <PosterCollage posters={posters()} />
+        </Show>
+
+        {/* Badges (top-right) */}
+        <div class="collection-card-badges">
+          <Show when={props.col.isSmart}>
+            <span class="collection-badge collection-badge-smart" title="Smart Collection">
+              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">auto_awesome</span>
+            </span>
+          </Show>
+          <Show when={props.col.isFavorites}>
+            <span class="collection-badge collection-badge-favorite" title="Favorites">
+              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">star</span>
+            </span>
+          </Show>
+        </div>
+
+        {/* Three-dot menu */}
+        <button
+          type="button"
+          class="collection-card-menu focus-ring"
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onEdit();
+          }}
+          aria-label={`Edit ${props.col.name}`}
+        >
+          <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+            more_vert
+          </span>
+        </button>
+      </div>
+
+      {/* Info area */}
+      <div class="collection-card-info">
+        <div class="collection-card-name-row">
+          <Show when={props.col.emoji}>
+            <span class="collection-card-emoji">{props.col.emoji}</span>
+          </Show>
+          <p class="collection-card-name">{props.col.name}</p>
+        </div>
+
+        <Show when={props.col.description}>
+          <p class="collection-card-desc">{props.col.description}</p>
+        </Show>
+
+        <div class="collection-card-stats">
+          <Show when={statsText()}>
+            <span class="collection-card-stats-text">{statsText()}</span>
+          </Show>
+          <Show when={updatedText()}>
+            <span class="collection-card-updated">{updatedText()}</span>
+          </Show>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PosterCollage — adaptive poster display
+// ---------------------------------------------------------------------------
+
+function PosterCollage(props: { posters: { path: string; title: string }[] }) {
+  const count = () => props.posters.length;
+
+  return (
+    <Show when={count() === 1} fallback={
+      <Show when={count() === 2} fallback={
+        <Show when={count() === 3} fallback={
+          // 4+ posters → 2×2 grid
+          <div class="collage-grid-4">
+            <For each={props.posters.slice(0, 4)}>
+              {(p) => (
+                <img
+                  src={tmdbImage(p.path, "w92")}
+                  class="collage-img"
+                  loading="lazy"
+                  decoding="async"
+                  alt=""
+                  aria-hidden="true"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              )}
+            </For>
+          </div>
+        }>
+          {/* 3 posters → fan layout */}
+          <div class="collage-fan-3">
+            <For each={props.posters.slice(0, 3)}>
+              {(p, i) => (
+                <img
+                  src={tmdbImage(p.path, "w92")}
+                  class="collage-img"
+                  loading="lazy"
+                  decoding="async"
+                  alt=""
+                  aria-hidden="true"
+                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                />
+              )}
+            </For>
+          </div>
+        </Show>
+      }>
+        {/* 2 posters → side-by-side */}
+        <div class="collage-grid-2">
+          <For each={props.posters.slice(0, 2)}>
+            {(p) => (
+              <img
+                src={tmdbImage(p.path, "w92")}
+                class="collage-img"
+                loading="lazy"
+                decoding="async"
+                alt=""
+                aria-hidden="true"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+            )}
+          </For>
+        </div>
+      </Show>
+    }>
+      {/* 1 poster → full display */}
+      <div class="collage-single">
+        <img
+          src={tmdbImage(props.posters[0].path, "w185")}
+          class="collage-img"
+          loading="lazy"
+          decoding="async"
+          alt=""
+          aria-hidden="true"
+          onError={(e) => { e.currentTarget.style.display = "none"; }}
+        />
       </div>
     </Show>
   );

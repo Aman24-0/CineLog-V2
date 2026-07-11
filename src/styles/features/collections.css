@@ -695,26 +695,328 @@
   display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3);
 }
 @media (min-width: 640px) { .collections-folder-grid { grid-template-columns: repeat(3, 1fr); } }
-.collections-folder-card {
-  display: flex; flex-direction: column; gap: var(--sp-2); padding: var(--sp-3);
-  border-radius: var(--radius-lg); background: var(--tier-2); border: 1px solid var(--hairline);
-  cursor: pointer; transition: transform var(--dur-base) var(--ease-spring), border-color var(--dur-base) var(--ease-out);
+
+/* ============================================================
+   PREMIUM COLLECTION CARD
+   ============================================================ */
+
+.collection-card {
+  display: flex;
+  flex-direction: column;
+  border-radius: var(--radius-lg);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  overflow: hidden;
+  transition: transform var(--dur-base) var(--ease-spring),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+  position: relative;
 }
-.collections-folder-card:hover { transform: translateY(-2px); border-color: var(--hairline-2); }
-.collections-folder-favorites { border-color: color-mix(in srgb, #f5c518 20%, var(--hairline)); }
-.collections-folder-icon { display: flex; align-items: center; justify-content: center; height: 80px; }
-.collections-folder-collage {
-  display: flex; gap: 2px; height: 80px; border-radius: var(--radius-md); overflow: hidden;
+.collection-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--hairline-3);
+  box-shadow: var(--shadow-elevated);
 }
-.collections-folder-collage-img { height: 100%; aspect-ratio: 2 / 3; object-fit: cover; border-radius: var(--radius-sm); }
-.collections-folder-name {
-  font-family: 'Outfit', sans-serif; font-size: 0.8125rem; font-weight: 700; color: var(--text-strong); margin: 0;
-  display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden;
+.collection-card:active {
+  transform: translateY(0) scale(0.99);
+  transition-duration: var(--dur-fast);
 }
-.collections-folder-count {
-  font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600; letter-spacing: 0.08em;
-  color: var(--text-muted); margin: 0; text-transform: uppercase;
+.collection-card:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
 }
+
+/* Accent color glow */
+.collection-card[style*="--card-accent"] {
+  border-color: color-mix(in srgb, var(--card-accent) 20%, var(--hairline));
+}
+.collection-card[style*="--card-accent"]:hover {
+  border-color: color-mix(in srgb, var(--card-accent) 40%, var(--hairline));
+  box-shadow: var(--shadow-elevated), 0 0 20px var(--card-accent-glow);
+}
+
+/* Favorites card */
+.collection-card-favorites {
+  border-color: color-mix(in srgb, #f5c518 20%, var(--hairline));
+}
+.collection-card-favorites:hover {
+  border-color: color-mix(in srgb, #f5c518 40%, var(--hairline));
+  box-shadow: var(--shadow-elevated), 0 0 20px rgba(245, 197, 24, 0.15);
+}
+
+/* Smart collection card */
+.collection-card-smart {
+  border-image: linear-gradient(135deg, var(--p), color-mix(in srgb, var(--p) 30%, transparent)) 1;
+  border-style: solid;
+}
+.collection-card-smart:hover {
+  box-shadow: var(--shadow-elevated), 0 0 16px var(--p-glow);
+}
+
+/* Collage area — the visual identity of the card */
+.collection-card-collage-area {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  background: var(--tier-1);
+  overflow: hidden;
+}
+
+/* Empty state artwork */
+.collection-card-empty-art {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-1);
+  background: linear-gradient(145deg, var(--tier-2), var(--tier-1));
+}
+.collection-card-empty-text {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-top: var(--sp-1);
+}
+
+/* Poster collage layouts */
+.collage-single {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.collage-single .collage-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collage-grid-2 {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2px;
+}
+.collage-grid-2 .collage-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collage-fan-3 {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.collage-fan-3 .collage-img {
+  height: 100%;
+  aspect-ratio: 2 / 3;
+  object-fit: cover;
+}
+.collage-fan-3 .collage-img:nth-child(1) { transform: rotate(-4deg) translateX(8px); z-index: 1; }
+.collage-fan-3 .collage-img:nth-child(2) { z-index: 3; }
+.collage-fan-3 .collage-img:nth-child(3) { transform: rotate(4deg) translateX(-8px); z-index: 2; }
+
+.collage-grid-4 {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 2px;
+}
+.collage-grid-4 .collage-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.collage-img {
+  display: block;
+  border-radius: 0;
+  opacity: 0;
+  transition: opacity var(--dur-slow) var(--ease-out);
+}
+.collage-img[loading="lazy"] {
+  opacity: 1;
+}
+
+/* Gradient overlay on collage for text legibility */
+.collection-card-collage-area::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 40%);
+  pointer-events: none;
+  z-index: 1;
+}
+
+/* Badges (top-right) */
+.collection-card-badges {
+  position: absolute;
+  top: var(--sp-2);
+  right: var(--sp-2);
+  display: flex;
+  gap: 4px;
+  z-index: 3;
+}
+.collection-badge {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--hairline-2);
+  background: rgba(0,0,0,0.5);
+}
+.collection-badge-smart {
+  color: var(--p);
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+.collection-badge-favorite {
+  color: #f5c518;
+  border-color: rgba(245,197,24,0.3);
+  box-shadow: 0 0 8px rgba(245,197,24,0.2);
+}
+
+/* Three-dot menu button */
+.collection-card-menu {
+  position: absolute;
+  bottom: var(--sp-2);
+  right: var(--sp-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  cursor: pointer;
+  z-index: 3;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  opacity: 0;
+}
+.collection-card:hover .collection-card-menu {
+  opacity: 1;
+}
+.collection-card-menu:hover {
+  background: rgba(0,0,0,0.7);
+  color: var(--text-strong);
+}
+
+/* Info area */
+.collection-card-info {
+  padding: var(--sp-3);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.collection-card-name-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.collection-card-emoji {
+  font-size: 0.875rem;
+  flex-shrink: 0;
+}
+.collection-card-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 1;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  flex: 1;
+  min-width: 0;
+}
+.collection-card-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  margin: 0;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.collection-card-stats {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  margin-top: 2px;
+}
+.collection-card-stats-text {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+}
+.collection-card-updated {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* Empty state for the whole grid */
+.collections-empty-icon {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-lg);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--p-dim);
+  border: 1px solid var(--hairline-2);
+  box-shadow: 0 0 24px var(--p-glow);
+  margin: 0 auto var(--sp-3);
+}
+.collections-empty-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0 0 var(--sp-1);
+  text-align: center;
+}
+.collections-empty-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0;
+  text-align: center;
+}
+
 .collections-create-bar { display: flex; gap: var(--sp-2); margin-bottom: var(--sp-3); }
 .collections-create-input {
   flex: 1; background: var(--tier-1); border: 1px solid var(--hairline-2);
@@ -723,9 +1025,15 @@
   transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
 }
 .collections-create-input:focus { border-color: var(--p); box-shadow: 0 0 0 3px var(--p-dim); }
-.collections-empty-folders { padding: var(--sp-6) var(--sp-4); display: flex; justify-content: center; }
+.collections-empty-folders {
+  padding: var(--sp-8) var(--sp-4);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
 .collections-folder-skeleton {
-  height: 120px; border-radius: var(--radius-lg);
+  height: 160px; border-radius: var(--radius-lg);
   background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
   background-size: 300% 100%; animation: shimmer 1.6s ease-in-out infinite;
 }
