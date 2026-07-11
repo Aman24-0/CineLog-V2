@@ -18,14 +18,13 @@ interface HeroContentClusterProps {
 }
 
 /**
- * HeroContentCluster — sits below the CinematicHero, overlapping it.
+ * HeroContentCluster — sits below the CinematicHero in normal document flow.
  *
  * Layout: [floating poster] [title + tagline + quick-meta pills]
  *
- * The poster overlaps the hero boundary (negative margin-top from the hero),
- * creating the "floating poster" effect. The title cluster sits to the right
- * (or below on mobile) with the display title, tagline, and quick metadata
- * pills (year, type, runtime, status).
+ * The cluster has overflow: hidden to prevent ANY content from escaping
+ * its bounds. The title is clamped to 2 lines (mobile) / 3 lines (desktop)
+ * and word-break: break-word for long localized titles.
  *
  * OWNERSHIP BOUNDARY:
  *   The status pill ("Watching" / "Completed" / "Planned") and the

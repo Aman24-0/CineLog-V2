@@ -456,6 +456,7 @@
   background: var(--p-dim);
   border: 1px solid color-mix(in srgb, var(--p) 20%, transparent);
   flex-shrink: 0;
+  overflow: hidden;
 }
 .franchise-trigger-text {
   flex: 1;
