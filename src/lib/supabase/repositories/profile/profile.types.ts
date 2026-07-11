@@ -96,7 +96,9 @@ export interface CreateProfilePayload {
  *   • favoriteSeriesId  — TMDB tv id (text) or null to clear
  *   • favoriteDirectorId — TMDB person id (text) or null to clear
  *   • favoriteGenre     — genre display name (e.g. "Sci-Fi") or null
- *   • bannerOverridePath — optional TMDB backdrop path or null
+ *   • bannerOverridePath — optional TMDB backdrop path or null (legacy)
+ *   • bannerType        — 'upload' | 'url' | 'favorite_movie' | 'default'
+ *   • bannerUrl         — image URL for upload/url types, null otherwise
  */
 export interface UpdateProfilePayload {
   readonly username?: string;
@@ -111,6 +113,8 @@ export interface UpdateProfilePayload {
   readonly favoriteDirectorId?: string | null;
   readonly favoriteGenre?: string | null;
   readonly bannerOverridePath?: string | null;
+  readonly bannerType?: "upload" | "url" | "favorite_movie" | "default";
+  readonly bannerUrl?: string | null;
 }
 
 /**

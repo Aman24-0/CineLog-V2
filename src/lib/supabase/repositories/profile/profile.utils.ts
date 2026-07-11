@@ -110,6 +110,8 @@ export function toProfileUpdate(
   if (payload.favoriteDirectorId !== undefined) update.favorite_director_id = payload.favoriteDirectorId;
   if (payload.favoriteGenre !== undefined) update.favorite_genre = payload.favoriteGenre;
   if (payload.bannerOverridePath !== undefined) update.banner_override_path = payload.bannerOverridePath;
+  if (payload.bannerType !== undefined) update.banner_type = payload.bannerType;
+  if (payload.bannerUrl !== undefined) update.banner_url = payload.bannerUrl;
   return update;
 }
 

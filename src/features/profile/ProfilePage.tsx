@@ -29,6 +29,7 @@ import PageContainer from "~/shared/ui/PageContainer";
 import { Button } from "~/shared/ui/primitives";
 import { useProfileData } from "./useProfileData";
 import ProfileBanner from "./components/ProfileBanner";
+import BannerEditor, { type BannerType } from "./components/BannerEditor";
 import TasteCard, { type FavoriteSlot } from "./components/TasteCard";
 import ProfileCompletion from "./components/ProfileCompletion";
 import WatchlistSummary from "./components/WatchlistSummary";
@@ -48,6 +49,7 @@ const ProfilePage: Component = () => {
   const [editBio, setEditBio] = createSignal("");
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [pickerSlot, setPickerSlot] = createSignal<FavoriteSlot | null>(null);
+  const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
 
   // Enter edit mode — copy current values to the edit signals.
   const enterEdit = () => {
@@ -84,6 +86,20 @@ const ProfilePage: Component = () => {
   const openPicker = (slot: FavoriteSlot) => {
     setPickerSlot(slot);
     setPickerOpen(true);
+  };
+
+  // Save banner customization.
+  const handleSaveBanner = async (type: BannerType, url: string | null): Promise<boolean> => {
+    const ok = await saveProfile({
+      bannerType: type,
+      bannerUrl: url,
+    });
+    if (ok) {
+      showToast("Banner updated.", "success");
+    } else {
+      showToast("Failed to update banner.", "error");
+    }
+    return ok;
   };
 
   // Handle a favorite selection from the picker.
@@ -214,9 +230,7 @@ const ProfilePage: Component = () => {
               <ProfileBanner
                 data={data() ?? null}
                 isEditing={isEditing()}
-                onChooseBanner={() => {
-                  showToast("Banner follows your favorite movie. Set one to change it.", "info");
-                }}
+                onChooseBanner={() => setBannerEditorOpen(true)}
               />
 
               <div class="profile-identity">
@@ -392,6 +406,17 @@ const ProfilePage: Component = () => {
         slot={pickerSlot()}
         onClose={() => setPickerOpen(false)}
         onSelect={handlePickFavorite}
+      />
+
+      {/* Banner editor modal */}
+      <BannerEditor
+        open={bannerEditorOpen()}
+        currentBannerType={(data()?.profile?.banner_type as BannerType) ?? "favorite_movie"}
+        currentBannerUrl={data()?.profile?.banner_url ?? null}
+        data={data() ?? null}
+        userId={user()?.uid ?? ""}
+        onClose={() => setBannerEditorOpen(false)}
+        onSave={handleSaveBanner}
       />
     </PageContainer>
   );

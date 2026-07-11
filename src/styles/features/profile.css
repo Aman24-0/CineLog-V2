@@ -40,6 +40,57 @@
   }
 }
 
+/* Shimmer placeholder while banner image loads */
+.profile-banner-shimmer {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+}
+
+/* Camera/edit button on banner */
+.profile-banner-edit-btn {
+  position: absolute;
+  top: var(--sp-3);
+  right: var(--sp-3);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: rgba(0,0,0,0.60);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-strong);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.profile-banner-edit-btn:hover {
+  background: rgba(0,0,0,0.75);
+  border-color: var(--p);
+}
+.profile-banner-edit-btn:active {
+  transform: scale(0.95);
+}
+
+.profile-banner-edit-label {
+  /* Hidden on very small screens to save space */
+}
+@media (max-width: 380px) {
+  .profile-banner-edit-label {
+    display: none;
+  }
+}
+
 .profile-banner-img {
   position: absolute;
   inset: 0;
