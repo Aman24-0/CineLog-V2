@@ -22,8 +22,17 @@
 //  17. Guest Sign-in CTA
 //
 // Editorial cards are inserted between sections to break up visual repetition.
+//
+// REGION: every section reads from `getDiscoverRegion()` (the single
+// source of truth in `core/config/discoverRegion`). Future Settings →
+// Region switches propagate automatically without another Discover refactor.
+//
+// PERFORMANCE: below-the-fold sections are wrapped in <LazyMount> which
+// uses IntersectionObserver to defer mounting (and any data fetches the
+// children trigger) until the section is about to scroll into view. This
+// keeps the initial paint fast even though the page has 17 sections.
 
-import { createSignal, createMemo, Show, For, ErrorBoundary, type Accessor } from "solid-js";
+import { createSignal, createMemo, Show, For, ErrorBoundary } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
@@ -37,13 +46,20 @@ import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
 import EditorialCard from "./components/EditorialCard";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
+import LazyMount from "./components/LazyMount";
+import PremiumEmptyState from "./components/PremiumEmptyState";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { getDiscoverRegion } from "~/core/config/discoverRegion";
 import type { TMDBTitle } from "~/shared/types";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
+
+  // Region — single source of truth. All sections consume this value.
+  // Today: defaults to "IN". Tomorrow: overridden by Settings.
+  const region = getDiscoverRegion;
 
   const [spotlightSeed, setSpotlightSeed] = createSignal(0);
   const [spotlightExclude, setSpotlightExclude] = createSignal<number | null>(null);
@@ -51,7 +67,7 @@ export default function DiscoverPage() {
     taste, vault: watchlist, excludeId: spotlightExclude, seed: spotlightSeed,
   });
 
-  const feeds = useDiscoverFeeds("IN");
+  const feeds = useDiscoverFeeds(region());
   const { subscribedUniverses } = useCuratedUniverses();
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
 
@@ -305,7 +321,13 @@ export default function DiscoverPage() {
           {/* 4. TRENDING THIS WEEK */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
             <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && feeds.trending().length === 0}>
-              <DiscoverRail titles={feeds.trending()} onSelect={handleOpenTitle} emptyText="No trending titles available." />
+              <DiscoverRail
+                titles={feeds.trending()}
+                onSelect={handleOpenTitle}
+                emptyText="No trending titles available."
+                emptyIcon="trending_up"
+                onRetry={feeds.trending().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+              />
             </DiscoverSection>
           </ErrorBoundary>
 
@@ -321,7 +343,13 @@ export default function DiscoverPage() {
           {/* 5. IN THEATRES NOW */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
             <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && feeds.nowPlaying().length === 0}>
-              <DiscoverRail titles={feeds.nowPlaying()} onSelect={handleOpenTitle} emptyText="No theatre releases available." />
+              <DiscoverRail
+                titles={feeds.nowPlaying()}
+                onSelect={handleOpenTitle}
+                emptyText="No theatre releases available."
+                emptyIcon="theaters"
+                onRetry={feeds.nowPlaying().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+              />
             </DiscoverSection>
           </ErrorBoundary>
 
@@ -329,7 +357,7 @@ export default function DiscoverPage() {
           <Show when={!isGuest() && personalizedTitles().length > 0}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Recommendations" error={e} />}>
               <DiscoverSection label={personalizedLabel()} icon="auto_awesome">
-                <DiscoverRail titles={personalizedTitles()} onSelect={handleOpenTitle} emptyText="No recommendations today." />
+                <DiscoverRail titles={personalizedTitles()} onSelect={handleOpenTitle} emptyText="No recommendations today." emptyIcon="auto_awesome" />
               </DiscoverSection>
             </ErrorBoundary>
           </Show>
@@ -368,38 +396,46 @@ export default function DiscoverPage() {
             </section>
           </ErrorBoundary>
 
-          {/* 8. WEEKEND PICKS */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
-            <section class="discover-fold" aria-label="Weekend picks">
-              <div class="discover-fold-label">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">weekend</span>
-                Weekend Picks
-              </div>
-              <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
-                <For each={weekendPicks}>
-                  {(pick, i) => (
-                    <button type="button" class="quick-filter-tab focus-ring" data-active={weekendPick() === i()} onClick={() => fetchWeekendPick(i())} aria-label={pick.label}>
-                      <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">{pick.icon}</span>
-                      {pick.label}
-                    </button>
-                  )}
-                </For>
-              </div>
-              <Show when={!weekendLoading()} fallback={
-                <div class="search-rail">
-                  <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
+          {/* 8. WEEKEND PICKS (lazy-mounted — below the fold on most viewports) */}
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
+              <section class="discover-fold" aria-label="Weekend picks">
+                <div class="discover-fold-label">
+                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">weekend</span>
+                  Weekend Picks
                 </div>
-              }>
-                <DiscoverRail titles={weekendTitles()} onSelect={handleOpenTitle} emptyText="No titles for this category." />
-              </Show>
-            </section>
-          </ErrorBoundary>
+                <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
+                  <For each={weekendPicks}>
+                    {(pick, i) => (
+                      <button type="button" class="quick-filter-tab focus-ring" data-active={weekendPick() === i()} onClick={() => fetchWeekendPick(i())} aria-label={pick.label}>
+                        <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">{pick.icon}</span>
+                        {pick.label}
+                      </button>
+                    )}
+                  </For>
+                </div>
+                <Show when={!weekendLoading()} fallback={
+                  <div class="search-rail">
+                    <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
+                  </div>
+                }>
+                  <DiscoverRail
+                    titles={weekendTitles()}
+                    onSelect={handleOpenTitle}
+                    emptyText="No titles for this category."
+                    emptyIcon="weekend"
+                    onRetry={() => fetchWeekendPick(weekendPick())}
+                  />
+                </Show>
+              </section>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 9. STEP OUTSIDE YOUR TASTE */}
           <Show when={!isGuest() && differentTitles().length > 0}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Something Different" error={e} />}>
               <DiscoverSection label={differentLabel()} icon="explore">
-                <DiscoverRail titles={differentTitles()} onSelect={handleOpenTitle} emptyText="Try adding more titles to your watchlist for personalized recommendations." />
+                <DiscoverRail titles={differentTitles()} onSelect={handleOpenTitle} emptyText="Try adding more titles to your watchlist for personalized recommendations." emptyIcon="explore" />
               </DiscoverSection>
             </ErrorBoundary>
           </Show>
@@ -414,57 +450,101 @@ export default function DiscoverPage() {
           </Show>
 
           {/* 10. HIDDEN GEMS */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Hidden Gems" error={e} />}>
-            <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && feeds.hiddenGems().length === 0}>
-              <DiscoverRail titles={feeds.hiddenGems()} onSelect={handleOpenTitle} emptyText="No hidden gems found." />
-            </DiscoverSection>
-          </ErrorBoundary>
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Hidden Gems" error={e} />}>
+              <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && feeds.hiddenGems().length === 0}>
+                <DiscoverRail
+                  titles={feeds.hiddenGems()}
+                  onSelect={handleOpenTitle}
+                  emptyText="No hidden gems found."
+                  emptyIcon="diamond"
+                  onRetry={feeds.hiddenGems().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 11. TOP RATED MOVIES */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated" error={e} />}>
-            <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && feeds.topRatedMovies().length === 0}>
-              <DiscoverRail titles={feeds.topRatedMovies()} onSelect={handleOpenTitle} emptyText="No top rated movies available." />
-            </DiscoverSection>
-          </ErrorBoundary>
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated" error={e} />}>
+              <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && feeds.topRatedMovies().length === 0}>
+                <DiscoverRail
+                  titles={feeds.topRatedMovies()}
+                  onSelect={handleOpenTitle}
+                  emptyText="No top rated movies available."
+                  emptyIcon="star"
+                  onRetry={feeds.topRatedMovies().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 12. TOP RATED SERIES */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated TV" error={e} />}>
-            <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && feeds.topRatedTv().length === 0}>
-              <DiscoverRail titles={feeds.topRatedTv()} onSelect={handleOpenTitle} emptyText="No top rated series available." />
-            </DiscoverSection>
-          </ErrorBoundary>
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated TV" error={e} />}>
+              <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && feeds.topRatedTv().length === 0}>
+                <DiscoverRail
+                  titles={feeds.topRatedTv()}
+                  onSelect={handleOpenTitle}
+                  emptyText="No top rated series available."
+                  emptyIcon="tv"
+                  onRetry={feeds.topRatedTv().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
-          {/* 13. NEW ON OTT */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
-            <section class="discover-fold" aria-label="New on OTT">
-              <div class="discover-fold-label">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
-                New on OTT
-              </div>
-              <OttSection onSelect={handleOpenTitle} region="IN" />
-            </section>
-          </ErrorBoundary>
+          {/* 13. NEW ON OTT (lazy-mounted — heavy section with provider list fetch) */}
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
+              <section class="discover-fold" aria-label="New on OTT">
+                <div class="discover-fold-label">
+                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
+                  New on OTT
+                </div>
+                <OttSection onSelect={handleOpenTitle} region={region()} />
+              </section>
+            </ErrorBoundary>
+          </LazyMount>
 
-          {/* 14. GENRE EXPLORER */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
-            <DiscoverSection label="Genre Explorer" icon="palette">
-              <GenreExplorer onSelect={handleOpenTitle} />
-            </DiscoverSection>
-          </ErrorBoundary>
+          {/* 14. GENRE EXPLORER (lazy-mounted — fetches only on first tap) */}
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
+              <DiscoverSection label="Genre Explorer" icon="palette">
+                <GenreExplorer onSelect={handleOpenTitle} />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 15. NEW SEASONS */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
-            <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && feeds.newSeasons().length === 0}>
-              <DiscoverRail titles={feeds.newSeasons()} onSelect={handleOpenTitle} emptyText="No new seasons airing now." />
-            </DiscoverSection>
-          </ErrorBoundary>
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
+              <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && feeds.newSeasons().length === 0}>
+                <DiscoverRail
+                  titles={feeds.newSeasons()}
+                  onSelect={handleOpenTitle}
+                  emptyText="No new seasons airing now."
+                  emptyIcon="live_tv"
+                  onRetry={feeds.newSeasons().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 16. COMING SOON */}
-          <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
-            <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && feeds.upcoming().length === 0}>
-              <DiscoverRail titles={feeds.upcoming()} onSelect={handleOpenTitle} emptyText="No upcoming releases." />
-            </DiscoverSection>
-          </ErrorBoundary>
+          <LazyMount>
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
+              <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && feeds.upcoming().length === 0}>
+                <DiscoverRail
+                  titles={feeds.upcoming()}
+                  onSelect={handleOpenTitle}
+                  emptyText="No upcoming releases."
+                  emptyIcon="upcoming"
+                  onRetry={feeds.upcoming().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                />
+              </DiscoverSection>
+            </ErrorBoundary>
+          </LazyMount>
 
           {/* 17. GUEST SIGN-IN CTA */}
           <Show when={isGuest()}>
@@ -510,7 +590,11 @@ function DiscoverSectionError(props: { label: string; error: Error }) {
         <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--text-dim)" }} aria-hidden="true">error</span>
         {props.label}
       </div>
-      <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-4)" }}>Couldn't load this section.</p>
+      <PremiumEmptyState
+        icon="error"
+        message={`Couldn't load ${props.label}.`}
+        hint="Check your connection and try again."
+      />
     </section>
   );
 }

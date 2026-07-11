@@ -5,6 +5,12 @@
 // All feeds use the existing apiCache layer — no duplicate requests.
 // Each feed is independent: if one fails, the others still load.
 // The page renders each section as its data arrives (no blocking).
+//
+// REGION: defaults to `getDiscoverRegion()` (the single source of truth).
+// Callers can override the region explicitly (e.g. for tests), but in
+// production every Discover section should thread the same region value
+// through this hook so future Settings → region switches propagate
+// automatically.
 
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
@@ -17,8 +23,8 @@ import {
   getTopRatedTv,
   getOnTheAir,
   discoverMovies,
-  GENRE_ID,
 } from "~/core/tmdb/discover";
+import { getDiscoverRegion } from "~/core/config/discoverRegion";
 
 export interface DiscoverFeeds {
   trending: Accessor<TMDBTitle[]>;
@@ -29,9 +35,11 @@ export interface DiscoverFeeds {
   newSeasons: Accessor<TMDBTitle[]>;
   hiddenGems: Accessor<TMDBTitle[]>;
   loading: Accessor<boolean>;
+  /** Retry the full feed batch (used by the empty-state Retry button). */
+  retry: () => void;
 }
 
-export function useDiscoverFeeds(region = "IN"): DiscoverFeeds {
+export function useDiscoverFeeds(region: string = getDiscoverRegion()): DiscoverFeeds {
   const [trending, setTrending] = createSignal<TMDBTitle[]>([]);
   const [nowPlaying, setNowPlaying] = createSignal<TMDBTitle[]>([]);
   const [upcoming, setUpcoming] = createSignal<TMDBTitle[]>([]);
@@ -41,7 +49,7 @@ export function useDiscoverFeeds(region = "IN"): DiscoverFeeds {
   const [hiddenGems, setHiddenGems] = createSignal<TMDBTitle[]>([]);
   const [loading, setLoading] = createSignal(false);
 
-  onMount(() => {
+  const loadAll = () => {
     if (isServer) return;
     setLoading(true);
 
@@ -80,7 +88,6 @@ export function useDiscoverFeeds(region = "IN"): DiscoverFeeds {
       })
         .then((titles) => {
           // Sort by vote_count ascending (lowest count = most "hidden")
-          // TMDBTitle doesn't have popularity but has vote_count via TMDB
           const sorted = [...titles].sort(
             (a, b) => (a.vote_count ?? 0) - (b.vote_count ?? 0)
           );
@@ -90,7 +97,9 @@ export function useDiscoverFeeds(region = "IN"): DiscoverFeeds {
     ];
 
     Promise.allSettled(feeds).finally(() => setLoading(false));
-  });
+  };
+
+  onMount(loadAll);
 
   return {
     trending,
@@ -101,5 +110,6 @@ export function useDiscoverFeeds(region = "IN"): DiscoverFeeds {
     newSeasons,
     hiddenGems,
     loading,
+    retry: loadAll,
   };
 }

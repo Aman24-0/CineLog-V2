@@ -1,36 +1,54 @@
 // src/features/discover/components/DiscoverRail.tsx
+//
+// DiscoverRail — horizontal scroll-snap carousel of movie/TV posters.
+//
+// Reuses the existing .search-rail CSS (same visual language as the
+// Search page's trending rail). Each card shows:
+//   - Poster (w185)
+//   - Title (2-line clamp)
+//   - Year + rating meta
+//
+// Performance:
+//   - All images use loading="lazy" + decoding="async"
+//   - No individual TMDB fetches — all data comes from the parent
+//   - Scroll-snap-type: x proximity for natural mobile scrolling
+//
+// Empty states:
+//   - When `titles` is empty AND `error` is provided, shows a Retry
+//     button that calls `onRetry`.
+//   - When `titles` is empty and no error, shows `emptyText` (or a
+//     default "No titles available." message).
+//
+
 import { For, Show, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
+import PremiumEmptyState from "./PremiumEmptyState";
 
 interface DiscoverRailProps {
   titles: TMDBTitle[];
   onSelect: (title: TMDBTitle) => void;
+  /** Custom empty-state message. Defaults to "No titles available." */
   emptyText?: string;
+  /** Optional empty-state icon (Material Symbols name). */
+  emptyIcon?: string;
+  /** Optional hint shown under the empty message. */
+  emptyHint?: string;
+  /** If provided AND titles is empty, renders a Retry button. */
+  onRetry?: () => void;
 }
 
-/**
- * DiscoverRail — a horizontal scroll-snap carousel of movie/TV posters.
- *
- * Reuses the existing .search-rail CSS (same visual language as the
- * Search page's trending rail). Each card shows:
- *   - Poster (w185)
- *   - Title (2-line clamp)
- *   - Year + rating meta
- *
- * Performance:
- *   - All images use loading="lazy" + decoding="async"
- *   - No individual TMDB fetches — all data comes from the parent
- *   - Scroll-snap-type: x proximity for natural mobile scrolling
- */
 const DiscoverRail: Component<DiscoverRailProps> = (props) => {
   return (
     <Show
       when={props.titles.length > 0}
       fallback={
-        <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-6)" }}>
-          {props.emptyText ?? "No titles available."}
-        </p>
+        <PremiumEmptyState
+          icon={props.emptyIcon ?? "movie"}
+          message={props.emptyText ?? "No titles available."}
+          hint={props.emptyHint}
+          onRetry={props.onRetry}
+        />
       }
     >
       <div class="search-rail" role="list">
