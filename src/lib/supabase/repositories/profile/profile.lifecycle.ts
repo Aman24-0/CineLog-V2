@@ -156,16 +156,36 @@ export async function permanentlyDeleteProfile(
  * doesn't exist, it's created with auto-generated display_name and
  * username from the auth user's metadata.
  *
- * If the profile exists but has no display_name (or the display_name
- * equals the UUID — the Supabase trigger default), it's auto-populated
- * from the auth user's metadata. Once the user manually edits their
- * display_name, it's never overwritten.
+ * AUTO-POPULATION RULES (production-safe):
  *
- * Username generation:
+ *   display_name is auto-populated ONLY ONCE — when:
+ *   • The profile doesn't exist yet (first login)
+ *   • display_name_initialized is false AND display_name matches a
+ *     sentinel value ("CineLog User", "CINELOG USER", empty, null, or
+ *     equals the UUID — all case-insensitive)
+ *
+ *   Once display_name_initialized is set to true, the display_name is
+ *   NEVER overwritten again — even if the user signs in with a different
+ *   provider, or the metadata changes. This protects user-edited names.
+ *
+ *   The display_name_initialized flag is also set to true when the user
+ *   manually edits their name via the Profile page (the updateProfile
+ *   function sets it).
+ *
+ * MIGRATION:
+ *   Existing users with display_name = "CineLog User" (the trigger
+ *   default) will have their name auto-populated on their next login,
+ *   and display_name_initialized will be set to true. This is a one-time
+ *   migration — once the flag is true, the name is never touched again.
+ *
+ * USERNAME GENERATION:
  *   1. Sanitize email local part → base username
- *   2. Check availability via getProfileByUsername
+ *   2. Check availability via checkUsernameAvailability
  *   3. If taken, try candidates: base24, base_24, base247, ...
  *   4. First available candidate wins
+ *
+ *   Username is also only auto-populated once (same sentinel check).
+ *   If the user manually changes their username, it's never overwritten.
  *
  * @returns The profile row (existing or newly created).
  */
@@ -195,28 +215,61 @@ export async function ensureProfile(
     const email = authUser?.email ?? null;
     const metadata = authUser?.userMetadata ?? null;
 
-    // Auto-populate display_name if it's empty or equals the UUID (trigger default).
-    const needsDisplayName =
-      !existing.display_name ||
-      existing.display_name === userId ||
-      existing.display_name === "CINELOG USER" ||
-      existing.display_name.trim() === "";
+    // AUTO-POPULATE DISPLAY NAME — only if NOT already initialized.
+    //
+    // The display_name_initialized flag is the SINGLE source of truth.
+    // Once it's true, we NEVER overwrite the display_name — regardless
+    // of what it contains. This protects user-edited names.
+    //
+    // For existing users (flag is false), we check if the current
+    // display_name matches a sentinel value (case-insensitive). If it
+    // does, we auto-populate from Google metadata / email and set the
+    // flag to true. If it doesn't match a sentinel (user already set
+    // a custom name), we just set the flag to true without changing
+    // the name.
+    const initialized = (existing as ProfileRow & { display_name_initialized?: boolean }).display_name_initialized ?? false;
 
-    if (needsDisplayName) {
-      updates.display_name = displayNameFromMetadata(metadata, email);
+    if (!initialized) {
+      // Check if the current display_name is a sentinel value that
+      // should be replaced. Case-insensitive check for "CineLog User"
+      // and "CINELOG USER" (the trigger uses Title Case, but we check
+      // both to be safe).
+      const currentName = (existing.display_name ?? "").trim().toLowerCase();
+      const isSentinel =
+        !existing.display_name ||
+        existing.display_name === userId ||
+        currentName === "" ||
+        currentName === "cinelog user" ||
+        currentName === "cinephile" ||
+        currentName === "new user";
+
+      if (isSentinel) {
+        // Auto-populate from Google metadata → email → fallback.
+        updates.display_name = displayNameFromMetadata(metadata, email);
+      }
+      // Whether we changed the name or not, set the flag to true so
+      // we never check again. If the user had a custom name (not a
+      // sentinel), we preserve it and just mark as initialized.
+      updates.display_name_initialized = true;
     }
 
-    // Auto-populate username if it's empty or equals the UUID (trigger default).
-    const needsUsername =
-      !existing.username ||
-      existing.username === userId ||
-      existing.username.trim() === "";
+    // AUTO-POPULATE USERNAME — only if NOT already initialized.
+    // Uses the same flag logic. If the username is a sentinel
+    // (empty, UUID, or "user_" prefix from the trigger), replace it.
+    if (!initialized) {
+      const currentUsername = (existing.username ?? "").trim();
+      const isUsernameSentinel =
+        !existing.username ||
+        existing.username === userId ||
+        currentUsername === "" ||
+        currentUsername.startsWith("user_");
 
-    if (needsUsername && email) {
-      const baseUsername = sanitizeUsername(email);
-      const availableUsername = await findAvailableUsername(supabase, baseUsername);
-      if (availableUsername) {
-        updates.username = availableUsername;
+      if (isUsernameSentinel && email) {
+        const baseUsername = sanitizeUsername(email);
+        const availableUsername = await findAvailableUsername(supabase, baseUsername);
+        if (availableUsername) {
+          updates.username = availableUsername;
+        }
       }
     }
 
@@ -236,6 +289,7 @@ export async function ensureProfile(
   }
 
   // 3. Profile doesn't exist — create it with auto-generated fields.
+  // This path runs if the Supabase trigger didn't fire (edge case).
   const email = authUser?.email ?? null;
   const metadata = authUser?.userMetadata ?? null;
   const displayName = displayNameFromMetadata(metadata, email);
@@ -248,6 +302,7 @@ export async function ensureProfile(
       id: userId,
       username: username ?? baseUsername,
       display_name: displayName,
+      display_name_initialized: true, // Mark as initialized on creation
       country: "US", // default — user can change later
     })
     .select()

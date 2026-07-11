@@ -88,7 +88,7 @@ export function displayNameFromEmail(email: string): string {
     .filter((w) => w.length > 0)
     .map((w) => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase())
     .join(" ");
-  return titled || "Cinephile";
+  return titled || "New User";
 }
 
 /**
@@ -107,5 +107,5 @@ export function displayNameFromMetadata(
   if (email) {
     return displayNameFromEmail(email);
   }
-  return "Cinephile";
+  return "New User";
 }

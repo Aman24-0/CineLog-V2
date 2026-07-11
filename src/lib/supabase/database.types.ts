@@ -394,6 +394,7 @@ export type Database = {
           created_at: string
           deleted_at: string | null
           display_name: string
+          display_name_initialized: boolean
           favorite_director_id: string | null
           favorite_genre: string | null
           favorite_movie_id: string | null
@@ -415,6 +416,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           display_name: string
+          display_name_initialized?: boolean
           favorite_director_id?: string | null
           favorite_genre?: string | null
           favorite_movie_id?: string | null
@@ -436,6 +438,7 @@ export type Database = {
           created_at?: string
           deleted_at?: string | null
           display_name?: string
+          display_name_initialized?: boolean
           favorite_director_id?: string | null
           favorite_genre?: string | null
           favorite_movie_id?: string | null

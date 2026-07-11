@@ -99,7 +99,12 @@ export function toProfileUpdate(
 ): ProfileUpdate {
   const update: ProfileUpdate = {};
   if (payload.username !== undefined) update.username = payload.username;
-  if (payload.displayName !== undefined) update.display_name = payload.displayName;
+  if (payload.displayName !== undefined) {
+    update.display_name = payload.displayName;
+    // When the user manually edits their display_name, mark it as
+    // initialized so ensureProfile never overwrites it on future logins.
+    (update as ProfileUpdate & { display_name_initialized?: boolean }).display_name_initialized = true;
+  }
   if (payload.avatarUrl !== undefined) update.avatar_url = payload.avatarUrl;
   if (payload.bio !== undefined) update.bio = payload.bio;
   if (payload.country !== undefined) update.country = payload.country;
