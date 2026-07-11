@@ -21,7 +21,7 @@
 //   Save/Cancel replace the Edit button. No modal — feels like editing
 //   a Notion page.
 
-import { Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
+import { Show, createSignal, createMemo, createEffect, onMount, onCleanup, type Component } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
@@ -53,6 +53,12 @@ const ProfilePage: Component = () => {
   const [pickerOpen, setPickerOpen] = createSignal(false);
   const [pickerSlot, setPickerSlot] = createSignal<FavoriteSlot | null>(null);
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
+
+  // Avatar load state — the .profile-avatar CSS starts at opacity:0 and
+  // only becomes visible when the .img-loaded class is added. Without
+  // this signal + onLoad handler, the avatar image stays invisible
+  // forever (the bug that caused "avatar not showing").
+  const [avatarLoaded, setAvatarLoaded] = createSignal(false);
 
   // Live username availability checker (debounced, 400ms).
   // Only active during edit mode. Uses the user's current username as
@@ -202,6 +208,15 @@ const ProfilePage: Component = () => {
     if (photoURL) return photoURL;
     return null;
   });
+
+  // Reset the avatar load state whenever the URL changes (e.g. user
+  // uploads a custom avatar, or Google OAuth photoURL arrives after
+  // the initial render). The <img> onLoad handler re-sets it to true.
+  createEffect(() => {
+    void avatarUrl();
+    setAvatarLoaded(false);
+  });
+
   const initial = createMemo(() => {
     const name = data()?.profile?.display_name ?? user()?.displayName ?? user()?.email ?? "";
     return name.charAt(0).toUpperCase() || "?";
@@ -294,11 +309,12 @@ const ProfilePage: Component = () => {
                   >
                     <img
                       src={avatarUrl()!}
-                      class="profile-avatar"
+                      class={`profile-avatar${avatarLoaded() ? " img-loaded" : ""}`}
                       alt=""
                       aria-hidden="true"
-                      loading="lazy"
+                      loading="eager"
                       decoding="async"
+                      onLoad={() => setAvatarLoaded(true)}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                         const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
