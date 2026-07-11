@@ -1,11 +1,11 @@
 // src/features/collections/components/UniverseEditPage.tsx
-import { For, Show, createMemo, createSignal } from "solid-js";
+import { For, Show, createMemo, createSignal, createEffect } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "../hooks/useCollections";
-import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
+import { fetchCuratedUniverseBySlug } from "../curatedUniverseAdapter";
 import type { Collection, CollectionEntry } from "~/shared/types";
 import UniverseEditEntry from "./UniverseEditEntry";
 
@@ -28,13 +28,33 @@ export default function UniverseEditPage() {
   const { watchlist } = useVault();
   const { userCollections, reorderEntries, saveOverrides } = useCollections();
 
-  const collection = createMemo<Collection | null>(() => {
+  // Resolve the collection: check user collections first (sync),
+  // then fetch curated universe from Supabase (async).
+  const [collection, setCollection] = createSignal<Collection | null>(null);
+  const [loadingCol, setLoadingCol] = createSignal(true);
+
+  createEffect(() => {
     const id = params.id;
-    const curated = CURATED_COLLECTIONS.find((c) => c.id === id);
-    if (curated) return curated;
-    const user = userCollections().find((c) => c.id === id);
-    if (user) return user;
-    return null;
+    if (!id) return;
+    void userCollections().length; // track changes
+
+    const resolve = async () => {
+      setLoadingCol(true);
+      // 1. Check user collections
+      const userCol = userCollections().find((c) => c.id === id);
+      if (userCol) {
+        setCollection(userCol);
+        setLoadingCol(false);
+        return;
+      }
+      // 2. Fetch curated universe from Supabase
+      if (userCollections().length > 0) {
+        const curated = await fetchCuratedUniverseBySlug(id);
+        setCollection(curated);
+        setLoadingCol(false);
+      }
+    };
+    resolve();
   });
 
   const [editingNote, setEditingNote] = createSignal<string | null>(null);
@@ -149,10 +169,17 @@ export default function UniverseEditPage() {
         </div>
 
         <Show when={collection()} fallback={
-          <div class="collections-detail-empty">
-            <p class="type-body-soft">Collection not found.</p>
-            <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
-          </div>
+          <Show when={loadingCol()} fallback={
+            <div class="collections-detail-empty">
+              <p class="type-body-soft">Collection not found.</p>
+              <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+            </div>
+          }>
+            <div style={{ padding: "var(--sp-8)", "text-align": "center" }}>
+              <div class="skeleton-base" style={{ width: "60%", height: "2rem", margin: "0 auto var(--sp-4)" }} />
+              <div class="skeleton-base" style={{ width: "40%", height: "1rem", margin: "0 auto" }} />
+            </div>
+          </Show>
         }>
           {/* Add custom entry */}
           <Show when={showAddCustom()} fallback={

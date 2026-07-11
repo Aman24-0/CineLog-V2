@@ -6,6 +6,8 @@ import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
+import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
+import { useToast } from "~/shared/hooks/useToast";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
@@ -21,18 +23,15 @@ const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
  * ARCHITECTURE (Database Bible):
  *   The page contains ONLY three sections, in this order:
  *
- *     1. SMART COLLECTIONS — generated dynamically from the Vault
- *        (Favorites, Continue Watching, Pinned, Recently Added, Top Rated).
- *        These are NOT stored — they're computed from vault state.
- *
- *     2. USER COLLECTIONS — user-created folders, stored in the
+ *     1. USER COLLECTIONS — user-created folders, stored in the
  *        `collections` + `collection_entries` tables. Editable: rename,
  *        delete, reorder, add/remove titles.
  *
- *     3. SUBSCRIBED UNIVERSES — loaded from `user_universe_subscriptions`
- *        joined with `curated_universes`. Read-only. Users subscribe via
+ *     2. SUBSCRIBED UNIVERSES — loaded from `user_universe_subscriptions`
+ *        joined with `curated_universes`. Users subscribe via
  *        the "Add Universe" button which opens a modal listing all
- *        `curated_universes` rows.
+ *        `curated_universes` rows. Users can UNSUBSCRIBE via the
+ *        three-dot menu on each universe card.
  *
  *   There are NO hardcoded curated collections on this page. Every
  *   curated universe is fetched from Supabase.
@@ -40,16 +39,16 @@ const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
 export default function CollectionsPage() {
   const { watchlist } = useVault();
   const navigate = useNavigate();
+  const { showToast } = useToast();
   const {
     userCollections,
     curatedCollections: _curatedCollections,
     loading,
     createCollection,
   } = useCollections();
-  const { subscribedUniverses } = useCuratedUniverses();
+  const { subscribedUniverses, refresh: refreshUniverses } = useCuratedUniverses();
+  const { removeUniverseFromPrefs } = useUniversePrefsLogic();
 
-  // Mark the old curatedCollections as intentionally unused — the page
-  // now sources curated universes from useCuratedUniverses() (Supabase).
   void _curatedCollections;
 
   const [showCreate, setShowCreate] = createSignal(false);
@@ -57,6 +56,7 @@ export default function CollectionsPage() {
   const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
   const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
   const [showAddUniverse, setShowAddUniverse] = createSignal(false);
+  const [unsubscribeTarget, setUnsubscribeTarget] = createSignal<Collection | null>(null);
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -64,6 +64,15 @@ export default function CollectionsPage() {
     await createCollection(name);
     setNewName("");
     setShowCreate(false);
+  };
+
+  const handleUnsubscribe = async () => {
+    const target = unsubscribeTarget();
+    if (!target) return;
+    await removeUniverseFromPrefs(target.id);
+    await refreshUniverses();
+    setUnsubscribeTarget(null);
+    showToast(`Unsubscribed from "${target.name}"`, "success");
   };
 
   return (
@@ -110,7 +119,7 @@ export default function CollectionsPage() {
             </p>
           </div>
 
-          {/* === USER COLLECTIONS (user-created folders) === */}
+          {/* === USER COLLECTIONS === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
               <span
@@ -158,7 +167,7 @@ export default function CollectionsPage() {
               <div class="collections-create-bar">
                 <input
                   type="text"
-                  class="collections-create-input"
+                  class="collections-create-input focus-ring"
                   placeholder="Collection name…"
                   value={newName()}
                   onInput={(e) => setNewName(e.currentTarget.value)}
@@ -193,7 +202,7 @@ export default function CollectionsPage() {
             />
           </section>
 
-          {/* === 3. SUBSCRIBED UNIVERSES (from user_universe_subscriptions) === */}
+          {/* === SUBSCRIBED UNIVERSES === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
               <span
@@ -226,11 +235,18 @@ export default function CollectionsPage() {
               when={subscribedUniverses().length > 0}
               fallback={
                 <div class="collections-empty-folders">
-                  <p
-                    class="type-body-soft"
-                    style={{ "text-align": "center", "max-width": "260px" }}
-                  >
-                    No subscribed universes yet. Tap "Add Universe" to browse curated universes.
+                  <div class="collections-empty-icon" aria-hidden="true">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "40px", color: "var(--p)" }}
+                      aria-hidden="true"
+                    >
+                      public
+                    </span>
+                  </div>
+                  <p class="collections-empty-title">No Subscribed Universes</p>
+                  <p class="collections-empty-desc">
+                    Tap "Add Universe" to browse curated cinematic universes.
                   </p>
                 </div>
               }
@@ -239,7 +255,7 @@ export default function CollectionsPage() {
                 <For each={subscribedUniverses()}>
                   {(uni) => (
                     <div
-                      class="collections-folder-card focus-ring"
+                      class="collection-card"
                       onClick={() => navigate(`/collections/${uni.id}`)}
                       role="button"
                       tabindex={0}
@@ -251,39 +267,95 @@ export default function CollectionsPage() {
                         }
                       }}
                     >
-                      <Show
-                        when={uni.backdrop_path}
-                        fallback={
-                          <div class="collections-folder-icon">
-                            <span
-                              class="material-symbols-outlined"
-                              style={{"font-size":"28px","color":"var(--text-soft)"}}
+                      {/* Collage area */}
+                      <div class="collection-card-collage-area">
+                        <Show
+                          when={uni.backdrop_path || (uni.entries ?? []).some((e) => e.poster_path)}
+                          fallback={
+                            <div class="collection-card-empty-art" aria-hidden="true">
+                              <span
+                                class="material-symbols-outlined"
+                                style={{ "font-size": "36px", color: "var(--text-dim)" }}
+                                aria-hidden="true"
+                              >
+                                public
+                              </span>
+                              <Show when={(uni.entries ?? []).length === 0}>
+                                <span class="collection-card-empty-text">No titles yet</span>
+                              </Show>
+                            </div>
+                          }
+                        >
+                          <Show when={(uni.entries ?? []).filter((e) => e.poster_path).length >= 1} fallback={
+                            /* Use backdrop as cover if no entry posters */
+                            <img
+                              src={tmdbImage(uni.backdrop_path, "w500")}
+                              class="collage-img"
+                              style={{ width: "100%", height: "100%", "object-fit": "cover" }}
+                              loading="lazy"
+                              decoding="async"
+                              alt=""
                               aria-hidden="true"
-                            >
-                              public
-                            </span>
-                          </div>
-                        }
-                      >
-                        <div class="collections-folder-collage">
-                          <img
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
-                            src={tmdbImage(uni.backdrop_path, "w500")}
-                            class="collections-folder-collage-img"
-                            style={{ "object-fit": "cover", width: "100%" }}
-                            loading="lazy"
-                            decoding="async"
-                            alt=""
-                            aria-hidden="true"
-                          />
+                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            />
+                          }>
+                            {/* Use entry posters for collage */}
+                            <div class="collage-grid-4">
+                              <For each={(uni.entries ?? []).filter((e) => e.poster_path).slice(0, 4)}>
+                                {(entry) => (
+                                  <img
+                                    src={tmdbImage(entry.poster_path, "w92")}
+                                    class="collage-img"
+                                    loading="lazy"
+                                    decoding="async"
+                                    alt=""
+                                    aria-hidden="true"
+                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                  />
+                                )}
+                              </For>
+                            </div>
+                          </Show>
+                        </Show>
+
+                        {/* Universe badge */}
+                        <div class="collection-card-badges">
+                          <span class="collection-badge" title="Curated Universe">
+                            <span class="material-symbols-outlined" style={{ "font-size": "10px", color: "var(--p)" }} aria-hidden="true">public</span>
+                          </span>
                         </div>
-                      </Show>
-                      <div style={{ display: "flex", "align-items": "center", gap: "4px" }}>
-                        <p class="collections-folder-name">{uni.name}</p>
+
+                        {/* Three-dot menu for unsubscribe */}
+                        <button
+                          type="button"
+                          class="collection-card-menu focus-ring"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setUnsubscribeTarget(uni);
+                          }}
+                          aria-label={`Options for ${uni.name}`}
+                        >
+                          <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+                            more_vert
+                          </span>
+                        </button>
                       </div>
-                      <p class="collections-folder-count">
-                        {(uni.entries ?? []).length} title{(uni.entries ?? []).length !== 1 ? "s" : ""}
-                      </p>
+
+                      {/* Info area */}
+                      <div class="collection-card-info">
+                        <div class="collection-card-name-row">
+                          <p class="collection-card-name">{uni.name}</p>
+                        </div>
+                        <Show when={uni.description}>
+                          <p class="collection-card-desc">{uni.description}</p>
+                        </Show>
+                        <div class="collection-card-stats">
+                          <span class="collection-card-stats-text">
+                            {(uni.entries ?? []).length} {(uni.entries ?? []).length !== 1 ? "titles" : "title"}
+                          </span>
+                          <span class="collection-card-updated">Universe</span>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </For>
@@ -310,6 +382,58 @@ export default function CollectionsPage() {
           <Suspense fallback={null}>
             <AddUniverseModal onClose={() => setShowAddUniverse(false)} />
           </Suspense>
+        </Show>
+
+        {/* Unsubscribe confirmation dialog */}
+        <Show when={unsubscribeTarget()}>
+          {(target) => (
+            <div
+              class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+              style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+              onClick={() => setUnsubscribeTarget(null)}
+              role="dialog"
+              aria-modal="true"
+              aria-label={`Unsubscribe from ${target().name}`}
+            >
+              <div
+                class="modal-surface w-full max-w-sm p-6"
+                style={{ "border-radius": "var(--radius-xl)" }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
+                  <div class="empty-premium-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
+                    <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                      remove_circle
+                    </span>
+                  </div>
+                  <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
+                    Unsubscribe from "{target().name}"?
+                  </h3>
+                  <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
+                    You'll lose access to this universe's timeline. You can re-subscribe anytime from "Add Universe".
+                  </p>
+                </div>
+                <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+                  <button
+                    type="button"
+                    class="btn-ghost focus-ring"
+                    onClick={() => setUnsubscribeTarget(null)}
+                    style={{ flex: "1" }}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="btn-primary focus-ring setting-row-danger"
+                    onClick={handleUnsubscribe}
+                    style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
+                  >
+                    Unsubscribe
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </Show>
       </ErrorBoundary>
     </PageContainer>
