@@ -403,3 +403,68 @@ export async function discoverMoviesWithProvider(
   );
   return normalizeList(res.results, "movie");
 }
+
+/**
+ * discoverTvWithProvider — discover TV series available on a specific
+ * streaming provider in the user's region.
+ *
+ * Mirrors discoverMoviesWithProvider but hits /discover/tv. Used by the
+ * OTT section to merge movie + TV results so providers like Prime Video
+ * or Netflix never show an empty state when they have TV content but
+ * the movie query happened to return nothing.
+ */
+export async function discoverTvWithProvider(
+  providerId: number,
+  region = "IN",
+  opts: { sortBy?: string; page?: number } = {}
+): Promise<TMDBTitle[]> {
+  const params = new URLSearchParams({
+    api_key: TMDB_KEY,
+    language: "en-US",
+    sort_by: opts.sortBy || "popularity.desc",
+    "vote_count.gte": "50",
+    page: String(opts.page ?? 1),
+    include_adult: "false",
+    with_watch_providers: String(providerId),
+    watch_region: region,
+  });
+
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:discover/tv_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(`${API}/discover/tv?${params}`);
+      if (!r.ok) throw new Error(`discoverTvWithProvider failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return normalizeList(res.results, "tv");
+}
+
+/**
+ * getWatchProviderListTv — TV streaming providers for a region.
+ *
+ * Mirrors getWatchProviderList but hits /watch/providers/tv. The movie
+ * and TV provider lists overlap heavily but are NOT identical — some
+ * providers appear in only one list. The OTT section merges both lists
+ * so a provider like "JioHotstar" that primarily streams TV/movies in
+ * India shows up regardless of which TMDB list it appears in.
+ */
+export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null }>> {
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:watch_providers_list_tv", { region }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetch(
+        `${API}/watch/providers/tv?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
+      );
+      if (!r.ok) throw new Error(`getWatchProviderListTv failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null }) => ({
+    providerId: p.provider_id,
+    providerName: p.provider_name,
+    logoPath: p.logo_path,
+  }));
+}

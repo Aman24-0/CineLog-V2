@@ -2,26 +2,25 @@
 //
 // OttSection — "New on OTT" premium streaming carousel.
 //
-// Production polish (final Discover update):
-//   • New provider order — Netflix, JioHotstar, Prime Video, SonyLIV,
-//     ZEE5, Crunchyroll, then a "More" button that opens a horizontal
-//     expandable sheet listing every remaining TMDB provider.
-//   • Active provider highlighted in CineLog yellow with a soft glow
-//     and a small scale animation.
-//   • Smooth provider switching — preserves scroll position (the rail
-//     is keyed on providerId, but the page scroll is left untouched).
-//   • Lazy load provider movies — only fetches on first selection.
-//   • Cache every provider individually via apiCache (already provided
-//     by discoverMoviesWithProvider). Loaded providers also live in an
-//     in-component cache so switching back is instant.
+// OTT-only refinement:
+//   • Provider chips mapped by TMDB provider ID (not name). Primary
+//     order: Netflix, JioHotstar, Prime Video, SonyLIV, ZEE5, Crunchyroll.
+//   • Providers NOT available in the user's region are HIDDEN (no empty
+//     chip, no empty carousel).
+//   • Movie + TV results merged via Promise.allSettled so a provider
+//     that has TV content but no movie content (or vice versa) never
+//     shows an empty state. Deduplicated by TMDB id.
+//   • Alias merging: "Amazon Prime Video" + "Amazon Video" + "Prime
+//     Video" collapse into one "Prime Video" chip.
+//   • Per-provider + per-region cache. Switching back to an already-
+//     loaded provider never hits TMDB again.
 //   • Default provider = Netflix.
-//   • Dynamic contextual subtitle per provider ("Trending on Netflix",
-//     "Recently Added", "Popular in India", "Watch this Weekend",
-//     "Indian Favourites", "Top Anime", …).
-//   • Premium empty states with Retry on network failure.
-//   • Below-the-fold safe: parent LazyMount wraps this section.
-//   • Fully region-aware — reads `region` prop (threaded from the
-//     DiscoverPage root, which in turn reads discoverRegion).
+//   • Contextual subtitle per provider.
+//   • "More" button opens a Play Store-style bottom sheet: 56-64px
+//     circular logos with the provider name BELOW each logo (never
+//     inside the circle). Responsive grid.
+//   • Premium empty state with retry — ONLY shown when BOTH movie and
+//     TV results are empty.
 //
 
 import {
@@ -30,129 +29,141 @@ import {
 import { Portal } from "solid-js/web";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import {
-  discoverMoviesWithProvider, getWatchProviderList,
+  discoverMoviesWithProvider,
+  discoverTvWithProvider,
+  getWatchProviderList,
+  getWatchProviderListTv,
 } from "~/core/tmdb/discover";
 import type { TMDBTitle } from "~/shared/types";
 import PremiumEmptyState from "./PremiumEmptyState";
+import {
+  buildPrimaryProviders,
+  buildMoreProviders,
+  mergeProviders,
+  canonicalForTmdbId,
+  displayNameFor,
+  subtitleFor,
+  type MergedProvider,
+  type TmdbProviderRow,
+  type CanonicalProviderKey,
+} from "./ottProviderRegistry";
 
 interface OttSectionProps {
   onSelect: (title: TMDBTitle) => void;
-  /** ISO 3166-1 region. Defaults to the discoverRegion signal. */
+  /** ISO 3166-1 region. Defaults to IN. */
   region?: string;
 }
 
-interface Provider {
-  providerId: number;
-  providerName: string;
-  logoPath: string | null;
-}
-
-/**
- * Primary provider order — the chips that are always visible above the
- * "More" button. IDs are TMDB watch-provider IDs (stable across regions
- * for the major streamers).
- */
-const PRIMARY_PROVIDER_ORDER: Array<{ id: number; name: string }> = [
-  { id: 8,   name: "Netflix" },
-  { id: 554, name: "JioHotstar" },
-  { id: 9,   name: "Prime Video" },
-  { id: 543, name: "SonyLIV" },
-  { id: 567, name: "ZEE5" },
-  { id: 283, name: "Crunchyroll" },
-];
-
-/**
- * Contextual subtitle per provider. Falls back to "Streaming now" for
- * unknown providers. Subtitle changes dynamically when the user
- * switches chips.
- */
-const PROVIDER_SUBTITLE: Record<string, string> = {
-  "Netflix": "Trending on Netflix",
-  "JioHotstar": "Popular in India",
-  "Prime Video": "Recently Added",
-  "SonyLIV": "Watch this Weekend",
-  "ZEE5": "Indian Favourites",
-  "Crunchyroll": "Top Anime",
-  "Apple TV Plus": "Critically Acclaimed",
-  "MUBI": "Curated Cinema",
-  "Lionsgate Play": "Blockbuster Picks",
-  "Disney Plus": "Family Favourites",
-};
-
-/**
- * OttSection — see file header.
- */
 const OttSection: Component<OttSectionProps> = (props) => {
-  const [allProviders, setAllProviders] = createSignal<Provider[]>([]);
-  const [selectedProvider, setSelectedProvider] = createSignal<number | null>(null);
+  // Raw TMDB provider rows (movie + TV lists merged).
+  const [rawProviders, setRawProviders] = createSignal<TmdbProviderRow[]>([]);
+  const [selectedProviderId, setSelectedProviderId] = createSignal<number | null>(null);
   const [titles, setTitles] = createSignal<TMDBTitle[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<Error | null>(null);
   const [moreOpen, setMoreOpen] = createSignal(false);
+
   /**
-   * In-component cache: providerId → titles. We keep this on top of the
-   * apiCache layer so re-selecting a previously-loaded provider is
-   * synchronous (no Promise, no loading shimmer). The apiCache layer
-   * still dedupes network requests across mounts.
+   * In-component cache keyed by `${providerId}:${region}`. Layered on
+   * top of the apiCache layer so re-selecting a previously-loaded
+   * provider is synchronous (no network).
    */
-  const [loadedCache, setLoadedCache] = createSignal<Record<number, TMDBTitle[]>>({});
+  const [loadedCache, setLoadedCache] = createSignal<Record<string, TMDBTitle[]>>({});
 
   const region = () => props.region ?? "IN";
 
-  // Build the primary provider list — always shown in the chip bar.
-  // We don't need to wait for the TMDB provider-list fetch because
-  // PRIMARY_PROVIDER_ORDER already encodes the IDs + display names.
-  // We DO still fetch the TMDB provider list to resolve logo paths and
-  // to populate the "More" sheet with every remaining provider.
-  const primaryProviders = createMemo<Provider[]>(() =>
-    PRIMARY_PROVIDER_ORDER.map((p) => {
-      const found = allProviders().find((ap) => ap.providerId === p.id);
-      return {
-        providerId: p.id,
-        providerName: p.name,
-        logoPath: found?.logoPath ?? null,
-      };
-    })
+  // --- Merge movie + TV provider lists, then merge aliases ---
+  const mergedProviders = createMemo<MergedProvider[]>(() =>
+    mergeProviders(rawProviders())
   );
 
-  // "More" providers — every TMDB provider for this region EXCEPT the
-  // ones already in PRIMARY_PROVIDER_ORDER. Sorted alphabetically.
-  const moreProviders = createMemo<Provider[]>(() => {
-    const primaryIds = new Set(PRIMARY_PROVIDER_ORDER.map((p) => p.id));
-    return allProviders()
-      .filter((p) => !primaryIds.has(p.providerId))
-      .sort((a, b) => a.providerName.localeCompare(b.providerName));
+  // --- Available TMDB IDs (for region-availability filtering) ---
+  const availableTmdbIds = createMemo<Set<number>>(() => {
+    const s = new Set<number>();
+    for (const r of rawProviders()) s.add(r.providerId);
+    return s;
   });
 
-  // Fetch provider list on mount (best-effort — primary chips work
-  // even before this resolves thanks to PRIMARY_PROVIDER_ORDER).
+  // --- Primary chips (hidden if not available in region) ---
+  const primaryProviders = createMemo<MergedProvider[]>(() => {
+    const available = availableTmdbIds();
+    const primaries = buildPrimaryProviders(available);
+    // Resolve logo paths from the raw TMDB list.
+    return primaries.map((p) => ({
+      ...p,
+      logoPath: resolveLogo(p.allTmdbIds, rawProviders()),
+    }));
+  });
+
+  // --- "More" sheet providers (all merged providers EXCEPT primaries) ---
+  const primaryCanonicals = createMemo<Set<CanonicalProviderKey>>(() => {
+    const s = new Set<CanonicalProviderKey>();
+    for (const p of primaryProviders()) s.add(p.canonical);
+    return s;
+  });
+
+  const moreProviders = createMemo<MergedProvider[]>(() => {
+    const merged = mergedProviders();
+    const primaries = primaryCanonicals();
+    return buildMoreProviders(merged, primaries).map((p) => ({
+      ...p,
+      logoPath: p.logoPath ?? resolveLogo(p.allTmdbIds, rawProviders()),
+    }));
+  });
+
+  // Fetch BOTH movie + TV provider lists on mount, merge them.
+  // This ensures a provider appears if it's in EITHER list (some
+  // providers only appear in /tv, some only in /movie).
   onMount(() => {
     let cancelled = false;
-    getWatchProviderList(region())
-      .then((list) => {
-        if (cancelled) return;
-        setAllProviders(
-          list.map((p) => ({
-            providerId: p.providerId,
-            providerName: p.providerName,
-            logoPath: p.logoPath,
-          }))
-        );
-      })
-      .catch((e) => console.error("[OttSection] Provider list fetch:", e));
+    Promise.allSettled([
+      getWatchProviderList(region()),
+      getWatchProviderListTv(region()),
+    ]).then((results) => {
+      if (cancelled) return;
+      const combined: TmdbProviderRow[] = [];
+      const seenIds = new Set<number>();
+      for (const r of results) {
+        if (r.status !== "fulfilled") continue;
+        for (const row of r.value) {
+          if (seenIds.has(row.providerId)) {
+            // Same ID in both lists — keep the first logo we saw.
+            continue;
+          }
+          seenIds.add(row.providerId);
+          combined.push({
+            providerId: row.providerId,
+            providerName: row.providerName,
+            logoPath: row.logoPath,
+          });
+        }
+      }
+      setRawProviders(combined);
+    }).catch((e) => console.error("[OttSection] Provider list fetch:", e));
     onCleanup(() => { cancelled = true; });
   });
 
-  // Default to Netflix on first mount.
-  onMount(() => {
-    if (selectedProvider() === null) {
-      setSelectedProvider(PRIMARY_PROVIDER_ORDER[0].id);
-    }
+  // Default to Netflix on first mount (only if Netflix is available).
+  // Falls back to the first available primary provider.
+  createEffect(() => {
+    if (selectedProviderId() !== null) return;
+    const primaries = primaryProviders();
+    if (primaries.length === 0) return;
+    const netflix = primaries.find((p) => p.canonical === "netflix");
+    setSelectedProviderId((netflix ?? primaries[0]).primaryTmdbId);
   });
 
+  /**
+   * Load titles for a provider — fetches BOTH movie and TV in parallel
+   * via Promise.allSettled, merges results, dedupes by TMDB id.
+   *
+   * Empty state is ONLY shown when BOTH movie and TV return empty
+   * (or both fail). A provider with TV content but no movie content
+   * (e.g. a show-only platform) still shows its TV results.
+   */
   const loadProvider = async (providerId: number) => {
-    // Synchronous cache hit — no loading shimmer, no network.
-    const cached = loadedCache()[providerId];
+    const cacheKey = `${providerId}:${region()}`;
+    const cached = loadedCache()[cacheKey];
     if (cached) {
       setTitles(cached);
       setError(null);
@@ -162,11 +173,32 @@ const OttSection: Component<OttSectionProps> = (props) => {
     setLoading(true);
     setError(null);
     try {
-      const result = await discoverMoviesWithProvider(providerId, region(), {
-        sortBy: "popularity.desc",
-      });
-      const sliced = result.slice(0, 20);
-      setLoadedCache((prev) => ({ ...prev, [providerId]: sliced }));
+      const [movieRes, tvRes] = await Promise.allSettled([
+        discoverMoviesWithProvider(providerId, region(), { sortBy: "popularity.desc" }),
+        discoverTvWithProvider(providerId, region(), { sortBy: "popularity.desc" }),
+      ]);
+      const movies = movieRes.status === "fulfilled" ? movieRes.value : [];
+      const tv = tvRes.status === "fulfilled" ? tvRes.value : [];
+      // If both rejected, surface an error.
+      if (movieRes.status === "rejected" && tvRes.status === "rejected") {
+        throw movieRes.reason ?? tvRes.reason;
+      }
+      // Merge + dedupe by TMDB id. Movies first (popularity sort already
+      // applied), then TV titles not already in the list.
+      const seen = new Set<number>();
+      const merged: TMDBTitle[] = [];
+      for (const t of movies) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        merged.push(t);
+      }
+      for (const t of tv) {
+        if (seen.has(t.id)) continue;
+        seen.add(t.id);
+        merged.push(t);
+      }
+      const sliced = merged.slice(0, 20);
+      setLoadedCache((prev) => ({ ...prev, [cacheKey]: sliced }));
       setTitles(sliced);
     } catch (e) {
       console.error("[OttSection] Provider titles fetch:", e);
@@ -177,11 +209,10 @@ const OttSection: Component<OttSectionProps> = (props) => {
     }
   };
 
-  // React to provider selection changes — fetch on first selection.
-  // Side-effect, so use createEffect (not createMemo).
+  // React to provider selection changes.
   let lastLoaded: number | null = null;
   createEffect(() => {
-    const id = selectedProvider();
+    const id = selectedProviderId();
     if (id === null) return;
     if (id === lastLoaded) return;
     lastLoaded = id;
@@ -189,13 +220,12 @@ const OttSection: Component<OttSectionProps> = (props) => {
   });
 
   const handleSelectProvider = (providerId: number) => {
-    if (providerId === selectedProvider()) return;
-    setSelectedProvider(providerId);
+    if (providerId === selectedProviderId()) return;
+    setSelectedProviderId(providerId);
     setMoreOpen(false);
   };
 
-  // Bottom-sheet lifecycle: lock body scroll while open + ESC to close.
-  // Re-runs when `moreOpen` flips. SSR-safe (no window on server).
+  // Bottom-sheet lifecycle: lock body scroll + ESC to close.
   createEffect(() => {
     if (!moreOpen()) return;
     if (typeof document === "undefined") return;
@@ -211,31 +241,42 @@ const OttSection: Component<OttSectionProps> = (props) => {
     });
   });
 
-  // Retry handler — re-runs the current provider's fetch.
   const handleRetry = () => {
-    const id = selectedProvider();
+    const id = selectedProviderId();
     if (id === null) return;
-    // Bypass the in-component cache on explicit retry.
+    const cacheKey = `${id}:${region()}`;
     setLoadedCache((prev) => {
       const next = { ...prev };
-      delete next[id];
+      delete next[cacheKey];
       return next;
     });
     void loadProvider(id);
   };
 
-  const selectedDisplayName = createMemo(() => {
-    const id = selectedProvider();
-    if (id === null) return "";
-    const primary = PRIMARY_PROVIDER_ORDER.find((p) => p.id === id);
-    if (primary) return primary.name;
-    const ap = allProviders().find((p) => p.providerId === id);
-    return ap?.providerName ?? "Streaming";
-  });
-
-  const selectedSubtitle = createMemo(() => {
-    const name = selectedDisplayName();
-    return PROVIDER_SUBTITLE[name] ?? "Streaming now";
+  // --- Selected provider display info (from registry, not names) ---
+  const selectedMerged = createMemo<MergedProvider | null>(() => {
+    const id = selectedProviderId();
+    if (id === null) return null;
+    // Check primary providers first.
+    const fromPrimary = primaryProviders().find((p) => p.primaryTmdbId === id);
+    if (fromPrimary) return fromPrimary;
+    // Then more providers.
+    const fromMore = moreProviders().find((p) => p.primaryTmdbId === id);
+    if (fromMore) return fromMore;
+    // Fallback — build from raw data.
+    const raw = rawProviders().find((r) => r.providerId === id);
+    if (raw) {
+      const canonical = canonicalForTmdbId(id);
+      return {
+        canonical,
+        primaryTmdbId: id,
+        allTmdbIds: [id],
+        displayName: canonical === "other" ? raw.providerName : displayNameFor(canonical),
+        subtitle: subtitleFor(canonical),
+        logoPath: raw.logoPath,
+      };
+    }
+    return null;
   });
 
   return (
@@ -246,7 +287,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
           {(provider) => (
             <ProviderChip
               provider={provider}
-              active={selectedProvider() === provider.providerId}
+              active={selectedProviderId() === provider.primaryTmdbId}
               onSelect={handleSelectProvider}
             />
           )}
@@ -267,10 +308,9 @@ const OttSection: Component<OttSectionProps> = (props) => {
         </button>
       </div>
 
-      {/* "More" bottom sheet — Portal-rendered modal that slides up from
-          the bottom of the viewport on mobile and centers on desktop.
-          Contains every remaining TMDB provider for the region as a
-          scrollable grid of compact logo+name chips. */}
+      {/* "More" bottom sheet — Play Store-style grid of provider cards.
+          Each card: 56-64px circular logo with the provider name BELOW
+          it (never inside the circle). Responsive grid. */}
       <Show when={moreOpen()}>
         <Portal>
           <div
@@ -289,10 +329,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
               class="modal-sheet-enter modal-surface ott-more-sheet-panel"
               onClick={(e) => e.stopPropagation()}
             >
-              {/* Drag handle (mobile affordance) */}
               <div class="sheet-handle sm:hidden" aria-hidden="true" />
-
-              {/* Close button */}
               <button
                 type="button"
                 onClick={() => setMoreOpen(false)}
@@ -304,13 +341,11 @@ const OttSection: Component<OttSectionProps> = (props) => {
                 </span>
               </button>
 
-              {/* Header */}
               <div class="ott-more-header">
                 <p class="ott-more-title">More Providers</p>
                 <p class="ott-more-subtitle">Every streaming service in your region</p>
               </div>
 
-              {/* Provider grid — scrollable */}
               <Show
                 when={moreProviders().length > 0}
                 fallback={
@@ -325,11 +360,10 @@ const OttSection: Component<OttSectionProps> = (props) => {
                 <div class="ott-more-grid" role="list">
                   <For each={moreProviders()}>
                     {(provider) => (
-                      <ProviderChip
+                      <ProviderGridCard
                         provider={provider}
-                        active={selectedProvider() === provider.providerId}
+                        active={selectedProviderId() === provider.primaryTmdbId}
                         onSelect={handleSelectProvider}
-                        compact
                       />
                     )}
                   </For>
@@ -341,11 +375,13 @@ const OttSection: Component<OttSectionProps> = (props) => {
       </Show>
 
       {/* Provider name + dynamic contextual subtitle */}
-      <Show when={selectedProvider() !== null}>
-        <div class="ott-provider-heading">
-          <p class="ott-provider-label">{selectedDisplayName()}</p>
-          <p class="ott-provider-subtitle">{selectedSubtitle()}</p>
-        </div>
+      <Show when={selectedMerged()}>
+        {(sp) => (
+          <div class="ott-provider-heading">
+            <p class="ott-provider-label">{sp().displayName}</p>
+            <p class="ott-provider-subtitle">{sp().subtitle}</p>
+          </div>
+        )}
       </Show>
 
       {/* Titles carousel OR skeleton OR empty state */}
@@ -433,57 +469,121 @@ const OttSection: Component<OttSectionProps> = (props) => {
 };
 
 // ---------------------------------------------------------------------------
-// ProviderChip — circular logo chip with active-state animation
+// Helper: resolve logo path from raw TMDB rows for a set of provider IDs.
+// Returns the first non-null logo across all matching rows.
+// ---------------------------------------------------------------------------
+function resolveLogo(tmdbIds: number[], rows: TmdbProviderRow[]): string | null {
+  for (const id of tmdbIds) {
+    const row = rows.find((r) => r.providerId === id);
+    if (row?.logoPath) return row.logoPath;
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// ProviderChip — circular logo chip for the primary row (44px).
+// Logo fills the circle; NO text inside the circle.
 // ---------------------------------------------------------------------------
 
 interface ProviderChipProps {
-  provider: Provider;
+  provider: MergedProvider;
   active: boolean;
   onSelect: (id: number) => void;
-  compact?: boolean;
 }
 
 const ProviderChip: Component<ProviderChipProps> = (props) => {
-  const label = () => props.provider.providerName;
+  const label = () => props.provider.displayName;
   return (
     <button
       type="button"
       class="ott-provider-chip focus-ring"
-      classList={{ "ott-provider-chip-compact": !!props.compact }}
       data-active={props.active}
-      onClick={() => props.onSelect(props.provider.providerId)}
+      onClick={() => props.onSelect(props.provider.primaryTmdbId)}
       role="tab"
       aria-selected={props.active}
       aria-label={label()}
       title={label()}
     >
-      <Show
-        when={props.provider.logoPath}
-        fallback={
-          <span class="ott-provider-initial">{label().charAt(0)}</span>
-        }
-      >
-        <img
-          src={tmdbImage(props.provider.logoPath, "w92")}
-          class="ott-provider-logo"
-          loading="lazy"
-          decoding="async"
-          alt=""
-          aria-hidden="true"
-          onError={(e) => {
-            e.currentTarget.style.display = "none";
-            const next = e.currentTarget.nextElementSibling as HTMLElement | null;
-            if (next) next.style.display = "flex";
-          }}
-        />
-        <span class="ott-provider-initial" style={{ display: "none" }}>
-          {label().charAt(0)}
-        </span>
-      </Show>
-      <Show when={props.compact}>
-        <span class="ott-provider-chip-name">{label()}</span>
-      </Show>
+      <ProviderLogo provider={props.provider} size="chip" />
     </button>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// ProviderGridCard — Play Store-style card for the "More" sheet.
+// 56-64px circular logo on top, provider name BELOW (max 2 lines, ellipsis).
+// ---------------------------------------------------------------------------
+
+interface ProviderGridCardProps {
+  provider: MergedProvider;
+  active: boolean;
+  onSelect: (id: number) => void;
+}
+
+const ProviderGridCard: Component<ProviderGridCardProps> = (props) => {
+  const label = () => props.provider.displayName;
+  return (
+    <button
+      type="button"
+      class="ott-provider-grid-card focus-ring"
+      data-active={props.active}
+      onClick={() => props.onSelect(props.provider.primaryTmdbId)}
+      role="listitem"
+      aria-label={label()}
+      title={label()}
+    >
+      <div class="ott-provider-grid-logo-wrap">
+        <ProviderLogo provider={props.provider} size="grid" />
+      </div>
+      <span class="ott-provider-grid-name">{label()}</span>
+    </button>
+  );
+};
+
+// ---------------------------------------------------------------------------
+// ProviderLogo — renders the TMDB logo image, with graceful fallbacks.
+//
+// Fallback chain:
+//   1. TMDB logo_path image (circular, object-fit: cover)
+//   2. If image fails to load → generic streaming icon (live_tv) inside
+//      a tinted circle. NEVER render cropped text inside the circle.
+// ---------------------------------------------------------------------------
+
+interface ProviderLogoProps {
+  provider: MergedProvider;
+  size: "chip" | "grid";
+}
+
+const ProviderLogo: Component<ProviderLogoProps> = (props) => {
+  const [imgFailed, setImgFailed] = createSignal(false);
+  // Reset failure state when the provider changes.
+  let lastId = -1;
+  createEffect(() => {
+    const id = props.provider.primaryTmdbId;
+    if (id !== lastId) {
+      lastId = id;
+      setImgFailed(false);
+    }
+  });
+  return (
+    <Show
+      when={props.provider.logoPath && !imgFailed()}
+      fallback={
+        <div class={`ott-provider-fallback ott-provider-fallback-${props.size}`} aria-hidden="true">
+          <span class="material-symbols-outlined" aria-hidden="true">live_tv</span>
+        </div>
+      }
+    >
+      <img
+        src={tmdbImage(props.provider.logoPath!, "w154")}
+        class={`ott-provider-logo ott-provider-logo-${props.size}`}
+        loading="lazy"
+        decoding="async"
+        alt=""
+        aria-hidden="true"
+        onError={() => setImgFailed(true)}
+      />
+    </Show>
   );
 };
 
