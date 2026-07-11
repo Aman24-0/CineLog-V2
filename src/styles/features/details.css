@@ -277,6 +277,16 @@
   filter: brightness(1.08);
   color: var(--active-text);
 }
+.action-dock-btn-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.2);
+  background: rgba(248, 113, 113, 0.04);
+}
+.action-dock-btn-danger:hover {
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #fca5a5;
+}
 .action-dock-divider {
   width: 1px;
   height: 28px;

@@ -20,6 +20,7 @@ export interface DetailsActionsProps {
   onStatusCycle: () => void;
   onAddToVault: () => void;
   onOpenFolders: () => void;
+  onRemove: () => void;
 }
 
 export default function DetailsActions(props: DetailsActionsProps) {
@@ -33,6 +34,7 @@ export default function DetailsActions(props: DetailsActionsProps) {
       onStatusCycle={props.onStatusCycle}
       onAddToVault={props.onAddToVault}
       onOpenFolders={props.onOpenFolders}
+      onRemove={props.onRemove}
       isAdding={props.isAdding()}
     />
   );

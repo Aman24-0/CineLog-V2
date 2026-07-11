@@ -20,6 +20,8 @@ interface ActionDockProps {
   onAddToVault: () => void;
   /** Called when the user taps "Folder" — opens the AddToFolder sheet */
   onOpenFolders?: () => void;
+  /** Called when the user taps "Remove" — opens the confirm sheet */
+  onRemove?: () => void;
   /** Whether an add-to-vault operation is in flight (shows spinner) */
   isAdding?: boolean;
 }
@@ -30,13 +32,13 @@ interface ActionDockProps {
  * OWNERSHIP-AWARE LAYOUT:
  *
  *   Vault title (vaultItem present):
- *     [Status cycle] | [Trailer] [Rate] [Edit]
+ *     [Status cycle] | [Trailer] [Rate] [Edit] [Remove]
  *
  *   Non-vault title (vaultItem null):
  *     [+ Add to Vault] | [Trailer]
  *
- * The Edit and Rate buttons are user-owned actions — they only make
- * sense when the title is in the vault. For non-vault titles, the
+ * The Edit, Rate, and Remove buttons are user-owned actions — they only
+ * make sense when the title is in the vault. For non-vault titles, the
  * primary CTA is "Add to Vault", which calls onAddToVault (the parent
  * handles the actual Firestore write via the addToVault service).
  *
@@ -204,6 +206,25 @@ export default function ActionDock(props: ActionDockProps) {
           </span>
           <span class="hidden sm:inline">Edit</span>
         </button>
+
+        {/* Remove — opens the confirm sheet. Destructive (red) styling. */}
+        <Show when={props.onRemove}>
+          <button
+            type="button"
+            onClick={() => props.onRemove?.()}
+            class="action-dock-btn action-dock-btn-danger"
+            aria-label="Remove from watchlist"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "16px" }}
+              aria-hidden="true"
+            >
+              delete
+            </span>
+            <span class="hidden sm:inline">Remove</span>
+          </button>
+        </Show>
       </Show>
     </div>
   );

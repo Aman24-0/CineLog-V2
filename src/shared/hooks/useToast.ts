@@ -56,11 +56,18 @@ export function useToast() {
   const showToast = (
     msg: string,
     type: ToastType = "info",
-    duration: number = DEFAULT_DURATION[type]
+    duration: number = DEFAULT_DURATION[type],
+    options?: { actionLabel?: string; onAction?: () => void }
   ) => {
     const id = ++toastIdSeq;
 
-    const newToast: Toast = { id, msg, type };
+    const newToast: Toast = {
+      id,
+      msg,
+      type,
+      actionLabel: options?.actionLabel,
+      onAction: options?.onAction,
+    };
 
     setToasts((prev) => {
       // Cap the stack at MAX_TOASTS — drop the oldest (which is at the

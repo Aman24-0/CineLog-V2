@@ -32,6 +32,10 @@
 .btn-ghost:hover { background: rgba(255,255,255,0.10); border-color: var(--hairline-3); color: var(--text-strong); }
 .btn-ghost:active { transform: scale(0.96); transition-duration: var(--dur-fast); }
 .btn-ghost:disabled { opacity: 0.4; cursor: not-allowed; }
+.btn-danger { font-family: 'Outfit', sans-serif; font-size: 0.75rem; font-weight: 800; letter-spacing: 0.12em; text-transform: uppercase; padding: 0.75rem 1.5rem; border-radius: var(--radius-pill); background: rgba(248, 113, 113, 0.12); color: #f87171; border: 1px solid rgba(248, 113, 113, 0.3); cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; transition: transform var(--dur-base) var(--ease-spring), background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), filter var(--dur-base) var(--ease-out); }
+.btn-danger:hover { background: rgba(248, 113, 113, 0.2); border-color: rgba(248, 113, 113, 0.5); filter: brightness(1.08); }
+.btn-danger:active { transform: scale(0.96); transition-duration: var(--dur-fast); }
+.btn-danger:disabled { opacity: 0.5; cursor: not-allowed; filter: none; }
 
 /* Premium badges */
 .badge-accent { display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.625rem; border-radius: var(--radius-pill); background: var(--glass-bg-strong); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); border: 1px solid var(--hairline-2); font-family: 'Azeret Mono', monospace; font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-body); box-shadow: 0 2px 8px rgba(0,0,0,0.4); }

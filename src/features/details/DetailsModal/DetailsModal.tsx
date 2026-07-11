@@ -11,6 +11,7 @@ import {
 import { Portal } from "solid-js/web";
 import { useModalState, setSelectedItem as setSelectedItemDirect } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
+import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDetails } from "~/features/details/useDetails";
 import DetailsSkeleton from "~/features/details/components/DetailsSkeleton";
 import DetailsError from "~/features/details/components/DetailsError";
@@ -18,6 +19,7 @@ import DetailSection from "~/features/details/components/DetailSection";
 import DetailsEditForm from "~/features/details/components/DetailsEditForm";
 import YourActivityCard from "~/features/details/components/YourActivityCard";
 import AddToFolderSheet from "~/features/details/components/AddToFolderSheet";
+import ConfirmRemoveSheet from "~/features/details/components/ConfirmRemoveSheet";
 
 import DetailsHero from "./DetailsHero";
 import DetailsHeader from "./DetailsHeader";
@@ -46,10 +48,12 @@ import { useDetailsActions } from "./useDetailsActions";
 export default function DetailsModal() {
   const { selectedItem, closeTitle } = useModalState();
   const { watchlist } = useVault();
+  const library = useUserLibrary();
   const { tmdb, omdb, loading, error, retry } = useDetails(selectedItem);
 
   const [showTrailer, setShowTrailer] = createSignal(false);
   const [showFolders, setShowFolders] = createSignal(false);
+  const [showRemoveConfirm, setShowRemoveConfirm] = createSignal(false);
 
   const baseItem = createMemo(() => selectedItem()?.baseItem ?? null);
   const vaultItem = createMemo(() => selectedItem()?.vaultItem ?? null);
@@ -58,17 +62,30 @@ export default function DetailsModal() {
   const { form, setForm, isDirty, resetTo, isEditing, setIsEditing } =
     useDetailsForm(vaultItem);
 
+  /**
+   * Called after a successful remove. Refreshes the library so every
+   * consumer (watchlist, dashboard, collections, search, etc.) reacts
+   * instantly, then closes the modal + the confirm sheet.
+   */
+  const handleRemoved = () => {
+    void library.refresh();
+    setShowRemoveConfirm(false);
+    closeTitle();
+  };
+
   const {
     hasTrailer,
     trailerKey,
     isAdding,
     isSaving,
+    isRemoving,
     handleAddToVault,
     handleSave,
     handleCancel,
     handleStatusCycle,
     handleEpisodeChange,
     handleSelectItem,
+    handleRemoveFromVault,
   } = useDetailsActions({
     baseItem,
     vaultItem,
@@ -82,6 +99,7 @@ export default function DetailsModal() {
       // swapping the content. Import setSelectedItem directly for this.
       setSelectedItemDirect(item);
     },
+    onRemoved: handleRemoved,
   });
 
   // Reset trailer state whenever the open title changes.
@@ -93,7 +111,9 @@ export default function DetailsModal() {
     document.body.style.overflow = "hidden";
     const handleEsc = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        if (isEditing()) handleCancel();
+        // Priority: remove-confirm sheet → edit mode → trailer → modal
+        if (showRemoveConfirm()) setShowRemoveConfirm(false);
+        else if (isEditing()) handleCancel();
         else if (showTrailer()) setShowTrailer(false);
         else close();
       }
@@ -182,6 +202,7 @@ export default function DetailsModal() {
                       onStatusCycle={handleStatusCycle}
                       onAddToVault={handleAddToVault}
                       onOpenFolders={() => setShowFolders(true)}
+                      onRemove={() => setShowRemoveConfirm(true)}
                     />
                     <Show
                       when={!isEditing() || !inVault()}
@@ -240,6 +261,16 @@ export default function DetailsModal() {
 
         <Show when={showFolders() && vaultItem()}>
           <AddToFolderSheet item={vaultItem()!} onClose={() => setShowFolders(false)} />
+        </Show>
+
+        {/* Remove confirmation sheet — destructive action, requires explicit confirm */}
+        <Show when={showRemoveConfirm() && vaultItem()}>
+          <ConfirmRemoveSheet
+            item={vaultItem()!}
+            isRemoving={isRemoving()}
+            onConfirm={handleRemoveFromVault}
+            onClose={() => !isRemoving() && setShowRemoveConfirm(false)}
+          />
         </Show>
       </Portal>
     </Show>

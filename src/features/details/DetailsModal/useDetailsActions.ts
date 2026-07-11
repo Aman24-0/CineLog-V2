@@ -6,6 +6,7 @@ import { useToast } from "~/shared/hooks/useToast";
 import { pickTrailer } from "~/core/tmdb/tmdb";
 import {
   createVaultItemInSupabase,
+  deleteVaultItemInSupabase,
   updateNotesInSupabase,
   updateRatingInSupabase,
   updateStatusInSupabase,
@@ -35,6 +36,8 @@ export interface UseDetailsActionsArgs {
   form: Accessor<DetailsFormState>;
   resetTo: (v: WatchlistItem | null) => void;
   setSelectedItem: Setter<{ baseItem: WatchlistItem; vaultItem: WatchlistItem | null } | null>;
+  /** Called after a successful remove to close the modal. */
+  onRemoved: () => void;
 }
 
 export interface UseDetailsActionsResult {
@@ -42,6 +45,7 @@ export interface UseDetailsActionsResult {
   trailerKey: Accessor<string | null>;
   isAdding: Accessor<boolean>;
   isSaving: Accessor<boolean>;
+  isRemoving: Accessor<boolean>;
   handleAddToVault: () => Promise<void>;
   handleSave: () => Promise<void>;
   handleCancel: () => void;
@@ -49,12 +53,14 @@ export interface UseDetailsActionsResult {
   handleEpisodeChange: (season: number, episode: number) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
+  handleRemoveFromVault: () => Promise<void>;
 }
 
 export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsActionsResult {
   const { showToast } = useToast();
   const [isSaving, setIsSaving] = createSignal(false);
   const [isAdding, setIsAdding] = createSignal(false);
+  const [isRemoving, setIsRemoving] = createSignal(false);
 
   const hasTrailer = createMemo(() => pickTrailer(args.details()) !== null);
   const trailerKey = createMemo(() => pickTrailer(args.details())?.key ?? null);
@@ -136,6 +142,47 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
 
   const handleCancel = () => args.resetTo(args.vaultItem());
 
+  /**
+   * Remove the current title from the user's vault.
+   *
+   * Calls deleteVaultItemInSupabase (soft-delete: sets deleted_at on the
+   * vault row). On success, fires a toast with the title name, then calls
+   * args.onRemoved() so the parent can close the modal.
+   *
+   * If the delete fails, the user sees an error toast and nothing is
+   * removed locally — the vaultItem stays intact.
+   *
+   * Offline behavior: Supabase calls fail fast when offline. The user
+   * sees "Couldn't remove title. Please try again." — no local removal
+   * happens, so no orphaned state.
+   */
+  const handleRemoveFromVault = async () => {
+    const uid = getCurrentUid();
+    const v = args.vaultItem();
+    if (!uid) {
+      showToast("Please sign in to make changes.", "error");
+      return;
+    }
+    if (!v) {
+      // Safety: title is no longer in the vault.
+      showToast("This title is no longer in your library.", "info");
+      args.onRemoved();
+      return;
+    }
+    setIsRemoving(true);
+    try {
+      await deleteVaultItemInSupabase(uid, v.id, v.media_type);
+      const name = v.title || v.name || "Title";
+      showToast(`Removed "${name}"`, "success");
+      args.onRemoved();
+    } catch (err) {
+      console.error("Failed to remove from vault:", err);
+      showToast("Couldn't remove title. Please try again.", "error");
+    } finally {
+      setIsRemoving(false);
+    }
+  };
+
   const progress = useDetailsProgress({
     baseItem: args.baseItem,
     vaultItem: args.vaultItem,
@@ -149,9 +196,11 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     trailerKey,
     isAdding,
     isSaving,
+    isRemoving,
     handleAddToVault,
     handleSave,
     handleCancel,
+    handleRemoveFromVault,
     ...progress,
   };
 }
