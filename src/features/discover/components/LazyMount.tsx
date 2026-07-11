@@ -6,8 +6,8 @@ interface LazyMountProps {
   /** Rendered children once the wrapper has been intersected at least once. */
   children: JSX.Element;
   /**
-   * Placeholder shown before intersection. Defaults to a zero-height
-   * sentinel so layout doesn't shift on mount.
+   * Placeholder shown before intersection. Defaults to nothing so layout
+   * doesn't shift on mount.
    */
   fallback?: JSX.Element;
   /** Distance from the viewport at which to trigger, in px. Default 240px. */
@@ -20,32 +20,31 @@ interface LazyMountProps {
  * LazyMount — IntersectionObserver-gated wrapper for below-the-fold
  * Discover sections.
  *
- * On the server it renders children immediately (SSR has no IO and the
- * first viewport is rendered synchronously anyway). On the client it
- * mounts a sentinel and only renders its children once the sentinel
- * enters the viewport (or comes within `rootMargin` of it). Once
- * intersected, it stays mounted — there's no "un-lazy" path. This is
- * the right contract for Discover sections: data is cached, so re-shows
- * are instant and we never want to unmount a section the user has seen.
+ * SSR: children render immediately (no IntersectionObserver on server,
+ * and we want the below-the-fold sections present in the SSR HTML so
+ * the page is complete before hydration).
  *
- * The wrapper itself is a 0-height div so it doesn't affect layout.
- * Children render inside it after intersection.
+ * Client: on mount, a sentinel is observed. Children render once the
+ * sentinel enters the viewport (or comes within `rootMargin` of it).
+ * Once intersected, it stays mounted — there's no "un-lazy" path.
+ *
+ * Why render children during SSR even though they're "lazy": the
+ * laziness is about deferring client-side mount effects (data fetches,
+ * event listeners) — not about omitting DOM. SSR-included children
+ * hydrate cleanly without a flash of empty content.
  */
 const LazyMount: Component<LazyMountProps> = (props) => {
-  const [visible, setVisible] = createSignal(false);
+  // Server renders children immediately. Client starts hidden and
+  // reveals on intersection.
+  const [visible, setVisible] = createSignal(isServer);
   let sentinel: HTMLDivElement | undefined;
 
   onMount(() => {
-    if (isServer) {
-      setVisible(true);
-      return;
-    }
+    if (isServer) return;
     if (!sentinel) {
       setVisible(true);
       return;
     }
-    // Respect users who can't afford motion: still lazy-mount, but with
-    // a larger rootMargin so things appear slightly before they're needed.
     const margin = props.rootMargin ?? "240px 0px";
     const observer = new IntersectionObserver(
       (entries) => {

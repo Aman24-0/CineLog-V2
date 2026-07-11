@@ -4,9 +4,7 @@
 //
 // Today the default is "IN". In the future, user settings will override
 // this value (e.g. via a Settings → Region selector backed by Supabase
-// profile row). When that lands, only this module needs to change — every
-// Discover hook, component, and TMDB call already consumes `discoverRegion`
-// rather than a hardcoded "IN" literal.
+// profile row).
 //
 // CONTRACT:
 //   - Every Discover surface MUST read region from `getDiscoverRegion()`
@@ -14,14 +12,20 @@
 //   - No hardcoded "IN" string outside this file.
 //   - Region is a 2-letter ISO 3166-1 code (TMDB watch_region format).
 //
-// Future migration path (NOT implemented yet — feature freeze):
-//   1. Add `discover_region` column to the profiles table.
-//   2. On login, hydrate `setDiscoverRegion(profile.discover_region)`.
-//   3. Settings page exposes a region picker that writes to Supabase
-//      and calls `setDiscoverRegion()` on save.
-//   4. The Discover page re-renders automatically (region is a signal).
-
-import { createSignal } from "solid-js";
+// IMPLEMENTATION NOTE:
+//   This module deliberately does NOT call `createSignal()` at module
+//   top-level. Doing so caused a "Cannot access 'M' before initialization"
+//   TDZ error at runtime — `createSignal` is a solid-js export, and
+//   aliasing its returned getter as a top-level `export const` meant any
+//   importer that triggered circular module evaluation could read the
+//   getter before the `const` had been initialized. The minifier (esbuild)
+//   renamed the inner binding to `M`, producing the cryptic error.
+//
+//   Region does not need reactivity today — the Settings page that would
+//   override it does not exist yet. We use a plain mutable variable. When
+//   Settings lands, it can either (a) reload the page after writing to
+//   Supabase, or (b) introduce a proper reactive context here (created
+//   inside a component, not at module top-level).
 
 /** Default region for Discover. India until user settings override. */
 export const DEFAULT_DISCOVER_REGION = "IN" as const;
@@ -37,15 +41,26 @@ export const SUPPORTED_DISCOVER_REGIONS = [
 
 export type DiscoverRegionCode = (typeof SUPPORTED_DISCOVER_REGIONS)[number];
 
-const [discoverRegionSignal, setDiscoverRegionSignal] =
-  createSignal<string>(DEFAULT_DISCOVER_REGION);
+/**
+ * The current Discover region. Plain mutable — NOT reactive.
+ * Read via `getDiscoverRegion()`, write via `setDiscoverRegion()`.
+ *
+ * Defaults to "IN". When the future Settings page changes this, it
+ * should call `setDiscoverRegion()` and then navigate/reload so every
+ * Discover section re-fetches with the new region.
+ */
+let currentRegion: string = DEFAULT_DISCOVER_REGION;
 
 /**
- * Read the current Discover region. Reactive — components that consume
- * this signal re-render when the region changes (e.g. user picks a new
- * region in Settings).
+ * Read the current Discover region.
+ *
+ * Not reactive today — returns the current value. Callers that need
+ * to re-fetch when the region changes (e.g. DiscoverPage) should
+ * re-read this on mount / navigation, which they already do.
  */
-export const getDiscoverRegion = discoverRegionSignal;
+export function getDiscoverRegion(): string {
+  return currentRegion;
+}
 
 /**
  * Override the Discover region. Called by the future Settings page
@@ -55,5 +70,5 @@ export const getDiscoverRegion = discoverRegionSignal;
 export function setDiscoverRegion(region: string): void {
   const upper = (region || "").toUpperCase();
   const isValid = (SUPPORTED_DISCOVER_REGIONS as readonly string[]).includes(upper);
-  setDiscoverRegionSignal(isValid ? upper : DEFAULT_DISCOVER_REGION);
+  currentRegion = isValid ? upper : DEFAULT_DISCOVER_REGION;
 }
