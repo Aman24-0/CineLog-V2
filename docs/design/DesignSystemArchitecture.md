@@ -1357,6 +1357,87 @@ Both should use `Icon` component instead of raw `<span>`.
 
 ---
 
+### 4.5 Premium Shared UI Layer (Sprint 2A)
+
+> **Status:** READY — Infrastructure complete, not yet consumed by any existing page.
+
+Sprint 2A introduced a new premium component layer at `src/shared/ui/premium/` that represents the **target architecture** for the entire design system. This layer was built additive-only — zero existing files were modified.
+
+#### Location & Structure
+
+```
+src/shared/ui/premium/
+├── layout/        → 5 components (page, section, content, hero, rail containers)
+├── cards/         → 7 components (card, hero-card, stat, mini, horizontal, poster-stack, collection-preview)
+├── surfaces/      → 5 components (surface, glass, gradient, overlay, backdrop)
+├── buttons/       → 6 components (button, icon-button, floating, action-row, bottom-bar, toolbar)
+├── chips/         → 3 components (chip, tag, pill)
+├── feedback/      → 5 components (badge, divider, empty-state, skeleton, carousel-header)
+├── navigation/    → 2 components (page-header, section-header)
+├── display/       → 12 components (avatar, profile-stat, rating, status-badge, media-info, provider-chip, metric, label, meta-row, info-row, list-item, timeline-row)
+├── loading/       → Re-exports PremiumSkeleton from feedback/
+└── empty/         → Re-exports PremiumEmptyState from feedback/
+```
+
+**Total: 43 components across 10 groups.**
+
+#### Token-Only Architecture
+
+All 43 components follow a strict token-only contract:
+
+| Rule | Enforcement |
+|------|-------------|
+| **Zero hardcoded colors** | All colors reference `--tier-*`, `--text-*`, `--p-*`, `--hairline-*`, `--color-*` tokens |
+| **Zero hardcoded spacing** | All spacing references `--sp-*` or `--space-*` tokens |
+| **Zero hardcoded radii** | All border-radius references `--radius-*` tokens |
+| **Zero hardcoded shadows** | All box-shadow references `--shadow-*` tokens |
+| **Zero hardcoded durations** | All transition-duration references `--dur-*` tokens |
+| **Zero hardcoded typography** | All font references `--font-*`, `--fs-*`, `--lh-*` tokens |
+
+#### State Machine Pattern
+
+Every component implements a consistent state machine:
+
+```
+┌─────────┐  hover   ┌────────┐  press   ┌─────────┐
+│  default │ ──────► │ hover  │ ──────► │ active  │
+│         │ ◄────── │        │ ◄────── │         │
+└─────────┘  leave  └────────┘  release └─────────┘
+     │                                           │
+     │ disabled                                  │ loading
+     ▼                                           ▼
+┌──────────┐                               ┌─────────┐
+│ disabled │                               │ loading │
+└──────────┘                               └─────────┘
+```
+
+- **Variants**: `variant` prop with string union (e.g., `"default" | "primary" | "ghost"`)
+- **Sizes**: `size` prop with `"sm" | "md" | "lg"` (default: `"md"`)
+- **States**: `disabled`, `loading`, `active` props with visual feedback
+
+#### Accessibility Requirements (Met)
+
+| Requirement | Implementation |
+|-------------|---------------|
+| ARIA attributes | `role`, `aria-label`, `aria-describedby`, `aria-disabled` applied per component semantics |
+| Keyboard navigation | Focusable elements support `Enter`/`Space` activation, proper `Tab` order |
+| Focus indicators | Visible focus rings via `--focus-ring` token, `focus-visible` only (no mouse focus ring) |
+| Reduced motion | All animations wrapped in `@media (prefers-reduced-motion: no-preference)` |
+| Touch targets | Minimum 44×44px via `--touch-min` token for all interactive elements |
+
+#### Not Yet Consumed — Future Migration Target
+
+This layer is **not imported by any existing page**. It exists as a ready-to-migrate foundation:
+
+| Phase | Action | Risk |
+|-------|--------|------|
+| Sprint 2B | Migrate Profile page onto premium components | Medium — page refactor |
+| Sprint 2C | Migrate Dashboard/Discover onto premium components | Medium-High — largest pages |
+| Sprint 2D | Migrate Watchlist onto premium components | Medium |
+| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) | Medium |
+
+---
+
 ## 5. Migration Strategy
 
 ### Phase 1: Token Consolidation (1–2 weeks)

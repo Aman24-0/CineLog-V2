@@ -1167,6 +1167,94 @@ After each phase, verify:
 
 ---
 
+## Phase 2A: Premium UI Library (Sprint 2A — COMPLETE)
+
+> **Goal:** Create a token-first premium component library as the target architecture for future page migrations.
+> **Risk:** ZERO — no existing pages modified, no existing components changed, purely additive.
+> **Status:** **COMPLETE** — all 43 components created and marked READY.
+> **Sprint:** 2A
+
+### 2A.1 Overview
+
+Phase 2A is a **purely additive** phase that introduces 43 new premium components in `src/shared/ui/premium/` without modifying any existing code. These components represent the **target architecture** that future sprints will migrate existing pages onto.
+
+**Key principle:** Zero visual changes — nothing is consumed yet.
+
+### 2A.2 Components Created
+
+| Group | Directory | Components | Count |
+|-------|-----------|------------|-------|
+| Layout | `premium/layout/` | PremiumPageContainer, PremiumSectionContainer, PremiumContentContainer, PremiumHeroContainer, PremiumRailContainer | 5 |
+| Cards | `premium/cards/` | PremiumCard, PremiumHeroCard, PremiumStatCard, PremiumMiniCard, PremiumHorizontalCard, PremiumPosterStack, PremiumCollectionPreview | 7 |
+| Surfaces | `premium/surfaces/` | PremiumSurface, PremiumGlassSurface, PremiumGradientSurface, PremiumOverlay, PremiumBackdrop | 5 |
+| Buttons | `premium/buttons/` | PremiumButton, PremiumIconButton, PremiumFloatingButton, PremiumActionRow, PremiumBottomActionBar, PremiumToolbar | 6 |
+| Chips | `premium/chips/` | PremiumChip, PremiumTag, PremiumPill | 3 |
+| Feedback | `premium/feedback/` | PremiumBadge, PremiumDivider, PremiumEmptyState, PremiumSkeleton, PremiumCarouselHeader | 5 |
+| Navigation | `premium/navigation/` | PremiumPageHeader, PremiumSectionHeader | 2 |
+| Display | `premium/display/` | PremiumAvatar, PremiumProfileStat, PremiumRatingDisplay, PremiumStatusBadge, PremiumMediaInfo, PremiumProviderChip, PremiumMetric, PremiumLabel, PremiumMetaRow, PremiumInfoRow, PremiumListItem, PremiumTimelineRow | 12 |
+| Loading | `premium/loading/` | Re-exports PremiumSkeleton from feedback | — |
+| Empty | `premium/empty/` | Re-exports PremiumEmptyState from feedback | — |
+| **Total** | | | **43** |
+
+### 2A.3 Architectural Guarantees
+
+| Guarantee | Status |
+|-----------|--------|
+| All components use ONLY design tokens (zero hardcoded values) | ✅ Verified |
+| All components support variants via `variant` prop | ✅ Complete |
+| All components support sizes via `size` prop (`sm`/`md`/`lg`) | ✅ Complete |
+| All components support states (`disabled`/`loading`/`active`) | ✅ Complete |
+| All components are fully TypeScript typed with SolidJS | ✅ Complete |
+| All components include ARIA attributes per semantics | ✅ Complete |
+| All interactive components support keyboard navigation | ✅ Complete |
+| All components use `--focus-ring` token for focus indicators | ✅ Complete |
+| All animations respect `prefers-reduced-motion` | ✅ Complete |
+| No existing components were modified | ✅ Verified |
+| No existing pages were modified | ✅ Verified |
+| No visual regressions possible | ✅ By design |
+
+### 2A.4 Migration Impact
+
+| Item | Impact |
+|------|--------|
+| **Existing components modified** | NONE — all 43 are NEW additions |
+| **Existing pages modified** | NONE — no page imports premium components yet |
+| **CSS files modified** | NONE — premium components use inline token references |
+| **Token files modified** | NONE — premium components consume existing tokens only |
+| **Visual regressions** | ZERO — no existing rendering changed |
+
+### 2A.5 Future Migration Phases
+
+These premium components are the **target** for future page migrations:
+
+| Future Sprint | Scope | Risk |
+|---------------|-------|------|
+| Sprint 2B | Migrate Profile page onto premium components | Medium |
+| Sprint 2C | Migrate Dashboard/Discover onto premium components | Medium-High |
+| Sprint 2D | Migrate Watchlist onto premium components | Medium |
+| Sprint 2E+ | Migrate Details, Search, Collections, Settings | Medium |
+
+### Phase 2A Verification Checklist
+
+- [x] 43 components created across 10 groups
+- [x] All components use design tokens exclusively
+- [x] All components support variant/size/state props
+- [x] All components are TypeScript typed
+- [x] ARIA attributes present on all relevant components
+- [x] Keyboard navigation works on all interactive components
+- [x] Focus rings visible via `--focus-ring` token
+- [x] `prefers-reduced-motion` respected on all animations
+- [x] No existing files modified
+- [x] No existing pages import premium components
+- [x] Build succeeds with zero warnings
+- [x] Zero visual regressions (nothing changed)
+
+### Phase 2A Rollback Plan
+
+Trivial — delete `src/shared/ui/premium/` directory. No other code references it.
+
+---
+
 ## 8. TOKEN DECISIONS SUMMARY
 
 These decisions resolve the ambiguities found in the audit:
