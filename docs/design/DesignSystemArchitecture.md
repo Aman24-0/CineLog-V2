@@ -4,7 +4,7 @@
 > This document describes the current state, catalogs every architectural problem,
 > defines the target architecture, and outlines the migration strategy.
 
-**Last audited:** 2026-03-04
+**Last audited:** 2026-07-13 (Sprint 1B)
 **Codebase:** `src/styles/` (10,296 lines CSS) + `src/shared/ui/` (SolidJS components)
 
 ---
@@ -27,8 +27,8 @@ CineLog V2 uses a **hybrid styling approach** — CSS custom properties for toke
 
 | Layer | Technology | Scope |
 |---|---|---|
-| **Design Tokens** | CSS Custom Properties (`--sp-4`, `--tier-2`, `--p`) | Global via `:root` in `@layer base` |
-| **Utility Classes** | Tailwind CSS v3 (`flex`, `items-center`, `text-sm`) | Minimal config — `theme.extend: {}` |
+| **Design Tokens** | CSS Custom Properties (`--sp-4`, `--tier-2`, `--p`, `--space-*`, `--color-*`, `--font-size-*`, `--blur-*`, `--opacity-*`, `--z-*`) | Global via `:root` in `@layer base` |
+| **Utility Classes** | Tailwind CSS v3 (`flex`, `items-center`, `text-sm`, `font-display`, `bg-primary`, `shadow-card`, `rounded-pill`) | Full token integration — `theme.extend: { fontFamily, fontSize, colors, spacing, borderRadius, boxShadow, zIndex, blur, opacity, transitionDuration, transitionTimingFunction }` |
 | **Component Classes** | Hand-written CSS (`.card-premium`, `.btn-primary`) | `styles/components/` |
 | **Feature Classes** | Page-specific CSS (`.discover-spotlight`, `.vault-grid`) | `styles/features/` |
 | **Inline Styles** | SolidJS `style={{}}` prop | Component-level overrides |
@@ -130,14 +130,16 @@ src/app/globals.css                              ← Root import file (23 lines)
 ├── styles/base/tailwind.css                     ← @tailwind base/components/utilities (7 lines)
 │
 ├── styles/tokens/
-│   ├── index.css                                ← Aggregator (12 lines)
-│   ├── colors.css                               ← 70+ color tokens, dual naming (88 lines)
-│   ├── spacing.css                              ← 10 spacing tokens with gaps (17 lines)
-│   ├── typography.css                           ← EMPTY — comment only (6 lines)
-│   ├── radius.css                               ← 8 radius + misplaced --touch-min (16 lines)
-│   ├── shadows.css                              ← 7 shadow tokens (16 lines)
-│   ├── motion.css                               ← 5 easing + 6 duration + 18 keyframes + .animate-* (80 lines)
-│   └── z-index.css                              ← WRONG — has nav-height, NO z-index tokens (12 lines)
+│   ├── index.css                                ← Aggregator (11 lines, imports 9 token files)
+│   ├── colors.css                               ← 97+ color tokens: surface tiers, semantic, status, rating, collection (Sprint 1B expanded)
+│   ├── spacing.css                              ← 22 spacing tokens: --sp-* + --space-* scale (Sprint 1B expanded)
+│   ├── typography.css                           ← 47 typography tokens: font-family, font-size, font-weight, line-height, letter-spacing (Sprint 1B NEW)
+│   ├── radius.css                               ← 15 radius tokens: --radius-2xs through --radius-full (Sprint 1B expanded)
+│   ├── shadows.css                              ← 12 shadow tokens: named + semantic --shadow-xs through --shadow-xl (Sprint 1B expanded)
+│   ├── motion.css                               ← 16 easing + 9 duration + 2 stagger + 18 keyframes + .animate-* (Sprint 1B expanded)
+│   ├── z-index.css                              ← 13 z-index tokens: --z-base through --z-max + nav-height (Sprint 1B expanded)
+│   ├── blur.css                                 ← 7 blur tokens: --blur-xs through --blur-3xl (Sprint 1B NEW)
+│   └── opacity.css                              ← 11 opacity tokens: --opacity-disabled through --opacity-full (Sprint 1B NEW)
 │
 ├── styles/base/
 │   ├── index.css                                ← Aggregator (18 lines)
@@ -1479,13 +1481,15 @@ Week 10-13: Phase 5 — Feature CSS Refactoring
 
 | File | Lines | Status | Key Issues |
 |---|---|---|---|
-| `tokens/colors.css` | 88 | Partial | Dual naming, no semantic colors, theme overrides outside @layer |
-| `tokens/spacing.css` | 17 | Incomplete | Missing sp-9, sp-11, sp-14, sp-16 |
-| `tokens/typography.css` | 6 | **Empty** | No font-family, font-size, line-height, letter-spacing tokens |
-| `tokens/radius.css` | 16 | Partial | `--touch-min` misplaced, no `--radius-xs` |
-| `tokens/shadows.css` | 16 | Good | Missing specialized shadows |
-| `tokens/motion.css` | 80 | Good | Missing `--dur-shimmer`, `--scale-active`, no blur/opacity tokens |
-| `tokens/z-index.css` | 12 | **Wrong** | Contains nav-height, no z-index tokens |
+| `tokens/colors.css` | ~170 | **Sprint 1B Complete** | 97+ tokens: surface tiers, semantic colors, status, rating, collection colors added |
+| `tokens/spacing.css` | ~35 | **Sprint 1B Complete** | 22 tokens: --sp-* + --space-* scale with space-14/16/20 added |
+| `tokens/typography.css` | ~60 | **Sprint 1B Complete** | 47 tokens: font-family (5), font-size (18), font-weight (6), line-height (5), letter-spacing (13) |
+| `tokens/radius.css` | ~22 | **Sprint 1B Complete** | 15 tokens: --radius-2xs through --radius-full added |
+| `tokens/shadows.css` | ~22 | **Sprint 1B Complete** | 12 tokens: semantic --shadow-xs through --shadow-xl added |
+| `tokens/motion.css` | ~90 | **Sprint 1B Complete** | 16 easing + 9 duration + 2 stagger tokens; --duration-*, --ease-emphasized/decelerate/accelerate added |
+| `tokens/z-index.css` | ~22 | **Sprint 1B Complete** | 13 z-index tokens: --z-base through --z-max |
+| `tokens/blur.css` | ~20 | **Sprint 1B NEW** | 7 tokens: --blur-xs through --blur-3xl |
+| `tokens/opacity.css` | ~20 | **Sprint 1B NEW** | 11 tokens: --opacity-disabled through --opacity-full |
 | `base/base.css` | 145 | Partial | 14+ hardcoded values that should be tokens |
 | `base/typography.css` | 18 | Fragile | All font-family hardcodes, no token references |
 | `base/reset.css` | 4 | OK | Empty by design (Tailwind preflight) |
@@ -1555,8 +1559,8 @@ Week 10-13: Phase 5 — Feature CSS Refactoring
 
 | File | Purpose | Priority |
 |---|---|---|
-| `tokens/opacity.css` | Opacity scale tokens | Phase 1 |
-| `tokens/blur.css` | Blur scale tokens | Phase 1 |
+| `tokens/opacity.css` | **Sprint 1B DONE** — 11 opacity scale tokens | Complete |
+| `tokens/blur.css` | **Sprint 1B DONE** — 7 blur scale tokens | Complete |
 | `tokens/sizing.css` | Touch-min, nav-height | Phase 1 |
 | `tokens/gradients.css` | Gradient utility classes | Phase 1 |
 | `components/rails.css` | Horizontal scroll rail styles | Phase 3 |

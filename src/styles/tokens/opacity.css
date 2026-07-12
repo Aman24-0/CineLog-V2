@@ -1,0 +1,28 @@
+/* src/styles/tokens/opacity.css — Sprint 1B Token Foundation
+   Opacity scale tokens. Extracted from hardcoded opacity values
+   found across the codebase.
+
+   IMPORTANT: These are ADDITIVE tokens. No existing opacity
+   values are changed. The original text opacity scale is handled
+   via color tokens (--text-soft at 72%, --text-muted at 48%, etc.). */
+
+@layer base {
+  :root {
+    /* ─── Semantic opacity scale (new) ─── */
+    --opacity-disabled: 0.5;    /* Disabled buttons, non-interactive elements */
+    --opacity-muted: 0.65;      /* Discover empty icon, reduced-emphasis content */
+    --opacity-overlay: 0.72;    /* = --glass-bg opacity — Glass surfaces */
+    --opacity-hover: 0.85;      /* Episode card watched state */
+
+    /* ─── Extended opacity scale ───
+       Common hardcoded opacity values found in the codebase,
+       now referenceable via tokens for consistency. */
+    --opacity-hidden: 0;        /* Hidden elements (before load, offscreen) */
+    --opacity-ambient: 0.4;     /* Ambient glow, episode card watched state */
+    --opacity-soft: 0.7;        /* Quick-filter tab count, timeline missing items */
+    --opacity-medium: 0.75;     /* Timeline missing items (alt) */
+    --opacity-strong: 0.92;     /* Poster loading default scale */
+    --opacity-near: 0.96;       /* scaleFade/toastIn start, button active scale */
+    --opacity-full: 1;          /* Loaded images, final animation states */
+  }
+}

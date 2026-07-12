@@ -1,10 +1,14 @@
 /* src/styles/tokens/motion.css — Phase 14.2 CSS architecture
    Motion tokens (easing curves + durations) + @keyframes + .animate-* classes.
    Polished: added slide-down, scale-fade, and a refined toast-in keyframe.
-   All animations respect prefers-reduced-motion via base.css baseline. */
+   All animations respect prefers-reduced-motion via base.css baseline.
+
+   Sprint 1B: Added semantic duration/easing aliases and additional
+   standard tokens. Original tokens preserved — no visual changes. */
 
 @layer base {
   :root {
+    /* ─── Original duration tokens (preserved) ─── */
     --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
     --ease-smooth: cubic-bezier(0.22, 1, 0.36, 1);
     --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
@@ -16,6 +20,24 @@
     --dur-page: 320ms;
     --dur-slow: 450ms;
     --dur-micro: 80ms;
+
+    /* ─── Semantic duration aliases (new) ───
+       duration-fast/normal/slow are the standard names
+       referenced by the design documentation. */
+    --duration-fast: 150ms;       /* = --dur-fast */
+    --duration-normal: 220ms;     /* = --dur-base */
+    --duration-slow: 450ms;       /* = --dur-slow */
+
+    /* ─── Additional standard easing tokens (new) ───
+       Named per Material Design / design system conventions. */
+    --ease-emphasized: cubic-bezier(0.2, 0, 0, 1);          /* = --ease-standard — emphasized decelerate */
+    --ease-decelerate: cubic-bezier(0, 0, 0, 1);             /* Immediate start, slow end */
+    --ease-accelerate: cubic-bezier(0.3, 0, 1, 1);           /* Slow start, immediate end */
+
+    /* ─── Stagger delay tokens (new) ───
+       Standardized from the hardcoded stagger values. */
+    --stagger-delay: 50ms;
+    --stagger-delay-timeline: 60ms;
   }
 }
 

@@ -1,9 +1,14 @@
 /* src/styles/tokens/colors.css — Phase 14.2 CSS architecture
    Color + surface + theme-override tokens. Extracted from globals.css
-   with zero CSS modifications. */
+   with zero CSS modifications.
+
+   Sprint 1B additions: Semantic color tokens, status colors, rating
+   source colors, and collection colors. These are ALL additive — no
+   existing colors are changed or removed. */
 
 @layer base {
   :root {
+    /* ─── Surface Tiers (original) ─── */
     --void: #000000;
     --deep: #000000;
     --surface: #111111;
@@ -14,35 +19,126 @@
     --muted: rgba(232,234,240,0.42);
     --dim: rgba(232,234,240,0.18);
 
-    /* Active-state tokens — shared across ALL components for consistent contrast.
-       --active-bg: the accent color used for active/selected backgrounds
-       --active-text: the text color on top of --active-bg (PER THEME — see below)
-       --active-border: the border color for active/selected states
-       --active-glow: the box-shadow glow for active states
+    /* ─── Semantic Color: Primary ───
+       Maps to the theme accent --p. Allows semantic reference
+       without knowing the active theme. */
+    --color-primary: var(--p);
+    --color-primary-secondary: var(--p2);
+    --color-primary-glow: var(--p-glow);
+    --color-primary-dim: var(--p-dim);
+    --color-on-primary: var(--active-text);
 
-       These ensure that active controls are ALWAYS readable, regardless of theme.
-       Each theme overrides --active-text below to be either dark or white
-       depending on the luminance of its --p. */
+    /* ─── Semantic Color: Surface ─── */
+    --color-surface-void: var(--void);
+    --color-surface-base: var(--surface);
+    --color-surface-raised: var(--raised);
+    --color-surface-overlay: var(--glass-bg);
+    --color-surface-overlay-strong: var(--glass-bg-strong);
+
+    /* ─── Semantic Color: Background ─── */
+    --color-background: var(--void);
+    --color-background-elevated: var(--tier-2);
+
+    /* ─── Semantic Color: Border ─── */
+    --color-border: var(--hairline);
+    --color-border-subtle: var(--hairline);
+    --color-border-default: var(--hairline-2);
+    --color-border-strong: var(--hairline-3);
+    --color-border-active: var(--border-active);
+
+    /* ─── Semantic Color: Text ─── */
+    --color-text-strong: var(--text-strong);
+    --color-text-body: var(--text-body);
+    --color-text-soft: var(--text-soft);
+    --color-text-muted: var(--text-muted);
+    --color-text-dim: var(--text-dim);
+
+    /* ─── Semantic Color: Success ─── */
+    --color-success: #4ade80;
+    --color-success-bg: rgba(74,222,128,0.08);
+    --color-success-border: rgba(74,222,128,0.25);
+    --color-success-text: #4ade80;
+
+    /* ─── Semantic Color: Warning ─── */
+    --color-warning: #fbbf24;
+    --color-warning-bg: rgba(251,191,36,0.08);
+    --color-warning-border: rgba(251,191,36,0.25);
+    --color-warning-text: #fbbf24;
+
+    /* ─── Semantic Color: Danger ─── */
+    --color-danger: #f87171;
+    --color-danger-bg: rgba(248,113,113,0.12);
+    --color-danger-border: rgba(248,113,113,0.30);
+    --color-danger-text: #f87171;
+
+    /* ─── Semantic Color: Info ─── */
+    --color-info: #60a5fa;
+    --color-info-bg: rgba(96,165,250,0.08);
+    --color-info-border: rgba(96,165,250,0.25);
+    --color-info-text: #60a5fa;
+
+    /* ─── Status Colors (Watch Status) ─── */
+    --color-status-watching: #4ade80;
+    --color-status-watching-bg: rgba(74,222,128,0.08);
+    --color-status-watching-border: rgba(74,222,128,0.25);
+
+    --color-status-completed: #60a5fa;
+    --color-status-completed-bg: rgba(96,165,250,0.08);
+    --color-status-completed-border: rgba(96,165,250,0.25);
+
+    --color-status-planned: #c084fc;
+    --color-status-planned-bg: rgba(192,132,252,0.08);
+    --color-status-planned-border: rgba(192,132,252,0.25);
+
+    --color-status-paused: #fbbf24;
+    --color-status-paused-bg: rgba(251,191,36,0.08);
+    --color-status-paused-border: rgba(251,191,36,0.25);
+
+    --color-status-dropped: #f87171;
+    --color-status-dropped-bg: rgba(248,113,113,0.08);
+    --color-status-dropped-border: rgba(248,113,113,0.25);
+
+    /* ─── Rating Source Colors ─── */
+    --color-rating-imdb: #f5c518;
+    --color-rating-tmdb: #01d277;
+    --color-rating-rotten-tomatoes: #ff7878;
+    --color-rating-user: var(--p);
+
+    /* ─── Collection Colors ─── */
+    --color-collection-favorites: #f5c518;
+    --color-collection-favorites-bg: rgba(245,197,24,0.08);
+    --color-collection-favorites-border: rgba(245,197,24,0.25);
+
+    --color-collection-universe: var(--p);
+    --color-collection-universe-bg: var(--p-dim);
+    --color-collection-universe-border: color-mix(in srgb, var(--p) 30%, transparent);
+
+    --color-collection-recommendation: #c084fc;
+    --color-collection-recommendation-bg: rgba(192,132,252,0.08);
+    --color-collection-recommendation-border: rgba(192,132,252,0.25);
+
+    --color-collection-trending: #fb923c;
+    --color-collection-trending-bg: rgba(251,146,60,0.08);
+    --color-collection-trending-border: rgba(251,146,60,0.25);
+
+    --color-collection-theatre: #f472b6;
+    --color-collection-theatre-bg: rgba(244,114,182,0.08);
+    --color-collection-theatre-border: rgba(244,114,182,0.25);
+
+    --color-collection-ott: #38bdf8;
+    --color-collection-ott-bg: rgba(56,189,248,0.08);
+    --color-collection-ott-border: rgba(56,189,248,0.25);
+
+    /* ─── Active-state tokens (original) ─── */
     --active-bg: var(--p);
-    --active-text: #05060a;   /* default for light accents — overridden per theme */
+    --active-text: #05060a;
     --active-border: var(--p);
     --active-glow: 0 0 12px var(--p-glow);
   }
 }
 
-/* Theme overrides — declared OUTSIDE @layer base so Tailwind/Vite's CSS
-   optimizer does NOT tree-shake them. Previously these lived inside
-   `@layer base`, where they were silently stripped from the production
-   build, leaving --p (and therefore --active-bg) empty for every theme.
-   That was the actual root cause of "active state visibility is still
-   broken": the CSS rules referenced var(--active-bg) which resolved to
-   empty string, so every active control rendered with a transparent
-   background. Moving them here guarantees they ship in the final CSS. */
+/* ─── Theme overrides (outside @layer base — see original comment) ─── */
 
-/* Per-theme active-text: white on darker accents, dark on lighter accents.
-   This is the actual fix for "active state visibility" — previously
-   --active-text was hardcoded dark, which made selected controls unreadable
-   on Netflix red, Vibranium purple, and Neon Horizon pink. */
 .theme-pearl        { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15);  --p-dim: rgba(255,255,255,0.06);  --active-text: #05060a; }
 .theme-sage         { --p: #a8ff78; --p2: #ff78c4; --p-glow: rgba(168,255,120,0.22); --p-dim: rgba(168,255,120,0.08); --active-text: #05060a; }
 .theme-matrix       { --p: #39ff14; --p2: #00f5a0; --p-glow: rgba(57,255,20,0.22);   --p-dim: rgba(57,255,20,0.08);   --active-text: #05060a; }

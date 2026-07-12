@@ -1,8 +1,15 @@
 /* src/styles/tokens/spacing.css — Phase 14.2 CSS architecture
-   Spacing scale tokens. Extracted from the original :root block. */
+   Spacing scale tokens. Extracted from the original :root block.
+
+   Sprint 1B: Added missing space-* aliases and additional entries
+   (space-14, space-16, space-20) to complete the scale. The original
+   --sp-* tokens are kept for backward compatibility — they are NOT
+   removed. The new --space-* tokens map to the same values and
+   provide semantic naming aligned with the design system standard. */
 
 @layer base {
   :root {
+    /* ─── Original spacing scale (preserved) ─── */
     --sp-1: 4px;
     --sp-2: 8px;
     --sp-3: 12px;
@@ -13,5 +20,22 @@
     --sp-8: 32px;
     --sp-10: 40px;
     --sp-12: 48px;
+
+    /* ─── Semantic spacing scale (new, aliases to original values) ───
+       Follows the 4px base unit convention.
+       space-N = N * 4px for values 1–6,
+       then 32, 40, 48, 56, 64, 80px. */
+    --space-1: 4px;      /* = --sp-1  */
+    --space-2: 8px;      /* = --sp-2  */
+    --space-3: 12px;     /* = --sp-3  */
+    --space-4: 16px;     /* = --sp-4  */
+    --space-5: 20px;     /* = --sp-5  */
+    --space-6: 24px;     /* = --sp-6  */
+    --space-8: 32px;     /* = --sp-8  */
+    --space-10: 40px;    /* = --sp-10 */
+    --space-12: 48px;    /* = --sp-12 */
+    --space-14: 56px;    /* NEW — for large section gaps */
+    --space-16: 64px;    /* NEW — for page-level spacing */
+    --space-20: 80px;    /* NEW — for hero/landing sections */
   }
 }

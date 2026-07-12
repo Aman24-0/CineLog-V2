@@ -1,8 +1,13 @@
 /* src/styles/tokens/shadows.css — Phase 14.2 CSS architecture
-   Box-shadow tokens. Extracted from the original :root blocks. */
+   Box-shadow tokens. Extracted from the original :root blocks.
+
+   Sprint 1B: Added semantic elevation shadow tokens (shadow-xs through
+   shadow-xl) that map existing shadow values to a standard scale.
+   The original named tokens are preserved — no visual changes. */
 
 @layer base {
   :root {
+    /* ─── Original shadow tokens (preserved) ─── */
     --shadow-card: 0 2px 8px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4);
     --shadow-raised: 0 4px 16px rgba(0,0,0,0.6), 0 16px 48px rgba(0,0,0,0.5);
     --shadow-float: 0 8px 32px rgba(0,0,0,0.7), 0 24px 64px rgba(0,0,0,0.6);
@@ -12,5 +17,14 @@
     --shadow-premium: 0 1px 2px rgba(0,0,0,0.4), 0 4px 12px rgba(0,0,0,0.45), 0 12px 32px rgba(0,0,0,0.5);
     --shadow-elevated: 0 2px 6px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.55), 0 24px 56px rgba(0,0,0,0.6);
     --shadow-hero: 0 4px 16px rgba(0,0,0,0.6), 0 16px 48px rgba(0,0,0,0.65), 0 32px 80px rgba(0,0,0,0.7);
+
+    /* ─── Semantic elevation shadow scale (new) ───
+       Maps to the existing named tokens for standard reference.
+       Each level corresponds to a surface elevation tier. */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.4);                    /* Tier-1 subtle — bottom nav, minimal elevation */
+    --shadow-sm: 0 2px 8px rgba(0,0,0,0.5), 0 8px 24px rgba(0,0,0,0.4);   /* = --shadow-card — resting card */
+    --shadow-md: 0 4px 16px rgba(0,0,0,0.6), 0 16px 48px rgba(0,0,0,0.5); /* = --shadow-raised — hovered/raised */
+    --shadow-lg: 0 8px 32px rgba(0,0,0,0.7), 0 24px 64px rgba(0,0,0,0.6); /* = --shadow-float — floating/FAB */
+    --shadow-xl: 0 4px 16px rgba(0,0,0,0.6), 0 16px 48px rgba(0,0,0,0.65), 0 32px 80px rgba(0,0,0,0.7); /* = --shadow-hero — hero/spotlight */
   }
 }

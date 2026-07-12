@@ -1,7 +1,9 @@
 /* src/styles/tokens/index.css — Phase 14.2 CSS architecture
    Barrel file: imports all token files in cascade-safe order.
    Tokens are CSS variables (:root custom properties) so import order
-   does not affect cascade priority — all :root vars are equivalent. */
+   does not affect cascade priority — all :root vars are equivalent.
+
+   Sprint 1B: Added blur.css and opacity.css imports. */
 
 @import "./colors.css";
 @import "./spacing.css";
@@ -10,3 +12,5 @@
 @import "./shadows.css";
 @import "./motion.css";
 @import "./z-index.css";
+@import "./blur.css";
+@import "./opacity.css";
