@@ -1,8 +1,10 @@
 // src/features/profile/components/QuickLinks.tsx
 //
-// Sprint 2B — Migrated to PremiumListItem for consistent
-// icon alignment, spacing, and trailing content.
-// Zero changes to navigation functionality.
+// Sprint 2C — Redesigned QuickLinks.
+// Settings rows have been moved to SettingsLinks.tsx.
+// Only keeps: Statistics, History, Watchlist.
+// Each row is more interactive with hover states and animated arrow.
+// Watchlist row shows the story text as the description.
 
 import { For, type Component } from "solid-js";
 import { PremiumListItem } from "~/shared/ui/premium";
@@ -14,28 +16,33 @@ interface QuickLinkDef {
   icon: string;
 }
 
-const LINKS: QuickLinkDef[] = [
-  { href: "/profile/stats", label: "Statistics", desc: "Your watching insights", icon: "insights" },
-  { href: "/profile/history", label: "History", desc: "Your watch log", icon: "history" },
-  { href: "/profile/achievements", label: "Achievements", desc: "Your milestones", icon: "emoji_event" },
-  { href: "/settings", label: "Settings", desc: "Appearance, account, more", icon: "settings" },
-];
+interface QuickLinksProps {
+  /** Dynamic story text for the Watchlist row description. */
+  watchlistStory?: string;
+}
 
 /**
- * QuickLinks — elegant navigation rows using PremiumListItem.
+ * QuickLinks — interactive navigation rows for quick profile actions.
  *
- * Each row uses PremiumListItem with icon, title, subtitle,
- * and a trailing chevron for consistent alignment and spacing.
- * Opens its own dedicated page.
+ * Sprint 2C changes:
+ *   • Removed Settings (now in SettingsLinks.tsx)
+ *   • Added Watchlist as a new row with dynamic story text
+ *   • Each row uses PremiumListItem with hover states and animated arrow
  */
-const QuickLinks: Component = () => {
+const QuickLinks: Component<QuickLinksProps> = (props) => {
+  const links = (): QuickLinkDef[] => [
+    { href: "/profile/stats", label: "Statistics", desc: "Your watching insights", icon: "insights" },
+    { href: "/profile/history", label: "History", desc: "Your watch log", icon: "history" },
+    { href: "/watchlist", label: "Watchlist", desc: props.watchlistStory ?? "Your collection", icon: "video_library" },
+  ];
+
   return (
-    <div class="quick-links">
-      <For each={LINKS}>
+    <div class="quick-links" role="list" aria-label="Quick actions">
+      <For each={links()}>
         {(link) => (
           <a
             href={link.href}
-            class="quick-link-row focus-ring"
+            class="quick-link-row quick-link-row-interactive focus-ring"
             style={{ "text-decoration": "none" }}
             aria-label={`${link.label} — ${link.desc}`}
           >
@@ -47,8 +54,8 @@ const QuickLinks: Component = () => {
               size="comfortable"
               variant="subtle"
               trailing={
-                <span class="material-symbols-outlined" style={{ color: "var(--text-dim)", "font-size": "18px" }} aria-hidden="true">
-                  chevron_right
+                <span class="material-symbols-outlined quick-link-arrow" style={{ color: "var(--text-dim)", "font-size": "18px" }} aria-hidden="true">
+                  arrow_forward
                 </span>
               }
             />

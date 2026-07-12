@@ -1230,9 +1230,9 @@ These premium components are the **target** for future page migrations:
 | Future Sprint | Scope | Risk | Status |
 |---------------|-------|------|--------|
 | Sprint 2B | Migrate Profile page onto premium components | Medium | **COMPLETE** |
-| Sprint 2C | Migrate Dashboard/Discover onto premium components | Medium-High | Pending |
-| Sprint 2D | Migrate Watchlist onto premium components | Medium | Pending |
-| Sprint 2E+ | Migrate Details, Search, Collections, Settings | Medium | Pending |
+| Sprint 2C | Premium Profile Redesign (product design sprint) | Medium | **COMPLETE** |
+| Sprint 2D | Migrate Dashboard/Discover onto premium components | Medium-High | Pending |
+| Sprint 2E+ | Migrate Watchlist, Details, Search, Collections, Settings | Medium | Pending |
 
 ### Phase 2B: Profile Page Premium Migration (Sprint 2B — COMPLETE)
 
@@ -1313,6 +1313,46 @@ These premium components are the **target** for future page migrations:
 ### Phase 2A Rollback Plan
 
 Trivial — delete `src/shared/ui/premium/` directory. No other code references it.
+
+## Sprint 2C — Premium Profile Redesign (COMPLETE)
+
+**Date:** 2026-07-13
+**Scope:** Profile page only — complete UX/UI redesign
+**Type:** Product design sprint (NOT migration, NOT refactor)
+
+### Changes
+- **ProfilePage.tsx** — Complete UI rewrite with 8-section architecture
+- **TasteCard.tsx** — Asymmetric layout replacing 2×2 equal grid
+- **CinemaDna.tsx** — NEW: Viewer archetype insight card
+- **ProfileAchievements.tsx** — NEW: Horizontal chip rail
+- **SettingsLinks.tsx** — NEW: Separated settings navigation
+- **DangerZone.tsx** — NEW: Isolated danger zone section
+- **QuickLinks.tsx** — Redesigned: removed Settings, added Watchlist row
+- **profile.css** — Major rewrite (976 lines) for new visual system
+
+### Section Architecture (top→bottom)
+1. Premium Hero (35vh cinematic backdrop + floating avatar + identity)
+2. Statistics (1 featured stat + 3 supporting cards)
+3. Taste Identity (asymmetric: hero movie + series + director + genre)
+4. Cinema DNA (viewer archetype insight card)
+5. Achievements (horizontal PremiumChip rail)
+6. Quick Actions (Statistics, History, Watchlist)
+7. Settings (Appearance, Notifications, Privacy, Account)
+8. Danger Zone (isolated, red-tinted)
+
+### Components Removed from Profile
+- ProfileCompletion (separate card) → absorbed into hero as avatar completion ring
+- WatchlistSummary (separate card) → absorbed into Quick Actions as Watchlist row
+
+### Premium Components Consumed
+PremiumPageContainer, PremiumSectionHeader, PremiumStatCard, PremiumButton, PremiumIconButton, PremiumEmptyState, PremiumLabel, PremiumBadge, PremiumAvatar, PremiumHeroCard, PremiumCard, PremiumGradientSurface, PremiumChip, PremiumListItem, PremiumSurface, PremiumDivider
+
+### Verification
+- TypeScript: ✅ 0 errors
+- ESLint: ✅ 0 errors (3 pre-existing warnings)
+- Production build: ✅ Success
+- Business logic: Zero changes
+- Other pages: Zero changes
 
 ---
 

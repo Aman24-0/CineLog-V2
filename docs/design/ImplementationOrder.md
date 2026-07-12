@@ -1380,9 +1380,10 @@ Sprint 2A is an **additive-only sprint** that creates the premium shared UI comp
 | Sprint | Scope | Risk | Status | Description |
 |--------|-------|------|--------|-------------|
 | **Sprint 2B** | Profile page migration | Medium | **COMPLETE** | Migrated Profile page onto premium components — first real consumption |
-| **Sprint 2C** | Dashboard/Discover migration | Medium-High | Pending | Migrate largest pages onto premium components |
-| **Sprint 2D** | Watchlist migration | Medium | Pending | Migrate Watchlist page onto premium components |
-| **Sprint 2E+** | Remaining pages | Medium | Pending | Migrate Details, Search, Collections, Settings onto premium components |
+| **Sprint 2C** | Premium Profile Redesign | Medium | **COMPLETE** | Complete UX/UI redesign of Profile with 8-section architecture |
+| **Sprint 2D** | Dashboard/Discover migration | Medium-High | Pending | Migrate largest pages onto premium components |
+| **Sprint 2E** | Watchlist migration | Medium | Pending | Migrate Watchlist page onto premium components |
+| **Sprint 2F+** | Remaining pages | Medium | Pending | Migrate Details, Search, Collections, Settings onto premium components |
 
 ## Sprint 2B: Premium Profile Migration — COMPLETE
 
@@ -1452,6 +1453,79 @@ Sprint 2B migrates the Profile page from custom CSS and primitive components to 
 | `src/shared/ui/premium/loading/` | NEW — barrel export re-exporting PremiumSkeleton |
 | `src/shared/ui/premium/empty/` | NEW — barrel export re-exporting PremiumEmptyState |
 | `src/shared/ui/premium/index.ts` | NEW — root barrel export for all 43 components |
+
+## Sprint 2C: Premium Profile Redesign — COMPLETE
+
+> **Phase:** Product design sprint — complete UX/UI redesign of Profile page.
+> **Risk:** Medium — page-only changes, no business logic touched.
+> **Status:** **COMPLETE**
+> **Date:** 2026-07-13
+
+### Sprint 2C Scope
+
+Sprint 2C is a **product design sprint** (NOT migration, NOT refactor) that performs a complete UX/UI redesign of the Profile page. The Sprint 2B migration onto Premium components is the foundation; Sprint 2C reimagines the entire page architecture from the ground up.
+
+**Key Principle:** Presentation-only redesign. Zero changes to business logic, hooks, state, Supabase, authentication, routing, or any page other than Profile.
+
+### Sprint 2C Changes
+
+| File | Change |
+|------|--------|
+| `src/features/profile/ProfilePage.tsx` | Complete UI rewrite with 8-section architecture |
+| `src/features/profile/components/TasteCard.tsx` | Asymmetric layout replacing 2×2 equal grid |
+| `src/features/profile/components/CinemaDna.tsx` | NEW: Viewer archetype insight card |
+| `src/features/profile/components/ProfileAchievements.tsx` | NEW: Horizontal chip rail |
+| `src/features/profile/components/SettingsLinks.tsx` | NEW: Separated settings navigation |
+| `src/features/profile/components/DangerZone.tsx` | NEW: Isolated danger zone section |
+| `src/features/profile/components/QuickLinks.tsx` | Redesigned: removed Settings, added Watchlist row |
+| `src/styles/features/profile.css` | Major rewrite (976 lines) for new visual system |
+
+### Section Architecture (top→bottom)
+
+1. Premium Hero (35vh cinematic backdrop + floating avatar + identity)
+2. Statistics (1 featured stat + 3 supporting cards)
+3. Taste Identity (asymmetric: hero movie + series + director + genre)
+4. Cinema DNA (viewer archetype insight card)
+5. Achievements (horizontal PremiumChip rail)
+6. Quick Actions (Statistics, History, Watchlist)
+7. Settings (Appearance, Notifications, Privacy, Account)
+8. Danger Zone (isolated, red-tinted)
+
+### Components Removed from Profile
+
+| Removed Component | Fate |
+|-------------------|------|
+| `ProfileCompletion` (separate card) | Absorbed into hero as avatar completion ring |
+| `WatchlistSummary` (separate card) | Absorbed into Quick Actions as Watchlist row |
+
+### Sprint 2C Premium Components Consumed
+
+| Premium Component | Profile Usage |
+|-------------------|---------------|
+| `PremiumPageContainer` | Page wrapper |
+| `PremiumSectionHeader` | Section headers across all 8 sections |
+| `PremiumStatCard` | Statistics (featured + supporting cards) |
+| `PremiumButton` | Edit profile, sign out actions |
+| `PremiumIconButton` | Inline icon actions |
+| `PremiumEmptyState` | Guest, error, empty states |
+| `PremiumLabel` | Identity labels |
+| `PremiumBadge` | Achievement badges, stat badges |
+| `PremiumAvatar` | Hero avatar with completion ring |
+| `PremiumHeroCard` | Taste identity hero movie |
+| `PremiumCard` | Section surfaces |
+| `PremiumGradientSurface` | Cinema DNA background |
+| `PremiumChip` | Achievement horizontal rail |
+| `PremiumListItem` | Settings links, quick action rows |
+| `PremiumSurface` | Section containers |
+| `PremiumDivider` | Section separators |
+
+### Sprint 2C Verification
+
+- [x] TypeScript: 0 errors
+- [x] ESLint: 0 errors (3 pre-existing warnings)
+- [x] Production build: Success
+- [x] Business logic: Zero changes
+- [x] Other pages: Zero changes
 
 ---
 

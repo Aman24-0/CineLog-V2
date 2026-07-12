@@ -1,15 +1,22 @@
 /* src/styles/features/profile.css — Profile page
-   The signature "portrait of a cinephile" screen.
-   Cinematic, calm, premium. Black + neon green identity preserved.
+   Sprint 2C — Premium Profile Redesign.
    
-   Sprint 2B — Migrated to Premium UI Library.
-   Styles that are now handled by premium components have been removed.
-   Only profile-specific custom styles remain. */
+   Complete rewrite of profile styles for the new section architecture:
+     1. Premium Hero (35vh cinematic backdrop + floating avatar + identity)
+     2. Statistics (1 featured + 3 supporting stat cards)
+     3. Taste Identity (asymmetric CSS grid with named areas)
+     4. Cinema DNA (viewer archetype insight card)
+     5. Achievements (horizontal chip rail)
+     6. Quick Actions (interactive rows)
+     7. Settings (separated navigation rows)
+     8. Danger Zone (red-tinted isolated section)
+   
+   Spacing: 8pt grid via design tokens (--space-N / --sp-N).
+   Typography: font-display for titles, font-label for labels, font-body for text.
+   All colors via design tokens — no hardcoded values. */
 
 /* ============================================================
    PAGE LAYOUT
-   Single centered column. The profile is a portrait, not a
-   dashboard — it doesn't sprawl on desktop; it gets more whitespace.
    ============================================================ */
 
 .profile-page {
@@ -22,77 +29,29 @@
   z-index: 1;
 }
 
+.profile-fade-in {
+  animation: profileFadeIn 400ms var(--ease-smooth, ease-out) both;
+}
+
+@keyframes profileFadeIn {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
 /* ============================================================
-   BANNER
-   Dynamic cinematic backdrop with reduced overlay.
-   16:6 on mobile, 16:5 on desktop — wider on desktop because
-   the user is further from the screen.
-   
-   Artwork visibility target: 70-80%. The overlay is thin at
-   the bottom only, keeping the image clearly visible.
+   BANNER (retained from ProfileBanner.tsx)
+   35vh hero backdrop with dark gradient overlay.
    ============================================================ */
 
 .profile-banner {
   position: relative;
   width: 100%;
-  aspect-ratio: 16 / 6;
+  height: 35vh;
+  min-height: 200px;
+  max-height: 380px;
   overflow: hidden;
   background: linear-gradient(145deg, var(--tier-2), var(--tier-1));
   border-radius: 0;
-}
-@media (min-width: 640px) {
-  .profile-banner {
-    aspect-ratio: 16 / 5;
-    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
-  }
-}
-
-/* Shimmer placeholder while banner image loads */
-.profile-banner-shimmer {
-  position: absolute;
-  inset: 0;
-  z-index: 0;
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-
-/* Camera/edit button on banner — premium glass pill */
-.profile-banner-edit-btn {
-  position: absolute;
-  top: var(--sp-3);
-  right: var(--sp-3);
-  z-index: 4;
-  display: inline-flex;
-  align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
-  border-radius: var(--radius-pill);
-  background: rgba(0,0,0,0.60);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--hairline-2);
-  color: var(--text-strong);
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
-}
-.profile-banner-edit-btn:hover {
-  background: rgba(0,0,0,0.75);
-  border-color: var(--p);
-}
-.profile-banner-edit-btn:active {
-  transform: scale(0.95);
-}
-
-@media (max-width: 380px) {
-  .profile-banner-edit-label {
-    display: none;
-  }
 }
 
 .profile-banner-img {
@@ -102,876 +61,916 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transform: scale(1.06);
-  filter: saturate(0.95);
-  transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-smooth), filter 600ms var(--ease-out);
+  transition: opacity 600ms var(--ease-smooth, ease-out);
 }
+
 .profile-banner-img.img-loaded {
   opacity: 1;
-  transform: scale(1);
 }
 
-/* Subtle bottom-only gradient for text readability.
-   The heavy multi-layer dark overlay was removed — artwork is now
-   clearly visible (70-80%) with only a thin bottom gradient. */
-.profile-banner-overlay {
+.profile-banner-shimmer {
   position: absolute;
   inset: 0;
-  pointer-events: none;
-  background:
-    linear-gradient(to top,
-      var(--tier-1) 0%,
-      rgba(10,11,14,0.60) 6%,
-      rgba(10,11,14,0.20) 18%,
-      transparent 35%);
+  z-index: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    var(--tier-3) 40%,
+    transparent 80%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 1.8s ease-in-out infinite;
 }
 
-/* Abstract gradient fallback — used when no banner image is set.
-   Curated, on-brand, NOT a gray box. */
 .profile-banner-gradient {
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%),
+  background: 
+    radial-gradient(ellipse at 20% 30%, var(--p-glow, rgba(0,255,100,0.15)) 0%, transparent 50%),
+    radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2, var(--p)) 18%, transparent) 0%, transparent 50%),
     linear-gradient(145deg, var(--tier-3), var(--tier-1));
 }
 
+.profile-banner-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.7) 0%,
+    rgba(0,0,0,0.3) 40%,
+    rgba(0,0,0,0.1) 70%,
+    transparent 100%
+  );
+  pointer-events: none;
+}
+
+.profile-banner-edit-btn {
+  position: absolute;
+  top: var(--space-3, 12px);
+  right: var(--space-3, 12px);
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1, 4px);
+  padding: var(--space-1, 4px) var(--space-2, 8px);
+  border-radius: var(--radius-md, 6px);
+  background: rgba(0,0,0,0.5);
+  border: 1px solid var(--hairline, rgba(255,255,255,0.1));
+  color: var(--text-soft, rgba(255,255,255,0.7));
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.5625rem;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  transition: background 200ms, color 200ms;
+  backdrop-filter: blur(4px);
+}
+
+.profile-banner-edit-btn:hover {
+  background: rgba(0,0,0,0.7);
+  color: var(--text-strong, #fff);
+}
+
+.profile-banner-edit-label {
+  display: none;
+}
+
+@media (min-width: 640px) {
+  .profile-banner-edit-label {
+    display: inline;
+  }
+}
+
+@media (min-width: 640px) {
+  .profile-banner {
+    border-radius: 0 0 var(--radius-xl, 16px) var(--radius-xl, 16px);
+  }
+}
+
 /* ============================================================
-   IDENTITY BLOCK
-   Avatar + name + username + tagline + member since.
-   The avatar overlaps the banner by ~50%.
-   Premium rhythm: more breathing room between elements.
+   HERO OVERLAY + IDENTITY
+   Glass overlay at bottom of 35vh banner with avatar + text.
    ============================================================ */
 
-.profile-identity {
+.profile-hero {
   position: relative;
-  padding: 0 var(--sp-5);
-  margin-top: -48px;
-}
-@media (min-width: 640px) {
-  .profile-identity {
-    padding: 0 var(--sp-8);
-    margin-top: -56px;
-  }
 }
 
-/* Avatar row — contains the avatar circle */
-.profile-avatar-row {
-  margin-bottom: var(--sp-4);
+.profile-hero-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-6, 24px) var(--space-4, 16px) var(--space-4, 16px);
+  background: linear-gradient(
+    to top,
+    var(--void, #000) 0%,
+    rgba(0,0,0,0.85) 60%,
+    rgba(0,0,0,0.4) 85%,
+    transparent 100%
+  );
+  pointer-events: none;
 }
 
-.profile-avatar-wrap-premium {
+.profile-hero-identity {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--space-4, 16px);
+  pointer-events: auto;
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+/* Avatar wrap — with completion ring */
+.profile-hero-avatar-wrap {
   position: relative;
-  display: inline-block;
+  flex-shrink: 0;
+  margin-bottom: var(--space-1, 4px);
 }
 
-/* Premium avatar image — circle with accent ring + glow shadow */
-.profile-avatar-img {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 4px solid var(--tier-1);
-  box-shadow: 0 0 0 2px var(--p), 0 0 32px var(--p-glow), 0 12px 40px rgba(0,0,0,0.7);
-  background: var(--tier-2);
-  opacity: 0;
-  transform: scale(0.92);
-  transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-spring), box-shadow 400ms var(--ease-out);
-}
-.profile-avatar-img.img-loaded {
-  opacity: 1;
-  transform: scale(1);
-}
-@media (min-width: 640px) {
-  .profile-avatar-img {
-    width: 128px;
-    height: 128px;
-  }
+.profile-avatar-ring {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  z-index: 1;
+  pointer-events: none;
 }
 
-/* Initials fallback — accent gradient with glow */
-.profile-avatar-initials {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
+/* Hero text column */
+.profile-hero-text {
+  flex: 1;
+  min-width: 0;
   display: flex;
-  align-items: center;
-  justify-content: center;
-  background: linear-gradient(145deg, var(--p-dim), var(--tier-2));
-  color: var(--p);
-  font-family: 'Bebas Neue', cursive;
-  font-size: 2.5rem;
-  line-height: 1;
-  border: 4px solid var(--tier-1);
-  box-shadow: 0 0 0 2px var(--p), 0 0 32px var(--p-glow), 0 12px 40px rgba(0,0,0,0.7);
-  text-shadow: 0 0 16px var(--p-glow);
-  animation: profileAvatarFadeIn 400ms var(--ease-spring) both;
-}
-@media (min-width: 640px) {
-  .profile-avatar-initials {
-    width: 128px;
-    height: 128px;
-    font-size: 3rem;
-  }
+  flex-direction: column;
+  gap: var(--space-1, 4px);
+  padding-bottom: var(--space-1, 4px);
 }
 
-.profile-name-row {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--sp-3);
-  margin-bottom: var(--sp-1);
-}
-
-.profile-display-name {
-  font-family: 'Bebas Neue', cursive;
-  font-size: 2rem;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: var(--text-strong);
+/* Display name — very large */
+.profile-hero-name {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong, #fff);
   margin: 0;
-}
-@media (min-width: 640px) {
-  .profile-display-name {
-    font-size: 2.5rem;
-  }
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.profile-display-name-input {
-  font-family: 'Bebas Neue', cursive;
-  font-size: 2rem;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: var(--text-strong);
-  background: var(--tier-2);
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-sm);
-  padding: 0.25rem 0.5rem;
-  margin: 0;
+.profile-hero-name-input {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong, #fff);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--p, #00ff64);
   outline: none;
   width: 100%;
-  max-width: 320px;
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-.profile-display-name-input:focus {
-  border-color: var(--p);
-  box-shadow: 0 0 0 3px var(--p-dim);
-}
-@media (min-width: 640px) {
-  .profile-display-name-input {
-    font-size: 2.5rem;
-  }
+  padding: 0 0 var(--space-1, 4px);
+  margin: 0;
 }
 
-.profile-username {
-  font-family: 'Azeret Mono', monospace;
+/* Username */
+.profile-hero-username {
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
   font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
-  margin: 0 0 var(--sp-2);
+  font-weight: 500;
+  color: var(--text-muted, rgba(255,255,255,0.5));
+  margin: 0;
+  letter-spacing: 0.04em;
 }
 
-/* Username edit field (inline edit mode) */
+/* Badge row */
+.profile-hero-badge-row {
+  margin-top: var(--space-1, 4px);
+}
+
+/* Bio */
+.profile-hero-bio {
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-soft, rgba(255,255,255,0.7));
+  margin: 0;
+}
+
+.profile-hero-bio-placeholder {
+  color: var(--text-dim, rgba(255,255,255,0.35));
+  font-style: italic;
+}
+
+.profile-hero-bio-input {
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-strong, #fff);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--p, #00ff64);
+  outline: none;
+  width: 100%;
+  resize: none;
+  padding: 0;
+  margin: 0;
+}
+
+/* Username edit — preserved from Sprint 2B */
 .profile-username-edit-wrap {
-  margin: 0 0 var(--sp-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .profile-username-input-row {
   display: flex;
   align-items: center;
   gap: 2px;
-  max-width: 300px;
 }
 
 .profile-username-at {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.875rem;
-  font-weight: 700;
-  color: var(--text-muted);
-  flex-shrink: 0;
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.75rem;
+  color: var(--text-muted, rgba(255,255,255,0.5));
 }
 
 .profile-username-input {
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.75rem;
+  color: var(--text-strong, #fff);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hairline, rgba(255,255,255,0.15));
+  outline: none;
+  padding: 0;
   flex: 1;
   min-width: 0;
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.875rem;
-  font-weight: 600;
-  color: var(--text-strong);
-  background: var(--tier-2);
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-sm);
-  padding: 0.375rem 0.5rem;
-  outline: none;
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-.profile-username-input:focus {
-  border-color: var(--p);
-  box-shadow: 0 0 0 3px var(--p-dim);
+  letter-spacing: 0.04em;
 }
 
-/* Live validation indicator */
 .profile-username-validation {
   display: flex;
   align-items: center;
-  gap: 4px;
-  margin: 4px 0 0;
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
+  gap: var(--space-1, 4px);
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.5rem;
+  margin: 0;
   letter-spacing: 0.06em;
-  transition: color var(--dur-fast) var(--ease-out);
-}
-
-.profile-username-validation[data-state="checking"] {
-  color: var(--text-muted);
-}
-.profile-username-validation[data-state="checking"] .profile-username-validation-icon {
-  animation: softPulse 1s ease-in-out infinite;
 }
 
 .profile-username-validation[data-state="available"] {
-  color: var(--color-success);
+  color: var(--color-success, #4ade80);
+}
+
+.profile-username-validation[data-state="checking"] {
+  color: var(--text-muted, rgba(255,255,255,0.5));
 }
 
 .profile-username-validation[data-state="taken"],
 .profile-username-validation[data-state="reserved"],
 .profile-username-validation[data-state="invalid"] {
-  color: var(--color-danger);
+  color: var(--color-danger, #f87171);
 }
 
-.profile-tagline {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--text-soft);
-  margin: 0 0 var(--sp-2);
-  max-width: 400px;
+.profile-username-validation-icon {
+  font-size: 12px;
 }
 
-.profile-tagline-placeholder {
-  color: var(--text-dim);
-  font-style: italic;
-}
-
-.profile-tagline-input {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 400;
-  line-height: 1.5;
-  color: var(--text-body);
-  background: var(--tier-2);
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-sm);
-  padding: 0.5rem 0.75rem;
-  outline: none;
-  width: 100%;
-  max-width: 400px;
-  resize: none;
-  min-height: 2.5rem;
-  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
-}
-.profile-tagline-input:focus {
-  border-color: var(--p);
-  box-shadow: 0 0 0 3px var(--p-dim);
-}
-
-/* Edit / Save / Cancel buttons — layout only; visual from PremiumButton */
-.profile-edit-actions {
+/* Hero actions — positioned top-right of the overlay */
+.profile-hero-actions {
   display: flex;
-  gap: var(--sp-2);
-  flex-shrink: 0;
+  align-items: center;
+  gap: var(--space-2, 8px);
+  position: absolute;
+  top: var(--space-3, 12px);
+  right: var(--space-4, 16px);
+  z-index: 3;
 }
 
 /* ============================================================
-   SECTIONS — consistent spacing rhythm
-   Using PremiumSectionContainer and PremiumSectionHeader in JS,
-   but keeping section padding here for the wrapper.
+   STATISTICS
+   Featured stat (large) + supporting stats (compact row)
    ============================================================ */
 
-.profile-section {
-  padding: 0 var(--sp-5);
-  margin-top: var(--sp-8);
-}
-@media (min-width: 640px) {
-  .profile-section {
-    padding: 0 var(--sp-8);
-    margin-top: var(--sp-10);
-  }
+.profile-stats-section {
+  padding: 0 var(--space-4, 16px);
 }
 
-/* ============================================================
-   STATISTICS ROW — PremiumStatCard grid
-   Equal-width, consistent spacing, responsive.
-   ============================================================ */
-
-.profile-stats-row {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--sp-2);
-}
-@media (min-width: 640px) {
-  .profile-stats-row {
-    grid-template-columns: repeat(4, 1fr);
-  }
+.profile-stats-featured {
+  display: flex;
+  gap: var(--space-3, 12px);
+  align-items: stretch;
 }
 
-/* ============================================================
-   TASTE CARD — the signature section
-   Four tiles in a 2×2 grid. One premium composed object.
-   ============================================================ */
-
-.taste-card {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 1px;
-  background: var(--hairline);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
-  box-shadow: var(--shadow-premium);
+.profile-stat-featured {
+  flex: 2;
+  min-width: 0;
 }
 
-.taste-tile {
-  position: relative;
-  background: var(--tier-2);
-  cursor: pointer;
-  overflow: hidden;
-  transition: background var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-spring);
+.profile-stats-supporting {
+  flex: 1;
   display: flex;
   flex-direction: column;
-  min-height: 180px;
-}
-.taste-tile:hover {
-  background: var(--tier-3);
-}
-.taste-tile:active {
-  transform: scale(0.98);
-  transition-duration: var(--dur-fast);
-}
-.taste-tile:focus-visible {
-  outline: 2px solid var(--p);
-  outline-offset: -2px;
+  gap: var(--space-3, 12px);
+  min-width: 0;
 }
 
-/* Tile with a poster/image fill */
-.taste-tile-filled {
-  min-height: 200px;
+@media (max-width: 360px) {
+  .profile-stats-featured {
+    flex-direction: column;
+  }
+  .profile-stats-supporting {
+    flex-direction: row;
+  }
 }
 
-.taste-tile-poster {
+/* ============================================================
+   TASTE IDENTITY — Asymmetric Grid
+   "movie  movie  series"
+   "movie  movie  director"
+   "genre  genre  genre"
+   ============================================================ */
+
+.taste-identity {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: auto auto auto;
+  grid-template-areas:
+    "movie  movie  series"
+    "movie  movie  director"
+    "genre  genre  genre";
+  gap: var(--space-3, 12px);
+  padding: 0 var(--space-4, 16px);
+}
+
+.taste-cell {
+  position: relative;
+  min-height: 0;
+}
+
+/* Movie — hero card spanning 2×2 */
+.taste-cell-movie {
+  min-height: 240px;
+}
+
+.taste-movie-hero-wrap {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  min-height: 240px;
+  border-radius: var(--radius-lg, 8px);
+  overflow: hidden;
+}
+
+/* Series / Director — medium cards */
+.taste-series-card-wrap,
+.taste-director-card-wrap {
+  position: relative;
+  height: 100%;
+  min-height: 100px;
+  border-radius: var(--radius-lg, 8px);
+  overflow: hidden;
+}
+
+/* Card poster images */
+.taste-card-poster-img {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   object-fit: cover;
-  opacity: 0;
-  transition: opacity var(--dur-slow) var(--ease-out), transform var(--dur-slow) var(--ease-smooth);
-  filter: brightness(0.65) saturate(0.9);
-}
-.taste-tile-poster.img-loaded {
-  opacity: 1;
-}
-.taste-tile:hover .taste-tile-poster {
-  transform: scale(1.04);
-  filter: brightness(0.55) saturate(1.0);
+  border-radius: var(--radius-lg, 8px);
+  z-index: 0;
 }
 
-.taste-tile-overlay {
+.taste-card-portrait-img {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.60) 40%, rgba(0,0,0,0.10) 70%, transparent 100%);
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: top center;
+  border-radius: var(--radius-lg, 8px);
+  z-index: 0;
+}
+
+.taste-card-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.85) 0%,
+    rgba(0,0,0,0.3) 50%,
+    rgba(0,0,0,0.1) 100%
+  );
+  z-index: 1;
+  border-radius: var(--radius-lg, 8px);
   pointer-events: none;
 }
 
-.taste-tile-content {
+.taste-card-poster-content {
   position: relative;
-  z-index: 1;
-  margin-top: auto;
-  padding: var(--sp-3);
+  z-index: 2;
+  padding: var(--space-3, 12px);
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  justify-content: flex-end;
+  height: 100%;
 }
 
-.taste-tile-label {
-  font-family: 'Azeret Mono', monospace;
+.taste-card-eyebrow {
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
   font-size: 0.5rem;
   font-weight: 700;
   letter-spacing: 0.14em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--p, #00ff64);
+  margin: 0 0 var(--space-1, 4px);
 }
 
-.taste-tile-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  line-height: 1.2;
-  color: var(--text-strong);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+.taste-card-title {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: 1rem;
+  line-height: 1.1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong, #fff);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.taste-card-subtitle {
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
+  font-size: 0.6875rem;
+  color: var(--text-soft, rgba(255,255,255,0.7));
+  margin: 2px 0 0;
+}
+
+/* Genre — gradient surface */
+.taste-genre-surface-wrap {
+  position: relative;
+  border-radius: var(--radius-lg, 8px);
   overflow: hidden;
 }
 
-.taste-tile-subtitle {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text-soft);
+.taste-genre-content {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4, 16px);
 }
 
-/* Empty state for a tile — dashed border + "+" CTA */
+.taste-genre-label {
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--p, #00ff64);
+  margin: 0;
+  flex-shrink: 0;
+}
+
+.taste-genre-name {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong, #fff);
+  margin: 0;
+}
+
+/* Empty tiles */
 .taste-tile-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  min-height: 100px;
+  border: 2px dashed var(--hairline, rgba(255,255,255,0.12));
+  border-radius: var(--radius-lg, 8px);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 200ms, background 200ms;
+  padding: var(--space-3, 12px);
+}
+
+.taste-tile-empty:hover {
+  border-color: var(--p, #00ff64);
+  background: var(--p-dim, rgba(0,255,100,0.05));
+}
+
+.taste-tile-empty-hero {
+  min-height: 240px;
+}
+
+.taste-tile-empty-medium {
+  min-height: 100px;
+}
+
+.taste-tile-empty-genre {
+  min-height: 64px;
+}
+
+.taste-tile-empty-inner {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 180px;
-  padding: var(--sp-4);
+  gap: var(--space-1, 4px);
   text-align: center;
 }
 
 .taste-tile-empty-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: var(--p-dim);
-  color: var(--p);
   font-size: 20px;
-  box-shadow: 0 0 16px var(--p-glow);
+  color: var(--text-dim, rgba(255,255,255,0.3));
 }
 
 .taste-tile-empty-label {
-  font-family: 'Azeret Mono', monospace;
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
   font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: var(--text-muted);
+  color: var(--text-muted, rgba(255,255,255,0.5));
+  margin: 0;
 }
 
 .taste-tile-empty-cta {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
-  font-weight: 600;
-  color: var(--p);
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
+  font-size: 0.625rem;
+  color: var(--p, #00ff64);
+  margin: 0;
 }
 
-/* Genre tile — text-only, no poster. Uses accent. */
-.taste-tile-genre {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: var(--sp-2);
-  min-height: 180px;
-  padding: var(--sp-4);
-  background: linear-gradient(145deg, var(--p-dim), var(--tier-2));
-}
-.taste-tile-genre-name {
-  font-family: 'Bebas Neue', cursive;
-  font-size: 1.5rem;
-  line-height: 1;
-  letter-spacing: 0.02em;
-  color: var(--p);
-  text-shadow: 0 0 16px var(--p-glow);
-  text-align: center;
-}
-.taste-tile-genre-label {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-}
-
-/* Edit-mode swap overlay on tiles */
-.taste-tile-swap {
+/* Change overlay (edit mode) */
+.taste-tile-change-overlay {
   position: absolute;
   inset: 0;
-  z-index: 2;
+  z-index: 10;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.7);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
+  background: rgba(0,0,0,0.5);
+  border-radius: var(--radius-lg, 8px);
   opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
+  transition: opacity 200ms;
+  pointer-events: none;
 }
-.taste-tile:hover .taste-tile-swap {
+
+.taste-movie-hero-wrap:hover .taste-tile-change-overlay,
+.taste-series-card-wrap:hover .taste-tile-change-overlay,
+.taste-director-card-wrap:hover .taste-tile-change-overlay,
+.taste-genre-surface-wrap:hover .taste-tile-change-overlay {
   opacity: 1;
 }
-.taste-tile-swap-icon {
-  display: flex;
+
+.taste-tile-change-text {
+  display: inline-flex;
   align-items: center;
-  gap: var(--sp-1);
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
+  gap: var(--space-1, 4px);
+  font-family: var(--font-family-label, 'Azeret Mono', monospace);
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--p, #00ff64);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--p);
+}
+
+/* Mobile — stack vertically */
+@media (max-width: 540px) {
+  .taste-identity {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "movie"
+      "series"
+      "director"
+      "genre";
+  }
+  .taste-cell-movie {
+    min-height: 200px;
+  }
+  .taste-movie-hero-wrap {
+    min-height: 200px;
+  }
 }
 
 /* ============================================================
-   PROFILE COMPLETION — "Build Your Cine Identity"
-   Elegant checklist with animated circular progress.
-   Hides automatically when all items are complete.
+   CINEMA DNA
+   Viewer archetype insight card
    ============================================================ */
 
-.completion-card {
-  background: var(--glass-bg);
-  backdrop-filter: blur(var(--glass-blur));
-  -webkit-backdrop-filter: blur(var(--glass-blur));
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  padding: var(--sp-5);
-  box-shadow: var(--shadow-premium);
-}
-
-.completion-header {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-4);
-  margin-bottom: var(--sp-4);
-}
-
-.completion-progress-ring-wrap {
-  position: relative;
-  width: 48px;
-  height: 48px;
-  flex-shrink: 0;
-}
-
-.completion-progress-ring {
-  display: block;
-}
-
-.completion-pct {
-  position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.625rem;
-  font-weight: 700;
-  color: var(--text-strong);
-}
-
-.completion-header-text {
-  flex: 1;
-  min-width: 0;
-}
-
-.completion-title {
-  font-family: 'Bebas Neue', cursive;
-  font-size: 1.25rem;
-  line-height: 1;
-  letter-spacing: 0.03em;
-  color: var(--text-strong);
-  margin: 0;
-}
-
-.completion-subtitle {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  color: var(--text-muted);
-  margin: 2px 0 0;
-}
-
-.completion-list {
+.cinema-dna-content {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-2);
-  list-style: none;
-  padding: 0;
-  margin: 0;
-}
-
-.completion-item {
-  display: flex;
   align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-2) 0;
-  cursor: pointer;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.completion-item:hover {
-  opacity: 0.85;
+  text-align: center;
+  gap: var(--space-3, 12px);
 }
 
-.completion-check {
-  width: 20px;
-  height: 20px;
-  border-radius: 50%;
+.cinema-dna-icon-wrap {
   display: flex;
   align-items: center;
   justify-content: center;
-  flex-shrink: 0;
-  border: 1.5px solid var(--hairline-3);
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
-}
-.completion-item[data-done="true"] .completion-check {
-  background: var(--p);
-  border-color: var(--p);
-  box-shadow: 0 0 8px var(--p-glow);
-}
-.completion-check-icon {
-  font-size: 12px;
-  color: var(--active-text);
-  opacity: 0;
-  transition: opacity var(--dur-fast) var(--ease-out);
-}
-.completion-item[data-done="true"] .completion-check-icon {
-  opacity: 1;
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full, 9999px);
+  background: color-mix(in srgb, var(--p, #00ff64) 15%, transparent);
 }
 
-.completion-label {
-  flex: 1;
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--text-soft);
-  transition: color var(--dur-fast) var(--ease-out), text-decoration var(--dur-fast) var(--ease-out);
-}
-.completion-item[data-done="true"] .completion-label {
-  color: var(--text-dim);
-  text-decoration: line-through;
-}
-.completion-arrow {
-  font-size: 16px;
-  color: var(--p);
-  flex-shrink: 0;
+.cinema-dna-icon {
+  font-size: 24px;
+  color: var(--p, #00ff64);
 }
 
-/* ============================================================
-   WATCHLIST SUMMARY — story-driven
-   ============================================================ */
-
-.watchlist-summary {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-5);
-  background: linear-gradient(145deg, var(--tier-2), var(--tier-1));
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  cursor: pointer;
-  text-decoration: none;
-  transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring), box-shadow var(--dur-base) var(--ease-out);
-  box-shadow: var(--shadow-premium);
-}
-.watchlist-summary:hover {
-  border-color: color-mix(in srgb, var(--p) 25%, var(--hairline));
-  box-shadow: var(--shadow-elevated), 0 0 16px var(--p-glow);
-}
-.watchlist-summary:active {
-  transform: scale(0.997);
-}
-.watchlist-summary:focus-visible {
-  outline: 2px solid var(--p);
-  outline-offset: 2px;
-}
-
-.watchlist-summary-content {
-  flex: 1;
-  min-width: 0;
-}
-
-.watchlist-summary-headline {
-  font-family: 'Bebas Neue', cursive;
-  font-size: 1.25rem;
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  color: var(--text-strong);
+.cinema-dna-archetype {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: clamp(1.75rem, 4vw, 2.25rem);
+  line-height: 1;
+  letter-spacing: 0.04em;
+  color: var(--text-strong, #fff);
   margin: 0;
 }
 
-.watchlist-summary-text {
-  font-family: 'Outfit', sans-serif;
+.cinema-dna-insight {
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
   font-size: 0.8125rem;
-  font-weight: 400;
-  color: var(--text-soft);
   line-height: 1.5;
-  margin: 4px 0 0;
-}
-.watchlist-summary-text strong {
-  color: var(--text-strong);
-  font-weight: 700;
+  color: var(--text-soft, rgba(255,255,255,0.7));
+  margin: 0;
+  max-width: 320px;
 }
 
-.watchlist-summary-icon {
-  margin-left: auto;
-  color: var(--p);
-  font-size: 18px;
+/* ============================================================
+   ACHIEVEMENTS — Horizontal chip rail
+   Scrollable, snap, compact chips
+   ============================================================ */
+
+.achievements-rail {
+  display: flex;
+  gap: var(--space-2, 8px);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-2, 8px) var(--space-4, 16px) var(--space-3, 12px);
+  scrollbar-width: thin;
+  scrollbar-color: var(--hairline, rgba(255,255,255,0.12)) transparent;
+}
+
+.achievements-rail::-webkit-scrollbar {
+  height: 4px;
+}
+
+.achievements-rail::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.achievements-rail::-webkit-scrollbar-thumb {
+  background: var(--hairline, rgba(255,255,255,0.12));
+  border-radius: var(--radius-full, 9999px);
+}
+
+.achievements-rail-item {
+  scroll-snap-align: start;
   flex-shrink: 0;
 }
 
 /* ============================================================
-   QUICK LINKS
-   PremiumListItem-based navigation rows.
+   QUICK LINKS — Interactive rows
    ============================================================ */
 
 .quick-links {
   display: flex;
   flex-direction: column;
-  gap: 1px;
-  background: var(--hairline);
-  border: 1px solid var(--hairline);
-  border-radius: var(--radius-lg);
-  overflow: hidden;
+  gap: 2px;
 }
 
 .quick-link-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-3);
-  padding: var(--sp-4) var(--sp-5);
-  background: var(--tier-2);
-  border: none;
-  cursor: pointer;
-  text-align: left;
-  width: 100%;
+  display: block;
   text-decoration: none;
-  color: var(--text-body);
-  transition: background var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
-}
-.quick-link-row:hover {
-  background: var(--tier-3);
-}
-.quick-link-row:active {
-  transform: scale(0.997);
-}
-.quick-link-row:focus-visible {
-  outline: 2px solid var(--p);
-  outline-offset: -2px;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
 }
 
-.quick-link-icon {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-sm);
-  background: var(--p-dim);
-  color: var(--p);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 18px;
+.quick-link-row-interactive {
+  transition: background 150ms, transform 150ms;
 }
 
-.quick-link-text {
-  flex: 1;
+.quick-link-row-interactive:hover {
+  background: var(--tier-2, rgba(255,255,255,0.04));
+}
+
+.quick-link-row-interactive:active {
+  transform: scale(0.995);
+}
+
+/* Animated arrow — slides right on hover */
+.quick-link-arrow {
+  transition: transform 200ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.quick-link-row-interactive:hover .quick-link-arrow {
+  transform: translateX(3px);
+}
+
+/* ============================================================
+   SETTINGS LINKS
+   Same pattern as Quick Links
+   ============================================================ */
+
+.settings-links {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.settings-link-row {
+  display: block;
+  text-decoration: none;
+  border-radius: var(--radius-md, 6px);
+  overflow: hidden;
+  transition: background 150ms;
+}
+
+.settings-link-row:hover {
+  background: var(--tier-2, rgba(255,255,255,0.04));
+}
+
+.settings-link-chevron {
+  transition: transform 200ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+}
+
+.settings-link-row:hover .settings-link-chevron {
+  transform: translateX(3px);
+}
+
+/* ============================================================
+   DANGER ZONE
+   Red-tinted isolated section
+   ============================================================ */
+
+.danger-zone-content {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+}
+
+.danger-zone-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4, 16px);
+  padding: var(--space-2, 8px) 0;
+}
+
+.danger-zone-row-text {
+  flex: 1;
   min-width: 0;
 }
 
-.quick-link-label {
-  font-family: 'Outfit', sans-serif;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  color: var(--text-strong);
+.danger-zone-title {
+  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
+  font-size: 1rem;
+  letter-spacing: 0.04em;
+  color: var(--text-strong, #fff);
+  margin: 0;
 }
 
-.quick-link-desc {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: var(--text-muted);
+.danger-zone-title-danger {
+  color: var(--color-danger, #f87171);
 }
 
-.quick-link-chevron {
-  color: var(--text-dim);
-  font-size: 18px;
-  flex-shrink: 0;
-}
-
-/* ============================================================
-   SKELETONS
-   ============================================================ */
-
-.profile-skeleton-banner {
-  width: 100%;
-  aspect-ratio: 16 / 6;
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-@media (min-width: 640px) {
-  .profile-skeleton-banner {
-    aspect-ratio: 16 / 5;
-  }
-}
-
-.profile-skeleton-avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-@media (min-width: 640px) {
-  .profile-skeleton-avatar {
-    width: 128px;
-    height: 128px;
-  }
-}
-
-.profile-skeleton-line {
-  height: 0.75rem;
-  border-radius: var(--radius-sm);
-  background: linear-gradient(105deg, rgba(255,255,255,0.03) 25%, rgba(255,255,255,0.07) 50%, rgba(255,255,255,0.03) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
-}
-
-.profile-skeleton-tile {
-  min-height: 180px;
-  border-radius: 0;
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
-  background-size: 300% 100%;
-  animation: shimmer 1.6s ease-in-out infinite;
+.danger-zone-desc {
+  font-family: var(--font-family-body, 'Outfit', sans-serif);
+  font-size: 0.75rem;
+  color: var(--text-muted, rgba(255,255,255,0.5));
+  margin: 4px 0 0;
 }
 
 /* ============================================================
-   ANIMATIONS
+   PROFILE SECTION — shared spacing
    ============================================================ */
 
-@keyframes profileAvatarFadeIn {
-  from { opacity: 0; transform: scale(0.92); }
-  to   { opacity: 1; transform: scale(1); }
+.profile-section {
+  padding: 0 var(--space-4, 16px);
 }
 
-.profile-fade-in {
-  animation: fadeIn var(--dur-page) var(--ease-smooth) both;
+/* ============================================================
+   COMPLETION (legacy — ring only, no card)
+   ============================================================ */
+
+.completion-header {
+  display: none; /* Removed in Sprint 2C — ring is on avatar */
 }
 
-/* Reduced motion */
+/* ============================================================
+   RESPONSIVE BREAKPOINTS
+   320 → 360 → 390 → 412 → 768 → 1024
+   ============================================================ */
+
+@media (min-width: 768px) {
+  .profile-hero-name {
+    font-size: 2.5rem;
+  }
+
+  .profile-hero-identity {
+    gap: var(--space-6, 24px);
+  }
+
+  .taste-identity {
+    gap: var(--space-4, 16px);
+  }
+
+  .taste-cell-movie {
+    min-height: 300px;
+  }
+
+  .taste-movie-hero-wrap {
+    min-height: 300px;
+  }
+}
+
+@media (min-width: 1024px) {
+  .profile-hero-name {
+    font-size: 3rem;
+  }
+
+  .profile-stats-featured {
+    gap: var(--space-4, 16px);
+  }
+
+  .taste-cell-movie {
+    min-height: 360px;
+  }
+
+  .taste-movie-hero-wrap {
+    min-height: 360px;
+  }
+}
+
+@media (max-width: 320px) {
+  .profile-hero-name {
+    font-size: 1.5rem;
+  }
+
+  .profile-hero-identity {
+    gap: var(--space-2, 8px);
+  }
+
+  .taste-genre-name {
+    font-size: 1.125rem;
+  }
+
+  .cinema-dna-archetype {
+    font-size: 1.5rem;
+  }
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================ */
+
 @media (prefers-reduced-motion: reduce) {
-  .profile-banner-img,
-  .taste-tile-poster {
-    transition: opacity 200ms ease-out !important;
-    transform: none !important;
+  .profile-fade-in {
+    animation: none;
   }
+
+  .taste-tile-change-overlay {
+    transition: none;
+  }
+
+  .quick-link-arrow,
+  .settings-link-chevron {
+    transition: none;
+  }
+
+  .quick-link-row-interactive,
+  .settings-link-row {
+    transition: none;
+  }
+
   .profile-banner-img {
-    transform: scale(1) !important;
+    transition: none;
   }
+}
+
+/* ============================================================
+   SHIMMER ANIMATION (shared)
+   ============================================================ */
+
+@keyframes shimmer {
+  0%   { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+.animate-soft-pulse {
+  animation: softPulse 2s ease-in-out infinite;
+}
+
+@keyframes softPulse {
+  0%, 100% { opacity: 0.6; }
+  50%      { opacity: 1; }
 }

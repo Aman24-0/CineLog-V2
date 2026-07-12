@@ -1424,18 +1424,19 @@ All 43 components in this family share the following architectural patterns:
 | **TypeScript typing** | Complete — all props fully typed |
 | **Token adherence** | 100% — zero hardcoded values |
 | **Accessibility** | ARIA + keyboard + focus + reduced-motion |
-| **Consumed by pages** | Profile page migrated in Sprint 2B |
+| **Consumed by pages** | Profile page migrated in Sprint 2B, redesigned in Sprint 2C |
 | **Visual regressions** | **ZERO** — no existing code outside Profile was modified |
-| **Migration readiness** | **READY** — Profile migrated; remaining pages follow in future sprints |
+| **Migration readiness** | **READY** — Profile migrated & redesigned; remaining pages follow in future sprints |
 
 ### Migration Progress
 
 | Sprint | Target | Status |
 |--------|--------|--------|
 | Sprint 2B | Migrate Profile page onto premium components | **COMPLETE** |
-| Sprint 2C | Migrate Dashboard/Discover onto premium components | Pending |
-| Sprint 2D | Migrate Watchlist onto premium components | Pending |
-| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) | Pending |
+| Sprint 2C | Premium Profile Redesign (product design sprint) | **COMPLETE** |
+| Sprint 2D | Migrate Dashboard/Discover onto premium components | Pending |
+| Sprint 2E | Migrate Watchlist onto premium components | Pending |
+| Sprint 2F+ | Migrate remaining pages (Details, Search, Collections, Settings) | Pending |
 
 ### Sprint 2B — Profile Page Premium Components Consumed
 
@@ -1451,6 +1452,54 @@ All 43 components in this family share the following architectural patterns:
 | `PremiumCard` | Watchlist summary surface |
 | `PremiumSkeleton` | Loading state skeletons (replaced custom `.profile-skeleton-*`) |
 | `PremiumListItem` | Quick links navigation rows (replaced custom `.quick-link-row`) |
+
+### Sprint 2C — Premium Profile Redesign
+
+Sprint 2C was a **product design sprint** (NOT migration, NOT refactor) that performed a complete UX/UI redesign of the Profile page. The Sprint 2B migration was the foundation; Sprint 2C reimagined the page with an 8-section architecture.
+
+**New Profile-scoped components** (all use Premium UI Library primitives):
+
+| Component | File | Role |
+|-----------|------|------|
+| `CinemaDna` | `src/features/profile/components/CinemaDna.tsx` | Viewer archetype insight card (uses PremiumGradientSurface, PremiumLabel) |
+| `ProfileAchievements` | `src/features/profile/components/ProfileAchievements.tsx` | Horizontal PremiumChip rail for achievements |
+| `SettingsLinks` | `src/features/profile/components/SettingsLinks.tsx` | Separated settings navigation (uses PremiumListItem, PremiumSectionHeader) |
+| `DangerZone` | `src/features/profile/components/DangerZone.tsx` | Isolated danger zone section, red-tinted (uses PremiumSurface, PremiumButton) |
+
+**Components absorbed during redesign:**
+
+| Component | Fate |
+|-----------|------|
+| `ProfileCompletion` (separate card) | Absorbed into hero as avatar completion ring |
+| `WatchlistSummary` (separate card) | Absorbed into Quick Actions as Watchlist row |
+
+**Components modified during redesign:**
+
+| Component | Change |
+|-----------|--------|
+| `ProfilePage.tsx` | Complete UI rewrite with 8-section architecture |
+| `TasteCard.tsx` | Asymmetric layout replacing 2×2 equal grid |
+| `QuickLinks.tsx` | Removed Settings rows, added Watchlist row |
+
+**Premium components consumed in Sprint 2C (on top of Sprint 2B):**
+
+| Premium Component | Profile Usage |
+|-------------------|---------------|
+| `PremiumAvatar` | Hero avatar with completion ring |
+| `PremiumHeroCard` | Taste identity hero movie |
+| `PremiumGradientSurface` | Cinema DNA background |
+| `PremiumChip` | Achievement horizontal rail |
+| `PremiumBadge` | Achievement badges, stat badges |
+| `PremiumIconButton` | Inline icon actions |
+| `PremiumSurface` | Section containers |
+| `PremiumDivider` | Section separators |
+
+**Verification:**
+- TypeScript: ✅ 0 errors
+- ESLint: ✅ 0 errors (3 pre-existing warnings)
+- Production build: ✅ Success
+- Business logic: Zero changes
+- Other pages: Zero changes
 
 ---
 
@@ -1505,7 +1554,7 @@ All 43 components in this family share the following architectural patterns:
 | `PremiumEmptyState` | Feedback | Merge → EmptyState variant="premium" |
 | `PrivacyCard` | Content Blocks | Refactor (use InfoCard) |
 | `ProfileBanner` | Media | Keep (use HeroShell internally) |
-| `ProfileCompletion` | Cards | Keep |
+| `ProfileCompletion` | Cards | Absorbed → hero avatar completion ring (Sprint 2C) |
 | `ProgressRing` | Media | Keep |
 | `QuickFilterTabs` | Buttons | Merge → FilterChip |
 | `QuickLinks` | Navigation | Keep |
@@ -1528,7 +1577,11 @@ All 43 components in this family share the following architectural patterns:
 | `Surface` (new) | Surfaces | Create |
 | `SurfaceCard` (new) | Cards | Create |
 | `SyncHistoryTimeline` | Content Blocks | Keep |
-| `TasteCard` | Cards | Keep |
+| `TasteCard` | Cards | Keep (redesigned in Sprint 2C — asymmetric layout) |
+| `CinemaDna` | Cards | Keep (Sprint 2C — Profile-scoped, uses Premium primitives) |
+| `ProfileAchievements` | Chips | Keep (Sprint 2C — Profile-scoped, uses PremiumChip rail) |
+| `SettingsLinks` | Navigation | Keep (Sprint 2C — Profile-scoped, uses PremiumListItem) |
+| `DangerZone` | Content Blocks | Keep (Sprint 2C — Profile-scoped, uses PremiumSurface) |
 | `TextInput` (new) | Inputs | Create |
 | `TimelineEntry` | Cards | Merge → ListRow |
 | `ToastContainer` | Feedback | Keep |
@@ -1537,7 +1590,7 @@ All 43 components in this family share the following architectural patterns:
 | `VaultFilters` | Sheets & Modals | Refactor (use SheetShell) |
 | `VaultShelf` | Cards | Keep |
 | `ViewToggle` | Buttons | Keep |
-| `WatchlistSummary` | Content Blocks | Keep |
+| `WatchlistSummary` | Content Blocks | Absorbed → Quick Actions Watchlist row (Sprint 2C) |
 | `YourActivityCard` | Cards | Keep |
 
 ---
