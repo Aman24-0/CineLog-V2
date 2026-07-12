@@ -52,7 +52,11 @@ export interface ImportResult {
   imported: number;
   skipped: number;
   failed: number;
-  /** Human-readable summary, e.g. "842 titles imported, 12 skipped". */
+  /** Titles skipped because they already exist in the library. */
+  duplicates: number;
+  /** Titles that had missing fields auto-filled by the normalizer. */
+  repaired: number;
+  /** Human-readable summary, e.g. "842 imported, 12 duplicates, 5 repaired". */
   summary: string;
 }
 

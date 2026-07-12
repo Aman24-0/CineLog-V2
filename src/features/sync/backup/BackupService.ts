@@ -2,26 +2,29 @@
 //
 // BackupService — the backup/restore architecture for CineLog.
 //
-// BACKUP FORMATS SUPPORTED:
-//   1. Flat JSON array (V1 export format):  [WatchlistItem, ...]
-//      This is the format produced by CineLog V1's "Export Vault" feature
-//      and the format of real backup files like
-//      Cinelog_Vault_Backup_07_07_2026.json (1025 items).
+// This service is the SINGLE entry point for backup creation, export,
+// parsing, and restore. All format detection + normalization is
+// delegated to normalizeBackup.ts (the Universal Normalization Layer).
 //
-//   2. Wrapped JSON document (V2 format):
-//      { version: 1, createdAt, library: { watchlist: [...] } }
-//      This is the structured format V2 produces via "Create Backup".
+// SUPPORTED FORMATS (auto-detected):
+//   - V2 wrapped:  { version, library: { watchlist: [...] } }
+//   - V1 flat array:  [...items]
+//   - Future wrappers: { data: [...] }, { items: [...] }, { watchlist: [...] },
+//     { library: [...] }, { vault: [...] }, { movies: [...] }, etc.
 //
-//   parseBackupFile() auto-detects which format the file is in and
-//   normalizes to a flat WatchlistItem[] for the preview + restore.
+// NORMALIZATION PIPELINE (per item):
+//   raw → mapLegacyFields → normalizeStatus → normalizeRating →
+//   normalizeDates → normalizeProgress → repairMissingFields →
+//   validateItem → valid WatchlistItem
 //
-// RESTORE SAFETY:
-//   Restore is MERGE-by-default (not replace). Existing titles are
-//   kept; titles in the backup that aren't in the library are added.
-//   Duplicate detection: TMDB id match (preferred) + title fallback.
-//   The user sees a preview before confirming.
+// See normalizeBackup.ts for the full normalization logic.
+//
 
 import type { WatchlistItem } from "~/shared/types";
+import {
+  detectBackupFormat, extractRawItems, normalizeBatch,
+  type BackupFormat,
+} from "./normalizeBackup";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -40,11 +43,15 @@ export interface BackupDocument {
 
 /** A parsed backup — normalized to a flat watchlist regardless of input format. */
 export interface ParsedBackup {
-  /** The flat watchlist array, extracted from either format. */
+  /** The normalized, valid items ready for import. */
   items: WatchlistItem[];
   /** Which format was detected. */
-  format: "flat-array" | "wrapped-document";
-  /** The original wrapped document, if format is "wrapped-document". */
+  format: BackupFormat;
+  /** Items that failed validation (with reasons). */
+  failures: { reason: string; item: unknown }[];
+  /** Count of items that were repaired (missing fields filled in). */
+  repairedCount: number;
+  /** The original wrapped document, if format is "wrapped-v2". */
   document?: BackupDocument;
 }
 
@@ -62,13 +69,21 @@ export interface BackupPreview {
   duplicates: number;
   /** Total titles that will actually be added (after dedup). */
   willImport: number;
+  /** Items that were repaired during normalization. */
+  repaired: number;
+  /** Items that failed validation and will be skipped. */
+  failed: number;
 }
 
 export interface RestoreResult {
   imported: number;
   skipped: number;
   failed: number;
+  repaired: number;
+  duplicates: number;
   summary: string;
+  /** Per-failure reasons for logging/debugging. */
+  failureLog: { reason: string; title?: string }[];
 }
 
 // ---------------------------------------------------------------------------
@@ -85,54 +100,15 @@ export interface BackupStrategy {
 }
 
 export const BACKUP_STRATEGIES: BackupStrategy[] = [
-  {
-    id: "create",
-    displayName: "Create Backup",
-    description: "Snapshot your entire library to a backup file",
-    icon: "backup",
-    available: true,
-  },
-  {
-    id: "export",
-    displayName: "Export Backup",
-    description: "Download your backup as a JSON file you can store anywhere",
-    icon: "download",
-    available: true,
-  },
-  {
-    id: "restore",
-    displayName: "Restore Backup",
-    description: "Import titles from a previous backup file",
-    icon: "restore",
-    available: true,
-  },
+  { id: "create",  displayName: "Create Backup",  description: "Snapshot your entire library to a backup file",     icon: "backup",   available: true },
+  { id: "export",  displayName: "Export Backup",  description: "Download your backup as a JSON file you can store anywhere", icon: "download", available: true },
+  { id: "restore", displayName: "Restore Backup", description: "Import titles from a previous backup file",         icon: "restore",  available: true },
 ];
 
 export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
-  {
-    id: "scheduled",
-    displayName: "Scheduled Backups",
-    description: "Automatic weekly backups to keep your library safe",
-    icon: "schedule",
-    available: false,
-    comingSoonLabel: "Coming soon",
-  },
-  {
-    id: "encrypted",
-    displayName: "Encrypted Backups",
-    description: "Password-protected backups for sensitive libraries",
-    icon: "lock",
-    available: false,
-    comingSoonLabel: "Coming soon",
-  },
-  {
-    id: "cloud",
-    displayName: "Cloud Backup Storage",
-    description: "Store backups in your own cloud drive (Drive, Dropbox, iCloud)",
-    icon: "cloud_upload",
-    available: false,
-    comingSoonLabel: "Coming soon",
-  },
+  { id: "scheduled", displayName: "Scheduled Backups",    description: "Automatic weekly backups to keep your library safe",            icon: "schedule",     available: false, comingSoonLabel: "Coming soon" },
+  { id: "encrypted", displayName: "Encrypted Backups",    description: "Password-protected backups for sensitive libraries",           icon: "lock",         available: false, comingSoonLabel: "Coming soon" },
+  { id: "cloud",     displayName: "Cloud Backup Storage", description: "Store backups in your own cloud drive (Drive, Dropbox, iCloud)", icon: "cloud_upload", available: false, comingSoonLabel: "Coming soon" },
 ];
 
 // ---------------------------------------------------------------------------
@@ -166,7 +142,6 @@ export function createBackupFromWatchlist(watchlist: WatchlistItem[]): BackupDoc
  */
 export function exportBackup(doc: BackupDocument): void {
   const filename = `Cinelog_Vault_Backup_${new Date().toISOString().slice(0, 10).replace(/-/g, "_")}.json`;
-  // Export as a flat array — the V1-compatible format.
   const data = doc.library.watchlist;
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
   const url = URL.createObjectURL(blob);
@@ -182,11 +157,16 @@ export function exportBackup(doc: BackupDocument): void {
 /**
  * Parse a backup file from a File object (from <input type="file">).
  *
- * Auto-detects the format:
- *   - Flat array: [WatchlistItem, ...]  (V1 export)
- *   - Wrapped:    { version, library: { watchlist } }  (V2 export)
+ * AUTO-DETECTS the format:
+ *   - Flat array: [WatchlistItem, ...]
+ *   - Wrapped V2: { version, library: { watchlist } }
+ *   - Future wrappers: { data }, { items }, { watchlist }, { library }, { vault }, { movies }
  *
- * Returns a ParsedBackup with a normalized flat items array.
+ * Runs every item through the normalization pipeline:
+ *   mapLegacyFields → normalizeStatus → normalizeRating → normalizeDates →
+ *   repairMissingFields → validateItem
+ *
+ * Returns a ParsedBackup with valid items + failure details + repair count.
  */
 export function parseBackupFile(file: File): Promise<ParsedBackup> {
   return new Promise((resolve, reject) => {
@@ -196,31 +176,31 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
         const text = String(reader.result);
         const parsed = JSON.parse(text);
 
-        // Format 1: Flat array of WatchlistItems.
-        // This is the V1 export format — the most common real-world backup.
-        if (Array.isArray(parsed)) {
-          const items = parsed.filter(isValidWatchlistItem);
-          if (items.length === 0) {
-            reject(new Error("Backup file contains no valid titles."));
-            return;
-          }
-          resolve({ items, format: "flat-array" });
+        // 1. Detect format.
+        const format = detectBackupFormat(parsed);
+        if (format === "unknown") {
+          reject(new Error("Unrecognized backup format. Expected a JSON array of titles or a CineLog backup document."));
           return;
         }
 
-        // Format 2: Wrapped document with version + library.
-        if (parsed && typeof parsed === "object" && parsed.library?.watchlist) {
-          const doc = parsed as BackupDocument;
-          const items = (doc.library.watchlist || []).filter(isValidWatchlistItem);
-          if (items.length === 0) {
-            reject(new Error("Backup file contains no valid titles."));
-            return;
-          }
-          resolve({ items, format: "wrapped-document", document: doc });
+        // 2. Extract the raw items array.
+        const rawItems = extractRawItems(parsed, format);
+        if (rawItems.length === 0) {
+          reject(new Error("Backup file contains no titles."));
           return;
         }
 
-        reject(new Error("Unrecognized backup format. Expected a JSON array of titles or a CineLog backup document."));
+        // 3. Normalize + validate every item.
+        const batch = normalizeBatch(rawItems);
+
+        // 4. Build the result.
+        resolve({
+          items: batch.items,
+          format,
+          failures: batch.failures,
+          repairedCount: batch.repairedCount,
+          document: format === "wrapped-v2" ? (parsed as BackupDocument) : undefined,
+        });
       } catch {
         reject(new Error("Could not read backup file. Make sure it's a valid JSON file."));
       }
@@ -228,16 +208,6 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
     reader.onerror = () => reject(new Error("Failed to read file."));
     reader.readAsText(file);
   });
-}
-
-/** Type guard: check if a parsed object looks like a valid WatchlistItem. */
-function isValidWatchlistItem(obj: unknown): obj is WatchlistItem {
-  if (!obj || typeof obj !== "object") return false;
-  const o = obj as Record<string, unknown>;
-  return (
-    o.id != null &&
-    (o.media_type === "movie" || o.media_type === "tv")
-  );
 }
 
 /**
@@ -276,21 +246,28 @@ export function previewBackup(parsed: ParsedBackup, existingWatchlist: Watchlist
     collections: parsed.document?.library?.collections?.length ?? 0,
     duplicates,
     willImport: items.length - duplicates,
+    repaired: parsed.repairedCount,
+    failed: parsed.failures.length,
   };
 }
 
 export interface RestoreCallbacks {
   onProgress: (processed: number, total: number, imported: number, skipped: number, failed: number) => void;
+  /** Optional: called when the user cancels — the loop stops after the current item. */
+  shouldCancel?: () => boolean;
 }
 
 /**
  * Restore a parsed backup into the user's V2 library.
  *
  * MERGE by default — titles already in the library (matched by TMDB id
- * or title) are skipped. Returns a summary of imported/skipped/failed.
+ * or title) are skipped. Returns a summary with imported/skipped/failed/
+ * repaired/duplicates counts + a failure log.
+ *
+ * NEVER stops because one item fails — continues importing remaining items.
  *
  * Reports progress via callbacks so the UI can show a progress bar for
- * large restores (e.g. 1000+ titles).
+ * large restores (e.g. 1000+ titles). Supports cancellation.
  */
 export async function restoreBackup(
   parsed: ParsedBackup,
@@ -312,25 +289,39 @@ export async function restoreBackup(
   let imported = 0;
   let skipped = 0;
   let failed = 0;
+  let duplicates = 0;
+  const failureLog: { reason: string; title?: string }[] = [];
   const total = parsed.items.length;
 
   for (let i = 0; i < total; i++) {
+    // Check for cancellation.
+    if (callbacks?.shouldCancel?.()) break;
+
     const item = parsed.items[i];
     try {
       const tmdbId = String(item.id);
       const titleKey = (item.title || item.name || "").toLowerCase().trim();
       if (existingByTmdb.has(tmdbId) || (titleKey && existingByTitle.has(titleKey))) {
         skipped++;
+        duplicates++;
       } else {
         await createVaultItemInSupabase(uid, item);
         imported++;
+        // Add to the existing sets so duplicate detection works within
+        // the same import batch (prevents re-importing the same id twice
+        // if it appears multiple times in the backup).
+        existingByTmdb.add(tmdbId);
+        if (titleKey) existingByTitle.add(titleKey);
       }
     } catch (err) {
       console.error("[restoreBackup] Failed to restore item:", item, err);
       failed++;
+      const reason = err instanceof Error ? err.message : "Database error";
+      const title = item.title || item.name || undefined;
+      failureLog.push({ reason, title });
     }
 
-    // Report progress every item (or every 10 for very large restores).
+    // Report progress — every item for small batches, every 10 for large.
     if (callbacks) {
       if (total <= 100 || i % 10 === 0 || i === total - 1) {
         callbacks.onProgress(i + 1, total, imported, skipped, failed);
@@ -338,10 +329,19 @@ export async function restoreBackup(
     }
   }
 
+  // Build the summary string.
+  const parts: string[] = [`${imported} imported`];
+  if (duplicates > 0) parts.push(`${duplicates} duplicates`);
+  if (parsed.repairedCount > 0) parts.push(`${parsed.repairedCount} repaired`);
+  if (failed > 0) parts.push(`${failed} failed`);
+
   return {
     imported,
     skipped,
     failed,
-    summary: `${imported} titles imported, ${skipped} already in your library, ${failed} failed`,
+    repaired: parsed.repairedCount,
+    duplicates,
+    summary: parts.join(", "),
+    failureLog,
   };
 }

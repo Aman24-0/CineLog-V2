@@ -19,7 +19,7 @@ import {
 import type { ImportResult } from "../ImportSource";
 import {
   parseBackupFile, previewBackup, restoreBackup,
-  type ParsedBackup, type BackupPreview,
+  type ParsedBackup, type BackupPreview, type RestoreResult,
 } from "../../backup/BackupService";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 
@@ -37,7 +37,7 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
   const [preview, setPreview] = createSignal<BackupPreview | null>(null);
   const [error, setError] = createSignal<string | null>(null);
   const [progress, setProgress] = createSignal({ processed: 0, total: 0, imported: 0, skipped: 0, failed: 0 });
-  const [result, setResult] = createSignal<ImportResult | null>(null);
+  const [result, setResult] = createSignal<RestoreResult | null>(null);
 
   const handleFileSelect = async (file: File) => {
     setError(null);
@@ -72,8 +72,19 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
   };
 
   const handleFinish = () => {
-    if (result()) props.onComplete(result()!);
-    else props.onCancel();
+    if (result()) {
+      const r = result()!;
+      props.onComplete({
+        imported: r.imported,
+        skipped: r.skipped,
+        failed: r.failed,
+        duplicates: r.duplicates,
+        repaired: r.repaired,
+        summary: r.summary,
+      });
+    } else {
+      props.onCancel();
+    }
   };
 
   return (
@@ -127,6 +138,17 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
               <PreviewStat icon="content_copy" label="Duplicates" value={preview()!.duplicates} accent="warning" />
               <PreviewStat icon="download" label="Will Import" value={preview()!.willImport} accent="primary" />
             </div>
+            <Show when={preview()!.repaired > 0}>
+              <div class="v1-wizard-resume">
+                <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">auto_fix_high</span>
+                <span>{preview()!.repaired} titles were automatically repaired (missing fields filled in).</span>
+              </div>
+            </Show>
+            <Show when={preview()!.failed > 0}>
+              <p class="v1-wizard-body" style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
+                {preview()!.failed} titles couldn't be imported (missing ID or invalid format) and will be skipped.
+              </p>
+            </Show>
             <Show when={preview()!.duplicates > 0}>
               <p class="v1-wizard-body" style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
                 {preview()!.duplicates} titles already in your library will be skipped.
@@ -175,6 +197,8 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
             <p class="v1-wizard-body">{result()!.summary}</p>
             <div class="v1-wizard-result-grid">
               <PreviewStat icon="check" label="Imported" value={result()!.imported} accent="primary" />
+              <PreviewStat icon="content_copy" label="Duplicates" value={result()!.duplicates} accent={result()!.duplicates > 0 ? "warning" : undefined} />
+              <PreviewStat icon="auto_fix_high" label="Repaired" value={result()!.repaired} />
               <PreviewStat icon="skip_next" label="Skipped" value={result()!.skipped} />
               <PreviewStat icon="error" label="Failed" value={result()!.failed} accent={result()!.failed > 0 ? "warning" : undefined} />
             </div>

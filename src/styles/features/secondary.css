@@ -1967,6 +1967,11 @@
   width: 100%;
   max-width: 360px;
 }
+@media (min-width: 400px) {
+  .v1-wizard-result-grid {
+    grid-template-columns: repeat(5, 1fr);
+  }
+}
 
 /* --- RESTORE PANEL --- */
 .sync-restore-panel {
