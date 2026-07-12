@@ -1425,16 +1425,16 @@ Every component implements a consistent state machine:
 | Reduced motion | All animations wrapped in `@media (prefers-reduced-motion: no-preference)` |
 | Touch targets | Minimum 44×44px via `--touch-min` token for all interactive elements |
 
-#### Not Yet Consumed — Future Migration Target
+#### Consumption Status — Migration In Progress
 
-This layer is **not imported by any existing page**. It exists as a ready-to-migrate foundation:
+The premium layer is now consumed by the Profile page (Sprint 2B complete). Remaining pages migrate in future sprints:
 
-| Phase | Action | Risk |
-|-------|--------|------|
-| Sprint 2B | Migrate Profile page onto premium components | Medium — page refactor |
-| Sprint 2C | Migrate Dashboard/Discover onto premium components | Medium-High — largest pages |
-| Sprint 2D | Migrate Watchlist onto premium components | Medium |
-| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) | Medium |
+| Phase | Action | Risk | Status |
+|-------|--------|------|--------|
+| Sprint 2B | Migrate Profile page onto premium components | Medium — page refactor | **COMPLETE** |
+| Sprint 2C | Migrate Dashboard/Discover onto premium components | Medium-High — largest pages | Pending |
+| Sprint 2D | Migrate Watchlist onto premium components | Medium | Pending |
+| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) | Medium | Pending |
 
 ---
 

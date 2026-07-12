@@ -1,6 +1,10 @@
 /* src/styles/features/profile.css — Profile page
    The signature "portrait of a cinephile" screen.
-   Cinematic, calm, premium. Black + neon green identity preserved. */
+   Cinematic, calm, premium. Black + neon green identity preserved.
+   
+   Sprint 2B — Migrated to Premium UI Library.
+   Styles that are now handled by premium components have been removed.
+   Only profile-specific custom styles remain. */
 
 /* ============================================================
    PAGE LAYOUT
@@ -20,9 +24,12 @@
 
 /* ============================================================
    BANNER
-   Dynamic cinematic backdrop with heavy dark gradient.
+   Dynamic cinematic backdrop with reduced overlay.
    16:6 on mobile, 16:5 on desktop — wider on desktop because
    the user is further from the screen.
+   
+   Artwork visibility target: 70-80%. The overlay is thin at
+   the bottom only, keeping the image clearly visible.
    ============================================================ */
 
 .profile-banner {
@@ -50,7 +57,7 @@
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
-/* Camera/edit button on banner */
+/* Camera/edit button on banner — premium glass pill */
 .profile-banner-edit-btn {
   position: absolute;
   top: var(--sp-3);
@@ -82,9 +89,6 @@
   transform: scale(0.95);
 }
 
-.profile-banner-edit-label {
-  /* Hidden on very small screens to save space */
-}
 @media (max-width: 380px) {
   .profile-banner-edit-label {
     display: none;
@@ -99,8 +103,6 @@
   object-fit: cover;
   opacity: 0;
   transform: scale(1.06);
-  /* Artwork visibility target: 70-80%. No brightness darkening — the
-     overlay handles text legibility at the bottom only. */
   filter: saturate(0.95);
   transition: opacity 800ms var(--ease-out), transform 1200ms var(--ease-smooth), filter 600ms var(--ease-out);
 }
@@ -111,8 +113,7 @@
 
 /* Subtle bottom-only gradient for text readability.
    The heavy multi-layer dark overlay was removed — artwork is now
-   clearly visible (70-80%) with only a thin bottom gradient so the
-   name/username/tagline below the banner remain legible. */
+   clearly visible (70-80%) with only a thin bottom gradient. */
 .profile-banner-overlay {
   position: absolute;
   inset: 0;
@@ -139,7 +140,8 @@
 /* ============================================================
    IDENTITY BLOCK
    Avatar + name + username + tagline + member since.
-   The avatar overlaps the banner by 40px.
+   The avatar overlaps the banner by ~50%.
+   Premium rhythm: more breathing room between elements.
    ============================================================ */
 
 .profile-identity {
@@ -154,13 +156,18 @@
   }
 }
 
-.profile-avatar-wrap {
-  position: relative;
-  display: inline-block;
+/* Avatar row — contains the avatar circle */
+.profile-avatar-row {
   margin-bottom: var(--sp-4);
 }
 
-.profile-avatar {
+.profile-avatar-wrap-premium {
+  position: relative;
+  display: inline-block;
+}
+
+/* Premium avatar image — circle with accent ring + glow shadow */
+.profile-avatar-img {
   width: 96px;
   height: 96px;
   border-radius: 50%;
@@ -172,18 +179,19 @@
   transform: scale(0.92);
   transition: opacity 600ms var(--ease-out), transform 600ms var(--ease-spring), box-shadow 400ms var(--ease-out);
 }
-.profile-avatar.img-loaded {
+.profile-avatar-img.img-loaded {
   opacity: 1;
   transform: scale(1);
 }
 @media (min-width: 640px) {
-  .profile-avatar {
+  .profile-avatar-img {
     width: 128px;
     height: 128px;
   }
 }
 
-.profile-avatar-fallback {
+/* Initials fallback — accent gradient with glow */
+.profile-avatar-initials {
   width: 96px;
   height: 96px;
   border-radius: 50%;
@@ -201,7 +209,7 @@
   animation: profileAvatarFadeIn 400ms var(--ease-spring) both;
 }
 @media (min-width: 640px) {
-  .profile-avatar-fallback {
+  .profile-avatar-initials {
     width: 128px;
     height: 128px;
     font-size: 3rem;
@@ -325,13 +333,13 @@
 }
 
 .profile-username-validation[data-state="available"] {
-  color: #4ade80;
+  color: var(--color-success);
 }
 
 .profile-username-validation[data-state="taken"],
 .profile-username-validation[data-state="reserved"],
 .profile-username-validation[data-state="invalid"] {
-  color: #f87171;
+  color: var(--color-danger);
 }
 
 .profile-tagline {
@@ -342,6 +350,11 @@
   color: var(--text-soft);
   margin: 0 0 var(--sp-2);
   max-width: 400px;
+}
+
+.profile-tagline-placeholder {
+  color: var(--text-dim);
+  font-style: italic;
 }
 
 .profile-tagline-input {
@@ -366,17 +379,7 @@
   box-shadow: 0 0 0 3px var(--p-dim);
 }
 
-.profile-member-since {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--text-dim);
-  margin: 0;
-}
-
-/* Edit / Save / Cancel buttons */
+/* Edit / Save / Cancel buttons — layout only; visual from PremiumButton */
 .profile-edit-actions {
   display: flex;
   gap: var(--sp-2);
@@ -384,7 +387,9 @@
 }
 
 /* ============================================================
-   SECTIONS — shared section wrapper
+   SECTIONS — consistent spacing rhythm
+   Using PremiumSectionContainer and PremiumSectionHeader in JS,
+   but keeping section padding here for the wrapper.
    ============================================================ */
 
 .profile-section {
@@ -398,26 +403,20 @@
   }
 }
 
-.profile-section-eyebrow {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin: 0 0 var(--sp-4);
-  display: flex;
-  align-items: center;
+/* ============================================================
+   STATISTICS ROW — PremiumStatCard grid
+   Equal-width, consistent spacing, responsive.
+   ============================================================ */
+
+.profile-stats-row {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
   gap: var(--sp-2);
 }
-.profile-section-eyebrow::before {
-  content: '';
-  width: 3px;
-  height: 12px;
-  background: var(--p);
-  border-radius: 2px;
-  flex-shrink: 0;
-  box-shadow: 0 0 6px var(--p-glow);
+@media (min-width: 640px) {
+  .profile-stats-row {
+    grid-template-columns: repeat(4, 1fr);
+  }
 }
 
 /* ============================================================
@@ -824,7 +823,7 @@
 
 /* ============================================================
    QUICK LINKS
-   Elegant navigation rows instead of ghost buttons.
+   PremiumListItem-based navigation rows.
    ============================================================ */
 
 .quick-links {

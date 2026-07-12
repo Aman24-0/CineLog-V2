@@ -1,5 +1,11 @@
 // src/features/profile/components/QuickLinks.tsx
+//
+// Sprint 2B — Migrated to PremiumListItem for consistent
+// icon alignment, spacing, and trailing content.
+// Zero changes to navigation functionality.
+
 import { For, type Component } from "solid-js";
+import { PremiumListItem } from "~/shared/ui/premium";
 
 interface QuickLinkDef {
   href: string;
@@ -11,15 +17,15 @@ interface QuickLinkDef {
 const LINKS: QuickLinkDef[] = [
   { href: "/profile/stats", label: "Statistics", desc: "Your watching insights", icon: "insights" },
   { href: "/profile/history", label: "History", desc: "Your watch log", icon: "history" },
-  { href: "/profile/achievements", label: "Achievements", desc: "Your milestones", icon: "emoji_events" },
+  { href: "/profile/achievements", label: "Achievements", desc: "Your milestones", icon: "emoji_event" },
   { href: "/settings", label: "Settings", desc: "Appearance, account, more", icon: "settings" },
 ];
 
 /**
- * QuickLinks — elegant navigation rows.
+ * QuickLinks — elegant navigation rows using PremiumListItem.
  *
- * Replaces the old ghost-button pattern. Each row is a full-width
- * tappable surface with an icon tile, label, description, and chevron.
+ * Each row uses PremiumListItem with icon, title, subtitle,
+ * and a trailing chevron for consistent alignment and spacing.
  * Opens its own dedicated page.
  */
 const QuickLinks: Component = () => {
@@ -30,20 +36,22 @@ const QuickLinks: Component = () => {
           <a
             href={link.href}
             class="quick-link-row focus-ring"
+            style={{ "text-decoration": "none" }}
             aria-label={`${link.label} — ${link.desc}`}
           >
-            <div class="quick-link-icon" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                {link.icon}
-              </span>
-            </div>
-            <div class="quick-link-text">
-              <span class="quick-link-label">{link.label}</span>
-              <span class="quick-link-desc">{link.desc}</span>
-            </div>
-            <span class="material-symbols-outlined quick-link-chevron" aria-hidden="true">
-              chevron_right
-            </span>
+            <PremiumListItem
+              title={link.label}
+              subtitle={link.desc}
+              icon={link.icon}
+              iconFill
+              size="comfortable"
+              variant="subtle"
+              trailing={
+                <span class="material-symbols-outlined" style={{ color: "var(--text-dim)", "font-size": "18px" }} aria-hidden="true">
+                  chevron_right
+                </span>
+              }
+            />
           </a>
         )}
       </For>

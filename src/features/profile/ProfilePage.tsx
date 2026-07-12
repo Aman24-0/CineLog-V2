@@ -4,29 +4,33 @@
 //
 // This is NOT a dashboard. It answers one question: "Who is this user?"
 //
+// Sprint 2B — Migrated to Premium UI Library.
+// All presentation now uses Premium components from src/shared/ui/premium/.
+// Zero changes to business logic, hooks, state, or Supabase integration.
+//
 // Structure (top to bottom):
-//   1. Dynamic Cinematic Banner (backdrop + avatar + identity + edit)
-//   2. Taste Card (4 tiles: movie, series, director, genre)
-//   3. Profile Completion (elegant checklist — hides when complete)
-//   4. Watchlist Summary (one sentence, tappable)
-//   5. Quick Links (Statistics, History, Achievements, Settings)
+//   1. Premium Hero Area (backdrop + avatar + identity + edit)
+//   2. Statistics Row (PremiumStatCard)
+//   3. Taste Card (4 tiles: movie, series, director, genre)
+//   4. Profile Completion (elegant checklist — hides when complete)
+//   5. Watchlist Summary (one sentence, tappable)
+//   6. Quick Links (Navigation rows via PremiumListItem)
 //
-// Everything else (activity feed, stat grids, achievements grid, settings
-// rows, streaks, badges) has been moved to other pages. The Profile is
-// calm, premium, and intentional.
-//
-// Inline edit:
-//   Tap "Edit" → the profile becomes the editor. Name → input, tagline →
-//   textarea, tiles get "Swap" overlays, banner gets "Change" button.
-//   Save/Cancel replace the Edit button. No modal — feels like editing
-//   a Notion page.
+// Visual rhythm: Hero → Stats → Surface → Cards → Compact rows → Danger
+// Alternating density creates breathing room between sections.
 
 import { Show, createSignal, createMemo, createEffect, onMount, onCleanup, type Component } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
-import PageContainer from "~/shared/ui/PageContainer";
-import { Button } from "~/shared/ui/primitives";
+import {
+  PremiumPageContainer,
+  PremiumSectionHeader,
+  PremiumStatCard,
+  PremiumButton,
+  PremiumEmptyState,
+  PremiumLabel,
+} from "~/shared/ui/premium";
 import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
 import { validateUsername, sanitizeUsername } from "~/shared/utils/username";
@@ -61,8 +65,6 @@ const ProfilePage: Component = () => {
   const [avatarLoaded, setAvatarLoaded] = createSignal(false);
 
   // Live username availability checker (debounced, 400ms).
-  // Only active during edit mode. Uses the user's current username as
-  // the exclusion so they can re-save their own name.
   const currentUsername = createMemo(() => data()?.profile?.username ?? "");
   const uid = createMemo(() => user()?.uid ?? null);
   const usernameCheck = useUsernameCheck(editUsername, currentUsername, uid);
@@ -84,7 +86,6 @@ const ProfilePage: Component = () => {
       return;
     }
 
-    // Validate username if it changed
     const cleanUsername = sanitizeUsername(editUsername());
     const oldUsername = currentUsername();
     const usernameChanged = cleanUsername !== sanitizeUsername(oldUsername);
@@ -96,7 +97,6 @@ const ProfilePage: Component = () => {
         return;
       }
 
-      // Check live availability state
       if (usernameCheck.state() !== "available") {
         showToast("Username is not available. Try another.", "error");
         return;
@@ -194,13 +194,6 @@ const ProfilePage: Component = () => {
   //   1. Custom avatar (Firestore profile.avatar_url) — user-uploaded
   //   2. Firebase Auth photoURL (Google OAuth avatar) — from useAuth().user
   //   3. Generated initials avatar (fallback)
-  //
-  // The user() signal from useAuth() is reactive — when Google OAuth
-  // completes and the session is mapped, photoURL is populated and the
-  // avatar updates automatically. When the user uploads a custom avatar
-  // via saveProfile(), data()?.profile?.avatar_url is populated and
-  // takes priority. Removing the custom avatar (setting it to null)
-  // falls back through to photoURL automatically.
   const avatarUrl = createMemo(() => {
     const custom = data()?.profile?.avatar_url;
     if (custom) return custom;
@@ -209,9 +202,7 @@ const ProfilePage: Component = () => {
     return null;
   });
 
-  // Reset the avatar load state whenever the URL changes (e.g. user
-  // uploads a custom avatar, or Google OAuth photoURL arrives after
-  // the initial render). The <img> onLoad handler re-sets it to true.
+  // Reset the avatar load state whenever the URL changes
   createEffect(() => {
     void avatarUrl();
     setAvatarLoaded(false);
@@ -220,6 +211,17 @@ const ProfilePage: Component = () => {
   const initial = createMemo(() => {
     const name = data()?.profile?.display_name ?? user()?.displayName ?? user()?.email ?? "";
     return name.charAt(0).toUpperCase() || "?";
+  });
+
+  // Watchlist stats for the stat row
+  const watchlistStats = createMemo(() => {
+    const list = watchlist();
+    const watching = list.filter((m) => m.status === "Watching").length;
+    const completed = list.filter((m) => m.status === "Completed").length;
+    const planned = list.filter(
+      (m) => m.status === "Planned" || m.status === "Plan to Watch"
+    ).length;
+    return { total: list.length, watching, completed, planned };
   });
 
   // ESC to exit edit mode.
@@ -234,82 +236,71 @@ const ProfilePage: Component = () => {
   });
 
   return (
-    <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+    <PremiumPageContainer size="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
       <div class="profile-page profile-fade-in">
-        {/* Loading state — shows while auth is resolving OR data is fetching.
-            This MUST be the first condition so a blank page never appears. */}
+        {/* Loading state — Premium skeleton */}
         <Show when={loading()}>
           <ProfileSkeleton />
         </Show>
 
-        {/* Guest state — shows when auth is ready AND user is NOT signed in.
-            This is a TOP-LEVEL Show (not nested inside data()) so it renders
-            even when data() is null (which it always is for guests). */}
+        {/* Guest state — Premium empty */}
         <Show when={!loading() && !isSignedIn()}>
-          <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
-            <div class="empty-premium" role="status" aria-live="polite">
-              <div class="empty-premium-icon" aria-hidden="true">
-                <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
-                  account_circle
-                </span>
-              </div>
-              <h3 class="empty-premium-title">Sign in to view your profile</h3>
-              <p class="empty-premium-body">Your profile is your portrait as a cinephile. Sign in to make it yours.</p>
-              <Button variant="primary" onClick={() => openAuthModal()} style={{ "margin-top": "var(--sp-2)" }}>
-                Sign In
-              </Button>
-            </div>
+          <div style={{ "padding-top": "var(--sp-12)" }}>
+            <PremiumEmptyState
+              icon="account_circle"
+              iconFill
+              title="Sign in to view your profile"
+              message="Your profile is your portrait as a cinephile. Sign in to make it yours."
+              actionLabel="Sign In"
+              onAction={() => openAuthModal()}
+            />
           </div>
         </Show>
 
-        {/* Error state — shows when the profile fetch failed AND user IS signed in. */}
+        {/* Error state — Premium empty with alert */}
         <Show when={!loading() && isSignedIn() && error() && !data()}>
-          <div class="profile-section" style={{ "padding-top": "var(--sp-12)" }}>
-            <div class="empty-premium" role="alert" aria-live="assertive">
-              <div class="empty-premium-icon" aria-hidden="true">
-                <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
-                  error
-                </span>
-              </div>
-              <h3 class="empty-premium-title">Couldn't load profile</h3>
-              <p class="empty-premium-body">Something went wrong loading your profile. Your data is safe — try again.</p>
-              <Button
-                variant="primary"
-                onClick={() => refetch()}
-                style={{ "margin-top": "var(--sp-2)" }}
-                aria-label="Retry loading profile"
-              >
-                Retry
-              </Button>
-            </div>
+          <div style={{ "padding-top": "var(--sp-12)" }}>
+            <PremiumEmptyState
+              icon="error"
+              iconFill
+              title="Couldn't load profile"
+              message="Something went wrong loading your profile. Your data is safe — try again."
+              actionLabel="Retry"
+              onAction={() => refetch()}
+            />
           </div>
         </Show>
 
-        {/* Loaded state — shows when auth is ready, user IS signed in,
-            no error, and data is available. */}
+        {/* Loaded state — Premium UI */}
         <Show when={!loading() && isSignedIn() && !error() && data()}>
-            <div class="profile-content">
-              {/* === 1. BANNER + IDENTITY === */}
-              <ProfileBanner
-                data={data() ?? null}
-                isEditing={isEditing()}
-                onChooseBanner={() => setBannerEditorOpen(true)}
-              />
+          <div class="profile-content">
 
-              <div class="profile-identity">
-                {/* Avatar */}
-                <div class="profile-avatar-wrap">
+            {/* ═══ 1. HERO + IDENTITY ═══ */}
+            <ProfileBanner
+              data={data() ?? null}
+              isEditing={isEditing()}
+              onChooseBanner={() => setBannerEditorOpen(true)}
+            />
+
+            {/* Identity block — overlaid on banner bottom */}
+            <div class="profile-identity">
+              {/* Avatar row: PremiumAvatar + name/edit */}
+              <div class="profile-avatar-row">
+                <div class="profile-avatar-wrap-premium">
                   <Show
                     when={avatarUrl()}
                     fallback={
-                      <div class="profile-avatar-fallback" aria-hidden="true">
+                      <div
+                        class="profile-avatar-initials"
+                        aria-hidden="true"
+                      >
                         {initial()}
                       </div>
                     }
                   >
                     <img
                       src={avatarUrl()!}
-                      class={`profile-avatar${avatarLoaded() ? " img-loaded" : ""}`}
+                      class={`profile-avatar-img${avatarLoaded() ? " img-loaded" : ""}`}
                       alt=""
                       aria-hidden="true"
                       loading="eager"
@@ -321,194 +312,245 @@ const ProfilePage: Component = () => {
                         if (fallback) fallback.style.display = "flex";
                       }}
                     />
-                    <div class="profile-avatar-fallback" style={{ display: "none" }} aria-hidden="true">
+                    <div class="profile-avatar-initials" style={{ display: "none" }} aria-hidden="true">
                       {initial()}
                     </div>
                   </Show>
                 </div>
-
-                {/* Name row + Edit/Save/Cancel */}
-                <div class="profile-name-row">
-                  <div style={{ flex: "1", "min-width": "0" }}>
-                    <Show
-                      when={!isEditing()}
-                      fallback={
-                        <input
-                          type="text"
-                          class="profile-display-name-input focus-ring"
-                          value={editName()}
-                          onInput={(e) => setEditName(e.currentTarget.value)}
-                          maxlength={50}
-                          aria-label="Display name"
-                          placeholder="Your name"
-                        />
-                      }
-                    >
-                      <h1 class="profile-display-name">
-                        {data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile"}
-                      </h1>
-                    </Show>
-                  </div>
-
-                  {/* Edit / Save / Cancel buttons */}
-                  <div class="profile-edit-actions">
-                    <Show
-                      when={!isEditing()}
-                      fallback={
-                        <>
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            icon={saving() ? "progress_activity" : "check"}
-                            onClick={handleSave}
-                            disabled={saving()}
-                            aria-label="Save profile changes"
-                          >
-                            {saving() ? "Saving…" : "Save"}
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={handleCancel}
-                            disabled={saving()}
-                            aria-label="Cancel editing"
-                          >
-                            Cancel
-                          </Button>
-                        </>
-                      }
-                    >
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        icon="edit"
-                        onClick={enterEdit}
-                        aria-label="Edit profile"
-                      >
-                        Edit
-                      </Button>
-                    </Show>
-                  </div>
-                </div>
-
-                {/* Username — editable in edit mode with live validation */}
-                <Show
-                  when={!isEditing()}
-                  fallback={
-                    <div class="profile-username-edit-wrap">
-                      <div class="profile-username-input-row">
-                        <span class="profile-username-at">@</span>
-                        <input
-                          type="text"
-                          class="profile-username-input focus-ring"
-                          value={editUsername()}
-                          onInput={(e) => setEditUsername(e.currentTarget.value)}
-                          maxlength={24}
-                          aria-label="Username"
-                          placeholder="username"
-                          autocomplete="off"
-                          spellcheck={false}
-                        />
-                      </div>
-                      {/* Live validation indicator */}
-                      <Show when={editUsername().trim().length > 0}>
-                        <p
-                          class="profile-username-validation"
-                          data-state={usernameCheck.state()}
-                          role="status"
-                          aria-live="polite"
-                        >
-                          <Show when={usernameCheck.state() === "checking"}>
-                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
-                              progress_activity
-                            </span>
-                          </Show>
-                          <Show when={usernameCheck.state() === "available"}>
-                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
-                              check_circle
-                            </span>
-                          </Show>
-                          <Show when={usernameCheck.state() === "taken" || usernameCheck.state() === "reserved" || usernameCheck.state() === "invalid"}>
-                            <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
-                              cancel
-                            </span>
-                          </Show>
-                          {usernameCheck.message()}
-                        </p>
-                      </Show>
-                    </div>
-                  }
-                >
-                  <p class="profile-username">
-                    @{data()?.profile?.username ?? "cinephile"}
-                  </p>
-                </Show>
-
-                {/* Tagline / Bio */}
-                <Show
-                  when={!isEditing()}
-                  fallback={
-                    <textarea
-                      class="profile-tagline-input focus-ring"
-                      value={editBio()}
-                      onInput={(e) => setEditBio(e.currentTarget.value)}
-                      maxlength={160}
-                      rows={2}
-                      aria-label="Bio"
-                      placeholder="Add a tagline — your taste in one line."
-                    />
-                  }
-                >
-                  <Show
-                    when={data()?.profile?.bio}
-                    fallback={
-                      <Show when={!isComplete()}>
-                        <p class="profile-tagline" style={{ color: "var(--text-dim)", "font-style": "italic" }}>
-                          Tap edit to add your tagline.
-                        </p>
-                      </Show>
-                    }
-                  >
-                    <p class="profile-tagline">{data()?.profile?.bio}</p>
-                  </Show>
-                </Show>
-
-                {/* Member since */}
-                <Show when={memberSince()}>
-                  <p class="profile-member-since">Member since {memberSince()}</p>
-                </Show>
               </div>
 
-              {/* === 2. TASTE CARD === */}
-              <section class="profile-section" aria-label="Your favorites">
-                <p class="profile-section-eyebrow">Your Taste</p>
-                <TasteCard
-                  data={data() ?? null}
-                  isEditing={isEditing()}
-                  onPick={(slot) => openPicker(slot)}
-                />
-              </section>
+              {/* Name + edit controls */}
+              <div class="profile-name-row">
+                <div style={{ flex: "1", "min-width": "0" }}>
+                  <Show
+                    when={!isEditing()}
+                    fallback={
+                      <input
+                        type="text"
+                        class="profile-display-name-input focus-ring"
+                        value={editName()}
+                        onInput={(e) => setEditName(e.currentTarget.value)}
+                        maxlength={50}
+                        aria-label="Display name"
+                        placeholder="Your name"
+                      />
+                    }
+                  >
+                    <h1 class="profile-display-name">
+                      {data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile"}
+                    </h1>
+                  </Show>
+                </div>
 
-              {/* === 3. PROFILE COMPLETION === */}
-              <Show when={!isComplete()}>
-                <section class="profile-section" aria-label="Complete your profile">
-                  <ProfileCompletion
-                    data={data() ?? null}
-                    onPick={handleCompletionPick}
-                  />
-                </section>
+                {/* Edit / Save / Cancel */}
+                <div class="profile-edit-actions">
+                  <Show
+                    when={!isEditing()}
+                    fallback={
+                      <>
+                        <PremiumButton
+                          variant="primary"
+                          size="compact"
+                          icon={saving() ? "progress_activity" : "check"}
+                          onClick={handleSave}
+                          disabled={saving()}
+                          aria-label="Save profile changes"
+                        >
+                          {saving() ? "Saving…" : "Save"}
+                        </PremiumButton>
+                        <PremiumButton
+                          variant="ghost"
+                          size="compact"
+                          onClick={handleCancel}
+                          disabled={saving()}
+                          aria-label="Cancel editing"
+                        >
+                          Cancel
+                        </PremiumButton>
+                      </>
+                    }
+                  >
+                    <PremiumButton
+                      variant="ghost"
+                      size="compact"
+                      icon="edit"
+                      onClick={enterEdit}
+                      aria-label="Edit profile"
+                    >
+                      Edit
+                    </PremiumButton>
+                  </Show>
+                </div>
+              </div>
+
+              {/* Username — editable with live validation */}
+              <Show
+                when={!isEditing()}
+                fallback={
+                  <div class="profile-username-edit-wrap">
+                    <div class="profile-username-input-row">
+                      <span class="profile-username-at">@</span>
+                      <input
+                        type="text"
+                        class="profile-username-input focus-ring"
+                        value={editUsername()}
+                        onInput={(e) => setEditUsername(e.currentTarget.value)}
+                        maxlength={24}
+                        aria-label="Username"
+                        placeholder="username"
+                        autocomplete="off"
+                        spellcheck={false}
+                      />
+                    </div>
+                    <Show when={editUsername().trim().length > 0}>
+                      <p
+                        class="profile-username-validation"
+                        data-state={usernameCheck.state()}
+                        role="status"
+                        aria-live="polite"
+                      >
+                        <Show when={usernameCheck.state() === "checking"}>
+                          <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                            progress_activity
+                          </span>
+                        </Show>
+                        <Show when={usernameCheck.state() === "available"}>
+                          <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                            check_circle
+                          </span>
+                        </Show>
+                        <Show when={usernameCheck.state() === "taken" || usernameCheck.state() === "reserved" || usernameCheck.state() === "invalid"}>
+                          <span class="material-symbols-outlined profile-username-validation-icon" style={{ "font-size": "12px" }} aria-hidden="true">
+                            cancel
+                          </span>
+                        </Show>
+                        {usernameCheck.message()}
+                      </p>
+                    </Show>
+                  </div>
+                }
+              >
+                <p class="profile-username">
+                  @{data()?.profile?.username ?? "cinephile"}
+                </p>
               </Show>
 
-              {/* === 4. WATCHLIST SUMMARY === */}
-              <section class="profile-section" aria-label="Watchlist summary">
-                <WatchlistSummary watchlist={watchlist} />
-              </section>
+              {/* Tagline / Bio */}
+              <Show
+                when={!isEditing()}
+                fallback={
+                  <textarea
+                    class="profile-tagline-input focus-ring"
+                    value={editBio()}
+                    onInput={(e) => setEditBio(e.currentTarget.value)}
+                    maxlength={160}
+                    rows={2}
+                    aria-label="Bio"
+                    placeholder="Add a tagline — your taste in one line."
+                  />
+                }
+              >
+                <Show
+                  when={data()?.profile?.bio}
+                  fallback={
+                    <Show when={!isComplete()}>
+                      <p class="profile-tagline profile-tagline-placeholder">
+                        Tap edit to add your tagline.
+                      </p>
+                    </Show>
+                  }
+                >
+                  <p class="profile-tagline">{data()?.profile?.bio}</p>
+                </Show>
+              </Show>
 
-              {/* === 5. QUICK LINKS === */}
-              <section class="profile-section" aria-label="Quick links">
-                <QuickLinks />
-              </section>
+              {/* Member since */}
+              <Show when={memberSince()}>
+                <PremiumLabel variant="overline" size="small">
+                  Member since {memberSince()}
+                </PremiumLabel>
+              </Show>
             </div>
+
+            {/* ═══ 2. STATISTICS ROW ═══ */}
+            <section class="profile-section" aria-label="Your statistics">
+              <PremiumSectionHeader
+                eyebrow="Library"
+                title="Statistics"
+                accent="bar"
+                variant="compact"
+              />
+              <div class="profile-stats-row">
+                <PremiumStatCard
+                  value={watchlistStats().total}
+                  label="Total"
+                  icon="video_library"
+                  variant="accent"
+                  size="compact"
+                />
+                <PremiumStatCard
+                  value={watchlistStats().watching}
+                  label="Watching"
+                  icon="play_circle"
+                  size="compact"
+                />
+                <PremiumStatCard
+                  value={watchlistStats().completed}
+                  label="Completed"
+                  icon="check_circle"
+                  iconFill
+                  size="compact"
+                />
+                <PremiumStatCard
+                  value={watchlistStats().planned}
+                  label="Planned"
+                  icon="schedule"
+                  size="compact"
+                />
+              </div>
+            </section>
+
+            {/* ═══ 3. TASTE CARD ═══ */}
+            <section class="profile-section" aria-label="Your favorites">
+              <PremiumSectionHeader
+                eyebrow="Identity"
+                title="Your Taste"
+                accent="bar"
+                variant="compact"
+              />
+              <TasteCard
+                data={data() ?? null}
+                isEditing={isEditing()}
+                onPick={(slot) => openPicker(slot)}
+              />
+            </section>
+
+            {/* ═══ 4. PROFILE COMPLETION ═══ */}
+            <Show when={!isComplete()}>
+              <section class="profile-section" aria-label="Complete your profile">
+                <ProfileCompletion
+                  data={data() ?? null}
+                  onPick={handleCompletionPick}
+                />
+              </section>
+            </Show>
+
+            {/* ═══ 5. WATCHLIST SUMMARY ═══ */}
+            <section class="profile-section" aria-label="Watchlist summary">
+              <WatchlistSummary watchlist={watchlist} />
+            </section>
+
+            {/* ═══ 6. QUICK LINKS ═══ */}
+            <section class="profile-section" aria-label="Quick links">
+              <PremiumSectionHeader
+                eyebrow="Explore"
+                title="Quick Links"
+                accent="dot"
+                variant="compact"
+              />
+              <QuickLinks />
+            </section>
+          </div>
         </Show>
       </div>
 
@@ -530,7 +572,7 @@ const ProfilePage: Component = () => {
         onClose={() => setBannerEditorOpen(false)}
         onSave={handleSaveBanner}
       />
-    </PageContainer>
+    </PremiumPageContainer>
   );
 };
 

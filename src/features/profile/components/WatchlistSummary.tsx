@@ -1,5 +1,10 @@
 // src/features/profile/components/WatchlistSummary.tsx
+//
+// Sprint 2B — Migrated to PremiumCard for surface treatment.
+// Zero changes to story-driven text logic or navigation.
+
 import { Show, createMemo, type Component } from "solid-js";
+import { PremiumCard } from "~/shared/ui/premium";
 import type { WatchlistItem } from "~/shared/types";
 
 interface WatchlistSummaryProps {
@@ -17,7 +22,7 @@ interface WatchlistSummaryProps {
  *   • 51-100: "Cinema is clearly your passion."
  *   • 100+: "You're a true cinema explorer."
  *
- * Followed by the breakdown sentence.
+ * Uses PremiumCard for consistent surface, shadow, and hover treatment.
  * Tappable → /watchlist.
  */
 const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
@@ -31,7 +36,6 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
     return { total: list.length, watching, completed, planned };
   });
 
-  // Story-driven headline based on collection size.
   const headline = createMemo((): string => {
     const total = stats().total;
     if (total === 0) return "Your cinematic journey starts here.";
@@ -42,7 +46,6 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
     return "You're a true cinema explorer.";
   });
 
-  // Breakdown sentence — only shows non-zero categories.
   const breakdown = createMemo((): string => {
     const s = stats();
     const parts: string[] = [];
@@ -58,20 +61,30 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
       class="watchlist-summary focus-ring"
       aria-label={`Open your watchlist — ${stats().total} titles total${breakdown() ? `, ${breakdown()}` : ""}`}
     >
-      <div class="watchlist-summary-content">
-        <p class="watchlist-summary-headline">{headline()}</p>
-        <Show when={stats().total > 0}>
-          <p class="watchlist-summary-text">
-            <strong>{stats().total}</strong> {stats().total !== 1 ? "titles" : "title"}
-            <Show when={breakdown()}>
-              {" — "}{breakdown()}
+      <PremiumCard
+        variant="default"
+        size="comfortable"
+        hoverable
+        border="subtle"
+        style={{ width: "100%" }}
+      >
+        <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>
+          <div class="watchlist-summary-content">
+            <p class="watchlist-summary-headline">{headline()}</p>
+            <Show when={stats().total > 0}>
+              <p class="watchlist-summary-text">
+                <strong>{stats().total}</strong> {stats().total !== 1 ? "titles" : "title"}
+                <Show when={breakdown()}>
+                  {" — "}{breakdown()}
+                </Show>
+              </p>
             </Show>
-          </p>
-        </Show>
-      </div>
-      <span class="material-symbols-outlined watchlist-summary-icon" aria-hidden="true">
-        chevron_right
-      </span>
+          </div>
+          <span class="material-symbols-outlined watchlist-summary-icon" aria-hidden="true">
+            chevron_right
+          </span>
+        </div>
+      </PremiumCard>
     </a>
   );
 };

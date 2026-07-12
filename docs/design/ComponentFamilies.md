@@ -1424,18 +1424,33 @@ All 43 components in this family share the following architectural patterns:
 | **TypeScript typing** | Complete — all props fully typed |
 | **Token adherence** | 100% — zero hardcoded values |
 | **Accessibility** | ARIA + keyboard + focus + reduced-motion |
-| **Consumed by pages** | **NONE** — not yet imported by any existing page |
-| **Visual regressions** | **ZERO** — no existing code was modified |
-| **Migration readiness** | **READY** — future sprints will migrate pages onto these components |
+| **Consumed by pages** | Profile page migrated in Sprint 2B |
+| **Visual regressions** | **ZERO** — no existing code outside Profile was modified |
+| **Migration readiness** | **READY** — Profile migrated; remaining pages follow in future sprints |
 
-### Future Migration Path
+### Migration Progress
 
-| Sprint | Target |
-|--------|--------|
-| Sprint 2B | Migrate Profile page onto premium components |
-| Sprint 2C | Migrate Dashboard/Discover onto premium components |
-| Sprint 2D | Migrate Watchlist onto premium components |
-| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) |
+| Sprint | Target | Status |
+|--------|--------|--------|
+| Sprint 2B | Migrate Profile page onto premium components | **COMPLETE** |
+| Sprint 2C | Migrate Dashboard/Discover onto premium components | Pending |
+| Sprint 2D | Migrate Watchlist onto premium components | Pending |
+| Sprint 2E+ | Migrate remaining pages (Details, Search, Collections, Settings) | Pending |
+
+### Sprint 2B — Profile Page Premium Components Consumed
+
+| Premium Component | Profile Usage |
+|-------------------|---------------|
+| `PremiumPageContainer` | Page wrapper (replaced `PageContainer`) |
+| `PremiumSectionHeader` | Section headers with accent bar/dot |
+| `PremiumStatCard` | Statistics row (Total, Watching, Completed, Planned) |
+| `PremiumButton` | Edit/Save/Cancel actions (replaced `Button`) |
+| `PremiumEmptyState` | Guest, error, and empty states (replaced custom `.empty-premium`) |
+| `PremiumLabel` | Member since text (replaced `.profile-member-since`) |
+| `PremiumGlassSurface` | Completion card surface (replaced custom `.completion-card`) |
+| `PremiumCard` | Watchlist summary surface |
+| `PremiumSkeleton` | Loading state skeletons (replaced custom `.profile-skeleton-*`) |
+| `PremiumListItem` | Quick links navigation rows (replaced custom `.quick-link-row`) |
 
 ---
 

@@ -1,52 +1,61 @@
 // src/features/profile/components/ProfileSkeleton.tsx
+//
+// Sprint 2B — Migrated to PremiumSkeleton and Premium UI components.
+// Every skeleton matches the final element's dimensions exactly so
+// there is zero layout shift between skeleton and content.
+
 import { type Component } from "solid-js";
+import { PremiumSkeleton, PremiumSectionHeader, PremiumStatCard } from "~/shared/ui/premium";
 
 /**
  * ProfileSkeleton — loading state for the Profile page.
  *
- * Every skeleton matches the final element's dimensions exactly so
- * there is zero layout shift between skeleton and content. Uses the
- * same shimmer animation as the rest of the app (1.6s ease-in-out).
- *
- * The skeleton is on-brand: the banner skeleton uses a hint of
- * accent-tinted gradient so the page feels like a teaser, not a
- * broken state.
+ * Uses PremiumSkeleton and PremiumStatCard (in loading state)
+ * for consistent shimmer animations and token-based styling.
  */
 const ProfileSkeleton: Component = () => {
   return (
     <div class="profile-page">
       {/* Banner skeleton */}
-      <div class="profile-skeleton-banner" />
+      <PremiumSkeleton variant="block" width="100%" radius="none" />
 
       {/* Identity block skeleton */}
       <div class="profile-identity">
-        <div class="profile-skeleton-avatar" />
-        <div class="profile-skeleton-line" style={{ width: "180px", height: "2rem", "margin-top": "var(--sp-4)" }} />
-        <div class="profile-skeleton-line" style={{ width: "120px", height: "0.75rem", "margin-top": "var(--sp-2)" }} />
-        <div class="profile-skeleton-line" style={{ width: "240px", height: "0.875rem", "margin-top": "var(--sp-3)" }} />
+        <PremiumSkeleton variant="avatar" width="xl" />
+        <PremiumSkeleton variant="text" lines={3} style={{ "margin-top": "var(--sp-4)", "max-width": "320px" }} />
+      </div>
+
+      {/* Stats row skeleton */}
+      <div class="profile-section">
+        <PremiumSectionHeader title="Statistics" eyebrow="Library" accent="bar" variant="compact" />
+        <div class="profile-stats-row">
+          <PremiumStatCard value="—" label="Total" loading />
+          <PremiumStatCard value="—" label="Watching" loading />
+          <PremiumStatCard value="—" label="Completed" loading />
+          <PremiumStatCard value="—" label="Planned" loading />
+        </div>
       </div>
 
       {/* Taste card skeleton */}
       <div class="profile-section">
-        <div class="profile-skeleton-line" style={{ width: "120px", height: "0.5625rem", "margin-bottom": "var(--sp-4)" }} />
+        <PremiumSectionHeader title="Your Taste" eyebrow="Identity" accent="bar" variant="compact" />
         <div class="taste-card">
-          <div class="profile-skeleton-tile" />
-          <div class="profile-skeleton-tile" />
-          <div class="profile-skeleton-tile" />
-          <div class="profile-skeleton-tile" />
+          <PremiumSkeleton variant="poster" radius="none" />
+          <PremiumSkeleton variant="poster" radius="none" />
+          <PremiumSkeleton variant="poster" radius="none" />
+          <PremiumSkeleton variant="poster" radius="none" />
         </div>
       </div>
 
       {/* Watchlist summary skeleton */}
       <div class="profile-section">
-        <div class="profile-skeleton-line" style={{ width: "100%", height: "3rem", "border-radius": "var(--radius-lg)" }} />
+        <PremiumSkeleton variant="block" width="100%" height="5rem" radius="lg" />
       </div>
 
       {/* Quick links skeleton */}
       <div class="profile-section">
-        <div class="profile-skeleton-line" style={{ width: "100%", height: "3.5rem" }} />
-        <div class="profile-skeleton-line" style={{ width: "100%", height: "3.5rem", "margin-top": "1px" }} />
-        <div class="profile-skeleton-line" style={{ width: "100%", height: "3.5rem", "margin-top": "1px" }} />
+        <PremiumSectionHeader title="Quick Links" eyebrow="Explore" accent="dot" variant="compact" />
+        <PremiumSkeleton variant="text" lines={4} style={{ gap: "1px" }} />
       </div>
     </div>
   );

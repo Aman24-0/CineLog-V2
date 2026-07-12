@@ -1,5 +1,10 @@
 // src/features/profile/components/ProfileCompletion.tsx
+//
+// Sprint 2B — Migrated to PremiumGlassSurface for surface treatment.
+// Zero changes to progress logic, checklist items, or interactions.
+
 import { For, Show, createMemo, type Component } from "solid-js";
+import { PremiumGlassSurface } from "~/shared/ui/premium";
 import type { ProfileData } from "../useProfileData";
 import type { FavoriteSlot } from "./TasteCard";
 
@@ -20,6 +25,7 @@ interface CompletionItem {
  * An elegant checklist with animated progress. NOT a percentage bar —
  * it's a checklist with a circular progress indicator that fills as
  * the user completes each item. Hides automatically when complete.
+ * Uses PremiumGlassSurface for consistent glass treatment.
  */
 const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
   const items = createMemo((): CompletionItem[] => {
@@ -43,7 +49,7 @@ const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
   const dashOffset = createMemo(() => circumference - (pct() / 100) * circumference);
 
   return (
-    <div class="completion-card">
+    <PremiumGlassSurface strength="default" border padding="comfortable" radius="lg">
       <div class="completion-header">
         <div class="completion-progress-ring-wrap">
           <svg class="completion-progress-ring" width="48" height="48" viewBox="0 0 48 48">
@@ -111,7 +117,7 @@ const ProfileCompletion: Component<ProfileCompletionProps> = (props) => {
           )}
         </For>
       </ul>
-    </div>
+    </PremiumGlassSurface>
   );
 };
 
