@@ -23,7 +23,9 @@ import { useToast } from "~/shared/hooks/useToast";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "~/features/collections/hooks/useCollections";
-import { resetUserLibrary, type ResetLibraryStep } from "../reset/resetLibraryService";
+import { clearCache as clearApiCache } from "~/shared/utils/apiCache";
+import { RECENT_KEY as SEARCH_RECENT_KEY } from "~/features/search/searchStorage";
+import { resetUserLibrary, type ResetLibraryStep, type ResetLibraryResult } from "../reset/resetLibraryService";
 
 interface ResetConfirmSheetProps {
   open: boolean;
@@ -66,7 +68,7 @@ const ResetConfirmSheet: Component<ResetConfirmSheetProps> = (props) => {
     setErrorMsg("");
 
     try {
-      const result = await resetUserLibrary(uid, {
+      const result: ResetLibraryResult = await resetUserLibrary(uid, {
         onProgress: (step: ResetLibraryStep, total: number) => {
           setProgressLabel(step.label);
           setProgressStep(step.index + 1);
@@ -80,13 +82,33 @@ const ResetConfirmSheet: Component<ResetConfirmSheetProps> = (props) => {
         return;
       }
 
-      // Refresh every cache/signal/store so the UI instantly shows empty.
+      // ─── FULL STATE SYNCHRONIZATION ───────────────────────────────
+      // After a successful reset, refresh every SolidJS store + clear
+      // every local cache so the UI instantly shows empty states
+      // everywhere — no page reload, no logout.
+
+      // 1. Refresh all SolidJS stores (vault, collections, presets,
+      //    universe prefs). These are the reactive signals every page
+      //    reads from — refreshing them propagates empty state to
+      //    Watchlist, Dashboard, Collections, Discover, Profile, Search.
       await Promise.allSettled([
         library.refresh(),
         vault.refreshPresets(uid),
         collections.refreshCollections(uid),
         collections.refreshUniversePrefs(uid),
       ]);
+
+      // 2. Clear the TMDB/OMDb API response cache so any stale
+      //    "in vault" badges or recommendation caches are dropped.
+      clearApiCache();
+
+      // 3. Clear the search recent-history localStorage so deleted
+      //    titles don't appear in recent searches.
+      try {
+        localStorage.removeItem(SEARCH_RECENT_KEY);
+      } catch {
+        // localStorage may be unavailable — non-fatal.
+      }
 
       setPhase("success");
       showToast("Library reset complete.", "success");
