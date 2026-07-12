@@ -50,6 +50,7 @@ export interface VaultStore extends UserLibrary {
   readonly savePreset: (name: string, filters: VaultFilters) => Promise<void>;
   readonly deletePreset: (presetId: string) => Promise<void>;
   readonly renamePreset: (presetId: string, name: string) => Promise<void>;
+  readonly refreshPresets: (userId: string) => Promise<void>;
 }
 
 const useVaultLogic = (): VaultStore => {
@@ -134,6 +135,7 @@ const useVaultLogic = (): VaultStore => {
     savePreset: presetsMgr.savePreset,
     deletePreset: presetsMgr.deletePreset,
     renamePreset: presetsMgr.renamePreset,
+    refreshPresets: presetsMgr.refreshPresets,
     refresh,
   };
 };

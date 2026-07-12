@@ -230,6 +230,7 @@ const useCollectionsLogic = () => {
     createCollection, addToCollection, removeFromCollection, deleteCollection,
     renameCollection, updateCollectionMeta, duplicateCollection, reorderEntries,
     createSmartCollection, updateSmartRules,
+    refreshCollections,
     ...queries,
   };
 };

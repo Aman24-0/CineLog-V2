@@ -121,6 +121,13 @@
   flex-shrink: 0;
   box-shadow: 0 0 6px var(--p-glow);
 }
+.sec-section-label-danger {
+  color: #f87171;
+}
+.sec-section-label-danger::before {
+  background: #f87171;
+  box-shadow: 0 0 6px rgba(248, 113, 113, 0.4);
+}
 
 .sec-section {
   margin-top: var(--sp-8);
@@ -1659,6 +1666,87 @@
   color: var(--text-soft);
   margin: 0;
   line-height: 1.5;
+}
+
+/* --- 8. DANGER ZONE CARD --- */
+.sync-danger-card {
+  border-radius: var(--radius-lg);
+  background: var(--tier-2);
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  overflow: hidden;
+}
+.sync-danger-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--hairline);
+}
+.sync-danger-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  flex-shrink: 0;
+}
+.sync-danger-text {
+  flex: 1;
+  min-width: 0;
+}
+.sync-danger-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.125rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: #f87171;
+  margin: 0 0 4px;
+}
+.sync-danger-body {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin: 0;
+  line-height: 1.5;
+}
+.sync-danger-action {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+}
+.sync-danger-action-text {
+  flex: 1;
+  min-width: 0;
+}
+.sync-danger-action-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+}
+.sync-danger-action-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  line-height: 1.4;
+}
+
+/* Reset confirm sheet — spinner */
+.sync-reset-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  background: rgba(248, 113, 113, 0.1);
+  border: 1px solid rgba(248, 113, 113, 0.2);
 }
 
 /* --- WIZARD MODAL PANEL (shared by import + restore) --- */

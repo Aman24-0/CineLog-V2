@@ -30,6 +30,7 @@ import DevicesCard from "~/features/sync/components/DevicesCard";
 import SyncHistoryTimeline from "~/features/sync/components/SyncHistoryTimeline";
 import StorageStats from "~/features/sync/components/StorageStats";
 import PrivacyCard from "~/features/sync/components/PrivacyCard";
+import DangerZoneCard from "~/features/sync/components/DangerZoneCard";
 
 const SyncRoute: Component = () => {
   const { isSignedIn } = useAuth();
@@ -105,6 +106,12 @@ const SyncRoute: Component = () => {
               {/* 7. PRIVACY */}
               <section class="sec-section">
                 <PrivacyCard />
+              </section>
+
+              {/* 8. DANGER ZONE — at the very bottom */}
+              <section class="sec-section">
+                <p class="sec-section-label sec-section-label-danger">Danger Zone</p>
+                <DangerZoneCard />
               </section>
             </Show>
           </div>
