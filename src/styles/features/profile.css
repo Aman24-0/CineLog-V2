@@ -1,39 +1,22 @@
 /* src/styles/features/profile.css — Profile page
-   Sprint 2C — Final Implementation.
-
-   Eight-section narrative architecture:
-     HERO           → Banner, avatar, name, archetype, bio
-     VAULT          → One dominant number, inline sub-metrics, milestone hint
-     TASTE          → Poster mosaic, curated gallery wall
-     CINEMA INSIGHT → Dynamic self-insight (WOW section)
-     ACHIEVEMENTS   → Featured trophy case + locked count
-     RECENT ACTIVITY→ Lightweight recent items
-     SETTINGS       → Merged navigation
-     DANGER         → Sign out, delete (red hairline divider)
+   Five-section architecture:
+     1. PROFILE    — Banner, avatar, name, archetype, bio, @username, member-since
+     2. COLLECTION — Vault count (left-aligned), sub-metrics, insight, milestone, achievements strip
+     3. TASTE      — Favorites with different visual weight, genre breakdown bar
+     4. ACTIVITY   — Currently watching + recent items
+     5. SETTINGS   — Quick links row, settings link, sign out, delete
 
    Design principles:
-     • Name is primary identity, archetype is strongest secondary
-     • Typography hierarchy: Name > Archetype > Vault > Genre > Body > Label
-     • Readability: 16px+ for important content, nothing squinted
-     • Breathing space: every section is its own chapter
-     • Green accent at 4 touchpoints only: archetype, milestone glow, insight stat, platinum trophy
-     • Poster-first, edge-to-edge imagery
-     • No "Favorite X" labels on filled cards
-     • Shadows and elevation, not borders
+     • Identity > Collection > Taste > Activity > Utility
+     • Typography hierarchy before color hierarchy
+     • Green accent at 3 touchpoints: archetype, milestone progress, dominant genre
+     • Left-aligned vault count (editorial, not dashboard)
+     • Premium, minimal, timeless
+     • Every section earns its place or hides
 
-   Section gap rhythm (top margin):
-     HERO:           0 (first section)
-     VAULT:          80px (--space-20) — opening breathes
-     TASTE:          64px (--space-16)
-     INSIGHT:        48px (--space-12) — momentum carries
-     ACHIEVEMENTS:   80px (--space-20) — let the WOW settle
-     RECENT:         56px (--space-14)
-     SETTINGS:       64px (--space-16) — the story is ending
-     DANGER:         0 (no gap, same section as settings)
-
-   Spacing: 8pt grid via design tokens (--space-N / --sp-N).
+   Spacing: 8pt grid via design tokens.
    Typography: Bebas Neue (display), Outfit (body), Azeret Mono (label).
-   All colors via design tokens — no hardcoded values. */
+   Colors: design tokens only. */
 
 /* ============================================================
    PAGE LAYOUT
@@ -72,9 +55,7 @@
 }
 
 /* ============================================================
-   SECTION 1: HERO — "Who am I?"
-   Name primary. Archetype strongest secondary.
-   No @username, no Member since in hero.
+   SECTION 1: PROFILE — Who are you?
    ============================================================ */
 
 .profile-hero {
@@ -86,10 +67,12 @@
 .profile-banner {
   position: relative;
   width: 100%;
-  height: 40vh;
-  min-height: 240px;
-  max-height: 360px;
+  height: 200px;
   overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .profile-banner { height: 280px; }
 }
 
 .profile-banner-gradient {
@@ -98,7 +81,7 @@
   background: linear-gradient(
     135deg,
     var(--tier-0) 0%,
-    color-mix(in srgb, var(--p) 12%, var(--tier-1)) 50%,
+    color-mix(in srgb, var(--p) 8%, var(--tier-1)) 50%,
     var(--tier-0) 100%
   );
 }
@@ -113,19 +96,12 @@
   transition: opacity 600ms ease-out;
 }
 
-.profile-banner-img.img-loaded {
-  opacity: 1;
-}
+.profile-banner-img.img-loaded { opacity: 1; }
 
 .profile-banner-shimmer {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    90deg,
-    var(--tier-0) 0%,
-    var(--tier-2) 50%,
-    var(--tier-0) 100%
-  );
+  background: linear-gradient(90deg, var(--tier-0) 0%, var(--tier-2) 50%, var(--tier-0) 100%);
   background-size: 200% 100%;
   animation: profileBannerShimmer 1.5s ease-in-out infinite;
 }
@@ -135,7 +111,6 @@
   to   { background-position: -200% 0; }
 }
 
-/* Multi-layer gradient overlay for readability */
 .profile-banner-overlay {
   position: absolute;
   inset: 0;
@@ -171,15 +146,12 @@
   color: var(--text-strong);
 }
 
-.profile-banner-edit-label {
-  display: none;
-}
-
+.profile-banner-edit-label { display: none; }
 @media (min-width: 640px) {
   .profile-banner-edit-label { display: inline; }
 }
 
-/* ── Hero overlay — identity block at bottom of banner ── */
+/* ── Hero overlay — identity block ── */
 
 .profile-hero-overlay {
   position: absolute;
@@ -226,7 +198,7 @@
   z-index: 3;
 }
 
-/* ── Hero text: Name → Archetype → Bio ── */
+/* ── Hero text: Name → Archetype → Bio → Meta ── */
 
 .profile-hero-text {
   min-width: 0;
@@ -234,8 +206,9 @@
 }
 
 .profile-hero-name {
-  font-family: var(--font-family-display);
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-family: var(--font-family-heading);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   letter-spacing: var(--letter-spacing-tight);
   color: var(--text-strong);
@@ -247,16 +220,16 @@
   align-items: center;
   gap: var(--space-1);
   font-family: var(--font-family-body);
-  font-size: 1rem;
-  font-weight: var(--font-weight-semibold);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
   color: var(--p);
   margin: var(--space-1) 0 0;
   line-height: var(--line-height-snug);
 }
 
 .profile-hero-archetype-icon {
-  font-size: 16px;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-size: 14px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
 }
 
 .profile-hero-bio {
@@ -265,7 +238,18 @@
   line-height: var(--line-height-normal);
   color: var(--text-soft);
   margin: var(--space-2) 0 0;
-  max-width: 40ch;
+  max-width: 44ch;
+}
+
+.profile-hero-meta {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  margin: var(--space-2) 0 0;
+}
+
+.profile-hero-meta-sep {
+  color: var(--text-dim);
 }
 
 .profile-hero-actions {
@@ -284,8 +268,9 @@
 }
 
 .profile-edit-name-input {
-  font-family: var(--font-family-display);
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  font-family: var(--font-family-heading);
+  font-size: clamp(1.5rem, 5vw, 2rem);
+  font-weight: var(--font-weight-semibold);
   line-height: var(--line-height-tight);
   color: var(--text-strong);
   background: transparent;
@@ -341,8 +326,8 @@
 }
 
 /* ============================================================
-   SECTION 2: VAULT — "How far have I come?"
-   Large number. Inline sub-metrics. No cards.
+   SECTION 2: COLLECTION — What have you watched?
+   Left-aligned, editorial. No dashboard.
    ============================================================ */
 
 .profile-section {
@@ -353,30 +338,18 @@
   margin-right: auto;
 }
 
-.profile-vault {
-  margin-top: var(--space-20);
-  text-align: center;
-}
-
-.profile-vault-number-wrap {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 0;
+.profile-collection {
+  margin-top: var(--space-16);
 }
 
 .profile-vault-number {
   font-family: var(--font-family-display);
-  font-size: clamp(3.5rem, 12vw, 5rem);
+  font-size: clamp(3rem, 10vw, 4.5rem);
   line-height: var(--line-height-none);
   letter-spacing: var(--letter-spacing-tight);
   color: var(--text-strong);
   margin: 0;
-}
-
-.profile-vault-number-milestone {
-  text-shadow: 0 0 40px color-mix(in srgb, var(--p) 30%, transparent);
-  color: var(--text-strong);
+  text-align: left;
 }
 
 .profile-vault-label {
@@ -386,53 +359,123 @@
   color: var(--text-muted);
   margin: var(--space-1) 0 0;
   letter-spacing: var(--letter-spacing-wide);
-  text-transform: lowercase;
+  text-align: left;
 }
 
 .profile-vault-metrics {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-2);
-  margin-top: var(--space-3);
   font-family: var(--font-family-body);
   font-size: 0.9375rem;
   color: var(--text-muted);
+  margin: var(--space-3) 0 0;
+  text-align: left;
 }
 
 .profile-vault-metric-value {
   color: var(--text-soft);
-  font-weight: var(--font-weight-semibold);
+  font-weight: var(--font-weight-medium);
 }
 
 .profile-vault-metric-sep {
   color: var(--text-dim);
 }
 
-.profile-vault-milestone {
-  margin-top: var(--space-3);
+/* ── Insight line (merged from CinemaInsight) ── */
+
+.profile-collection-insight {
   font-family: var(--font-family-body);
-  font-size: 0.875rem;
-  color: var(--text-muted);
+  font-size: 0.9375rem;
+  color: var(--text-soft);
+  margin: var(--space-3) 0 0;
+  text-align: left;
 }
 
-.profile-vault-milestone-number {
+/* ── Milestone progress bar ── */
+
+.profile-milestone {
+  margin-top: var(--space-4);
+}
+
+.profile-milestone-bar {
+  width: 100%;
+  height: 2px;
+  background: var(--hairline);
+  border-radius: 1px;
+  overflow: hidden;
+}
+
+.profile-milestone-bar-fill {
+  height: 100%;
+  background: color-mix(in srgb, var(--p) 40%, transparent);
+  border-radius: 1px;
+  transition: width 600ms ease-out;
+}
+
+.profile-milestone-text {
+  font-family: var(--font-family-label);
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  margin: var(--space-1) 0 0;
+  letter-spacing: var(--letter-spacing-label);
+}
+
+/* ── Achievements strip ── */
+
+.achievements-strip {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-6);
+  flex-wrap: wrap;
+}
+
+.achievements-strip-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  transition: transform 150ms ease, opacity 150ms ease;
+}
+
+.achievements-strip-icon:hover { transform: scale(1.1); }
+
+.achievements-strip-bronze {
+  background: rgba(205,127,50,0.15);
+  color: rgba(205,127,50,0.8);
+}
+
+.achievements-strip-silver {
+  background: rgba(192,192,192,0.12);
+  color: rgba(192,192,192,0.7);
+}
+
+.achievements-strip-gold {
+  background: rgba(255,215,0,0.15);
+  color: rgba(255,215,0,0.8);
+}
+
+.achievements-strip-platinum {
+  background: color-mix(in srgb, var(--p) 15%, transparent);
   color: var(--p);
-  font-weight: var(--font-weight-bold);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--p) 20%, transparent);
+}
+
+.achievements-strip-count {
+  font-family: var(--font-family-label);
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-label);
 }
 
 /* ============================================================
-   SECTION 3: TASTE — "What defines me?"
-   Curated gallery wall. Section title kept.
+   SECTION 3: TASTE — What defines your taste?
    ============================================================ */
 
 .taste-section {
-  margin-top: var(--space-16);
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
+  margin-top: var(--space-14);
 }
 
 .taste-section-header {
@@ -440,56 +483,39 @@
 }
 
 .taste-section-title {
-  font-family: var(--font-family-display);
-  font-size: clamp(1.5rem, 4vw, 2rem);
-  line-height: var(--line-height-tight);
-  letter-spacing: var(--letter-spacing-tight);
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
   color: var(--text-strong);
   margin: 0;
 }
 
 .taste-section-subtitle {
   font-family: var(--font-family-body);
-  font-size: 0.9375rem;
-  color: var(--text-muted);
+  font-size: 0.875rem;
+  color: var(--text-soft);
   margin: var(--space-1) 0 0;
 }
 
-/* ── Mosaic grid ── */
+/* ── Mosaic layout ── */
 
 .taste-mosaic {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  grid-template-rows: auto auto;
-  grid-template-areas:
-    "movie series"
-    "movie director"
-    "genre genre";
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
 }
 
-@media (max-width: 480px) {
-  .taste-mosaic {
-    grid-template-columns: 1fr;
-    grid-template-areas:
-      "movie"
-      "series"
-      "director"
-      "genre";
-  }
+.taste-cell {
+  position: relative;
 }
 
-/* ── Movie hero card (large, 2 rows) ── */
-
-.taste-cell-movie {
-  grid-area: movie;
-}
+/* ── Movie — full-width poster ── */
 
 .taste-movie-hero-wrap {
   position: relative;
+  width: 100%;
   border-radius: var(--radius-lg, 12px);
   overflow: hidden;
-  min-height: 280px;
   cursor: default;
 }
 
@@ -498,15 +524,34 @@
   outline-offset: 2px;
 }
 
-/* ── Series card (medium vertical) ── */
+/* ── Series + Director — side by side ── */
 
-.taste-cell-series { grid-area: series; }
+.taste-cell-series,
+.taste-cell-director {
+  display: inline-block;
+  vertical-align: top;
+}
+
+@media (min-width: 480px) {
+  .taste-cell-series,
+  .taste-cell-director {
+    display: table-cell;
+    width: 50%;
+  }
+  .taste-cell-series {
+    padding-right: var(--space-1);
+  }
+  .taste-cell-director {
+    padding-left: var(--space-1);
+  }
+}
 
 .taste-series-card-wrap {
   position: relative;
-  border-radius: var(--radius-lg, 12px);
+  width: 100%;
+  height: 140px;
+  border-radius: var(--radius-md, 8px);
   overflow: hidden;
-  aspect-ratio: 2/3;
   cursor: default;
 }
 
@@ -521,8 +566,7 @@
 .taste-card-poster-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%);
-  pointer-events: none;
+  background: linear-gradient(to top, rgba(0,0,0,0.7) 0%, transparent 60%);
 }
 
 .taste-card-poster-content {
@@ -540,44 +584,42 @@
   color: var(--text-strong);
   margin: 0;
   line-height: var(--line-height-snug);
-}
-
-.taste-card-title-series {
-  font-size: 0.875rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .taste-card-subtitle {
   font-family: var(--font-family-body);
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--text-soft);
-  margin: var(--space-1) 0 0;
+  margin: var(--space-0_5, 2px) 0 0;
 }
 
-/* ── Director card (horizontal) ── */
-
-.taste-cell-director { grid-area: director; }
+/* ── Director — name + portrait + count ── */
 
 .taste-director-horiz-wrap {
   display: flex;
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--tier-1);
+  background: var(--tier-2);
+  border-radius: var(--radius-md, 8px);
   cursor: default;
-  min-height: 80px;
+  min-height: 140px;
 }
 
 .taste-director-portrait {
   width: 48px;
   height: 48px;
-  border-radius: var(--radius-full, 9999px);
+  border-radius: 50%;
   object-fit: cover;
   flex-shrink: 0;
 }
 
 .taste-director-info {
   min-width: 0;
+  flex: 1;
 }
 
 .taste-director-name {
@@ -589,67 +631,85 @@
   line-height: var(--line-height-snug);
 }
 
-.taste-director-role {
-  font-family: var(--font-family-body);
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  margin: var(--space-0_5, 2px) 0 0;
-}
-
-/* ── Genre card (massive typography, no gradient) ── */
-
-.taste-cell-genre { grid-area: genre; }
+/* ── Genre — large typography + breakdown bar ── */
 
 .taste-genre-typography-wrap {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   padding: var(--space-5) var(--space-4);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--tier-1);
   cursor: default;
-  min-height: 80px;
-  position: relative;
 }
 
 .taste-genre-name-typography {
   font-family: var(--font-family-display);
-  font-size: clamp(1.75rem, 5vw, 3rem);
+  font-size: clamp(1.75rem, 6vw, 2.5rem);
   line-height: var(--line-height-none);
-  letter-spacing: var(--letter-spacing-extra-wide);
+  letter-spacing: var(--letter-spacing-tight);
   color: var(--text-strong);
   margin: 0;
-  text-transform: uppercase;
 }
 
-/* ── Empty tile styles ── */
+.taste-genre-count {
+  font-family: var(--font-family-label);
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+  letter-spacing: var(--letter-spacing-label);
+}
+
+/* ── Genre breakdown bar ── */
+
+.taste-genre-breakdown {
+  display: flex;
+  width: 100%;
+  height: 4px;
+  border-radius: 2px;
+  overflow: hidden;
+  gap: 1px;
+  margin-top: var(--space-3);
+}
+
+.taste-genre-breakdown-segment {
+  height: 100%;
+  background: var(--text-dim);
+  border-radius: 1px;
+  min-width: 2px;
+  transition: width 400ms ease-out;
+}
+
+.taste-genre-breakdown-dominant {
+  background: color-mix(in srgb, var(--p) 50%, var(--text-dim));
+}
+
+/* ── Empty tiles ── */
 
 .taste-tile-empty {
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px dashed var(--hairline-2);
-  border-radius: var(--radius-lg, 12px);
+  border: 1.5px dashed var(--hairline-2);
+  border-radius: var(--radius-md, 8px);
   background: transparent;
   cursor: pointer;
   transition: border-color 200ms ease, background 200ms ease;
-  color: var(--text-dim);
+  width: 100%;
 }
 
 .taste-tile-empty:hover {
   border-color: var(--hairline-3);
-  background: var(--tier-1);
+  background: var(--tier-2);
 }
 
 .taste-tile-empty-hero {
-  min-height: 280px;
+  height: 280px;
+  border-radius: var(--radius-lg, 12px);
 }
 
 .taste-tile-empty-medium {
-  min-height: 140px;
+  height: 140px;
 }
 
 .taste-tile-empty-genre {
+  padding: var(--space-5) var(--space-4);
+  height: auto;
   min-height: 80px;
 }
 
@@ -657,298 +717,63 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: var(--space-1);
+  gap: var(--space-2);
 }
 
 .taste-tile-empty-icon {
   font-size: 24px;
-  opacity: 0.5;
+  color: var(--text-dim);
 }
 
 .taste-tile-empty-cta {
   font-family: var(--font-family-body);
-  font-size: 0.8125rem;
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
   color: var(--p);
   margin: 0;
 }
 
-/* ── Change overlay ── */
+/* ── Change overlay (edit mode) ── */
 
 .taste-tile-change-overlay {
   position: absolute;
   inset: 0;
-  background: rgba(0,0,0,0.5);
   display: flex;
   align-items: center;
   justify-content: center;
+  background: rgba(0,0,0,0.5);
   border-radius: inherit;
-  opacity: 0;
-  transition: opacity 200ms ease;
-  pointer-events: none;
-  z-index: 5;
-}
-
-.taste-movie-hero-wrap:hover .taste-tile-change-overlay,
-.taste-series-card-wrap:hover .taste-tile-change-overlay,
-.taste-director-horiz-wrap:hover .taste-tile-change-overlay-horiz,
-.taste-genre-typography-wrap:hover .taste-tile-change-overlay {
-  opacity: 1;
+  z-index: 2;
 }
 
 .taste-tile-change-overlay-horiz {
-  position: absolute;
-  inset: 0;
-  background: rgba(0,0,0,0.5);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: inherit;
-  opacity: 0;
-  transition: opacity 200ms ease;
-  pointer-events: none;
-  z-index: 5;
+  border-radius: var(--radius-md, 8px);
 }
 
 .taste-tile-change-text {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
   font-family: var(--font-family-body);
   font-size: 0.8125rem;
   color: var(--text-strong);
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
 }
 
 /* ============================================================
-   SECTION 4: CINEMA INSIGHT — "Wait... that's me?"
-   ============================================================ */
-
-.profile-insight {
-  margin-top: var(--space-12);
-}
-
-.profile-insight-card {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4);
-  padding: var(--space-5) var(--space-4);
-  border-radius: var(--radius-lg, 12px);
-  background: var(--tier-1);
-  border: 1px solid var(--hairline);
-}
-
-.profile-insight-icon {
-  font-size: 28px;
-  color: var(--p);
-  flex-shrink: 0;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-}
-
-.profile-insight-text {
-  font-family: var(--font-family-body);
-  font-size: 1rem;
-  line-height: var(--line-height-snug);
-  color: var(--text-soft);
-  margin: 0;
-}
-
-.profile-insight-stat {
-  font-family: var(--font-family-display);
-  font-size: 1.25rem;
-  color: var(--p);
-  letter-spacing: var(--letter-spacing-wide);
-}
-
-/* ============================================================
-   SECTION 5: ACHIEVEMENTS — "What have I earned?"
-   Featured trophy case. Not a rail.
-   ============================================================ */
-
-.achievements-section {
-  margin-top: var(--space-20);
-}
-
-.achievements-header {
-  text-align: center;
-  margin-bottom: var(--space-4);
-}
-
-.achievements-counter {
-  font-family: var(--font-family-label);
-  font-size: 0.6875rem;
-  letter-spacing: var(--letter-spacing-eyebrow);
-  color: var(--text-dim);
-  margin: 0;
-  text-transform: uppercase;
-}
-
-.achievements-counter-unlocked {
-  color: var(--p);
-  font-weight: var(--font-weight-bold);
-}
-
-.achievements-counter-sep {
-  color: var(--text-dim);
-}
-
-.achievements-counter-total {
-  color: var(--text-dim);
-}
-
-/* ── Trophy case ── */
-
-.achievements-trophy-case {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-3);
-}
-
-.achievement-trophy {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  border-radius: var(--radius-lg, 12px);
-  border: 1px solid transparent;
-  overflow: hidden;
-}
-
-.achievement-trophy-unlocked {
-  transition: transform 200ms ease;
-}
-
-.achievement-trophy-unlocked:hover {
-  transform: translateY(-2px);
-}
-
-/* Size varies by tier — highest tier is largest */
-.achievement-trophy-platinum .achievement-trophy-btn {
-  width: 96px;
-  padding: var(--space-3) var(--space-2);
-}
-
-.achievement-trophy-gold .achievement-trophy-btn {
-  width: 84px;
-  padding: var(--space-3) var(--space-2);
-}
-
-.achievement-trophy-silver .achievement-trophy-btn {
-  width: 76px;
-  padding: var(--space-2) var(--space-2);
-}
-
-.achievement-trophy-bronze .achievement-trophy-btn {
-  width: 68px;
-  padding: var(--space-2) var(--space-2);
-}
-
-.achievement-trophy-btn {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1);
-  background: transparent;
-  border: none;
-  cursor: pointer;
-  color: inherit;
-}
-
-.achievement-trophy-icon {
-  font-size: 28px;
-}
-
-.achievement-trophy-platinum .achievement-trophy-icon { font-size: 36px; }
-.achievement-trophy-gold .achievement-trophy-icon     { font-size: 32px; }
-
-.achievement-trophy-label {
-  font-family: var(--font-family-body);
-  font-size: 0.6875rem;
-  color: var(--text-soft);
-  text-align: center;
-  line-height: var(--line-height-tight);
-  max-width: 80px;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-/* ── Locked silhouettes ── */
-
-.achievements-locked-group {
-  display: flex;
-  gap: var(--space-2);
-  align-items: center;
-}
-
-.achievement-trophy-locked {
-  width: 48px;
-  height: 48px;
-  border-radius: var(--radius-full, 9999px);
-  border: 1px solid var(--hairline-2);
-  background: transparent;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.achievement-trophy-silhouette {
-  width: 20px;
-  height: 20px;
-  border-radius: var(--radius-full, 9999px);
-  border: 1px solid var(--hairline-2);
-  background: transparent;
-}
-
-/* ── More / View All ── */
-
-.achievements-more {
-  display: block;
-  margin: var(--space-3) auto 0;
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-family-body);
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-full, 9999px);
-  cursor: pointer;
-  transition: border-color 200ms ease, color 200ms ease;
-}
-
-.achievements-more:hover {
-  border-color: var(--hairline-3);
-  color: var(--text-soft);
-}
-
-.achievements-view-all {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: var(--space-1);
-  margin: var(--space-3) auto 0;
-  padding: var(--space-1) var(--space-3);
-  font-family: var(--font-family-body);
-  font-size: 0.8125rem;
-  color: var(--text-muted);
-  background: transparent;
-  border: 1px solid var(--hairline-2);
-  border-radius: var(--radius-full, 9999px);
-  cursor: pointer;
-  transition: border-color 200ms ease, color 200ms ease;
-}
-
-.achievements-view-all:hover {
-  border-color: var(--hairline-3);
-  color: var(--text-soft);
-}
-
-/* ============================================================
-   SECTION 6: RECENT ACTIVITY — "What's happening?"
-   Lightweight. Hides if empty.
+   SECTION 4: ACTIVITY — What are you watching now?
    ============================================================ */
 
 .recent-activity {
-  margin-top: var(--space-14);
+  margin-top: var(--space-12);
+}
+
+.recent-activity-eyebrow {
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-eyebrow, 0.18em);
+  text-transform: uppercase;
+  margin: 0 0 var(--space-3);
 }
 
 .recent-activity-list {
@@ -962,6 +787,7 @@
   align-items: center;
   gap: var(--space-3);
   padding: var(--space-3) 0;
+  position: relative;
   border-bottom: 1px solid var(--hairline);
 }
 
@@ -969,10 +795,25 @@
   border-bottom: none;
 }
 
+.recent-activity-item-active {
+  padding-left: var(--space-3);
+}
+
+/* Left accent bar for currently watching */
+.recent-activity-accent-bar {
+  position: absolute;
+  left: 0;
+  top: var(--space-2);
+  bottom: var(--space-2);
+  width: 2px;
+  background: var(--color-status-watching);
+  border-radius: 1px;
+}
+
 .recent-activity-poster {
   width: 40px;
-  height: 60px;
-  border-radius: var(--radius-sm, 6px);
+  height: 56px;
+  border-radius: var(--radius-sm, 4px);
   overflow: hidden;
   flex-shrink: 0;
   background: var(--tier-2);
@@ -1011,20 +852,15 @@
 }
 
 .recent-activity-meta {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin: var(--space-0_5, 2px) 0 0;
-  font-size: 0.8125rem;
-}
-
-.recent-activity-status {
   font-family: var(--font-family-body);
-  font-weight: var(--font-weight-medium);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: var(--space-0_5, 2px) 0 0;
 }
 
 .recent-activity-status-watching {
   color: var(--color-status-watching);
+  font-weight: var(--font-weight-medium);
 }
 
 .recent-activity-status-completed {
@@ -1032,166 +868,166 @@
 }
 
 .recent-activity-status-rated {
-  color: var(--color-rating-user);
+  color: var(--color-collection-favorites);
 }
 
 .recent-activity-time {
   color: var(--text-dim);
-  font-family: var(--font-family-body);
 }
 
 /* ============================================================
-   SECTION 7+8: SETTINGS + DANGER — "The ending credits"
+   SECTION 5: SETTINGS — Where do I go?
    ============================================================ */
 
-.profile-navigation {
-  margin-top: var(--space-16);
-  padding-left: var(--space-4);
-  padding-right: var(--space-4);
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
+.profile-settings {
+  margin-top: var(--space-14);
 }
 
-/* ── Subtle metadata ── */
+/* ── Quick links — horizontal row ── */
 
-.profile-nav-meta {
+.settings-quick-links {
   display: flex;
-  align-items: center;
-  gap: var(--space-2);
-  margin-bottom: var(--space-4);
-  font-family: var(--font-family-body);
-  font-size: 0.8125rem;
-  color: var(--text-dim);
+  gap: 0;
+  border-radius: var(--radius-md, 8px);
+  background: var(--tier-2);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
 }
 
-.profile-nav-meta-sep {
-  color: var(--text-dim);
-}
-
-/* ── Navigation rows ── */
-
-.profile-nav-rows {
+.settings-quick-link {
+  flex: 1;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-3) var(--space-2);
+  color: var(--text-soft);
+  transition: background 200ms ease, color 200ms ease;
+  text-decoration: none;
 }
 
-.profile-nav-row {
-  display: block;
-  border-bottom: 1px solid var(--hairline);
-  transition: background 150ms ease;
+.settings-quick-link:hover {
+  background: var(--tier-3);
+  color: var(--text-strong);
 }
 
-.profile-nav-row:last-child {
-  border-bottom: none;
+.settings-quick-link-icon {
+  font-size: 18px;
+  color: var(--text-dim);
 }
 
-.profile-nav-row-interactive {
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  cursor: pointer;
+.settings-quick-link:hover .settings-quick-link-icon {
+  color: var(--text-soft);
 }
 
-.profile-nav-row:hover {
-  background: var(--tier-1);
+.settings-quick-link-label {
+  font-family: var(--font-family-body);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
-.profile-nav-chevron {
-  transition: transform 150ms ease;
+/* ── Main Settings link ── */
+
+.settings-main-link {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-4);
+  background: var(--tier-2);
+  border-radius: var(--radius-md, 8px);
+  color: var(--text-soft);
+  transition: background 200ms ease, color 200ms ease;
 }
 
-/* ── Red danger divider ── */
+.settings-main-link:hover {
+  background: var(--tier-3);
+  color: var(--text-strong);
+}
 
-.profile-nav-danger-divider {
+.settings-main-link-label {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  color: inherit;
+}
+
+/* ── Danger zone ── */
+
+.settings-danger-divider {
   height: 1px;
   background: color-mix(in srgb, var(--color-danger) 30%, var(--hairline));
-  margin: var(--space-4) 0;
+  margin: var(--space-6) 0 var(--space-4);
+}
+
+.settings-danger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.settings-sign-out {
+  font-family: var(--font-family-body);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: var(--space-2) 0;
+  transition: color 200ms ease;
+}
+
+.settings-sign-out:hover {
+  color: var(--text-strong);
+}
+
+.settings-delete-link {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--color-danger-text);
+  opacity: 0.6;
+  transition: opacity 200ms ease;
+}
+
+.settings-delete-link:hover {
+  opacity: 1;
 }
 
 /* ============================================================
-   FOCUS RING
-   ============================================================ */
-
-.focus-ring:focus-visible {
-  outline: 2px solid var(--p);
-  outline-offset: 2px;
-}
-
-/* ============================================================
-   RESPONSIVE
+   RESPONSIVE — Desktop enhancements
    ============================================================ */
 
 @media (min-width: 768px) {
-  .profile-banner {
-    height: 40vh;
-    max-height: 400px;
-  }
-
-  .profile-hero-overlay {
-    padding: var(--space-10) var(--space-8) var(--space-8);
-  }
-
-  .profile-hero-identity {
-    gap: var(--space-5);
-  }
-
-  .profile-hero-name {
-    font-size: clamp(2rem, 5vw, 3rem);
-  }
-
-  .profile-vault-number {
-    font-size: clamp(4rem, 12vw, 6rem);
-  }
-
   .taste-mosaic {
-    gap: var(--space-4);
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto auto;
+    grid-template-areas:
+      "movie series"
+      "movie director"
+      "genre genre";
+    gap: var(--space-3);
   }
 
-  .taste-movie-hero-wrap {
-    min-height: 320px;
+  .taste-cell-movie { grid-area: movie; }
+  .taste-cell-series { grid-area: series; }
+  .taste-cell-director { grid-area: director; }
+  .taste-cell-genre { grid-area: genre; }
+
+  .taste-cell-series,
+  .taste-cell-director {
+    display: block;
+    padding: 0;
   }
 
-  .profile-section,
-  .taste-section,
-  .profile-navigation {
-    padding-left: var(--space-8);
-    padding-right: var(--space-8);
-  }
-}
-
-@media (min-width: 1024px) {
-  .profile-hero-name {
-    font-size: 3.25rem;
+  .taste-series-card-wrap {
+    height: 100%;
+    min-height: 160px;
   }
 
-  .profile-vault-number {
-    font-size: 6rem;
-  }
-
-  .profile-section,
-  .taste-section,
-  .profile-navigation {
-    max-width: 720px;
-  }
-}
-
-@media (max-width: 360px) {
-  .profile-banner {
-    min-height: 200px;
-  }
-
-  .profile-vault-number {
-    font-size: clamp(2.5rem, 12vw, 3.5rem);
-  }
-
-  .taste-movie-hero-wrap {
-    min-height: 220px;
-  }
-
-  .achievements-trophy-case {
-    gap: var(--space-2);
+  .taste-director-horiz-wrap {
+    min-height: 160px;
   }
 }
 
@@ -1200,23 +1036,8 @@
    ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
-  .profile-fade-in {
-    animation: none;
-  }
-
-  .profile-banner-img {
-    transition: none;
-  }
-
-  .profile-banner-shimmer {
-    animation: none;
-  }
-
-  .achievement-trophy-unlocked {
-    transition: none;
-  }
-
-  .profile-nav-chevron {
-    transition: none;
-  }
+  .profile-fade-in { animation: none; }
+  .profile-banner-shimmer { animation: none; }
+  .profile-milestone-bar-fill { transition: none; }
+  .taste-genre-breakdown-segment { transition: none; }
 }

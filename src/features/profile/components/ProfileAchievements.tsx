@@ -1,19 +1,17 @@
 // src/features/profile/components/ProfileAchievements.tsx
 //
-// Sprint 2C — Final Implementation.
-// Featured trophy case — not a horizontal rail.
-// Shows 3-4 most prestigious unlocked trophies + locked count.
-// Expandable into full achievements page.
+// Compact achievements strip — folded into the Collection section.
+// Shows up to 4 small earned icons + locked count.
+// Not a standalone section — it's a detail within Collection.
 //
 // Design:
-//   • Featured layout: highest-tier unlocked at larger size
-//   • Locked as silhouettes (outline only, no icon fill)
-//   • Tier colors: bronze/silver/gold/platinum
-//   • Green accent ONLY on platinum glow
-//   • Counter: "4 of 16" in Azeret Mono
-//   • "View All" navigates to full achievements page
+//   • Small circular icons (32px) in a single row
+//   • Tier indicated by fill opacity, not color
+//   • "+N locked" count in Azeret Mono
+//   • Tappable — navigates to full achievements page
+//   • Quiet presence — doesn't demand attention
 
-import { Show, For, createMemo, createSignal, type Component } from "solid-js";
+import { Show, For, createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import type { WatchlistItem } from "~/shared/types";
 import { hasGenre, collectGenres } from "~/shared/utils/genres";
@@ -37,7 +35,7 @@ interface AchievementDef {
 const ACHIEVEMENTS: AchievementDef[] = [
   {
     id: "first-watch",
-    title: "First Steps",
+    title: "Opening Night",
     desc: "Add your first title",
     icon: "play_circle",
     tier: "bronze",
@@ -45,7 +43,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "ten-titles",
-    title: "Getting Started",
+    title: "Double Feature",
     desc: "Build a vault of 10 titles",
     icon: "video_library",
     tier: "bronze",
@@ -53,7 +51,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "fifty-titles",
-    title: "Cinephile",
+    title: "Festival Selection",
     desc: "Reach 50 titles",
     icon: "movie_filter",
     tier: "silver",
@@ -61,7 +59,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "hundred-titles",
-    title: "Cinema Legend",
+    title: "Palme d'Or",
     desc: "Reach 100 titles",
     icon: "auto_awesome",
     tier: "gold",
@@ -69,7 +67,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "first-complete",
-    title: "Finished",
+    title: "Closing Credits",
     desc: "Complete your first title",
     icon: "task_alt",
     tier: "bronze",
@@ -80,7 +78,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "ten-completed",
-    title: "Finisher",
+    title: "Encore",
     desc: "Complete 10 titles",
     icon: "check_circle",
     tier: "silver",
@@ -91,7 +89,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "fifty-completed",
-    title: "Completionist",
+    title: "Standing Ovation",
     desc: "Complete 50 titles",
     icon: "emoji_events",
     tier: "gold",
@@ -102,7 +100,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "sci-fi-explorer",
-    title: "Sci-Fi Explorer",
+    title: "Sci-Fi Pioneer",
     desc: "Watch 10 Sci-Fi titles",
     icon: "rocket_launch",
     tier: "silver",
@@ -113,7 +111,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "horror-fan",
-    title: "Night Owl",
+    title: "Midnight Screening",
     desc: "Watch 10 Horror titles",
     icon: "ghost",
     tier: "silver",
@@ -124,7 +122,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "drama-lover",
-    title: "Story Seeker",
+    title: "Drama Jury Prize",
     desc: "Watch 15 Drama titles",
     icon: "theater_comedy",
     tier: "silver",
@@ -197,7 +195,7 @@ const ACHIEVEMENTS: AchievementDef[] = [
   },
   {
     id: "genre-explorer",
-    title: "Eclectic Taste",
+    title: "Golden Reel",
     desc: "Watch titles from 8 genres",
     icon: "palette",
     tier: "platinum",
@@ -208,15 +206,6 @@ const ACHIEVEMENTS: AchievementDef[] = [
     },
   },
 ];
-
-// ── Tier color map ───────────────────────────────────────────────
-
-const TIER_COLORS: Record<string, { bg: string; border: string; glow: string }> = {
-  bronze:   { bg: "rgba(205,127,50,0.12)",  border: "rgba(205,127,50,0.35)",  glow: "rgba(205,127,50,0.2)" },
-  silver:   { bg: "rgba(192,192,192,0.10)",  border: "rgba(192,192,192,0.30)", glow: "rgba(192,192,192,0.15)" },
-  gold:     { bg: "rgba(255,215,0,0.12)",    border: "rgba(255,215,0,0.40)",   glow: "rgba(255,215,0,0.25)" },
-  platinum: { bg: "rgba(0,229,255,0.10)",    border: "rgba(0,229,255,0.40)",   glow: "rgba(0,229,255,0.2)" },
-};
 
 // ── Tier ordering (higher = more prestigious) ────────────────────
 
@@ -242,105 +231,43 @@ const ProfileAchievements: Component<ProfileAchievementsProps> = (props) => {
 
   const unlocked = createMemo(() => computed().filter((a) => a.unlocked));
   const locked = createMemo(() => computed().filter((a) => !a.unlocked));
-  const unlockedCount = createMemo(() => unlocked().length);
 
-  // Featured: top 3-4 by tier (highest first), limited to unlocked
+  // Featured: top 4 by tier (highest first)
   const featured = createMemo(() => {
     const items = [...unlocked()];
     items.sort((a, b) => (TIER_ORDER[b.def.tier] ?? 0) - (TIER_ORDER[a.def.tier] ?? 0));
     return items.slice(0, 4);
   });
 
-  const [expanded, setExpanded] = createSignal(false);
-
   return (
     <Show when={computed().length > 0}>
-      <section class="profile-section achievements-section" aria-label="Achievements">
-        {/* Counter: "4 of 16" */}
-        <div class="achievements-header">
-          <p class="achievements-counter">
-            <span class="achievements-counter-unlocked">{unlockedCount()}</span>
-            <span class="achievements-counter-sep"> of </span>
-            <span class="achievements-counter-total">{ACHIEVEMENTS.length}</span>
-          </p>
-        </div>
+      <div class="achievements-strip" role="list" aria-label="Achievements">
+        <For each={featured()}>
+          {(ach) => (
+            <button
+              type="button"
+              class={`achievements-strip-icon achievements-strip-${ach.def.tier} focus-ring`}
+              onClick={() => navigate("/profile/achievements")}
+              aria-label={`${ach.def.title}: ${ach.def.desc}`}
+              title={ach.def.title}
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }}
+                aria-hidden="true"
+              >
+                {ach.def.icon}
+              </span>
+            </button>
+          )}
+        </For>
 
-        {/* Featured trophy case */}
-        <div class="achievements-trophy-case" role="list" aria-label="Featured achievements">
-          <For each={expanded() ? unlocked() : featured()}>
-            {(ach, _idx) => {
-              const tierStyle = TIER_COLORS[ach.def.tier] ?? TIER_COLORS.bronze;
-              const isPlatinum = ach.def.tier === "platinum";
-              return (
-                <div
-                  role="listitem"
-                  class={`achievement-trophy achievement-trophy-unlocked achievement-trophy-${ach.def.tier}`}
-                  style={{
-                    "background": tierStyle.bg,
-                    "border-color": tierStyle.border,
-                    "box-shadow": isPlatinum
-                      ? `0 0 20px var(--p-glow, ${tierStyle.glow}), inset 0 0 12px ${tierStyle.glow}`
-                      : `0 0 12px ${tierStyle.glow}, inset 0 0 8px ${tierStyle.glow}`,
-                  }}
-                >
-                  <button
-                    type="button"
-                    class="achievement-trophy-btn focus-ring"
-                    onClick={() => navigate("/profile/achievements")}
-                    aria-label={`${ach.def.title} — ${ach.def.tier}: ${ach.def.desc}`}
-                    title={ach.def.desc}
-                  >
-                    <span
-                      class="material-symbols-outlined achievement-trophy-icon"
-                      style={{ "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
-                      aria-hidden="true"
-                    >
-                      {ach.def.icon}
-                    </span>
-                    <span class="achievement-trophy-label">{ach.def.title}</span>
-                  </button>
-                </div>
-              );
-            }}
-          </For>
-
-          {/* Locked silhouettes (small, at end) */}
-          <Show when={!expanded() && locked().length > 0}>
-            <div class="achievements-locked-group" aria-hidden="true">
-              <For each={locked().slice(0, 3)}>
-                {() => (
-                  <div class="achievement-trophy achievement-trophy-locked">
-                    <div class="achievement-trophy-silhouette" />
-                  </div>
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
-
-        {/* "+ N more" or "View All" */}
-        <Show when={!expanded() && locked().length > 0}>
-          <button
-            type="button"
-            class="achievements-more focus-ring"
-            onClick={() => setExpanded(true)}
-            aria-label={`Show all ${locked().length} locked achievements`}
-          >
-            + {locked().length} locked
-          </button>
+        <Show when={locked().length > 0}>
+          <span class="achievements-strip-count" aria-label={`${locked().length} locked achievements`}>
+            +{locked().length}
+          </span>
         </Show>
-        <Show when={expanded() && unlocked().length > 4}>
-          <button
-            type="button"
-            class="achievements-view-all focus-ring"
-            onClick={() => navigate("/profile/achievements")}
-            aria-label="View all achievements"
-          >
-            View All Achievements
-            <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">arrow_forward</span>
-          </button>
-        </Show>
-      </section>
+      </div>
     </Show>
   );
 };

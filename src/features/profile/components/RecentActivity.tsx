@@ -1,17 +1,17 @@
 // src/features/profile/components/RecentActivity.tsx
 //
-// Sprint 2C — Final Implementation.
-// Recent Activity — lightweight section showing the profile is alive.
-// Hides entirely if no recent items exist.
+// Activity section — currently watching + recent.
+// Hides entirely if no recent items.
 //
-// Content (up to 4 items):
-//   • Recently completed
-//   • Currently watching
-//   • Recently rated
-//   • Recently added
+// Content (max 4 items):
+//   • Currently Watching (up to 2) — slight visual emphasis
+//   • Last Completed (1)
+//   • Last Rated (1, only if recent)
 //
-// Reuses existing watchlist data. No new APIs.
-// Each item: small poster + title + status/rating + time hint.
+// Design:
+//   • Simple status + time — no forced narrative
+//   • "Currently Watching" gets left accent bar
+//   • No section title — or a subtle "Recently" eyebrow
 
 import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -55,29 +55,28 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
     const list = props.watchlist();
     if (list.length === 0) return [];
 
-    // Collect recent items from different categories
-    const items: { item: WatchlistItem; category: string; sortDate: Date }[] = [];
-
-    // Recently completed (up to 2)
-    const completed = list
-      .filter((m) => m.status === "Completed")
-      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
-      .slice(0, 2);
-    completed.forEach((m) => items.push({ item: m, category: "Completed", sortDate: getDate(m) }));
+    const items: { item: WatchlistItem; category: "watching" | "completed" | "rated"; sortDate: Date }[] = [];
 
     // Currently watching (up to 2)
     const watching = list
       .filter((m) => m.status === "Watching")
       .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
       .slice(0, 2);
-    watching.forEach((m) => items.push({ item: m, category: "Watching", sortDate: getDate(m) }));
+    watching.forEach((m) => items.push({ item: m, category: "watching", sortDate: getDate(m) }));
 
-    // Recently rated (up to 1, with rating > 0)
+    // Last completed (1)
+    const completed = list
+      .filter((m) => m.status === "Completed")
+      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
+      .slice(0, 1);
+    completed.forEach((m) => items.push({ item: m, category: "completed", sortDate: getDate(m) }));
+
+    // Last rated (1, with rating > 0)
     const rated = list
       .filter((m) => m.rating && m.rating > 0)
       .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
       .slice(0, 1);
-    rated.forEach((m) => items.push({ item: m, category: `Rated ${m.rating}`, sortDate: getDate(m) }));
+    rated.forEach((m) => items.push({ item: m, category: "rated", sortDate: getDate(m) }));
 
     // Deduplicate by id
     const seen = new Set<string>();
@@ -95,10 +94,15 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
   return (
     <Show when={recentItems().length > 0}>
       <section class="profile-section recent-activity" aria-label="Recent activity">
+        <p class="recent-activity-eyebrow">Recently</p>
         <div class="recent-activity-list" role="list">
           <For each={recentItems()}>
             {(entry) => (
-              <div class="recent-activity-item" role="listitem">
+              <div
+                class={`recent-activity-item ${entry.category === "watching" ? "recent-activity-item-active" : ""}`}
+                role="listitem"
+              >
+                {entry.category === "watching" && <div class="recent-activity-accent-bar" aria-hidden="true" />}
                 <div class="recent-activity-poster">
                   <Show
                     when={entry.item.poster_path}
@@ -123,11 +127,17 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
                 <div class="recent-activity-info">
                   <p class="recent-activity-title">{entry.item.title || entry.item.name}</p>
                   <p class="recent-activity-meta">
-                    <span class={`recent-activity-status recent-activity-status-${entry.category === "Watching" ? "watching" : entry.category === "Completed" ? "completed" : "rated"}`}>
-                      {entry.category}
-                    </span>
+                    <Show when={entry.category === "watching"}>
+                      <span class="recent-activity-status-watching">Watching</span>
+                    </Show>
+                    <Show when={entry.category === "completed"}>
+                      <span class="recent-activity-status-completed">Finished</span>
+                    </Show>
+                    <Show when={entry.category === "rated"}>
+                      <span class="recent-activity-status-rated">Rated {entry.item.rating}/10</span>
+                    </Show>
                     <Show when={entry.sortDate.getTime() > 0}>
-                      <span class="recent-activity-time">{timeAgo(entry.sortDate)}</span>
+                      <span class="recent-activity-time"> · {timeAgo(entry.sortDate)}</span>
                     </Show>
                   </p>
                 </div>

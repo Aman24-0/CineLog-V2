@@ -1,42 +1,33 @@
 // src/features/profile/ProfilePage.tsx
 //
-// ProfilePage — "The cinematic identity of a person."
+// ProfilePage — CineLog V2 Profile
 //
-// Sprint 2C — Final Implementation.
-// Eight-section narrative architecture:
+// Five-section architecture:
 //
-//   HERO           → "Who am I?"
-//                    Banner, avatar, name, archetype, bio
+//   1. PROFILE    — Who are you?
+//                   Banner, avatar, name, archetype, bio, @username, member-since
 //
-//   VAULT          → "How far have I come?"
-//                    One dominant number, inline sub-metrics, milestone hint
+//   2. COLLECTION — What have you watched?
+//                   Vault count (left-aligned), sub-metrics, insight line,
+//                   milestone progress, achievements strip
 //
-//   TASTE          → "What defines me?"
-//                    Poster mosaic, curated gallery wall
+//   3. TASTE      — What defines your taste?
+//                   Favorites with different visual weight,
+//                   genre breakdown bar
 //
-//   CINEMA INSIGHT → "Wait... that's me?"
-//                    Dynamic self-insight from watchlist data
+//   4. ACTIVITY   — What are you watching now?
+//                   Currently watching, last completed, last rated
 //
-//   ACHIEVEMENTS   → "What have I earned?"
-//                    Featured trophies + locked count
-//
-//   RECENT ACTIVITY→ "What's happening?"
-//                    Lightweight recent watches/adds/ratings
-//
-//   SETTINGS       → "Where do I configure?"
-//                    Merged navigation, minimal visual weight
-//
-//   DANGER         → "Careful."
-//                    Sign out, delete account
+//   5. SETTINGS   — Where do I go?
+//                   Quick links, settings, sign out, delete
 //
 // Design principles:
-//   • Name is primary identity, archetype is strongest secondary
-//   • Typography hierarchy: Name > Archetype > Vault Number > Body > Label
-//   • Breathing space creates rhythm (80/64/48/80/56/56/64/48px gaps)
-//   • Green accent at 4 touchpoints: archetype, milestone glow, insight stat, platinum trophy
-//   • Poster-first, edge-to-edge imagery, no CSS-grid uniformity
+//   • Identity > Collection > Taste > Activity > Utility
 //   • Every section earns its place or hides
-//   • Section titles kept for Taste (orientation), removed where content speaks
+//   • Green accent at 3 touchpoints: archetype, milestone progress, dominant genre
+//   • Left-aligned vault count (editorial, not dashboard)
+//   • Typography hierarchy before color hierarchy
+//   • Premium, minimal, timeless — no forced concepts
 //
 // Zero changes to business logic, hooks, state, or Supabase integration.
 
@@ -55,19 +46,18 @@ import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
 import { useStats } from "./useStats";
 import { validateUsername, sanitizeUsername } from "~/shared/utils/username";
-import { hasGenre, collectGenres, normalizeGenre } from "~/shared/utils/genres";
+import { normalizeGenre } from "~/shared/utils/genres";
 import ProfileBanner from "./components/ProfileBanner";
 import BannerEditor, { type BannerType } from "./components/BannerEditor";
 import TasteCard, { type FavoriteSlot } from "./components/TasteCard";
 import ProfileAchievements from "./components/ProfileAchievements";
-import CinemaInsight from "./components/CinemaInsight";
 import RecentActivity from "./components/RecentActivity";
 import ProfileNavigation from "./components/ProfileNavigation";
 import ProfileSkeleton from "./components/ProfileSkeleton";
 import FavoritesPicker from "./components/FavoritesPicker";
 import type { WatchlistItem } from "~/shared/types";
 
-// ── Archetype computation (from Cinema DNA logic) ──────────────────────
+// ── Archetype computation ─────────────────────────────────────────────
 
 const ARCHETYPE_MAP: Record<string, { name: string; icon: string }> = {
   "sci-fi": { name: "World Builder", icon: "rocket_launch" },
@@ -109,6 +99,69 @@ const MILESTONES = [
   { target: 2000, label: "Cinephile Supreme" },
 ];
 
+// ── Insight priority logic (merged from CinemaInsight) ───────────────
+
+function computeInsight(stats: {
+  total: number;
+  topGenres: { name: string; count: number; pct: number }[];
+  topDirectors: { name: string; count: number }[];
+  favoriteDecade: string | null;
+  totalRuntimeHours: number;
+  moviePct: number;
+  tvPct: number;
+  weekdayVsWeekend: { weekday: number; weekend: number };
+}, list: WatchlistItem[]): string | null {
+  if (!stats || list.length < 5) return null;
+
+  // Priority 1: Dominant genre >50%
+  if (stats.topGenres.length > 0) {
+    const top = stats.topGenres[0];
+    if (top.pct >= 50) return `${top.pct}% of your vault is ${top.name}`;
+  }
+
+  // Priority 2: Recurring director 3+
+  if (stats.topDirectors.length > 0 && stats.topDirectors[0].count >= 3) {
+    const dir = stats.topDirectors[0];
+    return `${dir.name} appears ${dir.count} times in your vault`;
+  }
+
+  // Priority 3: Runtime milestone
+  if (stats.totalRuntimeHours >= 72) {
+    const days = Math.round(stats.totalRuntimeHours / 24);
+    return `That's ${days} days of cinema`;
+  }
+
+  // Priority 4: Decade affinity
+  if (stats.favoriteDecade && stats.total >= 10) {
+    return `The ${stats.favoriteDecade} is your era`;
+  }
+
+  // Priority 5: Movie/TV split
+  if (stats.moviePct >= 75) return `You're ${stats.moviePct}% film`;
+  if (stats.tvPct >= 75) return `You're ${stats.tvPct}% series`;
+
+  // Priority 6: Genre diversity
+  if (stats.topGenres.length >= 6) {
+    return `${stats.topGenres.length} genres explored`;
+  }
+
+  // Priority 7: Weekend watcher
+  if (stats.weekdayVsWeekend) {
+    const total = stats.weekdayVsWeekend.weekday + stats.weekdayVsWeekend.weekend;
+    if (total >= 5) {
+      const weekendPct = Math.round((stats.weekdayVsWeekend.weekend / total) * 100);
+      if (weekendPct >= 60) return `${weekendPct}% of your watching is on weekends`;
+    }
+  }
+
+  // Priority 8: Runtime fallback
+  if (stats.totalRuntimeHours >= 24) {
+    return `${Math.round(stats.totalRuntimeHours)} hours of cinema`;
+  }
+
+  return null;
+}
+
 // ── Component ──────────────────────────────────────────────────────────
 
 const ProfilePage: Component = () => {
@@ -118,7 +171,7 @@ const ProfilePage: Component = () => {
   const { data, loading, error, saving, saveProfile, refetch, watchlist } = useProfileData();
   const { stats } = useStats();
 
-  // Edit mode — inline editing, no modal.
+  // Edit mode
   const [isEditing, setIsEditing] = createSignal(false);
   const [editName, setEditName] = createSignal("");
   const [editUsername, setEditUsername] = createSignal("");
@@ -127,7 +180,7 @@ const ProfilePage: Component = () => {
   const [pickerSlot, setPickerSlot] = createSignal<FavoriteSlot | null>(null);
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
 
-  // Live username availability checker (debounced, 400ms).
+  // Live username availability checker
   const currentUsername = createMemo(() => data()?.profile?.username ?? "");
   const uid = createMemo(() => user()?.uid ?? null);
   const usernameCheck = useUsernameCheck(editUsername, currentUsername, uid);
@@ -141,7 +194,7 @@ const ProfilePage: Component = () => {
     setIsEditing(true);
   };
 
-  // Save name + username + bio changes.
+  // Save profile changes
   const handleSave = async () => {
     const name = editName().trim();
     if (!name) {
@@ -278,10 +331,12 @@ const ProfilePage: Component = () => {
     return null;
   });
 
-  // Is at exact milestone? (for glow effect)
-  const isAtMilestone = createMemo(() => {
-    const total = vaultStats().total;
-    return MILESTONES.some((m) => total === m.target);
+  // Collection insight (merged from CinemaInsight)
+  const collectionInsight = createMemo(() => {
+    const s = stats();
+    const list = watchlist();
+    if (!s) return null;
+    return computeInsight(s, list);
   });
 
   // Sign out handler
@@ -291,7 +346,7 @@ const ProfilePage: Component = () => {
     showToast("Signed out.", "success");
   };
 
-  // ESC to exit edit mode.
+  // ESC to exit edit mode
   onMount(() => {
     const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && isEditing()) handleCancel(); };
     window.addEventListener("keydown", handleEsc);
@@ -343,9 +398,9 @@ const ProfilePage: Component = () => {
           <div class="profile-content">
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 1: HERO — "Who am I?"
-                Name is primary. Archetype is strongest secondary.
-                No @username, no Member since — those belong in Navigation.
+                SECTION 1: PROFILE — Who are you?
+                Banner, avatar, name, archetype, bio.
+                @username + member-since live here, not in settings.
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             <section class="profile-hero" aria-label="Profile identity">
               <ProfileBanner
@@ -355,7 +410,6 @@ const ProfilePage: Component = () => {
               />
               <div class="profile-hero-overlay">
                 <div class="profile-hero-identity">
-                  {/* Avatar with completion ring */}
                   <div class="profile-avatar-wrap">
                     <PremiumAvatar
                       src={avatarUrl() ?? undefined}
@@ -384,7 +438,6 @@ const ProfilePage: Component = () => {
                     </Show>
                   </div>
 
-                  {/* Identity stack: Name → Archetype → Bio */}
                   <div class="profile-hero-text">
                     <Show when={!isEditing()} fallback={
                       <div class="profile-hero-edit-fields">
@@ -437,7 +490,7 @@ const ProfilePage: Component = () => {
                         </div>
                       </div>
                     }>
-                      {/* Display mode — Name primary, Archetype secondary */}
+                      {/* Display mode */}
                       <h1 class="profile-hero-name">
                         {data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile"}
                       </h1>
@@ -450,10 +503,23 @@ const ProfilePage: Component = () => {
                       <Show when={data()?.profile?.bio?.trim()}>
                         <p class="profile-hero-bio">{data()?.profile?.bio}</p>
                       </Show>
+                      {/* @username + member-since — belongs in identity, not settings */}
+                      <Show when={currentUsername() || memberSince()}>
+                        <p class="profile-hero-meta">
+                          <Show when={currentUsername()}>
+                            <span>@{currentUsername()}</span>
+                          </Show>
+                          <Show when={currentUsername() && memberSince()}>
+                            <span class="profile-hero-meta-sep" aria-hidden="true"> · </span>
+                          </Show>
+                          <Show when={memberSince()}>
+                            <span>Since {memberSince()}</span>
+                          </Show>
+                        </p>
+                      </Show>
                     </Show>
                   </div>
 
-                  {/* Edit/Share buttons */}
                   <Show when={!isEditing()}>
                     <div class="profile-hero-actions">
                       <PremiumIconButton
@@ -471,79 +537,77 @@ const ProfilePage: Component = () => {
             </section>
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 2: VAULT — "How far have I come?"
-                Large number. Inline sub-metrics. Milestone hint.
-                No cards. No widgets. No boxes.
+                SECTION 2: COLLECTION — What have you watched?
+                Left-aligned vault count, sub-metrics, insight line,
+                milestone progress, achievements strip.
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <section class="profile-section profile-vault" aria-label="Your vault">
-              <div class="profile-vault-number-wrap">
-                <p class={`profile-vault-number ${isAtMilestone() ? "profile-vault-number-milestone" : ""}`}>
-                  {vaultStats().total}
-                </p>
-                <p class="profile-vault-label">titles</p>
-              </div>
-              <div class="profile-vault-metrics">
-                <span class="profile-vault-metric">
-                  <span class="profile-vault-metric-value">{vaultStats().completed}</span> Watched
-                </span>
-                <span class="profile-vault-metric-sep" aria-hidden="true">·</span>
-                <span class="profile-vault-metric">
-                  <span class="profile-vault-metric-value">{vaultStats().watching}</span> Watching
-                </span>
-                <span class="profile-vault-metric-sep" aria-hidden="true">·</span>
-                <span class="profile-vault-metric">
-                  <span class="profile-vault-metric-value">{vaultStats().planned}</span> Planned
-                </span>
-              </div>
-              <Show when={nextMilestone() && nextMilestone()!.pct >= 80}>
-                <p class="profile-vault-milestone">
-                  <span class="profile-vault-milestone-number">{nextMilestone()!.remaining}</span> titles until {nextMilestone()!.label}
-                </p>
+            <section class="profile-section profile-collection" aria-label="Your collection">
+              {/* Vault count — left-aligned, editorial */}
+              <p class="profile-vault-number">
+                {vaultStats().total}
+              </p>
+              <p class="profile-vault-label">titles in your vault</p>
+
+              {/* Sub-metrics — one flowing line */}
+              <p class="profile-vault-metrics">
+                <span class="profile-vault-metric-value">{vaultStats().completed}</span> watched
+                <span class="profile-vault-metric-sep" aria-hidden="true"> · </span>
+                <span class="profile-vault-metric-value">{vaultStats().watching}</span> watching
+                <span class="profile-vault-metric-sep" aria-hidden="true"> · </span>
+                <span class="profile-vault-metric-value">{vaultStats().planned}</span> planned
+              </p>
+
+              {/* Insight line — merged from CinemaInsight */}
+              <Show when={collectionInsight()}>
+                <p class="profile-collection-insight">{collectionInsight()}</p>
               </Show>
+
+              {/* Milestone progress — thin bar, only when close */}
+              <Show when={nextMilestone() && nextMilestone()!.pct >= 60}>
+                <div class="profile-milestone">
+                  <div class="profile-milestone-bar" aria-hidden="true">
+                    <div
+                      class="profile-milestone-bar-fill"
+                      style={{ width: `${nextMilestone()!.pct}%` }}
+                    />
+                  </div>
+                  <p class="profile-milestone-text">
+                    {nextMilestone()!.remaining} titles until {nextMilestone()!.label}
+                  </p>
+                </div>
+              </Show>
+
+              {/* Achievements strip — folded in, not standalone */}
+              <ProfileAchievements watchlist={watchlist} />
             </section>
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 3: TASTE — "What defines me?"
-                Poster mosaic, curated gallery wall.
-                Section title kept: "Your Taste — The stories that define you"
+                SECTION 3: TASTE — What defines your taste?
+                Favorites with different visual weight.
+                Genre breakdown bar.
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             <section class="profile-section" aria-label="Your taste">
               <TasteCard
                 data={data() ?? null}
                 isEditing={isEditing()}
                 onPick={openPicker}
+                stats={stats}
               />
             </section>
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 4: CINEMA INSIGHT — "Wait... that's me?"
-                Dynamic insight from watchlist data.
-                Hides entirely if insufficient data.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <CinemaInsight stats={stats} watchlist={watchlist} />
-
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 5: ACHIEVEMENTS — "What have I earned?"
-                Featured trophies + locked count.
-                Expandable into full achievements page.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <ProfileAchievements watchlist={watchlist} />
-
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 6: RECENT ACTIVITY — "What's happening?"
-                Lightweight, hides if no recent items.
+                SECTION 4: ACTIVITY — What are you watching now?
+                Currently watching, last completed, last rated.
+                Hides entirely if no recent items.
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             <RecentActivity watchlist={watchlist} />
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 7+8: SETTINGS + DANGER — "The ending credits"
-                Merged navigation. Red hairline before danger.
+                SECTION 5: SETTINGS — Where do I go?
+                Quick links row, single settings link,
+                sign out, delete account.
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <ProfileNavigation
-              username={currentUsername()}
-              memberSince={memberSince()}
-              onSignOut={handleSignOut}
-            />
+            <ProfileNavigation onSignOut={handleSignOut} />
 
           </div>
         </Show>

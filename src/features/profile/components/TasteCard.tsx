@@ -1,46 +1,31 @@
 // src/features/profile/components/TasteCard.tsx
 //
-// Sprint 2C — Final Implementation.
-// Curated gallery wall — every card feels different.
-// No archetype panel (it lives in the Hero now).
-// Section title kept: "Your Taste" with subtitle "The stories that define you."
+// Taste section — favorites with different visual weight.
 //
-// Layout (desktop):
-//   ┌─────────────────────────────────────────────┐
-//   │  Your Taste                                 │
-//   │  The stories that define you                │
-//   └─────────────────────────────────────────────┘
-//   ┌────────────────────┬────────────────────────┐
-//   │                    │                         │
-//   │  MOVIE (large)     │  Series (medium)        │
-//   │  edge-to-edge      │  poster card            │
-//   │  poster hero       │                         │
-//   │                    ├────────────────────────┤
-//   │                    │  Director (horizontal)  │
-//   └────────────────────┴────────────────────────┘
-//   ┌─────────────────────────────────────────────┐
-//   │  S C I - F I                                │
-//   │  (genre as massive typography, no gradient)  │
-//   └─────────────────────────────────────────────┘
-//
-// Mobile: Single column — Movie → Series → Director → Genre
+// Layout (mobile):
+//   Movie    — full-width poster, 280px height
+//   Series   — poster card, 140px height
+//   Director — name + portrait + film count
+//   Genre    — large Bebas Neue typography + breakdown bar
 //
 // Design:
-//   • Poster-first — images dominate, text is secondary
-//   • No "Favorite Movie/Director" labels on filled cards
-//   • Genre is massive Bebas Neue typography, not a gradient
+//   • Different visual weight per category — movie dominates
+//   • Genre breakdown bar shows top genre distribution
+//   • No "Favorite X" labels on filled cards
+//   • Green accent: dominant genre segment in breakdown bar
 //   • Empty states: dashed outline + icon + short label
-//   • Green accent ONLY on empty tile CTA text
 
-import { Show, type Component } from "solid-js";
+import { Show, createMemo, type Component, type Accessor } from "solid-js";
 import { PremiumHeroCard } from "~/shared/ui/premium";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { ProfileData, FavoriteDirector } from "../useProfileData";
+import type { StatsData } from "../useStats";
 
 interface TasteCardProps {
   data: ProfileData | null;
   isEditing: boolean;
   onPick: (slot: FavoriteSlot) => void;
+  stats: Accessor<StatsData | null>;
 }
 
 export type FavoriteSlot = "movie" | "series" | "director" | "genre";
@@ -88,17 +73,47 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     return { title: g };
   };
 
+  // ── Genre breakdown bar data ──
+  const genreBreakdown = createMemo(() => {
+    const s = props.stats();
+    if (!s || s.topGenres.length === 0) return [];
+    const top = s.topGenres.slice(0, 4);
+    const topPct = top.reduce((sum, g) => sum + g.pct, 0);
+    const otherPct = 100 - topPct;
+    const segments = top.map((g) => ({
+      name: g.name,
+      pct: g.pct,
+      isDominant: g === top[0],
+    }));
+    if (otherPct > 0) {
+      segments.push({ name: "Other", pct: otherPct, isDominant: false });
+    }
+    return segments;
+  });
+
+  // ── Favorite genre count from watchlist ──
+  const favoriteGenreCount = createMemo(() => {
+    const s = props.stats();
+    const genre = props.data?.profile?.favorite_genre;
+    if (!s || !genre) return null;
+    const match = s.topGenres.find((g) =>
+      g.name.toLowerCase().includes(genre.toLowerCase()) ||
+      genre.toLowerCase().includes(g.name.toLowerCase())
+    );
+    return match?.count ?? null;
+  });
+
   return (
     <div class="taste-section">
-      {/* Section title — kept for orientation */}
+      {/* Section title */}
       <div class="taste-section-header">
         <h2 class="taste-section-title">Your Taste</h2>
         <p class="taste-section-subtitle">The stories that define you</p>
       </div>
 
       <div class="taste-mosaic">
-        {/* ── Favorite Movie — large edge-to-edge poster ── */}
-        <div class="taste-cell taste-cell-movie" style={{ "grid-area": "movie" }}>
+        {/* ── Favorite Movie — full-width poster ── */}
+        <div class="taste-cell taste-cell-movie">
           <Show
             when={movieContent()}
             fallback={
@@ -147,8 +162,8 @@ const TasteCard: Component<TasteCardProps> = (props) => {
           </Show>
         </div>
 
-        {/* ── Favorite Series — medium poster card ── */}
-        <div class="taste-cell taste-cell-series" style={{ "grid-area": "series" }}>
+        {/* ── Favorite Series — poster card ── */}
+        <div class="taste-cell taste-cell-series">
           <Show
             when={seriesContent()}
             fallback={
@@ -204,8 +219,8 @@ const TasteCard: Component<TasteCardProps> = (props) => {
           </Show>
         </div>
 
-        {/* ── Favorite Director — horizontal card ── */}
-        <div class="taste-cell taste-cell-director" style={{ "grid-area": "director" }}>
+        {/* ── Favorite Director — name + portrait + count ── */}
+        <div class="taste-cell taste-cell-director">
           <Show
             when={directorContent()}
             fallback={
@@ -259,8 +274,8 @@ const TasteCard: Component<TasteCardProps> = (props) => {
           </Show>
         </div>
 
-        {/* ── Favorite Genre — massive typography ── */}
-        <div class="taste-cell taste-cell-genre" style={{ "grid-area": "genre" }}>
+        {/* ── Favorite Genre — large typography + breakdown bar ── */}
+        <div class="taste-cell taste-cell-genre">
           <Show
             when={genreContent()}
             fallback={
@@ -288,21 +303,34 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 aria-label={`Genre: ${gc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
                 <p class="taste-genre-name-typography">{gc().title}</p>
-                <Show when={props.isEditing}>
-                  <div class="taste-tile-change-overlay" aria-hidden="true">
-                    <span class="taste-tile-change-text">
-                      <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">swap_horiz</span>
-                      Change
-                    </span>
-                  </div>
+                <Show when={favoriteGenreCount()}>
+                  <p class="taste-genre-count">{favoriteGenreCount()} titles</p>
                 </Show>
               </div>
             )}
+          </Show>
+
+          {/* Genre breakdown bar — shows top genre distribution */}
+          <Show when={genreBreakdown().length >= 2}>
+            <div class="taste-genre-breakdown" role="img" aria-label="Genre distribution">
+              <For each={genreBreakdown()}>
+                {(seg) => (
+                  <div
+                    class={`taste-genre-breakdown-segment ${seg.isDominant ? "taste-genre-breakdown-dominant" : ""}`}
+                    style={{ width: `${seg.pct}%` }}
+                    title={`${seg.name}: ${seg.pct}%`}
+                  />
+                )}
+              </For>
+            </div>
           </Show>
         </div>
       </div>
     </div>
   );
 };
+
+// Need For import
+import { For } from "solid-js";
 
 export default TasteCard;
