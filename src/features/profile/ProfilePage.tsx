@@ -1,33 +1,42 @@
 // src/features/profile/ProfilePage.tsx
 //
-// ProfilePage — CineLog V2 Profile
+// ProfilePage — CineLog V2 Profile (v1.0 final design)
 //
-// Five-section architecture:
+// Six-section architecture:
 //
 //   1. PROFILE    — Who are you?
-//                   Banner, avatar, name, archetype, bio, @username, member-since
+//                   Banner, avatar, name, archetype, bio, identity chips,
+//                   @username, member-since
 //
 //   2. COLLECTION — What have you watched?
-//                   Vault count (left-aligned), sub-metrics, insight line,
-//                   milestone progress, achievements strip
+//                   Left-aligned vault count + sub-metrics.
+//                   (Insight line, milestone progress, and achievements
+//                   strip removed — replaced by the Your Story reflection.)
 //
-//   3. TASTE      — What defines your taste?
-//                   Favorites with different visual weight,
+//   3. YOUR STORY — Who is this viewer?
+//                   One beautiful reflection card derived from the vault.
+//                   CineLog's signature feature. No XP, no gamification.
+//
+//   4. TASTE      — What defines your taste?
+//                   Favorites with year + personal reason subtitle,
 //                   genre breakdown bar
 //
-//   4. ACTIVITY   — What are you watching now?
-//                   Currently watching, last completed, last rated
+//   5. ACTIVITY   — What are you watching now?
+//                   Currently Watching rail (progress, next ep, days, Continue)
+//                   Recently Finished rail (finished time, stars, one-word reaction)
+//                   Recent Activity timeline (optional reactions)
 //
-//   5. SETTINGS   — Where do I go?
+//   6. SETTINGS   — Where do I go?
 //                   Quick links, settings, sign out, delete
 //
 // Design principles:
-//   • Identity > Collection > Taste > Activity > Utility
+//   • Identity > Collection > Story > Taste > Activity > Utility
 //   • Every section earns its place or hides
-//   • Green accent at 3 touchpoints: archetype, milestone progress, dominant genre
+//   • Green accent at: archetype, Your Story accent, favorite reasons, progress
 //   • Left-aligned vault count (editorial, not dashboard)
 //   • Typography hierarchy before color hierarchy
 //   • Premium, minimal, timeless — no forced concepts
+//   • No AI assistant, no chatbot, no notifications — just reflection
 //
 // Zero changes to business logic, hooks, state, or Supabase integration.
 
@@ -50,12 +59,14 @@ import { normalizeGenre } from "~/shared/utils/genres";
 import ProfileBanner from "./components/ProfileBanner";
 import BannerEditor, { type BannerType } from "./components/BannerEditor";
 import TasteCard, { type FavoriteSlot } from "./components/TasteCard";
-import ProfileAchievements from "./components/ProfileAchievements";
 import RecentActivity from "./components/RecentActivity";
 import ProfileNavigation from "./components/ProfileNavigation";
 import ProfileSkeleton from "./components/ProfileSkeleton";
 import FavoritesPicker from "./components/FavoritesPicker";
-import type { WatchlistItem } from "~/shared/types";
+import YourStoryCard from "./components/YourStoryCard";
+import IdentityChips from "./components/IdentityChips";
+import CurrentlyWatching from "./components/CurrentlyWatching";
+import RecentlyFinished from "./components/RecentlyFinished";
 
 // ── Archetype computation ─────────────────────────────────────────────
 
@@ -88,79 +99,6 @@ const GENRE_MATCHERS: [string, string][] = [
   ["war", "war"], ["history", "history"], ["music", "music"],
   ["family", "family"], ["western", "western"],
 ];
-
-// ── Milestone definitions ──────────────────────────────────────────────
-
-const MILESTONES = [
-  { target: 100, label: "Cinema Legend" },
-  { target: 250, label: "Vault Keeper" },
-  { target: 500, label: "Cinematic Sage" },
-  { target: 1000, label: "Immortal Watcher" },
-  { target: 2000, label: "Cinephile Supreme" },
-];
-
-// ── Insight priority logic (merged from CinemaInsight) ───────────────
-
-function computeInsight(stats: {
-  total: number;
-  topGenres: { name: string; count: number; pct: number }[];
-  topDirectors: { name: string; count: number }[];
-  favoriteDecade: string | null;
-  totalRuntimeHours: number;
-  moviePct: number;
-  tvPct: number;
-  weekdayVsWeekend: { weekday: number; weekend: number };
-}, list: WatchlistItem[]): string | null {
-  if (!stats || list.length < 5) return null;
-
-  // Priority 1: Dominant genre >50%
-  if (stats.topGenres.length > 0) {
-    const top = stats.topGenres[0];
-    if (top.pct >= 50) return `${top.pct}% of your vault is ${top.name}`;
-  }
-
-  // Priority 2: Recurring director 3+
-  if (stats.topDirectors.length > 0 && stats.topDirectors[0].count >= 3) {
-    const dir = stats.topDirectors[0];
-    return `${dir.name} appears ${dir.count} times in your vault`;
-  }
-
-  // Priority 3: Runtime milestone
-  if (stats.totalRuntimeHours >= 72) {
-    const days = Math.round(stats.totalRuntimeHours / 24);
-    return `That's ${days} days of cinema`;
-  }
-
-  // Priority 4: Decade affinity
-  if (stats.favoriteDecade && stats.total >= 10) {
-    return `The ${stats.favoriteDecade} is your era`;
-  }
-
-  // Priority 5: Movie/TV split
-  if (stats.moviePct >= 75) return `You're ${stats.moviePct}% film`;
-  if (stats.tvPct >= 75) return `You're ${stats.tvPct}% series`;
-
-  // Priority 6: Genre diversity
-  if (stats.topGenres.length >= 6) {
-    return `${stats.topGenres.length} genres explored`;
-  }
-
-  // Priority 7: Weekend watcher
-  if (stats.weekdayVsWeekend) {
-    const total = stats.weekdayVsWeekend.weekday + stats.weekdayVsWeekend.weekend;
-    if (total >= 5) {
-      const weekendPct = Math.round((stats.weekdayVsWeekend.weekend / total) * 100);
-      if (weekendPct >= 60) return `${weekendPct}% of your watching is on weekends`;
-    }
-  }
-
-  // Priority 8: Runtime fallback
-  if (stats.totalRuntimeHours >= 24) {
-    return `${Math.round(stats.totalRuntimeHours)} hours of cinema`;
-  }
-
-  return null;
-}
 
 // ── Component ──────────────────────────────────────────────────────────
 
@@ -317,26 +255,6 @@ const ProfilePage: Component = () => {
     const watching = list.filter((m) => m.status === "Watching").length;
     const planned = list.filter((m) => m.status === "Planned" || m.status === "Plan to Watch").length;
     return { total: list.length, completed, watching, planned };
-  });
-
-  // Next milestone
-  const nextMilestone = createMemo(() => {
-    const total = vaultStats().total;
-    for (const m of MILESTONES) {
-      if (total < m.target) {
-        const remaining = m.target - total;
-        return { target: m.target, label: m.label, remaining, pct: Math.round((total / m.target) * 100) };
-      }
-    }
-    return null;
-  });
-
-  // Collection insight (merged from CinemaInsight)
-  const collectionInsight = createMemo(() => {
-    const s = stats();
-    const list = watchlist();
-    if (!s) return null;
-    return computeInsight(s, list);
   });
 
   // Sign out handler
@@ -503,6 +421,8 @@ const ProfilePage: Component = () => {
                       <Show when={data()?.profile?.bio?.trim()}>
                         <p class="profile-hero-bio">{data()?.profile?.bio}</p>
                       </Show>
+                      {/* Identity chips — elegant chips generated from viewing history */}
+                      <IdentityChips stats={stats} watchlist={watchlist} />
                       {/* @username + member-since — belongs in identity, not settings */}
                       <Show when={currentUsername() || memberSince()}>
                         <p class="profile-hero-meta">
@@ -538,8 +458,10 @@ const ProfilePage: Component = () => {
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 SECTION 2: COLLECTION — What have you watched?
-                Left-aligned vault count, sub-metrics, insight line,
-                milestone progress, achievements strip.
+                Left-aligned vault count + sub-metrics.
+                (The old insight line, milestone progress bar, and
+                achievements strip have been removed — gamification
+                is replaced by the Your Story reflection card below.)
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
             <section class="profile-section profile-collection" aria-label="Your collection">
               {/* Vault count — left-aligned, editorial */}
@@ -556,30 +478,15 @@ const ProfilePage: Component = () => {
                 <span class="profile-vault-metric-sep" aria-hidden="true"> · </span>
                 <span class="profile-vault-metric-value">{vaultStats().planned}</span> planned
               </p>
-
-              {/* Insight line — merged from CinemaInsight */}
-              <Show when={collectionInsight()}>
-                <p class="profile-collection-insight">{collectionInsight()}</p>
-              </Show>
-
-              {/* Milestone progress — thin bar, only when close */}
-              <Show when={nextMilestone() && nextMilestone()!.pct >= 60}>
-                <div class="profile-milestone">
-                  <div class="profile-milestone-bar" aria-hidden="true">
-                    <div
-                      class="profile-milestone-bar-fill"
-                      style={{ width: `${nextMilestone()!.pct}%` }}
-                    />
-                  </div>
-                  <p class="profile-milestone-text">
-                    {nextMilestone()!.remaining} titles until {nextMilestone()!.label}
-                  </p>
-                </div>
-              </Show>
-
-              {/* Achievements strip — folded in, not standalone */}
-              <ProfileAchievements watchlist={watchlist} />
             </section>
+
+            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+                YOUR STORY — CineLog's signature reflection card.
+                One beautiful insight derived from the vault.
+                Replaces XP / gamification with editorial reflection.
+                Hides entirely when there is insufficient signal.
+            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            <YourStoryCard stats={stats} watchlist={watchlist} />
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 SECTION 3: TASTE — What defines your taste?
@@ -597,9 +504,13 @@ const ProfilePage: Component = () => {
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
                 SECTION 4: ACTIVITY — What are you watching now?
-                Currently watching, last completed, last rated.
-                Hides entirely if no recent items.
+                Three sub-sections, each hides when empty:
+                  • Currently Watching — premium rail with progress
+                  • Recently Finished — premium rail with stars + reaction
+                  • Recent Activity — quiet timeline with optional reactions
             ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
+            <CurrentlyWatching watchlist={watchlist} />
+            <RecentlyFinished watchlist={watchlist} />
             <RecentActivity watchlist={watchlist} />
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

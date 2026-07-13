@@ -15,7 +15,9 @@
 
 import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { normalizeGenres } from "~/shared/utils/genres";
 import type { WatchlistItem } from "~/shared/types";
+import { generateActivityReaction } from "../utils/storyGenerator";
 
 interface RecentActivityProps {
   watchlist: Accessor<WatchlistItem[]>;
@@ -55,28 +57,58 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
     const list = props.watchlist();
     if (list.length === 0) return [];
 
-    const items: { item: WatchlistItem; category: "watching" | "completed" | "rated"; sortDate: Date }[] = [];
+    const items: { item: WatchlistItem; category: "watching" | "completed" | "rated" | "added"; sortDate: Date; reaction: string | null }[] = [];
 
     // Currently watching (up to 2)
     const watching = list
       .filter((m) => m.status === "Watching")
       .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
       .slice(0, 2);
-    watching.forEach((m) => items.push({ item: m, category: "watching", sortDate: getDate(m) }));
+    watching.forEach((m) => {
+      const reaction = generateActivityReaction("watching", {
+        mediaType: m.media_type,
+        genres: normalizeGenres(m.genresList ?? []),
+      });
+      items.push({ item: m, category: "watching", sortDate: getDate(m), reaction: reaction?.text ?? null });
+    });
 
     // Last completed (1)
     const completed = list
       .filter((m) => m.status === "Completed")
       .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
       .slice(0, 1);
-    completed.forEach((m) => items.push({ item: m, category: "completed", sortDate: getDate(m) }));
+    completed.forEach((m) => {
+      const reaction = generateActivityReaction("completed", {
+        mediaType: m.media_type,
+        genres: normalizeGenres(m.genresList ?? []),
+      });
+      items.push({ item: m, category: "completed", sortDate: getDate(m), reaction: reaction?.text ?? null });
+    });
 
     // Last rated (1, with rating > 0)
     const rated = list
       .filter((m) => m.rating && m.rating > 0)
       .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
       .slice(0, 1);
-    rated.forEach((m) => items.push({ item: m, category: "rated", sortDate: getDate(m) }));
+    rated.forEach((m) => {
+      const reaction = generateActivityReaction("rated", {
+        rating: m.rating,
+        genres: normalizeGenres(m.genresList ?? []),
+      });
+      items.push({ item: m, category: "rated", sortDate: getDate(m), reaction: reaction?.text ?? null });
+    });
+
+    // Last added (1, with no rating, not watching, not completed — purely planned)
+    const added = list
+      .filter((m) => (m.status === "Planned" || m.status === "Plan to Watch") && !m.rating)
+      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
+      .slice(0, 1);
+    added.forEach((m) => {
+      const reaction = generateActivityReaction("added", {
+        mediaType: m.media_type,
+      });
+      items.push({ item: m, category: "added", sortDate: getDate(m), reaction: reaction?.text ?? null });
+    });
 
     // Deduplicate by id
     const seen = new Set<string>();
@@ -86,9 +118,9 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
       return true;
     });
 
-    // Sort by date and take top 4
+    // Sort by date and take top 5
     deduped.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
-    return deduped.slice(0, 4);
+    return deduped.slice(0, 5);
   });
 
   return (
@@ -136,10 +168,16 @@ const RecentActivity: Component<RecentActivityProps> = (props) => {
                     <Show when={entry.category === "rated"}>
                       <span class="recent-activity-status-rated">Rated {entry.item.rating}/10</span>
                     </Show>
+                    <Show when={entry.category === "added"}>
+                      <span class="recent-activity-status-added">Added to Watchlist</span>
+                    </Show>
                     <Show when={entry.sortDate.getTime() > 0}>
                       <span class="recent-activity-time"> · {timeAgo(entry.sortDate)}</span>
                     </Show>
                   </p>
+                  <Show when={entry.reaction}>
+                    <p class="recent-activity-reaction">"{entry.reaction}"</p>
+                  </Show>
                 </div>
               </div>
             )}

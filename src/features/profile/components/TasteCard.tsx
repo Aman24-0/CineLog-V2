@@ -18,8 +18,10 @@
 import { Show, createMemo, type Component, type Accessor } from "solid-js";
 import { PremiumHeroCard } from "~/shared/ui/premium";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { normalizeGenres } from "~/shared/utils/genres";
 import type { ProfileData, FavoriteDirector } from "../useProfileData";
 import type { StatsData } from "../useStats";
+import { generateFavoriteReason } from "../utils/storyGenerator";
 
 interface TasteCardProps {
   data: ProfileData | null;
@@ -36,9 +38,13 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const d = props.data;
     if (!d?.profile?.favorite_movie_id || !d.favoriteMovie) return null;
     const m = d.favoriteMovie;
+    const year = (m.release_date ?? "").split("-")[0] || undefined;
+    const genres = normalizeGenres(m.genres ?? []);
+    const reason = generateFavoriteReason("movie", { title: m.title, genres, year }).reason;
     return {
       title: m.title ?? m.name ?? "Untitled",
-      subtitle: (m.release_date ?? "").split("-")[0] || undefined,
+      subtitle: year,
+      reason,
       imagePath: m.poster_path ?? m.backdrop_path ?? null,
     };
   };
@@ -48,9 +54,13 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const d = props.data;
     if (!d?.profile?.favorite_series_id || !d.favoriteSeries) return null;
     const s = d.favoriteSeries;
+    const year = (s.first_air_date ?? "").split("-")[0] || undefined;
+    const genres = normalizeGenres(s.genres ?? []);
+    const reason = generateFavoriteReason("series", { title: s.name, genres, year }).reason;
     return {
       title: s.name ?? s.title ?? "Untitled",
-      subtitle: (s.first_air_date ?? "").split("-")[0] || undefined,
+      subtitle: year,
+      reason,
       imagePath: s.poster_path ?? s.backdrop_path ?? null,
     };
   };
@@ -60,8 +70,10 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const d = props.data;
     if (!d?.profile?.favorite_director_id || !d.favoriteDirector) return null;
     const dir: FavoriteDirector = d.favoriteDirector;
+    const reason = generateFavoriteReason("director", { directorName: dir.name }).reason;
     return {
       title: dir.name,
+      reason,
       imagePath: dir.profile_path,
     };
   };
@@ -70,7 +82,8 @@ const TasteCard: Component<TasteCardProps> = (props) => {
   const genreContent = () => {
     const g = props.data?.profile?.favorite_genre;
     if (!g) return null;
-    return { title: g };
+    const reason = generateFavoriteReason("genre", { genreName: g }).reason;
+    return { title: g, reason };
   };
 
   // ── Genre breakdown bar data ──
@@ -149,6 +162,10 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                   size="compact"
                   onClick={() => props.isEditing && props.onPick("movie")}
                 />
+                {/* Personal reason — very small elegant subtitle */}
+                <Show when={mc().reason}>
+                  <p class="taste-movie-reason">{mc().reason}</p>
+                </Show>
                 <Show when={props.isEditing}>
                   <div class="taste-tile-change-overlay" aria-hidden="true">
                     <span class="taste-tile-change-text">
@@ -205,6 +222,9 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                   <Show when={sc().subtitle}>
                     <p class="taste-card-subtitle">{sc().subtitle}</p>
                   </Show>
+                  <Show when={sc().reason}>
+                    <p class="taste-card-reason">{sc().reason}</p>
+                  </Show>
                 </div>
                 <Show when={props.isEditing}>
                   <div class="taste-tile-change-overlay" aria-hidden="true">
@@ -260,6 +280,9 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 </Show>
                 <div class="taste-director-info">
                   <p class="taste-director-name">{dc().title}</p>
+                  <Show when={dc().reason}>
+                    <p class="taste-director-reason">{dc().reason}</p>
+                  </Show>
                 </div>
                 <Show when={props.isEditing}>
                   <div class="taste-tile-change-overlay taste-tile-change-overlay-horiz" aria-hidden="true">
@@ -305,6 +328,9 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 <p class="taste-genre-name-typography">{gc().title}</p>
                 <Show when={favoriteGenreCount()}>
                   <p class="taste-genre-count">{favoriteGenreCount()} titles</p>
+                </Show>
+                <Show when={gc().reason}>
+                  <p class="taste-genre-reason">{gc().reason}</p>
                 </Show>
               </div>
             )}

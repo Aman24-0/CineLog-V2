@@ -1041,3 +1041,729 @@
   .profile-milestone-bar-fill { transition: none; }
   .taste-genre-breakdown-segment { transition: none; }
 }
+/* ============================================================
+   PROFILE v1.0 — FINAL DESIGN ADDITIONS
+   New sections: Your Story, Identity Chips, Currently Watching,
+   Recently Finished, favorite reasons, activity reactions,
+   and premium micro-interactions.
+   All additions are EVOLUTIONARY — same design tokens, same
+   palette, same spacing rhythm as the existing profile.css.
+   ============================================================ */
+
+/* ============================================================
+   IDENTITY CHIPS — small elegant chips below bio
+   ============================================================ */
+
+.identity-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1_5, 6px);
+  margin: var(--space-3) 0 0;
+}
+
+.identity-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2_5, 10px);
+  border-radius: var(--radius-full, 9999px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
+  transition: transform 200ms var(--ease-smooth, ease-out),
+              background 200ms ease,
+              border-color 200ms ease;
+  cursor: default;
+}
+
+.identity-chip:hover {
+  transform: translateY(-1px);
+  background: var(--glass-bg-strong);
+  border-color: var(--hairline-3);
+}
+
+.identity-chip:active {
+  transform: translateY(0) scale(0.98);
+}
+
+.identity-chip-icon {
+  font-size: 0.75rem;
+  line-height: 1;
+  filter: drop-shadow(0 0 4px color-mix(in srgb, var(--p) 30%, transparent));
+}
+
+.identity-chip-label {
+  font-family: var(--font-family-body);
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-soft);
+  letter-spacing: var(--letter-spacing-wide);
+  line-height: 1;
+  white-space: nowrap;
+}
+
+/* ============================================================
+   YOUR STORY — signature reflection card
+   ============================================================ */
+
+.your-story {
+  margin-top: var(--space-12);
+}
+
+.your-story-card {
+  position: relative;
+  padding: var(--space-7, 28px) var(--space-5) var(--space-6);
+  border-radius: var(--radius-xl, 20px);
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--tier-2) 96%, transparent) 0%,
+    color-mix(in srgb, var(--tier-3) 92%, transparent) 100%
+  );
+  border: 1px solid var(--hairline-2);
+  overflow: hidden;
+  isolation: isolate;
+  transition: border-color 400ms ease, transform 400ms var(--ease-smooth, ease-out);
+}
+
+.your-story-card:hover {
+  border-color: color-mix(in srgb, var(--p) 25%, var(--hairline-2));
+  transform: translateY(-1px);
+}
+
+/* Ambient glow — pulsing softly, never noisy */
+.your-story-glow {
+  position: absolute;
+  inset: -40% -10% auto -10%;
+  height: 220px;
+  background: radial-gradient(
+    ellipse at 30% 0%,
+    color-mix(in srgb, var(--p) 22%, transparent) 0%,
+    color-mix(in srgb, var(--p) 8%, transparent) 30%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
+  animation: yourStoryGlow 6s var(--ease-smooth, ease-in-out) infinite alternate;
+  filter: blur(20px);
+}
+
+@keyframes yourStoryGlow {
+  from { opacity: 0.55; transform: translateY(0) scale(1); }
+  to   { opacity: 0.9;  transform: translateY(-4px) scale(1.04); }
+}
+
+/* Subtle gradient wash — like a faint aurora */
+.your-story-wash {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    120deg,
+    transparent 0%,
+    color-mix(in srgb, var(--p) 4%, transparent) 35%,
+    transparent 60%,
+    color-mix(in srgb, var(--p2, var(--p)) 3%, transparent) 100%
+  );
+  pointer-events: none;
+  z-index: -1;
+}
+
+.your-story-eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1_5, 6px);
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--p);
+  letter-spacing: var(--letter-spacing-eyebrow, 0.18em);
+  text-transform: uppercase;
+  margin: 0 0 var(--space-3);
+}
+
+.your-story-eyebrow-icon {
+  font-size: 14px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--p) 40%, transparent));
+}
+
+.your-story-headline {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.5rem, 5vw, 2.125rem);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
+  margin: 0 0 var(--space-3);
+}
+
+.your-story-body {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  line-height: var(--line-height-relaxed, 1.55);
+  color: var(--text-soft);
+  margin: 0 0 var(--space-5);
+  max-width: 50ch;
+}
+
+/* The accent phrase inside the body — green touchpoint */
+.your-story-accent {
+  color: var(--p);
+  font-weight: var(--font-weight-semibold);
+  text-shadow: 0 0 12px color-mix(in srgb, var(--p) 30%, transparent);
+}
+
+.your-story-footer {
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-label);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   CURRENTLY WATCHING — premium rail
+   ============================================================ */
+
+.currently-watching {
+  margin-top: var(--space-14);
+}
+
+.currently-watching-header,
+.recently-finished-header {
+  margin-bottom: var(--space-4);
+}
+
+.currently-watching-title,
+.recently-finished-title {
+  font-family: var(--font-family-heading);
+  font-size: 1.125rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.currently-watching-subtitle,
+.recently-finished-subtitle {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  margin: var(--space-1) 0 0;
+}
+
+/* Horizontal scroll rail — same for both carousels */
+.currently-watching-rail,
+.recently-finished-rail {
+  display: flex;
+  gap: var(--space-3);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--space-1) 0 var(--space-3);
+  margin: 0 calc(-1 * var(--space-4));
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  scrollbar-width: none;
+}
+
+.currently-watching-rail::-webkit-scrollbar,
+.recently-finished-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* ── Currently Watching card ── */
+
+.cw-card {
+  flex: 0 0 auto;
+  width: 240px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--tier-2);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  scroll-snap-align: start;
+  transition: transform 250ms var(--ease-smooth, ease-out),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+}
+
+.cw-card:hover {
+  transform: translateY(-2px);
+  border-color: var(--hairline-3);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+}
+
+.cw-card:active {
+  transform: translateY(0);
+}
+
+.cw-card-poster-wrap {
+  position: relative;
+  width: 100%;
+  height: 120px;
+  overflow: hidden;
+  background: var(--tier-3);
+}
+
+.cw-card-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 400ms var(--ease-smooth, ease-out);
+}
+
+.cw-card:hover .cw-card-poster {
+  transform: scale(1.04);
+}
+
+.cw-card-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, var(--tier-2) 0%, transparent 50%);
+}
+
+.cw-card-poster-fallback,
+.rf-card-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.cw-card-body {
+  padding: var(--space-3) var(--space-3) var(--space-3_5, 14px);
+}
+
+.cw-card-title {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+  line-height: var(--line-height-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cw-card-meta {
+  font-family: var(--font-family-body);
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin: var(--space-0_5, 2px) 0 0;
+  line-height: var(--line-height-snug);
+}
+
+.cw-card-progress {
+  width: 100%;
+  height: 3px;
+  background: var(--hairline);
+  border-radius: 9999px;
+  overflow: hidden;
+  margin-top: var(--space-2_5, 10px);
+}
+
+.cw-card-progress-fill {
+  height: 100%;
+  background: linear-gradient(
+    90deg,
+    var(--p) 0%,
+    color-mix(in srgb, var(--p) 70%, white) 100%
+  );
+  border-radius: 9999px;
+  box-shadow: 0 0 6px color-mix(in srgb, var(--p) 40%, transparent);
+  transition: width 600ms var(--ease-smooth, ease-out);
+}
+
+.cw-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: var(--space-3);
+  gap: var(--space-2);
+}
+
+.cw-card-days {
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+}
+
+.cw-card-continue {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2_5, 10px);
+  border-radius: var(--radius-full, 9999px);
+  background: var(--p);
+  color: var(--active-text);
+  border: none;
+  font-family: var(--font-family-body);
+  font-size: 0.75rem;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+  transition: transform 200ms var(--ease-smooth, ease-out),
+              filter 200ms ease,
+              box-shadow 200ms ease;
+  box-shadow: 0 2px 8px color-mix(in srgb, var(--p) 25%, transparent);
+}
+
+.cw-card-continue:hover {
+  transform: scale(1.04);
+  filter: brightness(1.1);
+  box-shadow: 0 4px 14px color-mix(in srgb, var(--p) 40%, transparent);
+}
+
+.cw-card-continue:active {
+  transform: scale(0.97);
+}
+
+.cw-card-continue .material-symbols-outlined {
+  font-size: 14px;
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ============================================================
+   RECENTLY FINISHED — premium rail with stars + reaction
+   ============================================================ */
+
+.recently-finished {
+  margin-top: var(--space-12);
+}
+
+.rf-card {
+  flex: 0 0 auto;
+  width: 160px;
+  border-radius: var(--radius-lg, 12px);
+  background: var(--tier-2);
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  scroll-snap-align: start;
+  transition: transform 250ms var(--ease-smooth, ease-out),
+              box-shadow 250ms ease,
+              border-color 250ms ease;
+}
+
+.rf-card:hover {
+  transform: translateY(-3px);
+  border-color: var(--hairline-3);
+  box-shadow: 0 10px 28px rgba(0,0,0,0.5);
+}
+
+.rf-card:active {
+  transform: translateY(-1px);
+}
+
+.rf-card-poster-wrap {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  overflow: hidden;
+  background: var(--tier-3);
+}
+
+.rf-card-poster {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 500ms var(--ease-smooth, ease-out);
+}
+
+.rf-card:hover .rf-card-poster {
+  transform: scale(1.06);
+}
+
+.rf-card-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    to top,
+    rgba(0,0,0,0.85) 0%,
+    rgba(0,0,0,0.4) 25%,
+    transparent 50%
+  );
+}
+
+/* One-word reaction chip — anchored bottom-left over poster */
+.rf-card-reaction {
+  position: absolute;
+  left: var(--space-2);
+  bottom: var(--space-2);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full, 9999px);
+  background: color-mix(in srgb, var(--tier-0) 70%, transparent);
+  border: 1px solid color-mix(in srgb, var(--p) 30%, var(--hairline-2));
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: var(--font-family-display);
+  font-size: 0.75rem;
+  color: var(--p);
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: uppercase;
+  line-height: 1.2;
+  box-shadow: 0 0 12px color-mix(in srgb, var(--p) 20%, transparent);
+}
+
+.rf-card-body {
+  padding: var(--space-2_5, 10px) var(--space-3) var(--space-3);
+}
+
+.rf-card-title {
+  font-family: var(--font-family-body);
+  font-size: 0.875rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+  line-height: var(--line-height-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rf-card-finished {
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+  margin: var(--space-0_5, 2px) 0 0;
+}
+
+.rf-card-stars {
+  display: flex;
+  gap: 1px;
+  margin-top: var(--space-1_5, 6px);
+}
+
+.rf-star {
+  font-size: 0.75rem;
+  line-height: 1;
+  color: var(--tier-4);
+  font-family: var(--font-family-body);
+}
+
+.rf-star-filled {
+  color: var(--color-collection-favorites);
+  text-shadow: 0 0 4px color-mix(in srgb, var(--color-collection-favorites) 40%, transparent);
+}
+
+/* Half star — render via clip-path on a filled star */
+.rf-star-half {
+  position: relative;
+  color: var(--tier-4);
+}
+.rf-star-half::before {
+  content: "★";
+  position: absolute;
+  inset: 0;
+  color: var(--color-collection-favorites);
+  clip-path: polygon(0 0, 50% 0, 50% 100%, 0 100%);
+}
+
+/* ============================================================
+   TASTE CARD — favorite reasons (very small elegant subtitle)
+   ============================================================ */
+
+/* Movie reason — sits below the PremiumHeroCard */
+.taste-movie-reason {
+  font-family: var(--font-family-body);
+  font-style: italic;
+  font-size: 0.8125rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: var(--space-2) var(--space-1) 0;
+  padding-left: var(--space-1);
+  border-left: 2px solid color-mix(in srgb, var(--p) 35%, transparent);
+  text-align: left;
+}
+
+/* Series reason — inside the poster overlay */
+.taste-card-reason {
+  font-family: var(--font-family-body);
+  font-style: italic;
+  font-size: 0.6875rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: var(--space-0_5, 2px) 0 0;
+  opacity: 0.9;
+}
+
+/* Director reason — below the director name */
+.taste-director-reason {
+  font-family: var(--font-family-body);
+  font-style: italic;
+  font-size: 0.6875rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: var(--space-0_5, 2px) 0 0;
+  opacity: 0.85;
+}
+
+/* Genre reason — below the count */
+.taste-genre-reason {
+  font-family: var(--font-family-body);
+  font-style: italic;
+  font-size: 0.75rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: var(--space-1) 0 0;
+  opacity: 0.85;
+}
+
+/* ============================================================
+   RECENT ACTIVITY — optional reaction line
+   ============================================================ */
+
+.recent-activity-reaction {
+  font-family: var(--font-family-body);
+  font-style: italic;
+  font-size: 0.75rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: var(--space-0_5, 2px) 0 0;
+  opacity: 0.8;
+}
+
+.recent-activity-status-added {
+  color: var(--color-status-planned);
+  font-weight: var(--font-weight-medium);
+}
+
+/* ============================================================
+   MICRO-INTERACTIONS — premium polish
+   ============================================================ */
+
+/* Avatar expands on tap/hover */
+.profile-avatar-wrap {
+  transition: transform 250ms var(--ease-smooth, ease-out);
+  cursor: pointer;
+}
+
+.profile-avatar-wrap:hover {
+  transform: scale(1.03);
+}
+
+.profile-avatar-wrap:active {
+  transform: scale(1.08);
+  transition: transform 100ms ease;
+}
+
+/* Favorite poster lift — applied to taste tiles */
+.taste-movie-hero-wrap,
+.taste-series-card-wrap,
+.taste-director-horiz-wrap,
+.taste-genre-typography-wrap {
+  transition: transform 350ms var(--ease-smooth, ease-out),
+              box-shadow 350ms ease,
+              border-color 350ms ease;
+}
+
+.taste-movie-hero-wrap:hover,
+.taste-series-card-wrap:hover,
+.taste-director-horiz-wrap:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.5);
+}
+
+.taste-genre-typography-wrap:hover {
+  transform: translateY(-1px);
+}
+
+/* Premium button animations — enhance existing buttons */
+.cw-card-continue,
+.identity-chip,
+.rf-card {
+  will-change: transform;
+}
+
+/* Reflection card glow — feels alive, never noisy */
+.your-story-card {
+  will-change: transform, border-color;
+}
+
+/* ============================================================
+   SECTION SPACING — refine vertical rhythm
+   ============================================================ */
+
+/* The Your Story card sits between COLLECTION and TASTE with
+   generous breathing room — it's the signature moment. */
+.your-story + .profile-section {
+  margin-top: var(--space-14);
+}
+
+/* Currently Watching gets a touch more space above (it's a new
+   visual rhythm after the TASTE section). */
+.taste-section + .currently-watching {
+  margin-top: var(--space-14);
+}
+
+/* Recently Finished sits closer to Currently Watching */
+.currently-watching + .recently-finished {
+  margin-top: var(--space-12);
+}
+
+/* Recent Activity (timeline) sits closer to Recently Finished */
+.recently-finished + .recent-activity {
+  margin-top: var(--space-12);
+}
+
+/* ============================================================
+   REDUCED MOTION — respect user preferences
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+  .your-story-glow { animation: none; opacity: 0.7; }
+  .your-story-card,
+  .cw-card,
+  .rf-card,
+  .identity-chip,
+  .taste-movie-hero-wrap,
+  .taste-series-card-wrap,
+  .taste-director-horiz-wrap,
+  .taste-genre-typography-wrap,
+  .profile-avatar-wrap {
+    transition: none;
+  }
+  .cw-card:hover,
+  .rf-card:hover,
+  .taste-movie-hero-wrap:hover,
+  .taste-series-card-wrap:hover,
+  .taste-director-horiz-wrap:hover {
+    transform: none;
+  }
+  .profile-avatar-wrap:hover,
+  .profile-avatar-wrap:active {
+    transform: none;
+  }
+  .cw-card:hover .cw-card-poster,
+  .rf-card:hover .rf-card-poster {
+    transform: none;
+  }
+}
+
+/* ============================================================
+   RESPONSIVE — desktop enhancements
+   ============================================================ */
+
+@media (min-width: 768px) {
+  .your-story-card {
+    padding: var(--space-8, 32px) var(--space-6) var(--space-7, 28px);
+  }
+
+  .your-story-headline {
+    font-size: clamp(1.75rem, 4vw, 2.25rem);
+  }
+
+  .your-story-body {
+    font-size: 1rem;
+    max-width: 56ch;
+  }
+
+  /* Cards in the rails get a touch larger on desktop */
+  .cw-card { width: 280px; }
+  .rf-card { width: 180px; }
+
+  .cw-card-poster-wrap { height: 140px; }
+}
