@@ -198,11 +198,30 @@ const FavoritesCarousel: Component<FavoritesCarouselProps> = (_props) => {
 
               return (
                 <div class="favorites-card-wrap" role="listitem">
-                  <button
-                    type="button"
+                  {/* Outer card is a <div role="button">, NOT a <button>,
+                      because it contains an inner pin <button>. Nested
+                      <button> elements are invalid HTML — the browser
+                      auto-closes the outer button when it sees the
+                      inner one, which moves DOM nodes out of their
+                      expected parent. Solid's reconciler then walks
+                      the tree expecting those nodes to still be
+                      children and hits a null nextSibling, crashing
+                      the whole Profile page with:
+                        "Cannot read properties of null (reading 'nextSibling')"
+                      The same div-role-button pattern is already used
+                      by MovieCard.tsx for the same reason (heart btn). */}
+                  <div
                     class="search-rail-card focus-ring favorites-card"
                     classList={{ "is-pinned": pinned() }}
                     onClick={() => handleClick(item)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        handleClick(item);
+                      }
+                    }}
+                    role="button"
+                    tabindex={0}
                     aria-label={`${title()}, ${year() || ""}${isMovie() ? ", Movie" : ", Series"}${rating() > 0 ? `, rated ${rating()}` : ""}`}
                   >
                     <div class="search-rail-poster favorites-poster">
@@ -243,7 +262,8 @@ const FavoritesCarousel: Component<FavoritesCarouselProps> = (_props) => {
 
                       {/* Pin button — keeps the card in the rail across
                           daily shuffles. Toggles pinned state in
-                          localStorage. */}
+                          localStorage. Now valid HTML: a <button>
+                          inside a <div role="button">. */}
                       <button
                         type="button"
                         class={`favorites-pin-btn focus-ring${pinned() ? " is-pinned" : ""}`}
@@ -266,7 +286,7 @@ const FavoritesCarousel: Component<FavoritesCarouselProps> = (_props) => {
                       {year() && " · "}
                       <span>{isMovie() ? "Movie" : "Series"}</span>
                     </p>
-                  </button>
+                  </div>
                 </div>
               );
             }}
