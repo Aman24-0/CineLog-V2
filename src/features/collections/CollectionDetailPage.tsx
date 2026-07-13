@@ -1,6 +1,7 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createSignal, createEffect, ErrorBoundary } from "solid-js";
+import { Show, createSignal, createEffect, ErrorBoundary, For, type Component } from "solid-js";
 import { isServer } from "solid-js/web";
+import { Portal } from "solid-js/web";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -37,7 +38,7 @@ export default function CollectionDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
   const { watchlist } = useVault();
-  const { userCollections, getUniversePrefs } = useCollections();
+  const { userCollections, getUniversePrefs, removeFromCollection, addToCollection } = useCollections();
   const { openTitle } = useModalState();
 
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
@@ -48,6 +49,76 @@ export default function CollectionDetailPage() {
   const [collection, setCollection] = createSignal<Collection | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [notFound, setNotFound] = createSignal(false);
+
+  // ── Batch Select Mode ──────────────────────────────────────────
+  // When active, each timeline entry shows a checkbox. Selected
+  // entries can be removed from this folder or moved to another
+  // folder. The Select button lives in UniverseDashboard; the
+  // checkboxes live in TimelineEntry. State is lifted here so both
+  // can read/write it.
+  const [selectMode, setSelectMode] = createSignal(false);
+  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
+  const [showMoveDialog, setShowMoveDialog] = createSignal(false);
+
+  const toggleSelectMode = () => {
+    setSelectMode(!selectMode());
+    if (selectMode()) {
+      // Entering select mode — clear any previous selection
+      setSelectedIds(new Set<string>());
+    }
+  };
+
+  const toggleSelected = (entry: CollectionEntry) => {
+    const key = `${entry.media_type}:${entry.id}`;
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectedCount = () => selectedIds().size;
+
+  // Batch remove: remove every selected entry from this collection.
+  const handleBatchRemove = async () => {
+    const col = collection();
+    if (!col) return;
+    const count = selectedIds().size;
+    if (count === 0) return;
+    const ids = Array.from(selectedIds());
+    // Process sequentially to avoid overwhelming Supabase with
+    // concurrent deletes. Each removeFromCollection call refreshes
+    // the collections signal, so the UI updates progressively.
+    for (const key of ids) {
+      const [mediaType, id] = key.split(":");
+      await removeFromCollection(col.id, id, mediaType);
+    }
+    setSelectedIds(new Set<string>());
+    setSelectMode(false);
+  };
+
+  // Move selected entries to another folder: add to target, then
+  // remove from current.
+  const handleMoveToFolder = async (targetCollectionId: string) => {
+    const col = collection();
+    if (!col) return;
+    const ids = Array.from(selectedIds());
+    for (const key of ids) {
+      const [mediaType, id] = key.split(":");
+      // Find the entry to build a CollectionEntry for addToCollection
+      const entry = (col.entries ?? []).find(
+        (e) => String(e.id) === id && e.media_type === mediaType
+      );
+      if (entry) {
+        await addToCollection(targetCollectionId, entry);
+        await removeFromCollection(col.id, id, mediaType);
+      }
+    }
+    setSelectedIds(new Set<string>());
+    setSelectMode(false);
+    setShowMoveDialog(false);
+  };
 
   // Race condition guard — incremented on every resolveCollection call.
   // When an async result comes back, it checks if its epoch matches
@@ -193,6 +264,11 @@ export default function CollectionDetailPage() {
               activeProvider={activeProvider()}
               onOrderChange={setActiveOrder}
               onProviderChange={setActiveProvider}
+              selectMode={selectMode()}
+              selectedCount={selectedCount()}
+              onToggleSelectMode={toggleSelectMode}
+              onBatchRemove={handleBatchRemove}
+              onOpenMoveDialog={() => setShowMoveDialog(true)}
             />
 
             {/* Timeline Engine — supports all viewing orders and providers */}
@@ -201,10 +277,132 @@ export default function CollectionDetailPage() {
               order={activeOrder()}
               provider={activeProvider()}
               onOpenEntry={handleOpenEntry}
+              selectMode={selectMode()}
+              selectedIds={selectedIds()}
+              onToggleSelected={toggleSelected}
+              onEdit={() => navigate(`/collections/${collection()!.id}/edit`)}
             />
           </div>
+
+          {/* Move-to-folder dialog — shown when user clicks "Move" in select mode */}
+          <Show when={showMoveDialog()}>
+            <MoveToFolderDialog
+              currentCollectionId={collection()!.id}
+              selectedCount={selectedCount()}
+              onClose={() => setShowMoveDialog(false)}
+              onMove={handleMoveToFolder}
+            />
+          </Show>
         </ErrorBoundary>
       </Show>
     </PageContainer>
   );
 }
+
+// ──────────────────────────────────────────────────────────────────────────
+// MoveToFolderDialog — pick a target folder to move selected entries to.
+// Reuses the same folder-tile visual language as AddToFolderSheet.
+// ──────────────────────────────────────────────────────────────────────────
+
+interface MoveToFolderDialogProps {
+  currentCollectionId: string;
+  selectedCount: number;
+  onClose: () => void;
+  onMove: (targetCollectionId: string) => void;
+}
+
+const MoveToFolderDialog: Component<MoveToFolderDialogProps> = (props) => {
+  const { userCollections } = useCollections();
+
+  // Other folders (exclude the current one — can't move to the same folder)
+  const targetFolders = () =>
+    userCollections().filter((c) => c.id !== props.currentCollectionId);
+
+  return (
+    <Portal>
+      <div
+        class="fixed inset-0 z-[999998] flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+        style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(12px)", "-webkit-backdrop-filter": "blur(12px)" }}
+        onClick={() => props.onClose()}
+        role="dialog"
+        aria-modal="true"
+        aria-label="Move to folder"
+      >
+        <div
+          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+          style={{
+            "max-height": "70dvh",
+            "min-height": "0",
+            background: "var(--glass-bg-strong)",
+            "backdrop-filter": "blur(28px)",
+            "-webkit-backdrop-filter": "blur(28px)",
+            border: "1px solid var(--hairline-2)",
+            "box-shadow": "var(--shadow-elevated)",
+          }}
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Header */}
+          <div class="flex justify-between items-center px-6 pt-5 pb-4 flex-shrink-0" style={{ "border-bottom": "1px solid var(--hairline)" }}>
+            <div>
+              <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
+                Move {props.selectedCount} {props.selectedCount === 1 ? "title" : "titles"}
+              </h3>
+              <p style={{ "font-size": "0.75rem", color: "var(--text-dim)", margin: "4px 0 0" }}>
+                Choose a destination folder
+              </p>
+            </div>
+            <button
+              onClick={() => props.onClose()}
+              class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+              style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-soft)", border: "1px solid var(--hairline)" }}
+              aria-label="Close"
+            >
+              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
+            </button>
+          </div>
+
+          {/* Folder list */}
+          <div class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-2.5" style={{ "overscroll-behavior": "contain" }}>
+            <Show when={targetFolders().length > 0} fallback={
+              <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-6)" }}>
+                No other folders. Create one from the Collections page first.
+              </p>
+            }>
+              <For each={targetFolders()}>
+                {(col) => (
+                  <button
+                    type="button"
+                    class="folder-tile focus-ring"
+                    onClick={() => props.onMove(col.id)}
+                    aria-label={`Move to ${col.name}`}
+                  >
+                    <div class="folder-tile-icon">
+                      <Show when={col.isFavorites} fallback={
+                        <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+                      }>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                          aria-hidden="true"
+                        >favorite</span>
+                      </Show>
+                    </div>
+                    <div class="folder-tile-text">
+                      <p class="folder-tile-name">{col.name}</p>
+                      <p class="folder-tile-count">
+                        {col.entries?.length ?? 0} {(col.entries?.length ?? 0) === 1 ? "title" : "titles"}
+                      </p>
+                    </div>
+                    <span class="material-symbols-outlined" style={{ "font-size": "20px", color: "var(--text-dim)" }} aria-hidden="true">
+                      chevron_right
+                    </span>
+                  </button>
+                )}
+              </For>
+            </Show>
+          </div>
+        </div>
+      </div>
+    </Portal>
+  );
+};

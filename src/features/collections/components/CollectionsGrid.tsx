@@ -97,6 +97,18 @@ function CollectionCard(props: CollectionCardProps) {
       .map((e) => ({ path: e.poster_path as string, title: e.title || e.name || "Untitled" }));
   };
 
+  // Resolve the folder's custom backdrop (if set).
+  // Priority: collection.backdrop_path → null.
+  // Returns a ready-to-use URL (handles both full URLs and TMDB paths).
+  const backdropUrl = (): string | null => {
+    const p = props.col.backdrop_path;
+    if (!p) return null;
+    if (p.startsWith("http")) return p;
+    return tmdbImage(p, "w500");
+  };
+
+  const hasBackdrop = () => backdropUrl() !== null;
+
   // Relative time (e.g. "2 days ago")
   const updatedText = (): string => {
     const updated = props.col.updatedAt;
@@ -159,36 +171,51 @@ function CollectionCard(props: CollectionCardProps) {
         }
       }}
     >
-      {/* Poster collage area */}
+      {/* Poster collage area — OR full-bleed backdrop if set */}
       <div class="collection-card-collage-area">
+        <Show when={hasBackdrop()}>
+          <img
+            src={backdropUrl() as string}
+            class="collection-card-backdrop"
+            loading="lazy"
+            decoding="async"
+            alt=""
+            aria-hidden="true"
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+          />
+          <div class="collection-card-backdrop-overlay" aria-hidden="true" />
+        </Show>
+
         <Show
-          when={posters().length > 0}
+          when={!hasBackdrop() && posters().length > 0}
           fallback={
-            <div class="collection-card-empty-art" aria-hidden="true">
-              <Show
-                when={props.col.isFavorites}
-                fallback={
+            <Show when={!hasBackdrop()}>
+              <div class="collection-card-empty-art" aria-hidden="true">
+                <Show
+                  when={props.col.isFavorites}
+                  fallback={
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "36px", color: "var(--text-dim)" }}
+                      aria-hidden="true"
+                    >
+                      folder_open
+                    </span>
+                  }
+                >
                   <span
                     class="material-symbols-outlined"
-                    style={{ "font-size": "36px", color: "var(--text-dim)" }}
+                    style={{ "font-size": "36px", color: "#f5c518", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40" }}
                     aria-hidden="true"
                   >
-                    folder_open
+                    favorite
                   </span>
-                }
-              >
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "36px", color: "#f5c518", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40" }}
-                  aria-hidden="true"
-                >
-                  favorite
-                </span>
-              </Show>
-              <Show when={totalCount() === 0}>
-                <span class="collection-card-empty-text">No titles yet</span>
-              </Show>
-            </div>
+                </Show>
+                <Show when={totalCount() === 0}>
+                  <span class="collection-card-empty-text">No titles yet</span>
+                </Show>
+              </div>
+            </Show>
           }
         >
           <PosterCollage posters={posters()} />

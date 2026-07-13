@@ -1582,3 +1582,296 @@
 @keyframes suggestionSlideIn { from { opacity: 0; transform: translateX(16px); } to { opacity: 1; transform: translateX(0); } }
 @keyframes accentGlow { 0%, 100% { box-shadow: 0 0 8px var(--universe-accent, var(--p)); } 50% { box-shadow: 0 0 16px var(--universe-accent, var(--p)); } }
 
+
+/* ============================================================
+   FolderEditor — Backdrop picker (v2.1)
+   ============================================================ */
+
+.folder-editor-backdrop-thumb {
+  width: 48px;
+  height: 28px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid var(--hairline-2);
+}
+
+.folder-editor-backdrop-picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-top: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 8px);
+}
+
+.folder-editor-backdrop-current {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-md, 8px);
+  overflow: hidden;
+  border: 1px solid var(--hairline-2);
+}
+
+.folder-editor-backdrop-current img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.folder-editor-backdrop-clear {
+  position: absolute;
+  bottom: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.15);
+  color: #ff8888;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.folder-editor-backdrop-clear:hover {
+  background: rgba(0,0,0,0.9);
+  color: #ffaaaa;
+}
+
+.folder-editor-backdrop-url-row {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.folder-editor-backdrop-url-input {
+  flex: 1;
+  padding: var(--sp-2) var(--sp-3);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-strong);
+  background: var(--tier-3);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md, 8px);
+  outline: none;
+  transition: border-color 200ms ease;
+}
+
+.folder-editor-backdrop-url-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+
+.folder-editor-backdrop-url-input::placeholder {
+  color: var(--text-dim);
+}
+
+.folder-editor-backdrop-url-btn {
+  padding: var(--sp-2) var(--sp-3);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--tier-0);
+  background: var(--p);
+  border: none;
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: opacity 200ms ease;
+}
+
+.folder-editor-backdrop-url-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.folder-editor-backdrop-url-btn:not(:disabled):hover {
+  opacity: 0.85;
+}
+
+.folder-editor-backdrop-picker-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  margin: 0;
+}
+
+.folder-editor-backdrop-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+}
+
+.folder-editor-backdrop-option {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  border-radius: 6px;
+  overflow: hidden;
+  border: 1px solid var(--hairline);
+  background: var(--tier-3);
+  cursor: pointer;
+  padding: 0;
+  transition: border-color 200ms ease, transform 180ms ease;
+}
+
+.folder-editor-backdrop-option:hover {
+  border-color: var(--p);
+  transform: scale(1.03);
+}
+
+.folder-editor-backdrop-option img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* ============================================================
+   CollectionCard — Backdrop cover (v2.1)
+   When a folder has a custom backdrop set (via FolderEditor),
+   show it as a full-bleed cover instead of the poster collage.
+   ============================================================ */
+
+.collection-card-backdrop {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 1;
+  pointer-events: none;
+}
+
+.collection-card-backdrop-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  pointer-events: none;
+  background: linear-gradient(
+    to bottom,
+    rgba(0,0,0,0.25) 0%,
+    rgba(0,0,0,0.15) 40%,
+    rgba(0,0,0,0.55) 80%,
+    rgba(0,0,0,0.75) 100%
+  );
+}
+
+/* When backdrop is present, lift the badges + menu above the overlay */
+.collection-card:has(.collection-card-backdrop) .collection-card-badges {
+  z-index: 3;
+}
+.collection-card:has(.collection-card-backdrop) .collection-card-menu {
+  z-index: 3;
+  background: rgba(0,0,0,0.5);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+/* ============================================================
+   TimelineEngine v2.1 — header + Edit button + Select mode
+   ============================================================ */
+
+.universe-timeline-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-3);
+}
+
+.universe-timeline-edit-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: color 200ms ease, border-color 200ms ease, background 200ms ease;
+  outline: none;
+}
+
+.universe-timeline-edit-btn:hover {
+  color: var(--p);
+  border-color: var(--p);
+  background: color-mix(in srgb, var(--p) 8%, var(--tier-2));
+}
+
+.universe-timeline-edit-btn:focus-visible {
+  border-color: var(--p);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p) 40%, transparent);
+}
+
+/* ── Batch Select Mode ── */
+
+/* Selected entry — green accent ring */
+.universe-timeline-item.universe-timeline-selected {
+  border-color: var(--p) !important;
+  box-shadow: 0 0 0 1px var(--p), 0 4px 16px color-mix(in srgb, var(--p) 20%, transparent);
+  background: color-mix(in srgb, var(--p) 8%, var(--tier-2));
+}
+
+/* Select-mode cursor */
+.universe-timeline-item.universe-timeline-select-mode {
+  cursor: pointer;
+}
+
+/* Checkbox circle (replaces the numbered node in select mode) */
+.universe-timeline-checkbox {
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline-2);
+  background: var(--tier-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: border-color 200ms ease, background 200ms ease;
+}
+
+.universe-timeline-checkbox-on {
+  border-color: var(--p);
+  background: var(--p);
+  color: var(--tier-0);
+}
+
+.universe-timeline-checkbox-on .material-symbols-outlined {
+  color: var(--tier-0);
+  font-weight: 700;
+}
+
+/* Danger variant for the Remove button */
+.universe-dashboard-action-danger {
+  color: #ff8888 !important;
+  border-color: color-mix(in srgb, #ff4444 30%, var(--hairline)) !important;
+}
+
+.universe-dashboard-action-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, #ff4444 10%, var(--tier-2)) !important;
+  color: #ffaaaa !important;
+}
+
+.universe-dashboard-action-danger:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+.universe-dashboard-action-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}

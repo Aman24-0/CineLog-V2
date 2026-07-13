@@ -174,6 +174,12 @@ export async function addEntryToCollectionByTmdbId(
 
 /**
  * Remove an entry from a collection.
+ *
+ * NOTE: `vaultId` here is the vault row's UUID (not a TMDB id).
+ * Most callers actually have a TMDB id — use
+ * `removeEntryFromCollectionByTmdbId` instead, which resolves the
+ * UUID first. Passing a TMDB id to this function silently deletes
+ * zero rows (the vault_id column stores UUIDs).
  */
 export async function removeEntryFromCollection(
   collectionId: string,
@@ -186,6 +192,80 @@ export async function removeEntryFromCollection(
     return false;
   }
   return true;
+}
+
+/**
+ * Remove an entry from a collection by TMDB identity.
+ *
+ * This is the inverse of `addEntryToCollectionByTmdbId`: it resolves
+ * the vault UUID from the (userId, tmdbId, mediaType) tuple, then
+ * removes the entry row.
+ *
+ * Used by every UI surface that toggles collection membership by
+ * TMDB id (heart button on MovieCard, AddToFolderSheet, batch
+ * remove in collection detail, etc.).
+ *
+ * Returns true if the row was deleted (or was already absent —
+ * idempotent). Returns false only on a real error.
+ */
+export async function removeEntryFromCollectionByTmdbId(
+  userId: string,
+  collectionId: string,
+  tmdbId: string,
+  mediaType: "movie" | "tv"
+): Promise<boolean> {
+  const vaultId = await resolveVaultId(userId, tmdbId, mediaType);
+  if (!vaultId) {
+    // Vault item doesn't exist (already deleted, or never added).
+    // Treat as success — there's nothing to remove, and callers
+    // expect idempotent behavior on the heart button.
+    return true;
+  }
+  return removeEntryFromCollection(collectionId, vaultId);
+}
+
+/**
+ * Remove a vault item from EVERY collection the user owns.
+ *
+ * Called after a vault row is deleted (Remove from Watchlist flow)
+ * to prevent orphaned collection_entries rows that reference a
+ * soft-deleted vault item. Without this, those entries would
+ * silently disappear from the UI (filtered out by the
+ * `is("deleted_at", null)` clause in fetchEntriesForCollection)
+ * but linger in the DB forever, and — worse — would reappear as
+ * "blank cards" if the user re-adds the same title to their vault
+ * later (the soft-deleted vault row gets un-deleted, and the
+ * orphaned collection_entries rows become visible again, pointing
+ * at stale data).
+ *
+ * Implementation: query all of the user's collections' entry rows
+ * where vault_id matches, then hard-delete them in one batch.
+ */
+export async function removeVaultItemFromAllCollections(
+  userId: string,
+  vaultId: string
+): Promise<boolean> {
+  try {
+    const { getClient } = await import("~/lib/supabase/client");
+    const supabase = getClient();
+    // First, find all collection_entries rows for this vault item
+    // that belong to collections owned by this user. RLS on
+    // collection_entries joins through collections → owner_id, so
+    // we can safely filter by vault_id alone and RLS will scope
+    // the rows to the user's collections.
+    const { error } = await supabase
+      .from("collection_entries")
+      .delete()
+      .eq("vault_id", vaultId);
+    if (error) {
+      console.error("[collectionEntryAdapter] Error cascading collection_entries delete:", error);
+      return false;
+    }
+    return true;
+  } catch (err) {
+    console.error("[collectionEntryAdapter] Failed to cascade-delete collection entries:", err);
+    return false;
+  }
 }
 
 /**

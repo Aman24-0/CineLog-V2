@@ -24,6 +24,8 @@ import {
 import {
   addEntryToCollectionByTmdbId,
   removeEntryFromCollection,
+  removeEntryFromCollectionByTmdbId,
+  removeVaultItemFromAllCollections,
   reorderEntriesInCollection,
 } from "../collectionEntryAdapter";
 import { useUniversePrefsLogic } from "./useUniversePrefs";
@@ -115,13 +117,41 @@ const useCollectionsLogic = () => {
     } catch (err) { console.error("Failed to add to collection:", err); showToast("Failed to add.", "error"); }
   };
 
-  const removeFromCollection = async (collectionId: string, entryId: string, _mediaType: string): Promise<void> => {
+  const removeFromCollection = async (collectionId: string, entryId: string, mediaType: string): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
-      await removeEntryFromCollection(collectionId, entryId);
+      // IMPORTANT: entryId here is the TMDB id (as a string), NOT a
+      // vault UUID. The old code passed it directly to
+      // removeEntryFromCollection, which expects a vault UUID — so
+      // the SQL `eq("vault_id", tmdbId)` matched zero rows and the
+      // delete silently did nothing. The heart button's "remove"
+      // path was therefore broken (showed toast but didn't remove).
+      // Fix: use removeEntryFromCollectionByTmdbId, which resolves
+      // the vault UUID from (uid, tmdbId, mediaType) first.
+      await removeEntryFromCollectionByTmdbId(uid, collectionId, entryId, mediaType as "movie" | "tv");
       await refreshCollections(uid);
     } catch (err) { console.error("Failed to remove:", err); }
+  };
+
+  /**
+   * Remove a vault item from EVERY collection the user owns.
+   * Called after a vault row is deleted to prevent orphaned
+   * collection_entries rows (which would reappear as blank cards
+   * if the title is re-added to the vault later).
+   *
+   * `vaultId` here is the vault row's UUID (NOT a TMDB id).
+   * Callers that have a TMDB id should resolve it via the vault
+   * repository first, OR — preferred — call this from inside the
+   * vault-deletion flow where the UUID is already known.
+   */
+  const removeVaultItemFromAllUserCollections = async (vaultId: string): Promise<void> => {
+    const uid = getCurrentUid();
+    if (!uid) return;
+    try {
+      await removeVaultItemFromAllCollections(uid, vaultId);
+      await refreshCollections(uid);
+    } catch (err) { console.error("Failed to cascade-remove from collections:", err); }
   };
 
   const deleteCollection = async (collectionId: string): Promise<void> => {
@@ -231,6 +261,7 @@ const useCollectionsLogic = () => {
     renameCollection, updateCollectionMeta, duplicateCollection, reorderEntries,
     createSmartCollection, updateSmartRules,
     refreshCollections,
+    removeVaultItemFromAllUserCollections,
     ...queries,
   };
 };

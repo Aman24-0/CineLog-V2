@@ -21,21 +21,22 @@ interface TimelineEngineProps {
   provider?: TimelineProvider;
   overrides?: Record<string, Partial<CollectionEntry>>;
   onOpenEntry: (entry: CollectionEntry) => void;
+  // ── Batch Select Mode (v2.1) ──
+  selectMode?: boolean;
+  selectedIds?: Set<string>;
+  onToggleSelected?: (entry: CollectionEntry) => void;
+  onEdit?: () => void;
 }
 
 /**
  * TimelineEngine — universal timeline supporting all 5 viewing orders and 3 providers.
  *
- * Modes:
- *   - chronological: sorted by release_date (default)
- *   - release: same data, explicit "release order" label
- *   - saga: grouped by phase field
- *   - story: grouped by storyYear with year-range headers
- *   - custom: sorted by customOrder, respecting user overrides
- *
- * Sorting + grouping logic lives in `timelineSort.ts`. The TimelineEntry
- * row component lives in `TimelineEntry.tsx`. This file owns the
- * orchestration: merge overrides → sort+enrich → group → render.
+ * v2.1 changes:
+ *   - Edit button added to the timeline header (right-aligned with
+ *     the "Timeline" label), per user request.
+ *   - Batch select mode: when active, each TimelineEntry shows a
+ *     checkbox and the click behavior changes to toggle selection
+ *     instead of opening the entry.
  */
 export default function TimelineEngine(props: TimelineEngineProps) {
   const { watchlist } = useVault();
@@ -89,17 +90,36 @@ export default function TimelineEngine(props: TimelineEngineProps) {
             ? "Custom Order"
             : "Timeline";
 
+  const isSelected = (entry: CollectionEntry): boolean => {
+    if (!props.selectedIds) return false;
+    return props.selectedIds.has(`${entry.media_type}:${entry.id}`);
+  };
+
   return (
     <div class="universe-timeline-section">
-      <div class="universe-timeline-label">
-        <span
-          class="material-symbols-outlined"
-          style={{"font-size":"12px","color":"var(--p)"}}
-          aria-hidden="true"
-        >
-          timeline
-        </span>
-        {label()}
+      {/* Header row: timeline label (left) + Edit button (right) */}
+      <div class="universe-timeline-header">
+        <div class="universe-timeline-label">
+          <span
+            class="material-symbols-outlined"
+            style={{"font-size":"12px","color":"var(--p)"}}
+            aria-hidden="true"
+          >
+            timeline
+          </span>
+          {label()}
+        </div>
+        <Show when={props.onEdit}>
+          <button
+            type="button"
+            class="universe-timeline-edit-btn focus-ring"
+            onClick={() => props.onEdit!()}
+            aria-label="Edit timeline"
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">edit</span>
+            Edit
+          </button>
+        </Show>
       </div>
 
       {/* Story mode */}
@@ -122,6 +142,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         onOpen={() => props.onOpenEntry(item.entry)}
                         titleOf={titleOf}
                         yearOf={yearOf}
+                        selectMode={props.selectMode}
+                        selected={isSelected(item.entry)}
+                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
                       />
                     )}
                   </For>
@@ -152,6 +175,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         onOpen={() => props.onOpenEntry(item.entry)}
                         titleOf={titleOf}
                         yearOf={yearOf}
+                        selectMode={props.selectMode}
+                        selected={isSelected(item.entry)}
+                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
                       />
                     )}
                   </For>
@@ -175,6 +201,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                   onOpen={() => props.onOpenEntry(item.entry)}
                   titleOf={titleOf}
                   yearOf={yearOf}
+                  selectMode={props.selectMode}
+                  selected={isSelected(item.entry)}
+                  onToggleSelect={() => props.onToggleSelected?.(item.entry)}
                 />
               )}
             </For>

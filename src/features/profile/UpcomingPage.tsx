@@ -167,6 +167,12 @@ interface TMDBVideosResponse {
  *   - "national" → constrain to the user's country via with_origin_country
  *   - "international" → exclude the user's country via without_origin_country
  * Language filter (optional): applied via with_original_language.
+ *
+ * v2.1 fix: Previously only fetched page 1 (max 20 results) and
+ * required vote_count >= 0 (which actually excluded many upcoming
+ * titles that have 0 votes because they haven't been released yet).
+ * Now fetches up to 5 pages (100 results) and removes the
+ * vote_count filter so ALL titles in the date range are returned.
  */
 async function fetchUpcomingMovies(
   startDate: string,
@@ -175,30 +181,45 @@ async function fetchUpcomingMovies(
   nationality: NationalityFilter,
   language: string | null,
 ): Promise<TMDBTitle[]> {
-  const params = new URLSearchParams({
+  const baseParams = new URLSearchParams({
     api_key: TMDB_KEY,
     language: "en-US",
     sort_by: "primary_release_date.asc",
     "primary_release_date.gte": startDate,
     "primary_release_date.lte": endDate,
-    "vote_count.gte": "0",
-    page: "1",
     include_adult: "false",
   });
   if (nationality === "national") {
-    params.set("with_origin_country", region);
+    baseParams.set("with_origin_country", region);
   } else {
-    params.set("without_origin_country", region);
+    baseParams.set("without_origin_country", region);
   }
-  if (language) params.set("with_original_language", language);
+  if (language) baseParams.set("with_original_language", language);
 
-  const res = await cachedFetch<TMDBDiscoverResponse>(
-    buildCacheKey("tmdb:upcoming_movies_v21", { start: startDate, end: endDate, region, nationality, lang: language ?? "" }),
+  const cacheKey = buildCacheKey("tmdb:upcoming_movies_v22", { start: startDate, end: endDate, region, nationality, lang: language ?? "" });
+
+  const res = await cachedFetch<{ results: TMDBRawMovie[]; total_pages: number }>(
+    cacheKey,
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/movie?${params}`);
-      if (!r.ok) throw new Error(`upcoming movies failed: ${r.status}`);
-      return r.json();
+      // Fetch up to 5 pages (100 results) to cover a full 30-day
+      // window. TMDB returns 20 results per page.
+      const allResults: TMDBRawMovie[] = [];
+      const maxPages = 5;
+      for (let page = 1; page <= maxPages; page++) {
+        const pageParams = new URLSearchParams(baseParams);
+        pageParams.set("page", String(page));
+        const r = await fetch(`${API}/discover/movie?${pageParams}`);
+        if (!r.ok) {
+          if (page === 1) throw new Error(`upcoming movies failed: ${r.status}`);
+          break; // stop paginating on error after page 1
+        }
+        const data = await r.json();
+        const results = data.results || [];
+        allResults.push(...results);
+        if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
+      }
+      return { results: allResults, total_pages: Math.min(maxPages, 5) };
     },
   );
   return (res.results || []).map((t: TMDBRawMovie) => ({ ...t, media_type: "movie" as const }));
@@ -207,6 +228,7 @@ async function fetchUpcomingMovies(
 /**
  * Fetch upcoming TV series in a date range.
  * Same Nationality + Language logic as fetchUpcomingMovies.
+ * Same v2.1 fix: fetch up to 5 pages, no vote_count filter.
  */
 async function fetchUpcomingTv(
   startDate: string,
@@ -215,30 +237,43 @@ async function fetchUpcomingTv(
   nationality: NationalityFilter,
   language: string | null,
 ): Promise<TMDBTitle[]> {
-  const params = new URLSearchParams({
+  const baseParams = new URLSearchParams({
     api_key: TMDB_KEY,
     language: "en-US",
     sort_by: "first_air_date.asc",
     "first_air_date.gte": startDate,
     "first_air_date.lte": endDate,
-    "vote_count.gte": "0",
-    page: "1",
     include_adult: "false",
   });
   if (nationality === "national") {
-    params.set("with_origin_country", region);
+    baseParams.set("with_origin_country", region);
   } else {
-    params.set("without_origin_country", region);
+    baseParams.set("without_origin_country", region);
   }
-  if (language) params.set("with_original_language", language);
+  if (language) baseParams.set("with_original_language", language);
 
-  const res = await cachedFetch<TMDBDiscoverResponse>(
-    buildCacheKey("tmdb:upcoming_tv_v21", { start: startDate, end: endDate, region, nationality, lang: language ?? "" }),
+  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v22", { start: startDate, end: endDate, region, nationality, lang: language ?? "" });
+
+  const res = await cachedFetch<{ results: TMDBRawTv[]; total_pages: number }>(
+    cacheKey,
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/tv?${params}`);
-      if (!r.ok) throw new Error(`upcoming tv failed: ${r.status}`);
-      return r.json();
+      const allResults: TMDBRawTv[] = [];
+      const maxPages = 5;
+      for (let page = 1; page <= maxPages; page++) {
+        const pageParams = new URLSearchParams(baseParams);
+        pageParams.set("page", String(page));
+        const r = await fetch(`${API}/discover/tv?${pageParams}`);
+        if (!r.ok) {
+          if (page === 1) throw new Error(`upcoming tv failed: ${r.status}`);
+          break;
+        }
+        const data = await r.json();
+        const results = data.results || [];
+        allResults.push(...results);
+        if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
+      }
+      return { results: allResults, total_pages: Math.min(maxPages, 5) };
     },
   );
   return (res.results || []).map((t: TMDBRawTv) => ({ ...t, media_type: "tv" as const }));
@@ -337,6 +372,9 @@ const UpcomingPage: Component = () => {
   const [typeFilter, setTypeFilter] = createSignal<"all" | "movies" | "series">("all");
   const [nationality, setNationality] = createSignal<NationalityFilter>("national");
   const [language, setLanguage] = createSignal<string>("");
+  // v2.1: Filter dialog (Nationality + Language combined in one dialog,
+  // opened by the filter icon button)
+  const [showFilterDialog, setShowFilterDialog] = createSignal(false);
 
   // Data
   const [movies, setMovies] = createSignal<TMDBTitle[]>([]);
@@ -589,10 +627,13 @@ const UpcomingPage: Component = () => {
         </div>
 
         <div class="sec-body">
-          {/* Filter bar */}
-          <div class="upcoming-filters">
-            {/* Date picker (no quick +7/+14/+30 buttons — per v2.1 spec) */}
-            <div class="upcoming-date-row">
+          {/* Filter bar — v2.1 restructured:
+              Line 1: Date selector only
+              Line 2: All · Movies · Series · Filter icon
+              Filter icon opens a dialog with Nationality + Language */}
+          <div class="upcoming-filters upcoming-filters-v21">
+            {/* Line 1: Date picker */}
+            <div class="upcoming-date-row upcoming-date-row-v21">
               <label class="upcoming-date-label" for="upcoming-date-input">
                 <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
                   calendar_today
@@ -609,8 +650,8 @@ const UpcomingPage: Component = () => {
               />
             </div>
 
-            {/* Type filter chips */}
-            <div class="upcoming-type-row" role="group" aria-label="Filter by type">
+            {/* Line 2: Type chips + Filter icon */}
+            <div class="upcoming-type-row upcoming-type-row-v21" role="group" aria-label="Filter by type and filters">
               <For each={[
                 { id: "all", label: "All" },
                 { id: "movies", label: "Movies" },
@@ -628,43 +669,23 @@ const UpcomingPage: Component = () => {
                   </button>
                 )}
               </For>
-            </div>
 
-            {/* Nationality + Language dropdowns (replaces Genre filter) */}
-            <div class="upcoming-type-row" role="group" aria-label="Nationality and language filters">
-              <span class="upcoming-filter-select-label">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
-                  flag
-                </span>
-                Nationality
-              </span>
-              <select
-                class="upcoming-filter-select focus-ring"
-                value={nationality()}
-                onChange={(e) => setNationality(e.currentTarget.value as NationalityFilter)}
-                aria-label="Filter by nationality"
+              {/* Filter icon — opens the Nationality + Language dialog */}
+              <button
+                type="button"
+                class={`upcoming-filter-icon-btn focus-ring${(nationality() !== "national" || language() !== "") ? " upcoming-filter-icon-active" : ""}`}
+                onClick={() => setShowFilterDialog(true)}
+                aria-label="Open nationality and language filters"
+                aria-haspopup="dialog"
               >
-                <option value="national">National ({regionLabel()})</option>
-                <option value="international">International</option>
-              </select>
-
-              <span class="upcoming-filter-select-label" style={{ "margin-left": "var(--space-2)" }}>
-                <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
-                  translate
+                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+                  tune
                 </span>
-                Language
-              </span>
-              <select
-                class="upcoming-filter-select focus-ring"
-                value={language()}
-                onChange={(e) => setLanguage(e.currentTarget.value)}
-                aria-label="Filter by language"
-              >
-                <option value="">All Languages</option>
-                <For each={languageOptions()}>
-                  {(l) => <option value={l.code}>{l.label}</option>}
-                </For>
-              </select>
+                {/* Small dot indicator when filters are active */}
+                <Show when={nationality() !== "national" || language() !== ""}>
+                  <span class="upcoming-filter-icon-dot" aria-hidden="true" />
+                </Show>
+              </button>
             </div>
           </div>
 
@@ -823,6 +844,177 @@ const UpcomingPage: Component = () => {
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowfullscreen
               />
+            </div>
+          </div>
+        </Portal>
+      </Show>
+
+      {/* v2.1: Filter dialog — Nationality + Language combined.
+          Opened by the filter icon button in the filter bar. */}
+      <Show when={showFilterDialog()}>
+        <Portal>
+          <div
+            class="fixed inset-0 z-[999999] flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+            style={{
+              background: "rgba(0,0,0,0.75)",
+              "backdrop-filter": "blur(12px)",
+              "-webkit-backdrop-filter": "blur(12px)",
+              "padding-bottom": "var(--nav-total-height)",
+            }}
+            onClick={() => setShowFilterDialog(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Nationality and language filters"
+          >
+            <div
+              class="w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+              style={{
+                background: "var(--glass-bg-strong)",
+                "backdrop-filter": "blur(28px)",
+                "-webkit-backdrop-filter": "blur(28px)",
+                border: "1px solid var(--hairline-2)",
+                "box-shadow": "var(--shadow-elevated)",
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Drag handle */}
+              <div
+                class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden"
+                style={{ background: "var(--hairline-2)" }}
+                aria-hidden="true"
+              />
+
+              {/* Header */}
+              <div
+                class="flex justify-between items-center px-6 pt-4 pb-4"
+                style={{ "border-bottom": "1px solid var(--hairline)" }}
+              >
+                <div class="flex items-center gap-2">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ color: "var(--p)", "font-size": "18px" }}
+                    aria-hidden="true"
+                  >
+                    tune
+                  </span>
+                  <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
+                    Filters
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowFilterDialog(false)}
+                  class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  style={{
+                    background: "rgba(255,255,255,0.04)",
+                    color: "var(--text-soft)",
+                    border: "1px solid var(--hairline)",
+                  }}
+                  aria-label="Close filters"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "16px" }}
+                    aria-hidden="true"
+                  >
+                    close
+                  </span>
+                </button>
+              </div>
+
+              {/* Filter options */}
+              <div class="px-6 py-5 space-y-5">
+                {/* Nationality */}
+                <div>
+                  <label class="upcoming-filter-dialog-label">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "14px" }}
+                      aria-hidden="true"
+                    >
+                      flag
+                    </span>
+                    Nationality
+                  </label>
+                  <div class="upcoming-filter-dialog-options">
+                    <button
+                      type="button"
+                      class={`upcoming-filter-dialog-option focus-ring${nationality() === "national" ? " active" : ""}`}
+                      onClick={() => setNationality("national")}
+                      aria-pressed={nationality() === "national"}
+                    >
+                      National ({regionLabel()})
+                    </button>
+                    <button
+                      type="button"
+                      class={`upcoming-filter-dialog-option focus-ring${nationality() === "international" ? " active" : ""}`}
+                      onClick={() => setNationality("international")}
+                      aria-pressed={nationality() === "international"}
+                    >
+                      International
+                    </button>
+                  </div>
+                </div>
+
+                {/* Language */}
+                <div>
+                  <label class="upcoming-filter-dialog-label">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "14px" }}
+                      aria-hidden="true"
+                    >
+                      translate
+                    </span>
+                    Language
+                  </label>
+                  <div class="upcoming-filter-dialog-options upcoming-filter-dialog-languages">
+                    <button
+                      type="button"
+                      class={`upcoming-filter-dialog-option focus-ring${language() === "" ? " active" : ""}`}
+                      onClick={() => setLanguage("")}
+                      aria-pressed={language() === ""}
+                    >
+                      All Languages
+                    </button>
+                    <For each={languageOptions()}>
+                      {(l) => (
+                        <button
+                          type="button"
+                          class={`upcoming-filter-dialog-option focus-ring${language() === l.code ? " active" : ""}`}
+                          onClick={() => setLanguage(l.code)}
+                          aria-pressed={language() === l.code}
+                        >
+                          {l.label}
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div
+                class="px-6 pt-3 pb-5 flex gap-2"
+                style={{ "border-top": "1px solid var(--hairline)" }}
+              >
+                <button
+                  type="button"
+                  class="upcoming-filter-dialog-reset focus-ring"
+                  onClick={() => {
+                    setNationality("national");
+                    setLanguage("");
+                  }}
+                >
+                  Reset
+                </button>
+                <button
+                  type="button"
+                  class="upcoming-filter-dialog-apply focus-ring"
+                  onClick={() => setShowFilterDialog(false)}
+                >
+                  Apply
+                </button>
+              </div>
             </div>
           </div>
         </Portal>

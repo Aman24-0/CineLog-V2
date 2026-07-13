@@ -1058,3 +1058,170 @@
 }
 
 
+
+/* ============================================================
+   AddToFolderSheet — folder tile redesign (v2)
+   Each folder is a horizontal tile:
+     [icon] | Name + count | [tick or empty]
+   with the folder's backdrop image as the background.
+   ============================================================ */
+
+.folder-tile {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  width: 100%;
+  min-height: 64px;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md, 10px);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  transition: transform 180ms var(--ease-smooth, ease-out),
+              border-color 200ms ease,
+              box-shadow 200ms ease;
+  outline: none;
+}
+
+.folder-tile:hover {
+  transform: translateY(-1px);
+  border-color: var(--hairline-3, var(--hairline-2));
+}
+
+.folder-tile:active {
+  transform: scale(0.985);
+}
+
+.folder-tile:focus-visible {
+  border-color: var(--p);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p) 40%, transparent);
+}
+
+.folder-tile-checked {
+  border-color: color-mix(in srgb, var(--p) 55%, var(--hairline));
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p) 35%, transparent),
+              0 4px 14px color-mix(in srgb, var(--p) 12%, transparent);
+}
+
+/* Backdrop image — fills the tile, covered by the overlay */
+.folder-tile-bg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.folder-tile-bg-gradient {
+  background: linear-gradient(135deg,
+    color-mix(in srgb, var(--tier-3) 90%, transparent) 0%,
+    color-mix(in srgb, var(--tier-2) 95%, transparent) 100%);
+}
+
+/* Dark overlay for text legibility over any backdrop */
+.folder-tile-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(90deg,
+    rgba(0,0,0,0.65) 0%,
+    rgba(0,0,0,0.45) 50%,
+    rgba(0,0,0,0.55) 100%);
+  z-index: 1;
+  pointer-events: none;
+}
+
+/* LEFT: icon circle */
+.folder-tile-icon {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(255,255,255,0.08);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,0.12);
+}
+
+.folder-tile-icon .material-symbols-outlined {
+  font-size: 20px;
+  color: var(--text-strong);
+}
+
+/* Favorites folder gets the yellow heart */
+.folder-tile-icon .material-symbols-outlined[aria-hidden="true"] {
+  /* default icon color set above */
+}
+
+/* CENTER: text block */
+.folder-tile-text {
+  position: relative;
+  z-index: 2;
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.folder-tile-name {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: #ffffff;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  text-shadow: 0 1px 3px rgba(0,0,0,0.5);
+}
+
+.folder-tile-count {
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.7);
+  margin: 0;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+/* RIGHT: tick / empty slot */
+.folder-tile-tick {
+  position: relative;
+  z-index: 2;
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.folder-tile-tick-on {
+  font-size: 24px;
+  color: var(--p);
+  font-variation-settings: 'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 1px 4px color-mix(in srgb, var(--p) 45%, transparent));
+}
+
+.folder-tile-tick-empty {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid rgba(255,255,255,0.4);
+  background: transparent;
+}
+
+.folder-tile:hover .folder-tile-tick-empty {
+  border-color: rgba(255,255,255,0.7);
+}

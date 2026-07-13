@@ -1,32 +1,44 @@
 // src/features/details/components/AddToFolderSheet.tsx
+//
+// AddToFolderSheet — premium bottom sheet for managing which user
+// collections a title belongs to.
+//
+// REDESIGN v2 (per user request):
+//   Each folder row is now a horizontal tile with:
+//     • LEFT: folder icon (folder / favorite heart)
+//     • CENTER: folder name + entry count
+//     • RIGHT: green tick if the title is in this folder, empty slot otherwise
+//   Each tile uses the folder's backdrop image as its background
+//   (set via the FolderEditor on the Collections page). If no
+//   backdrop is set, a subtle gradient is used instead.
+//
+//   Layout:
+//     ┌──────────────────────────────────────────────────────┐
+//     │  [icon]  Favorites                          [✓]  ←── green tick if added
+//     │          3 titles
+//     ├──────────────────────────────────────────────────────┤
+//     │  [icon]  My Action Movies                         │  ←── empty slot if not
+//     │          12 titles                                │
+//     └──────────────────────────────────────────────────────┘
+//
+// The tile is a <div role="button">, not a <button>, because it
+// contains nested interactive elements in some variants (the tick
+// is purely visual; the whole row is the click target).
+//
+// Architecture:
+//   DetailsModal → AddToFolderSheet → useCollections (toggle membership)
+
 import { For, Show, createSignal, createMemo, onMount, onCleanup, Component } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useCollections } from "~/features/collections/hooks/useCollections";
-import type { WatchlistItem, CollectionEntry } from "~/shared/types";
+import { tmdbImage } from "~/core/tmdb/tmdb";
+import type { WatchlistItem, CollectionEntry, Collection } from "~/shared/types";
 
 interface AddToFolderSheetProps {
   item: WatchlistItem;
   onClose: () => void;
 }
 
-/**
- * AddToFolderSheet — a premium bottom sheet for managing which user
- * collections a title belongs to.
- *
- * Opens from the ActionDock's "Folder" button (vault titles only).
- * Shows the user's collections with toggle checkboxes. Tapping a
- * collection adds/removes the title instantly (optimistic UI via
- * the useCollections hook's Firestore listener).
- *
- * Also includes a "Create new collection" inline input at the bottom
- * so the user can create a folder and add the title in one flow.
- *
- * The sheet uses the same Portal + bottom-sheet pattern as VaultFilters:
- *   - Portal at document.body level (no stacking-context issues)
-   - padding-bottom for safe-area + bottom nav
-   - overscroll-contain on the scroll area
-   - sticky footer with Close button
- */
 const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
   const { userCollections, isInCollection, addToCollection, removeFromCollection, createCollection } = useCollections();
   const [showCreate, setShowCreate] = createSignal(false);
@@ -59,7 +71,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
     const name = newName().trim();
     if (!name) return;
     await createCollection(name);
-    // The new collection will appear in userCollections() via the Firestore listener.
+    // The new collection will appear in userCollections() via the Supabase listener.
     // We need to wait a tick for it to show up, then add the title.
     setTimeout(() => {
       const newCol = userCollections().find((c) => c.name === name);
@@ -69,6 +81,20 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
     }, 500);
     setNewName("");
     setShowCreate(false);
+  };
+
+  // Resolve the backdrop URL for a collection tile.
+  // Priority: collection.backdrop_path (user-set backdrop) →
+  // first entry's backdrop_path → null (gradient fallback).
+  const tileBackdrop = (col: Collection): string | null => {
+    if (col.backdrop_path) {
+      // Could be a full URL (user upload) or a TMDB path.
+      if (col.backdrop_path.startsWith("http")) return col.backdrop_path;
+      return tmdbImage(col.backdrop_path, "w780");
+    }
+    const firstEntryBackdrop = col.entries?.[0]?.backdrop_path;
+    if (firstEntryBackdrop) return tmdbImage(firstEntryBackdrop, "w780");
+    return null;
   };
 
   return (
@@ -87,7 +113,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
         aria-label="Add to folder"
       >
         <div
-          class="folder-sheet w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
           style={{
             "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
             "min-height": "0",
@@ -124,8 +150,8 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
             </button>
           </div>
 
-          {/* Scrollable list */}
-          <div class="flex-1 overflow-y-auto hide-scrollbar px-6 py-4 space-y-2" style={{ "overscroll-behavior": "contain" }}>
+          {/* Scrollable list of folder tiles */}
+          <div class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-2.5" style={{ "overscroll-behavior": "contain" }}>
             <Show when={userCollections().length > 0} fallback={
               <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-6)" }}>
                 No folders yet. Create one below.
@@ -135,27 +161,78 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                 {(col) => {
                   const e = entry();
                   const checked = () => isInCollection(col.id, e.id, e.media_type);
+                  const backdrop = () => tileBackdrop(col);
+                  const count = () => col.entries?.length ?? 0;
+
                   return (
-                    <button
-                      type="button"
-                      class={`folder-sheet-item${checked() ? " folder-sheet-item-checked" : ""}`}
+                    <div
+                      role="button"
+                      tabindex={0}
+                      class={`folder-tile focus-ring${checked() ? " folder-tile-checked" : ""}`}
                       onClick={() => handleToggle(col.id)}
+                      onKeyDown={(ev) => {
+                        if (ev.key === "Enter" || ev.key === " ") {
+                          ev.preventDefault();
+                          handleToggle(col.id);
+                        }
+                      }}
                       aria-label={`${checked() ? "Remove from" : "Add to"} ${col.name}`}
                       aria-pressed={checked()}
                     >
-                      <div class="folder-sheet-item-icon">
+                      {/* Backdrop image (or gradient fallback) */}
+                      <Show
+                        when={backdrop()}
+                        fallback={<div class="folder-tile-bg folder-tile-bg-gradient" aria-hidden="true" />}
+                      >
+                        <img
+                          src={backdrop() as string}
+                          class="folder-tile-bg"
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          aria-hidden="true"
+                          onError={(ev) => {
+                            // Hide broken image → gradient underneath shows through.
+                            ev.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </Show>
+
+                      {/* Dark overlay for legibility */}
+                      <div class="folder-tile-overlay" aria-hidden="true" />
+
+                      {/* LEFT: folder icon */}
+                      <div class="folder-tile-icon">
                         <Show when={col.isFavorites} fallback={
-                          <span class="material-symbols-outlined" style={{"font-size":"18px","color":"var(--text-soft)"}} aria-hidden="true">folder</span>
+                          <span class="material-symbols-outlined" aria-hidden="true">folder</span>
                         }>
-                          <span class="material-symbols-outlined" style={{"font-size":"18px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}} aria-hidden="true">favorite</span>
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                            aria-hidden="true"
+                          >favorite</span>
                         </Show>
                       </div>
-                      <span class="folder-sheet-item-name">{col.name}</span>
-                      <span class="folder-sheet-item-count">{col.entries.length}</span>
-                      <Show when={checked()}>
-                        <span class="material-symbols-outlined folder-sheet-check" aria-hidden="true">check_circle</span>
-                      </Show>
-                    </button>
+
+                      {/* CENTER: folder name + count */}
+                      <div class="folder-tile-text">
+                        <p class="folder-tile-name">{col.name}</p>
+                        <p class="folder-tile-count">
+                          {count()} {count() === 1 ? "title" : "titles"}
+                        </p>
+                      </div>
+
+                      {/* RIGHT: green tick if added, empty circle if not */}
+                      <div class="folder-tile-tick">
+                        <Show when={checked()} fallback={
+                          <span class="folder-tile-tick-empty" aria-hidden="true" />
+                        }>
+                          <span class="material-symbols-outlined folder-tile-tick-on" aria-hidden="true">
+                            check_circle
+                          </span>
+                        </Show>
+                      </div>
+                    </div>
                   );
                 }}
               </For>

@@ -1,7 +1,8 @@
 // src/features/collections/components/FolderEditor.tsx
-import { Show, createSignal, For } from "solid-js";
+import { Show, createSignal, For, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useCollections } from "../hooks/useCollections";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { Collection } from "~/shared/types";
 
 interface FolderEditorProps {
@@ -23,6 +24,10 @@ const EMOJIS = ["🎬", "🌟", "🎭", "🎪", "🏆", "❤️", "🔥", "⚡",
  * Features:
  *   - Rename
  *   - Description
+ *   - Backdrop image (URL paste OR pick from titles in this folder)
+ *     → saved as `bannerUrl` → maps to `Collection.backdrop_path`
+ *     → shown on: folder cover (CollectionsGrid), folder hero
+ *       (UniverseDashboard), Add-to-folder tile (AddToFolderSheet)
  *   - Accent color picker
  *   - Emoji picker
  *   - Archive toggle
@@ -36,6 +41,32 @@ export default function FolderEditor(props: FolderEditorProps) {
   const [description, setDescription] = createSignal(props.collection.description ?? "");
   const [showEmojiPicker, setShowEmojiPicker] = createSignal(false);
   const [showColorPicker, setShowColorPicker] = createSignal(false);
+  const [showBackdropPicker, setShowBackdropPicker] = createSignal(false);
+  const [backdropUrlInput, setBackdropUrlInput] = createSignal("");
+
+  // Build a list of backdrop candidates from the folder's entries.
+  // Dedupe by path, limit to 12 so the picker stays scrollable.
+  const entryBackdrops = createMemo(() => {
+    const entries = props.collection.entries ?? [];
+    const seen = new Set<string>();
+    const out: { path: string; title: string }[] = [];
+    for (const e of entries) {
+      const path = e.backdrop_path;
+      if (path && !seen.has(path)) {
+        seen.add(path);
+        out.push({ path, title: e.title || e.name || "Untitled" });
+        if (out.length >= 12) break;
+      }
+    }
+    return out;
+  });
+
+  const currentBackdropUrl = createMemo(() => {
+    const p = props.collection.backdrop_path;
+    if (!p) return null;
+    if (p.startsWith("http")) return p;
+    return tmdbImage(p, "w342");
+  });
 
   const handleRename = () => {
     const n = name().trim();
@@ -70,6 +101,27 @@ export default function FolderEditor(props: FolderEditorProps) {
   const handleDelete = () => {
     deleteCollection(props.collection.id);
     props.onClose();
+  };
+
+  // Backdrop handlers — bannerUrl maps to Collection.backdrop_path
+  const handleSetBackdropUrl = () => {
+    const url = backdropUrlInput().trim();
+    if (!url) return;
+    updateCollectionMeta(props.collection.id, { bannerUrl: url });
+    setBackdropUrlInput("");
+    setShowBackdropPicker(false);
+  };
+
+  const handlePickEntryBackdrop = (path: string) => {
+    // Store the raw TMDB path — AddToFolderSheet / UniverseDashboard
+    // will pass it through tmdbImage() at render time.
+    updateCollectionMeta(props.collection.id, { bannerUrl: path });
+    setShowBackdropPicker(false);
+  };
+
+  const handleClearBackdrop = () => {
+    updateCollectionMeta(props.collection.id, { bannerUrl: null });
+    setShowBackdropPicker(false);
   };
 
   return (
@@ -136,6 +188,93 @@ export default function FolderEditor(props: FolderEditorProps) {
               placeholder="Add a description…"
               rows={2}
             />
+          </div>
+
+          {/* Backdrop image */}
+          <div class="folder-editor-field">
+            <button
+              type="button"
+              class="folder-editor-section-btn"
+              onClick={() => setShowBackdropPicker(!showBackdropPicker())}
+            >
+              <span class="folder-editor-label">Backdrop Image</span>
+              <Show when={currentBackdropUrl()} fallback={
+                <span class="folder-editor-value">None</span>
+              }>
+                <img
+                  src={currentBackdropUrl() as string}
+                  class="folder-editor-backdrop-thumb"
+                  alt=""
+                  aria-hidden="true"
+                />
+              </Show>
+            </button>
+            <Show when={showBackdropPicker()}>
+              <div class="folder-editor-backdrop-picker">
+                {/* Current backdrop preview + clear */}
+                <Show when={currentBackdropUrl()}>
+                  <div class="folder-editor-backdrop-current">
+                    <img src={currentBackdropUrl() as string} alt="" aria-hidden="true" />
+                    <button
+                      type="button"
+                      class="folder-editor-backdrop-clear"
+                      onClick={handleClearBackdrop}
+                      aria-label="Remove backdrop"
+                    >
+                      <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">delete</span>
+                      Remove
+                    </button>
+                  </div>
+                </Show>
+
+                {/* URL paste */}
+                <div class="folder-editor-backdrop-url-row">
+                  <input
+                    type="url"
+                    class="folder-editor-backdrop-url-input"
+                    placeholder="Paste image URL…"
+                    value={backdropUrlInput()}
+                    onInput={(e) => setBackdropUrlInput(e.currentTarget.value)}
+                    onKeyDown={(e) => { if (e.key === "Enter") handleSetBackdropUrl(); }}
+                    aria-label="Backdrop image URL"
+                  />
+                  <button
+                    type="button"
+                    class="folder-editor-backdrop-url-btn"
+                    onClick={handleSetBackdropUrl}
+                    disabled={!backdropUrlInput().trim()}
+                  >
+                    Set
+                  </button>
+                </div>
+
+                {/* Pick from titles in this folder */}
+                <Show when={entryBackdrops().length > 0}>
+                  <p class="folder-editor-backdrop-picker-label">
+                    Or pick from titles in this folder
+                  </p>
+                  <div class="folder-editor-backdrop-grid">
+                    <For each={entryBackdrops()}>
+                      {(b) => (
+                        <button
+                          type="button"
+                          class="folder-editor-backdrop-option"
+                          onClick={() => handlePickEntryBackdrop(b.path)}
+                          aria-label={`Use backdrop from ${b.title}`}
+                        >
+                          <img
+                            src={tmdbImage(b.path, "w342")}
+                            alt=""
+                            aria-hidden="true"
+                            loading="lazy"
+                          />
+                        </button>
+                      )}
+                    </For>
+                  </div>
+                </Show>
+              </div>
+            </Show>
           </div>
 
           {/* Accent color */}

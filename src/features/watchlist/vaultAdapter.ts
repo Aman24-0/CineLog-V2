@@ -160,19 +160,68 @@ export async function togglePinnedInSupabase(
   if (error) throw error;
 }
 
-/** Soft-delete a vault item in Supabase (sets `deleted_at`). */
+/** Soft-delete a vault item in Supabase (sets `deleted_at`).
+ *
+ * ALSO cascades: hard-deletes every `collection_entries` row that
+ * references this vault item. Without this cascade, those rows
+ * would become orphans — invisible in the UI (filtered out by the
+ * `is("deleted_at", null)` clause in fetchEntriesForCollection)
+ * but lingering in the DB. Worse, if the user re-adds the same
+ * title to their vault later, the soft-deleted vault row gets
+ * un-deleted and the orphaned collection_entries rows reappear
+ * as "blank cards" pointing at stale data.
+ *
+ * The cascade is best-effort: if it fails, the vault deletion
+ * still succeeds (the title is removed from the watchlist), and
+ * the error is logged. The orphaned entries will be cleaned up
+ * next time the user removes another title, or never — they're
+ * invisible anyway.
+ */
 export async function deleteVaultItemInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
 ): Promise<void> {
   const repo = getVaultRepository();
+
+  // Resolve the vault UUID first so we can cascade-delete collection
+  // entries. If this lookup fails (e.g. already deleted), we skip
+  // the cascade — there's nothing to clean up.
+  let vaultUuid: string | null = null;
+  try {
+    const { data: vaultRow } = await repo.getVaultByTmdbId(userId, Number(itemId), mediaType);
+    vaultUuid = vaultRow?.id ?? null;
+  } catch (err) {
+    // Non-fatal — proceed with the vault deletion. The cascade
+    // just won't happen this time.
+    console.warn("[vaultAdapter] Could not resolve vault UUID for cascade delete:", err);
+  }
+
+  // Soft-delete the vault row (existing behavior).
   const { error } = await repo.deleteVaultItem({
     userId,
     tmdbId: Number(itemId),
     mediaType,
   });
   if (error) throw error;
+
+  // Cascade: hard-delete collection_entries referencing this vault.
+  // This MUST happen after the vault soft-delete so RLS policies
+  // (which may check vault.deleted_at) see the updated state.
+  if (vaultUuid) {
+    try {
+      const { removeVaultItemFromAllCollections } = await import(
+        "~/features/collections/collectionEntryAdapter"
+      );
+      await removeVaultItemFromAllCollections(userId, vaultUuid);
+    } catch (err) {
+      // Non-fatal — the vault deletion already succeeded. The
+      // orphaned entries are invisible (filtered out by
+      // fetchEntriesForCollection) and will be cleaned up if the
+      // user re-adds and re-removes the title.
+      console.warn("[vaultAdapter] Cascade delete of collection_entries failed:", err);
+    }
+  }
 }
 
 /** Restore a soft-deleted vault item in Supabase (clears `deleted_at`). */

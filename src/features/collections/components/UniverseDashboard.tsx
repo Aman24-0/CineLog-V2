@@ -15,6 +15,12 @@ interface UniverseDashboardProps {
   activeProvider: TimelineProvider;
   onOrderChange: (order: ViewingOrder) => void;
   onProviderChange: (provider: TimelineProvider) => void;
+  // ── Batch Select Mode (v2.1) ──
+  selectMode?: boolean;
+  selectedCount?: number;
+  onToggleSelectMode?: () => void;
+  onBatchRemove?: () => void;
+  onOpenMoveDialog?: () => void;
 }
 
 /**
@@ -24,21 +30,31 @@ interface UniverseDashboardProps {
  *   - Cinematic hero with backdrop + accent gradient
  *   - Animated progress ring
  *   - Stats strip (total, owned, completed, watching, missing, runtime)
- *   - Continue card (next missing title)
+ *   - Continue card (next missing title) — ONLY for curated universes
  *   - Provider + Order selector
- *   - Quick actions (Edit Timeline, Pin)
+ *   - Quick actions: Select (batch mode), Remove, Move (in select mode)
+ *
+ * v2.1 changes:
+ *   - "Continue This Universe" removed for user collections + favorites
+ *     (per user request — after hero, timeline starts immediately)
+ *   - Pin button removed (was useless for user folders)
+ *   - Select button added — toggles batch select mode
+ *   - In select mode: Remove + Move buttons appear (disabled until
+ *     at least one entry is selected)
  */
 export default function UniverseDashboard(props: UniverseDashboardProps) {
   const navigate = useNavigate();
   const { watchlist } = useVault();
-  const { getCollectionProgress, getUniversePrefs, pinUniverseInPrefs, unpinUniverseInPrefs } = useCollections();
+  const { getCollectionProgress } = useCollections();
 
   const progress = createMemo(() => getCollectionProgress(props.collection, watchlist()));
-  const prefs = createMemo(() => getUniversePrefs(props.collection.id));
-  const isPinned = createMemo(() => prefs()?.isPinned ?? false);
 
   const backdropUrl = createMemo(() => {
-    if (props.collection.backdrop_path) return tmdbImage(props.collection.backdrop_path, "w1280");
+    if (props.collection.backdrop_path) {
+      const p = props.collection.backdrop_path;
+      if (p.startsWith("http")) return p;
+      return tmdbImage(p, "w1280");
+    }
     return "";
   });
 
@@ -50,8 +66,15 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
     };
   });
 
+  // "Continue This Universe" is only shown for curated universes.
+  // User folders + favorites skip it — after hero, timeline starts.
+  const showContinueCard = createMemo(() => {
+    return props.collection.type === "curated";
+  });
+
   /** Find the next missing entry for the "Continue" card */
   const nextMissing = createMemo((): CollectionEntry | null => {
+    if (!showContinueCard()) return null;
     return (props.collection.entries ?? []).find(
       (e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })
     ) ?? null;
@@ -60,14 +83,6 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
   const titleOf = (e: CollectionEntry) => e.title || e.name || "Untitled";
 
   const availableOrders = createMemo(() => props.collection.viewingOrders ?? []);
-
-  const togglePin = () => {
-    if (isPinned()) {
-      unpinUniverseInPrefs(props.collection.id);
-    } else {
-      pinUniverseInPrefs(props.collection.id);
-    }
-  };
 
   return (
     <div class="universe-dashboard" style={accentStyle()}>
@@ -150,8 +165,10 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         </div>
       </div>
 
-      {/* Continue card — next missing title */}
-      <Show when={nextMissing()}>
+      {/* Continue card — ONLY for curated universes.
+          User folders + favorites skip this — timeline starts right
+          after the hero (per user request v2.1). */}
+      <Show when={showContinueCard() && nextMissing()}>
         <div class="universe-dashboard-continue animate-fade-up">
           <div class="universe-dashboard-continue-label">
             <span class="material-symbols-outlined" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true">play_circle</span>
@@ -205,27 +222,51 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         </div>
       </Show>
 
-      {/* Quick actions */}
-      <div class="universe-dashboard-actions">
-        <button
-          type="button"
-          class="universe-dashboard-action-btn"
-          onClick={() => navigate(`/collections/${props.collection.id}/edit`)}
-          aria-label="Edit Timeline"
-        >
-          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">edit</span>
-          Edit
-        </button>
-        <button
-          type="button"
-          class={`universe-dashboard-action-btn${isPinned() ? " universe-dashboard-action-active" : ""}`}
-          onClick={togglePin}
-          aria-label={isPinned() ? "Unpin universe" : "Pin universe"}
-        >
-          <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">push_pin</span>
-          {isPinned() ? "Pinned" : "Pin"}
-        </button>
-      </div>
+      {/* Quick actions — Select mode toggle + batch actions.
+          Edit button is now in the Timeline header (right-aligned
+          with the "Timeline" label). Pin button removed (v2.1). */}
+      <Show when={props.onToggleSelectMode}>
+        <div class="universe-dashboard-actions">
+          {/* Select toggle button */}
+          <button
+            type="button"
+            class={`universe-dashboard-action-btn${props.selectMode ? " universe-dashboard-action-active" : ""}`}
+            onClick={() => props.onToggleSelectMode!()}
+            aria-label={props.selectMode ? "Exit select mode" : "Select titles"}
+            aria-pressed={props.selectMode ?? false}
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">
+              {props.selectMode ? "close" : "checklist"}
+            </span>
+            {props.selectMode ? "Cancel" : "Select"}
+          </button>
+
+          {/* Batch actions — only visible in select mode.
+              Disabled until at least one entry is selected. */}
+          <Show when={props.selectMode}>
+            <button
+              type="button"
+              class="universe-dashboard-action-btn universe-dashboard-action-danger"
+              onClick={() => props.onBatchRemove?.()}
+              disabled={(props.selectedCount ?? 0) === 0}
+              aria-label="Remove selected titles from this folder"
+            >
+              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">delete</span>
+              Remove{(props.selectedCount ?? 0) > 0 ? ` (${props.selectedCount})` : ""}
+            </button>
+            <button
+              type="button"
+              class="universe-dashboard-action-btn"
+              onClick={() => props.onOpenMoveDialog?.()}
+              disabled={(props.selectedCount ?? 0) === 0}
+              aria-label="Move selected titles to another folder"
+            >
+              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">drive_file_move</span>
+              Move{(props.selectedCount ?? 0) > 0 ? ` (${props.selectedCount})` : ""}
+            </button>
+          </Show>
+        </div>
+      </Show>
     </div>
   );
 }

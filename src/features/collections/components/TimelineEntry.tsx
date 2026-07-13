@@ -14,6 +14,12 @@ import type { CollectionEntry } from "~/shared/types";
  *   - User rating (if rated)
  *   - User note (if present)
  *   - "+" missing badge for non-vault titles
+ *
+ * v2.1: Batch select mode — when selectMode is true, a checkbox
+ * appears on the left and clicking toggles selection instead of
+ * opening the entry. The outer element is a <div role="button">
+ * (not a <button>) so it can contain the checkbox without nesting
+ * interactive elements.
  */
 export interface TimelineEntryItem {
   entry: CollectionEntry;
@@ -28,20 +34,52 @@ export interface TimelineEntryProps {
   onOpen: () => void;
   titleOf: (e: CollectionEntry) => string;
   yearOf: (e: CollectionEntry) => string;
+  // ── Batch Select Mode (v2.1) ──
+  selectMode?: boolean;
+  selected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 export default function TimelineEntry(props: TimelineEntryProps) {
+  const handleClick = () => {
+    if (props.selectMode) {
+      props.onToggleSelect?.();
+    } else {
+      props.onOpen();
+    }
+  };
+
   return (
-    <button
-      type="button"
-      class={`universe-timeline-item${!props.item.inVault ? " universe-timeline-missing" : ""}${props.item.entry.isPinned ? " universe-timeline-pinned" : ""}`}
+    <div
+      class={`universe-timeline-item${!props.item.inVault ? " universe-timeline-missing" : ""}${props.item.entry.isPinned ? " universe-timeline-pinned" : ""}${props.selected ? " universe-timeline-selected" : ""}${props.selectMode ? " universe-timeline-select-mode" : ""}`}
       role="listitem"
-      onClick={() => props.onOpen()}
-      aria-label={`${props.titleOf(props.item.entry)}${props.yearOf(props.item.entry) ? `, ${props.yearOf(props.item.entry)}` : ""} — open details`}
+      role-button={props.selectMode ? undefined : "button"}
+      tabindex={0}
+      onClick={handleClick}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          handleClick();
+        }
+      }}
+      aria-label={`${props.titleOf(props.item.entry)}${props.yearOf(props.item.entry) ? `, ${props.yearOf(props.item.entry)}` : ""}${props.selectMode ? ` — ${props.selected ? "deselect" : "select"}` : " — open details"}`}
+      aria-pressed={props.selectMode ? !!props.selected : undefined}
     >
-      <div class={`universe-timeline-node${props.item.status === "Completed" ? " universe-timeline-node-completed" : ""}${props.item.status === "Watching" ? " universe-timeline-node-watching" : ""}`}>
-        {props.index}
-      </div>
+      {/* Select-mode checkbox (left side, replaces the numbered node) */}
+      <Show when={props.selectMode}>
+        <div class={`universe-timeline-checkbox${props.selected ? " universe-timeline-checkbox-on" : ""}`} aria-hidden="true">
+          <Show when={props.selected}>
+            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">check</span>
+          </Show>
+        </div>
+      </Show>
+
+      {/* Numbered node (hidden in select mode) */}
+      <Show when={!props.selectMode}>
+        <div class={`universe-timeline-node${props.item.status === "Completed" ? " universe-timeline-node-completed" : ""}${props.item.status === "Watching" ? " universe-timeline-node-watching" : ""}`}>
+          {props.index}
+        </div>
+      </Show>
 
       <div class="universe-timeline-poster">
         <Show
@@ -98,11 +136,11 @@ export default function TimelineEntry(props: TimelineEntryProps) {
         </Show>
       </div>
 
-      <Show when={!props.item.inVault}>
+      <Show when={!props.item.inVault && !props.selectMode}>
         <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
           <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
         </span>
       </Show>
-    </button>
+    </div>
   );
 }
