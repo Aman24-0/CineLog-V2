@@ -1,18 +1,38 @@
 /* src/styles/features/profile.css — Profile page
-   Sprint 2C — Premium Profile Redesign.
-   
-   Complete rewrite of profile styles for the new section architecture:
-     1. Premium Hero (35vh cinematic backdrop + floating avatar + identity)
-     2. Statistics (1 featured + 3 supporting stat cards)
-     3. Taste Identity (asymmetric CSS grid with named areas)
-     4. Cinema DNA (viewer archetype insight card)
-     5. Achievements (horizontal chip rail)
-     6. Quick Actions (interactive rows)
-     7. Settings (separated navigation rows)
-     8. Danger Zone (red-tinted isolated section)
-   
+   Sprint 2C — Final Implementation.
+
+   Eight-section narrative architecture:
+     HERO           → Banner, avatar, name, archetype, bio
+     VAULT          → One dominant number, inline sub-metrics, milestone hint
+     TASTE          → Poster mosaic, curated gallery wall
+     CINEMA INSIGHT → Dynamic self-insight (WOW section)
+     ACHIEVEMENTS   → Featured trophy case + locked count
+     RECENT ACTIVITY→ Lightweight recent items
+     SETTINGS       → Merged navigation
+     DANGER         → Sign out, delete (red hairline divider)
+
+   Design principles:
+     • Name is primary identity, archetype is strongest secondary
+     • Typography hierarchy: Name > Archetype > Vault > Genre > Body > Label
+     • Readability: 16px+ for important content, nothing squinted
+     • Breathing space: every section is its own chapter
+     • Green accent at 4 touchpoints only: archetype, milestone glow, insight stat, platinum trophy
+     • Poster-first, edge-to-edge imagery
+     • No "Favorite X" labels on filled cards
+     • Shadows and elevation, not borders
+
+   Section gap rhythm (top margin):
+     HERO:           0 (first section)
+     VAULT:          80px (--space-20) — opening breathes
+     TASTE:          64px (--space-16)
+     INSIGHT:        48px (--space-12) — momentum carries
+     ACHIEVEMENTS:   80px (--space-20) — let the WOW settle
+     RECENT:         56px (--space-14)
+     SETTINGS:       64px (--space-16) — the story is ending
+     DANGER:         0 (no gap, same section as settings)
+
    Spacing: 8pt grid via design tokens (--space-N / --sp-N).
-   Typography: font-display for titles, font-label for labels, font-body for text.
+   Typography: Bebas Neue (display), Outfit (body), Azeret Mono (label).
    All colors via design tokens — no hardcoded values. */
 
 /* ============================================================
@@ -39,19 +59,48 @@
 }
 
 /* ============================================================
-   BANNER (retained from ProfileBanner.tsx)
-   35vh hero backdrop with dark gradient overlay.
+   GUEST / ERROR STATES
    ============================================================ */
+
+.profile-guest,
+.profile-error {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 60vh;
+  padding: var(--space-8);
+}
+
+/* ============================================================
+   SECTION 1: HERO — "Who am I?"
+   Name primary. Archetype strongest secondary.
+   No @username, no Member since in hero.
+   ============================================================ */
+
+.profile-hero {
+  position: relative;
+}
+
+/* ── Banner ── */
 
 .profile-banner {
   position: relative;
   width: 100%;
-  height: 35vh;
-  min-height: 200px;
-  max-height: 380px;
+  height: 40vh;
+  min-height: 240px;
+  max-height: 360px;
   overflow: hidden;
-  background: linear-gradient(145deg, var(--tier-2), var(--tier-1));
-  border-radius: 0;
+}
+
+.profile-banner-gradient {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    135deg,
+    var(--tier-0) 0%,
+    color-mix(in srgb, var(--p) 12%, var(--tier-1)) 50%,
+    var(--tier-0) 100%
+  );
 }
 
 .profile-banner-img {
@@ -61,7 +110,7 @@
   height: 100%;
   object-fit: cover;
   opacity: 0;
-  transition: opacity 600ms var(--ease-smooth, ease-out);
+  transition: opacity 600ms ease-out;
 }
 
 .profile-banner-img.img-loaded {
@@ -71,63 +120,55 @@
 .profile-banner-shimmer {
   position: absolute;
   inset: 0;
-  z-index: 0;
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    var(--tier-3) 40%,
-    transparent 80%
+    var(--tier-0) 0%,
+    var(--tier-2) 50%,
+    var(--tier-0) 100%
   );
   background-size: 200% 100%;
-  animation: shimmer 1.8s ease-in-out infinite;
+  animation: profileBannerShimmer 1.5s ease-in-out infinite;
 }
 
-.profile-banner-gradient {
-  position: absolute;
-  inset: 0;
-  background: 
-    radial-gradient(ellipse at 20% 30%, var(--p-glow, rgba(0,255,100,0.15)) 0%, transparent 50%),
-    radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2, var(--p)) 18%, transparent) 0%, transparent 50%),
-    linear-gradient(145deg, var(--tier-3), var(--tier-1));
+@keyframes profileBannerShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
 }
 
+/* Multi-layer gradient overlay for readability */
 .profile-banner-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,0.7) 0%,
-    rgba(0,0,0,0.3) 40%,
-    rgba(0,0,0,0.1) 70%,
-    transparent 100%
-  );
+  background:
+    linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, transparent 30%),
+    linear-gradient(to bottom, transparent 40%, rgba(0,0,0,0.6) 70%, rgba(0,0,0,0.92) 100%);
   pointer-events: none;
 }
 
 .profile-banner-edit-btn {
   position: absolute;
-  top: var(--space-3, 12px);
-  right: var(--space-3, 12px);
-  z-index: 2;
-  display: inline-flex;
+  top: var(--space-4);
+  right: var(--space-4);
+  display: flex;
   align-items: center;
-  gap: var(--space-1, 4px);
-  padding: var(--space-1, 4px) var(--space-2, 8px);
-  border-radius: var(--radius-md, 6px);
-  background: rgba(0,0,0,0.5);
-  border: 1px solid var(--hairline, rgba(255,255,255,0.1));
-  color: var(--text-soft, rgba(255,255,255,0.7));
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.5625rem;
-  letter-spacing: 0.06em;
+  gap: var(--space-1);
+  padding: var(--space-1) var(--space-2);
+  border-radius: var(--radius-full, 9999px);
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  color: var(--text-soft);
+  font-size: 0.6875rem;
+  font-family: var(--font-family-label);
+  letter-spacing: var(--letter-spacing-label);
+  backdrop-filter: blur(var(--glass-blur));
   cursor: pointer;
-  transition: background 200ms, color 200ms;
-  backdrop-filter: blur(4px);
+  transition: background 200ms ease, color 200ms ease;
+  z-index: 2;
 }
 
 .profile-banner-edit-btn:hover {
-  background: rgba(0,0,0,0.7);
-  color: var(--text-strong, #fff);
+  background: var(--glass-bg-strong);
+  color: var(--text-strong);
 }
 
 .profile-banner-edit-label {
@@ -135,514 +176,300 @@
 }
 
 @media (min-width: 640px) {
-  .profile-banner-edit-label {
-    display: inline;
-  }
+  .profile-banner-edit-label { display: inline; }
 }
 
-@media (min-width: 640px) {
-  .profile-banner {
-    border-radius: 0 0 var(--radius-xl, 16px) var(--radius-xl, 16px);
-  }
-}
-
-/* ============================================================
-   HERO OVERLAY + IDENTITY
-   Glass overlay at bottom of 35vh banner with avatar + text.
-   ============================================================ */
-
-.profile-hero {
-  position: relative;
-}
+/* ── Hero overlay — identity block at bottom of banner ── */
 
 .profile-hero-overlay {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
-  padding: var(--space-6, 24px) var(--space-4, 16px) var(--space-4, 16px);
-  background: linear-gradient(
-    to top,
-    var(--void, #000) 0%,
-    rgba(0,0,0,0.85) 60%,
-    rgba(0,0,0,0.4) 85%,
-    transparent 100%
-  );
-  pointer-events: none;
+  padding: var(--space-8) var(--space-4) var(--space-6);
+  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 100%);
 }
 
 .profile-hero-identity {
   display: flex;
   align-items: flex-end;
-  gap: var(--space-4, 16px);
-  pointer-events: auto;
-  max-width: 600px;
+  gap: var(--space-4);
+  max-width: 680px;
   margin: 0 auto;
 }
 
-/* Avatar wrap — with completion ring */
-.profile-hero-avatar-wrap {
+@media (min-width: 768px) {
+  .profile-hero-identity { gap: var(--space-5); }
+}
+
+/* ── Avatar ── */
+
+.profile-avatar-wrap {
   position: relative;
   flex-shrink: 0;
-  margin-bottom: var(--space-1, 4px);
 }
 
-.profile-avatar-ring {
+.profile-avatar-edit {
   position: absolute;
-  top: 50%;
-  left: 50%;
-  transform: translate(-50%, -50%);
-  z-index: 1;
-  pointer-events: none;
-}
-
-/* Hero text column */
-.profile-hero-text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-1, 4px);
-  padding-bottom: var(--space-1, 4px);
-}
-
-/* Display name — very large */
-.profile-hero-name {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  line-height: 1.1;
-  letter-spacing: 0.03em;
-  color: var(--text-strong, #fff);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.profile-hero-name-input {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: clamp(1.75rem, 5vw, 2.5rem);
-  line-height: 1.1;
-  letter-spacing: 0.03em;
-  color: var(--text-strong, #fff);
-  background: transparent;
-  border: none;
-  border-bottom: 2px solid var(--p, #00ff64);
-  outline: none;
-  width: 100%;
-  padding: 0 0 var(--space-1, 4px);
-  margin: 0;
-}
-
-/* Username */
-.profile-hero-username {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--text-muted, rgba(255,255,255,0.5));
-  margin: 0;
-  letter-spacing: 0.04em;
-}
-
-/* Badge row */
-.profile-hero-badge-row {
-  margin-top: var(--space-1, 4px);
-}
-
-/* Bio */
-.profile-hero-bio {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--text-soft, rgba(255,255,255,0.7));
-  margin: 0;
-}
-
-.profile-hero-bio-placeholder {
-  color: var(--text-dim, rgba(255,255,255,0.35));
-  font-style: italic;
-}
-
-.profile-hero-bio-input {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--text-strong, #fff);
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--p, #00ff64);
-  outline: none;
-  width: 100%;
-  resize: none;
-  padding: 0;
-  margin: 0;
-}
-
-/* Username edit — preserved from Sprint 2B */
-.profile-username-edit-wrap {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.profile-username-input-row {
+  bottom: -2px;
+  right: -2px;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-full, 9999px);
+  background: var(--p);
+  color: var(--active-text);
+  border: 2px solid var(--tier-0);
   display: flex;
   align-items: center;
-  gap: 2px;
-}
-
-.profile-username-at {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.75rem;
-  color: var(--text-muted, rgba(255,255,255,0.5));
-}
-
-.profile-username-input {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.75rem;
-  color: var(--text-strong, #fff);
-  background: transparent;
-  border: none;
-  border-bottom: 1px solid var(--hairline, rgba(255,255,255,0.15));
-  outline: none;
-  padding: 0;
-  flex: 1;
-  min-width: 0;
-  letter-spacing: 0.04em;
-}
-
-.profile-username-validation {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1, 4px);
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.5rem;
-  margin: 0;
-  letter-spacing: 0.06em;
-}
-
-.profile-username-validation[data-state="available"] {
-  color: var(--color-success, #4ade80);
-}
-
-.profile-username-validation[data-state="checking"] {
-  color: var(--text-muted, rgba(255,255,255,0.5));
-}
-
-.profile-username-validation[data-state="taken"],
-.profile-username-validation[data-state="reserved"],
-.profile-username-validation[data-state="invalid"] {
-  color: var(--color-danger, #f87171);
-}
-
-.profile-username-validation-icon {
-  font-size: 12px;
-}
-
-/* Hero actions — positioned top-right of the overlay */
-.profile-hero-actions {
-  display: flex;
-  align-items: center;
-  gap: var(--space-2, 8px);
-  position: absolute;
-  top: var(--space-3, 12px);
-  right: var(--space-4, 16px);
+  justify-content: center;
+  cursor: pointer;
   z-index: 3;
 }
 
-/* ============================================================
-   STATISTICS
-   Featured stat (large) + supporting stats (compact row)
-   ============================================================ */
+/* ── Hero text: Name → Archetype → Bio ── */
 
-.profile-stats-section {
-  padding: 0 var(--space-4, 16px);
-}
-
-.profile-stats-featured {
-  display: flex;
-  gap: var(--space-3, 12px);
-  align-items: stretch;
-}
-
-.profile-stat-featured {
-  flex: 2;
+.profile-hero-text {
   min-width: 0;
-}
-
-.profile-stats-supporting {
   flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-3, 12px);
-  min-width: 0;
 }
 
-@media (max-width: 360px) {
-  .profile-stats-featured {
-    flex-direction: column;
-  }
-  .profile-stats-supporting {
-    flex-direction: row;
-  }
+.profile-hero-name {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.profile-hero-archetype {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-family: var(--font-family-body);
+  font-size: 1rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--p);
+  margin: var(--space-1) 0 0;
+  line-height: var(--line-height-snug);
+}
+
+.profile-hero-archetype-icon {
+  font-size: 16px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.profile-hero-bio {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  line-height: var(--line-height-normal);
+  color: var(--text-soft);
+  margin: var(--space-2) 0 0;
+  max-width: 40ch;
+}
+
+.profile-hero-actions {
+  position: absolute;
+  top: 0;
+  right: 0;
+}
+
+/* ── Edit fields ── */
+
+.profile-hero-edit-fields {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  width: 100%;
+}
+
+.profile-edit-name-input {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.75rem, 5vw, 2.5rem);
+  line-height: var(--line-height-tight);
+  color: var(--text-strong);
+  background: transparent;
+  border: none;
+  border-bottom: 2px solid var(--p);
+  padding: var(--space-1) 0;
+  outline: none;
+  width: 100%;
+}
+
+.profile-edit-username-input {
+  font-family: var(--font-family-body);
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hairline-2);
+  padding: var(--space-1) 0;
+  outline: none;
+  width: 100%;
+}
+
+.profile-edit-bio-input {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  line-height: var(--line-height-normal);
+  color: var(--text-soft);
+  background: transparent;
+  border: none;
+  border-bottom: 1px solid var(--hairline-2);
+  padding: var(--space-1) 0;
+  outline: none;
+  width: 100%;
+  resize: none;
+}
+
+.profile-username-taken {
+  font-size: 0.75rem;
+  color: var(--color-danger);
+  margin: 0;
+}
+
+.profile-username-available {
+  font-size: 0.75rem;
+  color: var(--color-success);
+  margin: 0;
+}
+
+.profile-edit-actions {
+  display: flex;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
 }
 
 /* ============================================================
-   TASTE IDENTITY — Asymmetric Grid
-   "movie  movie  series"
-   "movie  movie  director"
-   "genre  genre  genre"
+   SECTION 2: VAULT — "How far have I come?"
+   Large number. Inline sub-metrics. No cards.
    ============================================================ */
 
-.taste-identity {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  grid-template-rows: auto auto auto;
-  grid-template-areas:
-    "movie  movie  series"
-    "movie  movie  director"
-    "genre  genre  genre";
-  gap: var(--space-3, 12px);
-  padding: 0 var(--space-4, 16px);
+.profile-section {
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.taste-cell {
-  position: relative;
-  min-height: 0;
-}
-
-/* Movie — hero card spanning 2×2 */
-.taste-cell-movie {
-  min-height: 240px;
-}
-
-.taste-movie-hero-wrap {
-  position: relative;
-  width: 100%;
-  height: 100%;
-  min-height: 240px;
-  border-radius: var(--radius-lg, 8px);
-  overflow: hidden;
-}
-
-/* Series / Director — medium cards */
-.taste-series-card-wrap,
-.taste-director-card-wrap {
-  position: relative;
-  height: 100%;
-  min-height: 100px;
-  border-radius: var(--radius-lg, 8px);
-  overflow: hidden;
-}
-
-/* Card poster images */
-.taste-card-poster-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  border-radius: var(--radius-lg, 8px);
-  z-index: 0;
-}
-
-.taste-card-portrait-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  object-position: top center;
-  border-radius: var(--radius-lg, 8px);
-  z-index: 0;
-}
-
-.taste-card-poster-overlay {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    to top,
-    rgba(0,0,0,0.85) 0%,
-    rgba(0,0,0,0.3) 50%,
-    rgba(0,0,0,0.1) 100%
-  );
-  z-index: 1;
-  border-radius: var(--radius-lg, 8px);
-  pointer-events: none;
-}
-
-.taste-card-poster-content {
-  position: relative;
-  z-index: 2;
-  padding: var(--space-3, 12px);
-  display: flex;
-  flex-direction: column;
-  justify-content: flex-end;
-  height: 100%;
-}
-
-.taste-card-eyebrow {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--p, #00ff64);
-  margin: 0 0 var(--space-1, 4px);
-}
-
-.taste-card-title {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: 1rem;
-  line-height: 1.1;
-  letter-spacing: 0.03em;
-  color: var(--text-strong, #fff);
-  margin: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.taste-card-subtitle {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.6875rem;
-  color: var(--text-soft, rgba(255,255,255,0.7));
-  margin: 2px 0 0;
-}
-
-/* Genre — gradient surface */
-.taste-genre-surface-wrap {
-  position: relative;
-  border-radius: var(--radius-lg, 8px);
-  overflow: hidden;
-}
-
-.taste-genre-content {
-  display: flex;
-  align-items: center;
-  gap: var(--space-4, 16px);
-}
-
-.taste-genre-label {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-  color: var(--p, #00ff64);
-  margin: 0;
-  flex-shrink: 0;
-}
-
-.taste-genre-name {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: 1.5rem;
-  line-height: 1;
-  letter-spacing: 0.03em;
-  color: var(--text-strong, #fff);
-  margin: 0;
-}
-
-/* Empty tiles */
-.taste-tile-empty {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  height: 100%;
-  min-height: 100px;
-  border: 2px dashed var(--hairline, rgba(255,255,255,0.12));
-  border-radius: var(--radius-lg, 8px);
-  background: transparent;
-  cursor: pointer;
-  transition: border-color 200ms, background 200ms;
-  padding: var(--space-3, 12px);
-}
-
-.taste-tile-empty:hover {
-  border-color: var(--p, #00ff64);
-  background: var(--p-dim, rgba(0,255,100,0.05));
-}
-
-.taste-tile-empty-hero {
-  min-height: 240px;
-}
-
-.taste-tile-empty-medium {
-  min-height: 100px;
-}
-
-.taste-tile-empty-genre {
-  min-height: 64px;
-}
-
-.taste-tile-empty-inner {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: var(--space-1, 4px);
+.profile-vault {
+  margin-top: var(--space-20);
   text-align: center;
 }
 
-.taste-tile-empty-icon {
-  font-size: 20px;
-  color: var(--text-dim, rgba(255,255,255,0.3));
+.profile-vault-number-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0;
 }
 
-.taste-tile-empty-label {
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted, rgba(255,255,255,0.5));
+.profile-vault-number {
+  font-family: var(--font-family-display);
+  font-size: clamp(3.5rem, 12vw, 5rem);
+  line-height: var(--line-height-none);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
   margin: 0;
 }
 
-.taste-tile-empty-cta {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.625rem;
-  color: var(--p, #00ff64);
-  margin: 0;
+.profile-vault-number-milestone {
+  text-shadow: 0 0 40px color-mix(in srgb, var(--p) 30%, transparent);
+  color: var(--text-strong);
 }
 
-/* Change overlay (edit mode) */
-.taste-tile-change-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 10;
+.profile-vault-label {
+  font-family: var(--font-family-body);
+  font-size: 1rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+  letter-spacing: var(--letter-spacing-wide);
+  text-transform: lowercase;
+}
+
+.profile-vault-metrics {
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(0,0,0,0.5);
-  border-radius: var(--radius-lg, 8px);
-  opacity: 0;
-  transition: opacity 200ms;
-  pointer-events: none;
+  gap: var(--space-2);
+  margin-top: var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  color: var(--text-muted);
 }
 
-.taste-movie-hero-wrap:hover .taste-tile-change-overlay,
-.taste-series-card-wrap:hover .taste-tile-change-overlay,
-.taste-director-card-wrap:hover .taste-tile-change-overlay,
-.taste-genre-surface-wrap:hover .taste-tile-change-overlay {
-  opacity: 1;
+.profile-vault-metric-value {
+  color: var(--text-soft);
+  font-weight: var(--font-weight-semibold);
 }
 
-.taste-tile-change-text {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1, 4px);
-  font-family: var(--font-family-label, 'Azeret Mono', monospace);
-  font-size: 0.625rem;
-  font-weight: 600;
-  color: var(--p, #00ff64);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+.profile-vault-metric-sep {
+  color: var(--text-dim);
 }
 
-/* Mobile — stack vertically */
-@media (max-width: 540px) {
-  .taste-identity {
+.profile-vault-milestone {
+  margin-top: var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.875rem;
+  color: var(--text-muted);
+}
+
+.profile-vault-milestone-number {
+  color: var(--p);
+  font-weight: var(--font-weight-bold);
+}
+
+/* ============================================================
+   SECTION 3: TASTE — "What defines me?"
+   Curated gallery wall. Section title kept.
+   ============================================================ */
+
+.taste-section {
+  margin-top: var(--space-16);
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.taste-section-header {
+  margin-bottom: var(--space-5);
+}
+
+.taste-section-title {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.5rem, 4vw, 2rem);
+  line-height: var(--line-height-tight);
+  letter-spacing: var(--letter-spacing-tight);
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.taste-section-subtitle {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  color: var(--text-muted);
+  margin: var(--space-1) 0 0;
+}
+
+/* ── Mosaic grid ── */
+
+.taste-mosaic {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: auto auto;
+  grid-template-areas:
+    "movie series"
+    "movie director"
+    "genre genre";
+  gap: var(--space-3);
+}
+
+@media (max-width: 480px) {
+  .taste-mosaic {
     grid-template-columns: 1fr;
     grid-template-areas:
       "movie"
@@ -650,282 +477,721 @@
       "director"
       "genre";
   }
-  .taste-cell-movie {
-    min-height: 200px;
-  }
-  .taste-movie-hero-wrap {
-    min-height: 200px;
-  }
 }
 
-/* ============================================================
-   CINEMA DNA
-   Viewer archetype insight card
-   ============================================================ */
+/* ── Movie hero card (large, 2 rows) ── */
 
-.cinema-dna-content {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: var(--space-3, 12px);
+.taste-cell-movie {
+  grid-area: movie;
 }
 
-.cinema-dna-icon-wrap {
+.taste-movie-hero-wrap {
+  position: relative;
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  min-height: 280px;
+  cursor: default;
+}
+
+.taste-movie-hero-wrap:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+
+/* ── Series card (medium vertical) ── */
+
+.taste-cell-series { grid-area: series; }
+
+.taste-series-card-wrap {
+  position: relative;
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  aspect-ratio: 2/3;
+  cursor: default;
+}
+
+.taste-card-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.taste-card-poster-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(0,0,0,0.75) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.taste-card-poster-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: var(--space-3);
+}
+
+.taste-card-title {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.taste-card-title-series {
+  font-size: 0.875rem;
+}
+
+.taste-card-subtitle {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  margin: var(--space-1) 0 0;
+}
+
+/* ── Director card (horizontal) ── */
+
+.taste-cell-director { grid-area: director; }
+
+.taste-director-horiz-wrap {
   display: flex;
   align-items: center;
-  justify-content: center;
+  gap: var(--space-3);
+  padding: var(--space-3);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--tier-1);
+  cursor: default;
+  min-height: 80px;
+}
+
+.taste-director-portrait {
   width: 48px;
   height: 48px;
   border-radius: var(--radius-full, 9999px);
-  background: color-mix(in srgb, var(--p, #00ff64) 15%, transparent);
-}
-
-.cinema-dna-icon {
-  font-size: 24px;
-  color: var(--p, #00ff64);
-}
-
-.cinema-dna-archetype {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: clamp(1.75rem, 4vw, 2.25rem);
-  line-height: 1;
-  letter-spacing: 0.04em;
-  color: var(--text-strong, #fff);
-  margin: 0;
-}
-
-.cinema-dna-insight {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--text-soft, rgba(255,255,255,0.7));
-  margin: 0;
-  max-width: 320px;
-}
-
-/* ============================================================
-   ACHIEVEMENTS — Horizontal chip rail
-   Scrollable, snap, compact chips
-   ============================================================ */
-
-.achievements-rail {
-  display: flex;
-  gap: var(--space-2, 8px);
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding: var(--space-2, 8px) var(--space-4, 16px) var(--space-3, 12px);
-  scrollbar-width: thin;
-  scrollbar-color: var(--hairline, rgba(255,255,255,0.12)) transparent;
-}
-
-.achievements-rail::-webkit-scrollbar {
-  height: 4px;
-}
-
-.achievements-rail::-webkit-scrollbar-track {
-  background: transparent;
-}
-
-.achievements-rail::-webkit-scrollbar-thumb {
-  background: var(--hairline, rgba(255,255,255,0.12));
-  border-radius: var(--radius-full, 9999px);
-}
-
-.achievements-rail-item {
-  scroll-snap-align: start;
+  object-fit: cover;
   flex-shrink: 0;
 }
 
-/* ============================================================
-   QUICK LINKS — Interactive rows
-   ============================================================ */
-
-.quick-links {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
+.taste-director-info {
+  min-width: 0;
 }
 
-.quick-link-row {
-  display: block;
-  text-decoration: none;
-  border-radius: var(--radius-md, 6px);
+.taste-director-name {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-semibold);
+  color: var(--text-strong);
+  margin: 0;
+  line-height: var(--line-height-snug);
+}
+
+.taste-director-role {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: var(--space-0_5, 2px) 0 0;
+}
+
+/* ── Genre card (massive typography, no gradient) ── */
+
+.taste-cell-genre { grid-area: genre; }
+
+.taste-genre-typography-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--tier-1);
+  cursor: default;
+  min-height: 80px;
+  position: relative;
+}
+
+.taste-genre-name-typography {
+  font-family: var(--font-family-display);
+  font-size: clamp(1.75rem, 5vw, 3rem);
+  line-height: var(--line-height-none);
+  letter-spacing: var(--letter-spacing-extra-wide);
+  color: var(--text-strong);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+/* ── Empty tile styles ── */
+
+.taste-tile-empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 2px dashed var(--hairline-2);
+  border-radius: var(--radius-lg, 12px);
+  background: transparent;
+  cursor: pointer;
+  transition: border-color 200ms ease, background 200ms ease;
+  color: var(--text-dim);
+}
+
+.taste-tile-empty:hover {
+  border-color: var(--hairline-3);
+  background: var(--tier-1);
+}
+
+.taste-tile-empty-hero {
+  min-height: 280px;
+}
+
+.taste-tile-empty-medium {
+  min-height: 140px;
+}
+
+.taste-tile-empty-genre {
+  min-height: 80px;
+}
+
+.taste-tile-empty-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+.taste-tile-empty-icon {
+  font-size: 24px;
+  opacity: 0.5;
+}
+
+.taste-tile-empty-cta {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--p);
+  margin: 0;
+}
+
+/* ── Change overlay ── */
+
+.taste-tile-change-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.taste-movie-hero-wrap:hover .taste-tile-change-overlay,
+.taste-series-card-wrap:hover .taste-tile-change-overlay,
+.taste-director-horiz-wrap:hover .taste-tile-change-overlay-horiz,
+.taste-genre-typography-wrap:hover .taste-tile-change-overlay {
+  opacity: 1;
+}
+
+.taste-tile-change-overlay-horiz {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: inherit;
+  opacity: 0;
+  transition: opacity 200ms ease;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.taste-tile-change-text {
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+
+/* ============================================================
+   SECTION 4: CINEMA INSIGHT — "Wait... that's me?"
+   ============================================================ */
+
+.profile-insight {
+  margin-top: var(--space-12);
+}
+
+.profile-insight-card {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  padding: var(--space-5) var(--space-4);
+  border-radius: var(--radius-lg, 12px);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline);
+}
+
+.profile-insight-icon {
+  font-size: 28px;
+  color: var(--p);
+  flex-shrink: 0;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+.profile-insight-text {
+  font-family: var(--font-family-body);
+  font-size: 1rem;
+  line-height: var(--line-height-snug);
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.profile-insight-stat {
+  font-family: var(--font-family-display);
+  font-size: 1.25rem;
+  color: var(--p);
+  letter-spacing: var(--letter-spacing-wide);
+}
+
+/* ============================================================
+   SECTION 5: ACHIEVEMENTS — "What have I earned?"
+   Featured trophy case. Not a rail.
+   ============================================================ */
+
+.achievements-section {
+  margin-top: var(--space-20);
+}
+
+.achievements-header {
+  text-align: center;
+  margin-bottom: var(--space-4);
+}
+
+.achievements-counter {
+  font-family: var(--font-family-label);
+  font-size: 0.6875rem;
+  letter-spacing: var(--letter-spacing-eyebrow);
+  color: var(--text-dim);
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.achievements-counter-unlocked {
+  color: var(--p);
+  font-weight: var(--font-weight-bold);
+}
+
+.achievements-counter-sep {
+  color: var(--text-dim);
+}
+
+.achievements-counter-total {
+  color: var(--text-dim);
+}
+
+/* ── Trophy case ── */
+
+.achievements-trophy-case {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-3);
+}
+
+.achievement-trophy {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  border-radius: var(--radius-lg, 12px);
+  border: 1px solid transparent;
   overflow: hidden;
 }
 
-.quick-link-row-interactive {
-  transition: background 150ms, transform 150ms;
+.achievement-trophy-unlocked {
+  transition: transform 200ms ease;
 }
 
-.quick-link-row-interactive:hover {
-  background: var(--tier-2, rgba(255,255,255,0.04));
+.achievement-trophy-unlocked:hover {
+  transform: translateY(-2px);
 }
 
-.quick-link-row-interactive:active {
-  transform: scale(0.995);
+/* Size varies by tier — highest tier is largest */
+.achievement-trophy-platinum .achievement-trophy-btn {
+  width: 96px;
+  padding: var(--space-3) var(--space-2);
 }
 
-/* Animated arrow — slides right on hover */
-.quick-link-arrow {
-  transition: transform 200ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+.achievement-trophy-gold .achievement-trophy-btn {
+  width: 84px;
+  padding: var(--space-3) var(--space-2);
 }
 
-.quick-link-row-interactive:hover .quick-link-arrow {
-  transform: translateX(3px);
+.achievement-trophy-silver .achievement-trophy-btn {
+  width: 76px;
+  padding: var(--space-2) var(--space-2);
 }
 
-/* ============================================================
-   SETTINGS LINKS
-   Same pattern as Quick Links
-   ============================================================ */
+.achievement-trophy-bronze .achievement-trophy-btn {
+  width: 68px;
+  padding: var(--space-2) var(--space-2);
+}
 
-.settings-links {
+.achievement-trophy-btn {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  align-items: center;
+  gap: var(--space-1);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: inherit;
 }
 
-.settings-link-row {
-  display: block;
-  text-decoration: none;
-  border-radius: var(--radius-md, 6px);
+.achievement-trophy-icon {
+  font-size: 28px;
+}
+
+.achievement-trophy-platinum .achievement-trophy-icon { font-size: 36px; }
+.achievement-trophy-gold .achievement-trophy-icon     { font-size: 32px; }
+
+.achievement-trophy-label {
+  font-family: var(--font-family-body);
+  font-size: 0.6875rem;
+  color: var(--text-soft);
+  text-align: center;
+  line-height: var(--line-height-tight);
+  max-width: 80px;
   overflow: hidden;
-  transition: background 150ms;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.settings-link-row:hover {
-  background: var(--tier-2, rgba(255,255,255,0.04));
+/* ── Locked silhouettes ── */
+
+.achievements-locked-group {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
 }
 
-.settings-link-chevron {
-  transition: transform 200ms var(--ease-spring, cubic-bezier(0.34, 1.56, 0.64, 1));
+.achievement-trophy-locked {
+  width: 48px;
+  height: 48px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--hairline-2);
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
-.settings-link-row:hover .settings-link-chevron {
-  transform: translateX(3px);
+.achievement-trophy-silhouette {
+  width: 20px;
+  height: 20px;
+  border-radius: var(--radius-full, 9999px);
+  border: 1px solid var(--hairline-2);
+  background: transparent;
+}
+
+/* ── More / View All ── */
+
+.achievements-more {
+  display: block;
+  margin: var(--space-3) auto 0;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.achievements-more:hover {
+  border-color: var(--hairline-3);
+  color: var(--text-soft);
+}
+
+.achievements-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-1);
+  margin: var(--space-3) auto 0;
+  padding: var(--space-1) var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-full, 9999px);
+  cursor: pointer;
+  transition: border-color 200ms ease, color 200ms ease;
+}
+
+.achievements-view-all:hover {
+  border-color: var(--hairline-3);
+  color: var(--text-soft);
 }
 
 /* ============================================================
-   DANGER ZONE
-   Red-tinted isolated section
+   SECTION 6: RECENT ACTIVITY — "What's happening?"
+   Lightweight. Hides if empty.
    ============================================================ */
 
-.danger-zone-content {
+.recent-activity {
+  margin-top: var(--space-14);
+}
+
+.recent-activity-list {
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
-.danger-zone-row {
+.recent-activity-item {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: var(--space-4, 16px);
-  padding: var(--space-2, 8px) 0;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--hairline);
 }
 
-.danger-zone-row-text {
-  flex: 1;
+.recent-activity-item:last-child {
+  border-bottom: none;
+}
+
+.recent-activity-poster {
+  width: 40px;
+  height: 60px;
+  border-radius: var(--radius-sm, 6px);
+  overflow: hidden;
+  flex-shrink: 0;
+  background: var(--tier-2);
+}
+
+.recent-activity-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.recent-activity-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+}
+
+.recent-activity-info {
   min-width: 0;
+  flex: 1;
 }
 
-.danger-zone-title {
-  font-family: var(--font-family-display, 'Bebas Neue', sans-serif);
-  font-size: 1rem;
-  letter-spacing: 0.04em;
-  color: var(--text-strong, #fff);
+.recent-activity-title {
+  font-family: var(--font-family-body);
+  font-size: 0.9375rem;
+  font-weight: var(--font-weight-medium);
+  color: var(--text-strong);
   margin: 0;
+  line-height: var(--line-height-snug);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.danger-zone-title-danger {
-  color: var(--color-danger, #f87171);
+.recent-activity-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: var(--space-0_5, 2px) 0 0;
+  font-size: 0.8125rem;
 }
 
-.danger-zone-desc {
-  font-family: var(--font-family-body, 'Outfit', sans-serif);
-  font-size: 0.75rem;
-  color: var(--text-muted, rgba(255,255,255,0.5));
-  margin: 4px 0 0;
+.recent-activity-status {
+  font-family: var(--font-family-body);
+  font-weight: var(--font-weight-medium);
+}
+
+.recent-activity-status-watching {
+  color: var(--color-status-watching);
+}
+
+.recent-activity-status-completed {
+  color: var(--color-status-completed);
+}
+
+.recent-activity-status-rated {
+  color: var(--color-rating-user);
+}
+
+.recent-activity-time {
+  color: var(--text-dim);
+  font-family: var(--font-family-body);
 }
 
 /* ============================================================
-   PROFILE SECTION — shared spacing
+   SECTION 7+8: SETTINGS + DANGER — "The ending credits"
    ============================================================ */
 
-.profile-section {
-  padding: 0 var(--space-4, 16px);
+.profile-navigation {
+  margin-top: var(--space-16);
+  padding-left: var(--space-4);
+  padding-right: var(--space-4);
+  max-width: 680px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Subtle metadata ── */
+
+.profile-nav-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-4);
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+}
+
+.profile-nav-meta-sep {
+  color: var(--text-dim);
+}
+
+/* ── Navigation rows ── */
+
+.profile-nav-rows {
+  display: flex;
+  flex-direction: column;
+}
+
+.profile-nav-row {
+  display: block;
+  border-bottom: 1px solid var(--hairline);
+  transition: background 150ms ease;
+}
+
+.profile-nav-row:last-child {
+  border-bottom: none;
+}
+
+.profile-nav-row-interactive {
+  width: 100%;
+  text-align: left;
+  background: none;
+  border: none;
+  cursor: pointer;
+}
+
+.profile-nav-row:hover {
+  background: var(--tier-1);
+}
+
+.profile-nav-chevron {
+  transition: transform 150ms ease;
+}
+
+/* ── Red danger divider ── */
+
+.profile-nav-danger-divider {
+  height: 1px;
+  background: color-mix(in srgb, var(--color-danger) 30%, var(--hairline));
+  margin: var(--space-4) 0;
 }
 
 /* ============================================================
-   COMPLETION (legacy — ring only, no card)
+   FOCUS RING
    ============================================================ */
 
-.completion-header {
-  display: none; /* Removed in Sprint 2C — ring is on avatar */
+.focus-ring:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
 }
 
 /* ============================================================
-   RESPONSIVE BREAKPOINTS
-   320 → 360 → 390 → 412 → 768 → 1024
+   RESPONSIVE
    ============================================================ */
 
 @media (min-width: 768px) {
-  .profile-hero-name {
-    font-size: 2.5rem;
+  .profile-banner {
+    height: 40vh;
+    max-height: 400px;
+  }
+
+  .profile-hero-overlay {
+    padding: var(--space-10) var(--space-8) var(--space-8);
   }
 
   .profile-hero-identity {
-    gap: var(--space-6, 24px);
+    gap: var(--space-5);
   }
 
-  .taste-identity {
-    gap: var(--space-4, 16px);
+  .profile-hero-name {
+    font-size: clamp(2rem, 5vw, 3rem);
   }
 
-  .taste-cell-movie {
-    min-height: 300px;
+  .profile-vault-number {
+    font-size: clamp(4rem, 12vw, 6rem);
+  }
+
+  .taste-mosaic {
+    gap: var(--space-4);
   }
 
   .taste-movie-hero-wrap {
-    min-height: 300px;
+    min-height: 320px;
+  }
+
+  .profile-section,
+  .taste-section,
+  .profile-navigation {
+    padding-left: var(--space-8);
+    padding-right: var(--space-8);
   }
 }
 
 @media (min-width: 1024px) {
   .profile-hero-name {
-    font-size: 3rem;
+    font-size: 3.25rem;
   }
 
-  .profile-stats-featured {
-    gap: var(--space-4, 16px);
+  .profile-vault-number {
+    font-size: 6rem;
   }
 
-  .taste-cell-movie {
-    min-height: 360px;
-  }
-
-  .taste-movie-hero-wrap {
-    min-height: 360px;
+  .profile-section,
+  .taste-section,
+  .profile-navigation {
+    max-width: 720px;
   }
 }
 
-@media (max-width: 320px) {
-  .profile-hero-name {
-    font-size: 1.5rem;
+@media (max-width: 360px) {
+  .profile-banner {
+    min-height: 200px;
   }
 
-  .profile-hero-identity {
-    gap: var(--space-2, 8px);
+  .profile-vault-number {
+    font-size: clamp(2.5rem, 12vw, 3.5rem);
   }
 
-  .taste-genre-name {
-    font-size: 1.125rem;
+  .taste-movie-hero-wrap {
+    min-height: 220px;
   }
 
-  .cinema-dna-archetype {
-    font-size: 1.5rem;
+  .achievements-trophy-case {
+    gap: var(--space-2);
   }
 }
 
@@ -938,39 +1204,19 @@
     animation: none;
   }
 
-  .taste-tile-change-overlay {
-    transition: none;
-  }
-
-  .quick-link-arrow,
-  .settings-link-chevron {
-    transition: none;
-  }
-
-  .quick-link-row-interactive,
-  .settings-link-row {
-    transition: none;
-  }
-
   .profile-banner-img {
     transition: none;
   }
-}
 
-/* ============================================================
-   SHIMMER ANIMATION (shared)
-   ============================================================ */
+  .profile-banner-shimmer {
+    animation: none;
+  }
 
-@keyframes shimmer {
-  0%   { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
-}
+  .achievement-trophy-unlocked {
+    transition: none;
+  }
 
-.animate-soft-pulse {
-  animation: softPulse 2s ease-in-out infinite;
-}
-
-@keyframes softPulse {
-  0%, 100% { opacity: 0.6; }
-  50%      { opacity: 1; }
+  .profile-nav-chevron {
+    transition: none;
+  }
 }

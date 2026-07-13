@@ -1,0 +1,143 @@
+// src/features/profile/components/RecentActivity.tsx
+//
+// Sprint 2C — Final Implementation.
+// Recent Activity — lightweight section showing the profile is alive.
+// Hides entirely if no recent items exist.
+//
+// Content (up to 4 items):
+//   • Recently completed
+//   • Currently watching
+//   • Recently rated
+//   • Recently added
+//
+// Reuses existing watchlist data. No new APIs.
+// Each item: small poster + title + status/rating + time hint.
+
+import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
+import { tmdbImage } from "~/core/tmdb/tmdb";
+import type { WatchlistItem } from "~/shared/types";
+
+interface RecentActivityProps {
+  watchlist: Accessor<WatchlistItem[]>;
+}
+
+function getDate(item: WatchlistItem): Date {
+  const dateStr = item.watchDate || (typeof item.addedAt === "string" ? item.addedAt : null) || item.updatedAt;
+  if (!dateStr) return new Date(0);
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return new Date(0);
+    return d;
+  } catch {
+    return new Date(0);
+  }
+}
+
+function timeAgo(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  if (diffMins < 1) return "just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  const diffHours = Math.floor(diffMins / 60);
+  if (diffHours < 24) return `${diffHours}h ago`;
+  const diffDays = Math.floor(diffHours / 24);
+  if (diffDays === 1) return "yesterday";
+  if (diffDays < 7) return `${diffDays}d ago`;
+  const diffWeeks = Math.floor(diffDays / 7);
+  if (diffWeeks === 1) return "last week";
+  if (diffDays < 30) return `${diffWeeks}w ago`;
+  return date.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+const RecentActivity: Component<RecentActivityProps> = (props) => {
+  const recentItems = createMemo(() => {
+    const list = props.watchlist();
+    if (list.length === 0) return [];
+
+    // Collect recent items from different categories
+    const items: { item: WatchlistItem; category: string; sortDate: Date }[] = [];
+
+    // Recently completed (up to 2)
+    const completed = list
+      .filter((m) => m.status === "Completed")
+      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
+      .slice(0, 2);
+    completed.forEach((m) => items.push({ item: m, category: "Completed", sortDate: getDate(m) }));
+
+    // Currently watching (up to 2)
+    const watching = list
+      .filter((m) => m.status === "Watching")
+      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
+      .slice(0, 2);
+    watching.forEach((m) => items.push({ item: m, category: "Watching", sortDate: getDate(m) }));
+
+    // Recently rated (up to 1, with rating > 0)
+    const rated = list
+      .filter((m) => m.rating && m.rating > 0)
+      .sort((a, b) => getDate(b).getTime() - getDate(a).getTime())
+      .slice(0, 1);
+    rated.forEach((m) => items.push({ item: m, category: `Rated ${m.rating}`, sortDate: getDate(m) }));
+
+    // Deduplicate by id
+    const seen = new Set<string>();
+    const deduped = items.filter((entry) => {
+      if (seen.has(entry.item.id)) return false;
+      seen.add(entry.item.id);
+      return true;
+    });
+
+    // Sort by date and take top 4
+    deduped.sort((a, b) => b.sortDate.getTime() - a.sortDate.getTime());
+    return deduped.slice(0, 4);
+  });
+
+  return (
+    <Show when={recentItems().length > 0}>
+      <section class="profile-section recent-activity" aria-label="Recent activity">
+        <div class="recent-activity-list" role="list">
+          <For each={recentItems()}>
+            {(entry) => (
+              <div class="recent-activity-item" role="listitem">
+                <div class="recent-activity-poster">
+                  <Show
+                    when={entry.item.poster_path}
+                    fallback={
+                      <div class="recent-activity-poster-fallback">
+                        <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+                          {entry.item.media_type === "tv" ? "tv" : "movie"}
+                        </span>
+                      </div>
+                    }
+                  >
+                    <img
+                      src={tmdbImage(entry.item.poster_path, "w92")}
+                      class="recent-activity-poster-img"
+                      alt=""
+                      aria-hidden="true"
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  </Show>
+                </div>
+                <div class="recent-activity-info">
+                  <p class="recent-activity-title">{entry.item.title || entry.item.name}</p>
+                  <p class="recent-activity-meta">
+                    <span class={`recent-activity-status recent-activity-status-${entry.category === "Watching" ? "watching" : entry.category === "Completed" ? "completed" : "rated"}`}>
+                      {entry.category}
+                    </span>
+                    <Show when={entry.sortDate.getTime() > 0}>
+                      <span class="recent-activity-time">{timeAgo(entry.sortDate)}</span>
+                    </Show>
+                  </p>
+                </div>
+              </div>
+            )}
+          </For>
+        </div>
+      </section>
+    </Show>
+  );
+};
+
+export default RecentActivity;
