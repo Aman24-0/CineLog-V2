@@ -1804,7 +1804,13 @@
 
 /* Expanded panel — smooth open/close. The panel itself is always
    rendered (so it can hold the carousel), but collapses to 0 height
-   when no genre is selected. */
+   when no genre is selected.
+
+   Note: max-height is set to a large value (5000px) rather than
+   "none" because the open/close transition needs a numeric value to
+   animate. The continuous carousel (with Load more) can grow well
+   beyond the old 600px cap — 5000px gives ample headroom for
+   100+ cards without clipping the load-more trigger. */
 .genre-explorer-panel {
   max-height: 0;
   opacity: 0;
@@ -1815,7 +1821,7 @@
   margin-top: 0;
 }
 .genre-explorer-panel.is-expanded {
-  max-height: 600px;
+  max-height: 5000px;
   opacity: 1;
   margin-top: var(--sp-3);
 }
@@ -1867,6 +1873,32 @@
 }
 .discover-folds .search-rail > .search-rail-card {
   scroll-snap-align: start;
+}
+
+/* ============================================================
+   SEARCH BAR (merged into Discover)
+   The dedicated /search route is gone — search now lives at the
+   top of /discover. We override .search-bar-form's sticky
+   positioning so it doesn't try to stick to top:0 (which would
+   clash with the already-sticky AppHeader, also at top:0). The
+   Discover search bar scrolls naturally with the page content.
+   ============================================================ */
+
+.discover-search-bar-form {
+  position: relative;
+  top: auto;
+  z-index: auto;
+  /* Keep the full-bleed margin trick from .search-bar-form — the
+     negative margins extend the bar beyond the container padding,
+     and the matching padding keeps the input aligned with the rest
+     of the page content. */
+  margin-bottom: var(--sp-6);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-bottom: none;
+  padding-top: 0;
+  padding-bottom: 0;
 }
 
 /* 320px viewport tuning — make sure chips + headings don't overflow */

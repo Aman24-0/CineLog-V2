@@ -4,17 +4,18 @@ import NavButton from "./NavButton";
 /**
  * BottomNavigation — primary navigation bar fixed to the viewport bottom.
  *
- * Navigation restructure (Profile phase):
- *   The Home/Dashboard page has been removed. Its responsibilities
- *   (Recently Added, Continue Watching, Statistics) already exist in
- *   the Watchlist and Profile pages, so keeping a duplicate Home page
- *   would violate the "no duplicated information" principle.
+ * Navigation restructure (Search → Discover merge):
+ *   The dedicated Search page has been removed. Search is now a first-
+ *   class citizen of the Discover page (search bar pinned to the top of
+ *   Discover, with the Genre Explorer right below it). This collapses
+ *   the "intentional vs serendipitous" split into a single primary
+ *   surface — the user no longer has to switch tabs to do both.
  *
- * Bottom nav is now exactly four destinations, in this order:
- *   1. Discover  — serendipitous browsing, Spotlight, upcoming
- *   2. Search    — intentional search-by-query
- *   3. Watchlist — the user's library (formerly "Vault")
- *   4. Collections — user folders + subscribed universes (promoted
+ * Bottom nav is now exactly three destinations, in this order:
+ *   1. Discover    — serendipitous browsing + intentional search + genre
+ *                    exploration, all in one place
+ *   2. Watchlist   — the user's library (formerly "Vault")
+ *   3. Collections — user folders + subscribed universes (promoted
  *      from a Watchlist sub-page to a primary destination)
  *
  * Profile is NOT in the bottom nav — it's accessed from the AppHeader
@@ -52,15 +53,8 @@ export default function BottomNavigation() {
       <NavButton
         icon="explore"
         label="Discover"
-        active={path() === "/discover"}
+        active={path() === "/discover" || path() === "/search"}
         onClick={() => go("/discover")}
-      />
-
-      <NavButton
-        icon="search"
-        label="Search"
-        active={path() === "/search"}
-        onClick={() => go("/search")}
       />
 
       <NavButton

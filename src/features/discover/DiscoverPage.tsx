@@ -1,25 +1,44 @@
 // src/features/discover/DiscoverPage.tsx
 //
-// DiscoverPage — "Your Personal Movie Curator"
+// DiscoverPage — "Your Personal Movie Curator" (with merged Search)
 //
-// FINAL SECTION ORDER (per production spec):
-//   1. Spotlight (existing hero)
-//   2. Continue Your Universes
-//   3. Insight Strip
-//   4. Trending This Week
-//   5. In Theatres Now
-//   6. Because You Love ...
-//   7. Surprise Me
-//   8. Weekend Picks
-//   9. Step Outside Your Taste
-//  10. Hidden Gems
-//  11. Top Rated Movies
-//  12. Top Rated Series
-//  13. New on OTT (provider chips + carousel)
-//  14. Genre Explorer
-//  15. New Seasons
-//  16. Coming Soon
-//  17. Guest Sign-in CTA
+// Search has been merged into Discover (the dedicated /search route is
+// now a redirect). The page layout is:
+//
+//   ┌─────────────────────────────────────────────────┐
+//   │ Search bar (top — primary intentional-discovery  │
+//   │             surface, replaces the old eyebrow)   │
+//   ├─────────────────────────────────────────────────┤
+//   │ Genre Explorer (chips + continuous carousel)     │
+//   ├─────────────────────────────────────────────────┤
+//   │ Rest of Discover sections (Spotlight, Trending,  │
+//   │ Theatres, Recommendations, Surprise Me, etc.)    │
+//   └─────────────────────────────────────────────────┘
+//
+// When the user types ≥2 chars in the search bar, the Genre Explorer
+// and Discover sections are temporarily replaced by the search
+// results (Movies / Series groups). Clearing the query restores the
+// default Discover layout.
+//
+// FINAL SECTION ORDER (per production spec, post-merge):
+//   1. Search bar (always visible at top)
+//   2. Genre Explorer (chips + continuous carousel with load-more)
+//   3. Spotlight (existing hero)
+//   4. Continue Your Universes
+//   5. Insight Strip
+//   6. Trending This Week
+//   7. In Theatres Now
+//   8. Because You Love ...
+//   9. Surprise Me
+//  10. Weekend Picks
+//  11. Step Outside Your Taste
+//  12. Hidden Gems
+//  13. Top Rated Movies
+//  14. Top Rated Series
+//  15. New on OTT (provider chips + carousel)
+//  16. New Seasons
+//  17. Coming Soon
+//  18. Guest Sign-in CTA
 //
 // Editorial cards are inserted between sections to break up visual repetition.
 //
@@ -52,6 +71,11 @@ import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { getDiscoverRegion } from "~/core/config/discoverRegion";
 import type { TMDBTitle } from "~/shared/types";
+// Merged search — the dedicated /search page is gone. Search now lives
+// at the top of Discover. We reuse the existing useSearch hook +
+// SearchResults component so the search UX is identical to before.
+import { useSearch } from "~/features/search/useSearch";
+import SearchResults from "~/features/search/SearchResults";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
@@ -60,6 +84,32 @@ export default function DiscoverPage() {
   // Region — single source of truth. All sections consume this value.
   // Today: defaults to "IN". Tomorrow: overridden by Settings.
   const region = getDiscoverRegion;
+
+  // === MERGED SEARCH ===
+  // The dedicated /search page is gone — search now lives at the top
+  // of Discover. We reuse the existing useSearch hook so the search
+  // UX is identical to before (debounced 250ms, Movies/Series groups,
+  // vault-aware result rows).
+  const {
+    query,
+    setQuery,
+    results,
+    loading: searchLoading,
+    error: searchError,
+    commitSearch,
+    isInVault,
+    hasQuery,
+  } = useSearch({ vault: watchlist });
+
+  const handleSearchSubmit = (e: Event) => {
+    e.preventDefault();
+    commitSearch(query());
+  };
+
+  // When the user has typed ≥2 chars (debounced), we replace the Genre
+  // Explorer + Discover sections with the search results. This keeps
+  // the page focused on the search task at hand.
+  const showSearchResults = hasQuery;
 
   const [spotlightSeed, setSpotlightSeed] = createSignal(0);
   const [spotlightExclude, setSpotlightExclude] = createSignal<number | null>(null);
@@ -262,62 +312,114 @@ export default function DiscoverPage() {
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
       <div class="ambient-glow" aria-hidden="true" />
 
-      <div class="discover-eyebrow-block">
-        <p class="discover-eyebrow">Discover</p>
-        <h1 class="discover-page-title">What's next?</h1>
-        <p class="discover-page-subtitle">
-          {isGuest()
-            ? "Sign in to make this yours — Spotlight adapts to your taste."
-            : taste()?.isColdStart
-              ? "Add a few titles to your watchlist and Spotlight will learn your taste."
-              : "Hand-picked from your taste graph. Save what catches your eye."}
-        </p>
-      </div>
+      {/* === SEARCH BAR (top — merged from the old /search page) === */}
+      {/* The dedicated /search route is gone. Search now lives at the top
+          of Discover so intentional discovery and serendipitous browsing
+          share a single primary surface. Uses the same .search-bar styles
+          as the old SearchHeader (sticky glass bar), but with a modifier
+          class (.discover-search-bar-form) that disables sticky to avoid
+          clashing with the AppHeader. */}
+      <form
+        class="search-bar-form discover-search-bar-form"
+        onSubmit={handleSearchSubmit}
+        role="search"
+      >
+        <div class="search-bar">
+          <span
+            class="material-symbols-outlined search-bar-icon"
+            aria-hidden="true"
+          >
+            search
+          </span>
+          <input
+            type="search"
+            class="search-bar-input"
+            placeholder="Search movies, series, people…"
+            value={query()}
+            onInput={(e) => setQuery(e.currentTarget.value)}
+            aria-label="Search movies, series, and people"
+            autocomplete="off"
+            spellcheck={false}
+          />
+          <Show when={query()}>
+            <button
+              type="button"
+              class="search-bar-clear focus-ring"
+              onClick={() => setQuery("")}
+              aria-label="Clear search"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
+                close
+              </span>
+            </button>
+          </Show>
+        </div>
+      </form>
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
-        <div class="page-enter relative discover-folds">
-          {/* 1. SPOTLIGHT */}
-          <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
-            vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
-
-          {/* 2. CONTINUE YOUR UNIVERSES */}
-          <Show when={!isGuest() && continueUniverses().length > 0}>
-            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
-              <section class="discover-fold" aria-label="Continue your universes">
-                <div class="discover-fold-label">
-                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">collections_bookmark</span>
-                  Continue Your Universes
-                </div>
-                <div class="search-rail" role="list">
-                  <For each={continueUniverses()}>
-                    {(item) => (
-                      <div class="discover-continue-card" role="listitem">
-                        <p class="discover-continue-name">{item.universe.name}</p>
-                        <p class="discover-continue-count">{item.missing.length} missing of {item.total}</p>
-                        <div class="discover-continue-posters">
-                          <For each={item.missing.slice(0, 3)}>
-                            {(entry) => (
-                              <img src={tmdbImage(entry.poster_path, "w92")} class="discover-continue-poster" loading="lazy" decoding="async"
-                                alt={entry.title || entry.name || ""}
-                                onClick={() => handleOpenTitle({ id: Number(entry.id), title: entry.title, name: entry.name, media_type: entry.media_type, poster_path: entry.poster_path, backdrop_path: entry.backdrop_path, release_date: entry.release_date, first_air_date: entry.first_air_date } as TMDBTitle)}
-                                onError={(e) => { e.currentTarget.style.display = "none"; }} />
-                            )}
-                          </For>
-                        </div>
-                      </div>
-                    )}
-                  </For>
-                </div>
-              </section>
+        {/* === SEARCH RESULTS MODE === */}
+        {/* When the user has typed ≥2 chars, replace the Genre Explorer
+            and Discover sections with the search results. This keeps
+            the page focused on the search task. Clearing the query
+            restores the default Discover layout below. */}
+        <Show when={showSearchResults()} fallback={
+          <div class="page-enter relative discover-folds">
+            {/* 1. GENRE EXPLORER (moved up to position 1 — was position 14) */}
+            {/* Chips are always visible; clicking a chip expands a
+                continuous carousel of movies + series interleaved,
+                with a Load-more trigger for pagination. */}
+            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
+              <DiscoverSection label="Genre Explorer" icon="palette">
+                <GenreExplorer onSelect={handleOpenTitle} />
+              </DiscoverSection>
             </ErrorBoundary>
-          </Show>
 
-          {/* 3. INSIGHT STRIP */}
-          <Show when={insightCards().length > 0}>
-            <div class="discover-insight-strip">
-              <For each={insightCards()}>
-                {(card) => (
-                  <div class="discover-insight-card">
+            {/* 2. SPOTLIGHT */}
+            <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
+              vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
+
+            {/* 3. CONTINUE YOUR UNIVERSES */}
+            <Show when={!isGuest() && continueUniverses().length > 0}>
+              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
+                <section class="discover-fold" aria-label="Continue your universes">
+                  <div class="discover-fold-label">
+                    <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">collections_bookmark</span>
+                    Continue Your Universes
+                  </div>
+                  <div class="search-rail" role="list">
+                    <For each={continueUniverses()}>
+                      {(item) => (
+                        <div class="discover-continue-card" role="listitem">
+                          <p class="discover-continue-name">{item.universe.name}</p>
+                          <p class="discover-continue-count">{item.missing.length} missing of {item.total}</p>
+                          <div class="discover-continue-posters">
+                            <For each={item.missing.slice(0, 3)}>
+                              {(entry) => (
+                                <img src={tmdbImage(entry.poster_path, "w92")} class="discover-continue-poster" loading="lazy" decoding="async"
+                                  alt={entry.title || entry.name || ""}
+                                  onClick={() => handleOpenTitle({ id: Number(entry.id), title: entry.title, name: entry.name, media_type: entry.media_type, poster_path: entry.poster_path, backdrop_path: entry.backdrop_path, release_date: entry.release_date, first_air_date: entry.first_air_date } as TMDBTitle)}
+                                  onError={(e) => { e.currentTarget.style.display = "none"; }} />
+                              )}
+                            </For>
+                          </div>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </section>
+              </ErrorBoundary>
+            </Show>
+
+            {/* 4. INSIGHT STRIP */}
+            <Show when={insightCards().length > 0}>
+              <div class="discover-insight-strip">
+                <For each={insightCards()}>
+                  {(card) => (
+                    <div class="discover-insight-card">
                     <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">{card.icon}</span>
                     <span class="discover-insight-label">{card.text}</span>
                   </div>
@@ -515,16 +617,7 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </LazyMount>
 
-          {/* 14. GENRE EXPLORER (lazy-mounted — fetches only on first tap) */}
-          <LazyMount>
-            <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
-              <DiscoverSection label="Genre Explorer" icon="palette">
-                <GenreExplorer onSelect={handleOpenTitle} />
-              </DiscoverSection>
-            </ErrorBoundary>
-          </LazyMount>
-
-          {/* 15. NEW SEASONS */}
+          {/* 14. NEW SEASONS (was position 15 — Genre Explorer moved up to position 1) */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
               <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && feeds.newSeasons().length === 0}>
@@ -539,7 +632,7 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </LazyMount>
 
-          {/* 16. COMING SOON */}
+          {/* 15. COMING SOON */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
               <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && feeds.upcoming().length === 0}>
@@ -554,7 +647,7 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </LazyMount>
 
-          {/* 17. GUEST SIGN-IN CTA */}
+          {/* 16. GUEST SIGN-IN CTA */}
           <Show when={isGuest()}>
             <div class="discover-guest-nudge">
               <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px", margin: "0 auto var(--sp-3)" }}>
@@ -567,6 +660,23 @@ export default function DiscoverPage() {
             </div>
           </Show>
         </div>
+      }>
+        {/* === SEARCH RESULTS (shown when query ≥ 2 chars, debounced) === */}
+        {/* Reuses the existing SearchResults component from the search
+            feature — same Movies / Series grouping, same vault-aware
+            result rows, same loading + empty + error states. */}
+        <div class="page-enter relative discover-folds">
+          <SearchResults
+            loading={searchLoading}
+            error={searchError}
+            query={query}
+            results={results}
+            isInVault={isInVault}
+            onOpenTitle={handleOpenTitle}
+            onAddToVault={addToVault}
+          />
+        </div>
+      </Show>
       </Show>
     </PageContainer>
   );

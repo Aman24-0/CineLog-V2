@@ -2,17 +2,20 @@
 //
 // GenreExplorer — interactive genre chips with lazy-loaded carousels.
 //
-// Production polish (final Discover update):
+// Production polish (Search → Discover merge):
 //   • Genre chips are ALWAYS visible (previously rendered only a title
 //     when no genre was selected, which looked broken).
-//   • Movies load only after the first tap (lazy fetch per genre).
+//   • Movies AND series load in parallel and are interleaved, so each
+//     genre carousel is a single mixed rail (the user asked for
+//     "movie series list continue corausal").
+//   • Continuous carousel: a "Load more" trigger appends the next page
+//     of results. No hard cap — the rail grows until TMDB runs out.
 //   • Only ONE genre expanded at a time — selecting a new chip
 //     collapses the previous and expands the new.
 //   • Smooth expand/collapse animation (max-height + opacity transition
 //     under 250ms, reduced-motion safe).
-//   • Carousel appears directly below chips.
 //   • Every genre is cached — re-tapping a previously-expanded genre
-//     is instant.
+//     is instant (the cache is page-aware so load-more still works).
 //   • Expanded state preserved across re-renders (in-component signal).
 //   • Premium empty states with Retry on network failure.
 //
@@ -20,7 +23,7 @@
 import {
   For, Show, createSignal, createMemo, type Component,
 } from "solid-js";
-import { discoverMovies } from "~/core/tmdb/discover";
+import { discoverMovies, discoverTv } from "~/core/tmdb/discover";
 import { MOVIE_GENRES } from "~/core/tmdb/genres";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
@@ -32,13 +35,19 @@ interface GenreExplorerProps {
 
 interface GenreDef {
   name: string;
-  id: number;
+  movieId: number;
+  tvId?: number;
   icon: string;
 }
 
-// Curated genre list for the explorer — matches the spec:
-// Action, Comedy, Thriller, Drama, Sci-Fi, Animation, Fantasy,
-// Adventure, Crime, Mystery.
+// Curated, ordered genre list (rather than iterating the full MOVIE_GENRES
+// map, which would include Documentary, Western, etc.). Each entry carries
+// its TMDB movie + TV genre IDs so we can fetch both in parallel.
+//
+// TV genre IDs differ from movie IDs for some genres — e.g. "Sci-Fi" is
+// 878 for movies but doesn't exist as a standalone TV genre (it's rolled
+// into "Sci-Fi & Fantasy" 10765). When a TV id is omitted, the carousel
+// for that genre shows movies only.
 const GENRE_ICONS: Record<string, string> = {
   "Action": "bolt",
   "Adventure": "explore",
@@ -52,89 +61,191 @@ const GENRE_ICONS: Record<string, string> = {
   "Thriller": "psychology",
 };
 
-// Curated, ordered genre list (rather than iterating the full MOVIE_GENRES
-// map, which would include Documentary, Western, etc.).
 const GENRES: GenreDef[] = [
-  { name: "Action",      id: 28,   icon: GENRE_ICONS["Action"] },
-  { name: "Comedy",      id: 35,   icon: GENRE_ICONS["Comedy"] },
-  { name: "Thriller",    id: 53,   icon: GENRE_ICONS["Thriller"] },
-  { name: "Drama",       id: 18,   icon: GENRE_ICONS["Drama"] },
-  { name: "Sci-Fi",      id: 878,  icon: GENRE_ICONS["Sci-Fi"] },
-  { name: "Animation",   id: 16,   icon: GENRE_ICONS["Animation"] },
-  { name: "Fantasy",     id: 14,   icon: GENRE_ICONS["Fantasy"] },
-  { name: "Adventure",   id: 12,   icon: GENRE_ICONS["Adventure"] },
-  { name: "Crime",       id: 80,   icon: GENRE_ICONS["Crime"] },
-  { name: "Mystery",     id: 9648, icon: GENRE_ICONS["Mystery"] },
+  { name: "Action",      movieId: 28,   tvId: 10759,           icon: GENRE_ICONS["Action"] },
+  { name: "Comedy",      movieId: 35,   tvId: 35,              icon: GENRE_ICONS["Comedy"] },
+  { name: "Thriller",    movieId: 53,                         icon: GENRE_ICONS["Thriller"] },
+  { name: "Drama",       movieId: 18,   tvId: 18,              icon: GENRE_ICONS["Drama"] },
+  { name: "Sci-Fi",      movieId: 878,  tvId: 10765,           icon: GENRE_ICONS["Sci-Fi"] },
+  { name: "Animation",   movieId: 16,   tvId: 16,              icon: GENRE_ICONS["Animation"] },
+  { name: "Fantasy",     movieId: 14,   tvId: 10765,           icon: GENRE_ICONS["Fantasy"] },
+  { name: "Adventure",   movieId: 12,   tvId: 10759,           icon: GENRE_ICONS["Adventure"] },
+  { name: "Crime",       movieId: 80,   tvId: 80,              icon: GENRE_ICONS["Crime"] },
+  { name: "Mystery",     movieId: 9648, tvId: 9648,            icon: GENRE_ICONS["Mystery"] },
 ];
 
-// Sanity check — the IDs above match the TMDB MOVIE_GENRES map.
+// Sanity check — the movie IDs above match the TMDB MOVIE_GENRES map.
 // (Defensive: if MOVIE_GENRES ever changes its IDs, this catches it.)
 void MOVIE_GENRES;
 
+/**
+ * Fetch one page of genre results.
+ *
+ * Fetches from both movie and TV discover endpoints in parallel, then
+ * interleaves the results (movie, tv, movie, tv...) for variety. Returns
+ * ~20 items per page (10 movies + 10 TV). Deduplicates by composite
+ * "{media_type}/{id}" key in case the same title appears in both.
+ *
+ * Mirrors the helper that used to live in features/search/genreBrowseUtils.ts,
+ * but inlined here so the Discover feature doesn't depend on the search
+ * feature (the search page is gone, so we own this logic now).
+ */
+async function fetchGenrePage(
+  genre: GenreDef,
+  page: number,
+): Promise<TMDBTitle[]> {
+  const promises: Promise<TMDBTitle[]>[] = [
+    discoverMovies({
+      withGenres: [genre.movieId],
+      sortBy: "popularity.desc",
+      voteCountGte: 100,
+      page,
+    }),
+  ];
+  if (genre.tvId !== undefined) {
+    promises.push(
+      discoverTv({
+        withGenres: [genre.tvId],
+        sortBy: "popularity.desc",
+        voteCountGte: 50,
+        page,
+      }),
+    );
+  }
+  const results = await Promise.all(promises);
+  const movies: TMDBTitle[] = results[0] ?? [];
+  const series: TMDBTitle[] = results[1] ?? [];
+  // Interleave: alternate movie, tv, movie, tv... for variety.
+  const merged: TMDBTitle[] = [];
+  const maxLen = Math.max(movies.length, series.length);
+  for (let i = 0; i < maxLen; i++) {
+    if (movies[i]) merged.push(movies[i]);
+    if (series[i]) merged.push(series[i]);
+  }
+  // Deduplicate by composite key (in case the same title appears in both).
+  const seen = new Set<string>();
+  return merged.filter((t) => {
+    const key = `${t.media_type}/${t.id}`;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+}
+
+interface GenreCacheEntry {
+  items: TMDBTitle[];
+  page: number;
+  hasMore: boolean;
+  loading: boolean;
+}
+
 const GenreExplorer: Component<GenreExplorerProps> = (props) => {
   const [expandedGenre, setExpandedGenre] = createSignal<number | null>(null);
-  const [genreTitles, setGenreTitles] = createSignal<Record<number, TMDBTitle[]>>({});
-  const [loadingGenre, setLoadingGenre] = createSignal(false);
+  // Per-genre cache: genreName → { items, page, hasMore, loading }.
+  // Re-tapping a previously-expanded genre restores the cached rail
+  // instantly without re-fetching.
+  const [cache, setCache] = createSignal<Record<string, GenreCacheEntry>>({});
   const [errorGenre, setErrorGenre] = createSignal<Error | null>(null);
-  /** Tracks genres we've already fetched so we don't re-fetch on toggle. */
-  const [fetchedGenres, setFetchedGenres] = createSignal<Set<number>>(new Set());
 
-  const fetchGenre = async (genreId: number) => {
-    setLoadingGenre(true);
+  const fetchFirstPage = async (genre: GenreDef) => {
+    setCache((prev) => ({
+      ...prev,
+      [genre.name]: { items: [], page: 1, hasMore: true, loading: true },
+    }));
     setErrorGenre(null);
     try {
-      const titles = await discoverMovies({
-        withGenres: [genreId],
-        sortBy: "popularity.desc",
-        voteCountGte: 100,
-      });
-      setGenreTitles((prev) => ({ ...prev, [genreId]: titles }));
-      setFetchedGenres((prev) => new Set(prev).add(genreId));
+      const items = await fetchGenrePage(genre, 1);
+      setCache((prev) => ({
+        ...prev,
+        [genre.name]: {
+          items,
+          page: 1,
+          // TMDB returns ~20 items per page on a single-endpoint call.
+          // We merge two endpoints, so a full page is ~20-40 items.
+          // Treat <10 returned items as "no more pages".
+          hasMore: items.length >= 10,
+          loading: false,
+        },
+      }));
     } catch (err) {
       console.error("[GenreExplorer] Failed to fetch genre:", err);
       setErrorGenre(err instanceof Error ? err : new Error(String(err)));
-      setGenreTitles((prev) => ({ ...prev, [genreId]: [] }));
-    } finally {
-      setLoadingGenre(false);
+      setCache((prev) => ({
+        ...prev,
+        [genre.name]: { items: [], page: 1, hasMore: false, loading: false },
+      }));
     }
   };
 
-  const toggleGenre = (genreId: number) => {
-    if (expandedGenre() === genreId) {
+  const loadMore = async () => {
+    const id = expandedGenre();
+    if (id === null) return;
+    const genre = GENRES.find((g) => g.movieId === id);
+    if (!genre) return;
+    const entry = cache()[genre.name];
+    if (!entry || entry.loading || !entry.hasMore) return;
+
+    const nextPage = entry.page + 1;
+    setCache((prev) => ({
+      ...prev,
+      [genre.name]: { ...prev[genre.name], loading: true },
+    }));
+    try {
+      const newItems = await fetchGenrePage(genre, nextPage);
+      setCache((prev) => {
+        const cur = prev[genre.name];
+        return {
+          ...prev,
+          [genre.name]: {
+            items: [...cur.items, ...newItems],
+            page: nextPage,
+            // If the API returned fewer than 10, we've hit the end.
+            hasMore: newItems.length >= 10,
+            loading: false,
+          },
+        };
+      });
+    } catch (err) {
+      console.error("[GenreExplorer] load more failed:", err);
+      setCache((prev) => ({
+        ...prev,
+        [genre.name]: { ...prev[genre.name], loading: false, hasMore: false },
+      }));
+    }
+  };
+
+  const toggleGenre = (genre: GenreDef) => {
+    if (expandedGenre() === genre.movieId) {
       // Collapse — but preserve the cache so re-expanding is instant.
       setExpandedGenre(null);
       return;
     }
-    setExpandedGenre(genreId);
+    setExpandedGenre(genre.movieId);
     setErrorGenre(null);
     // Lazy load only on first tap.
-    if (!fetchedGenres().has(genreId)) {
-      void fetchGenre(genreId);
+    if (!cache()[genre.name]) {
+      void fetchFirstPage(genre);
     }
   };
 
-  const currentTitles = createMemo(() => {
+  const currentEntry = createMemo(() => {
     const id = expandedGenre();
-    if (id === null) return [];
-    return genreTitles()[id] ?? [];
+    if (id === null) return null;
+    const genre = GENRES.find((g) => g.movieId === id);
+    if (!genre) return null;
+    return cache()[genre.name] ?? null;
   });
 
   const currentGenreDef = createMemo(() => {
     const id = expandedGenre();
     if (id === null) return null;
-    return GENRES.find((g) => g.id === id) ?? null;
+    return GENRES.find((g) => g.movieId === id) ?? null;
   });
 
   const handleRetry = () => {
-    const id = expandedGenre();
-    if (id === null) return;
-    // Force re-fetch — clear cache for this genre.
-    setFetchedGenres((prev) => {
-      const next = new Set(prev);
-      next.delete(id);
-      return next;
-    });
-    void fetchGenre(id);
+    const def = currentGenreDef();
+    if (!def) return;
+    void fetchFirstPage(def);
   };
 
   return (
@@ -146,12 +257,12 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
             <button
               type="button"
               class="quick-filter-tab focus-ring genre-chip"
-              data-active={expandedGenre() === genre.id}
-              onClick={() => toggleGenre(genre.id)}
+              data-active={expandedGenre() === genre.movieId}
+              onClick={() => toggleGenre(genre)}
               role="tab"
-              aria-selected={expandedGenre() === genre.id}
+              aria-selected={expandedGenre() === genre.movieId}
               aria-controls="genre-explorer-panel"
-              aria-label={`Browse ${genre.name} movies`}
+              aria-label={`Browse ${genre.name} movies and series`}
             >
               <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
                 {genre.icon}
@@ -173,7 +284,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
         <Show when={expandedGenre() !== null}>
           <div class="genre-explorer-panel-inner">
             <Show
-              when={!loadingGenre()}
+              when={!currentEntry()?.loading || (currentEntry()?.items.length ?? 0) > 0}
               fallback={
                 <div class="search-rail">
                   <For each={Array.from({ length: 6 })}>
@@ -187,14 +298,14 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
               }
             >
               <Show
-                when={currentTitles().length > 0}
+                when={(currentEntry()?.items.length ?? 0) > 0}
                 fallback={
                   <Show
                     when={!errorGenre()}
                     fallback={
                       <PremiumEmptyState
                         icon="movie"
-                        message={`Couldn't load ${currentGenreDef()?.name ?? "this genre"} movies.`}
+                        message={`Couldn't load ${currentGenreDef()?.name ?? "this genre"} titles.`}
                         hint="Check your connection and try again."
                         onRetry={handleRetry}
                       />
@@ -209,14 +320,14 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                 }
               >
                 <div class="search-rail" role="list">
-                  <For each={currentTitles().slice(0, 20)}>
+                  <For each={currentEntry()!.items}>
                     {(title) => (
                       <button
                         type="button"
                         class="search-rail-card focus-ring"
                         onClick={() => props.onSelect(title)}
                         role="listitem"
-                        aria-label={`${title.title || title.name || "Untitled"}, ${(title.release_date || "").split("-")[0] || ""}`}
+                        aria-label={`${title.title || title.name || "Untitled"}, ${(title.release_date || title.first_air_date || "").split("-")[0] || ""}${title.media_type === "tv" ? ", Series" : ", Movie"}`}
                       >
                         <div class="search-rail-poster">
                           <Show
@@ -242,13 +353,56 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                         </div>
                         <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
                         <p class="search-rail-meta">
-                          {(title.release_date || "").split("-")[0] || ""}
+                          {(title.release_date || title.first_air_date || "").split("-")[0] || ""}
                           {title.vote_average ? ` · ★ ${title.vote_average.toFixed(1)}` : ""}
+                          {` · ${title.media_type === "tv" ? "Series" : "Movie"}`}
                         </p>
                       </button>
                     )}
                   </For>
                 </div>
+
+                {/* Continuous carousel — load-more trigger (no hard cap) */}
+                <Show when={currentEntry()?.hasMore}>
+                  <div
+                    class="search-load-more"
+                    onClick={() => loadMore()}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter" || e.key === " ") {
+                        e.preventDefault();
+                        loadMore();
+                      }
+                    }}
+                    role="button"
+                    tabindex={0}
+                    aria-label={`Load more ${currentGenreDef()?.name ?? ""} titles`}
+                  >
+                    <Show
+                      when={!currentEntry()?.loading}
+                      fallback={
+                        <span class="search-load-more-loading">
+                          <span
+                            class="material-symbols-outlined animate-spin"
+                            style={{ "font-size": "16px" }}
+                            aria-hidden="true"
+                          >
+                            progress_activity
+                          </span>
+                          Loading more…
+                        </span>
+                      }
+                    >
+                      <span class="search-load-more-text">Load more</span>
+                    </Show>
+                  </div>
+                </Show>
+
+                {/* End of results — quiet closer */}
+                <Show when={!currentEntry()?.hasMore && (currentEntry()?.items.length ?? 0) > 0}>
+                  <p class="search-end-of-results type-micro">
+                    You've reached the end of {currentGenreDef()?.name}
+                  </p>
+                </Show>
               </Show>
             </Show>
           </div>
