@@ -603,3 +603,59 @@
 }
 
 
+
+/* ============================================================
+   FAVOURITE HEART BUTTON (vault cards)
+   Lets the user quickly add/remove a vault title from the
+   Favorites collection without opening the folder sheet.
+   ============================================================ */
+
+.vault-fav-btn {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(8px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 5;
+  transition: background 200ms ease, transform 200ms ease, border-color 200ms ease;
+  padding: 0;
+}
+
+.vault-fav-btn:hover {
+  background: rgba(0, 0, 0, 0.85);
+  transform: scale(1.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.vault-fav-btn:active {
+  transform: scale(0.92);
+}
+
+.vault-fav-btn .material-symbols-outlined {
+  font-size: 16px;
+  color: rgba(255, 255, 255, 0.85);
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  transition: color 200ms ease, font-variation-settings 200ms ease;
+}
+
+.vault-fav-btn.is-favourite {
+  background: color-mix(in srgb, #ef4444 22%, rgba(0,0,0,0.7));
+  border-color: color-mix(in srgb, #ef4444 45%, transparent);
+}
+
+.vault-fav-btn.is-favourite .material-symbols-outlined {
+  color: #ff5b6e;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.vault-fav-btn.is-favourite:hover {
+  background: color-mix(in srgb, #ef4444 32%, rgba(0,0,0,0.7));
+}

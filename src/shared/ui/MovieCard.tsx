@@ -5,7 +5,9 @@ import HighlightText from "./HighlightText";
 import MovieCardRatings from "./MovieCardRatings";
 import { formatRuntime } from "~/shared/utils/format";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { WatchlistItem } from "~/shared/types";
+import { useCollections } from "~/features/collections/hooks/useCollections";
+import { useToast } from "~/shared/hooks/useToast";
+import type { CollectionEntry, WatchlistItem } from "~/shared/types";
 
 export type MovieCardVariant = "compact" | "default" | "featured";
 
@@ -19,6 +21,14 @@ interface MovieCardProps {
    *  - featured: largest, with accent border + glow, for hero-adjacent placement
    */
   variant?: MovieCardVariant;
+  /**
+   * When true (default for vault cards), a heart button is rendered
+   * top-right that toggles the title's membership in the Favorites
+   * collection. Set to false on Discover/Search rails where the
+   * title is not yet in the vault (those surfaces use the Details
+   * modal's Folder action instead).
+   */
+  showFavButton?: boolean;
 }
 
 /**
@@ -50,6 +60,12 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const [imgLoaded, setImgLoaded] = createSignal(false);
   const [imgError, setImgError] = createSignal(false);
 
+  // Favorites collection — used by the heart button to toggle
+  // membership. We read the collections context lazily (the hook is
+  // only called once per card, but the lookups are cheap memos).
+  const collections = useCollections();
+  const { showToast } = useToast();
+
   const title = () => props.movie.title || props.movie.name || "Untitled";
   const year = () =>
     (props.movie.release_date || props.movie.first_air_date || "").split(
@@ -74,6 +90,55 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const firstPlatform = () => props.movie.platformsList?.[0];
 
+  // Resolve the Favorites collection once per render. It's the one
+  // with isFavorites=true (or, fallback, named exactly "Favorites").
+  const favoritesCollection = () => {
+    const all = collections.userCollections();
+    return (
+      all.find((c) => c.isFavorites) ??
+      all.find((c) => c.name === "Favorites") ??
+      null
+    );
+  };
+
+  const favColId = () => favoritesCollection()?.id ?? null;
+
+  const isFavourite = () => {
+    const id = favColId();
+    if (!id) return false;
+    return collections.isInCollection(id, String(props.movie.id), props.movie.media_type);
+  };
+
+  const toggleFavourite = (e: MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const colId = favColId();
+    if (!colId) {
+      showToast("Favorites collection not ready yet — try again in a moment.", "info", 2000);
+      return;
+    }
+    const entry: CollectionEntry = {
+      id: String(props.movie.id),
+      media_type: props.movie.media_type,
+      title: props.movie.title,
+      name: props.movie.name,
+      poster_path: props.movie.poster_path ?? null,
+      backdrop_path: props.movie.backdrop_path ?? null,
+      release_date: props.movie.release_date,
+      first_air_date: props.movie.first_air_date,
+      runtime: props.movie.runtime,
+    };
+    if (isFavourite()) {
+      void collections.removeFromCollection(colId, entry.id, entry.media_type).then(() => {
+        showToast("Removed from Favorites", "info", 1200);
+      });
+    } else {
+      void collections.addToCollection(colId, entry).then(() => {
+        showToast("Added to Favorites", "success", 1200);
+      });
+    }
+  };
+
   // Variant-aware class
   const cardClass = () => {
     const base = "vault-card-premium animate-fade-up touch-ripple focus-ring";
@@ -86,6 +151,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     if (variant() === "compact") return "w342";
     return "w500";
   };
+
+  const showFavButton = () => props.showFavButton !== false;
 
   return (
     <div
@@ -192,28 +259,26 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           {statusLabel()}
         </div>
 
-        {/* Tag / New Season badge (top-right) */}
-        <Show
-          when={props.movie.newSeasonAvailable}
-          fallback={
-            <Show when={props.movie.tag}>
-              <div
-                class="tag-chip absolute top-2 right-2"
-                style={{
-                  "z-index": "3",
-                  "max-width": "60px",
-                  color: "rgba(255,255,255,0.85)",
-                  overflow: "hidden",
-                  "text-overflow": "ellipsis",
-                  "white-space": "nowrap",
-                }}
-                aria-hidden="true"
-              >
-                {props.movie.tag}
-              </div>
-            </Show>
-          }
-        >
+        {/* Favourite heart button (top-right) — only when showFavButton
+            is true (default). The heart toggles membership in the
+            Favorites collection. */}
+        <Show when={showFavButton()}>
+          <button
+            type="button"
+            class={`vault-fav-btn focus-ring${isFavourite() ? " is-favourite" : ""}`}
+            onClick={toggleFavourite}
+            aria-label={isFavourite() ? "Remove from Favorites" : "Add to Favorites"}
+            aria-pressed={isFavourite()}
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">
+              favorite
+            </span>
+          </button>
+        </Show>
+
+        {/* Tag / New Season badge (top-right) — hidden when the
+            favourite button is showing so they don't overlap */}
+        <Show when={!showFavButton() && props.movie.newSeasonAvailable}>
           <div
             class="badge-glow absolute top-2 right-2"
             style={{

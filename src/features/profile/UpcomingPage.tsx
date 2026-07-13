@@ -4,14 +4,20 @@
 //
 // A calendar-style discovery page showing movies and TV series that are
 // going to be released. Uses TMDB's discover endpoints with date-range
-// filters (next 30 days from a selectable start date).
+// filters (30 days from a selectable start date).
 //
-// Layout (per user request — full design freedom, "best look"):
+// LAYOUT (v2.1, per user request):
 //   • Header: back arrow, page title, subtitle
 //   • Filter bar:
-//       - Date picker (default = today; shows next 30 days)
+//       - Date picker (default = today; shows next 30 days from the
+//         selected date — quick +7/+14/+30 buttons REMOVED)
 //       - Type filter chips: All · Movies · Series
-//       - Genre filter (optional)
+//       - Nationality dropdown (National / International)
+//         National = titles from the user's country (profile.country)
+//         International = titles from any OTHER country
+//       - Language dropdown — depends on Nationality:
+//         · National → languages spoken in the user's country
+//         · International → curated set of world languages
 //   • Two grouped sections (movies and series shown separately):
 //       - Upcoming Movies — list grouped by release date
 //       - Upcoming Series — list grouped by first air date
@@ -21,27 +27,38 @@
 //       - Release date (formatted)
 //       - For movies: "In Theatres" or "On OTT" indicator
 //       - For series: OTT/network name (Netflix, Prime, etc.)
-//   • Click a title → opens Details modal
+//       - Trailer chip — opens a YouTube modal directly (no need to
+//         open the full Details page just to watch the trailer)
+//   • Click a title's body → opens Details modal
 //
-// Data sources:
-//   • Movies: /discover/movie with primary_release_date.gte/lte, sort by date asc
-//   • Series: /discover/tv with first_air_date.gte/lte, sort by date asc
-//   • OTT info: /tv/{id}/watch/providers for series networks,
-//               /movie/{id}/watch/providers for movie OTT vs theatre
+// COUNTRY FILTERING (per user request v2.1):
+//   When Nationality = National, the TMDB discover query is constrained
+//   to the user's profile.country via with_origin_country. Titles not
+//   available in the user's country are excluded from Upcoming but
+//   remain searchable in Discover (where the user can manually search
+//   for any title worldwide).
 //
 // Architecture:
 //   Route (/profile/upcoming) → UpcomingPage → TMDB discover + watch providers
 //                                                   → openTitle (modal)
+//                                                   → trailer modal
 
 import {
-  Show, For, createSignal, createMemo, createEffect, type Component,
+  Show, For, createSignal, createMemo, createEffect, onCleanup, type Component,
 } from "solid-js";
-import { tmdbImage, TMDB_KEY } from "~/core/tmdb/tmdb";
+import { Portal } from "solid-js/web";
+import { tmdbImage, TMDB_KEY, pickTrailer } from "~/core/tmdb/tmdb";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { openTitle } from "~/shared/hooks/useModalState";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
+import {
+  INTERNATIONAL_LANGUAGES,
+  languagesForCountry,
+  countryLabel,
+} from "~/shared/data/countryLanguages";
 import PageContainer from "~/shared/ui/PageContainer";
-import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import type { TMDBTitle, TMDBDetails, WatchlistItem } from "~/shared/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -54,6 +71,10 @@ interface UpcomingItem extends TMDBTitle {
   ottInfo: string | null;
   /** True if movie is releasing in theatres (no OTT flatrate available yet) */
   isTheatrical: boolean;
+  /** Original language code (e.g. "hi", "en") — used for client-side language filter fallback */
+  originalLanguage: string | null;
+  /** Origin country codes (e.g. ["IN", "US"]) — used for Nationality filtering fallback */
+  originCountry: string[];
 }
 
 interface UpcomingGroup {
@@ -63,27 +84,12 @@ interface UpcomingGroup {
   series: UpcomingItem[];
 }
 
+type NationalityFilter = "national" | "international";
+
 // ── Constants ────────────────────────────────────────────────────────
 
 const API = "https://api.themoviedb.org/3";
 const WINDOW_DAYS = 30;
-
-// Curated genre list for the filter dropdown (movie genre IDs)
-const GENRE_FILTERS: { label: string; movieId: number; tvId?: number }[] = [
-  { label: "All Genres", movieId: 0 },
-  { label: "Action", movieId: 28, tvId: 10759 },
-  { label: "Adventure", movieId: 12, tvId: 10759 },
-  { label: "Animation", movieId: 16, tvId: 16 },
-  { label: "Comedy", movieId: 35, tvId: 35 },
-  { label: "Crime", movieId: 80, tvId: 80 },
-  { label: "Drama", movieId: 18, tvId: 18 },
-  { label: "Fantasy", movieId: 14, tvId: 10765 },
-  { label: "Horror", movieId: 27 },
-  { label: "Mystery", movieId: 9648, tvId: 9648 },
-  { label: "Romance", movieId: 10749 },
-  { label: "Sci-Fi", movieId: 878, tvId: 10765 },
-  { label: "Thriller", movieId: 53 },
-];
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -129,6 +135,8 @@ interface TMDBRawMovie {
   vote_count?: number;
   overview?: string;
   genre_ids?: number[];
+  original_language?: string;
+  origin_country?: string[];
 }
 
 interface TMDBRawTv extends TMDBRawMovie {}
@@ -149,14 +157,23 @@ interface TMDBDiscoverResponse {
   results?: TMDBRawMovie[];
 }
 
+interface TMDBVideosResponse {
+  results?: Array<{ id: string; key: string; name: string; site: string; type: string; official?: boolean }>;
+}
+
 /**
  * Fetch upcoming movies in a date range.
- * Sorts by release date ascending (soonest first).
+ * Nationality filter:
+ *   - "national" → constrain to the user's country via with_origin_country
+ *   - "international" → exclude the user's country via without_origin_country
+ * Language filter (optional): applied via with_original_language.
  */
 async function fetchUpcomingMovies(
   startDate: string,
   endDate: string,
-  genreId: number,
+  region: string,
+  nationality: NationalityFilter,
+  language: string | null,
 ): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
     api_key: TMDB_KEY,
@@ -164,14 +181,19 @@ async function fetchUpcomingMovies(
     sort_by: "primary_release_date.asc",
     "primary_release_date.gte": startDate,
     "primary_release_date.lte": endDate,
-    "vote_count.gte": "0", // upcoming titles often have 0 votes
+    "vote_count.gte": "0",
     page: "1",
     include_adult: "false",
   });
-  if (genreId > 0) params.set("with_genres", String(genreId));
+  if (nationality === "national") {
+    params.set("with_origin_country", region);
+  } else {
+    params.set("without_origin_country", region);
+  }
+  if (language) params.set("with_original_language", language);
 
   const res = await cachedFetch<TMDBDiscoverResponse>(
-    buildCacheKey("tmdb:upcoming_movies_range", { start: startDate, end: endDate, genre: genreId }),
+    buildCacheKey("tmdb:upcoming_movies_v21", { start: startDate, end: endDate, region, nationality, lang: language ?? "" }),
     TMDB_TTL,
     async () => {
       const r = await fetch(`${API}/discover/movie?${params}`);
@@ -184,13 +206,14 @@ async function fetchUpcomingMovies(
 
 /**
  * Fetch upcoming TV series in a date range.
- * Sorts by first air date ascending.
+ * Same Nationality + Language logic as fetchUpcomingMovies.
  */
 async function fetchUpcomingTv(
   startDate: string,
   endDate: string,
-  genreId: number,
-  tvGenreId?: number,
+  region: string,
+  nationality: NationalityFilter,
+  language: string | null,
 ): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
     api_key: TMDB_KEY,
@@ -202,13 +225,15 @@ async function fetchUpcomingTv(
     page: "1",
     include_adult: "false",
   });
-  if (tvGenreId && tvGenreId > 0) params.set("with_genres", String(tvGenreId));
-  else if (genreId > 0 && tvGenreId === undefined) {
-    // no TV equivalent — skip genre filter for TV
+  if (nationality === "national") {
+    params.set("with_origin_country", region);
+  } else {
+    params.set("without_origin_country", region);
   }
+  if (language) params.set("with_original_language", language);
 
   const res = await cachedFetch<TMDBDiscoverResponse>(
-    buildCacheKey("tmdb:upcoming_tv_range", { start: startDate, end: endDate, genre: tvGenreId ?? genreId }),
+    buildCacheKey("tmdb:upcoming_tv_v21", { start: startDate, end: endDate, region, nationality, lang: language ?? "" }),
     TMDB_TTL,
     async () => {
       const r = await fetch(`${API}/discover/tv?${params}`);
@@ -221,7 +246,7 @@ async function fetchUpcomingTv(
 
 /**
  * Fetch watch providers for a title. Returns the first flatrate (OTT)
- * provider name, or null if none / on error.
+ * provider name for the user's region, or null if none / on error.
  *
  * For movies: if there's no flatrate provider, it's theatrical-only.
  * For series: networks are usually the OTT name (returned separately).
@@ -273,17 +298,45 @@ async function fetchTvNetwork(id: number): Promise<string | null> {
   }
 }
 
+/**
+ * Fetch a trailer key for a single title. Used by the card's trailer
+ * chip so the user can play the trailer without opening the Details
+ * modal. Returns null if no YouTube trailer is available.
+ */
+async function fetchTrailerKey(
+  mediaType: "movie" | "tv",
+  id: number,
+): Promise<string | null> {
+  try {
+    const res = await cachedFetch<TMDBVideosResponse>(
+      buildCacheKey(`tmdb:videos:${mediaType}:${id}`, {}),
+      TMDB_TTL,
+      async () => {
+        const r = await fetch(`${API}/${mediaType}/${id}/videos?api_key=${TMDB_KEY}&language=en-US`);
+        if (!r.ok) throw new Error(`videos failed: ${r.status}`);
+        return r.json();
+      },
+    );
+    const details = { videos: res } as unknown as TMDBDetails;
+    return pickTrailer(details)?.key ?? null;
+  } catch {
+    return null;
+  }
+}
+
 // ── Component ────────────────────────────────────────────────────────
 
 const UpcomingPage: Component = () => {
   const library = useUserLibrary();
+  const region = useDiscoverRegion();
 
   // Filters
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [startDate, setStartDate] = createSignal<string>(ymd(today));
   const [typeFilter, setTypeFilter] = createSignal<"all" | "movies" | "series">("all");
-  const [genreFilter, setGenreFilter] = createSignal<number>(0);
+  const [nationality, setNationality] = createSignal<NationalityFilter>("national");
+  const [language, setLanguage] = createSignal<string>("");
 
   // Data
   const [movies, setMovies] = createSignal<TMDBTitle[]>([]);
@@ -295,12 +348,35 @@ const UpcomingPage: Component = () => {
   const [movieOtt, setMovieOtt] = createSignal<Record<number, { providerName: string | null; isTheatrical: boolean }>>({});
   const [seriesOtt, setSeriesOtt] = createSignal<Record<number, string | null>>({});
 
+  // Trailer modal state
+  const [trailerKey, setTrailerKey] = createSignal<string | null>(null);
+  const [trailerLoading, setTrailerLoading] = createSignal(false);
+
   const endDate = createMemo(() => {
     const d = parseDate(startDate());
     if (!d) return ymd(today);
     const end = new Date(d);
     end.setDate(end.getDate() + WINDOW_DAYS);
     return ymd(end);
+  });
+
+  // Language options depend on the nationality selection.
+  // - National → languages of the user's country
+  // - International → curated world languages
+  const languageOptions = createMemo(() => {
+    if (nationality() === "national") {
+      return languagesForCountry(region());
+    }
+    return INTERNATIONAL_LANGUAGES;
+  });
+
+  // When the user toggles Nationality, reset the language selection so
+  // it always matches a valid option in the new dropdown.
+  createEffect(() => {
+    // touch nationality
+    nationality();
+    // reset language to "all"
+    setLanguage("");
   });
 
   // Reload on filter change
@@ -314,20 +390,20 @@ const UpcomingPage: Component = () => {
     try {
       const start = startDate();
       const end = endDate();
-      const genre = genreFilter();
-      const genreDef = GENRE_FILTERS.find((g) => g.movieId === genre);
+      const r = region();
+      const nat = nationality();
+      const lang = language() || null;
 
       const promises: Promise<TMDBTitle[]>[] = [];
       if (typeFilter() !== "series") {
-        promises.push(fetchUpcomingMovies(start, end, genre));
+        promises.push(fetchUpcomingMovies(start, end, r, nat, lang));
       }
       if (typeFilter() !== "movies") {
-        promises.push(fetchUpcomingTv(start, end, genre, genreDef?.tvId));
+        promises.push(fetchUpcomingTv(start, end, r, nat, lang));
       }
 
       const results = await Promise.all(promises);
       let mi = 0;
-      let si = 0;
       if (typeFilter() !== "series") {
         setMovies(results[mi] ?? []);
         mi++;
@@ -336,11 +412,9 @@ const UpcomingPage: Component = () => {
       }
       if (typeFilter() !== "movies") {
         setSeries(results[mi] ?? []);
-        si = mi;
       } else {
         setSeries([]);
       }
-      void si;
 
       // Fetch OTT info in parallel — capped at first 20 items each
       // to avoid hammering TMDB. The rest lazy-load on scroll (TODO).
@@ -358,12 +432,12 @@ const UpcomingPage: Component = () => {
     const movieList = movies().slice(0, 20);
     const movieResults = await Promise.all(
       movieList.map(async (m) => {
-        const info = await fetchWatchProvider("movie", m.id);
+        const info = await fetchWatchProvider("movie", m.id, region());
         return [m.id, info] as const;
       }),
     );
     const movieMap: Record<number, { providerName: string | null; isTheatrical: boolean }> = {};
-    movieResults.forEach(([id, info]) => { movieMap[id] = info; });
+    movieResults.forEach(([id, info]) => { movieMap[id as number] = info; });
     setMovieOtt(movieMap);
 
     // Series — fetch network name (faster than full watch providers)
@@ -375,7 +449,7 @@ const UpcomingPage: Component = () => {
       }),
     );
     const seriesMap: Record<number, string | null> = {};
-    seriesResults.forEach(([id, name]) => { seriesMap[id] = name; });
+    seriesResults.forEach(([id, name]) => { seriesMap[id as number] = name; });
     setSeriesOtt(seriesMap);
   };
 
@@ -384,12 +458,15 @@ const UpcomingPage: Component = () => {
     return movies().map((m) => {
       const dateStr = m.release_date ?? "";
       const ott = movieOtt()[m.id];
+      const raw = m as unknown as TMDBRawMovie;
       return {
         ...m,
         formattedDate: formatDateShort(dateStr),
         rawDate: dateStr,
         ottInfo: ott?.providerName ?? null,
         isTheatrical: ott?.isTheatrical ?? true,
+        originalLanguage: raw.original_language ?? null,
+        originCountry: raw.origin_country ?? [],
       };
     });
   });
@@ -397,12 +474,15 @@ const UpcomingPage: Component = () => {
   const upcomingSeries = createMemo<UpcomingItem[]>(() => {
     return series().map((s) => {
       const dateStr = s.first_air_date ?? "";
+      const raw = s as unknown as TMDBRawMovie;
       return {
         ...s,
         formattedDate: formatDateShort(dateStr),
         rawDate: dateStr,
         ottInfo: seriesOtt()[s.id] ?? null,
         isTheatrical: false,
+        originalLanguage: raw.original_language ?? null,
+        originCountry: raw.origin_country ?? [],
       };
     });
   });
@@ -444,25 +524,50 @@ const UpcomingPage: Component = () => {
     openTitle(baseItem, library.watchlist());
   };
 
-  // Date picker — quick jump buttons (Today, +7d, +14d, +30d)
-  const quickDates = createMemo(() => {
-    const base = parseDate(startDate()) ?? today;
-    return [
-      { label: "Today", offset: 0 },
-      { label: "+7 days", offset: 7 },
-      { label: "+14 days", offset: 14 },
-      { label: "+30 days", offset: 30 },
-    ].map((q) => {
-      const d = new Date(base);
-      d.setDate(d.getDate() + q.offset);
-      return { label: q.label, date: ymd(d) };
-    });
+  // Trailer chip handler — fetches the trailer key and opens the modal.
+  const handlePlayTrailer = async (e: MouseEvent, item: UpcomingItem) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setTrailerLoading(true);
+    setTrailerKey(null);
+    try {
+      const key = await fetchTrailerKey(item.media_type, item.id);
+      if (key) {
+        setTrailerKey(key);
+      } else {
+        // No trailer available — fall back to opening Details so the
+        // user can still see full info.
+        handleClick(item);
+      }
+    } catch {
+      handleClick(item);
+    } finally {
+      setTrailerLoading(false);
+    }
+  };
+
+  const closeTrailer = () => setTrailerKey(null);
+
+  // ESC to close trailer modal
+  onCleanup(() => {
+    if (typeof window !== "undefined") {
+      window.removeEventListener("keydown", escCloseTrailer);
+    }
   });
+  const escCloseTrailer = (e: KeyboardEvent) => {
+    if (e.key === "Escape") closeTrailer();
+  };
+  if (typeof window !== "undefined") {
+    window.addEventListener("keydown", escCloseTrailer);
+  }
 
   const onDateInput = (e: InputEvent) => {
     const val = (e.currentTarget as HTMLInputElement).value;
     if (val) setStartDate(val);
   };
+
+  // Display label for the current region (used in the Nationality hint).
+  const regionLabel = createMemo(() => countryLabel(region()));
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
@@ -478,14 +583,15 @@ const UpcomingPage: Component = () => {
           <p class="sec-eyebrow">Upcoming</p>
           <h1 class="sec-title">What's coming next</h1>
           <p class="sec-subtitle">
-            Movies and series releasing in the next 30 days. Tap any title for full details.
+            Movies and series releasing in the next 30 days from your
+            selected date. Tap any title for full details.
           </p>
         </div>
 
         <div class="sec-body">
           {/* Filter bar */}
           <div class="upcoming-filters">
-            {/* Date picker + quick jumps */}
+            {/* Date picker (no quick +7/+14/+30 buttons — per v2.1 spec) */}
             <div class="upcoming-date-row">
               <label class="upcoming-date-label" for="upcoming-date-input">
                 <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
@@ -501,21 +607,6 @@ const UpcomingPage: Component = () => {
                 onInput={onDateInput}
                 min={ymd(today)}
               />
-              <div class="upcoming-quick-dates" role="group" aria-label="Quick date jumps">
-                <For each={quickDates()}>
-                  {(q) => (
-                    <button
-                      type="button"
-                      class="upcoming-quick-date focus-ring"
-                      classList={{ active: q.date === startDate() }}
-                      onClick={() => setStartDate(q.date)}
-                      aria-pressed={q.date === startDate()}
-                    >
-                      {q.label}
-                    </button>
-                  )}
-                </For>
-              </div>
             </div>
 
             {/* Type filter chips */}
@@ -537,16 +628,41 @@ const UpcomingPage: Component = () => {
                   </button>
                 )}
               </For>
+            </div>
 
-              {/* Genre dropdown */}
+            {/* Nationality + Language dropdowns (replaces Genre filter) */}
+            <div class="upcoming-type-row" role="group" aria-label="Nationality and language filters">
+              <span class="upcoming-filter-select-label">
+                <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
+                  flag
+                </span>
+                Nationality
+              </span>
               <select
-                class="upcoming-genre-select focus-ring"
-                value={genreFilter()}
-                onChange={(e) => setGenreFilter(parseInt(e.currentTarget.value, 10))}
-                aria-label="Filter by genre"
+                class="upcoming-filter-select focus-ring"
+                value={nationality()}
+                onChange={(e) => setNationality(e.currentTarget.value as NationalityFilter)}
+                aria-label="Filter by nationality"
               >
-                <For each={GENRE_FILTERS}>
-                  {(g) => <option value={g.movieId}>{g.label}</option>}
+                <option value="national">National ({regionLabel()})</option>
+                <option value="international">International</option>
+              </select>
+
+              <span class="upcoming-filter-select-label" style={{ "margin-left": "var(--space-2)" }}>
+                <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
+                  translate
+                </span>
+                Language
+              </span>
+              <select
+                class="upcoming-filter-select focus-ring"
+                value={language()}
+                onChange={(e) => setLanguage(e.currentTarget.value)}
+                aria-label="Filter by language"
+              >
+                <option value="">All Languages</option>
+                <For each={languageOptions()}>
+                  {(l) => <option value={l.code}>{l.label}</option>}
                 </For>
               </select>
             </div>
@@ -555,6 +671,9 @@ const UpcomingPage: Component = () => {
           {/* Window label */}
           <p class="upcoming-window-label">
             Showing {formatDateShort(startDate())} → {formatDateShort(endDate())}
+            {" · "}
+            {nationality() === "national" ? `National (${regionLabel()})` : "International"}
+            {language() ? ` · ${languageOptions().find((l) => l.code === language())?.label ?? language()}` : ""}
           </p>
 
           {/* Loading state */}
@@ -563,6 +682,21 @@ const UpcomingPage: Component = () => {
               <For each={Array.from({ length: 4 })}>
                 {() => <div class="upcoming-skeleton-card skeleton-base" />}
               </For>
+            </div>
+          </Show>
+
+          {/* Trailer loading overlay */}
+          <Show when={trailerLoading()}>
+            <div class="upcoming-trailer-modal" role="status" aria-live="polite">
+              <div class="upcoming-trailer-frame" style={{ display: "flex", "align-items": "center", "justify-content": "center" }}>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "40px", color: "var(--p)", animation: "spin 1s linear infinite" }}
+                  aria-hidden="true"
+                >
+                  progress_activity
+                </span>
+              </div>
             </div>
           </Show>
 
@@ -586,7 +720,10 @@ const UpcomingPage: Component = () => {
                 </span>
               </div>
               <h3 class="empty-premium-title">No upcoming titles in this window</h3>
-              <p class="empty-premium-body">Try a different date range or genre filter.</p>
+              <p class="empty-premium-body">
+                Try a different date, nationality, or language filter.
+                Some titles may not be available in your country yet.
+              </p>
             </div>
           </Show>
 
@@ -614,7 +751,12 @@ const UpcomingPage: Component = () => {
                         <div class="upcoming-list">
                           <For each={group.movies}>
                             {(item) => (
-                              <UpcomingCard item={item} onClick={() => handleClick(item)} type="movie" />
+                              <UpcomingCard
+                                item={item}
+                                onClick={() => handleClick(item)}
+                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
+                                type="movie"
+                              />
                             )}
                           </For>
                         </div>
@@ -631,7 +773,12 @@ const UpcomingPage: Component = () => {
                         <div class="upcoming-list">
                           <For each={group.series}>
                             {(item) => (
-                              <UpcomingCard item={item} onClick={() => handleClick(item)} type="series" />
+                              <UpcomingCard
+                                item={item}
+                                onClick={() => handleClick(item)}
+                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
+                                type="series"
+                              />
                             )}
                           </For>
                         </div>
@@ -644,6 +791,42 @@ const UpcomingPage: Component = () => {
           </Show>
         </div>
       </div>
+
+      {/* Trailer modal — YouTube iframe in a centered overlay.
+          Rendered via Portal so it sits above the AppShell + BottomNav. */}
+      <Show when={trailerKey()}>
+        <Portal>
+          <div
+            class="upcoming-trailer-modal"
+            onClick={closeTrailer}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Trailer player"
+          >
+            <div
+              class="upcoming-trailer-frame"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button
+                type="button"
+                class="upcoming-trailer-close focus-ring"
+                onClick={closeTrailer}
+                aria-label="Close trailer"
+              >
+                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+                  close
+                </span>
+              </button>
+              <iframe
+                src={`https://www.youtube.com/embed/${trailerKey()}?autoplay=1&rel=0&modestbranding=1`}
+                title="Trailer"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowfullscreen
+              />
+            </div>
+          </div>
+        </Portal>
+      </Show>
     </PageContainer>
   );
 };
@@ -653,6 +836,7 @@ const UpcomingPage: Component = () => {
 interface UpcomingCardProps {
   item: UpcomingItem;
   onClick: () => void;
+  onPlayTrailer: (e: MouseEvent) => void;
   type: "movie" | "series";
 }
 
@@ -670,11 +854,18 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
   };
 
   return (
-    <button
-      type="button"
+    <div
       class="upcoming-card focus-ring"
       onClick={() => props.onClick()}
-      aria-label={`${title()}, ${props.item.formattedDate}, ${ottLabel()}`}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          props.onClick();
+        }
+      }}
+      role="button"
+      tabindex={0}
+      aria-label={`${title()}, ${props.item.formattedDate}, ${ottLabel()}. Click to open details.`}
     >
       <div class="upcoming-card-poster">
         <Show
@@ -725,9 +916,24 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
               {props.item.vote_average!.toFixed(1)}
             </span>
           </Show>
+
+          {/* Trailer chip — opens the YouTube trailer modal directly.
+              Stops propagation so the card click (which opens Details)
+              doesn't fire. */}
+          <button
+            type="button"
+            class="upcoming-card-trailer focus-ring"
+            onClick={(e) => props.onPlayTrailer(e)}
+            aria-label={`Watch trailer for ${title()}`}
+          >
+            <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+              play_arrow
+            </span>
+            Trailer
+          </button>
         </div>
       </div>
-    </button>
+    </div>
   );
 };
 

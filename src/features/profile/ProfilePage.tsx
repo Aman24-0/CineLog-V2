@@ -39,7 +39,7 @@
 //
 // Zero changes to business logic, hooks, state, or Supabase integration.
 
-import { Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
+import { Show, createSignal, createMemo, onMount, onCleanup, createEffect, type Component } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
@@ -50,6 +50,7 @@ import {
   PremiumEmptyState,
   PremiumAvatar,
 } from "~/shared/ui/premium";
+import { setDiscoverRegion } from "~/core/config/discoverRegion";
 import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
 import { useStats } from "./useStats";
@@ -136,6 +137,14 @@ const ProfilePage: Component = () => {
   };
 
   // ── Derived data ────────────────────────────────────────────────────
+
+  // Sync the user's saved country (from the profile row) into the
+  // global discoverRegion module so Discover / Upcoming pages pick
+  // up the right region on mount.
+  createEffect(() => {
+    const c = data()?.profile?.country;
+    if (c) setDiscoverRegion(c);
+  });
 
   const memberSince = createMemo(() => {
     const created = data()?.profile?.created_at;

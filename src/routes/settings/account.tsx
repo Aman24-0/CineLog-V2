@@ -1,10 +1,19 @@
 // src/routes/settings/account.tsx
 import { Title } from "@solidjs/meta";
-import { Show, For, type Component } from "solid-js";
+import { Show, For, createMemo, createSignal, createEffect, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { signOut } from "~/shared/hooks/useAuthActions";
+import { useProfile } from "~/lib/supabase/hooks/useProfile";
+import { useToast } from "~/shared/hooks/useToast";
+import { setDiscoverRegion } from "~/core/config/discoverRegion";
+import {
+  COUNTRIES,
+  countryLabel,
+  findCountry,
+  DEFAULT_COUNTRY_CODE,
+} from "~/shared/data/countryLanguages";
 
 /** All auth providers CineLog supports, with display metadata. */
 const ALL_PROVIDERS: { id: string; label: string; icon: string }[] = [
@@ -17,6 +26,53 @@ const ALL_PROVIDERS: { id: string; label: string; icon: string }[] = [
 const AccountRoute: Component = () => {
   const { user, isSignedIn } = useAuth();
   const navigate = useNavigate();
+  const profileRepo = useProfile();
+  const { showToast } = useToast();
+
+  // Local copy of the country — initialised from the profile row.
+  // We keep a local signal so the dropdown feels instant even before
+  // the Supabase write resolves; we re-sync when the profile loads.
+  const [country, setCountry] = createSignal<string>(DEFAULT_COUNTRY_CODE);
+  const [savingCountry, setSavingCountry] = createSignal(false);
+
+  // Load the profile row to get the user's saved country. We do this
+  // client-side because the page is already client-only (auth-gated).
+  createEffect(() => {
+    const uid = user()?.uid;
+    if (!uid) return;
+    void profileRepo.getProfile(uid).then((res) => {
+      if (res.data?.country) {
+        setCountry(res.data.country);
+        // Keep the discoverRegion module in sync so the Discover /
+        // Upcoming pages pick up the right region on next mount.
+        setDiscoverRegion(res.data.country);
+      }
+    });
+  });
+
+  const handleSaveCountry = async (newCountry: string) => {
+    const uid = user()?.uid;
+    if (!uid) {
+      showToast("Sign in to save your country.", "error");
+      return;
+    }
+    setCountry(newCountry);
+    setSavingCountry(true);
+    try {
+      // 1. Persist to the profile row.
+      const { error } = await profileRepo.updateProfile(uid, { country: newCountry });
+      if (error) throw error;
+      // 2. Update the in-memory discoverRegion so Discover / Upcoming
+      //    pages re-fetch with the new region on next mount.
+      setDiscoverRegion(newCountry);
+      showToast(`Country set to ${countryLabel(newCountry)}`, "success", 1800);
+    } catch (err) {
+      console.error("[account] Failed to save country:", err);
+      showToast("Failed to save country. Try again.", "error");
+    } finally {
+      setSavingCountry(false);
+    }
+  };
 
   const handleSignOut = async () => {
     await signOut();
@@ -58,6 +114,12 @@ const AccountRoute: Component = () => {
     { icon: "event", label: "Joined", value: () => joinDate() },
   ];
 
+  // Country display label (flag-style chip in the row chevron slot).
+  const countryChip = createMemo(() => {
+    const c = findCountry(country());
+    return c ? c.label : country();
+  });
+
   return (
     <>
       <Title>CineLog — Account</Title>
@@ -73,7 +135,7 @@ const AccountRoute: Component = () => {
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Account</h1>
-            <p class="sec-subtitle">Your identity, providers, and session.</p>
+            <p class="sec-subtitle">Your identity, providers, country, and session.</p>
           </div>
 
           <div class="sec-body">
@@ -107,6 +169,55 @@ const AccountRoute: Component = () => {
                       </div>
                     )}
                   </For>
+                </div>
+              </section>
+
+              {/* Country selector — drives Discover + Upcoming regional
+                  filtering. Persists to profile.country and updates the
+                  in-memory discoverRegion so the next navigation
+                  re-fetches with the new region. */}
+              <section class="sec-section">
+                <p class="sec-section-label">Country</p>
+                <div class="setting-group">
+                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+                        public
+                      </span>
+                    </div>
+                    <div class="setting-row-text" style={{ flex: 1, "min-width": 0 }}>
+                      <span class="setting-row-label">Country</span>
+                      <span class="setting-row-desc">
+                        Drives regional content in Discover and Upcoming.
+                        Titles not available in your country are hidden
+                        from Upcoming but remain searchable in Discover.
+                      </span>
+                      <div class="country-selector-row" style={{ "margin-top": "var(--sp-2)" }}>
+                        <select
+                          value={country()}
+                          onChange={(e) => handleSaveCountry(e.currentTarget.value)}
+                          disabled={savingCountry()}
+                          aria-label="Select your country"
+                        >
+                          <For each={COUNTRIES}>
+                            {(c) => <option value={c.code}>{c.label}</option>}
+                          </For>
+                        </select>
+                        <Show when={savingCountry()}>
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "16px", color: "var(--p)", animation: "spin 1s linear infinite" }}
+                            aria-hidden="true"
+                          >
+                            progress_activity
+                          </span>
+                        </Show>
+                      </div>
+                    </div>
+                    <Show when={country() && country() !== DEFAULT_COUNTRY_CODE}>
+                      <span class="country-flag-chip" aria-hidden="true">{countryChip()}</span>
+                    </Show>
+                  </div>
                 </div>
               </section>
 

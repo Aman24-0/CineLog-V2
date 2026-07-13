@@ -1786,7 +1786,15 @@
 
 .profile-hero-v2 {
   position: relative;
+  /* Enough min-height for backdrop (200/280) + identity block
+     anchored at 40% of backdrop. The identity block sits OVER the
+     lower 60% of the backdrop and extends below it for the bio. */
+  min-height: 320px;
   padding-bottom: 0;
+}
+
+@media (min-width: 640px) {
+  .profile-hero-v2 { min-height: 400px; }
 }
 
 /* Override v1.0 overlay behavior — no overlay text on backdrop */
@@ -1794,16 +1802,50 @@
   display: none;
 }
 
-/* Identity block — BELOW the backdrop, not overlapping it */
+/* Backdrop stays at top, full-bleed. Identity block overlaps it. */
+.profile-hero-v2 .profile-banner {
+  position: relative;
+  z-index: 1;
+}
+
+/* Identity block — anchored at 40% of the section height, overlaps
+   the lower 60% of the backdrop. Treats avatar + name + meta + bio
+   as ONE aligned component (per user request v2.1). */
 .profile-identity-block {
-  padding: var(--space-4);
+  position: absolute;
+  top: 40%;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 0 var(--space-4);
   max-width: 680px;
   margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  z-index: 2;
+}
+
+/* Subtle readability gradient behind the identity block so text
+   stays legible over any backdrop image. */
+.profile-identity-block::before {
+  content: "";
+  position: absolute;
+  inset: -8px -16px 0;
+  background: linear-gradient(
+    to bottom,
+    transparent 0%,
+    color-mix(in srgb, var(--tier-0) 35%, transparent) 35%,
+    color-mix(in srgb, var(--tier-0) 80%, transparent) 100%
+  );
+  border-radius: var(--radius-lg, 12px);
+  z-index: -1;
+  pointer-events: none;
 }
 
 .profile-identity-row {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: var(--space-4);
 }
 
@@ -1811,11 +1853,12 @@
   .profile-identity-row { gap: var(--space-5); }
 }
 
-/* Avatar sits below backdrop, slightly overlapping for visual continuity */
+/* Avatar sits at the 40% mark of the backdrop (overlapping the lower
+   60% of the backdrop). No negative margin — the parent block is
+   positioned at top: 40%. */
 .profile-avatar-wrap-v2 {
   position: relative;
   flex-shrink: 0;
-  margin-top: calc(-1 * var(--space-10, 40px));
   z-index: 2;
 }
 
@@ -1825,11 +1868,11 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.4);
 }
 
-/* Name + meta text block */
+/* Name + meta text block — vertically centered to avatar */
 .profile-identity-text {
   flex: 1;
   min-width: 0;
-  padding-top: var(--space-2);
+  padding-top: 0;
 }
 
 .profile-name-row {
@@ -1859,18 +1902,16 @@
   font-weight: var(--font-weight-medium);
 }
 
-/* Bio — below the avatar/name row, in the blank space */
+/* Bio — below the avatar/name row, still within the 40%-anchored
+   identity block. Inherits the readability gradient. */
 .profile-hero-bio-v2 {
   font-family: var(--font-family-body);
   font-size: 0.9375rem;
   line-height: var(--line-height-normal);
   color: var(--text-soft);
-  margin: var(--space-4) 0 0;
+  margin: var(--space-2) 0 0;
   max-width: 56ch;
-  padding: 0 var(--space-4);
-  max-width: 680px;
-  margin-left: auto;
-  margin-right: auto;
+  padding: 0;
 }
 
 @media (min-width: 768px) {
@@ -1897,8 +1938,11 @@
 }
 
 .stats-grid {
+  /* 2 columns × 2 rows. Left column = Total Titles (spans both rows).
+     Right column = Movies (top) + Series (bottom). */
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
   gap: var(--space-3);
   max-width: 680px;
   margin: 0 auto;
@@ -1906,6 +1950,24 @@
 
 @media (min-width: 640px) {
   .stats-grid { gap: var(--space-4); }
+}
+
+/* Total Titles box — left column, spans both rows */
+.stats-glass-box-total {
+  grid-column: 1;
+  grid-row: 1 / span 2;
+}
+
+/* Movies box — right column, top row */
+.stats-glass-box-movies {
+  grid-column: 2;
+  grid-row: 1;
+}
+
+/* Series box — right column, bottom row */
+.stats-glass-box-series {
+  grid-column: 2;
+  grid-row: 2;
 }
 
 .stats-glass-box {
@@ -2238,7 +2300,7 @@
   margin-top: var(--space-12);
 }
 
-/* Sign Out — full width, quiet button (replaces the row layout) */
+/* Sign Out — full width, danger-styled button (red tint). */
 .settings-sign-out-button {
   display: flex;
   align-items: center;
@@ -2249,27 +2311,27 @@
   font-family: var(--font-family-body);
   font-size: 0.9375rem;
   font-weight: var(--font-weight-medium);
-  color: var(--text-muted);
-  background: var(--tier-2);
-  border: 1px solid var(--hairline);
+  color: #fca5a5;
+  background: color-mix(in srgb, #ef4444 8%, var(--tier-2));
+  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--hairline));
   border-radius: var(--radius-md, 8px);
   cursor: pointer;
   transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 
 .settings-sign-out-button:hover {
-  background: var(--tier-3);
-  color: var(--text-strong);
-  border-color: var(--hairline-3, var(--hairline-2));
+  background: color-mix(in srgb, #ef4444 18%, var(--tier-2));
+  color: #fecaca;
+  border-color: color-mix(in srgb, #ef4444 55%, var(--hairline));
 }
 
 .settings-sign-out-button .material-symbols-outlined {
-  color: var(--text-dim);
+  color: #f87171;
   transition: color 200ms ease;
 }
 
 .settings-sign-out-button:hover .material-symbols-outlined {
-  color: var(--text-soft);
+  color: #fca5a5;
 }
 
 /* Hide the old danger zone + delete link (removed in v2) */
@@ -2635,6 +2697,195 @@
 
 .upcoming-card-rating .material-symbols-outlined {
   font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── Trailer chip on upcoming card ── */
+.upcoming-card-trailer {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full, 9999px);
+  background: color-mix(in srgb, #f5c518 14%, transparent);
+  color: #f5c518;
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
+  border: 1px solid color-mix(in srgb, #f5c518 30%, transparent);
+  cursor: pointer;
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
+}
+
+.upcoming-card-trailer:hover {
+  background: color-mix(in srgb, #f5c518 22%, transparent);
+  border-color: color-mix(in srgb, #f5c518 50%, transparent);
+}
+
+.upcoming-card-trailer .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+/* ── Nationality + Language dropdowns (replaces Genre filter) ── */
+.upcoming-filter-select {
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.8125rem;
+  color: var(--text-strong);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  outline: none;
+  color-scheme: dark;
+  transition: border-color 200ms ease;
+  min-width: 110px;
+}
+
+.upcoming-filter-select:hover { border-color: var(--hairline-3, var(--hairline-2)); }
+.upcoming-filter-select:focus { border-color: var(--p); }
+
+.upcoming-filter-select-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  color: var(--text-dim);
+  letter-spacing: var(--letter-spacing-label);
+  text-transform: uppercase;
+  margin-right: 4px;
+}
+
+/* ── Trailer modal (YouTube iframe) ── */
+.upcoming-trailer-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 999990;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+  padding: var(--space-4);
+  animation: profileFadeIn 200ms ease-out both;
+}
+
+.upcoming-trailer-frame {
+  position: relative;
+  width: 100%;
+  max-width: 900px;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-lg, 12px);
+  overflow: hidden;
+  background: black;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+}
+
+.upcoming-trailer-frame iframe {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  border: 0;
+}
+
+.upcoming-trailer-close {
+  position: absolute;
+  top: -12px;
+  right: -12px;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 2;
+  transition: background 200ms ease, color 200ms ease;
+}
+
+.upcoming-trailer-close:hover {
+  background: var(--tier-3);
+  color: var(--p);
+}
+
+/* ── Favourites carousel: pin button ── */
+.favorites-pin-btn {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(8px);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 4;
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.favorites-pin-btn:hover { background: rgba(0,0,0,0.85); transform: scale(1.08); }
+.favorites-pin-btn:active { transform: scale(0.92); }
+
+.favorites-pin-btn .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--text-soft);
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}
+
+.favorites-pin-btn.is-pinned .material-symbols-outlined {
+  color: var(--p);
+}
+
+/* Pinned card — accent ring */
+.favorites-card.is-pinned .search-rail-poster {
+  box-shadow: 0 0 0 2px var(--p), 0 0 16px color-mix(in srgb, var(--p) 40%, transparent);
+}
+
+/* ── Account settings: country selector ── */
+.country-selector-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.country-selector-row select {
+  flex: 1;
+  padding: var(--space-2) var(--space-3);
+  font-family: var(--font-family-body);
+  font-size: 0.875rem;
+  color: var(--text-strong);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  outline: none;
+  color-scheme: dark;
+  transition: border-color 200ms ease;
+}
+
+.country-selector-row select:hover { border-color: var(--hairline-3, var(--hairline-2)); }
+.country-selector-row select:focus { border-color: var(--p); }
+
+.country-flag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 7px;
+  border-radius: var(--radius-full, 9999px);
+  background: color-mix(in srgb, var(--p) 14%, transparent);
+  color: var(--p);
+  font-family: var(--font-family-label);
+  font-size: 0.625rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 /* ── Reduced motion ── */
