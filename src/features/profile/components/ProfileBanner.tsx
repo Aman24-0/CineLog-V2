@@ -1,5 +1,5 @@
 // src/features/profile/components/ProfileBanner.tsx
-import { Show, createSignal, createMemo, type Component } from "solid-js";
+import { Show, createSignal, createMemo, createEffect, on, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { ProfileData } from "../useProfileData";
 import type { BannerType } from "./BannerEditor";
@@ -91,30 +91,42 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   const showGradient = createMemo(() => renderUrl() === null);
 
   // Reset error state when the banner type or URL changes
-  // (e.g., user saves a new banner in the editor)
+  // (e.g., user saves a new banner in the editor).
+  // IMPORTANT: This MUST be a createEffect, not a createMemo. Writing to
+  // signals inside a memo is a Solid anti-pattern that breaks DOM
+  // reconciliation and causes "Cannot read properties of null (reading
+  // 'nextSibling')" errors when the banner image / fallback swaps.
   const resetState = () => {
     setImgLoaded(false);
     setImgError(false);
   };
 
-  // Track changes to banner type/url to reset error state
-  createMemo(() => {
-    void bannerType();
-    void bannerUrl();
-    resetState();
-  });
+  // Track changes to banner type/url to reset error state. Using on() so
+  // the effect only fires when one of these dependencies actually changes,
+  // not on every render of the parent.
+  createEffect(
+    on(
+      () => [bannerType(), bannerUrl()] as const,
+      () => {
+        resetState();
+      },
+      { defer: true }
+    )
+  );
 
   return (
     <div class="profile-banner">
       <Show
-        when={!showGradient()}
+        when={!showGradient() && renderUrl() !== null}
         fallback={
-          /* Abstract gradient — on-brand, NOT a gray box */
+          /* Abstract gradient — on-brand, NOT a gray box.
+             Also used as the final fallback if renderUrl somehow
+             becomes null mid-render (defensive — prevents <img src="null">). */
           <div class="profile-banner-gradient" aria-hidden="true" />
         }
       >
         <img
-          src={renderUrl()!}
+          src={renderUrl() as string}
           class={`profile-banner-img${imgLoaded() ? " img-loaded" : ""}`}
           loading="eager"
           decoding="async"
