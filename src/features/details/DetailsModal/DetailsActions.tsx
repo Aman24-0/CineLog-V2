@@ -8,7 +8,8 @@ import type { WatchlistItem } from "~/shared/types";
  *
  * The dock is ownership-aware: when vaultItem is null, it shows
  * "Add to Vault" as the primary action; when present, it shows
- * the status cycle + Folder + Edit/Rate buttons.
+ * the status row (Planned/Watching/Completed/Dropped) and action row
+ * (Trailer/Folder/Edit/Delete).
  */
 export interface DetailsActionsProps {
   baseItem: Accessor<WatchlistItem | null>;
@@ -18,6 +19,8 @@ export interface DetailsActionsProps {
   onPlayTrailer: () => void;
   onEdit: () => void;
   onStatusCycle: () => void;
+  /** Set status directly to a specific value (Planned / Watching / Completed / Dropped). */
+  onSetStatus?: (status: WatchlistItem["status"]) => void;
   onAddToVault: () => void;
   onOpenFolders: () => void;
   onRemove: () => void;
@@ -32,6 +35,7 @@ export default function DetailsActions(props: DetailsActionsProps) {
       onPlayTrailer={props.onPlayTrailer}
       onEdit={props.onEdit}
       onStatusCycle={props.onStatusCycle}
+      onSetStatus={props.onSetStatus}
       onAddToVault={props.onAddToVault}
       onOpenFolders={props.onOpenFolders}
       onRemove={props.onRemove}

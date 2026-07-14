@@ -33,7 +33,7 @@ export interface WatchlistItem {
   media_type: "movie" | "tv";
   poster_path?: string | null;
   backdrop_path?: string | null;
-  status: "Planned" | "Watching" | "Completed" | "Plan to Watch";
+  status: "Planned" | "Watching" | "Completed" | "Plan to Watch" | "Dropped";
   rating?: number;
   watchDate?: string;
   notes?: string;
@@ -227,6 +227,8 @@ export interface TMDBDetails {
   videos?: {
     results?: TMDBVideo[];
   };
+  /** Populated when fetchTmdbDetails requests append_to_response=videos,credits */
+  credits?: TMDBCredits;
 }
 
 /**
@@ -284,6 +286,101 @@ export interface OMDbRatings {
   rated?: string;
   year?: string;
   runtime?: string;
+}
+
+/* ============================================================
+   TMDB CREDITS / PERSON — Cast & Crew + Person filmography
+   ============================================================ */
+
+/**
+ * TMDBCastMember — a single cast entry from /movie/{id}/credits or
+ * /tv/{id}/credits.
+ */
+export interface TMDBCastMember {
+  id: number;
+  name: string;
+  character?: string;
+  profile_path: string | null;
+  order: number;
+  /** For TV only — seasons/episodes this cast member appears in. */
+  episodes_count?: number;
+}
+
+/**
+ * TMDBCrewMember — a single crew entry. A person can appear multiple
+ * times in the crew array (once per job — e.g. "Director" + "Writer").
+ */
+export interface TMDBCrewMember {
+  id: number;
+  name: string;
+  job: string;
+  department: string;
+  profile_path: string | null;
+}
+
+/**
+ * TMDBCredits — the credits payload from /movie/{id}/credits or
+ * /tv/{id}/credits. Appended to TMDBDetails when fetchTmdbDetails
+ * uses append_to_response=videos,credits.
+ */
+export interface TMDBCredits {
+  id: number;
+  cast: TMDBCastMember[];
+  crew: TMDBCrewMember[];
+}
+
+/**
+ * TMDBPerson — the person details payload from /person/{id}.
+ */
+export interface TMDBPerson {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  biography?: string;
+  birthday?: string | null;
+  deathday?: string | null;
+  place_of_birth?: string | null;
+  known_for_department?: string;
+  gender?: number; // 0 unknown, 1 female, 2 male
+  also_known_as?: string[];
+  homepage?: string | null;
+  imdb_id?: string | null;
+}
+
+/**
+ * TMDBPersonCredit — a single title in a person's combined_credits
+ * filmography. media_type disambiguates "movie" vs "tv".
+ */
+export interface TMDBPersonCredit {
+  id: number;
+  media_type: "movie" | "tv";
+  title?: string;
+  name?: string;
+  original_title?: string;
+  original_name?: string;
+  poster_path: string | null;
+  backdrop_path: string | null;
+  release_date?: string;
+  first_air_date?: string;
+  vote_average?: number;
+  vote_count?: number;
+  overview?: string;
+  character?: string;
+  job?: string;
+  /** Combined credits include both cast and crew entries. */
+  // 'cast' or 'crew' — not provided directly by TMDB, but we infer from
+  // presence of `character` (cast) vs `job` (crew). Kept optional.
+  department?: string;
+}
+
+/**
+ * TMDBPersonCombinedCredits — the combined_credits payload.
+ * cast and crew arrays contain titles from both movies and TV.
+ */
+export interface TMDBPersonCombinedCredits {
+  id: number;
+  cast: TMDBPersonCredit[];
+  crew: TMDBPersonCredit[];
 }
 
 /* ============================================================

@@ -1,5 +1,12 @@
 // src/core/tmdb/tmdb.ts
-import type { TMDBDetails, TMDBSeasonDetails, TMDBCollection, TMDBTitle } from "~/shared/types";
+import type {
+  TMDBDetails,
+  TMDBSeasonDetails,
+  TMDBCollection,
+  TMDBTitle,
+  TMDBPerson,
+  TMDBPersonCombinedCredits,
+} from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
@@ -33,10 +40,50 @@ export const fetchTmdbDetails = async (
   mediaType: string,
   id: string
 ): Promise<TMDBDetails> => {
+  // append_to_response=videos,credits — fetches trailers AND cast/crew
+  // in one request. The credits payload populates TMDBDetails.credits,
+  // which the DetailsCast component reads to render cast & crew with
+  // images (replacing the text-only OMDb actors list).
   return tmdbFetch<TMDBDetails>(
-    `/${mediaType}/${id}?language=en-US&append_to_response=videos`
+    `/${mediaType}/${id}?language=en-US&append_to_response=videos,credits`
   );
 };
+
+/**
+ * Fetch TMDB person details by id.
+ * Used by the PersonModal to show biography, birthday, place of birth,
+ * known_for_department, etc.
+ */
+export async function fetchPersonDetails(
+  personId: number | string,
+): Promise<TMDBPerson | null> {
+  try {
+    return await tmdbFetch<TMDBPerson>(
+      `/person/${personId}?language=en-US`,
+    );
+  } catch (err) {
+    console.warn(`[tmdb] Failed to fetch person/${personId}:`, err);
+    return null;
+  }
+}
+
+/**
+ * Fetch a person's combined credits (movies + TV in one payload).
+ * Used by the PersonModal to show the full filmography grid. The
+ * `cast` array is acting roles, `crew` is behind-the-scenes work.
+ */
+export async function fetchPersonCombinedCredits(
+  personId: number | string,
+): Promise<TMDBPersonCombinedCredits | null> {
+  try {
+    return await tmdbFetch<TMDBPersonCombinedCredits>(
+      `/person/${personId}/combined_credits?language=en-US`,
+    );
+  } catch (err) {
+    console.warn(`[tmdb] Failed to fetch person/${personId}/combined_credits:`, err);
+    return null;
+  }
+}
 
 /**
  * Fetch lightweight TMDB metadata (title, poster, backdrop, release date,

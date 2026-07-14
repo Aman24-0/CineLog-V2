@@ -50,10 +50,20 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
   const progress = createMemo(() => getCollectionProgress(props.collection, watchlist()));
 
   const backdropUrl = createMemo(() => {
+    // Prefer the collection's own backdrop (banner_url in Supabase).
+    // Supports both raw http(s) URLs (user-uploaded/custom) and TMDB paths.
     if (props.collection.backdrop_path) {
       const p = props.collection.backdrop_path;
       if (p.startsWith("http")) return p;
       return tmdbImage(p, "w1280");
+    }
+    // Fallback: use the first entry that has a backdrop. This ensures
+    // user-created folders (including Favorites) show a cinematic
+    // backdrop instead of an empty black hero when no banner is set.
+    const entries = props.collection.entries ?? [];
+    const firstWithBackdrop = entries.find((e) => e.backdrop_path);
+    if (firstWithBackdrop?.backdrop_path) {
+      return tmdbImage(firstWithBackdrop.backdrop_path, "w1280");
     }
     return "";
   });

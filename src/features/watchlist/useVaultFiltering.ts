@@ -107,7 +107,7 @@ export function useVaultFiltering(
     if (typeof status === "string" && status) {
       const next = status === "all" ? "all" : status;
       setFilters((prev) => (prev.status === next ? prev : { ...prev, status: next }));
-      if (status === "Watching" || status === "Planned" || status === "Completed") {
+      if (status === "Watching" || status === "Planned" || status === "Completed" || status === "Dropped") {
         setActiveStatusTab(status);
       }
     }

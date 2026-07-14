@@ -36,6 +36,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
             <option value="Planned">Planned</option>
             <option value="Watching">Watching</option>
             <option value="Completed">Completed</option>
+            <option value="Dropped">Dropped</option>
           </select>
         </div>
         <div>

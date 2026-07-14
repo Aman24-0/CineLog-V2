@@ -52,6 +52,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               { l: "Planned", v: "Planned" },
               { l: "Watching", v: "Watching" },
               { l: "Completed", v: "Completed" },
+              { l: "Dropped", v: "Dropped" },
             ]}
           />
           <FilterSel

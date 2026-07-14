@@ -65,9 +65,6 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
               props.onSelectStatusTab(status);
               if (status === "all") {
                 props.setFilters({ ...props.filters(), status: "all" });
-              } else if (status === "in-progress") {
-                // Virtual status — don't set filters.status, handled in filtered memo
-                props.setFilters({ ...props.filters(), status: "all" });
               } else {
                 props.setFilters({ ...props.filters(), status });
               }

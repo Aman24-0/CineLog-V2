@@ -111,21 +111,37 @@ export async function fetchEntriesForCollection(collectionId: string): Promise<C
   }
 
   // Step 3: Merge everything into hydrated CollectionEntry[].
-  return entryRows.map((row) => {
-    const info = vaultInfoByVaultId.get(row.vault_id);
-    if (!info) {
-      // Vault item was deleted — return entry with defaults
-      console.warn(`[collectionEntryAdapter] Vault item ${row.vault_id} not found (deleted?)`);
-      return entryRowToCollectionEntry(row);
-    }
+  // IMPORTANT: Skip orphaned entries (vault item was deleted).
+  // Previously, when a vault item was soft-deleted, the
+  // collection_entries row still existed but the vault lookup failed —
+  // the entry was rendered as a blank card (no title, no poster) which,
+  // when clicked, opened the wrong movie's detail modal. This caused
+  // the "two blank cards in Favourites" bug.
+  //
+  // The proper fix is two-pronged:
+  //   1. Skip orphaned entries here (so they never reach the UI).
+  //   2. Cascade-delete collection_entries when a vault item is
+  //      soft-deleted (see vaultAdapter.deleteVaultItemInSupabase) —
+  //      so the orphaned rows are also removed at the data layer.
+  return entryRows
+    .map((row) => {
+      const info = vaultInfoByVaultId.get(row.vault_id);
+      if (!info) {
+        // Vault item was deleted — skip this entry (don't render blank).
+        console.warn(
+          `[collectionEntryAdapter] Vault item ${row.vault_id} not found (deleted?) — skipping orphaned collection entry.`
+        );
+        return null;
+      }
 
-    // Look up TMDB metadata
-    const tmdbKey = `${info.mediaType}/${info.tmdbId}`;
-    const tmdb = tmdbMap.get(tmdbKey) ?? null;
+      // Look up TMDB metadata
+      const tmdbKey = `${info.mediaType}/${info.tmdbId}`;
+      const tmdb = tmdbMap.get(tmdbKey) ?? null;
 
-    // Build the fully hydrated entry
-    return entryRowToCollectionEntry(row, info.mediaType, tmdb, info.tmdbId);
-  });
+      // Build the fully hydrated entry
+      return entryRowToCollectionEntry(row, info.mediaType, tmdb, info.tmdbId);
+    })
+    .filter((e): e is CollectionEntry => e !== null);
 }
 
 // ---------------------------------------------------------------------------

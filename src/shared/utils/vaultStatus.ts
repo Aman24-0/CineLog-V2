@@ -21,7 +21,7 @@ export const STATUS_TO_UI: Record<string, WatchlistItem["status"]> = {
   watching: "Watching",
   completed: "Completed",
   on_hold: "Plan to Watch",
-  dropped: "Plan to Watch",
+  dropped: "Dropped",
 };
 
 /**
@@ -32,6 +32,7 @@ export const STATUS_TO_DB: Record<WatchlistItem["status"], string> = {
   Watching: "watching",
   Completed: "completed",
   "Plan to Watch": "planned",
+  Dropped: "dropped",
 } as Record<WatchlistItem["status"], string>;
 
 // ---------------------------------------------------------------------------

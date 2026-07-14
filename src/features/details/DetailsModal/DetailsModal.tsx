@@ -83,6 +83,7 @@ export default function DetailsModal() {
     handleSave,
     handleCancel,
     handleStatusCycle,
+    handleSetStatus,
     handleEpisodeChange,
     handleSelectItem,
     handleRemoveFromVault,
@@ -200,6 +201,7 @@ export default function DetailsModal() {
                       onPlayTrailer={() => setShowTrailer((v) => !v)}
                       onEdit={() => (isEditing() ? handleCancel() : setIsEditing(true))}
                       onStatusCycle={handleStatusCycle}
+                      onSetStatus={handleSetStatus}
                       onAddToVault={handleAddToVault}
                       onOpenFolders={() => setShowFolders(true)}
                       onRemove={() => setShowRemoveConfirm(true)}
@@ -231,7 +233,7 @@ export default function DetailsModal() {
                         vaultItem={vaultItem}
                       />
                       <DetailsOverview details={tmdb} />
-                      <DetailsCast omdb={omdb} />
+                      <DetailsCast details={tmdb} />
                       <DetailsMetadata
                         baseItem={baseItem}
                         details={tmdb}

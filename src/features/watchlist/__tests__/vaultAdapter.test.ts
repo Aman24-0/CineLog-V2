@@ -79,10 +79,10 @@ describe("vaultReadAdapter", () => {
       expect(result.status).toBe("Plan to Watch");
     });
 
-    it("maps 'dropped' status to 'Plan to Watch'", () => {
+    it("maps 'dropped' status to 'Dropped'", () => {
       const row = { ...mockVaultRow, status: "dropped" as const };
       const result = vaultRowToWatchlistItem(row);
-      expect(result.status).toBe("Plan to Watch");
+      expect(result.status).toBe("Dropped");
     });
 
     it("defaults unknown status to 'Planned'", () => {
@@ -356,6 +356,7 @@ describe("vaultAdapter (writes)", () => {
   describe("deleteVaultItemInSupabase", () => {
     it("calls repo.deleteVaultItem", async () => {
       const mockRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
         deleteVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
@@ -366,6 +367,7 @@ describe("vaultAdapter (writes)", () => {
 
     it("throws on error", async () => {
       const mockRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
         deleteVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Delete failed") }),
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);

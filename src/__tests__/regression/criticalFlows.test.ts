@@ -147,6 +147,7 @@ describe("Critical Flow Regression Tests", () => {
   describe("Remove from Watchlist flow", () => {
     it("soft-deletes a vault item via deleteVaultItemInSupabase", async () => {
       const mockRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
         deleteVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
@@ -162,6 +163,7 @@ describe("Critical Flow Regression Tests", () => {
 
     it("throws on delete failure", async () => {
       const mockRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
         deleteVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Not found") }),
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);

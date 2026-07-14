@@ -20,8 +20,8 @@ describe("STATUS_TO_UI", () => {
     expect(STATUS_TO_UI["on_hold"]).toBe("Plan to Watch");
   });
 
-  it("maps 'dropped' → 'Plan to Watch'", () => {
-    expect(STATUS_TO_UI["dropped"]).toBe("Plan to Watch");
+  it("maps 'dropped' → 'Dropped'", () => {
+    expect(STATUS_TO_UI["dropped"]).toBe("Dropped");
   });
 
   it("returns undefined for unknown status", () => {
@@ -46,12 +46,17 @@ describe("STATUS_TO_DB", () => {
     expect(STATUS_TO_DB["Plan to Watch"]).toBe("planned");
   });
 
+  it("maps 'Dropped' → 'dropped'", () => {
+    expect(STATUS_TO_DB["Dropped"]).toBe("dropped");
+  });
+
   it("covers all WatchlistItem status values", () => {
     const statuses: WatchlistItem["status"][] = [
       "Planned",
       "Watching",
       "Completed",
       "Plan to Watch",
+      "Dropped",
     ];
     for (const s of statuses) {
       expect(STATUS_TO_DB[s]).toBeDefined();

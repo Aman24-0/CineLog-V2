@@ -1999,6 +1999,40 @@
   overflow: hidden;
 }
 
+/* Compact variant — Movies & Series boxes.
+   Icon at top, number+label tightly stacked below. Reduces vertical
+   length so the box uses its horizontal space efficiently. */
+.stats-glass-box-compact {
+  padding: var(--space-2) var(--space-2);
+  justify-content: flex-start;
+  gap: 2px;
+}
+
+.stats-glass-box-compact .stats-glass-icon-wrap {
+  width: 26px;
+  height: 26px;
+  margin-bottom: 0;
+}
+
+.stats-glass-box-compact .stats-glass-icon {
+  font-size: 14px;
+}
+
+.stats-glass-box-compact .stats-glass-value {
+  font-size: clamp(1.25rem, 4.5vw, 1.65rem);
+}
+
+.stats-glass-box-compact .stats-glass-label {
+  margin-top: 0;
+  gap: 0;
+}
+
+.stats-glass-box-compact .stats-glass-label-strong {
+  font-size: 0.6875rem;
+  text-transform: lowercase;
+  letter-spacing: 0;
+}
+
 .stats-glass-box::before {
   content: "";
   position: absolute;
@@ -2082,7 +2116,7 @@
    ============================================================ */
 
 .profile-favorites {
-  margin-top: var(--space-12);
+  margin-top: var(--space-8);
 }
 
 .favorites-header {
@@ -2165,7 +2199,7 @@
    ============================================================ */
 
 .profile-badges {
-  margin-top: var(--space-12);
+  margin-top: var(--space-8);
 }
 
 .badges-header {
@@ -2311,7 +2345,7 @@
 
 .profile-hero-v2 ~ .profile-settings,
 .profile-settings {
-  margin-top: var(--space-12);
+  margin-top: var(--space-6);
 }
 
 /* Sign Out — full width, danger-styled button (red tint). */

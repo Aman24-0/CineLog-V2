@@ -50,6 +50,8 @@ export interface UseDetailsActionsResult {
   handleSave: () => Promise<void>;
   handleCancel: () => void;
   handleStatusCycle: () => Promise<void>;
+  /** Set status directly to a specific value (Planned / Watching / Completed / Dropped). */
+  handleSetStatus: (status: WatchlistItem["status"]) => Promise<void>;
   handleEpisodeChange: (season: number, episode: number) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;

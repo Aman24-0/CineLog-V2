@@ -92,10 +92,15 @@ describe("filterByStatus", () => {
     expect(filterByStatus(items, "all")).toHaveLength(4);
   });
 
-  it("filters to Watching only for 'in-progress'", () => {
-    const result = filterByStatus(items, "in-progress");
+  it("filters to status === 'Dropped'", () => {
+    const droppedItems = [
+      makeMovie({ id: "1", status: "Watching" }),
+      makeMovie({ id: "2", status: "Dropped" }),
+      makeMovie({ id: "3", status: "Completed" }),
+    ];
+    const result = filterByStatus(droppedItems, "Dropped");
     expect(result).toHaveLength(1);
-    expect(result[0].id).toBe("1");
+    expect(result[0].id).toBe("2");
   });
 
   it("filters to status === 'Watching'", () => {

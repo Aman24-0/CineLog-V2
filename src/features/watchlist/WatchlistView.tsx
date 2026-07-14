@@ -106,8 +106,6 @@ export default function WatchlistView() {
     setActiveStatusTab(status);
     if (status === "all") {
       setFilters({ ...filters(), status: "all" });
-    } else if (status === "in-progress") {
-      setFilters({ ...filters(), status: "all" });
     } else {
       setFilters({ ...filters(), status });
     }

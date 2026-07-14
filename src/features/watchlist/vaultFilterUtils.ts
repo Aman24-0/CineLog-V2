@@ -1,5 +1,4 @@
 // src/features/watchlist/vaultFilterUtils.ts
-import { isWatchable } from "~/shared/utils/progress";
 import { resolveTimelineDate } from "~/shared/utils/date";
 import { toMs } from "~/shared/utils/vaultStatus";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
@@ -38,7 +37,6 @@ export function filterByStatus(
   items: WatchlistItem[],
   effectiveStatus: string,
 ): WatchlistItem[] {
-  if (effectiveStatus === "in-progress") return items.filter(isWatchable);
   if (effectiveStatus === "all") return items;
   return items.filter(
     (m) =>

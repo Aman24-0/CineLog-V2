@@ -29,6 +29,8 @@ export interface UseDetailsProgressArgs {
 
 export interface UseDetailsProgressResult {
   handleStatusCycle: () => Promise<void>;
+  /** Set status directly to a specific value (Planned / Watching / Completed / Dropped). */
+  handleSetStatus: (status: WatchlistItem["status"]) => Promise<void>;
   handleEpisodeChange: (season: number, episode: number) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
@@ -125,8 +127,36 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
     if (container) container.scrollTo({ top: 0, behavior: "smooth" });
   };
 
+  /**
+   * Set the vault item's status directly to a specific value.
+   * Used by the new action dock's 4 status buttons (Planned / Watching /
+   * Completed / Dropped). Skips the cycle and writes the requested status
+   * in one shot, then updates the modal state so the button immediately
+   * reflects the active state.
+   */
+  const handleSetStatus = async (nextStatus: WatchlistItem["status"]) => {
+    const uid = getCurrentUid();
+    const v = args.vaultItem();
+    if (!uid || !v) return;
+    // No-op if the status is already set.
+    if (v.status === nextStatus) return;
+
+    try {
+      await updateStatusInSupabase(uid, v.id, v.media_type, nextStatus);
+      const updated: WatchlistItem = { ...v, status: nextStatus };
+      args.setSelectedItem({
+        baseItem: { ...args.baseItem()!, ...updated },
+        vaultItem: updated,
+      });
+      args.showToast(`Status: ${nextStatus}`, "success", 1500);
+    } catch {
+      args.showToast("Failed to update status.", "error");
+    }
+  };
+
   return {
     handleStatusCycle,
+    handleSetStatus,
     handleEpisodeChange,
     handleMarkCompleted,
     handleSelectItem,
