@@ -41,6 +41,10 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const region = useDiscoverRegion();
   const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(null);
   const [loaded, setLoaded] = createSignal(false);
+  // Deep link to the title's page on the platform (country-specific).
+  // TMDB returns ONE link per country that points to JustWatch's page
+  // for the title in that region — clicking any provider opens it.
+  const [deepLink, setDeepLink] = createSignal<string | null>(null);
 
   const mediaType = createMemo(() => {
     const b = props.baseItem();
@@ -59,6 +63,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
     const mt = mediaType();
     if (id === null || id === undefined) {
       setProviders(null);
+      setDeepLink(null);
       setLoaded(true);
       return;
     }
@@ -66,15 +71,20 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
     const results = await fetchTitleWatchProviders(mt as "movie" | "tv", id);
     if (!results) {
       setProviders(null);
+      setDeepLink(null);
       setLoaded(true);
       return;
     }
     const countryData = results[region()];
     if (!countryData) {
       setProviders(null);
+      setDeepLink(null);
       setLoaded(true);
       return;
     }
+    // Capture the country-level deep link (JustWatch URL for this title
+    // in this region) — clicking any provider card opens this in a new tab.
+    setDeepLink(countryData.link ?? null);
     // Merge flatrate + rent + buy + free + ads, then dedupe by canonical key
     // so alias providers (Amazon Prime Video + Amazon Video) collapse to one.
     const all: TMDBWatchProvider[] = [
@@ -125,7 +135,15 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
         <div class="wheretowatch-grid" role="list" aria-label={`Available on ${sortedProviders().length} platforms in ${region()}`}>
           <For each={sortedProviders()}>
             {(provider) => (
-              <div class="wheretowatch-card" role="listitem" title={displayName(provider)}>
+              <a
+                class="wheretowatch-card"
+                role="listitem"
+                href={deepLink() ?? "#"}
+                target="_blank"
+                rel="noopener noreferrer"
+                title={deepLink() ? `Open ${displayName(provider)} on a new tab` : displayName(provider)}
+                aria-label={`Open ${displayName(provider)} in a new tab`}
+              >
                 <div class="wheretowatch-logo-wrap">
                   <Show
                     when={provider.logo_path}
@@ -155,7 +173,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                   </Show>
                 </div>
                 <span class="wheretowatch-name">{displayName(provider)}</span>
-              </div>
+              </a>
             )}
           </For>
         </div>

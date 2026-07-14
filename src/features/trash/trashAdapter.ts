@@ -29,6 +29,7 @@ import { restoreVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { restoreCollectionInSupabase } from "~/features/collections/collectionAdapter";
 import type { WatchlistItem } from "~/shared/types";
 import { vaultRowToWatchlistItem } from "~/features/watchlist/vaultReadAdapter";
+import { fetchTmdbMetadataBatch } from "~/core/tmdb/tmdb";
 
 /** 30 days in milliseconds. */
 export const TRASH_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
@@ -52,6 +53,16 @@ export interface TrashedCollection {
 /**
  * Fetch all soft-deleted vault items for a user.
  * Ordered by deleted_at desc (most recently deleted first).
+ *
+ * ENRICHMENT (v2.4):
+ *   The vault table doesn't store TMDB display fields (title, name,
+ *   poster_path, backdrop_path) — only the user-owned state. Without
+ *   enrichment, the Trash page would show blank posters and "Untitled".
+ *   So after loading the trashed rows, we batch-fetch TMDB metadata for
+ *   each item and merge the display fields in. Failures are silent —
+ *   if TMDB can't be reached, the item still appears with a fallback
+ *   poster (icon) and "Untitled" title (the TrashPage already handles
+ *   those cases gracefully).
  */
 export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVaultItem[]> {
   const supabase = getClient();
@@ -68,12 +79,42 @@ export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVau
   }
   if (!data || data.length === 0) return [];
 
-  return (data as VaultRow[]).map((row) => {
+  const rows = data as VaultRow[];
+
+  // Build the base trashed items (no TMDB display fields yet).
+  const baseItems = rows.map((row) => {
     const base = vaultRowToWatchlistItem(row);
     const deletedAt = row.deleted_at ?? new Date().toISOString();
     const expiresAt = new Date(new Date(deletedAt).getTime() + TRASH_RETENTION_MS).toISOString();
     return { ...base, deletedAt, expiresAt };
   });
+
+  // Batch-fetch TMDB metadata so we can show title + poster in the
+  // trash list. One parallel batch — if any single title fails, the
+  // others still succeed (Promise.allSettled inside the batch helper).
+  try {
+    const tmdbMap = await fetchTmdbMetadataBatch(
+      baseItems.map((it) => ({
+        mediaType: it.media_type,
+        tmdbId: it.id,
+      })),
+    );
+    // Merge display fields from TMDB into each trashed item.
+    return baseItems.map((it) => {
+      const tmdb = tmdbMap.get(`${it.media_type}/${it.id}`);
+      if (!tmdb) return it;
+      return {
+        ...it,
+        title: tmdb.title ?? tmdb.name ?? it.title,
+        name: tmdb.name ?? tmdb.title ?? it.name,
+        poster_path: tmdb.poster_path ?? it.poster_path ?? null,
+        backdrop_path: tmdb.backdrop_path ?? it.backdrop_path ?? null,
+      } as TrashedVaultItem;
+    });
+  } catch (err) {
+    console.warn("[trashAdapter] TMDB enrichment failed (returning unenriched items):", err);
+    return baseItems;
+  }
 }
 
 /**

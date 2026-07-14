@@ -907,6 +907,36 @@
   color: var(--text-body);
   line-height: 1.3;
 }
+/* Box Office cell — clickable to toggle between USD and local currency.
+   Styled as a button but visually identical to a regular metadata cell,
+   with a subtle accent ring on hover/focus and a tiny swap_horiz icon
+   next to the label to hint at interactivity. */
+.metadata-cell-button {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 0.1s ease;
+}
+.metadata-cell-button:hover {
+  border-color: var(--p, #4ade80);
+  background: rgba(74, 222, 128, 0.06);
+}
+.metadata-cell-button:active {
+  transform: scale(0.98);
+}
+.metadata-cell-button:focus-visible {
+  outline: 2px solid var(--p, #4ade80);
+  outline-offset: 1px;
+}
+.metadata-cell-currency-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+  color: var(--p, #4ade80);
+  opacity: 0.7;
+}
 
 /* Detail section — consistent content wrapper */
 .detail-section {
@@ -2005,12 +2035,24 @@
   background: var(--tier-2);
   border: 1px solid var(--hairline-2);
   transition: border-color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-out);
-  cursor: default;
+              transform var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+  /* Anchor styling overrides — the card is now an <a target="_blank"> */
+  text-decoration: none;
+  color: inherit;
+  cursor: pointer;
 }
 .wheretowatch-card:hover {
   border-color: var(--p);
+  background: rgba(74, 222, 128, 0.06);
   transform: translateY(-1px);
+}
+.wheretowatch-card:active {
+  transform: scale(0.97);
+}
+.wheretowatch-card:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 1px;
 }
 .wheretowatch-logo-wrap {
   width: 44px;

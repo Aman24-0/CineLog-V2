@@ -6,6 +6,13 @@ import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 interface CinematicHeroProps {
   baseItem: WatchlistItem | null;
   details: TMDBDetails | null;
+  /**
+   * Close handler — kept in the interface for backwards compat with
+   * DetailsHero, but the actual close BUTTON is no longer rendered here.
+   * The close button is rendered once at the modal-container level
+   * (DetailsModal.tsx) with position:fixed so it stays visible while
+   * scrolling. Rendering it here too caused a double-button overlap.
+   */
   onClose: () => void;
   /** Whether the trailer is currently active — replaces the backdrop with the iframe */
   trailerActive?: boolean;
@@ -137,22 +144,6 @@ export default function CinematicHero(props: CinematicHeroProps) {
         </button>
       </Show>
 
-      {/* Close button — top right, always visible (closes the whole modal).
-          Uses safe-area-inset-top so it's never hidden under the mobile
-          browser address bar / PWA header. */}
-      <button
-        onClick={props.onClose}
-        class="cinematic-close-btn"
-        aria-label="Close details"
-      >
-        <span
-          class="material-symbols-outlined"
-          style={{ "font-size": "18px" }}
-          aria-hidden="true"
-        >
-          close
-        </span>
-      </button>
     </div>
   );
 }
