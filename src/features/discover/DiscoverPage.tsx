@@ -54,6 +54,7 @@
 import { createSignal, createMemo, Show, For, ErrorBoundary } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
 import { useSpotlight } from "./hooks/useSpotlight";
 import { useDiscoverFeeds } from "./hooks/useDiscoverFeeds";
@@ -310,6 +311,7 @@ export default function DiscoverPage() {
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
+      <ScrollToTop />
       <div class="ambient-glow" aria-hidden="true" />
 
       {/* === SEARCH BAR (top — merged from the old /search page) === */}

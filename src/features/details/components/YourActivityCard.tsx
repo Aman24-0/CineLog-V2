@@ -1,5 +1,5 @@
 // src/features/details/components/YourActivityCard.tsx
-import { Show, For, Component, createSignal } from "solid-js";
+import { Show, For, Component, createSignal, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -39,6 +39,14 @@ interface YourActivityCardProps {
  *   badge next to the date. Tapping the badge opens a mini dialog that
  *   lists every viewing date in order (1st Watch, Re-watch 1, …, Re-watch N).
  *   When rewatchCount = 0, the cell behaves as before — plain date, no badge.
+ *
+ * SERIES per-season (v2.3):
+ *   For TV titles with seasonDates and/or seasonRewatchDates, the watch
+ *   date shows the latest season end date (or start if no end set), and
+ *   the rewatch badge reflects seasonRewatchCount. The mini dialog shows:
+ *     - Original watch: per-season start → end rows
+ *     - Each re-watch pass: per-season start → end rows (grouped)
+ *   For movies, the existing flat rewatchDates list is used.
  */
 const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   const [showRewatchDialog, setShowRewatchDialog] = createSignal(false);
@@ -60,22 +68,147 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
     return "v2-pill-accent";
   };
 
-  /** The date to show in the Watched cell. */
+  const isSeries = () => props.vaultItem.media_type === "tv";
+
+  /** For movies: the flat rewatch count. For series: the season rewatch count. */
+  const effectiveRewatchCount = () => {
+    if (isSeries()) return props.vaultItem.seasonRewatchCount ?? 0;
+    return props.vaultItem.rewatchCount ?? 0;
+  };
+  const hasRewatches = () => effectiveRewatchCount() > 0;
+
+  /**
+   * The date to show in the Watched cell.
+   * - Movies: vaultItem.watchDate (the first/only watch date, or the
+   *   1st entry of rewatchDates if watchDate is empty).
+   * - Series: the LATEST season end date from seasonDates (or start if
+   *   no end set). Falls back to seasonRewatchDates' latest end if the
+   *   original seasonDates is empty but re-watches have dates. This
+   *   matches the timeline view's resolveTimelineDate logic.
+   */
   const watchDate = () => {
-    if (!props.vaultItem.watchDate) return null;
-    const d = new Date(props.vaultItem.watchDate);
-    if (isNaN(d.getTime())) return props.vaultItem.watchDate;
+    if (isSeries()) {
+      // Gather all end dates from seasonDates + seasonRewatchDates,
+      // pick the latest. Fall back to start dates if no ends set.
+      const candidates: Date[] = [];
+      const sd = props.vaultItem.seasonDates ?? {};
+      for (const entry of Object.values(sd)) {
+        if (entry?.end) {
+          const d = new Date(entry.end);
+          if (!isNaN(d.getTime())) candidates.push(d);
+        }
+        if (entry?.start) {
+          const d = new Date(entry.start);
+          if (!isNaN(d.getTime())) candidates.push(d);
+        }
+      }
+      const srDates = props.vaultItem.seasonRewatchDates ?? [];
+      for (const pass of srDates) {
+        for (const entry of Object.values(pass)) {
+          if (entry?.end) {
+            const d = new Date(entry.end);
+            if (!isNaN(d.getTime())) candidates.push(d);
+          }
+          if (entry?.start) {
+            const d = new Date(entry.start);
+            if (!isNaN(d.getTime())) candidates.push(d);
+          }
+        }
+      }
+      if (candidates.length > 0) {
+        const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
+        return latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      }
+      // Fall back to flat watchDate if no season dates set
+      if (props.vaultItem.watchDate) {
+        const d = new Date(props.vaultItem.watchDate);
+        if (!isNaN(d.getTime())) {
+          return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        }
+      }
+      return null;
+    }
+    // Movie
+    const raw = props.vaultItem.watchDate || props.vaultItem.rewatchDates?.[0] || "";
+    if (!raw) return null;
+    const d = new Date(raw);
+    if (isNaN(d.getTime())) return raw;
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
   };
 
-  const rewatchCount = () => props.vaultItem.rewatchCount ?? 0;
-  const hasRewatches = () => rewatchCount() > 0;
+  /**
+   * Build the ordered list of viewing entries for the mini dialog.
+   * - Movies: flat list of {label, date} from rewatchDates.
+   * - Series: grouped list — original watch (per-season), then each
+   *   re-watch pass (per-season).
+   */
+  type DialogEntry = { label: string; date: string | null; isHeader?: boolean };
+  const dialogEntries = createMemo<DialogEntry[]>(() => {
+    if (isSeries()) {
+      const out: DialogEntry[] = [];
+      const seasonDates = props.vaultItem.seasonDates ?? {};
+      const seasonNumbers = Object.keys(seasonDates)
+        .map((k) => parseInt(k, 10))
+        .filter((n) => !isNaN(n))
+        .sort((a, b) => a - b);
 
-  /** Ordered list of {label, date} for the mini dialog. */
-  const rewatchEntries = (): { label: string; date: string | null }[] => {
+      // Original watch
+      out.push({ label: "Original Watch", date: null, isHeader: true });
+      if (seasonNumbers.length === 0) {
+        out.push({ label: "No season dates set", date: null });
+      } else {
+        for (const s of seasonNumbers) {
+          const entry = seasonDates[String(s)];
+          const startStr = entry?.start
+            ? new Date(entry.start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : null;
+          const endStr = entry?.end
+            ? new Date(entry.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+            : null;
+          const dateStr = startStr && endStr
+            ? `${startStr} → ${endStr}`
+            : startStr ? `${startStr} → …`
+            : endStr ? `… → ${endStr}`
+            : null;
+          out.push({ label: `Season ${s}`, date: dateStr });
+        }
+      }
+
+      // Re-watch passes
+      const rewatchDates = props.vaultItem.seasonRewatchDates ?? [];
+      for (let i = 0; i < rewatchDates.length; i++) {
+        const pass = rewatchDates[i];
+        out.push({ label: `Re-watch ${i + 1}`, date: null, isHeader: true });
+        const passSeasons = Object.keys(pass)
+          .map((k) => parseInt(k, 10))
+          .filter((n) => !isNaN(n))
+          .sort((a, b) => a - b);
+        if (passSeasons.length === 0) {
+          out.push({ label: "No season dates set", date: null });
+        } else {
+          for (const s of passSeasons) {
+            const entry = pass[String(s)];
+            const startStr = entry?.start
+              ? new Date(entry.start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : null;
+            const endStr = entry?.end
+              ? new Date(entry.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
+              : null;
+            const dateStr = startStr && endStr
+              ? `${startStr} → ${endStr}`
+              : startStr ? `${startStr} → …`
+              : endStr ? `… → ${endStr}`
+              : null;
+            out.push({ label: `Season ${s}`, date: dateStr });
+          }
+        }
+      }
+      return out;
+    }
+    // Movie
     const dates = props.vaultItem.rewatchDates ?? [];
-    const count = rewatchCount();
-    const out: { label: string; date: string | null }[] = [];
+    const count = props.vaultItem.rewatchCount ?? 0;
+    const out: DialogEntry[] = [];
     for (let i = 0; i <= count; i++) {
       const raw = dates[i];
       let formatted: string | null = null;
@@ -91,6 +224,12 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       });
     }
     return out;
+  });
+
+  /** Total viewings count for the dialog subtitle. */
+  const totalViewings = () => {
+    if (isSeries()) return effectiveRewatchCount() + 1;
+    return effectiveRewatchCount() + 1;
   };
 
   const userRating = () => {
@@ -145,13 +284,13 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                   type="button"
                   class="rewatch-badge"
                   onClick={() => setShowRewatchDialog(true)}
-                  aria-label={`View all ${rewatchCount() + 1} viewing dates`}
-                  title={`Watched ${rewatchCount() + 1} times — click to see all dates`}
+                  aria-label={`View all ${totalViewings()} viewing dates`}
+                  title={`Watched ${totalViewings()} times — click to see all dates`}
                 >
                   <span class="material-symbols-outlined" style={{"font-size":"11px"}} aria-hidden="true">
                     replay
                   </span>
-                  {rewatchCount()}×
+                  {effectiveRewatchCount()}×
                 </button>
               </Show>
             </div>
@@ -207,7 +346,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                 <div>
                   <h3 class="rewatch-dialog-title">Viewing History</h3>
                   <p class="rewatch-dialog-subtitle">
-                    {rewatchCount() + 1} {rewatchCount() === 0 ? "viewing" : "viewings"} total
+                    {totalViewings()} {totalViewings() === 1 ? "viewing" : "viewings"} total
                   </p>
                 </div>
                 <button
@@ -220,16 +359,25 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                 </button>
               </div>
               <div class="rewatch-dialog-list">
-                <For each={rewatchEntries()}>
-                  {(entry, i) => (
-                    <div class={`rewatch-dialog-row${i() === 0 ? " rewatch-dialog-row-first" : ""}`}>
-                      <span class="rewatch-dialog-row-label">{entry.label}</span>
-                      <Show when={entry.date} fallback={
-                        <span class="rewatch-dialog-row-date rewatch-dialog-row-date-empty">Not set</span>
-                      }>
-                        <span class="rewatch-dialog-row-date">{entry.date}</span>
-                      </Show>
-                    </div>
+                <For each={dialogEntries()}>
+                  {(entry) => (
+                    <Show
+                      when={entry.isHeader}
+                      fallback={
+                        <div class="rewatch-dialog-row">
+                          <span class="rewatch-dialog-row-label">{entry.label}</span>
+                          <Show when={entry.date} fallback={
+                            <span class="rewatch-dialog-row-date rewatch-dialog-row-date-empty">Not set</span>
+                          }>
+                            <span class="rewatch-dialog-row-date">{entry.date}</span>
+                          </Show>
+                        </div>
+                      }
+                    >
+                      <div class="rewatch-dialog-section-header">
+                        {entry.label}
+                      </div>
+                    </Show>
                   )}
                 </For>
               </div>

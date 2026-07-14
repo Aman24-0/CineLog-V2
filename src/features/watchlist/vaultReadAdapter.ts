@@ -32,6 +32,12 @@ import type { WatchlistItem } from "~/shared/types";
  *   - `rewatch_dates` (text[]) → `rewatchDates`
  *   Both default to 0 / [] when the columns are null (handles rows
  *   created before the re-watch migration ran).
+ *
+ * SERIES per-season fields (v2.3):
+ *   - `season_dates` (jsonb) → `seasonDates`
+ *   - `season_rewatch_count` (integer) → `seasonRewatchCount`
+ *   - `season_rewatch_dates` (jsonb) → `seasonRewatchDates`
+ *   All default to {} / 0 / [] when null (handles pre-migration rows).
  */
 export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
   return {
@@ -45,6 +51,9 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     updatedAt: row.updated_at,
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],
+    seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
+    seasonRewatchCount: row.season_rewatch_count ?? 0,
+    seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
   };
 }
 

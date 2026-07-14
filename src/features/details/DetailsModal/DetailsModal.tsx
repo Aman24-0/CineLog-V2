@@ -30,6 +30,8 @@ import DetailsMetadata from "./DetailsMetadata";
 import DetailsCast from "./DetailsCast";
 import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
+import WhereToWatch from "~/features/details/components/WhereToWatch";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useDetailsForm } from "./useDetailsForm";
 import { useDetailsActions } from "./useDetailsActions";
 
@@ -217,6 +219,8 @@ export default function DetailsModal() {
                             onCancel={handleCancel}
                             isSaving={isSaving()}
                             isDirty={isDirty()}
+                            details={tmdb}
+                            isSeries={() => baseItem()?.media_type === "tv"}
                           />
                         </DetailSection>
                       }
@@ -240,6 +244,10 @@ export default function DetailsModal() {
                         omdb={omdb}
                         vaultItem={vaultItem}
                       />
+                      {/* Where to Watch — between Details and Episodes.
+                          Country-filtered: only shows platforms available in
+                          the user's set region (from Account settings). */}
+                      <WhereToWatch baseItem={baseItem} details={tmdb} />
                       <DetailsSeasons
                         baseItem={baseItem}
                         details={tmdb}
@@ -254,6 +262,10 @@ export default function DetailsModal() {
                         onSelect={handleSelectItem}
                       />
                     </Show>
+                    {/* FAB scroll-to-top — scoped to this modal's scroll
+                        container so it only appears when the user scrolls
+                        inside the modal, not the page behind it. */}
+                    <ScrollToTop scrollContainer=".cinematic-scroll" />
                   </div>
                 </div>
               </Show>

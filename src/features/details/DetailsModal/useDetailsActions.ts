@@ -10,6 +10,7 @@ import {
   updateNotesInSupabase,
   updateRatingInSupabase,
   updateRewatchInSupabase,
+  updateSeasonDatesInSupabase,
   updateStatusInSupabase,
   updateWatchDateInSupabase,
 } from "~/features/watchlist/vaultAdapter";
@@ -134,6 +135,32 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         );
       }
 
+      // SERIES per-season tracking — persist if seasonDates, seasonRewatchCount,
+      // or seasonRewatchDates changed. Single PATCH for all three fields.
+      const newSeasonDates = args.form().seasonDates;
+      const oldSeasonDates = v.seasonDates ?? {};
+      const newSeasonRewatchCount = Number(args.form().seasonRewatchCount) || 0;
+      const oldSeasonRewatchCount = v.seasonRewatchCount ?? 0;
+      const newSeasonRewatchDates = args.form().seasonRewatchDates;
+      const oldSeasonRewatchDates = v.seasonRewatchDates ?? [];
+      const seasonDatesChanged = JSON.stringify(newSeasonDates) !== JSON.stringify(oldSeasonDates);
+      const seasonRewatchCountChanged = newSeasonRewatchCount !== oldSeasonRewatchCount;
+      const seasonRewatchDatesChanged =
+        newSeasonRewatchDates.length !== oldSeasonRewatchDates.length ||
+        newSeasonRewatchDates.some((m, i) =>
+          JSON.stringify(m) !== JSON.stringify(oldSeasonRewatchDates[i] ?? {})
+        );
+      if (seasonDatesChanged || seasonRewatchCountChanged || seasonRewatchDatesChanged) {
+        updates.push(
+          updateSeasonDatesInSupabase(
+            uid, v.id, v.media_type,
+            newSeasonDates,
+            newSeasonRewatchCount,
+            newSeasonRewatchDates,
+          ),
+        );
+      }
+
       await Promise.all(updates);
       showToast("Saved successfully!", "success");
       // Cast form().status to the WatchlistItem status union — the form is
@@ -147,6 +174,9 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         notes: args.form().notes,
         rewatchCount: newCount,
         rewatchDates: [...newDates],
+        seasonDates: { ...newSeasonDates },
+        seasonRewatchCount: newSeasonRewatchCount,
+        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m })),
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updatedVault },

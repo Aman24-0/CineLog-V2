@@ -309,5 +309,79 @@ export async function updateVaultItemInSupabase(
   if (error) throw error;
 }
 
+/**
+ * Update a vault item's SERIES per-season watch dates (original + re-watches).
+ *
+ * Writes three fields in a single PATCH (atomic):
+ *   - season_dates: JSON map of season number → {start, end} (original watch)
+ *   - season_rewatch_count: integer
+ *   - season_rewatch_dates: JSON array of per-re-watch per-season maps
+ *
+ * RESILIENCE: If the columns don't exist yet (migration not run), the PATCH
+ * fails with a column-not-found error. We catch that, log a warning, and
+ * silently no-op so the user doesn't see an error toast. The fields will
+ * persist once the migration is run.
+ *
+ * Both season_dates and season_rewatch_dates are stored as JSONB columns
+ * (added by scripts/add_season_dates_columns.sql).
+ */
+export async function updateSeasonDatesInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  seasonDates: Record<string, { start: string; end: string }>,
+  seasonRewatchCount: number,
+  seasonRewatchDates: Record<string, { start: string; end: string }>[],
+): Promise<void> {
+  const repo = getVaultRepository();
+  // Clean empty entries from seasonDates (don't persist seasons with no dates set)
+  const cleanSeasonDates: Record<string, { start: string; end: string }> = {};
+  for (const [k, v] of Object.entries(seasonDates)) {
+    if (v.start || v.end) cleanSeasonDates[k] = v;
+  }
+  // Clean empty entries from seasonRewatchDates
+  const cleanSeasonRewatchDates = seasonRewatchDates.map((m) => {
+    const cleaned: Record<string, { start: string; end: string }> = {};
+    for (const [k, v] of Object.entries(m)) {
+      if (v.start || v.end) cleaned[k] = v;
+    }
+    return cleaned;
+  });
+
+  const combinedUpdate = {
+    season_dates: cleanSeasonDates,
+    season_rewatch_count: seasonRewatchCount,
+    season_rewatch_dates: cleanSeasonRewatchDates,
+  } as VaultUpdate;
+
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    combinedUpdate,
+  );
+
+  if (!error) return;
+
+  // If the error is "column does not exist", the migration hasn't been run.
+  // Log a warning and silently no-op — the user's data is still in the form,
+  // it just won't persist until the migration is applied.
+  const msg = String(error?.message ?? error ?? "").toLowerCase();
+  if (
+    msg.includes("season_dates") ||
+    msg.includes("season_rewatch_count") ||
+    msg.includes("season_rewatch_dates") ||
+    msg.includes("does not exist") ||
+    msg.includes("column")
+  ) {
+    console.warn(
+      "[vaultAdapter] season_dates/season_rewatch_count/season_rewatch_dates columns not found — " +
+      "Run scripts/add_season_dates_columns.sql in the Supabase SQL editor to enable series per-season tracking.",
+      error,
+    );
+    return;
+  }
+
+  throw error;
+}
+
 // Re-export the identity type so callers can import it from here.
 export type { VaultIdentity };

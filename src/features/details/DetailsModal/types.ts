@@ -42,6 +42,14 @@ export interface SectionProps extends OwnershipProps, DetailsDataProps {}
  * watch, indices 1..N = the N re-watches. Length should always equal
  * rewatchCount + 1, but the form is tolerant of misalignment (empty
  * strings are treated as "no date set for that viewing").
+ *
+ * SERIES per-season rewatch (v2.3):
+ *   - `seasonRewatchCount` (string) controls how many re-watch passes
+ *     the user has done through the series.
+ *   - `seasonRewatchDates` is an array of per-season {start,end} maps,
+ *     one entry per re-watch pass. Length = seasonRewatchCount.
+ *   - `seasonDates` (the original-watch per-season start/end map) is
+ *     also part of the form state for series.
  */
 export interface DetailsFormState {
   status: string;
@@ -50,4 +58,10 @@ export interface DetailsFormState {
   notes: string;
   rewatchCount: string;
   rewatchDates: string[];
+  /** SERIES: per-season start/end for the original watch. Keyed by season number string. */
+  seasonDates: Record<string, { start: string; end: string }>;
+  /** SERIES: number of re-watch passes (string for form-input compat). */
+  seasonRewatchCount: string;
+  /** SERIES: per-re-watch per-season start/end. Array index = re-watch number (0 = 1st rewatch). */
+  seasonRewatchDates: Record<string, { start: string; end: string }>[];
 }

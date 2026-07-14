@@ -43,9 +43,28 @@ interface MetaCell {
  *  - Country (from origin_country / production_countries)
  *  - Network (TV only — from networks)
  *  - Studio (Movie — from production_companies)
- *  - TMDB Score (from vote_average)
+ *  - Box Office (Movie — from revenue; hidden if 0/unavailable)
  *  - Your Status (from vaultItem — user-owned, vault-only)
  */
+
+/**
+ * Format a box-office revenue amount as "$1.2 million" / "$1.2 billion".
+ * Returns null when the value is missing or zero so the cell can be hidden.
+ */
+function formatBoxOffice(revenue: number | undefined | null): string | null {
+  if (!revenue || revenue <= 0) return null;
+  const million = 1_000_000;
+  const billion = 1_000_000_000;
+  if (revenue >= billion) {
+    return `$${(revenue / billion).toFixed(1)} billion`;
+  }
+  if (revenue >= million) {
+    return `$${(revenue / million).toFixed(1)} million`;
+  }
+  // Sub-million amounts — show as raw $ figure (e.g. "$450,000")
+  return `$${revenue.toLocaleString("en-US")}`;
+}
+
 export default function MetadataGrid(props: MetadataGridProps) {
   const cells = createMemo<MetaCell[]>(() => {
     const d = props.details;
@@ -91,6 +110,15 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "Studio", value: d.production_companies.slice(0, 2).map((p) => p.name).join(", ") });
     }
 
+    // Box Office (Movie only — from TMDB revenue)
+    // Hidden when revenue is 0 or unavailable (TMDB doesn't always have it).
+    if (!isTv) {
+      const boxOffice = formatBoxOffice(d?.revenue);
+      if (boxOffice) {
+        list.push({ label: "Box Office", value: boxOffice });
+      }
+    }
+
     // Certification (OMDb)
     if (o?.rated && o.rated !== "N/A") {
       list.push({ label: "Rated", value: o.rated });
@@ -110,10 +138,11 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "Country", value: countries.slice(0, 2).join(", ") });
     }
 
-    // TMDB Score
-    if (d?.vote_average && d.vote_average > 0) {
-      list.push({ label: "TMDB Score", value: d.vote_average.toFixed(1) });
-    }
+    // NOTE: TMDB Score is intentionally NOT shown in the metadata grid.
+    // The RatingCluster above already surfaces IMDb + Rotten Tomatoes +
+    // the user's own rating. Adding TMDB Score here would be redundant
+    // with the rating cluster and dilute the per-source clarity. The
+    // box-office figure is more useful in this slot for movies.
 
     // NOTE: "Your Status" used to live here but has been moved to the
     // YourActivityCard — the dedicated user-owned section above the

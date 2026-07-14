@@ -1981,3 +1981,167 @@
   border-color: rgba(255,255,255,0.7);
 }
 
+
+/* ============================================================
+   v2.3 — Where to Watch section + modal scroll-to-top
+   ============================================================ */
+
+/* Where to Watch — horizontal grid of provider cards.
+   Each card: circular logo on top, provider name beneath.
+   Responsive: 3 cols on mobile, more on wider screens. */
+.wheretowatch-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
+  gap: var(--space-2);
+  padding: var(--space-1);
+}
+.wheretowatch-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-1);
+  padding: var(--space-2) var(--space-1);
+  border-radius: var(--radius-md);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  transition: border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-out);
+  cursor: default;
+}
+.wheretowatch-card:hover {
+  border-color: var(--p);
+  transform: translateY(-1px);
+}
+.wheretowatch-logo-wrap {
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: rgba(0,0,0,0.3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.wheretowatch-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  border-radius: 50%;
+}
+.wheretowatch-logo-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim);
+  background: rgba(0,0,0,0.3);
+  border-radius: 50%;
+}
+.wheretowatch-name {
+  font-size: 0.625rem;
+  line-height: 1.3;
+  color: var(--text-soft);
+  text-align: center;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+/* Modal scroll-to-top — bump z-index so it sits above the modal's
+   internal content (hero z:20, close button z:30) but below the
+   modal backdrop's click-to-close layer. */
+.cinematic-modal .scroll-to-top {
+  z-index: 40;
+}
+
+/* ============================================================
+   v2.3 — Series per-season watch dates in the edit form
+   ============================================================ */
+
+/* Per-season date row — label on the left, start → end inputs on the right */
+.season-date-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding: var(--space-2);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+}
+.season-date-row-compact {
+  padding: var(--space-1) var(--space-2);
+}
+.season-date-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-soft);
+  letter-spacing: 0.02em;
+}
+.season-date-label-compact {
+  font-size: 0.625rem;
+  color: var(--text-dim);
+}
+.season-date-inputs {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.season-date-input {
+  flex: 1;
+  min-width: 0;
+  background: #0c0e14;
+  border: 1px solid rgba(255,255,255,0.1);
+  padding: 0.5rem 0.625rem;
+  border-radius: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-strong);
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+  color-scheme: dark;
+}
+.season-date-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+.season-date-sep {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+  flex-shrink: 0;
+}
+
+/* Re-watch pass block — a labelled group of per-season rows */
+.season-rewatch-block {
+  padding: var(--space-2);
+  background: rgba(255,255,255,0.02);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+}
+.season-rewatch-block-header {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--p);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: var(--space-2);
+}
+
+/* Dialog section header — separates "Original Watch" from "Re-watch N" groups */
+.rewatch-dialog-section-header {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--p);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  margin-top: var(--space-2);
+  border-top: 1px solid var(--hairline-2);
+}
+.rewatch-dialog-section-header:first-child {
+  border-top: none;
+  margin-top: 0;
+}

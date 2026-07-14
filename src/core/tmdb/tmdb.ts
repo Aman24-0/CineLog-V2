@@ -6,6 +6,8 @@ import type {
   TMDBTitle,
   TMDBPerson,
   TMDBPersonCombinedCredits,
+  TMDBWatchProviderResults,
+  TMDBWatchProviderResponse,
 } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 
@@ -157,6 +159,38 @@ export const fetchCollectionDetails = async (
     `/collection/${collectionId}?language=en-US`
   );
 };
+
+/**
+ * Fetch the watch providers (streaming/rent/buy) for a single movie or TV
+ * title in a specific region.
+ *
+ * TMDB endpoint: /{mediaType}/{id}/watch/providers
+ *
+ * Returns the raw TMDB `results` object keyed by ISO 3166-1 country code.
+ * Each country entry has:
+ *   - link: TMDB watch page URL
+ *   - flatrate: streaming providers (subscription)
+ *   - rent: rental providers
+ *   - buy: purchase providers
+ *   - free: free (ad-supported) providers
+ *   - ads: ad-supported providers
+ *
+ * Returns null on error so the caller can silently hide the section.
+ */
+export async function fetchTitleWatchProviders(
+  mediaType: "movie" | "tv",
+  id: number | string,
+): Promise<TMDBWatchProviderResults | null> {
+  try {
+    const data = await tmdbFetch<TMDBWatchProviderResponse>(
+      `/${mediaType}/${id}/watch/providers?language=en-US`,
+    );
+    return data?.results ?? null;
+  } catch (err) {
+    console.warn(`[tmdb] Failed to fetch watch/providers for ${mediaType}/${id}:`, err);
+    return null;
+  }
+}
 
 /**
  * Pick the best trailer from a TMDB details payload.

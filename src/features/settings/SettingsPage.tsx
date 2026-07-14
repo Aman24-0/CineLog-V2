@@ -20,6 +20,7 @@ import { type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 
 interface SettingRowDef {
   href?: string;
@@ -103,6 +104,7 @@ const SettingsPage: Component = () => {
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+      <ScrollToTop />
       <div class="sec-page sec-fade-in">
         {/* Header */}
         <div class="sec-header">

@@ -48,12 +48,34 @@ export interface WatchlistItem {
    *   - Indices 1..N: the N re-watch dates
    * Length = rewatchCount + 1.
    *
-   * For movies this is a flat list. For series, this is the overall
-   * re-watch tracking (per-season start/end dates still live in
-   * `seasonDates`). Per-season re-watch dates are a future enhancement.
+   * For MOVIES this is the full re-watch tracking.
+   *
+   * For SERIES, `rewatchCount`/`rewatchDates` are kept for backward
+   * compatibility (overall count + flat date list) but the per-season
+   * re-watch dates live in `seasonRewatchDates`. The per-season original
+   * watch dates (start/end per season) live in `seasonDates`.
    */
   rewatchCount?: number;
   rewatchDates?: string[];
+  /**
+   * SERIES per-season re-watch tracking (v2.3).
+   *
+   * `seasonRewatchCount` is the number of ADDITIONAL times the user has
+   * re-watched the entire series (each re-watch = a full pass through
+   * all seasons). 0 = watched once.
+   *
+   * `seasonRewatchDates` is an array indexed by re-watch number
+   * (index 0 = 1st re-watch, index 1 = 2nd re-watch, …). Each entry is
+   * a map of season number (string) → { start, end } dates for that
+   * season during that re-watch pass.
+   *
+   * Length = seasonRewatchCount. When 0, the array is empty.
+   *
+   * For movies, these fields are unused (movies use the flat
+   * rewatchDates array above).
+   */
+  seasonRewatchCount?: number;
+  seasonRewatchDates?: Record<string, { start: string; end: string }>[];
   region?: string;
   season?: number;
   episode?: number;
@@ -195,6 +217,40 @@ export interface TMDBNetwork {
   name: string;
   logo_path?: string | null;
   origin_country?: string;
+}
+
+/**
+ * TMDBWatchProvider — a single streaming/rent/buy provider entry from the
+ * /{mediaType}/{id}/watch/providers endpoint.
+ */
+export interface TMDBWatchProvider {
+  provider_id: number;
+  provider_name: string;
+  logo_path: string | null;
+  display_priority?: number;
+}
+
+/**
+ * TMDBWatchProviderCountry — the per-country provider set for a title.
+ * Each field is an array of providers that offer the title under that
+ * access model (subscription, rental, purchase, free, ad-supported).
+ */
+export interface TMDBWatchProviderCountry {
+  link?: string;
+  flatrate?: TMDBWatchProvider[];
+  rent?: TMDBWatchProvider[];
+  buy?: TMDBWatchProvider[];
+  free?: TMDBWatchProvider[];
+  ads?: TMDBWatchProvider[];
+}
+
+/** Map of ISO 3166-1 country code → provider set. */
+export type TMDBWatchProviderResults = Record<string, TMDBWatchProviderCountry>;
+
+/** Full /watch/providers response — { id, results }. */
+export interface TMDBWatchProviderResponse {
+  id: number;
+  results: TMDBWatchProviderResults;
 }
 
 export interface TMDBSpokenLanguage {

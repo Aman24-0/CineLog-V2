@@ -22,15 +22,40 @@ export const resolveTimelineDate = (m: WatchlistItem): Date | null => {
     const d = new Date(m.watchDate);
     if (!isNaN(d.getTime())) return d;
   }
+  // Collect all candidate dates from seasonDates + seasonRewatchDates.
+  // For series, the timeline should reflect the LAST date the user set
+  // — which is the latest end date across all seasons and re-watches.
+  const candidates: Date[] = [];
   if (m.seasonDates && typeof m.seasonDates === "object") {
-    const ends = Object.values(m.seasonDates)
-      .map((s) => (s?.end ? new Date(s.end) : null))
-      .filter((d) => d && !isNaN(d.getTime())) as Date[];
-    if (ends.length > 0) return new Date(Math.max(...ends.map((d) => d.getTime())));
-    const starts = Object.values(m.seasonDates)
-      .map((s) => (s?.start ? new Date(s.start) : null))
-      .filter((d) => d && !isNaN(d.getTime())) as Date[];
-    if (starts.length > 0) return new Date(Math.max(...starts.map((d) => d.getTime())));
+    for (const entry of Object.values(m.seasonDates)) {
+      if (entry?.end) {
+        const d = new Date(entry.end);
+        if (!isNaN(d.getTime())) candidates.push(d);
+      }
+      if (entry?.start) {
+        const d = new Date(entry.start);
+        if (!isNaN(d.getTime())) candidates.push(d);
+      }
+    }
+  }
+  if (Array.isArray(m.seasonRewatchDates)) {
+    for (const pass of m.seasonRewatchDates) {
+      if (pass && typeof pass === "object") {
+        for (const entry of Object.values(pass)) {
+          if (entry?.end) {
+            const d = new Date(entry.end);
+            if (!isNaN(d.getTime())) candidates.push(d);
+          }
+          if (entry?.start) {
+            const d = new Date(entry.start);
+            if (!isNaN(d.getTime())) candidates.push(d);
+          }
+        }
+      }
+    }
+  }
+  if (candidates.length > 0) {
+    return new Date(Math.max(...candidates.map((d) => d.getTime())));
   }
   return toDate(m.addedAt);
 };

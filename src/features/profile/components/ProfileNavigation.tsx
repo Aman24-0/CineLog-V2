@@ -25,6 +25,7 @@ const ACTIONS = [
   { href: "/profile/stats", label: "Statistics", icon: "insights" },
   { href: "/profile/upcoming", label: "Upcoming", icon: "upcoming" },
   { href: "/settings", label: "Settings", icon: "settings" },
+  { href: "/profile/trash", label: "Trash", icon: "delete" },
 ] as const;
 
 const ProfileNavigation: Component<ProfileNavigationProps> = (props) => {

@@ -660,6 +660,9 @@ export type Database = {
           rating: number | null
           rewatch_count: number
           rewatch_dates: string[] | null
+          season_dates: Json | null
+          season_rewatch_count: number
+          season_rewatch_dates: Json | null
           started_at: string | null
           status: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id: number
@@ -681,6 +684,9 @@ export type Database = {
           rating?: number | null
           rewatch_count?: number
           rewatch_dates?: string[] | null
+          season_dates?: Json | null
+          season_rewatch_count?: number
+          season_rewatch_dates?: Json | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id: number
@@ -702,6 +708,9 @@ export type Database = {
           rating?: number | null
           rewatch_count?: number
           rewatch_dates?: string[] | null
+          season_dates?: Json | null
+          season_rewatch_count?: number
+          season_rewatch_dates?: Json | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id?: number
