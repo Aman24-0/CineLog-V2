@@ -113,6 +113,67 @@ export async function updateWatchDateInSupabase(
   if (error) throw error;
 }
 
+/**
+ * Update a vault item's re-watch tracking (count + dates).
+ *
+ * `rewatch_count` is a plain integer column on the vault table (already
+ * exists in the schema). `rewatch_dates` is a `text[]` column that must
+ * be added via the migration script `scripts/add_rewatch_dates_column.sql`.
+ *
+ * Both fields are written in a single PATCH so the update is atomic.
+ * Empty strings in the dates array are filtered out before persisting
+ * so we don't store sentinel values.
+ *
+ * RESILIENCE: If the `rewatch_dates` column hasn't been added yet (the
+ * migration hasn't been run), the PATCH will fail with a column-not-found
+ * error. We catch that, log a warning, and re-try with ONLY `rewatch_count`
+ * so the count at least persists. The dates will be lost until the
+ * migration is run.
+ */
+export async function updateRewatchInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  rewatchCount: number,
+  rewatchDates: string[],
+): Promise<void> {
+  const repo = getVaultRepository();
+  // Filter out empty strings — only persist dates that are actually set.
+  const cleanDates = rewatchDates.filter((d) => d && d.trim().length > 0);
+
+  // First attempt: write both count + dates together.
+  const combinedUpdate = {
+    rewatch_count: rewatchCount,
+    rewatch_dates: cleanDates,
+  } as VaultUpdate;
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    combinedUpdate,
+  );
+
+  if (!error) return;
+
+  // If the error looks like "column rewatch_dates does not exist",
+  // fall back to writing only rewatch_count (which already exists).
+  const msg = String(error?.message ?? error ?? "").toLowerCase();
+  if (msg.includes("rewatch_dates") || msg.includes("does not exist") || msg.includes("column")) {
+    console.warn(
+      "[vaultAdapter] rewatch_dates column not found — falling back to rewatch_count only. " +
+      "Run scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable date tracking.",
+      error,
+    );
+    const { error: countOnlyError } = await repo.updateVaultItem(
+      { userId, tmdbId: Number(itemId), mediaType },
+      { rewatch_count: rewatchCount } as VaultUpdate,
+    );
+    if (countOnlyError) throw countOnlyError;
+    return;
+  }
+
+  // Any other error — throw so the caller can show a toast.
+  throw error;
+}
+
 /** Update a vault item's progress (minutes) in Supabase (movies only). */
 export async function updateProgressInSupabase(
   userId: string,

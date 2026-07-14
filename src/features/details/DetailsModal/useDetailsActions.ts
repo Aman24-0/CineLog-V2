@@ -9,6 +9,7 @@ import {
   deleteVaultItemInSupabase,
   updateNotesInSupabase,
   updateRatingInSupabase,
+  updateRewatchInSupabase,
   updateStatusInSupabase,
   updateWatchDateInSupabase,
 } from "~/features/watchlist/vaultAdapter";
@@ -116,6 +117,23 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
       if (args.form().watchDate !== (v.watchDate || "")) {
         updates.push(updateWatchDateInSupabase(uid, v.id, v.media_type, args.form().watchDate));
       }
+
+      // Re-watch tracking — persist if either the count or the dates
+      // array changed. We compare against the vault item's current
+      // values so we don't write on every save.
+      const newCount = Number(args.form().rewatchCount) || 0;
+      const oldCount = v.rewatchCount ?? 0;
+      const newDates = args.form().rewatchDates;
+      const oldDates = v.rewatchDates ?? [];
+      const datesChanged =
+        newDates.length !== oldDates.length ||
+        newDates.some((d, i) => d !== (oldDates[i] ?? ""));
+      if (newCount !== oldCount || datesChanged) {
+        updates.push(
+          updateRewatchInSupabase(uid, v.id, v.media_type, newCount, newDates),
+        );
+      }
+
       await Promise.all(updates);
       showToast("Saved successfully!", "success");
       // Cast form().status to the WatchlistItem status union — the form is
@@ -127,6 +145,8 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         rating: Number(args.form().rating) || v.rating,
         watchDate: args.form().watchDate,
         notes: args.form().notes,
+        rewatchCount: newCount,
+        rewatchDates: [...newDates],
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updatedVault },

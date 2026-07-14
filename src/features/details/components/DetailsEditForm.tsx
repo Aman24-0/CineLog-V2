@@ -1,5 +1,5 @@
 // src/features/details/components/DetailsEditForm.tsx
-import { Show } from "solid-js";
+import { Show, For } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 
 interface DetailsEditFormProps {
@@ -8,6 +8,8 @@ interface DetailsEditFormProps {
     rating: string;
     watchDate: string;
     notes: string;
+    rewatchCount: string;
+    rewatchDates: string[];
   };
   setForm: (key: string, value: string) => void;
   onSave: () => void;
@@ -16,7 +18,43 @@ interface DetailsEditFormProps {
   isDirty: boolean;
 }
 
+/**
+ * DetailsEditForm — inline edit form for a vault item.
+ *
+ * v2.2 adds re-watch tracking:
+ *   - A stepper (− / N / +) controls rewatchCount.
+ *   - When rewatchCount > 0, the single "Watch Date" input is replaced
+ *     by a stack of N+1 date inputs: "1st Watch", "Re-watch 1", …,
+ *     "Re-watch N". Each input writes to rewatchDates[index] via the
+ *     setForm("rewatchDates", JSON) protocol defined in useDetailsForm.
+ *   - When rewatchCount = 0, the form falls back to the legacy single
+ *     "Watch Date" input (which writes to both watchDate and
+ *     rewatchDates[0] so the two never drift).
+ *
+ * The form is intentionally compact — every field uses the same dark
+ * input treatment so the visual rhythm stays consistent.
+ */
 export default function DetailsEditForm(props: DetailsEditFormProps) {
+  const rewatchCount = () => Number(props.form().rewatchCount) || 0;
+
+  const incrementRewatch = () => {
+    props.setForm("rewatchCount", String(rewatchCount() + 1));
+  };
+  const decrementRewatch = () => {
+    if (rewatchCount() > 0) {
+      props.setForm("rewatchCount", String(rewatchCount() - 1));
+    }
+  };
+
+  /** Write a single date into the rewatchDates array at the given index. */
+  const setRewatchDate = (index: number, date: string) => {
+    props.setForm("rewatchDates", JSON.stringify({ index, date }));
+  };
+
+  /** Label for each date row. Index 0 = "1st Watch", 1 = "Re-watch 1", etc. */
+  const dateLabel = (index: number): string =>
+    index === 0 ? "1st Watch" : `Re-watch ${index}`;
+
   return (
     <div
       class="glass-surface p-5 rounded-2xl space-y-5 animate-fade-in border mt-4 shadow-xl"
@@ -24,6 +62,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       role="form"
       aria-label="Edit watchlist entry"
     >
+      {/* Status + Rating */}
       <div class="grid grid-cols-2 gap-4">
         <div>
           <label for="edit-status" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Status</label>
@@ -55,17 +94,82 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
         </div>
       </div>
 
+      {/* Re-watch stepper — minus button | count | plus button */}
       <div>
-        <label for="edit-watchdate" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Date</label>
-        <input
-          id="edit-watchdate"
-          type="date"
-          value={props.form().watchDate}
-          onInput={(e) => props.setForm("watchDate", e.currentTarget.value)}
-          class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
-        />
+        <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Re-watches</label>
+        <div class="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={decrementRewatch}
+            disabled={rewatchCount() === 0}
+            aria-label="Decrease re-watch count"
+            class="rewatch-stepper-btn"
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">remove</span>
+          </button>
+          <div class="rewatch-stepper-value" aria-live="polite">
+            {rewatchCount()}
+          </div>
+          <button
+            type="button"
+            onClick={incrementRewatch}
+            aria-label="Increase re-watch count"
+            class="rewatch-stepper-btn rewatch-stepper-btn-plus"
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">add</span>
+          </button>
+          <span class="rewatch-stepper-hint">
+            {rewatchCount() === 0
+              ? "Watched once"
+              : `Watched ${rewatchCount() + 1}× total`}
+          </span>
+        </div>
       </div>
 
+      {/* Watch dates — single input when count=0, stack of N+1 when > 0 */}
+      <Show
+        when={rewatchCount() > 0}
+        fallback={
+          <div>
+            <label for="edit-watchdate" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Date</label>
+            <input
+              id="edit-watchdate"
+              type="date"
+              value={props.form().watchDate}
+              onInput={(e) => {
+                props.setForm("watchDate", e.currentTarget.value);
+                // Keep rewatchDates[0] in sync so the dates array stays
+                // consistent even when the user only edits the legacy
+                // single-date field.
+                setRewatchDate(0, e.currentTarget.value);
+              }}
+              class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+            />
+          </div>
+        }
+      >
+        <div>
+          <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Dates</label>
+          <div class="space-y-2.5">
+            <For each={props.form().rewatchDates}>
+              {(date, index) => (
+                <div class="rewatch-date-row">
+                  <span class="rewatch-date-label">{dateLabel(index())}</span>
+                  <input
+                    type="date"
+                    value={date}
+                    onInput={(e) => setRewatchDate(index(), e.currentTarget.value)}
+                    class="flex-1 bg-[#0c0e14] border border-white/10 p-2.5 rounded-lg type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+                    aria-label={dateLabel(index())}
+                  />
+                </div>
+              )}
+            </For>
+          </div>
+        </div>
+      </Show>
+
+      {/* Notes */}
       <div>
         <label for="edit-notes" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Notes</label>
         <textarea

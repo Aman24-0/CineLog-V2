@@ -659,6 +659,7 @@ export type Database = {
           progress_minutes: number | null
           rating: number | null
           rewatch_count: number
+          rewatch_dates: string[] | null
           started_at: string | null
           status: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id: number
@@ -679,6 +680,7 @@ export type Database = {
           progress_minutes?: number | null
           rating?: number | null
           rewatch_count?: number
+          rewatch_dates?: string[] | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id: number
@@ -699,6 +701,7 @@ export type Database = {
           progress_minutes?: number | null
           rating?: number | null
           rewatch_count?: number
+          rewatch_dates?: string[] | null
           started_at?: string | null
           status?: Database["public"]["Enums"]["vault_status_type"]
           tmdb_id?: number

@@ -37,6 +37,23 @@ export interface WatchlistItem {
   rating?: number;
   watchDate?: string;
   notes?: string;
+  /**
+   * Re-watch tracking (per user request v2.2).
+   *
+   * `rewatchCount` is the number of ADDITIONAL times the user has
+   * re-watched the title beyond the first viewing. 0 = watched once.
+   *
+   * `rewatchDates` holds the date of EVERY viewing, in order:
+   *   - Index 0: the first watch date (mirrors `watchDate`)
+   *   - Indices 1..N: the N re-watch dates
+   * Length = rewatchCount + 1.
+   *
+   * For movies this is a flat list. For series, this is the overall
+   * re-watch tracking (per-season start/end dates still live in
+   * `seasonDates`). Per-season re-watch dates are a future enhancement.
+   */
+  rewatchCount?: number;
+  rewatchDates?: string[];
   region?: string;
   season?: number;
   episode?: number;

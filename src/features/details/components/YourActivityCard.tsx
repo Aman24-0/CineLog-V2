@@ -1,5 +1,6 @@
 // src/features/details/components/YourActivityCard.tsx
-import { Show, Component } from "solid-js";
+import { Show, For, Component, createSignal } from "solid-js";
+import { Portal } from "solid-js/web";
 import type { WatchlistItem } from "~/shared/types";
 
 interface YourActivityCardProps {
@@ -14,7 +15,7 @@ interface YourActivityCardProps {
  *   Personal information does not belong inside TMDB Details. TMDB data
  *   (year, runtime, genres, status, network, country, language) lives in
  *   the MetadataGrid. User-owned data (watch status, watch date, personal
- *   rating, future: rewatch count, personal notes, date added) lives HERE.
+ *   rating, rewatch count, rewatch dates, date added) lives HERE.
  *
  *   This separation is the ownership boundary made visible: non-vault
  *   titles show only TMDB metadata; vault titles show this card ABOVE
@@ -33,17 +34,21 @@ interface YourActivityCardProps {
  *     └─────────────┴─────────────┘
  *   Plus a notes preview (if any).
  *
- * FUTURE SCALABILITY:
- *   The card is designed to grow. Future fields (rewatch count, personal
- *   notes preview, last watched timestamp) can be added as new cells
- *   without changing the component's architecture.
+ * RE-WATCH (v2.2):
+ *   When rewatchCount > 0, the Watch Date cell shows a "Re-watched N×"
+ *   badge next to the date. Tapping the badge opens a mini dialog that
+ *   lists every viewing date in order (1st Watch, Re-watch 1, …, Re-watch N).
+ *   When rewatchCount = 0, the cell behaves as before — plain date, no badge.
  */
 const YourActivityCard: Component<YourActivityCardProps> = (props) => {
+  const [showRewatchDialog, setShowRewatchDialog] = createSignal(false);
+
   const statusLabel = () => {
     const s = props.vaultItem.status;
     if (s === "Plan to Watch" || s === "Planned") return "Planned";
     if (s === "Watching") return "Watching";
     if (s === "Completed") return "Completed";
+    if (s === "Dropped") return "Dropped";
     return s || "—";
   };
 
@@ -51,14 +56,41 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
     const s = props.vaultItem.status;
     if (s === "Watching") return "v2-pill-success";
     if (s === "Completed") return "v2-pill-info";
+    if (s === "Dropped") return "v2-pill-danger";
     return "v2-pill-accent";
   };
 
+  /** The date to show in the Watched cell. */
   const watchDate = () => {
     if (!props.vaultItem.watchDate) return null;
     const d = new Date(props.vaultItem.watchDate);
     if (isNaN(d.getTime())) return props.vaultItem.watchDate;
     return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+  };
+
+  const rewatchCount = () => props.vaultItem.rewatchCount ?? 0;
+  const hasRewatches = () => rewatchCount() > 0;
+
+  /** Ordered list of {label, date} for the mini dialog. */
+  const rewatchEntries = (): { label: string; date: string | null }[] => {
+    const dates = props.vaultItem.rewatchDates ?? [];
+    const count = rewatchCount();
+    const out: { label: string; date: string | null }[] = [];
+    for (let i = 0; i <= count; i++) {
+      const raw = dates[i];
+      let formatted: string | null = null;
+      if (raw) {
+        const d = new Date(raw);
+        formatted = isNaN(d.getTime())
+          ? raw
+          : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+      }
+      out.push({
+        label: i === 0 ? "1st Watch" : `Re-watch ${i}`,
+        date: formatted,
+      });
+    }
+    return out;
   };
 
   const userRating = () => {
@@ -100,13 +132,29 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           <span class={`v2-pill ${statusClass()}`}>{statusLabel()}</span>
         </div>
 
-        {/* Watch Date */}
+        {/* Watch Date — with optional re-watch badge */}
         <div class="your-activity-cell">
           <span class="your-activity-cell-label">Watched</span>
           <Show when={watchDate()} fallback={
             <span class="your-activity-cell-empty">—</span>
           }>
-            <span class="your-activity-cell-value">{watchDate()}</span>
+            <div class="your-activity-watch-date-wrap">
+              <span class="your-activity-cell-value">{watchDate()}</span>
+              <Show when={hasRewatches()}>
+                <button
+                  type="button"
+                  class="rewatch-badge"
+                  onClick={() => setShowRewatchDialog(true)}
+                  aria-label={`View all ${rewatchCount() + 1} viewing dates`}
+                  title={`Watched ${rewatchCount() + 1} times — click to see all dates`}
+                >
+                  <span class="material-symbols-outlined" style={{"font-size":"11px"}} aria-hidden="true">
+                    replay
+                  </span>
+                  {rewatchCount()}×
+                </button>
+              </Show>
+            </div>
           </Show>
         </div>
 
@@ -138,6 +186,56 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           <span class="your-activity-cell-label">Notes</span>
           <p class="your-activity-notes-text">{props.vaultItem.notes}</p>
         </div>
+      </Show>
+
+      {/* Re-watch dates mini dialog — shown when the user taps the badge */}
+      <Show when={showRewatchDialog()}>
+        <Portal>
+          <div
+            class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+            onClick={() => setShowRewatchDialog(false)}
+            role="dialog"
+            aria-modal="true"
+            aria-label="All viewing dates"
+          >
+            <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }} aria-hidden="true" />
+            <div
+              class="rewatch-dialog"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div class="rewatch-dialog-header">
+                <div>
+                  <h3 class="rewatch-dialog-title">Viewing History</h3>
+                  <p class="rewatch-dialog-subtitle">
+                    {rewatchCount() + 1} {rewatchCount() === 0 ? "viewing" : "viewings"} total
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  class="rewatch-dialog-close"
+                  onClick={() => setShowRewatchDialog(false)}
+                  aria-label="Close"
+                >
+                  <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">close</span>
+                </button>
+              </div>
+              <div class="rewatch-dialog-list">
+                <For each={rewatchEntries()}>
+                  {(entry, i) => (
+                    <div class={`rewatch-dialog-row${i() === 0 ? " rewatch-dialog-row-first" : ""}`}>
+                      <span class="rewatch-dialog-row-label">{entry.label}</span>
+                      <Show when={entry.date} fallback={
+                        <span class="rewatch-dialog-row-date rewatch-dialog-row-date-empty">Not set</span>
+                      }>
+                        <span class="rewatch-dialog-row-date">{entry.date}</span>
+                      </Show>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        </Portal>
       </Show>
     </div>
   );

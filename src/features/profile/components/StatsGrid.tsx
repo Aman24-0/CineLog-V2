@@ -2,23 +2,26 @@
 //
 // StatsGrid — three glassmorphism boxes showing watchlist totals.
 //
-// Layout:
-//   Box 1: Total titles in watchlist (all)
-//   Box 2: Total movies in watchlist
-//   Box 3: Total series in watchlist
+// Layout (v2.2 — per user request "remove 'in watchlist' text and align
+// all three in one horizontal row"):
+//   All three boxes sit in a single horizontal row (3 equal columns):
+//     Box 1: Total titles in watchlist
+//     Box 2: Total movies in watchlist
+//     Box 3: Total series in watchlist
+//   Each box shows: icon (top), large number, label — vertically stacked
+//   and centered. No sublabel text.
 //
 // Visual language:
 //   • Glassmorphism (frosted glass) — translucent tier-2 background,
 //     blur backdrop, hairline border
 //   • Theme-aware: uses --p accent for the numeric value, --text-soft
 //     for the label
-//   • Each box has a subtle icon and a large numeric value
 //   • Hover: border brightens, soft lift
 //
 // Architecture:
 //   ProfilePage → StatsGrid → useStats (derived from watchlist)
 
-import { type Component, type Accessor, Show } from "solid-js";
+import { type Component, type Accessor } from "solid-js";
 import type { StatsData } from "../useStats";
 
 interface StatsGridProps {
@@ -31,24 +34,18 @@ const StatsGrid: Component<StatsGridProps> = (props) => {
     return [
       {
         label: "Titles",
-        sublabel: "in watchlist",
         value: s?.total ?? 0,
         icon: "video_library",
-        compact: false,
       },
       {
         label: "Movies",
-        sublabel: "",
         value: s?.movieCount ?? 0,
         icon: "movie",
-        compact: true,
       },
       {
         label: "Series",
-        sublabel: "",
         value: s?.tvCount ?? 0,
         icon: "tv",
-        compact: true,
       },
     ];
   };
@@ -58,9 +55,9 @@ const StatsGrid: Component<StatsGridProps> = (props) => {
       <div class="stats-grid" role="list">
         {boxes().map((box) => (
           <div
-            class={`stats-glass-box${box.compact ? " stats-glass-box-compact" : ""}`}
+            class="stats-glass-box"
             role="listitem"
-            aria-label={`${box.label}: ${box.value}${box.sublabel ? ` ${box.sublabel}` : ""}`}
+            aria-label={`${box.label}: ${box.value}`}
           >
             <div class="stats-glass-icon-wrap" aria-hidden="true">
               <span class="material-symbols-outlined stats-glass-icon" aria-hidden="true">
@@ -70,9 +67,6 @@ const StatsGrid: Component<StatsGridProps> = (props) => {
             <p class="stats-glass-value">{box.value}</p>
             <p class="stats-glass-label">
               <span class="stats-glass-label-strong">{box.label}</span>
-              <Show when={box.sublabel}>
-                <span class="stats-glass-label-sub">{box.sublabel}</span>
-              </Show>
             </p>
           </div>
         ))}

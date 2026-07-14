@@ -101,6 +101,15 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         <Show when={backdropUrl()}>
           <img
             onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onLoad={(e) => {
+              // The CSS for .universe-detail-hero-backdrop starts at
+              // opacity:0 + scale(1.08) and only becomes visible when
+              // the .img-loaded class is added. Without this onLoad
+              // handler the image loads but stays invisible, leaving
+              // the hero solid black — the bug behind "favourite folder
+              // cover image only shows black when folder is open".
+              e.currentTarget.classList.add("img-loaded");
+            }}
             src={backdropUrl()}
             class="universe-detail-hero-backdrop"
             loading="eager"

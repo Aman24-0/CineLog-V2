@@ -34,10 +34,20 @@ export interface SectionProps extends OwnershipProps, DetailsDataProps {}
 /**
  * The mutable form state used by the inline edit form. The orchestrator
  * owns this signal and passes the accessor + setter down to the edit form.
+ *
+ * `rewatchCount` is stored as a string for form-input compatibility
+ * (the stepper writes string values). It is parsed to a number on save.
+ *
+ * `rewatchDates` holds every viewing date in order: index 0 = first
+ * watch, indices 1..N = the N re-watches. Length should always equal
+ * rewatchCount + 1, but the form is tolerant of misalignment (empty
+ * strings are treated as "no date set for that viewing").
  */
 export interface DetailsFormState {
   status: string;
   rating: string;
   watchDate: string;
   notes: string;
+  rewatchCount: string;
+  rewatchDates: string[];
 }

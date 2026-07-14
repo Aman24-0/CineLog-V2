@@ -318,12 +318,36 @@
   width: 100%;
 }
 
-/* Line 1 — status row: 4 equal-width buttons */
+/* Line 1 — status row: 4 equal-width buttons.
+   On small phones the 4 labels (Planned / Watching / Completed / Dropped)
+   + icons would overflow. We hide the icon under 480px and use a smaller
+   font + tighter letter-spacing so the full text fits on one line.
+   text-overflow: ellipsis is a safety net — it should never trigger if
+   the sizing math is right, but prevents ugly clipping if a locale uses
+   longer translations. */
 .action-dock-status-row .action-dock-status-btn {
   flex: 1 1 0;
+  min-width: 0;
   height: 40px;
-  font-size: 0.625rem;
-  letter-spacing: 0.06em;
+  font-size: 0.5625rem;
+  letter-spacing: 0.03em;
+  gap: 0.25rem;
+  padding: 0 0.25rem;
+}
+
+/* Hide the leading icon on the smallest screens so the label has room.
+   The icon reappears at >=480px where there's enough horizontal space. */
+@media (max-width: 479px) {
+  .action-dock-status-row .action-dock-status-btn .material-symbols-outlined {
+    display: none;
+  }
+}
+
+@media (min-width: 480px) {
+  .action-dock-status-row .action-dock-status-btn {
+    font-size: 0.625rem;
+    letter-spacing: 0.06em;
+  }
 }
 
 @media (min-width: 640px) {
@@ -352,6 +376,94 @@
   .action-dock-actions-row .action-dock-btn {
     height: 42px;
   }
+}
+
+
+/* ============================================================
+   RE-WATCH STEPPER + DATE STACK (Details edit form v2.2)
+   The [- N +] control + ordered list of viewing-date inputs.
+   ============================================================ */
+
+.rewatch-stepper-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--hairline, rgba(255,255,255,0.10));
+  background: rgba(255,255,255,0.03);
+  color: var(--text-body, rgba(232,234,240,0.85));
+  cursor: pointer;
+  transition: all var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+.rewatch-stepper-btn:hover:not(:disabled) {
+  background: rgba(255,255,255,0.06);
+  border-color: var(--hairline-3, rgba(255,255,255,0.18));
+  color: var(--text-strong, #fff);
+}
+.rewatch-stepper-btn:active:not(:disabled) {
+  transform: scale(0.94);
+}
+.rewatch-stepper-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+/* Plus button gets the accent tint so it reads as the "primary" action. */
+.rewatch-stepper-btn-plus {
+  background: color-mix(in srgb, var(--p) 14%, transparent);
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  color: var(--p);
+}
+.rewatch-stepper-btn-plus:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--p) 22%, transparent);
+  border-color: color-mix(in srgb, var(--p) 50%, transparent);
+  color: var(--p);
+}
+
+.rewatch-stepper-value {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 56px;
+  height: 40px;
+  padding: 0 0.5rem;
+  border-radius: var(--radius-md, 10px);
+  border: 1px solid var(--hairline, rgba(255,255,255,0.10));
+  background: var(--raised, #0c0e14);
+  font-family: 'Azeret Mono', 'Outfit', monospace;
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--text-strong, #fff);
+  letter-spacing: 0.02em;
+}
+
+.rewatch-stepper-hint {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-dim, rgba(232,234,240,0.45));
+  margin-left: 0.25rem;
+}
+
+/* Date row — label on the left, date input fills the rest. */
+.rewatch-date-row {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+.rewatch-date-label {
+  flex-shrink: 0;
+  width: 80px;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(232,234,240,0.45));
+}
+@media (min-width: 480px) {
+  .rewatch-date-label { width: 90px; }
 }
 
 
@@ -1032,6 +1144,155 @@
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+/* ── Re-watch badge + mini dialog (v2.2) ── */
+
+/* The watch-date cell wraps the date text + the "N×" badge in a row
+   so they sit side-by-side. */
+.your-activity-watch-date-wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+/* The pill-shaped badge that appears next to the watch date when
+   rewatchCount > 0. Clicking it opens the viewing-history dialog. */
+.rewatch-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  padding: 0.15rem 0.5rem;
+  border-radius: var(--radius-pill, 9999px);
+  border: 1px solid color-mix(in srgb, var(--p) 40%, transparent);
+  background: color-mix(in srgb, var(--p) 14%, transparent);
+  color: var(--p);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  cursor: pointer;
+  transition: all var(--dur-base, 200ms) var(--ease-out, ease-out);
+  line-height: 1.4;
+}
+.rewatch-badge:hover {
+  background: color-mix(in srgb, var(--p) 24%, transparent);
+  border-color: color-mix(in srgb, var(--p) 60%, transparent);
+  transform: translateY(-1px);
+}
+.rewatch-badge:active {
+  transform: scale(0.95);
+}
+
+/* Mini dialog — centered modal showing every viewing date in order. */
+.rewatch-dialog {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  max-width: 360px;
+  border-radius: var(--radius-lg, 16px);
+  background: var(--glass-bg-strong, rgba(20,22,28,0.96));
+  backdrop-filter: blur(28px) saturate(1.4);
+  -webkit-backdrop-filter: blur(28px) saturate(1.4);
+  border: 1px solid var(--hairline-2, rgba(255,255,255,0.12));
+  box-shadow: var(--shadow-elevated, 0 24px 64px rgba(0,0,0,0.6));
+  overflow: hidden;
+  animation: rewatchDialogEnter 220ms var(--ease-smooth, ease-out) both;
+}
+@keyframes rewatchDialogEnter {
+  from { opacity: 0; transform: scale(0.92) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+.rewatch-dialog-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1.25rem 1.25rem 0.875rem;
+  border-bottom: 1px solid var(--hairline, rgba(255,255,255,0.08));
+}
+.rewatch-dialog-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-strong, #fff);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+.rewatch-dialog-subtitle {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(232,234,240,0.45));
+  margin: 4px 0 0;
+}
+.rewatch-dialog-close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  border: 1px solid var(--hairline, rgba(255,255,255,0.10));
+  background: rgba(255,255,255,0.04);
+  color: var(--text-soft, rgba(232,234,240,0.75));
+  cursor: pointer;
+  transition: all var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+.rewatch-dialog-close:hover {
+  background: rgba(255,255,255,0.08);
+  color: var(--text-strong, #fff);
+}
+
+.rewatch-dialog-list {
+  display: flex;
+  flex-direction: column;
+  padding: 0.5rem 0;
+  max-height: 60dvh;
+  overflow-y: auto;
+}
+.rewatch-dialog-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.75rem 1.25rem;
+  transition: background var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+.rewatch-dialog-row:hover {
+  background: rgba(255,255,255,0.03);
+}
+.rewatch-dialog-row-first {
+  /* The 1st Watch row gets a subtle accent tint so the user can tell
+     it apart from the re-watch rows. */
+  background: color-mix(in srgb, var(--p) 6%, transparent);
+}
+.rewatch-dialog-row-first:hover {
+  background: color-mix(in srgb, var(--p) 10%, transparent);
+}
+.rewatch-dialog-row-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim, rgba(232,234,240,0.45));
+}
+.rewatch-dialog-row-date {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong, #fff);
+}
+.rewatch-dialog-row-date-empty {
+  color: var(--text-dim, rgba(232,234,240,0.4));
+  font-style: italic;
+  font-weight: 400;
 }
 
 

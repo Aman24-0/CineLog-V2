@@ -26,6 +26,12 @@ import type { WatchlistItem } from "~/shared/types";
 
 /**
  * Map a single Supabase `VaultRow` to the application's `WatchlistItem`.
+ *
+ * Re-watch fields (v2.2):
+ *   - `rewatch_count` (integer) → `rewatchCount`
+ *   - `rewatch_dates` (text[]) → `rewatchDates`
+ *   Both default to 0 / [] when the columns are null (handles rows
+ *   created before the re-watch migration ran).
  */
 export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
   return {
@@ -37,6 +43,8 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     watchDate: row.watched_on ?? undefined,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
+    rewatchCount: row.rewatch_count ?? 0,
+    rewatchDates: row.rewatch_dates ?? [],
   };
 }
 
