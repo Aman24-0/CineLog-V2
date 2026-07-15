@@ -14,7 +14,7 @@ import {
   getFavorites, getPinned, getRecentlyUpdated, searchVault
 } from "./vault.read";
 import {
-  createVaultItem, upsertVaultItem, deleteVaultItem, restoreVaultItem,
+  createVaultItem, upsertVaultItem, upsertVaultItemsBatch, deleteVaultItem, restoreVaultItem,
   updateNotes, updateProgress, updateRating, updateStatus, updateVaultItem
 } from "./vault.write";
 import type {
@@ -36,6 +36,9 @@ export class VaultRepository {
   }
   upsertVaultItem(payload: CreateVaultItemPayload): Promise<VaultItemResult> {
     return upsertVaultItem(this.supabase, payload);
+  }
+  upsertVaultItemsBatch(payloads: CreateVaultItemPayload[]): Promise<{ count: number; error: Error | null }> {
+    return upsertVaultItemsBatch(this.supabase, payloads);
   }
   updateVaultItem(identity: VaultIdentity, update: import("./vault.types").VaultUpdate): Promise<VaultItemResult> {
     return updateVaultItem(this.supabase, identity, update);

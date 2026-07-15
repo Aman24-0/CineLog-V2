@@ -117,6 +117,8 @@ export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
 
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { createVaultItemInSupabase, upsertVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
+import { getVaultRepository, type CreateVaultItemPayload, type VaultStatus } from "~/lib/supabase/repositories";
+import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 
 /**
  * Build a wrapped BackupDocument from the user's current watchlist.
@@ -314,7 +316,6 @@ function isTransientError(err: unknown): boolean {
   ).toLowerCase();
   const code = String(e?.code ?? "").toLowerCase();
   const status = Number(e?.status ?? 0);
-  // Check message OR code OR status for transient indicators.
   const haystack = `${msg} ${code}`;
   if (
     msg.includes("rate limit") ||
@@ -351,42 +352,49 @@ function isTransientError(err: unknown): boolean {
 }
 
 /**
- * Run a single upsert with retry-on-transient-error.
- *
- * Strategy:
- *   - Up to 4 attempts total (1 initial + 3 retries)
- *   - Exponential backoff: 200ms → 500ms → 1500ms → 4000ms
- *   - Only retries on transient errors (network/rate-limit/5xx)
- *   - Permanent errors (constraint violations, RLS, invalid data) throw
- *     immediately on the first attempt
- *
- * Between successful writes, the caller adds a small delay to avoid
- * triggering Supabase's rate limiter in the first place.
+ * Convert a WatchlistItem to the CreateVaultItemPayload that the vault
+ * repository expects. Mirrors the mapping in vaultReadAdapter's
+ * upsertVaultItemInSupabase so the batch path persists the SAME fields
+ * (rewatchCount, rewatchDates, seasonDates, createdAt, completedAt,
+ * lastActivityAt, progressMinutes) as the single-item path.
  */
-async function upsertWithRetry(
-  uid: string,
-  item: WatchlistItem,
-  maxAttempts = 4,
-): Promise<void> {
-  let lastErr: unknown;
-  for (let attempt = 0; attempt < maxAttempts; attempt++) {
-    try {
-      await upsertVaultItemInSupabase(uid, item);
-      return; // success
-    } catch (err) {
-      lastErr = err;
-      if (!isTransientError(err)) {
-        // Permanent error — don't retry, throw immediately.
-        throw err;
-      }
-      // Transient error — wait and retry (unless this was the last attempt).
-      if (attempt < maxAttempts - 1) {
-        const backoffMs = [200, 500, 1500, 4000][attempt] ?? 4000;
-        await sleep(backoffMs);
-      }
-    }
+function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVaultItemPayload {
+  return {
+    userId: uid,
+    tmdbId: Number(item.id),
+    mediaType: item.media_type,
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
+    rating: item.rating,
+    notes: item.notes,
+    watchedOn: item.watchDate,
+    rewatchCount: item.rewatchCount,
+    rewatchDates: item.rewatchDates,
+    seasonDates: item.seasonDates,
+    seasonRewatchCount: item.seasonRewatchCount,
+    seasonRewatchDates: item.seasonRewatchDates,
+    progressMinutes:
+      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+        : undefined,
+    createdAt:
+      typeof item.addedAt === "string"
+        ? item.addedAt
+        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+          ? new Date(item.addedAt.seconds * 1000).toISOString()
+          : undefined,
+    completedAt:
+      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
+    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+  };
+}
+
+/** Chunk an array into batches of `size`. */
+function chunk<T>(arr: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    out.push(arr.slice(i, i + size));
   }
-  throw lastErr;
+  return out;
 }
 
 export async function restoreBackup(
@@ -413,99 +421,155 @@ export async function restoreBackup(
   const failureLog: { reason: string; title?: string }[] = [];
   const total = parsed.items.length;
 
-  // Track transient failures so we can retry them all in a second pass
-  // after the main loop completes. This way the user sees progress fast
-  // (most items succeed on the first pass), and only the failed ones
-  // get the slow retry treatment at the end.
-  const transientFailures: { item: WatchlistItem; wasExisting: boolean }[] = [];
+  // ── BATCH UPSERT STRATEGY ──────────────────────────────────────────
+  // Chunk the items into batches of BATCH_SIZE (100) and send each batch
+  // as a SINGLE Supabase upsert request. For 1029 items this means ~11
+  // network calls instead of 1029, eliminating the rate-limit failures
+  // that plagued the per-item approach.
+  //
+  // BATCH_SIZE = 100 keeps each request payload under ~200 KB even for
+  // items with rich metadata (seasonDates, castList, etc.).
+  const BATCH_SIZE = 100;
+  const batches = chunk(parsed.items, BATCH_SIZE);
 
-  for (let i = 0; i < total; i++) {
-    // Check for cancellation.
+  // Track transient-failed batches for a second-pass retry at the end.
+  const transientFailedBatches: { items: WatchlistItem[]; batchStartIdx: number }[] = [];
+
+  let processed = 0;
+  for (let b = 0; b < batches.length; b++) {
     if (callbacks?.shouldCancel?.()) break;
 
-    const item = parsed.items[i];
-    const tmdbId = String(item.id);
-    const titleKey = (item.title || item.name || "").toLowerCase().trim();
-    const wasExisting =
-      existingByTmdb.has(tmdbId) || (!!titleKey && existingByTitle.has(titleKey));
+    const batchItems = batches[b];
+    const batchStartIdx = processed;
 
-    try {
-      await upsertVaultItemInSupabase(uid, item);
-
-      if (wasExisting) {
-        duplicates++; // counted as "updated" — still a successful write
+    // Pre-count duplicates for items in this batch (for accurate reporting).
+    // The batch upsert itself doesn't tell us which rows were inserts vs
+    // updates — both count as "imported" since the upsert succeeds either way.
+    let batchDuplicates = 0;
+    for (const item of batchItems) {
+      const tmdbId = String(item.id);
+      const titleKey = (item.title || item.name || "").toLowerCase().trim();
+      if (existingByTmdb.has(tmdbId) || (!!titleKey && existingByTitle.has(titleKey))) {
+        batchDuplicates++;
       }
-      imported++; // every successful upsert counts as imported
-
-      // Track this id so we don't re-process it if it appears again in
-      // the same backup.
+      // Track these ids so we don't re-count duplicates in a later batch
+      // of the same restore (in case the same item appears twice).
       existingByTmdb.add(tmdbId);
       if (titleKey) existingByTitle.add(titleKey);
+    }
+
+    // Build the batch payload.
+    const payloads = batchItems.map((item) => watchlistItemToBatchPayload(uid, item));
+
+    try {
+      const repo = getVaultRepository();
+      const { error } = await repo.upsertVaultItemsBatch(payloads);
+      if (error) throw error;
+
+      // Batch succeeded — every item in it counts as imported.
+      imported += batchItems.length;
+      duplicates += batchDuplicates;
     } catch (err) {
-      // Extract detailed error info from Supabase errors. Supabase
-      // errors have shape { message, code, details, hint } — we log
-      // ALL of it so the user can see exactly why items fail.
       const errInfo = err as { message?: string; code?: string; details?: unknown; hint?: string };
       const errCode = errInfo?.code ?? "";
       const errMsg = errInfo?.message ?? (err instanceof Error ? err.message : String(err));
       const errDetails = typeof errInfo?.details === "string" ? errInfo.details : "";
       const errHint = errInfo?.hint ?? "";
-      const detailedReason = errCode ? `[${errCode}] ${errMsg}${errDetails ? ` — ${errDetails}` : ""}${errHint ? ` (hint: ${errHint})` : ""}` : errMsg;
+      const detailedReason = errCode
+        ? `[${errCode}] ${errMsg}${errDetails ? ` — ${errDetails}` : ""}${errHint ? ` (hint: ${errHint})` : ""}`
+        : errMsg;
 
       if (isTransientError(err)) {
-        // Don't count as failed yet — we'll retry at the end.
-        transientFailures.push({ item, wasExisting });
-        console.warn(`[restoreBackup] Transient failure (will retry): ${item.title || item.name || item.id} — ${detailedReason}`);
+        // Save for second-pass retry at the end.
+        transientFailedBatches.push({ items: batchItems, batchStartIdx });
+        console.warn(
+          `[restoreBackup] Batch ${b + 1}/${batches.length} transient failure (${batchItems.length} items, will retry): ${detailedReason}`,
+        );
       } else {
-        console.error(`[restoreBackup] Permanent failure: ${item.title || item.name || item.id} — ${detailedReason}`, { item, err });
-        failed++;
-        failureLog.push({ reason: detailedReason, title: item.title || item.name || undefined });
+        // Permanent failure — fall back to per-item upsert so we can salvage
+        // the items in this batch that ARE valid. The bad ones get logged
+        // individually so the user can see exactly what failed.
+        console.error(
+          `[restoreBackup] Batch ${b + 1}/${batches.length} permanent failure — retrying items individually: ${detailedReason}`,
+          { err },
+        );
+        for (const item of batchItems) {
+          try {
+            await upsertVaultItemInSupabase(uid, item);
+            imported++;
+          } catch (itemErr) {
+            const ie = itemErr as { message?: string; code?: string };
+            const iReason = ie?.code
+              ? `[${ie.code}] ${ie.message ?? String(itemErr)}`
+              : (ie?.message ?? String(itemErr));
+            failed++;
+            failureLog.push({
+              reason: iReason,
+              title: item.title || item.name || undefined,
+            });
+          }
+        }
       }
     }
 
-    // Small delay between writes to avoid triggering Supabase's rate
-    // limiter. 100ms = ~10 req/sec, which is safe for Supabase free-tier.
-    // Total added time for 1000 items = ~100 seconds — acceptable for a
-    // restore operation. Without this delay, Supabase returns 429 errors
-    // for ~50% of requests, causing mass failures.
-    if (total > 50) {
-      await sleep(100);
+    processed += batchItems.length;
+
+    // Small delay between batches. 100 items per request = ~10 batches for
+    // 1000 items. Even with a 300ms delay between batches, the whole
+    // restore takes ~3 seconds + network RTT — well within Supabase's
+    // 500 req/min limit (we're only making ~10-15 requests total).
+    if (batches.length > 5) {
+      await sleep(300);
     }
 
-    // Report progress — every item for small batches, every 10 for large.
+    // Report progress per batch.
     if (callbacks) {
-      if (total <= 100 || i % 10 === 0 || i === total - 1) {
-        callbacks.onProgress(i + 1, total, imported, skipped, failed);
-      }
+      callbacks.onProgress(processed, total, imported, skipped, failed);
     }
   }
 
-  // ---- SECOND PASS: retry transient failures ----
-  // These are items that failed due to rate-limiting or network blips
-  // during the first pass. We retry them now (with longer backoffs)
-  // because the main rush of writes is over and the rate limiter has
-  // had time to reset.
-  if (transientFailures.length > 0) {
+  // ── SECOND PASS: retry transient-failed batches ──────────────────
+  // These are batches that failed due to rate-limiting or network blips
+  // during the first pass. The main rush of writes is over now, so we
+  // retry with the same batch approach — most should succeed.
+  if (transientFailedBatches.length > 0) {
     console.log(
-      `[restoreBackup] Retrying ${transientFailures.length} transient failures...`,
+      `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`,
     );
-    for (const { item, wasExisting } of transientFailures) {
+    for (const { items } of transientFailedBatches) {
       if (callbacks?.shouldCancel?.()) break;
+      const payloads = items.map((item) => watchlistItemToBatchPayload(uid, item));
       try {
-        await upsertWithRetry(uid, item);
-        if (wasExisting) duplicates++;
-        imported++;
+        const repo = getVaultRepository();
+        // Retry each batch with one retry — if it fails again, fall back to
+        // per-item upsert so we salvage what we can.
+        const { error } = await repo.upsertVaultItemsBatch(payloads);
+        if (error) throw error;
+        imported += items.length;
       } catch (err) {
-        const errInfo = err as { message?: string; code?: string; details?: unknown };
-        const errCode = errInfo?.code ?? "";
-        const errMsg = errInfo?.message ?? (err instanceof Error ? err.message : String(err));
-        const detailedReason = errCode ? `[${errCode}] ${errMsg}` : errMsg;
-        console.error(`[restoreBackup] Final retry failed: ${item.title || item.name || item.id} — ${detailedReason}`, { item, err });
-        failed++;
-        failureLog.push({ reason: detailedReason, title: item.title || item.name || undefined });
+        // Batch retry failed — try per-item as a last resort.
+        console.warn(
+          `[restoreBackup] Batch retry failed — falling back to per-item upsert for ${items.length} items`,
+          err,
+        );
+        for (const item of items) {
+          try {
+            await upsertVaultItemInSupabase(uid, item);
+            imported++;
+          } catch (itemErr) {
+            const ie = itemErr as { message?: string; code?: string };
+            const iReason = ie?.code
+              ? `[${ie.code}] ${ie.message ?? String(itemErr)}`
+              : (ie?.message ?? String(itemErr));
+            failed++;
+            failureLog.push({
+              reason: iReason,
+              title: item.title || item.name || undefined,
+            });
+          }
+        }
       }
-      // Longer delay between retries since we know rate limiting is active.
-      await sleep(100);
+      await sleep(500);
     }
   }
 

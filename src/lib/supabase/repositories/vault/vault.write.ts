@@ -63,6 +63,52 @@ export async function upsertVaultItem(
 }
 
 /**
+ * BATCH upsert — insert/update many vault items in a SINGLE Supabase request.
+ *
+ * This is the SCALE fix for the restore flow. Restoring 1000+ items one at a
+ * time hits Supabase's free-tier rate limit (~2 req/sec sustained, 500/min
+ * burst) and produces hundreds of 429 failures. By chunking into batches of
+ * `BATCH_SIZE` rows per request, we turn 1029 individual upserts into ~11
+ * network calls — well within any rate limit, and ~100x faster end-to-end.
+ *
+ * The unique key for conflict resolution is the same as single upsert:
+ * (user_id, tmdb_id, media_type). On conflict, ALL user-owned fields are
+ * overwritten with the incoming values from the batch.
+ *
+ * Returns the count of successfully written rows. Individual row-level
+ * errors are surfaced as a single error returned from the batch (Supabase
+ * treats the entire batch as atomic — either all rows succeed or the
+ * whole batch fails).
+ *
+ * NOTE: Supabase's PostgREST supports up to 1000 rows per insert/upsert
+ * call, but we use 100 to keep memory + request payload reasonable.
+ */
+export const VAULT_BATCH_SIZE = 100;
+
+export async function upsertVaultItemsBatch(
+  supabase: TypedSupabaseClient,
+  payloads: CreateVaultItemPayload[],
+): Promise<{ count: number; error: Error | null }> {
+  if (payloads.length === 0) return { count: 0, error: null };
+  const rows = payloads.map(toVaultInsert);
+  const { data, error } = await supabase
+    .from(TABLE)
+    .upsert(rows, {
+      onConflict: "user_id,tmdb_id,media_type",
+      ignoreDuplicates: false,
+      count: "exact",
+    });
+  if (error) return { count: 0, error: toError(error) };
+  // `data` is typed as `never[]` when no `.select()` is chained, but at
+  // runtime Supabase returns the inserted rows when count: "exact" is set.
+  // Fall back to rows.length when data is null/empty so the count is
+  // always accurate.
+  const returnedRows = (data as unknown[] | null) ?? [];
+  const count = returnedRows.length > 0 ? returnedRows.length : rows.length;
+  return { count, error: null };
+}
+
+/**
  * Partially update a vault item by composite key. Excludes soft-deleted.
  */
 export async function updateVaultItem(
