@@ -6,18 +6,14 @@
 // going to be released. Uses TMDB's discover endpoints with date-range
 // filters (30 days from a selectable start date).
 //
-// LAYOUT (v2.1, per user request):
+// LAYOUT (v2.2 — country-relevance fix):
 //   • Header: back arrow, page title, subtitle
 //   • Filter bar:
 //       - Date picker (default = today; shows next 30 days from the
-//         selected date — quick +7/+14/+30 buttons REMOVED)
+//         selected date)
 //       - Type filter chips: All · Movies · Series
-//       - Nationality dropdown (National / International)
-//         National = titles from the user's country (profile.country)
-//         International = titles from any OTHER country
-//       - Language dropdown — depends on Nationality:
-//         · National → languages spoken in the user's country
-//         · International → curated set of world languages
+//       - Filter icon — opens a dialog with just the Language picker
+//         (Nationality filter REMOVED in v2.2 — see COUNTRY FILTERING)
 //   • Two grouped sections (movies and series shown separately):
 //       - Upcoming Movies — list grouped by release date
 //       - Upcoming Series — list grouped by first air date
@@ -31,12 +27,27 @@
 //         open the full Details page just to watch the trailer)
 //   • Click a title's body → opens Details modal
 //
-// COUNTRY FILTERING (per user request v2.1):
-//   When Nationality = National, the TMDB discover query is constrained
-//   to the user's profile.country via with_origin_country. Titles not
-//   available in the user's country are excluded from Upcoming but
-//   remain searchable in Discover (where the user can manually search
-//   for any title worldwide).
+// COUNTRY FILTERING (v2.2 — fixed per user request):
+//   Previous (v2.1) behavior used `with_origin_country` (production
+//   country), which only returned titles PRODUCED in the user's country.
+//   This had two problems:
+//     1. Missed big international films that release in the user's
+//        country (e.g. Hollywood films releasing in India).
+//     2. Showed obscure local productions the user doesn't care about.
+//
+//   v2.2 fix uses release-country filtering instead:
+//     • Movies: `with_release_country=<region>` + `region=<region>` +
+//       `release_date.gte/lte` (instead of `primary_release_date`).
+//       This returns ONLY movies that have a release entry for the
+//       user's country within the date window — capturing both local
+//       productions AND international films that release there.
+//     • TV: TMDB's /discover/tv endpoint does NOT support
+//       `with_release_country`. The closest semantic is
+//       `with_origin_country`, which we use to show only TV from the
+//       user's country. A small `vote_count.gte` filter removes
+//       completely unknown titles. International TV is intentionally
+//       excluded to keep the list relevant (Discover/Search remain
+//       available for worldwide exploration).
 //
 // Architecture:
 //   Route (/profile/upcoming) → UpcomingPage → TMDB discover + watch providers
@@ -53,7 +64,6 @@ import { openTitle } from "~/shared/hooks/useModalState";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import {
-  INTERNATIONAL_LANGUAGES,
   languagesForCountry,
   countryLabel,
 } from "~/shared/data/countryLanguages";
@@ -73,7 +83,7 @@ interface UpcomingItem extends TMDBTitle {
   isTheatrical: boolean;
   /** Original language code (e.g. "hi", "en") — used for client-side language filter fallback */
   originalLanguage: string | null;
-  /** Origin country codes (e.g. ["IN", "US"]) — used for Nationality filtering fallback */
+  /** Origin country codes (e.g. ["IN", "US"]) — kept for potential future use */
   originCountry: string[];
 }
 
@@ -84,12 +94,17 @@ interface UpcomingGroup {
   series: UpcomingItem[];
 }
 
-type NationalityFilter = "national" | "international";
-
 // ── Constants ────────────────────────────────────────────────────────
 
 const API = "https://api.themoviedb.org/3";
 const WINDOW_DAYS = 30;
+
+// Minimum vote_count for TV shows. Filters out completely unknown
+// titles so the Upcoming list isn't cluttered with low-quality entries.
+// (Movies don't need this — `with_release_country` is already a strong
+// relevance filter, and many anticipated unreleased films have
+// vote_count=0 which we don't want to exclude.)
+const TV_MIN_VOTE_COUNT = 2;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -162,48 +177,52 @@ interface TMDBVideosResponse {
 }
 
 /**
- * Fetch upcoming movies in a date range.
- * Nationality filter:
- *   - "national" → constrain to the user's country via with_origin_country
- *   - "international" → exclude the user's country via without_origin_country
- * Language filter (optional): applied via with_original_language.
+ * Fetch upcoming movies in a date range, FILTERED to only titles that
+ * have a release entry in the user's country.
  *
- * v2.1 fix: Previously only fetched page 1 (max 20 results) and
- * required vote_count >= 0 (which actually excluded many upcoming
- * titles that have 0 votes because they haven't been released yet).
- * Now fetches up to 5 pages (100 results) and removes the
- * vote_count filter so ALL titles in the date range are returned.
+ * v2.2 country-relevance fix:
+ *   - Uses `with_release_country=<region>` so ONLY movies that actually
+ *     release in the user's country are returned. This captures both
+ *     local productions AND big international films (e.g. Hollywood
+ *     releases in India) that the previous `with_origin_country` filter
+ *     missed.
+ *   - Uses `release_date.gte/lte` (with `region=<region>`) instead of
+ *     `primary_release_date.gte/lte` so the date window applies to the
+ *     release date IN the user's country, not the worldwide first
+ *     release date.
+ *   - Removed the Nationality toggle entirely — every movie returned is
+ *     by definition "releasing in your country", which is the only
+ *     relevant set for an Upcoming page.
+ *
+ * Language filter (optional): applied via `with_original_language`.
+ *
+ * Pagination: fetches up to 5 pages (100 results) to cover a full
+ * 30-day window. TMDB returns 20 results per page.
  */
 async function fetchUpcomingMovies(
   startDate: string,
   endDate: string,
   region: string,
-  nationality: NationalityFilter,
   language: string | null,
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
     api_key: TMDB_KEY,
     language: "en-US",
-    sort_by: "primary_release_date.asc",
-    "primary_release_date.gte": startDate,
-    "primary_release_date.lte": endDate,
+    sort_by: "release_date.asc",
+    "release_date.gte": startDate,
+    "release_date.lte": endDate,
+    region, // context for release_date.gte/lte — filters by release date in this country
+    with_release_country: region, // ONLY movies that have a release entry in this country
     include_adult: "false",
   });
-  if (nationality === "national") {
-    baseParams.set("with_origin_country", region);
-  } else {
-    baseParams.set("without_origin_country", region);
-  }
   if (language) baseParams.set("with_original_language", language);
 
-  const cacheKey = buildCacheKey("tmdb:upcoming_movies_v22", { start: startDate, end: endDate, region, nationality, lang: language ?? "" });
+  const cacheKey = buildCacheKey("tmdb:upcoming_movies_v23", { start: startDate, end: endDate, region, lang: language ?? "" });
 
   const res = await cachedFetch<{ results: TMDBRawMovie[]; total_pages: number }>(
     cacheKey,
     TMDB_TTL,
     async () => {
-      // Fetch up to 5 pages (100 results) to cover a full 30-day
-      // window. TMDB returns 20 results per page.
       const allResults: TMDBRawMovie[] = [];
       const maxPages = 5;
       for (let page = 1; page <= maxPages; page++) {
@@ -226,15 +245,25 @@ async function fetchUpcomingMovies(
 }
 
 /**
- * Fetch upcoming TV series in a date range.
- * Same Nationality + Language logic as fetchUpcomingMovies.
- * Same v2.1 fix: fetch up to 5 pages, no vote_count filter.
+ * Fetch upcoming TV series in a date range, scoped to the user's
+ * country.
+ *
+ * v2.2 country-relevance fix:
+ *   TMDB's /discover/tv endpoint does NOT support `with_release_country`
+ *   (only `with_origin_country`). So we always filter by origin country
+ *   to keep the list relevant — international TV is intentionally
+ *   excluded from the Upcoming page (users can discover worldwide TV
+ *   via the Discover page or Search).
+ *
+ *   A small `vote_count.gte` filter removes completely unknown titles
+ *   so the list isn't cluttered with low-quality entries.
+ *
+ * Language filter (optional): applied via `with_original_language`.
  */
 async function fetchUpcomingTv(
   startDate: string,
   endDate: string,
   region: string,
-  nationality: NationalityFilter,
   language: string | null,
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
@@ -243,16 +272,13 @@ async function fetchUpcomingTv(
     sort_by: "first_air_date.asc",
     "first_air_date.gte": startDate,
     "first_air_date.lte": endDate,
+    with_origin_country: region, // TV has no release_country — origin is the closest relevance signal
+    "vote_count.gte": String(TV_MIN_VOTE_COUNT), // filter out completely unknown shows
     include_adult: "false",
   });
-  if (nationality === "national") {
-    baseParams.set("with_origin_country", region);
-  } else {
-    baseParams.set("without_origin_country", region);
-  }
   if (language) baseParams.set("with_original_language", language);
 
-  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v22", { start: startDate, end: endDate, region, nationality, lang: language ?? "" });
+  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v23", { start: startDate, end: endDate, region, lang: language ?? "" });
 
   const res = await cachedFetch<{ results: TMDBRawTv[]; total_pages: number }>(
     cacheKey,
@@ -370,10 +396,9 @@ const UpcomingPage: Component = () => {
   today.setHours(0, 0, 0, 0);
   const [startDate, setStartDate] = createSignal<string>(ymd(today));
   const [typeFilter, setTypeFilter] = createSignal<"all" | "movies" | "series">("all");
-  const [nationality, setNationality] = createSignal<NationalityFilter>("national");
   const [language, setLanguage] = createSignal<string>("");
-  // v2.1: Filter dialog (Nationality + Language combined in one dialog,
-  // opened by the filter icon button)
+  // v2.2: Filter dialog now only contains the Language picker
+  // (Nationality filter was removed — see module-level docs).
   const [showFilterDialog, setShowFilterDialog] = createSignal(false);
 
   // Data
@@ -398,24 +423,12 @@ const UpcomingPage: Component = () => {
     return ymd(end);
   });
 
-  // Language options depend on the nationality selection.
-  // - National → languages of the user's country
-  // - International → curated world languages
-  const languageOptions = createMemo(() => {
-    if (nationality() === "national") {
-      return languagesForCountry(region());
-    }
-    return INTERNATIONAL_LANGUAGES;
-  });
-
-  // When the user toggles Nationality, reset the language selection so
-  // it always matches a valid option in the new dropdown.
-  createEffect(() => {
-    // touch nationality
-    nationality();
-    // reset language to "all"
-    setLanguage("");
-  });
+  // Language options — always the languages spoken in the user's
+  // country. (v2.2: Nationality toggle removed; the country filter is
+  // implicit — movies are scoped via `with_release_country` and TV via
+  // `with_origin_country`, so the language picker only needs to cover
+  // in-country languages.)
+  const languageOptions = createMemo(() => languagesForCountry(region()));
 
   // Reload on filter change
   createEffect(() => {
@@ -429,15 +442,14 @@ const UpcomingPage: Component = () => {
       const start = startDate();
       const end = endDate();
       const r = region();
-      const nat = nationality();
       const lang = language() || null;
 
       const promises: Promise<TMDBTitle[]>[] = [];
       if (typeFilter() !== "series") {
-        promises.push(fetchUpcomingMovies(start, end, r, nat, lang));
+        promises.push(fetchUpcomingMovies(start, end, r, lang));
       }
       if (typeFilter() !== "movies") {
-        promises.push(fetchUpcomingTv(start, end, r, nat, lang));
+        promises.push(fetchUpcomingTv(start, end, r, lang));
       }
 
       const results = await Promise.all(promises);
@@ -627,10 +639,11 @@ const UpcomingPage: Component = () => {
         </div>
 
         <div class="sec-body">
-          {/* Filter bar — v2.1 restructured:
+          {/* Filter bar — v2.2 restructured:
               Line 1: Date selector only
               Line 2: All · Movies · Series · Filter icon
-              Filter icon opens a dialog with Nationality + Language */}
+              Filter icon opens a dialog with Language picker only
+              (Nationality removed — country filter is implicit) */}
           <div class="upcoming-filters upcoming-filters-v21">
             {/* Line 1: Date picker */}
             <div class="upcoming-date-row upcoming-date-row-v21">
@@ -670,19 +683,19 @@ const UpcomingPage: Component = () => {
                 )}
               </For>
 
-              {/* Filter icon — opens the Nationality + Language dialog */}
+              {/* Filter icon — opens the Language dialog */}
               <button
                 type="button"
-                class={`upcoming-filter-icon-btn focus-ring${(nationality() !== "national" || language() !== "") ? " upcoming-filter-icon-active" : ""}`}
+                class={`upcoming-filter-icon-btn focus-ring${language() !== "" ? " upcoming-filter-icon-active" : ""}`}
                 onClick={() => setShowFilterDialog(true)}
-                aria-label="Open nationality and language filters"
+                aria-label="Open language filter"
                 aria-haspopup="dialog"
               >
                 <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
                   tune
                 </span>
-                {/* Small dot indicator when filters are active */}
-                <Show when={nationality() !== "national" || language() !== ""}>
+                {/* Small dot indicator when a language filter is active */}
+                <Show when={language() !== ""}>
                   <span class="upcoming-filter-icon-dot" aria-hidden="true" />
                 </Show>
               </button>
@@ -693,7 +706,7 @@ const UpcomingPage: Component = () => {
           <p class="upcoming-window-label">
             Showing {formatDateShort(startDate())} → {formatDateShort(endDate())}
             {" · "}
-            {nationality() === "national" ? `National (${regionLabel()})` : "International"}
+            Releasing in {regionLabel()}
             {language() ? ` · ${languageOptions().find((l) => l.code === language())?.label ?? language()}` : ""}
           </p>
 
@@ -742,8 +755,9 @@ const UpcomingPage: Component = () => {
               </div>
               <h3 class="empty-premium-title">No upcoming titles in this window</h3>
               <p class="empty-premium-body">
-                Try a different date, nationality, or language filter.
-                Some titles may not be available in your country yet.
+                Try a different date or language filter. Only titles
+                releasing in {regionLabel()} are shown — some films may
+                not have a {regionLabel()} release date in this range yet.
               </p>
             </div>
           </Show>
@@ -849,8 +863,10 @@ const UpcomingPage: Component = () => {
         </Portal>
       </Show>
 
-      {/* v2.1: Filter dialog — Nationality + Language combined.
-          Opened by the filter icon button in the filter bar. */}
+      {/* v2.2: Filter dialog — Language picker only.
+          (Nationality filter was removed; country filter is implicit
+          via `with_release_country` for movies and `with_origin_country`
+          for TV — see module-level docs.) Opened by the filter icon. */}
       <Show when={showFilterDialog()}>
         <Portal>
           <div
@@ -864,7 +880,7 @@ const UpcomingPage: Component = () => {
             onClick={() => setShowFilterDialog(false)}
             role="dialog"
             aria-modal="true"
-            aria-label="Nationality and language filters"
+            aria-label="Language filter"
           >
             <div
               class="w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
@@ -923,36 +939,33 @@ const UpcomingPage: Component = () => {
 
               {/* Filter options */}
               <div class="px-6 py-5 space-y-5">
-                {/* Nationality */}
-                <div>
-                  <label class="upcoming-filter-dialog-label">
-                    <span
-                      class="material-symbols-outlined"
-                      style={{ "font-size": "14px" }}
-                      aria-hidden="true"
-                    >
-                      flag
-                    </span>
-                    Nationality
-                  </label>
-                  <div class="upcoming-filter-dialog-options">
-                    <button
-                      type="button"
-                      class={`upcoming-filter-dialog-option focus-ring${nationality() === "national" ? " active" : ""}`}
-                      onClick={() => setNationality("national")}
-                      aria-pressed={nationality() === "national"}
-                    >
-                      National ({regionLabel()})
-                    </button>
-                    <button
-                      type="button"
-                      class={`upcoming-filter-dialog-option focus-ring${nationality() === "international" ? " active" : ""}`}
-                      onClick={() => setNationality("international")}
-                      aria-pressed={nationality() === "international"}
-                    >
-                      International
-                    </button>
-                  </div>
+                {/* Country info banner — explains why there's no Nationality toggle */}
+                <div
+                  class="flex items-start gap-2 p-3 rounded-xl"
+                  style={{
+                    background: "color-mix(in srgb, var(--p) 8%, var(--tier-2))",
+                    border: "1px solid color-mix(in srgb, var(--p) 25%, var(--hairline))",
+                  }}
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "16px", color: "var(--p)", "margin-top": "2px" }}
+                    aria-hidden="true"
+                  >
+                    info
+                  </span>
+                  <p
+                    style={{
+                      "font-size": "0.75rem",
+                      "line-height": "1.4",
+                      color: "var(--text-soft)",
+                      margin: 0,
+                    }}
+                  >
+                    Showing only titles releasing in{" "}
+                    <strong style={{ color: "var(--text-strong)" }}>{regionLabel()}</strong>.
+                    Change your country from Account settings if needed.
+                  </p>
                 </div>
 
                 {/* Language */}
@@ -1001,7 +1014,6 @@ const UpcomingPage: Component = () => {
                   type="button"
                   class="upcoming-filter-dialog-reset focus-ring"
                   onClick={() => {
-                    setNationality("national");
                     setLanguage("");
                   }}
                 >
