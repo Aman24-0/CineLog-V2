@@ -37,6 +37,8 @@ export interface ImportCandidate {
   rating?: number;
   /** ISO date watched, if provided. */
   watchDate?: string;
+  /** ISO date added to the source library, if provided. */
+  addedAt?: string;
   /** Notes / description from source. */
   notes?: string;
 }
@@ -202,13 +204,20 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     const status = (row["status"] || "Planned") as WatchlistItem["status"];
     const ratingStr = row["rating"];
     const rating = ratingStr ? Number(ratingStr) : undefined;
+    // Capture watch_date and added_at SEPARATELY — previous code conflated
+    // them by using added_at as a fallback for watchDate, which set the
+    // wrong timestamp on Planned items (where watch_date is empty but
+    // added_at should still be preserved as the add-date).
+    const watchDate = row["watch_date"] || undefined;
+    const addedAt = row["added_at"] || row["updated_at"] || undefined;
     return {
       id,
       title,
       media_type,
       status,
       rating: !isNaN(rating as number) ? rating : undefined,
-      watchDate: row["watch_date"] || row["added_at"] || undefined,
+      watchDate,
+      addedAt,
       notes: row["notes"] || undefined,
     };
   }

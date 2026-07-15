@@ -10,27 +10,38 @@
 // FLOW:
 //   1. User selects a .csv file
 //   2. parseWatchlistCsv() → list of ImportCandidate
-//   3. Show preview (count + sample titles)
-//   4. On confirm, batch-upsert to vault via restoreBackup() pipeline
-//      (same robust batch + retry logic as JSON import)
-//   5. Cancel button WORKS — sets a flag that the import loop checks
+//   3. Convert candidates to raw item shape → run through normalizeBatch()
+//      (same normalization pipeline as JSON import — proper rating scaling,
+//      status mapping, date normalization, field validation)
+//   4. Show preview (count + sample titles)
+//   5. On confirm, batch-upsert to vault via restoreBackup() pipeline
+//      (same robust batch + retry logic as JSON import, including the
+//      missing-column-aware retry that handles DBs without v2.2/v2.3
+//      migration columns)
+//   6. Cancel button WORKS — sets a flag that the import loop checks
+//   7. Failure log is displayed inline so the user can see WHY items
+//      failed (with a Copy button to copy all error details)
 //
 // ARCHITECTURE:
 //   Reuses BackupService.restoreBackup() for the actual write so CSV
 //   import gets the SAME batch-upsert + retry + rate-limit-handling
-//   as JSON import. No duplicated write logic.
+//   + missing-column-aware retry as JSON import. No duplicated write logic.
 
-import { Show, createSignal, type Component } from "solid-js";
+import { Show, For, createSignal, type Component } from "solid-js";
 import { useToast } from "~/shared/hooks/useToast";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
-import type { WatchlistItem } from "~/shared/types";
 import {
   parseWatchlistCsv,
   readFileAsText,
   type ImportCandidate,
 } from "../import/csvImport";
-import { restoreBackup, type ParsedBackup } from "../backup/BackupService";
+import { normalizeBatch } from "../backup/normalizeBackup";
+import {
+  restoreBackup,
+  type ParsedBackup,
+  type RestoreResult,
+} from "../backup/BackupService";
 
 const CsvImportCard: Component = () => {
   const { showToast } = useToast();
@@ -41,9 +52,11 @@ const CsvImportCard: Component = () => {
   const [importing, setImporting] = createSignal(false);
   const [cancelRequested, setCancelRequested] = createSignal(false);
   const [progress, setProgress] = createSignal({ done: 0, total: 0, imported: 0, failed: 0 });
+  const [result, setResult] = createSignal<RestoreResult | null>(null);
 
   const handleFile = async (file: File) => {
     setParsing(true);
+    setResult(null);
     try {
       const text = await readFileAsText(file);
       const result = parseWatchlistCsv(text);
@@ -73,18 +86,34 @@ const CsvImportCard: Component = () => {
     }
     setImporting(true);
     setCancelRequested(false);
+    setResult(null);
     setProgress({ done: 0, total: items.length, imported: 0, failed: 0 });
 
-    // Convert CSV candidates to WatchlistItem objects that the
-    // BackupService.restoreBackup pipeline can consume.
-    const watchlistItems: WatchlistItem[] = [];
+    // ── Convert CSV candidates to raw item shape ──────────────────────
+    // Build raw objects that normalizeBatch() can consume. This gives CSV
+    // import the SAME normalization pipeline as JSON import:
+    //   - Ratings get scaled (integer 1-5 → 2-10, percentages → 0-10, etc.)
+    //   - Status values get mapped (lowercase → Title Case, etc.)
+    //   - Dates get normalized (Firestore timestamps → ISO, etc.)
+    //   - Fields get validated (id, media_type, status)
+    //   - Missing fields get repaired (notes, genresList, platformsList)
+    //
+    // Previously CSV import bypassed normalizeBatch, which meant ratings
+    // like "5" stayed as 5 (instead of becoming 10) and status values
+    // weren't validated. Running through normalizeBatch fixes this.
+    const rawItems: Record<string, unknown>[] = [];
     let skippedNoId = 0;
     for (const c of items) {
       if (!c.id) {
         skippedNoId++;
         continue;
       }
-      watchlistItems.push({
+      // Use added_at from the CSV if present (preserves the original add
+      // timestamp). Fall back to watch_date, then to now() — in that order.
+      // This ensures the timeline shows items on the date they were
+      // actually added, not "today" for every Planned item.
+      const addedAt = c.addedAt ?? c.watchDate ?? new Date().toISOString();
+      const raw: Record<string, unknown> = {
         id: c.id,
         title: c.title,
         media_type: c.media_type,
@@ -92,28 +121,43 @@ const CsvImportCard: Component = () => {
         rating: c.rating,
         watchDate: c.watchDate,
         notes: c.notes ?? "",
-        addedAt: c.watchDate ?? new Date().toISOString(),
-        updatedAt: c.watchDate ?? new Date().toISOString(),
+        addedAt,
+        updatedAt: addedAt,
         genresList: [],
         platformsList: [],
-      } as WatchlistItem);
+      };
+      // Preserve year for Letterboxd/Trakt/IMDb candidates (used for
+      // TMDB search disambiguation if we ever add that feature).
+      if (c.year) raw.year = c.year;
+      rawItems.push(raw);
     }
 
     if (skippedNoId > 0) {
       console.warn(`[csv-import] ${skippedNoId} items skipped (no TMDB id)`);
     }
 
+    // Run through the SAME normalization pipeline as JSON import.
+    const batch = normalizeBatch(rawItems);
+
+    if (batch.items.length === 0) {
+      setImporting(false);
+      const reasons = batch.failures.slice(0, 3).map((f) => f.reason).join("; ");
+      showToast(`No valid titles to import. ${reasons}`, "error", 5000);
+      return;
+    }
+
     // Use the same restoreBackup pipeline as JSON import — gets batch
-    // upsert, retry logic, rate-limit handling, and cancellation for free.
+    // upsert, retry logic, rate-limit handling, missing-column-aware
+    // retry, and cancellation for free.
     const parsed: ParsedBackup = {
-      items: watchlistItems,
+      items: batch.items,
       format: "flat-array",
-      failures: [],
-      repairedCount: 0,
+      failures: batch.failures,
+      repairedCount: batch.repairedCount,
     };
 
     try {
-      const result = await restoreBackup(parsed, library.watchlist(), {
+      const res = await restoreBackup(parsed, library.watchlist(), {
         onProgress: (processed, total, imported, _skipped, failed) => {
           setProgress({ done: processed, total, imported, failed });
         },
@@ -122,14 +166,19 @@ const CsvImportCard: Component = () => {
 
       const wasCancelled = cancelRequested();
       setImporting(false);
-      setCandidates([]);
       setCancelRequested(false);
+      setResult(res);
+      // Keep candidates so the failure log + result panel can render.
+      // setCandidates([]) happens when user dismisses the result.
 
       if (wasCancelled) {
-        showToast(`Import cancelled — ${result.imported} of ${items.length} titles imported`, "info", 4000);
+        showToast(`Import cancelled — ${res.imported} of ${items.length} titles imported`, "info", 4000);
+      } else if (res.failed > 0 && res.imported === 0) {
+        showToast(`Import failed — ${res.failed} of ${items.length} titles could not be imported. See details below.`, "error", 5000);
+      } else if (res.failed > 0) {
+        showToast(`Imported ${res.imported} of ${items.length} titles (${res.failed} failed — see details)`, "info", 4000);
       } else {
-        const msg = `Imported ${result.imported} of ${items.length} titles${result.failed > 0 ? ` (${result.failed} failed)` : ""}`;
-        showToast(msg, result.imported > 0 ? "success" : "error", 4000);
+        showToast(`Imported ${res.imported} of ${items.length} titles`, "success", 3000);
       }
       void library.refresh();
     } catch (e) {
@@ -144,11 +193,28 @@ const CsvImportCard: Component = () => {
       // Signal the import loop to stop after the current batch
       setCancelRequested(true);
       showToast("Cancelling import…", "info", 2000);
+    } else if (result()) {
+      // Import complete — dismiss the result panel
+      setResult(null);
+      setCandidates([]);
+      setSource("unknown");
     } else {
       // Not importing — just clear the preview
       setCandidates([]);
       setSource("unknown");
     }
+  };
+
+  const handleCopyErrors = () => {
+    const r = result();
+    if (!r || !r.failureLog || r.failureLog.length === 0) return;
+    const text = r.failureLog
+      .map((f) => `- ${f.title ?? "(no title)"}: ${f.reason}`)
+      .join("\n");
+    navigator.clipboard?.writeText(text).then(
+      () => showToast("Error details copied to clipboard", "success", 2000),
+      () => showToast("Could not copy — your browser blocked clipboard access", "error", 3000),
+    );
   };
 
   return (
@@ -189,7 +255,58 @@ const CsvImportCard: Component = () => {
                 </div>
               </div>
             </Show>
-            <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+
+            {/* ── Result + Failure log ─────────────────────────────── */}
+            <Show when={result() && !importing()}>
+              <div class="csv-import-result">
+                <p style={{
+                  "font-size": "0.875rem",
+                  "font-weight": 600,
+                  color: result()!.failed > 0 ? "var(--text-strong)" : "var(--p)",
+                  margin: "0 0 var(--sp-2) 0",
+                }}>
+                  {result()!.imported} imported
+                  {result()!.failed > 0 ? ` · ${result()!.failed} failed` : ""}
+                  {" · "}{result()!.duplicates > 0 ? `${result()!.duplicates} updated ` : "of "}{candidates().length} titles
+                </p>
+
+                {/* Failure log — visible only when there are failures */}
+                <Show when={result()!.failed > 0 && result()!.failureLog && result()!.failureLog.length > 0}>
+                  <div class="csv-import-failure-log">
+                    <div class="csv-import-failure-log-header">
+                      <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--text-muted)" }} aria-hidden="true">bug_report</span>
+                      <span class="csv-import-failure-log-title">Why {result()!.failed} items failed</span>
+                      <button
+                        type="button"
+                        class="csv-import-copy-btn focus-ring"
+                        onClick={handleCopyErrors}
+                        aria-label="Copy error details"
+                      >
+                        <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">content_copy</span>
+                        Copy
+                      </button>
+                    </div>
+                    <div class="csv-import-failure-log-list">
+                      <For each={result()!.failureLog.slice(0, 10)}>
+                        {(f) => (
+                          <div class="csv-import-failure-log-item">
+                            <span class="csv-import-failure-log-item-title">{f.title ?? "(no title)"}</span>
+                            <span class="csv-import-failure-log-item-reason">{f.reason}</span>
+                          </div>
+                        )}
+                      </For>
+                      <Show when={result()!.failureLog.length > 10}>
+                        <p class="csv-import-failure-log-more">
+                          + {result()!.failureLog.length - 10} more — tap "Copy" to see all.
+                        </p>
+                      </Show>
+                    </div>
+                  </div>
+                </Show>
+              </div>
+            </Show>
+
+            <div style={{ display: "flex", gap: "var(--sp-2)", "margin-top": "var(--sp-3)" }}>
               <button
                 type="button"
                 class="settings-link-btn focus-ring"
@@ -210,7 +327,7 @@ const CsvImportCard: Component = () => {
                 onClick={handleCancel}
                 disabled={cancelRequested()}
               >
-                <Show when={importing()} fallback="Cancel">Cancel Import</Show>
+                <Show when={importing()} fallback={result() ? "Dismiss" : "Cancel"}>Cancel Import</Show>
               </button>
             </div>
           </div>

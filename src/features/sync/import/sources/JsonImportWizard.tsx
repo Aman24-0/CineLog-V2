@@ -14,7 +14,7 @@
 // duplicated logic.
 
 import {
-  createSignal, Show, type Component,
+  createSignal, Show, For, type Component,
 } from "solid-js";
 import type { ImportResult } from "../ImportSource";
 import {
@@ -22,6 +22,7 @@ import {
   type ParsedBackup, type BackupPreview, type RestoreResult,
 } from "../../backup/BackupService";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { useToast } from "~/shared/hooks/useToast";
 
 interface JsonImportWizardProps {
   onComplete: (result: ImportResult) => void;
@@ -32,6 +33,7 @@ type Step = "upload" | "preview" | "importing" | "complete";
 
 const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
   const library = useUserLibrary();
+  const { showToast } = useToast();
   const [step, setStep] = createSignal<Step>("upload");
   const [parsed, setParsed] = createSignal<ParsedBackup | null>(null);
   const [preview, setPreview] = createSignal<BackupPreview | null>(null);
@@ -202,6 +204,47 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
               <PreviewStat icon="skip_next" label="Skipped" value={result()!.skipped} />
               <PreviewStat icon="error" label="Failed" value={result()!.failed} accent={result()!.failed > 0 ? "warning" : undefined} />
             </div>
+            {/* Failure log — shown only when there are failures, so the user can see WHY items failed */}
+            <Show when={result()!.failed > 0 && result()!.failureLog && result()!.failureLog.length > 0}>
+              <div class="v1-wizard-failure-log">
+                <div class="v1-wizard-failure-log-header">
+                  <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--text-muted)" }} aria-hidden="true">bug_report</span>
+                  <span class="v1-wizard-failure-log-title">Why {result()!.failed} items failed</span>
+                  <button
+                    type="button"
+                    class="v1-wizard-copy-btn focus-ring"
+                    onClick={() => {
+                      const text = result()!.failureLog
+                        .map((f) => `- ${f.title ?? "(no title)"}: ${f.reason}`)
+                        .join("\n");
+                      navigator.clipboard?.writeText(text).then(
+                        () => showToast("Error details copied to clipboard", "success", 2000),
+                        () => showToast("Could not copy — your browser blocked clipboard access", "error", 3000),
+                      );
+                    }}
+                    aria-label="Copy error details"
+                  >
+                    <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">content_copy</span>
+                    Copy
+                  </button>
+                </div>
+                <div class="v1-wizard-failure-log-list">
+                  <For each={result()!.failureLog.slice(0, 8)}>
+                    {(f) => (
+                      <div class="v1-wizard-failure-log-item">
+                        <span class="v1-wizard-failure-log-item-title">{f.title ?? "(no title)"}</span>
+                        <span class="v1-wizard-failure-log-item-reason">{f.reason}</span>
+                      </div>
+                    )}
+                  </For>
+                  <Show when={result()!.failureLog.length > 8}>
+                    <p class="v1-wizard-failure-log-more">
+                      + {result()!.failureLog.length - 8} more — tap “Copy” to see all.
+                    </p>
+                  </Show>
+                </div>
+              </div>
+            </Show>
             <div class="v1-wizard-actions">
               <button class="btn-primary focus-ring" onClick={handleFinish}>
                 <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">check</span>
