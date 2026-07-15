@@ -31,6 +31,9 @@ import SyncHistoryTimeline from "~/features/sync/components/SyncHistoryTimeline"
 import StorageStats from "~/features/sync/components/StorageStats";
 import PrivacyCard from "~/features/sync/components/PrivacyCard";
 import DangerZoneCard from "~/features/sync/components/DangerZoneCard";
+import CsvExportCard from "~/features/sync/components/CsvExportCard";
+import CsvImportCard from "~/features/sync/components/CsvImportCard";
+import SyncCadenceCard from "~/features/sync/components/SyncCadenceCard";
 
 const SyncRoute: Component = () => {
   const { isSignedIn } = useAuth();
@@ -73,16 +76,26 @@ const SyncRoute: Component = () => {
                 <CloudStatusCard />
               </section>
 
+              {/* 1b. SYNC CADENCE */}
+              <section class="sec-section">
+                <p class="sec-section-label">Sync Cadence</p>
+                <SyncCadenceCard />
+              </section>
+
               {/* 2. IMPORT */}
               <section class="sec-section">
                 <p class="sec-section-label">Import</p>
                 <ImportHub />
+                <p class="sec-section-label" style={{ "margin-top": "var(--sp-4)" }}>Import from CSV</p>
+                <CsvImportCard />
               </section>
 
               {/* 3. BACKUP */}
               <section class="sec-section">
                 <p class="sec-section-label">Backup &amp; Restore</p>
                 <BackupCards />
+                <p class="sec-section-label" style={{ "margin-top": "var(--sp-4)" }}>Export as CSV</p>
+                <CsvExportCard />
               </section>
 
               {/* 4. DEVICES */}

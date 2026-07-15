@@ -36,6 +36,7 @@ import {
   getWatchProviderListTv,
 } from "~/core/tmdb/discover";
 import type { TMDBTitle } from "~/shared/types";
+import { streamingProviders } from "~/core/preferences";
 import PremiumEmptyState from "./PremiumEmptyState";
 import {
   buildPrimaryProviders,
@@ -168,10 +169,25 @@ const OttSection: Component<OttSectionProps> = (props) => {
 
   // Default to Netflix on first mount (only if Netflix is available).
   // Falls back to the first available primary provider.
+  //
+  // WIRING (v2 settings redesign): If the user has selected streaming
+  // providers in Content & Discover settings, prefer the FIRST one that
+  // is available in the current region. This makes the OTT section start
+  // on a provider the user actually subscribes to.
   createEffect(() => {
     if (selectedProviderId() !== null) return;
     const primaries = primaryProviders();
     if (primaries.length === 0) return;
+    const userProviders = streamingProviders();
+    if (userProviders.length > 0) {
+      // Find the first user-subscribed provider that exists in this region
+      const userPrimary = primaries.find((p) => userProviders.includes(String(p.primaryTmdbId)));
+      if (userPrimary) {
+        setSelectedProviderId(userPrimary.primaryTmdbId);
+        return;
+      }
+    }
+    // No user preference, or none of their providers are available — default to Netflix
     const netflix = primaries.find((p) => p.canonical === "netflix");
     setSelectedProviderId((netflix ?? primaries[0]).primaryTmdbId);
   });

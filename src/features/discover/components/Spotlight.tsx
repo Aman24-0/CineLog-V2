@@ -1,6 +1,7 @@
 // src/features/discover/components/Spotlight.tsx
 import { Show, createSignal, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { formatRating } from "~/core/preferences";
 import { Button } from "~/shared/ui/primitives";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { SpotlightPick, WatchlistItem } from "~/shared/types";
@@ -150,8 +151,8 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             </Show>
             <span class="v2-pill">{mediaLabel()}</span>
             <Show when={imdb()}>
-              <span class="v2-pill" style={{ color: "#f5c518", "border-color": "rgba(245,197,24,0.25)" }}>
-                ★ {imdb()}
+              <span class="v2-pill" style={{ color: "#f5c518", "border-color": "rgba(245,197,24,0.25)" }} data-rating-display="true">
+                {formatRating(pick()?.title.vote_average)}
               </span>
             </Show>
             <Show when={vaultStatusLabel()}>

@@ -11,7 +11,7 @@ import type {
   TMDBWatchProviderResponse,
 } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
-import { applyPosterQuality } from "~/core/preferences";
+import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/core/preferences";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -30,13 +30,39 @@ export const tmdbImage = (
   size: "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original" = "w500"
 ): string => (path ? `${IMG_BASE}/${applyPosterQuality(size)}${path}` : "");
 
-/** Cached fetch helper for TMDB JSON endpoints. */
+/**
+ * Cached fetch helper for TMDB JSON endpoints.
+ *
+ * WIRING (v2 settings redesign):
+ *   • Language preference: replaces `language=en-US` in the endpoint with
+ *     the user's chosen primary language from `effectiveTMDBLanguage()`.
+ *   • Adult content filter: appends `include_adult=false` to endpoints
+ *     that don't already have it, when the user has the filter on.
+ *
+ * Both transformations happen here so all call sites benefit without
+ * needing to pass language/adult flags explicitly.
+ */
 async function tmdbFetch<T>(endpoint: string): Promise<T> {
+  // Apply language preference: replace language=en-US with user's choice
+  let finalEndpoint = endpoint;
+  const userLang = effectiveTMDBLanguage();
+  if (userLang && userLang !== "en") {
+    // Convert "hi" → "hi-IN" style where appropriate; TMDB accepts both
+    finalEndpoint = finalEndpoint.replace(/language=en-US/g, `language=${userLang}`);
+  }
+
+  // Apply adult filter: if not already in the endpoint, append it.
+  // Discover endpoints (with_genres, sort_by, etc.) respect include_adult.
+  // Details endpoints also accept include_adult for credits/videos.
+  if (!/[?&]include_adult=/.test(finalEndpoint)) {
+    finalEndpoint += `&include_adult=${tmdbIncludeAdult() ? "true" : "false"}`;
+  }
+
   return cachedFetch(
-    buildCacheKey(`tmdb:${endpoint}`),
+    buildCacheKey(`tmdb:${finalEndpoint}`),
     TMDB_TTL,
     async () => {
-      const res = await fetch(`${API}${endpoint}&api_key=${TMDB_KEY}`);
+      const res = await fetch(`${API}${finalEndpoint}&api_key=${TMDB_KEY}`);
       if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
       return res.json() as Promise<T>;
     }

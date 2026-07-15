@@ -1,0 +1,149 @@
+// src/routes/settings/calendar.tsx
+//
+// Calendar preferences — first day of week, time format, release timezone, default view.
+//
+// All preferences are persisted via src/core/preferences (calPrefs signal).
+
+import { Title } from "@solidjs/meta";
+import { type Component } from "solid-js";
+import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { ControlRow, Segmented, SelectRow } from "~/features/settings/sharedControls";
+import {
+  calPrefs,
+  updateCalPref,
+  type FirstDayOfWeek,
+  type TimeFormat,
+  type CalendarView,
+  type CalendarPrefs,
+} from "~/core/preferences";
+
+const FIRST_DAY_OPTIONS: { id: FirstDayOfWeek; label: string }[] = [
+  { id: 0, label: "Sun" },
+  { id: 1, label: "Mon" },
+  { id: 6, label: "Sat" },
+];
+
+const TIME_FORMAT_OPTIONS: { id: TimeFormat; label: string }[] = [
+  { id: "24h", label: "24h" },
+  { id: "12h", label: "12h" },
+];
+
+const DEFAULT_VIEW_OPTIONS: { id: CalendarView; label: string }[] = [
+  { id: "week",   label: "Week" },
+  { id: "month",  label: "Month" },
+  { id: "agenda", label: "Agenda" },
+];
+
+const TZ_OPTIONS = [
+  { value: "local",       label: "My local time (auto)" },
+  { value: "us-east",     label: "US Eastern (ET) — Netflix/HBO default" },
+  { value: "us-pacific",  label: "US Pacific (PT) — Apple TV+ default" },
+  { value: "utc",         label: "UTC" },
+];
+
+const CalendarRoute: Component = () => {
+  return (
+    <>
+      <Title>CineLog — Calendar</Title>
+      <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+        <ScrollToTop />
+        <div class="sec-page sec-fade-in">
+          <div class="sec-header">
+            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
+              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+              Settings
+            </a>
+            <p class="sec-eyebrow">Settings</p>
+            <h1 class="sec-title">Calendar</h1>
+            <p class="sec-subtitle">
+              How upcoming releases and air times are shown on the Upcoming page.
+            </p>
+          </div>
+
+          <div class="sec-body">
+            {/* Week */}
+            <section class="sec-section" style={{ "margin-top": "0" }}>
+              <p class="sec-section-label">Week</p>
+              <div class="setting-group">
+                <ControlRow
+                  icon="view_week"
+                  label="First day of week"
+                  desc="Affects the Upcoming page's week view — week rows start on this day."
+                >
+                  <Segmented
+                    options={FIRST_DAY_OPTIONS}
+                    current={() => calPrefs().firstDayOfWeek}
+                    onChange={(id) => updateCalPref("firstDayOfWeek", id)}
+                    name="First day of week"
+                  />
+                </ControlRow>
+              </div>
+            </section>
+
+            {/* Time format */}
+            <section class="sec-section">
+              <p class="sec-section-label">Time Format</p>
+              <div class="setting-group">
+                <ControlRow
+                  icon="schedule"
+                  label="12-hour or 24-hour"
+                  desc="How air times are displayed across the app (e.g. 9:00 PM vs 21:00)."
+                >
+                  <Segmented
+                    options={TIME_FORMAT_OPTIONS}
+                    current={() => calPrefs().timeFormat}
+                    onChange={(id) => updateCalPref("timeFormat", id)}
+                    name="Time format"
+                  />
+                </ControlRow>
+              </div>
+            </section>
+
+            {/* Release timezone */}
+            <section class="sec-section">
+              <p class="sec-section-label">Release Timezone</p>
+              <div class="setting-group">
+                <SelectRow
+                  icon="schedule_send"
+                  label="Air time timezone"
+                  desc="Streaming platforms release new episodes at different times. Choose which timezone to display air times in."
+                  value={() => calPrefs().releaseTimezone}
+                  onChange={(v) => updateCalPref("releaseTimezone", v as CalendarPrefs["releaseTimezone"])}
+                  options={TZ_OPTIONS}
+                />
+              </div>
+              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
+                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <p class="info-callout-body">
+                  <strong>Why this matters:</strong> Netflix typically drops new episodes at midnight Pacific Time, HBO Max at 9 PM Eastern, Apple TV+ at midnight Pacific. If you're in India and want to know "when can I watch this", select "My local time" and CineLog converts the air time for you.
+                </p>
+              </div>
+            </section>
+
+            {/* Default view */}
+            <section class="sec-section">
+              <p class="sec-section-label">Default View</p>
+              <div class="setting-group">
+                <ControlRow
+                  icon="calendar_view_week"
+                  label="Default calendar view"
+                  desc="Which view the Upcoming page opens to: Week, Month, or Agenda (list of upcoming episodes)."
+                >
+                  <Segmented
+                    options={DEFAULT_VIEW_OPTIONS}
+                    current={() => calPrefs().defaultView}
+                    onChange={(id) => updateCalPref("defaultView", id)}
+                    name="Default calendar view"
+                  />
+                </ControlRow>
+              </div>
+            </section>
+          </div>
+        </div>
+      </PageContainer>
+    </>
+  );
+};
+
+export default CalendarRoute;

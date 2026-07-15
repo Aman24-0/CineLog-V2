@@ -2942,3 +2942,217 @@
 }
 
 
+
+/* ============================================================
+   NEW SETTINGS SUB-PAGE CONTROLS (v2 settings redesign)
+   .settings-select — native dropdown styled to match design system
+   .settings-time-input — native time picker styled
+   .provider-chip-grid — streaming provider multi-select grid
+   .provider-chip — single provider tile (toggleable)
+   .info-callout — informational inline notice
+   .sec-section-label-danger — red label for danger zones
+   ============================================================ */
+
+.settings-select {
+  appearance: none;
+  -webkit-appearance: none;
+  background: var(--tier-3);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12' fill='none'%3E%3Cpath d='M2 4l4 4 4-4' stroke='%23888' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 12px;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  min-width: 140px;
+  max-width: 60%;
+}
+.settings-select:hover {
+  border-color: var(--p);
+  background-color: var(--tier-4);
+}
+.settings-select:focus {
+  outline: none;
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-glow);
+}
+.settings-select option {
+  background: var(--tier-2);
+  color: var(--text-strong);
+}
+
+.settings-time-input {
+  background: var(--tier-3);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  padding: 0.5rem 0.75rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: border-color var(--dur-fast) var(--ease-out);
+  min-width: 100px;
+}
+.settings-time-input:hover {
+  border-color: var(--p);
+}
+.settings-time-input:focus {
+  outline: none;
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-glow);
+}
+.settings-time-input::-webkit-calendar-picker-indicator {
+  filter: var(--icon-filter, none);
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+/* Streaming provider chip grid */
+.provider-chip-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+.provider-chip {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-sm);
+  background: var(--tier-2);
+  border: 2px solid var(--hairline);
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text-body);
+  text-align: left;
+  width: 100%;
+}
+.provider-chip:hover {
+  background: var(--tier-3);
+  border-color: var(--hairline-2);
+  transform: translateY(-1px);
+}
+.provider-chip[data-active="true"] {
+  background: var(--p-dim);
+  border-color: var(--p);
+  color: var(--text-strong);
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.provider-chip-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-xs);
+  background: var(--tier-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 14px;
+  color: var(--text-strong);
+  font-weight: 700;
+}
+.provider-chip-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.provider-chip-check {
+  color: var(--p);
+  font-size: 16px;
+  flex-shrink: 0;
+}
+.provider-chip[data-active="false"] .provider-chip-check {
+  display: none;
+}
+
+/* Inline info callout */
+.info-callout {
+  display: flex;
+  gap: var(--sp-3);
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--tier-2);
+  border-left: 3px solid var(--p);
+  border-radius: var(--radius-sm);
+  font-size: 0.8125rem;
+  color: var(--text-body);
+  line-height: 1.5;
+}
+.info-callout-icon {
+  flex-shrink: 0;
+  color: var(--p);
+}
+.info-callout-body {
+  flex: 1;
+}
+.info-callout-body strong {
+  color: var(--text-strong);
+}
+
+/* Stat line — used on About page for version/env display */
+.stat-line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.625rem var(--sp-5);
+  border-bottom: 1px solid var(--hairline);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+}
+.stat-line:last-child {
+  border-bottom: none;
+}
+.stat-line-key {
+  color: var(--text-muted);
+  font-weight: 500;
+}
+.stat-line-value {
+  color: var(--text-strong);
+  font-weight: 600;
+  font-family: 'Söhne Mono', 'Outfit', monospace;
+  font-size: 0.8125rem;
+}
+
+/* Settings link button (secondary action button on sub-pages) */
+.settings-link-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 0.625rem var(--sp-4);
+  background: var(--tier-3);
+  color: var(--text-strong);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: none;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.settings-link-btn:hover {
+  background: var(--tier-4);
+  border-color: var(--p);
+  color: var(--p);
+}
+
+/* Hide ratings in screenshots — applied via [data-ss-hidden="true"] on <html> */
+html[data-ss-hidden="true"] .rating-pill,
+html[data-ss-hidden="true"] .v2-pill,
+html[data-ss-hidden="true"] [data-rating-display] {
+  filter: blur(8px);
+  opacity: 0.6;
+  transition: filter var(--dur-fast) var(--ease-out);
+}

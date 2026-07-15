@@ -10,6 +10,8 @@ import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 
+import { defaultVaultStatus } from "~/core/preferences";
+
 import type { Accessor } from "solid-js";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -74,7 +76,7 @@ export function useDiscoverActions(
         media_type: title.media_type,
         poster_path: title.poster_path,
         backdrop_path: title.backdrop_path,
-        status: "Planned",
+        status: defaultVaultStatus(),
         release_date: title.release_date,
         first_air_date: title.first_air_date,
         genresList: normalizeGenres(title.genres as unknown[]),
