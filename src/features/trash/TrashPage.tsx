@@ -6,6 +6,7 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { formatDateShort } from "~/shared/utils/format";
 import {
   fetchTrashedVaultItems,
   fetchTrashedCollections,
@@ -86,14 +87,9 @@ export default function TrashPage() {
 
   const totalCount = createMemo(() => vaultItems().length + collections().length);
 
-  /** Format an ISO date as "Jul 14, 2026". */
-  const formatDate = (iso: string): string => {
-    try {
-      return new Date(iso).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-    } catch {
-      return iso;
-    }
-  };
+  /** Format an ISO date as "Jul 14, 2026". Delegates to the shared
+   *  formatDateShort helper so the format stays consistent across the app. */
+  const formatDate = (iso: string): string => formatDateShort(iso) ?? iso;
 
   /** Days remaining until auto-purge. Returns "Today" if <= 0. */
   const daysRemaining = (expiresAt: string): string => {

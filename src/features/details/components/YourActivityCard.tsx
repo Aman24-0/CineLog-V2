@@ -2,6 +2,7 @@
 import { Show, For, Component, createSignal, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
 import type { WatchlistItem } from "~/shared/types";
+import { formatDateShort } from "~/shared/utils/format";
 
 interface YourActivityCardProps {
   /** User-owned vault item — always present (parent gates on vaultItem) */
@@ -137,23 +138,19 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       }
       if (candidates.length > 0) {
         const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
-        return latest.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+        return formatDateShort(latest);
       }
       // Fall back to flat watchDate if no season dates set
       if (props.vaultItem.watchDate) {
-        const d = new Date(props.vaultItem.watchDate);
-        if (!isNaN(d.getTime())) {
-          return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-        }
+        const formatted = formatDateShort(props.vaultItem.watchDate);
+        if (formatted) return formatted;
       }
       return null;
     }
     // Movie
     const raw = props.vaultItem.watchDate || props.vaultItem.rewatchDates?.[0] || "";
     if (!raw) return null;
-    const d = new Date(raw);
-    if (isNaN(d.getTime())) return raw;
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    return formatDateShort(raw) ?? raw;
   };
 
   /**
@@ -163,6 +160,24 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
    *   re-watch pass (per-season).
    */
   type DialogEntry = { label: string; date: string | null; isHeader?: boolean };
+
+  /**
+   * Format a { start, end } season entry as "Sep 3, 2024 → Sep 6, 2024".
+   * Handles partial dates (start only → "Sep 3, 2024 → …", end only →
+   * "… → Sep 6, 2024"). Returns null when neither date is set.
+   *
+   * Used for both the original watch and each re-watch pass.
+   */
+  const formatSeasonRange = (entry: { start?: string; end?: string } | undefined): string | null => {
+    if (!entry) return null;
+    const startStr = entry.start ? formatDateShort(entry.start) : null;
+    const endStr = entry.end ? formatDateShort(entry.end) : null;
+    if (startStr && endStr) return `${startStr} → ${endStr}`;
+    if (startStr) return `${startStr} → …`;
+    if (endStr) return `… → ${endStr}`;
+    return null;
+  };
+
   const dialogEntries = createMemo<DialogEntry[]>(() => {
     if (isSeries()) {
       const out: DialogEntry[] = [];
@@ -178,19 +193,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         out.push({ label: "No season dates set", date: null });
       } else {
         for (const s of seasonNumbers) {
-          const entry = seasonDates[String(s)];
-          const startStr = entry?.start
-            ? new Date(entry.start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : null;
-          const endStr = entry?.end
-            ? new Date(entry.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-            : null;
-          const dateStr = startStr && endStr
-            ? `${startStr} → ${endStr}`
-            : startStr ? `${startStr} → …`
-            : endStr ? `… → ${endStr}`
-            : null;
-          out.push({ label: `Season ${s}`, date: dateStr });
+          out.push({ label: `Season ${s}`, date: formatSeasonRange(seasonDates[String(s)]) });
         }
       }
 
@@ -207,19 +210,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           out.push({ label: "No season dates set", date: null });
         } else {
           for (const s of passSeasons) {
-            const entry = pass[String(s)];
-            const startStr = entry?.start
-              ? new Date(entry.start).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-              : null;
-            const endStr = entry?.end
-              ? new Date(entry.end).toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" })
-              : null;
-            const dateStr = startStr && endStr
-              ? `${startStr} → ${endStr}`
-              : startStr ? `${startStr} → …`
-              : endStr ? `… → ${endStr}`
-              : null;
-            out.push({ label: `Season ${s}`, date: dateStr });
+            out.push({ label: `Season ${s}`, date: formatSeasonRange(pass[String(s)]) });
           }
         }
       }
@@ -231,16 +222,9 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
     const out: DialogEntry[] = [];
     for (let i = 0; i <= count; i++) {
       const raw = dates[i];
-      let formatted: string | null = null;
-      if (raw) {
-        const d = new Date(raw);
-        formatted = isNaN(d.getTime())
-          ? raw
-          : d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
-      }
       out.push({
         label: i === 0 ? "1st Watch" : `Re-watch ${i}`,
-        date: formatted,
+        date: raw ? (formatDateShort(raw) ?? raw) : null,
       });
     }
     return out;
@@ -261,14 +245,12 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   const dateAdded = () => {
     const added = props.vaultItem.addedAt;
     if (!added) return null;
-    let ms: number;
-    if (added instanceof Date) ms = added.getTime();
-    else if (typeof added === "string") ms = new Date(added).getTime();
-    else if (typeof added === "object" && "seconds" in added) ms = added.seconds * 1000;
-    else return null;
-    if (isNaN(ms)) return null;
-    const d = new Date(ms);
-    return d.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    // Handle Firestore Timestamp shape ({ seconds, nanoseconds }) by
+    // converting to ms before delegating to formatDateShort.
+    if (typeof added === "object" && added !== null && "seconds" in added) {
+      return formatDateShort(new Date(added.seconds * 1000));
+    }
+    return formatDateShort(added);
   };
 
   return (
