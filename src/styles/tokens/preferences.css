@@ -39,9 +39,11 @@
     --font-scale: 1;
     /* AppHeader total height — used by sticky elements (e.g. discover
        search bar) to stick BELOW the header without overlapping it.
-       0.875rem padding-top + 1.5rem wordmark + 0.875rem padding-bottom
-       = 3.25rem, plus safe-area-inset-top for iOS notch / PWA chrome. */
-    --app-header-height: calc(3.25rem + env(safe-area-inset-top, 0px));
+       Layout: 0.875rem padding-top + 2.5rem avatar-pill (2rem h-8 avatar
+       + 0.25rem padding × 2 — the pill is taller than the 1.5rem wordmark,
+       so it wins) + 0.875rem padding-bottom = 4.25rem, plus
+       safe-area-inset-top for iOS notch / PWA chrome. */
+    --app-header-height: calc(4.25rem + env(safe-area-inset-top, 0px));
   }
   html {
     font-size: calc(16px * var(--font-scale));

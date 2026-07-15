@@ -40,7 +40,7 @@
 //  17. Coming Soon
 //  18. Guest Sign-in CTA
 //
-// Editorial cards are inserted between sections to break up visual repetition.
+// Editorial cards (Tonight's Pick / Hidden Masterpiece) were removed per spec.
 //
 // REGION: every section reads from `getDiscoverRegion()` (the single
 // source of truth in `core/config/discoverRegion`). Future Settings →
@@ -64,7 +64,6 @@ import Spotlight from "./components/Spotlight";
 import DiscoverRail from "./components/DiscoverRail";
 import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
-import EditorialCard from "./components/EditorialCard";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import LazyMount from "./components/LazyMount";
 import PremiumEmptyState from "./components/PremiumEmptyState";
@@ -267,31 +266,6 @@ export default function DiscoverPage() {
     if (feeds.trending().length > 0 && weekendTitles().length === 0 && !weekendLoading()) fetchWeekendPick(0);
   });
 
-  // === Editorial Cards ===
-  // Generate dynamic editorial copy from movie metadata
-  const editorial1 = createMemo(() => {
-    const t = feeds.trending()[0];
-    if (!t) return null;
-    const year = (t.release_date || "").split("-")[0];
-    return {
-      title: t,
-      label: "Tonight's Pick",
-      icon: "popcorn",
-      copy: `${t.title || t.name || "This title"} is trending right now${year ? ` (${year})` : ""}${t.vote_average ? ` with a ${t.vote_average.toFixed(1)} rating` : ""}. Perfect for tonight.`,
-    };
-  });
-
-  const editorial2 = createMemo(() => {
-    const t = feeds.hiddenGems()[0];
-    if (!t) return null;
-    return {
-      title: t,
-      label: "Hidden Masterpiece",
-      icon: "diamond",
-      copy: `A critically acclaimed gem with a ${t.vote_average?.toFixed(1) ?? "high"} rating that deserves more attention. ${t.title || t.name || ""} is a true hidden masterpiece.`,
-    };
-  });
-
   // === Insight Strip ===
   const insightCards = createMemo(() => {
     const cards: { icon: string; text: string }[] = [];
@@ -446,15 +420,6 @@ export default function DiscoverPage() {
             </DiscoverSection>
           </ErrorBoundary>
 
-          {/* EDITORIAL CARD 1 */}
-          <Show when={editorial1()}>
-            {(ed) => (
-              <ErrorBoundary fallback={() => <div />}>
-                <EditorialCard title={ed().title} label={ed().label} icon={ed().icon} copy={ed().copy} onDetails={handleOpenTitle} />
-              </ErrorBoundary>
-            )}
-          </Show>
-
           {/* 5. IN THEATRES NOW */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
             <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && feeds.nowPlaying().length === 0}>
@@ -553,15 +518,6 @@ export default function DiscoverPage() {
                 <DiscoverRail titles={differentTitles()} onSelect={handleOpenTitle} emptyText="Try adding more titles to your watchlist for personalized recommendations." emptyIcon="explore" />
               </DiscoverSection>
             </ErrorBoundary>
-          </Show>
-
-          {/* EDITORIAL CARD 2 */}
-          <Show when={editorial2()}>
-            {(ed) => (
-              <ErrorBoundary fallback={() => <div />}>
-                <EditorialCard title={ed().title} label={ed().label} icon={ed().icon} copy={ed().copy} onDetails={handleOpenTitle} />
-              </ErrorBoundary>
-            )}
           </Show>
 
           {/* 10. HIDDEN GEMS */}

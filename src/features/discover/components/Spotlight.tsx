@@ -194,10 +194,14 @@ const Spotlight: Component<SpotlightProps> = (props) => {
                 aria-label={`Add ${title()} to your vault`}
                 style={{
                   /* Slightly de-emphasized vs. Details so Details stays primary CTA,
-                     but still clearly a primary action (not ghost). */
-                  background: "rgba(255,255,255,0.06)",
-                  color: "var(--text-strong)",
-                  "box-shadow": "0 0 0 1px var(--hairline-3), 0 2px 8px rgba(0,0,0,0.4)",
+                     but still clearly a primary action (not ghost).
+                     IMPORTANT: this button sits on the Spotlight's dark cinematic
+                     backdrop (brightness(0.62) + dark gradient overlay) in BOTH
+                     themes — so we use fixed light values, NOT var(--text-strong),
+                     which would become dark ink in light mode and disappear. */
+                  background: "rgba(255,255,255,0.12)",
+                  color: "#FFFFFF",
+                  "box-shadow": "0 0 0 1px rgba(255,255,255,0.22), 0 2px 8px rgba(0,0,0,0.4)",
                   "backdrop-filter": "blur(12px)"
                 }}
               >
