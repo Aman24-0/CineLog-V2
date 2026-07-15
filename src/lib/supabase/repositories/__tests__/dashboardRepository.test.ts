@@ -194,8 +194,14 @@ describe("dashboard.utils", () => {
       expect(VAULT_DASHBOARD_COLUMNS).toContain("user_id");
     });
 
-    it("excludes notes (heavy column)", () => {
-      expect(VAULT_DASHBOARD_COLUMNS).not.toContain("notes");
+    it("includes notes and season_dates (needed by UI)", () => {
+      // notes + season_dates + rewatch fields are now included so the
+      // edit form's season date pickers, the notes preview, and the
+      // rewatch badge all work without a second fetch.
+      expect(VAULT_DASHBOARD_COLUMNS).toContain("notes");
+      expect(VAULT_DASHBOARD_COLUMNS).toContain("season_dates");
+      expect(VAULT_DASHBOARD_COLUMNS).toContain("rewatch_dates");
+      expect(VAULT_DASHBOARD_COLUMNS).toContain("season_rewatch_dates");
     });
   });
 

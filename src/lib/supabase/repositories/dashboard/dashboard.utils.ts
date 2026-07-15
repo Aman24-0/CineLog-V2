@@ -70,12 +70,25 @@ export const CONTINUE_WATCHING_OR_FILTER = "watched_on.is.null,completed_at.is.n
 // ---------------------------------------------------------------------------
 
 /**
- * Compact column list for vault rows returned to the dashboard.
- * Excludes heavy / rarely-needed columns (`notes`) to keep payloads
- * small. The full row is still available via the VaultRepository.
+ * Column list for vault rows returned to the dashboard.
+ *
+ * Includes ALL user-owned columns so that `vaultRowToWatchlistItem` can
+ * populate every field the UI needs (seasonDates, rewatchDates, notes,
+ * etc.) without a second fetch. Previously this excluded `notes`,
+ * `season_dates`, `rewatch_dates`, `season_rewatch_count`, and
+ * `season_rewatch_dates` to "keep payloads small" — but that meant the
+ * edit form's season date pickers were always empty, the rewatch badge
+ * never appeared, and the notes preview was missing for items loaded
+ * via the dashboard path (which is the ONLY path the main UI uses).
+ *
+ * The payload cost is small (season_dates is jsonb, typically < 200
+ * bytes per item; rewatch_dates is a short text array) and is dwarfed
+ * by the TMDB metadata fetch that follows. Fetching all columns in one
+ * query is far cheaper than the N+1 pattern that would otherwise be
+ * needed to fill in the missing fields.
  */
 export const VAULT_DASHBOARD_COLUMNS =
-  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,rewatch_count,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at" as const;
+  "id,user_id,tmdb_id,media_type,status,is_favorite,is_pinned,rating,notes,rewatch_count,rewatch_dates,progress_minutes,watched_on,started_at,completed_at,last_activity_at,created_at,updated_at,deleted_at,season_dates,season_rewatch_count,season_rewatch_dates" as const;
 
 /**
  * Compact column list for collection rows returned to the dashboard.
