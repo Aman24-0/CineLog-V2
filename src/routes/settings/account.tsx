@@ -1,8 +1,41 @@
 // src/routes/settings/account.tsx
+//
+// AccountRoute — the upgraded Account page.
+//
+// STRUCTURE (per spec):
+//
+//   ┌─ Account Details ─────────────────────────────────┐
+//   │  • Name (editable inline)                         │
+//   │  • Email address (tap → UpdateEmailSheet)         │
+//   │  • Country setting (dropdown, drives Discover)    │
+//   │  • Joined date (read-only)                        │
+//   │  • Deactivate / Delete account                    │
+//   └────────────────────────────────────────────────────┘
+//
+//   ┌─ Security ────────────────────────────────────────┐
+//   │  A. Login methods                                 │
+//   │     1. Email & Password                           │
+//   │        • Update email                             │
+//   │        • Change password                          │
+//   │     2. Google — connect / disconnect              │
+//   │     3. Apple — connect / disconnect               │
+//   │  B. Two-factor authentication (coming soon)       │
+//   │  C. Session management (sign out everywhere)      │
+//   │  D. Login history (coming soon)                   │
+//   └────────────────────────────────────────────────────┘
+//
+// Each row is a button — tapping it opens the relevant sheet or
+// toggles the relevant state. The page reads the live `user()`
+// signal from useAuth, so any change made inside a sheet
+// immediately reflects back here.
+
 import { Title } from "@solidjs/meta";
-import { Show, For, createMemo, createSignal, createEffect, type Component } from "solid-js";
+import {
+  Show, For, createMemo, createSignal, createEffect, onMount, type Component,
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
+import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
@@ -14,13 +47,23 @@ import {
   findCountry,
   DEFAULT_COUNTRY_CODE,
 } from "~/shared/data/countryLanguages";
+import {
+  linkProvider,
+  unlinkProvider,
+  getUserIdentities,
+  signOutGlobal,
+  type AccountActionResult,
+} from "~/features/account/accountActions";
+import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
+import ChangePasswordSheet from "~/features/account/components/ChangePasswordSheet";
+import DeactivateAccountSheet from "~/features/account/components/DeactivateAccountSheet";
+import type { UserIdentity } from "@supabase/supabase-js";
 
-/** All auth providers CineLog supports, with display metadata. */
-const ALL_PROVIDERS: { id: string; label: string; icon: string }[] = [
+/** All OAuth providers CineLog knows about, with display metadata. */
+const OAUTH_PROVIDERS: { id: "google" | "apple" | "github"; label: string; icon: string }[] = [
   { id: "google", label: "Google", icon: "login" },
-  { id: "email", label: "Email & Password", icon: "mail" },
-  { id: "github", label: "GitHub", icon: "code" },
   { id: "apple", label: "Apple", icon: "apple" },
+  { id: "github", label: "GitHub", icon: "code" },
 ];
 
 const AccountRoute: Component = () => {
@@ -29,26 +72,68 @@ const AccountRoute: Component = () => {
   const profileRepo = useProfile();
   const { showToast } = useToast();
 
-  // Local copy of the country — initialised from the profile row.
-  // We keep a local signal so the dropdown feels instant even before
-  // the Supabase write resolves; we re-sync when the profile loads.
+  // ── Profile row state ───────────────────────────────────────────
+  // Local mirrors of profile fields so the UI feels instant even
+  // before the Supabase write resolves.
   const [country, setCountry] = createSignal<string>(DEFAULT_COUNTRY_CODE);
   const [savingCountry, setSavingCountry] = createSignal(false);
+  const [displayName, setDisplayName] = createSignal<string>("");
+  const [editingName, setEditingName] = createSignal(false);
+  const [savingName, setSavingName] = createSignal(false);
+  const [nameInput, setNameInput] = createSignal("");
+  const [identities, setIdentities] = createSignal<UserIdentity[] | null>(null);
+  const [linkingProvider, setLinkingProvider] = createSignal<string | null>(null);
+  const [unLinkingProvider, setUnlinkingProvider] = createSignal<string | null>(null);
+  const [signingOutEverywhere, setSigningOutEverywhere] = createSignal(false);
 
-  // Load the profile row to get the user's saved country. We do this
-  // client-side because the page is already client-only (auth-gated).
+  // ── Sheet open state ────────────────────────────────────────────
+  const [showEmailSheet, setShowEmailSheet] = createSignal(false);
+  const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
+  const [showDeactivateSheet, setShowDeactivateSheet] = createSignal(false);
+  const [deactivateMode, setDeactivateMode] = createSignal<"deactivate" | "delete">("deactivate");
+
+  // Load the profile row to get country + display name.
   createEffect(() => {
     const uid = user()?.uid;
     if (!uid) return;
     void profileRepo.getProfile(uid).then((res) => {
       if (res.data?.country) {
         setCountry(res.data.country);
-        // Keep the discoverRegion module in sync so the Discover /
-        // Upcoming pages pick up the right region on next mount.
         setDiscoverRegion(res.data.country);
+      }
+      if (res.data?.display_name) {
+        setDisplayName(res.data.display_name);
       }
     });
   });
+
+  // Load the user's OAuth identities so we can show "Connected" /
+  // "Disconnect" buttons for each provider. The `user().providers`
+  // array tells us which providers are linked, but to UNLINK we
+  // need the identity_id from the getUserIdentities() call.
+  onMount(() => {
+    void refreshIdentities();
+  });
+
+  const refreshIdentities = async () => {
+    const ids = await getUserIdentities();
+    setIdentities(ids);
+  };
+
+  // Helper: is the given provider currently linked?
+  const isProviderLinked = (providerId: string): boolean => {
+    const providers = user()?.providers ?? [];
+    return providers.includes(providerId);
+  };
+
+  // Helper: find the UserIdentity for a given provider (for unlink).
+  const identityForProvider = (providerId: string): UserIdentity | null => {
+    const ids = identities();
+    if (!ids) return null;
+    return ids.find((i) => i.provider === providerId) ?? null;
+  };
+
+  // ── Handlers ────────────────────────────────────────────────────
 
   const handleSaveCountry = async (newCountry: string) => {
     const uid = user()?.uid;
@@ -59,11 +144,8 @@ const AccountRoute: Component = () => {
     setCountry(newCountry);
     setSavingCountry(true);
     try {
-      // 1. Persist to the profile row.
       const { error } = await profileRepo.updateProfile(uid, { country: newCountry });
       if (error) throw error;
-      // 2. Update the in-memory discoverRegion so Discover / Upcoming
-      //    pages re-fetch with the new region on next mount.
       setDiscoverRegion(newCountry);
       showToast(`Country set to ${countryLabel(newCountry)}`, "success", 1800);
     } catch (err) {
@@ -74,25 +156,107 @@ const AccountRoute: Component = () => {
     }
   };
 
+  const handleStartEditName = () => {
+    setNameInput(displayName() || user()?.displayName || "");
+    setEditingName(true);
+  };
+
+  const handleSaveName = async () => {
+    const uid = user()?.uid;
+    if (!uid) {
+      showToast("Sign in to update your name.", "error");
+      return;
+    }
+    const trimmed = nameInput().trim();
+    if (!trimmed) {
+      showToast("Name can't be empty.", "error");
+      return;
+    }
+    if (trimmed.length > 60) {
+      showToast("Name is too long (max 60).", "error");
+      return;
+    }
+    setSavingName(true);
+    try {
+      const { error } = await profileRepo.updateProfile(uid, { displayName: trimmed });
+      if (error) throw error;
+      setDisplayName(trimmed);
+      setEditingName(false);
+      showToast("Name updated.", "success", 1500);
+    } catch (err) {
+      console.error("[account] Failed to save name:", err);
+      showToast("Failed to save name. Try again.", "error");
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleCancelEditName = () => {
+    setEditingName(false);
+    setNameInput("");
+  };
+
+  /** Connect a new OAuth provider (linkIdentity). */
+  const handleLinkProvider = async (providerId: "google" | "apple" | "github") => {
+    setLinkingProvider(providerId);
+    // linkProvider redirects the browser — if it returns without
+    // redirecting, something failed (toast already shown inside).
+    const result: AccountActionResult = await linkProvider(providerId);
+    setLinkingProvider(null);
+    if (result.success) {
+      // Page will reload on redirect — no further action needed.
+      // If we somehow get here without a redirect, refresh identities.
+      await refreshIdentities();
+    }
+  };
+
+  /** Disconnect an OAuth identity (unlinkIdentity). */
+  const handleUnlinkProvider = async (providerId: "google" | "apple" | "github") => {
+    const identity = identityForProvider(providerId);
+    if (!identity) {
+      showToast("Couldn't find that provider's identity. Refresh and try again.", "error");
+      return;
+    }
+    // Safety check: don't allow unlinking the LAST identity.
+    const linkedCount = (user()?.providers ?? []).length;
+    if (linkedCount <= 1) {
+      showToast("You can't disconnect your last sign-in method.", "error");
+      return;
+    }
+    setUnlinkingProvider(providerId);
+    const result = await unlinkProvider(identity);
+    setUnlinkingProvider(null);
+    if (result.success) {
+      await refreshIdentities();
+    }
+  };
+
   const handleSignOut = async () => {
     await signOut();
     navigate("/discover");
   };
 
-  // Read the actual linked providers from the Supabase user object.
-  // This is the SINGLE source of truth — NOT hardcoded values.
-  const linkedProviders = (): Set<string> => {
-    const providers = user()?.providers ?? [];
-    return new Set(providers);
+  const handleSignOutEverywhere = async () => {
+    setSigningOutEverywhere(true);
+    const result = await signOutGlobal();
+    setSigningOutEverywhere(false);
+    if (result.success) {
+      // signOutGlobal already cleared the session — navigate to /discover.
+      navigate("/discover");
+    }
   };
 
-  // Determine which provider is "primary" — the first one in the list.
-  const primaryProvider = (): string | null => {
-    const providers = user()?.providers ?? [];
-    return providers.length > 0 ? providers[0] : null;
+  const handleDeactivate = () => {
+    setDeactivateMode("deactivate");
+    setShowDeactivateSheet(true);
   };
 
-  // Format the join date from createdAt.
+  const handleDelete = () => {
+    setDeactivateMode("delete");
+    setShowDeactivateSheet(true);
+  };
+
+  // ── Derived display values ──────────────────────────────────────
   const joinDate = (): string => {
     const created = user()?.createdAt;
     if (!created) return "Unknown";
@@ -107,23 +271,22 @@ const AccountRoute: Component = () => {
     }
   };
 
-  const infoRows = [
-    { icon: "email", label: "Email", value: () => user()?.email ?? "Not available" },
-    { icon: "person", label: "Name", value: () => user()?.displayName ?? "Not set" },
-    { icon: "badge", label: "User ID", value: () => (user()?.uid ? user()!.uid.slice(0, 8) + "…" : "Not available") },
-    { icon: "event", label: "Joined", value: () => joinDate() },
-  ];
+  const emailMasked = (): string => user()?.email ?? "Not set";
+  const displayNameDisplay = (): string =>
+    displayName() || user()?.displayName || "Not set";
 
-  // Country display label (flag-style chip in the row chevron slot).
   const countryChip = createMemo(() => {
     const c = findCountry(country());
     return c ? c.label : country();
   });
 
+  const emailIdentityLinked = () => isProviderLinked("email");
+
   return (
     <>
       <Title>CineLog — Account</Title>
       <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
+        <ScrollToTop />
         <div class="sec-page sec-fade-in">
           {/* Header */}
           <div class="sec-header">
@@ -135,7 +298,7 @@ const AccountRoute: Component = () => {
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Account</h1>
-            <p class="sec-subtitle">Your identity, providers, country, and session.</p>
+            <p class="sec-subtitle">Your identity, country, security, and sessions.</p>
           </div>
 
           <div class="sec-body">
@@ -150,47 +313,105 @@ const AccountRoute: Component = () => {
                 <p class="empty-premium-body">Sign in to manage your account.</p>
               </div>
             }>
-              {/* Account info */}
+              {/* =================================================== */}
+              {/* 1. ACCOUNT DETAILS                                   */}
+              {/* =================================================== */}
               <section class="sec-section" style={{ "margin-top": "0" }}>
-                <p class="sec-section-label">Account Info</p>
+                <p class="sec-section-label">Account Details</p>
                 <div class="setting-group">
-                  <For each={infoRows}>
-                    {(row) => (
-                      <div class="setting-row" style={{ cursor: "default" }}>
+
+                  {/* A. Name — inline editable */}
+                  <Show
+                    when={!editingName()}
+                    fallback={
+                      <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
                         <div class="setting-row-icon" aria-hidden="true">
-                          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                            {row.icon}
-                          </span>
+                          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">person</span>
                         </div>
-                        <div class="setting-row-text">
-                          <span class="setting-row-label">{row.label}</span>
-                          <span class="setting-row-desc">{row.value()}</span>
+                        <div class="setting-row-text" style={{ flex: 1, "min-width": 0 }}>
+                          <span class="setting-row-label">Name</span>
+                          <input
+                            type="text"
+                            value={nameInput()}
+                            onInput={(e) => setNameInput(e.currentTarget.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Enter") void handleSaveName();
+                              if (e.key === "Escape") handleCancelEditName();
+                            }}
+                            placeholder="Your name"
+                            maxlength={60}
+                            class="account-inline-input"
+                            aria-label="Edit your name"
+                          />
+                        </div>
+                        <div class="account-inline-actions">
+                          <button
+                            type="button"
+                            class="account-inline-btn account-inline-btn-ghost focus-ring"
+                            onClick={handleCancelEditName}
+                            disabled={savingName()}
+                            aria-label="Cancel name edit"
+                          >
+                            Cancel
+                          </button>
+                          <button
+                            type="button"
+                            class="account-inline-btn account-inline-btn-primary focus-ring"
+                            onClick={() => void handleSaveName()}
+                            disabled={savingName() || !nameInput().trim()}
+                            aria-label="Save name"
+                          >
+                            <Show when={savingName()} fallback="Save">
+                              <span class="material-symbols-outlined" style={{ "font-size": "13px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                            </Show>
+                          </button>
                         </div>
                       </div>
-                    )}
-                  </For>
-                </div>
-              </section>
+                    }
+                  >
+                    <button
+                      type="button"
+                      class="setting-row focus-ring"
+                      onClick={handleStartEditName}
+                      aria-label="Edit your name"
+                    >
+                      <div class="setting-row-icon" aria-hidden="true">
+                        <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">person</span>
+                      </div>
+                      <div class="setting-row-text">
+                        <span class="setting-row-label">Name</span>
+                        <span class="setting-row-desc">{displayNameDisplay()}</span>
+                      </div>
+                      <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">edit</span>
+                    </button>
+                  </Show>
 
-              {/* Country selector — drives Discover + Upcoming regional
-                  filtering. Persists to profile.country and updates the
-                  in-memory discoverRegion so the next navigation
-                  re-fetches with the new region. */}
-              <section class="sec-section">
-                <p class="sec-section-label">Country</p>
-                <div class="setting-group">
+                  {/* B. Email address — opens UpdateEmailSheet */}
+                  <button
+                    type="button"
+                    class="setting-row focus-ring"
+                    onClick={() => setShowEmailSheet(true)}
+                    aria-label="Update email address"
+                  >
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">mail</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Email address</span>
+                      <span class="setting-row-desc">{emailMasked()}</span>
+                    </div>
+                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                  </button>
+
+                  {/* C. Country setting — inline dropdown */}
                   <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                        public
-                      </span>
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">public</span>
                     </div>
                     <div class="setting-row-text" style={{ flex: 1, "min-width": 0 }}>
                       <span class="setting-row-label">Country</span>
                       <span class="setting-row-desc">
-                        Drives regional content in Discover and Upcoming.
-                        Titles not available in your country are hidden
-                        from Upcoming but remain searchable in Discover.
+                        Drives regional content in Discover and Where-to-Watch.
                       </span>
                       <div class="country-selector-row" style={{ "margin-top": "var(--sp-2)" }}>
                         <select
@@ -218,91 +439,237 @@ const AccountRoute: Component = () => {
                       <span class="country-flag-chip" aria-hidden="true">{countryChip()}</span>
                     </Show>
                   </div>
+
+                  {/* D. Joined — read-only */}
+                  <div class="setting-row" style={{ cursor: "default" }}>
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">event</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Joined</span>
+                      <span class="setting-row-desc">{joinDate()}</span>
+                    </div>
+                  </div>
+
+                  {/* E. Deactivate + Delete — destructive, two separate rows */}
+                  <button
+                    type="button"
+                    class="setting-row focus-ring setting-row-danger"
+                    onClick={handleDeactivate}
+                    aria-label="Deactivate account"
+                  >
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">block</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Deactivate account</span>
+                      <span class="setting-row-desc">Temporarily disable. Recovers within 7 days.</span>
+                    </div>
+                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    class="setting-row focus-ring setting-row-danger"
+                    onClick={handleDelete}
+                    aria-label="Permanently delete account"
+                  >
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">delete_forever</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Permanently delete account</span>
+                      <span class="setting-row-desc">Irreversible. Removes all your data.</span>
+                    </div>
+                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                  </button>
                 </div>
               </section>
 
-              {/* Connected providers — reads from actual Supabase auth identities */}
+              {/* =================================================== */}
+              {/* 2. SECURITY                                          */}
+              {/* =================================================== */}
               <section class="sec-section">
-                <p class="sec-section-label">Connected Providers</p>
+                <p class="sec-section-label">Security</p>
                 <div class="setting-group">
-                  <For each={ALL_PROVIDERS}>
+
+                  {/* A. Login methods — header row (non-interactive) */}
+                  <div class="setting-row setting-row-subheader" style={{ cursor: "default" }}>
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">key</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Login methods</span>
+                      <span class="setting-row-desc">Manage how you sign in.</span>
+                    </div>
+                  </div>
+
+                  {/* A1. Email & Password — two action rows inside */}
+                  <div class="setting-row setting-row-nested" style={{ cursor: "default", "flex-direction": "column", "align-items": "stretch", gap: "0.5rem" }}>
+                    <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>
+                      <div class="setting-row-icon" aria-hidden="true">
+                        <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">mail</span>
+                      </div>
+                      <div class="setting-row-text">
+                        <span class="setting-row-label">Email &amp; Password</span>
+                        <span class="setting-row-desc">
+                          {emailIdentityLinked() ? "Connected" : "Not connected"}
+                        </span>
+                      </div>
+                      <Show when={emailIdentityLinked()} fallback={
+                        <span class="setting-row-value">Available</span>
+                      }>
+                        <span class="setting-row-value" style={{ color: "#4ade80" }}>Connected</span>
+                      </Show>
+                    </div>
+                    {/* Two sub-action buttons */}
+                    <Show when={emailIdentityLinked()}>
+                      <div class="account-subactions">
+                        <button
+                          type="button"
+                          class="account-subaction-btn focus-ring"
+                          onClick={() => setShowEmailSheet(true)}
+                          aria-label="Update email"
+                        >
+                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">alternate_email</span>
+                          Update email
+                        </button>
+                        <button
+                          type="button"
+                          class="account-subaction-btn focus-ring"
+                          onClick={() => setShowPasswordSheet(true)}
+                          aria-label="Change password"
+                        >
+                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">lock</span>
+                          Change password
+                        </button>
+                      </div>
+                    </Show>
+                  </div>
+
+                  {/* A2/A3. OAuth providers — Google, Apple, GitHub */}
+                  <For each={OAUTH_PROVIDERS}>
                     {(provider) => {
-                      const linked = linkedProviders().has(provider.id);
-                      const primary = primaryProvider() === provider.id;
+                      const linked = () => isProviderLinked(provider.id);
+                      const isLinking = () => linkingProvider() === provider.id;
+                      const isUnlinking = () => unLinkingProvider() === provider.id;
                       return (
-                        <div class="setting-row" style={{ cursor: "default" }}>
+                        <div class="setting-row setting-row-nested" style={{ cursor: "default", "align-items": "center" }}>
                           <div class="setting-row-icon" aria-hidden="true">
-                            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                              {provider.icon}
-                            </span>
+                            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">{provider.icon}</span>
                           </div>
                           <div class="setting-row-text">
                             <span class="setting-row-label">{provider.label}</span>
                             <span class="setting-row-desc">
-                              {linked
-                                ? primary
-                                  ? "Primary sign-in method"
-                                  : "Linked to your account"
-                                : "Not connected"}
+                              {linked() ? "Connected" : "Not connected"}
                             </span>
                           </div>
-                          <Show when={linked && primary}>
-                            <span class="setting-row-value" style={{ color: "var(--p)" }}>Primary</span>
-                          </Show>
-                          <Show when={linked && !primary}>
-                            <span class="setting-row-value" style={{ color: "#4ade80" }}>Connected</span>
-                          </Show>
-                          <Show when={!linked}>
-                            <span class="setting-row-value">Available</span>
+                          <Show
+                            when={linked()}
+                            fallback={
+                              <button
+                                type="button"
+                                class="account-connect-btn focus-ring"
+                                onClick={() => void handleLinkProvider(provider.id)}
+                                disabled={isLinking()}
+                                aria-label={`Connect ${provider.label}`}
+                              >
+                                <Show when={isLinking()} fallback={
+                                  <>
+                                    <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">add</span>
+                                    Connect
+                                  </>
+                                }>
+                                  <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                                  Connecting…
+                                </Show>
+                              </button>
+                            }
+                          >
+                            <button
+                              type="button"
+                              class="account-disconnect-btn focus-ring"
+                              onClick={() => void handleUnlinkProvider(provider.id)}
+                              disabled={isUnlinking() || (user()?.providers ?? []).length <= 1}
+                              aria-label={`Disconnect ${provider.label}`}
+                              title={(user()?.providers ?? []).length <= 1
+                                ? "You can't disconnect your last sign-in method."
+                                : `Disconnect ${provider.label}`}
+                            >
+                              <Show when={isUnlinking()} fallback={
+                                <>
+                                  <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">link_off</span>
+                                  Disconnect
+                                </>
+                              }>
+                                <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                              </Show>
+                            </button>
                           </Show>
                         </div>
                       );
                     }}
                   </For>
-                </div>
-              </section>
 
-              {/* Security */}
-              <section class="sec-section">
-                <p class="sec-section-label">Security</p>
-                <div class="setting-group">
-                  <div class="setting-row" style={{ cursor: "default" }}>
+                  {/* B. 2FA — placeholder (not yet implemented) */}
+                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                        lock
-                      </span>
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">phonelink_lock</span>
                     </div>
                     <div class="setting-row-text">
-                      <span class="setting-row-label">Password</span>
-                      <span class="setting-row-desc">Managed via Supabase Auth</span>
+                      <span class="setting-row-label">Two-factor authentication</span>
+                      <span class="setting-row-desc">Extra layer of security at sign-in.</span>
                     </div>
-                    <Show when={linkedProviders().has("email")} fallback={
-                      <span class="setting-row-value">OAuth only</span>
-                    }>
-                      <span class="setting-row-value" style={{ color: "#4ade80" }}>Secured</span>
-                    </Show>
+                    <span class="account-coming-soon-chip">Coming soon</span>
                   </div>
-                </div>
-              </section>
 
-              {/* Session — Sign Out is LAST */}
-              <section class="sec-section">
-                <p class="sec-section-label">Session</p>
-                <div class="setting-group">
+                  {/* C. Session management — sign out everywhere */}
+                  <button
+                    type="button"
+                    class="setting-row focus-ring"
+                    onClick={() => void handleSignOutEverywhere()}
+                    disabled={signingOutEverywhere()}
+                    aria-label="Sign out everywhere"
+                  >
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">devices</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Sign out everywhere</span>
+                      <span class="setting-row-desc">Revoke all sessions across every device.</span>
+                    </div>
+                    <Show when={signingOutEverywhere()} fallback={
+                      <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">logout</span>
+                    }>
+                      <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--p)", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                    </Show>
+                  </button>
+
+                  {/* D. Login history — placeholder (not yet implemented) */}
+                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                    <div class="setting-row-icon" aria-hidden="true">
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">history</span>
+                    </div>
+                    <div class="setting-row-text">
+                      <span class="setting-row-label">Login history</span>
+                      <span class="setting-row-desc">Recent sign-ins and devices.</span>
+                    </div>
+                    <span class="account-coming-soon-chip">Coming soon</span>
+                  </div>
+
+                  {/* Sign out (this device only) — last in security */}
                   <button
                     type="button"
                     class="setting-row focus-ring setting-row-danger"
                     onClick={handleSignOut}
-                    aria-label="Sign out of your account"
+                    aria-label="Sign out of this device"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                        logout
-                      </span>
+                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">logout</span>
                     </div>
                     <div class="setting-row-text">
-                      <span class="setting-row-label">Sign Out</span>
-                      <span class="setting-row-desc">End your session on this device</span>
+                      <span class="setting-row-label">Sign out</span>
+                      <span class="setting-row-desc">End your session on this device.</span>
                     </div>
                     <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">logout</span>
                   </button>
@@ -312,6 +679,15 @@ const AccountRoute: Component = () => {
           </div>
         </div>
       </PageContainer>
+
+      {/* Sheets */}
+      <UpdateEmailSheet open={showEmailSheet()} onClose={() => setShowEmailSheet(false)} />
+      <ChangePasswordSheet open={showPasswordSheet()} onClose={() => setShowPasswordSheet(false)} />
+      <DeactivateAccountSheet
+        open={showDeactivateSheet()}
+        mode={deactivateMode()}
+        onClose={() => setShowDeactivateSheet(false)}
+      />
     </>
   );
 };

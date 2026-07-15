@@ -2215,3 +2215,389 @@
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* ============================================================
+   ACCOUNT PAGE — upgraded v2.4
+   ============================================================
+   New classes for the restructured Account page:
+     • Inline-edit name row (input + Save/Cancel buttons)
+     • Sub-header row inside a setting group
+     • Nested rows (indented under a sub-header)
+     • Sub-action buttons row (Update email / Change password)
+     • Connect / Disconnect buttons for OAuth providers
+     • "Coming soon" chip for not-yet-built features (2FA, history)
+     • Sheet-specific input/label/hint styles for UpdateEmailSheet,
+       ChangePasswordSheet (these sheets use AccountSheet wrapper
+       which only provides the chrome — the inputs need their own
+       styling).
+   ============================================================ */
+
+/* Inline-edit input inside a setting row (Name field) */
+.account-inline-input {
+  width: 100%;
+  margin-top: 0.25rem;
+  padding: 0.4rem 0.6rem;
+  border-radius: var(--radius-sm);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-strong);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+.account-inline-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-glow);
+}
+
+/* Inline Save / Cancel buttons */
+.account-inline-actions {
+  display: flex;
+  gap: 0.4rem;
+  flex-shrink: 0;
+}
+.account-inline-btn {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 0.4rem 0.75rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+.account-inline-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.account-inline-btn-ghost {
+  background: transparent;
+  border-color: var(--hairline-2);
+  color: var(--text-soft);
+}
+.account-inline-btn-ghost:hover:not(:disabled) {
+  background: var(--tier-3);
+  color: var(--text-strong);
+}
+.account-inline-btn-primary {
+  background: var(--p);
+  color: var(--active-text);
+  box-shadow: 0 0 0 1px var(--p), 0 4px 12px var(--p-glow);
+}
+.account-inline-btn-primary:hover:not(:disabled) {
+  filter: brightness(1.1);
+}
+
+/* Sub-header row — a non-interactive row that introduces a sub-section.
+   Slightly different visual treatment than a regular setting row so
+   users can tell it's a label, not a tappable row. */
+.setting-row-subheader {
+  background: var(--tier-1);
+  cursor: default !important;
+}
+.setting-row-subheader:hover {
+  background: var(--tier-1) !important;
+}
+.setting-row-subheader .setting-row-icon {
+  background: transparent;
+  color: var(--text-muted);
+}
+.setting-row-subheader .setting-row-label {
+  color: var(--text-soft);
+  font-size: 0.875rem;
+}
+.setting-row-subheader .setting-row-desc {
+  color: var(--text-muted);
+  font-size: 0.6875rem;
+}
+
+/* Nested row — visually indented under a sub-header.
+   Adds a subtle left padding so the hierarchy reads. */
+.setting-row-nested {
+  padding-left: calc(var(--sp-5) + var(--sp-3));
+  position: relative;
+}
+.setting-row-nested::before {
+  content: "";
+  position: absolute;
+  left: var(--sp-5);
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: var(--hairline);
+  opacity: 0.5;
+}
+
+/* Sub-actions row — the "Update email / Change password" mini buttons
+   that live inside the Email & Password setting row. */
+.account-subactions {
+  display: flex;
+  gap: 0.5rem;
+  margin-left: calc(36px + var(--sp-3));
+  margin-top: 0.25rem;
+}
+.account-subaction-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.75rem;
+  border-radius: var(--radius-sm);
+  background: var(--tier-3);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-body);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.account-subaction-btn:hover:not(:disabled) {
+  border-color: var(--p);
+  color: var(--text-strong);
+  background: rgba(74, 222, 128, 0.06);
+}
+.account-subaction-btn:active {
+  transform: scale(0.97);
+}
+.account-subaction-btn:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 1px;
+}
+
+/* Connect / Disconnect buttons for OAuth providers */
+.account-connect-btn,
+.account-disconnect-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  border-radius: var(--radius-pill);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.account-connect-btn {
+  background: var(--p);
+  color: var(--active-text);
+  border: 1px solid var(--p);
+  box-shadow: 0 0 0 1px var(--p), 0 2px 8px var(--p-glow);
+}
+.account-connect-btn:hover:not(:disabled) {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+.account-connect-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.account-disconnect-btn {
+  background: transparent;
+  color: var(--text-soft);
+  border: 1px solid var(--hairline-2);
+}
+.account-disconnect-btn:hover:not(:disabled) {
+  border-color: rgba(248, 113, 113, 0.4);
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.06);
+}
+.account-disconnect-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* "Coming soon" chip — used for 2FA and Login history placeholders */
+.account-coming-soon-chip {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  background: var(--tier-3);
+  border: 1px solid var(--hairline-2);
+  padding: 0.25rem 0.5rem;
+  border-radius: var(--radius-pill);
+  flex-shrink: 0;
+}
+
+/* ============================================================
+   ACCOUNT SHEET — input/label/hint styles
+   Used by UpdateEmailSheet and ChangePasswordSheet.
+   The AccountSheet wrapper provides the chrome; these classes
+   style the form fields inside the body.
+   ============================================================ */
+
+.account-sheet-label {
+  display: block;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin-bottom: 0.4rem;
+}
+
+.account-sheet-input {
+  width: 100%;
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-strong);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out), box-shadow var(--dur-fast) var(--ease-out);
+}
+.account-sheet-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-glow);
+}
+.account-sheet-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Read-only value display (e.g. current email) */
+.account-sheet-readonly {
+  padding: 0.7rem 0.85rem;
+  border-radius: var(--radius-md);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* Input with a trailing action button (show/hide password) */
+.account-sheet-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+.account-sheet-input-with-action {
+  padding-right: 2.5rem;
+}
+.account-sheet-input-action {
+  position: absolute;
+  right: 0.4rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 28px;
+  height: 28px;
+  border-radius: var(--radius-sm);
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur-fast) var(--ease-out);
+}
+.account-sheet-input-action:hover {
+  background: var(--tier-3);
+  color: var(--text-strong);
+}
+
+/* Hint text under an input */
+.account-sheet-hint {
+  display: flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-top: 0.4rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+}
+.account-sheet-hint-warn {
+  color: #fbbf24;
+}
+.account-sheet-hint-success {
+  color: #6ee7b7;
+}
+
+/* Inline link (e.g. "Forgot password?") */
+.account-sheet-link {
+  background: none;
+  border: none;
+  padding: 0;
+  margin-top: 0.4rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p);
+  cursor: pointer;
+  text-decoration: none;
+}
+.account-sheet-link:hover {
+  text-decoration: underline;
+}
+
+/* Password strength meter */
+.account-sheet-strength {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+.account-sheet-strength-bars {
+  display: flex;
+  gap: 0.2rem;
+  flex: 1;
+}
+.account-sheet-strength-bar {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--tier-3);
+  transition: background var(--dur-fast) var(--ease-out);
+}
+.account-sheet-strength-bar-active.account-sheet-strength-bar-weak {
+  background: #f87171;
+}
+.account-sheet-strength-bar-active.account-sheet-strength-bar-medium {
+  background: #fbbf24;
+}
+.account-sheet-strength-bar-active.account-sheet-strength-bar-strong {
+  background: #4ade80;
+}
+.account-sheet-strength-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  min-width: 60px;
+  text-align: right;
+}
+
+/* Mobile tuning — smaller sub-action buttons on narrow phones */
+@media (max-width: 380px) {
+  .account-subactions {
+    flex-direction: column;
+    margin-left: 0;
+  }
+  .account-subaction-btn {
+    justify-content: center;
+  }
+  .setting-row-nested {
+    padding-left: var(--sp-5);
+  }
+  .setting-row-nested::before {
+    display: none;
+  }
+}
+

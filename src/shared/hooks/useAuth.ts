@@ -249,3 +249,25 @@ export function getCurrentUid(): string | null {
 export function getCurrentUser(): User | null {
   return user();
 }
+
+/**
+ * refreshUserFromServer — force a re-fetch of the user from the
+ * Supabase Auth server and update the local signal.
+ *
+ * Used after operations that mutate the user object OUTSIDE of the
+ * normal session-change event flow — for example, after unlinking
+ * an OAuth identity (`supabase.auth.unlinkIdentity` doesn't fire
+ * an `onAuthStateChange` event, so the local signal would otherwise
+ * still show the old providers list).
+ *
+ * Safe to call outside a Solid component (the signal is module-level).
+ */
+export async function refreshUserFromServer(): Promise<void> {
+  try {
+    const { getBrowserSession } = await import("~/lib/supabase/session");
+    const session = await getBrowserSession();
+    setUser(mapSupabaseUser(session));
+  } catch (err) {
+    console.error("[useAuth] refreshUserFromServer failed:", err);
+  }
+}
