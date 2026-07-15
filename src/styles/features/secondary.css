@@ -2601,3 +2601,85 @@
   }
 }
 
+/* ───────────────────────────────────────────────────────────────────
+   Confirm Sign-Out sheet — yes/no confirmation for the destructive
+   "Sign out" and "Sign out everywhere" actions. Prevents accidental
+   sign-out from a misclick by adding a friction step.
+   ─────────────────────────────────────────────────────────────────── */
+.confirm-signout-body {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: var(--sp-2) 0 var(--sp-1);
+  text-align: center;
+}
+.confirm-signout-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(248, 113, 113, 0.10);
+  border: 1px solid rgba(248, 113, 113, 0.25);
+  flex-shrink: 0;
+}
+.confirm-signout-actions {
+  display: flex;
+  gap: 0.75rem;
+  width: 100%;
+}
+.confirm-signout-btn {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.4rem;
+  padding: 0.75rem 1rem;
+  border-radius: var(--radius-md);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all var(--dur-fast) var(--ease-out);
+  border: 1px solid transparent;
+}
+.confirm-signout-btn:active {
+  transform: scale(0.98);
+}
+.confirm-signout-btn:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+.confirm-signout-btn-cancel {
+  background: var(--tier-3);
+  color: var(--text-body);
+  border-color: var(--hairline-2);
+}
+.confirm-signout-btn-cancel:hover:not(:disabled) {
+  background: var(--tier-2);
+  color: var(--text-strong);
+}
+.confirm-signout-btn-danger {
+  background: #dc2626;
+  color: #fff;
+  border-color: #dc2626;
+  box-shadow: 0 2px 12px rgba(220, 38, 38, 0.3);
+}
+.confirm-signout-btn-danger:hover:not(:disabled) {
+  background: #ef4444;
+  border-color: #ef4444;
+  filter: brightness(1.05);
+}
+.confirm-signout-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+@media (max-width: 380px) {
+  .confirm-signout-actions {
+    flex-direction: column;
+  }
+}
+
+

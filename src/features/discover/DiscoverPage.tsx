@@ -70,7 +70,7 @@ import LazyMount from "./components/LazyMount";
 import PremiumEmptyState from "./components/PremiumEmptyState";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import { getDiscoverRegion } from "~/core/config/discoverRegion";
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import type { TMDBTitle } from "~/shared/types";
 // Merged search — the dedicated /search page is gone. Search now lives
 // at the top of Discover. We reuse the existing useSearch hook +
@@ -82,9 +82,12 @@ export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
-  // Region — single source of truth. All sections consume this value.
-  // Today: defaults to "IN". Tomorrow: overridden by Settings.
-  const region = getDiscoverRegion;
+  // Region — single source of truth, reactive. Reads the live signal
+  // from `useDiscoverRegion()`, so when the user changes their country
+  // in Account settings → Country dropdown, every region-aware section
+  // on this page (useDiscoverFeeds, OttSection, Spotlight seed) picks
+  // up the new value automatically without a page reload.
+  const region = useDiscoverRegion();
 
   // === MERGED SEARCH ===
   // The dedicated /search page is gone — search now lives at the top
@@ -118,7 +121,7 @@ export default function DiscoverPage() {
     taste, vault: watchlist, excludeId: spotlightExclude, seed: spotlightSeed,
   });
 
-  const feeds = useDiscoverFeeds(region());
+  const feeds = useDiscoverFeeds(region);
   const { subscribedUniverses } = useCuratedUniverses();
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
 

@@ -24,7 +24,8 @@
 //
 
 import {
-  For, Show, createSignal, createMemo, onMount, onCleanup, createEffect, type Component,
+  For, Show, createSignal, createMemo, onMount, onCleanup, createEffect, on,
+  type Component,
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -111,21 +112,27 @@ const OttSection: Component<OttSectionProps> = (props) => {
     }));
   });
 
-  // Fetch BOTH movie + TV provider lists on mount, merge them.
-  // This ensures a provider appears if it's in EITHER list (some
-  // providers only appear in /tv, some only in /movie).
-  onMount(() => {
+  /**
+   * Fetch BOTH movie + TV provider lists for the given region, merge them.
+   * This ensures a provider appears if it's in EITHER list (some
+   * providers only appear in /tv, some only in /movie).
+   *
+   * Called on mount AND whenever the user changes their country in
+   * Account settings — the reactive effect below triggers a refetch
+   * and resets the per-region cache so we don't show stale data.
+   */
+  const fetchProviders = (r: string) => {
     let cancelled = false;
     Promise.allSettled([
-      getWatchProviderList(region()),
-      getWatchProviderListTv(region()),
+      getWatchProviderList(r),
+      getWatchProviderListTv(r),
     ]).then((results) => {
       if (cancelled) return;
       const combined: TmdbProviderRow[] = [];
       const seenIds = new Set<number>();
-      for (const r of results) {
-        if (r.status !== "fulfilled") continue;
-        for (const row of r.value) {
+      for (const res of results) {
+        if (res.status !== "fulfilled") continue;
+        for (const row of res.value) {
           if (seenIds.has(row.providerId)) {
             // Same ID in both lists — keep the first logo we saw.
             continue;
@@ -141,7 +148,23 @@ const OttSection: Component<OttSectionProps> = (props) => {
       setRawProviders(combined);
     }).catch((e) => console.error("[OttSection] Provider list fetch:", e));
     onCleanup(() => { cancelled = true; });
-  });
+  };
+
+  onMount(() => fetchProviders(region()));
+
+  // REACTIVE: when the user changes their country in Account settings,
+  // refetch the provider list for the new region and reset the
+  // per-provider cache (the cache is keyed by `${providerId}:${region}`
+  // so old entries are stale). Also reset the selected provider so the
+  // default-Netflix effect re-picks a provider that actually exists in
+  // the new region.
+  createEffect(on(region, (r) => {
+    setLoadedCache({});
+    setSelectedProviderId(null);
+    setTitles([]);
+    setError(null);
+    fetchProviders(r);
+  }, { defer: true }));
 
   // Default to Netflix on first mount (only if Netflix is available).
   // Falls back to the first available primary provider.

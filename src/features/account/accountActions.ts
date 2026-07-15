@@ -9,7 +9,7 @@
 //   • updateEmail           — change the user's email (sends confirmation)
 //   • changePassword        — change the user's password (optional reauth)
 //   • getUserIdentities     — list all linked OAuth identities
-//   • linkProvider          — link a new OAuth provider (google/apple/github)
+//   • linkProvider          — link a new OAuth provider (google/apple)
 //   • unlinkProvider        — unlink an OAuth identity by its id
 //   • sendPasswordResetEmail — forgot-password flow
 //   • signOutGlobal         — revoke every session for this user
@@ -208,7 +208,7 @@ export async function getUserIdentities(): Promise<UserIdentity[] | null> {
  * land back here and see the newly-linked provider.
  */
 export async function linkProvider(
-  provider: "google" | "apple" | "github",
+  provider: "google" | "apple",
 ): Promise<AccountActionResult> {
   const { showToast } = useToast();
   try {

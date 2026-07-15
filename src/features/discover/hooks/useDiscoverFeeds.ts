@@ -6,13 +6,14 @@
 // Each feed is independent: if one fails, the others still load.
 // The page renders each section as its data arrives (no blocking).
 //
-// REGION: defaults to `getDiscoverRegion()` (the single source of truth).
-// Callers can override the region explicitly (e.g. for tests), but in
-// production every Discover section should thread the same region value
-// through this hook so future Settings → region switches propagate
-// automatically.
+// REGION: REACTIVE. The hook reads the live region via
+// `useDiscoverRegion()` and automatically refetches every feed when
+// the user changes their country in Account settings. Callers can
+// still override with their own accessor for tests, but in production
+// every Discover section should just consume the hook's default so
+// region switches propagate automatically.
 
-import { createSignal, onMount, type Accessor } from "solid-js";
+import { createSignal, onMount, on, createEffect, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
 import type { TMDBTitle } from "~/shared/types";
 import {
@@ -24,7 +25,7 @@ import {
   getOnTheAir,
   discoverMovies,
 } from "~/core/tmdb/discover";
-import { getDiscoverRegion } from "~/core/config/discoverRegion";
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
 export interface DiscoverFeeds {
   trending: Accessor<TMDBTitle[]>;
@@ -39,7 +40,19 @@ export interface DiscoverFeeds {
   retry: () => void;
 }
 
-export function useDiscoverFeeds(region: string = getDiscoverRegion()): DiscoverFeeds {
+/**
+ * useDiscoverFeeds — fetches every Discover feed in parallel.
+ *
+ * @param regionOverride optional reactive accessor for the region.
+ *   Defaults to `useDiscoverRegion()` so the hook reacts to country
+ *   changes made in Account settings → Country dropdown.
+ */
+export function useDiscoverFeeds(
+  regionOverride?: Accessor<string>,
+): DiscoverFeeds {
+  const defaultRegion = useDiscoverRegion();
+  const region = regionOverride ?? defaultRegion;
+
   const [trending, setTrending] = createSignal<TMDBTitle[]>([]);
   const [nowPlaying, setNowPlaying] = createSignal<TMDBTitle[]>([]);
   const [upcoming, setUpcoming] = createSignal<TMDBTitle[]>([]);
@@ -53,6 +66,10 @@ export function useDiscoverFeeds(region: string = getDiscoverRegion()): Discover
     if (isServer) return;
     setLoading(true);
 
+    // Snapshot region at call-time so all parallel fetches in this
+    // batch use the same region even if it changes mid-flight.
+    const r = region();
+
     // Fetch all feeds in parallel. Each is independent — failures don't
     // affect other feeds. All use cachedFetch so repeated visits are instant.
     const feeds: Promise<unknown>[] = [
@@ -60,11 +77,11 @@ export function useDiscoverFeeds(region: string = getDiscoverRegion()): Discover
         .then((v) => { setTrending(v); })
         .catch((e) => console.error("[useDiscoverFeeds] trending:", e)),
 
-      getNowPlaying(region)
+      getNowPlaying(r)
         .then((v) => { setNowPlaying(v); })
         .catch((e) => console.error("[useDiscoverFeeds] nowPlaying:", e)),
 
-      getUpcoming(region)
+      getUpcoming(r)
         .then((v) => { setUpcoming(v); })
         .catch((e) => console.error("[useDiscoverFeeds] upcoming:", e)),
 
@@ -100,6 +117,12 @@ export function useDiscoverFeeds(region: string = getDiscoverRegion()): Discover
   };
 
   onMount(loadAll);
+
+  // REACTIVE: refetch every feed when the user changes their country
+  // in Account settings. `defer: true` skips the very first run because
+  // onMount already calls loadAll — we only want to react to subsequent
+  // changes.
+  createEffect(on(region, () => { loadAll(); }, { defer: true }));
 
   return {
     trending,

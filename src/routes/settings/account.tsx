@@ -57,14 +57,49 @@ import {
 import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
 import ChangePasswordSheet from "~/features/account/components/ChangePasswordSheet";
 import DeactivateAccountSheet from "~/features/account/components/DeactivateAccountSheet";
+import ConfirmSignOutSheet from "~/features/account/components/ConfirmSignOutSheet";
 import type { UserIdentity } from "@supabase/supabase-js";
 
-/** All OAuth providers CineLog knows about, with display metadata. */
-const OAUTH_PROVIDERS: { id: "google" | "apple" | "github"; label: string; icon: string }[] = [
+/**
+ * OAuth providers CineLog supports, with display metadata.
+ *
+ * GitHub is intentionally omitted — a movie/TV tracking app has no
+ * reason to offer GitHub login. The Supabase project may still have
+ * GitHub enabled server-side, but we don't expose it in the UI.
+ *
+ * Apple uses a custom inline SVG (see APPLE_ICON_SVG below) because
+ * the Material Symbols font does not include an "apple" glyph — using
+ * the icon name "apple" renders the literal text "apple" and overflows
+ * the icon box.
+ */
+const OAUTH_PROVIDERS: { id: "google" | "apple"; label: string; icon: string }[] = [
   { id: "google", label: "Google", icon: "login" },
   { id: "apple", label: "Apple", icon: "apple" },
-  { id: "github", label: "GitHub", icon: "code" },
 ];
+
+/**
+ * Inline Apple logo SVG — used in place of a Material Symbols icon
+ * because the Material Symbols font has no Apple glyph. Sized to fit
+ * the 36x36 .setting-row-icon container at the same visual weight as
+ * the other Material Symbols icons.
+ *
+ * Wrapped in a function so each render gets a fresh DOM node (SolidJS
+ * template cloning requires a function call, not a shared JSX value).
+ */
+function AppleIcon() {
+  return (
+    <svg
+      width="18"
+      height="18"
+      viewBox="0 0 24 24"
+      fill="currentColor"
+      aria-hidden="true"
+      style={{ display: "block" }}
+    >
+      <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.427-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.83.06 4.297 2.14-.04.03-2.578 1.49-2.578 4.53 0 3.58 3.146 4.86 3.186 4.87z"/>
+    </svg>
+  );
+}
 
 const AccountRoute: Component = () => {
   const { user, isSignedIn } = useAuth();
@@ -91,6 +126,12 @@ const AccountRoute: Component = () => {
   const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
   const [showDeactivateSheet, setShowDeactivateSheet] = createSignal(false);
   const [deactivateMode, setDeactivateMode] = createSignal<"deactivate" | "delete">("deactivate");
+  // Sign-out confirmation sheet — opens BEFORE the actual sign-out call
+  // fires, so a misclick doesn't instantly log the user out. Two flavors:
+  //   "local"  → just this device
+  //   "global" → all sessions (Sign out everywhere)
+  const [signOutSheetMode, setSignOutSheetMode] = createSignal<"local" | "global">("local");
+  const [showSignOutSheet, setShowSignOutSheet] = createSignal(false);
 
   // Load the profile row to get country + display name.
   createEffect(() => {
@@ -197,7 +238,7 @@ const AccountRoute: Component = () => {
   };
 
   /** Connect a new OAuth provider (linkIdentity). */
-  const handleLinkProvider = async (providerId: "google" | "apple" | "github") => {
+  const handleLinkProvider = async (providerId: "google" | "apple") => {
     setLinkingProvider(providerId);
     // linkProvider redirects the browser — if it returns without
     // redirecting, something failed (toast already shown inside).
@@ -211,7 +252,7 @@ const AccountRoute: Component = () => {
   };
 
   /** Disconnect an OAuth identity (unlinkIdentity). */
-  const handleUnlinkProvider = async (providerId: "google" | "apple" | "github") => {
+  const handleUnlinkProvider = async (providerId: "google" | "apple") => {
     const identity = identityForProvider(providerId);
     if (!identity) {
       showToast("Couldn't find that provider's identity. Refresh and try again.", "error");
@@ -231,17 +272,41 @@ const AccountRoute: Component = () => {
     }
   };
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate("/discover");
+  /**
+   * Open the "Sign out?" confirmation sheet (local — this device only).
+   * The actual signOut() call fires only after the user taps "Yes" in
+   * the sheet. Prevents accidental sign-out from a misclick.
+   */
+  const handleSignOut = () => {
+    setSignOutSheetMode("local");
+    setShowSignOutSheet(true);
   };
 
-  const handleSignOutEverywhere = async () => {
-    setSigningOutEverywhere(true);
-    const result = await signOutGlobal();
-    setSigningOutEverywhere(false);
-    if (result.success) {
-      // signOutGlobal already cleared the session — navigate to /discover.
+  /**
+   * Open the "Sign out everywhere?" confirmation sheet (global — all
+   * sessions across every device). The actual signOutGlobal() call
+   * fires only after the user taps "Yes" in the sheet.
+   */
+  const handleSignOutEverywhere = () => {
+    setSignOutSheetMode("global");
+    setShowSignOutSheet(true);
+  };
+
+  /**
+   * Called by ConfirmSignOutSheet when the user taps the confirm
+   * button. Runs the actual sign-out (local or global) and navigates
+   * to /discover on success.
+   */
+  const handleConfirmSignOut = async () => {
+    if (signOutSheetMode() === "global") {
+      setSigningOutEverywhere(true);
+      const result = await signOutGlobal();
+      setSigningOutEverywhere(false);
+      if (result.success) {
+        navigate("/discover");
+      }
+    } else {
+      await signOut();
       navigate("/discover");
     }
   };
@@ -556,7 +621,14 @@ const AccountRoute: Component = () => {
                       return (
                         <div class="setting-row setting-row-nested" style={{ cursor: "default", "align-items": "center" }}>
                           <div class="setting-row-icon" aria-hidden="true">
-                            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">{provider.icon}</span>
+                            <Show
+                              when={provider.id === "apple"}
+                              fallback={
+                                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">{provider.icon}</span>
+                              }
+                            >
+                              <AppleIcon />
+                            </Show>
                           </div>
                           <div class="setting-row-text">
                             <span class="setting-row-label">{provider.label}</span>
@@ -627,7 +699,7 @@ const AccountRoute: Component = () => {
                   <button
                     type="button"
                     class="setting-row focus-ring"
-                    onClick={() => void handleSignOutEverywhere()}
+                    onClick={handleSignOutEverywhere}
                     disabled={signingOutEverywhere()}
                     aria-label="Sign out everywhere"
                   >
@@ -638,11 +710,7 @@ const AccountRoute: Component = () => {
                       <span class="setting-row-label">Sign out everywhere</span>
                       <span class="setting-row-desc">Revoke all sessions across every device.</span>
                     </div>
-                    <Show when={signingOutEverywhere()} fallback={
-                      <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">logout</span>
-                    }>
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--p)", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
-                    </Show>
+                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
                   </button>
 
                   {/* D. Login history — placeholder (not yet implemented) */}
@@ -671,7 +739,7 @@ const AccountRoute: Component = () => {
                       <span class="setting-row-label">Sign out</span>
                       <span class="setting-row-desc">End your session on this device.</span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">logout</span>
+                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
                   </button>
                 </div>
               </section>
@@ -687,6 +755,12 @@ const AccountRoute: Component = () => {
         open={showDeactivateSheet()}
         mode={deactivateMode()}
         onClose={() => setShowDeactivateSheet(false)}
+      />
+      <ConfirmSignOutSheet
+        open={showSignOutSheet()}
+        mode={signOutSheetMode()}
+        onConfirm={handleConfirmSignOut}
+        onClose={() => setShowSignOutSheet(false)}
       />
     </>
   );
