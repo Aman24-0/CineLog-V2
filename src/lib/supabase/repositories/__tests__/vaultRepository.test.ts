@@ -455,9 +455,32 @@ describe("shared.toError", () => {
     expect(result).toBeInstanceOf(Error);
     expect(result!.message).toBe("string error");
   });
-  it("wraps object in a new Error with String()", () => {
+  it("wraps Supabase-shaped error object with readable message + code", () => {
+    // Real-world Supabase errors look like: { message, code, details, hint }
+    // Previously toError did `new Error(String(err))` which produced
+    // "[object Object]" — completely hiding the reason. Verify the new
+    // behavior extracts .message + .code into a readable Error.
+    const supabaseErr = {
+      message: 'null value in column "user_id" violates not-null constraint',
+      code: "23502",
+      details: "Failing row contains (...)",
+      hint: "",
+    };
+    const result = toError(supabaseErr);
+    expect(result).toBeInstanceOf(Error);
+    expect(result!.message).toContain("23502");
+    expect(result!.message).toContain("not-null constraint");
+    expect(result!.message).not.toBe("[object Object]");
+    // Code should also be attached as a property for callers that inspect it.
+    expect((result as unknown as { code: string }).code).toBe("23502");
+  });
+
+  it("falls back to JSON.stringify for object errors with no message", () => {
+    // An object with no message/reason/error fields — should fall back to
+    // JSON.stringify so the caller sees the shape, never "[object Object]".
     const result = toError({ code: 500 });
     expect(result).toBeInstanceOf(Error);
-    expect(result!.message).toBe("[object Object]");
+    expect(result!.message).toContain("500");
+    expect(result!.message).not.toBe("[object Object]");
   });
 });

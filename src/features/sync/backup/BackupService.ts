@@ -313,12 +313,9 @@ function sleep(ms: number): Promise<void> {
  * RLS denials, etc.) — retrying those would never succeed.
  */
 function isTransientError(err: unknown): boolean {
-  const e = err as { message?: string; code?: string | number; status?: number };
-  const msg = String(
-    (err instanceof Error ? err.message : e?.message) ?? "",
-  ).toLowerCase();
-  const code = String(e?.code ?? "").toLowerCase();
-  const status = Number(e?.status ?? 0);
+  const msg = String(extractErrorMessage(err)).toLowerCase();
+  const code = String(extractErrorCode(err) ?? "").toLowerCase();
+  const status = Number(extractErrorStatus(err) ?? 0);
   const haystack = `${msg} ${code}`;
   if (
     msg.includes("rate limit") ||
@@ -352,6 +349,69 @@ function isTransientError(err: unknown): boolean {
     return true;
   }
   return false;
+}
+
+/**
+ * Defensive error → string conversion. NEVER returns "[object Object]" —
+ * always extracts the useful message from any error shape.
+ *
+ * Handles:
+ *   - Error instances (uses .message)
+ *   - Supabase / PostgREST objects ({ message, code, details, hint })
+ *   - Plain objects (JSON.stringify fallback)
+ *   - Primitives (string, number)
+ *
+ * Used to build the failure log entries shown to the user.
+ */
+function extractErrorMessage(err: unknown): string {
+  if (err == null) return "";
+  if (err instanceof Error) return err.message;
+  if (typeof err === "string") return err;
+  if (typeof err === "number" || typeof err === "boolean") return String(err);
+  if (typeof err === "object") {
+    const e = err as { message?: unknown; reason?: unknown; error?: unknown };
+    if (typeof e.message === "string" && e.message.length > 0) return e.message;
+    if (typeof e.reason === "string" && e.reason.length > 0) return e.reason;
+    if (typeof e.error === "string" && e.error.length > 0) return e.error;
+    try {
+      return JSON.stringify(err);
+    } catch {
+      return "Unknown error";
+    }
+  }
+  return String(err);
+}
+
+/** Extract a Postgres / PostgREST error code (e.g. "42703", "23505"). */
+function extractErrorCode(err: unknown): string | number | undefined {
+  if (err == null || typeof err !== "object") return undefined;
+  const e = err as { code?: unknown };
+  if (typeof e.code === "string") return e.code;
+  if (typeof e.code === "number") return e.code;
+  return undefined;
+}
+
+/** Extract an HTTP status code if present (Supabase sometimes attaches one). */
+function extractErrorStatus(err: unknown): number | undefined {
+  if (err == null || typeof err !== "object") return undefined;
+  const e = err as { status?: unknown };
+  if (typeof e.status === "number") return e.status;
+  return undefined;
+}
+
+/**
+ * Build a detailed, human-readable reason string for an error.
+ *
+ * Used by the import failure log so the user can see WHY each item failed
+ * instead of "[object Object]".
+ */
+function buildFailureReason(err: unknown): string {
+  const msg = extractErrorMessage(err);
+  const code = extractErrorCode(err);
+  if (code) {
+    return `[${code}] ${msg || "Database error"}`;
+  }
+  return msg || "Unknown error";
 }
 
 /**
@@ -494,14 +554,7 @@ export async function restoreBackup(
       imported += batchItems.length;
       duplicates += batchDuplicates;
     } catch (err) {
-      const errInfo = err as { message?: string; code?: string; details?: unknown; hint?: string };
-      const errCode = errInfo?.code ?? "";
-      const errMsg = errInfo?.message ?? (err instanceof Error ? err.message : String(err));
-      const errDetails = typeof errInfo?.details === "string" ? errInfo.details : "";
-      const errHint = errInfo?.hint ?? "";
-      const detailedReason = errCode
-        ? `[${errCode}] ${errMsg}${errDetails ? ` — ${errDetails}` : ""}${errHint ? ` (hint: ${errHint})` : ""}`
-        : errMsg;
+      const detailedReason = buildFailureReason(err);
 
       if (isTransientError(err)) {
         // Save for second-pass retry at the end.
@@ -517,21 +570,28 @@ export async function restoreBackup(
           `[restoreBackup] Batch ${b + 1}/${batches.length} permanent failure — retrying items individually: ${detailedReason}`,
           { err },
         );
+        let itemIdx = 0;
         for (const item of batchItems) {
+          // Check cancel BEFORE each item so the cancel button feels
+          // responsive — even mid-batch-fallback the user can stop.
           if (callbacks?.shouldCancel?.()) break;
+          itemIdx++;
           try {
             await upsertVaultItemInSupabaseWithRetry(uid, item);
             imported++;
           } catch (itemErr) {
-            const ie = itemErr as { message?: string; code?: string };
-            const iReason = ie?.code
-              ? `[${ie.code}] ${ie.message ?? String(itemErr)}`
-              : (ie?.message ?? String(itemErr));
+            const iReason = buildFailureReason(itemErr);
             failed++;
             failureLog.push({
               reason: iReason,
               title: item.title || item.name || undefined,
             });
+          }
+          // Report progress every 5 items so the UI updates frequently
+          // during per-item fallback (otherwise a 100-item batch shows
+          // no progress for ~5 seconds while it grinds through items).
+          if (itemIdx % 5 === 0 && callbacks) {
+            callbacks.onProgress(processed + itemIdx, total, imported, skipped, failed);
           }
           // Small delay between per-item upserts to stay under Supabase's
           // free-tier rate limit (~2 req/sec sustained). Without this, 100
@@ -582,15 +642,14 @@ export async function restoreBackup(
           err,
         );
         for (const item of items) {
+          // Check cancel BEFORE each item so the cancel button is
+          // responsive even during the second-pass retry loop.
           if (callbacks?.shouldCancel?.()) break;
           try {
             await upsertVaultItemInSupabaseWithRetry(uid, item);
             imported++;
           } catch (itemErr) {
-            const ie = itemErr as { message?: string; code?: string };
-            const iReason = ie?.code
-              ? `[${ie.code}] ${ie.message ?? String(itemErr)}`
-              : (ie?.message ?? String(itemErr));
+            const iReason = buildFailureReason(itemErr);
             failed++;
             failureLog.push({
               reason: iReason,

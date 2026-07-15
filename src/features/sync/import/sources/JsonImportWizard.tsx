@@ -40,6 +40,7 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
   const [error, setError] = createSignal<string | null>(null);
   const [progress, setProgress] = createSignal({ processed: 0, total: 0, imported: 0, skipped: 0, failed: 0 });
   const [result, setResult] = createSignal<RestoreResult | null>(null);
+  const [cancelRequested, setCancelRequested] = createSignal(false);
 
   const handleFileSelect = async (file: File) => {
     setError(null);
@@ -57,19 +58,36 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
     if (!parsed()) return;
     setStep("importing");
     setError(null);
+    setCancelRequested(false);
     setProgress({ processed: 0, total: parsed()!.items.length, imported: 0, skipped: 0, failed: 0 });
     try {
       const res = await restoreBackup(parsed()!, library.watchlist(), {
         onProgress: (processed, total, imported, skipped, failed) => {
           setProgress({ processed, total, imported, skipped, failed });
         },
+        shouldCancel: () => cancelRequested(),
       });
       setResult(res);
       setStep("complete");
+      setCancelRequested(false);
       void library.refresh();
+      if (cancelRequested()) {
+        showToast(`Import cancelled — ${res.imported} of ${parsed()!.items.length} titles imported`, "info", 4000);
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : "Import failed.");
       setStep("preview");
+      setCancelRequested(false);
+    }
+  };
+
+  const handleCancelImport = () => {
+    if (step() === "importing") {
+      // Signal the restore loop to stop after the current item
+      setCancelRequested(true);
+      showToast("Cancelling import…", "info", 2000);
+    } else {
+      props.onCancel();
     }
   };
 
@@ -173,7 +191,11 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
         <Show when={step() === "importing"}>
           <div class="v1-wizard-panel">
             <h2 class="v1-wizard-title">Importing your library…</h2>
-            <p class="v1-wizard-body">Do not close this window.</p>
+            <p class="v1-wizard-body">
+              {cancelRequested()
+                ? "Cancelling — finishing current item…"
+                : "Do not close this window. You can cancel anytime."}
+            </p>
             <div class="v1-wizard-progress">
               <div class="v1-wizard-progress-bar">
                 <div
@@ -185,6 +207,17 @@ const JsonImportWizard: Component<JsonImportWizardProps> = (props) => {
                 <span>{progress().processed} / {progress().total}</span>
                 <span>{progress().imported} imported · {progress().skipped} skipped · {progress().failed} failed</span>
               </div>
+            </div>
+            <div class="v1-wizard-actions">
+              <button
+                class="btn-ghost focus-ring"
+                onClick={handleCancelImport}
+                disabled={cancelRequested()}
+              >
+                <Show when={!cancelRequested()} fallback="Cancelling…">
+                  Cancel Import
+                </Show>
+              </button>
             </div>
           </div>
         </Show>
