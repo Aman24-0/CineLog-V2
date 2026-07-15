@@ -306,24 +306,44 @@ function sleep(ms: number): Promise<void> {
  * retried? Returns true for:
  *   - Supabase rate-limit responses (429, "rate limit", "Too many requests")
  *   - Network errors (Failed to fetch, NetworkError, ERR_*)
- *   - 5xx server errors
+ *   - 5xx server errors (matched by HTTP status code, NOT substring)
  *   - Connection reset / timeout errors
  *
  * Returns false for permanent errors (constraint violations, invalid data,
  * RLS denials, etc.) — retrying those would never succeed.
+ *
+ * ── BUG HISTORY ────────────────────────────────────────────────────
+ * Previously this function used `haystack.includes("500")` /
+ * `"502"` / `"503"` / `"504"` to detect 5xx HTTP errors. That substring
+ * match was catastrophically broken: it also matched PostgreSQL SQLSTATE
+ * codes that contain those digit sequences — most notably:
+ *
+ *   23503 (foreign_key_violation) → contains "503" → misclassified as
+ *     "503 Service Unavailable" (transient). FK violations are PERMANENT.
+ *
+ *   23502 (not_null_violation) → contains "502" → misclassified as
+ *     "502 Bad Gateway" (transient). NOT NULL violations are PERMANENT.
+ *
+ * When a batch upsert failed with one of these permanent errors, the
+ * entire batch was put in the transient-retry queue instead of the
+ * per-item fallback. The result: `imported=0, failed=0` and a stuck
+ * progress bar (the second-pass retry loop has no progress reporting,
+ * and per-item exponential backoff takes 19+ minutes for 1029 items).
+ *
+ * The fix: match 5xx errors by HTTP `status` field (exact number),
+ * never by substring. SQLSTATE codes are never 3-digit HTTP statuses
+ * and should never be tested with `includes()`.
  */
 function isTransientError(err: unknown): boolean {
   const msg = String(extractErrorMessage(err)).toLowerCase();
-  const code = String(extractErrorCode(err) ?? "").toLowerCase();
   const status = Number(extractErrorStatus(err) ?? 0);
-  const haystack = `${msg} ${code}`;
   if (
     msg.includes("rate limit") ||
     msg.includes("too many requests") ||
     msg.includes("over_request_limit") ||
     msg.includes("rate_limit") ||
-    haystack.includes("429") ||
     status === 429 ||
+    msg.includes("429") ||
     msg.includes("failed to fetch") ||
     msg.includes("networkerror") ||
     msg.includes("network error") ||
@@ -337,10 +357,14 @@ function isTransientError(err: unknown): boolean {
     msg.includes("econnreset") ||
     msg.includes("econnrefused") ||
     msg.includes("epipe") ||
-    haystack.includes("500") ||
-    haystack.includes("502") ||
-    haystack.includes("503") ||
-    haystack.includes("504") ||
+    // 5xx server errors — matched by HTTP status code (exact number),
+    // NOT by substring. Substring matching caused SQLSTATE codes like
+    // 23503 (FK violation) and 23502 (NOT NULL violation) to be
+    // misclassified as transient 5xx errors.
+    status === 500 ||
+    status === 502 ||
+    status === 503 ||
+    status === 504 ||
     msg.includes("service unavailable") ||
     msg.includes("bad gateway") ||
     msg.includes("gateway timeout") ||
@@ -655,7 +679,24 @@ export async function restoreBackup(
   // These are batches that failed due to rate-limiting or network blips
   // during the first pass. The main rush of writes is over now, so we
   // retry with the same batch approach — most should succeed.
-  if (transientFailedBatches.length > 0) {
+  //
+  // SAFETY VALVE: If ALL batches went to the transient queue (highly
+  // unusual for a real transient failure), it's almost certainly a
+  // systematic error that was misclassified as transient. Skip the
+  // second-pass batch retry and go straight to per-item fallback so the
+  // user sees actual failure reasons instead of a 5-minute hang.
+  const allBatchesTransient = transientFailedBatches.length > 0
+    && transientFailedBatches.length === batches.length;
+
+  if (allBatchesTransient) {
+    console.warn(
+      `[restoreBackup] ALL ${transientFailedBatches.length} batches failed transiently in first pass — ` +
+      `this is unusual; skipping batch retry and going straight to per-item fallback ` +
+      `(if errors are actually permanent, per-item retry will report them immediately).`,
+    );
+  }
+
+  if (transientFailedBatches.length > 0 && !allBatchesTransient) {
     console.log(
       `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`,
     );
@@ -669,16 +710,22 @@ export async function restoreBackup(
         const { error } = await repo.upsertVaultItemsBatch(payloads);
         if (error) throw error;
         imported += items.length;
+        // Report progress so the UI doesn't look frozen during the second pass.
+        if (callbacks) {
+          callbacks.onProgress(processed, total, imported, skipped, failed);
+        }
       } catch (err) {
         // Batch retry failed — try per-item as a last resort.
         console.warn(
           `[restoreBackup] Batch retry failed — falling back to per-item upsert for ${items.length} items`,
           err,
         );
+        let itemIdx = 0;
         for (const item of items) {
           // Check cancel BEFORE each item so the cancel button is
           // responsive even during the second-pass retry loop.
           if (callbacks?.shouldCancel?.()) break;
+          itemIdx++;
           try {
             await upsertVaultItemInSupabaseWithRetry(uid, item);
             imported++;
@@ -690,11 +737,56 @@ export async function restoreBackup(
               title: item.title || item.name || undefined,
             });
           }
+          // Report progress every 5 items so the UI updates during the
+          // second-pass per-item fallback (which can take minutes for
+          // large batches). Without this, the progress bar stays frozen
+          // at the first-pass value and the user thinks the app hung.
+          if (itemIdx % 5 === 0 && callbacks) {
+            callbacks.onProgress(processed, total, imported, skipped, failed);
+          }
           await sleep(50);
         }
       }
       await sleep(500);
     }
+  } else if (allBatchesTransient) {
+    // All batches failed transiently — go straight to per-item fallback
+    // WITHOUT retrying the batch first (the batch retry would just fail
+    // again with the same error, wasting time). This ensures the user
+    // sees failure reasons quickly instead of waiting for a 5-minute
+    // batch retry that produces no visible progress.
+    console.log(
+      `[restoreBackup] Skipping batch retry — going straight to per-item fallback for ${transientFailedBatches.reduce((n, b) => n + b.items.length, 0)} items.`,
+    );
+    for (const { items } of transientFailedBatches) {
+      if (callbacks?.shouldCancel?.()) break;
+      let itemIdx = 0;
+      for (const item of items) {
+        if (callbacks?.shouldCancel?.()) break;
+        itemIdx++;
+        try {
+          await upsertVaultItemInSupabaseWithRetry(uid, item);
+          imported++;
+        } catch (itemErr) {
+          const iReason = buildFailureReason(itemErr);
+          failed++;
+          failureLog.push({
+            reason: iReason,
+            title: item.title || item.name || undefined,
+          });
+        }
+        if (itemIdx % 5 === 0 && callbacks) {
+          callbacks.onProgress(processed, total, imported, skipped, failed);
+        }
+        await sleep(50);
+      }
+    }
+  }
+
+  // Final progress report so the UI shows the complete counts before
+  // the result panel replaces the progress bar.
+  if (callbacks) {
+    callbacks.onProgress(processed, total, imported, skipped, failed);
   }
 
   // Build the summary string.
