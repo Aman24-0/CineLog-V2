@@ -37,7 +37,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
     <div
       class="sticky top-0 z-40 pt-4 pb-3 -mx-5 px-5 mb-4"
       style={{
-        background: "rgba(5,6,10,0.88)",
+        background: "var(--glass-bg-strong)",
         "backdrop-filter": "blur(24px)",
         "-webkit-backdrop-filter": "blur(24px)",
         "border-bottom": "1px solid var(--hairline)",

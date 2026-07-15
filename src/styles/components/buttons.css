@@ -34,6 +34,23 @@
   transform: scale(0.95);
 }
 
+/* ─── Light mode ───
+   The close button sits over the hero backdrop image (always dark,
+   even in light mode), so we keep a dark glass background for
+   readability. But we boost the border and text contrast so the
+   button reads clearly against the brighter ambient feel of light
+   mode. Color stays white (var(--text-strong) = #1A1714 in light
+   mode would be dark — wrong on a dark image). We force white text
+   + a slightly stronger border so the button is visible. */
+:root[data-theme-resolved="light"] .cinematic-close-btn {
+  background: rgba(0, 0, 0, 0.55);
+  border-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+}
+:root[data-theme-resolved="light"] .cinematic-close-btn:hover {
+  background: rgba(0, 0, 0, 0.72);
+}
+
 /* Trailer close button — also safe-area-aware */
 .cinematic-trailer-close {
   top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) !important;

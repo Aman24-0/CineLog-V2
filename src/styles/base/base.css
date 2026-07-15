@@ -13,7 +13,17 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    overflow-x: hidden;
+    /* Use overflow-x: clip instead of hidden.
+       Per CSS spec, when one overflow axis is hidden and the other is
+       visible, visible computes to auto — this makes the body a scroll
+       container, which breaks position:sticky on descendants (they
+       stick relative to body's scroll port, not the viewport, and in
+       many browsers this silently disables sticky entirely).
+       overflow-x: clip clips horizontal overflow WITHOUT creating a
+       scroll container, so sticky positioning continues to work.
+       Fallback: older browsers (Safari < 16) don't support clip and
+       fall back to the hidden value, which is acceptable. */
+    overflow-x: clip;
     min-height: 100vh;
     letter-spacing: 0.01em;
   }

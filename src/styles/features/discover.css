@@ -1890,9 +1890,15 @@
 
    The search bar uses a warm glass surface (theme-aware via tokens)
    so it reads cleanly over the scrolling content underneath.
+
+   SPECIFICITY NOTE: .search-bar-form is defined in search.css which
+   is imported AFTER discover.css. To ensure our overrides win, we
+   use the compound selector .search-bar-form.discover-search-bar-form
+   (specificity 0,2,0) which beats .search-bar-form (0,1,0) regardless
+   of source order.
    ============================================================ */
 
-.discover-search-bar-form {
+.search-bar-form.discover-search-bar-form {
   position: sticky;
   top: var(--app-header-height);
   z-index: 20;
@@ -1918,7 +1924,7 @@
    Triggered via :stuck pseudo (not yet widely supported) — fallback
    is the persistent border-bottom which already gives definition. */
 @supports (selector(:stuck)) {
-  .discover-search-bar-form:stuck {
+  .search-bar-form.discover-search-bar-form:stuck {
     box-shadow: 0 4px 16px var(--shadow-color);
   }
 }

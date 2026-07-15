@@ -146,7 +146,14 @@
 .theme-interstellar { --p: #00c2ff; --p2: #f9a620; --p-glow: rgba(0,194,255,0.22);   --p-dim: rgba(0,194,255,0.08);   --active-text: #05060a; }
 .theme-neonhorizon  { --p: #ff2af0; --p2: #00ffe7; --p-glow: rgba(255,42,240,0.22);  --p-dim: rgba(255,42,240,0.08);  --active-text: #ffffff; }
 .theme-vibranium    { --p: #9d4edd; --p2: #06ffd4; --p-glow: rgba(157,78,221,0.22);  --p-dim: rgba(157,78,221,0.08);  --active-text: #ffffff; }
-.theme-cinematic    { --p: #FFD700; --p2: #FF6B00; --p-glow: rgba(255,215,0,0.40);   --p-dim: rgba(255,215,0,0.10);   --active-text: #05060a; --void: #000; --deep: #000; --surface: #111111; --raised: #171722; --border: rgba(255,215,0,0.1); }
+/* Cinematic theme — accent tokens ONLY.
+   Previously this also overrode --void/--deep/--surface/--raised/--border
+   to dark values, which broke light mode (the dark surface values
+   cascaded from <body> and overrode the light-mode tokens set on <html>).
+   Surface tokens are now controlled exclusively by [data-theme-resolved]
+   in preferences.css, so the cinematic (gold) accent works on both
+   dark and light backgrounds. */
+.theme-cinematic    { --p: #FFD700; --p2: #FF6B00; --p-glow: rgba(255,215,0,0.40);   --p-dim: rgba(255,215,0,0.10);   --active-text: #05060a; }
 
 /* ============================================================
    PHASE 2.1 — DESIGN SYSTEM
