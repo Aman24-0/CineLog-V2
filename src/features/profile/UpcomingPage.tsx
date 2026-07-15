@@ -6,7 +6,7 @@
 // going to be released. Uses TMDB's discover endpoints with date-range
 // filters (30 days from a selectable start date).
 //
-// LAYOUT (v2.3 — V1-style timeline + episode-aware TV):
+// LAYOUT (v2.4 — V1-style timeline + OTT-only TV):
 //   • Header: back arrow, page title, subtitle
 //   • Filter bar:
 //       - Date picker (default = today; shows next 30 days)
@@ -25,18 +25,26 @@
 //       - For movies: "In Theatres" or "On <platform>" badge
 //       - For series: "S3 E5" episode info + "On <platform>" badge
 //         (when next_episode_to_air is available from TMDB)
-//       - Trailer chip
+//       - NO trailer chip on the card — trailers are only playable
+//         from the Details modal (v2.4 fix: removed trailer button
+//         from cards per user request).
 //   • Click a title's body → opens Details modal
 //
-// COUNTRY FILTERING (v2.3):
+// COUNTRY FILTERING (v2.4):
 //   Movies:
 //     `with_release_country=<region>` + `region=<region>` +
 //     `release_date.gte/lte` returns ONLY movies that have a release
 //     entry in the user's country within the date window — capturing
 //     both local productions AND international films that release there.
+//     v2.4 ALSO adds a client-side filter: drop any movie whose
+//     `release_date` field falls outside [start, end]. This catches
+//     stale TMDB results where a movie's primary release date is
+//     outside the window but its IN release is inside (e.g. Cocktail 2
+//     had primary release Jun 19 but appeared under a Jul 15–Aug 14
+//     window — the client-side filter now drops it).
 //   TV:
 //     TMDB's /discover/tv endpoint does NOT support `with_release_country`.
-//     v2.3 uses two complementary endpoints to surface upcoming episodes:
+//     v2.4 uses two complementary endpoints to surface upcoming episodes:
 //       1. /discover/tv with `air_date.gte/lte` — finds any series with
 //          at least one episode airing in the date window (this catches
 //          both brand-new premieres AND new episodes of running series
@@ -46,6 +54,14 @@
 //       3. For each result, fetch /tv/{id} to get `next_episode_to_air`
 //          (season_number, episode_number, air_date) so we can show
 //          "S3 E5" on the card and group by the episode's air date.
+//       4. v2.4: For each result, ALSO fetch /tv/{id}/watch/providers
+//          to find the flatrate (OTT) provider in the user's region.
+//          Series WITHOUT a flatrate OTT provider are DROPPED — this
+//          filters out TV-channel-only shows (e.g. daily soaps airing
+//          on StarPlus, Colors, etc. with no OTT presence) per user
+//          request. Shows that air on TV AND OTT (e.g. Disney+ Hotstar
+//          for StarPlus shows) keep showing, with the OTT name as the
+//          label.
 //     No origin-country filter is applied (so international shows like
 //     House of the Dragon appear). The country filter is implicit via
 //     the user's discover region — only the air-date window matters.
@@ -54,13 +70,12 @@
 // Architecture:
 //   Route (/profile/upcoming) → UpcomingPage → TMDB discover + watch providers
 //                                                   → openTitle (modal)
-//                                                   → trailer modal
 
 import {
-  Show, For, createSignal, createMemo, createEffect, onCleanup, type Component,
+  Show, For, createSignal, createMemo, createEffect, type Component,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { tmdbImage, TMDB_KEY, pickTrailer } from "~/core/tmdb/tmdb";
+import { tmdbImage, TMDB_KEY } from "~/core/tmdb/tmdb";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { openTitle } from "~/shared/hooks/useModalState";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -70,7 +85,7 @@ import {
   countryLabel,
 } from "~/shared/data/countryLanguages";
 import PageContainer from "~/shared/ui/PageContainer";
-import type { TMDBTitle, TMDBDetails, WatchlistItem } from "~/shared/types";
+import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 
 // ── Types ────────────────────────────────────────────────────────────
 
@@ -186,14 +201,6 @@ interface TMDBTvDetailsResponse {
   next_episode_to_air?: TMDBEpisode | null;
   last_episode_to_air?: TMDBEpisode | null;
   status?: string;
-}
-
-interface TMDBDiscoverResponse {
-  results?: TMDBRawMovie[];
-}
-
-interface TMDBVideosResponse {
-  results?: Array<{ id: string; key: string; name: string; site: string; type: string; official?: boolean }>;
 }
 
 /**
@@ -362,60 +369,66 @@ async function fetchWatchProvider(
 }
 
 /**
- * Fetch TV details: network name + next_episode_to_air info.
+ * Fetch TV details: network name + next_episode_to_air info + OTT
+ * flatrate provider (via /tv/{id}/watch/providers).
+ *
  * The next_episode_to_air field lets us show "S3 E5" on the card and
  * group by the actual episode air date (not just the series first_air_date).
  *
- * v2.3: previously returned just the network name (string | null). Now
- * returns a structured object with network + episode info so the card
- * can render "S3 E5 · On Netflix" style badges like CineLog V1.
+ * v2.4: ALSO fetches watch providers to find the OTT flatrate provider
+ * in the user's region. This replaces the network name as the displayed
+ * OTT label (so "StarPlus" shows as "Disney+ Hotstar" if the show is
+ * also on Hotstar). Series with NO flatrate OTT provider in the user's
+ * region are dropped by the caller — this filters out TV-channel-only
+ * shows per user request ("Don't show tv series that are airing in tv
+ * channel, show results only for the series releasing in OTT app").
+ *
+ * Returns:
+ *   - network:    First network name (informational; usually the studio
+ *                 or TV channel that produces the show).
+ *   - nextEpisode: next_episode_to_air from TMDB (for "S3 E5" badge).
+ *   - ottProvider: Flatrate OTT provider name in user's region, or null
+ *                  if the show has no OTT streaming availability there.
+ *                  (null = drop the series from the upcoming list.)
  */
-async function fetchTvDetails(id: number): Promise<{
+async function fetchTvDetails(
+  id: number,
+  region: string,
+): Promise<{
   network: string | null;
   nextEpisode: TMDBEpisode | null;
+  ottProvider: string | null;
 }> {
   try {
     const res = await cachedFetch<TMDBTvDetailsResponse>(
       buildCacheKey(`tmdb:tv_details:${id}`, {}),
       TMDB_TTL,
       async () => {
-        const r = await fetch(`${API}/tv/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=next_episode_to_air`);
+        // Append watch/providers to the same request so we get network,
+        // next_episode_to_air, AND OTT providers in a single API call.
+        const r = await fetch(
+          `${API}/tv/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=next_episode_to_air,watch/providers`,
+        );
         if (!r.ok) throw new Error(`tv details failed: ${r.status}`);
         return r.json();
       },
     );
+
+    // Extract the flatrate OTT provider for the user's region.
+    // watch/providers results are keyed by region code (e.g. "IN", "US").
+    // Fall back to "US" if the user's region has no provider data (rare).
+    const providerResults = (res as unknown as { "watch/providers"?: TMDBWatchProvidersResponse })["watch/providers"];
+    const regionProviders = providerResults?.results?.[region]
+      ?? providerResults?.results?.["US"];
+    const flatrate = regionProviders?.flatrate?.[0]?.provider_name ?? null;
+
     return {
       network: res.networks?.[0]?.name ?? null,
       nextEpisode: res.next_episode_to_air ?? null,
+      ottProvider: flatrate,
     };
   } catch {
-    return { network: null, nextEpisode: null };
-  }
-}
-
-/**
- * Fetch a trailer key for a single title. Used by the card's trailer
- * chip so the user can play the trailer without opening the Details
- * modal. Returns null if no YouTube trailer is available.
- */
-async function fetchTrailerKey(
-  mediaType: "movie" | "tv",
-  id: number,
-): Promise<string | null> {
-  try {
-    const res = await cachedFetch<TMDBVideosResponse>(
-      buildCacheKey(`tmdb:videos:${mediaType}:${id}`, {}),
-      TMDB_TTL,
-      async () => {
-        const r = await fetch(`${API}/${mediaType}/${id}/videos?api_key=${TMDB_KEY}&language=en-US`);
-        if (!r.ok) throw new Error(`videos failed: ${r.status}`);
-        return r.json();
-      },
-    );
-    const details = { videos: res } as unknown as TMDBDetails;
-    return pickTrailer(details)?.key ?? null;
-  } catch {
-    return null;
+    return { network: null, nextEpisode: null, ottProvider: null };
   }
 }
 
@@ -443,12 +456,11 @@ const UpcomingPage: Component = () => {
 
   // OTT / episode info caches (per item id)
   const [movieOtt, setMovieOtt] = createSignal<Record<number, { providerName: string | null; isTheatrical: boolean }>>({});
-  // v2.3: per-series network + next_episode_to_air info
-  const [seriesDetails, setSeriesDetails] = createSignal<Record<number, { network: string | null; nextEpisode: TMDBEpisode | null }>>({});
-
-  // Trailer modal state
-  const [trailerKey, setTrailerKey] = createSignal<string | null>(null);
-  const [trailerLoading, setTrailerLoading] = createSignal(false);
+  // v2.4: per-series network + next_episode_to_air + OTT provider info.
+  // ottProvider is null when the series has NO flatrate OTT provider in
+  // the user's region — those series are dropped from the list (filters
+  // out TV-channel-only shows per user request).
+  const [seriesDetails, setSeriesDetails] = createSignal<Record<number, { network: string | null; nextEpisode: TMDBEpisode | null; ottProvider: string | null }>>({});
 
   const endDate = createMemo(() => {
     const d = parseDate(startDate());
@@ -525,63 +537,118 @@ const UpcomingPage: Component = () => {
     movieResults.forEach(([id, info]) => { movieMap[id as number] = info; });
     setMovieOtt(movieMap);
 
-    // Series — fetch network + next_episode_to_air (v2.3).
+    // Series — fetch network + next_episode_to_air + OTT provider (v2.4).
     // Capped at MAX_TV_EPISODE_LOOKUPS to keep the page snappy.
-    const seriesList = series().slice(0, MAX_TV_EPISODE_LOOKUPS);
+    // v2.4: We fetch more (40) so we still have enough series left
+    // after dropping the TV-channel-only ones (those without an OTT
+    // flatrate provider in the user's region).
+    const r = region();
+    const seriesList = series().slice(0, Math.max(MAX_TV_EPISODE_LOOKUPS, 40));
     const seriesResults = await Promise.all(
       seriesList.map(async (s) => {
-        const details = await fetchTvDetails(s.id);
+        const details = await fetchTvDetails(s.id, r);
         return [s.id, details] as const;
       }),
     );
-    const seriesMap: Record<number, { network: string | null; nextEpisode: TMDBEpisode | null }> = {};
+    const seriesMap: Record<number, { network: string | null; nextEpisode: TMDBEpisode | null; ottProvider: string | null }> = {};
     seriesResults.forEach(([id, details]) => { seriesMap[id as number] = details; });
     setSeriesDetails(seriesMap);
   };
 
   // Build the upcoming items (with formatted dates + OTT info)
+  //
+  // v2.4 movie fix: client-side date filter. TMDB's `release_date.gte/lte`
+  // + `region` filter is supposed to scope by IN release date, but the
+  // `release_date` field returned is the PRIMARY (worldwide first)
+  // release date. So a movie like Cocktail 2 — primary release Jun 19,
+  // IN release Aug 5 — passes the API filter (IN release is in window)
+  // but DISPLAYS as Jun 19 (outside window). The client-side filter
+  // below drops any movie whose `release_date` falls outside [start, end]
+  // so the user only ever sees movies whose displayed date is in the
+  // selected window. (Per user: "Cocktail 2 is showing which is released
+  // on 19 June that Is old date, fix this show correctly from selected
+  // date to next 30 days.")
   const upcomingMovies = createMemo<UpcomingItem[]>(() => {
-    return movies().map((m) => {
-      const dateStr = m.release_date ?? "";
-      const ott = movieOtt()[m.id];
-      const raw = m as unknown as TMDBRawMovie;
-      return {
-        ...m,
-        formattedDate: formatDateShort(dateStr),
-        rawDate: dateStr,
-        ottInfo: ott?.providerName ?? null,
-        isTheatrical: ott?.isTheatrical ?? true,
-        originalLanguage: raw.original_language ?? null,
-        originCountry: raw.origin_country ?? [],
-        nextEpisodeSeason: null,
-        nextEpisodeNumber: null,
-      };
-    });
+    const start = startDate();
+    const end = endDate();
+    return movies()
+      .filter((m) => {
+        const d = m.release_date ?? "";
+        if (!d) return false;
+        // Drop movies whose release_date is outside [start, end].
+        // This catches Cocktail 2-style stale results.
+        return d >= start && d <= end;
+      })
+      .map((m) => {
+        const dateStr = m.release_date ?? "";
+        const ott = movieOtt()[m.id];
+        const raw = m as unknown as TMDBRawMovie;
+        return {
+          ...m,
+          formattedDate: formatDateShort(dateStr),
+          rawDate: dateStr,
+          ottInfo: ott?.providerName ?? null,
+          isTheatrical: ott?.isTheatrical ?? true,
+          originalLanguage: raw.original_language ?? null,
+          originCountry: raw.origin_country ?? [],
+          nextEpisodeSeason: null,
+          nextEpisodeNumber: null,
+        };
+      });
   });
 
+  // v2.4 series fix: drop series that have NO flatrate OTT provider in
+  // the user's region. This filters out TV-channel-only shows (daily
+  // soaps on StarPlus, Colors, etc. with no OTT presence) per user
+  // request: "Don't show tv series that are airing in tv channel, show
+  // results only for the series releasing in OTT app."
+  //
+  // We need to wait for `seriesDetails` to be populated before applying
+  // the OTT filter — otherwise the list would briefly show all series
+  // (including TV-channel-only ones) and then collapse once details
+  // arrive. The `groups()` memo naturally re-runs when seriesDetails
+  // changes, so the UI updates as soon as the OTT info is fetched.
+  //
+  // For series whose details haven't been fetched yet (beyond the cap),
+  // we keep them in the list with `ottInfo = null` so the user at least
+  // sees something — but the OTT filter below drops them since we can't
+  // verify they have an OTT provider.
   const upcomingSeries = createMemo<UpcomingItem[]>(() => {
-    return series().map((s) => {
-      const details = seriesDetails()[s.id];
-      const ep = details?.nextEpisode ?? null;
-      // v2.3: if we have next_episode_to_air with an air_date, group by
-      // that date (so the user sees the actual upcoming episode date,
-      // not the series's first_air_date which may be years ago).
-      // Fall back to first_air_date for premieres where TMDB doesn't
-      // yet have episode-level data.
-      const dateStr = ep?.air_date ?? s.first_air_date ?? "";
-      const raw = s as unknown as TMDBRawMovie;
-      return {
-        ...s,
-        formattedDate: formatDateShort(dateStr),
-        rawDate: dateStr,
-        ottInfo: details?.network ?? null,
-        isTheatrical: false,
-        originalLanguage: raw.original_language ?? null,
-        originCountry: raw.origin_country ?? [],
-        nextEpisodeSeason: ep?.season_number ?? null,
-        nextEpisodeNumber: ep?.episode_number ?? null,
-      };
-    });
+    const detailsMap = seriesDetails();
+    return series()
+      .filter((s) => {
+        const details = detailsMap[s.id];
+        // If we have details, require an OTT flatrate provider.
+        // If we don't have details (beyond fetch cap), drop the series
+        // — we can't verify it has OTT availability.
+        if (details) return details.ottProvider !== null;
+        return false;
+      })
+      .map((s) => {
+        const details = detailsMap[s.id];
+        const ep = details?.nextEpisode ?? null;
+        // v2.3: if we have next_episode_to_air with an air_date, group by
+        // that date (so the user sees the actual upcoming episode date,
+        // not the series's first_air_date which may be years ago).
+        // Fall back to first_air_date for premieres where TMDB doesn't
+        // yet have episode-level data.
+        const dateStr = ep?.air_date ?? s.first_air_date ?? "";
+        const raw = s as unknown as TMDBRawMovie;
+        return {
+          ...s,
+          formattedDate: formatDateShort(dateStr),
+          rawDate: dateStr,
+          // v2.4: prefer OTT provider name (e.g. "Disney+ Hotstar")
+          // over the network name (e.g. "StarPlus") — the user wants
+          // to see the streaming platform, not the TV channel.
+          ottInfo: details?.ottProvider ?? details?.network ?? null,
+          isTheatrical: false,
+          originalLanguage: raw.original_language ?? null,
+          originCountry: raw.origin_country ?? [],
+          nextEpisodeSeason: ep?.season_number ?? null,
+          nextEpisodeNumber: ep?.episode_number ?? null,
+        };
+      });
   });
 
   // v2.3: V1-style timeline grouping. Movies AND series are mixed into
@@ -627,42 +694,11 @@ const UpcomingPage: Component = () => {
     openTitle(baseItem, library.watchlist());
   };
 
-  // Trailer chip handler — fetches the trailer key and opens the modal.
-  const handlePlayTrailer = async (e: MouseEvent, item: UpcomingItem) => {
-    e.stopPropagation();
-    e.preventDefault();
-    setTrailerLoading(true);
-    setTrailerKey(null);
-    try {
-      const key = await fetchTrailerKey(item.media_type, item.id);
-      if (key) {
-        setTrailerKey(key);
-      } else {
-        // No trailer available — fall back to opening Details so the
-        // user can still see full info.
-        handleClick(item);
-      }
-    } catch {
-      handleClick(item);
-    } finally {
-      setTrailerLoading(false);
-    }
-  };
-
-  const closeTrailer = () => setTrailerKey(null);
-
-  // ESC to close trailer modal
-  onCleanup(() => {
-    if (typeof window !== "undefined") {
-      window.removeEventListener("keydown", escCloseTrailer);
-    }
-  });
-  const escCloseTrailer = (e: KeyboardEvent) => {
-    if (e.key === "Escape") closeTrailer();
-  };
-  if (typeof window !== "undefined") {
-    window.addEventListener("keydown", escCloseTrailer);
-  }
+  // v2.4: Trailer modal + handlePlayTrailer removed. Trailers are now
+  // only playable from the Details modal (per user request: "Remove
+  // trailer button from card on main page, only show trailer from
+  // detail modal after opening of any titles"). The card click opens
+  // Details, which has its own trailer button backed by pickTrailer().
 
   const onDateInput = (e: InputEvent) => {
     const val = (e.currentTarget as HTMLInputElement).value;
@@ -772,21 +808,6 @@ const UpcomingPage: Component = () => {
             </div>
           </Show>
 
-          {/* Trailer loading overlay */}
-          <Show when={trailerLoading()}>
-            <div class="upcoming-trailer-modal" role="status" aria-live="polite">
-              <div class="upcoming-trailer-frame" style={{ display: "flex", "align-items": "center", "justify-content": "center" }}>
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "40px", color: "var(--p)", animation: "spin 1s linear infinite" }}
-                  aria-hidden="true"
-                >
-                  progress_activity
-                </span>
-              </div>
-            </div>
-          </Show>
-
           {/* Error state */}
           <Show when={!loading() && error()}>
             <div class="empty-premium" role="alert">
@@ -808,10 +829,11 @@ const UpcomingPage: Component = () => {
               </div>
               <h3 class="empty-premium-title">No upcoming titles in this window</h3>
               <p class="empty-premium-body">
-                Try a different date or language filter. Movies shown
-                are scoped to titles releasing in {regionLabel()}; TV
-                series shown are scoped to those with upcoming episodes
-                airing in this 30-day window.
+                Try a different date or language filter. Movies are
+                scoped to titles releasing in {regionLabel()} between
+                the selected dates. Series are scoped to those with
+                upcoming episodes airing on OTT platforms in your
+                region (TV-channel-only shows are excluded).
               </p>
             </div>
           </Show>
@@ -848,7 +870,6 @@ const UpcomingPage: Component = () => {
                               <UpcomingCard
                                 item={item}
                                 onClick={() => handleClick(item)}
-                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
                                 type={item.media_type === "tv" ? "series" : "movie"}
                               />
                             )}
@@ -863,42 +884,6 @@ const UpcomingPage: Component = () => {
           </Show>
         </div>
       </div>
-
-      {/* Trailer modal — YouTube iframe in a centered overlay.
-          Rendered via Portal so it sits above the AppShell + BottomNav. */}
-      <Show when={trailerKey()}>
-        <Portal>
-          <div
-            class="upcoming-trailer-modal"
-            onClick={closeTrailer}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Trailer player"
-          >
-            <div
-              class="upcoming-trailer-frame"
-              onClick={(e) => e.stopPropagation()}
-            >
-              <button
-                type="button"
-                class="upcoming-trailer-close focus-ring"
-                onClick={closeTrailer}
-                aria-label="Close trailer"
-              >
-                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
-                  close
-                </span>
-              </button>
-              <iframe
-                src={`https://www.youtube.com/embed/${trailerKey()}?autoplay=1&rel=0&modestbranding=1`}
-                title="Trailer"
-                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                allowfullscreen
-              />
-            </div>
-          </div>
-        </Portal>
-      </Show>
 
       {/* v2.2: Filter dialog — Language picker only.
           (Nationality filter was removed; country filter is implicit
@@ -1077,7 +1062,6 @@ const UpcomingPage: Component = () => {
 interface UpcomingCardProps {
   item: UpcomingItem;
   onClick: () => void;
-  onPlayTrailer: (e: MouseEvent) => void;
   type: "movie" | "series";
 }
 
@@ -1201,20 +1185,13 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             </span>
           </Show>
 
-          {/* Trailer chip — opens the YouTube trailer modal directly.
-              Stops propagation so the card click (which opens Details)
-              doesn't fire. */}
-          <button
-            type="button"
-            class="upcoming-card-trailer focus-ring"
-            onClick={(e) => props.onPlayTrailer(e)}
-            aria-label={`Watch trailer for ${title()}`}
-          >
-            <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
-              play_arrow
-            </span>
-            Trailer
-          </button>
+          {/* v2.4: Trailer chip removed from card. Trailers are now only
+              playable from the Details modal (per user request: "Remove
+              trailer button from card on main page, only show trailer
+              from detail modal after opening of any titles"). Clicking
+              the card body opens Details, which has its own trailer
+              button backed by pickTrailer() over the full TMDB videos
+              payload (including teasers, clips, and featurettes). */}
         </div>
       </div>
     </div>

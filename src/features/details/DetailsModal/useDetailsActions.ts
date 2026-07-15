@@ -1,9 +1,9 @@
 // src/features/details/DetailsModal/useDetailsActions.ts
-import { createSignal, createMemo } from "solid-js";
+import { createSignal, createMemo, createEffect } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
-import { pickTrailer } from "~/core/tmdb/tmdb";
+import { pickTrailer, fetchAnyVideoKey } from "~/core/tmdb/tmdb";
 import {
   createVaultItemInSupabase,
   deleteVaultItemInSupabase,
@@ -66,8 +66,74 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
   const [isAdding, setIsAdding] = createSignal(false);
   const [isRemoving, setIsRemoving] = createSignal(false);
 
-  const hasTrailer = createMemo(() => pickTrailer(args.details()) !== null);
-  const trailerKey = createMemo(() => pickTrailer(args.details())?.key ?? null);
+  // ── Trailer resolution ──────────────────────────────────────────────
+  //
+  // v2.4: Two-pass trailer lookup so titles with NO English trailer in
+  // their main /details payload still surface a playable video.
+  //
+  // Pass 1: pickTrailer(details) — scans the videos array that came back
+  //         with the main /details fetch (language=en-US +
+  //         include_video_language=en,null). Covers English + null-
+  //         language trailers/teasers/clips.
+  //
+  // Pass 2: fetchAnyVideoKey(mediaType, id) — only fires if pass 1
+  //         returned null. Makes a SEPARATE /videos call with a broader
+  //         include_video_language list (en,null,hi,ja,ko,zh,es,fr,de,
+  //         it,pt,ru,ta,te,mr,bn) so international titles (Bollywood,
+  //         K-dramas, anime) with ONLY native-language trailers are
+  //         caught.
+  //
+  // The fallback key is cached in `fallbackTrailerKey` and cleared
+  // whenever the open title changes (so we don't leak a previous title's
+  // trailer into the next one).
+  const [fallbackTrailerKey, setFallbackTrailerKey] = createSignal<string | null>(null);
+
+  // Reset fallback whenever the open title changes (id or media_type).
+  // The baseItem's TMDB id is a stable identifier for the open title.
+  createEffect(() => {
+    const item = args.baseItem();
+    // Read id + media_type to track them as deps.
+    const _id = item?.id;
+    const _mt = item?.media_type;
+    // Re-run on change.
+    setFallbackTrailerKey(null);
+  });
+
+  // Trigger the fallback fetch when pickTrailer returns null.
+  createEffect(() => {
+    const details = args.details();
+    const item = args.baseItem();
+    if (!details || !item) return;
+    // Pass 1: if main payload has a trailer, no need for fallback.
+    if (pickTrailer(details) !== null) return;
+    // Pass 2: fire fallback fetch.
+    const mediaType = item.media_type;
+    const id = item.id;
+    if (!mediaType || !id) return;
+    void fetchAnyVideoKey(
+      mediaType === "movie" ? "movie" : "tv",
+      id,
+    ).then((key) => {
+      // Only set if we haven't switched titles while the fetch was
+      // in flight (id still matches the current open title).
+      if (args.baseItem()?.id === id) {
+        setFallbackTrailerKey(key);
+      }
+    });
+  });
+
+  const hasTrailer = createMemo(() => {
+    const details = args.details();
+    if (pickTrailer(details) !== null) return true;
+    return fallbackTrailerKey() !== null;
+  });
+
+  const trailerKey = createMemo(() => {
+    const details = args.details();
+    const primary = pickTrailer(details)?.key ?? null;
+    if (primary) return primary;
+    return fallbackTrailerKey();
+  });
 
   const handleAddToVault = async () => {
     const uid = getCurrentUid();
