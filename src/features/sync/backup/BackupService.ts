@@ -280,7 +280,107 @@ export interface RestoreCallbacks {
  *
  * Reports progress via callbacks so the UI can show a progress bar for
  * large restores (e.g. 1000+ titles). Supports cancellation.
+ *
+ * RESILIENCE: 30ms delay between writes keeps us under Supabase's
+ * rate limit. Transient failures (429, network blips, 5xx) are
+ * collected during the first pass and retried with exponential
+ * backoff (200ms → 500ms → 1500ms → 4000ms) in a second pass at the
+ * end. Permanent errors (RLS, constraint violations, invalid data)
+ * are reported immediately and never retried.
  */
+
+/**
+ * Sleep helper for rate-limit-friendly delays.
+ */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Is the given error a transient network/rate-limit error that should be
+ * retried? Returns true for:
+ *   - Supabase rate-limit responses (429, "rate limit", "Too many requests")
+ *   - Network errors (Failed to fetch, NetworkError, ERR_*)
+ *   - 5xx server errors
+ *   - Connection reset / timeout errors
+ *
+ * Returns false for permanent errors (constraint violations, invalid data,
+ * RLS denials, etc.) — retrying those would never succeed.
+ */
+function isTransientError(err: unknown): boolean {
+  const msg = String(
+    (err instanceof Error ? err.message : err) ?? "",
+  ).toLowerCase();
+  if (
+    msg.includes("rate limit") ||
+    msg.includes("too many requests") ||
+    msg.includes("429") ||
+    msg.includes("failed to fetch") ||
+    msg.includes("networkerror") ||
+    msg.includes("network error") ||
+    msg.includes("network request failed") ||
+    msg.includes("err_") ||
+    msg.includes("timeout") ||
+    msg.includes("timed out") ||
+    msg.includes("connection reset") ||
+    msg.includes("connection refused") ||
+    msg.includes("socket hang up") ||
+    msg.includes("econnreset") ||
+    msg.includes("econnrefused") ||
+    msg.includes("epipe") ||
+    msg.includes("500") ||
+    msg.includes("502") ||
+    msg.includes("503") ||
+    msg.includes("504") ||
+    msg.includes("service unavailable") ||
+    msg.includes("bad gateway") ||
+    msg.includes("gateway timeout") ||
+    msg.includes("internal server error")
+  ) {
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Run a single upsert with retry-on-transient-error.
+ *
+ * Strategy:
+ *   - Up to 4 attempts total (1 initial + 3 retries)
+ *   - Exponential backoff: 200ms → 500ms → 1500ms → 4000ms
+ *   - Only retries on transient errors (network/rate-limit/5xx)
+ *   - Permanent errors (constraint violations, RLS, invalid data) throw
+ *     immediately on the first attempt
+ *
+ * Between successful writes, the caller adds a small delay to avoid
+ * triggering Supabase's rate limiter in the first place.
+ */
+async function upsertWithRetry(
+  uid: string,
+  item: WatchlistItem,
+  maxAttempts = 4,
+): Promise<void> {
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < maxAttempts; attempt++) {
+    try {
+      await upsertVaultItemInSupabase(uid, item);
+      return; // success
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientError(err)) {
+        // Permanent error — don't retry, throw immediately.
+        throw err;
+      }
+      // Transient error — wait and retry (unless this was the last attempt).
+      if (attempt < maxAttempts - 1) {
+        const backoffMs = [200, 500, 1500, 4000][attempt] ?? 4000;
+        await sleep(backoffMs);
+      }
+    }
+  }
+  throw lastErr;
+}
+
 export async function restoreBackup(
   parsed: ParsedBackup,
   existingWatchlist: WatchlistItem[],
@@ -305,19 +405,23 @@ export async function restoreBackup(
   const failureLog: { reason: string; title?: string }[] = [];
   const total = parsed.items.length;
 
+  // Track transient failures so we can retry them all in a second pass
+  // after the main loop completes. This way the user sees progress fast
+  // (most items succeed on the first pass), and only the failed ones
+  // get the slow retry treatment at the end.
+  const transientFailures: { item: WatchlistItem; wasExisting: boolean }[] = [];
+
   for (let i = 0; i < total; i++) {
     // Check for cancellation.
     if (callbacks?.shouldCancel?.()) break;
 
     const item = parsed.items[i];
-    try {
-      const tmdbId = String(item.id);
-      const titleKey = (item.title || item.name || "").toLowerCase().trim();
-      const wasExisting = existingByTmdb.has(tmdbId) || (titleKey && existingByTitle.has(titleKey));
+    const tmdbId = String(item.id);
+    const titleKey = (item.title || item.name || "").toLowerCase().trim();
+    const wasExisting =
+      existingByTmdb.has(tmdbId) || (!!titleKey && existingByTitle.has(titleKey));
 
-      // Always upsert — this both inserts new items AND updates existing
-      // ones with the backup's data. No more failures from unique-constraint
-      // violations on pre-existing items.
+    try {
       await upsertVaultItemInSupabase(uid, item);
 
       if (wasExisting) {
@@ -330,11 +434,24 @@ export async function restoreBackup(
       existingByTmdb.add(tmdbId);
       if (titleKey) existingByTitle.add(titleKey);
     } catch (err) {
-      console.error("[restoreBackup] Failed to restore item:", item, err);
-      failed++;
-      const reason = err instanceof Error ? err.message : "Database error";
-      const title = item.title || item.name || undefined;
-      failureLog.push({ reason, title });
+      if (isTransientError(err)) {
+        // Don't count as failed yet — we'll retry at the end.
+        transientFailures.push({ item, wasExisting });
+      } else {
+        console.error("[restoreBackup] Failed to restore item:", item, err);
+        failed++;
+        const reason = err instanceof Error ? err.message : "Database error";
+        const title = item.title || item.name || undefined;
+        failureLog.push({ reason, title });
+      }
+    }
+
+    // Small delay between writes to avoid triggering Supabase's rate
+    // limiter. 30ms is enough to keep us under ~30 req/sec, which is
+    // well within Supabase free-tier limits. Total added time for
+    // 1000 items = ~30 seconds — acceptable for a restore operation.
+    if (total > 100) {
+      await sleep(30);
     }
 
     // Report progress — every item for small batches, every 10 for large.
@@ -342,6 +459,33 @@ export async function restoreBackup(
       if (total <= 100 || i % 10 === 0 || i === total - 1) {
         callbacks.onProgress(i + 1, total, imported, skipped, failed);
       }
+    }
+  }
+
+  // ---- SECOND PASS: retry transient failures ----
+  // These are items that failed due to rate-limiting or network blips
+  // during the first pass. We retry them now (with longer backoffs)
+  // because the main rush of writes is over and the rate limiter has
+  // had time to reset.
+  if (transientFailures.length > 0) {
+    console.log(
+      `[restoreBackup] Retrying ${transientFailures.length} transient failures...`,
+    );
+    for (const { item, wasExisting } of transientFailures) {
+      if (callbacks?.shouldCancel?.()) break;
+      try {
+        await upsertWithRetry(uid, item);
+        if (wasExisting) duplicates++;
+        imported++;
+      } catch (err) {
+        console.error("[restoreBackup] Final retry failed:", item, err);
+        failed++;
+        const reason = err instanceof Error ? err.message : "Database error";
+        const title = item.title || item.name || undefined;
+        failureLog.push({ reason, title });
+      }
+      // Longer delay between retries since we know rate limiting is active.
+      await sleep(100);
     }
   }
 
