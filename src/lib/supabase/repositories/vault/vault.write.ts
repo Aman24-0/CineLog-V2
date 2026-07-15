@@ -35,6 +35,34 @@ export async function createVaultItem(
 }
 
 /**
+ * Upsert a vault item — insert if not present, UPDATE if it already exists.
+ *
+ * Used by the backup Restore flow so that importing a V1 backup over an
+ * existing V2 vault doesn't fail on items that were already added manually.
+ * The unique key is (user_id, tmdb_id, media_type) — same as the composite
+ * identity used everywhere else.
+ *
+ * On conflict, ALL user-owned fields are overwritten with the incoming
+ * values (status, rating, notes, dates, re-watch tracking, season dates).
+ * This is the desired behavior for a restore: the backup is the source of
+ * truth.
+ */
+export async function upsertVaultItem(
+  supabase: TypedSupabaseClient,
+  payload: CreateVaultItemPayload
+): Promise<VaultItemResult> {
+  const { data, error } = await supabase
+    .from(TABLE)
+    .upsert(toVaultInsert(payload), {
+      onConflict: "user_id,tmdb_id,media_type",
+      ignoreDuplicates: false,
+    })
+    .select()
+    .single();
+  return { data, error: toError(error) };
+}
+
+/**
  * Partially update a vault item by composite key. Excludes soft-deleted.
  */
 export async function updateVaultItem(

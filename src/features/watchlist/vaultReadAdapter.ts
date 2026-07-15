@@ -122,10 +122,15 @@ export function vaultIdentity(userId: string, item: WatchlistItem): VaultIdentit
 /**
  * Create a new vault item in Supabase from a `WatchlistItem`.
  *
- * Used by Search, Discover, and Details when a user adds a title to
- * their vault. The `WatchlistItem` carries TMDB metadata (title,
- * poster_path, etc.) which is NOT stored in the vault table — only
- * the user-owned state (status, rating, notes) is persisted.
+ * Used by Search, Discover, Details, and the backup Restore flow.
+ * The `WatchlistItem` carries TMDB metadata (title, poster_path, etc.)
+ * which is NOT stored in the vault table — only the user-owned state
+ * (status, rating, notes, dates, re-watch tracking, season dates) is
+ * persisted.
+ *
+ * ALL user-owned fields are passed through so that imports from V1
+ * backups preserve watch dates, season start/end dates, re-watch
+ * counts, and the original `addedAt` timestamp.
  *
  * @returns The created `WatchlistItem` (with timestamps from Supabase).
  */
@@ -142,6 +147,31 @@ export async function createVaultItemInSupabase(
     rating: item.rating,
     notes: item.notes,
     watchedOn: item.watchDate,
+    // Preserve re-watch tracking (movies + series)
+    rewatchCount: item.rewatchCount,
+    rewatchDates: item.rewatchDates,
+    // Preserve series per-season dates
+    seasonDates: item.seasonDates,
+    seasonRewatchCount: item.seasonRewatchCount,
+    seasonRewatchDates: item.seasonRewatchDates,
+    // Preserve movie progress (minutes)
+    progressMinutes:
+      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+        : undefined,
+    // Preserve original add timestamp so the timeline stays accurate
+    // across imports (instead of every imported item showing today's date).
+    createdAt:
+      typeof item.addedAt === "string"
+        ? item.addedAt
+        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+          ? new Date(item.addedAt.seconds * 1000).toISOString()
+          : undefined,
+    // If the item is Completed, derive completedAt from watchDate
+    completedAt:
+      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
+    // lastActivityAt = most recent activity (updatedAt or addedAt or now)
+    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
   };
 
   const { data, error } = await repo.createVaultItem(payload);
@@ -150,5 +180,55 @@ export async function createVaultItemInSupabase(
 
   // Return a WatchlistItem that merges the original TMDB metadata with
   // the persisted vault state so the caller's modal state is complete.
+  return { ...item, ...vaultRowToWatchlistItem(data) };
+}
+
+/**
+ * Upsert a vault item — insert if not present, UPDATE if it already exists.
+ *
+ * Used by the backup Restore flow so that importing a V1 backup over an
+ * existing V2 vault doesn't fail on items that were already added manually
+ * (the "10 failed" issue). On conflict, ALL user-owned fields are
+ * overwritten with the incoming values — the backup is the source of truth.
+ *
+ * @returns The upserted `WatchlistItem` (with timestamps from Supabase).
+ */
+export async function upsertVaultItemInSupabase(
+  userId: string,
+  item: WatchlistItem,
+): Promise<WatchlistItem> {
+  const repo = getVaultRepository();
+  const payload: CreateVaultItemPayload = {
+    userId,
+    tmdbId: Number(item.id),
+    mediaType: item.media_type,
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
+    rating: item.rating,
+    notes: item.notes,
+    watchedOn: item.watchDate,
+    rewatchCount: item.rewatchCount,
+    rewatchDates: item.rewatchDates,
+    seasonDates: item.seasonDates,
+    seasonRewatchCount: item.seasonRewatchCount,
+    seasonRewatchDates: item.seasonRewatchDates,
+    progressMinutes:
+      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+        : undefined,
+    createdAt:
+      typeof item.addedAt === "string"
+        ? item.addedAt
+        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+          ? new Date(item.addedAt.seconds * 1000).toISOString()
+          : undefined,
+    completedAt:
+      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
+    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+  };
+
+  const { data, error } = await repo.upsertVaultItem(payload);
+  if (error) throw error;
+  if (!data) throw new Error("[vaultAdapter] upsertVaultItem returned no data");
+
   return { ...item, ...vaultRowToWatchlistItem(data) };
 }

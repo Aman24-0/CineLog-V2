@@ -116,7 +116,7 @@ export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
 // ---------------------------------------------------------------------------
 
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
+import { createVaultItemInSupabase, upsertVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 
 /**
  * Build a wrapped BackupDocument from the user's current watchlist.
@@ -245,7 +245,9 @@ export function previewBackup(parsed: ParsedBackup, existingWatchlist: Watchlist
     planned: items.filter((i) => i.status === "Planned" || i.status === "Plan to Watch").length,
     collections: parsed.document?.library?.collections?.length ?? 0,
     duplicates,
-    willImport: items.length - duplicates,
+    // With upsert strategy, ALL items get written — duplicates are UPDATED,
+    // not skipped. So willImport = total titles.
+    willImport: items.length,
     repaired: parsed.repairedCount,
     failed: parsed.failures.length,
   };
@@ -260,11 +262,21 @@ export interface RestoreCallbacks {
 /**
  * Restore a parsed backup into the user's V2 library.
  *
- * MERGE by default — titles already in the library (matched by TMDB id
- * or title) are skipped. Returns a summary with imported/skipped/failed/
- * repaired/duplicates counts + a failure log.
+ * UPSERT strategy — every item from the backup is written to the vault.
+ * If an item already exists (same tmdb_id + media_type), it is UPDATED
+ * with the backup's data (status, rating, notes, watch dates, season
+ * dates, rewatch tracking). If it doesn't exist, it is inserted.
  *
- * NEVER stops because one item fails — continues importing remaining items.
+ * This means:
+ *   - No more "10 failed" from unique-constraint violations on items
+ *     that were already in the vault with a different media_type.
+ *   - No more "4 duplicates" skipped — existing items get refreshed
+ *     with the backup's data instead.
+ *   - ALL user-owned fields (watchDate, seasonDates, rewatchCount,
+ *     rewatchDates, seasonRewatchCount, seasonRewatchDates, createdAt,
+ *     completedAt, lastActivityAt) are preserved.
+ *
+ * NEVER stops because one item fails — continues with remaining items.
  *
  * Reports progress via callbacks so the UI can show a progress bar for
  * large restores (e.g. 1000+ titles). Supports cancellation.
@@ -301,18 +313,22 @@ export async function restoreBackup(
     try {
       const tmdbId = String(item.id);
       const titleKey = (item.title || item.name || "").toLowerCase().trim();
-      if (existingByTmdb.has(tmdbId) || (titleKey && existingByTitle.has(titleKey))) {
-        skipped++;
-        duplicates++;
-      } else {
-        await createVaultItemInSupabase(uid, item);
-        imported++;
-        // Add to the existing sets so duplicate detection works within
-        // the same import batch (prevents re-importing the same id twice
-        // if it appears multiple times in the backup).
-        existingByTmdb.add(tmdbId);
-        if (titleKey) existingByTitle.add(titleKey);
+      const wasExisting = existingByTmdb.has(tmdbId) || (titleKey && existingByTitle.has(titleKey));
+
+      // Always upsert — this both inserts new items AND updates existing
+      // ones with the backup's data. No more failures from unique-constraint
+      // violations on pre-existing items.
+      await upsertVaultItemInSupabase(uid, item);
+
+      if (wasExisting) {
+        duplicates++; // counted as "updated" — still a successful write
       }
+      imported++; // every successful upsert counts as imported
+
+      // Track this id so we don't re-process it if it appears again in
+      // the same backup.
+      existingByTmdb.add(tmdbId);
+      if (titleKey) existingByTitle.add(titleKey);
     } catch (err) {
       console.error("[restoreBackup] Failed to restore item:", item, err);
       failed++;
@@ -331,7 +347,7 @@ export async function restoreBackup(
 
   // Build the summary string.
   const parts: string[] = [`${imported} imported`];
-  if (duplicates > 0) parts.push(`${duplicates} duplicates`);
+  if (duplicates > 0) parts.push(`${duplicates} updated`);
   if (parsed.repairedCount > 0) parts.push(`${parsed.repairedCount} repaired`);
   if (failed > 0) parts.push(`${failed} failed`);
 

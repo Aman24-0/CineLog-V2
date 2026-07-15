@@ -46,6 +46,7 @@ export {
   fetchVaultFromSupabase,
   vaultIdentity,
   createVaultItemInSupabase,
+  upsertVaultItemInSupabase,
 } from "./vaultReadAdapter";
 
 // ---------------------------------------------------------------------------

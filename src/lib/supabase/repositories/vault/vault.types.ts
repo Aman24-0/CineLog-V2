@@ -41,11 +41,20 @@ export interface CreateVaultItemPayload {
   readonly rating?: number;
   readonly notes?: string;
   readonly rewatchCount?: number;
+  readonly rewatchDates?: string[];
   readonly progressMinutes?: number;
   readonly watchedOn?: string;
   readonly startedAt?: string;
   readonly completedAt?: string;
   readonly lastActivityAt?: string;
+  /** Per-season watch dates for TV series — map of season number → { start, end }. */
+  readonly seasonDates?: Record<string, { start: string; end: string }>;
+  /** Number of full-series re-watch passes (TV only). */
+  readonly seasonRewatchCount?: number;
+  /** Per-re-watch per-season start/end maps (TV only). */
+  readonly seasonRewatchDates?: Record<string, { start: string; end: string }>[];
+  /** Original add timestamp — preserved across imports so the timeline stays accurate. */
+  readonly createdAt?: string;
 }
 
 export type VaultSortField =

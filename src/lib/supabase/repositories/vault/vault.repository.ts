@@ -14,7 +14,7 @@ import {
   getFavorites, getPinned, getRecentlyUpdated, searchVault
 } from "./vault.read";
 import {
-  createVaultItem, deleteVaultItem, restoreVaultItem,
+  createVaultItem, upsertVaultItem, deleteVaultItem, restoreVaultItem,
   updateNotes, updateProgress, updateRating, updateStatus, updateVaultItem
 } from "./vault.write";
 import type {
@@ -33,6 +33,9 @@ export class VaultRepository {
   // ---- Writes ----
   createVaultItem(payload: CreateVaultItemPayload): Promise<VaultItemResult> {
     return createVaultItem(this.supabase, payload);
+  }
+  upsertVaultItem(payload: CreateVaultItemPayload): Promise<VaultItemResult> {
+    return upsertVaultItem(this.supabase, payload);
   }
   updateVaultItem(identity: VaultIdentity, update: import("./vault.types").VaultUpdate): Promise<VaultItemResult> {
     return updateVaultItem(this.supabase, identity, update);
