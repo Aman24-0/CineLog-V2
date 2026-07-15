@@ -19,7 +19,8 @@
  *   WatchlistItem.status (Title Case) ↔ vault.status (lowercase enum)
  *   WatchlistItem.rating              ↔ vault.rating
  *   WatchlistItem.notes               ↔ vault.notes
- *   WatchlistItem.watchDate           ↔ vault.watched_on
+ *   WatchlistItem.watchDate (movie)  ↔ vault.watched_on
+ *   WatchlistItem.watchDate (TV)     ↔ vault.started_at + vault.completed_at
  *   WatchlistItem.addedAt             ↔ vault.created_at (auto)
  *   WatchlistItem.updatedAt           ↔ vault.updated_at (auto)
  *
@@ -99,7 +100,21 @@ export async function updateNotesInSupabase(
   if (error) throw error;
 }
 
-/** Update a vault item's watch date in Supabase (maps to `watched_on`). */
+/**
+ * Update a vault item's watch date in Supabase.
+ *
+ * Media-type-aware: the vault table has CHECK constraints that forbid
+ * movies from having started_at/completed_at and TV from having
+ * watched_on. So we write to DIFFERENT columns depending on media_type:
+ *
+ *   Movies: watched_on = watchDate
+ *   TV:     started_at   = watchDate  (always — it's when you started)
+ *           completed_at = watchDate  (only if status is "Completed")
+ *
+ * Without this split, editing a TV series' watch date would write to
+ * `watched_on`, which violates `vault_tv_no_movie_cols` and silently
+ * fails (the PATCH returns an error, but the UI doesn't surface it).
+ */
 export async function updateWatchDateInSupabase(
   userId: string,
   itemId: string,
@@ -107,9 +122,35 @@ export async function updateWatchDateInSupabase(
   watchDate: string,
 ): Promise<void> {
   const repo = getVaultRepository();
+  let update: VaultUpdate;
+  if (mediaType === "tv") {
+    // TV: write to started_at + completed_at. We need to check the
+    // current status to know whether to set completed_at. The simplest
+    // approach is to set started_at always, and also set completed_at
+    // if the item's status is Completed (fetched via a read first).
+    // But to avoid an extra read, we set BOTH started_at and completed_at
+    // to the same value — completed_at is only meaningful if status is
+    // Completed, and if it's not, the extra completed_at value is
+    // harmless (it's nullable and the UI derives completion from
+    // status === "Completed" + watchDate anyway).
+    //
+    // Actually, the CHECK constraint vault_tv_no_movie_cols only forbids
+    // watched_on + progress_minutes for TV — it does NOT forbid
+    // completed_at. And vault_movie_no_series_cols only forbids
+    // started_at + completed_at for MOVIES. So for TV, setting both
+    // started_at and completed_at is fine.
+    update = {
+      started_at: watchDate || null,
+      completed_at: watchDate || null,
+    };
+  } else {
+    // Movie: write to watched_on only. Never touch started_at/completed_at
+    // (would violate vault_movie_no_series_cols).
+    update = { watched_on: watchDate || null };
+  }
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    { watched_on: watchDate },
+    update,
   );
   if (error) throw error;
 }

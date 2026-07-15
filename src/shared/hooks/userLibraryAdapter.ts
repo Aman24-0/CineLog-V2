@@ -47,13 +47,23 @@ export function vaultRowToWatchlistItem(
   progress?: EpisodeProgressRow | null,
   tmdb?: TMDBTitle | null,
 ): WatchlistItem {
+  // ── Media-type-aware watch date resolution ────────────────────────
+  // See vaultReadAdapter.ts for the full rationale. Short version:
+  //   Movies store watch date in `watched_on`.
+  //   TV stores it in `completed_at` (preferred) or `started_at` (fallback).
+  //   The vault table's CHECK constraints forbid mixing the two.
+  const isTV = row.media_type === "tv";
+  const watchDate = isTV
+    ? (row.completed_at ?? row.started_at ?? undefined)
+    : (row.watched_on ?? undefined);
+
   const base: WatchlistItem = {
     id: String(row.tmdb_id),
     media_type: row.media_type,
     status: STATUS_TO_UI[row.status] ?? "Planned",
     rating: row.rating ?? undefined,
     notes: row.notes ?? undefined,
-    watchDate: row.watched_on ?? undefined,
+    watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
     // TMDB display metadata — may be undefined if the TMDB fetch failed,

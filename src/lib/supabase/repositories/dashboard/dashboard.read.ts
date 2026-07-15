@@ -195,18 +195,55 @@ export async function getCompletedRecently(
  * the recommendation engine are all derived from this array client-side,
  * avoiding duplicate fetches.
  *
+ * ── PAGINATION ─────────────────────────────────────────────────────
+ * Supabase/PostgREST has a default `max_rows = 1000` limit per request
+ * (configured in supabase/config.toml). Without pagination, any vault
+ * with more than 1000 items silently truncates — the user's profile
+ * shows "1000 Titles" instead of the real count (e.g. 1029), and 29
+ * titles just disappear from the UI.
+ *
+ * We paginate in chunks of 1000 (matching the PostgREST limit) until a
+ * page returns fewer rows than requested, which means we've reached the
+ * end. This handles vaults of any size without hitting the limit.
+ *
  * @returns All vault rows (empty if none or error).
  */
 export async function getAllVaultItems(
   supabase: TypedSupabaseClient,
   userId: string
 ): Promise<DashboardListResult<VaultRow>> {
-  const { data, error } = await supabase
-    .from(VAULT_TABLE)
-    .select(VAULT_DASHBOARD_COLUMNS)
-    .eq("user_id", userId)
-    .is("deleted_at", null)
-    .order("created_at", { ascending: false });
+  const PAGE_SIZE = 1000; // matches PostgREST max_rows default
+  const allRows: VaultRow[] = [];
+  let offset = 0;
+  let error: Error | null = null;
 
-  return { data: (data ?? []) as VaultRow[], error: toError(error) };
+  // Fetch pages until we get fewer rows than PAGE_SIZE (end of results)
+  // or hit an error. Cap at 50 pages (50,000 items) as a safety valve
+  // to prevent infinite loops if something goes wrong.
+  const MAX_PAGES = 50;
+  for (let page = 0; page < MAX_PAGES; page++) {
+    const from = offset;
+    const to = offset + PAGE_SIZE - 1;
+    const { data, error: pageError } = await supabase
+      .from(VAULT_TABLE)
+      .select(VAULT_DASHBOARD_COLUMNS)
+      .eq("user_id", userId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .range(from, to);
+
+    if (pageError) {
+      error = toError(pageError);
+      break;
+    }
+
+    const rows = (data ?? []) as VaultRow[];
+    allRows.push(...rows);
+
+    // If we got fewer rows than requested, we've reached the end.
+    if (rows.length < PAGE_SIZE) break;
+    offset += PAGE_SIZE;
+  }
+
+  return { data: allRows, error };
 }

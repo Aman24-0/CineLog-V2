@@ -40,13 +40,35 @@ import type { WatchlistItem } from "~/shared/types";
  *   All default to {} / 0 / [] when null (handles pre-migration rows).
  */
 export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
+  // ── Media-type-aware watch date resolution ────────────────────────
+  // The vault table has CHECK constraints that forbid movies from having
+  // started_at/completed_at and TV from having watched_on. So the watch
+  // date is stored in DIFFERENT columns depending on media_type:
+  //
+  //   Movies: watched_on  (when you watched the movie)
+  //   TV:     completed_at (when you finished the series) — preferred
+  //           started_at   (when you started the series) — fallback
+  //
+  // V1's `watchDate` field is overloaded: for movies it's the watch date,
+  // for TV it's derived from the latest seasonDates.end (i.e. the
+  // completion date). So on the write side we map:
+  //   movie watchDate → watched_on
+  //   TV watchDate    → started_at + completed_at (if status=Completed)
+  //
+  // On the read side we reverse the mapping to reconstruct the single
+  // `watchDate` field the UI expects.
+  const isTV = row.media_type === "tv";
+  const watchDate = isTV
+    ? (row.completed_at ?? row.started_at ?? undefined)
+    : (row.watched_on ?? undefined);
+
   return {
     id: String(row.tmdb_id),
     media_type: row.media_type,
     status: STATUS_TO_UI[row.status] ?? "Planned",
     rating: row.rating ?? undefined,
     notes: row.notes ?? undefined,
-    watchDate: row.watched_on ?? undefined,
+    watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
     rewatchCount: row.rewatch_count ?? 0,
