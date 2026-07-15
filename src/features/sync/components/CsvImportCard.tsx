@@ -101,6 +101,13 @@ const CsvImportCard: Component = () => {
     // Previously CSV import bypassed normalizeBatch, which meant ratings
     // like "5" stayed as 5 (instead of becoming 10) and status values
     // weren't validated. Running through normalizeBatch fixes this.
+    //
+    // We also forward ALL extended fields from the candidate (runtime,
+    // genresList, castList, poster_path, etc.) so they survive into the
+    // in-memory WatchlistItem — they're not persisted to the vault table
+    // (which only stores user-owned state), but they ARE used for the
+    // import preview and as a fallback when TMDB enrichment is slow or
+    // the tmdb_id doesn't resolve.
     const rawItems: Record<string, unknown>[] = [];
     let skippedNoId = 0;
     for (const c of items) {
@@ -122,9 +129,25 @@ const CsvImportCard: Component = () => {
         watchDate: c.watchDate,
         notes: c.notes ?? "",
         addedAt,
-        updatedAt: addedAt,
-        genresList: [],
-        platformsList: [],
+        updatedAt: c.updatedAt ?? addedAt,
+        // Forward extended fields if present. normalizeBatch will repair
+        // missing arrays to [] and pass strings through unchanged.
+        ...(c.runtime != null && { runtime: c.runtime }),
+        ...(c.totalEps != null && { totalEps: c.totalEps }),
+        ...(c.season != null && { season: c.season }),
+        ...(c.episode != null && { episode: c.episode }),
+        ...(c.genresList != null && { genresList: c.genresList }),
+        ...(c.platformsList != null && { platformsList: c.platformsList }),
+        ...(c.castList != null && { castList: c.castList }),
+        ...(c.director && { director: c.director }),
+        ...(c.imdbId && { imdbId: c.imdbId }),
+        ...(c.imdbRating && { imdbRating: c.imdbRating }),
+        ...(c.rtRating && { rtRating: c.rtRating }),
+        ...(c.region && { region: c.region }),
+        ...(c.tag && { tag: c.tag }),
+        ...(c.poster_path && { poster_path: c.poster_path }),
+        ...(c.backdrop_path && { backdrop_path: c.backdrop_path }),
+        ...(c.release_date && { release_date: c.release_date }),
       };
       // Preserve year for Letterboxd/Trakt/IMDb candidates (used for
       // TMDB search disambiguation if we ever add that feature).

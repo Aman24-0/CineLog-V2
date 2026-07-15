@@ -39,8 +39,47 @@ export interface ImportCandidate {
   watchDate?: string;
   /** ISO date added to the source library, if provided. */
   addedAt?: string;
+  /** ISO date last updated, if provided. */
+  updatedAt?: string;
   /** Notes / description from source. */
   notes?: string;
+  // ── Extended fields (V1 expanded CSV format) ───────────────────────
+  // These don't get persisted to the vault table (only TMDB-owned metadata
+  // does), but we preserve them in-memory so the import preview shows
+  // correct titles/posters and so they're available immediately for
+  // display before TMDB enrichment runs.
+  /** Runtime in minutes. */
+  runtime?: number;
+  /** Total episodes (TV). */
+  totalEps?: number;
+  /** Current season pointer (TV). */
+  season?: number;
+  /** Current episode pointer (TV). */
+  episode?: number;
+  /** Pipe-separated genres → string[]. */
+  genresList?: string[];
+  /** Pipe-separated platforms → string[]. */
+  platformsList?: string[];
+  /** Pipe-separated cast → string[]. */
+  castList?: string[];
+  /** Director name. */
+  director?: string;
+  /** IMDb id (e.g. "tt1234567"). */
+  imdbId?: string;
+  /** IMDb rating string. */
+  imdbRating?: string;
+  /** Rotten Tomatoes rating string. */
+  rtRating?: string;
+  /** Region tag (e.g. "International", "Indian"). */
+  region?: string;
+  /** User-defined tag (e.g. "Theatre", "Rewatch"). */
+  tag?: string;
+  /** TMDB poster path. */
+  poster_path?: string;
+  /** TMDB backdrop path. */
+  backdrop_path?: string;
+  /** Release date (movie) or first air date (TV). */
+  release_date?: string;
 }
 
 /** Parse a single CSV line, respecting quoted fields. */
@@ -81,6 +120,23 @@ function normalize(text: string): string {
   let t = text;
   if (t.charCodeAt(0) === 0xfeff) t = t.slice(1);
   return t.replace(/\r\n/g, "\n").replace(/\r/g, "\n");
+}
+
+/**
+ * Split a pipe-separated CSV cell into a string array.
+ * Empty/missing values return an empty array.
+ *
+ * V1's expanded CSV export uses `|` as the in-cell delimiter for list-valued
+ * fields (genres, platforms, cast) so they round-trip cleanly through CSV
+ * (which uses `,` as the field delimiter). This matches V2's own CSV export
+ * format, which uses the same `|` delimiter for the `genres` column.
+ */
+function splitPipe(val: string | undefined): string[] {
+  if (!val) return [];
+  return String(val)
+    .split("|")
+    .map((s) => s.trim())
+    .filter(Boolean);
 }
 
 /** Detect source format from header row. */
@@ -210,6 +266,30 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     // added_at should still be preserved as the add-date).
     const watchDate = row["watch_date"] || undefined;
     const addedAt = row["added_at"] || row["updated_at"] || undefined;
+    const updatedAt = row["updated_at"] || undefined;
+
+    // ── Extended fields (V1 expanded CSV format) ─────────────────────
+    // These don't get written to the vault table (only user-owned state
+    // is persisted), but they're preserved in-memory on the WatchlistItem
+    // so the import preview renders correctly and the UI doesn't show
+    // "Untitled / NO POSTER" while waiting for TMDB enrichment.
+    const runtime = row["runtime"] ? parseInt(row["runtime"], 10) : undefined;
+    const totalEps = row["total_eps"] ? parseInt(row["total_eps"], 10) : undefined;
+    const season = row["season"] ? parseInt(row["season"], 10) : undefined;
+    const episode = row["episode"] ? parseInt(row["episode"], 10) : undefined;
+    const genresList = splitPipe(row["genres"]);
+    const platformsList = splitPipe(row["platforms"]);
+    const castList = splitPipe(row["cast"]);
+    const director = row["director"] || undefined;
+    const imdbId = row["imdb_id"] || undefined;
+    const imdbRating = row["imdb_rating"] || undefined;
+    const rtRating = row["rt_rating"] || undefined;
+    const region = row["region"] || undefined;
+    const tag = row["tag"] || undefined;
+    const poster_path = row["poster_path"] || undefined;
+    const backdrop_path = row["backdrop_path"] || undefined;
+    const release_date = row["release_date"] || undefined;
+
     return {
       id,
       title,
@@ -218,7 +298,26 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
       rating: !isNaN(rating as number) ? rating : undefined,
       watchDate,
       addedAt,
+      updatedAt,
       notes: row["notes"] || undefined,
+      // Extended fields — only set when actually present in the CSV so we
+      // don't overwrite TMDB-enriched values with empty strings later.
+      ...(runtime != null && !isNaN(runtime) && { runtime }),
+      ...(totalEps != null && !isNaN(totalEps) && { totalEps }),
+      ...(season != null && !isNaN(season) && { season }),
+      ...(episode != null && !isNaN(episode) && { episode }),
+      ...(genresList.length > 0 && { genresList }),
+      ...(platformsList.length > 0 && { platformsList }),
+      ...(castList.length > 0 && { castList }),
+      ...(director && { director }),
+      ...(imdbId && { imdbId }),
+      ...(imdbRating && { imdbRating }),
+      ...(rtRating && { rtRating }),
+      ...(region && { region }),
+      ...(tag && { tag }),
+      ...(poster_path && { poster_path }),
+      ...(backdrop_path && { backdrop_path }),
+      ...(release_date && { release_date }),
     };
   }
 

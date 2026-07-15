@@ -441,8 +441,45 @@ async function upsertVaultItemInSupabaseWithRetry(uid: string, item: WatchlistIt
  * upsertVaultItemInSupabase so the batch path persists the SAME fields
  * (rewatchCount, rewatchDates, seasonDates, createdAt, completedAt,
  * lastActivityAt, progressMinutes) as the single-item path.
+ *
+ * ── DB CHECK CONSTRAINT AWARENESS ─────────────────────────────────
+ * The `vault` table has two media-type-specific CHECK constraints:
+ *
+ *   vault_movie_no_series_cols:
+ *     media_type <> 'movie' OR (started_at IS NULL AND completed_at IS NULL)
+ *     → Movies MUST NOT have started_at or completed_at.
+ *
+ *   vault_tv_no_movie_cols:
+ *     media_type <> 'tv' OR (progress_minutes IS NULL AND watched_on IS NULL)
+ *     → TV MUST NOT have progress_minutes or watched_on.
+ *
+ * To respect these, we partition the date/progress fields by media_type:
+ *   • Movies: use `watchedOn` (when watched) + `progressMinutes` (player progress).
+ *   • TV:     use `startedAt` (when first watched) + `completedAt` (when finished).
+ *
+ * V1's `watchDate` field is overloaded — for movies it's the watch date,
+ * for TV it's derived from the latest seasonDates.end. We map both
+ * correctly below so imports no longer violate the CHECK constraints
+ * (previously ~25% of V1 imports failed with "violates check constraint
+ * vault_movie_no_series_cols" / "vault_tv_no_movie_cols").
  */
 function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVaultItemPayload {
+  const isMovie = item.media_type === "movie";
+  const isTV = item.media_type === "tv";
+  const isCompleted = item.status === "Completed";
+  const watchDate = item.watchDate;
+
+  // Movies use watched_on + progress_minutes.
+  // TV uses started_at + completed_at.
+  // (Setting both sides for one media_type would violate the CHECK
+  // constraints and the entire batch upsert would fail atomically.)
+  const watchedOn = isMovie ? watchDate : undefined;
+  const progressMinutes = isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+    ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+    : undefined;
+  const startedAt = isTV ? watchDate : undefined;
+  const completedAt = isTV && isCompleted && watchDate ? watchDate : undefined;
+
   return {
     userId: uid,
     tmdbId: Number(item.id),
@@ -450,24 +487,21 @@ function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVa
     status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
-    watchedOn: item.watchDate,
+    watchedOn,
     rewatchCount: item.rewatchCount,
     rewatchDates: item.rewatchDates,
     seasonDates: item.seasonDates,
     seasonRewatchCount: item.seasonRewatchCount,
     seasonRewatchDates: item.seasonRewatchDates,
-    progressMinutes:
-      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-        : undefined,
+    progressMinutes,
+    startedAt,
+    completedAt,
     createdAt:
       typeof item.addedAt === "string"
         ? item.addedAt
         : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
-    completedAt:
-      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
     lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
   };
 }

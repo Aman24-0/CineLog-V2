@@ -139,6 +139,15 @@ export async function createVaultItemInSupabase(
   item: WatchlistItem,
 ): Promise<WatchlistItem> {
   const repo = getVaultRepository();
+  // Media-type-aware payload: the vault table has CHECK constraints
+  // (vault_movie_no_series_cols, vault_tv_no_movie_cols) that forbid
+  // movies from having started_at/completed_at and TV from having
+  // watched_on/progress_minutes. We partition the date/progress fields
+  // by media_type so we never violate those constraints.
+  const isMovie = item.media_type === "movie";
+  const isTV = item.media_type === "tv";
+  const isCompleted = item.status === "Completed";
+  const watchDate = item.watchDate;
   const payload: CreateVaultItemPayload = {
     userId,
     tmdbId: Number(item.id),
@@ -146,7 +155,13 @@ export async function createVaultItemInSupabase(
     status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
-    watchedOn: item.watchDate,
+    // Movies use watched_on + progress_minutes; TV uses started_at + completed_at.
+    watchedOn: isMovie ? watchDate : undefined,
+    progressMinutes: isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+      ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+      : undefined,
+    startedAt: isTV ? watchDate : undefined,
+    completedAt: isTV && isCompleted && watchDate ? watchDate : undefined,
     // Preserve re-watch tracking (movies + series)
     rewatchCount: item.rewatchCount,
     rewatchDates: item.rewatchDates,
@@ -154,11 +169,6 @@ export async function createVaultItemInSupabase(
     seasonDates: item.seasonDates,
     seasonRewatchCount: item.seasonRewatchCount,
     seasonRewatchDates: item.seasonRewatchDates,
-    // Preserve movie progress (minutes)
-    progressMinutes:
-      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-        : undefined,
     // Preserve original add timestamp so the timeline stays accurate
     // across imports (instead of every imported item showing today's date).
     createdAt:
@@ -167,9 +177,6 @@ export async function createVaultItemInSupabase(
         : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
-    // If the item is Completed, derive completedAt from watchDate
-    completedAt:
-      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
     // lastActivityAt = most recent activity (updatedAt or addedAt or now)
     lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
   };
@@ -198,6 +205,13 @@ export async function upsertVaultItemInSupabase(
   item: WatchlistItem,
 ): Promise<WatchlistItem> {
   const repo = getVaultRepository();
+  // Media-type-aware payload — see createVaultItemInSupabase for the
+  // rationale (vault_movie_no_series_cols / vault_tv_no_movie_cols CHECK
+  // constraints forbid mixing movie-only and TV-only date/progress columns).
+  const isMovie = item.media_type === "movie";
+  const isTV = item.media_type === "tv";
+  const isCompleted = item.status === "Completed";
+  const watchDate = item.watchDate;
   const payload: CreateVaultItemPayload = {
     userId,
     tmdbId: Number(item.id),
@@ -205,24 +219,23 @@ export async function upsertVaultItemInSupabase(
     status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
-    watchedOn: item.watchDate,
+    watchedOn: isMovie ? watchDate : undefined,
+    progressMinutes: isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
+      ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
+      : undefined,
+    startedAt: isTV ? watchDate : undefined,
+    completedAt: isTV && isCompleted && watchDate ? watchDate : undefined,
     rewatchCount: item.rewatchCount,
     rewatchDates: item.rewatchDates,
     seasonDates: item.seasonDates,
     seasonRewatchCount: item.seasonRewatchCount,
     seasonRewatchDates: item.seasonRewatchDates,
-    progressMinutes:
-      typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-        ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-        : undefined,
     createdAt:
       typeof item.addedAt === "string"
         ? item.addedAt
         : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
-    completedAt:
-      item.status === "Completed" && item.watchDate ? item.watchDate : undefined,
     lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
   };
 

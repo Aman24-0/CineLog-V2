@@ -178,7 +178,7 @@ function mapLegacyFields(raw: Record<string, unknown>): Record<string, unknown> 
 // ---------------------------------------------------------------------------
 
 /** Canonical V2 statuses (Title Case, matching WatchlistItem.status). */
-const VALID_STATUSES = new Set(["Planned", "Watching", "Completed", "Plan to Watch"]);
+const VALID_STATUSES = new Set(["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"]);
 
 /** Map of lowercase/legacy status strings → canonical V2 status. */
 const STATUS_MAP: Record<string, WatchlistItem["status"]> = {
@@ -186,6 +186,7 @@ const STATUS_MAP: Record<string, WatchlistItem["status"]> = {
   planned: "Planned",
   watching: "Watching",
   completed: "Completed",
+  dropped: "Dropped",
   // V1 variants
   "plan to watch": "Plan to Watch",
   plantowatch: "Plan to Watch",
@@ -193,12 +194,11 @@ const STATUS_MAP: Record<string, WatchlistItem["status"]> = {
   watched: "Completed",
   finished: "Completed",
   done: "Completed",
-  dropped: "Planned", // V2 vault doesn't have "Dropped" — map to Planned
-  paused: "Planned",  // V2 vault doesn't have "Paused" — map to Planned
-  onhold: "Planned",
-  "on-hold": "Planned",
-  abandoned: "Planned",
-  skipped: "Planned",
+  paused: "Plan to Watch",  // V2's "Plan to Watch" is closest to "Paused"
+  onhold: "Plan to Watch",
+  "on-hold": "Plan to Watch",
+  abandoned: "Dropped",
+  skipped: "Dropped",
   none: "Planned",
   "": "Planned",
 };
@@ -224,6 +224,21 @@ export function normalizeStatus(raw: unknown): WatchlistItem["status"] {
  *
  * Handles: numbers, numeric strings, "8.5/10" strings, "4/5" (scaled to 8),
  * "85%" (scaled to 8.5), null/undefined → undefined.
+ *
+ * ── V1 BACKUP COMPATIBILITY ───────────────────────────────────────
+ * V1's `toV2Backup` writes ratings on a 0-10 scale directly (no scaling).
+ * Previously this function applied a "heuristic" that doubled any integer
+ * rating 1-5 (assuming a 0-5 scale from Letterboxd-style sources). That
+ * heuristic was WRONG for V1 backups: a V1 rating of `4` (meaning 4/10)
+ * got silently doubled to `8`, corrupting ~13% of imported ratings.
+ *
+ * The fix: treat numeric inputs as already on the 0-10 scale. The only
+ * scaling we still do is for:
+ *   - String formats that explicitly indicate scale ("4/5", "85%")
+ *   - Numbers > 10 (assume percentage → divide by 10)
+ *
+ * The Letterboxd CSV parser already extracts `Rating10` (which is 0-10),
+ * so it doesn't need a heuristic here either.
  */
 export function normalizeRating(raw: unknown): number | undefined {
   if (raw == null) return undefined;
@@ -231,14 +246,9 @@ export function normalizeRating(raw: unknown): number | undefined {
     if (isNaN(raw) || raw < 0) return undefined;
     // V1 uses 0-10 scale; 0 means "no rating".
     if (raw === 0) return undefined;
-    // Values 1-5 could be either a 0-5 scale OR a valid 0-10 rating.
-    // Heuristic: if the value is a whole number 1-5, treat it as a 0-5
-    // scale rating and double it. If it's a decimal (e.g. 4.5), treat it
-    // as a 0-10 rating and leave it alone. This avoids double-scaling
-    // when V2 re-normalizes an already-converted V2 file.
-    if (raw <= 5 && Number.isInteger(raw)) return raw * 2;
-    // If > 10, it might be a percentage — scale down.
+    // If > 10, it's probably a percentage — scale down to 0-10.
     if (raw > 10) return Math.round((raw / 10) * 10) / 10;
+    // Already on the 0-10 scale — pass through unchanged.
     return raw;
   }
   if (typeof raw === "string") {
@@ -529,7 +539,7 @@ export function validateItem(item: WatchlistItem | null): { reason: string } | n
   if (item.media_type !== "movie" && item.media_type !== "tv") {
     return { reason: "Invalid media type" };
   }
-  if (!["Planned", "Watching", "Completed", "Plan to Watch"].includes(item.status)) {
+  if (!["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"].includes(item.status)) {
     return { reason: "Invalid status" };
   }
   return null;
@@ -556,7 +566,7 @@ export function wasRepaired(raw: unknown): boolean {
     o.platformsList == null ||
     o.notes == null ||
     (typeof o.id === "number") || // numeric id → string id is a repair
-    (typeof o.status === "string" && !["Planned", "Watching", "Completed", "Plan to Watch"].includes(o.status))
+    (typeof o.status === "string" && !["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"].includes(o.status))
   );
 }
 
