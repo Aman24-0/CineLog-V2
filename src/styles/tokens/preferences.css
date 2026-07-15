@@ -1,0 +1,273 @@
+/* src/styles/tokens/preferences.css — User-preference token overrides
+   Applies data-attribute-driven token swaps for:
+     • Theme mode: dark (default) / light
+     • Density: compact / comfortable (default) / spacious
+     • Font scale: small / medium (default) / large
+     • High contrast: off (default) / on
+     • Reduced motion: off (default) / on
+     • Hide spoilers: off (default) / on
+
+   All swaps are pure CSS — no JS reads needed in components. The
+   preferences module in src/core/preferences writes data-* attributes
+   to <html> and <body>; this file reacts to them.
+
+   LIGHT THEME DESIGN INTENT
+   -------------------------
+   Inspired by Letterboxd light mode + Notion + Apple Books reader.
+   Warm off-white background (not pure white — pure white is harsh),
+   deep ink text (not pure black — pure black is too high contrast),
+   soft accent variants (the same --p tokens from theme-* classes are
+   reused but with adjusted --p-dim for visibility on light surfaces).
+
+   Palettes per surface:
+     Background:  #faf9f6 (warm paper)
+     Surface:     #ffffff (card)
+     Raised:      #f2efe9 (subtle elevation)
+     Border:      rgba(20,18,15,0.08)
+     Text strong: #1a1815 (ink)
+     Text body:   #2a2622
+     Text soft:   rgba(42,38,34,0.72)
+     Text muted:  rgba(42,38,34,0.48)
+     Glass:       rgba(255,255,255,0.72)
+*/
+
+@layer base {
+  /* ─── Font scale baseline ─── */
+  :root {
+    --font-scale: 1;
+  }
+  html {
+    font-size: calc(16px * var(--font-scale));
+  }
+
+  /* ─── Density: Compact ───
+     Tighter spacing, smaller card padding, smaller grid gap, smaller
+     radius. Good for desktop with large watchlists. */
+  :root[data-density="compact"],
+  :root[data-density="compact"] body {
+    --sp-1: 2px;
+    --sp-2: 6px;
+    --sp-3: 8px;
+    --sp-4: 10px;
+    --sp-5: 12px;
+    --sp-6: 14px;
+    --sp-8: 18px;
+    --sp-10: 22px;
+    --sp-12: 28px;
+    --density-card-pad: 8px;
+    --density-grid-gap: 6px;
+    --density-radius: 6px;
+  }
+
+  /* ─── Density: Comfortable (default — matches original tokens) ─── */
+  :root[data-density="comfortable"],
+  :root[data-density="comfortable"] body {
+    --sp-1: 4px;
+    --sp-2: 8px;
+    --sp-3: 12px;
+    --sp-4: 16px;
+    --sp-5: 20px;
+    --sp-6: 24px;
+    --sp-8: 32px;
+    --sp-10: 40px;
+    --sp-12: 48px;
+    --density-card-pad: 12px;
+    --density-grid-gap: 10px;
+    --density-radius: 10px;
+  }
+
+  /* ─── Density: Spacious ───
+     Larger touch targets, more breathing room. Good for phone and
+     accessibility users. */
+  :root[data-density="spacious"],
+  :root[data-density="spacious"] body {
+    --sp-1: 6px;
+    --sp-2: 12px;
+    --sp-3: 16px;
+    --sp-4: 20px;
+    --sp-5: 26px;
+    --sp-6: 30px;
+    --sp-8: 40px;
+    --sp-10: 50px;
+    --sp-12: 60px;
+    --density-card-pad: 18px;
+    --density-grid-gap: 14px;
+    --density-radius: 14px;
+  }
+}
+
+/* ============================================================
+   THEME MODE — LIGHT
+   ============================================================
+   Activated by [data-theme-resolved="light"] on <html>.
+   The "resolved" attribute is set by JS so system mode works correctly
+   (system → resolve to dark or light at runtime).
+
+   IMPORTANT: we only swap SURFACE tokens here. The accent tokens (--p,
+   --p-glow, --p-dim, --active-text) come from theme-* classes and stay
+   the same — most accents (matrix green, interstellar blue, etc.) read
+   well on both dark and light backgrounds. For accents that don't, the
+   user can pick a different preset or set a custom one. */
+
+:root[data-theme-resolved="light"] {
+  /* Surface tiers — warm paper palette */
+  --void: #faf9f6;
+  --deep: #faf9f6;
+  --surface: #ffffff;
+  --raised: #f2efe9;
+  --tier-0: #faf9f6;
+  --tier-1: #f5f3ee;
+  --tier-2: #ffffff;
+  --tier-3: #f2efe9;
+  --tier-4: #ebe6dd;
+
+  /* Borders */
+  --border: rgba(20, 18, 15, 0.08);
+  --border-active: rgba(20, 18, 15, 0.16);
+  --hairline: rgba(20, 18, 15, 0.06);
+  --hairline-2: rgba(20, 18, 15, 0.10);
+  --hairline-3: rgba(20, 18, 15, 0.18);
+  --glass-border: rgba(20, 18, 15, 0.08);
+
+  /* Text — ink palette, not pure black */
+  --text: #2a2622;
+  --text-strong: #1a1815;
+  --text-body: #2a2622;
+  --text-soft: rgba(42, 38, 34, 0.72);
+  --text-muted: rgba(42, 38, 34, 0.52);
+  --text-dim: rgba(42, 38, 34, 0.30);
+  --muted: rgba(42, 38, 34, 0.52);
+  --dim: rgba(42, 38, 34, 0.30);
+
+  /* Glass surfaces — translucent warm white */
+  --glass-bg: rgba(255, 255, 255, 0.78);
+  --glass-bg-strong: rgba(255, 255, 255, 0.92);
+
+  /* Semantic surface colors */
+  --color-surface-void: #faf9f6;
+  --color-surface-base: #ffffff;
+  --color-surface-raised: #f2efe9;
+  --color-surface-overlay: rgba(255, 255, 255, 0.78);
+  --color-surface-overlay-strong: rgba(255, 255, 255, 0.92);
+  --color-background: #faf9f6;
+  --color-background-elevated: #ffffff;
+
+  --color-border: rgba(20, 18, 15, 0.08);
+  --color-border-subtle: rgba(20, 18, 15, 0.06);
+  --color-border-default: rgba(20, 18, 15, 0.10);
+  --color-border-strong: rgba(20, 18, 15, 0.18);
+  --color-border-active: rgba(20, 18, 15, 0.16);
+
+  --color-text-strong: #1a1815;
+  --color-text-body: #2a2622;
+  --color-text-soft: rgba(42, 38, 34, 0.72);
+  --color-text-muted: rgba(42, 38, 34, 0.52);
+  --color-text-dim: rgba(42, 38, 34, 0.30);
+
+  /* Light-mode shadows are softer and use brown tint instead of black */
+  --shadow-premium: 0 4px 24px rgba(60, 50, 30, 0.06), 0 1px 3px rgba(60, 50, 30, 0.04);
+
+  /* Scrollbar — brown tint instead of white */
+  scrollbar-color: rgba(42, 38, 34, 0.18) transparent;
+}
+
+/* Light-mode scrollbar */
+:root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb {
+  background: rgba(42, 38, 34, 0.16);
+}
+:root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb:hover {
+  background: rgba(42, 38, 34, 0.30);
+}
+
+/* Light-mode selection — use accent tint but ensure visible on white */
+:root[data-theme-resolved="light"] ::selection {
+  background: color-mix(in srgb, var(--p) 22%, transparent);
+  color: var(--text-strong);
+}
+:root[data-theme-resolved="light"] ::-moz-selection {
+  background: color-mix(in srgb, var(--p) 22%, transparent);
+  color: var(--text-strong);
+}
+
+/* ============================================================
+   HIGH CONTRAST
+   ============================================================
+   Boosts text-strong opacity and border opacity for accessibility. */
+
+:root[data-high-contrast="true"] {
+  --text-strong: #ffffff;
+  --text-body: #ffffff;
+  --text-soft: rgba(255, 255, 255, 0.88);
+  --text-muted: rgba(255, 255, 255, 0.68);
+  --hairline: rgba(255, 255, 255, 0.14);
+  --hairline-2: rgba(255, 255, 255, 0.20);
+  --hairline-3: rgba(255, 255, 255, 0.32);
+  --border: rgba(255, 255, 255, 0.14);
+  --border-active: rgba(255, 255, 255, 0.28);
+}
+
+/* High contrast + light mode → darker text */
+:root[data-high-contrast="true"][data-theme-resolved="light"] {
+  --text-strong: #000000;
+  --text-body: #0a0806;
+  --text-soft: rgba(20, 18, 15, 0.92);
+  --text-muted: rgba(20, 18, 15, 0.72);
+  --hairline: rgba(20, 18, 15, 0.20);
+  --hairline-2: rgba(20, 18, 15, 0.30);
+  --hairline-3: rgba(20, 18, 15, 0.45);
+  --border: rgba(20, 18, 15, 0.20);
+  --border-active: rgba(20, 18, 15, 0.40);
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================
+   When user opts in (or system prefers), kill all transitions and
+   animations. Stronger than the @media query because it respects
+   explicit user choice, not just OS preference. */
+
+:root[data-reduced-motion-active="true"] *,
+:root[data-reduced-motion-active="true"] *::before,
+:root[data-reduced-motion-active="true"] *::after {
+  animation-duration: 0.001ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.001ms !important;
+  scroll-behavior: auto !important;
+}
+
+:root[data-reduced-motion-active="true"] .animate-fade-in,
+:root[data-reduced-motion-active="true"] .animate-fade-up,
+:root[data-reduced-motion-active="true"] .animate-slide-up,
+:root[data-reduced-motion-active="true"] .animate-pop-in,
+:root[data-reduced-motion-active="true"] .animate-scale-in,
+:root[data-reduced-motion-active="true"] .page-enter {
+  animation-duration: 120ms !important;
+}
+
+/* ============================================================
+   HIDE SPOILERS
+   ============================================================
+   Elements marked [data-spoiler="true"] blur until tapped.
+   Usage in components:
+     <p data-spoiler="true">{synopsisText}</p>
+   Tap to reveal — JS toggles [data-spoiler-revealed="true"] on the element. */
+
+:root[data-hide-spoilers="true"] [data-spoiler="true"]:not([data-spoiler-revealed="true"]) {
+  filter: blur(6px);
+  cursor: pointer;
+  user-select: none;
+  transition: filter var(--dur-base) var(--ease-out);
+}
+:root[data-hide-spoilers="true"] [data-spoiler="true"]:not([data-spoiler-revealed="true"]):hover {
+  filter: blur(4px);
+}
+:root[data-hide-spoilers="true"] [data-spoiler="true"][data-spoiler-revealed="true"] {
+  filter: none;
+  cursor: default;
+  user-select: text;
+}
+
+/* When hide-spoilers is OFF, the data-spoiler attribute is a no-op */
+:root[data-hide-spoilers="false"] [data-spoiler="true"] {
+  filter: none;
+}

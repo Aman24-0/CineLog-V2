@@ -13,15 +13,37 @@ import "./app/globals.css";
 // and every active-state control renders with no background color
 // (the root cause of "active state visibility is still broken").
 import { theme } from "./core/theme";
+// Side-effect import: wires the preferences module — applies data-attributes
+// to <html> for theme mode (dark/light/system), density, font-size, hide-
+// spoilers, reduced-motion, high-contrast, and persists all preferences to
+// localStorage. Reading the signals forces the createEffects to register.
+import {
+  themeMode,
+  density,
+  fontSize,
+  hideSpoilers,
+  reducedMotion,
+  highContrast,
+  customAccent,
+  posterQuality,
+} from "./core/preferences";
 import AppShell from "./app/AppShell";
 import { GlobalErrorBoundary } from "~/shared/ui/GlobalErrorBoundary";
 import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
 
-// Read the signal so the createEffect is tracked. The return value is
-// discarded — the effect is what matters.
+// Read the signals so the createEffects are tracked. The return values are
+// discarded — the effects are what matter.
 void theme;
+void themeMode;
+void density;
+void fontSize;
+void hideSpoilers;
+void reducedMotion;
+void highContrast;
+void customAccent;
+void posterQuality;
 
 export default function App() {
   return (

@@ -11,6 +11,7 @@ import type {
   TMDBWatchProviderResponse,
 } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
+import { applyPosterQuality } from "~/core/preferences";
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
@@ -20,11 +21,14 @@ const API = "https://api.themoviedb.org/3";
 /**
  * Build a TMDB image URL. Sizes follow TMDB's documented w-pixel conventions.
  * Returns "" if path is null/undefined (so callers can <Show when={url}>).
+ *
+ * Poster-quality preference is automatically applied (see src/core/preferences).
+ * For hero/backdrop images ("w1280" / "original"), no downgrade happens.
  */
 export const tmdbImage = (
   path: string | null | undefined,
   size: "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original" = "w500"
-): string => (path ? `${IMG_BASE}/${size}${path}` : "");
+): string => (path ? `${IMG_BASE}/${applyPosterQuality(size)}${path}` : "");
 
 /** Cached fetch helper for TMDB JSON endpoints. */
 async function tmdbFetch<T>(endpoint: string): Promise<T> {

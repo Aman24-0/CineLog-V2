@@ -2682,4 +2682,217 @@
   }
 }
 
+/* ============================================================
+   APPEARANCE PAGE — Premium controls
+   ============================================================ */
+
+/* ─── Segmented control ───
+   2–4 mutually exclusive options in a single pill bar.
+   Use for: theme mode, density, font size, poster quality,
+   date format, reduced motion. iOS-style segmented control. */
+.segmented {
+  display: flex;
+  gap: 2px;
+  padding: 3px;
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-pill);
+  width: 100%;
+  overflow: hidden;
+}
+.segmented-btn {
+  flex: 1;
+  padding: 0.5rem 0.75rem;
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-radius: var(--radius-pill);
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+  text-align: center;
+  min-width: 0;
+}
+.segmented-btn:hover {
+  color: var(--text-body);
+}
+.segmented-btn[data-active="true"] {
+  background: var(--p);
+  color: var(--active-text);
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.segmented-btn:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+
+/* ─── Setting row with inline control (segmented or toggle) ─── */
+.setting-row-control {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-4) var(--sp-5);
+  background: var(--tier-2);
+  border-bottom: 1px solid var(--hairline);
+}
+.setting-row-control:last-child {
+  border-bottom: none;
+}
+.setting-row-control-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+}
+.setting-row-control-header .setting-row-icon {
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+.setting-row-control-meta {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+.setting-row-control-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+.setting-row-control-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 400;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.setting-row-control .segmented {
+  max-width: 100%;
+}
+
+/* ─── Custom hex accent tile ─── */
+.theme-card-custom {
+  position: relative;
+  padding: var(--sp-3);
+  border-radius: var(--radius-md);
+  background: var(--tier-2);
+  border: 2px solid var(--hairline);
+  cursor: pointer;
+  text-align: center;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.theme-card-custom:hover {
+  background: var(--tier-3);
+  transform: translateY(-2px);
+}
+.theme-card-custom[data-active="true"] {
+  border-color: var(--p);
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.theme-card-custom-swatch {
+  width: 100%;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-2);
+  border: 1px solid var(--hairline);
+  background: linear-gradient(135deg, var(--p) 0%, var(--p) 50%, var(--tier-3) 50%, var(--tier-3) 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-soft);
+}
+.theme-card-custom-swatch input[type="color"] {
+  position: absolute;
+  width: 100%;
+  height: 32px;
+  opacity: 0;
+  cursor: pointer;
+  border: none;
+  padding: 0;
+  margin: 0;
+}
+.theme-card-custom-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+/* ─── Custom hex input row (shown when custom is active) ─── */
+.custom-hex-row {
+  display: flex;
+  gap: var(--sp-2);
+  align-items: center;
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  margin-top: var(--sp-2);
+}
+.custom-hex-swatch {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--hairline-2);
+  flex-shrink: 0;
+}
+.custom-hex-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: var(--text-strong);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  outline: none;
+  text-transform: uppercase;
+  min-width: 0;
+}
+.custom-hex-clear {
+  background: var(--tier-3);
+  color: var(--text-muted);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-pill);
+  padding: 0.375rem 0.75rem;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  flex-shrink: 0;
+}
+.custom-hex-clear:hover {
+  background: var(--tier-4);
+  color: var(--text-strong);
+}
+
+/* ─── Live Preview — make it reactive ─── */
+.preview-card {
+  transition: padding var(--dur-base) var(--ease-out), border-radius var(--dur-base) var(--ease-out);
+}
+
+/* ─── Spoiler preview demo ─── */
+.preview-spoiler-demo {
+  margin-top: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-1);
+  border: 1px dashed var(--hairline-2);
+  border-radius: var(--radius-sm);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  cursor: pointer;
+}
+
 

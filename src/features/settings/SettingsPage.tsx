@@ -44,7 +44,7 @@ const SettingsPage: Component = () => {
   ];
 
   const preferencesRows: SettingRowDef[] = [
-    { href: "/settings/appearance", label: "Appearance", desc: "Theme, accent, density, motion", icon: "palette" },
+    { href: "/settings/appearance", label: "Appearance", desc: "Theme, accent, density, type, content, accessibility", icon: "palette" },
     { href: "/settings/notifications", label: "Notifications", desc: "Push preferences", icon: "notifications" },
   ];
 
