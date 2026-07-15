@@ -291,6 +291,34 @@ const HistoryPage: Component = () => {
 };
 
 function getDate(item: WatchlistItem): Date {
+  // For TV series with per-season watch dates, prefer the LATEST season's
+  // end date (most recent watch activity) so the show appears on the
+  // timeline at the point the user finished it — not at the import date.
+  if (item.media_type === "tv" && item.seasonDates) {
+    const seasons = Object.entries(item.seasonDates)
+      .map(([k, v]) => ({ n: Number(k), start: v?.start, end: v?.end }))
+      .filter((s) => !isNaN(s.n))
+      .sort((a, b) => a.n - b.n);
+    // Latest season's end → start
+    for (let i = seasons.length - 1; i >= 0; i--) {
+      const s = seasons[i];
+      if (s.end) {
+        const d = new Date(s.end);
+        if (!isNaN(d.getTime())) return d;
+      }
+      if (s.start) {
+        const d = new Date(s.start);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+    // Fallback: earliest season's start
+    for (const s of seasons) {
+      if (s.start) {
+        const d = new Date(s.start);
+        if (!isNaN(d.getTime())) return d;
+      }
+    }
+  }
   const dateStr = item.watchDate || (typeof item.addedAt === "string" ? item.addedAt : null) || item.updatedAt;
   if (!dateStr) return new Date(0);
   try {
