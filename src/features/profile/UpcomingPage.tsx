@@ -6,48 +6,50 @@
 // going to be released. Uses TMDB's discover endpoints with date-range
 // filters (30 days from a selectable start date).
 //
-// LAYOUT (v2.2 — country-relevance fix):
+// LAYOUT (v2.3 — V1-style timeline + episode-aware TV):
 //   • Header: back arrow, page title, subtitle
 //   • Filter bar:
-//       - Date picker (default = today; shows next 30 days from the
-//         selected date)
+//       - Date picker (default = today; shows next 30 days)
 //       - Type filter chips: All · Movies · Series
 //       - Filter icon — opens a dialog with just the Language picker
-//         (Nationality filter REMOVED in v2.2 — see COUNTRY FILTERING)
-//   • Two grouped sections (movies and series shown separately):
-//       - Upcoming Movies — list grouped by release date
-//       - Upcoming Series — list grouped by first air date
+//   • Timeline view (matches CineLog V1 design):
+//       - Vertical timeline line on the left
+//       - Each date shows as a stacked badge on the left
+//         (month abbrev like "JUL" on top, day number like "17" below)
+//       - Movie/series cards on the right of each date marker
+//       - Movies AND series are mixed together on the same date row
+//         (sorted by date — not separated into Movies / Series sub-sections)
 //   • Each card shows:
 //       - Poster
 //       - Title
-//       - Release date (formatted)
-//       - For movies: "In Theatres" or "On OTT" indicator
-//       - For series: OTT/network name (Netflix, Prime, etc.)
-//       - Trailer chip — opens a YouTube modal directly (no need to
-//         open the full Details page just to watch the trailer)
+//       - For movies: "In Theatres" or "On <platform>" badge
+//       - For series: "S3 E5" episode info + "On <platform>" badge
+//         (when next_episode_to_air is available from TMDB)
+//       - Trailer chip
 //   • Click a title's body → opens Details modal
 //
-// COUNTRY FILTERING (v2.2 — fixed per user request):
-//   Previous (v2.1) behavior used `with_origin_country` (production
-//   country), which only returned titles PRODUCED in the user's country.
-//   This had two problems:
-//     1. Missed big international films that release in the user's
-//        country (e.g. Hollywood films releasing in India).
-//     2. Showed obscure local productions the user doesn't care about.
-//
-//   v2.2 fix uses release-country filtering instead:
-//     • Movies: `with_release_country=<region>` + `region=<region>` +
-//       `release_date.gte/lte` (instead of `primary_release_date`).
-//       This returns ONLY movies that have a release entry for the
-//       user's country within the date window — capturing both local
-//       productions AND international films that release there.
-//     • TV: TMDB's /discover/tv endpoint does NOT support
-//       `with_release_country`. The closest semantic is
-//       `with_origin_country`, which we use to show only TV from the
-//       user's country. A small `vote_count.gte` filter removes
-//       completely unknown titles. International TV is intentionally
-//       excluded to keep the list relevant (Discover/Search remain
-//       available for worldwide exploration).
+// COUNTRY FILTERING (v2.3):
+//   Movies:
+//     `with_release_country=<region>` + `region=<region>` +
+//     `release_date.gte/lte` returns ONLY movies that have a release
+//     entry in the user's country within the date window — capturing
+//     both local productions AND international films that release there.
+//   TV:
+//     TMDB's /discover/tv endpoint does NOT support `with_release_country`.
+//     v2.3 uses two complementary endpoints to surface upcoming episodes:
+//       1. /discover/tv with `air_date.gte/lte` — finds any series with
+//          at least one episode airing in the date window (this catches
+//          both brand-new premieres AND new episodes of running series
+//          like House of the Dragon S3 E5, Rick and Morty S9 E9, etc.)
+//       2. Sort by popularity descending so well-known shows surface
+//          first; obscure ones drop off the page.
+//       3. For each result, fetch /tv/{id} to get `next_episode_to_air`
+//          (season_number, episode_number, air_date) so we can show
+//          "S3 E5" on the card and group by the episode's air date.
+//     No origin-country filter is applied (so international shows like
+//     House of the Dragon appear). The country filter is implicit via
+//     the user's discover region — only the air-date window matters.
+//     Users can refine by Language via the filter dialog.
 //
 // Architecture:
 //   Route (/profile/upcoming) → UpcomingPage → TMDB discover + watch providers
@@ -75,7 +77,7 @@ import type { TMDBTitle, TMDBDetails, WatchlistItem } from "~/shared/types";
 interface UpcomingItem extends TMDBTitle {
   /** Formatted release date for display (e.g. "Fri, Jul 18") */
   formattedDate: string;
-  /** Raw date string YYYY-MM-DD */
+  /** Raw date string YYYY-MM-DD used for grouping */
   rawDate: string;
   /** Provider/network name (OTT) for series; "theatre" or provider name for movies */
   ottInfo: string | null;
@@ -83,15 +85,20 @@ interface UpcomingItem extends TMDBTitle {
   isTheatrical: boolean;
   /** Original language code (e.g. "hi", "en") — used for client-side language filter fallback */
   originalLanguage: string | null;
-  /** Origin country codes (e.g. ["IN", "US"]) — kept for potential future use */
+  /** Origin country codes (e.g. ["IN", "US"]) — informational */
   originCountry: string[];
+  /** For TV series with upcoming episodes: season number of the next episode */
+  nextEpisodeSeason?: number | null;
+  /** For TV series with upcoming episodes: episode number of the next episode */
+  nextEpisodeNumber?: number | null;
+  /** "movie" | "tv" — used by the card to render the right badge layout */
+  media_type: "movie" | "tv";
 }
 
 interface UpcomingGroup {
   date: string;          // YYYY-MM-DD
   label: string;         // "Today" / "Tomorrow" / "Fri, Jul 18"
-  movies: UpcomingItem[];
-  series: UpcomingItem[];
+  items: UpcomingItem[]; // movies AND series mixed together (V1-style)
 }
 
 // ── Constants ────────────────────────────────────────────────────────
@@ -99,12 +106,10 @@ interface UpcomingGroup {
 const API = "https://api.themoviedb.org/3";
 const WINDOW_DAYS = 30;
 
-// Minimum vote_count for TV shows. Filters out completely unknown
-// titles so the Upcoming list isn't cluttered with low-quality entries.
-// (Movies don't need this — `with_release_country` is already a strong
-// relevance filter, and many anticipated unreleased films have
-// vote_count=0 which we don't want to exclude.)
-const TV_MIN_VOTE_COUNT = 2;
+// Max TV series to fetch episode details for (each costs one /tv/{id}
+// request). 25 keeps the page snappy while covering the most popular
+// upcoming series in a 30-day window.
+const MAX_TV_EPISODE_LOOKUPS = 25;
 
 // ── Helpers ──────────────────────────────────────────────────────────
 
@@ -156,6 +161,18 @@ interface TMDBRawMovie {
 
 interface TMDBRawTv extends TMDBRawMovie {}
 
+/** Episode info returned by /tv/{id} as next_episode_to_air */
+interface TMDBEpisode {
+  id: number;
+  name?: string;
+  overview?: string;
+  episode_number: number;
+  season_number: number;
+  air_date?: string;
+  still_path?: string | null;
+  runtime?: number | null;
+}
+
 interface TMDBWatchProvidersResponse {
   results?: Record<string, {
     flatrate?: Array<{ provider_name: string }>;
@@ -166,6 +183,9 @@ interface TMDBWatchProvidersResponse {
 
 interface TMDBTvDetailsResponse {
   networks?: Array<{ name: string }>;
+  next_episode_to_air?: TMDBEpisode | null;
+  last_episode_to_air?: TMDBEpisode | null;
+  status?: string;
 }
 
 interface TMDBDiscoverResponse {
@@ -245,47 +265,50 @@ async function fetchUpcomingMovies(
 }
 
 /**
- * Fetch upcoming TV series in a date range, scoped to the user's
- * country.
+ * Fetch upcoming TV series — ANY series with at least one episode
+ * airing in the date window. Captures both brand-new premieres AND
+ * new episodes of running series (House of the Dragon S3 E5, etc.).
  *
- * v2.2 country-relevance fix:
- *   TMDB's /discover/tv endpoint does NOT support `with_release_country`
- *   (only `with_origin_country`). So we always filter by origin country
- *   to keep the list relevant — international TV is intentionally
- *   excluded from the Upcoming page (users can discover worldwide TV
- *   via the Discover page or Search).
+ * v2.3 fix:
+ *   v2.2 used `first_air_date.gte/lte` + `with_origin_country`, which
+ *   ONLY returned series premiering for the first time in the user's
+ *   country. This missed every ongoing series (the screenshot showed
+ *   zero series in V2, while V1 showed House of the Dragon S3 E5,
+ *   Rick and Morty S9 E9, etc.).
  *
- *   A small `vote_count.gte` filter removes completely unknown titles
- *   so the list isn't cluttered with low-quality entries.
+ *   v2.3 switches to `air_date.gte/lte` — a TMDB /discover/tv filter
+ *   that matches any series having at least one episode air in the
+ *   window. No origin-country filter is applied (so international
+ *   shows surface). Results are sorted by popularity desc so famous
+ *   shows come first and obscure ones drop off.
  *
- * Language filter (optional): applied via `with_original_language`.
+ *   The `region` arg is currently unused (kept for API symmetry with
+ *   fetchUpcomingMovies and future watch-provider filtering).
  */
 async function fetchUpcomingTv(
   startDate: string,
   endDate: string,
-  region: string,
+  _region: string,
   language: string | null,
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
     api_key: TMDB_KEY,
     language: "en-US",
-    sort_by: "first_air_date.asc",
-    "first_air_date.gte": startDate,
-    "first_air_date.lte": endDate,
-    with_origin_country: region, // TV has no release_country — origin is the closest relevance signal
-    "vote_count.gte": String(TV_MIN_VOTE_COUNT), // filter out completely unknown shows
+    sort_by: "popularity.desc", // famous shows first
+    "air_date.gte": startDate, // any series with an episode airing in this window
+    "air_date.lte": endDate,
     include_adult: "false",
   });
   if (language) baseParams.set("with_original_language", language);
 
-  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v23", { start: startDate, end: endDate, region, lang: language ?? "" });
+  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v24", { start: startDate, end: endDate, lang: language ?? "" });
 
   const res = await cachedFetch<{ results: TMDBRawTv[]; total_pages: number }>(
     cacheKey,
     TMDB_TTL,
     async () => {
       const allResults: TMDBRawTv[] = [];
-      const maxPages = 5;
+      const maxPages = 3; // popularity desc → first 60 results is plenty
       for (let page = 1; page <= maxPages; page++) {
         const pageParams = new URLSearchParams(baseParams);
         pageParams.set("page", String(page));
@@ -299,7 +322,7 @@ async function fetchUpcomingTv(
         allResults.push(...results);
         if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
       }
-      return { results: allResults, total_pages: Math.min(maxPages, 5) };
+      return { results: allResults, total_pages: Math.min(maxPages, 3) };
     },
   );
   return (res.results || []).map((t: TMDBRawTv) => ({ ...t, media_type: "tv" as const }));
@@ -339,23 +362,34 @@ async function fetchWatchProvider(
 }
 
 /**
- * Fetch TV network info (the OTT/network name for a series).
- * Faster than watch providers for series — networks come with /tv/{id}.
+ * Fetch TV details: network name + next_episode_to_air info.
+ * The next_episode_to_air field lets us show "S3 E5" on the card and
+ * group by the actual episode air date (not just the series first_air_date).
+ *
+ * v2.3: previously returned just the network name (string | null). Now
+ * returns a structured object with network + episode info so the card
+ * can render "S3 E5 · On Netflix" style badges like CineLog V1.
  */
-async function fetchTvNetwork(id: number): Promise<string | null> {
+async function fetchTvDetails(id: number): Promise<{
+  network: string | null;
+  nextEpisode: TMDBEpisode | null;
+}> {
   try {
     const res = await cachedFetch<TMDBTvDetailsResponse>(
-      buildCacheKey(`tmdb:tv_network:${id}`, {}),
+      buildCacheKey(`tmdb:tv_details:${id}`, {}),
       TMDB_TTL,
       async () => {
-        const r = await fetch(`${API}/tv/${id}?api_key=${TMDB_KEY}&language=en-US`);
-        if (!r.ok) throw new Error(`tv network failed: ${r.status}`);
+        const r = await fetch(`${API}/tv/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=next_episode_to_air`);
+        if (!r.ok) throw new Error(`tv details failed: ${r.status}`);
         return r.json();
       },
     );
-    return res.networks?.[0]?.name ?? null;
+    return {
+      network: res.networks?.[0]?.name ?? null,
+      nextEpisode: res.next_episode_to_air ?? null,
+    };
   } catch {
-    return null;
+    return { network: null, nextEpisode: null };
   }
 }
 
@@ -407,9 +441,10 @@ const UpcomingPage: Component = () => {
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  // OTT info cache (per item id)
+  // OTT / episode info caches (per item id)
   const [movieOtt, setMovieOtt] = createSignal<Record<number, { providerName: string | null; isTheatrical: boolean }>>({});
-  const [seriesOtt, setSeriesOtt] = createSignal<Record<number, string | null>>({});
+  // v2.3: per-series network + next_episode_to_air info
+  const [seriesDetails, setSeriesDetails] = createSignal<Record<number, { network: string | null; nextEpisode: TMDBEpisode | null }>>({});
 
   // Trailer modal state
   const [trailerKey, setTrailerKey] = createSignal<string | null>(null);
@@ -490,17 +525,18 @@ const UpcomingPage: Component = () => {
     movieResults.forEach(([id, info]) => { movieMap[id as number] = info; });
     setMovieOtt(movieMap);
 
-    // Series — fetch network name (faster than full watch providers)
-    const seriesList = series().slice(0, 20);
+    // Series — fetch network + next_episode_to_air (v2.3).
+    // Capped at MAX_TV_EPISODE_LOOKUPS to keep the page snappy.
+    const seriesList = series().slice(0, MAX_TV_EPISODE_LOOKUPS);
     const seriesResults = await Promise.all(
       seriesList.map(async (s) => {
-        const name = await fetchTvNetwork(s.id);
-        return [s.id, name] as const;
+        const details = await fetchTvDetails(s.id);
+        return [s.id, details] as const;
       }),
     );
-    const seriesMap: Record<number, string | null> = {};
-    seriesResults.forEach(([id, name]) => { seriesMap[id as number] = name; });
-    setSeriesOtt(seriesMap);
+    const seriesMap: Record<number, { network: string | null; nextEpisode: TMDBEpisode | null }> = {};
+    seriesResults.forEach(([id, details]) => { seriesMap[id as number] = details; });
+    setSeriesDetails(seriesMap);
   };
 
   // Build the upcoming items (with formatted dates + OTT info)
@@ -517,43 +553,60 @@ const UpcomingPage: Component = () => {
         isTheatrical: ott?.isTheatrical ?? true,
         originalLanguage: raw.original_language ?? null,
         originCountry: raw.origin_country ?? [],
+        nextEpisodeSeason: null,
+        nextEpisodeNumber: null,
       };
     });
   });
 
   const upcomingSeries = createMemo<UpcomingItem[]>(() => {
     return series().map((s) => {
-      const dateStr = s.first_air_date ?? "";
+      const details = seriesDetails()[s.id];
+      const ep = details?.nextEpisode ?? null;
+      // v2.3: if we have next_episode_to_air with an air_date, group by
+      // that date (so the user sees the actual upcoming episode date,
+      // not the series's first_air_date which may be years ago).
+      // Fall back to first_air_date for premieres where TMDB doesn't
+      // yet have episode-level data.
+      const dateStr = ep?.air_date ?? s.first_air_date ?? "";
       const raw = s as unknown as TMDBRawMovie;
       return {
         ...s,
         formattedDate: formatDateShort(dateStr),
         rawDate: dateStr,
-        ottInfo: seriesOtt()[s.id] ?? null,
+        ottInfo: details?.network ?? null,
         isTheatrical: false,
         originalLanguage: raw.original_language ?? null,
         originCountry: raw.origin_country ?? [],
+        nextEpisodeSeason: ep?.season_number ?? null,
+        nextEpisodeNumber: ep?.episode_number ?? null,
       };
     });
   });
 
-  // Group by date — interleaves movies and series into a single timeline
-  // of "release days". Each day shows its movies and series separately.
+  // v2.3: V1-style timeline grouping. Movies AND series are mixed into
+  // the same date bucket and sorted by date. Each group is one row in
+  // the timeline (date badge on left, cards on right).
   const groups = createMemo<UpcomingGroup[]>(() => {
     const map = new Map<string, UpcomingGroup>();
-    for (const m of upcomingMovies()) {
-      if (!m.rawDate) continue;
-      if (!map.has(m.rawDate)) {
-        map.set(m.rawDate, { date: m.rawDate, label: formatDateLabel(m.rawDate), movies: [], series: [] });
+    const all = [...upcomingMovies(), ...upcomingSeries()];
+    for (const item of all) {
+      if (!item.rawDate) continue;
+      if (!map.has(item.rawDate)) {
+        map.set(item.rawDate, { date: item.rawDate, label: formatDateLabel(item.rawDate), items: [] });
       }
-      map.get(m.rawDate)!.movies.push(m);
+      map.get(item.rawDate)!.items.push(item);
     }
-    for (const s of upcomingSeries()) {
-      if (!s.rawDate) continue;
-      if (!map.has(s.rawDate)) {
-        map.set(s.rawDate, { date: s.rawDate, label: formatDateLabel(s.rawDate), movies: [], series: [] });
-      }
-      map.get(s.rawDate)!.series.push(s);
+    // Within each day, sort items so series-with-episode-info come first
+    // (since those are the most relevant "next episode" events), then by
+    // popularity (vote_count as a proxy).
+    for (const g of map.values()) {
+      g.items.sort((a, b) => {
+        const aHasEp = a.media_type === "tv" && a.nextEpisodeNumber != null ? 1 : 0;
+        const bHasEp = b.media_type === "tv" && b.nextEpisodeNumber != null ? 1 : 0;
+        if (aHasEp !== bHasEp) return bHasEp - aHasEp;
+        return (b.vote_count ?? 0) - (a.vote_count ?? 0);
+      });
     }
     return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
   });
@@ -755,72 +808,56 @@ const UpcomingPage: Component = () => {
               </div>
               <h3 class="empty-premium-title">No upcoming titles in this window</h3>
               <p class="empty-premium-body">
-                Try a different date or language filter. Only titles
-                releasing in {regionLabel()} are shown — some films may
-                not have a {regionLabel()} release date in this range yet.
+                Try a different date or language filter. Movies shown
+                are scoped to titles releasing in {regionLabel()}; TV
+                series shown are scoped to those with upcoming episodes
+                airing in this 30-day window.
               </p>
             </div>
           </Show>
 
-          {/* Timeline — grouped by date */}
+          {/* Timeline — V1-style: vertical line on left, date badge on left,
+              cards on right. Movies AND series are mixed together per date. */}
           <Show when={!loading() && !error() && groups().length > 0}>
-            <div class="upcoming-timeline">
+            <div class="upcoming-timeline upcoming-timeline-v23">
               <For each={groups()}>
-                {(group) => (
-                  <div class="upcoming-day-group">
-                    <div class="upcoming-day-header">
-                      <span class="upcoming-day-label">{group.label}</span>
-                      <span class="upcoming-day-count">
-                        {group.movies.length + group.series.length}{" "}
-                        {group.movies.length + group.series.length === 1 ? "title" : "titles"}
-                      </span>
+                {(group) => {
+                  // Split month + day for the date badge (e.g. "Jul" + "17")
+                  const d = parseDate(group.date);
+                  const monthShort = d ? d.toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "";
+                  const dayNum = d ? String(d.getDate()) : "";
+                  return (
+                    <div class="upcoming-day-row-v23">
+                      {/* Left: date badge anchored to the vertical timeline */}
+                      <div class="upcoming-date-badge-v23">
+                        <span class="upcoming-date-badge-month">{monthShort}</span>
+                        <span class="upcoming-date-badge-day">{dayNum}</span>
+                      </div>
+
+                      {/* Right: cards for this date (movies + series mixed) */}
+                      <div class="upcoming-day-cards-v23">
+                        <div class="upcoming-day-cards-header">
+                          <span class="upcoming-day-cards-label">{group.label}</span>
+                          <span class="upcoming-day-cards-count">
+                            {group.items.length} {group.items.length === 1 ? "title" : "titles"}
+                          </span>
+                        </div>
+                        <div class="upcoming-list">
+                          <For each={group.items}>
+                            {(item) => (
+                              <UpcomingCard
+                                item={item}
+                                onClick={() => handleClick(item)}
+                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
+                                type={item.media_type === "tv" ? "series" : "movie"}
+                              />
+                            )}
+                          </For>
+                        </div>
+                      </div>
                     </div>
-
-                    {/* Movies sub-section (only if filtered to include movies) */}
-                    <Show when={typeFilter() !== "series" && group.movies.length > 0}>
-                      <div class="upcoming-sub-section">
-                        <p class="upcoming-sub-label">
-                          <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">movie</span>
-                          Movies
-                        </p>
-                        <div class="upcoming-list">
-                          <For each={group.movies}>
-                            {(item) => (
-                              <UpcomingCard
-                                item={item}
-                                onClick={() => handleClick(item)}
-                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
-                                type="movie"
-                              />
-                            )}
-                          </For>
-                        </div>
-                      </div>
-                    </Show>
-
-                    {/* Series sub-section (only if filtered to include series) */}
-                    <Show when={typeFilter() !== "movies" && group.series.length > 0}>
-                      <div class="upcoming-sub-section">
-                        <p class="upcoming-sub-label">
-                          <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">tv</span>
-                          Series
-                        </p>
-                        <div class="upcoming-list">
-                          <For each={group.series}>
-                            {(item) => (
-                              <UpcomingCard
-                                item={item}
-                                onClick={() => handleClick(item)}
-                                onPlayTrailer={(e) => handlePlayTrailer(e, item)}
-                                type="series"
-                              />
-                            )}
-                          </For>
-                        </div>
-                      </div>
-                    </Show>
-                  </div>
-                )}
+                  );
+                }}
               </For>
             </div>
           </Show>
@@ -1057,6 +1094,29 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
     return props.item.ottInfo ? `On ${props.item.ottInfo}` : "Streaming";
   };
 
+  // v2.3: "S3 E5" episode badge for series with next_episode_to_air info
+  const episodeLabel = () => {
+    if (props.type !== "series") return null;
+    const s = props.item.nextEpisodeSeason;
+    const e = props.item.nextEpisodeNumber;
+    if (s == null || e == null) return null;
+    return `S${s} E${e}`;
+  };
+
+  // v2.3: "X days" countdown chip (matches V1 "4 DAYS" style)
+  const daysUntil = () => {
+    if (!props.item.rawDate) return null;
+    const d = parseDate(props.item.rawDate);
+    if (!d) return null;
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const diff = Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    if (diff < 0) return null;          // already released
+    if (diff === 0) return "Today";
+    if (diff === 1) return "1 DAY";
+    return `${diff} DAYS`;
+  };
+
   return (
     <div
       class="upcoming-card focus-ring"
@@ -1069,7 +1129,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
       }}
       role="button"
       tabindex={0}
-      aria-label={`${title()}, ${props.item.formattedDate}, ${ottLabel()}. Click to open details.`}
+      aria-label={`${title()}, ${props.item.formattedDate}, ${ottLabel()}${episodeLabel() ? `, ${episodeLabel()}` : ""}. Click to open details.`}
     >
       <div class="upcoming-card-poster">
         <Show
@@ -1108,6 +1168,26 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           </Show>
         </div>
         <div class="upcoming-card-tags">
+          {/* v2.3: V1-style "X DAYS" countdown chip (accent color) */}
+          <Show when={daysUntil()}>
+            <span class="upcoming-card-days">
+              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+                schedule
+              </span>
+              {daysUntil()}
+            </span>
+          </Show>
+
+          {/* v2.3: V1-style "S3 E5" episode chip for series */}
+          <Show when={episodeLabel()}>
+            <span class="upcoming-card-episode">
+              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+                tv
+              </span>
+              {episodeLabel()}
+            </span>
+          </Show>
+
           <span class={`upcoming-card-ott ${props.item.isTheatrical ? "ott-theatrical" : "ott-streaming"}`}>
             <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
               {props.item.isTheatrical ? "theaters" : "play_circle"}
