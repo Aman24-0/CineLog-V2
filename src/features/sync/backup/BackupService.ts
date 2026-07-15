@@ -308,13 +308,21 @@ function sleep(ms: number): Promise<void> {
  * RLS denials, etc.) — retrying those would never succeed.
  */
 function isTransientError(err: unknown): boolean {
+  const e = err as { message?: string; code?: string | number; status?: number };
   const msg = String(
-    (err instanceof Error ? err.message : err) ?? "",
+    (err instanceof Error ? err.message : e?.message) ?? "",
   ).toLowerCase();
+  const code = String(e?.code ?? "").toLowerCase();
+  const status = Number(e?.status ?? 0);
+  // Check message OR code OR status for transient indicators.
+  const haystack = `${msg} ${code}`;
   if (
     msg.includes("rate limit") ||
     msg.includes("too many requests") ||
-    msg.includes("429") ||
+    msg.includes("over_request_limit") ||
+    msg.includes("rate_limit") ||
+    haystack.includes("429") ||
+    status === 429 ||
     msg.includes("failed to fetch") ||
     msg.includes("networkerror") ||
     msg.includes("network error") ||
@@ -328,10 +336,10 @@ function isTransientError(err: unknown): boolean {
     msg.includes("econnreset") ||
     msg.includes("econnrefused") ||
     msg.includes("epipe") ||
-    msg.includes("500") ||
-    msg.includes("502") ||
-    msg.includes("503") ||
-    msg.includes("504") ||
+    haystack.includes("500") ||
+    haystack.includes("502") ||
+    haystack.includes("503") ||
+    haystack.includes("504") ||
     msg.includes("service unavailable") ||
     msg.includes("bad gateway") ||
     msg.includes("gateway timeout") ||
@@ -434,24 +442,34 @@ export async function restoreBackup(
       existingByTmdb.add(tmdbId);
       if (titleKey) existingByTitle.add(titleKey);
     } catch (err) {
+      // Extract detailed error info from Supabase errors. Supabase
+      // errors have shape { message, code, details, hint } — we log
+      // ALL of it so the user can see exactly why items fail.
+      const errInfo = err as { message?: string; code?: string; details?: unknown; hint?: string };
+      const errCode = errInfo?.code ?? "";
+      const errMsg = errInfo?.message ?? (err instanceof Error ? err.message : String(err));
+      const errDetails = typeof errInfo?.details === "string" ? errInfo.details : "";
+      const errHint = errInfo?.hint ?? "";
+      const detailedReason = errCode ? `[${errCode}] ${errMsg}${errDetails ? ` — ${errDetails}` : ""}${errHint ? ` (hint: ${errHint})` : ""}` : errMsg;
+
       if (isTransientError(err)) {
         // Don't count as failed yet — we'll retry at the end.
         transientFailures.push({ item, wasExisting });
+        console.warn(`[restoreBackup] Transient failure (will retry): ${item.title || item.name || item.id} — ${detailedReason}`);
       } else {
-        console.error("[restoreBackup] Failed to restore item:", item, err);
+        console.error(`[restoreBackup] Permanent failure: ${item.title || item.name || item.id} — ${detailedReason}`, { item, err });
         failed++;
-        const reason = err instanceof Error ? err.message : "Database error";
-        const title = item.title || item.name || undefined;
-        failureLog.push({ reason, title });
+        failureLog.push({ reason: detailedReason, title: item.title || item.name || undefined });
       }
     }
 
     // Small delay between writes to avoid triggering Supabase's rate
-    // limiter. 30ms is enough to keep us under ~30 req/sec, which is
-    // well within Supabase free-tier limits. Total added time for
-    // 1000 items = ~30 seconds — acceptable for a restore operation.
-    if (total > 100) {
-      await sleep(30);
+    // limiter. 100ms = ~10 req/sec, which is safe for Supabase free-tier.
+    // Total added time for 1000 items = ~100 seconds — acceptable for a
+    // restore operation. Without this delay, Supabase returns 429 errors
+    // for ~50% of requests, causing mass failures.
+    if (total > 50) {
+      await sleep(100);
     }
 
     // Report progress — every item for small batches, every 10 for large.
@@ -478,11 +496,13 @@ export async function restoreBackup(
         if (wasExisting) duplicates++;
         imported++;
       } catch (err) {
-        console.error("[restoreBackup] Final retry failed:", item, err);
+        const errInfo = err as { message?: string; code?: string; details?: unknown };
+        const errCode = errInfo?.code ?? "";
+        const errMsg = errInfo?.message ?? (err instanceof Error ? err.message : String(err));
+        const detailedReason = errCode ? `[${errCode}] ${errMsg}` : errMsg;
+        console.error(`[restoreBackup] Final retry failed: ${item.title || item.name || item.id} — ${detailedReason}`, { item, err });
         failed++;
-        const reason = err instanceof Error ? err.message : "Database error";
-        const title = item.title || item.name || undefined;
-        failureLog.push({ reason, title });
+        failureLog.push({ reason: detailedReason, title: item.title || item.name || undefined });
       }
       // Longer delay between retries since we know rate limiting is active.
       await sleep(100);

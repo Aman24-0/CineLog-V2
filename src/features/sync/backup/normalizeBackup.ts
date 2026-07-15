@@ -229,8 +229,14 @@ export function normalizeRating(raw: unknown): number | undefined {
   if (raw == null) return undefined;
   if (typeof raw === "number") {
     if (isNaN(raw) || raw < 0) return undefined;
-    // If rating looks like it's on a 0-5 scale, scale to 0-10.
-    if (raw <= 5) return raw * 2;
+    // V1 uses 0-10 scale; 0 means "no rating".
+    if (raw === 0) return undefined;
+    // Values 1-5 could be either a 0-5 scale OR a valid 0-10 rating.
+    // Heuristic: if the value is a whole number 1-5, treat it as a 0-5
+    // scale rating and double it. If it's a decimal (e.g. 4.5), treat it
+    // as a 0-10 rating and leave it alone. This avoids double-scaling
+    // when V2 re-normalizes an already-converted V2 file.
+    if (raw <= 5 && Number.isInteger(raw)) return raw * 2;
     // If > 10, it might be a percentage — scale down.
     if (raw > 10) return Math.round((raw / 10) * 10) / 10;
     return raw;
@@ -409,6 +415,17 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
     const newSeasonAvailable = typeof mapped.newSeasonAvailable === "boolean" ? mapped.newSeasonAvailable : undefined;
     const directPlayUrl = normalizeNullableString(mapped.directPlayUrl);
 
+    // --- Re-watch tracking (preserved from V2 backups) ---
+    const rewatchCount = typeof mapped.rewatchCount === "number" ? mapped.rewatchCount : undefined;
+    const rewatchDates = Array.isArray(mapped.rewatchDates) ? mapped.rewatchDates.filter((d): d is string => typeof d === "string") : undefined;
+
+    // --- Series per-season dates (preserved from V2 backups) ---
+    const seasonDates = (mapped.seasonDates != null && typeof mapped.seasonDates === "object" && !Array.isArray(mapped.seasonDates))
+      ? mapped.seasonDates as Record<string, { start: string; end: string }>
+      : undefined;
+    const seasonRewatchCount = typeof mapped.seasonRewatchCount === "number" ? mapped.seasonRewatchCount : undefined;
+    const seasonRewatchDates = Array.isArray(mapped.seasonRewatchDates) ? mapped.seasonRewatchDates as Record<string, { start: string; end: string }>[] : undefined;
+
     const item: WatchlistItem = {
       id,
       media_type: mediaType,
@@ -440,6 +457,12 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
       ...(imdbId != null && { imdbId }),
       ...(newSeasonAvailable != null && { newSeasonAvailable }),
       ...(directPlayUrl != null && { directPlayUrl }),
+      // Preserve re-watch + per-season fields from V2 backups
+      ...(rewatchCount != null && { rewatchCount }),
+      ...(rewatchDates != null && { rewatchDates }),
+      ...(seasonDates != null && { seasonDates }),
+      ...(seasonRewatchCount != null && { seasonRewatchCount }),
+      ...(seasonRewatchDates != null && { seasonRewatchDates }),
     };
 
     return item;
