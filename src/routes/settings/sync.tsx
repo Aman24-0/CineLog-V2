@@ -4,8 +4,8 @@
 //
 // This is NOT a settings page. It's the central hub for:
 //   1. Cloud Status         — "Is my data safe?"
-//   2. Import                — "Can I move my data?" (CineLog V1 + future)
-//   3. Backup                — "How do I recover my library?"
+//   2. Import                — "Can I move my data IN?" (JSON + CSV)
+//   3. Export                — "Can I get my data OUT?" (JSON + CSV)
 //   4. Devices               — "What happens if I change phone?"
 //   5. Sync History          — "When was everything synced?"
 //   6. Storage               — friendly library stats
@@ -16,6 +16,17 @@
 //   Import providers are pluggable (ImportSource registry).
 //   Backup strategies are pluggable (BackupService registry).
 //   Adding a new provider/strategy requires NO changes to this page.
+//
+// NOTE: Previously this page had DUPLICATE entry points:
+//   - "Import from JSON" (ImportHub) and "Restore Backup" (BackupCards)
+//     were the SAME feature — both called parseBackupFile + restoreBackup.
+//   - "CSV File" was listed as "Coming soon" in ImportHub even though
+//     CsvImportCard was already rendered below it.
+//   - "Create Backup" just showed a toast without saving anything.
+//
+//   All three were removed. The page now has a clean 2+2 structure:
+//     IMPORT  → Import from JSON  +  Import from CSV
+//     EXPORT  → Export as JSON    +  Export as CSV
 
 import { Title } from "@solidjs/meta";
 import { Show, type Component } from "solid-js";
@@ -25,14 +36,14 @@ import PageContainer from "~/shared/ui/PageContainer";
 import { Button } from "~/shared/ui/primitives";
 import CloudStatusCard from "~/features/sync/components/CloudStatusCard";
 import ImportHub from "~/features/sync/components/ImportHub";
+import CsvImportCard from "~/features/sync/components/CsvImportCard";
 import BackupCards from "~/features/sync/components/BackupCards";
+import CsvExportCard from "~/features/sync/components/CsvExportCard";
 import DevicesCard from "~/features/sync/components/DevicesCard";
 import SyncHistoryTimeline from "~/features/sync/components/SyncHistoryTimeline";
 import StorageStats from "~/features/sync/components/StorageStats";
 import PrivacyCard from "~/features/sync/components/PrivacyCard";
 import DangerZoneCard from "~/features/sync/components/DangerZoneCard";
-import CsvExportCard from "~/features/sync/components/CsvExportCard";
-import CsvImportCard from "~/features/sync/components/CsvImportCard";
 import SyncCadenceCard from "~/features/sync/components/SyncCadenceCard";
 
 const SyncRoute: Component = () => {
@@ -76,52 +87,50 @@ const SyncRoute: Component = () => {
                 <CloudStatusCard />
               </section>
 
-              {/* 1b. SYNC CADENCE */}
+              {/* 2. SYNC CADENCE */}
               <section class="sec-section">
                 <p class="sec-section-label">Sync Cadence</p>
                 <SyncCadenceCard />
               </section>
 
-              {/* 2. IMPORT */}
+              {/* 3. IMPORT — JSON + CSV unified under one label */}
               <section class="sec-section">
                 <p class="sec-section-label">Import</p>
                 <ImportHub />
-                <p class="sec-section-label" style={{ "margin-top": "var(--sp-4)" }}>Import from CSV</p>
                 <CsvImportCard />
               </section>
 
-              {/* 3. BACKUP */}
+              {/* 4. EXPORT — JSON + CSV unified under one label */}
               <section class="sec-section">
-                <p class="sec-section-label">Backup &amp; Restore</p>
+                <p class="sec-section-label">Export</p>
                 <BackupCards />
-                <p class="sec-section-label" style={{ "margin-top": "var(--sp-4)" }}>Export as CSV</p>
                 <CsvExportCard />
               </section>
 
-              {/* 4. DEVICES */}
+              {/* 5. DEVICES */}
               <section class="sec-section">
                 <p class="sec-section-label">Devices</p>
                 <DevicesCard />
               </section>
 
-              {/* 5. SYNC HISTORY */}
+              {/* 6. SYNC HISTORY */}
               <section class="sec-section">
                 <p class="sec-section-label">Recent Activity</p>
                 <SyncHistoryTimeline />
               </section>
 
-              {/* 6. STORAGE */}
+              {/* 7. STORAGE */}
               <section class="sec-section">
                 <p class="sec-section-label">Your Library</p>
                 <StorageStats />
               </section>
 
-              {/* 7. PRIVACY */}
+              {/* 8. PRIVACY */}
               <section class="sec-section">
                 <PrivacyCard />
               </section>
 
-              {/* 8. DANGER ZONE — at the very bottom */}
+              {/* 9. DANGER ZONE — at the very bottom */}
               <section class="sec-section">
                 <p class="sec-section-label sec-section-label-danger">Danger Zone</p>
                 <DangerZoneCard />

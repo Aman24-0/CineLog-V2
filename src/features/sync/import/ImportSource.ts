@@ -139,14 +139,10 @@ export interface FutureSource {
   accentColor: string;
 }
 
+// NOTE: "CSV File" was removed from FUTURE_SOURCES because CSV import is
+// already available as CsvImportCard (rendered directly on the sync page
+// below ImportHub). Showing it as "Coming soon" was confusing duplication.
 export const FUTURE_SOURCES: FutureSource[] = [
-  {
-    id: "csv",
-    displayName: "CSV File",
-    description: "Import from a CSV spreadsheet file",
-    icon: "table_chart",
-    accentColor: "#22c55e",
-  },
   {
     id: "letterboxd",
     displayName: "Letterboxd",

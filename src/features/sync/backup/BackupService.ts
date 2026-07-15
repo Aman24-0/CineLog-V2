@@ -99,10 +99,13 @@ export interface BackupStrategy {
   comingSoonLabel?: string;
 }
 
+// NOTE: "Create Backup" (in-memory snapshot) and "Restore Backup" were
+// removed because they duplicated "Export Backup" and "Import from JSON"
+// respectively. The sync page now has a clean 2+2 structure:
+//   IMPORT  → Import from JSON  +  Import from CSV
+//   EXPORT  → Export as JSON    +  Export as CSV
 export const BACKUP_STRATEGIES: BackupStrategy[] = [
-  { id: "create",  displayName: "Create Backup",  description: "Snapshot your entire library to a backup file",     icon: "backup",   available: true },
-  { id: "export",  displayName: "Export Backup",  description: "Download your backup as a JSON file you can store anywhere", icon: "download", available: true },
-  { id: "restore", displayName: "Restore Backup", description: "Import titles from a previous backup file",         icon: "restore",  available: true },
+  { id: "export",  displayName: "Export as JSON",  description: "Download your full library as a .json backup file", icon: "download", available: true },
 ];
 
 export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
@@ -352,6 +355,27 @@ function isTransientError(err: unknown): boolean {
 }
 
 /**
+ * Upsert a single vault item with retry on transient errors.
+ * Wraps upsertVaultItemInSupabase with exponential backoff so per-item
+ * fallback during restore doesn't cascade into hundreds of 429 failures.
+ */
+async function upsertVaultItemInSupabaseWithRetry(uid: string, item: WatchlistItem): Promise<void> {
+  const delays = [0, 200, 500, 1500];
+  let lastErr: unknown;
+  for (let attempt = 0; attempt < delays.length; attempt++) {
+    try {
+      await upsertVaultItemInSupabase(uid, item);
+      return;
+    } catch (err) {
+      lastErr = err;
+      if (!isTransientError(err) || attempt === delays.length - 1) throw err;
+      await sleep(delays[attempt]);
+    }
+  }
+  throw lastErr;
+}
+
+/**
  * Convert a WatchlistItem to the CreateVaultItemPayload that the vault
  * repository expects. Mirrors the mapping in vaultReadAdapter's
  * upsertVaultItemInSupabase so the batch path persists the SAME fields
@@ -494,8 +518,9 @@ export async function restoreBackup(
           { err },
         );
         for (const item of batchItems) {
+          if (callbacks?.shouldCancel?.()) break;
           try {
-            await upsertVaultItemInSupabase(uid, item);
+            await upsertVaultItemInSupabaseWithRetry(uid, item);
             imported++;
           } catch (itemErr) {
             const ie = itemErr as { message?: string; code?: string };
@@ -508,6 +533,10 @@ export async function restoreBackup(
               title: item.title || item.name || undefined,
             });
           }
+          // Small delay between per-item upserts to stay under Supabase's
+          // free-tier rate limit (~2 req/sec sustained). Without this, 100
+          // sequential requests in a few seconds triggers 429 errors.
+          await sleep(50);
         }
       }
     }
@@ -553,8 +582,9 @@ export async function restoreBackup(
           err,
         );
         for (const item of items) {
+          if (callbacks?.shouldCancel?.()) break;
           try {
-            await upsertVaultItemInSupabase(uid, item);
+            await upsertVaultItemInSupabaseWithRetry(uid, item);
             imported++;
           } catch (itemErr) {
             const ie = itemErr as { message?: string; code?: string };
@@ -567,6 +597,7 @@ export async function restoreBackup(
               title: item.title || item.name || undefined,
             });
           }
+          await sleep(50);
         }
       }
       await sleep(500);
