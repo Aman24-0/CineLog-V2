@@ -66,6 +66,20 @@ export function vaultRowToWatchlistItem(
     watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
+    // ── Re-watch tracking (movies + series) ──────────────────────────
+    // These were previously missing from this adapter (only present in
+    // vaultReadAdapter.ts). Without them, the edit form's rewatch section
+    // and the detail modal's rewatch display were always empty for items
+    // loaded via the main UI path (fetchUserLibrary → useUserLibrary).
+    rewatchCount: row.rewatch_count ?? 0,
+    rewatchDates: row.rewatch_dates ?? [],
+    // ── Series per-season tracking (v2.3 columns) ───────────────────
+    // Same issue: without these, the edit form's "Season Watch Dates"
+    // section showed empty date pickers even when the DB had dates set
+    // (e.g. imported from V1 backups where seasonDates was populated).
+    seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
+    seasonRewatchCount: row.season_rewatch_count ?? 0,
+    seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
     // TMDB display metadata — may be undefined if the TMDB fetch failed,
     // in which case the UI falls back to "Untitled" / "NO POSTER".
     title: tmdb?.title,

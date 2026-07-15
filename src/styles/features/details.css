@@ -1187,6 +1187,36 @@
   flex-wrap: wrap;
 }
 
+/* The clickable watch-date button — appears when the title has per-season
+   dates (TV series) or rewatch dates (movies). Looks like plain text but
+   with a subtle chevron icon to indicate it's interactive. */
+.your-activity-watch-date-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+  font: inherit;
+  border-radius: var(--radius-sm, 6px);
+  transition: color var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+.your-activity-watch-date-btn:hover {
+  color: var(--p);
+}
+.your-activity-watch-date-btn:hover .your-activity-watch-date-chevron {
+  color: var(--p);
+  transform: rotate(180deg);
+}
+.your-activity-watch-date-chevron {
+  font-size: 14px !important;
+  color: var(--text-muted, rgba(255,255,255,0.5));
+  transition: transform var(--dur-base, 200ms) var(--ease-out, ease-out),
+              color var(--dur-base, 200ms) var(--ease-out, ease-out);
+}
+
 /* The pill-shaped badge that appears next to the watch date when
    rewatchCount > 0. Clicking it opens the viewing-history dialog. */
 .rewatch-badge {

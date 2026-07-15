@@ -78,6 +78,26 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   const hasRewatches = () => effectiveRewatchCount() > 0;
 
   /**
+   * Whether the WATCHED date has per-season detail to show in the dialog.
+   * For series: true when seasonDates has at least one season entry.
+   * For movies: always false (movies use the flat rewatchDates list,
+   *   which is already accessible via the ×N badge when rewatchCount > 0).
+   */
+  const hasSeasonDates = () => {
+    if (!isSeries()) return false;
+    const sd = props.vaultItem.seasonDates ?? {};
+    return Object.keys(sd).length > 0;
+  };
+
+  /**
+   * Whether the WATCHED date cell should be clickable to open the dialog.
+   * True when there's ANY per-viewing detail to show:
+   *   - Series with seasonDates (per-season start → end)
+   *   - Any title with rewatches (rewatch dates list)
+   */
+  const canShowDialog = () => hasRewatches() || hasSeasonDates();
+
+  /**
    * The date to show in the Watched cell.
    * - Movies: vaultItem.watchDate (the first/only watch date, or the
    *   1st entry of rewatchDates if watchDate is empty).
@@ -271,14 +291,32 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           <span class={`v2-pill ${statusClass()}`}>{statusLabel()}</span>
         </div>
 
-        {/* Watch Date — with optional re-watch badge */}
+        {/* Watch Date — clickable when there's per-season or rewatch detail */}
         <div class="your-activity-cell">
           <span class="your-activity-cell-label">Watched</span>
           <Show when={watchDate()} fallback={
             <span class="your-activity-cell-empty">—</span>
           }>
             <div class="your-activity-watch-date-wrap">
-              <span class="your-activity-cell-value">{watchDate()}</span>
+              <Show
+                when={canShowDialog()}
+                fallback={
+                  <span class="your-activity-cell-value">{watchDate()}</span>
+                }
+              >
+                <button
+                  type="button"
+                  class="your-activity-watch-date-btn focus-ring"
+                  onClick={() => setShowRewatchDialog(true)}
+                  title={isSeries() ? "View per-season watch dates" : "View all viewing dates"}
+                  aria-label={isSeries() ? "View per-season watch dates" : "View all viewing dates"}
+                >
+                  <span class="your-activity-cell-value">{watchDate()}</span>
+                  <span class="material-symbols-outlined your-activity-watch-date-chevron" aria-hidden="true">
+                    expand_more
+                  </span>
+                </button>
+              </Show>
               <Show when={hasRewatches()}>
                 <button
                   type="button"
@@ -344,9 +382,15 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
             >
               <div class="rewatch-dialog-header">
                 <div>
-                  <h3 class="rewatch-dialog-title">Viewing History</h3>
+                  <h3 class="rewatch-dialog-title">
+                    {isSeries() ? "Season Watch Dates" : "Viewing History"}
+                  </h3>
                   <p class="rewatch-dialog-subtitle">
-                    {totalViewings()} {totalViewings() === 1 ? "viewing" : "viewings"} total
+                    {isSeries()
+                      ? hasRewatches()
+                        ? `Original watch + ${effectiveRewatchCount()} re-watch${effectiveRewatchCount() === 1 ? "" : "es"}`
+                        : `${Object.keys(props.vaultItem.seasonDates ?? {}).length} season${Object.keys(props.vaultItem.seasonDates ?? {}).length === 1 ? "" : "s"} tracked`
+                      : `${totalViewings()} ${totalViewings() === 1 ? "viewing" : "viewings"} total`}
                   </p>
                 </div>
                 <button
