@@ -101,7 +101,7 @@ export function sanitizeUsername(input: string): string {
   s = s.toLowerCase();
 
   // Replace common separators with underscore
-  s = s.replace(/[\.\-\+\s]/g, "_");
+  s = s.replace(/[.+\-\s]/g, "_");
 
   // Remove any character that's not a-z, 0-9, or _
   s = s.replace(/[^a-z0-9_]/g, "");
@@ -297,7 +297,7 @@ export function generateUsernameCandidates(base: string, maxAttempts = 10): stri
  */
 export function displayNameFromEmail(email: string): string {
   const local = email.split("@")[0];
-  const name = local.replace(/[\.\-\+_]/g, " ").trim();
+  const name = local.replace(/[.+\-_]/g, " ").trim();
   const titled = name
     .split(" ")
     .filter((w) => w.length > 0)

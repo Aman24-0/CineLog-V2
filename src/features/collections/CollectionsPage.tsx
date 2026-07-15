@@ -3,7 +3,6 @@ import { Show, createSignal, ErrorBoundary, lazy, Suspense, For } from "solid-js
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "./hooks/useCollections";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
@@ -37,7 +36,6 @@ const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
  *   curated universe is fetched from Supabase.
  */
 export default function CollectionsPage() {
-  const { watchlist } = useVault();
   const navigate = useNavigate();
   const { showToast } = useToast();
   const {

@@ -119,7 +119,7 @@ export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
 // ---------------------------------------------------------------------------
 
 import { getCurrentUid } from "~/shared/hooks/useAuth";
-import { createVaultItemInSupabase, upsertVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
+import { upsertVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getVaultRepository, type CreateVaultItemPayload, type VaultStatus } from "~/lib/supabase/repositories";
 import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 
@@ -557,7 +557,7 @@ export async function restoreBackup(
   );
 
   let imported = 0;
-  let skipped = 0;
+  const skipped = 0;
   let failed = 0;
   let duplicates = 0;
   const failureLog: { reason: string; title?: string }[] = [];
@@ -697,9 +697,11 @@ export async function restoreBackup(
   }
 
   if (transientFailedBatches.length > 0 && !allBatchesTransient) {
-    console.log(
-      `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`,
-    );
+    if (import.meta.env?.DEV) {
+      console.log(
+        `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`,
+      );
+    }
     for (const { items } of transientFailedBatches) {
       if (callbacks?.shouldCancel?.()) break;
       const payloads = items.map((item) => watchlistItemToBatchPayload(uid, item));
@@ -755,9 +757,11 @@ export async function restoreBackup(
     // again with the same error, wasting time). This ensures the user
     // sees failure reasons quickly instead of waiting for a 5-minute
     // batch retry that produces no visible progress.
-    console.log(
-      `[restoreBackup] Skipping batch retry — going straight to per-item fallback for ${transientFailedBatches.reduce((n, b) => n + b.items.length, 0)} items.`,
-    );
+    if (import.meta.env?.DEV) {
+      console.log(
+        `[restoreBackup] Skipping batch retry — going straight to per-item fallback for ${transientFailedBatches.reduce((n, b) => n + b.items.length, 0)} items.`,
+      );
+    }
     for (const { items } of transientFailedBatches) {
       if (callbacks?.shouldCancel?.()) break;
       let itemIdx = 0;

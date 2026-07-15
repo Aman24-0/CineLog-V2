@@ -308,7 +308,7 @@ function PosterCollage(props: { posters: { path: string; title: string }[] }) {
           {/* 3 posters → fan layout */}
           <div class="collage-fan-3">
             <For each={props.posters.slice(0, 3)}>
-              {(p, i) => (
+              {(p) => (
                 <img
                   src={tmdbImage(p.path, "w92")}
                   class="collage-img"

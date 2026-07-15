@@ -18,8 +18,6 @@ import { isServer } from "solid-js/web";
 import {
   validateUsername,
   sanitizeUsername,
-  USERNAME_MIN_LENGTH,
-  type UsernameValidationStatus,
 } from "~/shared/utils/username";
 
 // ---------------------------------------------------------------------------

@@ -1,5 +1,5 @@
 // src/features/profile/components/BannerEditor.tsx
-import { Show, createSignal, type Component } from "solid-js";
+import { Show, createSignal, createEffect, type Component } from "solid-js";
 import { Portal } from "solid-js/web";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { compressBannerImage, uploadBannerToSupabase } from "~/shared/utils/imageCompress";
@@ -35,15 +35,14 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
   const [error, setError] = createSignal<string | null>(null);
   const [saving, setSaving] = createSignal(false);
 
-  // Reset state when the editor opens
-  const handleOpen = () => {
+  // Reset state when the editor mounts (props may change between opens
+  // because the parent gates this component with <Show>, so it remounts
+  // fresh each time — but the signal initializers above can't read props
+  // at creation time, so we sync them here).
+  createEffect(() => {
     setTab(props.currentBannerType === "url" ? "url" : props.currentBannerType === "upload" ? "upload" : "auto");
     setUrlInput(props.currentBannerUrl ?? "");
-    setPreviewUrl(null);
-    setError(null);
-    setUploading(false);
-    setSaving(false);
-  };
+  });
 
   // Current preview based on tab + selections
   const currentPreview = (): { url: string | null; type: BannerType } => {

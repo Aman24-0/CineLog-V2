@@ -23,7 +23,6 @@ import {
 } from "../collectionAdapter";
 import {
   addEntryToCollectionByTmdbId,
-  removeEntryFromCollection,
   removeEntryFromCollectionByTmdbId,
   removeVaultItemFromAllCollections,
   reorderEntriesInCollection,

@@ -21,7 +21,7 @@
 
 import { createMemo, type Accessor } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
-import { normalizeGenre, collectGenres } from "~/shared/utils/genres";
+import { normalizeGenre } from "~/shared/utils/genres";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------

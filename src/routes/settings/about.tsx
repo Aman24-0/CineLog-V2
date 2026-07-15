@@ -11,7 +11,7 @@
 //   6. Developer tools (collapsed by default — moved from /settings/developer)
 
 import { Title } from "@solidjs/meta";
-import { Show, createSignal, For, type Component, lazy, Suspense } from "solid-js";
+import { Show, createSignal, For, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 

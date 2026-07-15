@@ -8,7 +8,7 @@
 // All preferences are persisted via src/core/preferences.
 
 import { Title } from "@solidjs/meta";
-import { Show, For, createMemo, createSignal, createEffect, type Component } from "solid-js";
+import { Show, createMemo, createSignal, createEffect, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { ControlRow, Segmented, SelectRow } from "~/features/settings/sharedControls";

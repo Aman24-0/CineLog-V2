@@ -57,8 +57,6 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   const [isGuest, setIsGuest] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
-  let unsubAuth: (() => void) | null = null;
-
   /**
    * The ONE fetch function. Called on mount and on auth state change.
    * Consumers call `refresh()` which delegates to this.
@@ -93,6 +91,11 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * Wrapped in try/catch so missing env vars (e.g. during first Vercel
    * deploy before env vars are set) don't crash the client — the app
    * still renders, just without auth/session tracking.
+   *
+   * The subscription is cleaned up on unmount via onCleanup to prevent
+   * a memory leak (the subscription holds a reference to the Supabase
+   * auth channel, which would otherwise linger after the provider
+   * unmounts during HMR or route transitions).
    */
   onMount(() => {
     doFetch();
@@ -100,7 +103,7 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       const subscription = onSessionChange(() => {
         doFetch();
       });
-      unsubAuth = () => subscription.unsubscribe();
+      onCleanup(() => subscription.unsubscribe());
     } catch (err) {
       console.error("[UserLibraryProvider] Auth subscription failed:", err);
     }

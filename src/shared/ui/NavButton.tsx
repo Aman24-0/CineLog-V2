@@ -1,4 +1,4 @@
-import { JSX, Show, createMemo, type Component } from "solid-js";
+import { JSX, createMemo, type Component } from "solid-js";
 import Icon from "./Icon";
 
 type Props = {

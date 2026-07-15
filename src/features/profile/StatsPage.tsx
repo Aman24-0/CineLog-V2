@@ -19,14 +19,12 @@
 //  10. Personal records — top rated, avg rating
 
 import { Show, For, createMemo, type Component } from "solid-js";
-import { useNavigate } from "@solidjs/router";
 import { useStats } from "./useStats";
 import { useAuth } from "~/shared/hooks/useAuth";
 import PageContainer from "~/shared/ui/PageContainer";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 
 const StatsPage: Component = () => {
-  const navigate = useNavigate();
   const { isSignedIn } = useAuth();
   const { stats, watchlist } = useStats();
 

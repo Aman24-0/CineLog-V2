@@ -54,6 +54,7 @@ export default createHandler(() => (
               prevents the FOUT where icon names like "density_default" flash
               as literal text before the font loads. The CSS rule in base.css
               hides .material-symbols-outlined until .mat-syms-loaded is on <html>. */}
+          {/* eslint-disable-next-line solid/no-innerhtml -- intentional inline script for FOUT prevention (font-loading marker) */}
           <script innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,2000);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined','local("Material Symbols Outlined")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`} />
 
           {assets}
