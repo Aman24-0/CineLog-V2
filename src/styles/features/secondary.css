@@ -2752,16 +2752,28 @@
 }
 
 /* Long/short label switching — used by date format selector on narrow screens.
-   On wide viewports show the long label (DD/MM/YYYY), on narrow show short (D/M/Y). */
+   On wide viewports show the long label (DD/MM/YYYY), on narrow show short (D/M/Y).
+   IMPORTANT: only swap labels when a short label actually exists. Otherwise the
+   button would be empty (just a colored pill) on mobile. We use :has() to scope
+   the swap to buttons that have BOTH labels (i.e. date format only). */
 .segmented-label-short {
   display: none;
 }
 @media (max-width: 480px) {
-  .segmented-label-long {
+  /* Modern browsers: scope the swap to buttons that actually have a short label */
+  .segmented-btn:has(.segmented-label-short) .segmented-label-long {
     display: none;
   }
-  .segmented-label-short {
+  .segmented-btn:has(.segmented-label-short) .segmented-label-short {
     display: inline;
+  }
+  /* Fallback for browsers without :has() (older Safari): keep the long label visible
+     so the button is never empty. Date format may overflow slightly on very narrow
+     screens, but that's better than an invisible button. */
+  @supports not selector(:has(*)) {
+    .segmented-label-long {
+      display: inline !important;
+    }
   }
 }
 

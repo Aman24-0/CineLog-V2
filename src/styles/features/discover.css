@@ -1876,29 +1876,51 @@
 }
 
 /* ============================================================
-   SEARCH BAR (merged into Discover)
+   SEARCH BAR (merged into Discover) — STICKY below AppHeader
    The dedicated /search route is gone — search now lives at the
-   top of /discover. We override .search-bar-form's sticky
-   positioning so it doesn't try to stick to top:0 (which would
-   clash with the already-sticky AppHeader, also at top:0). The
-   Discover search bar scrolls naturally with the page content.
+   top of /discover. We make the search bar sticky at
+   top: var(--app-header-height) so it stays visible while the user
+   scrolls through the Discover feed, but doesn't overlap with the
+   already-sticky AppHeader (which sits at top: 0, z-30).
+
+   Layout:
+     [AppHeader — sticky top:0 z-30]
+     [Discover search bar — sticky top: app-header-height z-20]
+     [Discover content (Genre Explorer, Spotlight, rails...) — scrolls]
+
+   The search bar uses a warm glass surface (theme-aware via tokens)
+   so it reads cleanly over the scrolling content underneath.
    ============================================================ */
 
 .discover-search-bar-form {
-  position: relative;
-  top: auto;
-  z-index: auto;
+  position: sticky;
+  top: var(--app-header-height);
+  z-index: 20;
+  /* Glass surface — theme-aware via tokens.
+     Dark: rgba(17,19,23,0.92) — strong dark glass
+     Light: rgba(255,253,248,0.94) — warm paper glass */
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(140%);
+  -webkit-backdrop-filter: blur(24px) saturate(140%);
+  border-bottom: 1px solid var(--hairline);
   /* Keep the full-bleed margin trick from .search-bar-form — the
      negative margins extend the bar beyond the container padding,
      and the matching padding keeps the input aligned with the rest
-     of the page content. */
+     of the page content. (We do NOT override padding-left/right
+     here — those come from .search-bar-form as var(--sp-5).) */
   margin-bottom: var(--sp-6);
-  background: transparent;
-  backdrop-filter: none;
-  -webkit-backdrop-filter: none;
-  border-bottom: none;
-  padding-top: 0;
-  padding-bottom: 0;
+  padding-top: var(--sp-3);
+  padding-bottom: var(--sp-3);
+}
+
+/* When the search bar is stuck (scrolling), add a subtle shadow
+   for elevation — this distinguishes it from the content below.
+   Triggered via :stuck pseudo (not yet widely supported) — fallback
+   is the persistent border-bottom which already gives definition. */
+@supports (selector(:stuck)) {
+  .discover-search-bar-form:stuck {
+    box-shadow: 0 4px 16px var(--shadow-color);
+  }
 }
 
 /* 320px viewport tuning — make sure chips + headings don't overflow */

@@ -13,28 +13,35 @@
 
    LIGHT THEME DESIGN INTENT
    -------------------------
-   Inspired by Letterboxd light mode + Notion + Apple Books reader.
-   Warm off-white background (not pure white — pure white is harsh),
-   deep ink text (not pure black — pure black is too high contrast),
-   soft accent variants (the same --p tokens from theme-* classes are
-   reused but with adjusted --p-dim for visibility on light surfaces).
+   "Cinema Cream" palette — inspired by Letterboxd + Sofa + Plex light
+   modes. Research of 9 popular movie tracker apps shows the premium
+   look comes from:
+     1. Warm tinted off-white background (never pure #FFFFFF flat)
+     2. Layered surface elevation with soft warm shadows
+     3. Restrained neutrals, chroma reserved for accents
+     4. Tinted borders (#E8E2D8) over flat #FFF
+     5. Generous whitespace
 
-   Palettes per surface:
-     Background:  #faf9f6 (warm paper)
-     Surface:     #ffffff (card)
-     Raised:      #f2efe9 (subtle elevation)
-     Border:      rgba(20,18,15,0.08)
-     Text strong: #1a1815 (ink)
-     Text body:   #2a2622
-     Text soft:   rgba(42,38,34,0.72)
-     Text muted:  rgba(42,38,34,0.48)
-     Glass:       rgba(255,255,255,0.72)
+   We use a 5-stop warm paper scale:
+     --void / --tier-0 : #FAF7F2  (warm paper bg)
+     --tier-1          : #F4F0E8  (subtle elevation — chips, hovers)
+     --surface / --tier-2 : #FFFFFF  (cards — crisp white on warm bg)
+     --raised / --tier-3 : #F0EDE5  (raised cards, active items)
+     --tier-4          : #E8E2D6  (deep elevation, drawer overlays)
+   Text is warm ink (not pure black) for less harsh contrast.
+   Borders use warm earth tint (rgba(28,24,21,...)) instead of pure
+   black or pure white. Glass surfaces are warm-tinted to match.
 */
 
 @layer base {
   /* ─── Font scale baseline ─── */
   :root {
     --font-scale: 1;
+    /* AppHeader total height — used by sticky elements (e.g. discover
+       search bar) to stick BELOW the header without overlapping it.
+       0.875rem padding-top + 1.5rem wordmark + 0.875rem padding-bottom
+       = 3.25rem, plus safe-area-inset-top for iOS notch / PWA chrome. */
+    --app-header-height: calc(3.25rem + env(safe-area-inset-top, 0px));
   }
   html {
     font-size: calc(16px * var(--font-scale));
@@ -110,68 +117,75 @@
    user can pick a different preset or set a custom one. */
 
 :root[data-theme-resolved="light"] {
-  /* Surface tiers — warm paper palette */
-  --void: #faf9f6;
-  --deep: #faf9f6;
-  --surface: #ffffff;
-  --raised: #f2efe9;
-  --tier-0: #faf9f6;
-  --tier-1: #f5f3ee;
-  --tier-2: #ffffff;
-  --tier-3: #f2efe9;
-  --tier-4: #ebe6dd;
+  /* Surface tiers — Cinema Cream warm paper scale.
+     Never pure white flat — warm-tinted off-white throughout.
+     Cards (#FFFFFF) sit on a warm paper bg (#FAF7F2) for hierarchy. */
+  --void: #FAF7F2;
+  --deep: #FAF7F2;
+  --surface: #FFFFFF;
+  --raised: #F0EDE5;
+  --tier-0: #FAF7F2;
+  --tier-1: #F4F0E8;
+  --tier-2: #FFFFFF;
+  --tier-3: #F0EDE5;
+  --tier-4: #E8E2D6;
 
-  /* Borders */
-  --border: rgba(20, 18, 15, 0.08);
-  --border-active: rgba(20, 18, 15, 0.16);
-  --hairline: rgba(20, 18, 15, 0.06);
-  --hairline-2: rgba(20, 18, 15, 0.10);
-  --hairline-3: rgba(20, 18, 15, 0.18);
-  --glass-border: rgba(20, 18, 15, 0.08);
+  /* Borders — warm earth tint, NOT pure black or pure white.
+     Tinted borders are what separate "premium" from "boring white"
+     (per movie tracker app research — Sofa, Letterboxd use #E8E2D8). */
+  --border: rgba(28, 24, 21, 0.10);
+  --border-active: rgba(28, 24, 21, 0.20);
+  --hairline: rgba(28, 24, 21, 0.07);
+  --hairline-2: rgba(28, 24, 21, 0.12);
+  --hairline-3: rgba(28, 24, 21, 0.20);
+  --glass-border: rgba(28, 24, 21, 0.10);
 
-  /* Text — ink palette, not pure black */
-  --text: #2a2622;
-  --text-strong: #1a1815;
-  --text-body: #2a2622;
-  --text-soft: rgba(42, 38, 34, 0.72);
-  --text-muted: rgba(42, 38, 34, 0.52);
-  --text-dim: rgba(42, 38, 34, 0.30);
-  --muted: rgba(42, 38, 34, 0.52);
-  --dim: rgba(42, 38, 34, 0.30);
+  /* Text — warm ink palette, not pure black.
+     Strong is dark for headlines; body/soft/muted step down via alpha. */
+  --text: #2C2823;
+  --text-strong: #1A1714;
+  --text-body: #2C2823;
+  --text-soft: rgba(44, 40, 35, 0.72);
+  --text-muted: rgba(44, 40, 35, 0.55);
+  --text-dim: rgba(44, 40, 35, 0.32);
+  --muted: rgba(44, 40, 35, 0.55);
+  --dim: rgba(44, 40, 35, 0.32);
 
-  /* Glass surfaces — translucent warm white */
-  --glass-bg: rgba(255, 255, 255, 0.78);
-  --glass-bg-strong: rgba(255, 255, 255, 0.92);
+  /* Glass surfaces — warm-tinted translucent white (NOT pure white).
+     The warm tint (255,253,248) reads as paper, not as hospital tile. */
+  --glass-bg: rgba(255, 253, 248, 0.82);
+  --glass-bg-strong: rgba(255, 253, 248, 0.94);
 
   /* Semantic surface colors */
-  --color-surface-void: #faf9f6;
-  --color-surface-base: #ffffff;
-  --color-surface-raised: #f2efe9;
-  --color-surface-overlay: rgba(255, 255, 255, 0.78);
-  --color-surface-overlay-strong: rgba(255, 255, 255, 0.92);
-  --color-background: #faf9f6;
-  --color-background-elevated: #ffffff;
+  --color-surface-void: #FAF7F2;
+  --color-surface-base: #FFFFFF;
+  --color-surface-raised: #F0EDE5;
+  --color-surface-overlay: rgba(255, 253, 248, 0.82);
+  --color-surface-overlay-strong: rgba(255, 253, 248, 0.94);
+  --color-background: #FAF7F2;
+  --color-background-elevated: #FFFFFF;
 
-  --color-border: rgba(20, 18, 15, 0.08);
-  --color-border-subtle: rgba(20, 18, 15, 0.06);
-  --color-border-default: rgba(20, 18, 15, 0.10);
-  --color-border-strong: rgba(20, 18, 15, 0.18);
-  --color-border-active: rgba(20, 18, 15, 0.16);
+  --color-border: rgba(28, 24, 21, 0.10);
+  --color-border-subtle: rgba(28, 24, 21, 0.07);
+  --color-border-default: rgba(28, 24, 21, 0.12);
+  --color-border-strong: rgba(28, 24, 21, 0.20);
+  --color-border-active: rgba(28, 24, 21, 0.20);
 
-  --color-text-strong: #1a1815;
-  --color-text-body: #2a2622;
-  --color-text-soft: rgba(42, 38, 34, 0.72);
-  --color-text-muted: rgba(42, 38, 34, 0.52);
-  --color-text-dim: rgba(42, 38, 34, 0.30);
+  --color-text-strong: #1A1714;
+  --color-text-body: #2C2823;
+  --color-text-soft: rgba(44, 40, 35, 0.72);
+  --color-text-muted: rgba(44, 40, 35, 0.55);
+  --color-text-dim: rgba(44, 40, 35, 0.32);
 
-  /* Light-mode shadows are softer and use brown tint instead of black */
-  --shadow-premium: 0 4px 24px rgba(60, 50, 30, 0.06), 0 1px 3px rgba(60, 50, 30, 0.04);
+  /* Light-mode shadows — soft warm brown tint, never pure black.
+     Premium feel: subtle, layered, low opacity. */
+  --shadow-premium: 0 1px 2px rgba(60, 50, 30, 0.04), 0 4px 16px rgba(60, 50, 30, 0.06), 0 12px 32px rgba(60, 50, 30, 0.05);
 
   /* Shadow color used by box-shadow utilities — brown tint on light, black on dark */
-  --shadow-color: rgba(60, 50, 30, 0.18);
+  --shadow-color: rgba(60, 50, 30, 0.12);
 
-  /* Scrollbar — brown tint instead of white */
-  scrollbar-color: rgba(42, 38, 34, 0.18) transparent;
+  /* Scrollbar — warm brown tint, never pure white */
+  scrollbar-color: rgba(60, 50, 30, 0.20) transparent;
 }
 
 /* Dark-mode default shadow color (matches existing behavior) */
@@ -181,10 +195,10 @@
 
 /* Light-mode scrollbar */
 :root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(42, 38, 34, 0.16);
+  background: rgba(60, 50, 30, 0.20);
 }
 :root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb:hover {
-  background: rgba(42, 38, 34, 0.30);
+  background: rgba(60, 50, 30, 0.35);
 }
 
 /* Light-mode selection — use accent tint but ensure visible on white */
@@ -217,14 +231,14 @@
 /* High contrast + light mode → darker text */
 :root[data-high-contrast="true"][data-theme-resolved="light"] {
   --text-strong: #000000;
-  --text-body: #0a0806;
-  --text-soft: rgba(20, 18, 15, 0.92);
-  --text-muted: rgba(20, 18, 15, 0.72);
-  --hairline: rgba(20, 18, 15, 0.20);
-  --hairline-2: rgba(20, 18, 15, 0.30);
-  --hairline-3: rgba(20, 18, 15, 0.45);
-  --border: rgba(20, 18, 15, 0.20);
-  --border-active: rgba(20, 18, 15, 0.40);
+  --text-body: #0A0806;
+  --text-soft: rgba(28, 24, 21, 0.92);
+  --text-muted: rgba(28, 24, 21, 0.75);
+  --hairline: rgba(28, 24, 21, 0.22);
+  --hairline-2: rgba(28, 24, 21, 0.32);
+  --hairline-3: rgba(28, 24, 21, 0.48);
+  --border: rgba(28, 24, 21, 0.22);
+  --border-active: rgba(28, 24, 21, 0.42);
 }
 
 /* ============================================================
@@ -278,4 +292,168 @@
 /* When hide-spoilers is OFF, the data-spoiler attribute is a no-op */
 :root[data-hide-spoilers="false"] [data-spoiler="true"] {
   filter: none;
+}
+
+/* ============================================================
+   LIGHT MODE — Component Hardcoded-Color Overrides
+   ============================================================
+   Many component CSS files hardcode dark colors that bypass the token
+   system (e.g. `.settings-row { background: #141414 }`, `.btn-ghost
+   { background: rgba(255,255,255,0.06) }`, tag chips with rgba(0,0,0,
+   0.72) backgrounds). On a warm-cream light background these become
+   either dark patches or invisible washes.
+
+   Rather than rewrite every component CSS file (risky — could break
+   dark mode), we override the worst offenders here with theme-aware
+   colors that match the Cinema Cream palette. This keeps dark mode
+   untouched and ensures light mode looks consistent everywhere. */
+
+:root[data-theme-resolved="light"] {
+  /* ─── Theme-aware component tokens ───
+     Used by light-mode overrides below. Defined as variables so they
+     can be reused and overridden by high-contrast if needed. */
+  --btn-ghost-bg: rgba(28, 24, 21, 0.04);
+  --btn-ghost-bg-hover: rgba(28, 24, 21, 0.08);
+  --chip-solid-bg: rgba(255, 253, 248, 0.92);
+  --chip-solid-border: rgba(28, 24, 21, 0.12);
+  --progress-track-bg: rgba(28, 24, 21, 0.08);
+  --skeleton-base: rgba(28, 24, 21, 0.05);
+  --skeleton-shimmer: rgba(28, 24, 21, 0.10);
+}
+
+/* ─── Buttons: ghost + primary shadows ─── */
+:root[data-theme-resolved="light"] .btn-ghost {
+  background: var(--btn-ghost-bg);
+  border-color: var(--hairline-2);
+}
+:root[data-theme-resolved="light"] .btn-ghost:hover {
+  background: var(--btn-ghost-bg-hover);
+  border-color: var(--hairline-3);
+}
+
+/* Primary button shadow uses warm tint, not pure black */
+:root[data-theme-resolved="light"] .btn-primary {
+  box-shadow: 0 0 0 1px var(--p), 0 4px 16px var(--p-glow), 0 2px 6px rgba(60, 50, 30, 0.10);
+}
+:root[data-theme-resolved="light"] .btn-primary:hover {
+  box-shadow: 0 0 0 1px var(--p), 0 6px 24px var(--p-glow), 0 4px 12px rgba(60, 50, 30, 0.14);
+}
+
+/* ─── Search bar — was rgba(5,6,10,0.92) (dark navy) ─── */
+:root[data-theme-resolved="light"] .search-bar-form {
+  background: var(--glass-bg-strong);
+  border-bottom-color: var(--hairline-2);
+}
+
+/* ─── Settings row — was #141414 (near black) ─── */
+:root[data-theme-resolved="light"] .settings-row {
+  background: var(--tier-2);
+  border-color: var(--hairline-2);
+  box-shadow: var(--shadow-premium);
+}
+
+/* ─── Continue card — was #0e0e0e (near black) ─── */
+:root[data-theme-resolved="light"] .continue-card {
+  background: var(--tier-2);
+  border-color: var(--hairline-2);
+}
+
+/* ─── Featured hero — was #141414 (near black) ─── */
+:root[data-theme-resolved="light"] .featured-hero {
+  background: var(--tier-3);
+}
+
+/* ─── Upcoming card hover — was rgba(255,255,255,0.03) (invisible on white) ─── */
+:root[data-theme-resolved="light"] .upcoming-card {
+  background: var(--tier-2);
+  border-color: var(--hairline-2);
+}
+:root[data-theme-resolved="light"] .upcoming-card:hover {
+  background: var(--tier-3);
+}
+
+/* ─── Tag chip + rating pill — were rgba(0,0,0,0.72) (dark glass) ─── */
+:root[data-theme-resolved="light"] .tag-chip,
+:root[data-theme-resolved="light"] .rating-pill {
+  background: var(--chip-solid-bg);
+  border-color: var(--chip-solid-border);
+  color: var(--text-strong);
+  box-shadow: 0 1px 4px rgba(60, 50, 30, 0.08);
+}
+
+/* ─── Progress bar track — was rgba(255,255,255,0.08) (invisible on white) ─── */
+:root[data-theme-resolved="light"] .progress-bar,
+:root[data-theme-resolved="light"] .progress-premium {
+  background: var(--progress-track-bg);
+}
+
+/* ─── Skeleton shimmer — was rgba(255,255,255,0.02-0.07) (invisible on white) ─── */
+:root[data-theme-resolved="light"] .skeleton-base,
+:root[data-theme-resolved="light"] .poster-loading {
+  background:
+    linear-gradient(105deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%),
+    var(--tier-1);
+  background-size: 300% 100%, 100% 100%;
+}
+:root[data-theme-resolved="light"] .skeleton-text {
+  background: linear-gradient(105deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%);
+  background-size: 300% 100%;
+}
+
+/* ─── Discover spotlight skeleton backgrounds — were rgba(255,255,255,0.06) ─── */
+:root[data-theme-resolved="light"] .spotlight-skeleton-reason,
+:root[data-theme-resolved="light"] .spotlight-skeleton-title,
+:root[data-theme-resolved="light"] .spotlight-skeleton-meta,
+:root[data-theme-resolved="light"] .spotlight-skeleton-actions,
+:root[data-theme-resolved="light"] .discover-skeleton-reason,
+:root[data-theme-resolved="light"] .discover-skeleton-title,
+:root[data-theme-resolved="light"] .discover-skeleton-meta,
+:root[data-theme-resolved="light"] .discover-skeleton-actions {
+  background: var(--skeleton-shimmer);
+}
+
+/* ─── Discover ambient / card subtle backgrounds ───
+   Various `.search-rail-card` and section backgrounds that used
+   rgba(255,255,255,0.02-0.06) for subtle dark elevation. On light
+   mode these need to be dark-tinted translucent to be visible. */
+:root[data-theme-resolved="light"] .discover-section-eyebrow-bar,
+:root[data-theme-resolved="light"] .discover-rail-chip,
+:root[data-theme-resolved="light"] .search-rail-chip {
+  background: var(--tier-1);
+  border-color: var(--hairline-2);
+}
+
+/* ─── Touch ripple — was rgba(255,255,255,0.15) (invisible on white) ─── */
+:root[data-theme-resolved="light"] .touch-ripple::after {
+  background: rgba(28, 24, 21, 0.08);
+}
+
+/* ─── Empty premium icon inset highlight — was rgba(255,255,255,0.04) ─── */
+:root[data-theme-resolved="light"] .empty-premium-icon,
+:root[data-theme-resolved="light"] .hero-premium,
+:root[data-theme-resolved="light"] .continue-premium,
+:root[data-theme-resolved="light"] .upcoming-card {
+  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ─── Card hover shadow tint — was rgba(0,0,0,0.85) (pure black, harsh on light) ─── */
+:root[data-theme-resolved="light"] .movie-card:hover .movie-card-inner {
+  box-shadow:
+    0 0 0 1px color-mix(in srgb, var(--p) 40%, transparent),
+    0 0 28px var(--p-glow),
+    0 20px 60px rgba(60, 50, 30, 0.18),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
+}
+
+/* ─── Text shadow on hero/poster overlays stays dark (over images) ───
+   These sit on top of posters, so dark shadows are still correct on
+   light mode — no change needed. But the type-card-title shadow can
+   be reduced slightly since light mode is less aggressive. */
+:root[data-theme-resolved="light"] .type-card-title {
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 2px 12px rgba(0, 0, 0, 0.7);
+}
+
+/* ─── Base scrollbar (already has light override above, this matches track) ─── */
+:root[data-theme-resolved="light"] ::-webkit-scrollbar-track {
+  background: transparent;
 }
