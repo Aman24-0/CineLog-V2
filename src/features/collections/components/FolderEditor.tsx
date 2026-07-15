@@ -214,7 +214,7 @@ export default function FolderEditor(props: FolderEditorProps) {
                 {/* Current backdrop preview + clear */}
                 <Show when={currentBackdropUrl()}>
                   <div class="folder-editor-backdrop-current">
-                    <img src={currentBackdropUrl() as string} alt="" aria-hidden="true" />
+                    <img src={currentBackdropUrl() as string} alt="" aria-hidden="true" loading="lazy" decoding="async" />
                     <button
                       type="button"
                       class="folder-editor-backdrop-clear"
