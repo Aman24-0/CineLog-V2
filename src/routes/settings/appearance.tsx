@@ -95,10 +95,10 @@ const POSTER_QUALITY_OPTIONS: { id: PosterQuality; label: string }[] = [
   { id: "auto",   label: "Auto" },
 ];
 
-const DATE_FORMAT_OPTIONS: { id: DateFormat; label: string; example: string }[] = [
-  { id: "dmy", label: "DD/MM/YYYY", example: "15/07/2026" },
-  { id: "mdy", label: "MM/DD/YYYY", example: "07/15/2026" },
-  { id: "ymd", label: "YYYY-MM-DD", example: "2026-07-15" },
+const DATE_FORMAT_OPTIONS: { id: DateFormat; label: string; short: string; example: string }[] = [
+  { id: "dmy", label: "DD/MM/YYYY", short: "D/M/Y", example: "15/07/2026" },
+  { id: "mdy", label: "MM/DD/YYYY", short: "M/D/Y", example: "07/15/2026" },
+  { id: "ymd", label: "YYYY-MM-DD", short: "Y-M-D", example: "2026-07-15" },
 ];
 
 const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] = [
@@ -152,8 +152,9 @@ const AppearanceRoute: Component = () => {
   };
 
   // ─── Segmented control renderer ───
+  // Supports optional `short` label for narrow viewports (rendered via CSS).
   const renderSegmented = <T extends string>(
-    options: { id: T; label: string }[],
+    options: { id: T; label: string; short?: string }[],
     current: () => T,
     onChange: (id: T) => void,
     name: string,
@@ -169,7 +170,8 @@ const AppearanceRoute: Component = () => {
             aria-checked={current() === opt.id}
             onClick={() => onChange(opt.id)}
           >
-            {opt.label}
+            <span class="segmented-label-long">{opt.label}</span>
+            {opt.short && <span class="segmented-label-short">{opt.short}</span>}
           </button>
         )}
       </For>
@@ -369,7 +371,7 @@ const AppearanceRoute: Component = () => {
               <p class="sec-section-label">Display Density</p>
               <div class="setting-group">
                 {renderControlRow(
-                  "density_default",
+                  "view_agenda",
                   "Spacing & padding",
                   "Compact fits more titles per screen (desktop). Spacious gives larger touch targets (phone).",
                   () => renderSegmented(DENSITY_OPTIONS, density, (id) => setDensity(id), "Display density"),

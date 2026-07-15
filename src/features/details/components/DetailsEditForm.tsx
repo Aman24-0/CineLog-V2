@@ -120,7 +120,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
             id="edit-status"
             value={props.form().status}
             onChange={(e) => props.setForm("status", e.currentTarget.value)}
-            class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
+            class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
           >
             <option value="Planned">Planned</option>
             <option value="Watching">Watching</option>
@@ -139,7 +139,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
             placeholder="0–10"
             value={props.form().rating}
             onInput={(e) => props.setForm("rating", e.currentTarget.value)}
-            class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
+            class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
           />
         </div>
       </div>
@@ -192,7 +192,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                   props.setForm("watchDate", e.currentTarget.value);
                   setRewatchDate(0, e.currentTarget.value);
                 }}
-                class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+                class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
               />
             </div>
           }
@@ -208,7 +208,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                       type="date"
                       value={date}
                       onInput={(e) => setRewatchDate(index(), e.currentTarget.value)}
-                      class="flex-1 bg-[#0c0e14] border border-white/10 p-2.5 rounded-lg type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+                      class="flex-1 bg-[var(--tier-1)] border border-white/10 p-2.5 rounded-lg type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
                       aria-label={dateLabel(index())}
                     />
                   </div>
@@ -350,7 +350,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           id="edit-notes"
           value={props.form().notes}
           onInput={(e) => props.setForm("notes", e.currentTarget.value)}
-          class="w-full bg-[#0c0e14] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all resize-none"
+          class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all resize-none"
           rows="3"
           placeholder="Write your thoughts, reactions, memorable quotes…"
           style={{"resize":"vertical","min-height":"80px"}}

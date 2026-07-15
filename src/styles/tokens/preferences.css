@@ -167,8 +167,16 @@
   /* Light-mode shadows are softer and use brown tint instead of black */
   --shadow-premium: 0 4px 24px rgba(60, 50, 30, 0.06), 0 1px 3px rgba(60, 50, 30, 0.04);
 
+  /* Shadow color used by box-shadow utilities — brown tint on light, black on dark */
+  --shadow-color: rgba(60, 50, 30, 0.18);
+
   /* Scrollbar — brown tint instead of white */
   scrollbar-color: rgba(42, 38, 34, 0.18) transparent;
+}
+
+/* Dark-mode default shadow color (matches existing behavior) */
+:root {
+  --shadow-color: rgba(0, 0, 0, 0.6);
 }
 
 /* Light-mode scrollbar */

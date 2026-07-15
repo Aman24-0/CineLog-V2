@@ -65,6 +65,18 @@
   line-height: 1;
   flex-shrink: 0;
 }
+/* Prevent icon name text from flashing before the Material Symbols font loads.
+   When the font hasn't loaded yet, the icon name (e.g. "density_default") would
+   otherwise render as literal text. This rule hides glyphs until the font is
+   ready, then reveals them. font-display: swap on the Google Fonts request
+   means the font loads asynchronously — this prevents the FOUT. */
+.material-symbols-outlined:not(.mat-syms-loaded) {
+  visibility: hidden;
+}
+.mat-syms-loaded .material-symbols-outlined,
+.material-symbols-outlined.mat-syms-loaded {
+  visibility: visible;
+}
 .filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 
 /* Global focus-visible baseline — every interactive element gets a

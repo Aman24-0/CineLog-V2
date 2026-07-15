@@ -17,8 +17,12 @@ const AppShell: ParentComponent = (props) => {
 
   return (
     <div
-      class="min-h-screen bg-black text-white"
-      style={{ "padding-bottom": "var(--nav-total-height)" }}
+      class="min-h-screen app-shell-bg"
+      style={{
+        "padding-bottom": "var(--nav-total-height)",
+        background: "var(--void)",
+        color: "var(--text)",
+      }}
     >
       <AppHeader />
 

@@ -2700,6 +2700,17 @@
   width: 100%;
   overflow: hidden;
 }
+/* On very narrow screens, allow segmented control to wrap rather than truncate */
+@media (max-width: 380px) {
+  .segmented {
+    flex-wrap: wrap;
+    border-radius: var(--radius-md);
+  }
+  .segmented-btn {
+    flex: 1 1 calc(33% - 2px);
+    min-width: 0;
+  }
+}
 .segmented-btn {
   flex: 1;
   padding: 0.5rem 0.75rem;
@@ -2717,6 +2728,15 @@
   white-space: nowrap;
   text-align: center;
   min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+@media (max-width: 480px) {
+  .segmented-btn {
+    padding: 0.4rem 0.4rem;
+    font-size: 0.5625rem;
+    letter-spacing: 0.04em;
+  }
 }
 .segmented-btn:hover {
   color: var(--text-body);
@@ -2729,6 +2749,20 @@
 .segmented-btn:focus-visible {
   outline: 2px solid var(--p);
   outline-offset: 2px;
+}
+
+/* Long/short label switching — used by date format selector on narrow screens.
+   On wide viewports show the long label (DD/MM/YYYY), on narrow show short (D/M/Y). */
+.segmented-label-short {
+  display: none;
+}
+@media (max-width: 480px) {
+  .segmented-label-long {
+    display: none;
+  }
+  .segmented-label-short {
+    display: inline;
+  }
 }
 
 /* ─── Setting row with inline control (segmented or toggle) ─── */

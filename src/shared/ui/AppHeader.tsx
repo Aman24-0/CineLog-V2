@@ -48,9 +48,9 @@ const AppHeader: Component = () => {
 
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between"
+      class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
       style={{
-        background: "rgba(5,6,10,0.80)",
+        background: "var(--glass-bg)",
         "backdrop-filter": "blur(20px) saturate(140%)",
         "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
         "border-bottom": "1px solid var(--hairline)",
@@ -68,6 +68,7 @@ const AppHeader: Component = () => {
           "font-size": "1.5rem",
           "line-height": "1",
           "letter-spacing": "0.04em",
+          color: "var(--text-strong)",
         }}
       >
         CINE<span style={{ color: "var(--p)" }}>LOG</span>
@@ -79,20 +80,20 @@ const AppHeader: Component = () => {
         onClick={handleAvatarClick}
         class="flex items-center gap-2 rounded-full overflow-hidden focus-ring"
         style={{
-          background: "rgba(255,255,255,0.04)",
-          border: "1px solid var(--hairline)",
+          background: "var(--hairline)",
+          border: "1px solid var(--hairline-2)",
           padding: "0.25rem",
           "padding-right": "0.625rem",
           transition:
             "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
-          e.currentTarget.style.borderColor = "var(--hairline-2)";
+          e.currentTarget.style.background = "var(--hairline-2)";
+          e.currentTarget.style.borderColor = "var(--hairline-3)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-          e.currentTarget.style.borderColor = "var(--hairline)";
+          e.currentTarget.style.background = "var(--hairline)";
+          e.currentTarget.style.borderColor = "var(--hairline-2)";
         }}
         aria-label={
           isSignedIn()

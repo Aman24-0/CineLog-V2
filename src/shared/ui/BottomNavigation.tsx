@@ -46,7 +46,7 @@ export default function BottomNavigation() {
         "z-index": 40,
         background: "var(--tier-1)",
         "border-top": "1px solid var(--hairline)",
-        "box-shadow": "0 -1px 0 0 var(--hairline), 0 -8px 24px -8px rgba(0,0,0,0.6)",
+        "box-shadow": "0 -1px 0 0 var(--hairline), 0 -8px 24px -8px var(--shadow-color, rgba(0,0,0,0.6))",
       }}
       aria-label="Primary navigation"
     >
