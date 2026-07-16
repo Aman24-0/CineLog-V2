@@ -102,7 +102,26 @@ const AuthModal: Component<AuthModalProps> = (props) => {
       setError("Please enter your email and password.");
       return;
     }
-    if (password().length < 6) {
+    // Password policy — enforced client-side as a first line of defense.
+    // Supabase Auth also enforces a minimum length server-side, but we
+    // add a stronger policy here for sign-UP so weak passwords never
+    // reach the auth server. Sign-IN skips the complexity check (the
+    // user's existing password may predate this policy).
+    if (mode() === "signup") {
+      const pw = password();
+      if (pw.length < 8) {
+        setError("Password must be at least 8 characters.");
+        return;
+      }
+      if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw)) {
+        setError("Password must include both upper and lower case letters.");
+        return;
+      }
+      if (!/[0-9]/.test(pw)) {
+        setError("Password must include at least one number.");
+        return;
+      }
+    } else if (password().length < 6) {
       setError("Password must be at least 6 characters.");
       return;
     }
@@ -265,7 +284,7 @@ const AuthModal: Component<AuthModalProps> = (props) => {
               />
               <input
                 type="password"
-                placeholder="Password (min 6 characters)"
+                placeholder={mode() === "signup" ? "Min 8 chars, 1 number, A-Z + a-z" : "Password"}
                 value={password()}
                 onInput={(e) => setPassword(e.currentTarget.value)}
                 class="filter-input-premium focus-ring"
