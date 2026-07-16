@@ -16,8 +16,11 @@
     --border: rgba(255,255,255,0.08);
     --border-active: rgba(255,255,255,0.15);
     --text: #e8eaf0;
-    --muted: rgba(232,234,240,0.42);
-    --dim: rgba(232,234,240,0.18);
+    /* Legacy muted/dim tokens — alphas bumped for WCAG AA 4.5:1 contrast
+       on #000000. Previously 0.42 (3.46:1) and 0.18 (1.47:1) — both
+       failed. Now 0.62 (6.4:1) and 0.55 (5.4:1) — both pass. */
+    --muted: rgba(232,234,240,0.62);
+    --dim: rgba(232,234,240,0.55);
 
     /* ─── Semantic Color: Primary ───
        Maps to the theme accent --p. Allows semantic reference
@@ -175,12 +178,21 @@
     --hairline-2: rgba(255,255,255,0.10);
     --hairline-3: rgba(255,255,255,0.16);
 
-    /* Text scale (refined for editorial hierarchy) */
+    /* Text scale (refined for editorial hierarchy)
+       ── WCAG 2.1 AA CONTRAST COMPLIANCE ─────────────────────────────
+       Alphas tuned so every text token meets 4.5:1 contrast on the
+       darkest app background (#000000 / --void) and on --surface
+       (#111111). The previous values (0.48 / 0.24) failed WCAG AA
+       for normal text (4.26:1 and 1.80:1 respectively).
+       --text-muted: 0.48 → 0.62 (4.26:1 → 6.4:1 on #111)
+       --text-dim:   0.24 → 0.55 (1.80:1 → 5.4:1 on #111)
+       The visual difference is subtle (slightly brighter muted/dim
+       text) but brings all secondary/metadata text into compliance. */
     --text-strong: #ffffff;
     --text-body: #e8eaf0;
     --text-soft: rgba(232,234,240,0.72);
-    --text-muted: rgba(232,234,240,0.48);
-    --text-dim: rgba(232,234,240,0.24);
+    --text-muted: rgba(232,234,240,0.62);
+    --text-dim: rgba(232,234,240,0.55);
 
     /* Glass tokens */
     --glass-bg: rgba(17,19,23,0.72);

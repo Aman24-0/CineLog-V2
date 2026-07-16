@@ -143,15 +143,18 @@
   --glass-border: rgba(28, 24, 21, 0.10);
 
   /* Text — warm ink palette, not pure black.
-     Strong is dark for headlines; body/soft/muted step down via alpha. */
+     Strong is dark for headlines; body/soft/muted step down via alpha.
+     ── WCAG 2.1 AA: alphas tuned for 4.5:1 contrast on warm light bg.
+     muted 0.55→0.68 (3.38:1→4.5:1), dim 0.32→0.62 (1.91:1→4.0:1 for
+     decorative/icon use, large text only). */
   --text: #2C2823;
   --text-strong: #1A1714;
   --text-body: #2C2823;
   --text-soft: rgba(44, 40, 35, 0.72);
-  --text-muted: rgba(44, 40, 35, 0.55);
-  --text-dim: rgba(44, 40, 35, 0.32);
-  --muted: rgba(44, 40, 35, 0.55);
-  --dim: rgba(44, 40, 35, 0.32);
+  --text-muted: rgba(44, 40, 35, 0.68);
+  --text-dim: rgba(44, 40, 35, 0.62);
+  --muted: rgba(44, 40, 35, 0.68);
+  --dim: rgba(44, 40, 35, 0.62);
 
   /* Glass surfaces — warm-tinted translucent white (NOT pure white).
      The warm tint (255,253,248) reads as paper, not as hospital tile. */
@@ -176,8 +179,8 @@
   --color-text-strong: #1A1714;
   --color-text-body: #2C2823;
   --color-text-soft: rgba(44, 40, 35, 0.72);
-  --color-text-muted: rgba(44, 40, 35, 0.55);
-  --color-text-dim: rgba(44, 40, 35, 0.32);
+  --color-text-muted: rgba(44, 40, 35, 0.68);
+  --color-text-dim: rgba(44, 40, 35, 0.62);
 
   /* Light-mode shadows — soft warm brown tint, never pure black.
      Premium feel: subtle, layered, low opacity. */
