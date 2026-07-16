@@ -58,8 +58,32 @@ const CsvImportCard: Component = () => {
     setParsing(true);
     setResult(null);
     try {
+      // Resource exhaustion protection — reject oversized files before
+      // reading them into memory. 10MB is generous for CSV (a 1000-row
+      // CSV is ~80KB). Larger files are likely abuse attempts.
+      const MAX_CSV_SIZE = 10 * 1024 * 1024; // 10 MB
+      if (file.size > MAX_CSV_SIZE) {
+        showToast(
+          `CSV file is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is ${MAX_CSV_SIZE / 1024 / 1024} MB.`,
+          "error",
+          5000,
+        );
+        setCandidates([]);
+        return;
+      }
       const text = await readFileAsText(file);
       const result = parseWatchlistCsv(text);
+      // Also cap the number of candidates (mass-import protection).
+      const MAX_CSV_ITEMS = 10000;
+      if (result.candidates.length > MAX_CSV_ITEMS) {
+        showToast(
+          `CSV contains ${result.candidates.length} titles — maximum is ${MAX_CSV_ITEMS}. Please split into smaller files.`,
+          "error",
+          5000,
+        );
+        setCandidates([]);
+        return;
+      }
       setSource(result.source);
       setCandidates(result.candidates);
       if (result.candidates.length === 0) {

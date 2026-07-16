@@ -334,19 +334,35 @@ export async function checkUsernameAvailability(
   username: string,
   excludeUserId?: string,
 ): Promise<{ available: boolean; error: Error | null }> {
-  let query = supabase
-    .from(PROFILES_TABLE)
-    .select("id")
-    .eq("username", username)
-    .is("deleted_at", null)
-    .limit(1);
-
+  // Use the SECURITY DEFINER function `is_username_available` to bypass
+  // RLS safely. The profiles table's RLS policy (profiles_select_own)
+  // only allows SELECT where id = auth.uid(), so a direct query filtered
+  // by username would return null for ANY other user's profile — making
+  // taken usernames look "available" and causing constraint-violation
+  // errors when the user tries to set them.
+  //
+  // The SECURITY DEFINER function returns only a boolean (never user
+  // data), so it's safe to call from the client. If excludeUserId is
+  // provided (user is checking their OWN username during profile edit),
+  // the function returns true because the user already owns it.
   if (excludeUserId) {
-    query = query.neq("id", excludeUserId);
+    // User is editing their own profile — their current username is
+    // "available" for them (they already have it).
+    const { data: ownProfile, error: ownError } = await supabase
+      .from(PROFILES_TABLE)
+      .select("username")
+      .eq("id", excludeUserId)
+      .maybeSingle();
+    if (ownError) return { available: false, error: toError(ownError) };
+    if (ownProfile?.username?.toLowerCase() === username.toLowerCase()) {
+      return { available: true, error: null };
+    }
   }
-
-  const { data, error } = await query.maybeSingle();
-  return { available: data === null, error: toError(error) };
+  const { data, error } = await supabase.rpc("is_username_available", {
+    p_username: username,
+  });
+  if (error) return { available: false, error: toError(error) };
+  return { available: data === true, error: null };
 }
 
 /**

@@ -172,9 +172,31 @@ export function exportBackup(doc: BackupDocument): void {
  *   repairMissingFields → validateItem
  *
  * Returns a ParsedBackup with valid items + failure details + repair count.
+ *
+ * ── RESOURCE EXHAUSTION PROTECTION ──────────────────────────────────
+ * Enforces two limits to prevent abuse via oversized or mass-import
+ * backups:
+ *   MAX_BACKUP_FILE_SIZE (50 MB) — rejects files larger than 50MB.
+ *     A typical 1000-item backup is ~800KB. 50MB allows very large
+ *     legitimate libraries while blocking memory-exhaustion attacks.
+ *   MAX_BACKUP_ITEMS (10000) — rejects backups with more than 10,000
+ *     items. The batch upsert sends 100 items per request, so 10k items
+ *     = 100 Supabase requests — within the 500/min rate limit. Larger
+ *     imports would exhaust the rate limit and could be used for DoS.
  */
+const MAX_BACKUP_FILE_SIZE = 50 * 1024 * 1024; // 50 MB
+const MAX_BACKUP_ITEMS = 10000;
+
 export function parseBackupFile(file: File): Promise<ParsedBackup> {
   return new Promise((resolve, reject) => {
+    // 0. Validate file size BEFORE reading (prevents memory exhaustion).
+    if (file.size > MAX_BACKUP_FILE_SIZE) {
+      reject(new Error(
+        `Backup file is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed is ${MAX_BACKUP_FILE_SIZE / 1024 / 1024} MB.`,
+      ));
+      return;
+    }
+
     const reader = new FileReader();
     reader.onload = () => {
       try {
@@ -192,6 +214,14 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
         const rawItems = extractRawItems(parsed, format);
         if (rawItems.length === 0) {
           reject(new Error("Backup file contains no titles."));
+          return;
+        }
+
+        // 2b. Enforce item count limit (prevents mass-import DoS).
+        if (rawItems.length > MAX_BACKUP_ITEMS) {
+          reject(new Error(
+            `Backup contains ${rawItems.length} titles — maximum allowed is ${MAX_BACKUP_ITEMS}. Please split your backup into smaller files.`,
+          ));
           return;
         }
 
