@@ -1,5 +1,5 @@
 // src/features/watchlist/components/QuickFilterTabs.tsx
-import { For, Show, Component } from "solid-js";
+import { For, Show, Component, createMemo } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 
 interface QuickFilterTabsProps {
@@ -41,36 +41,58 @@ const TABS: TabDef[] = [
  * "Watching" — both filtered for status === "Watching" with active
  * progress). Replaced with "Dropped" so the user can filter titles they
  * abandoned. The detail modal's Dropped button feeds this filter.
+ *
+ * PERFORMANCE: The status counts are computed in a SINGLE pass over the
+ * watchlist via createMemo, not 10 separate .filter() calls (2 per tab
+ * × 5 tabs). The memo only re-runs when the watchlist actually changes.
  */
 const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
-  const countFor = (value: string): number => {
+  // Single-pass status count — runs once per watchlist change, not once
+  // per tab per render. Previously countFor() called .filter() 10 times
+  // (2 per tab × 5 tabs), each iterating the full array.
+  const statusCounts = createMemo(() => {
     const list = props.watchlist();
-    if (value === "all") return list.length;
-    if (value === "Planned") {
-      return list.filter((m) => m.status === "Planned" || m.status === "Plan to Watch").length;
+    const counts: Record<string, number> = {
+      all: list.length,
+      Watching: 0,
+      Planned: 0,
+      Completed: 0,
+      Dropped: 0,
+    };
+    for (let i = 0; i < list.length; i++) {
+      const s = list[i].status;
+      if (s === "Planned" || s === "Plan to Watch") counts.Planned++;
+      else if (s === "Watching") counts.Watching++;
+      else if (s === "Completed") counts.Completed++;
+      else if (s === "Dropped") counts.Dropped++;
     }
-    return list.filter((m) => m.status === value).length;
-  };
+    return counts;
+  });
+
+  const countFor = (value: string): number => statusCounts()[value] ?? 0;
 
   return (
     <div class="quick-filter-bar" role="tablist" aria-label="Filter watchlist by status">
       <For each={TABS}>
-        {(tab) => (
-          <button
-            type="button"
-            class="quick-filter-tab focus-ring"
-            data-active={props.active() === tab.value}
-            onClick={() => props.onSelect(tab.value)}
-            role="tab"
-            aria-selected={props.active() === tab.value}
-            aria-label={`${tab.label} — ${countFor(tab.value)} titles`}
-          >
-            {tab.label}
-            <Show when={countFor(tab.value) > 0}>
-              <span class="quick-filter-tab-count">{countFor(tab.value)}</span>
-            </Show>
-          </button>
-        )}
+        {(tab) => {
+          const count = () => countFor(tab.value);
+          return (
+            <button
+              type="button"
+              class="quick-filter-tab focus-ring"
+              data-active={props.active() === tab.value}
+              onClick={() => props.onSelect(tab.value)}
+              role="tab"
+              aria-selected={props.active() === tab.value}
+              aria-label={`${tab.label} — ${count()} titles`}
+            >
+              {tab.label}
+              <Show when={count() > 0}>
+                <span class="quick-filter-tab-count">{count()}</span>
+              </Show>
+            </button>
+          );
+        }}
       </For>
     </div>
   );

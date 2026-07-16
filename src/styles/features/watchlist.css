@@ -7,15 +7,20 @@
    Vault-specific design tokens for cards, timeline, filters, search
    ============================================================ */
 
-/* Premium movie card (vault grid) — refined overlay + ratings */
+/* Premium movie card (vault grid) — refined overlay + ratings
+   ── PERFORMANCE: content-visibility:auto skips rendering of offscreen
+   cards, dramatically reducing paint time for large vaults (1000+ items).
+   contain-intrinsic-size reserves space so the scrollbar doesn't jump. */
 .vault-card-premium {
   position: relative;
   cursor: pointer;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
   transition: transform var(--dur-base) var(--ease-spring),
               opacity var(--dur-base) var(--ease-out);
 }
-.vault-card-premium:hover { transform: translateY(-4px) scale(1.03); }
-.vault-card-premium:active { transform: translateY(0) scale(0.94); transition-duration: var(--dur-fast); }
+.vault-card-premium:hover { transform: translateY(-4px) scale(1.03); will-change: transform; }
+.vault-card-premium:active { transform: translateY(0) scale(0.94); transition-duration: var(--dur-fast); will-change: auto; }
 
 .vault-card-inner {
   aspect-ratio: 2/3;
@@ -128,12 +133,17 @@
   z-index: 30;
 }
 
-/* Premium timeline card */
+/* Premium timeline card
+   ── PERFORMANCE: content-visibility:auto skips offscreen cards in the
+   timeline (which can have 100+ items). contain-intrinsic-size reserves
+   space to prevent scrollbar jumping. */
 .timeline-card {
   background: var(--tier-2);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.04);
+  content-visibility: auto;
+  contain-intrinsic-size: auto 120px;
   transition: background var(--dur-base) var(--ease-out),
               border-color var(--dur-base) var(--ease-out),
               box-shadow var(--dur-base) var(--ease-out),
