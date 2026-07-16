@@ -5,14 +5,52 @@ node_modules
 dist
 .vinxi
 
+# ── Environment files (never commit secrets) ──────────────────────────
+# Covers all common .env variants so a future `.env.staging` or
+# `.env.*.local` can never be accidentally committed.
 .env
 .env.local
+.env.*.local
+.env.development
+.env.development.local
+.env.staging
+.env.staging.local
+.env.test
+.env.test.local
 .env.production
+.env.production.local
 
+# ── Secret / credential files (preventive — none exist today) ────────
+*.pem
+*.key
+*.p12
+*.pfx
+secrets.json
+credentials.json
+.envrc
+.tool-versions
+
+# ── Local tool credentials ────────────────────────────────────────────
+.npmrc
+.netrc
+.ssh/
+.aws/
+.gcloud/
+
+# ── Editor / OS metadata ──────────────────────────────────────────────
 .vscode
+.idea
 .DS_Store
+Thumbs.db
 
-# Supabase CLI
+# ── Supabase CLI ──────────────────────────────────────────────────────
 .supabase/
 supabase/.branches
 supabase/.temp
+
+# ── Build / cache artifacts ───────────────────────────────────────────
+.cache
+.turbo
+.eslintcache
+coverage
+*.log
