@@ -669,6 +669,14 @@ export type Database = {
           updated_at: string
           user_id: string
           watched_on: string | null
+          title: string | null
+          name: string | null
+          poster_path: string | null
+          backdrop_path: string | null
+          release_date: string | null
+          first_air_date: string | null
+          tmdb_vote_average: number | null
+          genres: Json | null
         }
         Insert: {
           completed_at?: string | null
@@ -693,6 +701,14 @@ export type Database = {
           updated_at?: string
           user_id: string
           watched_on?: string | null
+          title?: string | null
+          name?: string | null
+          poster_path?: string | null
+          backdrop_path?: string | null
+          release_date?: string | null
+          first_air_date?: string | null
+          tmdb_vote_average?: number | null
+          genres?: Json | null
         }
         Update: {
           completed_at?: string | null
@@ -717,6 +733,14 @@ export type Database = {
           updated_at?: string
           user_id?: string
           watched_on?: string | null
+          title?: string | null
+          name?: string | null
+          poster_path?: string | null
+          backdrop_path?: string | null
+          release_date?: string | null
+          first_air_date?: string | null
+          tmdb_vote_average?: number | null
+          genres?: Json | null
         }
         Relationships: [
           {

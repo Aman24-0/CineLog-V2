@@ -62,6 +62,10 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     ? (row.completed_at ?? row.started_at ?? undefined)
     : (row.watched_on ?? undefined);
 
+  // Cast row to access optional display metadata columns that may not
+  // exist in the type definition (added by add_vault_metadata_columns.sql).
+  const r = row as Record<string, unknown>;
+
   return {
     id: String(row.tmdb_id),
     media_type: row.media_type,
@@ -76,6 +80,15 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
     seasonRewatchCount: row.season_rewatch_count ?? 0,
     seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
+    // ── Display metadata (stored in vault, no TMDB fetch needed) ────
+    title: (r.title as string) ?? undefined,
+    name: (r.name as string) ?? undefined,
+    poster_path: (r.poster_path as string) ?? undefined,
+    backdrop_path: (r.backdrop_path as string) ?? undefined,
+    release_date: (r.release_date as string) ?? undefined,
+    first_air_date: (r.first_air_date as string) ?? undefined,
+    tmdbRating: r.tmdb_vote_average != null ? String(r.tmdb_vote_average) : undefined,
+    genresList: (r.genres as string[]) ?? undefined,
   };
 }
 
@@ -201,6 +214,15 @@ export async function createVaultItemInSupabase(
           : undefined,
     // lastActivityAt = most recent activity (updatedAt or addedAt or now)
     lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    // ── Display metadata — stored in vault to avoid TMDB re-fetches ──
+    title: item.title ?? null,
+    name: item.name ?? null,
+    posterPath: item.poster_path ?? null,
+    backdropPath: item.backdrop_path ?? null,
+    releaseDate: item.release_date ?? null,
+    firstAirDate: item.first_air_date ?? null,
+    tmdbVoteAverage: item.tmdbRating ? Number(item.tmdbRating) : null,
+    genres: (item.genresList as unknown[]) ?? null,
   };
 
   const { data, error } = await repo.createVaultItem(payload);
@@ -209,7 +231,13 @@ export async function createVaultItemInSupabase(
 
   // Return a WatchlistItem that merges the original TMDB metadata with
   // the persisted vault state so the caller's modal state is complete.
-  return { ...item, ...vaultRowToWatchlistItem(data) };
+  // Filter out undefined values from the vault row so they don't
+  // overwrite the original item's metadata (e.g. title, poster_path).
+  const vaultMapped = vaultRowToWatchlistItem(data);
+  const filteredVault = Object.fromEntries(
+    Object.entries(vaultMapped).filter(([, v]) => v !== undefined)
+  );
+  return { ...item, ...filteredVault };
 }
 
 /**
@@ -259,6 +287,15 @@ export async function upsertVaultItemInSupabase(
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
     lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    // ── Display metadata — stored in vault to avoid TMDB re-fetches ──
+    title: item.title ?? null,
+    name: item.name ?? null,
+    posterPath: item.poster_path ?? null,
+    backdropPath: item.backdrop_path ?? null,
+    releaseDate: item.release_date ?? null,
+    firstAirDate: item.first_air_date ?? null,
+    tmdbVoteAverage: item.tmdbRating ? Number(item.tmdbRating) : null,
+    genres: (item.genresList as unknown[]) ?? null,
   };
 
   const { data, error } = await repo.upsertVaultItem(payload);

@@ -88,6 +88,34 @@ export function toVaultInsert(
     insert.created_at = payload.createdAt;
   }
 
+  // Display metadata — stored in vault to avoid re-fetching from TMDB
+  // on every page load. These fields are nullable and only set when
+  // provided, so existing rows without metadata stay intact.
+  if (payload.title !== undefined) {
+    (insert as Record<string, unknown>).title = payload.title;
+  }
+  if (payload.name !== undefined) {
+    (insert as Record<string, unknown>).name = payload.name;
+  }
+  if (payload.posterPath !== undefined) {
+    (insert as Record<string, unknown>).poster_path = payload.posterPath;
+  }
+  if (payload.backdropPath !== undefined) {
+    (insert as Record<string, unknown>).backdrop_path = payload.backdropPath;
+  }
+  if (payload.releaseDate !== undefined) {
+    (insert as Record<string, unknown>).release_date = payload.releaseDate;
+  }
+  if (payload.firstAirDate !== undefined) {
+    (insert as Record<string, unknown>).first_air_date = payload.firstAirDate;
+  }
+  if (payload.tmdbVoteAverage !== undefined) {
+    (insert as Record<string, unknown>).tmdb_vote_average = payload.tmdbVoteAverage;
+  }
+  if (payload.genres !== undefined) {
+    (insert as Record<string, unknown>).genres = payload.genres;
+  }
+
   return insert;
 }
 

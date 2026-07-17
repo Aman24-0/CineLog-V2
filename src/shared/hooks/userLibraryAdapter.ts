@@ -37,25 +37,44 @@ import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
 // ---------------------------------------------------------------------------
 
 /**
+ * Read optional display metadata from a VaultRow's stored columns.
+ * These columns are added by scripts/add_vault_metadata_columns.sql and
+ * populated at add-time to avoid re-fetching from TMDB on every load.
+ */
+function readStoredMetadata(row: VaultRow) {
+  const r = row as Record<string, unknown>;
+  return {
+    title: (r.title as string) ?? undefined,
+    name: (r.name as string) ?? undefined,
+    posterPath: (r.poster_path as string) ?? undefined,
+    backdropPath: (r.backdrop_path as string) ?? undefined,
+    releaseDate: (r.release_date as string) ?? undefined,
+    firstAirDate: (r.first_air_date as string) ?? undefined,
+    tmdbVoteAverage: r.tmdb_vote_average != null ? r.tmdb_vote_average as number : undefined,
+    genres: (r.genres as unknown[]) ?? undefined,
+  };
+}
+
+/**
  * Map a single VaultRow to a WatchlistItem. If episode progress is
  * provided (TV only), populates season/episode/watchProgress. If TMDB
  * metadata is provided, populates title/name/poster_path/backdrop_path/
  * release_date/first_air_date/imdbRating so the UI can render the card.
+ *
+ * Display metadata resolution: prefer stored vault metadata (fast, no
+ * TMDB call), fall back to TMDB metadata (for pre-migration rows).
  */
 export function vaultRowToWatchlistItem(
   row: VaultRow,
   progress?: EpisodeProgressRow | null,
   tmdb?: TMDBTitle | null,
 ): WatchlistItem {
-  // ── Media-type-aware watch date resolution ────────────────────────
-  // See vaultReadAdapter.ts for the full rationale. Short version:
-  //   Movies store watch date in `watched_on`.
-  //   TV stores it in `completed_at` (preferred) or `started_at` (fallback).
-  //   The vault table's CHECK constraints forbid mixing the two.
   const isTV = row.media_type === "tv";
   const watchDate = isTV
     ? (row.completed_at ?? row.started_at ?? undefined)
     : (row.watched_on ?? undefined);
+
+  const stored = readStoredMetadata(row);
 
   const base: WatchlistItem = {
     id: String(row.tmdb_id),
@@ -66,31 +85,22 @@ export function vaultRowToWatchlistItem(
     watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
-    // ── Re-watch tracking (movies + series) ──────────────────────────
-    // These were previously missing from this adapter (only present in
-    // vaultReadAdapter.ts). Without them, the edit form's rewatch section
-    // and the detail modal's rewatch display were always empty for items
-    // loaded via the main UI path (fetchUserLibrary → useUserLibrary).
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],
-    // ── Series per-season tracking (v2.3 columns) ───────────────────
-    // Same issue: without these, the edit form's "Season Watch Dates"
-    // section showed empty date pickers even when the DB had dates set
-    // (e.g. imported from V1 backups where seasonDates was populated).
     seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
     seasonRewatchCount: row.season_rewatch_count ?? 0,
     seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
-    // TMDB display metadata — may be undefined if the TMDB fetch failed,
-    // in which case the UI falls back to "Untitled" / "NO POSTER".
-    title: tmdb?.title,
-    name: tmdb?.name,
-    poster_path: tmdb?.poster_path ?? undefined,
-    backdrop_path: tmdb?.backdrop_path ?? undefined,
-    release_date: tmdb?.release_date,
-    first_air_date: tmdb?.first_air_date,
-    // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
-    tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
-    genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
+    // Display metadata: prefer stored vault metadata, fall back to TMDB.
+    title: stored.title ?? tmdb?.title,
+    name: stored.name ?? tmdb?.name,
+    poster_path: stored.posterPath ?? tmdb?.poster_path ?? undefined,
+    backdrop_path: stored.backdropPath ?? tmdb?.backdrop_path ?? undefined,
+    release_date: stored.releaseDate ?? tmdb?.release_date,
+    first_air_date: stored.firstAirDate ?? tmdb?.first_air_date,
+    tmdbRating: stored.tmdbVoteAverage != null
+      ? String(stored.tmdbVoteAverage)
+      : tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
+    genresList: normalizeGenres(stored.genres ?? tmdb?.genres as unknown[] | undefined),
   };
 
   if (progress && row.media_type === "tv") {
@@ -124,19 +134,18 @@ export function vaultRowToWatchlistItem(
  * Pipeline:
  *   1. DashboardRepository.getAllVaultItems — 1 Supabase query
  *   2. EpisodeProgressRepository.getLatestEpisodeProgressBatch — 1 query (TV only)
- *   3. fetchTmdbMetadataBatch — N parallel cached TMDB requests (deduped
- *      via apiCache, so repeated loads within the TTL are instant)
+ *   3. fetchTmdbMetadataBatch — only for items missing stored metadata
  *
- * The TMDB enrichment (step 3) is what populates title, poster_path,
- * backdrop_path, release_date — without it, vault items show as
- * "Untitled" / "NO POSTER" because the vault table only stores tmdb_id.
+ * Performance optimization: items added after the metadata migration
+ * (scripts/add_vault_metadata_columns.sql) have title/poster stored in
+ * the vault row. Only pre-migration items need a TMDB fetch.
  *
  * @returns Array of WatchlistItem (empty if no items or error).
  */
 export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]> {
   const repo = getDashboardRepository();
 
-  // 1. Fetch all vault items (single query)
+  // 1. Fetch all vault items (single query, paginated)
   const { data: vaultRows, error: vaultError } = await repo.getAllVaultItems(userId);
   if (vaultError) {
     console.error("[userLibraryAdapter] Error fetching vault items:", vaultError);
@@ -158,11 +167,15 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     }
   }
 
-  // 3. Batch-fetch TMDB display metadata (title, poster, backdrop, etc.)
-  //    The vault table only stores tmdb_id — title/poster are NOT stored.
-  //    Without this step every vault item renders as "Untitled" / "NO POSTER".
-  //    Requests run in parallel and are cached by apiCache (TMDB_TTL).
-  const tmdbItems = rows.map((r) => ({
+  // 3. Batch-fetch TMDB display metadata ONLY for items missing stored metadata.
+  //    Items added after the metadata migration already have title/poster in
+  //    the vault row. Only pre-migration items need a TMDB fetch.
+  const itemsNeedingTmdb = rows.filter((r) => {
+    const rec = r as Record<string, unknown>;
+    return !rec.title && !rec.name;
+  });
+
+  const tmdbItems = itemsNeedingTmdb.map((r) => ({
     mediaType: r.media_type,
     tmdbId: r.tmdb_id,
   }));
@@ -171,12 +184,13 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     : new Map<string, TMDBTitle>();
 
   // 4. Map to WatchlistItem with episode progress + TMDB metadata enrichment
-  return rows.map((row) => {
+  const result = rows.map((row) => {
     const progress = progressMap.get(row.id);
     const tmdbKey = `${row.media_type}/${row.tmdb_id}`;
     const tmdb = tmdbMap.get(tmdbKey) ?? null;
     return vaultRowToWatchlistItem(row, progress, tmdb);
   });
+  return result;
 }
 
 /**
