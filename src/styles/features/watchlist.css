@@ -47,8 +47,7 @@
   object-fit: cover; display: block;
   opacity: 0; transform: scale(1.02);
   transition: opacity var(--dur-slow) var(--ease-out),
-              transform var(--dur-slow) var(--ease-smooth),
-              filter var(--dur-base) var(--ease-out);
+              transform var(--dur-slow) var(--ease-smooth);
   filter: brightness(0.88) saturate(0.9);
 }
 .vault-card-poster.img-loaded { opacity: 1; transform: scale(1); filter: brightness(0.85) saturate(0.95); }
