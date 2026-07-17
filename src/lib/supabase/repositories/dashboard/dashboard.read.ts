@@ -34,6 +34,7 @@ import type {
 import {
   applyPagination,
   toError,
+  VAULT_BASE_COLUMNS,
   VAULT_DASHBOARD_COLUMNS
 } from "./dashboard.utils";
 
@@ -208,42 +209,87 @@ export async function getCompletedRecently(
  *
  * @returns All vault rows (empty if none or error).
  */
-export async function getAllVaultItems(
+/**
+ * Fetch all vault items using a given column set, paginated in chunks.
+ *
+ * This is a shared helper used by getAllVaultItems. It attempts the
+ * query with the specified columns and returns either rows or an error.
+ */
+async function fetchAllVaultPages(
   supabase: TypedSupabaseClient,
-  userId: string
-): Promise<DashboardListResult<VaultRow>> {
-  const PAGE_SIZE = 1000; // matches PostgREST max_rows default
+  userId: string,
+  columns: string,
+): Promise<{ data: VaultRow[]; error: Error | null }> {
+  const PAGE_SIZE = 1000;
   const allRows: VaultRow[] = [];
   let offset = 0;
-  let error: Error | null = null;
 
-  // Fetch pages until we get fewer rows than PAGE_SIZE (end of results)
-  // or hit an error. Cap at 50 pages (50,000 items) as a safety valve
-  // to prevent infinite loops if something goes wrong.
   const MAX_PAGES = 50;
   for (let page = 0; page < MAX_PAGES; page++) {
     const from = offset;
     const to = offset + PAGE_SIZE - 1;
     const { data, error: pageError } = await supabase
       .from(VAULT_TABLE)
-      .select(VAULT_DASHBOARD_COLUMNS)
+      .select(columns)
       .eq("user_id", userId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
 
     if (pageError) {
-      error = toError(pageError);
-      break;
+      return { data: allRows, error: toError(pageError) };
     }
 
-    const rows = (data ?? []) as VaultRow[];
+    const rows = (data ?? []) as unknown as VaultRow[];
     allRows.push(...rows);
 
-    // If we got fewer rows than requested, we've reached the end.
     if (rows.length < PAGE_SIZE) break;
     offset += PAGE_SIZE;
   }
 
-  return { data: allRows, error };
+  return { data: allRows, error: null };
+}
+
+/**
+ * Fetch ALL non-deleted vault items for a user, ordered by `created_at` desc.
+ *
+ * This is the SINGLE data source for the dashboard -- shelves, stats, and
+ * the recommendation engine are all derived from this array client-side,
+ * avoiding duplicate fetches.
+ *
+ * Column fallback
+ * ---------------
+ * Tries `VAULT_DASHBOARD_COLUMNS` first (includes display-metadata
+ * columns like title, poster_path added by add_vault_metadata_columns.sql).
+ * If the SELECT fails because those columns don't exist yet in the
+ * deployed database (migration not applied), retries with
+ * `VAULT_BASE_COLUMNS` which only references columns that have existed
+ * since v1.0 of the schema. This prevents a PostgREST 400 from turning
+ * into an empty watchlist.
+ *
+ * @returns All vault rows (empty if none or error).
+ */
+export async function getAllVaultItems(
+  supabase: TypedSupabaseClient,
+  userId: string
+): Promise<DashboardListResult<VaultRow>> {
+  // Try the full column set first (includes metadata columns).
+  const full = await fetchAllVaultPages(supabase, userId, VAULT_DASHBOARD_COLUMNS);
+  if (!full.error) return full;
+
+  // If the error looks like a missing-column issue, fall back to base columns.
+  const msg = String(full.error.message ?? "").toLowerCase();
+  const code = String((full.error as { code?: string }).code ?? "").toLowerCase();
+  const isColumnError =
+    code === "42703" ||
+    code === "pgrst204" ||
+    msg.includes("does not exist") ||
+    msg.includes("could not find the column") ||
+    msg.includes("not found in schema");
+  if (!isColumnError) return full;
+
+  console.warn(
+    "[getAllVaultItems] Full column set failed (migration not applied?), retrying with base columns.",
+  );
+  return fetchAllVaultPages(supabase, userId, VAULT_BASE_COLUMNS);
 }
