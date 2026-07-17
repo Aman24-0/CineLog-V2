@@ -127,28 +127,46 @@ export function useVaultFiltering(
     prevViewMode = mode;
   });
 
-  const uniqueGenres = createMemo(() =>
-    [...new Set(
-      args.watchlist().flatMap((m) => {
-        if (!m.genresList || !Array.isArray(m.genresList)) return [];
-        return m.genresList.map((g) => {
-          if (typeof g === "string") return g;
-          if (typeof g === "object" && g !== null && "name" in g) return String((g as { name: unknown }).name);
-          return String(g);
-        });
-      })
-    )]
-      .filter(Boolean)
-      .sort(),
-  );
-  const uniquePlatforms = createMemo(() =>
-    [...new Set(args.watchlist().flatMap((m) => m.platformsList || []))]
-      .filter(Boolean)
-      .sort(),
-  );
-  const uniqueTags = createMemo(() =>
-    [...new Set(args.watchlist().map((m) => m.tag).filter((t): t is string => !!t))].sort(),
-  );
+  // ── UNIQUE VALUES — single-pass Set accumulation (no intermediate arrays) ──
+  // Previously: flatMap + map + new Set + spread + filter + sort created
+  // 5 intermediate arrays per memo run. Now we use Set.add() in a single
+  // pass, then sort once. For a 1029-item vault with ~3 genres each,
+  // this avoids ~3000 intermediate array elements.
+  const uniqueGenres = createMemo(() => {
+    const set = new Set<string>();
+    const list = args.watchlist();
+    for (let i = 0; i < list.length; i++) {
+      const gl = list[i].genresList;
+      if (!gl || !Array.isArray(gl)) continue;
+      for (let j = 0; j < gl.length; j++) {
+        const g = gl[j];
+        if (typeof g === "string") set.add(g);
+        else if (g && typeof g === "object" && "name" in g) set.add(String((g as { name: unknown }).name));
+      }
+    }
+    return [...set].sort();
+  });
+  const uniquePlatforms = createMemo(() => {
+    const set = new Set<string>();
+    const list = args.watchlist();
+    for (let i = 0; i < list.length; i++) {
+      const pl = list[i].platformsList;
+      if (!pl) continue;
+      for (let j = 0; j < pl.length; j++) {
+        if (pl[j]) set.add(pl[j]);
+      }
+    }
+    return [...set].sort();
+  });
+  const uniqueTags = createMemo(() => {
+    const set = new Set<string>();
+    const list = args.watchlist();
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i].tag;
+      if (t) set.add(t);
+    }
+    return [...set].sort();
+  });
 
   const filtered = createMemo(() => {
     let f = args.watchlist();

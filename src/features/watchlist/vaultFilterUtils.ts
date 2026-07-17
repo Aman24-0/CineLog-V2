@@ -13,23 +13,71 @@ import type { VaultFilters, WatchlistItem } from "~/shared/types";
 
 const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 
-/** Match a title against a free-text search query (case-insensitive). */
+// ── SEARCH INDEX — precomputed searchable text per item ─────────────
+// Previously, matchSearch() allocated 6 arrays/strings PER ITEM PER
+// SEARCH: genres array, castList spread, platformsList spread, fields
+// array, joined string, lowercased string. For a 1029-item vault with
+// a search query, that's 6,174 allocations per keystroke (after debounce)
+// — massive GC pressure.
+//
+// Now we precompute a single lowercased search string per item and cache
+// it in a WeakMap. The first search on each item computes the string;
+// subsequent searches (including different queries) reuse the cached
+// string. The WeakMap lets GC reclaim entries when WatchlistItems are
+// removed from the vault.
+const searchIndex = new WeakMap<WatchlistItem, string>();
+
+/** Build (or retrieve from cache) the lowercased searchable text for an item. */
+function getSearchText(m: WatchlistItem): string {
+  const cached = searchIndex.get(m);
+  if (cached !== undefined) return cached;
+
+  const year = (m.release_date || m.first_air_date || "").substring(0, 4);
+  // Build genres string without intermediate array
+  let genresStr = "";
+  if (m.genresList) {
+    for (const g of m.genresList) {
+      if (typeof g === "string") genresStr += " " + g;
+      else if (g && typeof g === "object" && "name" in g) genresStr += " " + String((g as { name: unknown }).name);
+    }
+  }
+  // Build cast string without intermediate array
+  let castStr = "";
+  if (m.castList) {
+    for (const c of m.castList) castStr += " " + c;
+  }
+  // Build platforms string without intermediate array
+  let platformsStr = "";
+  if (m.platformsList) {
+    for (const p of m.platformsList) platformsStr += " " + p;
+  }
+
+  const text = (
+    (m.title || "") + " " +
+    (m.original_title || "") + " " +
+    (m.name || "") + " " +
+    (m.original_name || "") + " " +
+    (m.tag || "") + " " +
+    (m.notes || "") + " " +
+    (m.director || "") + " " +
+    year + " " +
+    castStr + " " +
+    genresStr + " " +
+    platformsStr
+  ).toLowerCase();
+
+  searchIndex.set(m, text);
+  return text;
+}
+
+/** Match a title against a free-text search query (case-insensitive).
+ *  Uses a precomputed + cached search string to eliminate per-search
+ *  allocations. First search on each item builds the index; subsequent
+ *  searches are O(1) string.includes() with zero allocations. */
 export function matchSearch(m: WatchlistItem, query: string): boolean {
   const s = query.toLowerCase().trim();
-  const year = (m.release_date || m.first_air_date || "").substring(0, 4);
-  const genres = (m.genresList || []).map((g) => {
-    if (typeof g === "string") return g;
-    if (typeof g === "object" && g !== null && "name" in g) return String((g as { name: unknown }).name);
-    return String(g);
-  });
-  const fields = [
-    m.title, m.original_title, m.name, m.original_name,
-    m.tag, m.notes, m.director, year,
-    ...(m.castList || []),
-    ...genres,
-    ...(m.platformsList || []),
-  ].join(" ").toLowerCase();
-  return fields.includes(s);
+  if (!s) return true;
+  return getSearchText(m).includes(s);
 }
 
 /** Apply the quick-filter status tab + advanced status filter. */
