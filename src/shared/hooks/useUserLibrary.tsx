@@ -38,6 +38,14 @@ export interface UserLibrary {
   readonly isGuest: () => boolean;
   readonly error: () => string | null;
   readonly refresh: () => Promise<void>;
+  /** Optimistic local update — merges partial fields into one item.
+   *  Replaces a full refresh() for single-item mutations. Creates a new
+   *  array reference so SolidJS reactivity detects the change, but only
+   *  the modified item is shallow-merged (the rest keep the same refs). */
+  readonly updateItem: (itemId: string, update: Partial<WatchlistItem>) => void;
+  /** Optimistic local removal — removes one item from the array.
+   *  Used by delete operations to avoid a full refresh(). */
+  readonly removeItem: (itemId: string) => void;
 }
 
 // ---------------------------------------------------------------------------
@@ -120,12 +128,41 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     }
   });
 
+  /**
+   * Optimistic local update: merge partial fields into a single item.
+   *
+   * Creates a new array (so SolidJS detects the change) but only the
+   * affected item is shallow-merged — all other items keep their original
+   * reference, so SolidJS's keyed <For> skips re-rendering them.
+   */
+  const updateItem = (itemId: string, update: Partial<WatchlistItem>) => {
+    setWatchlist((prev) => {
+      const idx = prev.findIndex((m) => m.id === itemId);
+      if (idx < 0) return prev; // not found — no change
+      const next = [...prev];
+      next[idx] = { ...next[idx], ...update };
+      return next;
+    });
+  };
+
+  /**
+   * Optimistic local removal: remove a single item from the array.
+   *
+   * Creates a new array without the item. Used by delete operations
+   * to avoid a full refresh() round-trip.
+   */
+  const removeItem = (itemId: string) => {
+    setWatchlist((prev) => prev.filter((m) => m.id !== itemId));
+  };
+
   const library: UserLibrary = {
     watchlist,
     loading,
     isGuest,
     error,
-    refresh: doFetch
+    refresh: doFetch,
+    updateItem,
+    removeItem,
   };
 
   return (
