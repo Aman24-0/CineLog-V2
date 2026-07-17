@@ -104,11 +104,19 @@ export async function getCollections(
  *
  * The search term is wrapped in `%…%` so it matches as a substring.
  */
+/**
+ * Escape SQL LIKE wildcard characters (% and _) so they are treated
+ * as literals rather than pattern-matching operators.
+ */
+function escapeLikeWildcard(s: string): string {
+  return s.replace(/%/g, "\%").replace(/_/g, "\_");
+}
+
 export async function searchCollections(
   supabase: TypedSupabaseClient,
   query: CollectionSearchQuery
 ): Promise<{ data: CollectionRow[]; error: Error | null }> {
-  const pattern = `%${query.searchTerm}%`;
+  const pattern = `%${escapeLikeWildcard(query.searchTerm)}%`;
   let dbQuery = supabase
     .from(COLLECTIONS_TABLE)
     .select()
@@ -138,15 +146,34 @@ export async function searchCollections(
  *
  * @returns An array of entry rows (empty if collection is empty).
  */
+/**
+ * Default maximum entries returned per query. Prevents unbounded reads
+ * when a collection has hundreds or thousands of entries.
+ */
+const DEFAULT_ENTRY_PAGE_SIZE = 500;
+
+/**
+ * Get entries in a collection, ordered by `position` ascending
+ * (Database Bible §05: "Manual display order"). The composite index
+ * `(collection_id, position)` is used.
+ *
+ * @param options.pagination Optional pagination. Defaults to
+ *   `DEFAULT_ENTRY_PAGE_SIZE` entries starting from position 0.
+ * @returns An array of entry rows (empty if collection is empty).
+ */
 export async function getItems(
   supabase: TypedSupabaseClient,
-  collectionId: string
+  collectionId: string,
+  options?: { pagination?: { limit?: number; offset?: number } }
 ): Promise<{ data: CollectionEntryRow[]; error: Error | null }> {
+  const limit = options?.pagination?.limit ?? DEFAULT_ENTRY_PAGE_SIZE;
+  const offset = options?.pagination?.offset ?? 0;
   const { data, error } = await supabase
     .from(ENTRIES_TABLE)
     .select()
     .eq("collection_id", collectionId)
-    .order("position", { ascending: true });
+    .order("position", { ascending: true })
+    .range(offset, offset + limit - 1);
 
   return { data: data ?? [], error: toError(error) };
 }

@@ -29,6 +29,7 @@ import {
 } from "./core/preferences";
 import AppShell from "./app/AppShell";
 import { GlobalErrorBoundary } from "~/shared/ui/GlobalErrorBoundary";
+import { AuthProvider } from "~/shared/hooks/useAuth";
 import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
@@ -51,17 +52,19 @@ export default function App() {
       root={(props) => (
         <MetaProvider>
           <GlobalErrorBoundary>
-            <UserLibraryProvider>
-              <VaultProvider>
-                <CollectionsProvider>
-                  <AppShell>
-                    <Suspense fallback={<div>Loading...</div>}>
-                      {props.children}
-                    </Suspense>
-                  </AppShell>
-                </CollectionsProvider>
-              </VaultProvider>
-            </UserLibraryProvider>
+            <AuthProvider>
+              <UserLibraryProvider>
+                <VaultProvider>
+                  <CollectionsProvider>
+                    <AppShell>
+                      <Suspense fallback={<div>Loading...</div>}>
+                        {props.children}
+                      </Suspense>
+                    </AppShell>
+                  </CollectionsProvider>
+                </VaultProvider>
+              </UserLibraryProvider>
+            </AuthProvider>
           </GlobalErrorBoundary>
         </MetaProvider>
       )}

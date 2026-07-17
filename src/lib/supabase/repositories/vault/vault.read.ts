@@ -18,6 +18,7 @@ import type {
   VaultStatus
 } from "./vault.types";
 import { applySort, applyPagination, toError } from "./vault.utils";
+import { dedupRequest } from "~/shared/utils/requestDedup";
 
 const TABLE = "vault" as const;
 
@@ -60,12 +61,17 @@ export async function getVaultByStatus(
   status: VaultStatus,
   options?: { sort?: VaultSort; pagination?: VaultPagination }
 ): Promise<VaultListResult> {
-  let query = supabase.from(TABLE).select()
-    .eq("user_id", userId).eq("status", status).is("deleted_at", null);
-  query = applySort(query, options?.sort);
-  query = applyPagination(query, options?.pagination);
-  const { data, error } = await query;
-  return { data: data ?? [], error: toError(error) };
+  return dedupRequest(
+    `vault:status:${userId}:${status}:${JSON.stringify(options)}`,
+    async () => {
+      let query = supabase.from(TABLE).select()
+        .eq("user_id", userId).eq("status", status).is("deleted_at", null);
+      query = applySort(query, options?.sort);
+      query = applyPagination(query, options?.pagination);
+      const { data, error } = await query;
+      return { data: data ?? [], error: toError(error) };
+    }
+  );
 }
 
 /**
@@ -119,11 +125,28 @@ export async function getRecentlyUpdated(
 /**
  * Search vault by notes (ilike). Excludes soft-deleted.
  */
+/**
+ * Escape SQL LIKE wildcard characters (% and _) so they are treated
+ * as literals rather than pattern-matching operators.
+ *
+ * Without this, a user searching for "100%" would match any row
+ * containing "1" followed by any characters, not just literal "100%".
+ */
+function escapeLikeWildcard(s: string): string {
+  return s.replace(/%/g, "\%").replace(/_/g, "\_");
+}
+
+/**
+ * Search vault by notes (ilike). Excludes soft-deleted.
+ *
+ * Wildcard characters (% and _) in the search term are escaped so
+ * they are treated as literals, preventing unexpected pattern matches.
+ */
 export async function searchVault(
   supabase: TypedSupabaseClient,
   query: VaultSearchQuery
 ): Promise<VaultListResult> {
-  const pattern = `%${query.searchTerm}%`;
+  const pattern = `%${escapeLikeWildcard(query.searchTerm)}%`;
   let dbQuery = supabase.from(TABLE).select()
     .eq("user_id", query.userId)
     .ilike("notes", pattern)

@@ -61,7 +61,7 @@ export interface AsyncState {
  * Create a fresh async-state tracker for a hook instance.
  *
  * Each hook call creates its own tracker — state is NOT shared across
- * components (unlike the Firebase `useAuth` module-level signal). This
+ * components (unlike the previous module-level signal pattern). This
  * matches the repository pattern where each component owns its data.
  */
 export function createAsyncState(): AsyncState {

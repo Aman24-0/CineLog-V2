@@ -11,7 +11,7 @@
  *
  * SSR safety
  * ----------
- * Mirrors the pattern used by `src/core/firebase/config.ts`:
+ * Uses the same SSR safety pattern as the original Firebase config module:
  * `isServer` from `solid-js/web` is used to guard every code path that
  * would touch `window` / `localStorage`. Calling `createBrowserClient`
  * or `getBrowserClient` on the server throws a descriptive error so the

@@ -32,6 +32,7 @@ import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
 import WhereToWatch from "~/features/details/components/WhereToWatch";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+import { trapFocus } from "~/shared/utils/focusTrap";
 import { useDetailsForm } from "./useDetailsForm";
 import { useDetailsActions } from "./useDetailsActions";
 
@@ -122,11 +123,22 @@ export default function DetailsModal() {
       }
     };
     window.addEventListener("keydown", handleEsc);
+
+    // Focus trap: when the modal is open, keyboard focus stays within
+    // the modal overlay. Tab and Shift+Tab cycle through focusable
+    // elements inside the modal instead of escaping to the page behind.
+    let cleanupTrap: (() => void) | null = null;
+    const modalContent = document.querySelector(".cinematic-modal-content") as HTMLElement | null;
+    if (modalContent) {
+      cleanupTrap = trapFocus(modalContent);
+    }
+
     onCleanup(() => {
       // Always restore body overflow on unmount — prevents black screen
       // if the modal unmounts unexpectedly (BUG 1 fix).
       document.body.style.overflow = "";
       window.removeEventListener("keydown", handleEsc);
+      cleanupTrap?.();
     });
   });
 

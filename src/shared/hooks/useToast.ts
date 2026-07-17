@@ -53,6 +53,21 @@ function dismissToast(id: number) {
 }
 
 export function useToast() {
+  // Safety check: useToast creates a closure over the module-level
+  // signals, so it technically works outside a component. However,
+  // calling it outside an owner context means Solid lifecycle hooks
+  // (onMount, onCleanup, createEffect) won't work. We allow it but
+  // log a warning in development to catch misuse.
+  if (typeof process !== "undefined" && process.env?.NODE_ENV === "development") {
+    // eslint-disable-next-line no-undef
+    if (typeof window !== "undefined" && !document.querySelector("[data-solid-app]")) {
+      console.warn(
+        "[useToast] Called outside a Solid component tree. " +
+        "Toasts will work but lifecycle-dependent features may not."
+      );
+    }
+  }
+
   const showToast = (
     msg: string,
     type: ToastType = "info",

@@ -4,7 +4,7 @@
  * Wraps {@link DashboardRepository} (read-only) into a Solid-friendly
  * hook.
  *
- * No business logic. No UI logic. No Firebase interaction. The hook
+ * No business logic. No UI logic. The hook
  * is a thin reactive adapter — it does NOT cache shelf results. The
  * consuming component owns result state (e.g. via `createResource`).
  */

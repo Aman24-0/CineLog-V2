@@ -70,8 +70,10 @@ export async function upsertVaultItem(
   // If the error is "column does not exist", retry without extended fields.
   if (error && isMissingColumnError(error)) {
     console.warn(
-      "[upsertVaultItem] Extended columns missing — retrying without season_dates/rewatch_dates. " +
-      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
+      "[upsertVaultItem] Schema drift detected — column(s) season_dates, rewatch_dates, " +
+      "season_rewatch_count, or season_rewatch_dates do not exist in the database. " +
+      "Retrying WITHOUT extended fields. Data for these fields WILL BE LOST. " +
+      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to fix.",
       error,
     );
     const retry = await supabase
@@ -110,51 +112,110 @@ export async function upsertVaultItem(
  * NOTE: Supabase's PostgREST supports up to 1000 rows per insert/upsert
  * call, but we use 100 to keep memory + request payload reasonable.
  */
+
+/**
+ * Result of a batch upsert, including per-chunk outcomes for
+ * transactional safety. When the batch is split into sub-batches,
+ * callers can determine exactly which chunks succeeded and which failed.
+ */
+export interface BatchUpsertResult {
+  /** Total number of successfully written rows across all chunks. */
+  count: number;
+  /** Number of rows that failed to write. */
+  failedCount: number;
+  /** Overall error (null if all chunks succeeded). */
+  error: Error | null;
+  /** Per-chunk details for debugging and retry logic. */
+  chunks: Array<{
+    startIndex: number;
+    count: number;
+    success: boolean;
+    error?: Error | null;
+  }>;
+}
+
+/**
+ * BATCH upsert with chunked sub-batches for transactional safety.
+ *
+ * Large batches (e.g. 1000+ items during a backup restore) are split
+ * into sub-batches of `CHUNK_SIZE`. If one chunk fails, the remaining
+ * chunks still execute — the caller receives a detailed result showing
+ * exactly which chunks succeeded and which failed. This prevents a
+ * single bad row from causing a full-batch failure and losing all
+ * progress.
+ *
+ * The unique key for conflict resolution is the same as single upsert:
+ * (user_id, tmdb_id, media_type). On conflict, ALL user-owned fields are
+ * overwritten with the incoming values from the batch.
+ */
 export const VAULT_BATCH_SIZE = 100;
+const CHUNK_SIZE = 100; // rows per sub-batch (Supabase PostgREST supports up to 1000)
 
 export async function upsertVaultItemsBatch(
   supabase: TypedSupabaseClient,
   payloads: CreateVaultItemPayload[],
-): Promise<{ count: number; error: Error | null }> {
-  if (payloads.length === 0) return { count: 0, error: null };
-  const rows = payloads.map((p) => toVaultInsert(p));
-  let { data, error } = await supabase
-    .from(TABLE)
-    .upsert(rows, {
-      onConflict: "user_id,tmdb_id,media_type",
-      ignoreDuplicates: false,
-      count: "exact",
-    });
+): Promise<BatchUpsertResult> {
+  if (payloads.length === 0) return { count: 0, failedCount: 0, error: null, chunks: [] };
 
-  // If the error is "column does not exist" (missing v2.2/v2.3 columns),
-  // retry the entire batch WITHOUT extended fields. This lets imports
-  // succeed even before the user runs the migration scripts.
-  if (error && isMissingColumnError(error)) {
-    console.warn(
-      "[upsertVaultItemsBatch] Extended columns missing — retrying batch without season_dates/rewatch_dates. " +
-      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
-      error,
-    );
-    const bareRows = payloads.map((p) => toVaultInsert(p, { includeExtendedFields: false }));
-    const retry = await supabase
+  const chunks: BatchUpsertResult["chunks"] = [];
+  let totalCount = 0;
+  let failedCount = 0;
+  let lastError: Error | null = null;
+
+  for (let i = 0; i < payloads.length; i += CHUNK_SIZE) {
+    const chunkPayloads = payloads.slice(i, i + CHUNK_SIZE);
+    const rows = chunkPayloads.map((p) => toVaultInsert(p));
+
+    let { data, error } = await supabase
       .from(TABLE)
-      .upsert(bareRows, {
+      .upsert(rows, {
         onConflict: "user_id,tmdb_id,media_type",
         ignoreDuplicates: false,
         count: "exact",
       });
-    data = retry.data;
-    error = retry.error;
+
+    // If the error is "column does not exist" (missing v2.2/v2.3 columns),
+    // retry this chunk WITHOUT extended fields.
+    if (error && isMissingColumnError(error)) {
+      console.warn(
+        "[upsertVaultItemsBatch] Schema drift detected — column(s) season_dates, rewatch_dates, " +
+        "season_rewatch_count, or season_rewatch_dates do not exist in the database. " +
+        "Retrying this chunk WITHOUT extended fields. " +
+        "Data for these fields will be LOST for this chunk. " +
+        "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to fix.",
+      );
+      const bareRows = chunkPayloads.map((p) => toVaultInsert(p, { includeExtendedFields: false }));
+      const retry = await supabase
+        .from(TABLE)
+        .upsert(bareRows, {
+          onConflict: "user_id,tmdb_id,media_type",
+          ignoreDuplicates: false,
+          count: "exact",
+        });
+      data = retry.data;
+      error = retry.error;
+    }
+
+    const returnedRows = (data as unknown[] | null) ?? [];
+    const chunkCount = returnedRows.length > 0 ? returnedRows.length : rows.length;
+
+    if (error) {
+      const err = toError(error);
+      failedCount += chunkPayloads.length;
+      lastError = err;
+      chunks.push({ startIndex: i, count: chunkPayloads.length, success: false, error: err });
+    } else {
+      totalCount += chunkCount;
+      chunks.push({ startIndex: i, count: chunkCount, success: true });
+    }
   }
 
-  if (error) return { count: 0, error: toError(error) };
-  // `data` is typed as `never[]` when no `.select()` is chained, but at
-  // runtime Supabase returns the inserted rows when count: "exact" is set.
-  // Fall back to rows.length when data is null/empty so the count is
-  // always accurate.
-  const returnedRows = (data as unknown[] | null) ?? [];
-  const count = returnedRows.length > 0 ? returnedRows.length : rows.length;
-  return { count, error: null };
+  return {
+    count: totalCount,
+    failedCount,
+    error: lastError,
+    chunks,
+  };
 }
 
 /**
