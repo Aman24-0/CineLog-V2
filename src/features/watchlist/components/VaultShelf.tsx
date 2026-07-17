@@ -11,6 +11,12 @@ interface VaultShelfProps {
    *  When collapsed (default), show a horizontal rail of 6 items. */
   expanded?: boolean;
   onToggleExpand?: () => void;
+  /** Maximum number of items to render in the grid view. When set, the grid
+   *  renders only the first `maxItems` items instead of the entire section.
+   *  Used by the infinite scroll pattern in flat mode to avoid creating
+   *  hundreds of MovieCard components synchronously. Not applied to the
+   *  rail view (always shows 6). */
+  maxItems?: number;
 }
 
 /**
@@ -41,6 +47,10 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
   const showExpandAction = () => props.section.items.length > 6;
 
   const railItems = () => props.section.items.slice(0, 6);
+  const gridItems = () =>
+    props.maxItems != null
+      ? props.section.items.slice(0, props.maxItems)
+      : props.section.items;
 
   return (
     <section class="vault-shelf animate-fade-up" aria-label={props.section.title}>
@@ -84,7 +94,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
         fallback={
           // Expanded grid or non-rail section
           <div class="vault-shelf-grid" role="list">
-            <For each={props.section.items}>
+            <For each={gridItems()}>
               {(m) => (
                 <div role="listitem">
                   <MovieCard

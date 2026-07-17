@@ -69,6 +69,7 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
                 onOpenMovie={props.onOpenMovie}
                 expanded={props.expandedShelves().has(section.id)}
                 onToggleExpand={() => props.onToggleShelf(section.id)}
+                maxItems={props.displayLimit()}
               />
             )}
           </For>
