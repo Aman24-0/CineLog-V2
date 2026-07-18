@@ -22,7 +22,7 @@
  * It only loads and exposes the user's vault.
  */
 
-import { createContext, useContext, createSignal, createEffect, onMount, onCleanup, ParentComponent } from "solid-js";
+import { createContext, useContext, createSignal, createMemo, createEffect, onMount, onCleanup, ParentComponent } from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
 import { useAuth } from "~/shared/hooks/useAuth";
@@ -39,12 +39,12 @@ export interface UserLibrary {
   readonly error: () => string | null;
   readonly refresh: () => Promise<void>;
   /** Optimistic local update — merges partial fields into one item.
-   *  Replaces a full refresh() for single-item mutations. Creates a new
-   *  array reference so SolidJS reactivity detects the change, but only
-   *  the modified item is shallow-merged (the rest keep the same refs). */
+ *  Replaces a full refresh() for single-item mutations. Creates a new
+ *  array reference so SolidJS reactivity detects the change, but only
+ *  the modified item is shallow-merged (the rest keep the same refs). */
   readonly updateItem: (itemId: string, update: Partial<WatchlistItem>) => void;
   /** Optimistic local removal — removes one item from the array.
-   *  Used by delete operations to avoid a full refresh(). */
+ *  Used by delete operations to avoid a full refresh(). */
   readonly removeItem: (itemId: string) => void;
 }
 
@@ -59,21 +59,30 @@ const UserLibraryContext = createContext<UserLibrary>();
 // ---------------------------------------------------------------------------
 
 export const UserLibraryProvider: ParentComponent = (props) => {
-  const { authReady, user } = useAuth();
+  const { authReady, isSignedIn } = useAuth();
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
   const [loading, setLoading] = createSignal(true);
-  const [isGuest, setIsGuest] = createSignal(true);
+  // isGuest is derived reactively from auth state instead of being set
+  // imperatively inside doFetch(). This prevents the race condition where
+  // onMount fires doFetch() before auth has resolved, setting isGuest=true
+  // permanently even after the session is detected.
+  const isGuest = createMemo(() => !isSignedIn());
   const [error, setError] = createSignal<string | null>(null);
 
   // Guard: prevents concurrent duplicate fetches when multiple triggers
-  // fire simultaneously (onMount + onSessionChange + createEffect can all
-  // fire within the same tick on first load). Without this guard, 2-3
+  // fire simultaneously (onSessionChange + createEffect can both fire
+  // within the same tick on first load). Without this guard, 2-3
   // identical Supabase + TMDB round-trips fire in parallel on startup.
   let isFetching = false;
 
+  // Track the uid at the time the fetch started, so we can detect if
+  // the user changed while a fetch was in-flight (sign-out + sign-in).
+  let fetchUid: string | null = null;
+
   /**
-   * The ONE fetch function. Called on mount and on auth state change.
-   * Consumers call `refresh()` which delegates to this.
+   * The ONE fetch function. Called on auth state change and by
+   * consumers via `refresh()`. Only fetches when auth is ready
+   * and a user is signed in — otherwise clears the library.
    */
   const doFetch = async () => {
     if (isFetching) return;
@@ -81,20 +90,26 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     const userId = getUserId();
     if (!userId) {
       setWatchlist([]);
-      setIsGuest(true);
       setLoading(false);
+      isFetching = false;
       return;
     }
 
-    setIsGuest(false);
+    // Record the uid so we can discard stale results.
+    const currentFetchUid = userId;
+    fetchUid = currentFetchUid;
     setLoading(true);
     setError(null);
     try {
       const items = await fetchUserLibrary(userId);
+      // Discard if user changed while fetch was in-flight
+      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
       console.error("[UserLibraryProvider] Fetch error:", err);
+      // Discard if user changed while fetch was in-flight
+      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setError("Failed to load your library.");
       setLoading(false);
     } finally {
@@ -104,7 +119,7 @@ export const UserLibraryProvider: ParentComponent = (props) => {
 
   /**
    * The ONE auth subscription. Mounted once in the provider.
-   * On session change: clears cache, reloads library.
+   * On session change: reloads library.
    *
    * Wrapped in try/catch so missing env vars (e.g. during first Vercel
    * deploy before env vars are set) don't crash the client — the app
@@ -116,7 +131,6 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * unmounts during HMR or route transitions).
    */
   onMount(() => {
-    doFetch();
     try {
       const subscription = onSessionChange(() => {
         doFetch();
@@ -128,12 +142,13 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   });
 
   // Re-fetch when auth state changes (sign-in / sign-out / OAuth redirect).
-  // This is the reactive bridge between useAuth's signals and the library
-  // fetch. Without this, the library would only re-fetch on the
-  // onSessionChange callback, which might miss the initial session
-  // detection from checkInitialSession().
+  // This is the PRIMARY trigger for loading the library — not onMount.
+  // The createEffect gates on authReady() so doFetch() only runs AFTER
+  // the session has been resolved, avoiding the race condition where
+  // onMount called doFetch() before auth was ready (which permanently
+  // set isGuest=true because getUserId() returned null).
   createEffect(() => {
-    if (authReady() && user()) {
+    if (authReady() && isSignedIn()) {
       doFetch();
     }
   });
