@@ -40,6 +40,7 @@ DROP POLICY IF EXISTS external_ids_select_authenticated ON public.external_ids;
 
 -- Create a secure policy that inherits ownership from the vault table.
 -- A user can only SELECT external_ids for vault items they own.
+DROP POLICY IF EXISTS external_ids_select_own ON public.external_ids;
 CREATE POLICY external_ids_select_own
   ON public.external_ids
   FOR SELECT
@@ -57,6 +58,7 @@ CREATE POLICY external_ids_select_own
 -- so when the table is eventually populated (by import or sync), only
 -- the vault owner can modify their own external_ids.
 
+DROP POLICY IF EXISTS external_ids_insert_own ON public.external_ids;
 CREATE POLICY external_ids_insert_own
   ON public.external_ids
   FOR INSERT
@@ -70,6 +72,7 @@ CREATE POLICY external_ids_insert_own
     )
   );
 
+DROP POLICY IF EXISTS external_ids_update_own ON public.external_ids;
 CREATE POLICY external_ids_update_own
   ON public.external_ids
   FOR UPDATE
@@ -91,6 +94,7 @@ CREATE POLICY external_ids_update_own
     )
   );
 
+DROP POLICY IF EXISTS external_ids_delete_own ON public.external_ids;
 CREATE POLICY external_ids_delete_own
   ON public.external_ids
   FOR DELETE
