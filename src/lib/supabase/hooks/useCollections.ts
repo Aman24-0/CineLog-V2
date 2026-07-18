@@ -4,7 +4,7 @@
  * Wraps {@link CollectionRepository} into a Solid-friendly hook.
  * Covers both the `collections` and `collection_entries` tables.
  *
- * No business logic. No UI logic. Thin
+ * No business logic. No UI logic. No Firebase interaction. Thin
  * reactive adapter — does NOT cache or dedupe.
  */
 

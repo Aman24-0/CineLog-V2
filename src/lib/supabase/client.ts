@@ -13,7 +13,7 @@
  *     auth listeners.
  *
  * The detection uses `isServer` from `solid-js/web`, the same primitive
- * used throughout the codebase. This keeps the SSR
+ * already used by `src/core/firebase/config.ts`. This keeps the SSR
  * contract identical across both backend integrations.
  *
  * When to use which module

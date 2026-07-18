@@ -41,19 +41,28 @@ export function createCollectionQueries(userCollections: Accessor<Collection[]>)
       }));
     }
     const total = entries.length;
-    const owned = entries.filter((e) =>
-      vault.some((v) => String(v.id) === String(e.id) && v.media_type === e.media_type)
-    ).length;
-    const completed = entries.filter((e) => {
-      const v = vault.find((v) => String(v.id) === String(e.id) && v.media_type === e.media_type);
-      return v?.status === "Completed";
-    }).length;
-    const watching = entries.filter((e) => {
-      const v = vault.find((v) => String(v.id) === String(e.id) && v.media_type === e.media_type);
-      return v?.status === "Watching";
-    }).length;
+
+    // Build a Map for O(1) vault lookups instead of O(n) vault.find() per entry.
+    // Previously: 3x vault.find() per entry = O(entries * vault) comparisons.
+    // Now: one Map build pass + O(1) per entry = O(entries + vault).
+    const vaultMap = new Map<string, WatchlistItem>(
+      vault.map((v) => [`${v.media_type}/${String(v.id)}`, v])
+    );
+    const getVaultItem = (e: CollectionEntry) =>
+      vaultMap.get(`${e.media_type}/${String(e.id)}`) ?? null;
+
+    let owned = 0, completed = 0, watching = 0;
+    let totalRuntime = 0;
+    for (const e of entries) {
+      const v = getVaultItem(e);
+      if (v) {
+        owned++;
+        if (v.status === "Completed") completed++;
+        if (v.status === "Watching") watching++;
+      }
+      totalRuntime += e.runtime ?? 0;
+    }
     const pct = total > 0 ? Math.round((owned / total) * 100) : 0;
-    const totalRuntime = entries.reduce((sum, e) => sum + (e.runtime ?? 0), 0);
     return { owned, total, pct, completed, watching, missing: total - owned, totalRuntime };
   };
 

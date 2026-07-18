@@ -30,7 +30,7 @@
  * Phase scope
  * -----------
  * Foundation only. NOT wired into the application — the existing
- * The original hooks (`useAuth`, `useVault`, `useCollections`) remain the
+ * Firebase hooks (`useAuth`, `useVault`, `useCollections`) remain the
  * sole source of truth until the migration explicitly cuts over.
  */
 

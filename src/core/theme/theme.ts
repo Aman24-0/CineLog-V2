@@ -57,6 +57,11 @@ createEffect(() => {
   // Remove any previous theme-* class from <html> and <body>
   document.documentElement.className = document.documentElement.className
     .split(/\s+/).filter((c) => c && !c.startsWith("theme-")).join(" ") + " " + cls;
-  document.body.className = cls;
+  // Use classList manipulation on <body> instead of replacing className entirely.
+  // Replacing className wipes ALL body classes (scroll-lock, modal-open, etc.)
+  // that other systems may have added concurrently.
+  const prevThemeClasses = [...document.body.classList].filter((c) => c.startsWith("theme-"));
+  prevThemeClasses.forEach((c) => document.body.classList.remove(c));
+  document.body.classList.add(cls);
   localStorage.setItem("cinelog_theme", theme());
 });

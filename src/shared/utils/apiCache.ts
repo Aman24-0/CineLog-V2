@@ -133,8 +133,10 @@ export async function cachedFetch<T>(
 
 /**
  * Clear all cached entries (useful for testing or manual refresh).
+ * NOTE: we intentionally do NOT clear inFlight here — callers already
+ * awaiting an in-flight promise would hang silently if we dropped the
+ * reference. In-flight entries clean themselves up via promise.finally().
  */
 export function clearCache(): void {
   cache.clear();
-  inFlight.clear();
 }

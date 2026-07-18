@@ -1,4 +1,4 @@
-import { JSX, createMemo, startTransition, type Component } from "solid-js";
+import { JSX, createMemo, type Component } from "solid-js";
 import Icon from "./Icon";
 
 type Props = {
@@ -31,11 +31,7 @@ const NavButton: Component<Props> = (props) => {
 
   return (
     <button
-      type="button"
-      onClick={(e) => {
-        if (!props.onClick) return;
-        startTransition(() => props.onClick?.(e));
-      }}
+      onClick={props.onClick}
       disabled={props.disabled}
       class="flex flex-1 flex-col items-center justify-center gap-1 relative focus-ring"
       style={{
@@ -46,6 +42,7 @@ const NavButton: Component<Props> = (props) => {
         transition: "color var(--dur-base) var(--ease-out)",
       }}
       aria-current={props.active ? "page" : undefined}
+      aria-label={props.label}
     >
       <span
         style={{

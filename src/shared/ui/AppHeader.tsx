@@ -1,5 +1,5 @@
 // src/shared/ui/AppHeader.tsx
-import { Show, createMemo, startTransition, type Component } from "solid-js";
+import { Show, createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -39,13 +39,11 @@ const AppHeader: Component = () => {
   });
 
   const handleAvatarClick = () => {
-    startTransition(() => {
-      if (isSignedIn()) {
-        navigate("/profile");
-      } else {
-        openAuthModal();
-      }
-    });
+    if (isSignedIn()) {
+      navigate("/profile");
+    } else {
+      openAuthModal();
+    }
   };
 
   return (

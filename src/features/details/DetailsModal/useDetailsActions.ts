@@ -1,5 +1,5 @@
 // src/features/details/DetailsModal/useDetailsActions.ts
-import { createSignal, createMemo, createEffect } from "solid-js";
+import { createSignal, createMemo, createEffect, onCleanup } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
@@ -100,6 +100,8 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
   });
 
   // Trigger the fallback fetch when pickTrailer returns null.
+  // Uses a `disposed` flag so the .then() callback never writes to a
+  // dead signal when the modal unmounts while the fetch is in flight.
   createEffect(() => {
     const details = args.details();
     const item = args.baseItem();
@@ -110,13 +112,15 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     const mediaType = item.media_type;
     const id = item.id;
     if (!mediaType || !id) return;
+    let disposed = false;
+    onCleanup(() => { disposed = true; });
     void fetchAnyVideoKey(
       mediaType === "movie" ? "movie" : "tv",
       id,
     ).then((key) => {
-      // Only set if we haven't switched titles while the fetch was
-      // in flight (id still matches the current open title).
-      if (args.baseItem()?.id === id) {
+      // Guard: skip if the effect was cleaned up (modal unmounted)
+      // OR if we've navigated to a different title since the fetch started.
+      if (!disposed && args.baseItem()?.id === id) {
         setFallbackTrailerKey(key);
       }
     });
@@ -227,8 +231,21 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         );
       }
 
-      await Promise.all(updates);
-      showToast("Saved successfully!", "success");
+      // Use allSettled so ALL updates run even if one fails.
+      // A single field failure (e.g. rewatch_dates column missing) should
+      // not prevent the other fields (status, rating, notes) from saving.
+      const results = await Promise.allSettled(updates);
+      const failed = results.filter((r) => r.status === "rejected");
+      if (failed.length > 0 && failed.length === updates.length) {
+        // All failed — surface an error
+        throw new Error("All updates failed");
+      }
+      if (failed.length > 0) {
+        // Partial failure — saved what we could
+        showToast("Partially saved — some fields may not have updated.", "info");
+      } else {
+        showToast("Saved successfully!", "success");
+      }
       // Cast form().status to the WatchlistItem status union — the form is
       // typed as string because DetailsEditForm uses a <select>, but the
       // values are always one of the 4 valid statuses.

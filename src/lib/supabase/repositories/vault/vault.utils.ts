@@ -48,10 +48,9 @@ export function validateProgressMinutes(minutes: number): Error | null {
  */
 export function toVaultInsert(
   payload: CreateVaultItemPayload,
-  options?: { includeExtendedFields?: boolean; includeMetadataFields?: boolean },
+  options?: { includeExtendedFields?: boolean },
 ): VaultInsert {
   const includeExtended = options?.includeExtendedFields ?? true;
-  const includeMetadata = options?.includeMetadataFields ?? true;
   const insert: VaultInsert = {
     user_id: payload.userId,
     tmdb_id: payload.tmdbId,
@@ -89,45 +88,6 @@ export function toVaultInsert(
     insert.created_at = payload.createdAt;
   }
 
-  // Display metadata — stored in vault to avoid re-fetching from TMDB
-  // on every page load. These fields are nullable and only set when
-  // provided, so existing rows without metadata stay intact.
-  if (payload.title !== undefined) {
-    (insert as Record<string, unknown>).title = payload.title;
-  }
-  if (payload.name !== undefined) {
-    (insert as Record<string, unknown>).name = payload.name;
-  }
-  if (payload.posterPath !== undefined) {
-    (insert as Record<string, unknown>).poster_path = payload.posterPath;
-  }
-  if (payload.backdropPath !== undefined) {
-    (insert as Record<string, unknown>).backdrop_path = payload.backdropPath;
-  }
-  if (payload.releaseDate !== undefined) {
-    (insert as Record<string, unknown>).release_date = payload.releaseDate;
-  }
-  if (payload.firstAirDate !== undefined) {
-    (insert as Record<string, unknown>).first_air_date = payload.firstAirDate;
-  }
-  if (payload.tmdbVoteAverage !== undefined) {
-    (insert as Record<string, unknown>).tmdb_vote_average = payload.tmdbVoteAverage;
-  }
-  if (payload.genres !== undefined) {
-    (insert as Record<string, unknown>).genres = payload.genres;
-  }
-
-  if (!includeMetadata) {
-    delete (insert as Record<string, unknown>).title;
-    delete (insert as Record<string, unknown>).name;
-    delete (insert as Record<string, unknown>).poster_path;
-    delete (insert as Record<string, unknown>).backdrop_path;
-    delete (insert as Record<string, unknown>).release_date;
-    delete (insert as Record<string, unknown>).first_air_date;
-    delete (insert as Record<string, unknown>).tmdb_vote_average;
-    delete (insert as Record<string, unknown>).genres;
-  }
-
   return insert;
 }
 
@@ -152,56 +112,23 @@ export function toVaultInsert(
  * because that would also match "relation vault does not exist" (missing
  * table) — retrying without extended fields wouldn't help that case.
  */
-/**
- * Known extended columns that may not exist in older database schemas.
- * Used by the schema drift detection logic to identify specific
- * column-missing errors rather than relying on fragile string matching.
- */
-const EXTENDED_COLUMNS = [
-  "rewatch_dates",
-  "season_dates",
-  "season_rewatch_count",
-  "season_rewatch_dates",
-] as const;
-
-/**
- * Detect whether a Supabase/PostgREST error indicates that a column
- * referenced in the insert does not exist in the live database schema.
- *
- * Detection strategy (ordered by reliability):
- *   1. PostgreSQL SQLSTATE 42703 ("undefined_column") — most reliable.
- *   2. PostgREST code PGRST204 ("schemaCacheMiss") — schema-level miss.
- *   3. Error message contains a known extended column name AND an
- *      indication of absence ("does not exist", "not found", "unknown").
- *   4. PostgREST "Could not find the column" message pattern.
- *
- * We check against a whitelist of known extended columns rather than
- * matching arbitrary "column X does not exist" patterns. This prevents
- * false positives from unrelated column errors (e.g., typos in column
- * names we control).
- */
 export function isMissingColumnError(err: unknown): boolean {
   const e = err as { message?: string; code?: string; details?: unknown };
   const msg = String(e?.message ?? "").toLowerCase();
   const code = String(e?.code ?? "").toLowerCase();
   const details = typeof e?.details === "string" ? e.details.toLowerCase() : "";
-  const combined = `${msg} ${details}`;
 
-  // 1. Specific PostgreSQL SQLSTATE for undefined column.
+  // Specific PostgreSQL SQLSTATE for undefined column.
   if (code === "42703" || code === "pgrst204") return true;
 
-  // 2. Check if any known extended column is mentioned with absence indicators.
-  const absenceIndicators = ["does not exist", "not found", "unknown column", "missing"];
-  for (const col of EXTENDED_COLUMNS) {
-    if (combined.includes(col)) {
-      for (const indicator of absenceIndicators) {
-        if (combined.includes(indicator)) return true;
-      }
-    }
-  }
+  // Message must mention "column" AND "does not exist" together — this
+  // distinguishes "column X does not exist" (missing column) from
+  // "relation X does not exist" (missing table).
+  if (msg.includes("column") && msg.includes("does not exist")) return true;
+  if (details.includes("column") && details.includes("does not exist")) return true;
 
-  // 3. PostgREST "Could not find the column" message.
-  if (combined.includes("could not find the column")) return true;
+  // PostgREST "Could not find the column" message.
+  if (msg.includes("could not find the column") || details.includes("could not find the column")) return true;
 
   return false;
 }
@@ -218,20 +145,13 @@ export function applySort<TQuery extends { order: (column: string, opts?: { asce
   return query.order(sort.field, { ascending: sort.direction !== "desc" });
 }
 
-/**
- * Maximum rows returned per query when no explicit pagination is provided.
- * Prevents unbounded reads that could fetch thousands of rows in a single
- * request, causing slow queries, high memory usage, and Supabase timeouts.
- */
-export const DEFAULT_PAGE_SIZE = 100;
-
 export function applyPagination<TQuery extends { range: (from: number, to: number) => TQuery }>(
   query: TQuery,
   pagination: VaultPagination | undefined
 ): TQuery {
-  const limit = pagination?.limit ?? DEFAULT_PAGE_SIZE;
-  const from = pagination?.offset ?? 0;
-  return query.range(from, from + limit - 1);
+  if (!pagination) return query;
+  const from = pagination.offset ?? 0;
+  return query.range(from, from + pagination.limit - 1);
 }
 
 // ---------------------------------------------------------------------------

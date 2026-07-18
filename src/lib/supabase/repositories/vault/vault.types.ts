@@ -55,23 +55,6 @@ export interface CreateVaultItemPayload {
   readonly seasonRewatchDates?: Record<string, { start: string; end: string }>[];
   /** Original add timestamp — preserved across imports so the timeline stays accurate. */
   readonly createdAt?: string;
-  // ── Display metadata (stored in vault to avoid TMDB re-fetches) ──
-  /** TMDB display title for movies. */
-  readonly title?: string | null;
-  /** TMDB display name for TV series. */
-  readonly name?: string | null;
-  /** TMDB poster path (e.g. /abc123.jpg). */
-  readonly posterPath?: string | null;
-  /** TMDB backdrop path. */
-  readonly backdropPath?: string | null;
-  /** TMDB release date string. */
-  readonly releaseDate?: string | null;
-  /** TMDB first air date string. */
-  readonly firstAirDate?: string | null;
-  /** TMDB vote_average (0-10). */
-  readonly tmdbVoteAverage?: number | null;
-  /** TMDB genres array. */
-  readonly genres?: unknown[] | null;
 }
 
 export type VaultSortField =

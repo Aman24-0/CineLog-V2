@@ -24,15 +24,26 @@ interface OMDbResponse {
   Runtime?: string;
 }
 
-export const fetchOmdbRatings = async (title: string): Promise<OMDbRatings | null> => {
-  if (!title) return null;
+export const fetchOmdbRatings = async (
+  title: string,
+  imdbId?: string | null
+): Promise<OMDbRatings | null> => {
+  if (!title && !imdbId) return null;
+  // Prefer IMDb ID lookup (?i=) over title (?t=) — title search can
+  // match the wrong movie when multiple films share a title (e.g. "Dune").
+  const cacheKey = imdbId
+    ? buildCacheKey("omdb:ratings", { imdbId })
+    : buildCacheKey("omdb:ratings", { title });
   try {
     const data = await cachedFetch<OMDbResponse>(
-      buildCacheKey("omdb:ratings", { title }),
+      cacheKey,
       OMDb_TTL,
       async () => {
+        const queryParam = imdbId
+          ? `i=${encodeURIComponent(imdbId)}`
+          : `t=${encodeURIComponent(title)}`;
         const res = await fetch(
-          `https://www.omdbapi.com/?t=${encodeURIComponent(title)}&apikey=${OMDB_KEY}`
+          `https://www.omdbapi.com/?${queryParam}&apikey=${OMDB_KEY}`
         );
         if (!res.ok) return { Response: "False" } as OMDbResponse;
         return res.json() as Promise<OMDbResponse>;

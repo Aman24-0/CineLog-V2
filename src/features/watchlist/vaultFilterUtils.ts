@@ -140,7 +140,7 @@ export function filterByRanges(
 
 /** Sort items according to the active sort key. */
 export function sortItems(items: WatchlistItem[], sort: VaultFilters["sort"]): WatchlistItem[] {
-  return items.sort((a, b) => {
+  return [...items].sort((a, b) => {
     if (sort === "watch_desc" || sort === "watch_asc") {
       const dA = resolveTimelineDate(a), dB = resolveTimelineDate(b);
       const hasA = dA !== null, hasB = dB !== null;

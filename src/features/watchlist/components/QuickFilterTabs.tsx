@@ -1,5 +1,5 @@
 // src/features/watchlist/components/QuickFilterTabs.tsx
-import { For, Show, Component, createMemo, startTransition } from "solid-js";
+import { For, Show, Component, createMemo } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 
 interface QuickFilterTabsProps {
@@ -81,11 +81,10 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
               type="button"
               class="quick-filter-tab focus-ring"
               data-active={props.active() === tab.value}
-              onClick={() => {
-                startTransition(() => props.onSelect(tab.value));
-              }}
+              onClick={() => props.onSelect(tab.value)}
               role="tab"
               aria-selected={props.active() === tab.value}
+              aria-label={`${tab.label} — ${count()} titles`}
             >
               {tab.label}
               <Show when={count() > 0}>

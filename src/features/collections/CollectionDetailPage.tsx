@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
+import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useCollections } from "./hooks/useCollections";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { fetchCuratedUniverseBySlug } from "./curatedUniverseAdapter";
@@ -38,7 +39,7 @@ export default function CollectionDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
   const { watchlist } = useVault();
-  const { userCollections, getUniversePrefs, removeFromCollection, addToCollection } = useCollections();
+  const { userCollections, getUniversePrefs, removeFromCollection, addToCollection, refreshCollections } = useCollections();
   const { openTitle } = useModalState();
 
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
@@ -87,13 +88,20 @@ export default function CollectionDetailPage() {
     const count = selectedIds().size;
     if (count === 0) return;
     const ids = Array.from(selectedIds());
-    // Process sequentially to avoid overwhelming Supabase with
-    // concurrent deletes. Each removeFromCollection call refreshes
-    // the collections signal, so the UI updates progressively.
-    for (const key of ids) {
-      const [mediaType, id] = key.split(":");
-      await removeFromCollection(col.id, id, mediaType);
-    }
+    // Run deletes in parallel with Promise.allSettled (instead of
+    // sequential loop). Each individual removeFromCollection call
+    // previously triggered a refreshCollections() after each delete —
+    // for 20 items that was 20 Supabase refetches. We pass a flag
+    // to skip the per-item refresh and do ONE refresh at the end.
+    await Promise.allSettled(
+      ids.map((key) => {
+        const [mediaType, id] = key.split(":");
+        return removeFromCollection(col.id, id, mediaType);
+      })
+    );
+    // Single refresh after all deletes are complete.
+    const uid = getCurrentUid();
+    if (uid) await refreshCollections(uid);
     setSelectedIds(new Set<string>());
     setSelectMode(false);
   };

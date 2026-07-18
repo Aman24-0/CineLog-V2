@@ -118,19 +118,10 @@ export async function signInWithGoogle(): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
-    // Validate the redirect origin against a whitelist to prevent
-    // open redirect attacks. An attacker could manipulate the origin
-    // to redirect users to a malicious site after OAuth completion.
-    const ALLOWED_ORIGINS = [
-      "https://cinelogv2.vercel.app",
-      "https://cinelog-v2.vercel.app",
-      "http://localhost:3000",
-      "http://localhost:3001",
-    ];
-    const currentOrigin = typeof window !== "undefined" ? window.location.origin : "";
-    const redirectTo = ALLOWED_ORIGINS.includes(currentOrigin)
-      ? `${currentOrigin}/profile`
-      : ALLOWED_ORIGINS[0] + "/profile";
+    const redirectTo =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/profile`
+        : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {

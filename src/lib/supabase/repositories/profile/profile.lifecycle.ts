@@ -291,12 +291,6 @@ export async function ensureProfile(
 
   // 3. Profile doesn't exist — create it with auto-generated fields.
   // This path runs if the Supabase trigger didn't fire (edge case).
-  //
-  // RACE CONDITION FIX: Use upsert instead of insert to handle the case
-  // where two concurrent ensureProfile() calls both reach this path.
-  // Without upsert, the second call would fail with a unique constraint
-  // violation. With upsert (id is the primary key), the second call
-  // becomes a no-op update that returns the existing row.
   const email = authUser?.email ?? null;
   const metadata = authUser?.userMetadata ?? null;
   const displayName = displayNameFromMetadata(metadata, email);
@@ -305,15 +299,12 @@ export async function ensureProfile(
 
   const { data: created, error: createError } = await supabase
     .from(PROFILES_TABLE)
-    .upsert({
+    .insert({
       id: userId,
       username: username ?? baseUsername,
       display_name: displayName,
-      display_name_initialized: true,
-      country: "US",
-    }, {
-      onConflict: "id",
-      ignoreDuplicates: false,
+      display_name_initialized: true, // Mark as initialized on creation
+      country: "US", // default — user can change later
     })
     .select()
     .single();

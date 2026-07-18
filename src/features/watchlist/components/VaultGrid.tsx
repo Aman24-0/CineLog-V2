@@ -32,12 +32,7 @@ export default function VaultGrid(props: VaultGridProps) {
         <For each={props.items}>
           {(m) => (
             <div role="listitem">
-              <MovieCard
-                movie={m}
-                variant="compact"
-                search={props.search}
-                onClick={() => props.onOpenMovie(m.id)}
-              />
+              <MovieCard movie={m} search={props.search} onClick={() => props.onOpenMovie(m.id)} />
             </div>
           )}
         </For>

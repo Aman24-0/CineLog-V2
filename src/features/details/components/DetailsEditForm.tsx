@@ -60,8 +60,11 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       .sort((a, b) => a - b);
   });
 
+  const MAX_REWATCH_COUNT = 99;
   const incrementRewatch = () => {
-    props.setForm("rewatchCount", String(rewatchCount() + 1));
+    if (rewatchCount() < MAX_REWATCH_COUNT) {
+      props.setForm("rewatchCount", String(rewatchCount() + 1));
+    }
   };
   const decrementRewatch = () => {
     if (rewatchCount() > 0) {
@@ -70,7 +73,9 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
   };
 
   const incrementSeasonRewatch = () => {
-    props.setForm("seasonRewatchCount", String(seasonRewatchCount() + 1));
+    if (seasonRewatchCount() < MAX_REWATCH_COUNT) {
+      props.setForm("seasonRewatchCount", String(seasonRewatchCount() + 1));
+    }
   };
   const decrementSeasonRewatch = () => {
     if (seasonRewatchCount() > 0) {
@@ -165,6 +170,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
             <button
               type="button"
               onClick={incrementRewatch}
+              disabled={rewatchCount() >= MAX_REWATCH_COUNT}
               aria-label="Increase re-watch count"
               class="rewatch-stepper-btn rewatch-stepper-btn-plus"
             >
@@ -278,6 +284,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
             <button
               type="button"
               onClick={incrementSeasonRewatch}
+              disabled={seasonRewatchCount() >= MAX_REWATCH_COUNT}
               aria-label="Increase series re-watch count"
               class="rewatch-stepper-btn rewatch-stepper-btn-plus"
             >

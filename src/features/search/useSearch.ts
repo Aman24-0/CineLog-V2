@@ -1,5 +1,5 @@
 // src/features/search/useSearch.ts
-import { createSignal, createMemo, createEffect, onMount, Accessor } from "solid-js";
+import { createSignal, createMemo, createEffect, onMount, onCleanup, Accessor } from "solid-js";
 import { searchMulti, getTrending, genreIdFor } from "~/core/tmdb/discover";
 import { buildVaultKeySet, vaultIdKey } from "~/shared/utils/vaultMatch";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -82,6 +82,14 @@ export function useSearch(args: UseSearchArgs) {
     const q = query();
     if (debounceTimer) clearTimeout(debounceTimer);
     debounceTimer = setTimeout(() => setDebouncedQuery(q), 250);
+  });
+  // Cleanup: cancel pending debounce on unmount to prevent calling
+  // setDebouncedQuery on a dead reactive root (SolidJS warning).
+  onCleanup(() => {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
   });
 
   // When the user types in the search bar, clear any active genre browse

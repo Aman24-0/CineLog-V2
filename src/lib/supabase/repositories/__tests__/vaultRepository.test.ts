@@ -414,13 +414,11 @@ describe("vault.utils", () => {
   });
 
   describe("applyPagination", () => {
-    it("applies default pagination when pagination is undefined", () => {
+    it("returns query unchanged when pagination is undefined", () => {
       const query = { range: vi.fn().mockReturnThis() };
       const result = applyPagination(query, undefined);
       expect(result).toBe(query);
-      // Default pagination applies range(0, DEFAULT_PAGE_SIZE - 1)
-      // to prevent unbounded reads
-      expect(query.range).toHaveBeenCalledWith(0, 99);
+      expect(query.range).not.toHaveBeenCalled();
     });
 
     it("calls query.range with (0, limit-1) when offset is undefined", () => {

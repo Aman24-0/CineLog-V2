@@ -51,7 +51,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
         />
       }
     >
-      <div class="search-rail" role="list" aria-live="polite" aria-atomic="false">
+      <div class="search-rail" role="list">
         <For each={props.titles.slice(0, 20)}>
           {(title) => (
             <button

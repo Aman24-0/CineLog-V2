@@ -42,8 +42,8 @@ describe("STATUS_TO_DB", () => {
     expect(STATUS_TO_DB["Completed"]).toBe("completed");
   });
 
-  it("maps 'Plan to Watch' → 'planned'", () => {
-    expect(STATUS_TO_DB["Plan to Watch"]).toBe("planned");
+  it("maps 'Plan to Watch' → 'on_hold'", () => {
+    expect(STATUS_TO_DB["Plan to Watch"]).toBe("on_hold");
   });
 
   it("maps 'Dropped' → 'dropped'", () => {

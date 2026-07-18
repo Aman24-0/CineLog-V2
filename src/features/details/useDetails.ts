@@ -24,10 +24,16 @@ export function useDetails(selected: () => SelectedItem | null) {
 
   const fetcher = async (src: { item: WatchlistItem; tick: number } | null) => {
     if (!src) return null;
-    const [tmdbData, omdbData] = await Promise.all([
-      fetchTmdbDetails(src.item.media_type, src.item.id),
-      fetchOmdbRatings(src.item.title || src.item.name || "")
-    ]);
+    // Fetch TMDB first to get imdb_id, then use it for the OMDb lookup.
+    // This prevents OMDb returning the wrong movie when titles share a name.
+    // The two fetches are sequential (not parallel) only for the imdb_id
+    // dependency; TMDB is fast (cached after first load).
+    const tmdbData = await fetchTmdbDetails(src.item.media_type, src.item.id);
+    const imdbId = tmdbData?.imdb_id ?? null;
+    const omdbData = await fetchOmdbRatings(
+      src.item.title || src.item.name || "",
+      imdbId
+    );
     return { tmdb: tmdbData, omdb: omdbData };
   };
 

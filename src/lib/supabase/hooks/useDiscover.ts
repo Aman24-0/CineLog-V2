@@ -5,7 +5,7 @@
  * hook. Answers "what is this media's relationship to the user's
  * library?".
  *
- * No business logic. No UI logic. No TMDB
+ * No business logic. No UI logic. No Firebase interaction. No TMDB
  * requests. Thin reactive adapter over the repository.
  */
 

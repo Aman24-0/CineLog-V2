@@ -114,7 +114,7 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
 
       {/* Title + tagline + quick-meta */}
       <div class="flex-1 min-w-0 pb-1">
-        <h1 class="hero-title">{title()}</h1>
+        <h1 class="hero-title" id="details-modal-title">{title()}</h1>
 
         <Show when={tagline()}>
           <p class="hero-tagline">{tagline()}</p>

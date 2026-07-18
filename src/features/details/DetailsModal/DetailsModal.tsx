@@ -32,7 +32,6 @@ import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
 import WhereToWatch from "~/features/details/components/WhereToWatch";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { trapFocus } from "~/shared/utils/focusTrap";
 import { useDetailsForm } from "./useDetailsForm";
 import { useDetailsActions } from "./useDetailsActions";
 
@@ -113,32 +112,58 @@ export default function DetailsModal() {
 
   onMount(() => {
     document.body.style.overflow = "hidden";
-    const handleEsc = (e: KeyboardEvent) => {
+
+    // Focus trap: keep keyboard focus inside the modal while it is open.
+    // On open, move focus to the close button. On Tab/Shift+Tab at the
+    // boundary, wrap around to the other end.
+    const modalEl = document.querySelector(".cinematic-modal") as HTMLElement | null;
+    const getFocusable = (): HTMLElement[] => {
+      if (!modalEl) return [];
+      return Array.from(
+        modalEl.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'
+        )
+      ).filter((el) => !el.closest("[aria-hidden=true]"));
+    };
+
+    // Move initial focus to close button
+    const closeBtn = document.querySelector(".cinematic-close-btn") as HTMLElement | null;
+    closeBtn?.focus();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
         // Priority: remove-confirm sheet → edit mode → trailer → modal
         if (showRemoveConfirm()) setShowRemoveConfirm(false);
         else if (isEditing()) handleCancel();
         else if (showTrailer()) setShowTrailer(false);
         else close();
+        return;
+      }
+      if (e.key === "Tab") {
+        const focusable = getFocusable();
+        if (focusable.length === 0) return;
+        const first = focusable[0];
+        const last = focusable[focusable.length - 1];
+        if (e.shiftKey) {
+          if (document.activeElement === first) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (document.activeElement === last) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
-    window.addEventListener("keydown", handleEsc);
 
-    // Focus trap: when the modal is open, keyboard focus stays within
-    // the modal overlay. Tab and Shift+Tab cycle through focusable
-    // elements inside the modal instead of escaping to the page behind.
-    let cleanupTrap: (() => void) | null = null;
-    const modalContent = document.querySelector(".cinematic-modal-content") as HTMLElement | null;
-    if (modalContent) {
-      cleanupTrap = trapFocus(modalContent);
-    }
-
+    window.addEventListener("keydown", handleKeyDown);
     onCleanup(() => {
       // Always restore body overflow on unmount — prevents black screen
       // if the modal unmounts unexpectedly (BUG 1 fix).
       document.body.style.overflow = "";
-      window.removeEventListener("keydown", handleEsc);
-      cleanupTrap?.();
+      window.removeEventListener("keydown", handleKeyDown);
     });
   });
 
@@ -150,6 +175,7 @@ export default function DetailsModal() {
           onClick={close}
           role="dialog"
           aria-modal="true"
+          aria-labelledby="details-modal-title"
         >
           {/* Ambient backdrop continuation — blurred tint behind the modal.
               The <img> is decorative; if the TMDB URL fails we hide it so
@@ -169,11 +195,10 @@ export default function DetailsModal() {
             <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
           </div>
 
-        <div
-          class="cinematic-modal-content w-full max-w-2xl lg:max-w-[1120px] xl:max-w-[1240px] relative z-10"
-          tabindex={-1}
-          onClick={(e) => e.stopPropagation()}
-        >
+          <div
+            class="w-full max-w-xl lg:max-w-[800px] relative z-10"
+            onClick={(e) => e.stopPropagation()}
+          >
             {/* Close button — rendered at the modal-container level (NOT inside
                 the hero) so it stays fixed when the user scrolls. Previously
                 the close button was inside .cinematic-hero which has
@@ -303,3 +328,4 @@ export default function DetailsModal() {
     </Show>
   );
 }
+

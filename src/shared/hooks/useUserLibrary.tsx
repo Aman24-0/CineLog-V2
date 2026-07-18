@@ -65,11 +65,19 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   const [isGuest, setIsGuest] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
+  // Guard: prevents concurrent duplicate fetches when multiple triggers
+  // fire simultaneously (onMount + onSessionChange + createEffect can all
+  // fire within the same tick on first load). Without this guard, 2-3
+  // identical Supabase + TMDB round-trips fire in parallel on startup.
+  let isFetching = false;
+
   /**
    * The ONE fetch function. Called on mount and on auth state change.
    * Consumers call `refresh()` which delegates to this.
    */
   const doFetch = async () => {
+    if (isFetching) return;
+    isFetching = true;
     const userId = getUserId();
     if (!userId) {
       setWatchlist([]);
@@ -89,6 +97,8 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       console.error("[UserLibraryProvider] Fetch error:", err);
       setError("Failed to load your library.");
       setLoading(false);
+    } finally {
+      isFetching = false;
     }
   };
 

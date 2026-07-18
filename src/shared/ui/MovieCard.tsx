@@ -1,5 +1,5 @@
 // src/shared/ui/MovieCard.tsx
-import { createMemo, createSignal, Show, Component, startTransition } from "solid-js";
+import { createSignal, Show, Component } from "solid-js";
 import Icon from "./Icon";
 import HighlightText from "./HighlightText";
 import MovieCardRatings from "./MovieCardRatings";
@@ -57,6 +57,7 @@ interface MovieCardProps {
  */
 const MovieCard: Component<MovieCardProps> = (props) => {
   const variant = () => props.variant ?? "default";
+  const [imgLoaded, setImgLoaded] = createSignal(false);
   const [imgError, setImgError] = createSignal(false);
 
   // Favorites collection — used by the heart button to toggle
@@ -102,11 +103,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const favColId = () => favoritesCollection()?.id ?? null;
 
-  const isFavourite = createMemo(() => {
+  const isFavourite = () => {
     const id = favColId();
     if (!id) return false;
     return collections.isInCollection(id, String(props.movie.id), props.movie.media_type);
-  });
+  };
 
   const toggleFavourite = (e: MouseEvent) => {
     e.stopPropagation();
@@ -155,13 +156,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   return (
     <div
-      onClick={() => {
-        startTransition(() => props.onClick());
-      }}
+      onClick={() => props.onClick()}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          startTransition(() => props.onClick());
+          props.onClick();
         }
       }}
       class={cardClass()}
@@ -171,7 +170,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     >
       <div class="vault-card-inner">
         {/* Loading skeleton */}
-        <Show when={!imgError()}>
+        <Show when={!imgLoaded() && !imgError()}>
           <div class="poster-loading" aria-hidden="true">
             <div
               style={{
@@ -232,12 +231,13 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         >
           <img
             src={tmdbImage(props.movie.poster_path, posterSize())}
-            class="vault-card-poster"
+            class={`vault-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
             decoding="async"
             alt=""
             aria-hidden="true"
             onLoad={(e) => {
+              setImgLoaded(true);
               e.currentTarget.classList.add("img-loaded");
             }}
             onError={() => setImgError(true)}
