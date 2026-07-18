@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultShelf.tsx
-import {For, Show, Component} from "solid-js";
+import { For, Show, Component, startTransition } from "solid-js";
 import MovieCard from "~/shared/ui/MovieCard";
 import type { VaultSection } from "../useVaultSections";
 
@@ -73,7 +73,9 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
           <button
             type="button"
             class="vault-shelf-action"
-            onClick={() => props.onToggleExpand?.()}
+            onClick={() => {
+              startTransition(() => props.onToggleExpand?.());
+            }}
             aria-label={isExpanded() ? `Collapse ${props.section.title}` : `See all ${props.section.title}`}
           >
             {isExpanded() ? "Show Less" : "See All"}

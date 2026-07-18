@@ -61,14 +61,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
         <div style={{ "margin-top": "0.75rem" }}>
           <QuickFilterTabs
             active={props.activeStatusTab}
-            onSelect={(status) => {
-              props.onSelectStatusTab(status);
-              if (status === "all") {
-                props.setFilters({ ...props.filters(), status: "all" });
-              } else {
-                props.setFilters({ ...props.filters(), status });
-              }
-            }}
+            onSelect={props.onSelectStatusTab}
             watchlist={props.watchlist}
           />
         </div>
@@ -80,6 +73,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
           <For each={props.chips()}>
             {(chip) => (
               <button
+                type="button"
                 onClick={() => props.onClearFilter(chip.key)}
                 class="filter-chip focus-ring"
                 aria-label={`Remove filter: ${chip.label}`}

@@ -28,7 +28,7 @@ export default function WatchlistStats(props: WatchlistStatsProps) {
           <Show when={props.search()}> for "{props.search()}"</Show>
         </span>
         <Show when={props.activeStatusTab() !== "all"}>
-          <button class="vault-shelf-action" onClick={props.onClearStatusTab}>
+          <button type="button" class="vault-shelf-action" onClick={props.onClearStatusTab}>
             Clear filter
           </button>
         </Show>
