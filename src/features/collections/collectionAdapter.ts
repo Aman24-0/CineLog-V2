@@ -154,7 +154,7 @@ export async function restoreCollectionInSupabase(collectionId: string): Promise
 export async function duplicateCollectionInSupabase(
   userId: string,
   collectionId: string
-): Promise<void> {
+): Promise<string | null> {
   // 1. Fetch the source collection + its entries
   const repo = getCollectionRepository();
   const { data: source, error: fetchError } = await repo.getCollection(collectionId);
@@ -172,6 +172,8 @@ export async function duplicateCollectionInSupabase(
   for (const entry of entries) {
     await addEntryToCollectionByTmdbId(userId, newId, entry.id, entry.media_type);
   }
+
+  return newId;
 }
 
 // ---------------------------------------------------------------------------
