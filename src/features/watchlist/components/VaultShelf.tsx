@@ -38,7 +38,8 @@ interface VaultShelfProps {
  *    DashboardSection / DetailSection)
  *  - Uses .vault-shelf-rail for horizontal scroll-snap
  *  - Uses .vault-shelf-grid for expanded grid (2/4/6 columns responsive)
- *  - MovieCard variant="compact" for rail, variant="default" for grid
+ *  - MovieCard variant="compact" for both rail and expanded grid so the
+ *    watchlist stays visually consistent across shelves.
  *
  * The shelf is self-contained — all data comes from the VaultSection prop.
  */
@@ -101,6 +102,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                 <div role="listitem">
                   <MovieCard
                     movie={m}
+                    variant="compact"
                     search={props.search()}
                     onClick={() => props.onOpenMovie(m.id)}
                   />

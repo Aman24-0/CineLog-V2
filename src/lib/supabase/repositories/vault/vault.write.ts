@@ -16,8 +16,21 @@ import type {
   VaultUpdate
 } from "./vault.types";
 import { toVaultInsert, validateRating, validateProgressMinutes, toError, isMissingColumnError } from "./vault.utils";
+import { getVaultByTmdbId } from "./vault.read";
 
 const TABLE = "vault" as const;
+
+function isDuplicateVaultError(err: unknown): boolean {
+  if (err === null || err === undefined || typeof err !== "object") return false;
+  const e = err as { code?: unknown; message?: unknown; details?: unknown };
+  const code = String(e.code ?? "").toLowerCase();
+  const message = `${String(e.message ?? "")} ${String(e.details ?? "")}`.toLowerCase();
+  return (
+    code === "23505" ||
+    message.includes("duplicate key value violates unique constraint") ||
+    message.includes("already exists")
+  );
+}
 
 /**
  * Create a new vault item. Relies on DB UNIQUE constraint for dedup.
@@ -26,11 +39,32 @@ export async function createVaultItem(
   supabase: TypedSupabaseClient,
   payload: CreateVaultItemPayload
 ): Promise<VaultItemResult> {
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from(TABLE)
     .insert(toVaultInsert(payload))
     .select()
     .single();
+
+  if (error && isMissingColumnError(error)) {
+    const retry = await supabase
+      .from(TABLE)
+      .insert(toVaultInsert(payload, { includeExtendedFields: false, includeMetadataFields: false }))
+      .select()
+      .single();
+    data = retry.data;
+    error = retry.error;
+  }
+
+  if (error && isDuplicateVaultError(error)) {
+    const existing = await getVaultByTmdbId(
+      supabase,
+      payload.userId,
+      payload.tmdbId,
+      payload.mediaType,
+    );
+    if (existing.data) return existing;
+  }
+
   return { data, error: toError(error) };
 }
 
@@ -71,14 +105,14 @@ export async function upsertVaultItem(
   if (error && isMissingColumnError(error)) {
     console.warn(
       "[upsertVaultItem] Schema drift detected — column(s) season_dates, rewatch_dates, " +
-      "season_rewatch_count, or season_rewatch_dates do not exist in the database. " +
-      "Retrying WITHOUT extended fields. Data for these fields WILL BE LOST. " +
-      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to fix.",
+      "season_rewatch_count, season_rewatch_dates, or display metadata columns do not exist in the database. " +
+      "Retrying WITHOUT extended fields or display metadata. Data for those fields WILL BE LOST. " +
+      "Run the vault migration scripts in the Supabase SQL editor to fix.",
       error,
     );
     const retry = await supabase
       .from(TABLE)
-      .upsert(toVaultInsert(payload, { includeExtendedFields: false }), {
+      .upsert(toVaultInsert(payload, { includeExtendedFields: false, includeMetadataFields: false }), {
         onConflict: "user_id,tmdb_id,media_type",
         ignoreDuplicates: false,
       })
@@ -179,12 +213,14 @@ export async function upsertVaultItemsBatch(
     if (error && isMissingColumnError(error)) {
       console.warn(
         "[upsertVaultItemsBatch] Schema drift detected — column(s) season_dates, rewatch_dates, " +
-        "season_rewatch_count, or season_rewatch_dates do not exist in the database. " +
-        "Retrying this chunk WITHOUT extended fields. " +
-        "Data for these fields will be LOST for this chunk. " +
-        "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to fix.",
+        "season_rewatch_count, season_rewatch_dates, or display metadata columns do not exist in the database. " +
+        "Retrying this chunk WITHOUT extended fields or display metadata. " +
+        "Data for those fields will be LOST for this chunk. " +
+        "Run the vault migration scripts in the Supabase SQL editor to fix.",
       );
-      const bareRows = chunkPayloads.map((p) => toVaultInsert(p, { includeExtendedFields: false }));
+      const bareRows = chunkPayloads.map((p) =>
+        toVaultInsert(p, { includeExtendedFields: false, includeMetadataFields: false })
+      );
       const retry = await supabase
         .from(TABLE)
         .upsert(bareRows, {

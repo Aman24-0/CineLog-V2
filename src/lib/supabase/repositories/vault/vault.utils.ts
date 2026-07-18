@@ -48,9 +48,10 @@ export function validateProgressMinutes(minutes: number): Error | null {
  */
 export function toVaultInsert(
   payload: CreateVaultItemPayload,
-  options?: { includeExtendedFields?: boolean },
+  options?: { includeExtendedFields?: boolean; includeMetadataFields?: boolean },
 ): VaultInsert {
   const includeExtended = options?.includeExtendedFields ?? true;
+  const includeMetadata = options?.includeMetadataFields ?? true;
   const insert: VaultInsert = {
     user_id: payload.userId,
     tmdb_id: payload.tmdbId,
@@ -114,6 +115,17 @@ export function toVaultInsert(
   }
   if (payload.genres !== undefined) {
     (insert as Record<string, unknown>).genres = payload.genres;
+  }
+
+  if (!includeMetadata) {
+    delete (insert as Record<string, unknown>).title;
+    delete (insert as Record<string, unknown>).name;
+    delete (insert as Record<string, unknown>).poster_path;
+    delete (insert as Record<string, unknown>).backdrop_path;
+    delete (insert as Record<string, unknown>).release_date;
+    delete (insert as Record<string, unknown>).first_air_date;
+    delete (insert as Record<string, unknown>).tmdb_vote_average;
+    delete (insert as Record<string, unknown>).genres;
   }
 
   return insert;

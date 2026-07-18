@@ -1,4 +1,4 @@
-import { ParentComponent, lazy, Suspense, Show } from "solid-js";
+import { ParentComponent, lazy, Suspense, Show, createMemo } from "solid-js";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
@@ -14,6 +14,9 @@ const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
   const { collectionSelectedItem } = useCollectionModal();
   const { authModalOpen, closeAuthModal } = useAuthModal();
+  const backgroundIsBlocked = createMemo(
+    () => Boolean(selectedItem() || collectionSelectedItem() || authModalOpen()),
+  );
 
   return (
     <div
@@ -24,13 +27,17 @@ const AppShell: ParentComponent = (props) => {
         color: "var(--text)",
       }}
     >
-      <AppHeader />
+      <div
+        inert={backgroundIsBlocked()}
+      >
+        <AppHeader />
 
-      {props.children}
+        {props.children}
+
+        <BottomNavigation />
+      </div>
 
       <ToastContainer />
-
-      <BottomNavigation />
 
       {/* Auth modal — opened from any page when a guest tries to sign in */}
       <AuthModal show={authModalOpen} onClose={closeAuthModal} />

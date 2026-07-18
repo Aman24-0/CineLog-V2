@@ -169,10 +169,11 @@ export default function DetailsModal() {
             <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
           </div>
 
-          <div
-            class="w-full max-w-xl lg:max-w-[800px] relative z-10"
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div
+          class="cinematic-modal-content w-full max-w-2xl lg:max-w-[1120px] xl:max-w-[1240px] relative z-10"
+          tabindex={-1}
+          onClick={(e) => e.stopPropagation()}
+        >
             {/* Close button — rendered at the modal-container level (NOT inside
                 the hero) so it stays fixed when the user scrolls. Previously
                 the close button was inside .cinematic-hero which has
@@ -302,4 +303,3 @@ export default function DetailsModal() {
     </Show>
   );
 }
-
