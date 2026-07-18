@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultCard.tsx
-import { Show } from "solid-js";
+import { Show, startTransition } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
@@ -46,11 +46,13 @@ export default function VaultCard(props: VaultCardProps) {
   return (
     <div
       class="relative flex items-center group cursor-pointer pl-12 pr-3 animate-timeline-in"
-      onClick={() => props.onOpenMovie(props.item.id)}
+      onClick={() => {
+        startTransition(() => props.onOpenMovie(props.item.id));
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          props.onOpenMovie(props.item.id);
+          startTransition(() => props.onOpenMovie(props.item.id));
         }
       }}
       role="article"

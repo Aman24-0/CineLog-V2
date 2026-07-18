@@ -1,5 +1,5 @@
 // src/shared/ui/MovieCard.tsx
-import { createSignal, Show, Component } from "solid-js";
+import { createMemo, createSignal, Show, Component, startTransition } from "solid-js";
 import Icon from "./Icon";
 import HighlightText from "./HighlightText";
 import MovieCardRatings from "./MovieCardRatings";
@@ -102,11 +102,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const favColId = () => favoritesCollection()?.id ?? null;
 
-  const isFavourite = () => {
+  const isFavourite = createMemo(() => {
     const id = favColId();
     if (!id) return false;
     return collections.isInCollection(id, String(props.movie.id), props.movie.media_type);
-  };
+  });
 
   const toggleFavourite = (e: MouseEvent) => {
     e.stopPropagation();
@@ -155,11 +155,13 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   return (
     <div
-      onClick={() => props.onClick()}
+      onClick={() => {
+        startTransition(() => props.onClick());
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          props.onClick();
+          startTransition(() => props.onClick());
         }
       }}
       class={cardClass()}
