@@ -1,33 +1,27 @@
 // src/features/details/ShareSheet.tsx
 //
-// ShareSheet — bottom-sheet modal that lets the user share the current
-// title. Renders:
+// ShareSheet — a compact centered dialog for sharing the current title.
 //
-//   1. A live preview of the share card (the green card design)
-//   2. Three action buttons:
-//        - Share Image  (primary) — generates a PNG via html-to-image's
-//          toBlob(), then uses the Web Share API to share it as a file
-//          (falls back to downloadBlob on desktop browsers, which uses
-//          an object URL instead of a data URL — mobile Chrome blocks
-//          data-URL downloads above ~2MB).
-//        - Copy Link    — copies the deep link URL to the clipboard
-//        - Share Text   — uses the Web Share API with text + URL AND
-//          attaches the poster PNG as a file (when supported). This
-//          means recipients in WhatsApp / Telegram see the green card
-//          image inline, even if their chat app doesn't render link
-//          previews.
+// DESIGN
+// ------
+// A small "mini box" dialog with just two actions:
+//   • Copy Link     — copies the deep-link URL to the clipboard
+//   • Share via App — opens the native Web Share sheet with the
+//                     formatted text + URL (WhatsApp, Telegram, SMS,
+//                     email, etc.)
 //
-// The sheet is rendered via Portal so it sits above everything else.
-// It owns its own state (busy flags, error/success messages).
+// The old "Share Image" feature was removed because html-to-image's
+// toBlob() was unreliable on mobile browsers (CORS issues with TMDB
+// poster images, font-loading failures, blank captures). The two
+// remaining options cover 100% of real-world sharing needs:
+//   - Copy Link works in every browser and every chat app
+//   - Share via App opens the native share sheet which renders a rich
+//     link preview (poster + title) thanks to the server-rendered
+//     OG tags on the /movie/{id} and /tv/{id} routes
 //
-// The parent passes:
-//   - show: Accessor<boolean>     — whether the sheet is open
-//   - onClose: () => void         — closes the sheet
-//   - details: TMDBDetails | null — the rich details payload
-//   - mediaType: "movie" | "tv"
-//   - tmdbId: string | number
-//
-// The deep-link URL is computed inside the sheet via buildShareUrl().
+// The dialog is rendered via Portal so it sits above everything else.
+// It's a small centered box (not a bottom sheet) — quick to interact
+// with and dismiss.
 
 import {
   Show,
@@ -35,37 +29,20 @@ import {
   onMount,
   onCleanup,
   createMemo,
-  createEffect,
   type Accessor,
   type Component,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import ShareCardPreview from "~/features/details/ShareCardPreview";
 import {
   buildShareUrl,
   buildShareText,
   buildShareTextBody,
   canWebShare,
-  canShareFiles,
-  downloadBlob,
   copyToClipboard,
-  sanitizeFilename,
   resolveTitle,
 } from "~/shared/utils/share";
 import { useToast } from "~/shared/hooks/useToast";
 import type { TMDBDetails } from "~/shared/types";
-
-// Dynamically import html-to-image so it's only loaded when the user
-// actually opens the share sheet (code-splitting — keeps the main
-// bundle small).
-type HtmlToImageModule = typeof import("html-to-image");
-let htmlToImagePromise: Promise<HtmlToImageModule> | null = null;
-function loadHtmlToImage(): Promise<HtmlToImageModule> {
-  if (!htmlToImagePromise) {
-    htmlToImagePromise = import("html-to-image");
-  }
-  return htmlToImagePromise;
-}
 
 export interface ShareSheetProps {
   show: Accessor<boolean>;
@@ -79,38 +56,25 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
   const { showToast } = useToast();
 
   // State
-  const [isGenerating, setIsGenerating] = createSignal(false);
-  const [isSharing, setIsSharing] = createSignal(false);
   const [isCopyingLink, setIsCopyingLink] = createSignal(false);
-  const [isCopyingText, setIsCopyingText] = createSignal(false);
-  const [isSharingText, setIsSharingText] = createSignal(false);
+  const [isSharing, setIsSharing] = createSignal(false);
   const [message, setMessage] = createSignal<{ kind: "success" | "error" | "info"; text: string } | null>(null);
-
-  // Refs
-  let offscreenCardRef: HTMLDivElement | undefined;
-  let backdropRef: HTMLDivElement | undefined;
 
   // Derived values
   const shareUrl = createMemo(() =>
     buildShareUrl(props.mediaType(), props.tmdbId()),
   );
   // For navigator.share({ text }) — does NOT include the URL because
-  // we pass `url` separately, otherwise WhatsApp renders it twice.
+  // we pass `url` separately, otherwise the chat app renders it twice.
   const shareTextBody = createMemo(() =>
     buildShareTextBody(props.details(), props.mediaType()),
   );
-  // For clipboard copy — DOES include the URL because the clipboard
-  // has no separate URL field.
+  // For clipboard copy — DOES include the URL.
   const shareTextFull = createMemo(() =>
     buildShareText(props.details(), props.mediaType(), props.tmdbId()),
   );
-  const fileName = createMemo(() => {
-    const title = sanitizeFilename(resolveTitle(props.details()));
-    return `${title || "title"} — CineLog.png`;
-  });
 
   const webShareAvailable = () => canWebShare();
-  const fileShareAvailable = () => canShareFiles();
 
   // ── ESC to close ─────────────────────────────────────────────────
   onMount(() => {
@@ -123,165 +87,9 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     onCleanup(() => window.removeEventListener("keydown", handleEsc));
   });
 
-  // Clear message whenever the sheet closes
   const handleClose = () => {
     setMessage(null);
     props.onClose();
-  };
-
-  // ── Pre-warm the html-to-image module on sheet open ──────────────
-  // This shaves ~100ms off the first "Share Image" tap by starting the
-  // dynamic import as soon as the sheet is visible (instead of waiting
-  // for the user to tap the button). Uses createEffect so the reactive
-  // dependency on `props.show()` is tracked properly.
-  createEffect(() => {
-    if (props.show()) {
-      void loadHtmlToImage();
-    }
-  });
-
-  // ── Generate PNG Blob from the offscreen card ────────────────────
-  /**
-   * Convert the offscreen ShareCardPreview element to a PNG Blob.
-   *
-   * WHY BLOB (not data URL):
-   *   The first iteration used `toPng()` which returns a data URL.
-   *   Mobile Chrome silently blocks data-URL downloads above ~2MB, so
-   *   the "Image downloaded!" toast fired but Chrome's notification
-   *   showed "Failed - Download error" (see screenshot D).
-   *
-   *   `toBlob()` returns a Blob, which we then download via an object
-   *   URL (`URL.createObjectURL(blob)`). Object URLs have no size
-   *   limit, so the download always succeeds on mobile Chrome.
-   *
-   *   The Blob is also directly usable as a File for the Web Share
-   *   API — no need for a separate dataUrlToFile conversion.
-   *
-   * OFFSCREEN ELEMENT:
-   *   We use the offscreen card (not the visible preview) because the
-   *   visible one may be CSS-scaled on mobile, which would produce a
-   *   low-res PNG. The offscreen element is rendered at exactly 500px
-   *   wide so the PNG is always 500x(N) pixels at 2x pixel ratio.
-   *
-   * CORS:
-   *   TMDB poster images are loaded as <img crossorigin="anonymous">
-   *   tags (NOT CSS background-images). This is critical: html-to-image
-   *   can clone <img> tags directly from the browser's already-loaded
-   *   image cache. Background-images require the library to re-fetch
-   *   and inline them as data URLs, which fails on some CORS configs.
-   *
-   * SILENT MODE:
-   *   Pass `silent: true` to suppress the error message — used by
-   *   handleShareText which should fall through to text-only share
-   *   without showing an error when image generation fails.
-   */
-  const generatePngBlob = async (opts: { silent?: boolean } = {}): Promise<Blob | null> => {
-    if (!offscreenCardRef) {
-      if (!opts.silent) {
-        setMessage({ kind: "error", text: "Share card not ready. Please try again." });
-      }
-      return null;
-    }
-    try {
-      const { toBlob } = await loadHtmlToImage();
-
-      // Pre-load the poster image before snapshotting. Even though we
-      // use an <img> tag (which the browser loads with CORS), we still
-      // explicitly wait for it to decode so html-to-image doesn't
-      // capture a blank poster frame during the initial paint.
-      const posterUrl = props.details()?.poster_path
-        ? `https://image.tmdb.org/t/p/w500${props.details()!.poster_path}`
-        : null;
-      if (posterUrl) {
-        try {
-          await preloadImage(posterUrl);
-        } catch {
-          // Non-fatal — html-to-image will still try to use the <img>.
-        }
-      }
-
-      // Wait one more animation frame so the offscreen <img> has
-      // definitely painted into the DOM before we snapshot it.
-      await nextFrame();
-
-      const blob = await toBlob(offscreenCardRef, {
-        cacheBust: true,
-        pixelRatio: 2, // 2x for retina-quality PNG
-        backgroundColor: "#053d29",
-        // Skip fonts auto-detection — Material Symbols and Google Fonts
-        // are already loaded by the app. Letting html-to-image try to
-        // re-fetch them can cause CORS failures that reject toBlob.
-        skipFonts: true,
-      });
-      if (!blob) {
-        throw new Error("toBlob returned null");
-      }
-      return blob;
-    } catch (err) {
-      console.error("[ShareSheet] PNG generation failed:", err);
-      if (!opts.silent) {
-        setMessage({
-          kind: "error",
-          text: "Couldn't generate the share image. Try the Copy Link option instead.",
-        });
-      }
-      return null;
-    }
-  };
-
-  // ── Share Image button ───────────────────────────────────────────
-  const handleShareImage = async () => {
-    if (isGenerating() || isSharing()) return;
-    setMessage(null);
-    setIsGenerating(true);
-    try {
-      const blob = await generatePngBlob();
-      if (!blob) {
-        setIsGenerating(false);
-        return;
-      }
-
-      // If the browser supports file sharing, share the PNG + URL text.
-      // Otherwise, download the PNG to the user's device via object URL.
-      if (webShareAvailable() && fileShareAvailable()) {
-        try {
-          const file = new File([blob], fileName(), { type: "image/png" });
-          if (navigator.canShare!({ files: [file] })) {
-            setIsSharing(true);
-            await navigator.share({
-              files: [file],
-              text: shareTextFull(),
-              title: resolveTitle(props.details()),
-            });
-            showToast("Shared!", "success", 1500);
-            handleClose();
-            return;
-          }
-        } catch (err) {
-          // If the share is cancelled or fails, fall through to download.
-          if ((err as DOMException)?.name !== "AbortError") {
-            console.warn("[ShareSheet] Web Share failed, falling back to download:", err);
-          } else {
-            // User cancelled — don't fall through to download.
-            setIsGenerating(false);
-            setIsSharing(false);
-            return;
-          }
-        }
-      }
-
-      // Fallback: download the PNG via object URL (NOT data URL —
-      // mobile Chrome blocks data URLs above ~2MB).
-      downloadBlob(blob, fileName());
-      setMessage({
-        kind: "success",
-        text: "Image saved to your device. Attach it to your chat or post.",
-      });
-      showToast("Image saved", "success", 1500);
-    } finally {
-      setIsGenerating(false);
-      setIsSharing(false);
-    }
   };
 
   // ── Copy Link button ─────────────────────────────────────────────
@@ -297,7 +105,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       } else {
         setMessage({
           kind: "error",
-          text: "Couldn't copy automatically. Long-press the link below to copy.",
+          text: "Couldn't copy automatically. Long-press the link to copy.",
         });
       }
     } finally {
@@ -305,77 +113,24 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     }
   };
 
-  // ── Share Text button (with poster image attached) ───────────────
+  // ── Share via App button ─────────────────────────────────────────
   /**
-   * This is the key fix for Issue 3: "Share Text should show poster of
-   * the title if possible".
+   * Opens the native Web Share sheet (WhatsApp, Telegram, SMS, email,
+   * etc.) with the formatted text + URL. The chat app will render a
+   * rich link preview (poster + title) thanks to the server-rendered
+   * OG tags on the /movie/{id} and /tv/{id} routes.
    *
-   * Strategy:
-   *   1. Generate the PNG blob (same as Share Image, but SILENT —
-   *      if it fails, we don't show an error, we just fall through)
-   *   2. If the browser supports file sharing AND we have a blob,
-   *      attach the PNG as a File alongside the text + URL. Recipients
-   *      in WhatsApp / Telegram will see the green card image inline.
-   *   3. If file sharing is NOT supported OR blob generation failed,
-   *      fall back to text-only share (the URL alone will trigger
-   *      WhatsApp's link preview — which now works because we fixed
-   *      the OG tags).
-   *   4. If Web Share API is unavailable entirely, copy the text to
-   *      the clipboard.
-   *
-   * CRITICAL (Issue 2 fix): When the image generation fails in step 1,
-   * we MUST NOT show an error message — the user tapped "Share Text",
-   * not "Share Image". The text share itself succeeds, so showing an
-   * error would be confusing. We use `silent: true` in generatePngBlob
-   * and explicitly clear any stale error message before each path.
+   * Falls back to copying the full share text (with URL) to the
+   * clipboard if the Web Share API is unavailable (desktop browsers
+   * without Web Share support).
    */
-  const handleShareText = async () => {
-    if (isSharingText() || isCopyingText()) return;
+  const handleShareViaApp = async () => {
+    if (isSharing()) return;
     setMessage(null);
 
-    // ── Path A: Web Share API with file (best — image + text) ────
-    if (webShareAvailable() && fileShareAvailable()) {
-      setIsSharingText(true);
-      try {
-        // Generate the PNG SILENTLY — if it fails, we fall through to
-        // text-only share without showing an error.
-        const blob = await generatePngBlob({ silent: true });
-        if (blob) {
-          const file = new File([blob], fileName(), { type: "image/png" });
-          if (navigator.canShare!({ files: [file] })) {
-            // Clear any stale error from a previous Share Image attempt
-            setMessage(null);
-            await navigator.share({
-              files: [file],
-              text: shareTextBody(),
-              title: resolveTitle(props.details()),
-              url: shareUrl(),
-            });
-            showToast("Shared!", "success", 1500);
-            handleClose();
-            return;
-          }
-        }
-        // If file share isn't actually supported (canShare returned
-        // false) OR blob generation failed silently, fall through to
-        // text-only share.
-      } catch (err) {
-        if ((err as DOMException)?.name === "AbortError") {
-          // User cancelled — silently ignore, don't fall through.
-          setIsSharingText(false);
-          return;
-        }
-        console.warn("[ShareSheet] File share failed, trying text-only:", err);
-        // Fall through to text-only share.
-      }
-    }
-
-    // ── Path B: Web Share API text-only (still gets OG preview) ──
-    // Clear any stale error message from the silent blob generation
-    // attempt above before proceeding to the text-only share.
-    setMessage(null);
+    // Path A: Web Share API (mobile browsers + Edge/Safari desktop)
     if (webShareAvailable()) {
-      setIsSharingText(true);
+      setIsSharing(true);
       try {
         await navigator.share({
           title: resolveTitle(props.details()),
@@ -387,7 +142,8 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
         return;
       } catch (err) {
         if ((err as DOMException)?.name === "AbortError") {
-          setIsSharingText(false);
+          // User cancelled — silently ignore.
+          setIsSharing(false);
           return;
         }
         console.warn("[ShareSheet] Web Share failed, falling back to copy:", err);
@@ -395,9 +151,8 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       }
     }
 
-    // ── Path C: Fallback — copy text to clipboard ────────────────
-    setMessage(null);
-    setIsCopyingText(true);
+    // Path B: Fallback — copy full share text to clipboard
+    setIsSharing(true);
     try {
       const ok = await copyToClipboard(shareTextFull());
       if (ok) {
@@ -406,12 +161,11 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       } else {
         setMessage({
           kind: "error",
-          text: "Couldn't copy automatically. Your browser may not support sharing.",
+          text: "Couldn't share or copy. Your browser may not support sharing.",
         });
       }
     } finally {
-      setIsCopyingText(false);
-      setIsSharingText(false);
+      setIsSharing(false);
     }
   };
 
@@ -419,7 +173,6 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     <Show when={props.show()}>
       <Portal>
         <div
-          ref={backdropRef}
           class="share-sheet-backdrop"
           onClick={handleClose}
           role="dialog"
@@ -427,87 +180,64 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           aria-label="Share this title"
         >
           <div
-            class="share-sheet"
+            class="share-mini-box"
             onClick={(e) => e.stopPropagation()}
           >
-            <div class="share-sheet-handle" aria-hidden="true" />
-            <h2 class="share-sheet-title">Share</h2>
-            <p class="share-sheet-subtitle">
-              Send this {props.mediaType() === "tv" ? "series" : "movie"} to a friend
-            </p>
-
-            {/* Live preview of the share card */}
-            <Show
-              when={props.details()}
-              fallback={
-                <div
-                  style={{
-                    padding: "2rem",
-                    "text-align": "center",
-                    color: "var(--text-muted)",
-                    "font-size": "0.875rem",
-                  }}
-                >
-                  Loading share card…
-                </div>
-              }
+            {/* Close button (X) — top-right corner */}
+            <button
+              type="button"
+              class="share-mini-close"
+              onClick={handleClose}
+              aria-label="Close share dialog"
             >
-              <div class="share-card-preview-wrap">
-                <ShareCardPreview
-                  details={props.details}
-                  mediaType={props.mediaType}
-                  tmdbId={props.tmdbId}
-                  shareUrl={shareUrl}
-                />
-              </div>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                close
+              </span>
+            </button>
 
-              {/* Offscreen 1:1 card for PNG capture */}
-              <div ref={offscreenCardRef} aria-hidden="true">
-                <ShareCardPreview
-                  details={props.details}
-                  mediaType={props.mediaType}
-                  tmdbId={props.tmdbId}
-                  shareUrl={shareUrl}
-                  forCapture
-                />
-              </div>
-            </Show>
+            {/* Header */}
+            <div class="share-mini-header">
+              <span class="material-symbols-outlined share-mini-icon" aria-hidden="true">
+                share
+              </span>
+              <h2 class="share-mini-title">Share</h2>
+              <p class="share-mini-subtitle">
+                {props.details()?.title || props.details()?.name || "this title"}
+              </p>
+            </div>
 
-            {/* Action buttons */}
-            <div class="share-actions">
+            {/* Action buttons — two side by side */}
+            <div class="share-mini-actions">
               <button
                 type="button"
-                class="share-action-btn share-action-btn-primary"
-                onClick={handleShareImage}
-                disabled={isGenerating() || isSharing() || !props.details()}
-                aria-label="Share as image"
+                class="share-mini-btn share-mini-btn-primary"
+                onClick={handleShareViaApp}
+                disabled={isSharing() || !props.details()}
+                aria-label="Share via app"
               >
                 <Show
-                  when={!isGenerating() && !isSharing()}
+                  when={!isSharing()}
                   fallback={
                     <span
-                      class="material-symbols-outlined share-action-btn-icon animate-soft-pulse"
+                      class="material-symbols-outlined animate-soft-pulse"
                       aria-hidden="true"
                     >
                       progress_activity
                     </span>
                   }
                 >
-                  <span class="material-symbols-outlined share-action-btn-icon" aria-hidden="true">
-                    image
+                  <span class="material-symbols-outlined" aria-hidden="true">
+                    {webShareAvailable() ? "share" : "content_copy"}
                   </span>
                 </Show>
-                <span class="share-action-btn-label">
-                  {isGenerating() ? "Generating…" : isSharing() ? "Sharing…" : "Share Image"}
-                </span>
-                <span class="share-action-btn-sub">
-                  {fileShareAvailable() ? "via WhatsApp / SMS" : "save PNG"}
+                <span class="share-mini-btn-label">
+                  {isSharing() ? "Sharing…" : webShareAvailable() ? "Share via App" : "Copy Text"}
                 </span>
               </button>
 
               <button
                 type="button"
-                class="share-action-btn"
+                class="share-mini-btn"
                 onClick={handleCopyLink}
                 disabled={isCopyingLink() || !props.details()}
                 aria-label="Copy link to clipboard"
@@ -515,50 +245,16 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
                 <Show
                   when={!isCopyingLink()}
                   fallback={
-                    <span
-                      class="material-symbols-outlined share-action-btn-icon"
-                      aria-hidden="true"
-                    >
+                    <span class="material-symbols-outlined" aria-hidden="true">
                       check
                     </span>
                   }
                 >
-                  <span class="material-symbols-outlined share-action-btn-icon" aria-hidden="true">
+                  <span class="material-symbols-outlined" aria-hidden="true">
                     link
                   </span>
                 </Show>
-                <span class="share-action-btn-label">Copy Link</span>
-                <span class="share-action-btn-sub">share anywhere</span>
-              </button>
-
-              <button
-                type="button"
-                class="share-action-btn"
-                onClick={handleShareText}
-                disabled={isSharingText() || isCopyingText() || !props.details()}
-                aria-label="Share text and poster"
-              >
-                <Show
-                  when={!isSharingText() && !isCopyingText()}
-                  fallback={
-                    <span
-                      class="material-symbols-outlined share-action-btn-icon animate-soft-pulse"
-                      aria-hidden="true"
-                    >
-                      progress_activity
-                    </span>
-                  }
-                >
-                  <span class="material-symbols-outlined share-action-btn-icon" aria-hidden="true">
-                    {webShareAvailable() ? "share" : "content_copy"}
-                  </span>
-                </Show>
-                <span class="share-action-btn-label">
-                  {isSharingText() ? "Sharing…" : webShareAvailable() ? "Share Text" : "Copy Text"}
-                </span>
-                <span class="share-action-btn-sub">
-                  {fileShareAvailable() ? "with poster" : "with details"}
-                </span>
+                <span class="share-mini-btn-label">Copy Link</span>
               </button>
             </div>
 
@@ -570,62 +266,11 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
                 </div>
               )}
             </Show>
-
-            {/* Close button */}
-            <button
-              type="button"
-              class="share-sheet-close"
-              onClick={handleClose}
-            >
-              Close
-            </button>
           </div>
         </div>
       </Portal>
     </Show>
   );
 };
-
-/**
- * Preload an image by creating a temporary <img> element and waiting
- * for it to decode. Used by `generatePngBlob` to ensure the poster
- * is fully loaded before html-to-image captures the card.
- *
- * Returns a promise that resolves when the image is decoded, or
- * rejects on error (caller should swallow the rejection — it's
- * non-fatal because html-to-image has its own image-loading logic).
- */
-function preloadImage(src: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    img.referrerPolicy = "no-referrer";
-    img.onload = () => {
-      // Use decode() if available for better error handling.
-      if (typeof img.decode === "function") {
-        img.decode().then(() => resolve()).catch(reject);
-      } else {
-        resolve();
-      }
-    };
-    img.onerror = reject;
-    img.src = src;
-  });
-}
-
-/**
- * Wait for the next animation frame. Used by `generatePngBlob` to
- * ensure the offscreen card has definitely painted into the DOM
- * before html-to-image captures it.
- */
-function nextFrame(): Promise<void> {
-  return new Promise((resolve) => {
-    if (typeof requestAnimationFrame === "function") {
-      requestAnimationFrame(() => resolve());
-    } else {
-      setTimeout(resolve, 16);
-    }
-  });
-}
 
 export default ShareSheet;

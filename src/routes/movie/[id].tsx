@@ -12,10 +12,9 @@
 //      critical for chat-app scrapers that don't run JS).
 //   3. Constructs a WatchlistItem "baseItem" (TMDB identity only — no
 //      user-owned state)
-//   4. Calls openTitle(baseItem, watchlist) so the DetailsModal opens
-//      — BUT only after the vault has finished loading, so logged-in
-//      users see their watchlist state (status, rating, etc.) instead
-//      of the guest "Add to Vault" state.
+//   4. Calls setSelectedItem() DIRECTLY (NOT openTitle) so the modal
+//      opens WITHOUT pushing a browser history entry. This is critical
+//      for the close behavior — see "MODAL CLOSE BUG" below.
 //   5. Auth state decides what the modal renders:
 //        - Logged in  → vaultItem is matched (status tabs, activity)
 //        - Not logged → vaultItem is null (only + and Trailer)
@@ -23,6 +22,26 @@
 //   6. When the modal closes, navigate to the Watchlist (logged-in)
 //      or Discover (guest) page so the user doesn't see the "Opening
 //      movie details..." loading state forever.
+//
+// MODAL CLOSE BUG (Issue 2 from user feedback)
+// --------------------------------------------
+// Previously, the route called openTitle() which:
+//   a) pushes a history entry via window.history.pushState()
+//   b) sets historyEntryOurs = true
+//
+// When the user closed the modal, closeTitle() saw historyEntryOurs
+// was true and called window.history.back(). Meanwhile, our
+// close-navigate effect called navigate('/watchlist', { replace: true }).
+// The popstate from history.back() fired AFTER the navigate(), causing
+// the router to bounce back to /movie/{id}, which remounted the route,
+// which re-ran onMount, which re-opened the modal. The symptom was
+// "fade for 1 sec then reopen."
+//
+// Fix: Call setSelectedItem() directly instead of openTitle(). This
+// sets historyEntryOurs = false (it's never set to true), so
+// closeTitle() does NOT call history.back(). The only navigation
+// that happens is our explicit navigate('/watchlist'), which is clean
+// and race-free.
 //
 // SEO / OG TAGS — CRITICAL FOR CHAT-APP LINK PREVIEWS
 // ----------------------------------------------------
@@ -32,11 +51,11 @@
 // scrapers see the per-movie title, description, and poster image
 // when they fetch the URL — NO JavaScript execution required.
 
-import { lazy, createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
-import { openTitle, useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
+import { useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -44,7 +63,8 @@ import { getBaseUrl } from "~/shared/utils/share";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { WatchlistItem } from "~/shared/types";
 
-const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
+// DetailsModal is rendered by AppShell (not by this route) to avoid
+// double-mounting. We don't import it here.
 
 /**
  * Build a minimal WatchlistItem baseItem from a TMDBTitle metadata
@@ -100,39 +120,33 @@ export default function MovieDeepLinkRoute() {
   //
   // 1. TMDB metadata has resolved (meta() !== null)
   // 2. The vault has finished loading (vaultLoading() === false)
+  // 3. Auth is ready (authReady() === true)
   //
-  // Previously we called openTitle() as soon as meta() resolved, which
-  // meant the watchlist() was still empty (still loading from Supabase).
-  // findInVault returned null, so vaultItem was null, and logged-in
-  // users saw the guest "Add to Vault" state instead of their actual
-  // watchlist state (status tabs, activity panel, etc.).
-  //
-  // By waiting for vaultLoading() to be false, we ensure watchlist()
-  // is fully populated before we try to match the title against it.
-  //
-  // For guests (not signed in), vaultLoading becomes false immediately
-  // (the provider clears the library and sets loading=false), so there
-  // is no extra delay for guests.
+  // We call setSelectedItem() DIRECTLY instead of openTitle() to avoid
+  // pushing a browser history entry. See "MODAL CLOSE BUG" in the file
+  // header for the full rationale.
   let opened = false;
   onMount(() => {
     const tryOpen = () => {
       const m = meta();
-      // Wait for BOTH meta and vault to be ready.
       if (m && !opened && !vaultLoading() && authReady()) {
         opened = true;
         const baseItem = buildBaseItem(m);
-        openTitle(baseItem, watchlist());
+        // Find the title in the user's vault (if logged in). For guests,
+        // watchlist() is empty so vaultItem will be null.
+        const vaultItem = findInVault(watchlist(), baseItem);
+        // Set the modal state DIRECTLY — do NOT call openTitle() because
+        // openTitle pushes a history entry that conflicts with our
+        // close-navigate logic (causes the modal to reopen after close).
+        setSelectedItem({
+          baseItem: vaultItem ?? baseItem,
+          vaultItem,
+        });
       }
     };
 
-    // Check immediately (in case both are already resolved).
     tryOpen();
 
-    // If not ready yet, poll every 100ms (max 10s) until both resolve.
-    // We use polling instead of createEffect because we only want to
-    // open ONCE — createEffect would re-fire when watchlist() changes
-    // later (e.g., when the user adds/removes items), which would
-    // re-open the modal or re-trigger findInVault unexpectedly.
     if (!opened) {
       const interval = setInterval(() => {
         tryOpen();
@@ -149,31 +163,19 @@ export default function MovieDeepLinkRoute() {
 
   // ── Re-update the modal's vaultItem when the vault loads later ────
   //
-  // Even with the polling above, there's a case where the vault loads
-  // AFTER the modal is already open:
-  //   - meta() resolves fast (cached TMDB data)
-  //   - vaultLoading() is false (provider initialized)
-  //   - BUT the vault is actually empty because the user just signed in
-  //     and the fetch is still in-flight
-  //
-  // To handle this, we watch the watchlist() signal. If the modal is
-  // open and the title appears in the vault later, we update the
-  // modal's vaultItem so the UI switches from "Add to Vault" to the
-  // status tabs / activity panel.
+  // Handles the edge case where the vault loads AFTER the modal is
+  // already open (e.g., the user just signed in and the fetch is still
+  // in-flight when the modal opens). When the vault arrives, we update
+  // the modal's vaultItem so the UI switches from "Add to Vault" to
+  // the status tabs / activity panel.
   createEffect(() => {
     const m = meta();
     const current = selectedItem();
-    // Only re-update if:
-    //   - We have TMDB metadata
-    //   - The modal is currently open
-    //   - The modal's baseItem matches this route's title
-    //   - The user is signed in (guests have no vaultItem)
     if (!m || !current) return;
     if (current.baseItem.id !== String(m.id)) return;
     if (!isSignedIn()) return;
 
     const vaultItem = findInVault(watchlist(), current.baseItem);
-    // Only update if the vaultItem changed — avoids infinite loops.
     if (vaultItem?.id !== current.vaultItem?.id) {
       setSelectedItem({
         baseItem: vaultItem ?? current.baseItem,
@@ -191,11 +193,16 @@ export default function MovieDeepLinkRoute() {
   //   - /discover if the user is a guest
   //
   // We watch selectedItem() — when it becomes null (modal closed) and
-  // we had previously opened it, we navigate.
+  // we had previously opened it, we navigate. Using replace: true so
+  // the deep-link URL is replaced in the history stack (Back button
+  // doesn't return to the loading screen).
+  //
+  // This is now race-free because we call setSelectedItem() directly
+  // (not openTitle), so closeTitle() does NOT call history.back().
+  // The only navigation that happens is this explicit navigate() call.
   createEffect(() => {
     const current = selectedItem();
     if (opened && !current && authReady()) {
-      // Modal was open and is now closed — navigate away.
       navigate(isGuest() ? "/discover" : "/watchlist", { replace: true });
     }
   });
@@ -287,11 +294,8 @@ export default function MovieDeepLinkRoute() {
       </div>
 
       {/* The DetailsModal is rendered at the AppShell level when
-          selectedItem() is set. We also render it here as a safety
-          net for direct deep-link navigation. */}
-      <Show when={selectedItem()}>
-        <DetailsModal />
-      </Show>
+          selectedItem() is set. We don't render it here to avoid
+          double-mounting (AppShell already has a Show for it). */}
     </>
   );
 }

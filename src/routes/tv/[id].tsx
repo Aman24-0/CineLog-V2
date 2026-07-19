@@ -10,13 +10,14 @@
 //
 // See /movie/[id].tsx for the full architecture comment, including
 // the critical `deferStream: true` for SSR-friendly OG tags, the
-// vault-loading wait, and the close-to-navigate behavior.
+// setSelectedItem-directly pattern (avoids the modal reopen bug),
+// and the close-to-navigate behavior.
 
-import { lazy, createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
-import { openTitle, useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
+import { useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -24,7 +25,8 @@ import { getBaseUrl } from "~/shared/utils/share";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import type { WatchlistItem } from "~/shared/types";
 
-const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
+// DetailsModal is rendered by AppShell (not by this route) to avoid
+// double-mounting. We don't import it here.
 
 function buildBaseItem(meta: {
   id: number;
@@ -72,10 +74,8 @@ export default function TvDeepLinkRoute() {
 
   // ── Open the modal once BOTH conditions are met ──────────────────
   //
-  // 1. TMDB metadata has resolved (meta() !== null)
-  // 2. The vault has finished loading (vaultLoading() === false)
-  //
-  // See /movie/[id].tsx for the full rationale.
+  // We call setSelectedItem() DIRECTLY (not openTitle) to avoid the
+  // modal-reopen bug. See /movie/[id].tsx for the full rationale.
   let opened = false;
   onMount(() => {
     const tryOpen = () => {
@@ -83,7 +83,11 @@ export default function TvDeepLinkRoute() {
       if (m && !opened && !vaultLoading() && authReady()) {
         opened = true;
         const baseItem = buildBaseItem(m);
-        openTitle(baseItem, watchlist());
+        const vaultItem = findInVault(watchlist(), baseItem);
+        setSelectedItem({
+          baseItem: vaultItem ?? baseItem,
+          vaultItem,
+        });
       }
     };
 
@@ -210,10 +214,6 @@ export default function TvDeepLinkRoute() {
           </Show>
         </Show>
       </div>
-
-      <Show when={selectedItem()}>
-        <DetailsModal />
-      </Show>
     </>
   );
 }
