@@ -463,17 +463,23 @@
 .vault-shelf-rail::-webkit-scrollbar { display: none; }
 .vault-shelf-rail { scrollbar-width: none; -ms-overflow-style: none; }
 
-/* Vault shelf expanded — full grid (when user taps "See All") */
+/* Vault shelf expanded — full grid (when user taps "See All")
+   Uses auto-fill with minmax so cards never exceed ~110px on mobile,
+   matching the discover page's .search-rail-card width. As the viewport
+   grows, more columns are added automatically. */
 .vault-shelf-grid {
   display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
   gap: var(--sp-3);
 }
+@media (min-width: 375px) {
+  .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); }
+}
 @media (min-width: 640px) {
-  .vault-shelf-grid { grid-template-columns: repeat(4, 1fr); }
+  .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); }
 }
 @media (min-width: 1024px) {
-  .vault-shelf-grid { grid-template-columns: repeat(6, 1fr); }
+  .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 
 /* Quick-filter tabs — inline status pills */
@@ -603,13 +609,14 @@
   outline-offset: 2px;
 }
 
-/* Vault shelf card variant — slightly larger than compact for shelf display */
+/* Vault shelf card variant — matches discover page .search-rail-card width
+   for consistent card sizing across the app on mobile. */
 .vault-shelf-card {
-  width: 120px;
+  width: 110px;
   flex-shrink: 0;
 }
 @media (min-width: 640px) {
-  .vault-shelf-card { width: 140px; }
+  .vault-shelf-card { width: 130px; }
 }
 
 
