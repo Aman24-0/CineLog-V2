@@ -22,8 +22,7 @@
  * It only loads and exposes the user's vault.
  */
 
-import { createContext, useContext, createSignal, createMemo, createEffect, onMount, onCleanup, ParentComponent } from "solid-js";
-import { onSessionChange } from "~/lib/supabase/session";
+import { createContext, useContext, createSignal, createMemo, createEffect, ParentComponent } from "solid-js";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
 import { useAuth } from "~/shared/hooks/useAuth";
 import type { WatchlistItem } from "~/shared/types";
@@ -118,38 +117,28 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   };
 
   /**
-   * The ONE auth subscription. Mounted once in the provider.
-   * On session change: reloads library.
+   * Auth-triggered library fetch.
    *
-   * Wrapped in try/catch so missing env vars (e.g. during first Vercel
-   * deploy before env vars are set) don't crash the client — the app
-   * still renders, just without auth/session tracking.
+   * The createEffect gates on authReady() && isSignedIn() so doFetch()
+   * only runs AFTER the session has been resolved. This avoids the race
+   * condition where onMount called doFetch() before auth was ready
+   * (which permanently set isGuest=true because getUserId() returned null).
    *
-   * The subscription is cleaned up on unmount via onCleanup to prevent
-   * a memory leak (the subscription holds a reference to the Supabase
-   * auth channel, which would otherwise linger after the provider
-   * unmounts during HMR or route transitions).
+   * NOTE: We removed the duplicate onMount + onSessionChange subscription
+   * that was previously here. It caused a redundant fetch trigger on
+   * initial load (both onSessionChange callback AND this createEffect
+   * fired within the same tick). The isFetching guard silently dropped
+   * the second call, meaning the duplicate trigger was wasted. The
+   * createEffect alone is sufficient for all auth state transitions
+   * (sign-in, sign-out, OAuth redirect, token refresh).
    */
-  onMount(() => {
-    try {
-      const subscription = onSessionChange(() => {
-        doFetch();
-      });
-      onCleanup(() => subscription.unsubscribe());
-    } catch (err) {
-      console.error("[UserLibraryProvider] Auth subscription failed:", err);
-    }
-  });
-
-  // Re-fetch when auth state changes (sign-in / sign-out / OAuth redirect).
-  // This is the PRIMARY trigger for loading the library — not onMount.
-  // The createEffect gates on authReady() so doFetch() only runs AFTER
-  // the session has been resolved, avoiding the race condition where
-  // onMount called doFetch() before auth was ready (which permanently
-  // set isGuest=true because getUserId() returned null).
   createEffect(() => {
     if (authReady() && isSignedIn()) {
       doFetch();
+    } else if (authReady() && !isSignedIn()) {
+      // Clear library when signed out (guest mode)
+      setWatchlist([]);
+      setLoading(false);
     }
   });
 

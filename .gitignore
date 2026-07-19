@@ -54,3 +54,4 @@ supabase/.temp
 .eslintcache
 coverage
 *.log
+timestamp*

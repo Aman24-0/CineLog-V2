@@ -12,6 +12,8 @@ import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 
 import { defaultVaultStatus } from "~/core/preferences";
 
+import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
+
 import type { Accessor } from "solid-js";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -83,6 +85,13 @@ export function useDiscoverActions(
         director: title.director,
       };
       await createVaultItemInSupabase(uid, item);
+      // Cache TMDB metadata for this title so the watchlist loads faster
+      cacheMetadataEntries([{
+        key: buildCacheKey(title.media_type, title.id),
+        tmdb_id: title.id,
+        media_type: title.media_type,
+        data: title,
+      }]).catch(() => {});
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {

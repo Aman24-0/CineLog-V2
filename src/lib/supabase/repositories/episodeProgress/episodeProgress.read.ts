@@ -64,6 +64,11 @@ export async function getLatestEpisodeProgress(
  *
  * Used by the vault read path to enrich all TV items in one batch
  * instead of N+1 queries.
+ *
+ * OPTIMISED: Only selects the columns needed for vault enrichment
+ * (season_number, episode_number, watched_at, updated_at) instead
+ * of SELECT *. This dramatically reduces payload size when users
+ * have many TV shows with extensive episode history.
  */
 export async function getLatestEpisodeProgressBatch(
   supabase: TypedSupabaseClient,
@@ -75,7 +80,7 @@ export async function getLatestEpisodeProgressBatch(
 
   const { data, error } = await supabase
     .from(TABLE)
-    .select()
+    .select("id,vault_id,season_number,episode_number,watched_at,updated_at")
     .in("vault_id", vaultIds)
     .order("watched_at", { ascending: false, nullsFirst: false })
     .order("updated_at", { ascending: false });

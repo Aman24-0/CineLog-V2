@@ -14,6 +14,7 @@ import {
   updateStatusInSupabase,
   updateWatchDateInSupabase,
 } from "~/features/watchlist/vaultAdapter";
+import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 import type { DetailsFormState } from "./types";
 import { useDetailsProgress } from "./useDetailsProgress";
@@ -151,6 +152,18 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     try {
       const newItem = await createVaultItemInSupabase(uid, b);
       args.setSelectedItem({ baseItem: newItem, vaultItem: newItem });
+      // Cache TMDB metadata for this title so the watchlist loads faster
+      // Use the details data if available (richer), otherwise fall back to baseItem
+      const details = args.details();
+      const cacheData = details
+        ? { ...b, title: details.title || b.title, name: details.name || b.name, poster_path: details.poster_path || b.poster_path, backdrop_path: details.backdrop_path || b.backdrop_path, genres: details.genres, vote_average: details.vote_average }
+        : b;
+      cacheMetadataEntries([{
+        key: buildCacheKey(b.media_type, b.id),
+        tmdb_id: Number(b.id),
+        media_type: b.media_type,
+        data: cacheData as any,
+      }]).catch(() => {});
       const name = b.title || b.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {
