@@ -33,7 +33,7 @@ export default function VaultSearch(props: VaultSearchProps) {
         onInput={(e) => props.onInput(e.currentTarget.value)}
         placeholder="Search title, cast, director, genre, platform, year..."
         class="bg-transparent border-none w-full outline-none type-body"
-        style={{ color: "var(--text-strong)", "font-size": "0.875rem" }}
+        style={{ color: "var(--text-strong)", "font-size": "16px" }}
         aria-label="Search watchlist"
         type="search"
         autocomplete="off"

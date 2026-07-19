@@ -99,6 +99,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
                 <div role="listitem">
                   <MovieCard
                     movie={m}
+                    variant="compact"
                     search={props.search()}
                     onClick={() => props.onOpenMovie(m.id)}
                   />

@@ -28,11 +28,11 @@ export default function VaultGrid(props: VaultGridProps) {
         />
       }
     >
-      <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in" role="list" aria-label="Watchlist grid">
+      <div class="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-6 gap-3 animate-fade-in" role="list" aria-label="Watchlist grid">
         <For each={props.items}>
           {(m) => (
             <div role="listitem">
-              <MovieCard movie={m} search={props.search} onClick={() => props.onOpenMovie(m.id)} />
+              <MovieCard movie={m} variant="compact" search={props.search} onClick={() => props.onOpenMovie(m.id)} />
             </div>
           )}
         </For>
