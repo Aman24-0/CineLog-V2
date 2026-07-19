@@ -112,7 +112,7 @@ export default function WatchlistView() {
   };
 
   return (
-    <PageContainer width="narrow" paddingBottom="var(--sp-12)">
+    <PageContainer width="wide" paddingBottom="var(--sp-12)">
       <ScrollToTop />
 
       <WatchlistHeader

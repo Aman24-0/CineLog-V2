@@ -31,11 +31,11 @@ interface PageContainerProps {
 const PageContainer: ParentComponent<PageContainerProps> = (props) => {
   const width = () => props.width ?? "narrow";
   const maxWidth = () =>
-    width() === "narrow" ? "max-w-2xl lg:max-w-4xl" : "lg:max-w-none";
+    width() === "narrow" ? "max-w-2xl lg:max-w-4xl" : "";
 
   return (
     <main
-      class={`px-5 ${maxWidth()} mx-auto relative z-10 animate-fade-in ${props.class ?? ""}`}
+      class={`px-4 sm:px-5 lg:px-12 ${maxWidth()} mx-auto relative z-10 animate-fade-in ${props.class ?? ""}`}
       style={{
         "padding-top": props.paddingTop ?? "var(--sp-6)",
         "padding-bottom": props.paddingBottom ?? "var(--sp-10)",
