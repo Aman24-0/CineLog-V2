@@ -336,19 +336,15 @@ const ProfilePage: Component = () => {
                           aria-label="Edit profile"
                         />
                       </div>
-                      {/* @username · member since */}
-                      <Show when={currentUsername() || memberSince()}>
+                      {/* @username */}
+                      <Show when={currentUsername()}>
                         <p class="profile-hero-meta">
-                          <Show when={currentUsername()}>
-                            <span class="profile-hero-username">@{currentUsername()}</span>
-                          </Show>
-                          <Show when={currentUsername() && memberSince()}>
-                            <span class="profile-hero-meta-sep" aria-hidden="true"> · </span>
-                          </Show>
-                          <Show when={memberSince()}>
-                            <span>Member since {memberSince()}</span>
-                          </Show>
+                          <span class="profile-hero-username">@{currentUsername()}</span>
                         </p>
+                      </Show>
+                      {/* member since — directly below username */}
+                      <Show when={memberSince()}>
+                        <p class="profile-hero-member-since">Member since {memberSince()}</p>
                       </Show>
                     </Show>
                   </div>

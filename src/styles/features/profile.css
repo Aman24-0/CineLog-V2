@@ -252,6 +252,18 @@
   color: var(--text-dim);
 }
 
+.profile-hero-member-since {
+  font-family: var(--font-family-body);
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 0;
+  opacity: 0.7;
+}
+
+.profile-hero-v2 .profile-hero-member-since {
+  margin: var(--space-1) 0 0;
+}
+
 .profile-hero-actions {
   position: absolute;
   top: 0;
