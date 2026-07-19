@@ -8,6 +8,7 @@ import {
   formatRating,
   truncateOverview,
   buildShareText,
+  buildShareTextBody,
   sanitizeFilename,
   getBaseUrl,
 } from "../src/shared/utils/share";
@@ -33,8 +34,11 @@ const sampleDetails: TMDBDetails = {
   media_type: "movie",
 };
 
-console.log("\nMovie share text:");
+console.log("\n=== Movie share text FULL (for clipboard) ===");
 console.log(buildShareText(sampleDetails, "movie", 3392));
+
+console.log("\n=== Movie share text BODY (for navigator.share with url) ===");
+console.log(buildShareTextBody(sampleDetails, "movie"));
 
 const sampleSeries: TMDBDetails = {
   id: 46298,
@@ -53,8 +57,11 @@ const sampleSeries: TMDBDetails = {
   media_type: "tv",
 };
 
-console.log("\nTV share text:");
+console.log("\n=== TV share text FULL (for clipboard) ===");
 console.log(buildShareText(sampleSeries, "tv", 46298));
+
+console.log("\n=== TV share text BODY (for navigator.share with url) ===");
+console.log(buildShareTextBody(sampleSeries, "tv"));
 
 console.log("\nSanitize filename:", sanitizeFilename("Dolittle: A Strange/Adventure*"));
 console.log("Format rating 0:", formatRating(0));

@@ -162,11 +162,43 @@ export function truncateOverview(text: string, max = 280): string {
  *
  *   ▶️ Start tracking your cinema log on CineLog:
  *   {deepLink}
+ *
+ * NOTE: This is the FULL message (with the URL appended). Use this
+ * for clipboard copies (Copy Text). For `navigator.share({ url })`,
+ * use `buildShareTextBody()` instead — passing `url` separately avoids
+ * the link appearing twice in the shared message.
  */
 export function buildShareText(
   details: TMDBDetails | WatchlistItem | null | undefined,
   mediaType: "movie" | "tv",
   tmdbId: number | string,
+): string {
+  const body = buildShareTextBody(details, mediaType);
+  const url = buildShareUrl(mediaType, tmdbId);
+  return `${body}\n\n▶️ Start tracking your cinema log on CineLog:\n${url}`;
+}
+
+/**
+ * Build the share message body WITHOUT the trailing URL.
+ *
+ * Use this with `navigator.share({ text: body, url })` — the Web Share
+ * API appends the URL separately, so including it in the text would
+ * cause the URL to appear twice in the shared message (a cosmetic bug
+ * we hit in the first iteration).
+ *
+ * Layout (same as buildShareText, minus the URL footer):
+ *   🎬 {Title}
+ *   ⭐ Rating: {X.X/10}
+ *   📅 Released: {Mon D, YYYY}
+ *   🎭 {Genre1, Genre2, Genre3}
+ *   📺 {N} Season(s) · {M} Episode(s)   (TV only)
+ *   📖 {Overview (truncated)}
+ *
+ *   ▶️ Start tracking your cinema log on CineLog
+ */
+export function buildShareTextBody(
+  details: TMDBDetails | WatchlistItem | null | undefined,
+  mediaType: "movie" | "tv",
 ): string {
   const title = resolveTitle(details);
   const dateIso = resolveReleaseDate(details);
@@ -207,8 +239,7 @@ export function buildShareText(
   }
 
   lines.push("");
-  lines.push("▶️ Start tracking your cinema log on CineLog:");
-  lines.push(buildShareUrl(mediaType, tmdbId));
+  lines.push("▶️ Start tracking your cinema log on CineLog");
 
   return lines.join("\n");
 }
@@ -259,11 +290,47 @@ export async function dataUrlToFile(
 }
 
 /**
+ * Convert a Blob to an object URL for use in <a href> downloads.
+ *
+ * This is more reliable on mobile Chrome than data URLs — Chrome
+ * silently blocks data-URL downloads above ~2MB for security reasons,
+ * but object URLs have no such limit.
+ *
+ * The caller MUST call `URL.revokeObjectURL(url)` after the download
+ * to avoid leaking memory.
+ */
+export function blobToObjectUrl(blob: Blob): string {
+  return URL.createObjectURL(blob);
+}
+
+/**
+ * Trigger a browser download of a Blob using an object URL.
+ *
+ * This is the mobile-Chrome-friendly version of `downloadDataUrl` —
+ * object URLs bypass the ~2MB size limit that Chrome imposes on
+ * data URLs. Use this whenever you have a Blob (e.g., from
+ * html-to-image's toBlob()).
+ *
+ * The object URL is revoked after the click to avoid memory leaks.
+ */
+export function downloadBlob(blob: Blob, filename: string): void {
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  // Defer revocation by 1s so the download has time to start.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+
+/**
  * Trigger a browser download of a data URL.
  *
- * Used as the fallback when navigator.share is unavailable (desktop
- * browsers) — the user gets a PNG downloaded to their device which
- * they can then attach manually to any chat.
+ * LEGACY: prefer `downloadBlob()` for new code — data URLs are
+ * silently blocked by mobile Chrome above ~2MB. This function is
+ * kept as a fallback for callers that only have a data URL.
  */
 export function downloadDataUrl(dataUrl: string, filename: string): void {
   const a = document.createElement("a");

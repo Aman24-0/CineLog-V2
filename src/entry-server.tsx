@@ -26,17 +26,31 @@ export default createHandler(() => (
           <link rel="manifest" href="/manifest.json" />
           <link rel="canonical" href="https://cinelog.app" />
 
-          {/* Open Graph */}
-          <meta property="og:type" content="website" />
-          <meta property="og:title" content="CineLog V2 — Your Cinematic Watchlist" />
-          <meta property="og:description" content="Track your movies and TV shows, discover new favorites, and build curated collections." />
-          <meta property="og:site_name" content="CineLog V2" />
-          <meta property="og:url" content="https://cinelog.app" />
+          {/* Open Graph — DOMAIN-WIDE DEFAULTS ONLY
+              ---------------------------------------------------------------
+              IMPORTANT: We intentionally do NOT include og:title,
+              og:description, og:url, or og:image here. Those tags are
+              set PER-ROUTE by the deep-link routes (src/routes/movie/[id].tsx
+              and src/routes/tv/[id].tsx) so chat-app scrapers (WhatsApp,
+              iMessage, Telegram, Slack) see the per-movie poster + title
+              instead of a generic app-wide preview.
 
-          {/* Twitter Card */}
+              If we added og:title here, scrapers would see TWO og:title
+              tags (this static one + the route's dynamic one) and pick
+              the FIRST one — which is always the static generic title,
+              defeating the per-movie link preview.
+
+              We keep og:site_name and og:type because those ARE
+              domain-wide properties (every page belongs to the same
+              site and is the same type). */}
+          <meta property="og:site_name" content="CineLog V2" />
+          <meta property="og:type" content="website" />
+
+          {/* Twitter Card — domain-wide default. The route-level Meta
+              tags override twitter:title / twitter:description /
+              twitter:image per page. We keep twitter:card here because
+              it's a domain-wide display preference. */}
           <meta name="twitter:card" content="summary_large_image" />
-          <meta name="twitter:title" content="CineLog V2 — Your Cinematic Watchlist" />
-          <meta name="twitter:description" content="Track your movies and TV shows, discover new favorites, and build curated collections." />
 
           {/* Google Fonts & Material Symbols */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />

@@ -8,7 +8,8 @@
 //     distinct from movies)
 //   - Uses series title field (`name`, not `title`)
 //
-// See /movie/[id].tsx for the full architecture comment.
+// See /movie/[id].tsx for the full architecture comment, including
+// the critical `deferStream: true` for SSR-friendly OG tags.
 
 import { lazy, createResource, Show, onMount } from "solid-js";
 import { useParams } from "@solidjs/router";
@@ -17,6 +18,7 @@ import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { openTitle, useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { getBaseUrl } from "~/shared/utils/share";
 import type { WatchlistItem } from "~/shared/types";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
@@ -51,6 +53,8 @@ export default function TvDeepLinkRoute() {
   const { selectedItem } = useModalState();
   const { watchlist } = useVault();
 
+  // `deferStream: true` makes SSR wait for this resource before
+  // sending HTML — critical for chat-app scrapers that don't run JS.
   const [meta] = createResource(
     () => params.id,
     async (id: string) => {
@@ -58,6 +62,7 @@ export default function TvDeepLinkRoute() {
       if (!/^\d+$/.test(id)) return null;
       return fetchTmdbMetadata("tv", id);
     },
+    { deferStream: true },
   );
 
   onMount(() => {
@@ -80,33 +85,37 @@ export default function TvDeepLinkRoute() {
     }
   });
 
+  const ogTitle = () =>
+    meta()?.name ? `${meta()!.name} — CineLog` : "CineLog";
+  const ogDescription = () =>
+    meta()?.overview ?? "Track your movies and shows on CineLog.";
+  const ogImage = () =>
+    meta()?.poster_path ? tmdbImage(meta()!.poster_path, "w500") : "";
+  const ogUrl = () => `${getBaseUrl()}/tv/${params.id}`;
+
   return (
     <>
-      <Title>{meta()?.name ? `${meta()!.name} — CineLog` : "CineLog"}</Title>
-      <Show when={meta()}>
-        {(m) => (
-          <>
-            <Meta property="og:title" content={`${m().name} — CineLog`} />
-            <Meta property="og:type" content="video.episode" />
-            <Meta
-              property="og:description"
-              content={m().overview ?? "Track your movies and shows on CineLog."}
-            />
-            <Show when={m().poster_path}>
-              <Meta
-                property="og:image"
-                content={tmdbImage(m().poster_path, "w500")}
-              />
-            </Show>
-            <Meta property="og:url" content={`https://cinelogv2.vercel.app/tv/${m().id}`} />
-            <Meta name="twitter:card" content="summary_large_image" />
-            <Meta name="twitter:title" content={`${m().name} — CineLog`} />
-            <Meta name="twitter:description" content={m().overview ?? "Track your movies and shows on CineLog."} />
-            <Show when={m().poster_path}>
-              <Meta name="twitter:image" content={tmdbImage(m().poster_path, "w500")} />
-            </Show>
-          </>
-        )}
+      <Title>{ogTitle()}</Title>
+      <Meta name="description" content={ogDescription()} />
+
+      {/* Open Graph — server-rendered for chat-app scrapers */}
+      <Meta property="og:title" content={ogTitle()} />
+      <Meta property="og:type" content="video.episode" />
+      <Meta property="og:description" content={ogDescription()} />
+      <Meta property="og:url" content={ogUrl()} />
+      <Show when={ogImage()}>
+        <Meta property="og:image" content={ogImage()} />
+        <Meta
+          property="og:image:alt"
+          content={meta()?.name ? `${meta()!.name} series poster` : "Series poster"}
+        />
+      </Show>
+
+      {/* Twitter Card tags */}
+      <Meta name="twitter:title" content={ogTitle()} />
+      <Meta name="twitter:description" content={ogDescription()} />
+      <Show when={ogImage()}>
+        <Meta name="twitter:image" content={ogImage()} />
       </Show>
 
       <div

@@ -7,7 +7,9 @@
 //
 //   1. Reads the TMDB id from the URL params
 //   2. Fetches minimal TMDB metadata (title, poster, backdrop, etc.)
-//      so the DetailsModal has a valid baseItem
+//      so the DetailsModal has a valid baseItem — with `deferStream`
+//      so SSR WAITS for the data before sending the HTML (this is
+//      critical for chat-app scrapers that don't run JS).
 //   3. Constructs a WatchlistItem "baseItem" (TMDB identity only — no
 //      user-owned state)
 //   4. Calls openTitle(baseItem, watchlist) so the DetailsModal opens
@@ -16,14 +18,21 @@
 //        - Not logged → vaultItem is null (only + and Trailer)
 //        - User taps + → useDetailsActions opens AuthModal
 //
-// The page itself is mostly empty — the modal renders above it via
-// Portal. We render a small "Loading" state while TMDB metadata is
-// being fetched, and a fallback "Not found" if the fetch fails.
+// SEO / OG TAGS — CRITICAL FOR CHAT-APP LINK PREVIEWS
+// ----------------------------------------------------
+// The <Meta> tags below are rendered SERVER-SIDE during SSR (because
+// `deferStream: true` makes the route wait for the TMDB data before
+// sending HTML). This means WhatsApp / iMessage / Telegram / Slack
+// scrapers see the per-movie title, description, and poster image
+// when they fetch the URL — NO JavaScript execution required.
 //
-// SEO: this page is the OG-image source for shared movie links.
-// WhatsApp / Telegram / iMessage will scrape the meta tags here and
-// show a link preview with the movie poster. The meta tags are set
-// via @solidjs/meta.
+// Without `deferStream`, the SSR would send the loading-state HTML
+// (no Meta tags) and the scraper would see a generic preview.
+//
+// We ALSO removed the conflicting static og:title / og:description
+// from src/entry-server.tsx so the per-route tags are the ONLY ones
+// in the HTML head (otherwise scrapers pick the first one and ignore
+// the per-movie tags).
 
 import { lazy, createResource, Show, onMount } from "solid-js";
 import { useParams } from "@solidjs/router";
@@ -32,9 +41,11 @@ import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { openTitle, useModalState } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { getBaseUrl } from "~/shared/utils/share";
 import type { WatchlistItem } from "~/shared/types";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
+
 /**
  * Build a minimal WatchlistItem baseItem from a TMDBTitle metadata
  * payload. The baseItem is the TMDB identity only — status/rating/etc.
@@ -75,8 +86,12 @@ export default function MovieDeepLinkRoute() {
   const { watchlist } = useVault();
 
   // Fetch TMDB metadata for the movie id in the URL.
-  // createResource handles the loading state and suspends on the
-  // server for SSR.
+  //
+  // `deferStream: true` is CRITICAL — it makes SolidStart's SSR wait
+  // for this resource to resolve BEFORE sending the HTML response.
+  // Without it, the SSR would send the loading-state HTML (no Meta
+  // tags), and WhatsApp / iMessage / Telegram scrapers (which don't
+  // run JS) would see a generic preview instead of the movie poster.
   const [meta] = createResource(
     () => params.id,
     async (id: string) => {
@@ -85,15 +100,11 @@ export default function MovieDeepLinkRoute() {
       if (!/^\d+$/.test(id)) return null;
       return fetchTmdbMetadata("movie", id);
     },
+    { deferStream: true },
   );
 
-  // Open the modal as soon as metadata resolves. We use onMount +
-  // createResource so this only runs on the client (the modal uses
-  // document.body and other browser-only APIs).
+  // Open the modal as soon as metadata resolves (client-only).
   onMount(() => {
-    // Watch the resource — when it resolves with data, open the modal.
-    // (We don't use createEffect here because we only want to open
-    // once per route mount, not re-open if watchlist changes.)
     let opened = false;
     const check = () => {
       const m = meta();
@@ -103,49 +114,53 @@ export default function MovieDeepLinkRoute() {
         openTitle(baseItem, watchlist());
       }
     };
-    // Poll a few times until the resource resolves. createResource
-    // returns a function that re-runs its callers when the value
-    // changes, but inside onMount we need to manually check.
     check();
     if (!opened) {
       const interval = setInterval(() => {
         check();
         if (opened) clearInterval(interval);
       }, 100);
-      // Safety: stop polling after 10s regardless.
       setTimeout(() => clearInterval(interval), 10_000);
     }
   });
 
+  // Compose OG metadata once we have the title data.
+  // These strings are also used for the Twitter Card tags below.
+  const ogTitle = () =>
+    meta()?.title ? `${meta()!.title} — CineLog` : "CineLog";
+  const ogDescription = () =>
+    meta()?.overview ?? "Track your movies and shows on CineLog.";
+  const ogImage = () =>
+    meta()?.poster_path ? tmdbImage(meta()!.poster_path, "w500") : "";
+  const ogUrl = () => `${getBaseUrl()}/movie/${params.id}`;
+
   return (
     <>
-      <Title>{meta()?.title ? `${meta()!.title} — CineLog` : "CineLog"}</Title>
-      <Show when={meta()}>
-        {(m) => (
-          <>
-            {/* Open Graph meta tags for WhatsApp / iMessage / social previews */}
-            <Meta property="og:title" content={`${m().title} — CineLog`} />
-            <Meta property="og:type" content="video.movie" />
-            <Meta
-              property="og:description"
-              content={m().overview ?? "Track your movies and shows on CineLog."}
-            />
-            <Show when={m().poster_path}>
-              <Meta
-                property="og:image"
-                content={tmdbImage(m().poster_path, "w500")}
-              />
-            </Show>
-            <Meta property="og:url" content={`https://cinelogv2.vercel.app/movie/${m().id}`} />
-            {/* Twitter Card tags (also used by some messengers) */}
-            <Meta name="twitter:card" content="summary_large_image" />
-            <Meta name="twitter:title" content={`${m().title} — CineLog`} />
-            <Meta name="twitter:description" content={m().overview ?? "Track your movies and shows on CineLog."} />
-            <Show when={m().poster_path}>
-              <Meta name="twitter:image" content={tmdbImage(m().poster_path, "w500")} />
-            </Show>
-          </>
-        )}
+      <Title>{ogTitle()}</Title>
+      <Meta name="description" content={ogDescription()} />
+
+      {/* Open Graph meta tags — rendered SERVER-SIDE so chat-app
+          scrapers (WhatsApp, iMessage, Telegram, Slack, Twitter)
+          see the per-movie title + poster without running JS. */}
+      <Meta property="og:title" content={ogTitle()} />
+      <Meta property="og:type" content="video.movie" />
+      <Meta property="og:description" content={ogDescription()} />
+      <Meta property="og:url" content={ogUrl()} />
+      <Show when={ogImage()}>
+        <Meta property="og:image" content={ogImage()} />
+        {/* og:image:alt — accessibility for screen readers + some
+            scrapers use it as a fallback caption. */}
+        <Meta
+          property="og:image:alt"
+          content={meta()?.title ? `${meta()!.title} movie poster` : "Movie poster"}
+        />
+      </Show>
+
+      {/* Twitter Card tags — also picked up by some messengers. */}
+      <Meta name="twitter:title" content={ogTitle()} />
+      <Meta name="twitter:description" content={ogDescription()} />
+      <Show when={ogImage()}>
+        <Meta name="twitter:image" content={ogImage()} />
       </Show>
 
       <div
