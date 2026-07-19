@@ -20,6 +20,7 @@ import DetailsEditForm from "~/features/details/components/DetailsEditForm";
 import YourActivityCard from "~/features/details/components/YourActivityCard";
 import AddToFolderSheet from "~/features/details/components/AddToFolderSheet";
 import ConfirmRemoveSheet from "~/features/details/components/ConfirmRemoveSheet";
+import ShareSheet from "~/features/details/ShareSheet";
 
 import DetailsHero from "./DetailsHero";
 import DetailsHeader from "./DetailsHeader";
@@ -56,10 +57,21 @@ export default function DetailsModal() {
   const [showTrailer, setShowTrailer] = createSignal(false);
   const [showFolders, setShowFolders] = createSignal(false);
   const [showRemoveConfirm, setShowRemoveConfirm] = createSignal(false);
+  const [showShare, setShowShare] = createSignal(false);
 
   const baseItem = createMemo(() => selectedItem()?.baseItem ?? null);
   const vaultItem = createMemo(() => selectedItem()?.vaultItem ?? null);
   const inVault = createMemo(() => vaultItem() !== null);
+
+  // Derived values for the ShareSheet — the TMDB id, media_type, and
+  // the rich details payload (genres, vote_average, seasons, etc.).
+  // The sheet uses these to build the deep-link URL and the green
+  // share card preview.
+  const shareTmdbId = createMemo(() => baseItem()?.id ?? "");
+  const shareMediaType = createMemo<"movie" | "tv">(() => {
+    const mt = baseItem()?.media_type;
+    return mt === "tv" ? "tv" : "movie";
+  });
 
   const { form, setForm, isDirty, resetTo, isEditing, setIsEditing } =
     useDetailsForm(vaultItem);
@@ -245,6 +257,7 @@ export default function DetailsModal() {
                       onAddToVault={handleAddToVault}
                       onOpenFolders={() => setShowFolders(true)}
                       onRemove={() => setShowRemoveConfirm(true)}
+                      onShare={() => setShowShare(true)}
                     />
                     <Show
                       when={!isEditing() || !inVault()}
@@ -321,6 +334,17 @@ export default function DetailsModal() {
             onClose={() => !isRemoving() && setShowRemoveConfirm(false)}
           />
         </Show>
+
+        {/* Share sheet — visible to both logged-in and guest users.
+            Renders the green share card preview + action buttons
+            (Share Image / Copy Link / Share Text). */}
+        <ShareSheet
+          show={showShare}
+          onClose={() => setShowShare(false)}
+          details={tmdb}
+          mediaType={shareMediaType}
+          tmdbId={shareTmdbId}
+        />
       </Portal>
     </Show>
   );

@@ -9,7 +9,10 @@ import type { WatchlistItem } from "~/shared/types";
  * The dock is ownership-aware: when vaultItem is null, it shows
  * "Add to Vault" as the primary action; when present, it shows
  * the status row (Planned/Watching/Completed/Dropped) and action row
- * (Trailer/Folder/Edit/Delete).
+ * (Trailer/Folder/Share/Edit/Delete).
+ *
+ * The Share button is rendered in BOTH states so guests and signed-in
+ * users can share any title from the Details modal.
  */
 export interface DetailsActionsProps {
   baseItem: Accessor<WatchlistItem | null>;
@@ -24,6 +27,8 @@ export interface DetailsActionsProps {
   onAddToVault: () => void;
   onOpenFolders: () => void;
   onRemove: () => void;
+  /** Open the ShareSheet — wired in DetailsModal.tsx */
+  onShare: () => void;
 }
 
 export default function DetailsActions(props: DetailsActionsProps) {
@@ -39,6 +44,7 @@ export default function DetailsActions(props: DetailsActionsProps) {
       onAddToVault={props.onAddToVault}
       onOpenFolders={props.onOpenFolders}
       onRemove={props.onRemove}
+      onShare={props.onShare}
       isAdding={props.isAdding()}
     />
   );

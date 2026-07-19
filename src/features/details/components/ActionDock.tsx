@@ -25,6 +25,8 @@ interface ActionDockProps {
   onOpenFolders?: () => void;
   /** Called when the user taps "Remove" — opens the confirm sheet */
   onRemove?: () => void;
+  /** Called when the user taps "Share" — opens the ShareSheet */
+  onShare?: () => void;
   /** Whether an add-to-vault operation is in flight (shows spinner) */
   isAdding?: boolean;
 }
@@ -86,7 +88,7 @@ export default function ActionDock(props: ActionDockProps) {
       <Show
         when={inVault()}
         fallback={
-          /* Non-vault title: primary CTA is "Add to Vault" + Trailer */
+          /* Non-vault title: primary CTA is "Add to Vault" + Trailer + Share */
           <div class="action-dock-row">
             <button
               type="button"
@@ -123,6 +125,23 @@ export default function ActionDock(props: ActionDockProps) {
                   play_arrow
                 </span>
                 <span class="hidden sm:inline">Trailer</span>
+              </button>
+            </Show>
+            <Show when={props.onShare}>
+              <button
+                type="button"
+                onClick={() => props.onShare?.()}
+                class="action-dock-btn"
+                aria-label="Share this title"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  share
+                </span>
+                <span class="hidden sm:inline">Share</span>
               </button>
             </Show>
           </div>
@@ -191,6 +210,24 @@ export default function ActionDock(props: ActionDockProps) {
                 folder
               </span>
               <span class="hidden sm:inline">Folder</span>
+            </button>
+          </Show>
+
+          <Show when={props.onShare}>
+            <button
+              type="button"
+              onClick={() => props.onShare?.()}
+              class="action-dock-btn"
+              aria-label="Share this title"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                share
+              </span>
+              <span class="hidden sm:inline">Share</span>
             </button>
           </Show>
 

@@ -3,6 +3,7 @@ import { createSignal, createMemo, createEffect, onCleanup } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { pickTrailer, fetchAnyVideoKey } from "~/core/tmdb/tmdb";
 import {
   createVaultItemInSupabase,
@@ -63,6 +64,7 @@ export interface UseDetailsActionsResult {
 
 export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsActionsResult {
   const { showToast } = useToast();
+  const { openAuthModal } = useAuthModal();
   const [isSaving, setIsSaving] = createSignal(false);
   const [isAdding, setIsAdding] = createSignal(false);
   const [isRemoving, setIsRemoving] = createSignal(false);
@@ -144,7 +146,13 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     const uid = getCurrentUid();
     const b = args.baseItem();
     if (!uid) {
-      showToast("Sign in to save titles to your vault.", "error");
+      // Guest user tapped "+ Add to Watchlist" — open the AuthModal
+      // so they can sign in / sign up, then they can retry the add.
+      // (Per the share-link flow: a guest who opens a deep link sees
+      // only the + and Trailer buttons; tapping + must surface the
+      // login UI rather than silently failing.)
+      showToast("Sign in to save titles to your vault.", "info");
+      openAuthModal();
       return;
     }
     if (!b) return;
