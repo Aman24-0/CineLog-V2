@@ -164,24 +164,31 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
    *   wide so the PNG is always 500x(N) pixels at 2x pixel ratio.
    *
    * CORS:
-   *   TMDB poster images are loaded with crossorigin="anonymous" via
-   *   the background-image CSS property. html-to-image handles CORS
-   *   by fetching the image with crossorigin and embedding it as a
-   *   data URL internally — as long as TMDB sends CORS headers (they
-   *   do), this works without tainting the canvas.
+   *   TMDB poster images are loaded as <img crossorigin="anonymous">
+   *   tags (NOT CSS background-images). This is critical: html-to-image
+   *   can clone <img> tags directly from the browser's already-loaded
+   *   image cache. Background-images require the library to re-fetch
+   *   and inline them as data URLs, which fails on some CORS configs.
+   *
+   * SILENT MODE:
+   *   Pass `silent: true` to suppress the error message — used by
+   *   handleShareText which should fall through to text-only share
+   *   without showing an error when image generation fails.
    */
-  const generatePngBlob = async (): Promise<Blob | null> => {
+  const generatePngBlob = async (opts: { silent?: boolean } = {}): Promise<Blob | null> => {
     if (!offscreenCardRef) {
-      setMessage({ kind: "error", text: "Share card not ready. Please try again." });
+      if (!opts.silent) {
+        setMessage({ kind: "error", text: "Share card not ready. Please try again." });
+      }
       return null;
     }
     try {
       const { toBlob } = await loadHtmlToImage();
 
-      // Pre-load the poster image before snapshotting. html-to-image
-      // has its own image-loading logic but it can race with the
-      // background-image CSS — explicitly waiting for the image to
-      // decode ensures the poster is in the captured PNG.
+      // Pre-load the poster image before snapshotting. Even though we
+      // use an <img> tag (which the browser loads with CORS), we still
+      // explicitly wait for it to decode so html-to-image doesn't
+      // capture a blank poster frame during the initial paint.
       const posterUrl = props.details()?.poster_path
         ? `https://image.tmdb.org/t/p/w500${props.details()!.poster_path}`
         : null;
@@ -189,16 +196,22 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
         try {
           await preloadImage(posterUrl);
         } catch {
-          // Non-fatal — html-to-image will still try to embed it.
+          // Non-fatal — html-to-image will still try to use the <img>.
         }
       }
+
+      // Wait one more animation frame so the offscreen <img> has
+      // definitely painted into the DOM before we snapshot it.
+      await nextFrame();
 
       const blob = await toBlob(offscreenCardRef, {
         cacheBust: true,
         pixelRatio: 2, // 2x for retina-quality PNG
         backgroundColor: "#053d29",
-        // Slightly higher quality for the JPEG-style poster image
-        quality: 0.92,
+        // Skip fonts auto-detection — Material Symbols and Google Fonts
+        // are already loaded by the app. Letting html-to-image try to
+        // re-fetch them can cause CORS failures that reject toBlob.
+        skipFonts: true,
       });
       if (!blob) {
         throw new Error("toBlob returned null");
@@ -206,10 +219,12 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       return blob;
     } catch (err) {
       console.error("[ShareSheet] PNG generation failed:", err);
-      setMessage({
-        kind: "error",
-        text: "Couldn't generate the share image. Try the Copy Link option instead.",
-      });
+      if (!opts.silent) {
+        setMessage({
+          kind: "error",
+          text: "Couldn't generate the share image. Try the Copy Link option instead.",
+        });
+      }
       return null;
     }
   };
@@ -296,15 +311,23 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
    * the title if possible".
    *
    * Strategy:
-   *   1. Generate the PNG blob (same as Share Image)
-   *   2. If the browser supports file sharing, attach the PNG as a
-   *      File alongside the text + URL. Recipients in WhatsApp /
-   *      Telegram will see the green card image inline.
-   *   3. If file sharing is NOT supported, fall back to text-only
-   *      share (the URL alone will trigger WhatsApp's link preview
-   *      — which now works because we fixed the OG tags).
+   *   1. Generate the PNG blob (same as Share Image, but SILENT —
+   *      if it fails, we don't show an error, we just fall through)
+   *   2. If the browser supports file sharing AND we have a blob,
+   *      attach the PNG as a File alongside the text + URL. Recipients
+   *      in WhatsApp / Telegram will see the green card image inline.
+   *   3. If file sharing is NOT supported OR blob generation failed,
+   *      fall back to text-only share (the URL alone will trigger
+   *      WhatsApp's link preview — which now works because we fixed
+   *      the OG tags).
    *   4. If Web Share API is unavailable entirely, copy the text to
    *      the clipboard.
+   *
+   * CRITICAL (Issue 2 fix): When the image generation fails in step 1,
+   * we MUST NOT show an error message — the user tapped "Share Text",
+   * not "Share Image". The text share itself succeeds, so showing an
+   * error would be confusing. We use `silent: true` in generatePngBlob
+   * and explicitly clear any stale error message before each path.
    */
   const handleShareText = async () => {
     if (isSharingText() || isCopyingText()) return;
@@ -314,11 +337,14 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     if (webShareAvailable() && fileShareAvailable()) {
       setIsSharingText(true);
       try {
-        // Generate the PNG first so we can attach it.
-        const blob = await generatePngBlob();
+        // Generate the PNG SILENTLY — if it fails, we fall through to
+        // text-only share without showing an error.
+        const blob = await generatePngBlob({ silent: true });
         if (blob) {
           const file = new File([blob], fileName(), { type: "image/png" });
           if (navigator.canShare!({ files: [file] })) {
+            // Clear any stale error from a previous Share Image attempt
+            setMessage(null);
             await navigator.share({
               files: [file],
               text: shareTextBody(),
@@ -331,7 +357,8 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           }
         }
         // If file share isn't actually supported (canShare returned
-        // false), fall through to text-only share.
+        // false) OR blob generation failed silently, fall through to
+        // text-only share.
       } catch (err) {
         if ((err as DOMException)?.name === "AbortError") {
           // User cancelled — silently ignore, don't fall through.
@@ -344,6 +371,9 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     }
 
     // ── Path B: Web Share API text-only (still gets OG preview) ──
+    // Clear any stale error message from the silent blob generation
+    // attempt above before proceeding to the text-only share.
+    setMessage(null);
     if (webShareAvailable()) {
       setIsSharingText(true);
       try {
@@ -366,6 +396,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     }
 
     // ── Path C: Fallback — copy text to clipboard ────────────────
+    setMessage(null);
     setIsCopyingText(true);
     try {
       const ok = await copyToClipboard(shareTextFull());
@@ -568,6 +599,7 @@ function preloadImage(src: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
+    img.referrerPolicy = "no-referrer";
     img.onload = () => {
       // Use decode() if available for better error handling.
       if (typeof img.decode === "function") {
@@ -578,6 +610,21 @@ function preloadImage(src: string): Promise<void> {
     };
     img.onerror = reject;
     img.src = src;
+  });
+}
+
+/**
+ * Wait for the next animation frame. Used by `generatePngBlob` to
+ * ensure the offscreen card has definitely painted into the DOM
+ * before html-to-image captures it.
+ */
+function nextFrame(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 16);
+    }
   });
 }
 

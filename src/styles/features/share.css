@@ -148,6 +148,21 @@
   overflow: hidden;
 }
 
+/* Poster <img> — fills the .share-card-poster container.
+   We use an <img> instead of a CSS background-image because
+   html-to-image can clone <img> tags directly (they're already
+   loaded with CORS by the browser). Background-images require
+   html-to-image to re-fetch and inline them, which fails on
+   some CORS configurations. */
+.share-card-poster-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .share-card-poster::after {
   content: "";
   position: absolute;
@@ -158,6 +173,8 @@
     rgba(2, 26, 16, 0.4) 70%,
     rgba(5, 61, 41, 0.95) 100%
   );
+  pointer-events: none;
+  z-index: 1;
 }
 
 .share-card-brand {
@@ -542,7 +559,13 @@
 /* The ShareCard is also rendered into a hidden container at the
    exact pixel dimensions so html-to-image can capture it cleanly.
    The preview inside the sheet may be scaled, but the offscreen
-   version is always 1:1. */
+   version is always 1:1.
+
+   IMPORTANT: We use `left: -10000px` to move the card off-screen
+   but we DO NOT use `opacity: 0` (or display:none / visibility:hidden)
+   because those can cause html-to-image to capture a blank image.
+   The card must be fully rendered (just positioned off-screen) for
+   the library to clone it correctly. */
 
 .share-card-offscreen {
   position: fixed;
@@ -550,6 +573,7 @@
   left: -10000px;
   width: 500px;
   pointer-events: none;
-  opacity: 0;
+  /* No opacity:0 — html-to-image needs the element to be fully rendered.
+     The card is invisible to the user because it's at left:-10000px. */
   z-index: -1;
 }

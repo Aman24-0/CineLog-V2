@@ -9,16 +9,19 @@
 //   - Uses series title field (`name`, not `title`)
 //
 // See /movie/[id].tsx for the full architecture comment, including
-// the critical `deferStream: true` for SSR-friendly OG tags.
+// the critical `deferStream: true` for SSR-friendly OG tags, the
+// vault-loading wait, and the close-to-navigate behavior.
 
-import { lazy, createResource, Show, onMount } from "solid-js";
-import { useParams } from "@solidjs/router";
+import { lazy, createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
-import { openTitle, useModalState } from "~/shared/hooks/useModalState";
+import { openTitle, useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
+import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { getBaseUrl } from "~/shared/utils/share";
+import { findInVault } from "~/shared/utils/vaultMatch";
 import type { WatchlistItem } from "~/shared/types";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
@@ -50,8 +53,10 @@ function buildBaseItem(meta: {
 
 export default function TvDeepLinkRoute() {
   const params = useParams();
+  const navigate = useNavigate();
   const { selectedItem } = useModalState();
-  const { watchlist } = useVault();
+  const { watchlist, loading: vaultLoading, isGuest } = useVault();
+  const { isSignedIn, authReady } = useAuth();
 
   // `deferStream: true` makes SSR wait for this resource before
   // sending HTML — critical for chat-app scrapers that don't run JS.
@@ -65,23 +70,61 @@ export default function TvDeepLinkRoute() {
     { deferStream: true },
   );
 
+  // ── Open the modal once BOTH conditions are met ──────────────────
+  //
+  // 1. TMDB metadata has resolved (meta() !== null)
+  // 2. The vault has finished loading (vaultLoading() === false)
+  //
+  // See /movie/[id].tsx for the full rationale.
+  let opened = false;
   onMount(() => {
-    let opened = false;
-    const check = () => {
+    const tryOpen = () => {
       const m = meta();
-      if (m && !opened) {
+      if (m && !opened && !vaultLoading() && authReady()) {
         opened = true;
         const baseItem = buildBaseItem(m);
         openTitle(baseItem, watchlist());
       }
     };
-    check();
+
+    tryOpen();
+
     if (!opened) {
       const interval = setInterval(() => {
-        check();
+        tryOpen();
         if (opened) clearInterval(interval);
       }, 100);
-      setTimeout(() => clearInterval(interval), 10_000);
+      const stopTimer = setTimeout(() => clearInterval(interval), 10_000);
+
+      onCleanup(() => {
+        clearInterval(interval);
+        clearTimeout(stopTimer);
+      });
+    }
+  });
+
+  // ── Re-update the modal's vaultItem when the vault loads later ────
+  createEffect(() => {
+    const m = meta();
+    const current = selectedItem();
+    if (!m || !current) return;
+    if (current.baseItem.id !== String(m.id)) return;
+    if (!isSignedIn()) return;
+
+    const vaultItem = findInVault(watchlist(), current.baseItem);
+    if (vaultItem?.id !== current.vaultItem?.id) {
+      setSelectedItem({
+        baseItem: vaultItem ?? current.baseItem,
+        vaultItem,
+      });
+    }
+  });
+
+  // ── Navigate away when the modal closes ──────────────────────────
+  createEffect(() => {
+    const current = selectedItem();
+    if (opened && !current && authReady()) {
+      navigate(isGuest() ? "/discover" : "/watchlist", { replace: true });
     }
   });
 

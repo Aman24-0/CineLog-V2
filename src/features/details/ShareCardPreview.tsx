@@ -81,11 +81,28 @@ export default function ShareCardPreview(props: ShareCardPreviewProps) {
 
   return (
     <div class={`share-card ${props.forCapture ? "share-card-offscreen" : ""}`}>
-      {/* Poster header */}
-      <div
-        class="share-card-poster"
-        style={posterUrl() ? { "background-image": `url(${posterUrl()})` } : {}}
-      >
+      {/* Poster header — uses an <img> tag (NOT CSS background-image)
+          so html-to-image can clone it directly without fetching.
+          Background-images cause CORS/timing failures in html-to-image
+          because the library has to re-fetch the image and inline it
+          as a data URL — if that fetch fails (CORS, network, timing),
+          the entire toBlob() call rejects. An <img crossorigin="anonymous">
+          is loaded by the browser with CORS headers, so html-to-image
+          can serialize it directly from the already-loaded image. */}
+      <div class="share-card-poster">
+        <Show when={posterUrl()}>
+          <img
+            src={posterUrl()}
+            alt={title() ? `${title()} poster` : "Movie poster"}
+            class="share-card-poster-img"
+            crossorigin="anonymous"
+            decoding="async"
+            // referrerpolicy="no-referrer" — TMDB images are public and
+            // don't need a referrer. Setting this avoids any potential
+            // referrer-policy CORS issues.
+            referrerpolicy="no-referrer"
+          />
+        </Show>
         <div class="share-card-brand">
           <span class="material-symbols-outlined share-card-brand-icon" aria-hidden="true">
             movie

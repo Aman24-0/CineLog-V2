@@ -13,10 +13,16 @@
 //   3. Constructs a WatchlistItem "baseItem" (TMDB identity only — no
 //      user-owned state)
 //   4. Calls openTitle(baseItem, watchlist) so the DetailsModal opens
+//      — BUT only after the vault has finished loading, so logged-in
+//      users see their watchlist state (status, rating, etc.) instead
+//      of the guest "Add to Vault" state.
 //   5. Auth state decides what the modal renders:
 //        - Logged in  → vaultItem is matched (status tabs, activity)
 //        - Not logged → vaultItem is null (only + and Trailer)
 //        - User taps + → useDetailsActions opens AuthModal
+//   6. When the modal closes, navigate to the Watchlist (logged-in)
+//      or Discover (guest) page so the user doesn't see the "Opening
+//      movie details..." loading state forever.
 //
 // SEO / OG TAGS — CRITICAL FOR CHAT-APP LINK PREVIEWS
 // ----------------------------------------------------
@@ -25,23 +31,17 @@
 // sending HTML). This means WhatsApp / iMessage / Telegram / Slack
 // scrapers see the per-movie title, description, and poster image
 // when they fetch the URL — NO JavaScript execution required.
-//
-// Without `deferStream`, the SSR would send the loading-state HTML
-// (no Meta tags) and the scraper would see a generic preview.
-//
-// We ALSO removed the conflicting static og:title / og:description
-// from src/entry-server.tsx so the per-route tags are the ONLY ones
-// in the HTML head (otherwise scrapers pick the first one and ignore
-// the per-movie tags).
 
-import { lazy, createResource, Show, onMount } from "solid-js";
-import { useParams } from "@solidjs/router";
+import { lazy, createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
-import { openTitle, useModalState } from "~/shared/hooks/useModalState";
+import { openTitle, useModalState, setSelectedItem } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
+import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { getBaseUrl } from "~/shared/utils/share";
+import { findInVault } from "~/shared/utils/vaultMatch";
 import type { WatchlistItem } from "~/shared/types";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
@@ -50,10 +50,6 @@ const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
  * Build a minimal WatchlistItem baseItem from a TMDBTitle metadata
  * payload. The baseItem is the TMDB identity only — status/rating/etc.
  * are NOT set (they're user-owned and would be incorrect for a guest).
- *
- * `findInVault` (called inside openTitle) will match this baseItem
- * against the user's vault by id+media_type, so if the user IS logged
- * in AND has this title in their vault, vaultItem will be set.
  */
 function buildBaseItem(meta: {
   id: number;
@@ -82,50 +78,129 @@ function buildBaseItem(meta: {
 
 export default function MovieDeepLinkRoute() {
   const params = useParams();
+  const navigate = useNavigate();
   const { selectedItem } = useModalState();
-  const { watchlist } = useVault();
+  const { watchlist, loading: vaultLoading, isGuest } = useVault();
+  const { isSignedIn, authReady } = useAuth();
 
   // Fetch TMDB metadata for the movie id in the URL.
-  //
-  // `deferStream: true` is CRITICAL — it makes SolidStart's SSR wait
-  // for this resource to resolve BEFORE sending the HTML response.
-  // Without it, the SSR would send the loading-state HTML (no Meta
-  // tags), and WhatsApp / iMessage / Telegram scrapers (which don't
-  // run JS) would see a generic preview instead of the movie poster.
+  // `deferStream: true` makes SSR wait for this resource before
+  // sending HTML — critical for chat-app scrapers that don't run JS.
   const [meta] = createResource(
     () => params.id,
     async (id: string) => {
       if (!id) return null;
-      // Basic sanity check — TMDB ids are positive integers.
       if (!/^\d+$/.test(id)) return null;
       return fetchTmdbMetadata("movie", id);
     },
     { deferStream: true },
   );
 
-  // Open the modal as soon as metadata resolves (client-only).
+  // ── Open the modal once BOTH conditions are met ──────────────────
+  //
+  // 1. TMDB metadata has resolved (meta() !== null)
+  // 2. The vault has finished loading (vaultLoading() === false)
+  //
+  // Previously we called openTitle() as soon as meta() resolved, which
+  // meant the watchlist() was still empty (still loading from Supabase).
+  // findInVault returned null, so vaultItem was null, and logged-in
+  // users saw the guest "Add to Vault" state instead of their actual
+  // watchlist state (status tabs, activity panel, etc.).
+  //
+  // By waiting for vaultLoading() to be false, we ensure watchlist()
+  // is fully populated before we try to match the title against it.
+  //
+  // For guests (not signed in), vaultLoading becomes false immediately
+  // (the provider clears the library and sets loading=false), so there
+  // is no extra delay for guests.
+  let opened = false;
   onMount(() => {
-    let opened = false;
-    const check = () => {
+    const tryOpen = () => {
       const m = meta();
-      if (m && !opened) {
+      // Wait for BOTH meta and vault to be ready.
+      if (m && !opened && !vaultLoading() && authReady()) {
         opened = true;
         const baseItem = buildBaseItem(m);
         openTitle(baseItem, watchlist());
       }
     };
-    check();
+
+    // Check immediately (in case both are already resolved).
+    tryOpen();
+
+    // If not ready yet, poll every 100ms (max 10s) until both resolve.
+    // We use polling instead of createEffect because we only want to
+    // open ONCE — createEffect would re-fire when watchlist() changes
+    // later (e.g., when the user adds/removes items), which would
+    // re-open the modal or re-trigger findInVault unexpectedly.
     if (!opened) {
       const interval = setInterval(() => {
-        check();
+        tryOpen();
         if (opened) clearInterval(interval);
       }, 100);
-      setTimeout(() => clearInterval(interval), 10_000);
+      const stopTimer = setTimeout(() => clearInterval(interval), 10_000);
+
+      onCleanup(() => {
+        clearInterval(interval);
+        clearTimeout(stopTimer);
+      });
+    }
+  });
+
+  // ── Re-update the modal's vaultItem when the vault loads later ────
+  //
+  // Even with the polling above, there's a case where the vault loads
+  // AFTER the modal is already open:
+  //   - meta() resolves fast (cached TMDB data)
+  //   - vaultLoading() is false (provider initialized)
+  //   - BUT the vault is actually empty because the user just signed in
+  //     and the fetch is still in-flight
+  //
+  // To handle this, we watch the watchlist() signal. If the modal is
+  // open and the title appears in the vault later, we update the
+  // modal's vaultItem so the UI switches from "Add to Vault" to the
+  // status tabs / activity panel.
+  createEffect(() => {
+    const m = meta();
+    const current = selectedItem();
+    // Only re-update if:
+    //   - We have TMDB metadata
+    //   - The modal is currently open
+    //   - The modal's baseItem matches this route's title
+    //   - The user is signed in (guests have no vaultItem)
+    if (!m || !current) return;
+    if (current.baseItem.id !== String(m.id)) return;
+    if (!isSignedIn()) return;
+
+    const vaultItem = findInVault(watchlist(), current.baseItem);
+    // Only update if the vaultItem changed — avoids infinite loops.
+    if (vaultItem?.id !== current.vaultItem?.id) {
+      setSelectedItem({
+        baseItem: vaultItem ?? current.baseItem,
+        vaultItem,
+      });
+    }
+  });
+
+  // ── Navigate away when the modal closes ──────────────────────────
+  //
+  // When the user closes the Details modal (X button, ESC, or Back),
+  // the route component is still mounted and would show "Opening
+  // movie details..." forever. Instead, navigate to:
+  //   - /watchlist if the user is signed in
+  //   - /discover if the user is a guest
+  //
+  // We watch selectedItem() — when it becomes null (modal closed) and
+  // we had previously opened it, we navigate.
+  createEffect(() => {
+    const current = selectedItem();
+    if (opened && !current && authReady()) {
+      // Modal was open and is now closed — navigate away.
+      navigate(isGuest() ? "/discover" : "/watchlist", { replace: true });
     }
   });
 
   // Compose OG metadata once we have the title data.
-  // These strings are also used for the Twitter Card tags below.
   const ogTitle = () =>
     meta()?.title ? `${meta()!.title} — CineLog` : "CineLog";
   const ogDescription = () =>
@@ -148,8 +223,6 @@ export default function MovieDeepLinkRoute() {
       <Meta property="og:url" content={ogUrl()} />
       <Show when={ogImage()}>
         <Meta property="og:image" content={ogImage()} />
-        {/* og:image:alt — accessibility for screen readers + some
-            scrapers use it as a fallback caption. */}
         <Meta
           property="og:image:alt"
           content={meta()?.title ? `${meta()!.title} movie poster` : "Movie poster"}
@@ -214,10 +287,8 @@ export default function MovieDeepLinkRoute() {
       </div>
 
       {/* The DetailsModal is rendered at the AppShell level when
-          selectedItem() is set. But we ALSO render it here as a safety
-          net — on direct deep-link navigation, the AppShell's Show when
-          block should already cover this, but rendering here ensures
-          the modal mounts even if there's a race with onMount. */}
+          selectedItem() is set. We also render it here as a safety
+          net for direct deep-link navigation. */}
       <Show when={selectedItem()}>
         <DetailsModal />
       </Show>
