@@ -8,7 +8,15 @@
  * Endpoints:
  *   GET  /api/tmdb-cache?keys=movie/550,tv/1399  — batch read cached metadata
  *   POST /api/tmdb-cache                          — batch upsert metadata
- *   GET  /api/tmdb-cache/stale                    — find entries needing refresh
+ *
+ * Table schema (tmdb_cache):
+ *   id (uuid PK), media_type (enum), tmdb_id (int), data (jsonb),
+ *   expires_at (timestamptz), fetched_at (timestamptz),
+ *   created_at (timestamptz), updated_at (timestamptz)
+ *
+ * The composite key is (media_type, tmdb_id) — NOT a separate "key" column.
+ * The "keys" query param uses the format "movie/550,tv/1399" which is
+ * parsed into (media_type, tmdb_id) pairs for the DB query.
  *
  * Security: The service_role key is NEVER exposed to the client.
  * This route runs server-side only (Vinxi/Nitro).
@@ -26,6 +34,16 @@ function getServiceClient() {
   return createClient(url, serviceKey, {
     auth: { autoRefreshToken: false, persistSession: false }
   });
+}
+
+/**
+ * Parse "movie/550" → { mediaType: "movie", tmdbId: 550 }
+ */
+function parseKey(key: string): { mediaType: string; tmdbId: number } | null {
+  const [mediaType, idStr] = key.split("/");
+  const tmdbId = Number(idStr);
+  if (!mediaType || !idStr || isNaN(tmdbId)) return null;
+  return { mediaType, tmdbId };
 }
 
 // ─── GET /api/tmdb-cache ─────────────────────────────────────────
@@ -49,13 +67,38 @@ export async function GET(event: any) {
       });
     }
 
+    // Parse keys into (media_type, tmdb_id) pairs
+    const pairs: Array<{ mediaType: string; tmdbId: number; originalKey: string }> = [];
+    for (const key of keys) {
+      const parsed = parseKey(key);
+      if (parsed) {
+        pairs.push({ ...parsed, originalKey: key });
+      }
+    }
+
+    if (pairs.length === 0) {
+      return new Response(JSON.stringify({ data: {} }), {
+        headers: { "Content-Type": "application/json" }
+      });
+    }
+
     const supabase = getServiceClient();
 
-    // Batch fetch all requested keys
+    // Build OR filter for all (media_type, tmdb_id) pairs
+    // PostgREST or() syntax: or(media_type.eq.movie,tmdb_id.eq.550)
+    // For multiple pairs, we chain .or() calls or use a single composite OR
+    //
+    // Strategy: query all rows matching any of the tmdb_ids, then
+    // filter client-side for exact (media_type, tmdb_id) matches.
+    // This is more efficient than N separate queries.
+    const tmdbIds = [...new Set(pairs.map((p) => p.tmdbId))];
+    const mediaTypes = [...new Set(pairs.map((p) => p.mediaType))];
+
     const { data, error } = await supabase
       .from("tmdb_cache")
-      .select("key,data,expires_at")
-      .in("key", keys);
+      .select("media_type,tmdb_id,data,expires_at")
+      .in("tmdb_id", tmdbIds)
+      .in("media_type", mediaTypes);
 
     if (error) {
       console.error("[tmdb-cache API] Read error:", error);
@@ -69,8 +112,10 @@ export async function GET(event: any) {
     const now = new Date().toISOString();
     const result: Record<string, any> = {};
     for (const row of (data ?? [])) {
+      // Only include non-expired entries
       if (row.expires_at && row.expires_at > now) {
-        result[row.key] = row.data;
+        const key = `${row.media_type}/${row.tmdb_id}`;
+        result[key] = row.data;
       }
     }
 
@@ -109,7 +154,6 @@ export async function POST(event: any) {
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
     const rows = entries.map((entry: any) => ({
-      key: entry.key,
       tmdb_id: entry.tmdb_id,
       media_type: entry.media_type,
       data: entry.data,
@@ -117,9 +161,10 @@ export async function POST(event: any) {
     }));
 
     // Batch upsert — insert new, update existing
+    // The unique constraint is on (media_type, tmdb_id)
     const { error } = await supabase
       .from("tmdb_cache")
-      .upsert(rows, { onConflict: "key", ignoreDuplicates: false });
+      .upsert(rows, { onConflict: "media_type,tmdb_id", ignoreDuplicates: false });
 
     if (error) {
       console.error("[tmdb-cache API] Write error:", error);

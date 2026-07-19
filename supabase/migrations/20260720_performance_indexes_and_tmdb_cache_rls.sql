@@ -68,9 +68,12 @@ CREATE INDEX IF NOT EXISTS idx_tmdb_cache_media_lookup
   ON public.tmdb_cache (media_type, tmdb_id);
 
 -- Expiration cleanup: find stale entries that need refresh
+-- NOTE: We cannot use `WHERE expires_at < now()` in a partial index because
+-- now() is VOLATILE (not IMMUTABLE), and PostgreSQL requires IMMUTABLE
+-- expressions in index predicates (error 42P17). Instead, use a plain index
+-- on expires_at; the cleanup query filters at runtime.
 CREATE INDEX IF NOT EXISTS idx_tmdb_cache_expires 
-  ON public.tmdb_cache (expires_at) 
-  WHERE expires_at < now();
+  ON public.tmdb_cache (expires_at);
 
 -- ─── Done! ─────────────────────────────────────────────────────
 -- Verify with:
