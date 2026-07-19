@@ -66,14 +66,14 @@
   background:
     linear-gradient(to top,
       var(--tier-1) 0%,
-      rgba(10,11,14,0.95) 8%,
-      rgba(10,11,14,0.70) 22%,
-      rgba(10,11,14,0.30) 45%,
-      rgba(10,11,14,0.05) 70%,
+      rgba(8,8,13,0.95) 8%,
+      rgba(8,8,13,0.70) 22%,
+      rgba(8,8,13,0.30) 45%,
+      rgba(8,8,13,0.05) 70%,
       transparent 100%),
     linear-gradient(to bottom,
-      rgba(0,0,0,0.60) 0%,
-      rgba(0,0,0,0.20) 15%,
+      rgba(8,8,13,0.60) 0%,
+      rgba(8,8,13,0.20) 15%,
       transparent 30%);
 }
 .collection-hero-content {
@@ -106,7 +106,7 @@
   letter-spacing: 0.02em;
   color: var(--text-strong);
   margin: 0;
-  text-shadow: 0 2px 24px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1);
+  text-shadow: 0 2px 24px rgba(8,8,13,0.95), 0 1px 4px rgba(8,8,13,1);
   display: -webkit-box;
   -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
@@ -394,7 +394,7 @@
 .collection-skeleton-hero {
   width: 100%;
   height: 280px;
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background: linear-gradient(105deg, rgba(232,183,74,0.015) 25%, rgba(232,183,74,0.04) 50%, rgba(232,183,74,0.015) 75%);
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -407,7 +407,7 @@
   height: 48px;
   flex: 1;
   border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.04);
+  background: rgba(232,183,74,0.03);
 }
 .collection-skeleton-timeline {
   padding: var(--sp-4);
@@ -418,7 +418,7 @@
 .collection-skeleton-item {
   height: 68px;
   border-radius: var(--radius-md);
-  background: rgba(255,255,255,0.04);
+  background: rgba(232,183,74,0.03);
 }
 
 /* ---------- FRANCHISE TRIGGER (in Details page) ---------- */
@@ -542,7 +542,7 @@
 .universe-hero {
   position: relative; width: 100%; height: 380px; border-radius: var(--radius-xl);
   overflow: hidden; background: var(--tier-2);
-  box-shadow: var(--shadow-hero), inset 0 0 0 1px rgba(255,255,255,0.04);
+  box-shadow: var(--shadow-hero), inset 0 0 0 1px var(--hairline);
 }
 @media (min-width: 640px) { .universe-hero { height: 440px; } }
 .universe-hero-backdrop {
@@ -553,9 +553,9 @@
 .universe-hero-backdrop.img-loaded { opacity: 1; transform: scale(1); }
 .universe-hero-overlay {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  background: linear-gradient(to top, var(--tier-1) 0%, rgba(10,11,14,0.95) 8%, rgba(10,11,14,0.70) 22%, rgba(10,11,14,0.30) 45%, rgba(10,11,14,0.05) 70%, transparent 100%),
-    linear-gradient(to bottom, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.20) 15%, transparent 30%),
-    linear-gradient(to right, rgba(0,0,0,0.50) 0%, transparent 55%);
+  background: linear-gradient(to top, var(--tier-1) 0%, rgba(8,8,13,0.95) 8%, rgba(8,8,13,0.70) 22%, rgba(8,8,13,0.30) 45%, rgba(8,8,13,0.05) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(8,8,13,0.60) 0%, rgba(8,8,13,0.20) 15%, transparent 30%),
+    linear-gradient(to right, rgba(8,8,13,0.50) 0%, transparent 55%);
 }
 .universe-hero-badge {
   position: absolute; top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)); left: var(--sp-4); z-index: 3;
@@ -564,7 +564,7 @@
   backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--hairline-2); font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--text-body); box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  color: var(--text-body); box-shadow: var(--shadow-premium);
 }
 .universe-hero-content {
   position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
@@ -574,7 +574,7 @@
 .universe-hero-title {
   font-family: 'Bebas Neue', cursive; font-size: 2.25rem; line-height: 0.95;
   letter-spacing: 0.02em; color: var(--text-strong); margin: 0;
-  text-shadow: 0 2px 24px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1);
+  text-shadow: 0 2px 24px rgba(8,8,13,0.95), 0 1px 4px rgba(8,8,13,1);
   display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
 }
 @media (min-width: 640px) { .universe-hero-title { font-size: 3rem; } }
@@ -588,7 +588,7 @@
 .universe-hero-ring {
   width: 48px; height: 48px; border-radius: 50%; flex-shrink: 0; display: flex;
   align-items: center; justify-content: center; position: relative;
-  background: conic-gradient(var(--p) var(--progress), rgba(255,255,255,0.08) 0);
+  background: conic-gradient(var(--p) var(--progress), rgba(232,183,74,0.05) 0);
   box-shadow: 0 0 16px var(--p-glow);
 }
 .universe-hero-ring::before {
@@ -627,15 +627,15 @@
 .universe-continue-img { width: 100%; height: 100%; object-fit: cover; filter: brightness(0.65); }
 .universe-continue-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.85) 0%, transparent 60%);
+  background: linear-gradient(to top, rgba(8,8,13,0.85) 0%, transparent 60%);
 }
 .universe-continue-ring {
   position: absolute; bottom: var(--sp-2); right: var(--sp-2);
   width: 36px; height: 36px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
-  background: conic-gradient(var(--p) var(--progress), rgba(255,255,255,0.15) 0);
+  background: conic-gradient(var(--p) var(--progress), rgba(232,183,74,0.09) 0);
   box-shadow: 0 0 12px var(--p-glow);
 }
-.universe-continue-ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: rgba(0,0,0,0.8); }
+.universe-continue-ring::before { content: ''; position: absolute; inset: 3px; border-radius: 50%; background: rgba(8,8,13,0.8); }
 .universe-continue-ring-pct {
   position: relative; font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 800; color: var(--p); z-index: 1;
 }
@@ -669,21 +669,21 @@
 .universe-banner-card:hover .universe-banner-backdrop { transform: scale(1.05); filter: brightness(0.65); }
 .universe-banner-overlay {
   position: absolute; inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.95) 0%, rgba(0,0,0,0.50) 50%, transparent 100%);
+  background: linear-gradient(to top, rgba(8,8,13,0.95) 0%, rgba(8,8,13,0.50) 50%, transparent 100%);
 }
 .universe-banner-content {
   position: absolute; bottom: 0; left: 0; right: 0; padding: var(--sp-4); z-index: 1;
 }
 .universe-banner-name {
   font-family: 'Bebas Neue', cursive; font-size: 1.25rem; line-height: 1; letter-spacing: 0.03em;
-  color: var(--text-strong); margin: 0; text-shadow: 0 2px 12px rgba(0,0,0,0.9);
+  color: var(--text-strong); margin: 0; text-shadow: 0 2px 12px rgba(8,8,13,0.9);
 }
 .universe-banner-meta {
   font-family: 'Azeret Mono', monospace; font-size: 0.5rem; font-weight: 600; letter-spacing: 0.08em;
-  color: rgba(255,255,255,0.7); margin: 4px 0 0; text-transform: uppercase;
+  color: var(--text-soft); margin: 4px 0 0; text-transform: uppercase;
 }
 .universe-banner-progress-bar {
-  position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(255,255,255,0.08);
+  position: absolute; bottom: 0; left: 0; right: 0; height: 3px; background: rgba(232,183,74,0.05);
 }
 .universe-banner-progress-fill {
   height: 100%; background: linear-gradient(90deg, var(--p), var(--p2));
@@ -856,7 +856,7 @@
   content: '';
   position: absolute;
   inset: 0;
-  background: linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 40%);
+  background: linear-gradient(to top, rgba(8,8,13,0.6) 0%, transparent 40%);
   pointer-events: none;
   z-index: 1;
 }
@@ -880,7 +880,7 @@
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--hairline-2);
-  background: rgba(0,0,0,0.5);
+  background: rgba(8,8,13,0.5);
 }
 .collection-badge-smart {
   color: var(--p);
@@ -904,7 +904,7 @@
   width: 28px;
   height: 28px;
   border-radius: 50%;
-  background: rgba(0,0,0,0.5);
+  background: rgba(8,8,13,0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
   border: 1px solid var(--hairline-2);
@@ -918,7 +918,7 @@
   opacity: 1;
 }
 .collection-card-menu:hover {
-  background: rgba(0,0,0,0.7);
+  background: rgba(8,8,13,0.7);
   color: var(--text-strong);
 }
 
@@ -1034,7 +1034,7 @@
 }
 .collections-folder-skeleton {
   height: 160px; border-radius: var(--radius-lg);
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background: linear-gradient(105deg, rgba(232,183,74,0.015) 25%, rgba(232,183,74,0.04) 50%, rgba(232,183,74,0.015) 75%);
   background-size: 300% 100%; animation: shimmer 1.6s ease-in-out infinite;
 }
 .collections-back-btn {
@@ -1048,7 +1048,7 @@
 /* === COLLECTION DETAIL — CINEMATIC HERO === */
 .universe-detail-hero {
   position: relative; width: 100%; height: 340px; border-radius: var(--radius-xl);
-  overflow: hidden; background: var(--tier-2); box-shadow: var(--shadow-hero), inset 0 0 0 1px rgba(255,255,255,0.04);
+  overflow: hidden; background: var(--tier-2); box-shadow: var(--shadow-hero), inset 0 0 0 1px var(--hairline);
 }
 @media (min-width: 640px) { .universe-detail-hero { height: 400px; } }
 .universe-detail-hero-backdrop {
@@ -1059,17 +1059,17 @@
 .universe-detail-hero-backdrop.img-loaded { opacity: 1; transform: scale(1); }
 .universe-detail-hero-overlay {
   position: absolute; inset: 0; pointer-events: none; z-index: 1;
-  background: linear-gradient(to top, var(--tier-1) 0%, rgba(10,11,14,0.95) 8%, rgba(10,11,14,0.70) 22%, rgba(10,11,14,0.30) 45%, rgba(10,11,14,0.05) 70%, transparent 100%),
-    linear-gradient(to bottom, rgba(0,0,0,0.60) 0%, rgba(0,0,0,0.20) 15%, transparent 30%);
+  background: linear-gradient(to top, var(--tier-1) 0%, rgba(8,8,13,0.95) 8%, rgba(8,8,13,0.70) 22%, rgba(8,8,13,0.30) 45%, rgba(8,8,13,0.05) 70%, transparent 100%),
+    linear-gradient(to bottom, rgba(8,8,13,0.60) 0%, rgba(8,8,13,0.20) 15%, transparent 30%);
 }
 .universe-detail-back-btn {
   position: absolute; top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)); left: var(--sp-4); z-index: 20;
   display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%;
-  background: rgba(0,0,0,0.50); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.10); color: var(--text-strong); cursor: pointer;
+  background: rgba(8,8,13,0.50); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline-2); color: var(--text-strong); cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
 }
-.universe-detail-back-btn:hover { background: rgba(0,0,0,0.70); }
+.universe-detail-back-btn:hover { background: rgba(8,8,13,0.70); }
 .universe-detail-back-btn:active { transform: scale(0.95); }
 .universe-detail-hero-content {
   position: absolute; bottom: 0; left: 0; right: 0; z-index: 2;
@@ -1079,12 +1079,12 @@
 .universe-detail-hero-eyebrow {
   font-family: 'Azeret Mono', monospace; font-size: 0.6875rem; font-weight: 700;
   letter-spacing: 0.14em; text-transform: uppercase; color: var(--p); margin: 0;
-  text-shadow: 0 1px 8px rgba(0,0,0,1);
+  text-shadow: 0 1px 8px rgba(8,8,13,1);
 }
 .universe-detail-hero-title {
   font-family: 'Bebas Neue', cursive; font-size: 2.25rem; line-height: 0.95;
   letter-spacing: 0.02em; color: var(--text-strong); margin: 0;
-  text-shadow: 0 2px 24px rgba(0,0,0,0.95), 0 1px 4px rgba(0,0,0,1);
+  text-shadow: 0 2px 24px rgba(8,8,13,0.95), 0 1px 4px rgba(8,8,13,1);
 }
 @media (min-width: 640px) { .universe-detail-hero-title { font-size: 3rem; } }
 .universe-detail-hero-description {
@@ -1097,7 +1097,7 @@
 }
 .universe-detail-ring {
   width: 56px; height: 56px; border-radius: 50%; flex-shrink: 0; display: flex; align-items: center; justify-content: center;
-  position: relative; background: conic-gradient(var(--p) var(--progress), rgba(255,255,255,0.08) 0);
+  position: relative; background: conic-gradient(var(--p) var(--progress), rgba(232,183,74,0.05) 0);
   box-shadow: 0 0 16px var(--p-glow);
 }
 .universe-detail-ring::before { content: ''; position: absolute; inset: 4px; border-radius: 50%; background: var(--tier-1); }
@@ -1130,7 +1130,7 @@
   box-shadow: var(--active-glow), inset 0 0 0 1px var(--active-border); font-weight: 800;
 }
 .universe-order-btn[data-active="false"] { background: transparent; color: var(--text-soft); }
-.universe-order-btn[data-active="false"]:hover { color: var(--text-strong); background: rgba(255,255,255,0.04); }
+.universe-order-btn[data-active="false"]:hover { color: var(--text-strong); background: rgba(232,183,74,0.03); }
 
 /* === TIMELINE === */
 .universe-timeline-section { display: flex; flex-direction: column; gap: var(--sp-3); }
@@ -1205,9 +1205,9 @@
 .universe-timeline-status {
   position: absolute; bottom: 2px; right: 2px; width: 16px; height: 16px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
-  background: rgba(0,0,0,0.8); border: 1px solid rgba(255,255,255,0.2);
+  background: rgba(8,8,13,0.8); border: 1px solid var(--hairline-3);
 }
-.universe-timeline-status-completed { background: #4ade80; border-color: #4ade80; color: #05060a; }
+.universe-timeline-status-completed { background: #4ade80; border-color: #4ade80; color: #08080D; }
 .universe-timeline-status-watching { background: var(--p); border-color: var(--p); }
 
 /* Info */
@@ -1629,10 +1629,10 @@
   align-items: center;
   gap: 4px;
   padding: 4px 8px;
-  background: rgba(0,0,0,0.75);
+  background: rgba(8,8,13,0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid rgba(255,255,255,0.15);
+  border: 1px solid var(--hairline-3);
   color: #ff8888;
   font-family: 'Outfit', sans-serif;
   font-size: 0.6875rem;
@@ -1643,7 +1643,7 @@
 }
 
 .folder-editor-backdrop-clear:hover {
-  background: rgba(0,0,0,0.9);
+  background: rgba(8,8,13,0.9);
   color: #ffaaaa;
 }
 
@@ -1758,10 +1758,10 @@
   pointer-events: none;
   background: linear-gradient(
     to bottom,
-    rgba(0,0,0,0.25) 0%,
-    rgba(0,0,0,0.15) 40%,
-    rgba(0,0,0,0.55) 80%,
-    rgba(0,0,0,0.75) 100%
+    rgba(8,8,13,0.25) 0%,
+    rgba(8,8,13,0.15) 40%,
+    rgba(8,8,13,0.55) 80%,
+    rgba(8,8,13,0.75) 100%
   );
 }
 
@@ -1771,7 +1771,7 @@
 }
 .collection-card:has(.collection-card-backdrop) .collection-card-menu {
   z-index: 3;
-  background: rgba(0,0,0,0.5);
+  background: rgba(8,8,13,0.5);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }

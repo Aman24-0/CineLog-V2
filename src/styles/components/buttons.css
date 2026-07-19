@@ -1,12 +1,5 @@
-/* src/styles/components/buttons.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
-
-/* ============================================================
-   CINEMATIC CLOSE BUTTON — safe-area-aware
-   Uses calc(env(safe-area-inset-top) + var(--sp-4)) so the button
-   is never hidden under the mobile browser address bar or PWA header.
-   Works across Android Chrome, Samsung Internet, Edge Mobile, PWAs.
-   ============================================================ */
+/* src/styles/components/buttons.css — CineLog V2 Redesign
+   Premium cinema close button with warm gold accent. */
 
 .cinematic-close-btn {
   position: absolute;
@@ -19,29 +12,23 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: rgba(0,0,0,0.50);
+  background: rgba(8,8,13,0.55);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(255,255,255,0.10);
+  border: 1px solid rgba(232,183,74,0.10);
   color: var(--text-strong);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
+  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
 }
 .cinematic-close-btn:hover {
-  background: rgba(0,0,0,0.70);
+  background: rgba(8,8,13,0.75);
+  border-color: rgba(232,183,74,0.20);
 }
 .cinematic-close-btn:active {
   transform: scale(0.95);
 }
 
-/* ─── Light mode ───
-   The close button sits over the hero backdrop image (always dark,
-   even in light mode), so we keep a dark glass background for
-   readability. But we boost the border and text contrast so the
-   button reads clearly against the brighter ambient feel of light
-   mode. Color stays white (var(--text-strong) = #1A1714 in light
-   mode would be dark — wrong on a dark image). We force white text
-   + a slightly stronger border so the button is visible. */
+/* Light mode — keep dark glass for readability over hero images */
 :root[data-theme-resolved="light"] .cinematic-close-btn {
   background: rgba(0, 0, 0, 0.55);
   border-color: rgba(255, 255, 255, 0.22);
@@ -51,9 +38,7 @@
   background: rgba(0, 0, 0, 0.72);
 }
 
-/* Trailer close button — also safe-area-aware */
+/* Trailer close button */
 .cinematic-trailer-close {
   top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) !important;
 }
-
-

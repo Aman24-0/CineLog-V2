@@ -118,7 +118,7 @@ export const [customAccent, setCustomAccent] = createSignal<string>(
  */
 export function contrastOn(hex: string): string {
   const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!m) return "#05060a";
+  if (!m) return "#08080D";
   const r = parseInt(m[1].slice(0, 2), 16);
   const g = parseInt(m[1].slice(2, 4), 16);
   const b = parseInt(m[1].slice(4, 6), 16);
@@ -128,7 +128,7 @@ export function contrastOn(hex: string): string {
     return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
   };
   const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
-  return L > 0.45 ? "#05060a" : "#ffffff";
+  return L > 0.45 ? "#08080D" : "#ffffff";
 }
 
 createEffect(() => {

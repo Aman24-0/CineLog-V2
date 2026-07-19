@@ -78,11 +78,11 @@ const NavButton: Component<Props> = (props) => {
           bottom: "calc(var(--nav-safe-area) + 6px)",
           left: "50%",
           transform: "translateX(-50%)",
-          width: props.active ? "20px" : "0px",
+          width: props.active ? "24px" : "0px",
           height: "2px",
           "border-radius": "2px",
           background: "var(--p)",
-          "box-shadow": "0 0 8px var(--p-glow)",
+          "box-shadow": "0 0 10px var(--p-glow)",
           transition:
             "width var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out)",
           opacity: props.active ? "1" : "0",

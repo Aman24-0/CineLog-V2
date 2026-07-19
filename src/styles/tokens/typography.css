@@ -1,50 +1,38 @@
-/* src/styles/tokens/typography.css — Phase 14.2 CSS architecture
-   Typography-related tokens. Originally only a placeholder; now
-   populated with complete font-family, font-size, font-weight,
-   line-height, and letter-spacing tokens extracted from the
-   existing codebase.
-
-   IMPORTANT: These tokens are ADDITIVE. No existing font references
-   in .type-* classes are changed. The tokens document the values
-   already in use and make them referenceable from Tailwind. */
+/* src/styles/tokens/typography.css — CineLog V2 Redesign
+   Typography tokens — refined for cinematic editorial feel.
+   Slightly wider letter-spacing on display fonts for premium feel.
+   No font-family changes (Bebas Neue, Outfit, Azeret Mono retained). */
 
 @layer base {
   :root {
-    /* ─── Font Families ───
-       Three permanent typefaces per CDL §P3.
-       Display = Bebas Neue (cinematic, tall)
-       Label   = Azeret Mono (technical, precise)
-       Body    = Outfit (warm, readable) */
+    /* ─── Font Families ─── */
     --font-family-display: 'Bebas Neue', cursive;
     --font-family-heading: 'Outfit', sans-serif;
     --font-family-body: 'Outfit', sans-serif;
     --font-family-label: 'Azeret Mono', monospace;
     --font-family-mono: 'Azeret Mono', monospace;
 
-    /* ─── Font Size Scale ───
-       Maps to all sizes found in the codebase.
-       The scale follows a 0.0625rem (1px) granularity for
-       precise alignment with existing hardcoded values. */
-    --font-size-2xs: 0.4375rem;   /* 7px  — Discover badge */
-    --font-size-xs:  0.5rem;      /* 8px  — Caption, tiny labels */
-    --font-size-2xs-px: 8px;      /* 8px  — Tag chip, rating chip (px value for inline use) */
-    --font-size-xs-px: 9px;       /* 9px  — Rating pill */
-    --font-size-sm:  0.5625rem;   /* 9px  — Micro labels, chips, pills */
-    --font-size-md:  0.625rem;    /* 10px — Phase 2.1 eyebrow, timeline pills, filter buttons */
-    --font-size-base: 0.6875rem;  /* 11px — Eyebrow (V2), section title, card title, rail title */
-    --font-size-lg:  0.75rem;     /* 12px — V2 meta, username, input font-size */
-    --font-size-xl:  0.8125rem;   /* 13px — Toast message, collection name, V1 metadata */
-    --font-size-2xl: 0.875rem;    /* 14px — Card descriptions, meta, notes */
-    --font-size-3xl: 0.9375rem;   /* 15px — Body (V2) */
-    --font-size-4xl: 1rem;        /* 16px — Headline-sm, trajectory intent */
-    --font-size-5xl: 1.125rem;    /* 18px — Phase 2.1 headline */
-    --font-size-6xl: 1.25rem;     /* 20px — V2 headline, section header */
-    --font-size-7xl: 1.5rem;      /* 24px — Vault shelf title @640px, collection stat */
-    --font-size-8xl: 1.75rem;     /* 28px — Hero title mobile, surprise title */
-    --font-size-9xl: 2rem;        /* 32px — Genre title, settings title, V1 stat, display-sm */
-    --font-size-10xl: 2.25rem;    /* 36px — Page-title (V1), spotlight title */
-    --font-size-11xl: 2.5rem;     /* 40px — Phase 2.1 display, Discover desktop */
-    --font-size-12xl: 3.25rem;    /* 52px — V2 display, collection hero desktop */
+    /* ─── Font Size Scale ─── */
+    --font-size-2xs: 0.4375rem;
+    --font-size-xs:  0.5rem;
+    --font-size-2xs-px: 8px;
+    --font-size-xs-px: 9px;
+    --font-size-sm:  0.5625rem;
+    --font-size-md:  0.625rem;
+    --font-size-base: 0.6875rem;
+    --font-size-lg:  0.75rem;
+    --font-size-xl:  0.8125rem;
+    --font-size-2xl: 0.875rem;
+    --font-size-3xl: 0.9375rem;
+    --font-size-4xl: 1rem;
+    --font-size-5xl: 1.125rem;
+    --font-size-6xl: 1.25rem;
+    --font-size-7xl: 1.5rem;
+    --font-size-8xl: 1.75rem;
+    --font-size-9xl: 2rem;
+    --font-size-10xl: 2.25rem;
+    --font-size-11xl: 2.5rem;
+    --font-size-12xl: 3.25rem;
 
     /* ─── Font Weight Scale ─── */
     --font-weight-regular: 400;
@@ -61,19 +49,19 @@
     --line-height-normal: 1.5;
     --line-height-relaxed: 1.55;
 
-    /* ─── Letter Spacing Scale ─── */
+    /* ─── Letter Spacing Scale (refined — slightly wider for cinema feel) ─── */
     --letter-spacing-tighter: -0.01em;
     --letter-spacing-tight: -0.005em;
     --letter-spacing-normal: 0;
     --letter-spacing-wide: 0.01em;
     --letter-spacing-wider: 0.02em;
-    --letter-spacing-wide-2: 0.03em;
-    --letter-spacing-wider-2: 0.04em;
-    --letter-spacing-extra-wide: 0.08em;
-    --letter-spacing-ultra-wide: 0.1em;
-    --letter-spacing-micro: 0.12em;
-    --letter-spacing-label: 0.14em;
-    --letter-spacing-label-wide: 0.16em;
-    --letter-spacing-eyebrow: 0.18em;
+    --letter-spacing-wide-2: 0.04em;
+    --letter-spacing-wider-2: 0.06em;
+    --letter-spacing-extra-wide: 0.10em;
+    --letter-spacing-ultra-wide: 0.12em;
+    --letter-spacing-micro: 0.14em;
+    --letter-spacing-label: 0.16em;
+    --letter-spacing-label-wide: 0.18em;
+    --letter-spacing-eyebrow: 0.20em;
   }
 }

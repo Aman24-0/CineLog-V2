@@ -1,31 +1,27 @@
-/* src/styles/tokens/radius.css — Phase 14.2 CSS architecture
-   Border-radius scale tokens. Extracted from the original :root blocks.
-
-   Sprint 1B: Added radius-xs and radius-full to complete the semantic
-   scale. The original tokens are preserved — no values changed.
-   Hardcoded radius values found in the codebase (2px, 3px, 5px, 6px)
-   now have corresponding tokens for future reference. */
+/* src/styles/tokens/radius.css — CineLog V2 Redesign
+   Slightly softer radii for premium cinema feel.
+   Cards and containers use slightly rounder corners. */
 
 @layer base {
   :root {
-    /* ─── Original radius scale (preserved) ─── */
-    --radius-sm: 8px;
-    --radius-md: 12px;
-    --radius-card: 16px;
-    --radius-lg: 20px;
+    /* ─── Radius scale (redesigned — softer, more premium) ─── */
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-card: 14px;
+    --radius-lg: 18px;
     --radius-xl: 24px;
     --radius-2xl: 28px;
-    --radius-modal: 32px;
+    --radius-modal: 24px;
     --radius-pill: 999px;
     --touch-min: 44px;
 
-    /* ─── Semantic radius scale (new, completes the spectrum) ─── */
-    --radius-xs: 4px;       /* Scrollbar thumb, focus ring offset */
-    --radius-2xs: 2px;      /* Heatmap cells, section accent bars */
-    --radius-3xs: 3px;      /* Progress bars, scrollbar thumb */
-    --radius-4: 4px;        /* Alias for radius-xs (Tailwind compat) */
-    --radius-5: 5px;        /* Rating chips (hardcoded value now tokenized) */
-    --radius-6: 6px;        /* Tags (hardcoded value now tokenized) */
-    --radius-full: 999px;   /* Alias for radius-pill (Tailwind compat) */
+    /* ─── Semantic radius scale ─── */
+    --radius-xs: 5px;
+    --radius-2xs: 3px;
+    --radius-3xs: 2px;
+    --radius-4: 5px;
+    --radius-5: 6px;
+    --radius-6: 8px;
+    --radius-full: 999px;
   }
 }

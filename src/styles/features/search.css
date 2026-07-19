@@ -1,12 +1,5 @@
-/* src/styles/features/search.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
-
-/* ============================================================
-   PHASE 2.x — SEARCH V2
-   The intentional discovery-by-query experience. Search is the
-   INTENTIONAL path; Discover is the SERENDIPITOUS path. They must
-   feel different — Search is about finding a specific thing.
-   ============================================================ */
+/* src/styles/features/search.css — CineLog V2 Redesign
+   Premium cinema search experience with warm gold accents. */
 
 .search-eyebrow-block {
   margin-bottom: var(--sp-5);
@@ -15,7 +8,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
   color: var(--p);
   margin: 0 0 var(--sp-1);
@@ -24,7 +17,7 @@
   font-family: 'Bebas Neue', cursive;
   font-size: 2.5rem;
   line-height: 1;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   color: var(--text-strong);
   margin: 0 0 var(--sp-2);
 }
@@ -38,14 +31,14 @@
   max-width: 320px;
 }
 
-/* Search bar — the primary interaction */
+/* Search bar */
 .search-bar-form {
   margin-bottom: var(--sp-6);
   position: sticky;
   top: 0;
   z-index: 30;
   padding: var(--sp-3) 0;
-  background: rgba(5,6,10,0.92);
+  background: rgba(8,8,13,0.92);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
   border-bottom: 1px solid var(--hairline);
@@ -110,14 +103,14 @@
   color: var(--text-strong);
 }
 
-/* Cold-start state (no query) */
+/* Cold-start state */
 .search-cold-start {
   display: flex;
   flex-direction: column;
   gap: var(--sp-6);
 }
 
-/* Search section — reusable wrapper */
+/* Search section */
 .search-section {
   display: flex;
   flex-direction: column;
@@ -127,7 +120,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.16em;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--text-strong);
   display: inline-flex;
@@ -152,7 +145,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--p);
   border-radius: var(--radius-sm);
@@ -162,7 +155,7 @@
   background: var(--p-dim);
 }
 
-/* Recent searches — chip list */
+/* Recent searches */
 .search-recent-list {
   display: flex;
   flex-wrap: wrap;
@@ -200,7 +193,7 @@
   background: var(--hairline-2);
 }
 
-/* Trending rail — horizontal scroll-snap */
+/* Trending rail */
 .search-rail {
   display: flex;
   gap: var(--sp-3);
@@ -288,13 +281,13 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   color: var(--text-muted);
   margin: 2px 0 0;
   text-transform: uppercase;
 }
 
-/* Genre grid — cold-start browse */
+/* Genre grid */
 .search-genre-grid {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
@@ -335,7 +328,7 @@
   color: var(--text-strong);
 }
 
-/* Results list — vertical rows */
+/* Results list */
 .search-results-list {
   display: flex;
   flex-direction: column;
@@ -417,7 +410,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5rem;
   font-weight: 600;
-  letter-spacing: 0.08em;
+  letter-spacing: 0.10em;
   color: var(--text-muted);
   margin: 0;
   text-transform: uppercase;
@@ -453,12 +446,12 @@
 .search-result-skeleton {
   height: 88px;
   border-radius: var(--radius-md);
-  background: linear-gradient(105deg, rgba(255,255,255,0.02) 25%, rgba(255,255,255,0.06) 50%, rgba(255,255,255,0.02) 75%);
+  background: linear-gradient(105deg, rgba(232,183,74,0.02) 25%, rgba(232,183,74,0.05) 50%, rgba(232,183,74,0.02) 75%);
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
 
-/* Empty state — quiet, cinematic */
+/* Empty state */
 .search-empty {
   display: flex;
   flex-direction: column;
@@ -472,7 +465,7 @@
   color: var(--text-dim);
 }
 
-/* Genre browse header — back button + genre title */
+/* Genre browse header */
 .search-genre-header {
   display: flex;
   align-items: center;
@@ -506,7 +499,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.18em;
+  letter-spacing: 0.20em;
   text-transform: uppercase;
   color: var(--p);
   margin: 0;
@@ -515,12 +508,12 @@
   font-family: 'Bebas Neue', cursive;
   font-size: 2rem;
   line-height: 1;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   color: var(--text-strong);
   margin: 0;
 }
 
-/* Load more — manual infinite scroll trigger */
+/* Load more */
 .search-load-more {
   display: flex;
   align-items: center;
@@ -541,7 +534,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--p);
 }
@@ -552,16 +545,14 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
 
-/* End of results — quiet closer */
+/* End of results */
 .search-end-of-results {
   text-align: center;
   padding: var(--sp-6) var(--sp-4);
   color: var(--text-dim);
 }
-
-

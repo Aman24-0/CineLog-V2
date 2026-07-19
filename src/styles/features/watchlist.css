@@ -1,16 +1,8 @@
-/* src/styles/features/watchlist.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
+/* src/styles/features/watchlist.css — CineLog V2 Redesign
+   Premium cinema vault experience with warm gold accents,
+   deeper shadows, and refined card styling. */
 
-
-/* ============================================================
-   PHASE 2.1 SPRINT 2 — PREMIUM VAULT EXPERIENCE
-   Vault-specific design tokens for cards, timeline, filters, search
-   ============================================================ */
-
-/* Premium movie card (vault grid) — refined overlay + ratings
-   ── PERFORMANCE: content-visibility:auto skips rendering of offscreen
-   cards, dramatically reducing paint time for large vaults (1000+ items).
-   contain-intrinsic-size reserves space so the scrollbar doesn't jump. */
+/* Premium movie card (vault grid) — refined overlay + ratings */
 .vault-card-premium {
   position: relative;
   cursor: pointer;
@@ -19,29 +11,29 @@
   transition: transform var(--dur-base) var(--ease-spring),
               opacity var(--dur-base) var(--ease-out);
 }
-.vault-card-premium:hover { transform: translateY(-4px) scale(1.03); will-change: transform; }
-.vault-card-premium:active { transform: translateY(0) scale(0.94); transition-duration: var(--dur-fast); will-change: auto; }
+.vault-card-premium:hover { transform: translateY(-3px) scale(1.02); will-change: transform; }
+.vault-card-premium:active { transform: translateY(0) scale(0.95); transition-duration: var(--dur-fast); will-change: auto; }
 
 .vault-card-inner {
   aspect-ratio: 2/3;
   border-radius: var(--radius-card);
   overflow: hidden;
   border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.06);
+  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.04);
   background: var(--tier-2);
   position: relative;
   transition: border-color var(--dur-base) var(--ease-out),
               box-shadow var(--dur-base) var(--ease-out);
 }
 .vault-card-premium:hover .vault-card-inner {
-  border-color: color-mix(in srgb, var(--p) 55%, transparent);
-  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p) 40%, transparent),
-              0 0 28px var(--p-glow),
-              0 20px 60px rgba(0,0,0,0.85),
-              inset 0 1px 0 rgba(255,255,255,0.08);
+  border-color: color-mix(in srgb, var(--p) 50%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--p) 35%, transparent),
+              0 0 20px var(--p-glow),
+              0 16px 48px rgba(0,0,0,0.85),
+              inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
-/* Premium card poster with refined load animation */
+/* Premium card poster */
 .vault-card-poster {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: block;
@@ -54,13 +46,13 @@
 .vault-card-poster.img-loaded { opacity: 1; transform: scale(1); filter: brightness(0.85) saturate(0.95); }
 .vault-card-premium:hover .vault-card-poster { filter: brightness(0.72) saturate(1.0); transform: scale(1.04); }
 
-/* Premium card gradient overlay — refined for better text legibility */
+/* Premium card gradient overlay — warm cinema depth */
 .vault-card-inner::after {
   content: '';
   position: absolute; inset: 0;
   background:
-    linear-gradient(to top, rgba(0,0,0,0.97) 0%, rgba(0,0,0,0.78) 28%, rgba(0,0,0,0.18) 55%, rgba(0,0,0,0.08) 75%, transparent 100%),
-    linear-gradient(to bottom, rgba(0,0,0,0.45) 0%, transparent 30%);
+    linear-gradient(to top, rgba(8,8,13,0.97) 0%, rgba(8,8,13,0.78) 28%, rgba(8,8,13,0.18) 55%, rgba(8,8,13,0.08) 75%, transparent 100%),
+    linear-gradient(to bottom, rgba(8,8,13,0.45) 0%, transparent 30%);
   pointer-events: none;
   z-index: 2;
 }
@@ -70,10 +62,10 @@
 .status-badge-watching { color: #4ade80; background: rgba(0,0,0,0.72); border: 1px solid rgba(74,222,128,0.35); }
 .status-badge-completed { color: #60a5fa; background: rgba(0,0,0,0.72); border: 1px solid rgba(96,165,250,0.35); }
 
-/* Premium rating chip — compact pill */
+/* Premium rating chip */
 .rating-chip {
   display: inline-flex; align-items: center; gap: 2px;
-  padding: 2px 4px; border-radius: 5px;
+  padding: 2px 4px; border-radius: var(--radius-5);
   background: rgba(0,0,0,0.70);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
@@ -86,7 +78,7 @@
 .rating-chip-rt { border: 1px solid rgba(255,120,120,0.3); color: #ff7878; }
 .rating-chip-user { border: 1px solid color-mix(in srgb, var(--p) 35%, transparent); color: var(--p); }
 
-/* Premium timeline — refined rail + nodes */
+/* Premium timeline */
 .timeline-rail {
   position: absolute;
   left: 1.25rem;
@@ -97,8 +89,8 @@
   pointer-events: none;
   background: linear-gradient(to bottom,
     transparent 0%,
-    color-mix(in srgb, var(--p) 20%, transparent) 8%,
-    color-mix(in srgb, var(--p) 15%, transparent) 92%,
+    color-mix(in srgb, var(--p) 18%, transparent) 8%,
+    color-mix(in srgb, var(--p) 12%, transparent) 92%,
     transparent 100%);
 }
 .timeline-node {
@@ -110,11 +102,11 @@
   background: var(--tier-1);
   border: 2px solid var(--p);
   display: flex; align-items: center; justify-content: center;
-  box-shadow: 0 0 0 4px var(--tier-1), 0 0 16px var(--p-glow), 0 4px 12px rgba(0,0,0,0.5);
+  box-shadow: 0 0 0 4px var(--tier-1), 0 0 14px var(--p-glow), 0 4px 12px rgba(0,0,0,0.5);
   z-index: 10;
   transition: transform var(--dur-base) var(--ease-spring), box-shadow var(--dur-base) var(--ease-out);
 }
-.timeline-node:hover { transform: translateX(-50%) scale(1.08); box-shadow: 0 0 0 4px var(--tier-1), 0 0 24px var(--p-glow), 0 6px 16px rgba(0,0,0,0.6); }
+.timeline-node:hover { transform: translateX(-50%) scale(1.08); box-shadow: 0 0 0 4px var(--tier-1), 0 0 22px var(--p-glow), 0 6px 16px rgba(0,0,0,0.6); }
 
 .timeline-month-pill {
   display: inline-flex; align-items: center; gap: 0.5rem;
@@ -126,22 +118,19 @@
   color: var(--active-text);
   font-family: 'Outfit', sans-serif;
   font-size: 0.625rem; font-weight: 800;
-  letter-spacing: 0.08em; text-transform: uppercase;
+  letter-spacing: 0.10em; text-transform: uppercase;
   box-shadow: var(--active-glow), 0 4px 12px rgba(0,0,0,0.4), inset 0 0 0 1px var(--active-border);
   position: sticky;
   top: 120px;
   z-index: 30;
 }
 
-/* Premium timeline card
-   ── PERFORMANCE: content-visibility:auto skips offscreen cards in the
-   timeline (which can have 100+ items). contain-intrinsic-size reserves
-   space to prevent scrollbar jumping. */
+/* Premium timeline card */
 .timeline-card {
   background: var(--tier-2);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.04);
+  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.03);
   content-visibility: auto;
   contain-intrinsic-size: auto 120px;
   transition: background var(--dur-base) var(--ease-out),
@@ -164,7 +153,7 @@
 .timeline-card:hover {
   background: var(--tier-3);
   border-color: var(--hairline-3);
-  box-shadow: var(--shadow-elevated), inset 0 1px 0 rgba(255,255,255,0.05);
+  box-shadow: var(--shadow-elevated), inset 0 1px 0 rgba(255,255,255,0.04);
   transform: translateX(4px);
 }
 .timeline-card:hover::before { opacity: 1; }
@@ -181,7 +170,7 @@
 .filter-section-title {
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem; font-weight: 700;
-  letter-spacing: 0.16em; text-transform: uppercase;
+  letter-spacing: 0.18em; text-transform: uppercase;
   color: var(--text-muted);
   margin-bottom: var(--sp-2);
   margin-top: var(--sp-3);
@@ -208,7 +197,7 @@
               box-shadow var(--dur-fast) var(--ease-out);
   appearance: none;
   -webkit-appearance: none;
-  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23e8eaf0%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
+  background-image: url("data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20width%3D%2212%22%20height%3D%2212%22%20viewBox%3D%220%200%2024%2024%22%20fill%3D%22none%22%20stroke%3D%22%23E8B74A%22%20stroke-width%3D%222%22%20stroke-linecap%3D%22round%22%20stroke-linejoin%3D%22round%22%3E%3Cpolyline%20points%3D%226%209%2012%2015%2018%209%22%3E%3C%2Fpolyline%3E%3C%2Fsvg%3E");
   background-repeat: no-repeat;
   background-position: right 0.75rem center;
   background-size: 12px;
@@ -239,11 +228,7 @@
 }
 .filter-input-premium::placeholder { color: var(--text-dim); }
 
-/* Premium filter chip (active filter indicators).
-   Each chip represents an ACTIVE filter — they only render when a filter
-   is applied. So they should look "active" by default: filled with the
-   accent color, high-contrast text, and a glow. Previously these used
-   --text-soft on --tier-3 which was nearly invisible. */
+/* Premium filter chip */
 .filter-chip {
   display: inline-flex; align-items: center; gap: 0.375rem;
   padding: 0.4375rem 0.75rem;
@@ -252,7 +237,7 @@
   border: 1px solid var(--active-border);
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem; font-weight: 800;
-  letter-spacing: 0.08em; text-transform: uppercase;
+  letter-spacing: 0.10em; text-transform: uppercase;
   color: var(--active-text);
   cursor: pointer;
   box-shadow: var(--active-glow);
@@ -263,7 +248,6 @@
               box-shadow var(--dur-fast) var(--ease-out);
 }
 .filter-chip:hover {
-  /* Keep the active fill on hover — just intensify the glow + slight lift */
   box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.4);
   transform: translateY(-1px);
 }
@@ -317,12 +301,10 @@
 }
 .view-toggle-btn[data-active="false"]:hover {
   color: var(--text-strong);
-  background: rgba(255,255,255,0.04);
+  background: rgba(232,183,74,0.04);
 }
 
-/* Premium filter button (in the Vault header). When filters are ACTIVE,
-   the button itself becomes filled with the accent color — this is the
-   "active filter indicator" the user sees before opening the drawer. */
+/* Premium filter button */
 .filter-button {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.5rem 1rem;
@@ -332,7 +314,7 @@
   color: var(--text-soft);
   font-family: 'Azeret Mono', monospace;
   font-size: 0.625rem; font-weight: 700;
-  letter-spacing: 0.12em; text-transform: uppercase;
+  letter-spacing: 0.14em; text-transform: uppercase;
   cursor: pointer;
   transition: background var(--dur-base) var(--ease-out),
               border-color var(--dur-base) var(--ease-out),
@@ -374,11 +356,9 @@
 
 
 /* ============================================================
-   PHASE 2.2 SPRINT 4 — VAULT LIVING SHELVES
-   Adaptive status-grouped browsing with deduplication.
+   VAULT LIVING SHELVES
    ============================================================ */
 
-/* Vault shelf — a status-grouped section with header + rail */
 .vault-shelf {
   margin-top: var(--sp-6);
 }
@@ -403,7 +383,7 @@
   font-family: 'Bebas Neue', cursive;
   font-size: 1.25rem;
   line-height: 1;
-  letter-spacing: 0.03em;
+  letter-spacing: 0.06em;
   color: var(--text-strong);
   margin: 0;
   display: flex;
@@ -421,7 +401,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -429,7 +409,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--p);
   background: transparent;
@@ -447,7 +427,7 @@
 .vault-shelf-action:hover { color: var(--text-strong); background: var(--p-dim); }
 .vault-shelf-action:active { transform: scale(0.96); }
 
-/* Vault shelf rail — horizontal scroll with snap */
+/* Vault shelf rail */
 .vault-shelf-rail {
   display: flex;
   gap: var(--sp-3);
@@ -463,10 +443,7 @@
 .vault-shelf-rail::-webkit-scrollbar { display: none; }
 .vault-shelf-rail { scrollbar-width: none; -ms-overflow-style: none; }
 
-/* Vault shelf expanded — full grid (when user taps "See All")
-   Uses auto-fill with minmax so cards never exceed ~110px on mobile,
-   matching the discover page's .search-rail-card width. As the viewport
-   grows, more columns are added automatically. */
+/* Vault shelf grid — auto-fill responsive */
 .vault-shelf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
@@ -482,7 +459,7 @@
   .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); }
 }
 
-/* Quick-filter tabs — inline status pills */
+/* Quick-filter tabs */
 .quick-filter-bar {
   display: flex;
   gap: 0.375rem;
@@ -498,7 +475,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   padding: 0.4375rem 0.875rem;
   border-radius: var(--radius-pill);
@@ -539,7 +516,7 @@
   opacity: 0.7;
 }
 
-/* Vault context bar — result count + active filter context */
+/* Vault context bar */
 .vault-context-bar {
   display: flex;
   align-items: center;
@@ -552,7 +529,7 @@
   font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--text-muted);
 }
@@ -575,7 +552,7 @@
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid var(--hairline-2);
   box-shadow: var(--shadow-elevated);
-  color: var(--text-strong);
+  color: var(--p);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -609,8 +586,7 @@
   outline-offset: 2px;
 }
 
-/* Vault shelf card variant — matches discover page .search-rail-card width
-   for consistent card sizing across the app on mobile. */
+/* Vault shelf card variant */
 .vault-shelf-card {
   width: 110px;
   flex-shrink: 0;
@@ -620,11 +596,8 @@
 }
 
 
-
 /* ============================================================
-   FAVOURITE HEART BUTTON (vault cards)
-   Lets the user quickly add/remove a vault title from the
-   Favorites collection without opening the folder sheet.
+   FAVOURITE HEART BUTTON
    ============================================================ */
 
 .vault-fav-btn {

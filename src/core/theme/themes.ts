@@ -1,11 +1,11 @@
-export const DEFAULT_THEME = "sage";
+export const DEFAULT_THEME = "cinematic";
 
 export const THEMES = [
+  "cinematic",
   "pearl",
   "sage",
   "matrix",
   "netflix",
-  "cinematic",
   "interstellar",
   "neonhorizon",
   "vibranium"

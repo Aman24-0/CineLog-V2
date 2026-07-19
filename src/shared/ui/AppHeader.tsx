@@ -50,9 +50,9 @@ const AppHeader: Component = () => {
     <header
       class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
       style={{
-        background: "var(--glass-bg)",
-        "backdrop-filter": "blur(20px) saturate(140%)",
-        "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
+        background: "var(--glass-bg-strong)",
+        "backdrop-filter": "blur(24px) saturate(140%)",
+        "-webkit-backdrop-filter": "blur(24px) saturate(140%)",
         "border-bottom": "1px solid var(--hairline)",
         "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
         "padding-bottom": "0.875rem",
@@ -67,7 +67,7 @@ const AppHeader: Component = () => {
         style={{
           "font-size": "1.5rem",
           "line-height": "1",
-          "letter-spacing": "0.04em",
+          "letter-spacing": "0.08em",
           color: "var(--text-strong)",
         }}
       >

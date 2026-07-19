@@ -1,7 +1,6 @@
-/* src/styles/base/base.css — Phase 14.2 CSS architecture
-   Polished: premium scrollbar, text selection, reduced-motion baseline,
-   focus-visible defaults, and tap-highlight hygiene. */
-
+/* src/styles/base/base.css — CineLog V2 Redesign
+   Premium cinema base with warm undertones,
+   refined scrollbar, and improved mobile handling. */
 
 @layer base {
   body {
@@ -13,53 +12,40 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
-    /* Use overflow-x: clip instead of hidden.
-       Per CSS spec, when one overflow axis is hidden and the other is
-       visible, visible computes to auto — this makes the body a scroll
-       container, which breaks position:sticky on descendants (they
-       stick relative to body's scroll port, not the viewport, and in
-       many browsers this silently disables sticky entirely).
-       overflow-x: clip clips horizontal overflow WITHOUT creating a
-       scroll container, so sticky positioning continues to work.
-       Fallback: older browsers (Safari < 16) don't support clip and
-       fall back to the hidden value, which is acceptable. */
     overflow-x: clip;
     min-height: 100vh;
-    letter-spacing: 0.01em;
+    letter-spacing: 0.015em;
   }
 }
 
 
-/* Scrollbar — premium thin rail with hover affordance.
-   Width is intentionally small (4px) to feel editorial, but the thumb
-   brightens on hover so it's discoverable on desktop. Track stays
-   transparent to avoid visual noise over imagery. */
+/* Scrollbar — premium thin rail with warm gold tint on hover */
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(255,255,255,0.10);
+  background: rgba(232,183,74,0.08);
   border-radius: 4px;
   transition: background 160ms ease-out;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.22); }
+::-webkit-scrollbar-thumb:hover { background: rgba(232,183,74,0.18); }
 ::-webkit-scrollbar-corner { background: transparent; }
 
-/* Firefox scrollbar — thin, dark, non-intrusive */
+/* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255,255,255,0.12) transparent;
+  scrollbar-color: rgba(232,183,74,0.10) transparent;
 }
 
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Text selection — accent-tinted highlight consistent with brand */
+/* Text selection — warm gold highlight */
 ::selection {
-  background: color-mix(in srgb, var(--p) 28%, transparent);
+  background: color-mix(in srgb, var(--p) 25%, transparent);
   color: var(--text-strong);
 }
 ::-moz-selection {
-  background: color-mix(in srgb, var(--p) 28%, transparent);
+  background: color-mix(in srgb, var(--p) 25%, transparent);
   color: var(--text-strong);
 }
 
@@ -75,11 +61,6 @@
   line-height: 1;
   flex-shrink: 0;
 }
-/* Prevent icon name text from flashing before the Material Symbols font loads.
-   When the font hasn't loaded yet, the icon name (e.g. "density_default") would
-   otherwise render as literal text. This rule hides glyphs until the font is
-   ready, then reveals them. font-display: swap on the Google Fonts request
-   means the font loads asynchronously — this prevents the FOUT. */
 .material-symbols-outlined:not(.mat-syms-loaded) {
   visibility: hidden;
 }
@@ -89,27 +70,22 @@
 }
 .filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
 
-/* Global focus-visible baseline — every interactive element gets a
-   consistent 2px accent ring offset by 2px of void. This catches
-   elements that don't explicitly opt into .focus-ring. */
+/* Global focus-visible baseline */
 :focus-visible {
   outline: 2px solid var(--p);
   outline-offset: 2px;
   border-radius: 4px;
 }
 
-/* Elements that should never show a focus ring (decorative, etc.) */
 [aria-hidden="true"]:focus-visible,
 [tabindex="-1"]:focus-visible {
   outline: none;
 }
 
-/* Remove default browser focus outline only when focus is visible
-   (mouse users never see it; keyboard users always do) */
 :focus:not(:focus-visible) { outline: none; }
 
 
-/* Mobile safe-area + narrow viewport tuning (360–412px) */
+/* Mobile safe-area + narrow viewport tuning */
 @supports (padding: env(safe-area-inset-left)) {
   body {
     padding-left: env(safe-area-inset-left, 0px);
@@ -117,28 +93,21 @@
   }
 }
 
-/* Prevent any horizontal overflow from child elements on narrow screens */
 @media (max-width: 412px) {
   html, body {
     max-width: 100vw;
   }
-  /* Ensure media cards never overflow grid columns */
   .movie-card, .movie-card-inner,
   .vault-card-premium, .vault-card-inner {
     max-width: 100%;
   }
-  /* Tighten padding on the smallest screens so content has room */
   .px-5 {
     padding-left: 1rem;
     padding-right: 1rem;
   }
 }
 
-/* Global reduced-motion baseline — applies to ALL animations and
-   transitions across the app. Individual feature files may layer
-   additional refinements, but this guarantees a calm experience
-   for users who prefer reduced motion, regardless of which page
-   they land on. */
+/* Reduced motion */
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,
@@ -148,8 +117,6 @@
     transition-duration: 0.001ms !important;
     scroll-behavior: auto !important;
   }
-  /* Keep opacity transitions short (not zero) so loading states still
-     fade in/out gracefully — instant flips feel broken. */
   .animate-fade-in,
   .animate-fade-up,
   .animate-slide-up,
@@ -160,8 +127,7 @@
   }
 }
 
-/* Honour iOS / Android dynamic viewport units so the bottom nav never
-   overlaps content when the browser chrome expands/contracts. */
+/* Dynamic viewport units */
 @supports (height: 100dvh) {
   html, body { min-height: 100dvh; }
 }
