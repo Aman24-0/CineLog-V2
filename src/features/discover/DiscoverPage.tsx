@@ -71,6 +71,7 @@ import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { useFeatureFlags } from "~/lib/featureFlags";
+import { useHomepageConfig } from "~/lib/homepageConfig";
 import type { TMDBTitle } from "~/shared/types";
 // Merged search — the dedicated /search page is gone. Search now lives
 // at the top of Discover. We reuse the existing useSearch hook +
@@ -86,6 +87,10 @@ export default function DiscoverPage() {
   // Allows admins to toggle Surprise Me, Coming Soon, etc. without
   // redeploying. Unknown flags default to true (current behavior).
   const featureFlags = useFeatureFlags();
+
+  // Homepage sections config — admin-controlled per-section visibility.
+  // Defaults to all-enabled if the admin hasn't configured anything yet.
+  const homepageConfig = useHomepageConfig();
 
   // Region — single source of truth, reactive. Reads the live signal
   // from `useDiscoverRegion()`, so when the user changes their country
@@ -431,18 +436,22 @@ export default function DiscoverPage() {
             {/* Chips are always visible; clicking a chip expands a
                 continuous carousel of movies + series interleaved,
                 with a Load-more trigger for pagination. */}
+            <Show when={homepageConfig.isEnabled("genre_explorer")}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
               <DiscoverSection label="Genre Explorer" icon="palette">
                 <GenreExplorer onSelect={handleOpenTitle} vaultKeys={vaultKeys} />
               </DiscoverSection>
             </ErrorBoundary>
+            </Show>
 
             {/* 2. SPOTLIGHT */}
+            <Show when={homepageConfig.isEnabled("spotlight")}>
             <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
               vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
+            </Show>
 
             {/* 3. CONTINUE YOUR UNIVERSES */}
-            <Show when={!isGuest() && continueUniverses().length > 0}>
+            <Show when={!isGuest() && continueUniverses().length > 0 && homepageConfig.isEnabled("continue_universes")}>
               <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
                 <section class="discover-fold" aria-label="Continue your universes">
                   <div class="discover-fold-label">
@@ -474,7 +483,7 @@ export default function DiscoverPage() {
             </Show>
 
             {/* 4. INSIGHT STRIP */}
-            <Show when={insightCards().length > 0}>
+            <Show when={insightCards().length > 0 && homepageConfig.isEnabled("insight_strip")}>
               <div class="discover-insight-strip">
                 <For each={insightCards()}>
                   {(card) => (
@@ -488,6 +497,7 @@ export default function DiscoverPage() {
           </Show>
 
           {/* 4. TRENDING THIS WEEK */}
+          <Show when={homepageConfig.isEnabled("trending")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
             <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
               <DiscoverRail
@@ -499,8 +509,10 @@ export default function DiscoverPage() {
               />
             </DiscoverSection>
           </ErrorBoundary>
+          </Show>
 
           {/* 5. IN THEATRES NOW */}
+          <Show when={homepageConfig.isEnabled("theatres")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
             <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
               <DiscoverRail
@@ -512,9 +524,10 @@ export default function DiscoverPage() {
               />
             </DiscoverSection>
           </ErrorBoundary>
+          </Show>
 
           {/* 6. BECAUSE YOU LOVE ... */}
-          <Show when={!isGuest() && personalizedTitles().length > 0}>
+          <Show when={!isGuest() && personalizedTitles().length > 0 && homepageConfig.isEnabled("because_you_love")}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Recommendations" error={e} />}>
               <DiscoverSection label={personalizedLabel()} icon="auto_awesome">
                 <DiscoverRail titles={personalizedTitles()} onSelect={handleOpenTitle} emptyText="No recommendations today." emptyIcon="auto_awesome" />
@@ -522,8 +535,8 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* 7. SURPRISE ME — gated by the 'random_picker' feature flag */}
-          <Show when={featureFlags.isEnabled("random_picker")}>
+          {/* 7. SURPRISE ME — gated by the 'random_picker' feature flag + homepage config */}
+          <Show when={featureFlags.isEnabled("random_picker") && homepageConfig.isEnabled("surprise_me")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Surprise Me" error={e} />}>
             <section class="discover-fold" aria-label="Surprise me">
               <div class="discover-fold-label">
@@ -559,6 +572,7 @@ export default function DiscoverPage() {
           </Show>
 
           {/* 8. WEEKEND PICKS (lazy-mounted — below the fold on most viewports) */}
+          <Show when={homepageConfig.isEnabled("weekend_picks")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
               <section class="discover-fold" aria-label="Weekend picks">
@@ -592,9 +606,10 @@ export default function DiscoverPage() {
               </section>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 9. STEP OUTSIDE YOUR TASTE */}
-          <Show when={!isGuest() && differentTitles().length > 0}>
+          <Show when={!isGuest() && differentTitles().length > 0 && homepageConfig.isEnabled("step_outside")}>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Something Different" error={e} />}>
               <DiscoverSection label={differentLabel()} icon="explore">
                 <DiscoverRail titles={differentTitles()} onSelect={handleOpenTitle} emptyText="Try adding more titles to your watchlist for personalized recommendations." emptyIcon="explore" />
@@ -603,6 +618,7 @@ export default function DiscoverPage() {
           </Show>
 
           {/* 10. HIDDEN GEMS */}
+          <Show when={homepageConfig.isEnabled("hidden_gems")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Hidden Gems" error={e} />}>
               <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && hiddenGemsFeed().length === 0}>
@@ -616,8 +632,10 @@ export default function DiscoverPage() {
               </DiscoverSection>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 11. TOP RATED MOVIES */}
+          <Show when={homepageConfig.isEnabled("top_rated_movies")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated" error={e} />}>
               <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && topRatedMoviesFeed().length === 0}>
@@ -631,8 +649,10 @@ export default function DiscoverPage() {
               </DiscoverSection>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 12. TOP RATED SERIES */}
+          <Show when={homepageConfig.isEnabled("top_rated_series")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated TV" error={e} />}>
               <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && topRatedTvFeed().length === 0}>
@@ -646,8 +666,10 @@ export default function DiscoverPage() {
               </DiscoverSection>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 13. NEW ON OTT (lazy-mounted — heavy section with provider list fetch) */}
+          <Show when={homepageConfig.isEnabled("new_on_ott")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
               <section class="discover-fold" aria-label="New on OTT">
@@ -659,8 +681,10 @@ export default function DiscoverPage() {
               </section>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 14. NEW SEASONS (was position 15 — Genre Explorer moved up to position 1) */}
+          <Show when={homepageConfig.isEnabled("new_seasons")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
               <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && newSeasonsFeed().length === 0}>
@@ -674,9 +698,10 @@ export default function DiscoverPage() {
               </DiscoverSection>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
-          {/* 15. COMING SOON — gated by the 'upcoming' feature flag */}
-          <Show when={featureFlags.isEnabled("upcoming")}>
+          {/* 15. COMING SOON — gated by the 'upcoming' feature flag + homepage config */}
+          <Show when={featureFlags.isEnabled("upcoming") && homepageConfig.isEnabled("coming_soon")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
               <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && upcomingFeed().length === 0}>

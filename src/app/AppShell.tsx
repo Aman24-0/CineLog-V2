@@ -3,6 +3,7 @@ import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
 import AuthModal from "~/shared/ui/AuthModal";
+import AnnouncementsBanner from "~/shared/ui/AnnouncementsBanner";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -79,6 +80,8 @@ const AppShell: ParentComponent = (props) => {
       aria-hidden={anyModalOpen() ? "true" : undefined}
     >
       <AppHeader />
+
+      <AnnouncementsBanner />
 
       {props.children}
 

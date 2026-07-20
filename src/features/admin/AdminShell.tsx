@@ -35,21 +35,21 @@ interface NavItem {
   description: string;
 }
 
-// Navigation items (Phase 1 — others added in later phases)
+// Navigation items (Phase 1 + Phase 2)
 const NAV_ITEMS: NavItem[] = [
   { href: "/admin", label: "Dashboard", icon: "📊", description: "Overview metrics" },
   { href: "/admin/users", label: "Users", icon: "👥", description: "Manage user accounts" },
   { href: "/admin/feature-flags", label: "Feature Flags", icon: "⚙️", description: "Toggle app features" },
+  { href: "/admin/content", label: "Content", icon: "🎬", description: "Featured & pinned titles" },
+  { href: "/admin/homepage", label: "Homepage", icon: "🔥", description: "Discover section toggles" },
+  { href: "/admin/collections", label: "Collections", icon: "📦", description: "Curated universes CRUD" },
+  { href: "/admin/announcements", label: "Announcements", icon: "📢", description: "Banners & notices" },
+  { href: "/admin/tmdb-cache", label: "TMDB Cache", icon: "🗄️", description: "Cache stats & ops" },
   { href: "/admin/logs", label: "Audit Logs", icon: "📝", description: "Admin action history" },
 ];
 
-// Future Phase 2/3 items (greyed out — not implemented yet)
+// Future Phase 3 items (greyed out — not implemented yet)
 const FUTURE_ITEMS: NavItem[] = [
-  { href: "/admin/content", label: "Content", icon: "🎬", description: "Featured & pinned (Phase 2)" },
-  { href: "/admin/homepage", label: "Homepage", icon: "🔥", description: "Section toggles (Phase 2)" },
-  { href: "/admin/collections", label: "Collections", icon: "📦", description: "Curated universes (Phase 2)" },
-  { href: "/admin/announcements", label: "Announcements", icon: "📢", description: "Banners & notices (Phase 2)" },
-  { href: "/admin/tmdb-cache", label: "TMDB Cache", icon: "🗄️", description: "Cache stats & ops (Phase 2)" },
   { href: "/admin/analytics", label: "Analytics", icon: "📈", description: "Aggregated metrics (Phase 3)" },
   { href: "/admin/maintenance", label: "Maintenance", icon: "🔧", description: "Cleanup & backups (Phase 3)" },
   { href: "/admin/settings", label: "Settings", icon: "🌍", description: "App-wide config (Phase 3)" },
