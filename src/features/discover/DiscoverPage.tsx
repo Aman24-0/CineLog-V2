@@ -124,6 +124,50 @@ export default function DiscoverPage() {
   const { subscribedUniverses } = useCuratedUniverses();
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
 
+  // ── VAULT FILTER ──────────────────────────────────────────────────
+  // The user's watchlist is the single source of "what I'm already
+  // tracking". Every generic TMDB feed on this page (Trending, In
+  // Theatres Now, Top Rated Movies/Series, Hidden Gems, New Seasons,
+  // Coming Soon) is filtered against this set so the user never sees
+  // a title they've already added — regardless of status (Completed,
+  // Watching, Planned, Dropped). The personalised sections (Because
+  // You Love, Step Outside, Weekend Picks, Surprise Me, Spotlight)
+  // already filter against the vault inline — they don't need this.
+  //
+  // The set is keyed by "{media_type}/{tmdb_id}" so a movie with the
+  // same numeric id as a TV series (extremely rare but possible) is
+  // treated as two distinct titles.
+  const vaultKeys = createMemo(() => {
+    const list = watchlist();
+    const set = new Set<string>();
+    for (const w of list) {
+      // WatchlistItem.id is already "{tmdb_id}" (string) — but it
+      // doesn't carry media_type, so we reconstruct the composite key
+      // from `media_type` + `id`. This matches the key shape used by
+      // GenreExplorer's dedupe and the discover feed normalizers.
+      set.add(`${w.media_type}/${w.id}`);
+    }
+    return set;
+  });
+
+  /** Filter a feed of TMDBTitle[] down to titles not in the user's vault. */
+  const excludeVault = (titles: TMDBTitle[]): TMDBTitle[] => {
+    const vault = vaultKeys();
+    if (vault.size === 0) return titles;
+    return titles.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
+  };
+
+  // Reactive filtered feeds — recomputed whenever the vault or the
+  // underlying feed changes. Each is a thin wrapper so the JSX below
+  // stays readable (no inline `.filter()` chains at every call site).
+  const trendingFeed = createMemo(() => excludeVault(feeds.trending()));
+  const nowPlayingFeed = createMemo(() => excludeVault(feeds.nowPlaying()));
+  const upcomingFeed = createMemo(() => excludeVault(feeds.upcoming()));
+  const topRatedMoviesFeed = createMemo(() => excludeVault(feeds.topRatedMovies()));
+  const topRatedTvFeed = createMemo(() => excludeVault(feeds.topRatedTv()));
+  const newSeasonsFeed = createMemo(() => excludeVault(feeds.newSeasons()));
+  const hiddenGemsFeed = createMemo(() => excludeVault(feeds.hiddenGems()));
+
   const handleReroll = () => {
     const current = spotlightPick();
     if (current) setSpotlightExclude(current.title.id);
@@ -163,8 +207,14 @@ export default function DiscoverPage() {
     if (!genreId) return;
     discoverMovies({ withGenres: [genreId], sortBy: "popularity.desc", voteCountGte: 200 })
       .then((titles) => {
-        const vaultIds = new Set(watchlist().map((w) => w.id));
-        setPersonalizedTitles(titles.filter((t) => !vaultIds.has(String(t.id))).slice(0, 20));
+        // Reuse the shared vaultKeys memo (composite "{media_type}/{id}"
+        // shape) instead of rebuilding a per-call set. Same semantics.
+        const vault = vaultKeys();
+        setPersonalizedTitles(
+          vault.size === 0
+            ? titles.slice(0, 20)
+            : titles.filter((t) => !vault.has(`${t.media_type}/${t.id}`)).slice(0, 20)
+        );
       })
       .catch((e) => console.error("[DiscoverPage] personalized fetch:", e));
   };
@@ -178,9 +228,11 @@ export default function DiscoverPage() {
       import("~/core/tmdb/discover")
         .then(({ getRecommendations }) => getRecommendations(seed.media_type, seed.id))
         .then((recs) => {
-          const vaultIds = new Set(watchlist().map((w) => w.id));
-          const filtered = recs.filter((r) => !vaultIds.has(String(r.id))).slice(0, 20);
-          if (filtered.length > 0) setPersonalizedTitles(filtered);
+          const vault = vaultKeys();
+          const filtered = vault.size === 0
+            ? recs
+            : recs.filter((r) => !vault.has(`${r.media_type}/${r.id}`));
+          if (filtered.length > 0) setPersonalizedTitles(filtered.slice(0, 20));
           else fetchGenrePersonalization(t);
         })
         .catch(() => fetchGenrePersonalization(t));
@@ -206,8 +258,11 @@ export default function DiscoverPage() {
     if (!genreId) return;
     discoverMovies({ withGenres: [genreId], sortBy: "vote_average.desc", voteCountGte: 500, voteAverageGte: 7 })
       .then((titles) => {
-        const vaultIds = new Set(watchlist().map((w) => w.id));
-        setDifferentTitles(titles.filter((t) => !vaultIds.has(String(t.id))).slice(0, 15));
+        const vault = vaultKeys();
+        const filtered = vault.size === 0
+          ? titles
+          : titles.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
+        setDifferentTitles(filtered.slice(0, 15));
       })
       .catch((e) => console.error("[DiscoverPage] different fetch:", e));
   });
@@ -218,11 +273,17 @@ export default function DiscoverPage() {
 
   const rollSurprise = () => {
     setSurpriseLoading(true);
-    const pool = [...feeds.trending(), ...feeds.topRatedMovies(), ...feeds.hiddenGems()]
+    // Use the vault-filtered feeds so "Surprise Me" never surfaces a
+    // title the user already has in their watchlist. The vault filter
+    // is applied at the feed level (see trendingFeed etc. above), so
+    // by the time we sample here the pool is already clean.
+    const pool = [...trendingFeed(), ...topRatedMoviesFeed(), ...hiddenGemsFeed()]
       .filter((t) => t.poster_path && t.backdrop_path);
     if (pool.length === 0) { setSurpriseLoading(false); return; }
-    const vaultIds = new Set(watchlist().map((w) => w.id));
-    const available = pool.filter((t) => !vaultIds.has(String(t.id)));
+    // Defensive: re-check against the vault in case feeds were stale
+    // when the memos were computed (shouldn't happen, but cheap to do).
+    const vault = vaultKeys();
+    const available = pool.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
     const source = available.length > 0 ? available : pool;
     setSurpriseTitle(source[Math.floor(Math.random() * source.length)]);
     setSurpriseLoading(false);
@@ -252,8 +313,11 @@ export default function DiscoverPage() {
     setWeekendPick(index);
     try {
       const titles = await discoverMovies(pick.query);
-      const vaultIds = new Set(watchlist().map((w) => w.id));
-      setWeekendTitles(titles.filter((t) => !vaultIds.has(String(t.id))).slice(0, 15));
+      const vault = vaultKeys();
+      const filtered = vault.size === 0
+        ? titles
+        : titles.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
+      setWeekendTitles(filtered.slice(0, 15));
     } catch (e) {
       console.error("[DiscoverPage] weekend pick fetch:", e);
       setWeekendTitles([]);
@@ -269,10 +333,12 @@ export default function DiscoverPage() {
   // === Insight Strip ===
   const insightCards = createMemo(() => {
     const cards: { icon: string; text: string }[] = [];
-    if (feeds.trending().length > 0) cards.push({ icon: "local_fire_department", text: `${feeds.trending().length} Trending Today` });
+    // Use vault-filtered feeds so the counts reflect what the user
+    // actually sees on the page (titles they haven't added yet).
+    if (trendingFeed().length > 0) cards.push({ icon: "local_fire_department", text: `${trendingFeed().length} Trending Today` });
     if (personalizedTitles().length > 0) cards.push({ icon: "auto_awesome", text: `${personalizedTitles().length} Picks For You` });
-    if (feeds.nowPlaying().length > 0) cards.push({ icon: "theaters", text: `${feeds.nowPlaying().length} In Cinemas` });
-    if (feeds.newSeasons().length > 0) cards.push({ icon: "live_tv", text: `${feeds.newSeasons().length} New Episodes` });
+    if (nowPlayingFeed().length > 0) cards.push({ icon: "theaters", text: `${nowPlayingFeed().length} In Cinemas` });
+    if (newSeasonsFeed().length > 0) cards.push({ icon: "live_tv", text: `${newSeasonsFeed().length} New Episodes` });
     if (continueUniverses().length > 0) {
       const totalMissing = continueUniverses().reduce((sum: number, u) => sum + u.missing.length, 0);
       cards.push({ icon: "collections_bookmark", text: `${totalMissing} To Explore` });
@@ -361,7 +427,7 @@ export default function DiscoverPage() {
                 with a Load-more trigger for pagination. */}
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
               <DiscoverSection label="Genre Explorer" icon="palette">
-                <GenreExplorer onSelect={handleOpenTitle} />
+                <GenreExplorer onSelect={handleOpenTitle} vaultKeys={vaultKeys} />
               </DiscoverSection>
             </ErrorBoundary>
 
@@ -417,26 +483,26 @@ export default function DiscoverPage() {
 
           {/* 4. TRENDING THIS WEEK */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
-            <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && feeds.trending().length === 0}>
+            <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
               <DiscoverRail
-                titles={feeds.trending()}
+                titles={trendingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No trending titles available."
                 emptyIcon="trending_up"
-                onRetry={feeds.trending().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                onRetry={trendingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
               />
             </DiscoverSection>
           </ErrorBoundary>
 
           {/* 5. IN THEATRES NOW */}
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
-            <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && feeds.nowPlaying().length === 0}>
+            <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
               <DiscoverRail
-                titles={feeds.nowPlaying()}
+                titles={nowPlayingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No theatre releases available."
                 emptyIcon="theaters"
-                onRetry={feeds.nowPlaying().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                onRetry={nowPlayingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
               />
             </DiscoverSection>
           </ErrorBoundary>
@@ -531,13 +597,13 @@ export default function DiscoverPage() {
           {/* 10. HIDDEN GEMS */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Hidden Gems" error={e} />}>
-              <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && feeds.hiddenGems().length === 0}>
+              <DiscoverSection label="Hidden Gems" icon="diamond" loading={feeds.loading() && hiddenGemsFeed().length === 0}>
                 <DiscoverRail
-                  titles={feeds.hiddenGems()}
+                  titles={hiddenGemsFeed()}
                   onSelect={handleOpenTitle}
                   emptyText="No hidden gems found."
                   emptyIcon="diamond"
-                  onRetry={feeds.hiddenGems().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                  onRetry={hiddenGemsFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
                 />
               </DiscoverSection>
             </ErrorBoundary>
@@ -546,13 +612,13 @@ export default function DiscoverPage() {
           {/* 11. TOP RATED MOVIES */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated" error={e} />}>
-              <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && feeds.topRatedMovies().length === 0}>
+              <DiscoverSection label="Top Rated Movies" icon="star" loading={feeds.loading() && topRatedMoviesFeed().length === 0}>
                 <DiscoverRail
-                  titles={feeds.topRatedMovies()}
+                  titles={topRatedMoviesFeed()}
                   onSelect={handleOpenTitle}
                   emptyText="No top rated movies available."
                   emptyIcon="star"
-                  onRetry={feeds.topRatedMovies().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                  onRetry={topRatedMoviesFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
                 />
               </DiscoverSection>
             </ErrorBoundary>
@@ -561,13 +627,13 @@ export default function DiscoverPage() {
           {/* 12. TOP RATED SERIES */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Top Rated TV" error={e} />}>
-              <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && feeds.topRatedTv().length === 0}>
+              <DiscoverSection label="Top Rated Series" icon="tv" loading={feeds.loading() && topRatedTvFeed().length === 0}>
                 <DiscoverRail
-                  titles={feeds.topRatedTv()}
+                  titles={topRatedTvFeed()}
                   onSelect={handleOpenTitle}
                   emptyText="No top rated series available."
                   emptyIcon="tv"
-                  onRetry={feeds.topRatedTv().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                  onRetry={topRatedTvFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
                 />
               </DiscoverSection>
             </ErrorBoundary>
@@ -581,7 +647,7 @@ export default function DiscoverPage() {
                   <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
                   New on OTT
                 </div>
-                <OttSection onSelect={handleOpenTitle} region={region()} />
+                <OttSection onSelect={handleOpenTitle} region={region()} vaultKeys={vaultKeys} />
               </section>
             </ErrorBoundary>
           </LazyMount>
@@ -589,13 +655,13 @@ export default function DiscoverPage() {
           {/* 14. NEW SEASONS (was position 15 — Genre Explorer moved up to position 1) */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New Seasons" error={e} />}>
-              <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && feeds.newSeasons().length === 0}>
+              <DiscoverSection label="New Seasons" icon="live_tv" loading={feeds.loading() && newSeasonsFeed().length === 0}>
                 <DiscoverRail
-                  titles={feeds.newSeasons()}
+                  titles={newSeasonsFeed()}
                   onSelect={handleOpenTitle}
                   emptyText="No new seasons airing now."
                   emptyIcon="live_tv"
-                  onRetry={feeds.newSeasons().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                  onRetry={newSeasonsFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
                 />
               </DiscoverSection>
             </ErrorBoundary>
@@ -604,13 +670,13 @@ export default function DiscoverPage() {
           {/* 15. COMING SOON */}
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
-              <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && feeds.upcoming().length === 0}>
+              <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && upcomingFeed().length === 0}>
                 <DiscoverRail
-                  titles={feeds.upcoming()}
+                  titles={upcomingFeed()}
                   onSelect={handleOpenTitle}
                   emptyText="No upcoming releases."
                   emptyIcon="upcoming"
-                  onRetry={feeds.upcoming().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                  onRetry={upcomingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
                 />
               </DiscoverSection>
             </ErrorBoundary>

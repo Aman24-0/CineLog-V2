@@ -54,6 +54,13 @@ interface OttSectionProps {
   onSelect: (title: TMDBTitle) => void;
   /** ISO 3166-1 region. Defaults to IN. */
   region?: string;
+  /**
+   * Optional reactive set of "{media_type}/{tmdb_id}" keys for titles
+   * already in the user's vault. When provided, vault titles are filtered
+   * out of every provider carousel so the user never sees a title they've
+   * already added. When omitted (e.g. for guests), no filtering is applied.
+   */
+  vaultKeys?: () => Set<string>;
 }
 
 const OttSection: Component<OttSectionProps> = (props) => {
@@ -318,6 +325,20 @@ const OttSection: Component<OttSectionProps> = (props) => {
     return null;
   });
 
+  /**
+   * Reactive view of the current provider's titles with vault items
+   * filtered out. Recomputes whenever the loaded titles OR the vault
+   * keys change — so adding a title to the watchlist immediately
+   * removes it from the open carousel. When no vaultKeys prop is
+   * supplied (guest mode), returns the raw titles unfiltered.
+   */
+  const visibleTitles = createMemo<TMDBTitle[]>(() => {
+    const all = titles();
+    const vault = props.vaultKeys?.();
+    if (!vault || vault.size === 0) return all;
+    return all.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
+  });
+
   return (
     <div class="ott-section">
       {/* Provider chips — primary row + More button */}
@@ -439,7 +460,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
         }
       >
         <Show
-          when={titles().length > 0}
+          when={visibleTitles().length > 0}
           fallback={
             <Show
               when={!error()}
@@ -454,14 +475,14 @@ const OttSection: Component<OttSectionProps> = (props) => {
             >
               <PremiumEmptyState
                 icon="live_tv"
-                message="Nothing streaming on this provider right now."
-                hint="Try another provider from the chips above."
+                message="Nothing new on this provider."
+                hint="You've already added everything here — try another provider."
               />
             </Show>
           }
         >
           <div class="search-rail" role="list">
-            <For each={titles()}>
+            <For each={visibleTitles()}>
               {(title) => (
                 <button
                   type="button"

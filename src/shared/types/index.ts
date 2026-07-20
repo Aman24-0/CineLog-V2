@@ -493,6 +493,22 @@ export interface TMDBTitle {
   director?: string;
   /** Originating franchise name, when surfaced via the franchise trajectory */
   franchise?: string;
+  /**
+   * Movie runtime in minutes (TMDB /movie/{id} response).
+   * Populated by vault enrichment so the Stats page can compute "Hours Watched".
+   * Undefined for older cache entries that predate this field being captured.
+   */
+  runtime?: number;
+  /**
+   * TV series episode runtimes (TMDB /tv/{id} returns an array because
+   * different episodes can have different runtimes). We use the first
+   * entry as the typical episode length for runtime calculations.
+   */
+  episode_run_time?: number[];
+  /** Total episode count across all seasons (TMDB /tv/{id} response). */
+  number_of_episodes?: number;
+  /** Total season count (TMDB /tv/{id} response). */
+  number_of_seasons?: number;
 }
 
 /**

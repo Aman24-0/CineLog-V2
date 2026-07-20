@@ -100,6 +100,15 @@ export function vaultRowToWatchlistItem(
     // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
     tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
     genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
+    // ── Runtime (minutes) — drives the "Hours Watched" stat ──────────
+    // Movies: TMDB returns a single `runtime` (e.g. 120 min).
+    // TV series: TMDB returns `episode_run_time` (array of typical
+    //   episode lengths) and `number_of_episodes`. We multiply the
+    //   typical episode length by the total episode count to get the
+    //   full-series runtime. Older cache entries (pre-2026-07) won't
+    //   have these fields — runtime stays undefined and the stats
+    //   page treats it as 0 (graceful fallback until cache refreshes).
+    runtime: computeRuntimeMinutes(row.media_type, tmdb),
   };
 
   if (progress && row.media_type === "tv") {
@@ -119,6 +128,60 @@ export function vaultRowToWatchlistItem(
     };
   }
   return base;
+}
+
+// ---------------------------------------------------------------------------
+// computeRuntimeMinutes — derive WatchlistItem.runtime from TMDB metadata
+// ---------------------------------------------------------------------------
+
+/**
+ * Compute the runtime (in minutes) for a vault item from the cached TMDB
+ * metadata. This drives the "Hours Watched" stat on the Stats page.
+ *
+ * Movies: TMDB's `/movie/{id}` returns `runtime` (single number, minutes).
+ *   We pass it through directly.
+ *
+ * TV series: TMDB's `/tv/{id}` returns `episode_run_time` (array of
+ *   typical episode lengths — different episodes can differ) and
+ *   `number_of_episodes` (total across all seasons). We multiply the
+ *   first (typical) episode runtime by the total episode count to get
+ *   the full-series runtime. If `episode_run_time` is missing or empty,
+ *   we fall back to a 40-minute-per-episode default before applying the
+ *   episode count.
+ *
+ * Returns `undefined` when neither movie `runtime` nor TV episode data
+ * is present (e.g. older cache entries written before this field was
+ * captured). The Stats page treats undefined as 0 — graceful fallback
+ * until the cache refreshes.
+ *
+ * @param mediaType "movie" | "tv"
+ * @param tmdb      Cached TMDB metadata (may be null on cache miss + API failure)
+ */
+function computeRuntimeMinutes(
+  mediaType: "movie" | "tv",
+  tmdb: TMDBTitle | null | undefined,
+): number | undefined {
+  if (!tmdb) return undefined;
+
+  if (mediaType === "movie") {
+    // TMDB movie runtime is a single integer (minutes). Validate so a
+    // bad cache entry (string, NaN, negative) doesn't pollute the stat.
+    const r = tmdb.runtime;
+    if (typeof r === "number" && r > 0) return r;
+    return undefined;
+  }
+
+  // TV — multiply typical episode length by total episode count.
+  const episodeCount = tmdb.number_of_episodes;
+  if (typeof episodeCount !== "number" || episodeCount <= 0) return undefined;
+
+  const runtimes = tmdb.episode_run_time;
+  const typicalEpisode =
+    Array.isArray(runtimes) && runtimes.length > 0 && typeof runtimes[0] === "number" && runtimes[0] > 0
+      ? runtimes[0]
+      : 40; // reasonable fallback for series with missing runtime data
+
+  return typicalEpisode * episodeCount;
 }
 
 // ---------------------------------------------------------------------------

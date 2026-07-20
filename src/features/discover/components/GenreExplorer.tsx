@@ -31,6 +31,13 @@ import PremiumEmptyState from "./PremiumEmptyState";
 
 interface GenreExplorerProps {
   onSelect: (title: TMDBTitle) => void;
+  /**
+   * Optional reactive set of "{media_type}/{tmdb_id}" keys for titles
+   * already in the user's vault. When provided, vault titles are filtered
+   * out of every genre carousel so the user never sees a title they've
+   * already added. When omitted (e.g. for guests), no filtering is applied.
+   */
+  vaultKeys?: () => Set<string>;
 }
 
 interface GenreDef {
@@ -236,6 +243,22 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
     return cache()[genre.name] ?? null;
   });
 
+  /**
+   * Reactive view of the current genre's items with vault titles filtered
+   * out. Recomputes whenever the cache entry OR the vault keys change —
+   * so adding a title to the watchlist immediately removes it from the
+   * open carousel. When no vaultKeys prop is supplied (guest mode),
+   * returns the raw items unfiltered.
+   */
+  const visibleItems = createMemo<TMDBTitle[]>(() => {
+    const entry = currentEntry();
+    if (!entry) return [];
+    const items = entry.items;
+    const vault = props.vaultKeys?.();
+    if (!vault || vault.size === 0) return items;
+    return items.filter((t) => !vault.has(`${t.media_type}/${t.id}`));
+  });
+
   const currentGenreDef = createMemo(() => {
     const id = expandedGenre();
     if (id === null) return null;
@@ -298,7 +321,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
               }
             >
               <Show
-                when={(currentEntry()?.items.length ?? 0) > 0}
+                when={visibleItems().length > 0}
                 fallback={
                   <Show
                     when={!errorGenre()}
@@ -313,14 +336,14 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                   >
                     <PremiumEmptyState
                       icon="movie"
-                      message={`No ${currentGenreDef()?.name ?? ""} titles available.`}
-                      hint="Try another genre."
+                      message={`No new ${currentGenreDef()?.name ?? ""} titles to discover.`}
+                      hint="You've already added everything here — try another genre."
                     />
                   </Show>
                 }
               >
                 <div class="search-rail" role="list">
-                  <For each={currentEntry()!.items}>
+                  <For each={visibleItems()}>
                     {(title) => (
                       <button
                         type="button"
