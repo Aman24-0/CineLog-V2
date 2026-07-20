@@ -109,6 +109,97 @@ export async function updateEmail(newEmail: string): Promise<AccountActionResult
 }
 
 // ---------------------------------------------------------------------------
+// Link Email + Password (OAuth-only users adding email/password sign-in)
+// ---------------------------------------------------------------------------
+
+/**
+ * Link an email + password to the signed-in user's account.
+ *
+ * This is used by OAuth-only users (e.g. signed in via Google) who
+ * want to ALSO be able to sign in with email + password. It calls
+ * `supabase.auth.updateUser({ email, password })`:
+ *
+ *   • If `email` is the SAME as the user's current email (the common
+ *     case — the user keeps their OAuth email), Supabase simply sets
+ *     the password and adds `email` to the user's `providers` array.
+ *     No confirmation email is sent.
+ *
+ *   • If `email` is DIFFERENT from the current email, Supabase sends
+ *     a confirmation email to the NEW address AND sets the password.
+ *     The email change only finalises once the user clicks the link
+ *     in the confirmation email. The password is usable immediately
+ *     with the OLD email until the new email is confirmed.
+ *
+ * After a successful call, we refresh the local user state so the
+ * Account page instantly reflects the newly-linked "email" provider.
+ *
+ * @returns AccountActionResult with `success: true` on success, plus
+ *   an `emailChangePending` flag the UI can use to show a different
+ *   success message ("check your inbox") when the email was changed.
+ */
+export interface LinkEmailPasswordResult extends AccountActionResult {
+  /** True when Supabase sent a confirmation email for a NEW address. */
+  emailChangePending?: boolean;
+}
+
+export async function linkEmailPassword(
+  email: string,
+  newPassword: string,
+): Promise<LinkEmailPasswordResult> {
+  const { showToast } = useToast();
+
+  const trimmedEmail = email.trim().toLowerCase();
+  if (!trimmedEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmedEmail)) {
+    showToast("Please enter a valid email address.", "error");
+    return { success: false, error: "Invalid email" };
+  }
+  if (!newPassword || newPassword.length < 8) {
+    showToast("Password must be at least 8 characters.", "error");
+    return { success: false, error: "Password too short" };
+  }
+
+  try {
+    const supabase = getClient();
+
+    // Read the current user's email to detect whether we're also
+    // changing the email (which triggers a confirmation flow).
+    const { data: userData, error: userErr } = await supabase.auth.getUser();
+    if (userErr || !userData?.user) {
+      throw userErr ?? new Error("No active session");
+    }
+    const currentEmail = (userData.user.email ?? "").toLowerCase();
+    const emailChanged = currentEmail !== trimmedEmail;
+
+    const { error } = await supabase.auth.updateUser({
+      email: trimmedEmail,
+      password: newPassword,
+    });
+    if (error) throw error;
+
+    // Refresh local user state so the providers list updates
+    // (Supabase's updateUser doesn't fire onAuthStateChange for
+    // password-only changes).
+    await refreshUserFromServer();
+
+    if (emailChanged) {
+      showToast(
+        "Password set. We also sent a confirmation link to your new email — click it to finish switching.",
+        "success",
+        6000,
+      );
+    } else {
+      showToast("Email + password linked. You can now sign in with either method.", "success", 4000);
+    }
+
+    return { success: true, emailChangePending: emailChanged };
+  } catch (err) {
+    const msg = friendlyError(err);
+    showToast(msg, "error");
+    return { success: false, error: msg };
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Password
 // ---------------------------------------------------------------------------
 

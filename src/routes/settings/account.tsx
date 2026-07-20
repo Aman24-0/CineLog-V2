@@ -58,6 +58,7 @@ import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
 import ChangePasswordSheet from "~/features/account/components/ChangePasswordSheet";
 import DeactivateAccountSheet from "~/features/account/components/DeactivateAccountSheet";
 import ConfirmSignOutSheet from "~/features/account/components/ConfirmSignOutSheet";
+import LinkEmailPasswordSheet from "~/features/account/components/LinkEmailPasswordSheet";
 import type { UserIdentity } from "@supabase/supabase-js";
 
 /**
@@ -124,6 +125,7 @@ const AccountRoute: Component = () => {
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
   const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
+  const [showLinkEmailPasswordSheet, setShowLinkEmailPasswordSheet] = createSignal(false);
   const [showDeactivateSheet, setShowDeactivateSheet] = createSignal(false);
   const [deactivateMode, setDeactivateMode] = createSignal<"deactivate" | "delete">("deactivate");
   // Sign-out confirmation sheet — opens BEFORE the actual sign-out call
@@ -582,12 +584,20 @@ const AccountRoute: Component = () => {
                         </span>
                       </div>
                       <Show when={emailIdentityLinked()} fallback={
-                        <span class="setting-row-value">Available</span>
+                        <button
+                          type="button"
+                          class="account-connect-btn focus-ring"
+                          onClick={() => setShowLinkEmailPasswordSheet(true)}
+                          aria-label="Connect email and password"
+                        >
+                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">add</span>
+                          Connect
+                        </button>
                       }>
                         <span class="setting-row-value" style={{ color: "#4ade80" }}>Connected</span>
                       </Show>
                     </div>
-                    {/* Two sub-action buttons */}
+                    {/* Two sub-action buttons — only visible when already linked */}
                     <Show when={emailIdentityLinked()}>
                       <div class="account-subactions">
                         <button
@@ -751,6 +761,10 @@ const AccountRoute: Component = () => {
       {/* Sheets */}
       <UpdateEmailSheet open={showEmailSheet()} onClose={() => setShowEmailSheet(false)} />
       <ChangePasswordSheet open={showPasswordSheet()} onClose={() => setShowPasswordSheet(false)} />
+      <LinkEmailPasswordSheet
+        open={showLinkEmailPasswordSheet()}
+        onClose={() => setShowLinkEmailPasswordSheet(false)}
+      />
       <DeactivateAccountSheet
         open={showDeactivateSheet()}
         mode={deactivateMode()}

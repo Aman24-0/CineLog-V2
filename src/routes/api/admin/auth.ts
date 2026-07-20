@@ -141,23 +141,57 @@ function constantTimeEqual(a: string, b: string): boolean {
  * Returns null if the cookie is absent.
  *
  * The Supabase browser client stores the auth session under names
- * like `sb-<project-ref>-auth-token` (and a `.code` variant during
- * the PKCE flow). We look for the first cookie whose name starts with
- * `sb-` and ends with `-auth-token` — that's the access token JSON.
+ * like `sb-<project-ref>-auth-token`. When the session payload is
+ * too large to fit in a single cookie (~4 KB), Supabase transparently
+ * chunks it across multiple cookies named `sb-<ref>-auth-token.0`,
+ * `sb-<ref>-auth-token.1`, etc. We must collect every chunk, sort by
+ * its numeric suffix, and concatenate them before parsing.
+ *
+ * The `.code` variant (`sb-<ref>-auth-token.code`) is the PKCE code
+ * verifier used only during the in-flight OAuth exchange — it is NOT
+ * a session chunk and is intentionally skipped.
  */
 function getSupabaseAccessToken(cookieHeader: string): string | null {
   if (!cookieHeader) return null;
+
   const cookies = cookieHeader.split(";");
+  // Collect the un-chunked cookie (if present) AND any chunked cookies.
+  let unchunked: string | null = null;
+  const chunks = new Map<number, string>();
+
   for (const c of cookies) {
     const [rawName, ...rest] = c.trim().split("=");
     if (!rawName) continue;
     const name = rawName.trim();
-    // Primary: sb-<ref>-auth-token (PKCE final, base64-URL JSON or plain JSON)
-    if (name.startsWith("sb-") && name.endsWith("-auth-token")) {
-      const raw = decodeURIComponent(rest.join("="));
-      return parseAccessTokenFromSessionCookie(raw);
+    if (!name.startsWith("sb-") || !name.includes("-auth-token")) continue;
+
+    // Skip the PKCE code-verifier cookie — it's not a session chunk.
+    if (name.endsWith("-auth-token.code")) continue;
+
+    const value = decodeURIComponent(rest.join("="));
+
+    if (name.endsWith("-auth-token")) {
+      unchunked = value;
+    } else {
+      // Chunked: sb-<ref>-auth-token.<N>
+      const m = name.match(/-auth-token\.(\d+)$/);
+      if (m) {
+        const idx = parseInt(m[1], 10);
+        if (Number.isFinite(idx)) chunks.set(idx, value);
+      }
     }
   }
+
+  // Prefer the un-chunked cookie when present (older / smaller sessions).
+  if (unchunked) return parseAccessTokenFromSessionCookie(unchunked);
+
+  // Otherwise, reassemble chunked cookies in order.
+  if (chunks.size > 0) {
+    const indices = Array.from(chunks.keys()).sort((a, b) => a - b);
+    const assembled = indices.map((i) => chunks.get(i) ?? "").join("");
+    return parseAccessTokenFromSessionCookie(assembled);
+  }
+
   return null;
 }
 
