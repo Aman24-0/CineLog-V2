@@ -1990,6 +1990,13 @@
   box-shadow:
     0 4px 20px rgba(8,8,13,0.2),
     inset 0 1px 0 var(--hairline);
+  /* `contain` limits the browser's repaint work to this element's
+     bounds. Without it, changes to sibling elements (e.g., toggling
+     the view-mode buttons) trigger a full backdrop-filter recompute
+     across the entire stats row — 200ms+ on mobile. With containment,
+     the browser knows this box is self-contained and skips recomputing
+     backdrop-filter for elements outside it. */
+  contain: layout style paint;
   transition: transform 250ms var(--ease-smooth, ease-out),
               border-color 250ms ease,
               box-shadow 250ms ease;

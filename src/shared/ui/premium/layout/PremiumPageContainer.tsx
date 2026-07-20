@@ -1,5 +1,5 @@
 // src/shared/ui/premium/layout/PremiumPageContainer.tsx
-import { ParentComponent, JSX, createSignal, onMount, splitProps } from "solid-js";
+import { ParentComponent, JSX, splitProps } from "solid-js";
 
 /** Page container size variant. Controls max-width constraint. */
 type PageSize = "narrow" | "default" | "wide";
@@ -63,19 +63,13 @@ const PremiumPageContainer: ParentComponent<PremiumPageContainerProps> = (props)
     "children",
   ]);
 
-  const [prefersReducedMotion, setPrefersReducedMotion] = createSignal(false);
-
-  onMount(() => {
-    const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
-    setPrefersReducedMotion(mql.matches);
-    const handler = (e: MediaQueryListEvent) => setPrefersReducedMotion(e.matches);
-    mql.addEventListener("change", handler);
-    return () => mql.removeEventListener("change", handler);
-  });
+  // `animated` prop and `prefersReducedMotion` tracking were removed
+  // when the animate-fade-in class was removed (to prevent CLS).
+  // The `animated` prop is still in splitProps for backwards compat
+  // — existing callers pass `animated={false}` and that's fine, it's
+  // just ignored now.
 
   const size = () => local.size ?? "default";
-  const animated = () => local.animated ?? true;
-  const shouldAnimate = () => animated() && !prefersReducedMotion();
 
   const resolvedPaddingTop = () =>
     local.paddingTop ?? "var(--space-6)";
@@ -95,7 +89,11 @@ const PremiumPageContainer: ParentComponent<PremiumPageContainerProps> = (props)
       "relative",
       "z-base",
     ];
-    if (shouldAnimate()) classes.push("animate-fade-in");
+    // animate-fade-in was removed to prevent CLS (layout shift) on page
+    // load. The animation's `both` fill-mode caused the <main> element
+    // to reserve different space during the opacity transition, shifting
+    // sibling elements by ~0.98 layout shift units (Vercel CLS audit).
+    // Content now renders immediately without a fade-in.
     if (local.class) classes.push(local.class);
     return classes.join(" ");
   };

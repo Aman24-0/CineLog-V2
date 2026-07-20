@@ -172,7 +172,8 @@ export default function TvDeepLinkRoute() {
         <Meta name="twitter:image" content={ogImage()} />
       </Show>
 
-      <div
+      {/* The <main> landmark provides a WCAG 2.4.1-compliant main region. */}
+      <main
         style={{
           "min-height": "100vh",
           display: "flex",
@@ -220,7 +221,7 @@ export default function TvDeepLinkRoute() {
             </div>
           </Show>
         </Show>
-      </div>
+      </main>
     </>
   );
 }
