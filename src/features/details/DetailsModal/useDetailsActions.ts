@@ -163,14 +163,29 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
       // Cache TMDB metadata for this title so the watchlist loads faster
       // Use the details data if available (richer), otherwise fall back to baseItem
       const details = args.details();
-      const cacheData = details
-        ? { ...b, title: details.title || b.title, name: details.name || b.name, poster_path: details.poster_path || b.poster_path, backdrop_path: details.backdrop_path || b.backdrop_path, genres: details.genres, vote_average: details.vote_average }
-        : b;
+      // Build a minimal TMDBTitle-compatible object for the cache.
+      // We spread the baseItem (which has id, media_type, title, etc.)
+      // and override with the richer details fields when available.
+      // This avoids the `as any` cast that was previously here.
+      const cacheData: import("~/shared/types").TMDBTitle = {
+        id: Number(b.id),
+        title: details?.title || b.title,
+        name: details?.name || b.name,
+        media_type: b.media_type,
+        poster_path: details?.poster_path ?? b.poster_path ?? null,
+        backdrop_path: details?.backdrop_path ?? b.backdrop_path ?? null,
+        overview: details?.overview,
+        release_date: details?.release_date ?? b.release_date,
+        first_air_date: details?.first_air_date ?? b.first_air_date,
+        vote_average: details?.vote_average,
+        vote_count: details?.vote_count,
+        genres: details?.genres?.map((g) => g.name) ?? b.genresList,
+      };
       cacheMetadataEntries([{
         key: buildCacheKey(b.media_type, b.id),
         tmdb_id: Number(b.id),
         media_type: b.media_type,
-        data: cacheData as any,
+        data: cacheData,
       }]).catch(() => {});
       const name = b.title || b.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);

@@ -45,13 +45,23 @@ export interface DashboardPagination {
 /**
  * Per-status vault counts. Mirrors the `vault_status_type` enum values
  * (Database Bible §03): planned / watching / completed / on_hold / dropped.
+ *
+ * NOTE: The properties are NOT `readonly` because this object is used as
+ * a mutable counter during client-side aggregation in `getVaultCounts`
+ * (we increment `planned++`, `watching++`, etc. in a loop). Making them
+ * `readonly` would cause a TS2540 compile error at every increment site.
+ *
+ * The returned object (wrapped in `VaultCounts`) IS exposed read-only to
+ * consumers via `VaultCounts.byStatus: VaultStatusCounts`, but TypeScript
+ * does not enforce readonly-ness at runtime — callers can mutate it if
+ * they really try. This is acceptable for a counts payload.
  */
 export interface VaultStatusCounts {
-  readonly planned: number;
-  readonly watching: number;
-  readonly completed: number;
-  readonly onHold: number;
-  readonly dropped: number;
+  planned: number;
+  watching: number;
+  completed: number;
+  onHold: number;
+  dropped: number;
 }
 
 /**

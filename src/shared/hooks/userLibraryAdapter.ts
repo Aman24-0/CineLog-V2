@@ -182,7 +182,7 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     (r) => !cachedTmdbMap.has(buildCacheKey(r.media_type, r.tmdb_id))
   );
 
-  let tmdbMap = new Map<string, TMDBTitle>(cachedTmdbMap);
+  const tmdbMap = new Map<string, TMDBTitle>(cachedTmdbMap);
 
   if (missingItems.length > 0) {
     const missingTmdbItems = missingItems.map((r) => ({

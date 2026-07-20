@@ -24,6 +24,40 @@
 
 import { createClient } from "@supabase/supabase-js";
 
+// ─── Type definitions ─────────────────────────────────────────────
+//
+// SolidStart/Nitro passes a `H3Event`-shaped object to route handlers.
+// We define a minimal structural type instead of importing the full
+// H3 types (which would require adding `h3` as a dependency). This
+// gives us type safety on `event.request` without `any`.
+
+interface APIEvent {
+  request: Request;
+}
+
+/** A single row returned from the tmdb_cache table (subset of columns). */
+interface TmdbCacheRow {
+  media_type: string;
+  tmdb_id: number;
+  data: unknown;
+  expires_at: string | null;
+}
+
+/** Entry in the POST body for batch upsert. */
+interface CacheUpsertEntry {
+  tmdb_id: number;
+  media_type: "movie" | "tv";
+  data: unknown;
+}
+
+/** Row shape for the Supabase upsert call. */
+interface CacheUpsertRow {
+  tmdb_id: number;
+  media_type: "movie" | "tv";
+  data: unknown;
+  expires_at: string;
+}
+
 // ─── Service-role Supabase client (server-only!) ──────────────────
 function getServiceClient() {
   const url = process.env.VITE_SUPABASE_URL;
@@ -49,7 +83,7 @@ function parseKey(key: string): { mediaType: string; tmdbId: number } | null {
 // ─── GET /api/tmdb-cache ─────────────────────────────────────────
 // Query params: keys — comma-separated list of "movie/550,tv/1399" keys
 // Returns: { data: Record<string, TMDBTitle | null> }
-export async function GET(event: any) {
+export async function GET(event: APIEvent) {
   try {
     const url = new URL(event.request.url);
     const keysParam = url.searchParams.get("keys");
@@ -110,8 +144,8 @@ export async function GET(event: any) {
 
     // Build a map of key → data, excluding expired entries
     const now = new Date().toISOString();
-    const result: Record<string, any> = {};
-    for (const row of (data ?? [])) {
+    const result: Record<string, unknown> = {};
+    for (const row of (data ?? []) as TmdbCacheRow[]) {
       // Only include non-expired entries
       if (row.expires_at && row.expires_at > now) {
         const key = `${row.media_type}/${row.tmdb_id}`;
@@ -125,9 +159,10 @@ export async function GET(event: any) {
         "Cache-Control": "public, max-age=300, s-maxage=600"
       }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     console.error("[tmdb-cache API] GET error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
@@ -137,9 +172,9 @@ export async function GET(event: any) {
 // ─── POST /api/tmdb-cache ────────────────────────────────────────
 // Body: { entries: Array<{ key: string, tmdb_id: number, media_type: "movie"|"tv", data: object }> }
 // Returns: { upserted: number }
-export async function POST(event: any) {
+export async function POST(event: APIEvent) {
   try {
-    const body = await event.request.json();
+    const body = await event.request.json() as { entries?: CacheUpsertEntry[] };
     const entries = body?.entries;
 
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -153,7 +188,7 @@ export async function POST(event: any) {
     // Set expires_at to 7 days from now
     const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const rows = entries.map((entry: any) => ({
+    const rows: CacheUpsertRow[] = entries.map((entry) => ({
       tmdb_id: entry.tmdb_id,
       media_type: entry.media_type,
       data: entry.data,
@@ -177,9 +212,10 @@ export async function POST(event: any) {
     return new Response(JSON.stringify({ upserted: rows.length }), {
       headers: { "Content-Type": "application/json" }
     });
-  } catch (err: any) {
+  } catch (err: unknown) {
+    const errMsg = err instanceof Error ? err.message : String(err);
     console.error("[tmdb-cache API] POST error:", err);
-    return new Response(JSON.stringify({ error: err.message }), {
+    return new Response(JSON.stringify({ error: errMsg }), {
       status: 500,
       headers: { "Content-Type": "application/json" }
     });
