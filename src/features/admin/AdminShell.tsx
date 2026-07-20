@@ -45,15 +45,15 @@ const NAV_ITEMS: NavItem[] = [
   { href: "/admin/collections", label: "Collections", icon: "📦", description: "Curated universes CRUD" },
   { href: "/admin/announcements", label: "Announcements", icon: "📢", description: "Banners & notices" },
   { href: "/admin/tmdb-cache", label: "TMDB Cache", icon: "🗄️", description: "Cache stats & ops" },
+  { href: "/admin/analytics", label: "Analytics", icon: "📈", description: "Aggregated engagement metrics" },
+  { href: "/admin/maintenance", label: "Maintenance", icon: "🔧", description: "Cleanup & vacuum operations" },
+  { href: "/admin/settings", label: "Settings", icon: "🌍", description: "Site-wide configuration" },
   { href: "/admin/logs", label: "Audit Logs", icon: "📝", description: "Admin action history" },
 ];
 
-// Future Phase 3 items (greyed out — not implemented yet)
-const FUTURE_ITEMS: NavItem[] = [
-  { href: "/admin/analytics", label: "Analytics", icon: "📈", description: "Aggregated metrics (Phase 3)" },
-  { href: "/admin/maintenance", label: "Maintenance", icon: "🔧", description: "Cleanup & backups (Phase 3)" },
-  { href: "/admin/settings", label: "Settings", icon: "🌍", description: "App-wide config (Phase 3)" },
-];
+// (Phase 3 items are now in NAV_ITEMS — this is kept for backwards
+// compatibility but should always be empty.)
+const FUTURE_ITEMS: NavItem[] = [];
 
 const AdminShell: ParentComponent = (props) => {
   const navigate = useNavigate();
