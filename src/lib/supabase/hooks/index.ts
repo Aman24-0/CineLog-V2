@@ -19,35 +19,9 @@
  *
  * Module structure:
  *   _shared.ts           — createAsyncState helper (loading/error tracker)
- *   useSupabaseAuth.ts   — auth + session subscription
- *   useVault.ts          — VaultRepository adapter
  *   useProfile.ts        — ProfileRepository adapter
- *   useCollections.ts    — CollectionRepository adapter
- *   useDashboard.ts      — DashboardRepository adapter (read-only)
- *   useDiscover.ts       — DiscoverRepository adapter (read-only)
  *   index.ts             — this barrel
- *
- * Phase scope
- * -----------
- * Foundation only. NOT wired into the application — the existing
- * Firebase hooks (`useAuth`, `useVault`, `useCollections`) remain the
- * sole source of truth until the migration explicitly cuts over.
  */
-
-export { useSupabaseAuth } from "./useSupabaseAuth";
-export type { UseSupabaseAuthReturn } from "./useSupabaseAuth";
-
-export { useVault } from "./useVault";
-export type { UseVaultReturn } from "./useVault";
 
 export { useProfile } from "./useProfile";
 export type { UseProfileReturn } from "./useProfile";
-
-export { useCollections } from "./useCollections";
-export type { UseCollectionsReturn } from "./useCollections";
-
-export { useDashboard } from "./useDashboard";
-export type { UseDashboardReturn } from "./useDashboard";
-
-export { useDiscover } from "./useDiscover";
-export type { UseDiscoverReturn } from "./useDiscover";

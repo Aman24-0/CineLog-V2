@@ -9,7 +9,7 @@
 //   - Per-row: delete
 //   - Bulk actions: invalidate expired, invalidate all
 
-import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
+import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
 
 interface CacheEntry {
   id: string;
@@ -380,7 +380,7 @@ const AdminTmdbCachePage: Component = () => {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
@@ -390,21 +390,21 @@ const cardStyle: React.CSSProperties = {
   gap: "var(--sp-3)",
 };
 
-const skeletonCard: React.CSSProperties = {
+const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   "animation": "pulse 1.5s ease-in-out infinite",
 };
 
-const statCardStyle: React.CSSProperties = {
+const statCardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   padding: "var(--sp-3) var(--sp-4)",
 };
 
-const alertError: React.CSSProperties = {
+const alertError: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
@@ -414,7 +414,7 @@ const alertError: React.CSSProperties = {
   color: "rgb(252, 165, 165)",
 };
 
-const badgeStyle: React.CSSProperties = {
+const badgeStyle: JSX.CSSProperties = {
   "font-size": "0.65rem",
   "font-weight": "700",
   background: "var(--tier-2)",
@@ -425,7 +425,7 @@ const badgeStyle: React.CSSProperties = {
   "text-transform": "uppercase",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: JSX.CSSProperties = {
   background: "var(--tier-2)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
@@ -435,7 +435,7 @@ const inputStyle: React.CSSProperties = {
   "font-family": "inherit",
 };
 
-const btnPrimary: React.CSSProperties = {
+const btnPrimary: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -446,7 +446,7 @@ const btnPrimary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnSecondary: React.CSSProperties = {
+const btnSecondary: JSX.CSSProperties = {
   background: "transparent",
   color: "var(--text)",
   border: "1px solid var(--hairline)",
@@ -457,7 +457,7 @@ const btnSecondary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnDanger: React.CSSProperties = {
+const btnDanger: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.15)",
   color: "rgb(252, 165, 165)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
@@ -468,7 +468,7 @@ const btnDanger: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnDisabled: React.CSSProperties = {
+const btnDisabled: JSX.CSSProperties = {
   background: "var(--tier-2)",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",
@@ -480,7 +480,7 @@ const btnDisabled: React.CSSProperties = {
   opacity: 0.5,
 };
 
-const iconBtnDanger: React.CSSProperties = {
+const iconBtnDanger: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   width: "32px",
@@ -494,7 +494,7 @@ const iconBtnDanger: React.CSSProperties = {
   "flex-shrink": 0,
 };
 
-function toastStyle(success: boolean): React.CSSProperties {
+function toastStyle(success: boolean): JSX.CSSProperties {
   return {
     position: "fixed",
     bottom: "var(--sp-6)",

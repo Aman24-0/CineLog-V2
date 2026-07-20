@@ -13,7 +13,7 @@
 //   GET /api/admin/homepage     — fetch current config
 //   PUT /api/admin/homepage     — save updated config
 
-import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
+import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
 
 interface SectionConfig {
   enabled: boolean;
@@ -285,7 +285,7 @@ const AdminHomepagePage: Component = () => {
 
 // ─── Style constants ────────────────────────────────────────────────
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
@@ -296,14 +296,14 @@ const cardStyle: React.CSSProperties = {
   "transition": "opacity 0.15s, border-color 0.15s",
 };
 
-const skeletonCard: React.CSSProperties = {
+const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   "animation": "pulse 1.5s ease-in-out infinite",
 };
 
-const alertError: React.CSSProperties = {
+const alertError: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
@@ -313,7 +313,7 @@ const alertError: React.CSSProperties = {
   color: "rgb(252, 165, 165)",
 };
 
-const btnPrimary: React.CSSProperties = {
+const btnPrimary: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -324,7 +324,7 @@ const btnPrimary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnSecondary: React.CSSProperties = {
+const btnSecondary: JSX.CSSProperties = {
   background: "transparent",
   color: "var(--text)",
   border: "1px solid var(--hairline)",
@@ -335,7 +335,7 @@ const btnSecondary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnDisabled: React.CSSProperties = {
+const btnDisabled: JSX.CSSProperties = {
   background: "var(--tier-2)",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",
@@ -347,7 +347,7 @@ const btnDisabled: React.CSSProperties = {
   opacity: 0.5,
 };
 
-const iconBtn: React.CSSProperties = {
+const iconBtn: JSX.CSSProperties = {
   background: "var(--tier-2)",
   color: "var(--text)",
   border: "1px solid var(--hairline)",
@@ -361,13 +361,13 @@ const iconBtn: React.CSSProperties = {
   "justify-content": "center",
 };
 
-const iconBtnDisabled: React.CSSProperties = {
+const iconBtnDisabled: JSX.CSSProperties = {
   ...iconBtn,
   opacity: 0.3,
   cursor: "not-allowed",
 };
 
-const toggleOn: React.CSSProperties = {
+const toggleOn: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -379,7 +379,7 @@ const toggleOn: React.CSSProperties = {
   "min-width": "42px",
 };
 
-const toggleOff: React.CSSProperties = {
+const toggleOff: JSX.CSSProperties = {
   background: "var(--tier-2)",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",

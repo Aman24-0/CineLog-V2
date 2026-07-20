@@ -66,7 +66,9 @@ import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import LazyMount from "./components/LazyMount";
-import PremiumEmptyState from "./components/PremiumEmptyState";
+import DiscoverEmptyState from "./components/DiscoverEmptyState";
+import { DiscoverSection } from "./components/DiscoverSection";
+import { DiscoverSectionError } from "./components/DiscoverSectionError";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
@@ -749,40 +751,5 @@ export default function DiscoverPage() {
       </Show>
       </Show>
     </PageContainer>
-  );
-}
-
-function DiscoverSection(props: { label: string; icon: string; loading?: boolean; children: import("solid-js").JSX.Element; }) {
-  return (
-    <section class="discover-fold" aria-label={props.label}>
-      <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">{props.icon}</span>
-        {props.label}
-      </div>
-      <Show when={!props.loading} fallback={
-        <div class="search-rail">
-          <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
-        </div>
-      }>
-        {props.children}
-      </Show>
-    </section>
-  );
-}
-
-function DiscoverSectionError(props: { label: string; error: Error }) {
-  console.error(`[DiscoverPage] ${props.label} section error:`, props.error);
-  return (
-    <section class="discover-fold">
-      <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--text-dim)" }} aria-hidden="true">error</span>
-        {props.label}
-      </div>
-      <PremiumEmptyState
-        icon="error"
-        message={`Couldn't load ${props.label}.`}
-        hint="Check your connection and try again."
-      />
-    </section>
   );
 }

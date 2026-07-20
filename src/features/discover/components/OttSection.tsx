@@ -37,7 +37,7 @@ import {
 } from "~/core/tmdb/discover";
 import type { TMDBTitle } from "~/shared/types";
 import { streamingProviders } from "~/core/preferences";
-import PremiumEmptyState from "./PremiumEmptyState";
+import DiscoverEmptyState from "./DiscoverEmptyState";
 import {
   buildPrimaryProviders,
   buildMoreProviders,
@@ -410,7 +410,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
                 when={moreProviders().length > 0}
                 fallback={
                   <div class="ott-more-empty-wrap">
-                    <PremiumEmptyState
+                    <DiscoverEmptyState
                       icon="live_tv"
                       message="No additional providers in your region."
                     />
@@ -465,7 +465,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
             <Show
               when={!error()}
               fallback={
-                <PremiumEmptyState
+                <DiscoverEmptyState
                   icon="live_tv"
                   message="Nothing streaming on this provider right now."
                   hint="Try another provider from the chips above."
@@ -473,7 +473,7 @@ const OttSection: Component<OttSectionProps> = (props) => {
                 />
               }
             >
-              <PremiumEmptyState
+              <DiscoverEmptyState
                 icon="live_tv"
                 message="Nothing new on this provider."
                 hint="You've already added everything here — try another provider."

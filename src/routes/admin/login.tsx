@@ -175,9 +175,7 @@ const AdminLoginPage: Component = () => {
     setError(null);
     setOauthLoading(true);
     try {
-      const redirectTo =
-        typeof window !== "undefined" ? `${window.location.origin}/admin/login` : undefined;
-      await signInWithGoogle(redirectTo);
+      await signInWithGoogle("/admin/login");
       // Browser will redirect — code below never runs
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed.";

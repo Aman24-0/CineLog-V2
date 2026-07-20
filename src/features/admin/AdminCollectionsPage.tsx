@@ -15,7 +15,7 @@
 //   PATCH  /api/admin/collections
 //   DELETE /api/admin/collections?id=<uuid>
 
-import { createSignal, Show, For, onMount, type Component } from "solid-js";
+import { createSignal, Show, For, onMount, type Component, type JSX } from "solid-js";
 import { A } from "@solidjs/router";
 
 interface Universe {
@@ -429,7 +429,7 @@ function Field(props: { label: string; children: any }) {
 
 // ─── Styles ─────────────────────────────────────────────────────────
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
@@ -439,14 +439,14 @@ const cardStyle: React.CSSProperties = {
   gap: "var(--sp-3)",
 };
 
-const skeletonCard: React.CSSProperties = {
+const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   "animation": "pulse 1.5s ease-in-out infinite",
 };
 
-const universeCardStyle: React.CSSProperties = {
+const universeCardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
@@ -455,7 +455,7 @@ const universeCardStyle: React.CSSProperties = {
   "flex-direction": "column",
 };
 
-const alertError: React.CSSProperties = {
+const alertError: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
@@ -465,7 +465,7 @@ const alertError: React.CSSProperties = {
   color: "rgb(252, 165, 165)",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: JSX.CSSProperties = {
   width: "100%",
   background: "var(--tier-2)",
   border: "1px solid var(--hairline)",
@@ -477,7 +477,7 @@ const inputStyle: React.CSSProperties = {
   "box-sizing": "border-box",
 };
 
-const btnPrimary: React.CSSProperties = {
+const btnPrimary: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -488,7 +488,7 @@ const btnPrimary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnSecondary: React.CSSProperties = {
+const btnSecondary: JSX.CSSProperties = {
   background: "transparent",
   color: "var(--text)",
   border: "1px solid var(--hairline)",
@@ -499,7 +499,7 @@ const btnSecondary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const iconBtn: React.CSSProperties = {
+const iconBtn: JSX.CSSProperties = {
   background: "var(--tier-2)",
   border: "1px solid var(--hairline)",
   width: "32px",
@@ -512,12 +512,12 @@ const iconBtn: React.CSSProperties = {
   "justify-content": "center",
 };
 
-const iconBtnDanger: React.CSSProperties = {
+const iconBtnDanger: JSX.CSSProperties = {
   ...iconBtn,
   "border-color": "rgba(239, 68, 68, 0.3)",
 };
 
-const linkBtnStyle: React.CSSProperties = {
+const linkBtnStyle: JSX.CSSProperties = {
   flex: 1,
   display: "flex",
   "align-items": "center",
@@ -533,7 +533,7 @@ const linkBtnStyle: React.CSSProperties = {
   "text-decoration": "none",
 };
 
-function toastStyle(success: boolean): React.CSSProperties {
+function toastStyle(success: boolean): JSX.CSSProperties {
   return {
     position: "fixed",
     bottom: "var(--sp-6)",

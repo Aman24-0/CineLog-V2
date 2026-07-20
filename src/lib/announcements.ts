@@ -49,7 +49,7 @@ function getDismissedIds(): Set<string> {
   }
 }
 
-function setDismissed(id: string) {
+function persistDismissal(id: string) {
   try {
     const raw = localStorage.getItem(DISMISS_KEY);
     const parsed = raw ? (JSON.parse(raw) as Record<string, number>) : {};
@@ -88,12 +88,15 @@ export function useAnnouncements(options?: {
 }) {
   const audience = options?.audience ?? "all";
   const [announcements, setAnnouncements] = createSignal<Announcement[]>([]);
-  const [, setDismissed] = createSignal<Set<string>>(getDismissedIds());
+  // We don't actually need a dismissed signal — `load()` re-reads localStorage
+  // every time it runs (via getDismissedIds). Keep a no-op setter for API
+  // compatibility, but the source of truth is localStorage itself.
+  const [, setDismissedSignal] = createSignal<Set<string>>(getDismissedIds());
 
   const load = async () => {
     const all = await fetchAnnouncements(audience);
     const d = getDismissedIds();
-    setDismissed(d);
+    setDismissedSignal(d);
     // Don't show dismissed announcements (even non-dismissible ones get hidden if user already dismissed)
     setAnnouncements(all.filter((a) => !d.has(a.id)));
   };
@@ -117,7 +120,7 @@ export function useAnnouncements(options?: {
   });
 
   const dismiss = (id: string) => {
-    setDismissed(id);
+    persistDismissal(id);
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
   };
 

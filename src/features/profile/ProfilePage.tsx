@@ -168,7 +168,7 @@ const ProfilePage: Component = () => {
 
   // Sign out handler
   const handleSignOut = async () => {
-    const { signOut } = await import("~/lib/supabase/auth");
+    const { signOut } = await import("~/shared/hooks/useAuthActions");
     await signOut();
     showToast("Signed out.", "success");
   };

@@ -27,7 +27,7 @@ import { discoverMovies, discoverTv } from "~/core/tmdb/discover";
 import { MOVIE_GENRES } from "~/core/tmdb/genres";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
-import PremiumEmptyState from "./PremiumEmptyState";
+import DiscoverEmptyState from "./DiscoverEmptyState";
 
 interface GenreExplorerProps {
   onSelect: (title: TMDBTitle) => void;
@@ -326,7 +326,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                   <Show
                     when={!errorGenre()}
                     fallback={
-                      <PremiumEmptyState
+                      <DiscoverEmptyState
                         icon="movie"
                         message={`Couldn't load ${currentGenreDef()?.name ?? "this genre"} titles.`}
                         hint="Check your connection and try again."
@@ -334,7 +334,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                       />
                     }
                   >
-                    <PremiumEmptyState
+                    <DiscoverEmptyState
                       icon="movie"
                       message={`No new ${currentGenreDef()?.name ?? ""} titles to discover.`}
                       hint="You've already added everything here — try another genre."

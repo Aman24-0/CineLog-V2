@@ -114,13 +114,13 @@ export async function signOut(): Promise<AuthResult> {
  * verified email, Supabase automatically links the Google identity
  * to the existing account (same user ID, same vault).
  */
-export async function signInWithGoogle(): Promise<void> {
+export async function signInWithGoogle(returnPath?: string): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
     const redirectTo =
       typeof window !== "undefined"
-        ? `${window.location.origin}/profile`
+        ? `${window.location.origin}${returnPath ?? "/profile"}`
         : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

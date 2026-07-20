@@ -1,9 +1,13 @@
 /**
  * CineLog V2 — Supabase Integration Layer (Barrel)
  * ---------------------------------------------------------------------
- * Public surface of the Supabase SDK integration. Application code
- * should import from here, not from the individual submodules, so
- * the internal folder layout can evolve without touching call-sites.
+ * Public surface of the Supabase SDK integration.
+ *
+ * NOTE: This top-level barrel is not the primary import path. Most
+ * consumers import directly from the sub-modules (`~/lib/supabase/client`,
+ * `~/lib/supabase/session`, `~/lib/supabase/repositories`, etc.).
+ * The barrel is kept for backwards compatibility with the few callers
+ * that still import from `~/lib/supabase`.
  *
  * Re-exports
  * ----------
@@ -14,7 +18,7 @@
  *   createServerClient()     — factory, server only (per-request)
  *   SupabaseClient (type)    — for typed consumers (repositories etc.)
  *
- * Database types (Phase 2 — CLI-generated, do not hand-edit)
+ * Database types (CLI-generated, do not hand-edit)
  *   Database (type)          — generated database schema types
  *   Tables, TablesInsert,
  *   TablesUpdate             — per-table helper types for repositories
@@ -22,17 +26,7 @@
  *   Constants                — runtime constant map of enum values
  *   Json                     — JSON value type used by jsonb columns
  *
- * Auth wrappers (Phase 3 — authentication foundation)
- *   signUp, signIn, signOut,
- *   getCurrentUser,
- *   getCurrentSession,
- *   refreshSession,
- *   resetPassword,
- *   updatePassword           — imperative auth actions
- *   + input/output types     — EmailPasswordCredentials, SignOutScope,
- *                              UpdatePasswordPayload, etc.
- *
- * Session helpers (Phase 3 — authentication foundation)
+ * Session helpers
  *   onSessionChange          — subscribe to auth-state events
  *   getServerSession         — SSR-only session reader
  *   getBrowserSession        — browser-only session reader
@@ -40,32 +34,17 @@
  *   requireUser              — guard: validated server-side user
  *   SessionRequiredError     — error class for guard failures
  *
- * Repositories (Phase 4 — repository foundation)
- *   VaultRepository (class)  — type-safe data-access layer for `vault`
- *   getVaultRepository()     — default instance accessor
- *   + vault types            — VaultRow, VaultIdentity, VaultStatus,
- *                              MediaType, CreateVaultItemPayload, etc.
+ * Repositories
+ *   VaultRepository, CollectionRepository, DashboardRepository,
+ *   DiscoverRepository, EpisodeProgressRepository, PresetRepository,
+ *   ProfileRepository  — type-safe data-access layers
+ *   + their types
  *
- * Phase scope
- * -----------
- * The auth, session, and repository modules are the *foundation*
- * only. They are NOT wired into the application — `useAuth`,
- * `src/core/firebase/auth.ts`, `watchlistService.ts`, and `useVault.tsx`
- * remain the sole source of truth until the migration explicitly cuts
- * over (Integration Guide §07, Phase 4–5).
- *
- * `database.types.ts` is the OFFICIAL output of the Supabase CLI
- * `gen types typescript` command, generated directly from the live
- * Supabase project. It is committed UNMODIFIED — do not hand-edit;
- * regenerate instead:
- *
- *     npx supabase login
- *     npx supabase gen types typescript \
- *         --project-id <your-project-ref> \
- *         > src/lib/supabase/database.types.ts
+ * Hooks
+ *   useProfile — reactive adapter over ProfileRepository
  */
 
-// ---- Client accessors (Phase 1) -------------------------------------------
+// ---- Client accessors ---------------------------------------------------
 export { getBrowserClient, createBrowserClient } from "./browser";
 export type { SupabaseClient } from "./browser";
 
@@ -73,7 +52,7 @@ export { createServerClient } from "./server";
 
 export { getClient } from "./client";
 
-// ---- Database types (Phase 2) ---------------------------------------------
+// ---- Database types -----------------------------------------------------
 // Type-only re-exports because tsconfig.json has `isolatedModules: true`.
 // `Constants` is a runtime value so it uses a normal `export`.
 export type {
@@ -88,38 +67,7 @@ export type {
 
 export { Constants } from "./database.types";
 
-// ---- Auth wrappers (Phase 3) ----------------------------------------------
-// Functions are runtime values; types are re-exported as type-only.
-export {
-  signUp,
-  signIn,
-  signOut,
-  getCurrentUser,
-  getCurrentSession,
-  refreshSession,
-  resetPassword,
-  updatePassword
-} from "./auth";
-
-export type {
-  EmailPasswordCredentials,
-  SignUpMetadata,
-  EmailRedirectOptions,
-  UpdatePasswordPayload,
-  SignOutScope,
-  GetSessionResult,
-  SignOutResult,
-  ResetPasswordResult,
-  // SDK types re-exported via ./auth for caller convenience.
-  AuthError,
-  AuthResponse,
-  AuthTokenResponsePassword,
-  Session,
-  User,
-  UserResponse
-} from "./auth";
-
-// ---- Session helpers (Phase 3) --------------------------------------------
+// ---- Session helpers ----------------------------------------------------
 export {
   onSessionChange,
   getServerSession,
@@ -134,7 +82,7 @@ export type {
   SessionSubscription
 } from "./session";
 
-// ---- Repositories (Phase 4) -----------------------------------------------
+// ---- Repositories -------------------------------------------------------
 // Re-exported from the repositories barrel so the internal folder
 // layout (one file per table) can evolve without touching call-sites.
 export { VaultRepository, getVaultRepository } from "./repositories";
@@ -154,7 +102,7 @@ export type {
   VaultSearchQuery
 } from "./repositories";
 
-export { ProfileRepository, getProfileRepository } from "./repositories";
+export { ProfileRepository, getProfileRepository, ensureProfile, checkUsernameAvailability } from "./repositories";
 
 export type {
   ProfileRow,
@@ -235,29 +183,11 @@ export type {
   DiscoverBooleanResult
 } from "./repositories";
 
-// ---- Hooks (Phase 5 — hook foundation) ------------------------------------
+// ---- Hooks --------------------------------------------------------------
 // UI components import hooks from here. Repositories are NEVER used
 // directly by components — the hooks are the sole bridge:
 //
 //     Component → Hook → Repository → Supabase → Database
 //
-export {
-  useSupabaseAuth,
-  useVault,
-  useProfile,
-  useCollections,
-  useDashboard,
-  useDiscover
-} from "./hooks";
-
-export type {
-  UseSupabaseAuthReturn,
-  UseVaultReturn,
-  UseProfileReturn,
-  UseCollectionsReturn,
-  UseDashboardReturn,
-  UseDiscoverReturn
-} from "./hooks";
-
-
-
+export { useProfile } from "./hooks";
+export type { UseProfileReturn } from "./hooks";

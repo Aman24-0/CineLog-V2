@@ -23,7 +23,7 @@
 import { For, Show, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
-import PremiumEmptyState from "./PremiumEmptyState";
+import DiscoverEmptyState from "./DiscoverEmptyState";
 
 interface DiscoverRailProps {
   titles: TMDBTitle[];
@@ -43,7 +43,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
     <Show
       when={props.titles.length > 0}
       fallback={
-        <PremiumEmptyState
+        <DiscoverEmptyState
           icon={props.emptyIcon ?? "movie"}
           message={props.emptyText ?? "No titles available."}
           hint={props.emptyHint}

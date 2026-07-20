@@ -14,7 +14,7 @@
 //   PATCH  /api/admin/announcements
 //   DELETE /api/admin/announcements?id=<uuid>
 
-import { createSignal, Show, For, onMount, type Component } from "solid-js";
+import { createSignal, Show, For, onMount, type Component, type JSX } from "solid-js";
 
 interface Announcement {
   id: string;
@@ -329,7 +329,7 @@ const AdminAnnouncementsPage: Component = () => {
                     </Show>
                     <Show when={a.deleted_at}>
                       <span style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
-                        Deleted {new Date(a.deleted_at).toLocaleDateString()}
+                        Deleted {new Date(a.deleted_at ?? "").toLocaleDateString()}
                       </span>
                     </Show>
                   </div>
@@ -524,7 +524,7 @@ function Field(props: { label: string; children: any }) {
 
 // ─── Style constants ────────────────────────────────────────────────
 
-const cardStyle: React.CSSProperties = {
+const cardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
@@ -534,14 +534,14 @@ const cardStyle: React.CSSProperties = {
   gap: "var(--sp-3)",
 };
 
-const skeletonCard: React.CSSProperties = {
+const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   "animation": "pulse 1.5s ease-in-out infinite",
 };
 
-const alertError: React.CSSProperties = {
+const alertError: JSX.CSSProperties = {
   background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
@@ -551,7 +551,7 @@ const alertError: React.CSSProperties = {
   color: "rgb(252, 165, 165)",
 };
 
-const inputStyle: React.CSSProperties = {
+const inputStyle: JSX.CSSProperties = {
   width: "100%",
   background: "var(--tier-2)",
   border: "1px solid var(--hairline)",
@@ -563,7 +563,7 @@ const inputStyle: React.CSSProperties = {
   "box-sizing": "border-box",
 };
 
-const btnPrimary: React.CSSProperties = {
+const btnPrimary: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -574,7 +574,7 @@ const btnPrimary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const btnSecondary: React.CSSProperties = {
+const btnSecondary: JSX.CSSProperties = {
   background: "transparent",
   color: "var(--text)",
   border: "1px solid var(--hairline)",
@@ -585,7 +585,7 @@ const btnSecondary: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const iconBtn: React.CSSProperties = {
+const iconBtn: JSX.CSSProperties = {
   background: "var(--tier-2)",
   border: "1px solid var(--hairline)",
   width: "32px",
@@ -598,12 +598,12 @@ const iconBtn: React.CSSProperties = {
   "justify-content": "center",
 };
 
-const iconBtnDanger: React.CSSProperties = {
+const iconBtnDanger: JSX.CSSProperties = {
   ...iconBtn,
   "border-color": "rgba(239, 68, 68, 0.3)",
 };
 
-const toggleOn: React.CSSProperties = {
+const toggleOn: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   border: "none",
@@ -614,7 +614,7 @@ const toggleOn: React.CSSProperties = {
   cursor: "pointer",
 };
 
-const toggleOff: React.CSSProperties = {
+const toggleOff: JSX.CSSProperties = {
   background: "var(--tier-2)",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",
@@ -625,7 +625,7 @@ const toggleOff: React.CSSProperties = {
   cursor: "pointer",
 };
 
-function toastStyle(success: boolean): React.CSSProperties {
+function toastStyle(success: boolean): JSX.CSSProperties {
   return {
     position: "fixed",
     bottom: "var(--sp-6)",
