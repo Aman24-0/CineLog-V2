@@ -70,6 +70,7 @@ import PremiumEmptyState from "./components/PremiumEmptyState";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
+import { useFeatureFlags } from "~/lib/featureFlags";
 import type { TMDBTitle } from "~/shared/types";
 // Merged search — the dedicated /search page is gone. Search now lives
 // at the top of Discover. We reuse the existing useSearch hook +
@@ -80,6 +81,11 @@ import SearchResults from "~/features/search/SearchResults";
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
+
+  // Feature flags — fetched once on app load via /api/feature-flags.
+  // Allows admins to toggle Surprise Me, Coming Soon, etc. without
+  // redeploying. Unknown flags default to true (current behavior).
+  const featureFlags = useFeatureFlags();
 
   // Region — single source of truth, reactive. Reads the live signal
   // from `useDiscoverRegion()`, so when the user changes their country
@@ -516,7 +522,8 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* 7. SURPRISE ME */}
+          {/* 7. SURPRISE ME — gated by the 'random_picker' feature flag */}
+          <Show when={featureFlags.isEnabled("random_picker")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Surprise Me" error={e} />}>
             <section class="discover-fold" aria-label="Surprise me">
               <div class="discover-fold-label">
@@ -549,6 +556,7 @@ export default function DiscoverPage() {
               </Show>
             </section>
           </ErrorBoundary>
+          </Show>
 
           {/* 8. WEEKEND PICKS (lazy-mounted — below the fold on most viewports) */}
           <LazyMount>
@@ -667,7 +675,8 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </LazyMount>
 
-          {/* 15. COMING SOON */}
+          {/* 15. COMING SOON — gated by the 'upcoming' feature flag */}
+          <Show when={featureFlags.isEnabled("upcoming")}>
           <LazyMount>
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
               <DiscoverSection label="Coming Soon" icon="upcoming" loading={feeds.loading() && upcomingFeed().length === 0}>
@@ -681,6 +690,7 @@ export default function DiscoverPage() {
               </DiscoverSection>
             </ErrorBoundary>
           </LazyMount>
+          </Show>
 
           {/* 16. GUEST SIGN-IN CTA */}
           <Show when={isGuest()}>

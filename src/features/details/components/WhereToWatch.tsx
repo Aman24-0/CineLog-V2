@@ -3,6 +3,7 @@ import { Show, For, createSignal, createMemo, onMount, type Component } from "so
 import type { Accessor } from "solid-js";
 import { tmdbImage, fetchTitleWatchProviders } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
+import { useFeatureFlags } from "~/lib/featureFlags";
 import {
   canonicalForTmdbId,
   displayNameFor,
@@ -39,6 +40,7 @@ interface WhereToWatchProps {
  */
 const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const region = useDiscoverRegion();
+  const featureFlags = useFeatureFlags();
   const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(null);
   const [loaded, setLoaded] = createSignal(false);
   // Deep link to the title's page on the platform (country-specific).
@@ -130,7 +132,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   });
 
   return (
-    <Show when={loaded() && sortedProviders().length > 0}>
+    <Show when={featureFlags.isEnabled("streaming_button") && loaded() && sortedProviders().length > 0}>
       <DetailSection label="Where to Watch" icon="play_circle">
         <div class="wheretowatch-grid" role="list" aria-label={`Available on ${sortedProviders().length} platforms in ${region()}`}>
           <For each={sortedProviders()}>
