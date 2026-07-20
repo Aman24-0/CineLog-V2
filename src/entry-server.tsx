@@ -1,6 +1,37 @@
 // src/entry-server.tsx
 import { createHandler, StartServer } from "@solidjs/start/server";
 
+// ── Global unhandled rejection handler ────────────────────────────
+//
+// During SSR, TMDB API calls can fail (401, network errors, etc.).
+// Even though all our fetchers have try/catch, SolidStart's
+// createResource + Suspense internals can create promise chains that
+// reject independently, becoming "unhandled" rejections that crash
+// the Node server process.
+//
+// This handler logs the rejection but does NOT crash the process.
+// The user-facing behavior is unchanged: failed fetches show empty
+// states in the UI. This only prevents the server worker from dying
+// on transient API errors.
+//
+// On Vercel, each request runs in its own serverless function
+// invocation, so a crash only affects that one request. But on
+// Node-server deployments (and local testing), a crash takes down
+// the entire server. This handler ensures stability in both cases.
+if (typeof process !== "undefined") {
+  process.on("unhandledRejection", (reason) => {
+    const msg = reason instanceof Error ? reason.message : String(reason);
+    // Only log TMDB/API errors at warn level (they're expected during
+    // SSR when the API key is missing or the API is rate-limited).
+    // Other errors are logged at error level for visibility.
+    if (msg.includes("TMDB") || msg.includes("getTopRated") || msg.includes("discover") || msg.includes("401") || msg.includes("fetch")) {
+      console.warn("[SSR] Suppressed API error (non-fatal):", msg);
+    } else {
+      console.error("[SSR] Unhandled rejection:", reason);
+    }
+  });
+}
+
 export default createHandler(() => (
   <StartServer
     document={({ assets, children, scripts }) => (

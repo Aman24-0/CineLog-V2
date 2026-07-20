@@ -60,9 +60,10 @@ export function useSpotlight(args: UseSpotlightArgs) {
   });
 
   const fetcher = async (): Promise<SpotlightPick | null> => {
-    const taste = args.taste();
-    const inVault = vaultIds();
-    const exclude = excludeSet();
+    try {
+      const taste = args.taste();
+      const inVault = vaultIds();
+      const exclude = excludeSet();
 
     // Helper: filter out vault + excluded titles, pick a deterministic-ish
     // index from the seed so re-rolls rotate through the list.
@@ -168,6 +169,12 @@ export function useSpotlight(args: UseSpotlightArgs) {
       if (pickResult) return pickResult;
     } catch (e) {
       // last resort failed — return null (UI shows skeleton/error)
+    }
+
+    } catch (e) {
+      // Top-level catch — return null on any uncaught error to prevent
+      // unhandled rejections that crash the SSR server.
+      console.warn("[useSpotlight] fetcher error:", e);
     }
 
     return null;

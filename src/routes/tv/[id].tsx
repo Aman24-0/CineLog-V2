@@ -62,12 +62,19 @@ export default function TvDeepLinkRoute() {
 
   // `deferStream: true` makes SSR wait for this resource before
   // sending HTML — critical for chat-app scrapers that don't run JS.
+  // Wrapped in try/catch to prevent unhandled rejections that crash
+  // the SSR server when TMDB is unavailable.
   const [meta] = createResource(
     () => params.id,
     async (id: string) => {
       if (!id) return null;
       if (!/^\d+$/.test(id)) return null;
-      return fetchTmdbMetadata("tv", id);
+      try {
+        return await fetchTmdbMetadata("tv", id);
+      } catch (err) {
+        console.warn(`[tv/[id]] TMDB fetch failed for ${id}:`, err);
+        return null;
+      }
     },
     { deferStream: true },
   );

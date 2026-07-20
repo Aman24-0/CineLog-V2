@@ -67,6 +67,10 @@ export default function SearchHeader(props: SearchHeaderProps) {
             </button>
           </Show>
         </div>
+        {/* Visually-hidden submit button for WCAG 3.2.2 compliance. */}
+        <button type="submit" class="sr-only" aria-label="Submit search">
+          Search
+        </button>
       </form>
     </>
   );

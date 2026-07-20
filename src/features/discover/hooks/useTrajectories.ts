@@ -1,42 +1,32 @@
 // src/features/discover/hooks/useTrajectories.ts
 import { createResource, createMemo, Accessor } from "solid-js";
-import type {
-  TasteProfile,
-  WatchlistItem,
-  TMDBTitle,
-  Trajectory,
-  TrajectoryArchetype
-} from "~/shared/types";
-import {
-  discoverMovies,
-  getRecommendations,
-  getTopRatedMovies,
-  searchMulti,
-  genreIdFor
-} from "~/core/tmdb/discover";
+import { discoverMovies, getTopRatedMovies, getRecommendations, searchMulti } from "~/core/tmdb/discover";
+import { genreIdFor } from "~/core/tmdb/genres";
 import { FRANCHISES } from "~/shared/data/franchises";
+import type { TMDBTitle, Trajectory, TrajectoryArchetype, TasteProfile } from "~/shared/types";
 
-interface UseTrajectoriesArgs {
+export interface UseTrajectoriesArgs {
   taste: Accessor<TasteProfile>;
-  vault: Accessor<WatchlistItem[]>;
+  /** The user's vault. Only id/title/name are accessed for filtering. */
+  vault: Accessor<{ id: string; title?: string; name?: string }[]>;
 }
 
 /**
- * useTrajectories — builds 0-4 intent-based clusters for Fold 1.
+ * useTrajectories — Fold 1 of the Discover page.
  *
- * Initial archetypes (per the approved design):
- *   - tonights-pick     — one strong, broad-appeal pick in the user's top genre
- *   - because-you-watched — recommendations from the user's seed title
- *   - hidden-gems       — high-rated, low-popularity in the user's top genre
- *   - continue-franchise — missing entries in an active franchise
+ * Returns 4 intent-based trajectories:
+ *   1. tonights-pick       — broad-appeal in user's top genre
+ *   2. because-you-watched — recommendations from seed title
+ *   3. hidden-gems         — high-rated, low-popularity in top genre
+ *   4. continue-franchise  — missing entries in an active franchise
  *
- * The architecture is open: adding a 5th archetype (e.g. "directors-you-love"
- * or "genre-deep-dive") only requires:
- *   1. Adding the value to TrajectoryArchetype in shared/types
- *   2. Adding a builder function here and pushing it into the result
- * No component changes needed — TrajectoryCard renders any Trajectory.
+ * Each trajectory is built by calling TMDB discover/search endpoints.
+ * Empty trajectories are filtered out by the UI.
  *
- * Empty trajectories are filtered out. The UI never shows empty shelves.
+ * ERROR HANDLING: The fetcher is wrapped in a top-level try/catch that
+ * returns [] on ANY error. This prevents unhandled promise rejections
+ * during SSR when TMDB is unavailable (401, network, etc.) — which
+ * would otherwise crash the Node server process.
  */
 export function useTrajectories(args: UseTrajectoriesArgs) {
   const tasteSig = createMemo(() => {
@@ -63,134 +53,145 @@ export function useTrajectories(args: UseTrajectoriesArgs) {
     const taste = args.taste();
     const out: Trajectory[] = [];
 
-    /* 1. tonights-pick — broad-appeal in user's top genre (or top-rated if cold) */
+    // Top-level try/catch — if ANY sub-fetch throws, return what we
+    // have so far (or empty). This prevents unhandled rejections that
+    // crash the SSR server when TMDB is unavailable.
     try {
-      let hero: TMDBTitle | null = null;
-      let supporting: TMDBTitle[] = [];
 
-      if (taste.topGenres.length > 0) {
-        const genreId = genreIdFor(taste.topGenres[0], "movie");
-        if (genreId) {
-          const list = await discoverMovies({
-            withGenres: [genreId],
-            sortBy: "popularity.desc",
-            voteCountGte: 500,
-            voteAverageGte: 7
-          });
-          const filtered = filterAndTake(list, 4);
+      /* 1. tonights-pick — broad-appeal in user's top genre (or top-rated if cold) */
+      try {
+        let hero: TMDBTitle | null = null;
+        let supporting: TMDBTitle[] = [];
+
+        if (taste.topGenres.length > 0) {
+          const genreId = genreIdFor(taste.topGenres[0], "movie");
+          if (genreId) {
+            const list = await discoverMovies({
+              withGenres: [genreId],
+              sortBy: "popularity.desc",
+              voteCountGte: 500,
+              voteAverageGte: 7
+            });
+            const filtered = filterAndTake(list, 4);
+            if (filtered.length > 0) {
+              hero = filtered[0];
+              supporting = filtered.slice(1, 4);
+            }
+          }
+        }
+        if (!hero && taste.isColdStart) {
+          const top = await getTopRatedMovies();
+          const filtered = filterAndTake(top, 4);
           if (filtered.length > 0) {
             hero = filtered[0];
             supporting = filtered.slice(1, 4);
           }
         }
-      }
-      if (!hero && taste.isColdStart) {
-        const top = await getTopRatedMovies();
-        const filtered = filterAndTake(top, 4);
-        if (filtered.length > 0) {
-          hero = filtered[0];
-          supporting = filtered.slice(1, 4);
-        }
-      }
-      if (hero) {
-        out.push({
-          archetype: "tonights-pick",
-          intent: taste.isColdStart
-            ? "Tonight's Pick — a film everyone should see"
-            : `Tonight's Pick — ${taste.topGenres[0] ?? "a great film"} you'll love`,
-          subtitle: `${1 + supporting.length} picks for tonight`,
-          icon: "tonight",
-          hero,
-          supporting
-        });
-      }
-    } catch (e) { /* skip */ }
-
-    /* 2. because-you-watched — recommendations from seed title */
-    if (taste.seedTitle) {
-      try {
-        const recs = await getRecommendations(taste.seedTitle.media_type, taste.seedTitle.id);
-        const filtered = filterAndTake(recs, 4);
-        if (filtered.length > 0) {
-          const seedName = taste.seedTitle.title || taste.seedTitle.name || "what you watched";
+        if (hero) {
           out.push({
-            archetype: "because-you-watched",
-            intent: `Because you watched ${seedName}`,
-            subtitle: `${filtered.length} titles in the same vein`,
-            icon: "recommend",
-            hero: filtered[0],
-            supporting: filtered.slice(1, 4)
+            archetype: "tonights-pick",
+            intent: taste.isColdStart
+              ? "Tonight's Pick — a film everyone should see"
+              : `Tonight's Pick — ${taste.topGenres[0] ?? "a great film"} you'll love`,
+            subtitle: `${1 + supporting.length} picks for tonight`,
+            icon: "tonight",
+            hero,
+            supporting
           });
         }
-      } catch (e) { /* skip */ }
-    }
+      } catch (e) { /* skip this trajectory */ }
 
-    /* 3. hidden-gems — high-rated, low-popularity in user's top genre */
-    if (taste.topGenres.length > 0) {
-      try {
-        const genreId = genreIdFor(taste.topGenres[0], "movie");
-        if (genreId) {
-          const gems = await discoverMovies({
-            withGenres: [genreId],
-            sortBy: "vote_average.desc",
-            voteCountGte: 200,
-            voteAverageGte: 7.5
-          });
-          const hidden = gems.filter((t) => (t.vote_count ?? 0) < 3000);
-          const pool = hidden.length >= 3 ? hidden : gems;
-          const filtered = filterAndTake(pool, 4);
+      /* 2. because-you-watched — recommendations from seed title */
+      if (taste.seedTitle) {
+        try {
+          const recs = await getRecommendations(taste.seedTitle.media_type, taste.seedTitle.id);
+          const filtered = filterAndTake(recs, 4);
           if (filtered.length > 0) {
+            const seedName = taste.seedTitle.title || taste.seedTitle.name || "what you watched";
             out.push({
-              archetype: "hidden-gems",
-              intent: `Hidden gems in ${taste.topGenres[0]}`,
-              subtitle: `${filtered.length} acclaimed, under-the-radar picks`,
-              icon: "diamond",
+              archetype: "because-you-watched",
+              intent: `Because you watched ${seedName}`,
+              subtitle: `${filtered.length} titles in the same vein`,
+              icon: "recommend",
               hero: filtered[0],
               supporting: filtered.slice(1, 4)
             });
           }
-        }
-      } catch (e) { /* skip */ }
-    }
+        } catch (e) { /* skip */ }
+      }
 
-    /* 4. continue-franchise — missing entries in an active franchise */
-    if (taste.activeFranchises.length > 0) {
-      try {
-        const franchise = taste.activeFranchises[0];
-        const franchiseDef = FRANCHISES.find((f) => f.name === franchise.name);
-        if (franchiseDef) {
-          // Search TMDB for the first keyword not already in the vault
-          const ownedKeywords = new Set(
-            args.vault()
-              .filter((m) => {
-                const t = (m.title || m.name || "").toLowerCase();
-                return franchiseDef.keywords.some((k) => t.includes(k));
-              })
-              .map((m) => (m.title || m.name || "").toLowerCase())
-          );
-          const missingKeyword = franchiseDef.keywords.find(
-            (k) => !ownedKeywords.has(k) && !Array.from(ownedKeywords).some((o) => o.includes(k))
-          ) || franchiseDef.keywords[0];
-
-          const results = await searchMulti(missingKeyword);
-          // Prefer results whose title contains the keyword
-          const matched = results.filter((t) => {
-            const name = (t.title || t.name || "").toLowerCase();
-            return franchiseDef.keywords.some((k) => name.includes(k));
-          });
-          const filtered = filterAndTake(matched.length > 0 ? matched : results, 4);
-          if (filtered.length > 0) {
-            out.push({
-              archetype: "continue-franchise",
-              intent: `Continue the ${franchise.name}`,
-              subtitle: `${franchise.missing} entr${franchise.missing === 1 ? "y" : "ies"} missing from your vault`,
-              icon: "account_tree",
-              hero: filtered[0],
-              supporting: filtered.slice(1, 4)
+      /* 3. hidden-gems — high-rated, low-popularity in user's top genre */
+      if (taste.topGenres.length > 0) {
+        try {
+          const genreId = genreIdFor(taste.topGenres[0], "movie");
+          if (genreId) {
+            const gems = await discoverMovies({
+              withGenres: [genreId],
+              sortBy: "vote_average.desc",
+              voteCountGte: 200,
+              voteAverageGte: 7.5
             });
+            const hidden = gems.filter((t) => (t.vote_count ?? 0) < 3000);
+            const pool = hidden.length >= 3 ? hidden : gems;
+            const filtered = filterAndTake(pool, 4);
+            if (filtered.length > 0) {
+              out.push({
+                archetype: "hidden-gems",
+                intent: `Hidden gems in ${taste.topGenres[0]}`,
+                subtitle: `${filtered.length} acclaimed, under-the-radar picks`,
+                icon: "diamond",
+                hero: filtered[0],
+                supporting: filtered.slice(1, 4)
+              });
+            }
           }
-        }
-      } catch (e) { /* skip */ }
+        } catch (e) { /* skip */ }
+      }
+
+      /* 4. continue-franchise — missing entries in an active franchise */
+      if (taste.activeFranchises.length > 0) {
+        try {
+          const franchise = taste.activeFranchises[0];
+          const franchiseDef = FRANCHISES.find((f) => f.name === franchise.name);
+          if (franchiseDef) {
+            // Search TMDB for the first keyword not already in the vault
+            const ownedKeywords = new Set(
+              args.vault()
+                .filter((m) => {
+                  const t = (m.title || m.name || "").toLowerCase();
+                  return franchiseDef.keywords.some((k) => t.includes(k));
+                })
+                .map((m) => (m.title || m.name || "").toLowerCase())
+            );
+            const missingKeyword = franchiseDef.keywords.find(
+              (k) => !ownedKeywords.has(k) && !Array.from(ownedKeywords).some((o) => o.includes(k))
+            ) || franchiseDef.keywords[0];
+
+            const results = await searchMulti(missingKeyword);
+            // Prefer results whose title contains the keyword
+            const matched = results.filter((t) => {
+              const name = (t.title || t.name || "").toLowerCase();
+              return franchiseDef.keywords.some((k) => name.includes(k));
+            });
+            const filtered = filterAndTake(matched.length > 0 ? matched : results, 4);
+            if (filtered.length > 0) {
+              out.push({
+                archetype: "continue-franchise",
+                intent: `Continue the ${franchise.name}`,
+                subtitle: `${franchise.missing} entr${franchise.missing === 1 ? "y" : "ies"} missing from your vault`,
+                icon: "account_tree",
+                hero: filtered[0],
+                supporting: filtered.slice(1, 4)
+              });
+            }
+          }
+        } catch (e) { /* skip */ }
+      }
+
+    } catch (e) {
+      // Top-level catch — return whatever we have so far. This prevents
+      // unhandled promise rejections that crash the SSR server.
+      console.warn("[useTrajectories] fetcher error (returning partial):", e);
     }
 
     return out;

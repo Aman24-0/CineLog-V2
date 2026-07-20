@@ -54,80 +54,88 @@ export function useTasteSurfaces(args: UseTasteSurfacesArgs) {
     const taste = args.taste();
     const out: TasteSurface[] = [];
 
-    /* 1. because-you-loved — recommendations from seed title */
-    if (taste.seedTitle) {
-      try {
-        const recs = await getRecommendations(taste.seedTitle.media_type, taste.seedTitle.id);
-        const filtered = filterAndTake(recs, 8);
-        if (filtered.length > 0) {
-          const seedName = taste.seedTitle.title || taste.seedTitle.name || "a title you loved";
-          const rating = taste.seedTitle.rating ?? 9;
-          out.push({
-            kind: "because-you-loved",
-            intent: `Because you loved ${seedName}`,
-            subtitle: `${filtered.length} titles in the same vein as your ${rating}/10`,
-            icon: "favorite",
-            items: filtered
-          });
-        }
-      } catch (e) { /* skip */ }
-    }
+    // Top-level try/catch — return partial results on any error to
+    // prevent unhandled rejections that crash the SSR server.
+    try {
 
-    /* 2. continue-franchise — missing entries in an active franchise */
-    if (taste.activeFranchises.length > 0) {
-      try {
-        const franchise = taste.activeFranchises[0];
-        const franchiseDef = FRANCHISES.find((f) => f.name === franchise.name);
-        if (franchiseDef) {
-          const ownedKeywords = new Set(
-            args.vault()
-              .filter((m) => {
-                const t = (m.title || m.name || "").toLowerCase();
-                return franchiseDef.keywords.some((k) => t.includes(k));
-              })
-              .map((m) => (m.title || m.name || "").toLowerCase())
-          );
-          const missingKeyword = franchiseDef.keywords.find(
-            (k) => !ownedKeywords.has(k) && !Array.from(ownedKeywords).some((o) => o.includes(k))
-          ) || franchiseDef.keywords[0];
-
-          const results = await searchMulti(missingKeyword);
-          const matched = results.filter((t) => {
-            const name = (t.title || t.name || "").toLowerCase();
-            return franchiseDef.keywords.some((k) => name.includes(k));
-          });
-          const filtered = filterAndTake(matched.length > 0 ? matched : results, 8);
+      /* 1. because-you-loved — recommendations from seed title */
+      if (taste.seedTitle) {
+        try {
+          const recs = await getRecommendations(taste.seedTitle.media_type, taste.seedTitle.id);
+          const filtered = filterAndTake(recs, 8);
           if (filtered.length > 0) {
+            const seedName = taste.seedTitle.title || taste.seedTitle.name || "a title you loved";
+            const rating = taste.seedTitle.rating ?? 9;
             out.push({
-              kind: "continue-franchise",
-              intent: `Continue the ${franchise.name}`,
-              subtitle: `${franchise.missing} entr${franchise.missing === 1 ? "y" : "ies"} missing from your vault`,
-              icon: "account_tree",
+              kind: "because-you-loved",
+              intent: `Because you loved ${seedName}`,
+              subtitle: `${filtered.length} titles in the same vein as your ${rating}/10`,
+              icon: "favorite",
               items: filtered
             });
           }
-        }
-      } catch (e) { /* skip */ }
-    }
+        } catch (e) { /* skip */ }
+      }
 
-    /* 3. directors-you-love — films by a top director (TMDB search) */
-    if (taste.topDirectors.length > 0) {
-      try {
-        const director = taste.topDirectors[0];
-        const results = await searchMulti(director.name);
-        // Filter to movies only (people results already filtered out by searchMulti)
-        const movies = results.filter((t) => t.media_type === "movie");
-        const filtered = filterAndTake(movies, 8);
-        if (filtered.length > 0) {
-          out.push({
-            kind: "directors-you-love",
-            intent: `From ${director.name}, a director you love`,
-            subtitle: `${filtered.length} films — you've loved ${director.count} of their titles`,
-            icon: "person",
-            items: filtered
-          });
-        }
-      } catch (e) { /* skip */ }
+      /* 2. continue-franchise — missing entries in an active franchise */
+      if (taste.activeFranchises.length > 0) {
+        try {
+          const franchise = taste.activeFranchises[0];
+          const franchiseDef = FRANCHISES.find((f) => f.name === franchise.name);
+          if (franchiseDef) {
+            const ownedKeywords = new Set(
+              args.vault()
+                .filter((m) => {
+                  const t = (m.title || m.name || "").toLowerCase();
+                  return franchiseDef.keywords.some((k) => t.includes(k));
+                })
+                .map((m) => (m.title || m.name || "").toLowerCase())
+            );
+            const missingKeyword = franchiseDef.keywords.find(
+              (k) => !ownedKeywords.has(k) && !Array.from(ownedKeywords).some((o) => o.includes(k))
+            ) || franchiseDef.keywords[0];
+
+            const results = await searchMulti(missingKeyword);
+            const matched = results.filter((t) => {
+              const name = (t.title || t.name || "").toLowerCase();
+              return franchiseDef.keywords.some((k) => name.includes(k));
+            });
+            const filtered = filterAndTake(matched.length > 0 ? matched : results, 8);
+            if (filtered.length > 0) {
+              out.push({
+                kind: "continue-franchise",
+                intent: `Continue the ${franchise.name}`,
+                subtitle: `${franchise.missing} entr${franchise.missing === 1 ? "y" : "ies"} missing from your vault`,
+                icon: "account_tree",
+                items: filtered
+              });
+            }
+          }
+        } catch (e) { /* skip */ }
+      }
+
+      /* 3. directors-you-love — films by a top director (TMDB search) */
+      if (taste.topDirectors.length > 0) {
+        try {
+          const director = taste.topDirectors[0];
+          const results = await searchMulti(director.name);
+          // Filter to movies only (people results already filtered out by searchMulti)
+          const movies = results.filter((t) => t.media_type === "movie");
+          const filtered = filterAndTake(movies, 8);
+          if (filtered.length > 0) {
+            out.push({
+              kind: "directors-you-love",
+              intent: `From ${director.name}, a director you love`,
+              subtitle: `${filtered.length} films — you've loved ${director.count} of their titles`,
+              icon: "person",
+              items: filtered
+            });
+          }
+        } catch (e) { /* skip */ }
+      }
+
+    } catch (e) {
+      console.warn("[useTasteSurfaces] fetcher error (returning partial):", e);
     }
 
     return out;

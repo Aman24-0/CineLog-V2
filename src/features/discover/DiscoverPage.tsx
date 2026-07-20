@@ -337,6 +337,14 @@ export default function DiscoverPage() {
             </button>
           </Show>
         </div>
+        {/* Visually-hidden submit button for WCAG 3.2.2 compliance.
+            Keyboard users can submit the form by pressing Enter while
+            focused on the search input, but WCAG requires an explicit
+            submit button. This is visually hidden but available to
+            screen readers and keyboard navigation. */}
+        <button type="submit" class="sr-only" aria-label="Submit search">
+          Search
+        </button>
       </form>
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
