@@ -89,14 +89,55 @@ export function useAdminAuth() {
     /** The most recent login error message, or null. */
     loginError,
 
-    /** Verify email + password + PIN and establish an admin session. */
+    /**
+     * Verify identity + PIN and establish an admin session.
+     *
+     * Two paths:
+     *   • `loginWithPin(pin)` — for users already signed into CineLog
+     *     (e.g. via Google OAuth). The server reads the Supabase
+     *     session cookie from the request and validates it.
+     *   • `login(email, password, pin)` — classic email+password path
+     *     for users who have a password set on their account.
+     */
     async login(email: string, password: string, pin: string): Promise<LoginResult> {
       setLoginLoading(true);
       setLoginError(null);
       try {
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ email, password, pin }),
+          body: JSON.stringify({ email, password, pin, mode: "password" }),
+        })) as LoginResult;
+
+        if (body?.ok && body.admin) {
+          setAdmin(body.admin);
+          return { ok: true, admin: body.admin };
+        }
+        const errMsg = body?.error ?? "Login failed";
+        setLoginError(errMsg);
+        return { ok: false, error: errMsg };
+      } catch (err) {
+        const errMsg = err instanceof Error ? err.message : "Network error";
+        setLoginError(errMsg);
+        return { ok: false, error: errMsg };
+      } finally {
+        setLoginLoading(false);
+      }
+    },
+
+    /**
+     * Session-based admin login — used when the user is already
+     * signed into CineLog via Google OAuth (or any other method).
+     *
+     * The browser automatically sends the Supabase auth cookie, so
+     * the only payload we need to send explicitly is the PIN.
+     */
+    async loginWithPin(pin: string): Promise<LoginResult> {
+      setLoginLoading(true);
+      setLoginError(null);
+      try {
+        const body = (await fetchJSON("/api/admin/auth", {
+          method: "POST",
+          body: JSON.stringify({ pin, mode: "session" }),
         })) as LoginResult;
 
         if (body?.ok && body.admin) {

@@ -2,30 +2,41 @@
 //
 // CineLog V2 — Admin Auth API
 // ---------------------------------------------------------------------
-// Two endpoints:
-//   POST /api/admin/auth  → login (verify email + password + PIN)
-//   DELETE /api/admin/auth → logout (clear admin cookie)
+// Three endpoints:
+//   POST   /api/admin/auth  → login (verify identity + PIN)
+//   DELETE /api/admin/auth  → logout (clear admin cookie)
+//   GET    /api/admin/auth  → session check (is the admin cookie valid?)
 //
-// LOGIN FLOW:
-//   1. Client sends { email, password, pin }.
-//   2. We verify email + password via Supabase Auth (anon key).
-//   3. On success, we look up the user's profile with the service
-//      role client and check `is_admin = TRUE` and `admin_disabled_at IS NULL`.
-//   4. We compare the PIN against ADMIN_PIN env var (constant-time).
-//   5. On all-three-pass, we sign an admin JWT and set it as an
-//      HttpOnly cookie. Return { ok: true, admin: { ... } }.
-//   6. On any failure, return 401 with a generic "Invalid credentials"
-//      message (do NOT reveal which layer failed).
+// LOGIN FLOW (two supported identity paths):
+//
+//   Path A — "session" (OAuth users who are already signed into CineLog):
+//     Body: { pin: string }
+//     The browser automatically sends the Supabase auth cookie
+//     (sb-<anon>-auth-token). We extract the access_token from it,
+//     call supabase.auth.getUser(access_token) to verify the session
+//     is valid, then look up the profile to confirm is_admin.
+//
+//   Path B — "password" (users with an email/password account):
+//     Body: { email: string, password: string, pin: string }
+//     We call supabase.auth.signInWithPassword() to verify the
+//     credentials, then look up the profile to confirm is_admin.
+//
+//   After either path, we:
+//     1. Verify the user's profile.is_admin = TRUE and admin_disabled_at IS NULL.
+//     2. Compare the PIN against ADMIN_PIN env var (constant-time).
+//     3. Sign an admin JWT and set it as an HttpOnly cookie.
+//     4. Log the login to admin_actions.
 //
 // RATE LIMITING:
 //   In-memory per-IP lockout: 5 failed attempts → 15-minute lockout.
 //   State is lost on server restart (acceptable for an admin panel).
 //
 // SECURITY:
-//   • Password is verified by Supabase Auth (never touched by us).
+//   • The PIN env var is NEVER exposed to the client.
 //   • PIN is verified in constant time to prevent timing attacks.
 //   • Admin cookie is HttpOnly, Secure, SameSite=Strict, max-age=4h.
-//   • The PIN env var is NEVER exposed to the client.
+//   • All failures return a generic "Invalid credentials" message so
+//     an attacker cannot tell which layer failed.
 
 import { createClient } from "@supabase/supabase-js";
 import {
@@ -45,6 +56,10 @@ interface LoginBody {
   email?: unknown;
   password?: unknown;
   pin?: unknown;
+  // Optional explicit mode flag. If omitted, we infer from the body:
+  //   - If email + password present  → "password" mode
+  //   - Otherwise                    → "session" mode
+  mode?: unknown;
 }
 
 interface AdminProfileRow {
@@ -60,11 +75,6 @@ interface AdminProfileRow {
 // Tracks failed login attempts per IP. After 5 failures, the IP is
 // locked out for 15 minutes. State is lost on server restart —
 // acceptable for an admin panel with a single admin.
-//
-// On Vercel serverless, this state is per-instance (each Lambda
-// container has its own state). A determined attacker could rotate
-// across containers to bypass this, but the underlying 3-layer auth
-// (Supabase password + is_admin flag + PIN) still protects the app.
 
 interface RateLimitEntry {
   failures: number;
@@ -75,7 +85,6 @@ const rateLimitMap = new Map<string, RateLimitEntry>();
 const MAX_FAILURES = 5;
 const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
 
-// Periodically purge stale entries (every 5 minutes)
 const PURGE_INTERVAL_MS = 5 * 60 * 1000;
 let lastPurge = Date.now();
 
@@ -104,7 +113,7 @@ function recordFailure(ip: string | null): void {
   entry.failures += 1;
   if (entry.failures >= MAX_FAILURES) {
     entry.lockedUntil = Date.now() + LOCKOUT_MS;
-    entry.failures = 0; // reset so the lockout window is fixed
+    entry.failures = 0;
   }
   rateLimitMap.set(ip, entry);
 }
@@ -115,8 +124,6 @@ function clearFailures(ip: string | null): void {
 }
 
 // ─── Constant-time string comparison ──────────────────────────────
-//
-// Prevents timing attacks on PIN verification.
 
 function constantTimeEqual(a: string, b: string): boolean {
   if (a.length !== b.length) return false;
@@ -127,7 +134,77 @@ function constantTimeEqual(a: string, b: string): boolean {
   return diff === 0;
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────
+// ─── Cookie helpers ───────────────────────────────────────────────
+
+/**
+ * Parse a single cookie value out of a Cookie header.
+ * Returns null if the cookie is absent.
+ *
+ * The Supabase browser client stores the auth session under names
+ * like `sb-<project-ref>-auth-token` (and a `.code` variant during
+ * the PKCE flow). We look for the first cookie whose name starts with
+ * `sb-` and ends with `-auth-token` — that's the access token JSON.
+ */
+function getSupabaseAccessToken(cookieHeader: string): string | null {
+  if (!cookieHeader) return null;
+  const cookies = cookieHeader.split(";");
+  for (const c of cookies) {
+    const [rawName, ...rest] = c.trim().split("=");
+    if (!rawName) continue;
+    const name = rawName.trim();
+    // Primary: sb-<ref>-auth-token (PKCE final, base64-URL JSON or plain JSON)
+    if (name.startsWith("sb-") && name.endsWith("-auth-token")) {
+      const raw = decodeURIComponent(rest.join("="));
+      return parseAccessTokenFromSessionCookie(raw);
+    }
+  }
+  return null;
+}
+
+/**
+ * Supabase stores the session as either:
+ *   - A JSON string: {"access_token":"...","refresh_token":"...", ...}
+ *   - A base64-URL-encoded string of that JSON (newer versions)
+ *   - Or, in some flows, just the access_token directly (rare)
+ *
+ * We try each in turn.
+ */
+function parseAccessTokenFromSessionCookie(raw: string): string | null {
+  if (!raw) return null;
+
+  // 1. Plain JSON
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed && typeof parsed.access_token === "string") {
+      return parsed.access_token;
+    }
+  } catch {
+    // not JSON, try base64
+  }
+
+  // 2. base64-URL → JSON
+  try {
+    // base64url → base64
+    const b64 = raw.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = b64 + "=".repeat((4 - (b64.length % 4)) % 4);
+    const decoded = atob(padded);
+    const parsed = JSON.parse(decoded);
+    if (parsed && typeof parsed.access_token === "string") {
+      return parsed.access_token;
+    }
+  } catch {
+    // not base64 either
+  }
+
+  // 3. Raw JWT (fallback — Supabase doesn't usually do this but be safe)
+  if (raw.split(".").length === 3 && raw.length > 40) {
+    return raw;
+  }
+
+  return null;
+}
+
+// ─── Response helpers ─────────────────────────────────────────────
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -139,10 +216,6 @@ function jsonResponse(body: unknown, status = 200): Response {
 function setAdminCookie(token: string): string {
   const name = adminCookieName();
   const maxAge = adminTokenLifetime();
-  // HttpOnly: not accessible via JS
-  // Secure: only sent over HTTPS (Vercel is always HTTPS)
-  // SameSite=Strict: not sent on cross-site requests
-  // Path=/: available to all /admin/* routes
   return `${name}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
 }
 
@@ -151,137 +224,125 @@ function clearAdminCookie(): string {
   return `${name}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
 }
 
-// ─── POST /api/admin/auth (login) ─────────────────────────────────
+// ─── Common post-auth logic ───────────────────────────────────────
+//
+// Given a verified Supabase user ID, look up the profile, verify
+// admin status, verify PIN, and issue the admin cookie.
+// Returns a Response on failure, or null on success (the caller
+// builds the success Response using the returned admin object).
 
-export async function POST(event: APIEvent) {
+interface IssueResult {
+  ok: true;
+  response: Response;
+}
+
+interface IssueError {
+  ok: false;
+  response: Response;
+}
+
+async function verifyProfileAndIssueAdmin(
+  args: {
+    userId: string;
+    email: string;
+    pin: string;
+    ip: string | null;
+    userAgent: string | null;
+    loginMethod: "password" | "session";
+  },
+): Promise<IssueResult | IssueError> {
+  const { userId, email, pin, ip, userAgent, loginMethod } = args;
+
+  // 1. Look up the profile (service role bypasses RLS)
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
+  if (!supabaseUrl || !serviceKey) {
+    console.error("[CineLog Admin] Missing Supabase env vars");
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Server misconfiguration" }, 500),
+    };
+  }
+
+  const adminClient = createClient(supabaseUrl, serviceKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+  });
+
+  const { data: profile, error: profileError } = await adminClient
+    .from("profiles")
+    .select("id, username, display_name, is_admin, admin_disabled_at")
+    .eq("id", userId)
+    .is("deleted_at", null)
+    .single<AdminProfileRow>();
+
+  if (profileError || !profile) {
+    recordFailure(ip);
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+    };
+  }
+
+  if (!profile.is_admin) {
+    recordFailure(ip);
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+    };
+  }
+
+  if (profile.admin_disabled_at) {
+    recordFailure(ip);
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Admin account disabled" }, 403),
+    };
+  }
+
+  // 2. Verify PIN (constant-time)
+  const expectedPin = process.env.ADMIN_PIN;
+  if (!expectedPin) {
+    console.error("[CineLog Admin] Missing ADMIN_PIN env var");
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Server misconfiguration" }, 500),
+    };
+  }
+
+  if (!constantTimeEqual(pin, expectedPin)) {
+    recordFailure(ip);
+    return {
+      ok: false,
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+    };
+  }
+
+  // 3. All checks passed — clear rate limit, sign JWT, log
+  clearFailures(ip);
+
+  const token = signAdminToken({
+    admin_id: profile.id,
+    email,
+  });
+
+  // Best-effort audit log
   try {
-    const ip = getClientIP(event);
-
-    // 1. Rate limit check
-    if (isRateLimited(ip)) {
-      return jsonResponse(
-        { ok: false, error: "Too many failed attempts. Try again in 15 minutes." },
-        429,
-      );
-    }
-
-    // 2. Parse body
-    const body = (await event.request.json().catch(() => ({}))) as LoginBody;
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
-    const password = typeof body.password === "string" ? body.password : "";
-    const pin = typeof body.pin === "string" ? body.pin.trim() : "";
-
-    if (!email || !password || !pin) {
-      return jsonResponse({ ok: false, error: "Email, password, and PIN are required." }, 400);
-    }
-
-    // 3. Verify email + password via Supabase Auth (anon key)
-    const supabaseUrl = process.env.VITE_SUPABASE_URL;
-    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
-    if (!supabaseUrl || !supabaseAnonKey) {
-      console.error("[CineLog Admin] Missing Supabase env vars");
-      return jsonResponse({ ok: false, error: "Server misconfiguration" }, 500);
-    }
-
-    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
-      email,
-      password,
-    });
-
-    if (authError || !authData.session) {
-      recordFailure(ip);
-      // Always return the same generic error to avoid leaking which check failed
-      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
-    }
-
-    // 4. Look up the profile and check admin status (service role, bypasses RLS)
-    const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-    if (!serviceKey) {
-      console.error("[CineLog Admin] Missing SUPABASE_SERVICE_ROLE_KEY");
-      return jsonResponse({ ok: false, error: "Server misconfiguration" }, 500);
-    }
-
-    const adminClient = createClient(supabaseUrl, serviceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const userId = authData.user?.id;
-    if (!userId) {
-      recordFailure(ip);
-      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
-    }
-
-    const { data: profile, error: profileError } = await adminClient
-      .from("profiles")
-      .select("id, username, display_name, is_admin, admin_disabled_at")
-      .eq("id", userId)
-      .is("deleted_at", null)
-      .single<AdminProfileRow>();
-
-    if (profileError || !profile) {
-      recordFailure(ip);
-      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
-    }
-
-    if (!profile.is_admin) {
-      recordFailure(ip);
-      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
-    }
-
-    if (profile.admin_disabled_at) {
-      recordFailure(ip);
-      return jsonResponse({ ok: false, error: "Admin account disabled" }, 403);
-    }
-
-    // 5. Verify PIN (constant-time comparison against env var)
-    const expectedPin = process.env.ADMIN_PIN;
-    if (!expectedPin) {
-      console.error("[CineLog Admin] Missing ADMIN_PIN env var");
-      return jsonResponse({ ok: false, error: "Server misconfiguration" }, 500);
-    }
-
-    if (!constantTimeEqual(pin, expectedPin)) {
-      recordFailure(ip);
-      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
-    }
-
-    // 6. All three layers passed — sign admin JWT and set cookie
-    clearFailures(ip);
-
-    const token = signAdminToken({
+    await adminClient.from("admin_actions").insert({
       admin_id: profile.id,
-      email,
+      action: "auth.login",
+      entity_type: "admin_session",
+      entity_id: profile.id,
+      payload: { email, ip, method: loginMethod },
+      ip_address: ip,
+      user_agent: userAgent,
     });
+  } catch (err) {
+    console.error("[CineLog Admin] Failed to log login action:", err);
+  }
 
-    // 7. Log the successful login to the audit trail
-    try {
-      await adminClient.from("admin_actions").insert({
-        admin_id: profile.id,
-        action: "auth.login",
-        entity_type: "admin_session",
-        entity_id: profile.id,
-        payload: { email, ip },
-        ip_address: ip,
-        user_agent: event.request.headers.get("user-agent"),
-      });
-    } catch (err) {
-      console.error("[CineLog Admin] Failed to log login action:", err);
-    }
-
-    // 8. Sign out the Supabase session — we don't need it for admin
-    //    routes (we use the admin JWT cookie instead). This also
-    //    means the admin can sign in to the regular app separately.
-    //
-    //    Note: We don't sign out because Supabase Auth sessions are
-    //    browser-side state, not server-side. The admin client we
-    //    created here is stateless. So there's nothing to sign out.
-    //    The browser may still have a Supabase session — that's fine.
-
-    return new Response(
+  return {
+    ok: true,
+    response: new Response(
       JSON.stringify({
         ok: true,
         admin: {
@@ -298,7 +359,138 @@ export async function POST(event: APIEvent) {
           "Set-Cookie": setAdminCookie(token),
         },
       },
-    );
+    ),
+  };
+}
+
+// ─── POST /api/admin/auth (login) ─────────────────────────────────
+
+export async function POST(event: APIEvent) {
+  try {
+    const ip = getClientIP(event);
+    const userAgent = event.request.headers.get("user-agent");
+
+    // 1. Rate limit check
+    if (isRateLimited(ip)) {
+      return jsonResponse(
+        { ok: false, error: "Too many failed attempts. Try again in 15 minutes." },
+        429,
+      );
+    }
+
+    // 2. Parse body
+    const body = (await event.request.json().catch(() => ({}))) as LoginBody;
+    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const password = typeof body.password === "string" ? body.password : "";
+    const pin = typeof body.pin === "string" ? body.pin.trim() : "";
+    const explicitMode =
+      typeof body.mode === "string" && (body.mode === "password" || body.mode === "session")
+        ? body.mode
+        : null;
+
+    if (!pin) {
+      return jsonResponse({ ok: false, error: "PIN is required." }, 400);
+    }
+
+    const supabaseUrl = process.env.VITE_SUPABASE_URL;
+    const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+    if (!supabaseUrl || !supabaseAnonKey) {
+      console.error("[CineLog Admin] Missing Supabase env vars");
+      return jsonResponse({ ok: false, error: "Server misconfiguration" }, 500);
+    }
+
+    // Determine the login mode: explicit > inferred
+    const hasPassword = Boolean(email && password);
+    const mode = explicitMode ?? (hasPassword ? "password" : "session");
+
+    // ─── Path A: session-based (OAuth users) ─────────────────────
+    //
+    // Read the Supabase access_token from the cookie header and
+    // verify it. This is the path used by users who signed into
+    // the main CineLog app via Google OAuth — they have no password
+    // and their session is stored in the sb-<ref>-auth-token cookie.
+    if (mode === "session") {
+      const cookieHeader = event.request.headers.get("cookie") || "";
+      const accessToken = getSupabaseAccessToken(cookieHeader);
+
+      if (!accessToken) {
+        return jsonResponse(
+          {
+            ok: false,
+            error: "No active CineLog session. Please sign in to CineLog first.",
+          },
+          401,
+        );
+      }
+
+      // Verify the access token by calling getUser()
+      const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      });
+
+      const { data: userData, error: userError } = await verifyClient.auth.getUser(accessToken);
+
+      if (userError || !userData?.user) {
+        recordFailure(ip);
+        return jsonResponse(
+          {
+            ok: false,
+            error: "Your CineLog session has expired. Please sign in again.",
+          },
+          401,
+        );
+      }
+
+      const userEmail = userData.user.email ?? "";
+      if (!userEmail) {
+        recordFailure(ip);
+        return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
+      }
+
+      const result = await verifyProfileAndIssueAdmin({
+        userId: userData.user.id,
+        email: userEmail,
+        pin,
+        ip,
+        userAgent,
+        loginMethod: "session",
+      });
+
+      return result.response;
+    }
+
+    // ─── Path B: password-based (classic) ────────────────────────
+    if (!email || !password) {
+      return jsonResponse(
+        { ok: false, error: "Email, password, and PIN are required." },
+        400,
+      );
+    }
+
+    const authClient = createClient(supabaseUrl, supabaseAnonKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (authError || !authData.session || !authData.user) {
+      recordFailure(ip);
+      return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
+    }
+
+    const result = await verifyProfileAndIssueAdmin({
+      userId: authData.user.id,
+      email,
+      pin,
+      ip,
+      userAgent,
+      loginMethod: "password",
+    });
+
+    return result.response;
   } catch (err) {
     console.error("[CineLog Admin] Login error:", err);
     return jsonResponse({ ok: false, error: "Server error" }, 500);
@@ -326,7 +518,6 @@ export async function DELETE(event: APIEvent) {
 
     const payload = verifyAdminToken(token);
     if (payload) {
-      // Best-effort audit log
       try {
         const { createAdminClient } = await import("~/lib/supabase/admin/adminClient");
         const supabase = createAdminClient();
