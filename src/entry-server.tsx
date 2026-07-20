@@ -52,7 +52,17 @@ export default createHandler(() => (
               it's a domain-wide display preference. */}
           <meta name="twitter:card" content="summary_large_image" />
 
-          {/* Google Fonts & Material Symbols */}
+          {/* Google Fonts & Material Symbols
+              --------------------------------
+              We use display=swap on ALL font requests (including Material
+              Symbols) so text renders immediately with a fallback font and
+              swaps to the webfont when ready. This eliminates FOIT (Flash
+              Of Invisible Text) which hurts LCP and CLS.
+
+              The fonts.googleapis.com CSS is render-blocking by default,
+              which is correct — we want the font CSS to load before the
+              first paint so the browser can start requesting the actual
+              font files ASAP. */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
           <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
           {/* Preconnect to TMDB image CDN so poster fetches skip TLS handshake */}
@@ -62,16 +72,21 @@ export default createHandler(() => (
             rel="stylesheet"
           />
           <link
-            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
+            href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200&display=swap"
             rel="stylesheet"
           />
 
           {/* Hide Material Symbols icon names until the icon font is ready —
               prevents the FOUT where icon names like "density_default" flash
               as literal text before the font loads. The CSS rule in base.css
-              hides .material-symbols-outlined until .mat-syms-loaded is on <html>. */}
+              hides .material-symbols-outlined until .mat-syms-loaded is on <html>.
+
+              The fallback timeout is 800ms (down from 2000ms) so icons appear
+              sooner even if document.fonts.ready is slow. With display=swap on
+              the font URL, the browser will show icons as soon as the font
+              loads rather than waiting for all fonts to be ready. */}
           {/* eslint-disable-next-line solid/no-innerhtml -- intentional inline script for FOUT prevention (font-loading marker) */}
-          <script innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,2000);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined','local("Material Symbols Outlined")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`} />
+          <script innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,800);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined','local("Material Symbols Outlined")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`} />
 
           {assets}
         </head>

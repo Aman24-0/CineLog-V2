@@ -343,6 +343,11 @@
   background: var(--tier-2);
   border: 1px solid var(--hairline);
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+  /* content-visibility: auto skips rendering offscreen rows, dramatically
+     improving INP (Interaction to Next Paint) for long search results.
+     contain-intrinsic-size reserves space so the scrollbar doesn't jump. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 88px;
 }
 .search-result-row:hover {
   border-color: var(--hairline-2);

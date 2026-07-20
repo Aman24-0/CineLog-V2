@@ -1177,6 +1177,11 @@
   padding: var(--sp-2); border-radius: var(--radius-md); background: var(--tier-1);
   border: 1px solid var(--hairline); cursor: pointer; text-align: left; width: 100%;
   transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+  /* content-visibility: auto skips rendering offscreen timeline items
+     (large universes like MCU have 30+ entries). Improves INP when
+     scrolling the universe timeline. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 72px;
 }
 .universe-timeline-item:hover { border-color: var(--hairline-2); background: var(--tier-2); }
 .universe-timeline-missing { opacity: 0.75; }

@@ -2582,6 +2582,11 @@
   transition: transform 200ms var(--ease-smooth, ease-out),
               background 200ms ease,
               border-color 200ms ease;
+  /* content-visibility: auto skips rendering offscreen upcoming cards
+     (the timeline can have 30+ cards for a 30-day window). Improves
+     INP when scrolling the Upcoming page. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 140px;
 }
 
 .upcoming-card:hover {

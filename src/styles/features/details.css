@@ -1810,6 +1810,11 @@
   border: none;
   cursor: pointer;
   transition: transform 200ms var(--ease-smooth, ease-out);
+  /* content-visibility: auto skips rendering offscreen credits in the
+     filmography grid (can be 50+ items). Improves INP when opening
+     the PersonModal for prolific actors/directors. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 220px;
 }
 
 .person-modal-credit:hover { transform: translateY(-2px); }
