@@ -94,8 +94,12 @@ export async function POST(event: APIEvent) {
     }
 
     // 2. If no position provided, append at the end (max + 1).
-    let position = toInt(body.position);
-    if (position === undefined) {
+    //    The DB has a CHECK constraint `curated_universe_entries_position_pos`
+    //    that requires position > 0. For an empty universe, maxRow is null
+    //    and we must default to 0 (NOT -1) so the first entry gets position = 1.
+    const explicitPosition = toInt(body.position);
+    let position: number;
+    if (explicitPosition === undefined) {
       const { data: maxRow } = await supabase
         .from("curated_universe_entries")
         .select("position")
@@ -103,8 +107,13 @@ export async function POST(event: APIEvent) {
         .order("position", { ascending: false })
         .limit(1)
         .maybeSingle();
-      position = (maxRow?.position ?? -1) + 1;
+      position = (maxRow?.position ?? 0) + 1;
+    } else {
+      position = explicitPosition;
     }
+    // Defensive: always clamp to >= 1 so the CHECK constraint can never fail,
+    // even if the client explicitly sent position = 0 or a negative number.
+    if (!Number.isFinite(position) || position < 1) position = 1;
 
     // 3. Insert.
     const insert: Record<string, unknown> = {

@@ -202,6 +202,11 @@ const TmdbSearchModal: Component<Props> = (props) => {
       }}
       onClick={() => props.onClose()}
     >
+      <style>{`
+        @keyframes tmdb-spin {
+          to { transform: rotate(360deg); }
+        }
+      `}</style>
       <div
         style={{
           background: "var(--tier-1)",
@@ -392,15 +397,80 @@ const TmdbSearchModal: Component<Props> = (props) => {
                   </div>
 
                   {/* Action badge */}
-                  <div style={{ "flex-shrink": 0, "font-size": "0.75rem" }}>
+                  <div style={{ "flex-shrink": 0 }}>
                     <Show when={isPicking()} fallback={
                       <Show when={dup} fallback={
-                        <span style={{ color: "var(--text-muted)" }}>+ Add</span>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            "align-items": "center",
+                            gap: "4px",
+                            padding: "6px 12px",
+                            "border-radius": "var(--radius-md)",
+                            background: "var(--accent, #7c3aed)",
+                            color: "#ffffff",
+                            "font-size": "0.8rem",
+                            "font-weight": "600",
+                            "letter-spacing": "0.01em",
+                            "line-height": "1",
+                            "white-space": "nowrap",
+                            "box-shadow": "0 1px 3px rgba(124, 58, 237, 0.4)",
+                            "user-select": "none",
+                          }}
+                        >
+                          + Add
+                        </span>
                       }>
-                        <span style={{ color: "var(--text-muted)" }}>✓ Added</span>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            "align-items": "center",
+                            gap: "4px",
+                            padding: "6px 12px",
+                            "border-radius": "var(--radius-md)",
+                            background: "rgba(34, 197, 94, 0.15)",
+                            color: "rgb(134, 239, 172)",
+                            "font-size": "0.8rem",
+                            "font-weight": "600",
+                            "line-height": "1",
+                            border: "1px solid rgba(34, 197, 94, 0.3)",
+                            "white-space": "nowrap",
+                            "user-select": "none",
+                          }}
+                        >
+                          ✓ Added
+                        </span>
                       </Show>
                     }>
-                      <span style={{ color: "var(--text-muted)" }}>Adding…</span>
+                      <span
+                        style={{
+                          display: "inline-flex",
+                          "align-items": "center",
+                          gap: "6px",
+                          padding: "6px 12px",
+                          "border-radius": "var(--radius-md)",
+                          background: "var(--tier-3, rgba(255,255,255,0.08))",
+                          color: "var(--text-muted)",
+                          "font-size": "0.8rem",
+                          "font-weight": "600",
+                          "line-height": "1",
+                          "white-space": "nowrap",
+                          "user-select": "none",
+                        }}
+                      >
+                        <span
+                          style={{
+                            display: "inline-block",
+                            width: "10px",
+                            height: "10px",
+                            border: "2px solid currentColor",
+                            "border-top-color": "transparent",
+                            "border-radius": "50%",
+                            animation: "tmdb-spin 0.6s linear infinite",
+                          }}
+                        />
+                        Adding…
+                      </span>
                     </Show>
                   </div>
                 </button>
