@@ -16,10 +16,10 @@
 //   addToCollection, removeFromCollection, createCollection,
 //   renameCollection, deleteCollection, duplicateCollection,
 //   reorderEntries, updateCollectionMeta
-import {createContext, useContext, createSignal, onMount, onCleanup, ParentComponent} from "solid-js";
+import {createContext, useContext, createSignal, onMount, onCleanup, createEffect, ParentComponent} from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
-import { getCurrentUid } from "~/shared/hooks/useAuth";
+import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
 import {
@@ -119,6 +119,7 @@ const applyMetaLocally = (
 
 const useCollectionsLogic = () => {
   const { showToast } = useToast();
+  const { authReady, isSignedIn } = useAuth();
   const [userCollections, setUserCollections] = createSignal<Collection[]>([]);
   const [loading, setLoading] = createSignal(true);
   let unsubAuth: (() => void) | null = null;
@@ -141,35 +142,78 @@ const useCollectionsLogic = () => {
     }
   };
 
+  /**
+   * Shared loader — called both from onSessionChange (when the user
+   * signs in/out) AND from the reactive createEffect below (which
+   * catches the initial session that onSessionChange can miss).
+   *
+   * Race-safe: tracks the latest in-flight uid so a stale fetch can't
+   * overwrite a fresh one.
+   */
+  let lastFetchUid: string | null = null;
+  const loadForUid = async (supabaseUid: string | null) => {
+    if (supabaseUid) {
+      // Skip if a fetch for this uid is already in flight.
+      if (lastFetchUid === supabaseUid) return;
+      lastFetchUid = supabaseUid;
+      setLoading(true);
+      // AWAIT ensureFavoritesExists BEFORE refreshing collections.
+      // Previously this was fire-and-forget (.catch(() => {})), which
+      // caused a race condition: multiple onSessionChange events would
+      // each check for Favorites concurrently, find none, and each
+      // create a duplicate. Awaiting ensures the check+create completes
+      // before the collection list is refreshed.
+      try {
+        await ensureFavoritesExistsInSupabase(supabaseUid);
+      } catch (err) {
+        console.error("[useCollections] ensureFavoritesExists failed:", err);
+      }
+      await Promise.all([
+        refreshCollections(supabaseUid),
+        universePrefs.refreshUniversePrefs(supabaseUid),
+      ]);
+    } else {
+      lastFetchUid = null;
+      setUserCollections([]);
+      setLoading(false);
+    }
+  };
+
   onMount(() => {
     try {
       const subscription = onSessionChange(async (_event, session: Session | null) => {
         const supabaseUid = session?.user?.id ?? null;
-        if (supabaseUid) {
-          setLoading(true);
-          // AWAIT ensureFavoritesExists BEFORE refreshing collections.
-          // Previously this was fire-and-forget (.catch(() => {})), which
-          // caused a race condition: multiple onSessionChange events would
-          // each check for Favorites concurrently, find none, and each
-          // create a duplicate. Awaiting ensures the check+create completes
-          // before the collection list is refreshed.
-          try {
-            await ensureFavoritesExistsInSupabase(supabaseUid);
-          } catch (err) {
-            console.error("[useCollections] ensureFavoritesExists failed:", err);
-          }
-          await Promise.all([
-            refreshCollections(supabaseUid),
-            universePrefs.refreshUniversePrefs(supabaseUid),
-          ]);
-        } else {
-          setUserCollections([]);
-          setLoading(false);
-        }
+        await loadForUid(supabaseUid);
       });
       unsubAuth = () => subscription.unsubscribe();
     } catch (err) {
       console.error("[useCollections] Auth subscription failed:", err);
+    }
+  });
+
+  /**
+   * REACTIVE AUTH TRIGGER (bug fix).
+   *
+   * `onSessionChange` only fires on auth STATE CHANGES. If the user was
+   * already logged in (persisted session in localStorage) before the
+   * CollectionsProvider mounted, the listener may never receive an
+   * INITIAL_SESSION event because the auth state was initialized
+   * earlier by useAuth's checkInitialSession(). The result was that
+   * `loading` stayed `true` forever and the Collections page showed
+   * a skeleton.
+   *
+   * This createEffect mirrors the pattern used by useUserLibrary: it
+   * reacts to `authReady()` + `isSignedIn()` and triggers the same
+   * loader that onSessionChange uses. The loader is race-safe (tracks
+   * the latest uid) so duplicate triggers are no-ops.
+   */
+  createEffect(() => {
+    if (!authReady()) return;
+    const uid = getCurrentUid();
+    if (isSignedIn() && uid) {
+      void loadForUid(uid);
+    } else {
+      void loadForUid(null);
     }
   });
 

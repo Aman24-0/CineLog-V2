@@ -11,8 +11,8 @@
  *   CollectionsPage → useCuratedUniverses() → curatedUniverseAdapter → DiscoverRepository → Supabase
  */
 
-import { createSignal, onMount, type Accessor } from "solid-js";
-import { getCurrentUid } from "~/shared/hooks/useAuth";
+import { createSignal, onMount, createEffect, type Accessor } from "solid-js";
+import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
 import { onSessionChange } from "~/lib/supabase/session";
 import {
   fetchAllCuratedUniverses,
@@ -34,14 +34,21 @@ export interface UseCuratedUniversesReturn {
 }
 
 export function useCuratedUniverses(): UseCuratedUniversesReturn {
+  const { authReady } = useAuth();
   const [allCuratedUniverses, setAllCuratedUniverses] = createSignal<Collection[]>([]);
   const [subscribedUniverses, setSubscribedUniverses] = createSignal<Collection[]>([]);
   const [subscribedIds, setSubscribedIds] = createSignal<Set<string>>(new Set());
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
+  let lastFetchUid: string | null | undefined = undefined;
+
   const doFetch = async () => {
     const uid = getCurrentUid();
+    // Race-safe: skip if a fetch for this uid is already in flight.
+    // `undefined` = never fetched; `null` = guest; `string` = signed in.
+    if (lastFetchUid === uid) return;
+    lastFetchUid = uid;
     setLoading(true);
     setError(null);
     try {
@@ -86,6 +93,30 @@ export function useCuratedUniverses(): UseCuratedUniversesReturn {
     } catch (err) {
       console.error("[useCuratedUniverses] Auth subscription failed:", err);
     }
+  });
+
+  /**
+   * REACTIVE AUTH TRIGGER (bug fix).
+   *
+   * `onSessionChange` only fires on auth STATE CHANGES. If the user was
+   * already logged in (persisted session in localStorage) before this
+   * hook mounted, the listener may never receive an INITIAL_SESSION
+   * event because the auth state was initialized earlier by useAuth's
+   * checkInitialSession(). The result was that `loading` stayed `true`
+   * forever and the Collections page showed a skeleton for subscribed
+   * universes.
+   *
+   * This createEffect mirrors the pattern used by useUserLibrary: it
+   * reacts to `authReady()` + `isSignedIn()` and triggers the same
+   * `doFetch` that onMount/onSessionChange use. doFetch is race-safe
+   * (tracks the latest uid) so duplicate triggers are no-ops.
+   */
+  createEffect(() => {
+    if (!authReady()) return;
+    // Re-fetch when auth state changes (sign-in / sign-out / auth ready).
+    // doFetch internally reads getCurrentUid() so it picks up the right
+    // uid (or null for guests).
+    void doFetch();
   });
 
   return {

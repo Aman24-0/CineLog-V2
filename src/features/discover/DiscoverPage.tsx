@@ -82,7 +82,7 @@ import { useSearch } from "~/features/search/useSearch";
 import SearchResults from "~/features/search/SearchResults";
 
 export default function DiscoverPage() {
-  const { watchlist, isGuest } = useUserLibrary();
+  const { watchlist, isGuest, loading: vaultLoading } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Feature flags — fetched once on app load via /api/feature-flags.
@@ -363,7 +363,18 @@ export default function DiscoverPage() {
     return cards;
   });
 
-  const isLoading = createMemo(() => taste() === undefined);
+  // Loading state — true while the auth provider is still resolving the
+  // session OR while the user's vault is being fetched. We deliberately
+  // don't gate on `taste() === undefined` because `useDiscoverTaste`
+  // always returns a `TasteProfile` (with `isColdStart: true` for guests
+  // / empty vaults) — gating on it never showed the skeleton even when
+  // the page wasn't ready.
+  //
+  // Gating on vaultLoading ensures the skeleton stays until the vault
+  // has been fetched (otherwise the "Continue Your Universes" + "Because
+  // You Love" sections would briefly render with empty data and then
+  // re-render once the vault arrives, causing a jarring flash).
+  const isLoading = createMemo(() => vaultLoading());
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">

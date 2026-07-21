@@ -50,9 +50,15 @@ export const UNIVERSE_DISCOVER_COLUMNS =
 
 /**
  * Compact column list for curated_universe_entries rows.
+ *
+ * Includes `incident_year` (added in migration 20260725) so the
+ * consumer collection detail page can render the storyline sort
+ * using the admin-set in-universe year. The column is NULL for
+ * entries created before the migration — the adapter handles this
+ * by falling back to `story_position`.
  */
 export const UNIVERSE_ENTRY_DISCOVER_COLUMNS =
-  "id,universe_id,tmdb_id,media_type,position,timeline_position,release_position,story_position,note,created_at" as const;
+  "id,universe_id,tmdb_id,media_type,position,timeline_position,release_position,story_position,incident_year,note,created_at" as const;
 
 /**
  * Compact column list for user_universe_subscriptions rows.

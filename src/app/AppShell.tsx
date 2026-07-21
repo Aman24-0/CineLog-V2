@@ -1,4 +1,5 @@
 import { ParentComponent, lazy, Suspense, Show, createMemo } from "solid-js";
+import { Portal } from "solid-js/web";
 import { useLocation } from "@solidjs/router";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
@@ -111,9 +112,36 @@ const AppShell: ParentComponent = (props) => {
         {/* Auth modal — opened from any page when a guest tries to sign in */}
         <AuthModal show={authModalOpen} onClose={closeAuthModal} />
 
-        {/* Details modal — opened from Vault, Discover, Search, or Collection */}
+        {/* Details modal — opened from Vault, Discover, Search, or Collection.
+            Shown when selectedItem() is truthy. The Suspense fallback is a
+            lightweight centered spinner so the user sees immediate feedback
+            that the modal is opening (previously the fallback was `null`,
+            which made it look like clicking a card did nothing — the
+            "details page not opening" bug). */}
         <Show when={selectedItem()}>
-          <Suspense fallback={null}>
+          <Suspense fallback={
+            <Portal>
+              <div
+                class="fixed inset-0 z-[999999] flex items-center justify-center"
+                style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+                role="dialog"
+                aria-modal="true"
+                aria-label="Loading details"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{
+                    "font-size": "32px",
+                    color: "var(--text-soft)",
+                    animation: "softPulse 1.2s ease-in-out infinite",
+                  }}
+                  aria-hidden="true"
+                >
+                  progress_activity
+                </span>
+              </div>
+            </Portal>
+          }>
             <DetailsModal />
           </Suspense>
         </Show>
