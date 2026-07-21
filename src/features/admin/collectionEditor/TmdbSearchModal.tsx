@@ -11,7 +11,7 @@
 //
 // Designed for keyboard use: type → arrow keys → Enter to pick.
 
-import { For, Show, createSignal, onCleanup, onMount, type Component } from "solid-js";
+import { For, Show, createSignal, createEffect, onCleanup, onMount, type Component } from "solid-js";
 import { searchMulti } from "~/core/tmdb/discover";
 import { posterUrl, releaseYear } from "./types";
 import type { AdminEntry } from "./types";
@@ -37,13 +37,18 @@ interface Props {
 
 const TmdbSearchModal: Component<Props> = (props) => {
   const [query, setQuery] = createSignal("");
+  // Debounced query — updated 300ms after the user stops typing.
+  // Using a separate signal (instead of setTimeout inside onInput) makes the
+  // search reactive on `debouncedQuery()` and lets us use createEffect, which
+  // is the same pattern the working consumer search (useSearch.ts) uses.
+  const [debouncedQuery, setDebouncedQuery] = createSignal("");
   const [results, setResults] = createSignal<TmdbResult[]>([]);
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [activeIndex, setActiveIndex] = createSignal(0);
   const [pickingId, setPickingId] = createSignal<string | null>(null);
 
-  let searchTimeout: ReturnType<typeof setTimeout> | null = null;
+  let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let inputRef: HTMLInputElement | undefined;
   let resultsContainer: HTMLDivElement | undefined;
 
@@ -57,20 +62,53 @@ const TmdbSearchModal: Component<Props> = (props) => {
     return false;
   };
 
-  // Debounced search — 350ms after the last keystroke.
-  const runSearch = (q: string) => {
-    if (searchTimeout) clearTimeout(searchTimeout);
-    if (!q.trim()) {
+  // ─── Debounced query signal ────────────────────────────────────────
+  //
+  // When the user types, schedule an update to `debouncedQuery()` 300ms
+  // later. If the user types again before the 300ms elapses, cancel the
+  // previous schedule and start fresh. This is identical to the consumer
+  // search's debounce pattern (useSearch.ts) which is proven to work on
+  // mobile (including Android Chrome with autocorrect / IME composition).
+  //
+  const onInput = (value: string) => {
+    setQuery(value);
+    if (debounceTimer) clearTimeout(debounceTimer);
+    debounceTimer = setTimeout(() => {
+      setDebouncedQuery(value.trim());
+    }, 300);
+  };
+
+  // ─── Search effect ─────────────────────────────────────────────────
+  //
+  // Reactively runs searchMulti whenever debouncedQuery() changes. Uses
+  // a monotonically increasing request ID to ignore stale responses —
+  // if the user types "Cap" then "Captain America" before "Cap"'s
+  // response arrives, "Cap"'s response is discarded so it can never
+  // overwrite the newer "Captain America" results.
+  //
+  // The previous implementation used setTimeout + async/await inside
+  // onInput, which on Android Chrome could enter a state where
+  // loading() stayed true forever (the search appeared stuck on
+  // "Searching…"). Switching to createEffect + .then/.catch/.finally
+  // matches the proven-working consumer search pattern and avoids the
+  // setTimeout-in-onInput pitfall.
+  //
+  let requestId = 0;
+  createEffect(() => {
+    const q = debouncedQuery();
+    if (!q || q.length < 2) {
       setResults([]);
       setError(null);
+      setLoading(false);
       return;
     }
-    searchTimeout = setTimeout(async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const items = await searchMulti(q.trim());
-        // Filter out people and entries without an id.
+    const myId = ++requestId;
+    setLoading(true);
+    setError(null);
+    searchMulti(q)
+      .then((items) => {
+        // Stale response — a newer search has started; ignore this one.
+        if (myId !== requestId) return;
         const filtered: TmdbResult[] = items
           .filter((it: any) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
           .map((it: any) => ({
@@ -83,15 +121,27 @@ const TmdbSearchModal: Component<Props> = (props) => {
           }));
         setResults(filtered);
         setActiveIndex(0);
-      } catch (err) {
+      })
+      .catch((err) => {
+        // Stale response — a newer search has started; ignore this one.
+        if (myId !== requestId) return;
         const msg = err instanceof Error ? err.message : "Search failed";
+        console.error("[TmdbSearchModal] search failed:", msg);
         setError(msg);
         setResults([]);
-      } finally {
-        setLoading(false);
-      }
-    }, 350);
-  };
+      })
+      .finally(() => {
+        // Only clear loading if this is still the latest request.
+        if (myId === requestId) setLoading(false);
+      });
+  });
+
+  // Cancel any pending debounce on unmount.
+  onCleanup(() => {
+    if (debounceTimer) clearTimeout(debounceTimer);
+    // Bump requestId so any in-flight response is ignored after unmount.
+    requestId++;
+  });
 
   const handlePick = async (r: TmdbResult) => {
     if (pickingId()) return;
@@ -133,7 +183,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
   });
   onCleanup(() => {
     document.removeEventListener("keydown", onKeyDown);
-    if (searchTimeout) clearTimeout(searchTimeout);
+    // (debounceTimer cleanup is handled by the onCleanup registered above.)
   });
 
   return (
@@ -201,10 +251,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
             ref={inputRef}
             type="text"
             value={query()}
-            onInput={(e) => {
-              setQuery(e.currentTarget.value);
-              runSearch(e.currentTarget.value);
-            }}
+            onInput={(e) => onInput(e.currentTarget.value)}
             placeholder="Search by title (e.g. Iron Man, Breaking Bad)…"
             style={{
               width: "100%",
@@ -250,13 +297,13 @@ const TmdbSearchModal: Component<Props> = (props) => {
             </div>
           </Show>
 
-          <Show when={!loading() && !error() && query().trim() && results().length === 0}>
+          <Show when={!loading() && !error() && debouncedQuery() && results().length === 0}>
             <div style={{ padding: "var(--sp-8)", "text-align": "center", color: "var(--text-muted)" }}>
-              No results for "{query()}"
+              No results for "{debouncedQuery()}"
             </div>
           </Show>
 
-          <Show when={!loading() && !query().trim()}>
+          <Show when={!loading() && !debouncedQuery()}>
             <div style={{ padding: "var(--sp-8)", "text-align": "center", color: "var(--text-muted)" }}>
               Type a movie or TV show title to search TMDB.
             </div>
