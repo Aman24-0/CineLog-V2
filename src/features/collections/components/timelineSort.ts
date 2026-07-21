@@ -21,7 +21,25 @@ export interface TimelineItem {
   rating: number | null;
 }
 
-/** Sort entries based on the viewing order, then enrich with vault status. */
+/** Sort entries based on the viewing order, then enrich with vault status.
+ *
+ * Three unified orders (used by BOTH admin + consumer UI):
+ *   - "story"     → sort by entry.storyOrder (DB story_position). Falls
+ *                   back to entry.order if storyOrder is missing (legacy
+ *                   user collections that don't have separate story indices).
+ *                   Legacy "chronological" maps here too.
+ *   - "release"   → sort by release_date / first_air_date string. Falls
+ *                   back to entry.releaseOrder when dates are missing.
+ *   - "franchise" → group by entry.franchise (derived from title), then
+ *                   sort within each group by storyOrder. The grouping
+ *                   itself is applied in TimelineEngine via groupByFranchise().
+ *                   Here we just sort by (franchise, storyOrder) so the
+ *                   entries arrive pre-grouped for the renderer.
+ *
+ * Legacy orders ("saga", "custom", "chronological") are preserved for
+ * backward-compat with existing user preferences but no longer exposed
+ * in the UI. They map onto "story" semantics.
+ */
 export function sortAndEnrich(
   entries: CollectionEntry[],
   vault: WatchlistItem[],
@@ -34,27 +52,49 @@ export function sortAndEnrich(
       sorted.sort((a, b) => {
         const dateA = a.release_date || a.first_air_date || "";
         const dateB = b.release_date || b.first_air_date || "";
-        return dateA.localeCompare(dateB);
+        if (dateA && dateB && dateA !== dateB) return dateA.localeCompare(dateB);
+        // Tiebreaker: releaseOrder (DB release_position), then admin order.
+        const ra = a.releaseOrder ?? a.order ?? 0;
+        const rb = b.releaseOrder ?? b.order ?? 0;
+        if (ra !== rb) return ra - rb;
+        return (a.order ?? 0) - (b.order ?? 0);
       });
       break;
-    case "chronological":
-      // Use the curated order (default from data)
-      sorted.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-      break;
-    case "saga":
+    case "franchise":
+      // Pre-sort by (franchise, storyOrder) so groupByFranchise can
+      // walk a single pass and build consecutive groups.
       sorted.sort((a, b) => {
-        const phaseA = a.phase ?? "Other";
-        const phaseB = b.phase ?? "Other";
-        if (phaseA !== phaseB) return phaseA.localeCompare(phaseB);
+        const fa = a.franchise ?? "Standalone & Other";
+        const fb = b.franchise ?? "Standalone & Other";
+        if (fa !== fb) return fa.localeCompare(fb);
+        const sa = a.storyOrder ?? a.order ?? 0;
+        const sb = b.storyOrder ?? b.order ?? 0;
+        if (sa !== sb) return sa - sb;
         return (a.order ?? 0) - (b.order ?? 0);
       });
       break;
     case "story":
+    case "chronological":
+    default:
+      // Storyline order. Use the DB story_position if present; otherwise
+      // fall back to the admin's primary position. The legacy
+      // "chronological" case is kept so old preferences continue to work.
       sorted.sort((a, b) => {
-        const yearA = a.storyYear ?? 9999;
-        const yearB = b.storyYear ?? 9999;
-        if (yearA !== yearB) return yearA - yearB;
+        const sa = a.storyOrder ?? a.order ?? 0;
+        const sb = b.storyOrder ?? b.order ?? 0;
+        if (sa !== sb) return sa - sb;
         return (a.order ?? 0) - (b.order ?? 0);
+      });
+      break;
+    case "saga":
+      // Legacy saga grouping — sort by phase then storyOrder. Kept for
+      // backward-compat with old preferences rows; the UI no longer
+      // exposes this option.
+      sorted.sort((a, b) => {
+        const phaseA = a.phase ?? "Other";
+        const phaseB = b.phase ?? "Other";
+        if (phaseA !== phaseB) return phaseA.localeCompare(phaseB);
+        return (a.storyOrder ?? a.order ?? 0) - (b.storyOrder ?? b.order ?? 0);
       });
       break;
     case "custom":
@@ -77,6 +117,26 @@ export function sortAndEnrich(
       rating: vaultItem?.rating ?? null,
     };
   });
+}
+
+/** Group entries by franchise (for the "franchise" viewing order).
+ *  Returns null when order isn't "franchise". */
+export function groupByFranchise(
+  items: TimelineItem[],
+  order: ViewingOrder,
+): { franchise: string; items: TimelineItem[] }[] | null {
+  if (order !== "franchise") return null;
+  const groups: { franchise: string; items: TimelineItem[] }[] = [];
+  let current: { franchise: string; items: TimelineItem[] } | null = null;
+  for (const item of items) {
+    const f = item.entry.franchise ?? "Standalone & Other";
+    if (!current || current.franchise !== f) {
+      current = { franchise: f, items: [] };
+      groups.push(current);
+    }
+    current.items.push(item);
+  }
+  return groups;
 }
 
 /** Group entries by phase (for saga mode). Returns null when order isn't "saga". */

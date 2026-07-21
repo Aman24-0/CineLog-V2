@@ -12,7 +12,8 @@ import { useModalState } from "~/shared/hooks/useModalState";
 import { fetchCuratedUniverseBySlug } from "./curatedUniverseAdapter";
 import UniverseDashboard from "./components/UniverseDashboard";
 import TimelineEngine from "./components/TimelineEngine";
-import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, WatchlistItem } from "~/shared/types";
+import ListView from "./components/ListView";
+import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, ViewMode, WatchlistItem } from "~/shared/types";
 
 /**
  * CollectionDetailPage — renders a single collection or curated universe.
@@ -44,6 +45,11 @@ export default function CollectionDetailPage() {
 
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
+  // View mode — Timeline (rail + numbered nodes) or List (denser, rail-less).
+  // Default is Timeline; the user can flip to List via the toggle in
+  // UniverseDashboard. Persisted per-universe in localStorage so a user's
+  // choice survives page reloads.
+  const [viewMode, setViewMode] = createSignal<ViewMode>("timeline");
 
   // loading is ALWAYS true initially (including SSR) so the skeleton
   // renders. Never false until the client resolves the collection.
@@ -198,7 +204,33 @@ export default function CollectionDetailPage() {
     const prefs = getUniversePrefs(col.id);
     setActiveOrder(prefs?.preferredOrder ?? col.defaultOrder ?? "chronological");
     setActiveProvider(prefs?.preferredProvider ?? "cinelog");
+
+    // Restore view mode from localStorage (per-universe). Falls back
+    // to "timeline" if no preference is saved.
+    try {
+      const stored = localStorage.getItem(`universe:${col.id}:viewMode`);
+      if (stored === "list" || stored === "timeline") {
+        setViewMode(stored);
+      } else {
+        setViewMode("timeline");
+      }
+    } catch {
+      // localStorage may be unavailable (private browsing, SSR).
+      setViewMode("timeline");
+    }
   });
+
+  // Persist view mode changes per-universe.
+  const handleViewModeChange = (mode: ViewMode) => {
+    setViewMode(mode);
+    const col = collection();
+    if (!col) return;
+    try {
+      localStorage.setItem(`universe:${col.id}:viewMode`, mode);
+    } catch {
+      // Ignore write failures (private browsing, quota, etc.).
+    }
+  };
 
   const handleOpenEntry = (entry: CollectionEntry) => {
     const baseItem: WatchlistItem = {
@@ -265,13 +297,17 @@ export default function CollectionDetailPage() {
           }}
         >
           <div class="page-enter relative">
-            {/* Universe Dashboard — enhanced hero + stats + actions */}
+            {/* Universe Dashboard — enhanced hero + stats + actions.
+                The view-mode toggle lives here so the user picks the
+                sort AND the layout in one place. */}
             <UniverseDashboard
               collection={collection()!}
               activeOrder={activeOrder()}
               activeProvider={activeProvider()}
               onOrderChange={setActiveOrder}
               onProviderChange={setActiveProvider}
+              viewMode={viewMode()}
+              onViewModeChange={handleViewModeChange}
               selectMode={selectMode()}
               selectedCount={selectedCount()}
               onToggleSelectMode={toggleSelectMode}
@@ -279,17 +315,34 @@ export default function CollectionDetailPage() {
               onOpenMoveDialog={() => setShowMoveDialog(true)}
             />
 
-            {/* Timeline Engine — supports all viewing orders and providers */}
-            <TimelineEngine
-              collection={collection()!}
-              order={activeOrder()}
-              provider={activeProvider()}
-              onOpenEntry={handleOpenEntry}
-              selectMode={selectMode()}
-              selectedIds={selectedIds()}
-              onToggleSelected={toggleSelected}
-              onEdit={() => navigate(`/collections/${collection()!.id}/edit`)}
-            />
+            {/* Entry renderer — Timeline view (rail + numbered nodes)
+                OR List view (denser, rail-less). Same sort logic; the
+                user picks the layout via the view-mode toggle above. */}
+            <Show
+              when={viewMode() === "list"}
+              fallback={
+                <TimelineEngine
+                  collection={collection()!}
+                  order={activeOrder()}
+                  provider={activeProvider()}
+                  onOpenEntry={handleOpenEntry}
+                  selectMode={selectMode()}
+                  selectedIds={selectedIds()}
+                  onToggleSelected={toggleSelected}
+                  onEdit={() => navigate(`/collections/${collection()!.id}/edit`)}
+                />
+              }
+            >
+              <ListView
+                collection={collection()!}
+                order={activeOrder()}
+                provider={activeProvider()}
+                onOpenEntry={handleOpenEntry}
+                selectMode={selectMode()}
+                selectedIds={selectedIds()}
+                onToggleSelected={toggleSelected}
+              />
+            </Show>
           </div>
 
           {/* Move-to-folder dialog — shown when user clicks "Move" in select mode */}

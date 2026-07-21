@@ -803,7 +803,7 @@ export type Database = {
         | "last_updated"
       spoiler_level_type: "hide" | "warn" | "show"
       theme_type: "system" | "light" | "dark"
-      universe_default_view_type: "timeline" | "release" | "story"
+      universe_default_view_type: "timeline" | "release" | "story" | "franchise"
       vault_status_type:
         | "planned"
         | "watching"
@@ -1007,7 +1007,7 @@ export const Constants = {
       ],
       spoiler_level_type: ["hide", "warn", "show"],
       theme_type: ["system", "light", "dark"],
-      universe_default_view_type: ["timeline", "release", "story"],
+      universe_default_view_type: ["timeline", "release", "story", "franchise"],
       vault_status_type: [
         "planned",
         "watching",

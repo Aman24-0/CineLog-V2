@@ -10,6 +10,7 @@ import type {
 import TimelineEntry from "./TimelineEntry";
 import {
   sortAndEnrich,
+  groupByFranchise,
   groupByPhase,
   groupByStoryYear,
   type TimelineItem,
@@ -29,7 +30,15 @@ interface TimelineEngineProps {
 }
 
 /**
- * TimelineEngine — universal timeline supporting all 5 viewing orders and 3 providers.
+ * TimelineEngine — universal timeline supporting the 3 unified viewing
+ * orders: Storyline, Release Year, Franchise.
+ *
+ * Naming (single source of truth):
+ *   - The "Timeline" header label is ALWAYS "Timeline" regardless of
+ *     the active sort. The active sort is conveyed by the order-switch
+ *     buttons above. This removes the previous inconsistency where the
+ *     order button said "Chronological" but the timeline header said
+ *     "Story Timeline" for the same concept.
  *
  * v2.1 changes:
  *   - Edit button added to the timeline header (right-aligned with
@@ -58,6 +67,11 @@ export default function TimelineEngine(props: TimelineEngineProps) {
     sortAndEnrich(mergedEntries(), watchlist(), props.order),
   );
 
+  /** Group entries for franchise mode. */
+  const groupedByFranchise = createMemo(() =>
+    groupByFranchise(sortedEntries(), props.order),
+  );
+
   /** Group entries for saga/phase mode. */
   const groupedByPhase = createMemo(() =>
     groupByPhase(sortedEntries(), props.order),
@@ -73,22 +87,19 @@ export default function TimelineEngine(props: TimelineEngineProps) {
     (e.release_date || e.first_air_date || "").split("-")[0] || "";
 
   /** Determine which render mode to use. */
-  const renderMode = createMemo<"story" | "saga" | "flat">(() => {
+  const renderMode = createMemo<"franchise" | "story" | "saga" | "flat">(() => {
+    if (props.order === "franchise" && groupedByFranchise()) return "franchise";
     if (props.order === "story" && groupedByStoryYear()) return "story";
     if (props.order === "saga" && groupedByPhase()) return "saga";
     return "flat";
   });
 
-  const label = () =>
-    props.order === "saga"
-      ? "By Phase"
-      : props.order === "release"
-        ? "Release Order"
-        : props.order === "story"
-          ? "Story Timeline"
-          : props.order === "custom"
-            ? "Custom Order"
-            : "Timeline";
+  // Single source of truth for the timeline header label. Always "Timeline"
+  // — the active sort is conveyed by the order-switch buttons above, so we
+  // don't need to repeat it here. This removes the previous inconsistency
+  // where one place said "Chronological" and another said "Timeline" /
+  // "Story Timeline" for the same concept.
+  const label = () => "Timeline";
 
   const isSelected = (entry: CollectionEntry): boolean => {
     if (!props.selectedIds) return false;
@@ -121,6 +132,39 @@ export default function TimelineEngine(props: TimelineEngineProps) {
           </button>
         </Show>
       </div>
+
+      {/* Franchise mode — group by movie series (Iron Man, Thor, etc.) */}
+      <Show when={renderMode() === "franchise"}>
+        <For each={groupedByFranchise()!}>
+          {(group) => (
+            <div class="universe-phase-group">
+              <div class="universe-phase-header">
+                <span class="universe-phase-name">{group.franchise}</span>
+                <span class="universe-phase-count">{group.items.length} {group.items.length === 1 ? "title" : "titles"}</span>
+              </div>
+              <div class="universe-timeline-wrap">
+                <div class="universe-timeline-rail" aria-hidden="true" />
+                <div class="universe-timeline timeline-stagger" role="list">
+                  <For each={group.items}>
+                    {(item, i) => (
+                      <TimelineEntry
+                        item={item}
+                        index={i() + 1}
+                        onOpen={() => props.onOpenEntry(item.entry)}
+                        titleOf={titleOf}
+                        yearOf={yearOf}
+                        selectMode={props.selectMode}
+                        selected={isSelected(item.entry)}
+                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                      />
+                    )}
+                  </For>
+                </div>
+              </div>
+            </div>
+          )}
+        </For>
+      </Show>
 
       {/* Story mode */}
       <Show when={renderMode() === "story"}>
@@ -155,7 +199,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
         </For>
       </Show>
 
-      {/* Saga mode */}
+      {/* Saga mode (legacy) */}
       <Show when={renderMode() === "saga"}>
         <For each={groupedByPhase()!}>
           {(group) => (
@@ -188,7 +232,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
         </For>
       </Show>
 
-      {/* Flat timeline mode (chronological, release, custom) */}
+      {/* Flat timeline mode (storyline without year grouping, release, custom) */}
       <Show when={renderMode() === "flat"}>
         <div class="universe-timeline-wrap">
           <div class="universe-timeline-rail" aria-hidden="true" />

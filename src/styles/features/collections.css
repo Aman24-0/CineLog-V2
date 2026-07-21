@@ -1880,3 +1880,231 @@
   opacity: 0.35;
   cursor: not-allowed;
 }
+
+/* ============================================================
+   VIEW MODE TOGGLE (Timeline / List) + LIST VIEW
+   v2.2 — added per user request: two view modes for the collection
+   detail page. The toggle lives next to the order switcher in
+   UniverseDashboard. Timeline view = TimelineEngine (rail + numbered
+   nodes). List view = ListView (denser, rail-less).
+   ============================================================ */
+
+/* The toggle row — view mode + order switcher share a wrapper */
+.universe-view-mode-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 2px;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+}
+
+.universe-view-mode-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 12px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.7rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--text-soft);
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  transition: color 200ms ease, background 200ms ease;
+  outline: none;
+}
+
+.universe-view-mode-btn:hover {
+  color: var(--text-strong);
+}
+
+.universe-view-mode-btn[data-active="true"] {
+  color: var(--void, #0a0e14);
+  background: var(--p);
+}
+
+.universe-view-mode-btn:focus-visible {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--p) 40%, transparent);
+}
+
+/* ── List View layout ── */
+
+.universe-list-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.universe-list-flat {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.universe-list-row {
+  display: grid;
+  grid-template-columns: 32px 48px 1fr auto;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-2);
+  border-radius: var(--radius-md);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  text-align: left;
+  width: 100%;
+  transition: border-color var(--dur-fast) var(--ease-out), background var(--dur-fast) var(--ease-out);
+}
+
+.universe-list-row:hover {
+  border-color: var(--hairline-2);
+  background: var(--tier-2);
+}
+
+/* When select mode is active, the leading checkbox replaces the index */
+.universe-list-row[data-selected="true"] {
+  border-color: var(--p);
+  background: color-mix(in srgb, var(--p) 8%, var(--tier-2));
+  box-shadow: 0 0 0 1px var(--p);
+}
+
+/* The select-mode checkbox column is rendered in place of the index
+   column when selectMode is on. We move the index out of the grid
+   and let the checkbox take column 1. */
+.universe-list-check {
+  grid-column: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* When checkbox is present, push the index out of the grid by hiding it
+   and letting the poster move to column 2. We achieve this by adding a
+   data attribute on the row when selectMode is active. */
+.universe-list-row:has(.universe-list-check) {
+  grid-template-columns: 28px 32px 48px 1fr auto;
+}
+.universe-list-row:has(.universe-list-check) .universe-list-index {
+  display: none;
+}
+
+.universe-list-index {
+  grid-column: 1;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  text-align: center;
+  flex-shrink: 0;
+}
+
+.universe-list-poster {
+  grid-column: 2;
+  width: 48px;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.universe-list-info {
+  grid-column: 3;
+  min-width: 0;
+}
+
+.universe-list-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.universe-list-meta {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.universe-list-note {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  font-style: italic;
+  margin: 2px 0 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.universe-list-missing-badge {
+  grid-column: 4;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline);
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* Franchise group headers in List view (mirrors .universe-phase-group
+   styling so the two views look consistent) */
+.universe-list-group {
+  margin-bottom: var(--sp-4);
+}
+
+.universe-list-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-4);
+  margin-bottom: var(--sp-2);
+  border-radius: var(--radius-pill);
+  background: var(--p-dim);
+  border: 1px solid color-mix(in srgb, var(--p) 20%, transparent);
+}
+
+.universe-list-group-name {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.1rem;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.universe-list-group-count {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--p);
+}
+
+/* Dashboard controls row — holds the order switcher (left) + view-mode
+   toggle (right) on a single responsive line. */
+.universe-dashboard-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  flex-wrap: wrap;
+  margin-bottom: var(--sp-3);
+}

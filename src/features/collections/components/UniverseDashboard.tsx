@@ -7,7 +7,7 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import { formatRuntime } from "~/shared/utils/format";
 import ProgressRing from "./ProgressRing";
-import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider } from "~/shared/types";
+import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, ViewMode } from "~/shared/types";
 
 interface UniverseDashboardProps {
   collection: Collection;
@@ -15,6 +15,9 @@ interface UniverseDashboardProps {
   activeProvider: TimelineProvider;
   onOrderChange: (order: ViewingOrder) => void;
   onProviderChange: (provider: TimelineProvider) => void;
+  // ── View Mode toggle (v2.2) ──
+  viewMode?: ViewMode;
+  onViewModeChange?: (mode: ViewMode) => void;
   // ── Batch Select Mode (v2.1) ──
   selectMode?: boolean;
   selectedCount?: number;
@@ -221,25 +224,60 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         </div>
       </Show>
 
-      {/* Provider + Order selector */}
-      <Show when={availableOrders().length > 1}>
-        <div class="universe-order-switch">
-          <For each={availableOrders()}>
-            {(order) => (
-              <button
-                type="button"
-                class="universe-order-btn"
-                data-active={props.activeOrder === order.id}
-                onClick={() => props.onOrderChange(order.id)}
-                aria-label={order.description ?? order.label}
-                aria-pressed={props.activeOrder === order.id}
-              >
-                {order.label}
-              </button>
-            )}
-          </For>
-        </div>
-      </Show>
+      {/* Order selector + View mode toggle (v2.2)
+          — both share a single row so the user can pick the sort AND
+            the visual layout in one place. The order switcher only
+            renders when there's more than one order available; the
+            view-mode toggle always renders (default = Timeline). */}
+      <div class="universe-dashboard-controls">
+        <Show when={availableOrders().length > 1}>
+          <div class="universe-order-switch">
+            <For each={availableOrders()}>
+              {(order) => (
+                <button
+                  type="button"
+                  class="universe-order-btn"
+                  data-active={props.activeOrder === order.id}
+                  onClick={() => props.onOrderChange(order.id)}
+                  aria-label={order.description ?? order.label}
+                  aria-pressed={props.activeOrder === order.id}
+                >
+                  {order.label}
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
+
+        <Show when={props.onViewModeChange}>
+          <div class="universe-view-mode-switch" role="group" aria-label="View mode">
+            <button
+              type="button"
+              class="universe-view-mode-btn"
+              data-active={(props.viewMode ?? "timeline") === "timeline"}
+              onClick={() => props.onViewModeChange!("timeline")}
+              aria-pressed={(props.viewMode ?? "timeline") === "timeline"}
+              aria-label="Timeline view"
+              title="Timeline view"
+            >
+              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">timeline</span>
+              Timeline
+            </button>
+            <button
+              type="button"
+              class="universe-view-mode-btn"
+              data-active={props.viewMode === "list"}
+              onClick={() => props.onViewModeChange!("list")}
+              aria-pressed={props.viewMode === "list"}
+              aria-label="List view"
+              title="List view"
+            >
+              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">list</span>
+              List
+            </button>
+          </div>
+        </Show>
+      </div>
 
       {/* Quick actions — Select mode toggle + batch actions.
           Edit button is now in the Timeline header (right-aligned

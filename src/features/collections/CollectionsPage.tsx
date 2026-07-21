@@ -268,7 +268,7 @@ export default function CollectionsPage() {
                       {/* Collage area */}
                       <div class="collection-card-collage-area">
                         <Show
-                          when={uni.backdrop_path || (uni.entries ?? []).some((e) => e.poster_path)}
+                          when={uni.poster_path || uni.backdrop_path || (uni.entries ?? []).some((e) => e.poster_path)}
                           fallback={
                             <div class="collection-card-empty-art" aria-hidden="true">
                               <span
@@ -284,10 +284,58 @@ export default function CollectionsPage() {
                             </div>
                           }
                         >
-                          <Show when={(uni.entries ?? []).filter((e) => e.poster_path).length >= 1} fallback={
-                            /* Use backdrop as cover if no entry posters */
+                          <Show
+                            when={uni.poster_path || uni.backdrop_path}
+                            fallback={
+                              /* No universe-level cover/banner set — fall back
+                                 to a 2x2 collage of the first 4 entry posters. */
+                              <Show
+                                when={(uni.entries ?? []).filter((e) => e.poster_path).length >= 1}
+                                fallback={
+                                  <img
+                                    src={tmdbImage(uni.backdrop_path, "w500")}
+                                    class="collage-img"
+                                    style={{ width: "100%", height: "100%", "object-fit": "cover" }}
+                                    loading="lazy"
+                                    decoding="async"
+                                    alt=""
+                                    aria-hidden="true"
+                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                  />
+                                }
+                              >
+                                <div class="collage-grid-4">
+                                  <For each={(uni.entries ?? []).filter((e) => e.poster_path).slice(0, 4)}>
+                                    {(entry) => (
+                                      <img
+                                        src={tmdbImage(entry.poster_path, "w92")}
+                                        class="collage-img"
+                                        loading="lazy"
+                                        decoding="async"
+                                        alt=""
+                                        aria-hidden="true"
+                                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                      />
+                                    )}
+                                  </For>
+                                </div>
+                              </Show>
+                            }
+                          >
+                            {/* Universe cover (preferred) or banner as full-bleed cover.
+                                This is the image the admin set in the Edit Universe
+                                panel — it must take precedence over the first entry
+                                poster. */}
                             <img
-                              src={tmdbImage(uni.backdrop_path, "w500")}
+                              src={
+                                uni.poster_path
+                                  ? (uni.poster_path.startsWith("http")
+                                      ? uni.poster_path
+                                      : tmdbImage(uni.poster_path, "w500"))
+                                  : (uni.backdrop_path!.startsWith("http")
+                                      ? uni.backdrop_path!
+                                      : tmdbImage(uni.backdrop_path, "w500"))
+                              }
                               class="collage-img"
                               style={{ width: "100%", height: "100%", "object-fit": "cover" }}
                               loading="lazy"
@@ -296,23 +344,6 @@ export default function CollectionsPage() {
                               aria-hidden="true"
                               onError={(e) => { e.currentTarget.style.display = "none"; }}
                             />
-                          }>
-                            {/* Use entry posters for collage */}
-                            <div class="collage-grid-4">
-                              <For each={(uni.entries ?? []).filter((e) => e.poster_path).slice(0, 4)}>
-                                {(entry) => (
-                                  <img
-                                    src={tmdbImage(entry.poster_path, "w92")}
-                                    class="collage-img"
-                                    loading="lazy"
-                                    decoding="async"
-                                    alt=""
-                                    aria-hidden="true"
-                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                                  />
-                                )}
-                              </For>
-                            </div>
                           </Show>
                         </Show>
 

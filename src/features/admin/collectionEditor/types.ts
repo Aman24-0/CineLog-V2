@@ -8,7 +8,7 @@ export interface AdminUniverse {
   slug: string;
   name: string;
   description: string | null;
-  default_view: "timeline" | "release" | "story";
+  default_view: "timeline" | "release" | "story" | "franchise";
   color: string | null;
   cover_url: string | null;
   banner_url: string | null;
@@ -33,7 +33,22 @@ export interface AdminEntry {
   release_date?: string | null;
 }
 
-export type SortMode = "position" | "release" | "story" | "timeline";
+/**
+ * SortMode — the 3 unified sort modes used in BOTH the admin collection
+ * editor AND the consumer collection detail page. Labels are kept in
+ * sync with `UNIVERSE_VIEWING_ORDERS` in curatedUniverseAdapter.ts.
+ *
+ *   - "story"     → Storyline    (uses story_position)
+ *   - "release"   → Release Year (uses release_position)
+ *   - "franchise" → Franchise    (grouped by movie series; within each
+ *                                 group, uses story_position)
+ *
+ * Legacy "position" and "timeline" modes are no longer exposed in the
+ * UI. The DB columns `position` (admin's primary) and `timeline_position`
+ * are still maintained — the consumer never sees them, but the admin
+ * can still edit them via the per-entry Edit modal.
+ */
+export type SortMode = "story" | "release" | "franchise";
 
 export interface EntryUpdate {
   position?: number;

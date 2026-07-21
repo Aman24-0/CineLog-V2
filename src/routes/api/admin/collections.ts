@@ -32,10 +32,56 @@ interface UniverseInput {
   slug?: string;
   name?: string;
   description?: string | null;
-  default_view?: "timeline" | "release" | "story";
+  default_view?: "timeline" | "release" | "story" | "franchise";
   color?: string | null;
   cover_url?: string | null;
   banner_url?: string | null;
+}
+
+/**
+ * Normalize the requested `default_view` to a value the DB enum
+ * currently supports. The DB enum is `universe_default_view_type`:
+ *   - Pre-migration: ('timeline', 'release', 'story')
+ *   - Post-migration (20260724_universe_default_view_franchise.sql):
+ *     ('timeline', 'release', 'story', 'franchise')
+ *
+ * If the admin picks "franchise" before the migration is applied, we
+ * fall back to "story" (Storyline) — the closest semantic match — so
+ * the save doesn't 500. After the migration is applied, "franchise" is
+ * stored as-is and the consumer adapter will default users to the
+ * Franchise sort.
+ */
+function normalizeDefaultView(v: string | undefined): "timeline" | "release" | "story" | "franchise" {
+  if (v === "release" || v === "story" || v === "franchise" || v === "timeline") return v;
+  return "timeline";
+}
+
+/**
+ * Detect "invalid enum value" errors returned by Postgres when the
+ * `universe_default_view_type` enum doesn't yet include 'franchise'
+ * (i.e. the 20260724 migration hasn't been applied). Postgres error
+ * code 22P02 = invalid_text_representation, but Supabase sometimes
+ * wraps it as 23514 (check_violation) or simply returns the message.
+ * We sniff the message for the telltale "invalid input value for enum"
+ * phrase to be safe across Supabase versions.
+ */
+function isEnumValueError(err: { code?: string; message?: string } | null | undefined): boolean {
+  if (!err) return false;
+  const msg = (err.message ?? "").toLowerCase();
+  if (msg.includes("invalid input value for enum")) return true;
+  if (msg.includes("universe_default_view_type")) return true;
+  // 22P02 = invalid_text_representation (Postgres)
+  // 23514 = check_violation
+  if (err.code === "22P02" || err.code === "23514") return true;
+  return false;
+}
+
+/** Demote 'franchise' to 'story' (closest semantic match) so a missing
+ *  DB enum value doesn't break the save. Other values pass through. */
+function demoteFranchise(v: unknown): "timeline" | "release" | "story" {
+  if (v === "franchise") return "story";
+  if (v === "release" || v === "story" || v === "timeline") return v;
+  return "timeline";
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -116,18 +162,31 @@ export async function POST(event: APIEvent) {
       slug: body.slug.trim().toLowerCase(),
       name: body.name.trim(),
       description: body.description ?? null,
-      default_view: body.default_view ?? "timeline",
+      default_view: normalizeDefaultView(body.default_view),
       color: body.color ?? null,
       cover_url: body.cover_url ?? null,
       banner_url: body.banner_url ?? null,
     };
 
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("curated_universes")
       .insert(insert)
       .select("*")
       .single();
+
+    // Defensive: if the DB enum doesn't yet include 'franchise' (i.e.
+    // the 20260724 migration hasn't been applied), retry with 'story'
+    // (closest semantic match) so the save doesn't fail.
+    if (error && isEnumValueError(error) && insert.default_view === "franchise") {
+      console.warn("[admin/collections] POST: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable.");
+      insert.default_view = demoteFranchise(insert.default_view);
+      ({ data, error } = await supabase
+        .from("curated_universes")
+        .insert(insert)
+        .select("*")
+        .single());
+    }
 
     if (error) {
       if (error.code === "23505") {
@@ -172,17 +231,34 @@ export async function PATCH(event: APIEvent) {
       "cover_url",
       "banner_url",
     ] as const) {
-      if (body[key] !== undefined) update[key] = body[key];
+      if (body[key] !== undefined) {
+        update[key] = key === "default_view"
+          ? normalizeDefaultView(body[key] as string | undefined)
+          : body[key];
+      }
     }
     if (update.slug) update.slug = (update.slug as string).trim().toLowerCase();
 
     const supabase = createAdminClient();
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from("curated_universes")
       .update(update)
       .eq("id", body.id)
       .select("*")
       .single();
+
+    // Defensive: if the DB enum doesn't yet include 'franchise', retry
+    // with 'story' so the update doesn't fail. Same pattern as POST.
+    if (error && isEnumValueError(error) && update.default_view === "franchise") {
+      console.warn("[admin/collections] PATCH: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable.");
+      update.default_view = demoteFranchise(update.default_view);
+      ({ data, error } = await supabase
+        .from("curated_universes")
+        .update(update)
+        .eq("id", body.id)
+        .select("*")
+        .single());
+    }
 
     if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 

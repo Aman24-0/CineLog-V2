@@ -48,11 +48,25 @@ import {
   type SortMode,
 } from "./collectionEditor/types";
 
+/**
+ * The 3 unified sort modes — same labels as the consumer side
+ * (see UNIVERSE_VIEWING_ORDERS in curatedUniverseAdapter.ts).
+ *
+ *   - "story"     → Storyline    (sort by story_position)
+ *   - "release"   → Release Year (sort by release_position)
+ *   - "franchise" → Franchise    (group by title-derived franchise, then
+ *                                 sort within each group by story_position)
+ *
+ * For "franchise" we keep `field = "story_position"` because within
+ * each franchise group entries are sorted by story chronology. The
+ * franchise grouping itself is applied at render time (see renderBlock
+ * in AdminCollectionEditorPage), mirroring how the consumer
+ * TimelineEngine handles it via groupByFranchise.
+ */
 const SORT_MODES: { id: SortMode; label: string; field: keyof AdminEntry }[] = [
-  { id: "position", label: "Admin Order", field: "position" },
-  { id: "release", label: "Release Date", field: "release_position" },
-  { id: "story", label: "Story Order", field: "story_position" },
-  { id: "timeline", label: "Timeline Order", field: "timeline_position" },
+  { id: "story",     label: "Storyline",    field: "story_position" },
+  { id: "release",   label: "Release Year", field: "release_position" },
+  { id: "franchise", label: "Franchise",    field: "story_position" },
 ];
 
 const AdminCollectionEditorPage: Component = () => {
@@ -64,7 +78,7 @@ const AdminCollectionEditorPage: Component = () => {
   const [subscriberCount, setSubscriberCount] = createSignal<number | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
-  const [sortMode, setSortMode] = createSignal<SortMode>("position");
+  const [sortMode, setSortMode] = createSignal<SortMode>("story");
   const [searchOpen, setSearchOpen] = createSignal(false);
   const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
   const [showMetaPanel, setShowMetaPanel] = createSignal(false);
@@ -180,17 +194,62 @@ const AdminCollectionEditorPage: Component = () => {
 
   onMount(loadAll);
 
+  // ─── Franchise derivation ─────────────────────────────────────────
+  // Mirrors `deriveFranchise()` in curatedUniverseAdapter.ts so the
+  // admin "Franchise" sort groups entries identically to how the
+  // consumer will see them. IMPORTANT: keep the two implementations in
+  // sync — if you change one, change the other.
+  const deriveFranchise = (title: string | null | undefined): string => {
+    if (!title) return "Standalone & Other";
+    const trimmed = title.trim();
+    if (!trimmed) return "Standalone & Other";
+    const colonIdx = trimmed.indexOf(":");
+    if (colonIdx > 0) return trimmed.slice(0, colonIdx).trim();
+    const trailingNum = trimmed.replace(/\s+(?:\d+|[IVXLCDM]+)$/i, "");
+    if (trailingNum && trailingNum !== trimmed) return trailingNum.trim();
+    return trimmed;
+  };
+
   // Sort entries by the active sort mode.
   const sortedEntries = createMemo(() => {
     const mode = SORT_MODES.find((m) => m.id === sortMode())!;
     const field = mode.field;
     return [...entries()].sort((a, b) => {
+      // Franchise mode: primary sort by franchise label, then by
+      // story_position within each franchise group. The field for
+      // franchise mode is "story_position" (see SORT_MODES above).
+      if (mode.id === "franchise") {
+        const fa = deriveFranchise(a.title);
+        const fb = deriveFranchise(b.title);
+        if (fa !== fb) return fa.localeCompare(fb);
+      }
       const av = Number(a[field] ?? 0);
       const bv = Number(b[field] ?? 0);
       if (av !== bv) return av - bv;
-      // Stable secondary sort by position.
+      // Stable secondary sort by position (admin's primary).
       return Number(a.position ?? 0) - Number(b.position ?? 0);
     });
+  });
+
+  // Group sorted entries by franchise (only used in franchise mode).
+  // Returns null when not in franchise mode so the renderer can decide
+  // whether to draw group headers or a flat list.
+  const groupedByFranchise = createMemo<
+    | { franchise: string; entries: AdminEntry[] }[]
+    | null
+  >(() => {
+    if (sortMode() !== "franchise") return null;
+    const groups: { franchise: string; entries: AdminEntry[] }[] = [];
+    let current: { franchise: string; entries: AdminEntry[] } | null = null;
+    for (const entry of sortedEntries()) {
+      const f = deriveFranchise(entry.title);
+      if (!current || current.franchise !== f) {
+        current = { franchise: f, entries: [] };
+        groups.push(current);
+      }
+      current.entries.push(entry);
+    }
+    return groups;
   });
 
   // ─── Drag-and-drop reorder ────────────────────────────────────────
@@ -552,9 +611,15 @@ const AdminCollectionEditorPage: Component = () => {
                     })
                   }
                 >
-                  <option value="timeline">Timeline</option>
-                  <option value="release">Release</option>
-                  <option value="story">Story</option>
+                  <option value="story">Storyline</option>
+                  <option value="release">Release Year</option>
+                  <option value="franchise">Franchise</option>
+                  {/* Legacy "timeline" value kept for backward-compat with
+                      existing DB rows. Maps to "story" (Storyline) in the
+                      adapter. Hidden from new selections. */}
+                  <Show when={metaForm().default_view === "timeline"}>
+                    <option value="timeline">Timeline (legacy — maps to Storyline)</option>
+                  </Show>
                 </select>
               </Field>
               <Field label="Color (CSS / hex)">
@@ -643,7 +708,9 @@ const AdminCollectionEditorPage: Component = () => {
           </button>
         </div>
 
-        {/* Entry list */}
+        {/* Entry list — flat for story/release modes, grouped by franchise
+            for the franchise mode (mirrors the consumer TimelineEngine
+            franchise view). */}
         <Show
           when={sortedEntries().length > 0}
           fallback={
@@ -661,23 +728,96 @@ const AdminCollectionEditorPage: Component = () => {
             </div>
           }
         >
-          <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
-            <For each={sortedEntries()}>
-              {(entry, i) => (
-                <EntryRow
-                  entry={entry}
-                  index={i()}
-                  isDragging={draggingIndex() === i()}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragOver={handleDragOver}
-                  onDrop={handleDrop}
-                  onSave={handleEntrySave}
-                  onDelete={handleEntryDelete}
-                />
+          <Show
+            when={groupedByFranchise()}
+            fallback={
+              <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+                <For each={sortedEntries()}>
+                  {(entry, i) => (
+                    <EntryRow
+                      entry={entry}
+                      index={i()}
+                      isDragging={draggingIndex() === i()}
+                      onDragStart={handleDragStart}
+                      onDragEnd={handleDragEnd}
+                      onDragOver={handleDragOver}
+                      onDrop={handleDrop}
+                      onSave={handleEntrySave}
+                      onDelete={handleEntryDelete}
+                    />
+                  )}
+                </For>
+              </div>
+            }
+          >
+            {/* Franchise mode — render each franchise group with a header.
+                Drag-and-drop reordering still works within each group. */}
+            <For each={groupedByFranchise()!}>
+              {(group, gIdx) => (
+                <div
+                  style={{
+                    "margin-bottom": "var(--sp-4)",
+                    "border-left": "2px solid color-mix(in srgb, var(--p, #7c3aed) 30%, transparent)",
+                    "padding-left": "var(--sp-3)",
+                  }}
+                >
+                  <div
+                    style={{
+                      display: "flex",
+                      "align-items": "baseline",
+                      gap: "var(--sp-2)",
+                      "margin-bottom": "var(--sp-2)",
+                      padding: "0 var(--sp-2)",
+                    }}
+                  >
+                    <span
+                      style={{
+                        "font-size": "0.95rem",
+                        "font-weight": "700",
+                        color: "var(--text)",
+                        "letter-spacing": "0.01em",
+                      }}
+                    >
+                      {group.franchise}
+                    </span>
+                    <span
+                      style={{
+                        "font-size": "0.7rem",
+                        color: "var(--text-muted)",
+                        "text-transform": "uppercase",
+                        "letter-spacing": "0.08em",
+                      }}
+                    >
+                      {group.entries.length} {group.entries.length === 1 ? "title" : "titles"}
+                    </span>
+                  </div>
+                  <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+                    <For each={group.entries}>
+                      {(entry) => {
+                        // Find the entry's index in the global sortedEntries
+                        // so drag-and-drop continues to work across the
+                        // whole universe (not just within the group).
+                        const globalIdx = sortedEntries().indexOf(entry);
+                        return (
+                          <EntryRow
+                            entry={entry}
+                            index={globalIdx}
+                            isDragging={draggingIndex() === globalIdx}
+                            onDragStart={handleDragStart}
+                            onDragEnd={handleDragEnd}
+                            onDragOver={handleDragOver}
+                            onDrop={handleDrop}
+                            onSave={handleEntrySave}
+                            onDelete={handleEntryDelete}
+                          />
+                        );
+                      }}
+                    </For>
+                  </div>
+                </div>
               )}
             </For>
-          </div>
+          </Show>
         </Show>
 
         {/* Help footer */}
@@ -693,13 +833,16 @@ const AdminCollectionEditorPage: Component = () => {
             "line-height": "1.6",
           }}
         >
-          <strong style={{ color: "var(--text-secondary)" }}>About sort indices</strong>
+          <strong style={{ color: "var(--text-secondary)" }}>About sort modes</strong>
           <br />
-          Each entry has four independent sort positions. Users on the consumer side can switch
-          between them when browsing the universe. Use the sort-mode buttons above to view the
-          list under each ordering, and drag entries to renumber the currently active ordering.
-          Time-travel franchises (e.g. Avengers: Endgame, X-Men: Days of Future Past) typically
-          have <em>story</em> and <em>timeline</em> orderings that differ.
+          Three sort modes are exposed to the user on the consumer side: <em>Storyline</em> (in-universe
+          chronology, uses <code>story_position</code>), <em>Release Year</em> (theatrical release date,
+          uses <code>release_position</code>), and <em>Franchise</em> (groups entries by movie series —
+          Iron Man films together, Thor films together, etc. — sorted by <code>story_position</code>
+          within each group). Use the sort-mode buttons above to preview each ordering, and drag entries
+          to renumber the currently active ordering. The <code>position</code> (admin primary) and
+          <code>timeline_position</code> fields are no longer shown to users but remain editable per-entry
+          via the pencil icon — they're kept for backward compatibility with older data.
         </div>
       </Show>
 

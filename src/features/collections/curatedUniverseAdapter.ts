@@ -22,7 +22,27 @@ import type {
   CuratedUniverseRow,
   CuratedUniverseEntryRow,
 } from "~/lib/supabase/repositories";
-import type { TMDBTitle, Collection, CollectionEntry } from "~/shared/types";
+import type { TMDBTitle, Collection, CollectionEntry, ViewingOrder, ViewingOrderOption } from "~/shared/types";
+
+// ---------------------------------------------------------------------------
+// Constants — the 3 unified viewing orders shown in BOTH admin + consumer UI
+// ---------------------------------------------------------------------------
+
+/**
+ * The three unified viewing orders. Used by:
+ *   - curatedUniverseRowToCollection (sets Collection.viewingOrders)
+ *   - AdminCollectionEditorPage SORT_MODES (kept in sync via sortModesEqual)
+ *
+ * IMPORTANT: the labels here are the SINGLE source of truth — the same
+ * label is shown in the admin sort-mode switcher AND the consumer order
+ * switcher. No more "chronological" in one place and "timeline" in
+ * another for the same concept.
+ */
+export const UNIVERSE_VIEWING_ORDERS: ViewingOrderOption[] = [
+  { id: "story",     label: "Storyline",   description: "In-universe story chronology" },
+  { id: "release",   label: "Release Year", description: "Theatrical release date order" },
+  { id: "franchise", label: "Franchise",   description: "Grouped by movie series (Iron Man, Thor, etc.)" },
+];
 
 // ---------------------------------------------------------------------------
 // Row → Collection mapping
@@ -39,6 +59,19 @@ export function curatedUniverseRowToCollection(
   row: CuratedUniverseRow,
   entries: CollectionEntry[] = [],
 ): Collection {
+  // Map the DB's default_view enum to our 3 unified ViewingOrder values.
+  //   DB "timeline" → "story"   (in-universe chronology)
+  //   DB "release"  → "release"
+  //   DB "story"    → "story"
+  // Legacy DB values are mapped to "story" for safety.
+  const defaultViewMap: Record<string, ViewingOrder> = {
+    timeline: "story",
+    story: "story",
+    release: "release",
+    franchise: "franchise",
+  };
+  const defaultOrder: ViewingOrder = defaultViewMap[row.default_view] ?? "story";
+
   return {
     id: row.id,
     name: row.name,
@@ -49,13 +82,9 @@ export function curatedUniverseRowToCollection(
     coverImagePath: row.cover_url ?? undefined,
     accentColor: row.color ?? undefined,
     entries,
-    // Curated universes support chronological + release orders by default.
-    // The `default_view` enum from the DB could map to these in the future.
-    viewingOrders: [
-      { id: "chronological", label: "Chronological", description: "Story timeline order" },
-      { id: "release", label: "Release Order", description: "Theatrical release date order" },
-    ],
-    defaultOrder: "chronological",
+    // The 3 unified orders — same labels in admin and consumer.
+    viewingOrders: UNIVERSE_VIEWING_ORDERS,
+    defaultOrder,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -73,18 +102,71 @@ export function curatedEntryRowToCollectionEntry(
   row: CuratedUniverseEntryRow,
   tmdb?: TMDBTitle | null,
 ): CollectionEntry {
+  const title = tmdb?.title ?? tmdb?.name;
   return {
     id: String(row.tmdb_id),
     media_type: row.media_type,
-    title: tmdb?.title,
+    title,
     name: tmdb?.name,
     poster_path: tmdb?.poster_path ?? undefined,
     backdrop_path: tmdb?.backdrop_path ?? undefined,
     release_date: tmdb?.release_date,
     first_air_date: tmdb?.first_air_date,
+    // Sort indices from the DB:
     order: row.position,
+    storyOrder: row.story_position,
+    releaseOrder: row.release_position,
+    // Franchise group derived from the title (e.g. "Captain America: The
+    // First Avenger" → "Captain America"). Used by the "Franchise" view
+    // to group all films in the same series together. Standalone titles
+    // (no colon) fall into "Standalone & Other".
+    franchise: deriveFranchise(title),
     userNote: row.note ?? undefined,
   };
+}
+
+/**
+ * Derive a franchise / movie-series label from a title.
+ *
+ * Strategy: take everything before the first colon, trimmed. This works
+ * for the vast majority of franchise films:
+ *   "Iron Man"             → "Iron Man"          (no colon — standalone)
+ *   "Iron Man 2"           → "Iron Man 2"        (no colon — but matches
+ *                                                  because we strip trailing
+ *                                                  digits too)
+ *   "Captain America: The First Avenger" → "Captain America"
+ *   "Thor: The Dark World" → "Thor"
+ *   "Avengers: Endgame"    → "Avengers"
+ *   "The Avengers"         → "The Avengers"      (no colon — standalone)
+ *
+ * For titles without a colon but ending in a number (e.g. "Iron Man 2",
+ * "Iron Man 3") we strip the trailing number so all Iron Man films group
+ * together.
+ *
+ * Empty titles return undefined → the caller puts them in "Standalone & Other".
+ */
+function deriveFranchise(title: string | undefined | null): string | undefined {
+  if (!title) return undefined;
+  const trimmed = title.trim();
+  if (!trimmed) return undefined;
+
+  // 1. If there's a colon, take everything before it.
+  const colonIdx = trimmed.indexOf(":");
+  if (colonIdx > 0) {
+    return trimmed.slice(0, colonIdx).trim();
+  }
+
+  // 2. Otherwise, strip a trailing " <number>" / " <roman numeral>" so
+  //    "Iron Man 2", "Iron Man 3" → "Iron Man".
+  const trailingNum = trimmed.replace(/\s+(?:\d+|[IVXLCDM]+)$/i, "");
+  if (trailingNum && trailingNum !== trimmed) {
+    return trailingNum.trim();
+  }
+
+  // 3. No colon, no trailing number → standalone film ("The Incredible
+  //    Hulk", "Black Widow", etc.). Return the title itself; it will be
+  //    its own group.
+  return trimmed;
 }
 
 // ---------------------------------------------------------------------------

@@ -634,11 +634,35 @@ export interface TasteProfile {
 /** Collection type discriminator */
 export type CollectionType = "official" | "curated" | "user";
 
-/** Viewing order modes for curated universes */
-export type ViewingOrder = "chronological" | "release" | "saga" | "story" | "custom";
+/** Viewing order modes for curated universes.
+ *
+ * Three unified modes (consumer + admin use the SAME set):
+ *   - "story"     → Storyline (in-universe chronology, uses story_position)
+ *   - "release"   → Release Year (theatrical release date order, uses release_position)
+ *   - "franchise" → Franchise (grouped by movie series — Iron Man films together,
+ *                   Thor films together, etc. — uses story_position within each group)
+ *
+ * Legacy values "chronological" | "saga" | "custom" are kept for backward
+ * compat with existing preferences rows in the DB; the UI no longer exposes
+ * them. They map onto "story" at the adapter layer. */
+export type ViewingOrder = "chronological" | "release" | "saga" | "story" | "franchise" | "custom";
 
 /** Timeline data provider */
 export type TimelineProvider = "official" | "cinelog" | "personal";
+
+/**
+ * ViewMode — how the entries are visually laid out on the collection
+ * detail page (admin + consumer).
+ *
+ *   - "timeline"  → vertical rail with numbered nodes (default; the
+ *                   TimelineEngine component)
+ *   - "list"      → simple stacked rows without the rail ( denser,
+ *                   easier to scan when the universe has many entries)
+ *
+ * The view mode is independent of the sort order: any of the 3
+ * ViewingOrder values can be rendered in any ViewMode.
+ */
+export type ViewMode = "timeline" | "list";
 
 /**
  * CollectionEntry — a single title within a collection.
@@ -652,7 +676,21 @@ export interface CollectionEntry {
   backdrop_path?: string | null;
   release_date?: string;
   first_air_date?: string;
+  /** Admin's primary ordering (curated_universe_entries.position). */
   order?: number;
+  /** Storyline sort index (curated_universe_entries.story_position).
+   *  Lower = earlier in the in-universe chronology. */
+  storyOrder?: number;
+  /** Release-date sort index (curated_universe_entries.release_position).
+   *  Lower = earlier theatrical release. Used as a tiebreaker when
+   *  release_date strings are missing or equal. */
+  releaseOrder?: number;
+  /** Franchise / movie-series label used by the "Franchise" viewing
+   *  order (e.g. "Iron Man", "Thor", "Captain America", "Avengers").
+   *  Derived from the entry's TMDB collection_id when available, or
+   *  from a title-prefix heuristic. Entries with no franchise go into
+   *  a "Standalone & Other" group. */
+  franchise?: string;
   /** Entry type for curated universes — "Movie", "Series", "Special", "One-Shot" */
   entryType?: string;
   /** Phase/saga label for grouping (e.g. "Phase 1", "Infinity Saga") */
