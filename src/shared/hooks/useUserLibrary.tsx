@@ -99,8 +99,24 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     fetchUid = currentFetchUid;
     setLoading(true);
     setError(null);
+
+    // Safety-net timeout: 15 seconds. If fetchUserLibrary hangs
+    // (e.g. Supabase unreachable, tmdb_cache server route slow),
+    // loading stays true forever — blocking not just the Watchlist
+    // page but also DiscoverPage (which used to gate on vaultLoading).
+    // After 15s, we force-release loading so the user isn't stuck
+    // on a skeleton forever.
+    const safetyNetId = setTimeout(() => {
+      if (isFetching && fetchUid === currentFetchUid) {
+        console.warn("[UserLibraryProvider] Vault fetch timed out (15s), force-releasing loading");
+        setLoading(false);
+        isFetching = false;
+      }
+    }, 15_000);
+
     try {
       const items = await fetchUserLibrary(userId);
+      clearTimeout(safetyNetId);
       // Discard if user changed while fetch was in-flight.
       // Reset isFetching first so a new fetch for the new user can proceed.
       if (fetchUid !== currentFetchUid) {
@@ -112,6 +128,7 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
+      clearTimeout(safetyNetId);
       console.error("[UserLibraryProvider] Fetch error:", err);
       if (fetchUid !== currentFetchUid) {
         isFetching = false;

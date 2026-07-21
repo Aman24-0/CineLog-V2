@@ -163,8 +163,20 @@ const useCollectionsLogic = () => {
       // each check for Favorites concurrently, find none, and each
       // create a duplicate. Awaiting ensures the check+create completes
       // before the collection list is refreshed.
+      //
+      // TIMEOUT: 5-second safety net. If Supabase is slow/unreachable,
+      // ensureFavoritesExistsInSupabase() could hang indefinitely,
+      // keeping loading=true and showing a skeleton forever. After the
+      // timeout, we proceed with refreshCollections anyway — the
+      // Favorites collection will be created on the next successful
+      // loadForUid call.
       try {
-        await ensureFavoritesExistsInSupabase(supabaseUid);
+        await Promise.race([
+          ensureFavoritesExistsInSupabase(supabaseUid),
+          new Promise<void>((_, reject) =>
+            setTimeout(() => reject(new Error("ensureFavoritesExists timed out (5s)")), 5_000)
+          ),
+        ]);
       } catch (err) {
         console.error("[useCollections] ensureFavoritesExists failed:", err);
       }

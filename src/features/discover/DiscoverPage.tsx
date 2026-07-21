@@ -362,18 +362,23 @@ export default function DiscoverPage() {
     return cards;
   });
 
-  // Loading state — true while the auth provider is still resolving the
-  // session OR while the user's vault is being fetched. We deliberately
-  // don't gate on `taste() === undefined` because `useDiscoverTaste`
-  // always returns a `TasteProfile` (with `isColdStart: true` for guests
-  // / empty vaults) — gating on it never showed the skeleton even when
-  // the page wasn't ready.
+  // Loading state — true while the Discover feeds (Trending, Theatres,
+  // etc.) are being fetched. We do NOT gate on vaultLoading because the
+  // vault fetch can take 5-15 seconds for large libraries, and the
+  // non-personalized sections (Trending, Theatres, Top Rated, Hidden
+  // Gems, New Seasons, Coming Soon) have zero dependency on the vault.
   //
-  // Gating on vaultLoading ensures the skeleton stays until the vault
-  // has been fetched (otherwise the "Continue Your Universes" + "Because
-  // You Love" sections would briefly render with empty data and then
-  // re-render once the vault arrives, causing a jarring flash).
-  const isLoading = createMemo(() => vaultLoading());
+  // Previously gating on vaultLoading meant the entire Discover page
+  // (all 16 sections) showed a skeleton until the vault resolved — even
+  // though the feeds were already loaded and ready to render. The
+  // personalized sections (Continue Your Universes, Because You Love,
+  // Step Outside) already gate on their own data via <Show> conditions,
+  // so they naturally appear once the vault arrives.
+  //
+  // The vault filter (`excludeVault`) also gracefully handles an empty
+  // vault (returns the full unfiltered feed), so there is no flash of
+  // unfiltered content even when the vault hasn't loaded yet.
+  const isLoading = createMemo(() => feeds.loading());
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">

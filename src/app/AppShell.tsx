@@ -55,7 +55,7 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
  *   <main> landmark per page (verified by the Vercel audit).
  */
 const AppShell: ParentComponent = (props) => {
-  const { selectedItem } = useModalState();
+  const { selectedItem, closeTitle } = useModalState();
   const { collectionSelectedItem } = useCollectionModal();
   const { authModalOpen, closeAuthModal } = useAuthModal();
   const location = useLocation();
@@ -126,7 +126,16 @@ const AppShell: ParentComponent = (props) => {
                 style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
                 role="dialog"
                 aria-modal="true"
-                aria-label="Loading details"
+                aria-label="Loading details — click or press Escape to dismiss"
+                // Click-to-dismiss: if the TMDB fetch hangs (no timeout
+                // reached yet) or the lazy bundle is slow, the user can
+                // tap the backdrop to close the spinner instead of being
+                // trapped behind it. The closeModal() call clears
+                // selectedItem(), which unmounts this Suspense entirely.
+                onClick={() => closeTitle()}
+                onKeyDown={(e) => {
+                  if (e.key === "Escape") closeTitle();
+                }}
               >
                 <span
                   class="material-symbols-outlined"

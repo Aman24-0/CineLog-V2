@@ -72,9 +72,26 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
     buildCacheKey(`tmdb:${finalEndpoint}`),
     TMDB_TTL,
     async () => {
-      const res = await fetch(`${API}${finalEndpoint}&api_key=${TMDB_KEY}`);
-      if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
-      return res.json() as Promise<T>;
+      // 10-second AbortController timeout prevents the fetch from hanging
+      // indefinitely if TMDB is unreachable. Without this, createResource
+      // suspends the DetailsModal component forever, keeping the Suspense
+      // spinner visible with no way to dismiss it.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+      try {
+        const res = await fetch(`${API}${finalEndpoint}&api_key=${TMDB_KEY}`, {
+          signal: controller.signal,
+        });
+        if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
+        return res.json() as Promise<T>;
+      } catch (err) {
+        if (controller.signal.aborted) {
+          throw new Error(`TMDB request timed out (10s): ${endpoint}`);
+        }
+        throw err;
+      } finally {
+        clearTimeout(timeoutId);
+      }
     }
   );
 }

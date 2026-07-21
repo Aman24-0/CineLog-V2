@@ -127,21 +127,41 @@ export async function fetchCachedMetadataBatch(
   const serverMap = new Map<string, TMDBTitle>();
 
   try {
-    // Batch in chunks of 200 to avoid URL length limits
+    // Batch in chunks of 200 to avoid URL length limits.
+    // Each chunk fetch has a 5-second AbortController timeout.
+    // If the server route is slow/unreachable, the fetch would hang
+    // indefinitely, blocking the entire vault load pipeline (since
+    // fetchCachedMetadataBatch is called from userLibraryAdapter
+    // which is awaited by useUserLibrary). The timeout ensures vault
+    // loading completes even if the cache server is down.
     const CHUNK_SIZE = 200;
     for (let i = 0; i < missingKeys.length; i += CHUNK_SIZE) {
       const chunk = missingKeys.slice(i, i + CHUNK_SIZE);
       const keysParam = chunk.join(",");
-      const res = await fetch(`/api/tmdb-cache?keys=${encodeURIComponent(keysParam)}`);
-      if (!res.ok) {
-        console.warn(`[tmdbCache] Server API returned ${res.status}`);
-        continue;
-      }
-      const json = await res.json();
-      if (json.data) {
-        for (const [key, data] of Object.entries(json.data as Record<string, TMDBTitle>)) {
-          serverMap.set(key, data);
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5_000);
+        const res = await fetch(`/api/tmdb-cache?keys=${encodeURIComponent(keysParam)}`, {
+          signal: controller.signal,
+        });
+        clearTimeout(timeoutId);
+        if (!res.ok) {
+          console.warn(`[tmdbCache] Server API returned ${res.status}`);
+          continue;
         }
+        const json = await res.json();
+        if (json.data) {
+          for (const [key, data] of Object.entries(json.data as Record<string, TMDBTitle>)) {
+            serverMap.set(key, data);
+          }
+        }
+      } catch (chunkErr) {
+        if (chunkErr instanceof DOMException && chunkErr.name === "AbortError") {
+          console.warn(`[tmdbCache] Chunk fetch timed out (5s), falling back to TMDB API for ${chunk.length} keys`);
+        } else {
+          console.warn(`[tmdbCache] Chunk fetch failed:`, chunkErr);
+        }
+        continue;
       }
     }
   } catch (err) {

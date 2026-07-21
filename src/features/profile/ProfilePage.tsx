@@ -205,8 +205,12 @@ const ProfilePage: Component = () => {
           </div>
         </Show>
 
-        {/* Error state */}
-        <Show when={!loading() && isSignedIn() && error() && !data()}>
+        {/* Error state — shows when signed in, NOT loading, and either:
+            (a) there's an explicit error, OR
+            (b) data is still null (fetch timed out or returned nothing).
+            Previously this only showed when error() was truthy, creating a
+            gap case: isSignedIn=true, data()=null, error()=null → blank page. */}
+        <Show when={!loading() && isSignedIn() && !data()}>
           <div class="profile-error" role="alert">
             <PremiumEmptyState
               icon="cloud_off"
