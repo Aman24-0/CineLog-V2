@@ -354,7 +354,11 @@ export default function CollectionsPage() {
                           </span>
                         </div>
 
-                        {/* Three-dot menu for unsubscribe */}
+                        {/* Unsubscribe button — uses the same remove_circle
+                            icon as the confirmation dialog so the action
+                            is unambiguous. (Previously a three-dot menu
+                            which looked like a generic "more options"
+                            affordance.) */}
                         <button
                           type="button"
                           class="collection-card-menu focus-ring"
@@ -362,10 +366,11 @@ export default function CollectionsPage() {
                             e.stopPropagation();
                             setUnsubscribeTarget(uni);
                           }}
-                          aria-label={`Options for ${uni.name}`}
+                          aria-label={`Unsubscribe from ${uni.name}`}
+                          title={`Unsubscribe from ${uni.name}`}
                         >
-                          <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
-                            more_vert
+                          <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "#f87171" }} aria-hidden="true">
+                            remove_circle
                           </span>
                         </button>
                       </div>

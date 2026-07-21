@@ -695,8 +695,14 @@ export interface CollectionEntry {
   entryType?: string;
   /** Phase/saga label for grouping (e.g. "Phase 1", "Infinity Saga") */
   phase?: string;
-  /** In-universe story year (e.g. 1943 for Captain America: The First Avenger) */
+  /** In-universe story year (e.g. 1943 for Captain America: The First Avenger).
+   *  Legacy field — kept for backward compat with old data. */
   storyYear?: number;
+  /** In-universe "year of incident" set by the admin (e.g. 1943 for Captain
+   *  America: The First Avenger, 1995 for Captain Marvel). Drives the
+   *  Storyline sort order — lower year = earlier in the timeline. NULL
+   *  means unknown; falls back to storyOrder. */
+  incidentYear?: number;
   /** User-pinned entry (always visible at top in custom order) */
   isPinned?: boolean;
   /** User-hidden entry (excluded from timeline view) */

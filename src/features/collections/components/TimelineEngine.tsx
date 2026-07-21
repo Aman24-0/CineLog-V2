@@ -33,19 +33,14 @@ interface TimelineEngineProps {
  * TimelineEngine — universal timeline supporting the 3 unified viewing
  * orders: Storyline, Release Year, Franchise.
  *
- * Naming (single source of truth):
- *   - The "Timeline" header label is ALWAYS "Timeline" regardless of
- *     the active sort. The active sort is conveyed by the order-switch
- *     buttons above. This removes the previous inconsistency where the
- *     order button said "Chronological" but the timeline header said
- *     "Story Timeline" for the same concept.
- *
- * v2.1 changes:
- *   - Edit button added to the timeline header (right-aligned with
- *     the "Timeline" label), per user request.
- *   - Batch select mode: when active, each TimelineEntry shows a
- *     checkbox and the click behavior changes to toggle selection
- *     instead of opening the entry.
+ * Naming (single source of truth, v3):
+ *   - The header label MATCHES the active sort label so the user sees
+ *     the same word in the filter pills above and in the section header.
+ *     This removes the previous inconsistency where the order button
+ *     said "Chronological" but the section header said "Timeline" for
+ *     the same concept.
+ *   - The header label is derived from `props.collection.viewingOrders`
+ *     (same data the UniverseDashboard order-switcher uses).
  */
 export default function TimelineEngine(props: TimelineEngineProps) {
   const { watchlist } = useVault();
@@ -94,12 +89,25 @@ export default function TimelineEngine(props: TimelineEngineProps) {
     return "flat";
   });
 
-  // Single source of truth for the timeline header label. Always "Timeline"
-  // — the active sort is conveyed by the order-switch buttons above, so we
-  // don't need to repeat it here. This removes the previous inconsistency
-  // where one place said "Chronological" and another said "Timeline" /
-  // "Story Timeline" for the same concept.
-  const label = () => "Timeline";
+  // Section header label — matches the active sort label exactly so the
+  // user sees the same word in the order-switch pills and the section
+  // header. Falls back to "Timeline" only when no matching order is found
+  // (e.g. for legacy user collections without viewingOrders).
+  const label = createMemo(() => {
+    const orders = props.collection.viewingOrders ?? [];
+    const match = orders.find((o) => o.id === props.order);
+    if (match) return match.label;
+    // Legacy fallbacks for old user collections.
+    if (props.order === "chronological") return "Storyline";
+    if (props.order === "release") return "Release Year";
+    if (props.order === "franchise") return "Franchise";
+    return "Timeline";
+  });
+
+  // The active sort decides what to show on the LEFT side of each entry.
+  // For "story" we show the incident_year (the in-universe year the
+  // movie takes place). For all other sorts we show the 1-based index.
+  const useIncidentYear = createMemo(() => props.order === "story");
 
   const isSelected = (entry: CollectionEntry): boolean => {
     if (!props.selectedIds) return false;
@@ -108,7 +116,8 @@ export default function TimelineEngine(props: TimelineEngineProps) {
 
   return (
     <div class="universe-timeline-section">
-      {/* Header row: timeline label (left) + Edit button (right) */}
+      {/* Header row: section label (matches the active sort, e.g.
+          "Storyline" / "Release Year" / "Franchise") + Edit button (right) */}
       <div class="universe-timeline-header">
         <div class="universe-timeline-label">
           <span
@@ -150,6 +159,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                       <TimelineEntry
                         item={item}
                         index={i() + 1}
+                        showIncidentYear={useIncidentYear()}
                         onOpen={() => props.onOpenEntry(item.entry)}
                         titleOf={titleOf}
                         yearOf={yearOf}
@@ -183,6 +193,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                       <TimelineEntry
                         item={item}
                         index={i() + 1}
+                        showIncidentYear={useIncidentYear()}
                         onOpen={() => props.onOpenEntry(item.entry)}
                         titleOf={titleOf}
                         yearOf={yearOf}
@@ -216,6 +227,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                       <TimelineEntry
                         item={item}
                         index={i() + 1}
+                        showIncidentYear={useIncidentYear()}
                         onOpen={() => props.onOpenEntry(item.entry)}
                         titleOf={titleOf}
                         yearOf={yearOf}
@@ -242,6 +254,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                 <TimelineEntry
                   item={item}
                   index={i() + 1}
+                  showIncidentYear={useIncidentYear()}
                   onOpen={() => props.onOpenEntry(item.entry)}
                   titleOf={titleOf}
                   yearOf={yearOf}

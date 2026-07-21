@@ -1199,6 +1199,16 @@
 .universe-timeline-node-watching {
   border-color: var(--p); color: var(--p); box-shadow: 0 0 12px var(--p-glow);
 }
+/* Year variant — when the storyline sort is active, the node shows the
+   entry's in-universe incident_year (e.g. 1943) instead of a 1-based
+   index. 4-digit years need a little more horizontal room and a smaller
+   font so they don't overflow the circle. */
+.universe-timeline-node-year {
+  width: 48px;
+  font-size: 0.8rem;
+  font-family: 'Azeret Mono', monospace;
+  letter-spacing: -0.02em;
+}
 
 /* Poster */
 .universe-timeline-poster {

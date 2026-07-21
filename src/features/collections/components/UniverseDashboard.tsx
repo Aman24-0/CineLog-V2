@@ -1,5 +1,5 @@
 // src/features/collections/components/UniverseDashboard.tsx
-import { Show, createMemo } from "solid-js";
+import { Show, createMemo, For } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "../hooks/useCollections";
@@ -7,7 +7,7 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import { formatRuntime } from "~/shared/utils/format";
 import ProgressRing from "./ProgressRing";
-import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, ViewMode } from "~/shared/types";
+import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider } from "~/shared/types";
 
 interface UniverseDashboardProps {
   collection: Collection;
@@ -15,9 +15,6 @@ interface UniverseDashboardProps {
   activeProvider: TimelineProvider;
   onOrderChange: (order: ViewingOrder) => void;
   onProviderChange: (provider: TimelineProvider) => void;
-  // ── View Mode toggle (v2.2) ──
-  viewMode?: ViewMode;
-  onViewModeChange?: (mode: ViewMode) => void;
   // ── Batch Select Mode (v2.1) ──
   selectMode?: boolean;
   selectedCount?: number;
@@ -34,16 +31,12 @@ interface UniverseDashboardProps {
  *   - Animated progress ring
  *   - Stats strip (total, owned, completed, watching, missing, runtime)
  *   - Continue card (next missing title) — ONLY for curated universes
- *   - Provider + Order selector
+ *   - Order selector (Storyline / Release Year / Franchise)
  *   - Quick actions: Select (batch mode), Remove, Move (in select mode)
  *
- * v2.1 changes:
- *   - "Continue This Universe" removed for user collections + favorites
- *     (per user request — after hero, timeline starts immediately)
- *   - Pin button removed (was useless for user folders)
- *   - Select button added — toggles batch select mode
- *   - In select mode: Remove + Move buttons appear (disabled until
- *     at least one entry is selected)
+ * v3 changes (per user request):
+ *   - View-mode toggle (Timeline/List) REMOVED. There is only one view now.
+ *   - The TimelineEngine below always renders; no List alternative.
  */
 export default function UniverseDashboard(props: UniverseDashboardProps) {
   const navigate = useNavigate();
@@ -224,11 +217,10 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         </div>
       </Show>
 
-      {/* Order selector + View mode toggle (v2.2)
-          — both share a single row so the user can pick the sort AND
-            the visual layout in one place. The order switcher only
-            renders when there's more than one order available; the
-            view-mode toggle always renders (default = Timeline). */}
+      {/* Order selector — Storyline / Release Year / Franchise.
+          The order switcher only renders when there's more than one
+          order available. (View-mode toggle was removed in v3 — there's
+          only one view now.) */}
       <div class="universe-dashboard-controls">
         <Show when={availableOrders().length > 1}>
           <div class="universe-order-switch">
@@ -246,35 +238,6 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
                 </button>
               )}
             </For>
-          </div>
-        </Show>
-
-        <Show when={props.onViewModeChange}>
-          <div class="universe-view-mode-switch" role="group" aria-label="View mode">
-            <button
-              type="button"
-              class="universe-view-mode-btn"
-              data-active={(props.viewMode ?? "timeline") === "timeline"}
-              onClick={() => props.onViewModeChange!("timeline")}
-              aria-pressed={(props.viewMode ?? "timeline") === "timeline"}
-              aria-label="Timeline view"
-              title="Timeline view"
-            >
-              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">timeline</span>
-              Timeline
-            </button>
-            <button
-              type="button"
-              class="universe-view-mode-btn"
-              data-active={props.viewMode === "list"}
-              onClick={() => props.onViewModeChange!("list")}
-              aria-pressed={props.viewMode === "list"}
-              aria-label="List view"
-              title="List view"
-            >
-              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">list</span>
-              List
-            </button>
           </div>
         </Show>
       </div>
@@ -327,5 +290,3 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
     </div>
   );
 }
-
-import { For } from "solid-js";

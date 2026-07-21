@@ -21,6 +21,11 @@ export interface AdminEntry {
   universe_id: string;
   tmdb_id: number;
   media_type: "movie" | "tv";
+  /** In-universe "year of incident" set by the admin. Drives the
+   *  Storyline sort order. NULL = unknown (falls back to story_position). */
+  incident_year: number | null;
+  /** Legacy position fields — no longer edited by the admin UI but kept
+   *  for backward compat with existing rows. The DB still maintains them. */
   position: number;
   release_position: number;
   story_position: number;
@@ -51,10 +56,10 @@ export interface AdminEntry {
 export type SortMode = "story" | "release" | "franchise";
 
 export interface EntryUpdate {
-  position?: number;
-  release_position?: number;
-  story_position?: number;
-  timeline_position?: number;
+  /** The only editable sort-related field — the in-universe year of
+   *  incident. Drives the Storyline sort. NULL clears it. */
+  incident_year?: number | null;
+  /** Admin-only note shown in admin UI only. */
   note?: string | null;
 }
 

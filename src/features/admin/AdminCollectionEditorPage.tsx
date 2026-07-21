@@ -11,17 +11,16 @@
 //   • Universe metadata editor (name, slug, description, color,
 //     cover, banner, default_view) — collapsible panel.
 //   • TMDB search modal — search any movie/TV title and add it.
-//   • Entry list with 4 independent sort indices:
-//       - position        (admin's primary ordering)
-//       - release_position  (by theatrical release date)
-//       - story_position    (by in-universe story chronology)
-//       - timeline_position (by in-universe timeline — distinct from
-//                            story for time-travel franchises)
-//   • Sort-mode switcher — view the list under any of the 4 sortings
+//   • Entry list with a single admin-editable sort field:
+//       - incident_year (the in-universe year the movie takes place,
+//                       e.g. 1943 for Captain America: The First Avenger)
+//     The other sorts are fully automatic:
+//       - release_position  → derived from TMDB release_date
+//       - franchise         → derived from the title ("Captain America:
+//                            The First Avenger" → "Captain America")
+//   • Sort-mode switcher — view the list under any of the 3 sorts
 //     so the admin can verify each ordering looks right.
-//   • Drag-and-drop reorder — updates the *currently active* sort
-//     index by rewriting the indices of the moved entries.
-//   • Per-entry edit modal — adjust all 4 indices + admin note.
+//   • Per-entry edit modal — adjust incident_year + admin note.
 //   • Per-entry delete.
 //   • Subscriber count display.
 //   • "Preview as user" link — opens the consumer /collections/<slug>
@@ -52,21 +51,16 @@ import {
  * The 3 unified sort modes — same labels as the consumer side
  * (see UNIVERSE_VIEWING_ORDERS in curatedUniverseAdapter.ts).
  *
- *   - "story"     → Storyline    (sort by story_position)
- *   - "release"   → Release Year (sort by release_position)
- *   - "franchise" → Franchise    (group by title-derived franchise, then
- *                                 sort within each group by story_position)
- *
- * For "franchise" we keep `field = "story_position"` because within
- * each franchise group entries are sorted by story chronology. The
- * franchise grouping itself is applied at render time (see renderBlock
- * in AdminCollectionEditorPage), mirroring how the consumer
- * TimelineEngine handles it via groupByFranchise.
+ *   - "story"     → Storyline    (sort by incident_year)
+ *   - "release"   → Release Year (sort by TMDB release_date)
+ *   - "franchise" → Franchise    (group by title-derived franchise,
+ *                                 then sort within each group by
+ *                                 incident_year)
  */
-const SORT_MODES: { id: SortMode; label: string; field: keyof AdminEntry }[] = [
-  { id: "story",     label: "Storyline",    field: "story_position" },
-  { id: "release",   label: "Release Year", field: "release_position" },
-  { id: "franchise", label: "Franchise",    field: "story_position" },
+const SORT_MODES: { id: SortMode; label: string }[] = [
+  { id: "story",     label: "Storyline" },
+  { id: "release",   label: "Release Year" },
+  { id: "franchise", label: "Franchise" },
 ];
 
 const AdminCollectionEditorPage: Component = () => {
@@ -83,7 +77,6 @@ const AdminCollectionEditorPage: Component = () => {
   const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
   const [showMetaPanel, setShowMetaPanel] = createSignal(false);
   const [savingMeta, setSavingMeta] = createSignal(false);
-  const [draggingIndex, setDraggingIndex] = createSignal<number | null>(null);
 
   // Metadata form state (populated when the meta panel is opened)
   const [metaForm, setMetaForm] = createSignal({
@@ -210,24 +203,53 @@ const AdminCollectionEditorPage: Component = () => {
     return trimmed;
   };
 
+  // ─── Sort logic ────────────────────────────────────────────────
+  // No drag-and-drop reordering — each sort is either fully automatic
+  // (release, franchise) or driven by the per-entry `incident_year`
+  // field (storyline). The admin edits incident_year via the pencil
+  // icon on each row.
+
   // Sort entries by the active sort mode.
   const sortedEntries = createMemo(() => {
-    const mode = SORT_MODES.find((m) => m.id === sortMode())!;
-    const field = mode.field;
+    const mode = sortMode();
     return [...entries()].sort((a, b) => {
-      // Franchise mode: primary sort by franchise label, then by
-      // story_position within each franchise group. The field for
-      // franchise mode is "story_position" (see SORT_MODES above).
-      if (mode.id === "franchise") {
+      if (mode === "release") {
+        // Release sort: by TMDB release_date (string compare).
+        const da = a.release_date ?? "";
+        const db = b.release_date ?? "";
+        if (da && db && da !== db) return da.localeCompare(db);
+        // Tiebreaker: legacy release_position, then admin primary.
+        const ra = a.release_position ?? a.position ?? 0;
+        const rb = b.release_position ?? b.position ?? 0;
+        if (ra !== rb) return ra - rb;
+        return (a.position ?? 0) - (b.position ?? 0);
+      }
+      if (mode === "franchise") {
+        // Franchise mode: primary sort by franchise label, then by
+        // incident_year within each group (story_position fallback).
         const fa = deriveFranchise(a.title);
         const fb = deriveFranchise(b.title);
         if (fa !== fb) return fa.localeCompare(fb);
+        const ia = a.incident_year;
+        const ib = b.incident_year;
+        if (ia !== null && ib !== null && ia !== ib) return ia - ib;
+        if (ia !== null && ib === null) return -1;
+        if (ia === null && ib !== null) return 1;
+        const sa = a.story_position ?? a.position ?? 0;
+        const sb = b.story_position ?? b.position ?? 0;
+        if (sa !== sb) return sa - sb;
+        return (a.position ?? 0) - (b.position ?? 0);
       }
-      const av = Number(a[field] ?? 0);
-      const bv = Number(b[field] ?? 0);
-      if (av !== bv) return av - bv;
-      // Stable secondary sort by position (admin's primary).
-      return Number(a.position ?? 0) - Number(b.position ?? 0);
+      // mode === "story" — Storyline sort by incident_year.
+      const ia = a.incident_year;
+      const ib = b.incident_year;
+      if (ia !== null && ib !== null && ia !== ib) return ia - ib;
+      if (ia !== null && ib === null) return -1;
+      if (ia === null && ib !== null) return 1;
+      const sa = a.story_position ?? a.position ?? 0;
+      const sb = b.story_position ?? b.position ?? 0;
+      if (sa !== sb) return sa - sb;
+      return (a.position ?? 0) - (b.position ?? 0);
     });
   });
 
@@ -235,7 +257,7 @@ const AdminCollectionEditorPage: Component = () => {
   // Returns null when not in franchise mode so the renderer can decide
   // whether to draw group headers or a flat list.
   const groupedByFranchise = createMemo<
-    | { franchise: string; entries: AdminEntry[] }[]
+    { franchise: string; entries: AdminEntry[] }[]
     | null
   >(() => {
     if (sortMode() !== "franchise") return null;
@@ -252,76 +274,20 @@ const AdminCollectionEditorPage: Component = () => {
     return groups;
   });
 
-  // ─── Drag-and-drop reorder ────────────────────────────────────────
-  // Reordering renumbers the *currently active* sort index. The other
-  // three indices are preserved. This lets the admin independently
-  // curate each of the four orderings.
-
-  const handleDragStart = (e: DragEvent, index: number) => {
-    setDraggingIndex(index);
-    e.dataTransfer?.setData("text/plain", String(index));
-    (e.currentTarget as HTMLElement).style.opacity = "0.5";
-  };
-  const handleDragEnd = (e: DragEvent) => {
-    setDraggingIndex(null);
-    (e.currentTarget as HTMLElement).style.opacity = "1";
-  };
-  const handleDragOver = (e: DragEvent) => e.preventDefault();
-  const handleDrop = async (e: DragEvent, targetIndex: number) => {
-    e.preventDefault();
-    setDraggingIndex(null);
-    const sourceIndex = parseInt(e.dataTransfer?.getData("text/plain") ?? "-1", 10);
-    if (sourceIndex < 0 || sourceIndex === targetIndex) return;
-
-    const mode = SORT_MODES.find((m) => m.id === sortMode())!;
-    const field = mode.field;
-    const sorted = sortedEntries();
-
-    // Build the new ordering of entry IDs.
-    const reordered = [...sorted];
-    const [moved] = reordered.splice(sourceIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
-
-    // Renumber the active field for every entry in this universe
-    // (not just the visible slice — assumes all entries are visible).
-    // Send a batch of PATCHes.
-    const updates = reordered.map((entry, i) => ({
-      id: entry.id,
-      [field]: i,
-    }));
-
-    // Optimistic update on the client.
-    setEntries((prev) =>
-      prev.map((entry) => {
-        const upd = updates.find((u) => u.id === entry.id);
-        if (!upd) return entry;
-        return { ...entry, [field]: upd[field] as number };
-      }),
-    );
-
-    // Persist server-side.
-    try {
-      await Promise.all(
-        updates.map((u) =>
-          fetch("/api/admin/collections/entries", {
-            method: "PATCH",
-            credentials: "include",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify(u),
-          }),
-        ),
-      );
-      showToast("Order saved", "success");
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : "Failed to save order";
-      showToast(msg, "error");
-      // Re-fetch to restore server truth.
-      const u = universe();
-      if (u) {
-        const ents = await fetchEntries(u.id);
-        setEntries(ents);
-      }
+  // Compute the left-badge string for an entry given the active sort.
+  // - storyline → incident_year (or "—" if unset)
+  // - release   → release year (or "—")
+  // - franchise → 1-based index within the franchise group
+  const leftBadgeFor = (entry: AdminEntry, groupIndex: number | null): string => {
+    if (sortMode() === "story") {
+      return entry.incident_year !== null ? String(entry.incident_year) : "—";
     }
+    if (sortMode() === "release") {
+      const y = entry.release_date?.match(/^(\d{4})/)?.[1];
+      return y ?? "—";
+    }
+    // franchise
+    return groupIndex !== null ? String(groupIndex + 1) : "—";
   };
 
   // ─── Add entry from TMDB search ───────────────────────────────────
@@ -736,12 +702,8 @@ const AdminCollectionEditorPage: Component = () => {
                   {(entry, i) => (
                     <EntryRow
                       entry={entry}
-                      index={i()}
-                      isDragging={draggingIndex() === i()}
-                      onDragStart={handleDragStart}
-                      onDragEnd={handleDragEnd}
-                      onDragOver={handleDragOver}
-                      onDrop={handleDrop}
+                      displayIndex={i() + 1}
+                      leftBadge={leftBadgeFor(entry, null)}
                       onSave={handleEntrySave}
                       onDelete={handleEntryDelete}
                     />
@@ -750,10 +712,9 @@ const AdminCollectionEditorPage: Component = () => {
               </div>
             }
           >
-            {/* Franchise mode — render each franchise group with a header.
-                Drag-and-drop reordering still works within each group. */}
+            {/* Franchise mode — render each franchise group with a header. */}
             <For each={groupedByFranchise()!}>
-              {(group, gIdx) => (
+              {(group) => (
                 <div
                   style={{
                     "margin-bottom": "var(--sp-4)",
@@ -793,25 +754,15 @@ const AdminCollectionEditorPage: Component = () => {
                   </div>
                   <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
                     <For each={group.entries}>
-                      {(entry) => {
-                        // Find the entry's index in the global sortedEntries
-                        // so drag-and-drop continues to work across the
-                        // whole universe (not just within the group).
-                        const globalIdx = sortedEntries().indexOf(entry);
-                        return (
-                          <EntryRow
-                            entry={entry}
-                            index={globalIdx}
-                            isDragging={draggingIndex() === globalIdx}
-                            onDragStart={handleDragStart}
-                            onDragEnd={handleDragEnd}
-                            onDragOver={handleDragOver}
-                            onDrop={handleDrop}
-                            onSave={handleEntrySave}
-                            onDelete={handleEntryDelete}
-                          />
-                        );
-                      }}
+                      {(entry, i) => (
+                        <EntryRow
+                          entry={entry}
+                          displayIndex={i() + 1}
+                          leftBadge={leftBadgeFor(entry, i())}
+                          onSave={handleEntrySave}
+                          onDelete={handleEntryDelete}
+                        />
+                      )}
                     </For>
                   </div>
                 </div>
@@ -836,13 +787,13 @@ const AdminCollectionEditorPage: Component = () => {
           <strong style={{ color: "var(--text-secondary)" }}>About sort modes</strong>
           <br />
           Three sort modes are exposed to the user on the consumer side: <em>Storyline</em> (in-universe
-          chronology, uses <code>story_position</code>), <em>Release Year</em> (theatrical release date,
-          uses <code>release_position</code>), and <em>Franchise</em> (groups entries by movie series —
-          Iron Man films together, Thor films together, etc. — sorted by <code>story_position</code>
-          within each group). Use the sort-mode buttons above to preview each ordering, and drag entries
-          to renumber the currently active ordering. The <code>position</code> (admin primary) and
-          <code>timeline_position</code> fields are no longer shown to users but remain editable per-entry
-          via the pencil icon — they're kept for backward compatibility with older data.
+          chronology, sorted by the per-entry <code>incident_year</code> you set via the pencil icon —
+          e.g. 1943 for Captain America: The First Avenger, 1995 for Captain Marvel), <em>Release Year</em>
+          (theatrical release date — automatic from TMDB metadata, no admin input needed), and
+          <em>Franchise</em> (groups entries by movie series — Iron Man films together, Thor films together,
+          etc. — derived automatically from the title; within each group entries are sorted by
+          <code>incident_year</code>). Use the sort-mode buttons above to preview each ordering. Click the
+          pencil icon on any entry to set its <code>incident_year</code> and an admin-only note.
         </div>
       </Show>
 

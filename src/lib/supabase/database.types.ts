@@ -157,6 +157,7 @@ export type Database = {
         Row: {
           created_at: string
           id: string
+          incident_year: number | null
           media_type: Database["public"]["Enums"]["media_type"]
           note: string | null
           position: number
@@ -169,6 +170,7 @@ export type Database = {
         Insert: {
           created_at?: string
           id?: string
+          incident_year?: number | null
           media_type: Database["public"]["Enums"]["media_type"]
           note?: string | null
           position?: number
@@ -181,6 +183,7 @@ export type Database = {
         Update: {
           created_at?: string
           id?: string
+          incident_year?: number | null
           media_type?: Database["public"]["Enums"]["media_type"]
           note?: string | null
           position?: number

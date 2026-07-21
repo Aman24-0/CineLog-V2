@@ -36,14 +36,31 @@ describe("sortAndEnrich", () => {
     expect(result.map((r) => r.entry.id)).toEqual(["3", "2", "1"]);
   });
 
-  it("sorts by story order (storyYear then order)", () => {
+  it("sorts by story order (incidentYear then storyOrder fallback)", () => {
+    // The Storyline sort uses `incidentYear` (the in-universe year of
+    // incident set by the admin — e.g. 1943 for Captain America: The
+    // First Avenger, 1995 for Captain Marvel). Lower year = earlier.
     const storyEntries: CollectionEntry[] = [
-      makeCollectionEntry({ id: "1", storyYear: 1943, order: 1 }),
-      makeCollectionEntry({ id: "2", storyYear: 2008, order: 1 }),
-      makeCollectionEntry({ id: "3", storyYear: 1990, order: 1 }),
+      makeCollectionEntry({ id: "1", incidentYear: 1943, order: 1 }),
+      makeCollectionEntry({ id: "2", incidentYear: 2008, order: 1 }),
+      makeCollectionEntry({ id: "3", incidentYear: 1990, order: 1 }),
     ];
     const result = sortAndEnrich(storyEntries, [], "story");
     expect(result.map((r) => r.entry.id)).toEqual(["1", "3", "2"]);
+  });
+
+  it("sorts by story order falls back to storyOrder when incidentYear missing", () => {
+    // Entries without an incidentYear sink to the bottom and are sorted
+    // by storyOrder (legacy DB column) as fallback.
+    const storyEntries: CollectionEntry[] = [
+      makeCollectionEntry({ id: "1", incidentYear: undefined, storyOrder: 5, order: 5 }),
+      makeCollectionEntry({ id: "2", incidentYear: 1995, storyOrder: 1, order: 1 }),
+      makeCollectionEntry({ id: "3", incidentYear: undefined, storyOrder: 2, order: 2 }),
+    ];
+    const result = sortAndEnrich(storyEntries, [], "story");
+    // id:2 (1995) comes first; id:1 and id:3 have no incidentYear so they
+    // fall back to storyOrder — id:3 (storyOrder=2) before id:1 (storyOrder=5).
+    expect(result.map((r) => r.entry.id)).toEqual(["2", "3", "1"]);
   });
 
   it("sorts by custom order (pinned first, then customOrder)", () => {

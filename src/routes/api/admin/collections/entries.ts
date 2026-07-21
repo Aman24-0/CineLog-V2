@@ -41,6 +41,8 @@ interface EntryInput {
   release_position?: number;
   story_position?: number;
   timeline_position?: number;
+  /** In-universe year of incident (drives Storyline sort). NULL = unknown. */
+  incident_year?: number | null;
   note?: string | null;
 }
 
@@ -116,6 +118,8 @@ export async function POST(event: APIEvent) {
     if (!Number.isFinite(position) || position < 1) position = 1;
 
     // 3. Insert.
+    //    incident_year is optional — NULL means unknown (Storyline sort
+    //    falls back to story_position).
     const insert: Record<string, unknown> = {
       universe_id: body.universe_id,
       tmdb_id: tmdbId,
@@ -124,6 +128,7 @@ export async function POST(event: APIEvent) {
       release_position: toInt(body.release_position) ?? position,
       story_position: toInt(body.story_position) ?? position,
       timeline_position: toInt(body.timeline_position) ?? position,
+      incident_year: body.incident_year === undefined ? null : toInt(body.incident_year) ?? null,
       note: body.note ?? null,
     };
 
@@ -186,6 +191,11 @@ export async function PATCH(event: APIEvent) {
     if (body.timeline_position !== undefined) {
       const p = toInt(body.timeline_position);
       if (p !== undefined) update.timeline_position = p;
+    }
+    if (body.incident_year !== undefined) {
+      // Allow null to clear the year; otherwise coerce to int.
+      const n = body.incident_year === null ? null : toInt(body.incident_year);
+      update.incident_year = n ?? null;
     }
     if (body.note !== undefined) {
       update.note = body.note === "" ? null : body.note;

@@ -116,6 +116,10 @@ export function curatedEntryRowToCollectionEntry(
     order: row.position,
     storyOrder: row.story_position,
     releaseOrder: row.release_position,
+    // In-universe "year of incident" set by the admin (e.g. 1943 for
+    // Captain America: The First Avenger). Drives the Storyline sort.
+    // NULL means unknown — the consumer falls back to storyOrder.
+    incidentYear: row.incident_year ?? undefined,
     // Franchise group derived from the title (e.g. "Captain America: The
     // First Avenger" → "Captain America"). Used by the "Franchise" view
     // to group all films in the same series together. Standalone titles

@@ -24,16 +24,20 @@ export interface TimelineItem {
 /** Sort entries based on the viewing order, then enrich with vault status.
  *
  * Three unified orders (used by BOTH admin + consumer UI):
- *   - "story"     → sort by entry.storyOrder (DB story_position). Falls
- *                   back to entry.order if storyOrder is missing (legacy
- *                   user collections that don't have separate story indices).
+ *   - "story"     → sort by entry.incidentYear (the in-universe "year of
+ *                   incident" set by the admin, e.g. 1943 for Captain
+ *                   America: The First Avenger, 1995 for Captain Marvel).
+ *                   Lower year = earlier in the timeline. Entries with
+ *                   no incidentYear fall back to storyOrder, then to
+ *                   admin's primary `order`.
  *                   Legacy "chronological" maps here too.
  *   - "release"   → sort by release_date / first_air_date string. Falls
  *                   back to entry.releaseOrder when dates are missing.
  *   - "franchise" → group by entry.franchise (derived from title), then
- *                   sort within each group by storyOrder. The grouping
- *                   itself is applied in TimelineEngine via groupByFranchise().
- *                   Here we just sort by (franchise, storyOrder) so the
+ *                   sort within each group by incidentYear (or storyOrder
+ *                   as fallback). The grouping itself is applied in
+ *                   TimelineEngine via groupByFranchise().
+ *                   Here we just sort by (franchise, incidentYear) so the
  *                   entries arrive pre-grouped for the renderer.
  *
  * Legacy orders ("saga", "custom", "chronological") are preserved for
@@ -61,12 +65,19 @@ export function sortAndEnrich(
       });
       break;
     case "franchise":
-      // Pre-sort by (franchise, storyOrder) so groupByFranchise can
-      // walk a single pass and build consecutive groups.
+      // Pre-sort by (franchise, incidentYear, storyOrder) so groupByFranchise
+      // can walk a single pass and build consecutive groups. Within each
+      // franchise group, earlier in-universe incident years come first.
       sorted.sort((a, b) => {
         const fa = a.franchise ?? "Standalone & Other";
         const fb = b.franchise ?? "Standalone & Other";
         if (fa !== fb) return fa.localeCompare(fb);
+        // Within a franchise: incidentYear first, then storyOrder fallback.
+        const ia = a.incidentYear;
+        const ib = b.incidentYear;
+        if (ia !== undefined && ib !== undefined && ia !== ib) return ia - ib;
+        if (ia !== undefined && ib === undefined) return -1; // known year first
+        if (ia === undefined && ib !== undefined) return 1;
         const sa = a.storyOrder ?? a.order ?? 0;
         const sb = b.storyOrder ?? b.order ?? 0;
         if (sa !== sb) return sa - sb;
@@ -76,10 +87,16 @@ export function sortAndEnrich(
     case "story":
     case "chronological":
     default:
-      // Storyline order. Use the DB story_position if present; otherwise
-      // fall back to the admin's primary position. The legacy
-      // "chronological" case is kept so old preferences continue to work.
+      // Storyline order. Primary sort: incidentYear (admin-set in-universe
+      // year of incident). Entries without an incidentYear sink to the
+      // bottom and are sorted by storyOrder (legacy DB column) as fallback.
       sorted.sort((a, b) => {
+        const ia = a.incidentYear;
+        const ib = b.incidentYear;
+        if (ia !== undefined && ib !== undefined && ia !== ib) return ia - ib;
+        if (ia !== undefined && ib === undefined) return -1; // known year first
+        if (ia === undefined && ib !== undefined) return 1;
+        // Both undefined → fall back to storyOrder then admin primary.
         const sa = a.storyOrder ?? a.order ?? 0;
         const sb = b.storyOrder ?? b.order ?? 0;
         if (sa !== sb) return sa - sb;

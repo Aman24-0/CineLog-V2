@@ -31,6 +31,10 @@ export interface TimelineEntryItem {
 export interface TimelineEntryProps {
   item: TimelineEntryItem;
   index: number;
+  /** When true, show the entry's `incidentYear` (in-universe year of
+   *  incident) on the left instead of the 1-based index. Active when
+   *  the user has selected the Storyline sort. */
+  showIncidentYear?: boolean;
   onOpen: () => void;
   titleOf: (e: CollectionEntry) => string;
   yearOf: (e: CollectionEntry) => string;
@@ -47,6 +51,17 @@ export default function TimelineEntry(props: TimelineEntryProps) {
     } else {
       props.onOpen();
     }
+  };
+
+  // The label shown inside the left node. For storyline sort this is
+  // the entry's incident_year (e.g. 1943 for Captain America: The First
+  // Avenger). For all other sorts it's the 1-based position in the list.
+  // Falls back to the index when incident_year is missing.
+  const nodeLabel = () => {
+    if (props.showIncidentYear && props.item.entry.incidentYear !== undefined) {
+      return String(props.item.entry.incidentYear);
+    }
+    return String(props.index);
   };
 
   return (
@@ -74,10 +89,17 @@ export default function TimelineEntry(props: TimelineEntryProps) {
         </div>
       </Show>
 
-      {/* Numbered node (hidden in select mode) */}
+      {/* Numbered node (hidden in select mode).
+          For storyline sort we show the entry's incident_year (the
+          in-universe year the movie takes place) instead of a 1-based
+          index. For other sorts we show the index. The node may need
+          to be a little wider for 4-digit years, so we add a modifier
+          class for styling. */}
       <Show when={!props.selectMode}>
-        <div class={`universe-timeline-node${props.item.status === "Completed" ? " universe-timeline-node-completed" : ""}${props.item.status === "Watching" ? " universe-timeline-node-watching" : ""}`}>
-          {props.index}
+        <div
+          class={`universe-timeline-node${props.item.status === "Completed" ? " universe-timeline-node-completed" : ""}${props.item.status === "Watching" ? " universe-timeline-node-watching" : ""}${props.showIncidentYear ? " universe-timeline-node-year" : ""}`}
+        >
+          {nodeLabel()}
         </div>
       </Show>
 
