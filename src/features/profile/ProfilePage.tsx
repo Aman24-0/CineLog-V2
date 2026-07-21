@@ -205,12 +205,10 @@ const ProfilePage: Component = () => {
           </div>
         </Show>
 
-        {/* Error state — shows when signed in, NOT loading, and either:
-            (a) there's an explicit error, OR
-            (b) data is still null (fetch timed out or returned nothing).
-            Previously this only showed when error() was truthy, creating a
-            gap case: isSignedIn=true, data()=null, error()=null → blank page. */}
-        <Show when={!loading() && isSignedIn() && !data()}>
+        {/* Error state — also shown when signed in but data is null with no explicit error
+            (e.g. Supabase timeout, empty profile response). Covers the blank-page gap case
+            where none of the other Show conditions would match. */}
+        <Show when={!loading() && isSignedIn() && (!!error() || !data())}>
           <div class="profile-error" role="alert">
             <PremiumEmptyState
               icon="cloud_off"
@@ -225,7 +223,7 @@ const ProfilePage: Component = () => {
         </Show>
 
         {/* ── SIGNED IN — FULL PROFILE ── */}
-        <Show when={!loading() && isSignedIn() && !error() && data()}>
+        <Show when={!loading() && isSignedIn() && data()}>
           <div class="profile-content">
 
             {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━

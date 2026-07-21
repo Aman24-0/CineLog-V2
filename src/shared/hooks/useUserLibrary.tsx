@@ -99,42 +99,16 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     fetchUid = currentFetchUid;
     setLoading(true);
     setError(null);
-
-    // Safety-net timeout: 15 seconds. If fetchUserLibrary hangs
-    // (e.g. Supabase unreachable, tmdb_cache server route slow),
-    // loading stays true forever — blocking not just the Watchlist
-    // page but also DiscoverPage (which used to gate on vaultLoading).
-    // After 15s, we force-release loading so the user isn't stuck
-    // on a skeleton forever.
-    const safetyNetId = setTimeout(() => {
-      if (isFetching && fetchUid === currentFetchUid) {
-        console.warn("[UserLibraryProvider] Vault fetch timed out (15s), force-releasing loading");
-        setLoading(false);
-        isFetching = false;
-      }
-    }, 15_000);
-
     try {
       const items = await fetchUserLibrary(userId);
-      clearTimeout(safetyNetId);
-      // Discard if user changed while fetch was in-flight.
-      // Reset isFetching first so a new fetch for the new user can proceed.
-      if (fetchUid !== currentFetchUid) {
-        isFetching = false;
-        // The new user's uid is in fetchUid — trigger a new fetch for them.
-        void doFetch();
-        return;
-      }
+      // Discard if user changed while fetch was in-flight
+      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
-      clearTimeout(safetyNetId);
       console.error("[UserLibraryProvider] Fetch error:", err);
-      if (fetchUid !== currentFetchUid) {
-        isFetching = false;
-        void doFetch();
-        return;
-      }
+      // Discard if user changed while fetch was in-flight
+      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setError("Failed to load your library.");
       setLoading(false);
     } finally {
@@ -157,10 +131,22 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * the second call, meaning the duplicate trigger was wasted. The
    * createEffect alone is sufficient for all auth state transitions
    * (sign-in, sign-out, OAuth redirect, token refresh).
+   *
+   * Safety-net: if loading is still true after 15 seconds (vault fetch
+   * hung or auth never resolved), force loading=false so the UI unblocks.
    */
   createEffect(() => {
     if (authReady() && isSignedIn()) {
       doFetch();
+      // Safety-net: unblock UI if the vault fetch hangs (network issues, etc.)
+      const safetyTimer = setTimeout(() => {
+        if (isFetching) {
+          console.warn("[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI");
+          setLoading(false);
+          isFetching = false;
+        }
+      }, 15000);
+      void safetyTimer; // reference to suppress unused-var lint
     } else if (authReady() && !isSignedIn()) {
       // Clear library when signed out (guest mode)
       setWatchlist([]);

@@ -79,15 +79,6 @@ export function useProfileData() {
 
   const uid = createMemo(() => user()?.uid ?? null);
 
-  // In-flight guard: prevents concurrent duplicate fetches when
-  // createEffect fires rapidly (e.g., auth state changes during
-  // session refresh). Without this, multiple doFetch() calls race
-  // and the second call's setFetching(true) can be overwritten by
-  // the first call's finally { setFetching(false) }, leaving
-  // fetching() in an inconsistent state.
-  let isFetchingProfile = false;
-  let lastFetchUid: string | null = null;
-
   // The loader: fetch the profile row, then enrich favorites with TMDB.
   const loader = async (): Promise<ProfileData | null> => {
     const id = uid();
@@ -122,40 +113,32 @@ export function useProfileData() {
   // Client-only fetch. During SSR, this effect does not run, so data
   // stays null and loading stays true (from authReady being false),
   // which causes the skeleton to render.
+  let fetchingUid: string | null = null; // guard against concurrent doFetch calls
   const doFetch = async () => {
     if (isServer) return;
     const id = uid();
     if (!id) return;
-
-    // In-flight guard: skip if already fetching for this uid.
-    if (isFetchingProfile && lastFetchUid === id) return;
-    isFetchingProfile = true;
-    lastFetchUid = id;
+    // Guard: if already fetching for this uid, skip to avoid double-fetch
+    if (fetchingUid === id) return;
+    fetchingUid = id;
 
     setFetching(true);
     setFetchError(null);
     try {
-      // 8-second safety-net timeout: if Supabase or TMDB is slow/
-      // unreachable, the fetch would hang indefinitely, keeping
-      // fetching()=true and showing the skeleton forever.
+      // 8-second timeout: Supabase queries should resolve quickly. If not,
+      // release the skeleton so the page doesn't stay blank forever.
       const result = await Promise.race([
         loader(),
-        new Promise<null>((resolve) =>
-          setTimeout(() => {
-            console.warn("[useProfileData] Fetch timed out (8s)");
-            resolve(null);
-          }, 8_000)
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Profile load timed out")), 8000)
         ),
       ]);
-      // Discard stale result if uid changed during fetch
-      if (lastFetchUid !== id) return;
       setData(result);
     } catch (err) {
-      if (lastFetchUid !== id) return;
       console.error("[useProfileData] Fetch failed:", err);
       setFetchError(err instanceof Error ? err : new Error(String(err)));
     } finally {
-      isFetchingProfile = false;
+      fetchingUid = null;
       setFetching(false);
     }
   };

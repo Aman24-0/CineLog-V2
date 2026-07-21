@@ -82,8 +82,6 @@ export function vaultRowToWatchlistItem(
     watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
-    isFavorite: row.is_favorite ?? false,
-    isPinned: row.is_pinned ?? false,
     // ── Re-watch tracking (movies + series) ──────────────────────────
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],

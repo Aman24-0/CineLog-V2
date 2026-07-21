@@ -7,17 +7,7 @@ import { DEFAULT_THEME, THEMES, Theme } from "./themes";
 // localStorage on the client (see onMount below). This prevents
 // "localStorage is not defined" crashes if this module is ever imported
 // during SSR.
-// The try/catch also guards against edge cases where isServer hasn't been
-// fully resolved yet during module evaluation in certain bundler scenarios.
-let stored: string | null = null;
-if (!isServer) {
-  try {
-    stored = localStorage.getItem("cinelog_theme");
-  } catch {
-    // localStorage may be unavailable (private browsing, SSR hydration, etc.)
-    stored = null;
-  }
-}
+const stored = isServer ? null : localStorage.getItem("cinelog_theme");
 
 // Runtime-validated theme set — used by the type guard below to narrow
 // the untyped localStorage string into a Theme without an `as` cast
@@ -49,16 +39,12 @@ export const [theme, setTheme] = createSignal<Theme>(
 // We also keep the class on <body> for backwards-compat with any rules
 // that specifically select `body.theme-*`.
 if (!isServer) {
-  try {
-    document.documentElement.classList.add(`theme-${theme()}`);
-    // Guard body access — during early hydration document.body may not
-    // be available yet if this module is imported before the body element
-    // is fully parsed.
-    if (document.body) {
-      document.body.classList.add(`theme-${theme()}`);
-    }
-  } catch {
-    // document may be unavailable in edge-case SSR hydration scenarios
+  document.documentElement.classList.add(`theme-${theme()}`);
+  // Guard body access — during early hydration document.body may not
+  // be available yet if this module is imported before the body element
+  // is fully parsed.
+  if (document.body) {
+    document.body.classList.add(`theme-${theme()}`);
   }
 }
 

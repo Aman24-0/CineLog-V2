@@ -13,7 +13,7 @@
 // setSelectedItem-directly pattern (avoids the modal reopen bug),
 // and the close-to-navigate behavior.
 
-import { createResource, Show, createEffect } from "solid-js";
+import { createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
@@ -83,26 +83,35 @@ export default function TvDeepLinkRoute() {
   //
   // We call setSelectedItem() DIRECTLY (not openTitle) to avoid the
   // modal-reopen bug. See /movie/[id].tsx for the full rationale.
-  //
-  // Uses createEffect instead of setInterval polling — the effect
-  // automatically re-runs when its reactive dependencies (meta(),
-  // vaultLoading(), authReady()) change, so the modal opens immediately
-  // when all conditions are met with zero wasted CPU cycles.
   let opened = false;
-  createEffect(() => {
-    if (opened) return;
-    const m = meta();
-    if (!m) return;
-    if (vaultLoading()) return;
-    if (!authReady()) return;
+  onMount(() => {
+    const tryOpen = () => {
+      const m = meta();
+      if (m && !opened && !vaultLoading() && authReady()) {
+        opened = true;
+        const baseItem = buildBaseItem(m);
+        const vaultItem = findInVault(watchlist(), baseItem);
+        setSelectedItem({
+          baseItem: vaultItem ?? baseItem,
+          vaultItem,
+        });
+      }
+    };
 
-    opened = true;
-    const baseItem = buildBaseItem(m);
-    const vaultItem = findInVault(watchlist(), baseItem);
-    setSelectedItem({
-      baseItem: vaultItem ?? baseItem,
-      vaultItem,
-    });
+    tryOpen();
+
+    if (!opened) {
+      const interval = setInterval(() => {
+        tryOpen();
+        if (opened) clearInterval(interval);
+      }, 100);
+      const stopTimer = setTimeout(() => clearInterval(interval), 10_000);
+
+      onCleanup(() => {
+        clearInterval(interval);
+        clearTimeout(stopTimer);
+      });
+    }
   });
 
   // ── Re-update the modal's vaultItem when the vault loads later ────

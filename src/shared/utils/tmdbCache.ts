@@ -61,20 +61,6 @@ function writeLSCache(entries: Array<{ key: string; data: TMDBTitle }>) {
         delete existing[key];
       }
     }
-    // LRU eviction: if still over the cap (500 entries), remove oldest first.
-    // This prevents localStorage from growing unbounded for users with large
-    // vaults, which would cause QuotaExceededError.
-    const MAX_LS_ENTRIES = 500;
-    const entries_arr = Object.entries(existing);
-    if (entries_arr.length > MAX_LS_ENTRIES) {
-      // Sort by expiresAt ascending (oldest/closest to expiry first)
-      entries_arr.sort((a, b) => a[1].expiresAt - b[1].expiresAt);
-      // Remove the oldest entries beyond the cap
-      const toRemove = entries_arr.length - MAX_LS_ENTRIES;
-      for (let i = 0; i < toRemove; i++) {
-        delete existing[entries_arr[i][0]];
-      }
-    }
     localStorage.setItem(LS_KEY, JSON.stringify(existing));
   } catch {
     // localStorage full or unavailable — silently skip
@@ -127,20 +113,16 @@ export async function fetchCachedMetadataBatch(
   const serverMap = new Map<string, TMDBTitle>();
 
   try {
-    // Batch in chunks of 200 to avoid URL length limits.
-    // Each chunk fetch has a 5-second AbortController timeout.
-    // If the server route is slow/unreachable, the fetch would hang
-    // indefinitely, blocking the entire vault load pipeline (since
-    // fetchCachedMetadataBatch is called from userLibraryAdapter
-    // which is awaited by useUserLibrary). The timeout ensures vault
-    // loading completes even if the cache server is down.
+    // Batch in chunks of 200 to avoid URL length limits
     const CHUNK_SIZE = 200;
     for (let i = 0; i < missingKeys.length; i += CHUNK_SIZE) {
       const chunk = missingKeys.slice(i, i + CHUNK_SIZE);
       const keysParam = chunk.join(",");
+      // 5-second timeout: if the tmdb-cache API is slow, fall back to
+      // direct TMDB fetches rather than blocking the vault load.
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 5_000);
         const res = await fetch(`/api/tmdb-cache?keys=${encodeURIComponent(keysParam)}`, {
           signal: controller.signal,
         });
@@ -156,12 +138,8 @@ export async function fetchCachedMetadataBatch(
           }
         }
       } catch (chunkErr) {
-        if (chunkErr instanceof DOMException && chunkErr.name === "AbortError") {
-          console.warn(`[tmdbCache] Chunk fetch timed out (5s), falling back to TMDB API for ${chunk.length} keys`);
-        } else {
-          console.warn(`[tmdbCache] Chunk fetch failed:`, chunkErr);
-        }
-        continue;
+        clearTimeout(timeoutId);
+        console.warn("[tmdbCache] Chunk fetch failed (timeout or network):", chunkErr);
       }
     }
   } catch (err) {

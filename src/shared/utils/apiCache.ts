@@ -9,7 +9,6 @@
  * TTL:
  *   TMDB: 10 minutes (600,000 ms)
  *   OMDb: 24 hours (86,400,000 ms)
- *   Error backoff: 30 seconds
  *
  * No persistence — cache is per-session (cleared on page reload).
  * SSR-safe: the cache is module-level and only populated on the client.
@@ -24,26 +23,18 @@ interface CacheEntry<T> {
   readonly expiresAt: number;
 }
 
-/** Negative cache entry — records that a key recently failed. */
-interface NegativeEntry {
-  readonly error: unknown;
-  readonly expiresAt: number;
-}
-
 // ---------------------------------------------------------------------------
 // TTL constants
 // ---------------------------------------------------------------------------
 
-export const TMDB_TTL = 10 * 60 * 1000;      // 10 minutes
+export const TMDB_TTL = 10 * 60 * 1000;   // 10 minutes
 export const OMDb_TTL = 24 * 60 * 60 * 1000; // 24 hours
-const NEGATIVE_TTL = 30 * 1000;              // 30 seconds (error backoff)
 
 // ---------------------------------------------------------------------------
 // Cache storage
 // ---------------------------------------------------------------------------
 
 const cache = new Map<string, CacheEntry<unknown>>();
-const negativeCache = new Map<string, NegativeEntry>();
 const inFlight = new Map<string, Promise<unknown>>();
 
 // ---------------------------------------------------------------------------
@@ -81,20 +72,6 @@ export function getCached<T>(key: string): T | undefined {
 }
 
 /**
- * Check if a key has a recent negative (error) cache entry.
- * Returns the cached error if so, undefined otherwise.
- */
-function getNegativeCached(key: string): unknown | undefined {
-  const entry = negativeCache.get(key);
-  if (!entry) return undefined;
-  if (Date.now() > entry.expiresAt) {
-    negativeCache.delete(key);
-    return undefined;
-  }
-  return entry.error;
-}
-
-/**
  * Store a value in the cache with the given TTL.
  */
 export function setCached<T>(key: string, value: T, ttl: number): void {
@@ -114,19 +91,14 @@ export function getInFlight<T>(key: string): Promise<T> | undefined {
  */
 export function setInFlight<T>(key: string, promise: Promise<T>): void {
   inFlight.set(key, promise);
-  // Clean up after resolution/rejection.
-  // The .catch(() => {}) swallows the derived rejected promise that
-  // .finally() creates when the original promise rejects — without it,
-  // the rejected derived promise is unhandled and crashes SSR / triggers
-  // browser `unhandledrejection` events.
-  promise.finally(() => inFlight.delete(key)).catch(() => {});
+  // Clean up after resolution/rejection
+  promise.finally(() => inFlight.delete(key));
 }
 
 /**
  * Cached fetch wrapper for API calls.
  *
  * - If the result is cached and fresh, returns immediately (no network).
- * - If the key recently failed (negative cache), re-throws immediately.
  * - If an identical request is already in-flight, shares the Promise.
  * - Otherwise, makes the network request, caches the result, and returns.
  *
@@ -140,34 +112,23 @@ export async function cachedFetch<T>(
   ttl: number,
   fetcher: () => Promise<T>
 ): Promise<T> {
-  // 1. Check positive cache
+  // 1. Check cache
   const cached = getCached<T>(key);
   if (cached !== undefined) return cached;
 
-  // 2. Check negative cache (recent failures)
-  const recentError = getNegativeCached(key);
-  if (recentError !== undefined) throw recentError;
-
-  // 3. Check in-flight
+  // 2. Check in-flight
   const existing = getInFlight<T>(key);
   if (existing) return existing;
 
-  // 4. Make the request
+  // 3. Make the request
   const promise = fetcher();
   setInFlight(key, promise);
 
-  try {
-    const result = await promise;
-    setCached(key, result, ttl);
-    return result;
-  } catch (err) {
-    // Cache the error for a short TTL to prevent retry storms on
-    // persistent failures (bad API key, rate limits, etc.).
-    // Without this, every render/navigation re-attempts the same failing
-    // request, creating a thundering-herd problem especially during SSR.
-    negativeCache.set(key, { error: err, expiresAt: Date.now() + NEGATIVE_TTL });
-    throw err;
-  }
+  // Don't cache errors — let the next call retry. The await re-throws
+  // naturally if the promise rejects, so no try/catch wrapper needed.
+  const result = await promise;
+  setCached(key, result, ttl);
+  return result;
 }
 
 /**
@@ -178,5 +139,4 @@ export async function cachedFetch<T>(
  */
 export function clearCache(): void {
   cache.clear();
-  negativeCache.clear();
 }

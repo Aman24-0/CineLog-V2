@@ -163,22 +163,18 @@ const useCollectionsLogic = () => {
       // each check for Favorites concurrently, find none, and each
       // create a duplicate. Awaiting ensures the check+create completes
       // before the collection list is refreshed.
-      //
-      // TIMEOUT: 5-second safety net. If Supabase is slow/unreachable,
-      // ensureFavoritesExistsInSupabase() could hang indefinitely,
-      // keeping loading=true and showing a skeleton forever. After the
-      // timeout, we proceed with refreshCollections anyway — the
-      // Favorites collection will be created on the next successful
-      // loadForUid call.
+      // Timeout guard (5 s): if Supabase is slow/unreachable, don't block
+      // the entire collections page in skeleton state indefinitely.
       try {
         await Promise.race([
           ensureFavoritesExistsInSupabase(supabaseUid),
-          new Promise<void>((_, reject) =>
-            setTimeout(() => reject(new Error("ensureFavoritesExists timed out (5s)")), 5_000)
-          ),
+          new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
         ]);
       } catch (err) {
-        console.error("[useCollections] ensureFavoritesExists failed:", err);
+        // Non-fatal: collections still load even if Favorites creation fails/times out.
+        if ((err as Error)?.message !== "timeout") {
+          console.error("[useCollections] ensureFavoritesExists failed:", err);
+        }
       }
       await Promise.all([
         refreshCollections(supabaseUid),
@@ -358,7 +354,6 @@ const useCollectionsLogic = () => {
       );
 
       await removeEntryFromCollectionByTmdbId(uid, collectionId, entryId, mediaType as "movie" | "tv");
-      showToast("Removed from collection.", "info", 1200);
     } catch (err) {
       setUserCollections(snapshot);
       console.error("Failed to remove:", err);

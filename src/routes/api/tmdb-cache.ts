@@ -142,14 +142,12 @@ export async function GET(event: APIEvent) {
       });
     }
 
-    // Build a map of key → data, excluding expired entries.
-    // Rows with null expires_at are treated as non-expiring (they
-    // should always be included).
+    // Build a map of key → data, excluding expired entries
     const now = new Date().toISOString();
     const result: Record<string, unknown> = {};
     for (const row of (data ?? []) as TmdbCacheRow[]) {
-      // Include if no expiry set, or not yet expired
-      if (!row.expires_at || row.expires_at > now) {
+      // Only include non-expired entries
+      if (row.expires_at && row.expires_at > now) {
         const key = `${row.media_type}/${row.tmdb_id}`;
         result[key] = row.data;
       }

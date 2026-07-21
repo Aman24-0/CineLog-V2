@@ -46,7 +46,8 @@ export async function discoverMovies(opts: {
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": String(opts.voteCountGte ?? 100),
-    page: String(opts.page ?? 1)
+    page: String(opts.page ?? 1),
+    include_adult: "false"
   });
   if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
   if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
@@ -176,7 +177,8 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
     api_key: TMDB_KEY,
     language: "en-US",
     query,
-    page: "1"
+    page: "1",
+    include_adult: "false"
   });
   const res = await cachedFetch(
     buildCacheKey("tmdb:search/multi", { q: query }),
@@ -205,18 +207,12 @@ export async function fetchTitleDirector(
   mediaType: "movie" | "tv",
   id: number | string
 ): Promise<string | undefined> {
-  const res = await cachedFetch(
-    buildCacheKey("tmdb:credits", { type: mediaType, id: String(id) }),
-    TMDB_TTL,
-    async () => {
-      const r = await fetch(
-        `${API}/${mediaType}/${id}/credits?api_key=${TMDB_KEY}&language=en-US`
-      );
-      if (!r.ok) throw new Error(`fetchTitleDirector failed: ${r.status}`);
-      return r.json();
-    }
+  const res = await fetch(
+    `${API}/${mediaType}/${id}/credits?api_key=${TMDB_KEY}&language=en-US`
   );
-  const crew: Array<{ job: string; name: string; department?: string }> = res.crew || [];
+  if (!res.ok) return undefined;
+  const json = await res.json();
+  const crew: Array<{ job: string; name: string; department?: string }> = json.crew || [];
   // Movies: look for "Director". TV: look for "Creator" (sometimes "Executive Producer").
   if (mediaType === "movie") {
     const dir = crew.find((c) => c.job === "Director");
@@ -391,6 +387,7 @@ export async function discoverMoviesWithProvider(
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": "50",
     page: String(opts.page ?? 1),
+    include_adult: "false",
     with_watch_providers: String(providerId),
     watch_region: region,
   });
@@ -427,6 +424,7 @@ export async function discoverTvWithProvider(
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": "50",
     page: String(opts.page ?? 1),
+    include_adult: "false",
     with_watch_providers: String(providerId),
     watch_region: region,
   });

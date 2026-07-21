@@ -15,16 +15,6 @@ import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/c
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
-// Runtime guard: if TMDB_KEY is missing, all TMDB requests will fail with
-// 401 (the URL becomes &api_key=undefined). Warn early so developers
-// don't waste time debugging mysterious API failures.
-if (!TMDB_KEY && typeof console !== "undefined") {
-  console.warn(
-    "[CineLog] VITE_TMDB_API_KEY is not set. All TMDB API requests will fail. " +
-    "Add it to your .env file (see .env.example)."
-  );
-}
-
 const IMG_BASE = "https://image.tmdb.org/t/p";
 const API = "https://api.themoviedb.org/3";
 
@@ -72,23 +62,18 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
     buildCacheKey(`tmdb:${finalEndpoint}`),
     TMDB_TTL,
     async () => {
-      // 10-second AbortController timeout prevents the fetch from hanging
-      // indefinitely if TMDB is unreachable. Without this, createResource
-      // suspends the DetailsModal component forever, keeping the Suspense
-      // spinner visible with no way to dismiss it.
+      // 10-second timeout prevents the Details modal from hanging forever
+      // when the network is slow or TMDB is unreachable. Without this,
+      // fetch() hangs indefinitely and the Details modal shows only a
+      // circle spinner with no way to dismiss it (other than back button).
       const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10_000);
+      const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
         const res = await fetch(`${API}${finalEndpoint}&api_key=${TMDB_KEY}`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
         return res.json() as Promise<T>;
-      } catch (err) {
-        if (controller.signal.aborted) {
-          throw new Error(`TMDB request timed out (10s): ${endpoint}`);
-        }
-        throw err;
       } finally {
         clearTimeout(timeoutId);
       }

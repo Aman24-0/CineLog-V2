@@ -98,10 +98,6 @@ export interface WatchlistItem {
   tag?: string;
   seasonDates?: Record<string, { start: string; end: string }>;
   franchises?: Record<string, number>;
-  /** Whether the user has marked this item as a favorite. Mapped from vault.is_favorite. */
-  isFavorite?: boolean;
-  /** Whether the user has pinned this item. Mapped from vault.is_pinned. */
-  isPinned?: boolean;
   watchProgress?: WatchProgress;
   addedAt?: { seconds: number; nanoseconds: number } | string | Date;
   updatedAt?: string;

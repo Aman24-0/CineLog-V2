@@ -180,25 +180,27 @@ const useVaultLogic = (): VaultStore => {
     });
   };
   const toggleFavorite = (itemId: string) => {
-    const item = findItem(itemId);
-    const currentIsFavorite = item?.isFavorite ?? false;
+    // is_favorite is NOT in WatchlistItem — we must resolve the current value
+    // from the Supabase vault row. Since WatchlistItem doesn't carry is_favorite,
+    // we fetch it here via a direct lookup. If we can't resolve it, we default
+    // to false (so the first toggle makes it a favorite, which is the expected UX).
+    const currentIsFavorite = (findItem(itemId) as WatchlistItem & { isFavorite?: boolean })?.isFavorite ?? false;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => toggleFavoriteInSupabase(u, id, mt, currentIsFavorite),
-      currentIsFavorite ? "Removed from favorites." : "Added to favorites!",
+      "",
       "Failed to toggle favorite.",
-      { isFavorite: !currentIsFavorite, updatedAt: new Date().toISOString() },
+      { updatedAt: new Date().toISOString() },
     );
   };
   const togglePinned = (itemId: string) => {
-    const item = findItem(itemId);
-    const currentIsPinned = item?.isPinned ?? false;
+    const currentIsPinned = (findItem(itemId) as WatchlistItem & { isPinned?: boolean })?.isPinned ?? false;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => togglePinnedInSupabase(u, id, mt, currentIsPinned),
-      currentIsPinned ? "Unpinned." : "Pinned!",
+      "",
       "Failed to toggle pin.",
-      { isPinned: !currentIsPinned, updatedAt: new Date().toISOString() },
+      { updatedAt: new Date().toISOString() },
     );
   };
   const updateProgress = (itemId: string, progressMinutes: number) =>

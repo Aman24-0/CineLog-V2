@@ -55,7 +55,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="explore"
         label="Discover"
-        active={path() === "/discover" || path() === "/"}
+        active={path() === "/discover" || path() === "/search"}
         onClick={() => go("/discover")}
       />
 

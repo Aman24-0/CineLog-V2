@@ -1,5 +1,5 @@
 // src/shared/ui/SafeImage.tsx
-import { Show, createSignal, createEffect, type Component, type JSX } from "solid-js";
+import { Show, createSignal, type Component, type JSX } from "solid-js";
 
 /**
  * SafeImage — defensive <img> wrapper with built-in load-error fallback.
@@ -56,17 +56,6 @@ export interface SafeImageProps {
 
 const SafeImage: Component<SafeImageProps> = (props) => {
   const [errored, setErrored] = createSignal(false);
-
-  // Reset error state when src changes — otherwise a previous failed
-  // image would show the fallback forever, even for a valid new URL
-  // (especially important in <For> loops where items may be recycled).
-  let prevSrc = props.src;
-  createEffect(() => {
-    if (props.src !== prevSrc) {
-      setErrored(false);
-      prevSrc = props.src;
-    }
-  });
 
   const showFallback = () => !props.src || errored();
 

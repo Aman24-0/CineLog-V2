@@ -66,6 +66,7 @@ import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import LazyMount from "./components/LazyMount";
+import DiscoverEmptyState from "./components/DiscoverEmptyState";
 import { DiscoverSection } from "./components/DiscoverSection";
 import { DiscoverSectionError } from "./components/DiscoverSectionError";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
@@ -81,7 +82,7 @@ import { useSearch } from "~/features/search/useSearch";
 import SearchResults from "~/features/search/SearchResults";
 
 export default function DiscoverPage() {
-  const { watchlist, isGuest, loading: vaultLoading } = useUserLibrary();
+  const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Feature flags — fetched once on app load via /api/feature-flags.
@@ -362,23 +363,12 @@ export default function DiscoverPage() {
     return cards;
   });
 
-  // Loading state — true while the Discover feeds (Trending, Theatres,
-  // etc.) are being fetched. We do NOT gate on vaultLoading because the
-  // vault fetch can take 5-15 seconds for large libraries, and the
-  // non-personalized sections (Trending, Theatres, Top Rated, Hidden
-  // Gems, New Seasons, Coming Soon) have zero dependency on the vault.
-  //
-  // Previously gating on vaultLoading meant the entire Discover page
-  // (all 16 sections) showed a skeleton until the vault resolved — even
-  // though the feeds were already loaded and ready to render. The
-  // personalized sections (Continue Your Universes, Because You Love,
-  // Step Outside) already gate on their own data via <Show> conditions,
-  // so they naturally appear once the vault arrives.
-  //
-  // The vault filter (`excludeVault`) also gracefully handles an empty
-  // vault (returns the full unfiltered feed), so there is no flash of
-  // unfiltered content even when the vault hasn't loaded yet.
-  const isLoading = createMemo(() => feeds.loading());
+  // Loading state — true only during the initial feeds fetch (first paint).
+  // We deliberately do NOT gate on vaultLoading() here: blocking the entire
+  // Discover page until the vault fetches (2–15 seconds for large vaults)
+  // prevented all feeds from showing. Generic sections (Trending, Top Rated,
+  // etc.) are visible immediately; personalized sections gate on their own data.
+  const isLoading = createMemo(() => feeds.loading() && trendingFeed().length === 0 && nowPlayingFeed().length === 0);
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
