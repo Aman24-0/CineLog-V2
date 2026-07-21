@@ -42,6 +42,8 @@ export interface AdminSession {
 export interface LoginResult {
   ok: boolean;
   error?: string;
+  /** Optional debug detail from the server (e.g. env-var misconfiguration). */
+  detail?: string;
   admin?: AdminSession;
 }
 
@@ -73,6 +75,19 @@ async function fetchJSON(url: string, init?: RequestInit): Promise<unknown> {
     // ignore JSON parse errors
   }
   return body;
+}
+
+/**
+ * Build the user-facing error string from a LoginResult. If the server
+ * included a `detail` field (used for env-var misconfiguration errors),
+ * append it so the operator can see the root cause without checking logs.
+ */
+function formatLoginError(result: { error?: string; detail?: string }): string {
+  const base = result.error ?? "Login failed";
+  if (result.detail) {
+    return `${base} — ${result.detail}`;
+  }
+  return base;
 }
 
 // ─── Public hook ──────────────────────────────────────────────────
@@ -113,7 +128,7 @@ export function useAdminAuth() {
           setAdmin(body.admin);
           return { ok: true, admin: body.admin };
         }
-        const errMsg = body?.error ?? "Login failed";
+        const errMsg = formatLoginError(body);
         setLoginError(errMsg);
         return { ok: false, error: errMsg };
       } catch (err) {
@@ -175,7 +190,7 @@ export function useAdminAuth() {
           setAdmin(body.admin);
           return { ok: true, admin: body.admin };
         }
-        const errMsg = body?.error ?? "Login failed";
+        const errMsg = formatLoginError(body);
         setLoginError(errMsg);
         return { ok: false, error: errMsg };
       } catch (err) {

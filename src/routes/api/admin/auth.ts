@@ -365,10 +365,30 @@ async function verifyProfileAndIssueAdmin(
   // 3. All checks passed — clear rate limit, sign JWT, log
   clearFailures(ip);
 
-  const token = signAdminToken({
-    admin_id: profile.id,
-    email,
-  });
+  let token: string;
+  try {
+    token = signAdminToken({
+      admin_id: profile.id,
+      email,
+    });
+  } catch (signErr) {
+    // signAdminToken throws if ADMIN_JWT_SECRET is missing or too short.
+    // Surface a clearer error than the generic outer-catch "Server error"
+    // so the operator can fix the env var without digging through logs.
+    console.error("[CineLog Admin] signAdminToken failed:", signErr);
+    return {
+      ok: false,
+      response: jsonResponse(
+        {
+          ok: false,
+          error:
+            "Server misconfiguration: ADMIN_JWT_SECRET is missing or too short. " +
+            "Generate a 32+ character random string and set it in the Vercel env vars.",
+        },
+        500,
+      ),
+    };
+  }
 
   // Best-effort audit log
   try {
@@ -547,7 +567,14 @@ export async function POST(event: APIEvent) {
     return result.response;
   } catch (err) {
     console.error("[CineLog Admin] Login error:", err);
-    return jsonResponse({ ok: false, error: "Server error" }, 500);
+    // Include the error message in the response so the operator can see
+    // what threw without needing to dig through Vercel logs. The message
+    // is generic enough not to leak sensitive info (no secrets in msg).
+    const detail = err instanceof Error ? err.message : String(err);
+    return jsonResponse(
+      { ok: false, error: "Server error", detail: detail.slice(0, 200) },
+      500,
+    );
   }
 }
 
