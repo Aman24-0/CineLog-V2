@@ -1,4 +1,5 @@
 import { ParentComponent, lazy, Suspense, Show, createMemo } from "solid-js";
+import { useLocation } from "@solidjs/router";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
@@ -56,58 +57,80 @@ const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
   const { collectionSelectedItem } = useCollectionModal();
   const { authModalOpen, closeAuthModal } = useAuthModal();
+  const location = useLocation();
+
+  // Admin routes render their own layout (AdminShell) with its own sidebar,
+  // top bar, and auth gate. They must NOT be wrapped in the consumer AppShell
+  // chrome (AppHeader + AnnouncementsBanner + BottomNavigation), otherwise:
+  //   1. The consumer Discover/Watchlist/Collections bottom nav leaks into
+  //      the admin panel (user-reported issue).
+  //   2. The consumer layout's padding-bottom (for the bottom nav) conflicts
+  //      with the admin sidebar's sticky positioning, producing a blank page
+  //      on /admin/collections.
+  // Admin routes still need the providers (UserLibraryProvider, VaultProvider,
+  // CollectionsProvider) wrapped in app.tsx, so we keep them inside AppShell
+  // but bypass all consumer chrome.
+  const isAdminRoute = createMemo(() => location.pathname.startsWith("/admin"));
 
   // Any modal open → background is inert (hidden from AT + non-focusable)
   const anyModalOpen = createMemo(() =>
     !!selectedItem() || !!collectionSelectedItem() || !!authModalOpen(),
   );
 
+  // Admin routes: render children bare — no consumer chrome, no padding,
+  // no inert handling (admin pages don't use DetailsModal/CollectionModal/
+  // AuthModal from the consumer app).
   return (
-    <div
-      class="min-h-screen app-shell-bg"
-      style={{
-        "padding-bottom": "var(--nav-total-height)",
-        background: "var(--void)",
-        color: "var(--text)",
-      }}
-      // `inert` when a modal is open — hides this entire subtree from
-      // the accessibility tree AND removes all focusable descendants
-      // from the tab order. This is the WCAG-compliant way to handle
-      // modal background content.
-      inert={anyModalOpen()}
-      // aria-hidden is redundant with inert but added for older
-      // browsers / screen readers that don't support inert yet.
-      aria-hidden={anyModalOpen() ? "true" : undefined}
-    >
-      <AppHeader />
+    <Show when={isAdminRoute()} fallback={
+      <div
+        class="min-h-screen app-shell-bg"
+        style={{
+          "padding-bottom": "var(--nav-total-height)",
+          background: "var(--void)",
+          color: "var(--text)",
+        }}
+        // `inert` when a modal is open — hides this entire subtree from
+        // the accessibility tree AND removes all focusable descendants
+        // from the tab order. This is the WCAG-compliant way to handle
+        // modal background content.
+        inert={anyModalOpen()}
+        // aria-hidden is redundant with inert but added for older
+        // browsers / screen readers that don't support inert yet.
+        aria-hidden={anyModalOpen() ? "true" : undefined}
+      >
+        <AppHeader />
 
-      <AnnouncementsBanner />
+        <AnnouncementsBanner />
 
+        {props.children}
+
+        <ToastContainer />
+
+        <BottomNavigation />
+
+        {/* Auth modal — opened from any page when a guest tries to sign in */}
+        <AuthModal show={authModalOpen} onClose={closeAuthModal} />
+
+        {/* Details modal — opened from Vault, Discover, Search, or Collection */}
+        <Show when={selectedItem()}>
+          <Suspense fallback={null}>
+            <DetailsModal />
+          </Suspense>
+        </Show>
+
+        {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
+            Rendered at z-[999998] — below Details (z-[999999]) so if both are
+            open, Details paints on top. In practice only one is open at a time. */}
+        <Show when={collectionSelectedItem()}>
+          <Suspense fallback={null}>
+            <CollectionModal />
+          </Suspense>
+        </Show>
+      </div>
+    }>
+      {/* Admin route: bare render — AdminShell handles its own layout */}
       {props.children}
-
-      <ToastContainer />
-
-      <BottomNavigation />
-
-      {/* Auth modal — opened from any page when a guest tries to sign in */}
-      <AuthModal show={authModalOpen} onClose={closeAuthModal} />
-
-      {/* Details modal — opened from Vault, Discover, Search, or Collection */}
-      <Show when={selectedItem()}>
-        <Suspense fallback={null}>
-          <DetailsModal />
-        </Suspense>
-      </Show>
-
-      {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
-          Rendered at z-[999998] — below Details (z-[999999]) so if both are
-          open, Details paints on top. In practice only one is open at a time. */}
-      <Show when={collectionSelectedItem()}>
-        <Suspense fallback={null}>
-          <CollectionModal />
-        </Suspense>
-      </Show>
-    </div>
+    </Show>
   );
 };
 
