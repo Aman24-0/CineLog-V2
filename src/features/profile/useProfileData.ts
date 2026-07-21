@@ -114,6 +114,7 @@ export function useProfileData() {
   // stays null and loading stays true (from authReady being false),
   // which causes the skeleton to render.
   let fetchingUid: string | null = null; // guard against concurrent doFetch calls
+  let isFetchingProfile = false;
   const doFetch = async () => {
     if (isServer) return;
     const id = uid();
@@ -121,35 +122,38 @@ export function useProfileData() {
       // No user signed in — clear any stale data and ensure fetching is false
       setData(null);
       setFetchError(null);
+      setFetching(false);
+      isFetchingProfile = false;
       return;
     }
-    // Guard: if already fetching for this uid, skip to avoid double-fetch
-    if (fetchingUid === id) return;
+    // Guard: if already fetching for this exact uid, skip to avoid double-fetch.
+    // The in-flight fetch's finally block will set fetching=false.
+    if (isFetchingProfile && fetchingUid === id) return;
+
+    isFetchingProfile = true;
     fetchingUid = id;
+    const currentFetchId = id;
 
     setFetching(true);
     setFetchError(null);
     try {
-      // 8-second timeout: Supabase queries should resolve quickly. If not,
-      // release the skeleton so the page doesn't stay blank forever.
-      const result = await Promise.race([
-        loader(),
-        new Promise<null>((_, reject) =>
-          setTimeout(() => reject(new Error("Profile load timed out")), 8000)
-        ),
-      ]);
+      const result = await loader();
       // Discard stale result if user changed while fetch was in-flight
-      if (uid() !== id) return;
+      if (uid() !== currentFetchId) return;
       setData(result);
     } catch (err) {
       console.error("[useProfileData] Fetch failed:", err);
       // Discard stale error if user changed while fetch was in-flight
-      if (uid() !== id) return;
+      if (uid() !== currentFetchId) return;
       setFetchError(err instanceof Error ? err : new Error(String(err)));
       setData(null);
     } finally {
-      fetchingUid = null;
-      setFetching(false);
+      isFetchingProfile = false;
+      // Only clear fetching if this fetch is still the active one
+      if (fetchingUid === currentFetchId) {
+        fetchingUid = null;
+        setFetching(false);
+      }
     }
   };
 

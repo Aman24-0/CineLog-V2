@@ -149,15 +149,24 @@ const useCollectionsLogic = () => {
    * signs in/out) AND from the reactive createEffect below (which
    * catches the initial session that onSessionChange can miss).
    *
-   * Race-safe: tracks the latest in-flight uid so a stale fetch can't
-   * overwrite a fresh one.
+   * Race-safe: uses an isFetching guard keyed by uid. If a fetch for
+   * the SAME uid is already in-flight, duplicate calls are no-ops
+   * (they don't re-set loading=true). If the uid changed while a
+   * previous fetch was running, the old fetch's results are discarded
+   * by the stale-uid check in the finally block.
    */
   let lastFetchUid: string | null = null;
+  let isFetchingCollections = false;
   const loadForUid = async (supabaseUid: string | null) => {
     if (supabaseUid) {
-      // Skip if a fetch for this uid is already in flight.
-      if (lastFetchUid === supabaseUid) return;
+      // If already fetching for this exact uid, skip the duplicate.
+      // CRITICAL: do NOT return without ensuring loading is eventually
+      // set to false. The in-flight fetch's finally block handles that.
+      if (isFetchingCollections && lastFetchUid === supabaseUid) return;
+
+      isFetchingCollections = true;
       lastFetchUid = supabaseUid;
+      const currentFetchUid = supabaseUid;
       setLoading(true);
       try {
         // AWAIT ensureFavoritesExists BEFORE refreshing collections.
@@ -190,10 +199,15 @@ const useCollectionsLogic = () => {
         console.error("[useCollections] loadForUid failed:", err);
         setUserCollections([]);
       } finally {
-        setLoading(false);
+        isFetchingCollections = false;
+        // Only clear loading if this fetch is still the active one
+        if (lastFetchUid === currentFetchUid) {
+          setLoading(false);
+        }
       }
     } else {
       lastFetchUid = null;
+      isFetchingCollections = false;
       setUserCollections([]);
       setLoading(false);
     }
