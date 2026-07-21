@@ -71,6 +71,8 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     watchDate,
     addedAt: row.created_at,
     updatedAt: row.updated_at,
+    isFavorite: row.is_favorite ?? false,
+    isPinned: row.is_pinned ?? false,
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],
     seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
@@ -108,12 +110,24 @@ export async function fetchVaultFromSupabase(
   );
 
   const allRows: VaultRow[] = [];
+  const errors: string[] = [];
   for (const result of results) {
     if (result.error) {
       console.error("[vaultAdapter] Error fetching vault status:", result.error);
+      errors.push(String(result.error.message ?? result.error));
       continue;
     }
     allRows.push(...result.data);
+  }
+
+  // If more than half the status fetches failed, the data is likely
+  // incomplete — throw so the UI can show an error state instead of
+  // silently showing partial data. A single failed status (1 of 5) is
+  // tolerable and the user still gets a functional vault view.
+  if (errors.length >= 3) {
+    throw new Error(
+      `[vaultAdapter] Vault fetch failed for ${errors.length}/5 statuses: ${errors.join("; ")}`
+    );
   }
 
   const items = allRows.map(vaultRowToWatchlistItem);

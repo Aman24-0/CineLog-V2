@@ -140,7 +140,7 @@ describe("cachedFetch", () => {
     expect(fetcher).toHaveBeenCalledTimes(1);
   });
 
-  it("does not cache errors — allows retry", async () => {
+  it("caches errors briefly (negative cache) to prevent retry storms", async () => {
     let callCount = 0;
     const fetcher = vi.fn().mockImplementation(async () => {
       callCount++;
@@ -148,25 +148,23 @@ describe("cachedFetch", () => {
       return "success";
     });
 
-    // First call fails. We use process.on('unhandledRejection') to swallow
-    // the floating .finally() rejection from setInFlight (source-code issue,
-    // not a test bug — the .finally() creates an uncought derived promise).
-    const swallow = (err: unknown) => {
-      if (err instanceof Error && err.message === "fail") return;
-      throw err;
-    };
-    process.on("unhandledRejection", swallow);
+    // First call fails and the error is cached for a short TTL (negative cache).
+    // This prevents retry storms on persistent failures.
+    await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow("fail");
+    expect(fetcher).toHaveBeenCalledTimes(1);
 
-    try {
-      await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow("fail");
-      await new Promise((r) => setTimeout(r, 10));
-      // Second call retries and succeeds
-      const result = await cachedFetch("key1", TMDB_TTL, fetcher);
-      expect(result).toBe("success");
-      expect(fetcher).toHaveBeenCalledTimes(2);
-    } finally {
-      process.off("unhandledRejection", swallow);
-    }
+    // Immediate retry within the negative cache TTL re-throws the cached error
+    // WITHOUT calling the fetcher again (prevents thundering herd).
+    await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow("fail");
+    expect(fetcher).toHaveBeenCalledTimes(1); // NOT 2 — fetcher was not called again
+
+    // Clear the cache (including negative entries) to simulate the TTL expiring
+    clearCache();
+
+    // After the negative cache expires, the next call retries and succeeds
+    const result = await cachedFetch("key1", TMDB_TTL, fetcher);
+    expect(result).toBe("success");
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("returns cached value on subsequent calls (no re-fetch)", async () => {

@@ -99,7 +99,11 @@ export function useSearch(args: UseSearchArgs) {
     }
   });
 
-  // Fetch text-search results when the debounced query changes
+  // Fetch text-search results when the debounced query changes.
+  // Uses a generation counter to discard stale results when the user
+  // types quickly — if the query changes while a fetch is in-flight,
+  // the old results are silently discarded.
+  let searchGeneration = 0;
   createEffect(() => {
     if (genreBrowse().genre) return; // Don't run text search in genre mode
     const q = debouncedQuery().trim();
@@ -109,10 +113,13 @@ export function useSearch(args: UseSearchArgs) {
       setError(null);
       return;
     }
+    const gen = ++searchGeneration;
     setLoading(true);
     setError(null);
     searchMulti(q)
       .then((items) => {
+        // Only apply results if no newer search has been fired
+        if (gen !== searchGeneration) return;
         const movies = items.filter((t) => t.media_type === "movie");
         const series = items.filter((t) => t.media_type === "tv");
         setResults({
@@ -123,11 +130,14 @@ export function useSearch(args: UseSearchArgs) {
         });
       })
       .catch((err) => {
+        if (gen !== searchGeneration) return;
         console.error("Search failed:", err);
         setError("Search failed. Please try again.");
         setResults(emptyResults());
       })
-      .finally(() => setLoading(false));
+      .finally(() => {
+        if (gen === searchGeneration) setLoading(false);
+      });
   });
 
   /* ---- GENRE BROWSE ---- */

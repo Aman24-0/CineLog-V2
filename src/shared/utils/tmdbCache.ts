@@ -61,6 +61,20 @@ function writeLSCache(entries: Array<{ key: string; data: TMDBTitle }>) {
         delete existing[key];
       }
     }
+    // LRU eviction: if still over the cap (500 entries), remove oldest first.
+    // This prevents localStorage from growing unbounded for users with large
+    // vaults, which would cause QuotaExceededError.
+    const MAX_LS_ENTRIES = 500;
+    const entries_arr = Object.entries(existing);
+    if (entries_arr.length > MAX_LS_ENTRIES) {
+      // Sort by expiresAt ascending (oldest/closest to expiry first)
+      entries_arr.sort((a, b) => a[1].expiresAt - b[1].expiresAt);
+      // Remove the oldest entries beyond the cap
+      const toRemove = entries_arr.length - MAX_LS_ENTRIES;
+      for (let i = 0; i < toRemove; i++) {
+        delete existing[entries_arr[i][0]];
+      }
+    }
     localStorage.setItem(LS_KEY, JSON.stringify(existing));
   } catch {
     // localStorage full or unavailable — silently skip

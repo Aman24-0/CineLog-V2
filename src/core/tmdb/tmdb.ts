@@ -15,6 +15,16 @@ import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/c
 
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
 
+// Runtime guard: if TMDB_KEY is missing, all TMDB requests will fail with
+// 401 (the URL becomes &api_key=undefined). Warn early so developers
+// don't waste time debugging mysterious API failures.
+if (!TMDB_KEY && typeof console !== "undefined") {
+  console.warn(
+    "[CineLog] VITE_TMDB_API_KEY is not set. All TMDB API requests will fail. " +
+    "Add it to your .env file (see .env.example)."
+  );
+}
+
 const IMG_BASE = "https://image.tmdb.org/t/p";
 const API = "https://api.themoviedb.org/3";
 

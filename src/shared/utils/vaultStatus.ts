@@ -27,13 +27,13 @@ export const STATUS_TO_UI: Record<string, WatchlistItem["status"]> = {
 /**
  * Reverse map: UI Title Case → Supabase lowercase enum.
  */
-export const STATUS_TO_DB: Record<WatchlistItem["status"], string> = {
+export const STATUS_TO_DB = {
   Planned: "planned",
   Watching: "watching",
   Completed: "completed",
   "Plan to Watch": "on_hold",
   Dropped: "dropped",
-} as Record<WatchlistItem["status"], string>;
+} satisfies Record<WatchlistItem["status"], string>;
 
 // ---------------------------------------------------------------------------
 // Timestamp conversion (replaces 3 duplicate toMs functions)

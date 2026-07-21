@@ -1,9 +1,9 @@
 // src/shared/utils/date.ts
 import type { WatchlistItem } from "~/shared/types";
 
-// Firestore returns timestamps as { seconds, nanoseconds } objects (or as
-// Timestamp instances which expose the same shape). Normalize any of those,
-// plus Date / ISO string, to a JS Date — or null if not parseable.
+// Normalize a WatchlistItem date field to a JS Date, or null if not parseable.
+// Handles: Date instances, ISO strings, and Firestore-style { seconds, nanoseconds }
+// objects (kept for backward compatibility with imported V1 backup data).
 const toDate = (value: WatchlistItem["addedAt"]): Date | null => {
   if (!value) return null;
   if (value instanceof Date) return isNaN(value.getTime()) ? null : value;
@@ -11,7 +11,9 @@ const toDate = (value: WatchlistItem["addedAt"]): Date | null => {
     const d = new Date(value);
     return isNaN(d.getTime()) ? null : d;
   }
-  if (typeof value === "object" && typeof value.seconds === "number") {
+  // Firestore Timestamp shape — only present in data imported from V1 backups.
+  // The `seconds` brand check prevents misinterpreting random JSON objects.
+  if (typeof value === "object" && typeof value.seconds === "number" && "nanoseconds" in value) {
     return new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6));
   }
   return null;

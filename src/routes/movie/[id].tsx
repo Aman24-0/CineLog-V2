@@ -51,7 +51,7 @@
 // scrapers see the per-movie title, description, and poster image
 // when they fetch the URL — NO JavaScript execution required.
 
-import { createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import { createResource, Show, createEffect } from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
@@ -132,40 +132,31 @@ export default function MovieDeepLinkRoute() {
   // We call setSelectedItem() DIRECTLY instead of openTitle() to avoid
   // pushing a browser history entry. See "MODAL CLOSE BUG" in the file
   // header for the full rationale.
+  //
+  // Uses createEffect instead of setInterval polling — the effect
+  // automatically re-runs when its reactive dependencies (meta(),
+  // vaultLoading(), authReady()) change, so the modal opens immediately
+  // when all conditions are met with zero wasted CPU cycles.
   let opened = false;
-  onMount(() => {
-    const tryOpen = () => {
-      const m = meta();
-      if (m && !opened && !vaultLoading() && authReady()) {
-        opened = true;
-        const baseItem = buildBaseItem(m);
-        // Find the title in the user's vault (if logged in). For guests,
-        // watchlist() is empty so vaultItem will be null.
-        const vaultItem = findInVault(watchlist(), baseItem);
-        // Set the modal state DIRECTLY — do NOT call openTitle() because
-        // openTitle pushes a history entry that conflicts with our
-        // close-navigate logic (causes the modal to reopen after close).
-        setSelectedItem({
-          baseItem: vaultItem ?? baseItem,
-          vaultItem,
-        });
-      }
-    };
+  createEffect(() => {
+    if (opened) return;
+    const m = meta();
+    if (!m) return;
+    if (vaultLoading()) return;
+    if (!authReady()) return;
 
-    tryOpen();
-
-    if (!opened) {
-      const interval = setInterval(() => {
-        tryOpen();
-        if (opened) clearInterval(interval);
-      }, 100);
-      const stopTimer = setTimeout(() => clearInterval(interval), 10_000);
-
-      onCleanup(() => {
-        clearInterval(interval);
-        clearTimeout(stopTimer);
-      });
-    }
+    opened = true;
+    const baseItem = buildBaseItem(m);
+    // Find the title in the user's vault (if logged in). For guests,
+    // watchlist() is empty so vaultItem will be null.
+    const vaultItem = findInVault(watchlist(), baseItem);
+    // Set the modal state DIRECTLY — do NOT call openTitle() because
+    // openTitle pushes a history entry that conflicts with our
+    // close-navigate logic (causes the modal to reopen after close).
+    setSelectedItem({
+      baseItem: vaultItem ?? baseItem,
+      vaultItem,
+    });
   });
 
   // ── Re-update the modal's vaultItem when the vault loads later ────

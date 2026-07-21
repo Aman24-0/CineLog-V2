@@ -66,7 +66,6 @@ import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import LazyMount from "./components/LazyMount";
-import DiscoverEmptyState from "./components/DiscoverEmptyState";
 import { DiscoverSection } from "./components/DiscoverSection";
 import { DiscoverSectionError } from "./components/DiscoverSectionError";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";

@@ -110,11 +110,11 @@ const TmdbSearchModal: Component<Props> = (props) => {
         // Stale response — a newer search has started; ignore this one.
         if (myId !== requestId) return;
         const filtered: TmdbResult[] = items
-          .filter((it: any) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
-          .map((it: any) => ({
-            tmdb_id: it.id,
-            media_type: it.media_type,
-            title: it.title || it.name || "Untitled",
+          .filter((it: Record<string, unknown>) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
+          .map((it: Record<string, unknown>) => ({
+            tmdb_id: it.id as number,
+            media_type: it.media_type as "movie" | "tv",
+            title: (it.title as string) || (it.name as string) || "Untitled",
             poster_path: it.poster_path ?? null,
             release_date: it.release_date ?? it.first_air_date ?? null,
             overview: it.overview ?? null,

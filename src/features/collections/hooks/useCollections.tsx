@@ -346,6 +346,7 @@ const useCollectionsLogic = () => {
       );
 
       await removeEntryFromCollectionByTmdbId(uid, collectionId, entryId, mediaType as "movie" | "tv");
+      showToast("Removed from collection.", "info", 1200);
     } catch (err) {
       setUserCollections(snapshot);
       console.error("Failed to remove:", err);

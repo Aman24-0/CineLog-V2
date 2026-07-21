@@ -101,14 +101,23 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     setError(null);
     try {
       const items = await fetchUserLibrary(userId);
-      // Discard if user changed while fetch was in-flight
-      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
+      // Discard if user changed while fetch was in-flight.
+      // Reset isFetching first so a new fetch for the new user can proceed.
+      if (fetchUid !== currentFetchUid) {
+        isFetching = false;
+        // The new user's uid is in fetchUid — trigger a new fetch for them.
+        void doFetch();
+        return;
+      }
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
       console.error("[UserLibraryProvider] Fetch error:", err);
-      // Discard if user changed while fetch was in-flight
-      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
+      if (fetchUid !== currentFetchUid) {
+        isFetching = false;
+        void doFetch();
+        return;
+      }
       setError("Failed to load your library.");
       setLoading(false);
     } finally {
