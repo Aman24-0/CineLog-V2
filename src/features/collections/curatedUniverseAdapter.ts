@@ -108,22 +108,46 @@ export async function fetchAllCuratedUniverses(): Promise<Collection[]> {
 }
 
 /**
- * Fetch a single curated universe by its slug, with entries enriched
- * by TMDB metadata. Used by the Collection Detail page.
+ * Fetch a single curated universe by its slug OR id, with entries
+ * enriched by TMDB metadata. Used by the Collection Detail page.
+ *
+ * The route param `id` from `/collections/{id}` can be either:
+ *   - a URL-safe slug (e.g. "marvel-cinematic-universe") — used by the
+ *     admin "Preview as user" link
+ *   - a UUID (e.g. "abc-123-…") — used by the Collections list page
+ *     (`navigate(\`/collections/${uni.id}\`)`)
+ *
+ * We try slug first (cheaper index, more common). If no universe has
+ * that slug, fall back to a primary-key lookup by id. This keeps every
+ * entry point working without forcing callers to know which identifier
+ * they hold.
  *
  * @returns The `Collection`, or null if not found / error.
  */
 export async function fetchCuratedUniverseBySlug(
-  slug: string,
+  slugOrId: string,
 ): Promise<Collection | null> {
   const repo = getDiscoverRepository();
 
-  // 1. Fetch the universe row by slug.
-  const { data: universe, error: universeError } = await repo.getCuratedUniverseBySlug(slug);
-  if (universeError) {
-    console.error("[curatedUniverseAdapter] Error fetching universe by slug:", universeError);
-    return null;
+  // 1. Fetch the universe row — try slug first, fall back to id.
+  let universe: CuratedUniverseRow | null = null;
+
+  const { data: bySlug, error: slugError } = await repo.getCuratedUniverseBySlug(slugOrId);
+  if (slugError) {
+    // Log but don't bail — we still want to try the id lookup.
+    console.error("[curatedUniverseAdapter] Error fetching universe by slug:", slugError);
   }
+  if (bySlug) {
+    universe = bySlug;
+  } else {
+    // No slug match (or slug lookup errored) — try primary-key lookup.
+    const { data: byId, error: idError } = await repo.getCuratedUniverseById(slugOrId);
+    if (idError) {
+      console.error("[curatedUniverseAdapter] Error fetching universe by id:", idError);
+    }
+    universe = byId;
+  }
+
   if (!universe) return null;
 
   // 2. Fetch the universe's entries.

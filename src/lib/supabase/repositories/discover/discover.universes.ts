@@ -252,6 +252,30 @@ export async function getCuratedUniverseBySlug(
 }
 
 /**
+ * Get a single curated universe by its primary key (UUID).
+ *
+ * Used by the Collection Detail page as a fallback when the URL
+ * parameter is a UUID (e.g. `/collections/{uuid}`) rather than a slug.
+ * The Collections list page links to `/collections/{universe.id}` (UUID),
+ * while the admin "Preview as user" link uses `/collections/{slug}`.
+ * Supporting both keeps every entry point working.
+ *
+ * @returns The universe row, or null if not found / error.
+ */
+export async function getCuratedUniverseById(
+  supabase: TypedSupabaseClient,
+  id: string
+): Promise<DiscoverResult<CuratedUniverseRow>> {
+  const { data, error } = await supabase
+    .from(UNIVERSES_TABLE)
+    .select(UNIVERSE_DISCOVER_COLUMNS)
+    .eq("id", id)
+    .maybeSingle();
+
+  return { data: data as CuratedUniverseRow | null, error: toError(error) };
+}
+
+/**
  * Get all entries for a curated universe, ordered by `position` ascending.
  *
  * These are developer-managed entries (Database Bible §08) — the user

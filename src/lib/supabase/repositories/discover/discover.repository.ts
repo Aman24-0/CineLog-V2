@@ -39,6 +39,7 @@ import {
 import {
   getAllCuratedUniverses,
   getCuratedUniverseBySlug,
+  getCuratedUniverseById,
   getCuratedUniverseEntries,
   getRelatedUniverses,
   getSubscribedUniverses,
@@ -146,6 +147,11 @@ export class DiscoverRepository {
   /** Get a single curated universe by its slug (URL-safe identifier). */
   getCuratedUniverseBySlug(slug: string): Promise<DiscoverResult<CuratedUniverseRow>> {
     return getCuratedUniverseBySlug(this.supabase, slug);
+  }
+
+  /** Get a single curated universe by its primary key (UUID). */
+  getCuratedUniverseById(id: string): Promise<DiscoverResult<CuratedUniverseRow>> {
+    return getCuratedUniverseById(this.supabase, id);
   }
 
   /** Get all entries for a curated universe, ordered by position ascending. */
