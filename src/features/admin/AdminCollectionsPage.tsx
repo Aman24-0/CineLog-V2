@@ -5,9 +5,12 @@
 // Lists all curated universes with entry counts. Admins can create,
 // edit metadata, or delete universes (cascade-deletes entries).
 //
-// For adding/removing individual titles within a universe, admins use
-// the existing consumer /collections/[slug]/edit page — that UI is
-// already built and reuses the same DB tables.
+// Clicking "Edit entries" opens the admin-only editor at
+//   /admin/collections/<slug>
+// which is fully separate from the consumer /collections/<slug>/edit
+// page. The admin editor is built for managing universe contents
+// (TMDB search, 4 independent sort indices, per-entry notes) while
+// the consumer page is built for users to personalize their view.
 //
 // Backend:
 //   GET    /api/admin/collections
@@ -275,9 +278,9 @@ const AdminCollectionsPage: Component = () => {
                   </Show>
                   <div style={{ display: "flex", gap: "var(--sp-1)", "margin-top": "auto" }}>
                     <A
-                      href={`/collections/${u.slug}/edit`}
+                      href={`/admin/collections/${u.slug}`}
                       style={linkBtnStyle}
-                      title="Edit entries (consumer page)"
+                      title="Open admin editor for this universe"
                     >
                       ✏️ Edit entries
                     </A>

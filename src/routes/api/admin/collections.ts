@@ -70,7 +70,21 @@ export async function GET(event: APIEvent) {
         .eq("universe_id", id)
         .order("position", { ascending: true });
 
-      return jsonResponse({ universe, entries: entries ?? [] });
+      // Optional subscriber count — added when ?stats=1 is passed.
+      // Used by the admin collection editor to show how many users
+      // have subscribed to this universe.
+      let subscriber_count: number | null = null;
+      if (url.searchParams.get("stats") === "1") {
+        const { count, error: countError } = await supabase
+          .from("user_universe_subscriptions")
+          .select("id", { count: "exact", head: true })
+          .eq("universe_id", id);
+        if (!countError) {
+          subscriber_count = count ?? 0;
+        }
+      }
+
+      return jsonResponse({ universe, entries: entries ?? [], subscriber_count });
     }
 
     const { data, error } = await supabase
