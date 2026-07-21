@@ -60,6 +60,17 @@ interface LoginBody {
   //   - If email + password present  → "password" mode
   //   - Otherwise                    → "session" mode
   mode?: unknown;
+  // Optional access_token for session-mode logins.
+  //
+  // The CineLog browser client stores sessions in `localStorage`, NOT in
+  // cookies, so for OAuth users the session is unreachable from the
+  // server's Cookie header. The admin login page therefore reads
+  // `supabase.auth.getSession()` on the client and sends the resulting
+  // access_token here. We then verify it via `supabase.auth.getUser()`.
+  //
+  // Cookie-based discovery is still supported as a fallback for any
+  // future setup that switches the browser client to cookie storage.
+  accessToken?: unknown;
 }
 
 interface AdminProfileRow {
@@ -421,6 +432,13 @@ export async function POST(event: APIEvent) {
       typeof body.mode === "string" && (body.mode === "password" || body.mode === "session")
         ? body.mode
         : null;
+    // The client may send the access_token explicitly (the common path —
+    // the browser Supabase client stores sessions in localStorage, not
+    // cookies, so the server can't read them from the Cookie header).
+    const bodyAccessToken =
+      typeof body.accessToken === "string" && body.accessToken.trim().length > 0
+        ? body.accessToken.trim()
+        : null;
 
     if (!pin) {
       return jsonResponse({ ok: false, error: "PIN is required." }, 400);
@@ -439,13 +457,15 @@ export async function POST(event: APIEvent) {
 
     // ─── Path A: session-based (OAuth users) ─────────────────────
     //
-    // Read the Supabase access_token from the cookie header and
-    // verify it. This is the path used by users who signed into
-    // the main CineLog app via Google OAuth — they have no password
-    // and their session is stored in the sb-<ref>-auth-token cookie.
+    // Two sources for the access_token, in priority order:
+    //   1. `body.accessToken` — sent explicitly by the admin login
+    //      page. This is the common path because the CineLog browser
+    //      client stores sessions in localStorage, not in cookies.
+    //   2. The `sb-<ref>-auth-token` cookie — used as a fallback if
+    //      the client is ever switched to cookie-based storage.
     if (mode === "session") {
       const cookieHeader = event.request.headers.get("cookie") || "";
-      const accessToken = getSupabaseAccessToken(cookieHeader);
+      const accessToken = bodyAccessToken ?? getSupabaseAccessToken(cookieHeader);
 
       if (!accessToken) {
         return jsonResponse(

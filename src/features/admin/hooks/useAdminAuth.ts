@@ -28,6 +28,7 @@
 
 import { createSignal } from "solid-js";
 import { isServer } from "solid-js/web";
+import { getClient } from "~/lib/supabase/client";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -128,16 +129,46 @@ export function useAdminAuth() {
      * Session-based admin login — used when the user is already
      * signed into CineLog via Google OAuth (or any other method).
      *
-     * The browser automatically sends the Supabase auth cookie, so
-     * the only payload we need to send explicitly is the PIN.
+     * The CineLog browser client stores sessions in `localStorage`
+     * (NOT cookies), so the server cannot read the session from the
+     * Cookie header. We therefore pull the access_token out of the
+     * browser Supabase client here and send it explicitly in the
+     * request body. The server validates it via
+     * `supabase.auth.getUser(access_token)`.
      */
     async loginWithPin(pin: string): Promise<LoginResult> {
       setLoginLoading(true);
       setLoginError(null);
       try {
+        // Fetch the current CineLog session from the browser Supabase client.
+        // This is required because the session lives in localStorage, not in
+        // a cookie, so the server has no way to read it without our help.
+        let accessToken: string | null = null;
+        if (!isServer) {
+          try {
+            const supabase = getClient();
+            const { data, error: sessionError } = await supabase.auth.getSession();
+            if (sessionError) {
+              setLoginError(sessionError.message);
+              return { ok: false, error: sessionError.message };
+            }
+            accessToken = data.session?.access_token ?? null;
+          } catch (err) {
+            const errMsg = err instanceof Error ? err.message : "Failed to read CineLog session";
+            setLoginError(errMsg);
+            return { ok: false, error: errMsg };
+          }
+        }
+
+        if (!accessToken) {
+          const msg = "No active CineLog session. Please sign in to CineLog first.";
+          setLoginError(msg);
+          return { ok: false, error: msg };
+        }
+
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ pin, mode: "session" }),
+          body: JSON.stringify({ pin, mode: "session", accessToken }),
         })) as LoginResult;
 
         if (body?.ok && body.admin) {
