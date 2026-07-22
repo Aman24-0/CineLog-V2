@@ -131,10 +131,27 @@ const AccountRoute: Component = () => {
   // This signal is set to true immediately after linking succeeds,
   // and persists in localStorage so it survives page reloads.
   // It's cleared on sign-out or when unlinking the email identity.
+  //
+  // SSR SAFETY: localStorage is not available on the server, so
+  // we must guard all reads/writes with `isServer` checks. The
+  // initial value defaults to false during SSR; after hydration
+  // onMount reads the real value from localStorage.
   const EMAIL_LINKED_KEY = "cinelog_email_linked";
-  const [emailLinkedOverride, setEmailLinkedOverride] = createSignal(
-    localStorage.getItem(EMAIL_LINKED_KEY) === "true"
-  );
+  const [emailLinkedOverride, setEmailLinkedOverride] = createSignal(false);
+
+  // Read localStorage AFTER hydration (client-only) so SSR never
+  // touches localStorage and never crashes with "localStorage is
+  // not defined".
+  onMount(() => {
+    try {
+      const stored = localStorage.getItem(EMAIL_LINKED_KEY);
+      if (stored === "true") {
+        setEmailLinkedOverride(true);
+      }
+    } catch {
+      // localStorage unavailable (SSR or restricted environment) — ignore
+    }
+  });
 
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
@@ -178,7 +195,7 @@ const AccountRoute: Component = () => {
     const providers = user()?.providers ?? [];
     if (providers.includes("email") && emailLinkedOverride()) {
       setEmailLinkedOverride(false);
-      localStorage.removeItem(EMAIL_LINKED_KEY);
+      try { localStorage.removeItem(EMAIL_LINKED_KEY); } catch { /* SSR */ }
     }
   });
 
@@ -344,7 +361,7 @@ const AccountRoute: Component = () => {
     // Clear the email linked override on sign-out so it doesn't
     // persist into a different user's session.
     setEmailLinkedOverride(false);
-    localStorage.removeItem(EMAIL_LINKED_KEY);
+    try { localStorage.removeItem(EMAIL_LINKED_KEY); } catch { /* SSR */ }
     if (signOutSheetMode() === "global") {
       setSigningOutEverywhere(true);
       const result = await signOutGlobal();
@@ -811,7 +828,7 @@ const AccountRoute: Component = () => {
         onClose={() => setShowLinkEmailPasswordSheet(false)}
         onSuccess={() => {
           setEmailLinkedOverride(true);
-          localStorage.setItem(EMAIL_LINKED_KEY, "true");
+          try { localStorage.setItem(EMAIL_LINKED_KEY, "true"); } catch { /* SSR */ }
           void refreshIdentities();
         }}
       />

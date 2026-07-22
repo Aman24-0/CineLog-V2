@@ -327,11 +327,32 @@ export function getCurrentUser(): User | null {
  */
 export async function refreshUserFromServer(): Promise<void> {
   try {
-    // Use getUser() (network call) instead of getSession() (local cache)
-    // so that app_metadata.providers reflects server-side changes like
-    // newly-linked email/password or unlinked OAuth identities.
     const { getBrowserClient } = await import("~/lib/supabase/browser");
     const supabase = getBrowserClient();
+
+    // Step 1: Force-refresh the session to get a fresh access token.
+    // After mutations like updateUser({password}) that modify
+    // app_metadata.providers on the server, the LOCAL access token
+    // may still contain stale JWT claims (e.g. providers without "email").
+    // refreshSession() exchanges the refresh token for a NEW access token
+    // that includes the updated claims, so the subsequent getUser() call
+    // is guaranteed to return the correct app_metadata.
+    //
+    // If refreshSession fails (e.g. the refresh token is still valid and
+    // the server doesn't issue a new one), that's fine — we still proceed
+    // with getUser(), which reads from the database anyway.
+    try {
+      await supabase.auth.refreshSession();
+    } catch (refreshErr) {
+      // Non-fatal — the session might still be valid with a fresh-enough
+      // token, or getUser() will read from the database regardless.
+      console.warn("[useAuth] refreshSession() failed (non-fatal):", refreshErr);
+    }
+
+    // Step 2: Use getUser() (network call) to get the FRESH user data
+    // from the Supabase Auth server. getUser() reads from the database,
+    // not from the JWT, so app_metadata.providers reflects server-side
+    // changes like newly-linked email/password or unlinked OAuth identities.
     const { data: userData, error: userError } = await supabase.auth.getUser();
     if (userError || !userData?.user) {
       // Fallback: if getUser() fails (e.g. network error), try getSession()
@@ -342,10 +363,11 @@ export async function refreshUserFromServer(): Promise<void> {
       setUser(mapSupabaseUser(session));
       return;
     }
-    // We have the fresh user from the server, but getUser() doesn't return
-    // a full Session object. We still need the session for the access token,
-    // so we merge: fresh user data + existing session for continuity.
-    // mapSupabaseUser expects a Session (or null), so we construct one.
+
+    // Step 3: Merge the fresh user data with the existing session.
+    // getUser() doesn't return a full Session object (no access_token,
+    // refresh_token, etc.), so we get the session for continuity and
+    // replace its user with the fresh server-side user.
     const { getBrowserSession } = await import("~/lib/supabase/session");
     const session = await getBrowserSession();
     if (!session) {
