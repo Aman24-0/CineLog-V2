@@ -36,7 +36,7 @@ import {
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { useAuth } from "~/shared/hooks/useAuth";
+import { useAuth, refreshUserFromServer } from "~/shared/hooks/useAuth";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { useToast } from "~/shared/hooks/useToast";
@@ -54,6 +54,7 @@ import {
   signOutGlobal,
   type AccountActionResult,
 } from "~/features/account/accountActions";
+
 import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
 import ChangePasswordSheet from "~/features/account/components/ChangePasswordSheet";
 import DeactivateAccountSheet from "~/features/account/components/DeactivateAccountSheet";
@@ -122,6 +123,19 @@ const AccountRoute: Component = () => {
   const [unLinkingProvider, setUnlinkingProvider] = createSignal<string | null>(null);
   const [signingOutEverywhere, setSigningOutEverywhere] = createSignal(false);
 
+  // ── Email linked override ────────────────────────────────────────
+  // When linkEmailPassword succeeds, Supabase adds "email" to
+  // app_metadata.providers on the server. But the local session's
+  // JWT claims (read by getSession/getUser) may still have stale
+  // providers without "email" until the access token is refreshed.
+  // This signal is set to true immediately after linking succeeds,
+  // and persists in localStorage so it survives page reloads.
+  // It's cleared on sign-out or when unlinking the email identity.
+  const EMAIL_LINKED_KEY = "cinelog_email_linked";
+  const [emailLinkedOverride, setEmailLinkedOverride] = createSignal(
+    localStorage.getItem(EMAIL_LINKED_KEY) === "true"
+  );
+
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
   const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
@@ -158,15 +172,42 @@ const AccountRoute: Component = () => {
     void refreshIdentities();
   });
 
+  // Once the Supabase user data correctly includes "email" in providers,
+  // clear the localStorage override — it's no longer needed.
+  createEffect(() => {
+    const providers = user()?.providers ?? [];
+    if (providers.includes("email") && emailLinkedOverride()) {
+      setEmailLinkedOverride(false);
+      localStorage.removeItem(EMAIL_LINKED_KEY);
+    }
+  });
+
   const refreshIdentities = async () => {
     const ids = await getUserIdentities();
     setIdentities(ids);
+    // Also refresh the user from server so app_metadata.providers
+    // is up-to-date (this is especially important for detecting
+    // email/password linked state after page reload).
+    await refreshUserFromServer();
   };
 
   // Helper: is the given provider currently linked?
+  // Uses BOTH sources for maximum reliability:
+  //   1. app_metadata.providers (from the user() signal)
+  //   2. getUserIdentities() result (identities() signal)
+  //   3. For "email" specifically, also checks emailLinkedOverride()
+  //      which is set immediately after linkEmailPassword succeeds
+  //      (bypassing the stale-JWT race condition).
   const isProviderLinked = (providerId: string): boolean => {
     const providers = user()?.providers ?? [];
-    return providers.includes(providerId);
+    if (providers.includes(providerId)) return true;
+    // Also check identities() for a matching provider.
+    const ids = identities();
+    if (ids && ids.some((i) => i.provider === providerId)) return true;
+    // For "email" provider specifically, also check the override
+    // signal that gets set immediately after linking succeeds.
+    if (providerId === "email" && emailLinkedOverride()) return true;
+    return false;
   };
 
   // Helper: find the UserIdentity for a given provider (for unlink).
@@ -300,6 +341,10 @@ const AccountRoute: Component = () => {
    * to /discover on success.
    */
   const handleConfirmSignOut = async () => {
+    // Clear the email linked override on sign-out so it doesn't
+    // persist into a different user's session.
+    setEmailLinkedOverride(false);
+    localStorage.removeItem(EMAIL_LINKED_KEY);
     if (signOutSheetMode() === "global") {
       setSigningOutEverywhere(true);
       const result = await signOutGlobal();
@@ -764,6 +809,11 @@ const AccountRoute: Component = () => {
       <LinkEmailPasswordSheet
         open={showLinkEmailPasswordSheet()}
         onClose={() => setShowLinkEmailPasswordSheet(false)}
+        onSuccess={() => {
+          setEmailLinkedOverride(true);
+          localStorage.setItem(EMAIL_LINKED_KEY, "true");
+          void refreshIdentities();
+        }}
       />
       <DeactivateAccountSheet
         open={showDeactivateSheet()}

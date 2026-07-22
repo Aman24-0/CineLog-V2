@@ -85,23 +85,65 @@ export function _resetAuthStateForTesting(): void {
 function mapSupabaseUser(session: Session | null): User | null {
   if (!session?.user) return null;
   const supabaseUser = session.user;
+  return mapRawSupabaseUser(supabaseUser);
+}
+
+/**
+ * Map a raw Supabase User object (not wrapped in a Session) to the
+ * application's `User` shape. Used by `setUserFromSupabaseUser()` when
+ * we have the user from `updateUser()` or `getUser()` responses but
+ * not a full Session.
+ */
+function mapRawSupabaseUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
+  created_at?: string;
+}): User {
   return {
     uid: supabaseUser.id,
-    displayName: supabaseUser.user_metadata?.full_name
-      ?? supabaseUser.user_metadata?.name
-      ?? supabaseUser.user_metadata?.display_name
+    displayName: (supabaseUser.user_metadata?.full_name as string)
+      ?? (supabaseUser.user_metadata?.name as string)
+      ?? (supabaseUser.user_metadata?.display_name as string)
       ?? null,
     email: supabaseUser.email ?? null,
-    photoURL: supabaseUser.user_metadata?.avatar_url
-      ?? supabaseUser.user_metadata?.picture
+    photoURL: (supabaseUser.user_metadata?.avatar_url as string)
+      ?? (supabaseUser.user_metadata?.picture as string)
       ?? null,
     // Extract linked auth providers from Supabase app_metadata.
     // This is the SINGLE source of truth for which providers are connected
     // (google, email, github, apple, etc.). The Account page reads this
     // array to show "Connected" vs "Available" — NOT hardcoded values.
-    providers: supabaseUser.app_metadata?.providers ?? [],
-    createdAt: supabaseUser.created_at,
+    // NOTE: Some Supabase versions/configurations may not include "email"
+    // in app_metadata.providers even after updateUser({password}) adds a
+    // password. We handle this in the Account page by ALSO checking
+    // getUserIdentities() for an "email" identity as a fallback.
+    providers: (supabaseUser.app_metadata?.providers as string[]) ?? [],
+    createdAt: supabaseUser.created_at ?? "",
   };
+}
+
+/**
+ * setUserFromSupabaseUser — directly update the user signal from a raw
+ * Supabase User object (e.g., the user returned by updateUser() or
+ * getUser() responses).
+ *
+ * This is the IMMEDIATE update path — it doesn't wait for a full
+ * session refresh. Used by accountActions after mutations like
+ * updateUser({ email, password }) that return a fresh user object
+ * with updated app_metadata.providers.
+ *
+ * Safe to call outside a Solid component (the signal is module-level).
+ */
+export function setUserFromSupabaseUser(supabaseUser: {
+  id: string;
+  email?: string | null;
+  user_metadata?: Record<string, unknown> | null;
+  app_metadata?: Record<string, unknown> | null;
+  created_at?: string;
+}): void {
+  setUser(mapRawSupabaseUser(supabaseUser));
 }
 
 /**

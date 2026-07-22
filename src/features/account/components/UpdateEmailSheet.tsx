@@ -17,10 +17,12 @@
 // to their account during the transition. They can cancel the change
 // by ignoring the confirmation email.
 
-import { Show, createSignal, createMemo, type Component } from "solid-js";
+import { Show, createSignal, createMemo, createEffect, type Component } from "solid-js";
 import AccountSheet from "./AccountSheet";
-import { updateEmail } from "../accountActions";
+import { updateEmailAndUnlinkStaleOAuth } from "../accountActions";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { getUserIdentities } from "../accountActions";
+import type { UserIdentity } from "@supabase/supabase-js";
 
 interface UpdateEmailSheetProps {
   open: boolean;
@@ -32,6 +34,8 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
   const [newEmail, setNewEmail] = createSignal("");
   const [busy, setBusy] = createSignal(false);
   const [done, setDone] = createSignal(false);
+  const [googleWillDisconnect, setGoogleWillDisconnect] = createSignal(false);
+  const [googleIdentity, setGoogleIdentity] = createSignal<UserIdentity | null>(null);
 
   const currentEmail = () => user()?.email ?? "—";
 
@@ -42,10 +46,31 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
 
   const canSubmit = () => isValid() && !busy();
 
+  // Check if Google is linked with the current email, so we can warn
+  // the user and auto-unlink it when they change their email.
+  const checkGoogleLink = async () => {
+    const ids = await getUserIdentities();
+    if (ids) {
+      const google = ids.find((i) => i.provider === "google");
+      if (google) {
+        setGoogleWillDisconnect(true);
+        setGoogleIdentity(google);
+      }
+    }
+  };
+
+  // Check if Google is linked when the sheet opens, so we can warn
+  // the user and auto-unlink it when they change their email.
+  createEffect(() => {
+    if (props.open) {
+      void checkGoogleLink();
+    }
+  });
+
   const handleSubmit = async () => {
     if (!canSubmit()) return;
     setBusy(true);
-    const result = await updateEmail(newEmail());
+    const result = await updateEmailAndUnlinkStaleOAuth(newEmail(), googleIdentity());
     setBusy(false);
     if (result.success) {
       setDone(true);
@@ -56,6 +81,8 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
     setNewEmail("");
     setDone(false);
     setBusy(false);
+    setGoogleWillDisconnect(false);
+    setGoogleIdentity(null);
     props.onClose();
   };
 
@@ -119,6 +146,13 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
             <p class="account-sheet-hint account-sheet-hint-warn">
               <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
               Enter a valid email different from your current one.
+            </p>
+          </Show>
+          {/* Google disconnect warning */}
+          <Show when={googleWillDisconnect() && isValid()}>
+            <p class="account-sheet-hint account-sheet-hint-warn">
+              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">warning</span>
+              Your Google login ({currentEmail()}) will be disconnected after you change your email, so you can reconnect with your new Gmail.
             </p>
           </Show>
         </div>
