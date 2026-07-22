@@ -86,9 +86,9 @@ const AppShell: ParentComponent = (props) => {
       <div
         class="min-h-screen app-shell-bg"
         style={{
-          "padding-bottom": "calc(var(--nav-total-height) + 20px)",
-          background: "var(--void)",
-          color: "var(--text)",
+          "padding-bottom": "calc(var(--nav-total-height) + 24px)",
+          background: "#090909",
+          color: "#FFFFFF",
         }}
         // `inert` when a modal is open — hides this entire subtree from
         // the accessibility tree AND removes all focusable descendants

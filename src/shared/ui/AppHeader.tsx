@@ -5,27 +5,13 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 /**
- * AppHeader — sticky application header.
+ * AppHeader — premium OTT-style sticky header.
  *
- * Layout: [wordmark] ........ [avatar pill]
+ * Layout: [CINELOG wordmark] ........ [avatar button]
  *
- * Navigation restructure (Profile phase):
- *   The avatar NO LONGER signs out on click. That was an undiscoverable
- *   trap-door — users had no way to know clicking the avatar would log
- *   them out. The avatar now navigates to /profile, which is the
- *   natural destination for "who am I" actions. Sign out lives inside
- *   Profile → Settings → Account → Sign Out, where it belongs.
- *
- *   When the user is NOT signed in, the avatar opens the AuthModal
- *   (same as before).
- *
- * ── PREMIUM OTT REDESIGN (visual only) ─────────────────────────────
- *  - Wordmark uses Inter (was Bebas Neue) with tighter letter-spacing.
- *  - Avatar pill is a softer glass surface with subtle hover.
- *  - Sticky header uses backdrop blur + saturate for premium glass feel.
- *  - Safe-area-aware top padding (env(safe-area-inset-top)) so the
- *    header never sits under the iOS notch / PWA chrome.
- *  No logic, props, ARIA, or routing changed.
+ * Visual-only redesign — no logic, routing, ARIA, or auth changes.
+ * The avatar still navigates to /profile when signed in, or opens
+ * the AuthModal when not.
  */
 const AppHeader: Component = () => {
   const { user, isSignedIn } = useAuth();
@@ -47,54 +33,54 @@ const AppHeader: Component = () => {
 
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
+      class="sticky top-0 z-30 flex items-center justify-between"
       style={{
-        background: "var(--glass-bg-strong)",
-        "backdrop-filter": "blur(28px) saturate(150%)",
-        "-webkit-backdrop-filter": "blur(28px) saturate(150%)",
-        "border-bottom": "1px solid var(--hairline)",
-        "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
-        "padding-bottom": "0.875rem",
-        "padding-left": "1.25rem",
-        "padding-right": "1.25rem",
+        background: "rgba(9,9,9,0.80)",
+        "backdrop-filter": "blur(28px) saturate(160%)",
+        "-webkit-backdrop-filter": "blur(28px) saturate(160%)",
+        "border-bottom": "1px solid rgba(255,255,255,0.05)",
+        "padding-top": "calc(12px + env(safe-area-inset-top, 0px))",
+        "padding-bottom": "12px",
+        "padding-left": "20px",
+        "padding-right": "20px",
       }}
       role="banner"
     >
-      {/* Wordmark — Inter, bold, premium OTT wordmark */}
+      {/* Wordmark — Inter, extrabold, tight tracking */}
       <h1
         class="m-0"
         style={{
-          "font-family": "'Inter', 'Outfit', sans-serif",
-          "font-size": "1.375rem",
+          "font-family": "'Inter', sans-serif",
+          "font-size": "22px",
           "line-height": "1",
           "font-weight": "800",
-          "letter-spacing": "-0.02em",
-          color: "var(--text-strong)",
+          "letter-spacing": "-0.03em",
+          color: "#FFFFFF",
         }}
       >
-        CINE<span style={{ color: "var(--p)" }}>LOG</span>
+        CINE<span style={{ color: "#8A624C" }}>LOG</span>
       </h1>
 
-      {/* Avatar pill — soft glass surface */}
+      {/* Avatar — circular, glass */}
       <button
         type="button"
         onClick={handleAvatarClick}
         class="flex items-center gap-2 rounded-full overflow-hidden focus-ring"
         style={{
-          background: "var(--hairline)",
-          border: "1px solid var(--hairline-2)",
-          padding: "0.25rem",
-          "padding-right": "0.75rem",
+          background: "rgba(255,255,255,0.05)",
+          border: "1px solid rgba(255,255,255,0.08)",
+          padding: "3px",
+          "padding-right": "12px",
           transition:
-            "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
+            "background 200ms ease, border-color 200ms ease, transform 150ms ease",
         }}
         onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--hairline-2)";
-          e.currentTarget.style.borderColor = "var(--hairline-3)";
+          e.currentTarget.style.background = "rgba(255,255,255,0.08)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
         }}
         onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--hairline)";
-          e.currentTarget.style.borderColor = "var(--hairline-2)";
+          e.currentTarget.style.background = "rgba(255,255,255,0.05)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
         }}
         aria-label={
           isSignedIn()
@@ -108,11 +94,11 @@ const AppHeader: Component = () => {
             <div
               class="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
               style={{
-                background: "var(--p-dim)",
-                color: "var(--p)",
+                background: "rgba(138,98,76,0.20)",
+                color: "#C9A584",
                 "font-weight": 700,
                 "font-size": "13px",
-                "font-family": "'Inter', 'Outfit', sans-serif",
+                "font-family": "'Inter', sans-serif",
               }}
               aria-hidden="true"
             >
@@ -136,10 +122,10 @@ const AppHeader: Component = () => {
           <span
             class="hidden sm:block max-w-[120px] truncate"
             style={{
-              color: "var(--text-body)",
-              "font-size": "0.875rem",
-              "font-weight": 600,
-              "font-family": "'Inter', 'Outfit', sans-serif",
+              color: "#FFFFFF",
+              "font-size": "14px",
+              "font-weight": 500,
+              "font-family": "'Inter', sans-serif",
             }}
           >
             {user()?.displayName || user()?.email}

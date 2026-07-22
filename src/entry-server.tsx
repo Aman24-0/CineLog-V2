@@ -99,7 +99,7 @@ export default createHandler(() => (
           {/* Preconnect to TMDB image CDN so poster fetches skip TLS handshake */}
           <link rel="preconnect" href="https://image.tmdb.org" crossorigin="anonymous" />
           <link
-            href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@300;400;500;600;700;800;900&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
             rel="stylesheet"
           />
           <link

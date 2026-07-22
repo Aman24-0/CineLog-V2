@@ -453,7 +453,7 @@ export default function DiscoverPage() {
 
             {/* 2. SPOTLIGHT */}
             <Show when={homepageConfig.isEnabled("spotlight")}>
-            <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
+            <Spotlight pick={spotlightPick} loading={spotlightLoading()} isGuest={isGuest()}
               vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
             </Show>
 

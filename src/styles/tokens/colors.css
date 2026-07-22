@@ -1,19 +1,20 @@
-/* src/styles/tokens/colors.css — CineLog V2 Premium OTT Redesign
-   "Cinematic OLED" color system — deep OLED black + warm cinematic glow.
+/* src/styles/tokens/colors.css — CineLog V2 Premium OTT Redesign v2
+   Cinematic OLED + warm bronze accent. Inspired by Netflix/Apple TV/MUBI.
 
-   Design philosophy:
-   - True OLED-friendly base (#090909) for maximum contrast and depth
-   - Layered surface tiers stepping up subtly (#131313 → #1B1B1B → #242424)
-   - Warm cinematic brown accent (#7B5B47) as default brand color
-   - Secondary warm tone (#9C7156) for gradients and dual-accent moments
-   - Pure white primary text, soft greys for secondary/muted
-   - Whisper-thin white-alpha borders (rgba(255,255,255,0.05))
-   - No bright blue, no purple, no colorful gradients — only warm glow.
-   - All changes are purely visual — no structural or logic changes. */
+   Palette:
+   - Background: #090909 (OLED true black)
+   - Surface:    #131313
+   - Cards:      #1B1B1B
+   - Elevated:   #232323
+   - Text:       White / #A8A8A8
+   - Accent:     #8A624C (warm cinematic bronze)
+   - Glow:       rgba(138,98,76,0.35)
+
+   No blue. No purple. Only warm cinematic glows. */
 
 @layer base {
   :root {
-    /* ─── Surface Tiers (redesigned — OLED cinema depth) ─── */
+    /* ─── Surface Tiers ─── */
     --void: #090909;
     --deep: #090909;
     --surface: #131313;
@@ -21,8 +22,7 @@
     --border: rgba(255,255,255,0.05);
     --border-active: rgba(255,255,255,0.10);
     --text: #FFFFFF;
-    /* Legacy muted/dim tokens — warm grey scale for cinema feel */
-    --muted: #A9A9A9;
+    --muted: #A8A8A8;
     --dim: #707070;
 
     /* ─── Semantic Color: Primary ─── */
@@ -75,13 +75,13 @@
     --color-danger-border: rgba(255,99,99,0.32);
     --color-danger-text: #FF6363;
 
-    /* ─── Semantic Color: Info (warm-tinted to match palette) ─── */
+    /* ─── Semantic Color: Info (warm-tinted) ─── */
     --color-info: #C9A584;
     --color-info-bg: rgba(201,165,132,0.10);
     --color-info-border: rgba(201,165,132,0.28);
     --color-info-text: #C9A584;
 
-    /* ─── Status Colors (Watch Status) — muted cinematic tints ─── */
+    /* ─── Status Colors (Watch Status) ─── */
     --color-status-watching: #52C878;
     --color-status-watching-bg: rgba(82,200,120,0.10);
     --color-status-watching-border: rgba(82,200,120,0.28);
@@ -102,13 +102,13 @@
     --color-status-dropped-bg: rgba(255,99,99,0.10);
     --color-status-dropped-border: rgba(255,99,99,0.28);
 
-    /* ─── Rating Source Colors (kept for recognizability, softened) ─── */
+    /* ─── Rating Source Colors ─── */
     --color-rating-imdb: #F5C518;
     --color-rating-tmdb: #52C878;
     --color-rating-rotten-tomatoes: #FF8A8A;
     --color-rating-user: var(--p);
 
-    /* ─── Collection Colors — recolored to warm cinematic palette ─── */
+    /* ─── Collection Colors ─── */
     --color-collection-favorites: #F7B955;
     --color-collection-favorites-bg: rgba(247,185,85,0.10);
     --color-collection-favorites-border: rgba(247,185,85,0.28);
@@ -129,9 +129,9 @@
     --color-collection-theatre-bg: rgba(184,133,92,0.10);
     --color-collection-theatre-border: rgba(184,133,92,0.28);
 
-    --color-collection-ott: #7B5B47;
-    --color-collection-ott-bg: rgba(123,91,71,0.12);
-    --color-collection-ott-border: rgba(123,91,71,0.30);
+    --color-collection-ott: #8A624C;
+    --color-collection-ott-bg: rgba(138,98,76,0.12);
+    --color-collection-ott-border: rgba(138,98,76,0.30);
 
     /* ─── Active-state tokens ─── */
     --active-bg: var(--p);
@@ -142,8 +142,7 @@
 }
 
 /* ─── Theme overrides ───
-   All themes keep a warm cinematic character — no bright blue, no purple.
-   Each preset re-tints the brown accent while staying in the warm family. */
+   All themes stay in the warm cinematic family — no bright blue, no purple. */
 .theme-pearl        { --p: #F4ECE4; --p2: #C9A584; --p-glow: rgba(244,236,228,0.18);  --p-dim: rgba(244,236,228,0.06);  --active-text: #090909; }
 .theme-sage         { --p: #A8C79A; --p2: #C9A584; --p-glow: rgba(168,199,154,0.22); --p-dim: rgba(168,199,154,0.08); --active-text: #090909; }
 .theme-matrix       { --p: #7BC995; --p2: #C9A584; --p-glow: rgba(123,201,149,0.22); --p-dim: rgba(123,201,149,0.08); --active-text: #090909; }
@@ -151,37 +150,32 @@
 .theme-interstellar { --p: #C9A584; --p2: #F7B955; --p-glow: rgba(201,165,132,0.28); --p-dim: rgba(201,165,132,0.10); --active-text: #090909; }
 .theme-neonhorizon  { --p: #E573B5; --p2: #C9A584; --p-glow: rgba(229,115,181,0.24); --p-dim: rgba(229,115,181,0.08); --active-text: #FFFFFF; }
 .theme-vibranium    { --p: #7BC9A8; --p2: #C9A584; --p-glow: rgba(123,201,168,0.24); --p-dim: rgba(123,201,168,0.08); --active-text: #090909; }
-/* Cinematic — the new default identity: warm cinematic brown accent */
-.theme-cinematic    { --p: #7B5B47; --p2: #9C7156; --p-glow: rgba(123,91,71,0.40);  --p-dim: rgba(123,91,71,0.14);  --active-text: #FFFFFF; }
+/* Cinematic — default: warm bronze */
+.theme-cinematic    { --p: #8A624C; --p2: #9C7156; --p-glow: rgba(138,98,76,0.40);  --p-dim: rgba(138,98,76,0.14);  --active-text: #FFFFFF; }
 
 /* ============================================================
-   PREMIUM OTT DESIGN SYSTEM (Redesigned)
-   OLED cinema depth — every tier steps subtly lighter for layered feel.
+   PREMIUM OTT DESIGN SYSTEM v2
    ============================================================ */
 
 @layer base {
   :root {
-    /* Tier-based surface elevation — OLED cinema depth
-       Each tier steps slightly lighter, creating the layered premium feel
-       of Apple TV / Mubi / Stremio. No cool undertones — pure neutral. */
+    /* Tier-based surface elevation — OLED cinema depth */
     --tier-0: #090909;
     --tier-1: #131313;
     --tier-2: #1B1B1B;
-    --tier-3: #242424;
+    --tier-3: #232323;
     --tier-4: #2E2E2E;
 
-    /* Hairline borders — whisper-thin white-alpha for crisp premium lines */
+    /* Hairline borders — whisper-thin white-alpha */
     --hairline: rgba(255,255,255,0.05);
     --hairline-2: rgba(255,255,255,0.08);
     --hairline-3: rgba(255,255,255,0.14);
 
-    /* Text scale — pure white primary, soft greys for hierarchy
-       ── WCAG 2.1 AA CONTRAST COMPLIANCE ─────────────────────────────
-       All values verified against #090909 (--void). */
+    /* Text scale — pure white primary, warm greys for hierarchy */
     --text-strong: #FFFFFF;
     --text-body: #FFFFFF;
-    --text-soft: #A9A9A9;
-    --text-muted: #A9A9A9;
+    --text-soft: #A8A8A8;
+    --text-muted: #A8A8A8;
     --text-dim: #707070;
 
     /* Glass tokens — dark cinema glass with warm undertone */
@@ -191,7 +185,7 @@
     --glass-blur: 24px;
 
     /* Ambient warm cinematic glow — used by layered background */
-    --ambient-warm: rgba(123,91,71,0.18);
+    --ambient-warm: rgba(138,98,76,0.18);
     --ambient-warm-strong: rgba(156,113,86,0.22);
   }
 }

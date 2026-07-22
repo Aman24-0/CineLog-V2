@@ -2,42 +2,18 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import NavButton from "./NavButton";
 
 /**
- * BottomNavigation — primary navigation bar fixed to the viewport bottom.
+ * BottomNavigation — floating glass pill bar (premium OTT style).
  *
- * Navigation restructure (Search → Discover merge):
- *   The dedicated Search page has been removed. Search is now a first-
- *   class citizen of the Discover page (search bar pinned to the top of
- *   Discover, with the Genre Explorer right below it). This collapses
- *   the "intentional vs serendipitous" split into a single primary
- *   surface — the user no longer has to switch tabs to do both.
+ * Three destinations (unchanged): Discover, Watchlist, Collections.
+ * Profile is accessed from the AppHeader avatar (unchanged).
  *
- * Bottom nav is now exactly three destinations, in this order:
- *   1. Discover    — serendipitous browsing + intentional search + genre
- *                    exploration, all in one place
- *   2. Watchlist   — the user's library (formerly "Vault")
- *   3. Collections — user folders + subscribed universes (promoted
- *      from a Watchlist sub-page to a primary destination)
- *
- * Profile is NOT in the bottom nav — it's accessed from the AppHeader
- *   avatar, which navigates to /profile.
- *
- * ── PREMIUM OTT REDESIGN (visual only) ─────────────────────────────
- * The bar is now a FLOATING PILL:
- *   - Centered, rounded 32px, glass blur, dark glass background
- *   - Selected item sits inside a soft pill (handled by NavButton)
- *   - Inactive icons muted; large icon targets
- *   - No top border — floats above the page with a soft diffuse shadow
- *   - Safe-area-aware so it clears the iOS home indicator
- *   - The layout container still occupies var(--nav-total-height) at
- *     the page bottom so the existing page padding-bottom still works.
- *   No logic, routes, or ARIA semantics changed.
+ * Visual-only redesign — no logic, routes, or ARIA changed.
+ * The bar floats above the page with a 32px radius, glass blur,
+ * and soft shadow. The active item sits inside a warm bronze pill.
  */
 export default function BottomNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
-
-  // Active state is derived from the current URL so the highlight matches the
-  // page the user is actually on, regardless of how they navigated.
   const path = () => location.pathname;
 
   const go = (href: string) => {
@@ -56,26 +32,23 @@ export default function BottomNavigation() {
       }}
       aria-label="Primary navigation"
     >
-      {/* Floating pill bar — pointer-events auto on the inner bar only
-          so the gap above the bar (between bar and bottom of screen)
-          lets content underneath receive taps (e.g. scroll-to-top button). */}
       <div
         class="flex pointer-events-auto"
         style={{
-          "margin-bottom": "calc(env(safe-area-inset-bottom, 0px) + 14px)",
-          "margin-left": "16px",
-          "margin-right": "16px",
-          width: "calc(100% - 32px)",
-          "max-width": "440px",
-          height: "var(--nav-height)",
-          "padding": "8px",
-          "border-radius": "var(--radius-bottom-nav)",
-          background: "var(--glass-bg-strong)",
-          "backdrop-filter": "blur(28px) saturate(150%)",
-          "-webkit-backdrop-filter": "blur(28px) saturate(150%)",
-          border: "1px solid var(--glass-border)",
-          "box-shadow": "var(--shadow-floating-nav)",
-          "gap": "4px",
+          "margin-bottom": "calc(env(safe-area-inset-bottom, 0px) + 16px)",
+          "margin-left": "20px",
+          "margin-right": "20px",
+          width: "calc(100% - 40px)",
+          "max-width": "420px",
+          height: "60px",
+          padding: "8px",
+          "border-radius": "32px",
+          background: "rgba(19,19,19,0.85)",
+          "backdrop-filter": "blur(32px) saturate(160%)",
+          "-webkit-backdrop-filter": "blur(32px) saturate(160%)",
+          border: "1px solid rgba(255,255,255,0.06)",
+          "box-shadow": "0 8px 32px rgba(0,0,0,0.6), 0 2px 8px rgba(0,0,0,0.4)",
+          gap: "4px",
         }}
       >
         <NavButton
@@ -84,14 +57,12 @@ export default function BottomNavigation() {
           active={path() === "/discover" || path() === "/search"}
           onClick={() => go("/discover")}
         />
-
         <NavButton
           icon="visibility"
           label="Watchlist"
           active={path() === "/watchlist"}
           onClick={() => go("/watchlist")}
         />
-
         <NavButton
           icon="collections_bookmark"
           label="Collections"
