@@ -86,7 +86,7 @@ const AppShell: ParentComponent = (props) => {
       <div
         class="min-h-screen app-shell-bg"
         style={{
-          "padding-bottom": "var(--nav-total-height)",
+          "padding-bottom": "calc(var(--nav-total-height) + 20px)",
           background: "var(--void)",
           color: "var(--text)",
         }}

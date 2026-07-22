@@ -75,13 +75,14 @@ const LoadingScreen: Component = () => {
         </span>
       </div>
 
-      {/* Wordmark */}
+      {/* Wordmark — Inter, bold, consistent with AppHeader */}
       <h1
         style={{
-          "font-family": "'Bebas Neue', cursive",
-          "font-size": "2.5rem",
+          "font-family": "'Inter', 'Outfit', sans-serif",
+          "font-size": "2rem",
           "line-height": "1",
-          "letter-spacing": "0.04em",
+          "font-weight": "800",
+          "letter-spacing": "-0.02em",
           margin: "0",
           color: "var(--text-strong)",
         }}
@@ -92,7 +93,7 @@ const LoadingScreen: Component = () => {
       {/* Caption */}
       <p
         style={{
-          "font-family": "'Azeret Mono', monospace",
+          "font-family": "'Azeret Mono', 'Inter', monospace",
           "font-size": "0.625rem",
           "font-weight": "700",
           "letter-spacing": "0.18em",

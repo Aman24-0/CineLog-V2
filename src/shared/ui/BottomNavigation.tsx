@@ -19,11 +19,18 @@ import NavButton from "./NavButton";
  *      from a Watchlist sub-page to a primary destination)
  *
  * Profile is NOT in the bottom nav — it's accessed from the AppHeader
- * avatar, which navigates to /profile.
+ *   avatar, which navigates to /profile.
  *
- * The bar is opaque (not glass) so content scrolling underneath never
- * bleeds through — this matches Letterboxd / Trakt / TV Time, which all
- * use solid bottom bars for thumb-zone stability.
+ * ── PREMIUM OTT REDESIGN (visual only) ─────────────────────────────
+ * The bar is now a FLOATING PILL:
+ *   - Centered, rounded 32px, glass blur, dark glass background
+ *   - Selected item sits inside a soft pill (handled by NavButton)
+ *   - Inactive icons muted; large icon targets
+ *   - No top border — floats above the page with a soft diffuse shadow
+ *   - Safe-area-aware so it clears the iOS home indicator
+ *   - The layout container still occupies var(--nav-total-height) at
+ *     the page bottom so the existing page padding-bottom still works.
+ *   No logic, routes, or ARIA semantics changed.
  */
 export default function BottomNavigation() {
   const navigate = useNavigate();
@@ -39,39 +46,59 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      class="fixed bottom-0 left-0 flex w-full"
+      class="fixed bottom-0 left-0 flex w-full pointer-events-none"
       style={{
         height: "var(--nav-total-height)",
         "padding-bottom": "var(--nav-safe-area)",
         "z-index": 40,
-        background: "rgba(8,8,13,0.95)",
-        "border-top": "1px solid var(--hairline)",
-        "box-shadow": "0 -1px 0 0 var(--hairline), 0 -8px 24px -8px rgba(0,0,0,0.7)",
-        "backdrop-filter": "blur(20px)",
-        "-webkit-backdrop-filter": "blur(20px)",
+        "justify-content": "center",
+        "align-items": "flex-end",
       }}
       aria-label="Primary navigation"
     >
-      <NavButton
-        icon="explore"
-        label="Discover"
-        active={path() === "/discover" || path() === "/search"}
-        onClick={() => go("/discover")}
-      />
+      {/* Floating pill bar — pointer-events auto on the inner bar only
+          so the gap above the bar (between bar and bottom of screen)
+          lets content underneath receive taps (e.g. scroll-to-top button). */}
+      <div
+        class="flex pointer-events-auto"
+        style={{
+          "margin-bottom": "calc(env(safe-area-inset-bottom, 0px) + 14px)",
+          "margin-left": "16px",
+          "margin-right": "16px",
+          width: "calc(100% - 32px)",
+          "max-width": "440px",
+          height: "var(--nav-height)",
+          "padding": "8px",
+          "border-radius": "var(--radius-bottom-nav)",
+          background: "var(--glass-bg-strong)",
+          "backdrop-filter": "blur(28px) saturate(150%)",
+          "-webkit-backdrop-filter": "blur(28px) saturate(150%)",
+          border: "1px solid var(--glass-border)",
+          "box-shadow": "var(--shadow-floating-nav)",
+          "gap": "4px",
+        }}
+      >
+        <NavButton
+          icon="explore"
+          label="Discover"
+          active={path() === "/discover" || path() === "/search"}
+          onClick={() => go("/discover")}
+        />
 
-      <NavButton
-        icon="visibility"
-        label="Watchlist"
-        active={path() === "/watchlist"}
-        onClick={() => go("/watchlist")}
-      />
+        <NavButton
+          icon="visibility"
+          label="Watchlist"
+          active={path() === "/watchlist"}
+          onClick={() => go("/watchlist")}
+        />
 
-      <NavButton
-        icon="collections_bookmark"
-        label="Collections"
-        active={path() === "/collections" || path().startsWith("/collections/")}
-        onClick={() => go("/collections")}
-      />
+        <NavButton
+          icon="collections_bookmark"
+          label="Collections"
+          active={path() === "/collections" || path().startsWith("/collections/")}
+          onClick={() => go("/collections")}
+        />
+      </div>
     </nav>
   );
 }

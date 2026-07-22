@@ -19,14 +19,13 @@ import { useAuthModal } from "~/shared/hooks/useAuthModal";
  *   When the user is NOT signed in, the avatar opens the AuthModal
  *   (same as before).
  *
- * Polished:
- *  - Wordmark uses font-headline (Bebas Neue) with the accent suffix.
- *  - Avatar pill is a glass surface with a hairline border, smoother
- *    hover (background + border-color transition), and a focus ring.
- *  - Sticky header uses a stronger backdrop blur (20px) so content
- *    scrolling underneath stays readable but not distracting.
+ * ── PREMIUM OTT REDESIGN (visual only) ─────────────────────────────
+ *  - Wordmark uses Inter (was Bebas Neue) with tighter letter-spacing.
+ *  - Avatar pill is a softer glass surface with subtle hover.
+ *  - Sticky header uses backdrop blur + saturate for premium glass feel.
  *  - Safe-area-aware top padding (env(safe-area-inset-top)) so the
  *    header never sits under the iOS notch / PWA chrome.
+ *  No logic, props, ARIA, or routing changed.
  */
 const AppHeader: Component = () => {
   const { user, isSignedIn } = useAuth();
@@ -51,8 +50,8 @@ const AppHeader: Component = () => {
       class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
       style={{
         background: "var(--glass-bg-strong)",
-        "backdrop-filter": "blur(24px) saturate(140%)",
-        "-webkit-backdrop-filter": "blur(24px) saturate(140%)",
+        "backdrop-filter": "blur(28px) saturate(150%)",
+        "-webkit-backdrop-filter": "blur(28px) saturate(150%)",
         "border-bottom": "1px solid var(--hairline)",
         "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
         "padding-bottom": "0.875rem",
@@ -61,20 +60,22 @@ const AppHeader: Component = () => {
       }}
       role="banner"
     >
-      {/* Wordmark */}
+      {/* Wordmark — Inter, bold, premium OTT wordmark */}
       <h1
-        class="font-headline m-0"
+        class="m-0"
         style={{
-          "font-size": "1.5rem",
+          "font-family": "'Inter', 'Outfit', sans-serif",
+          "font-size": "1.375rem",
           "line-height": "1",
-          "letter-spacing": "0.08em",
+          "font-weight": "800",
+          "letter-spacing": "-0.02em",
           color: "var(--text-strong)",
         }}
       >
         CINE<span style={{ color: "var(--p)" }}>LOG</span>
       </h1>
 
-      {/* Avatar pill */}
+      {/* Avatar pill — soft glass surface */}
       <button
         type="button"
         onClick={handleAvatarClick}
@@ -83,7 +84,7 @@ const AppHeader: Component = () => {
           background: "var(--hairline)",
           border: "1px solid var(--hairline-2)",
           padding: "0.25rem",
-          "padding-right": "0.625rem",
+          "padding-right": "0.75rem",
           transition:
             "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
         }}
@@ -111,7 +112,7 @@ const AppHeader: Component = () => {
                 color: "var(--p)",
                 "font-weight": 700,
                 "font-size": "13px",
-                "font-family": "'Outfit', sans-serif",
+                "font-family": "'Inter', 'Outfit', sans-serif",
               }}
               aria-hidden="true"
             >
@@ -136,8 +137,9 @@ const AppHeader: Component = () => {
             class="hidden sm:block max-w-[120px] truncate"
             style={{
               color: "var(--text-body)",
-              "font-size": "0.8125rem",
+              "font-size": "0.875rem",
               "font-weight": 600,
+              "font-family": "'Inter', 'Outfit', sans-serif",
             }}
           >
             {user()?.displayName || user()?.email}
