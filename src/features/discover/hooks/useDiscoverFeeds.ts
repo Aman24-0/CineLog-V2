@@ -60,7 +60,10 @@ export function useDiscoverFeeds(
   const [topRatedTv, setTopRatedTv] = createSignal<TMDBTitle[]>([]);
   const [newSeasons, setNewSeasons] = createSignal<TMDBTitle[]>([]);
   const [hiddenGems, setHiddenGems] = createSignal<TMDBTitle[]>([]);
-  const [loading, setLoading] = createSignal(false);
+  // Start loading as true so the skeleton shows immediately on first render.
+  // Previously started as false, which caused a brief flash of empty content
+  // before onMount fired and set loading to true.
+  const [loading, setLoading] = createSignal(true);
 
   const loadAll = () => {
     if (isServer) return;
