@@ -269,18 +269,53 @@ export function getCurrentUser(): User | null {
  * Supabase Auth server and update the local signal.
  *
  * Used after operations that mutate the user object OUTSIDE of the
- * normal session-change event flow — for example, after unlinking
- * an OAuth identity (`supabase.auth.unlinkIdentity` doesn't fire
- * an `onAuthStateChange` event, so the local signal would otherwise
- * still show the old providers list).
+ * normal session-change event flow — for example, after linking
+ * email/password (`supabase.auth.updateUser` updates `app_metadata.providers`
+ * on the server but doesn't always fire an `onAuthStateChange` event)
+ * or after unlinking an OAuth identity (`supabase.auth.unlinkIdentity`
+ * doesn't fire an `onAuthStateChange` event either).
+ *
+ * IMPORTANT: uses `supabase.auth.getUser()` (which makes a fresh network
+ * call to the Auth server) instead of `getSession()` (which reads from the
+ * local cache and may not reflect server-side `app_metadata` changes yet).
+ * This ensures `providers`, `email`, and other server-side fields are
+ * always up-to-date after mutations.
  *
  * Safe to call outside a Solid component (the signal is module-level).
  */
 export async function refreshUserFromServer(): Promise<void> {
   try {
+    // Use getUser() (network call) instead of getSession() (local cache)
+    // so that app_metadata.providers reflects server-side changes like
+    // newly-linked email/password or unlinked OAuth identities.
+    const { getBrowserClient } = await import("~/lib/supabase/browser");
+    const supabase = getBrowserClient();
+    const { data: userData, error: userError } = await supabase.auth.getUser();
+    if (userError || !userData?.user) {
+      // Fallback: if getUser() fails (e.g. network error), try getSession()
+      // so we at least have the cached session rather than nothing.
+      console.warn("[useAuth] getUser() failed, falling back to getSession():", userError);
+      const { getBrowserSession } = await import("~/lib/supabase/session");
+      const session = await getBrowserSession();
+      setUser(mapSupabaseUser(session));
+      return;
+    }
+    // We have the fresh user from the server, but getUser() doesn't return
+    // a full Session object. We still need the session for the access token,
+    // so we merge: fresh user data + existing session for continuity.
+    // mapSupabaseUser expects a Session (or null), so we construct one.
     const { getBrowserSession } = await import("~/lib/supabase/session");
     const session = await getBrowserSession();
-    setUser(mapSupabaseUser(session));
+    if (!session) {
+      // No session at all — user is effectively signed out.
+      setUser(null);
+      return;
+    }
+    // Replace the session's user with the fresh server-side user,
+    // keeping the rest of the session (access_token, refresh_token, etc.)
+    // intact so downstream code that reads the session still works.
+    const freshSession = { ...session, user: userData.user };
+    setUser(mapSupabaseUser(freshSession));
   } catch (err) {
     console.error("[useAuth] refreshUserFromServer failed:", err);
   }
