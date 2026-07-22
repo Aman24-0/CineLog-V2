@@ -189,15 +189,14 @@ const AccountRoute: Component = () => {
     void refreshIdentities();
   });
 
-  // Once the Supabase user data correctly includes "email" in providers,
-  // clear the localStorage override — it's no longer needed.
-  createEffect(() => {
-    const providers = user()?.providers ?? [];
-    if (providers.includes("email") && emailLinkedOverride()) {
-      setEmailLinkedOverride(false);
-      try { localStorage.removeItem(EMAIL_LINKED_KEY); } catch { /* SSR */ }
-    }
-  });
+  // NOTE: We intentionally DO NOT clear the localStorage override when
+  // providers.includes("email"). The override is the ONLY reliable way to
+  // persist "email linked" state across page reloads, because the initial
+  // session load on refresh may have stale JWT claims that don't include
+  // "email" in app_metadata.providers. Clearing the override when providers
+  // briefly includes "email" (after setUserFromSupabaseUser or refreshSession)
+  // would remove the backup, causing "Not connected" to appear on reload.
+  // The override is only cleared on sign-out (handleConfirmSignOut).
 
   const refreshIdentities = async () => {
     const ids = await getUserIdentities();
