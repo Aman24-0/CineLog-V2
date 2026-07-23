@@ -50,10 +50,10 @@ const AppHeader: Component = () => {
     <header
       class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
       style={{
-        background: "var(--glass-bg-strong)",
-        "backdrop-filter": "blur(24px) saturate(140%)",
-        "-webkit-backdrop-filter": "blur(24px) saturate(140%)",
-        "border-bottom": "1px solid var(--hairline)",
+        background: "rgba(10, 10, 16, 0.82)",
+        "backdrop-filter": "blur(28px) saturate(160%)",
+        "-webkit-backdrop-filter": "blur(28px) saturate(160%)",
+        "border-bottom": "1px solid rgba(255,255,255,0.07)",
         "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
         "padding-bottom": "0.875rem",
         "padding-left": "1.25rem",

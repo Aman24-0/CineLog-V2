@@ -11,7 +11,7 @@
 .toast-stack {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-total-height) + var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + var(--sp-4) + env(safe-area-inset-bottom, 0px));
   transform: translateX(-50%);
   z-index: 9999; /* below modals (999999+), above nav (40) */
   display: flex;

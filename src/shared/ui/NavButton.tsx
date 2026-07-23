@@ -70,21 +70,21 @@ const NavButton: Component<Props> = (props) => {
         {props.label}
       </span>
 
-      {/* Active indicator — always rendered, width animates 0 ↔ 20px */}
+      {/* Active indicator — glowing dot above label */}
       <span
         aria-hidden="true"
         style={{
           position: "absolute",
-          bottom: "calc(var(--nav-safe-area) + 6px)",
+          top: "10px",
           left: "50%",
           transform: "translateX(-50%)",
-          width: props.active ? "24px" : "0px",
-          height: "2px",
-          "border-radius": "2px",
+          width: props.active ? "4px" : "0px",
+          height: props.active ? "4px" : "0px",
+          "border-radius": "50%",
           background: "var(--p)",
-          "box-shadow": "0 0 10px var(--p-glow)",
+          "box-shadow": "0 0 8px var(--p-glow), 0 0 16px var(--p-glow)",
           transition:
-            "width var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out)",
+            "width var(--dur-base) var(--ease-spring), height var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out)",
           opacity: props.active ? "1" : "0",
         }}
       />

@@ -18,8 +18,8 @@
   aspect-ratio: 2/3;
   border-radius: var(--radius-card);
   overflow: hidden;
-  border: 1px solid var(--hairline);
-  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.05);
   background: var(--tier-2);
   position: relative;
   transition: border-color var(--dur-base) var(--ease-out),
@@ -188,8 +188,10 @@
   font-size: 0.8125rem; font-weight: 600;
   color: var(--text-strong);
   cursor: pointer;
-  background: var(--tier-1);
-  border: 1px solid var(--hairline-2);
+  background: rgba(18,18,28,0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.09);
   border-radius: var(--radius-md);
   padding: 0.625rem 0.875rem;
   outline: none;
@@ -211,8 +213,10 @@
 
 .filter-input-premium {
   width: 100%;
-  background: var(--tier-1);
-  border: 1px solid var(--hairline-2);
+  background: rgba(18,18,28,0.72);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.09);
   border-radius: var(--radius-md);
   padding: 0.625rem 0.875rem;
   font-family: 'Outfit', sans-serif;
@@ -541,7 +545,7 @@
 /* Scroll to top button */
 .scroll-to-top {
   position: fixed;
-  bottom: calc(var(--nav-total-height) + var(--sp-4));
+  bottom: calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + var(--sp-4));
   right: var(--sp-4);
   z-index: 30;
   width: 44px;

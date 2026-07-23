@@ -39,16 +39,23 @@ export default function BottomNavigation() {
 
   return (
     <nav
-      class="fixed bottom-0 left-0 flex w-full"
+      class="fixed flex"
       style={{
-        height: "var(--nav-total-height)",
-        "padding-bottom": "var(--nav-safe-area)",
+        bottom: "calc(var(--nav-float-margin, 1rem) + env(safe-area-inset-bottom, 0px))",
+        left: "50%",
+        transform: "translateX(-50%)",
+        width: "calc(100% - 2 * var(--nav-float-inset, 1rem))",
+        "max-width": "420px",
+        height: "var(--nav-height)",
         "z-index": 40,
-        background: "rgba(8,8,13,0.95)",
-        "border-top": "1px solid var(--hairline)",
-        "box-shadow": "0 -1px 0 0 var(--hairline), 0 -8px 24px -8px rgba(0,0,0,0.7)",
-        "backdrop-filter": "blur(20px)",
-        "-webkit-backdrop-filter": "blur(20px)",
+        background: "rgba(18, 18, 27, 0.72)",
+        border: "1px solid rgba(255, 255, 255, 0.09)",
+        "border-radius": "2rem",
+        "box-shadow":
+          "0 8px 32px rgba(0,0,0,0.75), 0 2px 8px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.06)",
+        "backdrop-filter": "blur(20px) saturate(150%)",
+        "-webkit-backdrop-filter": "blur(20px) saturate(150%)",
+        overflow: "hidden",
       }}
       aria-label="Primary navigation"
     >

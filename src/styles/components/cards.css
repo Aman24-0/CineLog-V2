@@ -3,9 +3,9 @@
    deeper shadows, and refined hover states. */
 
 /* Surfaces & Cards */
-.glass-surface { background: var(--surface); border: 1px solid var(--hairline); box-shadow: var(--shadow-card); }
-.stat-card { background: var(--tier-2); border: 1px solid var(--hairline); border-bottom: 1px solid var(--hairline); border-radius: var(--radius-lg); box-shadow: var(--shadow-card); transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
-.stat-card:hover { background: var(--tier-3); border-color: var(--hairline-2); box-shadow: var(--shadow-raised); transform: translateY(-2px); }
+.glass-surface { background: rgba(18,18,28,0.65); backdrop-filter: blur(16px) saturate(140%); -webkit-backdrop-filter: blur(16px) saturate(140%); border: 1px solid rgba(255,255,255,0.08); box-shadow: var(--shadow-card), inset 0 1px 0 rgba(255,255,255,0.05); border-radius: var(--radius-xl); }
+.stat-card { background: var(--tier-2); border: 1px solid rgba(255,255,255,0.07); border-radius: var(--radius-xl); box-shadow: var(--shadow-card); transition: background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), box-shadow var(--dur-base) var(--ease-out), transform var(--dur-base) var(--ease-spring); }
+.stat-card:hover { background: var(--tier-3); border-color: rgba(255,255,255,0.11); box-shadow: var(--shadow-raised); transform: translateY(-2px); }
 .stat-card:active { transform: scale(0.96) translateY(0); box-shadow: var(--shadow-card); transition-duration: var(--dur-fast); }
 
 .movie-card { cursor: pointer; transition: transform var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out); }

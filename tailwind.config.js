@@ -211,6 +211,10 @@ export default {
         'collection-theatre': 'var(--color-collection-theatre)',
         'collection-ott': 'var(--color-collection-ott)',
 
+        /* Cinematic Dark Theme tokens */
+        'cine-bg': '#0a0a0a',
+        'cine-glass': 'rgba(30, 30, 30, 0.65)',
+        'cine-border': 'rgba(255, 255, 255, 0.08)',
         /* Glass */
         'glass': 'var(--glass-bg)',
         'glass-strong': 'var(--glass-bg-strong)',
@@ -315,6 +319,7 @@ export default {
         'xl': 'var(--blur-xl)',
         '2xl': 'var(--blur-2xl)',
         '3xl': 'var(--blur-3xl)',
+        'glass': '16px',
       },
     }
   },

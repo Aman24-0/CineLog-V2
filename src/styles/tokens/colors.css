@@ -13,8 +13,8 @@
 @layer base {
   :root {
     /* ─── Surface Tiers (redesigned — warm cinema depth) ─── */
-    --void: #08080D;
-    --deep: #08080D;
+    --void: #0a0a0a;
+    --deep: #0a0a0a;
     --surface: #0F0F16;
     --raised: #181820;
     --border: rgba(232,183,74,0.06);
@@ -161,7 +161,7 @@
     /* Tier-based surface elevation — warm cinema depth
        Each tier steps warmer and slightly lighter, creating
        a layered cinema auditorium feel. */
-    --tier-0: #08080D;
+    --tier-0: #0a0a0a;
     --tier-1: #0D0D14;
     --tier-2: #12121B;
     --tier-3: #1A1A25;
@@ -187,5 +187,22 @@
     --glass-bg-strong: rgba(13,13,20,0.92);
     --glass-border: rgba(232,183,74,0.06);
     --glass-blur: 24px;
+  }
+}
+
+/* ─── Cinematic Dark Theme — Glassmorphism tokens ─── */
+/* Requested by design spec: bg-cine-bg, bg-cine-glass, border-cine-border */
+@layer base {
+  :root {
+    --cine-bg: #0a0a0a;
+    --cine-glass: rgba(30, 30, 30, 0.65);
+    --cine-border: rgba(255, 255, 255, 0.08);
+    --cine-blur: 16px;
+
+    /* Floating nav — extra margin from bottom edge */
+    --nav-float-margin: 1rem;
+    --nav-float-inset: 1rem;
+    /* Floating nav has extra height to account for margin */
+    --nav-float-extra: calc(var(--nav-float-margin) + 0.5rem);
   }
 }
