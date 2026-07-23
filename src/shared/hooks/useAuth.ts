@@ -85,65 +85,23 @@ export function _resetAuthStateForTesting(): void {
 function mapSupabaseUser(session: Session | null): User | null {
   if (!session?.user) return null;
   const supabaseUser = session.user;
-  return mapRawSupabaseUser(supabaseUser);
-}
-
-/**
- * Map a raw Supabase User object (not wrapped in a Session) to the
- * application's `User` shape. Used by `setUserFromSupabaseUser()` when
- * we have the user from `updateUser()` or `getUser()` responses but
- * not a full Session.
- */
-function mapRawSupabaseUser(supabaseUser: {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown> | null;
-  app_metadata?: Record<string, unknown> | null;
-  created_at?: string;
-}): User {
   return {
     uid: supabaseUser.id,
-    displayName: (supabaseUser.user_metadata?.full_name as string)
-      ?? (supabaseUser.user_metadata?.name as string)
-      ?? (supabaseUser.user_metadata?.display_name as string)
+    displayName: supabaseUser.user_metadata?.full_name
+      ?? supabaseUser.user_metadata?.name
+      ?? supabaseUser.user_metadata?.display_name
       ?? null,
     email: supabaseUser.email ?? null,
-    photoURL: (supabaseUser.user_metadata?.avatar_url as string)
-      ?? (supabaseUser.user_metadata?.picture as string)
+    photoURL: supabaseUser.user_metadata?.avatar_url
+      ?? supabaseUser.user_metadata?.picture
       ?? null,
     // Extract linked auth providers from Supabase app_metadata.
     // This is the SINGLE source of truth for which providers are connected
     // (google, email, github, apple, etc.). The Account page reads this
     // array to show "Connected" vs "Available" — NOT hardcoded values.
-    // NOTE: Some Supabase versions/configurations may not include "email"
-    // in app_metadata.providers even after updateUser({password}) adds a
-    // password. We handle this in the Account page by ALSO checking
-    // getUserIdentities() for an "email" identity as a fallback.
-    providers: (supabaseUser.app_metadata?.providers as string[]) ?? [],
-    createdAt: supabaseUser.created_at ?? "",
+    providers: supabaseUser.app_metadata?.providers ?? [],
+    createdAt: supabaseUser.created_at,
   };
-}
-
-/**
- * setUserFromSupabaseUser — directly update the user signal from a raw
- * Supabase User object (e.g., the user returned by updateUser() or
- * getUser() responses).
- *
- * This is the IMMEDIATE update path — it doesn't wait for a full
- * session refresh. Used by accountActions after mutations like
- * updateUser({ email, password }) that return a fresh user object
- * with updated app_metadata.providers.
- *
- * Safe to call outside a Solid component (the signal is module-level).
- */
-export function setUserFromSupabaseUser(supabaseUser: {
-  id: string;
-  email?: string | null;
-  user_metadata?: Record<string, unknown> | null;
-  app_metadata?: Record<string, unknown> | null;
-  created_at?: string;
-}): void {
-  setUser(mapRawSupabaseUser(supabaseUser));
 }
 
 /**
@@ -311,66 +269,18 @@ export function getCurrentUser(): User | null {
  * Supabase Auth server and update the local signal.
  *
  * Used after operations that mutate the user object OUTSIDE of the
- * normal session-change event flow — for example, after linking
- * email/password (`supabase.auth.updateUser` updates `app_metadata.providers`
- * on the server but doesn't always fire an `onAuthStateChange` event)
- * or after unlinking an OAuth identity (`supabase.auth.unlinkIdentity`
- * doesn't fire an `onAuthStateChange` event either).
- *
- * IMPORTANT: uses `supabase.auth.getUser()` (which makes a fresh network
- * call to the Auth server) instead of `getSession()` (which reads from the
- * local cache and may not reflect server-side `app_metadata` changes yet).
- * This ensures `providers`, `email`, and other server-side fields are
- * always up-to-date after mutations.
+ * normal session-change event flow — for example, after unlinking
+ * an OAuth identity (`supabase.auth.unlinkIdentity` doesn't fire
+ * an `onAuthStateChange` event, so the local signal would otherwise
+ * still show the old providers list).
  *
  * Safe to call outside a Solid component (the signal is module-level).
  */
 export async function refreshUserFromServer(): Promise<void> {
   try {
-    const { getBrowserClient } = await import("~/lib/supabase/browser");
-    const supabase = getBrowserClient();
-
-    // Use getUser() (network call) to get the FRESH user data
-    // from the Supabase Auth server. getUser() reads from the
-    // database, not from the local JWT, so app_metadata.providers
-    // reflects server-side changes like newly-linked email/password
-    // or unlinked OAuth identities.
-    //
-    // NOTE: We intentionally DO NOT call refreshSession() here.
-    // refreshSession() triggers a TOKEN_REFRESHED onAuthStateChange
-    // event that cascades through ALL auth-dependent providers
-    // (useCollections, useCuratedUniverses, useUserLibrary, useVaultPresets),
-    // causing unnecessary re-fetches and slow page loads. The
-    // localStorage override on the Account page provides a reliable
-    // backup for detecting email/password linked state even when the
-    // local JWT claims haven't been refreshed yet.
-    const { data: userData, error: userError } = await supabase.auth.getUser();
-    if (userError || !userData?.user) {
-      // Fallback: if getUser() fails (e.g. network error), try getSession()
-      // so we at least have the cached session rather than nothing.
-      console.warn("[useAuth] getUser() failed, falling back to getSession():", userError);
-      const { getBrowserSession } = await import("~/lib/supabase/session");
-      const session = await getBrowserSession();
-      setUser(mapSupabaseUser(session));
-      return;
-    }
-
-    // Merge the fresh user data with the existing session.
-    // getUser() doesn't return a full Session object (no access_token,
-    // refresh_token, etc.), so we get the session for continuity and
-    // replace its user with the fresh server-side user.
     const { getBrowserSession } = await import("~/lib/supabase/session");
     const session = await getBrowserSession();
-    if (!session) {
-      // No session at all — user is effectively signed out.
-      setUser(null);
-      return;
-    }
-    // Replace the session's user with the fresh server-side user,
-    // keeping the rest of the session (access_token, refresh_token, etc.)
-    // intact so downstream code that reads the session still works.
-    const freshSession = { ...session, user: userData.user };
-    setUser(mapSupabaseUser(freshSession));
+    setUser(mapSupabaseUser(session));
   } catch (err) {
     console.error("[useAuth] refreshUserFromServer failed:", err);
   }

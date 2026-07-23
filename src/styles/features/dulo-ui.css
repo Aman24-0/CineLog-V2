@@ -1,0 +1,555 @@
+/* dulo-ui.css — Dulo.tv-inspired UI system for CineLog
+   Covers: rail cards (with numbered variant), section headers,
+   channels/apps strip, grid view, login page, and responsive layout.
+   All scoped to .dulo-* classes to avoid conflict with existing CSS. */
+
+/* ═══════════════════════════════════════════════
+   RAIL — horizontal scroll strip of poster cards
+   ═══════════════════════════════════════════════ */
+.dulo-rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  overflow-y: visible;
+  padding: 0.25rem 0 0.75rem;
+  scroll-snap-type: x proximity;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  margin: 0 -1rem; /* bleed to edge */
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.dulo-rail::-webkit-scrollbar { display: none; }
+
+/* Numbered variant — extra left padding so rank numbers don't clip */
+.dulo-rail-numbered {
+  gap: 0;
+}
+
+/* ── Individual card ── */
+.dulo-rail-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  flex-shrink: 0;
+  width: 110px;
+  scroll-snap-align: start;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.dulo-rail-numbered .dulo-rail-card {
+  width: 130px;     /* wider to fit rank number beside poster */
+  padding-left: 28px; /* room for the big number */
+}
+
+/* Rank number — sits bottom-left behind the poster (Dulo.tv look) */
+.dulo-rail-rank {
+  position: absolute;
+  bottom: 36px; /* aligns bottom of number with bottom of poster */
+  left: -6px;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 4.5rem;
+  line-height: 1;
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  color: rgba(255,255,255,0.12);
+  -webkit-text-stroke: 2px rgba(255,255,255,0.2);
+  pointer-events: none;
+  z-index: 0;
+  user-select: none;
+}
+
+/* Poster container */
+.dulo-rail-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #1a1a26;
+  border: 1px solid rgba(255,255,255,0.07);
+  flex-shrink: 0;
+  z-index: 1;
+  transition: transform 200ms ease, box-shadow 200ms ease, border-color 200ms ease;
+}
+.dulo-rail-card:hover .dulo-rail-poster {
+  transform: translateY(-4px) scale(1.03);
+  box-shadow: 0 12px 32px rgba(0,0,0,0.7);
+  border-color: rgba(255,255,255,0.15);
+}
+.dulo-rail-card:active .dulo-rail-poster {
+  transform: scale(0.95);
+  transition-duration: 80ms;
+}
+
+.dulo-rail-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform 300ms ease, filter 200ms ease;
+  filter: brightness(0.9);
+}
+.dulo-rail-card:hover .dulo-rail-poster-img {
+  transform: scale(1.04);
+  filter: brightness(1);
+}
+
+.dulo-rail-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #1a1a26;
+}
+
+.dulo-rail-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.85);
+  margin: 0;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  position: relative;
+  z-index: 1;
+}
+
+.dulo-rail-meta {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.4);
+  margin: 0;
+  position: relative;
+  z-index: 1;
+}
+
+/* Desktop: wider cards */
+@media (min-width: 768px) {
+  .dulo-rail-card { width: 140px; }
+  .dulo-rail-numbered .dulo-rail-card { width: 160px; padding-left: 34px; }
+  .dulo-rail-rank { font-size: 5.5rem; left: -8px; bottom: 44px; }
+}
+@media (min-width: 1024px) {
+  .dulo-rail-card { width: 160px; }
+  .dulo-rail-numbered .dulo-rail-card { width: 185px; padding-left: 40px; }
+  .dulo-rail-rank { font-size: 6.5rem; left: -10px; bottom: 52px; }
+}
+
+/* ═══════════════════════════════════════════════
+   SECTION HEADERS
+   ═══════════════════════════════════════════════ */
+.dulo-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.dulo-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0 0.125rem;
+}
+
+.dulo-section-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.0625rem;
+  font-weight: 700;
+  color: #fff;
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.dulo-section-see-all {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255,255,255,0.45);
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  transition: color 150ms ease;
+  flex-shrink: 0;
+}
+.dulo-section-see-all:hover { color: rgba(255,255,255,0.8); }
+
+/* ═══════════════════════════════════════════════
+   CHANNELS & APPS STRIP  (Image 2 screenshot)
+   ═══════════════════════════════════════════════ */
+.dulo-channels-rail {
+  display: flex;
+  gap: 0.75rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding-bottom: 0.25rem;
+  margin: 0 -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+}
+.dulo-channels-rail::-webkit-scrollbar { display: none; }
+
+.dulo-channel-card {
+  flex-shrink: 0;
+  width: 140px;
+  height: 80px;
+  border-radius: 16px;
+  background: #1a1a26;
+  border: 1px solid rgba(255,255,255,0.07);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 200ms ease, border-color 200ms ease, transform 200ms ease;
+}
+.dulo-channel-card:hover {
+  background: #232336;
+  border-color: rgba(255,255,255,0.14);
+  transform: translateY(-2px);
+}
+.dulo-channel-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 800;
+  color: #fff;
+  letter-spacing: -0.01em;
+}
+
+/* ═══════════════════════════════════════════════
+   GRID VIEW  (dulo.tv/movies, dulo.tv/shows)
+   ═══════════════════════════════════════════════ */
+.dulo-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.625rem;
+}
+@media (min-width: 640px) {
+  .dulo-grid { grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
+}
+@media (min-width: 1024px) {
+  .dulo-grid { grid-template-columns: repeat(5, 1fr); gap: 1rem; }
+}
+@media (min-width: 1280px) {
+  .dulo-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
+.dulo-grid-card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  text-align: left;
+  border-radius: 12px;
+  overflow: hidden;
+  transition: transform 200ms ease;
+}
+.dulo-grid-card:hover { transform: scale(1.03); }
+.dulo-grid-card:active { transform: scale(0.97); }
+
+.dulo-grid-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2/3;
+  background: #1a1a26;
+  border-radius: 12px;
+  overflow: hidden;
+}
+.dulo-grid-poster img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+/* NEW SEASON badge (dulo.tv/shows style — red pill top-left) */
+.dulo-new-season-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: #e53e3e;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 3px 7px;
+  border-radius: 999px;
+  z-index: 2;
+  pointer-events: none;
+}
+
+.dulo-grid-overlay {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to top, rgba(8,8,16,0.95) 0%, rgba(8,8,16,0.3) 45%, transparent 100%);
+  border-radius: 12px;
+  pointer-events: none;
+}
+
+.dulo-grid-info {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 0.5rem;
+}
+.dulo-grid-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #fff;
+  margin: 0 0 2px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.25;
+}
+.dulo-grid-meta {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.625rem;
+  color: rgba(255,255,255,0.5);
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.dulo-grid-star {
+  color: #E8B74A;
+  font-size: 0.625rem;
+}
+
+/* ═══════════════════════════════════════════════
+   HERO (dulo.tv home — full-bleed backdrop)
+   ═══════════════════════════════════════════════ */
+.dulo-hero {
+  position: relative;
+  width: 100%;
+  height: min(75vw, 480px);
+  overflow: hidden;
+  background: #0a0a10;
+  margin: 0 -1rem 1.5rem; /* bleed to edge on mobile */
+  width: calc(100% + 2rem);
+}
+@media (min-width: 768px) {
+  .dulo-hero {
+    height: 420px;
+    margin: 0 -2rem 2rem;
+    width: calc(100% + 4rem);
+    border-radius: 0;
+  }
+}
+@media (min-width: 1024px) {
+  .dulo-hero { height: 500px; }
+}
+
+.dulo-hero-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+  opacity: 0;
+  transition: opacity 600ms ease;
+}
+.dulo-hero-img.loaded { opacity: 1; }
+
+.dulo-hero-gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(to top, rgba(8,8,16,1) 0%, rgba(8,8,16,0.7) 30%, rgba(8,8,16,0.1) 70%, transparent 100%),
+    linear-gradient(to right, rgba(8,8,16,0.6) 0%, transparent 60%);
+  pointer-events: none;
+}
+
+.dulo-hero-dots {
+  position: absolute;
+  bottom: 1.25rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 6px;
+  z-index: 3;
+}
+.dulo-hero-dot {
+  width: 6px;
+  height: 4px;
+  border-radius: 999px;
+  background: rgba(255,255,255,0.3);
+  transition: width 250ms ease, background 250ms ease;
+}
+.dulo-hero-dot.active {
+  width: 22px;
+  background: #fff;
+}
+
+.dulo-hero-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 1.5rem 1rem 3rem;
+  z-index: 2;
+}
+.dulo-hero-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: clamp(2rem, 7vw, 3.5rem);
+  letter-spacing: 0.04em;
+  color: #fff;
+  margin: 0 0 0.5rem;
+  line-height: 1;
+  text-shadow: 0 2px 12px rgba(0,0,0,0.5);
+}
+.dulo-hero-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.75);
+  margin: 0 0 1rem;
+  max-width: 340px;
+  line-height: 1.5;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.dulo-hero-actions {
+  display: flex;
+  gap: 0.625rem;
+}
+.dulo-hero-btn-watch {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 999px;
+  border: none;
+  background: #fff;
+  color: #0a0a10;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 150ms ease, transform 150ms ease;
+}
+.dulo-hero-btn-watch:hover { background: rgba(255,255,255,0.9); transform: scale(1.03); }
+
+.dulo-hero-btn-info {
+  display: flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.625rem 1.125rem;
+  border-radius: 999px;
+  border: 1px solid rgba(255,255,255,0.35);
+  background: rgba(255,255,255,0.1);
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  transition: background 150ms ease, transform 150ms ease;
+}
+.dulo-hero-btn-info:hover { background: rgba(255,255,255,0.18); transform: scale(1.03); }
+
+/* ═══════════════════════════════════════════════
+   PAGE LAYOUT ADJUSTMENTS
+   ═══════════════════════════════════════════════ */
+
+/* Wider page container on desktop to use sidebar-freed space */
+@media (min-width: 1024px) {
+  .page-container,
+  [class*="page-container"] {
+    max-width: calc(100vw - 220px - 4rem);
+  }
+}
+
+/* Discover page: gap between sections */
+.dulo-page-sections {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+
+/* Section fades: from discover-folds → dulo-page-sections (override) */
+.discover-folds {
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+/* Filter dropdown pill — Dulo all-movies style */
+.dulo-filter-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  border: none;
+  background: #1e1e2c;
+  color: rgba(255,255,255,0.8);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 150ms ease;
+  margin-bottom: 1.25rem;
+}
+.dulo-filter-pill:hover { background: #26263a; }
+.dulo-filter-pill .material-symbols-outlined { font-size: 18px; color: rgba(255,255,255,0.5); }
+
+/* Page title area — All Movies / All Shows */
+.dulo-page-header {
+  margin-bottom: 1.25rem;
+}
+.dulo-page-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.75rem;
+  font-weight: 800;
+  color: #fff;
+  margin: 0 0 0.25rem;
+  letter-spacing: -0.02em;
+}
+.dulo-page-subtitle {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  color: rgba(255,255,255,0.4);
+  margin: 0 0 1rem;
+}
+
+/* ═══════════════════════════════════════════════
+   BOTTOM NAV ITEMS — Dulo style (6 items, smaller)
+   ═══════════════════════════════════════════════ */
+.dulo-bottom-nav button {
+  min-width: 0;
+  padding: 0 2px;
+}
+
+/* On very small phones, shrink the nav labels */
+@media (max-width: 360px) {
+  .dulo-bottom-nav button span:last-of-type {
+    font-size: 7px !important;
+  }
+}

@@ -114,60 +114,39 @@ export function useProfileData() {
   // stays null and loading stays true (from authReady being false),
   // which causes the skeleton to render.
   let fetchingUid: string | null = null; // guard against concurrent doFetch calls
-  let isFetchingProfile = false;
   const doFetch = async () => {
     if (isServer) return;
     const id = uid();
-    if (!id) {
-      // No user signed in — clear any stale data and ensure fetching is false
-      setData(null);
-      setFetchError(null);
-      setFetching(false);
-      isFetchingProfile = false;
-      return;
-    }
-    // Guard: if already fetching for this exact uid, skip to avoid double-fetch.
-    // The in-flight fetch's finally block will set fetching=false.
-    if (isFetchingProfile && fetchingUid === id) return;
-
-    isFetchingProfile = true;
+    if (!id) return;
+    // Guard: if already fetching for this uid, skip to avoid double-fetch
+    if (fetchingUid === id) return;
     fetchingUid = id;
-    const currentFetchId = id;
 
     setFetching(true);
     setFetchError(null);
     try {
-      const result = await loader();
-      // Discard stale result if user changed while fetch was in-flight
-      if (uid() !== currentFetchId) return;
+      // 8-second timeout: Supabase queries should resolve quickly. If not,
+      // release the skeleton so the page doesn't stay blank forever.
+      const result = await Promise.race([
+        loader(),
+        new Promise<null>((_, reject) =>
+          setTimeout(() => reject(new Error("Profile load timed out")), 8000)
+        ),
+      ]);
       setData(result);
     } catch (err) {
       console.error("[useProfileData] Fetch failed:", err);
-      // Discard stale error if user changed while fetch was in-flight
-      if (uid() !== currentFetchId) return;
       setFetchError(err instanceof Error ? err : new Error(String(err)));
-      setData(null);
     } finally {
-      isFetchingProfile = false;
-      // Only clear fetching if this fetch is still the active one
-      if (fetchingUid === currentFetchId) {
-        fetchingUid = null;
-        setFetching(false);
-      }
+      fetchingUid = null;
+      setFetching(false);
     }
   };
 
   // Trigger fetch when uid changes (sign-in / sign-out / auth ready).
   createEffect(() => {
-    if (authReady()) {
-      if (uid()) {
-        doFetch();
-      } else {
-        // Signed out — clear profile data and ensure loading is false
-        setData(null);
-        setFetchError(null);
-        setFetching(false);
-      }
+    if (authReady() && uid()) {
+      doFetch();
     }
   });
 
@@ -220,24 +199,14 @@ async function fetchFavoriteDirector(personId: string): Promise<FavoriteDirector
   try {
     const API = "https://api.themoviedb.org/3";
     const key = import.meta.env.VITE_TMDB_API_KEY;
-    // 10s AbortController timeout prevents this fetch from hanging forever
-    // and blocking the profile page from rendering.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch(`${API}/person/${personId}?api_key=${key}&language=en-US`, {
-        signal: controller.signal,
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return {
-        id: String(data.id),
-        name: data.name ?? "Unknown",
-        profile_path: data.profile_path ?? null,
-      };
-    } finally {
-      clearTimeout(timeoutId);
-    }
+    const res = await fetch(`${API}/person/${personId}?api_key=${key}&language=en-US`);
+    if (!res.ok) return null;
+    const data = await res.json();
+    return {
+      id: String(data.id),
+      name: data.name ?? "Unknown",
+      profile_path: data.profile_path ?? null,
+    };
   } catch {
     return null;
   }

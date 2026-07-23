@@ -35,7 +35,6 @@
 import { getClient } from "~/lib/supabase/client";
 import { useToast } from "~/shared/hooks/useToast";
 import { refreshUserFromServer } from "~/shared/hooks/useAuth";
-import { setUserFromSupabaseUser } from "~/shared/hooks/useAuth";
 import type { UserIdentity } from "@supabase/supabase-js";
 
 export interface AccountActionResult {
@@ -80,80 +79,27 @@ function friendlyError(err: unknown): string {
 // ---------------------------------------------------------------------------
 
 /**
- * Update the signed-in user's email address, and optionally unlink
- * OAuth providers whose email no longer matches the new address.
+ * Update the signed-in user's email address.
  *
- * When the user changes their email and has an OAuth provider (e.g. Google)
- * linked with the OLD email, that provider's login will reference the old
- * address. After the email change is confirmed, the user should reconnect
- * Google with their new Gmail address.
+ * Supabase sends a confirmation email to the NEW address when
+ * `double_confirm_changes = true` (currently enabled). The user must
+ * click the link in that email for the change to take effect.
  *
- * This function:
- *   1. Calls Supabase updateUser({ email }) to initiate the email change
- *   2. If the user has Google linked AND email/password is also linked,
- *      auto-unlinks Google so the user can reconnect with their new Gmail
- *   3. Refreshes the local user state
- *
- * Safety: Google is ONLY unlinked if email/password is also linked, ensuring
- * the user still has a working sign-in method. If email/password is NOT linked,
- * Google is kept connected and a warning message is shown instead.
+ * Until the link is clicked, the user's `email` field still shows
+ * the OLD address — that's expected Supabase behavior, not a bug.
  */
-export async function updateEmailAndUnlinkStaleOAuth(
-  newEmail: string,
-  googleIdentity?: UserIdentity | null,
-): Promise<AccountActionResult> {
+export async function updateEmail(newEmail: string): Promise<AccountActionResult> {
   const { showToast } = useToast();
   const trimmed = newEmail.trim().toLowerCase();
   if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
     showToast("Please enter a valid email address.", "error");
     return { success: false, error: "Invalid email" };
   }
-
   try {
     const supabase = getClient();
-
-    // Step 1: Initiate the email change.
-    const { data: updateData, error } = await supabase.auth.updateUser({ email: trimmed });
+    const { error } = await supabase.auth.updateUser({ email: trimmed });
     if (error) throw error;
-
-    // Immediately update the user signal from the updateUser response.
-    if (updateData.user) {
-      setUserFromSupabaseUser(updateData.user);
-    }
-
-    // Also refresh the stored session for future reads.
-    await refreshUserFromServer();
-
-    // Step 2: If Google is linked with the old email and email/password
-    // is also linked, auto-unlink Google so the user can reconnect
-    // with their new Gmail.
-    if (googleIdentity) {
-      // Safety check: only unlink Google if email/password is linked
-      // (so the user still has a way to sign in).
-      const providers = updateData.user?.app_metadata?.providers as string[] ?? [];
-      const hasEmailAndPassword = providers.includes("email");
-      if (hasEmailAndPassword) {
-        try {
-          const { error: unlinkError } = await supabase.auth.unlinkIdentity(googleIdentity);
-          if (unlinkError) {
-            console.warn("[accountActions] Failed to unlink Google after email change:", unlinkError);
-            showToast("Email change initiated. Google couldn't be auto-disconnected — disconnect it manually from Account settings.", "success", 5000);
-          } else {
-            await refreshUserFromServer();
-            showToast("Confirmation email sent. Google was disconnected — reconnect it with your new Gmail after confirming your email change.", "success", 5000);
-          }
-        } catch (unlinkErr) {
-          console.warn("[accountActions] unlinkIdentity failed:", unlinkErr);
-          showToast("Confirmation email sent — check your new inbox. You may need to manually disconnect Google from Account settings.", "success", 5000);
-        }
-      } else {
-        // Email/password not linked — can't disconnect Google (user would be locked out).
-        showToast("Confirmation email sent — check your new inbox. Your Google login still uses the old email. Add email+password first, then disconnect Google.", "success", 6000);
-      }
-    } else {
-      showToast("Confirmation email sent — check your new inbox.", "success", 4000);
-    }
-
+    showToast("Confirmation email sent — check your new inbox.", "success", 4000);
     return { success: true };
   } catch (err) {
     const msg = friendlyError(err);
@@ -224,29 +170,15 @@ export async function linkEmailPassword(
     const currentEmail = (userData.user.email ?? "").toLowerCase();
     const emailChanged = currentEmail !== trimmedEmail;
 
-    // updateUser() returns the FRESH user object with updated
-    // app_metadata.providers (including "email" if just linked).
-    // We use this immediately to update the UI signal, bypassing
-    // the stale-session issue where getSession()/getUser() reads
-    // from the old JWT claims.
-    const { data: updateData, error } = await supabase.auth.updateUser({
+    const { error } = await supabase.auth.updateUser({
       email: trimmedEmail,
       password: newPassword,
     });
     if (error) throw error;
 
-    // Immediately update the user signal from the updateUser response
-    // — this is the FRESH data directly from Supabase's Auth server,
-    // including the updated app_metadata.providers with "email" added.
-    // This avoids the race condition where getUser() would still read
-    // from the old JWT access token.
-    if (updateData.user) {
-      setUserFromSupabaseUser(updateData.user);
-    }
-
-    // Also refresh the stored session so future getSession() calls
-    // return updated data. This runs in parallel — the UI already
-    // reflects the fresh state from setUserFromSupabaseUser above.
+    // Refresh local user state so the providers list updates
+    // (Supabase's updateUser doesn't fire onAuthStateChange for
+    // password-only changes).
     await refreshUserFromServer();
 
     if (emailChanged) {

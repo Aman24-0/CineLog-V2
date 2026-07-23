@@ -1,43 +1,5 @@
-/* src/styles/components/chips.css — CineLog V2 Premium OTT Redesign
-   Rounded filter chips with soft glass background, premium typography. */
+/* src/styles/components/chips.css — CineLog V2 Redesign */
 
-/* Pills & Tags — premium OTT glass chips */
-.tag-chip {
-  background: rgba(9,9,9,0.72);
-  border: 1px solid var(--hairline-2);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  padding: 0.25rem 0.625rem;
-  border-radius: var(--radius-pill);
-  font-family: 'Inter', sans-serif;
-  font-size: 0.625rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--text-strong);
-  transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out);
-  box-shadow: 0 1px 4px rgba(0,0,0,0.32);
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.rating-pill {
-  background: rgba(9,9,9,0.72);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--hairline-2);
-  padding: 0.25rem 0.5rem;
-  border-radius: var(--radius-pill);
-  display: flex;
-  align-items: center;
-  gap: 0.25rem;
-  font-family: 'Inter', sans-serif;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  color: var(--text-strong);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.40);
-  transition: all var(--dur-base) var(--ease-spring);
-}
+/* Pills & Tags — warm cinema accent */
+.tag-chip { background: rgba(0,0,0,0.72); border: 1px solid rgba(232,183,74,0.10); backdrop-filter: blur(8px); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-6); font-family: 'Azeret Mono', monospace; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; transition: background var(--dur-fast) var(--ease-out); box-shadow: 0 1px 4px rgba(0,0,0,0.4); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rating-pill { background: rgba(0,0,0,0.70); backdrop-filter: blur(12px); border: 1px solid rgba(232,183,74,0.08); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm); display: flex; align-items: center; gap: var(--sp-1); font-family: 'Azeret Mono', monospace; font-size: 9px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: all var(--dur-base) var(--ease-spring); }

@@ -42,10 +42,6 @@ import { useAuth } from "~/shared/hooks/useAuth";
 interface LinkEmailPasswordSheetProps {
   open: boolean;
   onClose: () => void;
-  /** Called when email+password linking succeeds. The parent can use
-   * this to set a local override signal so the UI immediately reflects
-   * the linked state even if the Supabase JWT hasn't refreshed yet. */
-  onSuccess?: () => void;
 }
 
 /** Password strength estimate — 0 to 4. Purely heuristic. */
@@ -99,8 +95,6 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
     if (result.success) {
       setEmailChangePending(result.emailChangePending ?? false);
       setDone(true);
-      // Notify parent so it can set the emailLinkedOverride signal.
-      if (props.onSuccess) props.onSuccess();
     }
   };
 

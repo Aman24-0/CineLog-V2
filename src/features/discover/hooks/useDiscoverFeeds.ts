@@ -60,10 +60,7 @@ export function useDiscoverFeeds(
   const [topRatedTv, setTopRatedTv] = createSignal<TMDBTitle[]>([]);
   const [newSeasons, setNewSeasons] = createSignal<TMDBTitle[]>([]);
   const [hiddenGems, setHiddenGems] = createSignal<TMDBTitle[]>([]);
-  // Start loading as true so the skeleton shows immediately on first render.
-  // Previously started as false, which caused a brief flash of empty content
-  // before onMount fired and set loading to true.
-  const [loading, setLoading] = createSignal(true);
+  const [loading, setLoading] = createSignal(false);
 
   const loadAll = () => {
     if (isServer) return;
@@ -116,13 +113,7 @@ export function useDiscoverFeeds(
         .catch((e) => console.error("[useDiscoverFeeds] hiddenGems:", e)),
     ];
 
-    // All feeds use cachedFetch which has proper in-memory caching and
-    // the underlying TMDB requests have AbortController timeouts (10s).
-    // Promise.allSettled ensures loading becomes false even if some
-    // feeds reject — no global safety-net timeout needed.
-    Promise.allSettled(feeds).finally(() => {
-      setLoading(false);
-    });
+    Promise.allSettled(feeds).finally(() => setLoading(false));
   };
 
   onMount(loadAll);

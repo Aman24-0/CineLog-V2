@@ -1,11 +1,12 @@
 import { ParentComponent, lazy, Suspense, Show, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useLocation } from "@solidjs/router";
+import { useLocation, useNavigate } from "@solidjs/router";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
 import AuthModal from "~/shared/ui/AuthModal";
 import AnnouncementsBanner from "~/shared/ui/AnnouncementsBanner";
+import DuloSidebar from "~/shared/ui/DuloSidebar";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -86,9 +87,9 @@ const AppShell: ParentComponent = (props) => {
       <div
         class="min-h-screen app-shell-bg"
         style={{
-          "padding-bottom": "calc(var(--nav-total-height) + 24px)",
-          background: "#090909",
-          color: "#FFFFFF",
+          "padding-bottom": "var(--nav-total-height)",
+          background: "var(--void)",
+          color: "var(--text)",
         }}
         // `inert` when a modal is open — hides this entire subtree from
         // the accessibility tree AND removes all focusable descendants
@@ -99,13 +100,19 @@ const AppShell: ParentComponent = (props) => {
         // browsers / screen readers that don't support inert yet.
         aria-hidden={anyModalOpen() ? "true" : undefined}
       >
-        <AppHeader />
+        {/* Desktop sidebar — hidden on mobile, visible on lg+ */}
+        <DuloSidebar />
 
-        <AnnouncementsBanner />
+        {/* Main content area — shifts right on desktop to clear sidebar */}
+        <div class="app-shell-content">
+          <AppHeader />
 
-        {props.children}
+          <AnnouncementsBanner />
 
-        <ToastContainer />
+          {props.children}
+
+          <ToastContainer />
+        </div>
 
         <BottomNavigation />
 

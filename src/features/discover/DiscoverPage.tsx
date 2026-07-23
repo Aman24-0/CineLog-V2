@@ -453,7 +453,7 @@ export default function DiscoverPage() {
 
             {/* 2. SPOTLIGHT */}
             <Show when={homepageConfig.isEnabled("spotlight")}>
-            <Spotlight pick={spotlightPick} loading={spotlightLoading()} isGuest={isGuest()}
+            <Spotlight pick={spotlightPick} loading={spotlightLoading} isGuest={isGuest()}
               vault={watchlist()} onDetails={handleOpenTitle} onAddToVault={addToVault} onReroll={handleReroll} />
             </Show>
 
@@ -506,13 +506,14 @@ export default function DiscoverPage() {
           {/* 4. TRENDING THIS WEEK */}
           <Show when={homepageConfig.isEnabled("trending")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
-            <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
+            <DiscoverSection label="Top 10 This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
               <DiscoverRail
                 titles={trendingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No trending titles available."
                 emptyIcon="trending_up"
                 onRetry={trendingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                numbered={true}
               />
             </DiscoverSection>
           </ErrorBoundary>
@@ -521,13 +522,14 @@ export default function DiscoverPage() {
           {/* 5. IN THEATRES NOW */}
           <Show when={homepageConfig.isEnabled("theatres")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
-            <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
+            <DiscoverSection label="Top 10 Movies" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
               <DiscoverRail
                 titles={nowPlayingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No theatre releases available."
                 emptyIcon="theaters"
                 onRetry={nowPlayingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
+                numbered={true}
               />
             </DiscoverSection>
           </ErrorBoundary>

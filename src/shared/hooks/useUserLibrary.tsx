@@ -82,14 +82,10 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * The ONE fetch function. Called on auth state change and by
    * consumers via `refresh()`. Only fetches when auth is ready
    * and a user is signed in — otherwise clears the library.
-   *
-   * Race-safe: tracks the latest in-flight uid so a stale fetch
-   * can't overwrite a fresh one. If a new fetch is requested while
-   * one is already in-flight for the SAME uid, the duplicate is
-   * skipped. If the uid changed, the old fetch's results are
-   * discarded when it resolves (stale check on fetchUid).
    */
   const doFetch = async () => {
+    if (isFetching) return;
+    isFetching = true;
     const userId = getUserId();
     if (!userId) {
       setWatchlist([]);
@@ -97,12 +93,6 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       isFetching = false;
       return;
     }
-
-    // If already fetching for this exact uid, skip the duplicate.
-    // But if the uid changed (sign-out + sign-in), allow the new fetch.
-    if (isFetching && fetchUid === userId) return;
-
-    isFetching = true;
 
     // Record the uid so we can discard stale results.
     const currentFetchUid = userId;
@@ -114,16 +104,14 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       // Discard if user changed while fetch was in-flight
       if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setWatchlist(items);
+      setLoading(false);
     } catch (err) {
       console.error("[UserLibraryProvider] Fetch error:", err);
       // Discard if user changed while fetch was in-flight
       if (fetchUid !== currentFetchUid) { isFetching = false; return; }
       setError("Failed to load your library.");
+      setLoading(false);
     } finally {
-      // Only clear loading if this is still the active fetch
-      if (fetchUid === currentFetchUid) {
-        setLoading(false);
-      }
       isFetching = false;
     }
   };
@@ -143,15 +131,26 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * the second call, meaning the duplicate trigger was wasted. The
    * createEffect alone is sufficient for all auth state transitions
    * (sign-in, sign-out, OAuth redirect, token refresh).
+   *
+   * Safety-net: if loading is still true after 15 seconds (vault fetch
+   * hung or auth never resolved), force loading=false so the UI unblocks.
    */
   createEffect(() => {
     if (authReady() && isSignedIn()) {
       doFetch();
+      // Safety-net: unblock UI if the vault fetch hangs (network issues, etc.)
+      const safetyTimer = setTimeout(() => {
+        if (isFetching) {
+          console.warn("[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI");
+          setLoading(false);
+          isFetching = false;
+        }
+      }, 15000);
+      void safetyTimer; // reference to suppress unused-var lint
     } else if (authReady() && !isSignedIn()) {
       // Clear library when signed out (guest mode)
       setWatchlist([]);
       setLoading(false);
-      isFetching = false;
     }
   });
 

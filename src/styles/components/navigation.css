@@ -1,4 +1,216 @@
-/* src/styles/components/navigation.css — Phase 14.2 CSS architecture
-   Navigation styles. The bottom-nav and AppShell styles are handled
-   by the AppShell component + Tailwind utilities. Custom navigation
-   CSS (if any) would go here. Currently empty. */
+/* navigation.css — Dulo.tv-inspired navigation system
+   Covers: header, bottom nav, side drawer, nav buttons.
+   Mobile-first, desktop adapts to wider layout. */
+
+/* ─── HEADER ─────────────────────────────────────────────── */
+.dulo-header {
+  position: sticky;
+  top: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: calc(0.75rem + env(safe-area-inset-top, 0px)) 1rem 0.75rem;
+  background: rgba(10, 10, 16, 0.88);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+}
+
+/* Desktop: header gets more horizontal padding */
+@media (min-width: 768px) {
+  .dulo-header {
+    padding-left: 2rem;
+    padding-right: 2rem;
+  }
+}
+@media (min-width: 1200px) {
+  .dulo-header {
+    padding-left: calc(240px + 2rem); /* sidebar offset */
+  }
+}
+
+.dulo-header-left {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.dulo-header-icon-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.75);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.dulo-header-icon-btn:hover {
+  background: rgba(255,255,255,0.08);
+  color: #fff;
+}
+.dulo-header-icon-btn:active {
+  background: rgba(255,255,255,0.12);
+}
+
+.dulo-avatar-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.8);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 150ms ease, transform 150ms ease;
+  flex-shrink: 0;
+}
+.dulo-avatar-btn:hover {
+  background: rgba(255,255,255,0.14);
+  transform: scale(1.06);
+}
+
+.dulo-avatar-letter {
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  color: #fff;
+  line-height: 1;
+}
+
+/* ─── BOTTOM NAV ──────────────────────────────────────────── */
+.dulo-bottom-nav {
+  background: rgba(10, 10, 16, 0.97);
+  border-top: 1px solid rgba(255,255,255,0.07);
+  box-shadow: 0 -4px 24px rgba(0,0,0,0.6);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* On wide screens, hide the bottom nav and show a sidebar instead */
+@media (min-width: 1024px) {
+  .dulo-bottom-nav {
+    display: none;
+  }
+}
+
+/* ─── DESKTOP SIDEBAR ─────────────────────────────────────── */
+.dulo-sidebar {
+  display: none;
+}
+@media (min-width: 1024px) {
+  .dulo-sidebar {
+    display: flex;
+    flex-direction: column;
+    position: fixed;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 220px;
+    background: rgba(10, 10, 16, 0.98);
+    border-right: 1px solid rgba(255,255,255,0.06);
+    z-index: 40;
+    padding: 1.5rem 0;
+    gap: 0;
+    overflow-y: auto;
+  }
+}
+
+.dulo-sidebar-logo {
+  padding: 0 1.25rem 1.5rem;
+  border-bottom: 1px solid rgba(255,255,255,0.05);
+  margin-bottom: 0.75rem;
+}
+.dulo-sidebar-logo-text {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.6rem;
+  letter-spacing: 0.06em;
+  color: #fff;
+}
+.dulo-sidebar-logo-text span {
+  color: var(--p, #E8B74A);
+}
+
+.dulo-sidebar-section {
+  padding: 0.5rem 0.75rem;
+}
+.dulo-sidebar-section-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: rgba(255,255,255,0.3);
+  padding: 0.5rem 0.5rem 0.25rem;
+}
+
+.dulo-sidebar-item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.6rem 0.875rem;
+  border-radius: 10px;
+  border: none;
+  background: transparent;
+  color: rgba(255,255,255,0.6);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  transition: background 150ms ease, color 150ms ease;
+  position: relative;
+}
+.dulo-sidebar-item:hover {
+  background: rgba(255,255,255,0.06);
+  color: #fff;
+}
+.dulo-sidebar-item.active {
+  background: rgba(232,183,74,0.1);
+  color: var(--p, #E8B74A);
+  font-weight: 600;
+}
+.dulo-sidebar-item.active .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+.dulo-sidebar-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  opacity: 0.85;
+}
+
+.dulo-sidebar-signin {
+  margin: 0.75rem 0.75rem 0;
+  padding: 0.75rem 1rem;
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: center;
+  transition: background 150ms ease;
+  width: calc(100% - 1.5rem);
+}
+.dulo-sidebar-signin:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+/* ─── DESKTOP CONTENT OFFSET ──────────────────────────────── */
+/* Pages need left offset on desktop to clear the sidebar */
+@media (min-width: 1024px) {
+  .app-shell-content {
+    margin-left: 220px;
+  }
+}

@@ -20,7 +20,7 @@
 }
 
 .settings-eyebrow {
-  font-family: 'Azeret Mono', 'Inter', monospace;
+  font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.16em;
@@ -30,7 +30,7 @@
 }
 
 .settings-title {
-  font-family: 'Bebas Neue', 'Inter', sans-serif;
+  font-family: 'Bebas Neue', cursive;
   font-size: 2rem;
   line-height: 1;
   letter-spacing: 0.03em;
@@ -44,7 +44,7 @@
 }
 
 .settings-subtitle {
-  font-family: 'Inter', 'Inter', 'Outfit', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 0.875rem;
   font-weight: 400;
   color: var(--text-soft);
@@ -69,7 +69,7 @@
 }
 
 .settings-section-label {
-  font-family: 'Azeret Mono', 'Inter', monospace;
+  font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -136,14 +136,14 @@
 }
 
 .settings-row-label {
-  font-family: 'Inter', 'Inter', 'Outfit', sans-serif;
+  font-family: 'Outfit', sans-serif;
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-strong);
 }
 
 .settings-row-desc {
-  font-family: 'Azeret Mono', 'Inter', monospace;
+  font-family: 'Azeret Mono', monospace;
   font-size: 0.5rem;
   font-weight: 600;
   letter-spacing: 0.06em;
@@ -158,14 +158,14 @@
 
 /* Sign Out row — danger styling */
 .settings-row-danger .settings-row-icon {
-  background: rgba(255,99,99,0.12);
-  color: #FF6363;
+  background: rgba(248,113,113,0.12);
+  color: #f87171;
 }
 .settings-row-danger .settings-row-label {
-  color: #FF6363;
+  color: #f87171;
 }
 .settings-row-danger:hover {
-  background: rgba(255,99,99,0.06);
+  background: rgba(248,113,113,0.06);
 }
 
 /* Back button */
@@ -178,7 +178,7 @@
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-pill);
   color: var(--text-soft);
-  font-family: 'Azeret Mono', 'Inter', monospace;
+  font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.12em;

@@ -1,25 +1,5 @@
 // src/features/discover/components/DiscoverRail.tsx
-//
-// DiscoverRail — horizontal scroll-snap carousel of movie/TV posters.
-//
-// Reuses the existing .search-rail CSS (same visual language as the
-// Search page's trending rail). Each card shows:
-//   - Poster (w185)
-//   - Title (2-line clamp)
-//   - Year + rating meta
-//
-// Performance:
-//   - All images use loading="lazy" + decoding="async"
-//   - No individual TMDB fetches — all data comes from the parent
-//   - Scroll-snap-type: x proximity for natural mobile scrolling
-//
-// Empty states:
-//   - When `titles` is empty AND `error` is provided, shows a Retry
-//     button that calls `onRetry`.
-//   - When `titles` is empty and no error, shows `emptyText` (or a
-//     default "No titles available." message).
-//
-
+// Dulo.tv-inspired numbered rail — large rank numbers behind each poster.
 import { For, Show, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
@@ -28,14 +8,12 @@ import DiscoverEmptyState from "./DiscoverEmptyState";
 interface DiscoverRailProps {
   titles: TMDBTitle[];
   onSelect: (title: TMDBTitle) => void;
-  /** Custom empty-state message. Defaults to "No titles available." */
   emptyText?: string;
-  /** Optional empty-state icon (Material Symbols name). */
   emptyIcon?: string;
-  /** Optional hint shown under the empty message. */
   emptyHint?: string;
-  /** If provided AND titles is empty, renders a Retry button. */
   onRetry?: () => void;
+  /** Show large ranking numbers behind posters (Dulo.tv style). Default: false */
+  numbered?: boolean;
 }
 
 const DiscoverRail: Component<DiscoverRailProps> = (props) => {
@@ -51,21 +29,26 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
         />
       }
     >
-      <div class="search-rail" role="list">
+      <div class={props.numbered ? "dulo-rail dulo-rail-numbered" : "dulo-rail"} role="list">
         <For each={props.titles.slice(0, 20)}>
-          {(title) => (
+          {(title, i) => (
             <button
               type="button"
-              class="search-rail-card focus-ring"
+              class="dulo-rail-card focus-ring"
               onClick={() => props.onSelect(title)}
               role="listitem"
               aria-label={`${title.title || title.name || "Untitled"}${title.release_date || title.first_air_date ? `, ${(title.release_date || title.first_air_date || "").split("-")[0]}` : ""}`}
             >
-              <div class="search-rail-poster">
+              {/* Numbered rank backdrop */}
+              <Show when={props.numbered}>
+                <span class="dulo-rail-rank" aria-hidden="true">{i() + 1}</span>
+              </Show>
+
+              <div class="dulo-rail-poster">
                 <Show
                   when={title.poster_path}
                   fallback={
-                    <div class="search-rail-poster-fallback">
+                    <div class="dulo-rail-poster-fallback">
                       <span class="material-symbols-outlined" style={{ "font-size": "24px", color: "var(--text-dim)" }} aria-hidden="true">
                         movie
                       </span>
@@ -74,7 +57,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                 >
                   <img
                     src={tmdbImage(title.poster_path, "w185")}
-                    class="search-rail-poster-img"
+                    class="dulo-rail-poster-img"
                     loading="lazy"
                     decoding="async"
                     alt=""
@@ -83,10 +66,10 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                   />
                 </Show>
               </div>
-              <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
-              <p class="search-rail-meta">
+
+              <p class="dulo-rail-title">{title.title || title.name || "Untitled"}</p>
+              <p class="dulo-rail-meta">
                 {(title.release_date || title.first_air_date || "").split("-")[0] || ""}
-                {title.vote_average ? ` · ★ ${title.vote_average.toFixed(1)}` : ""}
               </p>
             </button>
           )}

@@ -47,7 +47,7 @@ export default createHandler(() => (
             name="description"
             content="CineLog V2 — track your movies and TV shows, discover new favorites, and build curated collections. A modern watchlist app for cinephiles."
           />
-          <meta name="theme-color" content="#090909" />
+          <meta name="theme-color" content="#7c3aed" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -99,7 +99,7 @@ export default createHandler(() => (
           {/* Preconnect to TMDB image CDN so poster fetches skip TLS handshake */}
           <link rel="preconnect" href="https://image.tmdb.org" crossorigin="anonymous" />
           <link
-            href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
+            href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
             rel="stylesheet"
           />
           <link

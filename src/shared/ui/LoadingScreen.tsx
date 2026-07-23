@@ -75,34 +75,33 @@ const LoadingScreen: Component = () => {
         </span>
       </div>
 
-      {/* Wordmark — Inter, extrabold, consistent with AppHeader */}
+      {/* Wordmark */}
       <h1
         style={{
-          "font-family": "'Inter', sans-serif",
-          "font-size": "32px",
+          "font-family": "'Bebas Neue', cursive",
+          "font-size": "2.5rem",
           "line-height": "1",
-          "font-weight": "800",
-          "letter-spacing": "-0.03em",
+          "letter-spacing": "0.04em",
           margin: "0",
-          color: "#FFFFFF",
+          color: "var(--text-strong)",
         }}
       >
-        CINE<span style={{ color: "#8A624C" }}>LOG</span>
+        CINE<span style={{ color: "var(--p)" }}>LOG</span>
       </h1>
 
       {/* Caption */}
       <p
         style={{
-          "font-family": "'Inter', sans-serif",
-          "font-size": "13px",
-          "font-weight": 500,
-          "letter-spacing": "0",
-          "text-transform": "none",
-          color: "#A8A8A8",
-          margin: "12px 0 0",
+          "font-family": "'Azeret Mono', monospace",
+          "font-size": "0.625rem",
+          "font-weight": "700",
+          "letter-spacing": "0.18em",
+          "text-transform": "uppercase",
+          color: "var(--text-muted)",
+          margin: "var(--sp-3) 0 0",
         }}
       >
-        Loading your cinema
+        Initializing Vault
       </p>
     </div>
   );
