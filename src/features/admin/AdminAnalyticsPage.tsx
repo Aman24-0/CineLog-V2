@@ -14,7 +14,7 @@
 //
 // All data is fetched in a single GET /api/admin/analytics call.
 
-import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
+import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
 
 interface UserGrowthRow {
   day: string;
@@ -344,7 +344,7 @@ const StatCard: Component<{ label: string; value: number; hint?: string }> = (pr
   </div>
 );
 
-const Section: Component<{ title: string; children: JSX.Element }> = (props) => (
+const Section: Component<{ title: string; children: any }> = (props) => (
   <section style={{ "margin-top": "var(--sp-8)" }}>
     <h2 style={{ "font-size": "1.125rem", color: "var(--text)", margin: "0 0 var(--sp-4) 0" }}>
       {props.title}

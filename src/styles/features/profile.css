@@ -30,9 +30,6 @@
 .profile-content {
   position: relative;
   z-index: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--space-rhythm-md);
 }
 
 .profile-fade-in {
@@ -895,68 +892,51 @@
    ============================================================ */
 
 .profile-settings {
-  margin-top: 0;
+  margin-top: var(--space-14);
 }
 
-/* ── Quick links — horizontal row of glass action tiles ── */
+/* ── Quick links — horizontal row ── */
 
 .settings-quick-links {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: var(--card-gap);
-  margin-bottom: var(--space-rhythm-sm);
-}
-@media (min-width: 640px) {
-  .settings-quick-links {
-    grid-template-columns: repeat(4, 1fr);
-  }
+  display: flex;
+  gap: 0;
+  border-radius: var(--radius-md, 8px);
+  background: var(--tier-2);
+  overflow: hidden;
+  margin-bottom: var(--space-3);
 }
 
 .settings-quick-link {
+  flex: 1;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
   gap: var(--space-1);
-  padding: var(--space-4) var(--space-2);
-  background: var(--glass-bg);
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  border: 1px solid var(--glass-border);
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--glass-radius);
+  padding: var(--space-3) var(--space-2);
   color: var(--text-soft);
+  transition: background 200ms ease, color 200ms ease;
   text-decoration: none;
-  transition: background var(--dur-base) var(--ease-out),
-              color var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
 }
 
 .settings-quick-link:hover {
-  background: var(--glass-bg-elevated);
-  border-color: var(--glass-border-strong);
-  box-shadow: var(--glass-shadow-hover);
+  background: var(--tier-3);
   color: var(--text-strong);
-  transform: translateY(-2px);
 }
 
 .settings-quick-link-icon {
-  font-size: 22px;
+  font-size: 18px;
   color: var(--text-dim);
-  transition: color var(--dur-base) var(--ease-out);
 }
 
 .settings-quick-link:hover .settings-quick-link-icon {
-  color: var(--p);
+  color: var(--text-soft);
 }
 
 .settings-quick-link-label {
   font-family: var(--font-family-body);
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.01em;
+  font-size: 0.6875rem;
+  font-weight: var(--font-weight-medium);
+  letter-spacing: var(--letter-spacing-wide);
 }
 
 /* ── Main Settings link ── */
@@ -2331,10 +2311,10 @@
 
 .profile-hero-v2 ~ .profile-settings,
 .profile-settings {
-  margin-top: 0;
+  margin-top: var(--space-6);
 }
 
-/* Sign Out — full width, glass with danger tint, connected to action row above. */
+/* Sign Out — full width, danger-styled button (red tint). */
 .settings-sign-out-button {
   display: flex;
   align-items: center;
@@ -2346,31 +2326,22 @@
   font-size: 0.9375rem;
   font-weight: var(--font-weight-medium);
   color: #fca5a5;
-  background: color-mix(in srgb, #ef4444 12%, var(--glass-bg));
-  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
-  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--glass-border));
-  box-shadow: var(--glass-shadow);
-  border-radius: var(--glass-radius);
+  background: color-mix(in srgb, #ef4444 8%, var(--tier-2));
+  border: 1px solid color-mix(in srgb, #ef4444 35%, var(--hairline));
+  border-radius: var(--radius-md, 8px);
   cursor: pointer;
-  transition: background var(--dur-base) var(--ease-out),
-              color var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+  transition: background 200ms ease, color 200ms ease, border-color 200ms ease;
 }
 
 .settings-sign-out-button:hover {
-  background: color-mix(in srgb, #ef4444 22%, var(--glass-bg-elevated));
+  background: color-mix(in srgb, #ef4444 18%, var(--tier-2));
   color: #fecaca;
-  border-color: color-mix(in srgb, #ef4444 55%, var(--glass-border-strong));
-  box-shadow: var(--glass-shadow-hover);
-  transform: translateY(-1px);
+  border-color: color-mix(in srgb, #ef4444 55%, var(--hairline));
 }
 
 .settings-sign-out-button .material-symbols-outlined {
   color: #f87171;
-  transition: color var(--dur-base) var(--ease-out);
+  transition: color 200ms ease;
 }
 
 .settings-sign-out-button:hover .material-symbols-outlined {

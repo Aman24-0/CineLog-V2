@@ -511,7 +511,7 @@ const AdminAnnouncementsPage: Component = () => {
 
 // ─── Sub-components ─────────────────────────────────────────────────
 
-function Field(props: { label: string; children: JSX.Element }) {
+function Field(props: { label: string; children: any }) {
   return (
     <div>
       <label style={{ display: "block", "font-size": "0.8rem", color: "var(--text-muted)", "margin-bottom": "var(--sp-1)", "font-weight": "500" }}>

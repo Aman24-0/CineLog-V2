@@ -55,7 +55,7 @@ const DEFAULT_CONFIG = {
   },
 };
 
-export async function GET(_event: APIEvent) {
+export async function GET(event: APIEvent) {
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const anonKey = process.env.VITE_SUPABASE_ANON_KEY;

@@ -816,7 +816,7 @@ const AdminCollectionEditorPage: Component = () => {
 
 // ─── Sub-components & styles ───────────────────────────────────────
 
-function Field(props: { label: string; children: JSX.Element }) {
+function Field(props: { label: string; children: any }) {
   return (
     <div>
       <label

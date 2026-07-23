@@ -113,7 +113,20 @@ export function useDiscoverFeeds(
         .catch((e) => console.error("[useDiscoverFeeds] hiddenGems:", e)),
     ];
 
-    Promise.allSettled(feeds).finally(() => setLoading(false));
+    // Safety-net: force loading=false after 15 seconds regardless of
+    // whether all feeds have settled. This prevents the Discover page
+    // from being stuck on a skeleton forever if any underlying fetch
+    // hangs (e.g. TMDB unreachable, network timeout, or a bug in
+    // cachedFetch that prevents the promise from settling).
+    const safetyTimeout = setTimeout(() => {
+      console.warn("[useDiscoverFeeds] Global timeout — forcing loading=false after 15s");
+      setLoading(false);
+    }, 15_000);
+
+    Promise.allSettled(feeds).finally(() => {
+      clearTimeout(safetyTimeout);
+      setLoading(false);
+    });
   };
 
   onMount(loadAll);

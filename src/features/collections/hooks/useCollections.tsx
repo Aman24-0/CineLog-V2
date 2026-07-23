@@ -128,17 +128,19 @@ const useCollectionsLogic = () => {
   const universePrefs = useUniversePrefsLogic();
 
   const refreshCollections = async (userId: string) => {
+    // NOTE: setLoading(false) is handled by loadForUid's finally block.
+    // Do NOT call setLoading(false) here — it could race with loadForUid's
+    // finally block if refreshUniversePrefs is still running.
     try {
       const items = await fetchCollectionsFromSupabase(userId);
       // Defensive: the adapter already returns [] on error, but guard
       // against an unexpected null/undefined so a downstream .map()
       // never throws "Cannot read properties of null".
       setUserCollections(Array.isArray(items) ? items : []);
-      setLoading(false);
     } catch (err) {
       console.error("[useCollections] Supabase error:", err);
       setUserCollections([]);
-      setLoading(false);
+      throw err; // Re-throw so loadForUid's catch block can handle it
     }
   };
 
@@ -157,29 +159,39 @@ const useCollectionsLogic = () => {
       if (lastFetchUid === supabaseUid) return;
       lastFetchUid = supabaseUid;
       setLoading(true);
-      // AWAIT ensureFavoritesExists BEFORE refreshing collections.
-      // Previously this was fire-and-forget (.catch(() => {})), which
-      // caused a race condition: multiple onSessionChange events would
-      // each check for Favorites concurrently, find none, and each
-      // create a duplicate. Awaiting ensures the check+create completes
-      // before the collection list is refreshed.
-      // Timeout guard (5 s): if Supabase is slow/unreachable, don't block
-      // the entire collections page in skeleton state indefinitely.
       try {
-        await Promise.race([
-          ensureFavoritesExistsInSupabase(supabaseUid),
-          new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+        // AWAIT ensureFavoritesExists BEFORE refreshing collections.
+        // Previously this was fire-and-forget (.catch(() => {})), which
+        // caused a race condition: multiple onSessionChange events would
+        // each check for Favorites concurrently, find none, and each
+        // create a duplicate. Awaiting ensures the check+create completes
+        // before the collection list is refreshed.
+        // Timeout guard (5 s): if Supabase is slow/unreachable, don't block
+        // the entire collections page in skeleton state indefinitely.
+        try {
+          await Promise.race([
+            ensureFavoritesExistsInSupabase(supabaseUid),
+            new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+          ]);
+        } catch (err) {
+          // Non-fatal: collections still load even if Favorites creation fails/times out.
+          if ((err as Error)?.message !== "timeout") {
+            console.error("[useCollections] ensureFavoritesExists failed:", err);
+          }
+        }
+        await Promise.all([
+          refreshCollections(supabaseUid),
+          universePrefs.refreshUniversePrefs(supabaseUid),
         ]);
       } catch (err) {
-        // Non-fatal: collections still load even if Favorites creation fails/times out.
-        if ((err as Error)?.message !== "timeout") {
-          console.error("[useCollections] ensureFavoritesExists failed:", err);
-        }
+        // GUARANTEE: loading MUST become false even if refreshCollections or
+        // refreshUniversePrefs throws an unexpected error. Without this catch,
+        // loading stays true forever and the Collections page is stuck on skeleton.
+        console.error("[useCollections] loadForUid failed:", err);
+        setUserCollections([]);
+      } finally {
+        setLoading(false);
       }
-      await Promise.all([
-        refreshCollections(supabaseUid),
-        universePrefs.refreshUniversePrefs(supabaseUid),
-      ]);
     } else {
       lastFetchUid = null;
       setUserCollections([]);

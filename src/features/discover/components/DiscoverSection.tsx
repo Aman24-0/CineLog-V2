@@ -1,5 +1,9 @@
-// DiscoverSection — CineLog section header with optional "See all" link.
-// Renders a horizontal rail of poster cards with premium spacing.
+// src/features/discover/components/DiscoverSection.tsx
+//
+// DiscoverSection — the standard wrapper for each Discover fold.
+// Shows a label with an icon, and either the children or a 6-card
+// skeleton rail while data is loading.
+
 import { Show, For, type JSX } from "solid-js";
 
 interface DiscoverSectionProps {
@@ -7,27 +11,18 @@ interface DiscoverSectionProps {
   icon: string;
   loading?: boolean;
   children: JSX.Element;
-  onSeeAll?: () => void;
 }
 
 export function DiscoverSection(props: DiscoverSectionProps) {
   return (
-    <section class="dulo-section page-section" aria-label={props.label}>
-      <div class="dulo-section-header">
-        <h2 class="dulo-section-title">{props.label}</h2>
-        <Show when={props.onSeeAll}>
-          <button class="dulo-section-see-all" onClick={props.onSeeAll} type="button">
-            See all
-          </button>
-        </Show>
+    <section class="discover-fold" aria-label={props.label}>
+      <div class="discover-fold-label">
+        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">{props.icon}</span>
+        {props.label}
       </div>
       <Show when={!props.loading} fallback={
-        <div class="dulo-rail">
-          <For each={Array.from({ length: 6 })}>{() =>
-            <div class="dulo-rail-card" style={{ cursor: "default" }}>
-              <div class="dulo-rail-poster skeleton-base" />
-            </div>
-          }</For>
+        <div class="search-rail">
+          <For each={Array.from({ length: 6 })}>{() => <div class="search-rail-card" style={{ cursor: "default" }}><div class="search-rail-poster skeleton-base" /></div>}</For>
         </div>
       }>
         {props.children}

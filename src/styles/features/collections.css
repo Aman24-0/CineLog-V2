@@ -2118,19 +2118,3 @@
   flex-wrap: wrap;
   margin-bottom: var(--sp-3);
 }
-
-/* ── Dulo.tv grid style override for collections ── */
-.collections-folder-grid {
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 0.625rem;
-}
-@media (min-width: 500px) {
-  .collections-folder-grid { grid-template-columns: repeat(3, 1fr); gap: 0.75rem; }
-}
-@media (min-width: 768px) {
-  .collections-folder-grid { grid-template-columns: repeat(4, 1fr); gap: 0.875rem; }
-}
-@media (min-width: 1024px) {
-  .collections-folder-grid { grid-template-columns: repeat(5, 1fr); gap: 1rem; }
-}

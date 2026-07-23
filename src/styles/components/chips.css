@@ -1,22 +1,5 @@
-/* src/styles/components/chips.css — Premium Breathing Room Update */
+/* src/styles/components/chips.css — CineLog V2 Redesign */
 
-/* Pills & Tags — soft glass, neutral borders */
-.tag-chip { 
-  background: rgba(0,0,0,0.60); border: 1px solid rgba(255,255,255,0.06); 
-  backdrop-filter: blur(12px); 
-  padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-pill); 
-  font-family: 'Azeret Mono', monospace; font-size: 8px; font-weight: 700; 
-  text-transform: uppercase; letter-spacing: 0.08em; 
-  transition: background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out); 
-  box-shadow: 0 1px 4px rgba(0,0,0,0.25); 
-  min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; 
-}
-.rating-pill { 
-  background: rgba(0,0,0,0.55); backdrop-filter: blur(16px); 
-  border: 1px solid rgba(255,255,255,0.06); 
-  padding: var(--sp-1) var(--sp-3); border-radius: var(--radius-pill); 
-  display: flex; align-items: center; gap: var(--sp-1); 
-  font-family: 'Azeret Mono', monospace; font-size: 9px; font-weight: 700; 
-  box-shadow: 0 1px 6px rgba(0,0,0,0.30); 
-  transition: all var(--dur-base) var(--ease-spring); 
-}
+/* Pills & Tags — warm cinema accent */
+.tag-chip { background: rgba(0,0,0,0.72); border: 1px solid rgba(232,183,74,0.10); backdrop-filter: blur(8px); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-6); font-family: 'Azeret Mono', monospace; font-size: 8px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; transition: background var(--dur-fast) var(--ease-out); box-shadow: 0 1px 4px rgba(0,0,0,0.4); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rating-pill { background: rgba(0,0,0,0.70); backdrop-filter: blur(12px); border: 1px solid rgba(232,183,74,0.08); padding: var(--sp-1) var(--sp-2); border-radius: var(--radius-sm); display: flex; align-items: center; gap: var(--sp-1); font-family: 'Azeret Mono', monospace; font-size: 9px; font-weight: 700; box-shadow: 0 2px 8px rgba(0,0,0,0.5); transition: all var(--dur-base) var(--ease-spring); }

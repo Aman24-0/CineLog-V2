@@ -1,14 +1,15 @@
-/* src/styles/tokens/spacing.css — Premium Breathing Room Update
-   Spacing scale tokens. Redesigned for Dulo.tv-inspired spaciousness.
+/* src/styles/tokens/spacing.css — Phase 14.2 CSS architecture
+   Spacing scale tokens. Extracted from the original :root block.
 
-   DESIGN PHILOSOPHY: Generous spacing creates a premium, calm feel.
-   Large horizontal margins, large vertical gaps, large internal padding.
-   Components never touch each other. Empty space is intentional.
-   Premium feeling is more important than density. */
+   Sprint 1B: Added missing space-* aliases and additional entries
+   (space-14, space-16, space-20) to complete the scale. The original
+   --sp-* tokens are kept for backward compatibility — they are NOT
+   removed. The new --space-* tokens map to the same values and
+   provide semantic naming aligned with the design system standard. */
 
 @layer base {
   :root {
-    /* ─── Core spacing scale (original --sp-* preserved for backward compat) ─── */
+    /* ─── Original spacing scale (preserved) ─── */
     --sp-1: 4px;
     --sp-2: 8px;
     --sp-3: 12px;
@@ -20,52 +21,21 @@
     --sp-10: 40px;
     --sp-12: 48px;
 
-    /* ─── Premium semantic spacing scale ───
-       Breathable, spacious values for premium feel.
-       Page-level margins and section gaps are larger.
-       Card internal padding is generous. */
-    --space-1: 4px;
-    --space-2: 8px;
-    --space-3: 12px;
-    --space-4: 16px;
-    --space-5: 20px;
-    --space-6: 28px;      /* was 24px — more breathing room */
-    --space-8: 36px;      /* was 32px — sections breathe */
-    --space-10: 48px;     /* was 40px — generous vertical gaps */
-    --space-12: 60px;     /* was 48px — large section spacing */
-    --space-14: 72px;     /* was 56px — page-level separation */
-    --space-16: 80px;     /* was 64px — hero/landing spacing */
-    --space-20: 96px;     /* was 80px — maximum breathing room */
-
-    /* ─── Premium-specific spacing tokens ─── */
-    --page-h-margin: 20px;      /* horizontal page margins — generous */
-    --page-v-gap: 32px;         /* vertical gap between page sections */
-    --card-padding: 20px;       /* internal card padding — roomy */
-    --card-gap: 16px;           /* gap between cards in grids */
-    --section-gap: 28px;        /* gap between major sections */
-    --rail-gap: 16px;           /* gap between rail/horizontal scroll items */
-    --list-item-padding: 18px;  /* vertical padding for list items */
-    --list-item-gap: 10px;      /* gap between list items */
-
-    /* ─── Unified vertical rhythm tokens ───
-       Inspired by premium streaming apps: hero → breathing room →
-       section → breathing room → cards → breathing room → next section.
-       Hero → Section: 36-48px (rhythm-md)
-       Section → Cards: 24-32px (rhythm-sm)
-       Cards → Next Section: 36-48px (rhythm-md)
-       Major page transitions: 48-60px (rhythm-lg) */
-    --space-rhythm-xs: 16px;    /* tight grouping inside a card */
-    --space-rhythm-sm: 24px;    /* section → cards */
-    --space-rhythm-md: 36px;    /* hero → section, cards → next section */
-    --space-rhythm-lg: 48px;    /* major page-level separation */
-    --space-rhythm-xl: 60px;    /* maximum breathing room */
-
-    /* ─── Glass-specific spacing ─── */
-    --glass-padding: 20px;          /* internal padding for glass cards */
-    --glass-padding-lg: 28px;       /* internal padding for large glass sections */
-    --glass-gap: 16px;              /* gap between glass cards */
-    --glass-radius: 18px;           /* default radius for glass cards */
-    --glass-radius-lg: 24px;        /* radius for large glass sections */
-    --glass-radius-pill: 999px;     /* radius for glass pills/chips */
+    /* ─── Semantic spacing scale (new, aliases to original values) ───
+       Follows the 4px base unit convention.
+       space-N = N * 4px for values 1–6,
+       then 32, 40, 48, 56, 64, 80px. */
+    --space-1: 4px;      /* = --sp-1  */
+    --space-2: 8px;      /* = --sp-2  */
+    --space-3: 12px;     /* = --sp-3  */
+    --space-4: 16px;     /* = --sp-4  */
+    --space-5: 20px;     /* = --sp-5  */
+    --space-6: 24px;     /* = --sp-6  */
+    --space-8: 32px;     /* = --sp-8  */
+    --space-10: 40px;    /* = --sp-10 */
+    --space-12: 48px;    /* = --sp-12 */
+    --space-14: 56px;    /* NEW — for large section gaps */
+    --space-16: 64px;    /* NEW — for page-level spacing */
+    --space-20: 80px;    /* NEW — for hero/landing sections */
   }
 }

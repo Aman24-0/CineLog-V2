@@ -86,7 +86,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
   // Empty / loading / error states
   return (
     <section
-      class={`dulo-hero spotlight animate-fade-in${rerollFade() ? " spotlight-rerolling" : ""}`}
+      class={`spotlight animate-fade-in${rerollFade() ? " spotlight-rerolling" : ""}`}
       role="region"
       aria-label="Spotlight — one title picked for you"
       aria-busy={props.loading}
@@ -106,8 +106,8 @@ const Spotlight: Component<SpotlightProps> = (props) => {
         />
       </Show>
 
-      {/* Multi-layer gradient overlay */}
-      <div class="spotlight-overlay dulo-hero-gradient" aria-hidden="true" />
+      {/* Multi-layer gradient overlay (inherited from CinematicHero) */}
+      <div class="spotlight-overlay" aria-hidden="true" />
 
       {/* Top-left badge — the fold identity */}
       <div class="spotlight-badge" aria-label="Spotlight">
@@ -118,7 +118,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
       </div>
 
       {/* Content cluster */}
-      <div class="spotlight-content dulo-hero-content">
+      <div class="spotlight-content">
         <Show when={pick()} fallback={
           <Show when={props.loading} fallback={
             <div class="spotlight-empty">

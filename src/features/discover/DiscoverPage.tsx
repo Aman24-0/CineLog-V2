@@ -66,6 +66,7 @@ import GenreExplorer from "./components/GenreExplorer";
 import OttSection from "./components/OttSection";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
 import LazyMount from "./components/LazyMount";
+import DiscoverEmptyState from "./components/DiscoverEmptyState";
 import { DiscoverSection } from "./components/DiscoverSection";
 import { DiscoverSectionError } from "./components/DiscoverSectionError";
 import { discoverMovies, genreIdFor } from "~/core/tmdb/discover";
@@ -74,10 +75,9 @@ import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { useFeatureFlags } from "~/lib/featureFlags";
 import { useHomepageConfig } from "~/lib/homepageConfig";
 import type { TMDBTitle } from "~/shared/types";
-// Discover has its own inline quick-search at the top, AND there is a
-// dedicated /search page for intentional discovery-by-query. Both use
-// the same useSearch hook + SearchResults component so the search UX
-// is identical in either entry point.
+// Merged search — the dedicated /search page is gone. Search now lives
+// at the top of Discover. We reuse the existing useSearch hook +
+// SearchResults component so the search UX is identical to before.
 import { useSearch } from "~/features/search/useSearch";
 import SearchResults from "~/features/search/SearchResults";
 
@@ -101,13 +101,11 @@ export default function DiscoverPage() {
   // up the new value automatically without a page reload.
   const region = useDiscoverRegion();
 
-  // === INLINE QUICK SEARCH ===
-  // Discover has a quick-search bar at the top so users can search
-  // without leaving the page. The dedicated /search route offers the
-  // same UX for users who want a search-first entry point. We reuse
-  // the existing useSearch hook so results + vault-aware rows are
-  // identical in either entry point (debounced 250ms, Movies/Series
-  // groups).
+  // === MERGED SEARCH ===
+  // The dedicated /search page is gone — search now lives at the top
+  // of Discover. We reuse the existing useSearch hook so the search
+  // UX is identical to before (debounced 250ms, Movies/Series groups,
+  // vault-aware result rows).
   const {
     query,
     setQuery,
@@ -508,14 +506,13 @@ export default function DiscoverPage() {
           {/* 4. TRENDING THIS WEEK */}
           <Show when={homepageConfig.isEnabled("trending")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending" error={e} />}>
-            <DiscoverSection label="Top 10 This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
+            <DiscoverSection label="Trending This Week" icon="trending_up" loading={feeds.loading() && trendingFeed().length === 0}>
               <DiscoverRail
                 titles={trendingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No trending titles available."
                 emptyIcon="trending_up"
                 onRetry={trendingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
-                numbered={true}
               />
             </DiscoverSection>
           </ErrorBoundary>
@@ -524,14 +521,13 @@ export default function DiscoverPage() {
           {/* 5. IN THEATRES NOW */}
           <Show when={homepageConfig.isEnabled("theatres")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Theatres" error={e} />}>
-            <DiscoverSection label="Top 10 Movies" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
+            <DiscoverSection label="In Theatres Now" icon="theaters" loading={feeds.loading() && nowPlayingFeed().length === 0}>
               <DiscoverRail
                 titles={nowPlayingFeed()}
                 onSelect={handleOpenTitle}
                 emptyText="No theatre releases available."
                 emptyIcon="theaters"
                 onRetry={nowPlayingFeed().length === 0 && !feeds.loading() ? feeds.retry : undefined}
-                numbered={true}
               />
             </DiscoverSection>
           </ErrorBoundary>

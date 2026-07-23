@@ -17,7 +17,7 @@
 //   • The API validates each value; on success we re-fetch the full
 //     state so the UI reflects server-side clamping.
 
-import { createSignal, Show, onMount, type Component, type JSX } from "solid-js";
+import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
 
 interface SiteSettings {
   site_name: string;
@@ -516,7 +516,7 @@ const AdminSettingsPage: Component = () => {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-const Section: Component<{ title: string; subtitle?: string; updated?: string; children: JSX.Element }> = (props) => (
+const Section: Component<{ title: string; subtitle?: string; updated?: string; children: any }> = (props) => (
   <section
     style={{
       "margin-bottom": "var(--sp-8)",
@@ -543,7 +543,7 @@ const Section: Component<{ title: string; subtitle?: string; updated?: string; c
   </section>
 );
 
-const Field: Component<{ label: string; children: JSX.Element }> = (props) => (
+const Field: Component<{ label: string; children: any }> = (props) => (
   <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)", flex: 1, "min-width": 0 }}>
     <label style={{ "font-size": "0.8125rem", color: "var(--text-secondary)", "font-weight": "500" }}>
       {props.label}

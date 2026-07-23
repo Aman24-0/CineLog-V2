@@ -15,7 +15,6 @@ import { For, Show, createSignal, createEffect, onCleanup, onMount, type Compone
 import { searchMulti } from "~/core/tmdb/discover";
 import { posterUrl, releaseYear } from "./types";
 import type { AdminEntry } from "./types";
-import type { TMDBTitle } from "~/shared/types";
 
 interface TmdbResult {
   tmdb_id: number;
@@ -111,8 +110,8 @@ const TmdbSearchModal: Component<Props> = (props) => {
         // Stale response — a newer search has started; ignore this one.
         if (myId !== requestId) return;
         const filtered: TmdbResult[] = items
-          .filter((it: TMDBTitle) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
-          .map((it: TMDBTitle) => ({
+          .filter((it: any) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
+          .map((it: any) => ({
             tmdb_id: it.id,
             media_type: it.media_type,
             title: it.title || it.name || "Untitled",

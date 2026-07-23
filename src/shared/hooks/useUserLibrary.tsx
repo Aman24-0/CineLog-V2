@@ -113,6 +113,11 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       setLoading(false);
     } finally {
       isFetching = false;
+      // Clear the safety-net timer since the fetch completed (success or error)
+      if (safetyTimerId !== null) {
+        clearTimeout(safetyTimerId);
+        safetyTimerId = null;
+      }
     }
   };
 
@@ -135,22 +140,35 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    * Safety-net: if loading is still true after 15 seconds (vault fetch
    * hung or auth never resolved), force loading=false so the UI unblocks.
    */
+  // Track the safety-net timer so it can be cleared when doFetch completes.
+  let safetyTimerId: ReturnType<typeof setTimeout> | null = null;
+
   createEffect(() => {
     if (authReady() && isSignedIn()) {
+      // Clear any previous safety timer before starting a new fetch
+      if (safetyTimerId !== null) {
+        clearTimeout(safetyTimerId);
+        safetyTimerId = null;
+      }
       doFetch();
       // Safety-net: unblock UI if the vault fetch hangs (network issues, etc.)
-      const safetyTimer = setTimeout(() => {
+      safetyTimerId = setTimeout(() => {
         if (isFetching) {
           console.warn("[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI");
           setLoading(false);
           isFetching = false;
         }
+        safetyTimerId = null;
       }, 15000);
-      void safetyTimer; // reference to suppress unused-var lint
     } else if (authReady() && !isSignedIn()) {
       // Clear library when signed out (guest mode)
       setWatchlist([]);
       setLoading(false);
+      // Clear safety timer on sign-out
+      if (safetyTimerId !== null) {
+        clearTimeout(safetyTimerId);
+        safetyTimerId = null;
+      }
     }
   });
 

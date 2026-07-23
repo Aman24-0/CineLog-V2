@@ -158,15 +158,8 @@
 
   /* Glass surfaces — warm-tinted translucent white (NOT pure white).
      The warm tint (255,253,248) reads as paper, not as hospital tile. */
-  --glass-bg: rgba(255, 253, 248, 0.72);
-  --glass-bg-strong: rgba(255, 253, 248, 0.88);
-  --glass-bg-elevated: rgba(250, 247, 242, 0.78);
-  --glass-border: rgba(28, 24, 21, 0.08);
-  --glass-border-strong: rgba(28, 24, 21, 0.14);
-  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  --glass-shadow: 0 4px 16px rgba(28, 24, 21, 0.10), 0 12px 32px rgba(28, 24, 21, 0.06), inset 0 1px 0 rgba(255, 255, 255, 0.5);
-  --glass-shadow-strong: 0 8px 24px rgba(28, 24, 21, 0.14), 0 20px 48px rgba(28, 24, 21, 0.08), inset 0 1px 0 rgba(255, 255, 255, 0.6);
-  --glass-shadow-hover: 0 8px 28px rgba(28, 24, 21, 0.18), 0 18px 56px rgba(28, 24, 21, 0.10), inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-bg: rgba(255, 253, 248, 0.82);
+  --glass-bg-strong: rgba(255, 253, 248, 0.94);
 
   /* Semantic surface colors */
   --color-surface-void: #FAF7F2;

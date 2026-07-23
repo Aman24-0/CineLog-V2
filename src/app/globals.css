@@ -9,7 +9,6 @@
      5. utilities/        — backdrop, transitions, stagger, helpers
      6. components/       — buttons, cards, chips, dialogs, design system
      7. features/         — dashboard, discover, search, watchlist, collections, details
-     8. premium-overrides — Dulo.tv-inspired visual refinements (LAST)
 
    Vite resolves @import at build time, inlining each file. The final
    CSS produces identical visual output to the pre-refactor monolith. */
@@ -21,4 +20,3 @@
 @import "../styles/utilities/index.css";
 @import "../styles/components/index.css";
 @import "../styles/features/index.css";
-@import "../styles/premium-overrides.css";

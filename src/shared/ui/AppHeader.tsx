@@ -1,52 +1,43 @@
-// src/shared/ui/AppHeader.tsx — CineLog sticky glass header
-import { Show, createMemo, createSignal, onCleanup, onMount, type Component } from "solid-js";
+// src/shared/ui/AppHeader.tsx
+import { Show, createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 /**
- * AppHeader — CineLog premium sticky glass header.
+ * AppHeader — sticky application header.
  *
- * Layout: [hamburger][search] ........... [avatar]
+ * Layout: [wordmark] ........ [avatar pill]
  *
- * NAVIGATION CONTRACT (per spec — "Each button must perform only its own action"):
- *   • Hamburger → opens a side drawer with secondary destinations
- *                 (Statistics, Upcoming, Settings, Trash, About). It does
- *                 NOT navigate to /profile. The avatar already does that.
- *   • Search    → navigates to /search (the intentional discovery-by-query
- *                 page). Does NOT redirect to /discover and does NOT open
- *                 the AuthModal.
- *   • Avatar    → navigates to /profile when signed in, opens the AuthModal
- *                 when signed out. This is the ONLY profile entry point in
- *                 the header.
+ * Navigation restructure (Profile phase):
+ *   The avatar NO LONGER signs out on click. That was an undiscoverable
+ *   trap-door — users had no way to know clicking the avatar would log
+ *   them out. The avatar now navigates to /profile, which is the
+ *   natural destination for "who am I" actions. Sign out lives inside
+ *   Profile → Settings → Account → Sign Out, where it belongs.
  *
- * DESIGN: Frosted glass surface, soft blur, subtle bottom hairline, premium
- * shadow on scroll. Never adds extra buttons or duplicate profile access.
+ *   When the user is NOT signed in, the avatar opens the AuthModal
+ *   (same as before).
+ *
+ * Polished:
+ *  - Wordmark uses font-headline (Bebas Neue) with the accent suffix.
+ *  - Avatar pill is a glass surface with a hairline border, smoother
+ *    hover (background + border-color transition), and a focus ring.
+ *  - Sticky header uses a stronger backdrop blur (20px) so content
+ *    scrolling underneath stays readable but not distracting.
+ *  - Safe-area-aware top padding (env(safe-area-inset-top)) so the
+ *    header never sits under the iOS notch / PWA chrome.
  */
 const AppHeader: Component = () => {
   const { user, isSignedIn } = useAuth();
   const { openAuthModal } = useAuthModal();
   const navigate = useNavigate();
 
-  const [drawerOpen, setDrawerOpen] = createSignal(false);
-  const [scrolled, setScrolled] = createSignal(false);
-
   const initial = createMemo(() => {
     const name = user()?.displayName || user()?.email || "";
     return name.charAt(0).toUpperCase() || "?";
   });
 
-  // Hamburger — opens the drawer (does NOT go to /profile).
-  const handleHamburgerClick = () => {
-    setDrawerOpen((v) => !v);
-  };
-
-  // Search — goes to the dedicated /search page.
-  const handleSearchClick = () => {
-    navigate("/search");
-  };
-
-  // Avatar — goes to /profile (or opens AuthModal when signed out).
   const handleAvatarClick = () => {
     if (isSignedIn()) {
       navigate("/profile");
@@ -55,138 +46,105 @@ const AppHeader: Component = () => {
     }
   };
 
-  // Subtle shadow on scroll for the glass header.
-  onMount(() => {
-    const onScroll = () => setScrolled(window.scrollY > 4);
-    onScroll();
-    window.addEventListener("scroll", onScroll, { passive: true });
-    onCleanup(() => window.removeEventListener("scroll", onScroll));
-  });
-
-  // Close drawer on Escape.
-  const onDrawerKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape") setDrawerOpen(false);
-  };
-
-  // Drawer destinations — secondary nav only. Primary tabs live in
-  // BottomNavigation. Profile is intentionally NOT here (avatar handles it).
-  const drawerItems = [
-    { icon: "bar_chart", label: "Statistics", href: "/profile/stats" },
-    { icon: "event_upcoming", label: "Upcoming", href: "/profile/upcoming" },
-    { icon: "history", label: "History", href: "/profile/history" },
-    { icon: "delete_sweep", label: "Trash", href: "/profile/trash" },
-    { icon: "settings", label: "Settings", href: "/settings" },
-  ] as const;
-
   return (
-    <>
-      <header
-        class="cinelog-header glass-bar"
-        classList={{ "is-scrolled": scrolled() }}
-        role="banner"
+    <header
+      class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
+      style={{
+        background: "var(--glass-bg-strong)",
+        "backdrop-filter": "blur(24px) saturate(140%)",
+        "-webkit-backdrop-filter": "blur(24px) saturate(140%)",
+        "border-bottom": "1px solid var(--hairline)",
+        "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
+        "padding-bottom": "0.875rem",
+        "padding-left": "1.25rem",
+        "padding-right": "1.25rem",
+      }}
+      role="banner"
+    >
+      {/* Wordmark */}
+      <h1
+        class="font-headline m-0"
+        style={{
+          "font-size": "1.5rem",
+          "line-height": "1",
+          "letter-spacing": "0.08em",
+          color: "var(--text-strong)",
+        }}
       >
-        {/* Left: hamburger + search */}
-        <div class="cinelog-header-left">
-          <button
-            class="cinelog-header-icon-btn"
-            type="button"
-            aria-label="Open menu"
-            aria-expanded={drawerOpen()}
-            aria-controls="cinelog-header-drawer"
-            onClick={handleHamburgerClick}
-          >
-            <span class="material-symbols-outlined" style={{ "font-size": "22px" }} aria-hidden="true">
-              menu
-            </span>
-          </button>
-          <button
-            class="cinelog-header-icon-btn"
-            type="button"
-            aria-label="Search"
-            onClick={handleSearchClick}
-          >
-            <span class="material-symbols-outlined" style={{ "font-size": "22px" }} aria-hidden="true">
-              search
-            </span>
-          </button>
-        </div>
+        CINE<span style={{ color: "var(--p)" }}>LOG</span>
+      </h1>
 
-        {/* Center: wordmark — only on inner pages for premium feel */}
-        <div class="cinelog-header-wordmark" aria-hidden="true">
-          CINE<span>LOG</span>
-        </div>
-
-        {/* Right: avatar */}
-        <button
-          type="button"
-          class="cinelog-avatar-btn"
-          onClick={handleAvatarClick}
-          aria-label={isSignedIn() ? "Go to profile" : "Sign in"}
-        >
-          <Show
-            when={isSignedIn()}
-            fallback={
-              <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">
-                account_circle
-              </span>
-            }
-          >
-            <span class="cinelog-avatar-letter">{initial()}</span>
-          </Show>
-        </button>
-      </header>
-
-      {/* Slide-in drawer — opened by hamburger ONLY. */}
-      <Show when={drawerOpen()}>
-        <div
-          class="cinelog-drawer-backdrop"
-          onClick={() => setDrawerOpen(false)}
-          onKeyDown={onDrawerKeyDown}
-          role="button"
-          tabindex={-1}
-          aria-label="Close menu"
-        />
-        <aside
-          id="cinelog-header-drawer"
-          class="cinelog-drawer glass-surface-strong"
-          role="dialog"
-          aria-modal="false"
-          aria-label="Secondary navigation"
-          onKeyDown={onDrawerKeyDown}
-        >
-          <div class="cinelog-drawer-header">
-            <span class="cinelog-drawer-title">Menu</span>
-            <button
-              type="button"
-              class="cinelog-drawer-close"
-              aria-label="Close menu"
-              onClick={() => setDrawerOpen(false)}
+      {/* Avatar pill */}
+      <button
+        type="button"
+        onClick={handleAvatarClick}
+        class="flex items-center gap-2 rounded-full overflow-hidden focus-ring"
+        style={{
+          background: "var(--hairline)",
+          border: "1px solid var(--hairline-2)",
+          padding: "0.25rem",
+          "padding-right": "0.625rem",
+          transition:
+            "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
+        }}
+        onMouseEnter={(e) => {
+          e.currentTarget.style.background = "var(--hairline-2)";
+          e.currentTarget.style.borderColor = "var(--hairline-3)";
+        }}
+        onMouseLeave={(e) => {
+          e.currentTarget.style.background = "var(--hairline)";
+          e.currentTarget.style.borderColor = "var(--hairline-2)";
+        }}
+        aria-label={
+          isSignedIn()
+            ? `View your profile — signed in as ${user()?.displayName || user()?.email || "user"}`
+            : "Sign in"
+        }
+      >
+        <Show
+          when={user()?.photoURL}
+          fallback={
+            <div
+              class="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
+              style={{
+                background: "var(--p-dim)",
+                color: "var(--p)",
+                "font-weight": 700,
+                "font-size": "13px",
+                "font-family": "'Outfit', sans-serif",
+              }}
+              aria-hidden="true"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">
-                close
-              </span>
-            </button>
-          </div>
-          <nav class="cinelog-drawer-nav" aria-label="Secondary">
-            {drawerItems.map((item) => (
-              <button
-                type="button"
-                class="cinelog-drawer-item"
-                onClick={() => {
-                  setDrawerOpen(false);
-                  navigate(item.href);
-                }}
-              >
-                <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">
-                  {item.icon}
-                </span>
-                <span>{item.label}</span>
-              </button>
-            ))}
-          </nav>
-        </aside>
-      </Show>
-    </>
+              {initial()}
+            </div>
+          }
+        >
+          <img
+            loading="lazy"
+            decoding="async"
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
+            src={user()!.photoURL!}
+            alt=""
+            class="h-8 w-8 rounded-full object-cover shrink-0"
+            referrerpolicy="no-referrer"
+          />
+        </Show>
+        <Show when={isSignedIn()}>
+          <span
+            class="hidden sm:block max-w-[120px] truncate"
+            style={{
+              color: "var(--text-body)",
+              "font-size": "0.8125rem",
+              "font-weight": 600,
+            }}
+          >
+            {user()?.displayName || user()?.email}
+          </span>
+        </Show>
+      </button>
+    </header>
   );
 };
 

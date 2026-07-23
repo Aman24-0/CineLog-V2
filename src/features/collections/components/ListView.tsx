@@ -2,6 +2,7 @@
 import { For, Show, createMemo } from "solid-js";
 import { useVault } from "~/features/watchlist/useVault";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { findInVault } from "~/shared/utils/vaultMatch";
 import type {
   Collection,
   CollectionEntry,

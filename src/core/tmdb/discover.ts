@@ -23,6 +23,34 @@ export type { TMDBRawItem };
 
 const API = "https://api.themoviedb.org/3";
 
+// ---------------------------------------------------------------------------
+// Timeout helper — prevents fetch() from hanging forever
+// ---------------------------------------------------------------------------
+
+/** Default timeout for TMDB discover API calls (10 seconds). */
+const TMDB_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * fetch with AbortController timeout.
+ * If the server is unreachable or slow, the request is aborted after
+ * `timeoutMs` milliseconds instead of hanging indefinitely (which would
+ * leave the Discover page stuck on a skeleton forever).
+ */
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs: number = TMDB_FETCH_TIMEOUT_MS,
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+
 /* ------------------------------------------------------------------
    Endpoint wrappers. Each returns TMDBTitle[] (already normalized).
    ------------------------------------------------------------------ */
@@ -62,7 +90,7 @@ export async function discoverMovies(opts: {
     buildCacheKey("tmdb:discover/movie", { q: params.toString() }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/movie?${params}`);
+      const r = await fetchWithTimeout(`${API}/discover/movie?${params}`);
       if (!r.ok) throw new Error(`discoverMovies failed: ${r.status}`);
       return r.json();
     }
@@ -96,7 +124,7 @@ export async function discoverTv(opts: {
     buildCacheKey("tmdb:discover/tv", { q: params.toString() }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/tv?${params}`);
+      const r = await fetchWithTimeout(`${API}/discover/tv?${params}`);
       if (!r.ok) throw new Error(`discoverTv failed: ${r.status}`);
       return r.json();
     }
@@ -116,7 +144,7 @@ export async function getRecommendations(
     buildCacheKey("tmdb:recommendations", { type: mediaType, id: String(id) }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/${mediaType}/${id}/recommendations?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getRecommendations failed: ${r.status}`);
@@ -138,7 +166,7 @@ export async function getTrending(
     buildCacheKey("tmdb:trending", { type: mediaType, window }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/trending/${mediaType}/${window}?api_key=${TMDB_KEY}&language=en-US`
       );
       if (!r.ok) throw new Error(`getTrending failed: ${r.status}`);
@@ -158,7 +186,7 @@ export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:top_rated"),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/movie/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedMovies failed: ${r.status}`);
@@ -184,7 +212,7 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:search/multi", { q: query }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/search/multi?${params}`);
+      const r = await fetchWithTimeout(`${API}/search/multi?${params}`);
       if (!r.ok) throw new Error(`searchMulti failed: ${r.status}`);
       return r.json();
     }
@@ -207,7 +235,7 @@ export async function fetchTitleDirector(
   mediaType: "movie" | "tv",
   id: number | string
 ): Promise<string | undefined> {
-  const res = await fetch(
+  const res = await fetchWithTimeout(
     `${API}/${mediaType}/${id}/credits?api_key=${TMDB_KEY}&language=en-US`
   );
   if (!res.ok) return undefined;
@@ -236,7 +264,7 @@ export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:now_playing", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/movie/now_playing?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getNowPlaying failed: ${r.status}`);
@@ -255,7 +283,7 @@ export async function getUpcoming(region = "IN"): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:upcoming", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/movie/upcoming?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getUpcoming failed: ${r.status}`);
@@ -274,7 +302,7 @@ export async function getTopRatedTv(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:top_rated_tv"),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/tv/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedTv failed: ${r.status}`);
@@ -293,7 +321,7 @@ export async function getAiringToday(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:airing_today"),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/tv/airing_today?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getAiringToday failed: ${r.status}`);
@@ -312,7 +340,7 @@ export async function getOnTheAir(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:on_the_air"),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/tv/on_the_air?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getOnTheAir failed: ${r.status}`);
@@ -331,7 +359,7 @@ export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<T
     buildCacheKey("tmdb:popular", { type: mediaType }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/${mediaType}/popular?api_key=${TMDB_KEY}&language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getPopular failed: ${r.status}`);
@@ -358,7 +386,7 @@ export async function getWatchProviderList(region = "IN"): Promise<Array<{ provi
     buildCacheKey("tmdb:watch_providers_list", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/watch/providers/movie?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderList failed: ${r.status}`);
@@ -396,7 +424,7 @@ export async function discoverMoviesWithProvider(
     buildCacheKey("tmdb:discover/movie_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/movie?${params}`);
+      const r = await fetchWithTimeout(`${API}/discover/movie?${params}`);
       if (!r.ok) throw new Error(`discoverMoviesWithProvider failed: ${r.status}`);
       return r.json();
     }
@@ -433,7 +461,7 @@ export async function discoverTvWithProvider(
     buildCacheKey("tmdb:discover/tv_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(`${API}/discover/tv?${params}`);
+      const r = await fetchWithTimeout(`${API}/discover/tv?${params}`);
       if (!r.ok) throw new Error(`discoverTvWithProvider failed: ${r.status}`);
       return r.json();
     }
@@ -455,7 +483,7 @@ export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ pro
     buildCacheKey("tmdb:watch_providers_list_tv", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetch(
+      const r = await fetchWithTimeout(
         `${API}/watch/providers/tv?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderListTv failed: ${r.status}`);

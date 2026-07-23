@@ -1,29 +1,27 @@
-/* src/styles/tokens/radius.css — Premium Breathing Room Update
-   Softer, more elegant radii for premium cinema feel.
-   Cards feel elevated with generous rounded corners.
-
-   DESIGN PHILOSOPHY: Rounded corners create a friendly, premium feel.
-   20-24px on cards/posters (Dulo.tv-inspired). Pill shapes on
-   buttons, chips, and inputs. Everything feels smooth and refined. */
+/* src/styles/tokens/radius.css — CineLog V2 Redesign
+   Slightly softer radii for premium cinema feel.
+   Cards and containers use slightly rounder corners. */
 
 @layer base {
   :root {
     /* ─── Radius scale (redesigned — softer, more premium) ─── */
-    --radius-3xs: 2px;
-    --radius-2xs: 3px;
+    --radius-sm: 10px;
+    --radius-md: 14px;
+    --radius-card: 14px;
+    --radius-lg: 18px;
+    --radius-xl: 24px;
+    --radius-2xl: 28px;
+    --radius-modal: 24px;
+    --radius-pill: 999px;
+    --touch-min: 44px;
+
+    /* ─── Semantic radius scale ─── */
     --radius-xs: 5px;
+    --radius-2xs: 3px;
+    --radius-3xs: 2px;
     --radius-4: 5px;
     --radius-5: 6px;
     --radius-6: 8px;
-    --radius-sm: 12px;      /* was 10px — softer */
-    --radius-md: 16px;      /* was 14px — more round */
-    --radius-card: 16px;    /* was 14px — poster corners */
-    --radius-lg: 20px;      /* was 18px — large cards */
-    --radius-xl: 24px;      /* was 24px — hero/containers */
-    --radius-2xl: 28px;     /* was 28px — modals */
-    --radius-modal: 24px;
-    --radius-pill: 999px;
     --radius-full: 999px;
-    --touch-min: 44px;
   }
 }

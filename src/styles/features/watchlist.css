@@ -649,37 +649,3 @@
 .vault-fav-btn.is-favourite:hover {
   background: color-mix(in srgb, #ef4444 32%, rgba(0,0,0,0.7));
 }
-
-/* ── Dulo.tv grid style for expanded vault shelves ── */
-.vault-shelf-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 0.625rem;
-}
-@media (min-width: 500px) {
-  .vault-shelf-grid { grid-template-columns: repeat(4, 1fr); gap: 0.75rem; }
-}
-@media (min-width: 768px) {
-  .vault-shelf-grid { grid-template-columns: repeat(5, 1fr); gap: 0.875rem; }
-}
-@media (min-width: 1024px) {
-  .vault-shelf-grid { grid-template-columns: repeat(6, 1fr); gap: 1rem; }
-}
-
-/* Section header matching Dulo style */
-.vault-shelf-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0 0.125rem;
-  margin-bottom: 0.625rem;
-}
-.vault-shelf-title {
-  font-family: 'Outfit', sans-serif;
-  font-size: 1.0625rem;
-  font-weight: 700;
-  color: #fff;
-  margin: 0;
-  letter-spacing: -0.01em;
-}

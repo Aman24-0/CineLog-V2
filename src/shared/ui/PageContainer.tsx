@@ -47,10 +47,10 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
 
   return (
     <main
-      class={`px-5 sm:px-6 lg:px-10 ${maxWidth()} mx-auto relative z-10 ${props.class ?? ""}`}
+      class={`px-4 sm:px-5 lg:px-12 ${maxWidth()} mx-auto relative z-10 ${props.class ?? ""}`}
       style={{
-        "padding-top": props.paddingTop ?? "var(--sp-8)",
-        "padding-bottom": props.paddingBottom ?? "var(--sp-12)",
+        "padding-top": props.paddingTop ?? "var(--sp-6)",
+        "padding-bottom": props.paddingBottom ?? "var(--sp-10)",
         ...props.style
       }}
     >

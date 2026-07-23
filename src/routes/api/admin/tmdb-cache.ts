@@ -126,7 +126,7 @@ export async function GET(event: APIEvent) {
 
 // ─── Stats helper ──────────────────────────────────────────────────
 
-async function handleStats(_event: APIEvent): Promise<Response> {
+async function handleStats(event: APIEvent): Promise<Response> {
   const supabase = createAdminClient();
 
   const [totalRes, expiredRes, movieRes, tvRes, oldestRes, newestRes] = await Promise.all([
