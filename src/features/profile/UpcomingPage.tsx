@@ -812,7 +812,7 @@ const UpcomingPage: Component = () => {
           <Show when={!loading() && error()}>
             <div class="empty-premium" role="alert">
               <h3 class="empty-premium-title">Couldn't load upcoming titles</h3>
-              <p class="empty-premium-body">{error()}</p>
+              <p class="empty-premium-body">We couldn't reach the movie database right now. Please check your connection and try again.</p>
               <button class="btn-primary focus-ring" onClick={() => void load()} style={{ "margin-top": "var(--sp-2)" }}>
                 Retry
               </button>

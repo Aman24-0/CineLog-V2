@@ -1,0 +1,979 @@
+/* src/styles/ott-polish.css — CineLog V2 UI Polish Layer
+   ════════════════════════════════════════════════════════════════════
+   This file STANDARDIZES the design language across every screen so
+   the app feels like one premium product. It layers on top of
+   ott-redesign.css and fixes the inconsistencies identified in the
+   design audit.
+
+   STANDARDIZED SYSTEMS:
+   • Spacing scale: 4 / 8 / 12 / 16 / 20 / 24 / 32 / 40 / 48 / 64 px
+   • Radius scale: 12 (chips) / 16 (cards) / 20 (hero) / 24 (modal) / 999 (pill)
+   • One card style: #1B1B1B bg, 1px rgba(255,255,255,0.05) border, 16px radius
+   • One button style: 48px pill, Inter 15px/600
+   • One chip style: 999px pill, Inter 13px/600
+   • Typography: 32px H1 / 20px H2 / 15px body / 11px overline
+   • Section gaps: 32px between sections, 16px within
+   • Consistent breathing room: 20px page horizontal padding
+
+   No business logic changed. Visual polish only.
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 1: UNIFIED SPACING SYSTEM
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Page containers — consistent horizontal padding + vertical rhythm */
+.page-container,
+main > div,
+.app-shell-bg > main {
+  padding-left: 20px !important;
+  padding-right: 20px !important;
+}
+
+@media (min-width: 768px) {
+  .page-container,
+  main > div,
+  .app-shell-bg > main {
+    padding-left: 32px !important;
+    padding-right: 32px !important;
+  }
+}
+
+@media (min-width: 1024px) {
+  .page-container,
+  main > div,
+  .app-shell-bg > main {
+    padding-left: 40px !important;
+    padding-right: 40px !important;
+    max-width: 1280px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Section spacing — consistent 32px gaps between major sections */
+.discover-fold,
+.discover-section,
+.collections-fold,
+.vault-shelf,
+section[aria-label],
+section[class*="fold"],
+section[class*="section"] {
+  margin-top: 0 !important;
+  margin-bottom: 32px !important;
+}
+
+.discover-fold:last-child,
+.discover-section:last-child,
+.collections-fold:last-child,
+.vault-shelf:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Section header — consistent 16px gap below header before content */
+.discover-fold-label,
+.discover-section-label,
+.collections-fold-label,
+.section-header,
+.vault-shelf-header {
+  margin-bottom: 16px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 2: UNIFIED TYPOGRAPHY HIERARCHY
+   ════════════════════════════════════════════════════════════════════ */
+
+/* H1 — Page titles: 32px / 800 / -0.03em (consistent across all pages) */
+.type-page-title,
+.search-page-title,
+.vault-shelf-title,
+.cinematic-title {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 28px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.03em !important;
+  line-height: 1.1 !important;
+  color: #FFFFFF !important;
+  text-transform: none !important;
+  margin: 0 !important;
+}
+
+@media (min-width: 768px) {
+  .type-page-title,
+  .search-page-title,
+  .vault-shelf-title,
+  .cinematic-title {
+    font-size: 32px !important;
+  }
+}
+
+/* H2 — Section titles: 20px / 700 / -0.02em */
+.type-section-title,
+.section-title,
+.section-header-title,
+.discover-fold-label,
+.discover-section-label,
+.collections-fold-label {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  line-height: 1.2 !important;
+  color: #FFFFFF !important;
+  text-transform: none !important;
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+}
+
+@media (min-width: 768px) {
+  .type-section-title,
+  .section-title,
+  .section-header-title,
+  .discover-fold-label,
+  .discover-section-label,
+  .collections-fold-label {
+    font-size: 20px !important;
+  }
+}
+
+/* Remove the vertical bar prefix from section titles — use icon-only */
+.section-title::before,
+.section-header-title::before,
+.discover-fold-label::before,
+.discover-section-label::before {
+  display: none !important;
+}
+
+/* Section title icons — consistent sizing + warm bronze */
+.discover-fold-label .material-symbols-outlined,
+.discover-section-label .material-symbols-outlined,
+.collections-fold-label .material-symbols-outlined,
+.section-title .material-symbols-outlined,
+.section-header-title .material-symbols-outlined {
+  font-size: 18px !important;
+  color: #8A624C !important;
+  width: 18px !important;
+  height: 18px !important;
+}
+
+/* Overline — small label above H1 (used on Collections, Upcoming, Settings) */
+.type-eyebrow,
+.type-label,
+.search-eyebrow,
+.search-genre-eyebrow,
+.collections-eyebrow {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #8A624C !important;
+  margin: 0 0 8px 0 !important;
+}
+
+/* Body / metadata text — 14px / 500 / #A8A8A8 */
+.type-body,
+.type-body-soft,
+.type-metadata,
+.type-subtitle {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.5 !important;
+  color: #A8A8A8 !important;
+  text-transform: none !important;
+}
+
+/* Card title — 13px / 600 */
+.type-card-title {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  line-height: 1.3 !important;
+  color: #FFFFFF !important;
+  text-transform: none !important;
+  text-shadow: 0 1px 8px rgba(0,0,0,1), 0 2px 16px rgba(0,0,0,0.85) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 3: UNIFIED CARD STYLE
+   ════════════════════════════════════════════════════════════════════ */
+
+/* All cards: #1B1B1B bg, 1px subtle border, 16px radius, soft shadow */
+.stat-card,
+.stat-premium,
+.card-premium,
+.timeline-card,
+.upcoming-card,
+.search-result-row,
+.search-genre-pill,
+.settings-row,
+.collections-grid-card,
+.collection-folder-card,
+.discover-continue-card,
+.discover-surprise-card {
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.05) !important;
+  border-radius: 16px !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.30), 0 4px 12px rgba(0,0,0,0.20) !important;
+  transition: transform 250ms cubic-bezier(0.22,1,0.36,1),
+              box-shadow 250ms ease,
+              border-color 250ms ease,
+              background 250ms ease !important;
+}
+
+/* Card hover — consistent subtle lift + bronze tint */
+.stat-card:hover,
+.stat-premium:hover,
+.card-premium:hover,
+.timeline-card:hover,
+.upcoming-card:hover,
+.search-result-row:hover,
+.search-genre-pill:hover,
+.settings-row:hover,
+.collections-grid-card:hover,
+.collection-folder-card:hover,
+.discover-continue-card:hover {
+  background: #232323 !important;
+  border-color: rgba(138,98,76,0.25) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35), 0 8px 24px rgba(0,0,0,0.25) !important;
+}
+
+.stat-card:hover,
+.stat-premium:hover,
+.card-premium:hover,
+.collections-grid-card:hover,
+.collection-folder-card:hover {
+  transform: translateY(-2px) !important;
+}
+
+/* Hero/large cards — 20px radius for visual hierarchy */
+.featured-hero,
+.hero-premium,
+.continue-card,
+.continue-premium,
+.guest-premium,
+.spotlight,
+.discover-surprise-card,
+.profile-banner {
+  border-radius: 20px !important;
+}
+
+/* Poster cards — 16px radius, 2:3 ratio preserved */
+.vault-card-inner,
+.movie-card-inner {
+  border-radius: 16px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 4: UNIFIED BUTTON STYLE
+   ════════════════════════════════════════════════════════════════════ */
+
+/* All buttons: 48px height, 999px pill, Inter 15px/600 */
+.btn-primary,
+.btn-ghost,
+.btn-danger,
+button[class*="btn-"] {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  min-height: 48px !important;
+  padding: 0 24px !important;
+  border-radius: 999px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  transition: transform 200ms cubic-bezier(0.22,1,0.36,1),
+              box-shadow 200ms ease,
+              background 200ms ease,
+              border-color 200ms ease,
+              filter 200ms ease !important;
+}
+
+.btn-primary:active,
+.btn-ghost:active,
+.btn-danger:active,
+button[class*="btn-"]:active {
+  transform: scale(0.97) !important;
+}
+
+/* Primary — bronze fill */
+.btn-primary {
+  background: #8A624C !important;
+  color: #FFFFFF !important;
+  border: none !important;
+  box-shadow: 0 4px 16px rgba(138,98,76,0.30), 0 1px 4px rgba(0,0,0,0.30) !important;
+}
+
+.btn-primary:hover {
+  filter: brightness(1.10) !important;
+  box-shadow: 0 6px 24px rgba(138,98,76,0.40), 0 2px 8px rgba(0,0,0,0.35) !important;
+}
+
+/* Ghost — glass */
+.btn-ghost {
+  background: rgba(255,255,255,0.06) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.btn-ghost:hover {
+  background: rgba(255,255,255,0.10) !important;
+  border-color: rgba(255,255,255,0.14) !important;
+}
+
+/* Danger — red tint */
+.btn-danger {
+  background: rgba(255,99,99,0.12) !important;
+  color: #FF6363 !important;
+  border: 1px solid rgba(255,99,99,0.28) !important;
+}
+
+.btn-danger:hover {
+  background: rgba(255,99,99,0.20) !important;
+  border-color: rgba(255,99,99,0.40) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 5: UNIFIED CHIP / FILTER STYLE
+   ════════════════════════════════════════════════════════════════════ */
+
+/* All chips/tabs/filters: 999px pill, Inter 13px/600, consistent padding */
+.quick-filter-tab,
+.filter-chip,
+.filter-button,
+.genre-chip,
+.search-recent-chip,
+.v2-pill,
+.v2-pill-accent,
+.ott-provider-chip {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  padding: 8px 16px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  color: #A8A8A8 !important;
+  transition: all 200ms cubic-bezier(0.22,1,0.36,1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+.quick-filter-tab:hover,
+.filter-button:hover,
+.genre-chip:hover,
+.search-recent-chip:hover {
+  background: rgba(255,255,255,0.08) !important;
+  border-color: rgba(255,255,255,0.10) !important;
+  color: #FFFFFF !important;
+}
+
+/* Active state — bronze fill with subtle glow */
+.quick-filter-tab[data-active="true"],
+.filter-button[data-active="true"],
+.filter-chip,
+.genre-chip[data-active="true"] {
+  background: #8A624C !important;
+  border-color: #8A624C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 12px rgba(138,98,76,0.25) !important;
+}
+
+/* Meta pills (v2-pill) — smaller, for metadata */
+.v2-pill,
+.v2-pill-accent {
+  font-size: 12px !important;
+  padding: 4px 10px !important;
+}
+
+.v2-pill {
+  background: rgba(255,255,255,0.08) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: #FFFFFF !important;
+}
+
+.v2-pill-accent {
+  background: rgba(138,98,76,0.18) !important;
+  border: 1px solid rgba(138,98,76,0.30) !important;
+  color: #C9A584 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 6: UNIFIED HEADER / PAGE INTRO
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Page header cluster — overline + H1 + subtitle, consistent rhythm */
+.search-eyebrow-block,
+.collections-header,
+.page-intro {
+  margin-bottom: 24px !important;
+}
+
+.search-page-subtitle,
+.page-subtitle {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #A8A8A8 !important;
+  margin: 8px 0 0 0 !important;
+  max-width: 480px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 7: UNIFIED EMPTY STATES
+   ════════════════════════════════════════════════════════════════════ */
+
+/* All empty states: consistent icon container, title, body, CTA */
+.empty-state,
+.empty-premium {
+  padding: 48px 24px !important;
+  gap: 12px !important;
+}
+
+.empty-state-icon,
+.empty-premium-icon {
+  width: 64px !important;
+  height: 64px !important;
+  border-radius: 20px !important;
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 0 24px rgba(138,98,76,0.15) !important;
+  margin-bottom: 4px !important;
+}
+
+.empty-state-icon .material-symbols-outlined,
+.empty-premium-icon .material-symbols-outlined {
+  font-size: 28px !important;
+  color: #8A624C !important;
+}
+
+.empty-state-title,
+.empty-premium-title {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 18px !important;
+  font-weight: 700 !important;
+  letter-spacing: -0.02em !important;
+  color: #FFFFFF !important;
+  text-transform: none !important;
+}
+
+.empty-state-body,
+.empty-premium-body {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 400 !important;
+  line-height: 1.5 !important;
+  color: #A8A8A8 !important;
+  max-width: 320px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 8: UNIFIED SKELETONS
+   ════════════════════════════════════════════════════════════════════ */
+
+.skeleton-base,
+.skeleton-text,
+.search-result-skeleton,
+.poster-loading {
+  background: linear-gradient(105deg,
+    rgba(255,255,255,0.02) 25%,
+    rgba(255,255,255,0.06) 50%,
+    rgba(255,255,255,0.02) 75%) !important;
+  background-size: 300% 100% !important;
+  animation: shimmer 1.8s ease-in-out infinite !important;
+  border-radius: 12px !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 9: SCREEN-SPECIFIC POLISH
+   ════════════════════════════════════════════════════════════════════ */
+
+/* ── DISCOVER ── */
+/* Genre explorer: trailing padding so last chip isn't clipped */
+.genre-explorer-chips,
+.quick-filter-bar,
+.search-rail,
+.rail-premium,
+.vault-shelf-rail {
+  padding-right: 20px !important;
+  -webkit-overflow-scrolling: touch !important;
+  scroll-padding-left: 0 !important;
+}
+
+/* Spotlight: consistent radius + shadow */
+.spotlight {
+  border-radius: 20px !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), 0 12px 40px rgba(0,0,0,0.30) !important;
+}
+
+/* ── WATCHLIST ── */
+/* Header: consistent rhythm — title → search → filters */
+.watchlist-header,
+.vault-header {
+  margin-bottom: 24px !important;
+}
+
+/* Filter toolbar: align items vertically */
+.vault-context-bar,
+.filter-toolbar {
+  align-items: center !important;
+  gap: 12px !important;
+}
+
+/* View toggle: consistent sizing with filter buttons */
+.view-toggle {
+  padding: 4px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.04) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+.view-toggle-btn {
+  width: 36px !important;
+  height: 36px !important;
+  border-radius: 999px !important;
+  border: none !important;
+  background: transparent !important;
+  color: #707070 !important;
+  cursor: pointer !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  transition: all 200ms ease !important;
+}
+
+.view-toggle-btn[data-active="true"] {
+  background: #8A624C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 8px rgba(138,98,76,0.30) !important;
+}
+
+/* ── COLLECTIONS ── */
+/* Header: consistent overline → H1 → subtitle rhythm */
+.collections-header {
+  margin-bottom: 32px !important;
+}
+
+/* Action row: balance NEW + SMART buttons */
+.collections-action-row {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 24px !important;
+}
+
+/* ── UPCOMING ── */
+/* Date input: give it the same affordance as search bars */
+.upcoming-date-input,
+input[type="date"] {
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  font-family: 'Inter', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  color: #FFFFFF !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+  color-scheme: dark !important;
+}
+
+.upcoming-date-input:focus,
+input[type="date"]:focus {
+  border-color: rgba(138,98,76,0.50) !important;
+  box-shadow: 0 0 0 3px rgba(138,98,76,0.12) !important;
+  outline: none !important;
+}
+
+/* Date row — consistent alignment */
+.upcoming-date-row,
+.upcoming-date-row-v21 {
+  display: flex !important;
+  align-items: center !important;
+  gap: 12px !important;
+  margin-bottom: 16px !important;
+}
+
+.upcoming-date-label {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 600 !important;
+  color: #A8A8A8 !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+}
+
+.upcoming-date-label .material-symbols-outlined {
+  font-size: 16px !important;
+  color: #8A624C !important;
+}
+
+/* Type chips — match the unified chip style */
+.upcoming-type-chip,
+.upcoming-type-row button {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  padding: 8px 16px !important;
+  border-radius: 999px !important;
+  background: rgba(255,255,255,0.05) !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  color: #A8A8A8 !important;
+  cursor: pointer !important;
+  transition: all 200ms cubic-bezier(0.22,1,0.36,1) !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  white-space: nowrap !important;
+}
+
+.upcoming-type-chip:hover,
+.upcoming-type-row button:hover {
+  background: rgba(255,255,255,0.08) !important;
+  color: #FFFFFF !important;
+}
+
+.upcoming-type-chip.active,
+.upcoming-type-row button.active,
+.upcoming-type-chip[aria-pressed="true"],
+.upcoming-type-row button[aria-pressed="true"] {
+  background: #8A624C !important;
+  border-color: #8A624C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 12px rgba(138,98,76,0.25) !important;
+}
+
+/* Type row — consistent spacing */
+.upcoming-type-row,
+.upcoming-type-row-v21 {
+  display: flex !important;
+  align-items: center !important;
+  gap: 8px !important;
+  flex-wrap: wrap !important;
+}
+
+/* Upcoming filters container — consistent gap */
+.upcoming-filters,
+.upcoming-filters-v21 {
+  margin-bottom: 24px !important;
+}
+
+/* Upcoming metadata strip — softer, less shouty */
+.upcoming-meta-strip {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 12px !important;
+  font-weight: 500 !important;
+  letter-spacing: 0.02em !important;
+  text-transform: none !important;
+  color: #707070 !important;
+}
+
+/* Upcoming date badge — the timeline date marker */
+.upcoming-date-badge-v23 {
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  border-radius: 16px !important;
+  padding: 12px !important;
+  text-align: center !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.25) !important;
+}
+
+.upcoming-date-badge-month {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.08em !important;
+  text-transform: uppercase !important;
+  color: #8A624C !important;
+}
+
+.upcoming-date-badge-day {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 22px !important;
+  font-weight: 800 !important;
+  letter-spacing: -0.02em !important;
+  color: #FFFFFF !important;
+  line-height: 1 !important;
+}
+
+/* ── PROFILE ── */
+/* Profile: centered layout with consistent breathing room */
+.profile-content,
+.profile-empty {
+  min-height: 60vh !important;
+  display: flex !important;
+  flex-direction: column !important;
+  align-items: center !important;
+  justify-content: center !important;
+  text-align: center !important;
+  padding: 48px 24px !important;
+  gap: 16px !important;
+}
+
+/* Profile avatar — consistent with empty state icon treatment */
+.profile-avatar {
+  width: 80px !important;
+  height: 80px !important;
+  border-radius: 24px !important;
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.06) !important;
+  box-shadow: 0 0 32px rgba(138,98,76,0.20) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+/* ── SETTINGS ── */
+/* Settings rows: consistent internal padding */
+.settings-row {
+  padding: 16px !important;
+  gap: 12px !important;
+}
+
+/* Settings section grouping */
+.settings-section {
+  margin-bottom: 32px !important;
+}
+
+.settings-section:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 10: BOTTOM NAV SAFE AREA
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Ensure content never hides behind floating nav */
+.app-shell-bg {
+  padding-bottom: calc(var(--nav-total-height) + 32px) !important;
+}
+
+/* Scroll-to-top button sits above nav */
+.scroll-to-top {
+  bottom: calc(var(--nav-total-height) + 16px) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 11: MODAL / DETAIL POLISH
+   ════════════════════════════════════════════════════════════════════ */
+
+/* Details modal — consistent radius + shadow */
+.cinematic-modal {
+  background: #090909 !important;
+}
+
+@media (min-width: 640px) {
+  .cinematic-modal {
+    border-radius: 24px !important;
+    border: 1px solid rgba(255,255,255,0.06) !important;
+    box-shadow: 0 24px 80px rgba(0,0,0,0.7) !important;
+  }
+}
+
+/* Modal sections — consistent 24px gaps */
+.cinematic-modal section,
+.details-section,
+.detail-section {
+  margin-bottom: 24px !important;
+}
+
+.cinematic-modal section:last-child,
+.details-section:last-child,
+.detail-section:last-child {
+  margin-bottom: 0 !important;
+}
+
+/* Metadata grid — consistent gap */
+.metadata-grid,
+.details-metadata,
+.cinematic-metadata {
+  display: grid !important;
+  gap: 12px !important;
+}
+
+/* Action buttons in detail — consistent sizing */
+.cinematic-actions,
+.details-actions,
+.action-dock {
+  display: flex !important;
+  gap: 12px !important;
+  flex-wrap: wrap !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 12: INPUT / SELECT UNIFICATION
+   ════════════════════════════════════════════════════════════════════ */
+
+.filter-select-premium,
+.filter-input-premium,
+input[type="text"],
+input[type="email"],
+input[type="password"],
+input[type="search"],
+textarea,
+select {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 15px !important;
+  font-weight: 500 !important;
+  background: #1B1B1B !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  border-radius: 12px !important;
+  padding: 12px 16px !important;
+  color: #FFFFFF !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+  outline: none !important;
+}
+
+.filter-select-premium:focus,
+.filter-input-premium:focus,
+input[type="text"]:focus,
+input[type="email"]:focus,
+input[type="password"]:focus,
+input[type="search"]:focus,
+textarea:focus,
+select:focus {
+  border-color: rgba(138,98,76,0.50) !important;
+  box-shadow: 0 0 0 3px rgba(138,98,76,0.12) !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #707070 !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 13: BADGE / RATING UNIFICATION
+   ════════════════════════════════════════════════════════════════════ */
+
+.tag-chip,
+.rating-pill,
+.badge-accent,
+.badge-glow,
+.rating-chip {
+  font-family: 'Inter', sans-serif !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  border-radius: 999px !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+.tag-chip,
+.badge-accent {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  background: rgba(9,9,9,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  color: #FFFFFF !important;
+}
+
+.rating-pill,
+.rating-chip {
+  font-size: 10px !important;
+  padding: 3px 8px !important;
+  background: rgba(9,9,9,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+}
+
+.rating-chip-imdb { border-color: rgba(245,197,24,0.30) !important; color: #F5C518 !important; }
+.rating-chip-rt { border-color: rgba(255,138,138,0.30) !important; color: #FF8A8A !important; }
+.rating-chip-user { border-color: rgba(138,98,76,0.35) !important; color: #C9A584 !important; }
+
+.badge-glow {
+  font-size: 11px !important;
+  padding: 4px 10px !important;
+  background: rgba(138,98,76,0.18) !important;
+  border: 1px solid rgba(138,98,76,0.30) !important;
+  color: #C9A584 !important;
+  box-shadow: 0 0 12px rgba(138,98,76,0.20) !important;
+}
+
+/* Status badges — consistent with chip sizing */
+.status-badge-planned,
+.status-badge-watching,
+.status-badge-completed {
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  padding: 4px 10px !important;
+  border-radius: 999px !important;
+  background: rgba(9,9,9,0.72) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 14: TIMELINE / UPCOMING POLISH
+   ════════════════════════════════════════════════════════════════════ */
+
+.timeline-card,
+.upcoming-card {
+  padding: 16px !important;
+  border-radius: 16px !important;
+}
+
+.timeline-card:hover,
+.upcoming-card:hover {
+  transform: none !important;
+}
+
+.timeline-month-pill {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 13px !important;
+  font-weight: 600 !important;
+  letter-spacing: 0 !important;
+  text-transform: none !important;
+  padding: 6px 14px !important;
+  border-radius: 999px !important;
+  background: #8A624C !important;
+  color: #FFFFFF !important;
+  box-shadow: 0 2px 12px rgba(138,98,76,0.30) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 15: TOAST / FEEDBACK
+   ════════════════════════════════════════════════════════════════════ */
+
+.toast {
+  font-family: 'Inter', sans-serif !important;
+  font-size: 14px !important;
+  font-weight: 500 !important;
+  border-radius: 16px !important;
+  background: rgba(19,19,19,0.92) !important;
+  backdrop-filter: blur(24px) !important;
+  -webkit-backdrop-filter: blur(24px) !important;
+  border: 1px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.5) !important;
+}
+
+/* ════════════════════════════════════════════════════════════════════
+   SECTION 16: REDUCED MOTION RESPECT
+   ════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
+}
