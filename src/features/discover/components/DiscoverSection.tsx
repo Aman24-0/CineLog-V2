@@ -1,4 +1,5 @@
-// DiscoverSection — Dulo.tv-style section header with "See all" link
+// DiscoverSection — CineLog section header with optional "See all" link.
+// Renders a horizontal rail of poster cards with premium spacing.
 import { Show, For, type JSX } from "solid-js";
 
 interface DiscoverSectionProps {
@@ -11,7 +12,7 @@ interface DiscoverSectionProps {
 
 export function DiscoverSection(props: DiscoverSectionProps) {
   return (
-    <section class="dulo-section" aria-label={props.label}>
+    <section class="dulo-section page-section" aria-label={props.label}>
       <div class="dulo-section-header">
         <h2 class="dulo-section-title">{props.label}</h2>
         <Show when={props.onSeeAll}>

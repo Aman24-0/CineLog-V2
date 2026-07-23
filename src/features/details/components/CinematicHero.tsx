@@ -125,10 +125,10 @@ export default function CinematicHero(props: CinematicHeroProps) {
         <div class="cinematic-trailer-player" aria-label="Trailer player">
           <iframe
             class="cinematic-trailer-iframe"
-            src={`https://www.youtube-nocookie.com/embed/${props.trailerKey}?autoplay=1&rel=0`}
+            src={`https://www.youtube-nocookie.com/embed/${props.trailerKey}?autoplay=1&rel=0&playsinline=1&enablejsapi=1&modestbranding=1`}
             title="Trailer"
             frameborder="0"
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; fullscreen"
             allowfullscreen
           />
         </div>

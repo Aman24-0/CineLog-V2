@@ -1,301 +1,677 @@
-/* premium-overrides.css — Premium Breathing Room Update
-   Imported LAST in the cascade so it overrides all feature CSS.
-   
-   This file applies Dulo.tv-inspired visual refinements across
-   ALL features without modifying individual feature files.
-   
-   DESIGN PHILOSOPHY: "Does this make CineLog feel calmer?"
-   Everything here adds breathing room, softens edges, and creates
-   a more premium visual feel. Structure, navigation, and features
-   remain completely unchanged. */
+/* premium-overrides.css — CineLog V2 Unified Glassmorphism Design System
+   ---------------------------------------------------------------------------
+   This is the SINGLE source of truth for the glassmorphism design language
+   across CineLog. Imported LAST in the cascade so it can refine feature CSS.
 
-/* ═══════════════════════════════════════════════════════════
-   GLOBAL SECTION SPACING — more room between sections
-   ═══════════════════════════════════════════════════════════ */
-.discover-folds {
-  gap: 2.5rem !important;
-}
-.discover-fold {
-  gap: 1.75rem !important;
+   DESIGN PHILOSOPHY:
+   - Every elevated surface = frosted glass (blur + translucency + soft border)
+   - Every page breathes with intentional vertical rhythm
+     (hero → 36px → section → 24px → cards → 36px → next section)
+   - One unified token system: --glass-bg, --glass-border, --glass-blur,
+     --glass-shadow, --space-rhythm-*
+   - No flat boxes, no heavy borders, no harsh shadows
+   - Subtle motion only (fade, scale, glass hover)
+
+   INFORMATION ARCHITECTURE: 100% CineLog (Discover / Watchlist / Collections
+   / Profile / Details / Settings / Statistics / Upcoming). This file only
+   changes appearance — never structure, never routing, never logic. */
+
+/* ═══════════════════════════════════════════════════════════════════════
+   1. UNIFIED GLASS PRIMITIVES — reusable surface treatments
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Base glass surface — applied to cards, panels, sections */
+.glass-surface,
+.glass-card,
+.glass-panel,
+.glass-tile {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SPOTLIGHT HERO — taller, more spacious
-   ═══════════════════════════════════════════════════════════ */
+/* Strong glass — for navigation, modal surfaces, sticky bars */
+.glass-surface-strong,
+.glass-nav,
+.glass-bar,
+.glass-modal {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong);
+}
+
+/* Elevated glass — for floating action docks, FABs, sticky CTAs */
+.glass-surface-elevated,
+.glass-dock {
+  background: var(--glass-bg-elevated);
+  -webkit-backdrop-filter: blur(var(--blur-xl)) saturate(150%);
+  backdrop-filter: blur(var(--blur-xl)) saturate(150%);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-strong);
+}
+
+/* Hover lift — for interactive glass cards */
+.glass-surface.is-interactive:hover,
+.glass-card.is-interactive:hover,
+.glass-tile.is-interactive:hover,
+button.glass-card:hover,
+a.glass-card:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-hover);
+  transform: translateY(-2px);
+}
+
+/* Focus-visible ring — accessible focus on glass */
+.glass-surface:focus-visible,
+.glass-card:focus-visible,
+.glass-tile:focus-visible,
+button.glass-card:focus-visible,
+a.glass-card:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   2. UNIFIED VERTICAL RHYTHM — page-level spacing
+   ═══════════════════════════════════════════════════════════════════════ */
+
+/* Major page sections — hero to first section, section to section */
+.discover-folds,
+.dulo-page-sections,
+.page-sections {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-rhythm-md);
+  padding-bottom: var(--space-rhythm-md);
+}
+
+/* Single fold/section internal rhythm */
+.discover-fold,
+.dulo-section,
+.page-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-rhythm-sm);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   3. SPOTLIGHT HERO — premium glass-overlay hero
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .spotlight {
-  height: 540px !important;
-  border-radius: 20px !important;
-  box-shadow: var(--shadow-hero), inset 0 0 0 1px rgba(255,255,255,0.02) !important;
+  height: 540px;
+  border-radius: var(--glass-radius-lg);
+  box-shadow: var(--glass-shadow-strong);
+  border: 1px solid var(--glass-border);
 }
 @media (min-width: 640px) {
-  .spotlight { height: 580px !important; }
+  .spotlight { height: 580px; }
 }
 .spotlight-content {
-  padding-bottom: 2.5rem !important;
+  padding-bottom: 2.5rem;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DISCOVER RAIL CARDS — wider gaps, larger radius
-   ═══════════════════════════════════════════════════════════ */
-.discover-rail {
-  gap: 14px !important;
+/* ═══════════════════════════════════════════════════════════════════════
+   4. DISCOVER RAILS — premium poster cards
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.discover-rail,
+.dulo-rail {
+  gap: var(--rail-gap);
 }
-.discover-rail-card {
-  width: 120px !important;
+.discover-rail-card,
+.dulo-rail-card {
+  width: 120px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   WATCHLIST — more breathing room in grid and filters
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   5. WATCHLIST — glass filter controls, glass vault cards
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* Vault grid — larger gaps */
 .vault-grid {
-  gap: 14px !important;
+  gap: var(--card-gap);
 }
 
-/* Vault card — larger radius, softer shadow */
-.vault-card-premium {
-  border-radius: 14px !important;
+/* Vault cards — poster cards keep their solid poster background but
+   get a refined glass-tinted outer frame + soft shadow lift on hover.
+   The poster image fills the inner element so we don't blur that. */
+.vault-card-premium,
+.vault-card {
+  border-radius: var(--glass-radius);
+  box-shadow: var(--glass-shadow);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.vault-card-premium:hover,
+.vault-card:hover {
+  box-shadow: var(--glass-shadow-hover);
+  transform: translateY(-3px);
 }
 
-/* Filter controls — more padding and breathing room */
+/* Filter controls — glass pill shape */
 .filter-controls {
-  gap: 12px !important;
+  gap: 12px;
 }
 .filter-select-premium,
 .filter-input-premium {
-  border-radius: var(--radius-pill) !important;
-  padding: 0.625rem 1rem !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-pill);
+  padding: 0.625rem 1rem;
+  color: var(--text-body);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+.filter-select-premium:hover,
+.filter-input-premium:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+}
+.filter-select-premium:focus,
+.filter-input-premium:focus {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+  border-color: var(--p);
 }
 
-/* Quick filter tabs — pill shape */
+/* Quick filter tabs — glass pill */
 .quick-filter-tabs {
-  gap: 10px !important;
+  gap: 10px;
 }
 .quick-filter-tab {
-  border-radius: var(--radius-pill) !important;
-  padding: 0.5rem 1rem !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-pill);
+  padding: 0.5rem 1rem;
+  color: var(--text-body);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.quick-filter-tab:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+  transform: translateY(-1px);
+}
+.quick-filter-tab[aria-pressed="true"],
+.quick-filter-tab.active {
+  background: var(--p);
+  color: var(--active-text);
+  border-color: var(--p);
+  box-shadow: 0 0 0 1px var(--p), 0 0 16px var(--p-glow);
 }
 
-/* Watchlist header — more spacing */
+/* Watchlist header — breathing room */
 .watchlist-header {
-  margin-bottom: 1.5rem !important;
+  margin-bottom: var(--space-rhythm-sm);
 }
 
-/* Vault shelf — more gap between shelf items */
+/* Vault shelf — gap between shelf items */
 .vault-shelf {
-  gap: 14px !important;
+  gap: var(--card-gap);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PROFILE — luxurious spacing
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   6. PROFILE — flowing, connected sections (Hero→Stats→Favorites→Achievements→Actions→Logout)
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* Profile sections — more breathing room */
+/* Profile page — unified vertical rhythm between sections */
+.profile-section,
+.profile-content,
+.profile-page {
+  gap: var(--space-rhythm-sm);
+}
+
+/* Each section connects to the next via rhythm-sm (24px), not a huge gap */
 .profile-section {
-  gap: 20px !important;
-  padding: 24px !important;
+  padding: var(--glass-padding);
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-lg);
 }
 
-/* Stats grid — spacious */
-.stats-glass-box {
-  border-radius: 18px !important;
-  padding: 20px !important;
+/* Stats grid — three glass boxes, equal height, equal spacing */
+.stats-glass-box,
+.stats-grid > * {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: var(--glass-padding);
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
 }
 
-/* Achievement badges — never crowded */
+/* Achievement badges — glass cards, glow only when unlocked */
 .achievement-badge {
-  border-radius: 14px !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.achievement-badge.unlocked,
+.achievement-badge[data-unlocked="true"] {
+  border-color: var(--p);
+  box-shadow: 0 0 0 1px var(--p), 0 0 24px var(--p-glow), var(--glass-shadow);
+}
+.achievement-badge:hover {
+  transform: translateY(-2px);
+  background: var(--glass-bg-elevated);
 }
 
-/* Profile banner — larger */
+/* Profile banner — premium glass overlay on backdrop */
 .profile-banner {
-  height: 200px !important;
-  border-radius: 20px !important;
+  height: 200px;
+  border-radius: var(--glass-radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
 }
 
-/* Favorites carousel — wider gaps */
+/* Favorites carousel — wider gaps, premium cards */
 .favorites-carousel {
-  gap: 14px !important;
+  gap: var(--card-gap);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   COLLECTIONS — improved visual hierarchy
-   ═══════════════════════════════════════════════════════════ */
+/* Settings/sign-out — float as a single connected action zone */
+.settings-quick-links,
+.profile-actions {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--card-gap);
+}
+@media (min-width: 640px) {
+  .settings-quick-links,
+  .profile-actions {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
 
-/* Collections grid — more breathing room */
+/* ═══════════════════════════════════════════════════════════════════════
+   7. COLLECTIONS — floating glass cards with large thumbnails
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .collections-grid {
-  gap: 16px !important;
+  gap: var(--card-gap);
 }
-.collections-folder-card {
-  border-radius: 18px !important;
-  padding: 20px !important;
+.collections-folder-card,
+.collection-card {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-lg);
+  padding: var(--glass-padding);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.collections-folder-card:hover,
+.collection-card:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-hover);
+  transform: translateY(-3px);
 }
 
-/* Collection hero — taller */
+/* Collection hero — taller, glass border */
 .collection-hero {
-  height: 240px !important;
-  border-radius: 20px !important;
+  height: 240px;
+  border-radius: var(--glass-radius-lg);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong);
 }
 
 /* Collection stats — spacious */
 .collection-stats {
-  gap: 12px !important;
+  gap: 12px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DETAILS — layered, spacious
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   8. DETAILS — premium glass overlays, floating buttons
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* Details modal — larger hero area */
 .cinematic-hero {
-  height: min(75vh, 520px) !important;
+  height: min(75vh, 520px);
 }
 
-/* Details sections — more padding */
+/* Detail sections become glass */
 .detail-section {
-  gap: 20px !important;
-  padding: 20px !important;
-  border-radius: 18px !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-lg);
+  gap: var(--space-rhythm-sm);
+  padding: var(--glass-padding-lg);
 }
 
-/* Action dock — softer glass */
+/* Action dock — premium floating glass */
 .action-dock {
-  border-radius: 22px !important;
-  backdrop-filter: blur(32px) !important;
+  background: var(--glass-bg-elevated);
+  -webkit-backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  border: 1px solid var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-strong);
+  border-radius: 22px;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SEARCH — premium search field
-   ═══════════════════════════════════════════════════════════ */
+/* Trailer close button — refined glass */
+.cinematic-trailer-close {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+}
 
-/* Search bar — large, rounded, floating */
+/* ═══════════════════════════════════════════════════════════════════════
+   9. SEARCH — premium floating glass search field
+   ═══════════════════════════════════════════════════════════════════════ */
+
 .search-bar-container {
-  margin-bottom: 1.5rem !important;
+  margin-bottom: var(--space-rhythm-sm);
 }
-.search-bar-input {
-  border-radius: 16px !important;
-  padding: 1rem 1.25rem !important;
-  font-size: 1rem !important;
-  background: var(--tier-2) !important;
-  border: 1px solid var(--hairline) !important;
-  box-shadow: var(--shadow-card) !important;
-  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+.search-bar-input,
+.search-bar-form input,
+.search-bar-form {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: 1rem 1.25rem;
+  font-size: 1rem;
+  color: var(--text-body);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
 }
-.search-bar-input:focus {
-  border-color: var(--hairline-3) !important;
-  box-shadow: var(--shadow-raised) !important;
-  outline: none !important;
+.search-bar-input:focus,
+.search-bar-form input:focus {
+  background: var(--glass-bg-elevated);
+  border-color: var(--p);
+  box-shadow: 0 0 0 1px var(--p), 0 0 16px var(--p-glow), var(--glass-shadow);
+  outline: none;
 }
 
-/* Search results — more spacing */
+/* Search results — glass rows */
 .search-result-row {
-  padding: 16px !important;
-  border-radius: 14px !important;
-  gap: 14px !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: 16px;
+  gap: 14px;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
 }
 .search-result-row + .search-result-row {
-  margin-top: 8px !important;
+  margin-top: 8px;
+}
+.search-result-row:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-hover);
+  transform: translateY(-1px);
 }
 
 /* Genre browse grid — wider gaps */
 .genre-browse-grid {
-  gap: 10px !important;
+  gap: 10px;
 }
 .genre-browse-chip {
-  border-radius: var(--radius-pill) !important;
-  padding: 0.5rem 1rem !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius-pill);
+  padding: 0.5rem 1rem;
+  color: var(--text-body);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out);
+}
+.genre-browse-chip:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+}
+.genre-browse-chip.active,
+.genre-browse-chip[aria-pressed="true"] {
+  background: var(--p);
+  color: var(--active-text);
+  border-color: var(--p);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SETTINGS — clean, calm
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   10. SETTINGS — clean, calm glass rows
+   ═══════════════════════════════════════════════════════════════════════ */
 
-.settings-group {
-  gap: 10px !important;
+.settings-group,
+.setting-group,
+.sec-section {
+  gap: 10px;
 }
-.settings-row {
-  border-radius: 14px !important;
-  padding: 16px 20px !important;
+.settings-row,
+.setting-row {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: 16px 20px;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+.settings-row:hover,
+.setting-row:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   SECONDARY PAGES (Stats, History, Achievements, Trash)
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   11. SECONDARY PAGES — Stats / History / Achievements / Trash / Upcoming
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* Stats cards */
-.stats-card {
-  border-radius: 16px !important;
-  padding: 20px !important;
+/* Stats cards — uniform height, spacing, radius, typography */
+.stats-card,
+.stat-cell,
+.stat-hero,
+.insight-card,
+.stat-grid > * {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: var(--glass-padding);
+  min-height: 96px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+.stats-card:hover,
+.stat-cell:hover,
+.insight-card:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
+  box-shadow: var(--glass-shadow-hover);
 }
 
 /* History list */
 .history-item {
-  padding: 14px !important;
-  border-radius: 12px !important;
-  gap: 12px !important;
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+  padding: 14px;
+  gap: 12px;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+.history-item:hover {
+  background: var(--glass-bg-elevated);
+  border-color: var(--glass-border-strong);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   DIALOGS — glass effect, spacious
-   ═══════════════════════════════════════════════════════════ */
-.modal-surface {
-  border-radius: var(--radius-2xl) !important;
-  box-shadow: var(--shadow-elevated) !important;
+/* Upcoming cards */
+.upcoming-card {
+  background: var(--glass-bg);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow);
+  border-radius: var(--glass-radius);
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   12. DIALOGS — premium glass modal surfaces
+   ═══════════════════════════════════════════════════════════════════════ */
+
+.modal-surface,
+.sheet-surface,
+.dialog-surface {
+  background: var(--glass-bg-strong);
+  -webkit-backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  backdrop-filter: blur(var(--blur-2xl)) saturate(160%);
+  border: 1px solid var(--glass-border);
+  box-shadow: var(--glass-shadow-strong);
+  border-radius: var(--radius-2xl);
 }
 .sheet-handle {
-  width: 36px !important;
-  height: 4px !important;
-  border-radius: 4px !important;
+  width: 36px;
+  height: 4px;
+  border-radius: 4px;
+  background: var(--hairline-3);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   GLOBAL CARD REFINEMENTS — softer everywhere
-   ═══════════════════════════════════════════════════════════ */
+/* ═══════════════════════════════════════════════════════════════════════
+   13. SKELETON SHIMMER — neutral premium shimmer
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* All surfaces get softer borders by default */
-[class*="surface"],
-[class*="card"],
-[class*="panel"] {
-  border-color: var(--hairline) !important;
-}
-
-/* Skeleton shimmer — neutral instead of gold-tinted */
 [class*="skeleton"],
-[class*="loading"] {
+[class*="loading"]:not(.loading-screen) {
   background-image: linear-gradient(
     105deg,
     rgba(255,255,255,0.01) 25%,
-    rgba(255,255,255,0.04) 50%,
+    rgba(255,255,255,0.05) 50%,
     rgba(255,255,255,0.01) 75%
   ) !important;
   background-size: 300% 100% !important;
 }
 
-/* ═══════════════════════════════════════════════════════════
-   PREMIUM GLASS SURFACE ENHANCEMENT
-   Apply stronger glass effect to all glass surfaces
-   ═══════════════════════════════════════════════════════════ */
-[class*="glass"] {
-  backdrop-filter: blur(28px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
-}
+/* ═══════════════════════════════════════════════════════════════════════
+   14. RESPONSIVE — ensure no overflow on 360dp-430dp
+   ═══════════════════════════════════════════════════════════════════════ */
 
-/* ═══════════════════════════════════════════════════════════
-   RESPONSIVE — ensure no overflow on 360dp-430dp
-   ═══════════════════════════════════════════════════════════ */
 @media (max-width: 430px) {
   .spotlight {
-    height: 480px !important;
-    border-radius: 16px !important;
+    height: 480px;
+    border-radius: var(--glass-radius);
   }
-  .discover-rail {
-    gap: 12px !important;
+  .discover-rail,
+  .dulo-rail {
+    gap: 12px;
   }
-  .discover-rail-card {
-    width: 105px !important;
+  .discover-rail-card,
+  .dulo-rail-card {
+    width: 105px;
   }
   .vault-grid {
-    gap: 10px !important;
+    gap: 10px;
+  }
+  /* Tighter rhythm on small screens */
+  .discover-folds,
+  .dulo-page-sections,
+  .page-sections {
+    gap: var(--space-rhythm-sm);
+  }
+}
+
+/* ═══════════════════════════════════════════════════════════════════════
+   15. REDUCED MOTION — respect user preference
+   ═══════════════════════════════════════════════════════════════════════ */
+
+@media (prefers-reduced-motion: reduce) {
+  .glass-surface,
+  .glass-card,
+  .glass-panel,
+  .glass-tile,
+  .vault-card-premium,
+  .vault-card,
+  .quick-filter-tab,
+  .collections-folder-card,
+  .collection-card,
+  .detail-section,
+  .search-result-row,
+  .settings-row,
+  .setting-row,
+  .stats-card,
+  .stat-cell,
+  .history-item,
+  .upcoming-card,
+  .achievement-badge {
+    transition: none !important;
+  }
+  .glass-surface.is-interactive:hover,
+  .glass-card.is-interactive:hover,
+  .glass-tile.is-interactive:hover,
+  button.glass-card:hover,
+  a.glass-card:hover,
+  .vault-card-premium:hover,
+  .vault-card:hover,
+  .collections-folder-card:hover,
+  .collection-card:hover,
+  .search-result-row:hover,
+  .achievement-badge:hover {
+    transform: none !important;
   }
 }

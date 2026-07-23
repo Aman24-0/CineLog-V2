@@ -1,6 +1,6 @@
 import { ParentComponent, lazy, Suspense, Show, createMemo } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useLocation, useNavigate } from "@solidjs/router";
+import { useLocation } from "@solidjs/router";
 import ToastContainer from "~/shared/ui/ToastContainer";
 import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";

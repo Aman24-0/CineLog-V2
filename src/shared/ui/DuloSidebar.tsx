@@ -1,23 +1,38 @@
 // src/shared/ui/DuloSidebar.tsx
-// Desktop sidebar — Dulo.tv-inspired. Hidden on mobile (CSS handles it).
-import { type Component } from "solid-js";
+// Desktop sidebar — CineLog secondary navigation. Hidden on mobile (CSS).
+//
+// Contains the SAME four primary destinations as the bottom nav
+// (Discover, Watchlist, Collections, Profile) plus the secondary
+// destinations (Statistics, Upcoming, History, Settings) that live
+// inside the Profile drawer on mobile.
+//
+// NAVIGATION RULE (per spec):
+//   Never include Home, Live, Movies, Shows, Library, Shorts, Calendar,
+//   Streaming, Channels, or Anime. CineLog has exactly: Discover,
+//   Watchlist, Collections, Profile, Details, Settings, Statistics, Upcoming.
+import { For, type Component } from "solid-js";
 import { useNavigate, useLocation } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
-const NAV_ITEMS = [
-  { icon: "home",    label: "Home",       href: "/discover" },
-  { icon: "live_tv", label: "Live",       href: "/discover", disabled: true },
-  { icon: "movie",   label: "Movies",     href: "/watchlist" },
-  { icon: "tv",      label: "Shows",      href: "/watchlist" },
-  { icon: "star",    label: "Watchlist",  href: "/watchlist" },
-  { icon: "bookmark",label: "Library",    href: "/collections" },
+type NavItem = {
+  icon: string;
+  label: string;
+  href: string;
+};
+
+const PRIMARY_ITEMS: NavItem[] = [
+  { icon: "explore", label: "Discover", href: "/discover" },
+  { icon: "bookmark", label: "Watchlist", href: "/watchlist" },
+  { icon: "collection", label: "Collections", href: "/collections" },
+  { icon: "person", label: "Profile", href: "/profile" },
 ];
 
-const MORE_ITEMS = [
-  { icon: "explore",  label: "Discover",  href: "/discover" },
-  { icon: "play_circle", label: "Shorts", href: "/discover", disabled: true },
-  { icon: "calendar_month", label: "Calendar", href: "/discover", disabled: true },
+const SECONDARY_ITEMS: NavItem[] = [
+  { icon: "bar_chart", label: "Statistics", href: "/profile/stats" },
+  { icon: "event_upcoming", label: "Upcoming", href: "/profile/upcoming" },
+  { icon: "history", label: "History", href: "/profile/history" },
+  { icon: "settings", label: "Settings", href: "/settings" },
 ];
 
 const DuloSidebar: Component = () => {
@@ -27,60 +42,66 @@ const DuloSidebar: Component = () => {
   const { openAuthModal } = useAuthModal();
   const path = () => location.pathname;
 
-  const isActive = (href: string, label: string) => {
-    if (label === "Home" || label === "Discover") return path() === "/discover" || path() === "/";
-    if (label === "Watchlist" || label === "Movies" || label === "Shows") return path() === "/watchlist";
-    if (label === "Library") return path() === "/collections" || path().startsWith("/collections/");
-    return path() === href;
+  const isActive = (item: NavItem) => {
+    if (item.href === "/discover") return path() === "/" || path() === "/discover";
+    if (item.href === "/collections")
+      return path() === "/collections" || path().startsWith("/collections/");
+    if (item.href === "/profile")
+      return path() === "/profile" || path().startsWith("/profile/");
+    return path() === item.href;
   };
 
   return (
-    <aside class="dulo-sidebar" aria-label="Site navigation">
+    <aside class="cinelog-sidebar glass-surface-strong" aria-label="Site navigation">
       {/* Logo */}
-      <div class="dulo-sidebar-logo">
-        <div class="dulo-sidebar-logo-text">
+      <div class="cinelog-sidebar-logo">
+        <div class="cinelog-sidebar-logo-text">
           CINE<span>LOG</span>
         </div>
       </div>
 
-      {/* Main nav */}
-      <div class="dulo-sidebar-section">
-        {NAV_ITEMS.map((item) => (
-          <button
-            class={`dulo-sidebar-item${isActive(item.href, item.label) ? " active" : ""}`}
-            style={{ opacity: item.disabled ? "0.35" : "1", cursor: item.disabled ? "not-allowed" : "pointer" }}
-            onClick={() => !item.disabled && navigate(item.href)}
-            aria-current={isActive(item.href, item.label) ? "page" : undefined}
-            aria-label={item.label}
-          >
-            <span class="material-symbols-outlined dulo-sidebar-icon">{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+      {/* Primary nav */}
+      <div class="cinelog-sidebar-section">
+        <For each={PRIMARY_ITEMS}>
+          {(item) => (
+            <button
+              class={`cinelog-sidebar-item${isActive(item) ? " active" : ""}`}
+              onClick={() => navigate(item.href)}
+              aria-current={isActive(item) ? "page" : undefined}
+              aria-label={item.label}
+            >
+              <span class="material-symbols-outlined cinelog-sidebar-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+              {item.label}
+            </button>
+          )}
+        </For>
       </div>
 
-      {/* More section */}
-      <div class="dulo-sidebar-section" style={{ "margin-top": "0.5rem" }}>
-        <div class="dulo-sidebar-section-label">More</div>
-        {MORE_ITEMS.map((item) => (
-          <button
-            class={`dulo-sidebar-item${isActive(item.href, item.label) ? " active" : ""}`}
-            style={{ opacity: item.disabled ? "0.35" : "1", cursor: item.disabled ? "not-allowed" : "pointer" }}
-            onClick={() => !item.disabled && navigate(item.href)}
-            aria-label={item.label}
-          >
-            <span class="material-symbols-outlined dulo-sidebar-icon">{item.icon}</span>
-            {item.label}
-          </button>
-        ))}
+      {/* Secondary section */}
+      <div class="cinelog-sidebar-section" style={{ "margin-top": "0.5rem" }}>
+        <div class="cinelog-sidebar-section-label">More</div>
+        <For each={SECONDARY_ITEMS}>
+          {(item) => (
+            <button
+              class={`cinelog-sidebar-item${isActive(item) ? " active" : ""}`}
+              onClick={() => navigate(item.href)}
+              aria-current={isActive(item) ? "page" : undefined}
+              aria-label={item.label}
+            >
+              <span class="material-symbols-outlined cinelog-sidebar-icon" aria-hidden="true">
+                {item.icon}
+              </span>
+              {item.label}
+            </button>
+          )}
+        </For>
       </div>
 
       {/* Sign in CTA */}
       {!isSignedIn() && (
-        <button
-          class="dulo-sidebar-signin"
-          onClick={openAuthModal}
-        >
+        <button class="cinelog-sidebar-signin" onClick={openAuthModal}>
           Sign in
         </button>
       )}

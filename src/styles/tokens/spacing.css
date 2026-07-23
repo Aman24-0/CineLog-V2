@@ -46,5 +46,26 @@
     --rail-gap: 16px;           /* gap between rail/horizontal scroll items */
     --list-item-padding: 18px;  /* vertical padding for list items */
     --list-item-gap: 10px;      /* gap between list items */
+
+    /* ─── Unified vertical rhythm tokens ───
+       Inspired by premium streaming apps: hero → breathing room →
+       section → breathing room → cards → breathing room → next section.
+       Hero → Section: 36-48px (rhythm-md)
+       Section → Cards: 24-32px (rhythm-sm)
+       Cards → Next Section: 36-48px (rhythm-md)
+       Major page transitions: 48-60px (rhythm-lg) */
+    --space-rhythm-xs: 16px;    /* tight grouping inside a card */
+    --space-rhythm-sm: 24px;    /* section → cards */
+    --space-rhythm-md: 36px;    /* hero → section, cards → next section */
+    --space-rhythm-lg: 48px;    /* major page-level separation */
+    --space-rhythm-xl: 60px;    /* maximum breathing room */
+
+    /* ─── Glass-specific spacing ─── */
+    --glass-padding: 20px;          /* internal padding for glass cards */
+    --glass-padding-lg: 28px;       /* internal padding for large glass sections */
+    --glass-gap: 16px;              /* gap between glass cards */
+    --glass-radius: 18px;           /* default radius for glass cards */
+    --glass-radius-lg: 24px;        /* radius for large glass sections */
+    --glass-radius-pill: 999px;     /* radius for glass pills/chips */
   }
 }
