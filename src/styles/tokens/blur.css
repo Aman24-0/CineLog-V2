@@ -1,23 +1,22 @@
-/* src/styles/tokens/blur.css — Sprint 1B Token Foundation
-   Blur scale tokens. Extracted from hardcoded backdrop-filter
-   values found across the codebase.
+/* src/styles/tokens/blur.css — Premium Breathing Room Update
+   Blur scale tokens. Enhanced for stronger glass/frosted effects.
 
-   IMPORTANT: These are ADDITIVE tokens. No existing blur values
-   are changed. The original --glass-blur token is preserved. */
+   DESIGN PHILOSOPHY: Backdrop blur is the #1 premium differentiator.
+   Navigation, cards, and overlays use generous blur (20-40px)
+   for a frosted glass effect that creates visual depth. */
 
 @layer base {
   :root {
     /* ─── Original glass blur token (preserved) ─── */
-    /* --glass-blur is defined in colors.css as 20px */
+    /* --glass-blur is defined in colors.css */
 
-    /* ─── Semantic blur scale (new) ───
-       Maps to the hardcoded blur values found in components. */
-    --blur-xs: 4px;       /* Episode card number backdrop */
-    --blur-sm: 8px;       /* Tag chip, rating chip, relationship pill, collection badge */
-    --blur-md: 12px;      /* Close button, badge-accent, search bar, spotlight badge */
-    --blur-lg: 20px;      /* = --glass-blur — Rating cluster backdrop, profile shimmer, scroll-to-top */
-    --blur-xl: 24px;      /* Toast, search bar sticky */
-    --blur-2xl: 28px;     /* = calc(--glass-blur + 8px) — Filter drawer, action dock, strong glass */
-    --blur-3xl: 60px;     /* Cinematic ambient backdrop */
+    /* ─── Premium blur scale (enhanced for frosted glass) ─── */
+    --blur-xs: 6px;       /* was 4px — subtle glass */
+    --blur-sm: 10px;      /* was 8px — chips, tags */
+    --blur-md: 16px;      /* was 12px — close buttons, badges */
+    --blur-lg: 24px;      /* was 20px — glass surfaces, ratings */
+    --blur-xl: 32px;      /* was 24px — navigation, overlays */
+    --blur-2xl: 40px;     /* was 28px — strong glass, filter drawer */
+    --blur-3xl: 60px;     /* cinematic ambient backdrop */
   }
 }

@@ -1,25 +1,28 @@
-/* src/styles/tokens/shadows.css — CineLog V2 Redesign
-   Richer, deeper shadows with warm cinema undertones.
-   Premium layering creates the illusion of physical depth. */
+/* src/styles/tokens/shadows.css — Premium Breathing Room Update
+   Softer, more diffused shadows. Premium layering creates the
+   illusion of physical depth with warmth and subtlety.
+
+   DESIGN PHILOSOPHY: Shadows should be soft and diffused, not harsh.
+   Cards float with gentle elevation. No heavy dark shadows. */
 
 @layer base {
   :root {
-    /* ─── Original shadow tokens (redesigned — deeper, warmer) ─── */
-    --shadow-card: 0 2px 8px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.45);
-    --shadow-raised: 0 4px 16px rgba(0,0,0,0.65), 0 16px 48px rgba(0,0,0,0.55);
-    --shadow-float: 0 8px 32px rgba(0,0,0,0.75), 0 24px 64px rgba(0,0,0,0.65);
-    --shadow-glow: 0 0 0 1px var(--p), 0 0 24px var(--p-glow), 0 12px 40px rgba(0,0,0,0.85);
+    /* ─── Original shadow tokens (redesigned — softer, more diffused) ─── */
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.30), 0 8px 24px rgba(0,0,0,0.20);
+    --shadow-raised: 0 4px 16px rgba(0,0,0,0.35), 0 16px 48px rgba(0,0,0,0.25);
+    --shadow-float: 0 8px 32px rgba(0,0,0,0.40), 0 24px 64px rgba(0,0,0,0.30);
+    --shadow-glow: 0 0 0 1px var(--p), 0 0 20px var(--p-glow), 0 12px 40px rgba(0,0,0,0.40);
 
-    /* Premium layered shadows — warm cinema depth */
-    --shadow-premium: 0 1px 3px rgba(0,0,0,0.45), 0 4px 14px rgba(0,0,0,0.50), 0 14px 36px rgba(0,0,0,0.55);
-    --shadow-elevated: 0 2px 8px rgba(0,0,0,0.55), 0 10px 28px rgba(0,0,0,0.60), 0 28px 64px rgba(0,0,0,0.65);
-    --shadow-hero: 0 4px 20px rgba(0,0,0,0.65), 0 20px 56px rgba(0,0,0,0.70), 0 40px 96px rgba(0,0,0,0.75);
+    /* Premium layered shadows — soft, diffused, calm */
+    --shadow-premium: 0 1px 2px rgba(0,0,0,0.20), 0 4px 12px rgba(0,0,0,0.25), 0 12px 28px rgba(0,0,0,0.20);
+    --shadow-elevated: 0 2px 6px rgba(0,0,0,0.25), 0 8px 20px rgba(0,0,0,0.30), 0 20px 48px rgba(0,0,0,0.25);
+    --shadow-hero: 0 4px 12px rgba(0,0,0,0.30), 0 16px 40px rgba(0,0,0,0.35), 0 32px 72px rgba(0,0,0,0.30);
 
-    /* ─── Semantic elevation shadow scale ─── */
-    --shadow-xs: 0 1px 3px rgba(0,0,0,0.45);
-    --shadow-sm: 0 2px 8px rgba(0,0,0,0.55), 0 8px 24px rgba(0,0,0,0.45);
-    --shadow-md: 0 4px 16px rgba(0,0,0,0.65), 0 16px 48px rgba(0,0,0,0.55);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,0.75), 0 24px 64px rgba(0,0,0,0.65);
-    --shadow-xl: 0 4px 20px rgba(0,0,0,0.65), 0 20px 56px rgba(0,0,0,0.70), 0 40px 96px rgba(0,0,0,0.75);
+    /* ─── Semantic elevation shadow scale (softer) ─── */
+    --shadow-xs: 0 1px 2px rgba(0,0,0,0.20);
+    --shadow-sm: 0 2px 6px rgba(0,0,0,0.25), 0 6px 16px rgba(0,0,0,0.15);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.30), 0 12px 32px rgba(0,0,0,0.20);
+    --shadow-lg: 0 8px 24px rgba(0,0,0,0.35), 0 20px 48px rgba(0,0,0,0.25);
+    --shadow-xl: 0 4px 16px rgba(0,0,0,0.30), 0 16px 40px rgba(0,0,0,0.35), 0 32px 72px rgba(0,0,0,0.30);
   }
 }

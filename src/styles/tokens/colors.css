@@ -190,28 +190,31 @@
   }
 }
 
-/* ── Dulo.tv palette adjustments — cooler, deeper, less warm-gold tint ── */
+/* ── Premium palette — Dulo.tv-inspired depth with CineLog warmth ──
+   Near-neutral dark backgrounds with subtle warm undertone.
+   Glass surfaces with stronger blur and translucency. */
 :root {
-  /* Dulo uses a near-neutral dark background, not warm */
-  --void: #0A0A10;
-  --deep: #0A0A10;
-  --surface: #0F0F18;
-  --raised: #161622;
+  /* Deep, near-neutral dark backgrounds — calm, cinematic */
+  --void: #0B0B11;
+  --deep: #0B0B11;
+  --surface: #111118;
+  --raised: #181822;
 
-  /* Hairlines: keep very subtle, near-neutral */
-  --hairline:   rgba(255,255,255,0.05);
-  --hairline-2: rgba(255,255,255,0.08);
-  --hairline-3: rgba(255,255,255,0.13);
+  /* Hairlines: very subtle, nearly invisible — depth through contrast */
+  --hairline:   rgba(255,255,255,0.04);
+  --hairline-2: rgba(255,255,255,0.07);
+  --hairline-3: rgba(255,255,255,0.12);
 
-  /* Glass surfaces */
-  --glass-bg: rgba(10,10,16,0.80);
-  --glass-bg-strong: rgba(10,10,16,0.94);
-  --glass-border: rgba(255,255,255,0.07);
+  /* Glass surfaces — stronger translucency for premium frosted feel */
+  --glass-bg: rgba(11,11,17,0.78);
+  --glass-bg-strong: rgba(11,11,17,0.92);
+  --glass-border: rgba(255,255,255,0.06);
+  --glass-blur: 28px;  /* enhanced from 24px for stronger frosted effect */
 
-  /* Surface tier scale */
-  --tier-0: #0A0A10;
-  --tier-1: #0E0E18;
-  --tier-2: #141420;
-  --tier-3: #1C1C2A;
-  --tier-4: #252538;
+  /* Surface tier scale — smooth depth progression */
+  --tier-0: #0B0B11;
+  --tier-1: #101018;
+  --tier-2: #161622;
+  --tier-3: #1E1E2E;
+  --tier-4: #28283E;
 }

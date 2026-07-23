@@ -1,0 +1,301 @@
+/* premium-overrides.css — Premium Breathing Room Update
+   Imported LAST in the cascade so it overrides all feature CSS.
+   
+   This file applies Dulo.tv-inspired visual refinements across
+   ALL features without modifying individual feature files.
+   
+   DESIGN PHILOSOPHY: "Does this make CineLog feel calmer?"
+   Everything here adds breathing room, softens edges, and creates
+   a more premium visual feel. Structure, navigation, and features
+   remain completely unchanged. */
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL SECTION SPACING — more room between sections
+   ═══════════════════════════════════════════════════════════ */
+.discover-folds {
+  gap: 2.5rem !important;
+}
+.discover-fold {
+  gap: 1.75rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SPOTLIGHT HERO — taller, more spacious
+   ═══════════════════════════════════════════════════════════ */
+.spotlight {
+  height: 540px !important;
+  border-radius: 20px !important;
+  box-shadow: var(--shadow-hero), inset 0 0 0 1px rgba(255,255,255,0.02) !important;
+}
+@media (min-width: 640px) {
+  .spotlight { height: 580px !important; }
+}
+.spotlight-content {
+  padding-bottom: 2.5rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DISCOVER RAIL CARDS — wider gaps, larger radius
+   ═══════════════════════════════════════════════════════════ */
+.discover-rail {
+  gap: 14px !important;
+}
+.discover-rail-card {
+  width: 120px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   WATCHLIST — more breathing room in grid and filters
+   ═══════════════════════════════════════════════════════════ */
+
+/* Vault grid — larger gaps */
+.vault-grid {
+  gap: 14px !important;
+}
+
+/* Vault card — larger radius, softer shadow */
+.vault-card-premium {
+  border-radius: 14px !important;
+}
+
+/* Filter controls — more padding and breathing room */
+.filter-controls {
+  gap: 12px !important;
+}
+.filter-select-premium,
+.filter-input-premium {
+  border-radius: var(--radius-pill) !important;
+  padding: 0.625rem 1rem !important;
+}
+
+/* Quick filter tabs — pill shape */
+.quick-filter-tabs {
+  gap: 10px !important;
+}
+.quick-filter-tab {
+  border-radius: var(--radius-pill) !important;
+  padding: 0.5rem 1rem !important;
+}
+
+/* Watchlist header — more spacing */
+.watchlist-header {
+  margin-bottom: 1.5rem !important;
+}
+
+/* Vault shelf — more gap between shelf items */
+.vault-shelf {
+  gap: 14px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PROFILE — luxurious spacing
+   ═══════════════════════════════════════════════════════════ */
+
+/* Profile sections — more breathing room */
+.profile-section {
+  gap: 20px !important;
+  padding: 24px !important;
+}
+
+/* Stats grid — spacious */
+.stats-glass-box {
+  border-radius: 18px !important;
+  padding: 20px !important;
+}
+
+/* Achievement badges — never crowded */
+.achievement-badge {
+  border-radius: 14px !important;
+}
+
+/* Profile banner — larger */
+.profile-banner {
+  height: 200px !important;
+  border-radius: 20px !important;
+}
+
+/* Favorites carousel — wider gaps */
+.favorites-carousel {
+  gap: 14px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   COLLECTIONS — improved visual hierarchy
+   ═══════════════════════════════════════════════════════════ */
+
+/* Collections grid — more breathing room */
+.collections-grid {
+  gap: 16px !important;
+}
+.collections-folder-card {
+  border-radius: 18px !important;
+  padding: 20px !important;
+}
+
+/* Collection hero — taller */
+.collection-hero {
+  height: 240px !important;
+  border-radius: 20px !important;
+}
+
+/* Collection stats — spacious */
+.collection-stats {
+  gap: 12px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DETAILS — layered, spacious
+   ═══════════════════════════════════════════════════════════ */
+
+/* Details modal — larger hero area */
+.cinematic-hero {
+  height: min(75vh, 520px) !important;
+}
+
+/* Details sections — more padding */
+.detail-section {
+  gap: 20px !important;
+  padding: 20px !important;
+  border-radius: 18px !important;
+}
+
+/* Action dock — softer glass */
+.action-dock {
+  border-radius: 22px !important;
+  backdrop-filter: blur(32px) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SEARCH — premium search field
+   ═══════════════════════════════════════════════════════════ */
+
+/* Search bar — large, rounded, floating */
+.search-bar-container {
+  margin-bottom: 1.5rem !important;
+}
+.search-bar-input {
+  border-radius: 16px !important;
+  padding: 1rem 1.25rem !important;
+  font-size: 1rem !important;
+  background: var(--tier-2) !important;
+  border: 1px solid var(--hairline) !important;
+  box-shadow: var(--shadow-card) !important;
+  transition: border-color 200ms ease, box-shadow 200ms ease !important;
+}
+.search-bar-input:focus {
+  border-color: var(--hairline-3) !important;
+  box-shadow: var(--shadow-raised) !important;
+  outline: none !important;
+}
+
+/* Search results — more spacing */
+.search-result-row {
+  padding: 16px !important;
+  border-radius: 14px !important;
+  gap: 14px !important;
+}
+.search-result-row + .search-result-row {
+  margin-top: 8px !important;
+}
+
+/* Genre browse grid — wider gaps */
+.genre-browse-grid {
+  gap: 10px !important;
+}
+.genre-browse-chip {
+  border-radius: var(--radius-pill) !important;
+  padding: 0.5rem 1rem !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SETTINGS — clean, calm
+   ═══════════════════════════════════════════════════════════ */
+
+.settings-group {
+  gap: 10px !important;
+}
+.settings-row {
+  border-radius: 14px !important;
+  padding: 16px 20px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SECONDARY PAGES (Stats, History, Achievements, Trash)
+   ═══════════════════════════════════════════════════════════ */
+
+/* Stats cards */
+.stats-card {
+  border-radius: 16px !important;
+  padding: 20px !important;
+}
+
+/* History list */
+.history-item {
+  padding: 14px !important;
+  border-radius: 12px !important;
+  gap: 12px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   DIALOGS — glass effect, spacious
+   ═══════════════════════════════════════════════════════════ */
+.modal-surface {
+  border-radius: var(--radius-2xl) !important;
+  box-shadow: var(--shadow-elevated) !important;
+}
+.sheet-handle {
+  width: 36px !important;
+  height: 4px !important;
+  border-radius: 4px !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   GLOBAL CARD REFINEMENTS — softer everywhere
+   ═══════════════════════════════════════════════════════════ */
+
+/* All surfaces get softer borders by default */
+[class*="surface"],
+[class*="card"],
+[class*="panel"] {
+  border-color: var(--hairline) !important;
+}
+
+/* Skeleton shimmer — neutral instead of gold-tinted */
+[class*="skeleton"],
+[class*="loading"] {
+  background-image: linear-gradient(
+    105deg,
+    rgba(255,255,255,0.01) 25%,
+    rgba(255,255,255,0.04) 50%,
+    rgba(255,255,255,0.01) 75%
+  ) !important;
+  background-size: 300% 100% !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   PREMIUM GLASS SURFACE ENHANCEMENT
+   Apply stronger glass effect to all glass surfaces
+   ═══════════════════════════════════════════════════════════ */
+[class*="glass"] {
+  backdrop-filter: blur(28px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(28px) saturate(140%) !important;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   RESPONSIVE — ensure no overflow on 360dp-430dp
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 430px) {
+  .spotlight {
+    height: 480px !important;
+    border-radius: 16px !important;
+  }
+  .discover-rail {
+    gap: 12px !important;
+  }
+  .discover-rail-card {
+    width: 105px !important;
+  }
+  .vault-grid {
+    gap: 10px !important;
+  }
+}

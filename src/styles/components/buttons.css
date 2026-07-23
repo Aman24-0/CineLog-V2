@@ -1,41 +1,44 @@
-/* src/styles/components/buttons.css — CineLog V2 Redesign
-   Premium cinema close button with warm gold accent. */
+/* src/styles/components/buttons.css — Premium Breathing Room Update
+   Buttons feel elegant: never oversized, never dominate cards.
+   Balanced height, rounded, soft elevation, comfortable touch targets. */
 
 .cinematic-close-btn {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + var(--sp-4));
-  right: var(--sp-4);
+  right: var(--sp-5);
   z-index: 30;
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 2.5rem;
-  height: 2.5rem;
+  width: 2.75rem;
+  height: 2.75rem;
   border-radius: 50%;
-  background: rgba(8,8,13,0.55);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid rgba(232,183,74,0.10);
+  background: rgba(8,8,13,0.50);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255,255,255,0.08);
   color: var(--text-strong);
   cursor: pointer;
-  transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out), border-color var(--dur-fast) var(--ease-out);
+  transition: transform var(--dur-fast) var(--ease-spring), 
+              background var(--dur-fast) var(--ease-out), 
+              border-color var(--dur-fast) var(--ease-out);
 }
 .cinematic-close-btn:hover {
-  background: rgba(8,8,13,0.75);
-  border-color: rgba(232,183,74,0.20);
+  background: rgba(8,8,13,0.70);
+  border-color: rgba(255,255,255,0.15);
 }
 .cinematic-close-btn:active {
-  transform: scale(0.95);
+  transform: scale(0.93);
 }
 
 /* Light mode — keep dark glass for readability over hero images */
 :root[data-theme-resolved="light"] .cinematic-close-btn {
-  background: rgba(0, 0, 0, 0.55);
-  border-color: rgba(255, 255, 255, 0.22);
+  background: rgba(0, 0, 0, 0.50);
+  border-color: rgba(255, 255, 255, 0.18);
   color: #ffffff;
 }
 :root[data-theme-resolved="light"] .cinematic-close-btn:hover {
-  background: rgba(0, 0, 0, 0.72);
+  background: rgba(0, 0, 0, 0.68);
 }
 
 /* Trailer close button */

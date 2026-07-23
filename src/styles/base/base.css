@@ -30,37 +30,40 @@
     overflow-x: clip;
     min-height: 100vh;
     letter-spacing: 0.015em;
+    /* Premium: smoother font rendering */
+    font-feature-settings: 'kern' 1, 'liga' 1;
+    text-size-adjust: 100%;
   }
 }
 
 
-/* Scrollbar — premium thin rail with warm gold tint on hover */
-::-webkit-scrollbar { width: 4px; height: 4px; }
+/* Scrollbar — premium ultra-thin rail, neutral tint */
+::-webkit-scrollbar { width: 3px; height: 3px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb {
-  background: rgba(232,183,74,0.08);
-  border-radius: 4px;
-  transition: background 160ms ease-out;
+  background: rgba(255,255,255,0.06);
+  border-radius: 3px;
+  transition: background 200ms ease-out;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(232,183,74,0.18); }
+::-webkit-scrollbar-thumb:hover { background: rgba(255,255,255,0.14); }
 ::-webkit-scrollbar-corner { background: transparent; }
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(232,183,74,0.10) transparent;
+  scrollbar-color: rgba(255,255,255,0.06) transparent;
 }
 
 .hide-scrollbar::-webkit-scrollbar { display: none; }
 .hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
 
-/* Text selection — warm gold highlight */
+/* Text selection — subtle accent highlight */
 ::selection {
-  background: color-mix(in srgb, var(--p) 25%, transparent);
+  background: color-mix(in srgb, var(--p) 18%, transparent);
   color: var(--text-strong);
 }
 ::-moz-selection {
-  background: color-mix(in srgb, var(--p) 25%, transparent);
+  background: color-mix(in srgb, var(--p) 18%, transparent);
   color: var(--text-strong);
 }
 
