@@ -17,7 +17,7 @@
 //   • Every genre is cached — re-tapping a previously-expanded genre
 //     is instant (the cache is page-aware so load-more still works).
 //   • Expanded state preserved across re-renders (in-component signal).
-//   • Premium empty states with Retry on network failure.
+//   • GlassEmptyState with Retry on network failure.
 //
 
 import {

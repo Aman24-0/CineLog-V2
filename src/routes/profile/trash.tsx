@@ -1,7 +1,7 @@
 // src/routes/profile/trash.tsx
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import { PremiumEmptyState } from "~/shared/ui/premium";
+import { GlassEmptyState } from "~/shared/ui/glass";
 import TrashPage from "~/features/trash/TrashPage";
 
 export default function TrashRoute() {
@@ -11,7 +11,7 @@ export default function TrashRoute() {
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="profile-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
-            <PremiumEmptyState
+            <GlassEmptyState
               icon="error"
               iconFill
               title="Couldn't load trash"

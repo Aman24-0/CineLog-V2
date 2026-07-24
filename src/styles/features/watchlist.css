@@ -1,8 +1,8 @@
 /* src/styles/features/watchlist.css — CineLog V2 Redesign
-   Premium cinema vault experience with warm gold accents,
+   Glass cinema vault experience with warm gold accents,
    deeper shadows, and refined card styling. */
 
-/* Premium movie card (vault grid) — refined overlay + ratings */
+/* Glass movie card (vault grid) — refined overlay + ratings */
 .vault-card-premium {
   position: relative;
   cursor: pointer;
@@ -33,7 +33,7 @@
               inset 0 1px 0 rgba(255,255,255,0.06);
 }
 
-/* Premium card poster */
+/* Glass card poster */
 .vault-card-poster {
   position: absolute; inset: 0; width: 100%; height: 100%;
   object-fit: cover; display: block;
@@ -46,7 +46,7 @@
 .vault-card-poster.img-loaded { opacity: 1; transform: scale(1); filter: brightness(0.85) saturate(0.95); }
 .vault-card-premium:hover .vault-card-poster { filter: brightness(0.72) saturate(1.0); transform: scale(1.04); }
 
-/* Premium card gradient overlay — warm cinema depth */
+/* Glass card gradient overlay — warm cinema depth */
 .vault-card-inner::after {
   content: '';
   position: absolute; inset: 0;
@@ -57,12 +57,12 @@
   z-index: 2;
 }
 
-/* Premium status badge — status-aware color */
+/* Glass status badge — status-aware color */
 .status-badge-planned { color: var(--color-status-planned); background: var(--glass-bg); border: 1px solid var(--color-status-planned-border); }
 .status-badge-watching { color: var(--color-status-watching); background: var(--glass-bg); border: 1px solid var(--color-status-watching-border); }
 .status-badge-completed { color: var(--color-status-completed); background: var(--glass-bg); border: 1px solid var(--color-status-completed-border); }
 
-/* Premium rating chip */
+/* Glass rating chip */
 .rating-chip {
   display: inline-flex; align-items: center; gap: 2px;
   padding: 2px 4px; border-radius: var(--radius-5);
@@ -78,7 +78,7 @@
 .rating-chip-rt { border: 1px solid color-mix(in srgb, var(--color-rating-rotten-tomatoes) 30%, transparent); color: var(--color-rating-rotten-tomatoes); }
 .rating-chip-user { border: 1px solid color-mix(in srgb, var(--color-rating-user) 35%, transparent); color: var(--color-rating-user); }
 
-/* Premium timeline */
+/* Glass timeline */
 .timeline-rail {
   position: absolute;
   left: 1.25rem;
@@ -125,7 +125,7 @@
   z-index: 30;
 }
 
-/* Premium timeline card */
+/* Glass timeline card */
 .timeline-card {
   background: var(--tier-2);
   border: 1px solid var(--hairline);
@@ -159,7 +159,7 @@
 .timeline-card:hover::before { opacity: 1; }
 .timeline-card:active { transform: scale(0.99); transition-duration: var(--dur-fast); }
 
-/* Premium filter drawer */
+/* Glass filter drawer */
 .filter-drawer {
   background: var(--glass-bg-strong);
   backdrop-filter: blur(28px);
@@ -232,7 +232,7 @@
 }
 .filter-input-premium::placeholder { color: var(--text-dim); }
 
-/* Premium filter chip */
+/* Glass filter chip */
 .filter-chip {
   display: inline-flex; align-items: center; gap: 0.375rem;
   padding: 0.4375rem 0.75rem;
@@ -257,7 +257,7 @@
 }
 .filter-chip:active { transform: scale(0.95); }
 
-/* Premium search bar */
+/* Glass search bar */
 .search-premium {
   display: flex; align-items: center; gap: 0.75rem;
   border-radius: var(--radius-md);
@@ -274,7 +274,7 @@
   background: var(--tier-2);
 }
 
-/* Premium view-mode toggle */
+/* Glass view-mode toggle */
 .view-toggle {
   display: flex;
   padding: 3px;
@@ -308,7 +308,7 @@
   background: var(--p-dim);
 }
 
-/* Premium filter button */
+/* Glass filter button */
 .filter-button {
   display: inline-flex; align-items: center; gap: 0.5rem;
   padding: 0.5rem 1rem;
@@ -345,7 +345,7 @@
   box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.4);
 }
 
-/* Premium filter count badge */
+/* Glass filter count badge */
 .filter-count-badge {
   display: inline-flex; align-items: center; justify-content: center;
   min-width: 1.25rem; height: 1.25rem;
