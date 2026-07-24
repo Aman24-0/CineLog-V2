@@ -561,7 +561,7 @@
   position: absolute; top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)); left: var(--sp-4); z-index: 3;
   display: inline-flex; align-items: center; gap: 0.375rem; padding: 0.25rem 0.625rem;
   border-radius: var(--radius-pill); background: var(--glass-bg-strong);
-  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--blur-md)); -webkit-backdrop-filter: blur(var(--blur-md));
   border: 1px solid var(--hairline-2); font-family: 'Azeret Mono', monospace;
   font-size: 0.5625rem; font-weight: 700; letter-spacing: 0.14em; text-transform: uppercase;
   color: var(--text-body); box-shadow: var(--shadow-premium);
@@ -877,8 +877,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--hairline-2);
   background: rgba(8,8,13,0.5);
 }
@@ -905,8 +905,8 @@
   height: 28px;
   border-radius: 50%;
   background: rgba(8,8,13,0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--hairline-2);
   color: var(--text-soft);
   cursor: pointer;
@@ -1065,7 +1065,7 @@
 .universe-detail-back-btn {
   position: absolute; top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)); left: var(--sp-4); z-index: 20;
   display: flex; align-items: center; justify-content: center; width: 2.5rem; height: 2.5rem; border-radius: 50%;
-  background: rgba(8,8,13,0.50); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  background: rgba(8,8,13,0.50); backdrop-filter: blur(var(--blur-md)); -webkit-backdrop-filter: blur(var(--blur-md));
   border: 1px solid var(--hairline-2); color: var(--text-strong); cursor: pointer;
   transition: transform var(--dur-fast) var(--ease-spring), background var(--dur-fast) var(--ease-out);
 }
@@ -1606,7 +1606,7 @@
   width: 48px;
   height: 28px;
   object-fit: cover;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--hairline-2);
 }
 
@@ -1645,8 +1645,8 @@
   gap: 4px;
   padding: 4px 8px;
   background: rgba(8,8,13,0.75);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--hairline-3);
   color: #ff8888;
   font-family: 'Outfit', sans-serif;
@@ -1787,8 +1787,8 @@
 .collection-card:has(.collection-card-backdrop) .collection-card-menu {
   z-index: 3;
   background: rgba(8,8,13,0.5);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
 }
 
 /* ============================================================

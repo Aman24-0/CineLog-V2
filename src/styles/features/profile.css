@@ -1507,8 +1507,8 @@
   border-radius: var(--radius-full, 9999px);
   background: color-mix(in srgb, var(--tier-0) 70%, transparent);
   border: 1px solid color-mix(in srgb, var(--p) 30%, var(--hairline-2));
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   font-family: var(--font-family-display);
   font-size: 0.75rem;
   color: var(--p);
@@ -1984,8 +1984,8 @@
   padding: var(--space-3) var(--space-1);
   border-radius: var(--radius-lg, 12px);
   background: var(--glass-bg);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  backdrop-filter: blur(var(--blur-md)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--blur-md)) saturate(140%);
   border: 1px solid var(--glass-border, var(--hairline-2));
   box-shadow:
     0 4px 20px rgba(8,8,13,0.2),
@@ -2148,7 +2148,7 @@
   padding: 2px 6px;
   border-radius: var(--radius-full, 9999px);
   background: rgba(8,8,13,0.7);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
   color: #ffd54f;
   font-family: var(--font-family-label);
   font-size: 0.625rem;
@@ -3014,7 +3014,7 @@
   height: 26px;
   border-radius: 50%;
   background: rgba(8,8,13,0.7);
-  backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
   border: none;
   display: flex;
   align-items: center;

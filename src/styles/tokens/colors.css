@@ -132,6 +132,24 @@
     --color-collection-ott-bg: rgba(56,189,248,0.08);
     --color-collection-ott-border: rgba(56,189,248,0.25);
 
+    /* --- New Tokens --- */
+    --blur-sm: 8px;
+    --blur-md: 12px;
+    --blur-lg: 20px;
+    --blur-xl: 32px;
+
+    --radius-sm: 4px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+    --radius-pill: 9999px;
+
+    --sp-1: 0.25rem;
+    --sp-2: 0.5rem;
+    --sp-3: 0.75rem;
+    --sp-4: 1rem;
+    --sp-6: 1.5rem;
+
     /* ─── Active-state tokens ─── */
     --active-bg: var(--p);
     --active-text: #08080D;

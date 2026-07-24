@@ -813,8 +813,8 @@
   padding: 1rem 1.25rem;
   border-radius: var(--radius-lg);
   background: var(--glass-bg);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(var(--blur-lg));
+  -webkit-backdrop-filter: blur(var(--blur-lg));
   border: 1px solid var(--hairline);
 }
 .rating-cluster-primary {
@@ -1012,8 +1012,8 @@
   height: 2.5rem;
   border-radius: 50%;
   background: rgba(8,8,13,0.60);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(var(--blur-md));
+  -webkit-backdrop-filter: blur(var(--blur-md));
   border: 1px solid var(--hairline-2);
   color: var(--text-strong);
   cursor: pointer;
@@ -1966,8 +1966,8 @@
   align-items: center;
   justify-content: center;
   background: rgba(232,183,74,0.05);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(var(--blur-sm));
+  -webkit-backdrop-filter: blur(var(--blur-sm));
   border: 1px solid var(--hairline-2);
 }
 
