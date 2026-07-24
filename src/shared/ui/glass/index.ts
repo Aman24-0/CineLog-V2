@@ -7,6 +7,7 @@
  * interaction patterns, accessibility defaults, and cinematic visuals.
  */
 
+export * from "./GlassSurface";
 export * from "./GlassCard";
 export * from "./GlassPosterCard";
 export * from "./GlassButton";
@@ -23,4 +24,3 @@ export * from "./GlassLoadingState";
 export * from "./GlassListItem";
 export * from "./GlassStatCard";
 export * from "./GlassAvatar";
-export * from "./GlassSurface";

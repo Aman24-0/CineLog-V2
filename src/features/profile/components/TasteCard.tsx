@@ -160,6 +160,9 @@ const TasteCard: Component<TasteCardProps> = (props) => {
 
 
 
+
+
+
                   onClick={() => props.isEditing && props.onPick("movie")}
                 />
                 {/* Personal reason — very small elegant subtitle */}
