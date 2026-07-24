@@ -39,8 +39,8 @@
   z-index: 30;
   padding: var(--sp-3) 0;
   background: rgba(8,8,13,0.92);
-  backdrop-filter: blur(24px);
-  -webkit-backdrop-filter: blur(24px);
+  backdrop-filter: blur(var(--glass-blur));
+  -webkit-backdrop-filter: blur(var(--glass-blur));
   border-bottom: 1px solid var(--hairline);
   margin-left: calc(-1 * var(--sp-5));
   margin-right: calc(-1 * var(--sp-5));
