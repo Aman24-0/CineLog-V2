@@ -7,7 +7,7 @@
 // Watchlist row shows the story text as the description.
 
 import { For, type Component } from "solid-js";
-import { PremiumListItem } from "~/shared/ui/premium";
+import { GlassListItem } from "~/shared/ui/glass";
 
 interface QuickLinkDef {
   href: string;
@@ -27,7 +27,7 @@ interface QuickLinksProps {
  * Sprint 2C changes:
  *   • Removed Settings (now in SettingsLinks.tsx)
  *   • Added Watchlist as a new row with dynamic story text
- *   • Each row uses PremiumListItem with hover states and animated arrow
+ *   • Each row uses GlassListItem with hover states and animated arrow
  */
 const QuickLinks: Component<QuickLinksProps> = (props) => {
   const links = (): QuickLinkDef[] => [
@@ -46,7 +46,7 @@ const QuickLinks: Component<QuickLinksProps> = (props) => {
             style={{ "text-decoration": "none" }}
             aria-label={`${link.label} — ${link.desc}`}
           >
-            <PremiumListItem
+            <GlassListItem
               title={link.label}
               subtitle={link.desc}
               icon={link.icon}

@@ -5,7 +5,7 @@
 // Red-tinted surface with Sign Out + Delete Account actions.
 
 import { type Component } from "solid-js";
-import { PremiumSurface, PremiumButton, PremiumDivider, PremiumSectionHeader } from "~/shared/ui/premium";
+import { GlassSurface, GlassButton, GlassDivider, GlassSectionHeader } from "~/shared/ui/glass";
 
 interface DangerZoneProps {
   onSignOut: () => void;
@@ -18,7 +18,7 @@ interface DangerZoneProps {
  *   • Sign Out — ghost button, standard destructive action
  *   • Delete Account — danger button, permanent destructive action
  *
- * Uses PremiumSurface with a red-tinted background
+ * Uses GlassSurface with a red-tinted background
  * (color-mix of danger + tier-1) for visual isolation.
  */
 const DangerZone: Component<DangerZoneProps> = (props) => {
@@ -27,13 +27,13 @@ const DangerZone: Component<DangerZoneProps> = (props) => {
       style={{ "margin-top": "var(--space-12)" }}
       aria-label="Danger zone"
     >
-      <PremiumSectionHeader
+      <GlassSectionHeader
         title="Danger Zone"
         icon="warning"
         variant="compact"
       />
-      <PremiumSurface
-        elevation="flat"
+      <GlassSurface
+
         border="subtle"
         padding="comfortable"
         radius="lg"
@@ -48,16 +48,16 @@ const DangerZone: Component<DangerZoneProps> = (props) => {
               <p class="danger-zone-title">Sign Out</p>
               <p class="danger-zone-desc">Sign out of your account</p>
             </div>
-            <PremiumButton
+            <GlassButton
               variant="ghost"
               size="compact"
               onClick={props.onSignOut}
             >
               Sign Out
-            </PremiumButton>
+            </GlassButton>
           </div>
 
-          <PremiumDivider variant="subtle" spacing="compact" />
+          <GlassDivider variant="subtle" spacing="compact" />
 
           {/* Delete Account row */}
           <div class="danger-zone-row">
@@ -65,15 +65,15 @@ const DangerZone: Component<DangerZoneProps> = (props) => {
               <p class="danger-zone-title danger-zone-title-danger">Delete Account</p>
               <p class="danger-zone-desc">Permanently delete your account and all data</p>
             </div>
-            <PremiumButton
+            <GlassButton
               variant="danger"
               size="compact"
             >
               Delete
-            </PremiumButton>
+            </GlassButton>
           </div>
         </div>
-      </PremiumSurface>
+      </GlassSurface>
     </section>
   );
 };

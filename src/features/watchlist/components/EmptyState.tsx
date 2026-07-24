@@ -12,7 +12,7 @@ interface EmptyStateProps {
 }
 
 /**
- * Premium empty state for the Vault.
+ * GlassEmptyState for the Vault.
  *
  * Two variants:
  *  - Guest: glass surface with accent CTA (sign-in prompt)

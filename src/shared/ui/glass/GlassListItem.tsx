@@ -1,10 +1,10 @@
-// src/shared/ui/premium/display/PremiumListItem.tsx
+// src/shared/ui/glass/GlassListItem.tsx
 import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Types ────────────────────────────────────────────────────
 
 /** Visual variant. */
-type ListItemVariant = "default" | "subtle";
+type ListItemVariant = "glass" | "subtle" | "accent";
 
 /** Size/density preset. */
 type ListItemSize = "compact" | "default" | "comfortable";
@@ -12,8 +12,9 @@ type ListItemSize = "compact" | "default" | "comfortable";
 // ─── Token Maps ───────────────────────────────────────────────
 
 const variantClasses: Record<ListItemVariant, string> = {
-  default: "bg-tier-2 rounded-md",
+  glass: "bg-glass backdrop-blur-lg border border-glass-border rounded-md",
   subtle: "bg-transparent border-b border-hairline",
+  accent: "bg-primary-dim border border-primary rounded-md shadow-glow",
 };
 
 const sizeClasses: Record<ListItemSize, string> = {
@@ -48,7 +49,7 @@ const iconSizeMap: Record<ListItemSize, string> = {
 
 // ─── Props ────────────────────────────────────────────────────
 
-export interface PremiumListItemProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface GlassListItemProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** Title text. */
   title: string;
   /** Optional subtitle text. */
@@ -63,7 +64,7 @@ export interface PremiumListItemProps extends JSX.HTMLAttributes<HTMLDivElement>
   imageAlt?: string;
   /** Custom trailing content (right side). */
   trailing?: JSX.Element;
-  /** Visual variant. @default "default" */
+  /** Visual variant. @default "glass" */
   variant?: ListItemVariant;
   /** Size preset. @default "default" */
   size?: ListItemSize;
@@ -79,11 +80,11 @@ export interface PremiumListItemProps extends JSX.HTMLAttributes<HTMLDivElement>
 
 // ─── Defaults ─────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<PremiumListItemProps,
+const defaultProps: Required<Pick<GlassListItemProps,
   "iconFill" | "variant" | "size" | "interactive" | "selected" | "disabled"
 >> = {
   iconFill: false,
-  variant: "default",
+  variant: "glass",
   size: "default",
   interactive: false,
   selected: false,
@@ -93,42 +94,11 @@ const defaultProps: Required<Pick<PremiumListItemProps,
 // ─── Component ────────────────────────────────────────────────
 
 /**
- * PremiumListItem — list item with image/icon, title, subtitle, and
+ * GlassListItem — list item with image/icon, title, subtitle, and
  * trailing content. Supports interactive, selected, and disabled states.
- *
- * Default variant: tier-2 bg with rounded corners.
- * Subtle variant: transparent bg with bottom border.
- * Selected: accent bg tint.
- * Interactive: hover effects, click, and keyboard activation.
- *
- * @example
- * ```tsx
- * <PremiumListItem
- *   title="Inception"
- *   subtitle="2010 · Sci-Fi"
- *   imageUrl="/poster.jpg"
- *   trailing={<PremiumStatusBadge status="completed" dotOnly />}
- *   interactive
- *   onClick={() => navigate()}
- * />
- * <PremiumListItem
- *   title="Add to Watchlist"
- *   icon="add"
- *   interactive
- *   variant="subtle"
- * />
- * ```
- *
- * Design tokens used:
- * - Colors: --tier-2, --hairline, --color-text-strong, --color-text-soft,
- *   --color-text-muted, --color-primary, --color-primary-dim
- * - Typography: --font-family-body
- * - Spacing: --space-2 through --space-4
- * - Radius: --radius-md
- * - Motion: --dur-fast, --ease-standard
- * - Opacity: --opacity-disabled
+ * Replaces PremiumListItem with glass styling defaults.
  */
-const PremiumListItem: Component<PremiumListItemProps> = (rawProps) => {
+const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
     "title", "subtitle", "icon", "iconFill", "imageUrl", "imageAlt",
@@ -141,13 +111,15 @@ const PremiumListItem: Component<PremiumListItemProps> = (rawProps) => {
       ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
       : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24";
 
+  const isInteractive = () => local.interactive;
+
   const handleClick = (e: MouseEvent) => {
     if (local.disabled) return;
     local.onClick?.(e);
   };
 
   const handleKeyDown = (e: KeyboardEvent) => {
-    if (local.disabled || !local.interactive) return;
+    if (local.disabled || !isInteractive()) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       (e.currentTarget as HTMLElement).click();
@@ -157,25 +129,18 @@ const PremiumListItem: Component<PremiumListItemProps> = (rawProps) => {
   const itemClass = (): string => {
     const classes = [
       "flex items-center",
-      variantClasses[local.variant],
+      variantClasses[local.selected ? "accent" : local.variant],
       sizeClasses[local.size],
     ];
 
-    if (local.interactive && !local.disabled) {
+    if (isInteractive() && !local.disabled) {
       classes.push(
         "cursor-pointer",
         "focus-ring",
-        "transition-[background-color,border-color,transform]",
-        "duration-fast",
-        "ease-standard",
-        "hover:bg-tier-3",
+        "transition-all duration-fast ease-standard",
+        local.variant === "glass" ? "hover:bg-glass-strong hover:backdrop-blur-2xl" : "hover:bg-tier-3",
         "active:scale-[0.99]",
-        "active:duration-micro",
       );
-    }
-
-    if (local.selected) {
-      classes.push("bg-primary-dim border-primary");
     }
 
     if (local.disabled) {
@@ -192,13 +157,13 @@ const PremiumListItem: Component<PremiumListItemProps> = (rawProps) => {
       {...rest}
       class={itemClass()}
       style={local.style}
-      role={local.interactive ? "button" : "listitem"}
-      tabindex={local.interactive && !local.disabled ? 0 : undefined}
+      role={isInteractive() ? "button" : "listitem"}
+      tabindex={isInteractive() && !local.disabled ? 0 : undefined}
       aria-disabled={local.disabled || undefined}
       aria-selected={local.selected || undefined}
-      aria-label={local.interactive ? local.title : undefined}
-      onClick={local.interactive ? handleClick : undefined}
-      onKeyDown={local.interactive ? handleKeyDown : undefined}
+      aria-label={isInteractive() ? local.title : undefined}
+      onClick={isInteractive() ? handleClick : undefined}
+      onKeyDown={isInteractive() ? handleKeyDown : undefined}
     >
       {/* Image (takes precedence over icon) */}
       <Show when={local.imageUrl} fallback={
@@ -242,5 +207,5 @@ const PremiumListItem: Component<PremiumListItemProps> = (rawProps) => {
   );
 };
 
-export { PremiumListItem };
-export default PremiumListItem;
+export { GlassListItem };
+export default GlassListItem;

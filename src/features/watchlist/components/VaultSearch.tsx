@@ -1,6 +1,6 @@
 // src/features/watchlist/components/VaultSearch.tsx
 import { Show } from "solid-js";
-import Icon from "~/shared/ui/Icon";
+import { GlassSearchBar } from "~/shared/ui/glass/GlassSearchBar";
 
 interface VaultSearchProps {
   value: () => string;
@@ -10,55 +10,42 @@ interface VaultSearchProps {
 }
 
 /**
- * Premium Vault search bar.
- *
- * Uses .search-premium CSS for:
- *  - Refined focus state (accent border + glow ring)
- *  - Background elevation on focus (tier-1 → tier-2)
- *  - Smooth transitions
- *
- * The clear button appears when there's text OR active filters, using a
- * destructive red accent so it's visually distinct from the search action.
+ * Vault search bar.
+ * Uses GlassSearchBar for consistent input styling.
  */
 export default function VaultSearch(props: VaultSearchProps) {
   return (
-    <div class="search-premium">
-      <Icon
-        name="search"
-        style={{"color":"var(--text-muted)","flex-shrink":"0","font-size":"18px"}}
-        aria-hidden="true"
-      />
-      <input
-        value={props.value()}
-        onInput={(e) => props.onInput(e.currentTarget.value)}
+    <div class="w-full relative">
+      <GlassSearchBar
+        query={props.value()}
+        onQueryChange={props.onInput}
+        onClear={props.onClearAll}
         placeholder="Search title, cast, director, genre, platform, year..."
-        class="bg-transparent border-none w-full outline-none type-body"
-        style={{ color: "var(--text-strong)", "font-size": "16px" }}
-        aria-label="Search watchlist"
-        type="search"
-        autocomplete="off"
-        spellcheck="false"
+        size="default"
       />
-      <Show when={props.value().length > 0 || props.hasActiveFilters()}>
-        <button
-          onClick={() => props.onClearAll()}
-          class="type-meta shrink-0 active:scale-95 transition-all focus-ring"
-          style={{
-            background: "rgba(255,45,85,0.12)",
-            border: "1px solid rgba(255,45,85,0.35)",
-            color: "#ff2d55",
-            padding: "0.375rem 0.75rem",
-            "border-radius": "var(--radius-pill)",
-            "font-size": "0.5625rem",
-            "font-weight": 700,
-            "letter-spacing": "0.12em",
-            "text-transform": "uppercase",
-            "cursor": "pointer"
-          }}
-          aria-label="Clear search and filters"
-        >
-          Clear
-        </button>
+      {/* Custom clear pill when there are filters but no text query */}
+      <Show when={props.value().length === 0 && props.hasActiveFilters()}>
+         <div class="absolute right-2 top-1/2 -translate-y-1/2">
+            <button
+              onClick={() => props.onClearAll()}
+              class="type-meta shrink-0 active:scale-95 transition-all focus-ring"
+              style={{
+                background: "rgba(255,45,85,0.12)",
+                border: "1px solid rgba(255,45,85,0.35)",
+                color: "#ff2d55",
+                padding: "0.375rem 0.75rem",
+                "border-radius": "var(--radius-pill)",
+                "font-size": "0.5625rem",
+                "font-weight": 700,
+                "letter-spacing": "0.12em",
+                "text-transform": "uppercase",
+                "cursor": "pointer"
+              }}
+              aria-label="Clear search and filters"
+            >
+              Clear
+            </button>
+         </div>
       </Show>
     </div>
   );

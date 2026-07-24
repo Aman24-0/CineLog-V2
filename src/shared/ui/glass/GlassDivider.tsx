@@ -1,4 +1,4 @@
-// src/shared/ui/premium/feedback/PremiumDivider.tsx
+// src/shared/ui/glass/GlassDivider.tsx
 import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Variant & Size Types ──────────────────────────────────────
@@ -32,7 +32,7 @@ const spacingVertical: Record<DividerSpacing, string> = {
 
 // ─── Props ─────────────────────────────────────────────────────
 
-export interface PremiumDividerProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface GlassDividerProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** Visual variant. @default "default" */
   variant?: DividerVariant;
   /** Spacing around the divider. @default "default" */
@@ -45,7 +45,7 @@ export interface PremiumDividerProps extends JSX.HTMLAttributes<HTMLDivElement> 
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<PremiumDividerProps, "variant" | "spacing" | "vertical" | "label">> = {
+const defaultProps: Required<Pick<GlassDividerProps, "variant" | "spacing" | "vertical" | "label">> = {
   variant: "default",
   spacing: "default",
   vertical: false,
@@ -55,41 +55,10 @@ const defaultProps: Required<Pick<PremiumDividerProps, "variant" | "spacing" | "
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumDivider — a visual divider line with optional centered label.
- *
- * Supports four visual variants (default, subtle, strong, accent),
- * three spacing presets, vertical orientation, and an optional
- * centered text label with a background cutout.
- *
- * **Variant behavior:**
- * - `default` — hairline color (standard separator)
- * - `subtle`  — dimmer, for light separation between closely related content
- * - `strong`  — hairline-3 (thicker, more prominent)
- * - `accent`  — primary/accent color line for themed separators
- *
- * **Vertical mode:** Renders a vertical line with appropriate width,
- * height (h-full), and horizontal margin spacing.
- *
- * **Label:** When provided, text is centered on the divider with a
- * bg-void cutout to create a "break" in the line. Uses font-label
- * with uppercase styling.
- *
- * @example
- * ```tsx
- * <PremiumDivider />
- *
- * <PremiumDivider variant="accent" label="OR" />
- *
- * <PremiumDivider vertical spacing="compact" />
- * ```
- *
- * Design tokens used:
- * - Colors: --hairline, --hairline-3, --p, --void, --color-text-dim
- * - Spacing: --space-2 through --space-8
- * - Typography: --font-family-label, --font-size-2xs
- * - Opacity: --opacity-muted
+ * GlassDivider — a visual divider line with optional centered label.
+ * Replaces PremiumDivider.
  */
-const PremiumDivider: Component<PremiumDividerProps> = (rawProps) => {
+const GlassDivider: Component<GlassDividerProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
     "variant", "spacing", "vertical", "label", "class", "style",
@@ -175,5 +144,5 @@ const PremiumDivider: Component<PremiumDividerProps> = (rawProps) => {
   );
 };
 
-export { PremiumDivider };
-export default PremiumDivider;
+export { GlassDivider };
+export default GlassDivider;

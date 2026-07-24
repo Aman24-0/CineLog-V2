@@ -1,5 +1,6 @@
 // src/features/search/SearchHeader.tsx
-import { Show, type Accessor } from "solid-js";
+import { type Accessor } from "solid-js";
+import { GlassSearchBar } from "~/shared/ui/glass/GlassSearchBar";
 
 /**
  * SearchHeader — the page eyebrow + search bar form.
@@ -31,47 +32,17 @@ export default function SearchHeader(props: SearchHeaderProps) {
       </div>
 
       {/* Search bar — the primary interaction */}
-      <form class="search-bar-form" onSubmit={props.onSubmit} role="search">
-        <div class="search-bar">
-          <span
-            class="material-symbols-outlined search-bar-icon"
-            aria-hidden="true"
-          >
-            search
-          </span>
-          <input
-            ref={props.inputRef}
-            type="search"
-            class="search-bar-input"
-            placeholder="Search movies, series, people…"
-            value={props.query()}
-            onInput={(e) => props.onQueryChange(e.currentTarget.value)}
-            aria-label="Search movies, series, and people"
-            autocomplete="off"
-            spellcheck={false}
-          />
-          <Show when={props.query()}>
-            <button
-              type="button"
-              class="search-bar-clear focus-ring"
-              onClick={props.onClear}
-              aria-label="Clear search"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{"font-size":"18px"}}
-                aria-hidden="true"
-              >
-                close
-              </span>
-            </button>
-          </Show>
-        </div>
-        {/* Visually-hidden submit button for WCAG 3.2.2 compliance. */}
-        <button type="submit" class="sr-only" aria-label="Submit search">
-          Search
-        </button>
-      </form>
+      <div class="mt-6 mb-8">
+        <GlassSearchBar
+          query={props.query()}
+          onQueryChange={props.onQueryChange}
+          onSubmit={props.onSubmit}
+          onClear={props.onClear}
+          inputRef={props.inputRef}
+          placeholder="Search movies, series, people…"
+          size="large"
+        />
+      </div>
     </>
   );
 }
