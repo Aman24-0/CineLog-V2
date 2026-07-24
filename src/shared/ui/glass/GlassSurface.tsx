@@ -1,4 +1,4 @@
-// src/shared/ui/premium/surfaces/PremiumGlassSurface.tsx
+// src/shared/ui/glass/GlassSurface.tsx
 import { ParentComponent, JSX, splitProps, mergeProps, Show } from "solid-js";
 
 // ─── Variant Types ─────────────────────────────────────────────
@@ -42,7 +42,7 @@ const radiusMap: Record<GlassRadius, string> = {
 
 // ─── Props ─────────────────────────────────────────────────────
 
-export interface PremiumGlassSurfaceProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface GlassSurfaceProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** Glass strength: default (72% opacity, 20px blur) or strong (88% opacity, 28px blur). @default "default" */
   strength?: GlassStrength;
   /** Whether to show a subtle glass border (--glass-border). @default true */
@@ -65,7 +65,7 @@ export interface PremiumGlassSurfaceProps extends JSX.HTMLAttributes<HTMLDivElem
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<PremiumGlassSurfaceProps,
+const defaultProps: Required<Pick<GlassSurfaceProps,
   "strength" | "border" | "padding" | "radius" | "loading" | "interactive" | "disabled"
 >> = {
   strength: "default",
@@ -80,50 +80,9 @@ const defaultProps: Required<Pick<PremiumGlassSurfaceProps,
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumGlassSurface — a frosted glass surface with backdrop blur.
- *
- * Provides a premium translucent container with configurable blur strength,
- * optional glass border, and standard surface variants. Uses the project's
- * glass design tokens for consistent visual identity across all frosted surfaces.
- *
- * **Strength variants:**
- * - `default` — 72% opacity background (--glass-bg) + 20px backdrop blur (--blur-lg)
- * - `strong` — 88% opacity background (--glass-bg-strong) + 28px backdrop blur (--blur-2xl)
- *
- * **Border** renders a 1px solid border using --glass-border token for
- * a subtle frosted edge. Enabled by default for visual separation.
- *
- * **Interactive** surfaces get:
- * - Hover state with stronger opacity
- * - `cursor-pointer` + `role="button"` + `tabindex="0"`
- * - Enter/Space keyboard activation
- * - `.focus-ring` for keyboard focus visibility
- * - Disabled state support with `aria-disabled`
- *
- * **Note:** backdrop-filter requires the element to not be inside an overflow
- * container with filter/transform ancestors. Use PremiumSurface instead
- * if you need a plain solid card without blur.
- *
- * @example
- * ```tsx
- * // Default frosted glass panel
- * <PremiumGlassSurface>
- *   <h3>Insights</h3>
- *   {content}
- * </PremiumGlassSurface>
- *
- * // Strong glass for high-contrast overlays
- * <PremiumGlassSurface strength="strong" padding="comfortable">
- *   {modalContent}
- * </PremiumGlassSurface>
- *
- * // Interactive glass button panel
- * <PremiumGlassSurface interactive onClick={() => open()} aria-label="Open filter panel">
- *   <span class="material-symbols-outlined">filter_list</span>
- * </PremiumGlassSurface>
- * ```
+ * GlassSurface — a frosted glass surface with backdrop blur.
  */
-const PremiumGlassSurface: ParentComponent<PremiumGlassSurfaceProps> = (rawProps) => {
+const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
     "strength", "border", "padding", "radius", "loading", "interactive", "disabled",
@@ -218,5 +177,5 @@ const PremiumGlassSurface: ParentComponent<PremiumGlassSurfaceProps> = (rawProps
   );
 };
 
-export { PremiumGlassSurface };
-export default PremiumGlassSurface;
+export { GlassSurface };
+export default GlassSurface;

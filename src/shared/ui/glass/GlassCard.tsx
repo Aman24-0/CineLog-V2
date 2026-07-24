@@ -1,10 +1,10 @@
-// src/shared/ui/premium/cards/PremiumCard.tsx
+// src/shared/ui/glass/GlassCard.tsx
 import { ParentComponent, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Variant & Size Types ──────────────────────────────────────
 
 /** Card visual variant controlling background, shadow, and border treatment. */
-type CardVariant = "default" | "elevated" | "glass" | "accent";
+type CardVariant = "glass" | "glass-strong" | "accent";
 
 /** Card size preset controlling internal spacing density. */
 type CardSize = "compact" | "default" | "comfortable";
@@ -13,15 +13,14 @@ type CardSize = "compact" | "default" | "comfortable";
 type CardPadding = "none" | "compact" | "default" | "comfortable";
 
 /** Border visibility and strength. */
-type CardBorder = "none" | "subtle" | "default" | "strong";
+type CardBorder = "none" | "default";
 
 // ─── Token Maps ────────────────────────────────────────────────
 
 const variantClasses: Record<CardVariant, string> = {
-  default: "bg-tier-2 shadow-card",
-  elevated: "bg-tier-3 shadow-raised",
-  glass: "bg-glass backdrop-blur-lg border border-glass-border",
-  accent: "bg-tier-2 shadow-glow",
+  "glass": "bg-glass backdrop-blur-lg",
+  "glass-strong": "bg-glass-strong backdrop-blur-2xl",
+  accent: "bg-glass backdrop-blur-lg shadow-glow",
 };
 
 const sizeClasses: Record<CardSize, string> = {
@@ -39,15 +38,13 @@ const paddingOverride: Record<CardPadding, string> = {
 
 const borderOverride: Record<CardBorder, string> = {
   none: "",
-  subtle: "border border-hairline",
-  default: "border border-hairline-2",
-  strong: "border border-hairline-3",
+  default: "border border-glass-border",
 };
 
 // ─── Props ─────────────────────────────────────────────────────
 
-export interface PremiumCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
-  /** Visual variant. @default "default" */
+export interface GlassCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
+  /** Visual variant. @default "glass" */
   variant?: CardVariant;
   /** Size preset controlling spacing density. @default "default" */
   size?: CardSize;
@@ -61,7 +58,7 @@ export interface PremiumCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
   disabled?: boolean;
   /** Padding density override (takes precedence over size). @default undefined (use size) */
   padding?: CardPadding;
-  /** Border strength override. @default undefined (variant-dependent) */
+  /** Border strength override. @default "default" */
   border?: CardBorder;
   /** Whether the card has hover visual feedback (can be used without interactive). @default false */
   hoverable?: boolean;
@@ -69,76 +66,26 @@ export interface PremiumCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<PremiumCardProps,
-  "variant" | "size" | "interactive" | "selected" | "loading" | "disabled" | "hoverable"
->> & { padding?: CardPadding; border?: CardBorder } = {
-  variant: "default",
+const defaultProps: Required<Pick<GlassCardProps,
+  "variant" | "size" | "interactive" | "selected" | "loading" | "disabled" | "hoverable" | "border"
+>> & { padding?: CardPadding } = {
+  variant: "glass",
   size: "default",
   interactive: false,
   selected: false,
   loading: false,
   disabled: false,
   hoverable: false,
+  border: "default",
   padding: undefined,
-  border: undefined,
 };
 
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumCard — a versatile card component with variant, size, and state support.
- *
- * Provides a composable card surface with four visual variants driven entirely
- * by design tokens. Supports interactive, selected, loading, and disabled states
- * with proper ARIA attributes and keyboard navigation.
- *
- * **Variants:**
- * - `default` — tier-2 surface with card shadow (standard card)
- * - `elevated` — tier-3 surface with raised shadow (prominent card)
- * - `glass` — frosted glass with backdrop blur and glass border
- * - `accent` — tier-2 surface with accent border (--p) and glow shadow
- *
- * **Interactive** cards get:
- * - Hover state (scale + shadow transition)
- * - `cursor-pointer` + `role="button"` + `tabindex="0"`
- * - Enter/Space keyboard activation
- * - `.focus-ring` for keyboard focus visibility
- * - Disabled state with reduced opacity and `aria-disabled`
- *
- * **Selected** cards show accent border (--p) and dim accent background.
- *
- * **Loading** cards show a shimmer overlay animation.
- *
- * All transitions respect `prefers-reduced-motion` via global baseline.
- *
- * @example
- * ```tsx
- * // Basic default card
- * <PremiumCard variant="default" size="default">
- *   {children}
- * </PremiumCard>
- *
- * // Interactive glass card
- * <PremiumCard variant="glass" interactive onClick={() => navigate()} aria-label="Open settings">
- *   Settings
- * </PremiumCard>
- *
- * // Accent card with selected state
- * <PremiumCard variant="accent" selected>
- *   Currently active
- * </PremiumCard>
- * ```
- *
- * Design tokens used:
- * - Colors: --tier-*, --glass-bg, --glass-border, --p, --p-dim, --hairline-*
- * - Shadows: --shadow-card, --shadow-raised, --shadow-glow
- * - Spacing: --space-3 through --space-6
- * - Radius: --radius-lg
- * - Motion: --dur-base, --ease-standard
- * - Opacity: --opacity-disabled
- * - Blur: --blur-lg
+ * GlassCard — a versatile card component with variant, size, and state support.
  */
-const PremiumCard: ParentComponent<PremiumCardProps> = (rawProps) => {
+const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
     "variant", "size", "interactive", "selected", "loading", "disabled",
@@ -165,10 +112,8 @@ const PremiumCard: ParentComponent<PremiumCardProps> = (rawProps) => {
       classes.push(sizeClasses[local.size]);
     }
 
-    // Border override
-    if (local.border !== undefined && local.border !== null) {
-      classes.push(borderOverride[local.border]);
-    }
+    // Border
+    classes.push(borderOverride[local.border]);
 
     // Accent variant specific border
     if (local.variant === "accent") {
@@ -189,6 +134,8 @@ const PremiumCard: ParentComponent<PremiumCardProps> = (rawProps) => {
         "transition-[background-color,border-color,box-shadow,transform]",
         "duration-base",
         "ease-standard",
+        "hover:bg-glass-strong",
+        "hover:backdrop-blur-2xl",
         "hover:scale-[1.01]",
         "hover:shadow-raised",
         "active:scale-[0.99]",
@@ -202,7 +149,8 @@ const PremiumCard: ParentComponent<PremiumCardProps> = (rawProps) => {
         "transition-[background-color,border-color,box-shadow]",
         "duration-base",
         "ease-standard",
-        "hover:bg-tier-3",
+        "hover:bg-glass-strong",
+        "hover:backdrop-blur-2xl",
         "hover:shadow-raised",
       );
     }
@@ -282,5 +230,5 @@ const PremiumCard: ParentComponent<PremiumCardProps> = (rawProps) => {
   );
 };
 
-export { PremiumCard };
-export default PremiumCard;
+export { GlassCard };
+export default GlassCard;

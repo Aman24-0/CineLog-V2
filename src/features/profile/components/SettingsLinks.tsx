@@ -2,10 +2,10 @@
 //
 // Sprint 2C — NEW FILE.
 // Settings navigation rows, separated from Quick Actions.
-// Each row uses PremiumListItem for consistent icon + title + description + chevron.
+// Each row uses GlassListItem for consistent icon + title + description + chevron.
 
 import { For, type Component } from "solid-js";
-import { PremiumListItem } from "~/shared/ui/premium";
+import { GlassListItem } from "~/shared/ui/glass";
 
 interface SettingsLinkDef {
   href: string;
@@ -24,7 +24,7 @@ const SETTINGS_LINKS: SettingsLinkDef[] = [
 /**
  * SettingsLinks — separated settings navigation rows.
  *
- * Uses PremiumListItem for consistent icon alignment, spacing,
+ * Uses GlassListItem for consistent icon alignment, spacing,
  * and trailing content. Each row links to its dedicated settings page.
  */
 const SettingsLinks: Component = () => {
@@ -38,7 +38,7 @@ const SettingsLinks: Component = () => {
             style={{ "text-decoration": "none" }}
             aria-label={`${link.label} — ${link.desc}`}
           >
-            <PremiumListItem
+            <GlassListItem
               title={link.label}
               subtitle={link.desc}
               icon={link.icon}

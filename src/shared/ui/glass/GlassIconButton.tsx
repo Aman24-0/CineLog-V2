@@ -1,32 +1,32 @@
-// src/shared/ui/premium/buttons/PremiumIconButton.tsx
+// src/shared/ui/glass/GlassIconButton.tsx
 import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Variant & Size Types ──────────────────────────────────────
 
 /** Icon button visual variant */
-type IconButtonVariant = "primary" | "secondary" | "ghost" | "danger";
+type IconButtonVariant = "primary" | "secondary" | "glass" | "ghost" | "danger";
 
 /** Icon button size */
 type IconButtonSize = "compact" | "default" | "large";
 
 // ─── Props ─────────────────────────────────────────────────────
 
-interface PremiumIconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual variant */
+export interface GlassIconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual variant. @default "secondary" */
   variant?: IconButtonVariant;
-  /** Size: compact (32px), default (44px touch target), large (52px) */
+  /** Size: compact (32px), default (44px touch target), large (52px). @default "default" */
   size?: IconButtonSize;
   /** Material Symbol icon name (required) */
   icon: string;
-  /** Render icon with FILL=1 (filled style) */
+  /** Render icon with FILL=1 (filled style). @default false */
   iconFill?: boolean;
-  /** Show loading spinner and disable interaction */
+  /** Show loading spinner and disable interaction. @default false */
   loading?: boolean;
-  /** Disable the button */
+  /** Disable the button. @default false */
   disabled?: boolean;
   /** Accessible label (required for screen readers) */
   label: string;
-  /** Selected/toggle state — accent border + dim background */
+  /** Selected/toggle state. @default false */
   selected?: boolean;
   /** Notification badge count (shown in top-right corner) */
   badge?: number;
@@ -39,62 +39,36 @@ const variantClasses: Record<IconButtonVariant, string> = {
     "bg-primary text-on-primary shadow-glow hover:brightness-110",
   secondary:
     "bg-tier-2 text-primary border border-hairline-2 hover:bg-tier-3",
+  glass:
+    "bg-glass backdrop-blur-lg text-primary border border-glass-border hover:bg-glass-strong hover:backdrop-blur-2xl",
   ghost:
     "bg-transparent text-primary hover:bg-primary-dim",
   danger:
     "bg-danger text-on-primary hover:brightness-110",
 };
 
-// ─── Size Maps ─────────────────────────────────────────────────
+// ─── Size Class Maps ───────────────────────────────────────────
 
-const sizeClasses: Record<IconButtonSize, string> = {
-  compact: "w-8 h-8 text-sm",
-  default:  "w-11 h-11 text-md",
-  large:    "w-13 h-13 text-lg",
-};
-
-const sizePx: Record<IconButtonSize, string> = {
-  compact: "32px",
-  default:  "44px",
-  large:    "52px",
+const sizeClasses: Record<IconButtonSize, { btn: string; icon: string }> = {
+  compact: { btn: "w-8 h-8", icon: "text-md" },
+  default: { btn: "w-11 h-11", icon: "text-lg" },
+  large:   { btn: "w-13 h-13", icon: "text-xl" },
 };
 
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumIconButton — compact circular icon-only button with
- * optional notification badge, loading state, and selected state.
- *
- * @example
- * ```tsx
- * <PremiumIconButton
- *   variant="ghost"
- *   icon="favorite"
- *   iconFill={liked()}
- *   label="Like this movie"
- *   selected={liked()}
- *   badge={3}
- * />
- * ```
- *
- * Design tokens used:
- * - Colors: --color-primary, --color-on-primary, --tier-*,
- *   --color-danger, --hairline-2, --color-primary-dim
- * - Spacing: --space-* (w-8, w-11, w-13)
- * - Radius: --radius-full
- * - Shadows: --shadow-glow
- * - Motion: --dur-fast, --ease-spring
- * - Opacity: --opacity-disabled
- * - Z-index: --z-badge
+ * GlassIconButton — full-featured icon button with variants (including glass),
+ * sizes, states, loading, disabled, selected, and badge support.
  */
-const PremiumIconButton: Component<PremiumIconButtonProps> = (rawProps) => {
+const GlassIconButton: Component<GlassIconButtonProps> = (rawProps) => {
   const props = mergeProps(
     {
-      variant: "ghost" as IconButtonVariant,
+      variant: "secondary" as IconButtonVariant,
       size: "default" as IconButtonSize,
-      iconFill: false,
       loading: false,
       disabled: false,
+      iconFill: false,
       selected: false,
     },
     rawProps,
@@ -127,16 +101,17 @@ const PremiumIconButton: Component<PremiumIconButtonProps> = (rawProps) => {
 
   const computedClass = (): string => {
     const base = [
-      "relative inline-flex items-center justify-center",
-      "rounded-full transition-all duration-fast ease-spring",
+      "inline-flex items-center justify-center relative",
+      "rounded-full transition-all duration-fast ease-spring flex-shrink-0",
       "focus-ring cursor-pointer select-none",
-      "active:scale-[0.93]",
+      "active:scale-[0.95]",
       variantClasses[local.variant],
-      sizeClasses[local.size],
+      sizeClasses[local.size].btn,
     ];
 
-    if (local.selected) base.push("border-2 border-primary bg-primary-dim");
+    if (local.selected) base.push("border-2 border-primary bg-primary-dim text-primary");
     if (isDisabled()) base.push("opacity-disabled pointer-events-none cursor-not-allowed");
+    if (local.class) base.push(local.class);
 
     return base.join(" ");
   };
@@ -144,36 +119,29 @@ const PremiumIconButton: Component<PremiumIconButtonProps> = (rawProps) => {
   return (
     <button
       {...rest}
-      class={`${computedClass()}${local.class ? ` ${local.class}` : ""}`}
-      style={{
-        width: sizePx[local.size],
-        height: sizePx[local.size],
-        ...(typeof local.style === "object" ? local.style : {}),
-      }}
+      class={computedClass()}
+      style={local.style}
       disabled={isDisabled()}
-      aria-label={local.label}
       aria-busy={local.loading || undefined}
       aria-disabled={isDisabled() || undefined}
       aria-pressed={local.selected || undefined}
+      aria-label={local.label}
+      title={local.label}
       onClick={handleClick}
       onKeyDown={handleKeyDown}
     >
-      {/* Loading spinner replaces icon */}
       <Show
         when={!local.loading}
         fallback={
           <span
             class="animate-spin inline-block rounded-full border-2 border-current border-t-transparent"
-            style={{
-              width: "var(--space-4)",
-              height: "var(--space-4)",
-            }}
+            style={{ width: "1.2em", height: "1.2em", "border-width": "2px" }}
             aria-hidden="true"
           />
         }
       >
         <span
-          class="material-symbols-outlined"
+          class={`material-symbols-outlined ${sizeClasses[local.size].icon}`}
           style={{ "font-variation-settings": iconFontVariation() }}
           aria-hidden="true"
         >
@@ -181,24 +149,18 @@ const PremiumIconButton: Component<PremiumIconButtonProps> = (rawProps) => {
         </span>
       </Show>
 
-      {/* Notification badge */}
-      <Show when={local.badge !== undefined && local.badge > 0}>
+      {/* Badge */}
+      <Show when={local.badge !== undefined && local.badge > 0 && !local.loading}>
         <span
-          class="absolute -top-1 -right-1 inline-flex items-center justify-center rounded-full bg-danger text-on-primary font-semibold z-badge"
-          style={{
-            "min-width": "var(--space-4)",
-            height: "var(--space-4)",
-            "font-size": "var(--font-size-2xs)",
-            padding: "0 var(--space-1)",
-          }}
-          aria-label={`${local.badge} notifications`}
+          class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-[4px] font-mono text-[9px] font-bold text-on-primary shadow-glow"
+          aria-hidden="true"
         >
-          {local.badge!}
+          {local.badge! > 99 ? "99+" : local.badge}
         </span>
       </Show>
     </button>
   );
 };
 
-export { PremiumIconButton };
-export default PremiumIconButton;
+export { GlassIconButton };
+export default GlassIconButton;

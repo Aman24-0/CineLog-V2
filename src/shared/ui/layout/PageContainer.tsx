@@ -1,10 +1,10 @@
-// src/shared/ui/premium/layout/PremiumPageContainer.tsx
+// src/shared/ui/premium/layout/PageContainer.tsx
 import { ParentComponent, JSX, splitProps } from "solid-js";
 
 /** Page container size variant. Controls max-width constraint. */
 type PageSize = "narrow" | "default" | "wide";
 
-interface PremiumPageContainerProps {
+interface PageContainerProps {
   /** Max-width variant. "narrow" → max-w-2xl, "default" → max-w-4xl, "wide" → max-w-none */
   size?: PageSize;
   /** Override top padding. Defaults to var(--sp-6) / var(--space-6). */
@@ -28,9 +28,9 @@ const sizeMap: Record<PageSize, string> = {
 };
 
 /**
- * PremiumPageContainer — the single source of truth for full-page layout rhythm.
+ * PageContainer — the single source of truth for full-page layout rhythm.
  *
- * Every page wraps its content in PremiumPageContainer. This guarantees:
+ * Every page wraps its content in PageContainer. This guarantees:
  *  - Consistent horizontal padding (px-5 mobile, lg:px-12 desktop)
  *  - Consistent max-width per page type (narrow / default / wide)
  *  - Consistent top/bottom rhythm with bottom-nav compensation
@@ -44,14 +44,14 @@ const sizeMap: Record<PageSize, string> = {
  *
  * Usage:
  * ```tsx
- * <PremiumPageContainer size="narrow" animated>
+ * <PageContainer size="narrow" animated>
  *   <PremiumSectionContainer title="Continue Watching">
  *     {children}
  *   </PremiumSectionContainer>
- * </PremiumPageContainer>
+ * </PageContainer>
  * ```
  */
-const PremiumPageContainer: ParentComponent<PremiumPageContainerProps> = (props) => {
+const PageContainer: ParentComponent<PageContainerProps> = (props) => {
   const [local, rest] = splitProps(props, [
     "size",
     "paddingTop",
@@ -116,5 +116,5 @@ const PremiumPageContainer: ParentComponent<PremiumPageContainerProps> = (props)
   );
 };
 
-export { PremiumPageContainer };
-export default PremiumPageContainer;
+export { PageContainer };
+export default PageContainer;

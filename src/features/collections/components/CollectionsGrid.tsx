@@ -7,7 +7,7 @@ import type { Collection, CollectionEntry } from "~/shared/types";
 /**
  * CollectionsGrid — the user's personal folder grid.
  *
- * Premium card system with:
+ * GlassCard system with:
  *   • 2×2 poster collage (or fan for 1-3 posters)
  *   • Empty state with icon illustration
  *   • Collection name + description (2-line clamp)

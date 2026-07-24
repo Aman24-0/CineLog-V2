@@ -183,7 +183,7 @@
   --color-text-dim: rgba(44, 40, 35, 0.62);
 
   /* Light-mode shadows — soft warm brown tint, never pure black.
-     Premium feel: subtle, layered, low opacity. */
+     Glass feel: subtle, layered, low opacity. */
   --shadow-premium: 0 1px 2px rgba(60, 50, 30, 0.04), 0 4px 16px rgba(60, 50, 30, 0.06), 0 12px 32px rgba(60, 50, 30, 0.05);
 
   /* Shadow color used by box-shadow utilities — brown tint on light, black on dark */

@@ -44,12 +44,14 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
 import {
-  PremiumPageContainer,
-  PremiumButton,
-  PremiumIconButton,
-  PremiumEmptyState,
-  PremiumAvatar,
-} from "~/shared/ui/premium";
+  PageContainer,
+
+
+
+
+} from "~/shared/ui/layout";
+import { GlassButton, GlassIconButton, GlassEmptyState } from "~/shared/ui/glass";
+import { GlassAvatar } from "~/shared/ui/glass";
 import { setDiscoverRegion } from "~/core/config/discoverRegion";
 import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
@@ -181,27 +183,27 @@ const ProfilePage: Component = () => {
   });
 
   return (
-    <PremiumPageContainer size="narrow" paddingTop="0" paddingBottom="var(--space-12)">
+    <PageContainer size="narrow" paddingTop="0" paddingBottom="var(--space-12)">
       <div class="profile-page profile-fade-in">
         <Show when={loading()}><ProfileSkeleton /></Show>
 
         {/* Guest state */}
         <Show when={!loading() && !isSignedIn()}>
           <div class="profile-guest" role="status">
-            <PremiumEmptyState
+            <GlassEmptyState
               icon="person_add"
               title="Sign in to your cinema"
               message="Your profile, your vault, your taste — all waiting."
             >
-              <PremiumButton
+              <GlassButton
                 variant="primary"
                 size="default"
                 onClick={() => openAuthModal()}
                 aria-label="Sign in"
               >
                 Sign In
-              </PremiumButton>
-            </PremiumEmptyState>
+              </GlassButton>
+            </GlassEmptyState>
           </div>
         </Show>
 
@@ -210,15 +212,15 @@ const ProfilePage: Component = () => {
             where none of the other Show conditions would match. */}
         <Show when={!loading() && isSignedIn() && (!!error() || !data())}>
           <div class="profile-error" role="alert">
-            <PremiumEmptyState
+            <GlassEmptyState
               icon="cloud_off"
               title="Something went wrong"
               message="We couldn't load your profile. Tap to retry."
             >
-              <PremiumButton variant="ghost" size="default" onClick={() => refetch()} aria-label="Retry">
+              <GlassButton variant="ghost" size="default" onClick={() => refetch()} aria-label="Retry">
                 Retry
-              </PremiumButton>
-            </PremiumEmptyState>
+              </GlassButton>
+            </GlassEmptyState>
           </div>
         </Show>
 
@@ -250,7 +252,7 @@ const ProfilePage: Component = () => {
                 <div class="profile-identity-row">
                   {/* Avatar — large, sits below backdrop */}
                   <div class="profile-avatar-wrap profile-avatar-wrap-v2">
-                    <PremiumAvatar
+                    <GlassAvatar
                       src={avatarUrl() ?? undefined}
                       fallback={initial()}
                       size="xl"
@@ -309,10 +311,10 @@ const ProfilePage: Component = () => {
                             rows={2}
                           />
                           <div class="profile-edit-actions">
-                            <PremiumButton variant="ghost" size="compact" onClick={handleCancel} aria-label="Cancel editing">
+                            <GlassButton variant="ghost" size="compact" onClick={handleCancel} aria-label="Cancel editing">
                               Cancel
-                            </PremiumButton>
-                            <PremiumButton
+                            </GlassButton>
+                            <GlassButton
                               variant="primary"
                               size="compact"
                               onClick={handleSave}
@@ -320,7 +322,7 @@ const ProfilePage: Component = () => {
                               aria-label="Save profile"
                             >
                               {saving() ? "Saving..." : "Save"}
-                            </PremiumButton>
+                            </GlassButton>
                           </div>
                         </div>
                       }
@@ -329,7 +331,7 @@ const ProfilePage: Component = () => {
                         <h1 class="profile-hero-name">
                           {data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile"}
                         </h1>
-                        <PremiumIconButton
+                        <GlassIconButton
                           icon="edit"
                           variant="ghost"
                           size="compact"
@@ -402,7 +404,7 @@ const ProfilePage: Component = () => {
           onSave={handleSaveBanner}
         />
       </Show>
-    </PremiumPageContainer>
+    </PageContainer>
   );
 };
 
