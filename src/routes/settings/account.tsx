@@ -370,14 +370,14 @@ const AccountRoute: Component = () => {
 
           <div class="sec-body">
             <Show when={isSignedIn()} fallback={
-              <div class="empty-premium" role="status">
-                <div class="empty-premium-icon" aria-hidden="true">
+              <div class="glass-empty-state" role="status">
+                <div class="glass-empty-state-icon" aria-hidden="true">
                   <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
                     account_circle
                   </span>
                 </div>
-                <h3 class="empty-premium-title">Not signed in</h3>
-                <p class="empty-premium-body">Sign in to manage your account.</p>
+                <h3 class="glass-empty-state-title">Not signed in</h3>
+                <p class="glass-empty-state-body">Sign in to manage your account.</p>
               </div>
             }>
               {/* =================================================== */}

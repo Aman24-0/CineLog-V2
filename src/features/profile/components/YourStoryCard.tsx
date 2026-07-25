@@ -27,6 +27,7 @@ import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 import type { StatsData } from "../useStats";
 import { generateYourStory } from "../utils/storyGenerator";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface YourStoryCardProps {
   stats: Accessor<StatsData | null>;

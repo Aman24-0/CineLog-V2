@@ -65,7 +65,7 @@ export const RangeFilter: Component<{
         type="number"
         placeholder={props.minPlaceholder || "Min"}
         aria-label={`${props.label} minimum`}
-        class="filter-input-premium"
+        class="glass-input"
       />
       <input
         value={props.max}
@@ -73,7 +73,7 @@ export const RangeFilter: Component<{
         type="number"
         placeholder={props.maxPlaceholder || "Max"}
         aria-label={`${props.label} maximum`}
-        class="filter-input-premium"
+        class="glass-input"
       />
     </div>
   </div>

@@ -435,7 +435,7 @@ export default function CollectionsPage() {
                 onClick={(e) => e.stopPropagation()}
               >
                 <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
-                  <div class="empty-premium-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
+                  <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
                     <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
                       remove_circle
                     </span>

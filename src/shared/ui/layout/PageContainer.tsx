@@ -45,9 +45,9 @@ const sizeMap: Record<PageSize, string> = {
  * Usage:
  * ```tsx
  * <PageContainer size="narrow" animated>
- *   <PremiumSectionContainer title="Continue Watching">
+ *   <SectionContainer title="Continue Watching">
  *     {children}
- *   </PremiumSectionContainer>
+ *   </SectionContainer>
  * </PageContainer>
  * ```
  */

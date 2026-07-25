@@ -255,7 +255,7 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
               <div class="flex gap-2">
                 <input
                   type="text"
-                  class="filter-input-premium"
+                  class="glass-input"
                   style={{ flex: 1 }}
                   placeholder="Collection name…"
                   value={newName()}

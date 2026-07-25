@@ -54,14 +54,14 @@ const StatsPage: Component = () => {
           }>
             <Show when={stats()} fallback={
               /* Empty state */
-              <div class="empty-premium" style={{ "margin-top": "var(--sp-8)" }} role="status">
-                <div class="empty-premium-icon" aria-hidden="true">
+              <div class="glass-empty-state" style={{ "margin-top": "var(--sp-8)" }} role="status">
+                <div class="glass-empty-state-icon" aria-hidden="true">
                   <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
                     insights
                   </span>
                 </div>
-                <h3 class="empty-premium-title">No statistics yet</h3>
-                <p class="empty-premium-body">
+                <h3 class="glass-empty-state-title">No statistics yet</h3>
+                <p class="glass-empty-state-body">
                   Add titles to your watchlist and your cinematic story will appear here.
                 </p>
                 <a href="/search" class="btn-primary focus-ring" style={{ "margin-top": "var(--sp-2)" }}>

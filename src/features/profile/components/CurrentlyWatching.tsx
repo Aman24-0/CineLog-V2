@@ -26,6 +26,7 @@ import { useNavigate } from "@solidjs/router";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 import { getEpisodeProgress, isWatchable } from "~/shared/utils/progress";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface CurrentlyWatchingProps {
   watchlist: Accessor<WatchlistItem[]>;
@@ -96,7 +97,7 @@ const CurrentlyWatching: Component<CurrentlyWatchingProps> = (props) => {
               });
 
               return (
-                <article class="cw-card" role="listitem">
+                <GlassCard variant="glass" class="cw-card" role="listitem">
                   {/* Poster backdrop */}
                   <div class="cw-card-poster-wrap">
                     <Show
@@ -174,7 +175,7 @@ const CurrentlyWatching: Component<CurrentlyWatchingProps> = (props) => {
                       </button>
                     </div>
                   </div>
-                </article>
+                </GlassCard>
               );
             }}
           </For>

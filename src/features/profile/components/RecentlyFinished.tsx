@@ -23,6 +23,7 @@ import { Show, For, createMemo, type Component, type Accessor } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 import { generateOneWordReaction } from "../utils/storyGenerator";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface RecentlyFinishedProps {
   watchlist: Accessor<WatchlistItem[]>;
@@ -98,7 +99,7 @@ const RecentlyFinished: Component<RecentlyFinishedProps> = (props) => {
               const reaction = createMemo(() => generateOneWordReaction(item.rating));
 
               return (
-                <article class="rf-card" role="listitem">
+                <GlassCard variant="glass" class="rf-card" role="listitem">
                   <div class="rf-card-poster-wrap">
                     <Show
                       when={item.poster_path || item.backdrop_path}
@@ -153,7 +154,7 @@ const RecentlyFinished: Component<RecentlyFinishedProps> = (props) => {
                       </div>
                     </Show>
                   </div>
-                </article>
+                </GlassCard>
               );
             }}
           </For>
