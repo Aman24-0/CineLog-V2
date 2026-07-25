@@ -122,7 +122,7 @@ const HistoryPage: Component = () => {
 
         {/* Search + filter */}
         <div class="sec-body" style={{ "margin-bottom": "var(--sp-4)" }}>
-          <div class="search-premium">
+          <div class="glass-search-bar">
             <span class="material-symbols-outlined" style={{ color: "var(--text-muted)", "flex-shrink": "0", "font-size": "18px" }} aria-hidden="true">
               search
             </span>
@@ -131,7 +131,7 @@ const HistoryPage: Component = () => {
               placeholder="Search your history…"
               value={search()}
               onInput={(e) => setSearch(e.currentTarget.value)}
-              class="filter-input-premium"
+              class="glass-input"
               style={{ flex: "1", background: "transparent", border: "none", padding: "0", "box-shadow": "none" }}
               aria-label="Search history"
               autocomplete="off"
@@ -183,25 +183,25 @@ const HistoryPage: Component = () => {
             </div>
           }>
             <Show when={isSignedIn()} fallback={
-              <div class="empty-premium" role="status">
-                <div class="empty-premium-icon" aria-hidden="true">
+              <div class="glass-empty-state" role="status">
+                <div class="glass-empty-state-icon" aria-hidden="true">
                   <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
                     history
                   </span>
                 </div>
-                <h3 class="empty-premium-title">Sign in to see your history</h3>
-                <p class="empty-premium-body">Your watching journey appears here once you sign in.</p>
+                <h3 class="glass-empty-state-title">Sign in to see your history</h3>
+                <p class="glass-empty-state-body">Your watching journey appears here once you sign in.</p>
               </div>
             }>
               <Show when={totalShown() > 0} fallback={
-                <div class="empty-premium" role="status">
-                  <div class="empty-premium-icon" aria-hidden="true">
+                <div class="glass-empty-state" role="status">
+                  <div class="glass-empty-state-icon" aria-hidden="true">
                     <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--text-muted)" }} aria-hidden="true">
                       search_off
                     </span>
                   </div>
-                  <h3 class="empty-premium-title">No matches</h3>
-                  <p class="empty-premium-body">
+                  <h3 class="glass-empty-state-title">No matches</h3>
+                  <p class="glass-empty-state-body">
                     {search() ? "No titles match your search." : "No titles in this category yet."}
                   </p>
                 </div>

@@ -171,7 +171,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               if (e.key === "Enter") handleSavePreset();
             }}
             placeholder="New preset name"
-            class="filter-input-premium"
+            class="glass-input"
             style={{ flex: 1 }}
           />
           <button

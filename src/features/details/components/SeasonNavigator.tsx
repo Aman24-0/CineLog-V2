@@ -129,7 +129,7 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
         </div>
         <div class="progress-premium season-navigator-bar">
           <div
-            class="progress-premium-fill"
+            class="progress-glass-fill"
             style={{ width: `${seriesProgress()?.pct ?? 0}%` }}
           />
         </div>

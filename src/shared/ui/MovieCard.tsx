@@ -141,7 +141,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   // Variant-aware class
   const cardClass = () => {
-    const base = "vault-card-premium animate-fade-up touch-ripple focus-ring";
+    const base = "glass-card animate-fade-up touch-ripple focus-ring";
     if (variant() === "featured") return `${base} v2-card-featured`;
     return base;
   };

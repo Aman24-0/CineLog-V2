@@ -18,7 +18,7 @@ interface EmptyStateProps {
  *  - Guest: glass surface with accent CTA (sign-in prompt)
  *  - Filtered/empty: minimal centered state with secondary action
  *
- * Uses .empty-premium* CSS classes from the design system for consistency
+ * Uses .glass-empty-state* CSS classes from the design system for consistency
  * with the dashboard empty states.
  *
  * Polished:
@@ -35,7 +35,7 @@ export default function EmptyState(props: EmptyStateProps) {
       fallback={
         // Guest variant — glass surface, prominent CTA
         <div
-          class="empty-premium rounded-[2rem] border"
+          class="glass-empty-state rounded-[2rem] border"
           style={{
             "border-color": "var(--hairline-2)",
             background: "var(--glass-bg)",
@@ -46,15 +46,15 @@ export default function EmptyState(props: EmptyStateProps) {
           role="status"
           aria-live="polite"
         >
-          <div class="empty-premium-icon" aria-hidden="true">
+          <div class="glass-empty-state-icon" aria-hidden="true">
             <Icon
               name="video_library"
               fill
               style={{ color: "var(--p)", "font-size": "32px" }}
             />
           </div>
-          <p class="empty-premium-title">{props.title}</p>
-          <p class="empty-premium-body">{props.message}</p>
+          <p class="glass-empty-state-title">{props.title}</p>
+          <p class="glass-empty-state-body">{props.message}</p>
           <button
             onClick={() => props.onAction()}
             class="btn-primary focus-ring"
@@ -68,19 +68,19 @@ export default function EmptyState(props: EmptyStateProps) {
     >
       {/* Signed-in empty / no matches variant */}
       <div
-        class="empty-premium animate-fade-in"
+        class="glass-empty-state animate-fade-in"
         style={{ padding: "var(--sp-12) var(--sp-6)" }}
         role="status"
         aria-live="polite"
       >
-        <div class="empty-premium-icon" aria-hidden="true">
+        <div class="glass-empty-state-icon" aria-hidden="true">
           <Icon
             name="sentiment_dissatisfied"
             style={{ color: "var(--text-muted)", "font-size": "32px" }}
           />
         </div>
-        <p class="empty-premium-title">{props.title}</p>
-        <p class="empty-premium-body">{props.message}</p>
+        <p class="glass-empty-state-title">{props.title}</p>
+        <p class="glass-empty-state-body">{props.message}</p>
         <button
           onClick={() => props.onAction()}
           class="btn-ghost focus-ring"

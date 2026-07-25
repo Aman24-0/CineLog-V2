@@ -210,7 +210,7 @@ const FavoritesPicker: Component<FavoritesPickerProps> = (props) => {
             {/* Search picker — movie / series / director */}
             <Show when={props.slot !== "genre" && props.slot !== null}>
               {/* Search input */}
-              <div class="search-premium" style={{ "margin-bottom": "var(--sp-3)" }}>
+              <div class="glass-search-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
                 <span
                   class="material-symbols-outlined"
                   style={{ color: "var(--text-muted)", "flex-shrink": "0", "font-size": "18px" }}
@@ -223,7 +223,7 @@ const FavoritesPicker: Component<FavoritesPickerProps> = (props) => {
                   placeholder={`Search for a ${props.slot === "director" ? "person" : props.slot}…`}
                   value={query()}
                   onInput={(e) => search(e.currentTarget.value)}
-                  class="filter-input-premium focus-ring"
+                  class="glass-input focus-ring"
                   style={{
                     flex: "1",
                     background: "transparent",
