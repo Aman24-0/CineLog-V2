@@ -231,14 +231,14 @@ const AchievementsPage: Component = () => {
             </div>
           }>
             <Show when={isSignedIn()} fallback={
-              <div class="empty-premium" role="status">
-                <div class="empty-premium-icon" aria-hidden="true">
+              <div class="glass-empty-state" role="status">
+                <div class="glass-empty-state-icon" aria-hidden="true">
                   <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
                     emoji_events
                   </span>
                 </div>
-                <h3 class="empty-premium-title">Sign in to track achievements</h3>
-                <p class="empty-premium-body">Your cinematic milestones appear here once you sign in.</p>
+                <h3 class="glass-empty-state-title">Sign in to track achievements</h3>
+                <p class="glass-empty-state-body">Your cinematic milestones appear here once you sign in.</p>
               </div>
             }>
               {/* Progress summary */}

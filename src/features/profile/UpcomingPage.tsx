@@ -810,9 +810,9 @@ const UpcomingPage: Component = () => {
 
           {/* Error state */}
           <Show when={!loading() && error()}>
-            <div class="empty-premium" role="alert">
-              <h3 class="empty-premium-title">Couldn't load upcoming titles</h3>
-              <p class="empty-premium-body">{error()}</p>
+            <div class="glass-empty-state" role="alert">
+              <h3 class="glass-empty-state-title">Couldn't load upcoming titles</h3>
+              <p class="glass-empty-state-body">{error()}</p>
               <button class="btn-primary focus-ring" onClick={() => void load()} style={{ "margin-top": "var(--sp-2)" }}>
                 Retry
               </button>
@@ -821,14 +821,14 @@ const UpcomingPage: Component = () => {
 
           {/* Empty state */}
           <Show when={!loading() && !error() && groups().length === 0}>
-            <div class="empty-premium" role="status">
-              <div class="empty-premium-icon" aria-hidden="true">
+            <div class="glass-empty-state" role="status">
+              <div class="glass-empty-state-icon" aria-hidden="true">
                 <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
                   event_busy
                 </span>
               </div>
-              <h3 class="empty-premium-title">No upcoming titles in this window</h3>
-              <p class="empty-premium-body">
+              <h3 class="glass-empty-state-title">No upcoming titles in this window</h3>
+              <p class="glass-empty-state-body">
                 Try a different date or language filter. Movies are
                 scoped to titles releasing in {regionLabel()} between
                 the selected dates. Series are scoped to those with

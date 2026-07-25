@@ -18,7 +18,7 @@
 //  - Focus is moved to the email input on open and trapped inside the
 //    modal (Tab / Shift-Tab cycle within the modal).
 //  - Escape key closes the modal (existing behavior, retained).
-//  - All inputs use the design-system input style (.filter-input-premium)
+//  - All inputs use the design-system input style (.glass-input)
 //    so the modal feels consistent with the rest of the app.
 //  - Error message is role="alert" so screen readers announce it.
 //  - Submit button shows a spinner when loading.
@@ -273,7 +273,7 @@ const AuthModal: Component<AuthModalProps> = (props) => {
                 placeholder="Email address"
                 value={email()}
                 onInput={(e) => setEmail(e.currentTarget.value)}
-                class="filter-input-premium focus-ring"
+                class="glass-input focus-ring"
                 style={{
                   padding: "0.75rem 1rem",
                   "font-size": "0.9375rem",
@@ -287,7 +287,7 @@ const AuthModal: Component<AuthModalProps> = (props) => {
                 placeholder={mode() === "signup" ? "Min 8 chars, 1 number, A-Z + a-z" : "Password"}
                 value={password()}
                 onInput={(e) => setPassword(e.currentTarget.value)}
-                class="filter-input-premium focus-ring"
+                class="glass-input focus-ring"
                 style={{
                   padding: "0.75rem 1rem",
                   "font-size": "0.9375rem",

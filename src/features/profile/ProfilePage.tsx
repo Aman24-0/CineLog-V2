@@ -44,7 +44,7 @@ const ProfilePage: Component = () => {
 
   const uid = () => user()?.id;
 
-  const { data, loading, error, refetch, refetchProfile, refetchLists } = useProfileData(uid);
+  const { data, loading, error, refetch, saveProfile } = useProfileData();
   const usernameCheck = useUsernameCheck();
 
   const [isEditing, setIsEditing] = createSignal(false);
@@ -114,7 +114,7 @@ const ProfilePage: Component = () => {
       if (updateError) throw updateError;
       showToast("Profile saved successfully.", "success");
       setIsEditing(false);
-      refetchProfile();
+      refetch();
     } catch (err: any) {
       console.error("Save profile error:", err);
       showToast(err.message || "Failed to save profile", "error");
@@ -124,7 +124,7 @@ const ProfilePage: Component = () => {
   };
 
   const handleSaveBanner = (type: BannerType, url: string | null) => {
-    refetchProfile();
+    refetch();
     setBannerEditorOpen(false);
   };
 

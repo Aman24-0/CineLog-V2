@@ -357,7 +357,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 type="file"
                 accept="image/*"
                 onChange={handleFileSelect}
-                class="filter-input-premium focus-ring"
+                class="glass-input focus-ring"
                 style={{ "margin-bottom": "var(--sp-2)" }}
                 aria-label="Upload banner image"
               />
@@ -378,7 +378,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 placeholder="https://example.com/banner.jpg"
                 value={urlInput()}
                 onInput={(e) => handleUrlInput(e.currentTarget.value)}
-                class="filter-input-premium focus-ring"
+                class="glass-input focus-ring"
                 style={{ "margin-bottom": "var(--sp-2)" }}
                 aria-label="Banner image URL"
                 autocomplete="off"
