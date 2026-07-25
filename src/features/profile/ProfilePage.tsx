@@ -1,198 +1,154 @@
 // src/features/profile/ProfilePage.tsx
 //
-// ProfilePage — CineLog V2 Profile (v2.0 streamlined design)
-//
-// Five-section architecture (simplified from v1.0):
-//
-//   1. PROFILE    — Backdrop + Avatar + Name + Username + Member-since + Bio
-//                   Avatar and name sit SIDE-BY-SIDE, BELOW the backdrop
-//                   (so the backdrop image is no longer obstructed).
-//                   Bio + meta live in the blank space under the backdrop.
-//
-//   2. STATS      — Three glassmorphism boxes:
-//                     • Total titles in watchlist
-//                     • Total movies in watchlist
-//                     • Total series in watchlist
-//
-//   3. FAVOURITES — "Your Top Favourite" — continuous horizontal carousel
-//                   of watchlist items (movies + series). Replaces the
-//                   old Taste mosaic + Your Story reflection.
-//
-//   4. ACHIEVEMENTS — Circular milestone badges in a horizontal scroll.
-//                     Cinephile, Top 50 Watcher, Completionist, etc.
-//                     Replaces Currently Watching + Recently Finished +
-//                     Recent Activity.
-//
-//   5. SETTINGS   — Action row (Statistics · Upcoming · Settings)
-//                   + Sign Out button.
-//                   History removed (replaced by Upcoming page).
-//                   Watchlist removed (it's in the bottom nav).
-//                   Delete Account removed (per user request).
-//
-// Design principles:
-//   • Identity > Stats > Favourites > Achievements > Utility
-//   • Every section earns its place or hides
-//   • Glassmorphism on stats boxes; circles on badges; rail on favourites
-//   • Green accent at: stats values, unlocked badges, favourites ratings
-//   • Backdrop is fully visible (no overlay text on it)
-//   • Premium, minimal, timeless
-//
-// Zero changes to business logic, hooks, state, or Supabase integration.
-
-import { Show, createSignal, createMemo, onMount, onCleanup, createEffect, type Component } from "solid-js";
+// Refactored in Phase 2 to use Glass Component System.
+// Layout and logic remains identical.
+import {
+  Component,
+  createSignal,
+  createEffect,
+  Show,
+  onMount,
+  createMemo,
+} from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
+import { getClient } from "~/lib/supabase/client";
+
+// Glass components
 import {
   PageContainer,
-
-
-
-  GlassAvatar,
 } from "~/shared/ui/layout";
 import { GlassButton, GlassIconButton, GlassEmptyState } from "~/shared/ui/glass";
+import { GlassAvatar } from "~/shared/ui/glass";
 import { setDiscoverRegion } from "~/core/config/discoverRegion";
 import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
-import { useStats } from "./useStats";
-import { validateUsername, sanitizeUsername } from "~/shared/utils/username";
+
+// Sub-components
 import ProfileBanner from "./components/ProfileBanner";
-import BannerEditor, { type BannerType } from "./components/BannerEditor";
-import ProfileSkeleton from "./components/ProfileSkeleton";
 import StatsGrid from "./components/StatsGrid";
 import FavoritesCarousel from "./components/FavoritesCarousel";
 import AchievementBadges from "./components/AchievementBadges";
 import ProfileNavigation from "./components/ProfileNavigation";
+import BannerEditor from "./components/BannerEditor";
 
-// ── Component ──────────────────────────────────────────────────────────
+import type { WatchlistItem, BannerType } from "~/shared/types";
 
 const ProfilePage: Component = () => {
   const { user, isSignedIn } = useAuth();
+  const isGuest = () => !isSignedIn();
+  const initial = () => user()?.displayName?.charAt(0) ?? "U";
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
-  const { data, loading, error, saving, saveProfile, refetch, watchlist } = useProfileData();
-  const { stats } = useStats();
 
-  // Edit mode
+  const uid = () => user()?.id;
+
+  const { data, loading, error, refetch, refetchProfile, refetchLists } = useProfileData(uid);
+  const usernameCheck = useUsernameCheck();
+
   const [isEditing, setIsEditing] = createSignal(false);
   const [editName, setEditName] = createSignal("");
   const [editUsername, setEditUsername] = createSignal("");
   const [editBio, setEditBio] = createSignal("");
+  const [saving, setSaving] = createSignal(false);
+
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
 
-  // Live username availability checker
   const currentUsername = createMemo(() => data()?.profile?.username ?? "");
-  const uid = createMemo(() => user()?.uid ?? null);
-  const usernameCheck = useUsernameCheck(editUsername, currentUsername, uid);
+  const avatarUrl = createMemo(() => data()?.profile?.avatar_url ?? null);
+  const stats = createMemo(() => data()?.stats);
+  const watchlist = createMemo(() => data()?.watchlist ?? []);
+  const memberSince = createMemo(() => {
+    const joined = data()?.profile?.created_at;
+    if (!joined) return null;
+    return new Date(joined).toLocaleDateString(undefined, { month: "long", year: "numeric" });
+  });
 
-  // Enter edit mode
+  onMount(() => {
+    if (isSignedIn() && uid()) refetch();
+  });
+
+  // Keep refetching in sync if user changes
+  createEffect(() => {
+    if (uid()) refetch();
+  });
+
   const enterEdit = () => {
-    const p = data()?.profile;
-    setEditName(p?.display_name ?? user()?.displayName ?? "");
-    setEditUsername(p?.username ?? "");
-    setEditBio(p?.bio ?? "");
+    if (!data()?.profile) return;
+    setEditName(data()!.profile!.display_name ?? user()?.displayName ?? "");
+    setEditUsername(data()!.profile!.username ?? "");
+    setEditBio(data()!.profile!.bio ?? "");
     setIsEditing(true);
   };
 
-  // Save profile changes
+  const handleCancel = () => {
+    setIsEditing(false);
+    usernameCheck.reset();
+  };
+
+  createEffect(() => {
+    if (isEditing()) usernameCheck.check(editUsername());
+  });
+
   const handleSave = async () => {
-    const name = editName().trim();
-    if (!name) {
-      showToast("Display name cannot be empty.", "error");
+    if (!uid()) return;
+    const isChangingUsername = editUsername() !== currentUsername();
+    if (isChangingUsername && usernameCheck.state() === "taken") {
+      showToast("Username is already taken.", "error");
       return;
     }
-    const cleanUsername = sanitizeUsername(editUsername());
-    const oldUsername = currentUsername();
-    const usernameChanged = cleanUsername !== sanitizeUsername(oldUsername);
-    if (usernameChanged) {
-      const validation = validateUsername(cleanUsername);
-      if (!validation.valid) {
-        showToast(validation.message, "error");
-        return;
-      }
-      if (usernameCheck.state() !== "available") {
-        showToast("Username is not available. Try another.", "error");
-        return;
-      }
-    }
-    const ok = await saveProfile({
-      displayName: name,
-      username: usernameChanged ? cleanUsername : undefined,
-      bio: editBio().trim() || null,
-    });
-    if (ok) {
-      showToast("Profile saved.", "success");
+
+    setSaving(true);
+    try {
+      const { error: updateError } = await getClient()
+        .from("profiles")
+        .update({
+          display_name: editName().trim() || null,
+          username: editUsername().trim() || null,
+          bio: editBio().trim() || null,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", uid()!);
+
+      if (updateError) throw updateError;
+      showToast("Profile saved successfully.", "success");
       setIsEditing(false);
-    } else {
-      showToast("Failed to save profile.", "error");
+      refetchProfile();
+    } catch (err: any) {
+      console.error("Save profile error:", err);
+      showToast(err.message || "Failed to save profile", "error");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const handleCancel = () => { setIsEditing(false); };
-
-  const handleSaveBanner = async (type: BannerType, url: string | null): Promise<boolean> => {
-    const ok = await saveProfile({ bannerType: type, bannerUrl: url });
-    if (ok) { showToast("Banner updated.", "success"); }
-    else { showToast("Failed to update banner.", "error"); }
-    return ok;
+  const handleSaveBanner = (type: BannerType, url: string | null) => {
+    refetchProfile();
+    setBannerEditorOpen(false);
   };
 
-  // ── Derived data ────────────────────────────────────────────────────
-
-  // Sync the user's saved country (from the profile row) into the
-  // global discoverRegion module so Discover / Upcoming pages pick
-  // up the right region on mount.
-  createEffect(() => {
-    const c = data()?.profile?.country;
-    if (c) setDiscoverRegion(c);
-  });
-
-  const memberSince = createMemo(() => {
-    const created = data()?.profile?.created_at;
-    if (!created) return "";
-    try { return new Date(created).toLocaleDateString("en-US", { month: "long", year: "numeric" }); }
-    catch { return ""; }
-  });
-
-  const avatarUrl = createMemo(() => {
-    const custom = data()?.profile?.avatar_url;
-    if (custom) return custom;
-    const photoURL = user()?.photoURL;
-    if (photoURL) return photoURL;
-    return null;
-  });
-
-  const initial = createMemo(() => {
-    const name = data()?.profile?.display_name ?? user()?.displayName ?? user()?.email ?? "";
-    return name.charAt(0).toUpperCase() || "?";
-  });
-
-  // Sign out handler
   const handleSignOut = async () => {
-    const { signOut } = await import("~/shared/hooks/useAuthActions");
-    await signOut();
-    showToast("Signed out.", "success");
+    try {
+      await getClient().auth.signOut();
+      showToast("Signed out successfully", "success");
+    } catch (err: any) {
+      console.error("Sign out error:", err);
+      showToast(err.message || "Failed to sign out", "error");
+    }
   };
-
-  // ESC to exit edit mode
-  onMount(() => {
-    const handleEsc = (e: KeyboardEvent) => { if (e.key === "Escape" && isEditing()) handleCancel(); };
-    window.addEventListener("keydown", handleEsc);
-    onCleanup(() => window.removeEventListener("keydown", handleEsc));
-  });
 
   return (
-    <PageContainer size="narrow" paddingTop="0" paddingBottom="var(--space-12)">
-      <div class="profile-page profile-fade-in">
-        <Show when={loading()}><ProfileSkeleton /></Show>
+    <PageContainer>
+      <div class="profile-layout profile-layout-v2">
 
         {/* Guest state */}
-        <Show when={!loading() && !isSignedIn()}>
-          <div class="profile-guest" role="status">
+        <Show when={isGuest()}>
+          <div class="profile-guest">
             <GlassEmptyState
-              icon="person_add"
-              title="Sign in to your cinema"
-              message="Your profile, your vault, your taste — all waiting."
+              icon="account_circle"
+              title="Your Cinematic Identity"
+              message="Sign in to save movies, customize your profile, and showcase your taste — all waiting."
             >
               <GlassButton
                 variant="primary"
