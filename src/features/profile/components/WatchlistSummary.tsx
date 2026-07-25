@@ -1,10 +1,10 @@
 // src/features/profile/components/WatchlistSummary.tsx
 //
-// Sprint 2B — Migrated to PremiumCard for surface treatment.
+// Sprint 2B — Migrated to GlassCard for surface treatment.
 // Zero changes to story-driven text logic or navigation.
 
 import { Show, createMemo, type Component } from "solid-js";
-import { PremiumCard } from "~/shared/ui/premium";
+import { GlassCard } from "~/shared/ui/glass";
 import type { WatchlistItem } from "~/shared/types";
 
 interface WatchlistSummaryProps {
@@ -22,7 +22,7 @@ interface WatchlistSummaryProps {
  *   • 51-100: "Cinema is clearly your passion."
  *   • 100+: "You're a true cinema explorer."
  *
- * Uses PremiumCard for consistent surface, shadow, and hover treatment.
+ * Uses GlassCard for consistent surface, shadow, and hover treatment.
  * Tappable → /watchlist.
  */
 const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
@@ -61,8 +61,8 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
       class="watchlist-summary focus-ring"
       aria-label={`Open your watchlist — ${stats().total} titles total${breakdown() ? `, ${breakdown()}` : ""}`}
     >
-      <PremiumCard
-        variant="default"
+      <GlassCard
+        variant="glass"
         size="comfortable"
         hoverable
         border="subtle"
@@ -84,7 +84,7 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
             chevron_right
           </span>
         </div>
-      </PremiumCard>
+      </GlassCard>
     </a>
   );
 };

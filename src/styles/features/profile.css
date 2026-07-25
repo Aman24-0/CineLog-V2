@@ -11,7 +11,7 @@
      • Typography hierarchy before color hierarchy
      • Green accent at 3 touchpoints: archetype, milestone progress, dominant genre
      • Left-aligned vault count (editorial, not dashboard)
-     • Premium, minimal, timeless
+     • Glass, minimal, timeless
      • Every section earns its place or hides
 
    Spacing: 8pt grid via design tokens.
@@ -1578,7 +1578,7 @@
    TASTE CARD — favorite reasons (very small elegant subtitle)
    ============================================================ */
 
-/* Movie reason — sits below the PremiumHeroCard */
+/* Movie reason — sits below the GlassHeroCard */
 .taste-movie-reason {
   font-family: var(--font-family-body);
   font-style: italic;
@@ -1683,7 +1683,7 @@
   transform: translateY(-1px);
 }
 
-/* Premium button animations — enhance existing buttons */
+/* Glass button animations — enhance existing buttons */
 .cw-card-continue,
 .identity-chip,
 .rf-card {

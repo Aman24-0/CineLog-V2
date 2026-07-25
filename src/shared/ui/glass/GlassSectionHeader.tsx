@@ -1,4 +1,4 @@
-// src/shared/ui/premium/navigation/PremiumSectionHeader.tsx
+// src/shared/ui/glass/GlassSectionHeader.tsx
 import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Variant & Accent Types ────────────────────────────────────
@@ -31,7 +31,7 @@ const variantClasses: Record<SectionVariant, { title: string; gap: string; paddi
 
 // ─── Props ─────────────────────────────────────────────────────
 
-export interface PremiumSectionHeaderProps extends JSX.HTMLAttributes<HTMLDivElement> {
+export interface GlassSectionHeaderProps extends JSX.HTMLAttributes<HTMLDivElement> {
   /** Section title. */
   title: string;
   /** Eyebrow text above the title — font-label accent uppercase. */
@@ -53,7 +53,7 @@ export interface PremiumSectionHeaderProps extends JSX.HTMLAttributes<HTMLDivEle
 // ─── Defaults ──────────────────────────────────────────────────
 
 const defaultProps: Required<
-  Pick<PremiumSectionHeaderProps, "variant" | "accent">
+  Pick<GlassSectionHeaderProps, "variant" | "accent">
 > = {
   variant: "default",
   accent: "none",
@@ -62,49 +62,20 @@ const defaultProps: Required<
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumSectionHeader — a section-level header with eyebrow, accent, description, and action.
- *
- * Provides a structured section header with:
- * - **Eyebrow:** font-label accent color uppercase with tracking
- * - **Accent decorations:** bar (accent line), dot (accent dot), or glow (accent glow) before the title
- * - **Title:** font-heading (default/compact) or font-display (large) bold text
- * - **Description:** Small text below the title
- * - **Action button:** Right-aligned action with icon
- *
- * **Accent modes:**
- * - `none` — No decoration
- * - `bar`  — Small accent line before the title
- * - `dot`  — Small accent dot before the title
- * - `glow` — Subtle accent glow around the title text
- *
- * @example
- * ```tsx
- * <PremiumSectionHeader
- *   eyebrow="Collection"
- *   title="Marvel Cinematic Universe"
- *   accent="bar"
- *   description="All MCU phases in timeline order"
- *   actionLabel="Edit"
- *   onAction={openEditor}
- * />
- * ```
- *
- * Design tokens used:
- * - Colors: --p, --p-glow, --color-text-strong, --color-text-soft, --color-text-dim,
- *   --color-primary
- * - Spacing: --space-1 through --space-4
- * - Typography: --font-family-display, --font-family-heading, --font-family-label,
- *   --font-size-sm/lg/2xl
- * - Motion: --dur-fast, --ease-spring
+ * GlassSectionHeader — a section-level header with eyebrow, accent, description, and action.
+ * Replaces PremiumSectionHeader with updated naming conventions.
  */
-const PremiumSectionHeader: Component<PremiumSectionHeaderProps> = (rawProps) => {
+const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
     "title", "eyebrow", "icon", "actionLabel", "onAction",
     "variant", "accent", "description", "class", "style",
   ]);
 
+  const hasAction = () => !!local.onAction;
+
   const handleActionKeyDown = (e: KeyboardEvent) => {
+    if (!hasAction()) return;
     if (e.key === "Enter" || e.key === " ") {
       e.preventDefault();
       local.onAction?.();
@@ -197,10 +168,10 @@ const PremiumSectionHeader: Component<PremiumSectionHeaderProps> = (rawProps) =>
       </div>
 
       {/* Right side: Action */}
-      <Show when={local.actionLabel && local.onAction}>
+      <Show when={local.actionLabel && hasAction()}>
         <button
           class="inline-flex items-center gap-1 font-label text-xs text-primary tracking-label hover:brightness-110 transition-all duration-fast ease-spring focus-ring rounded-md p-2 px-3 cursor-pointer flex-shrink-0 mt-auto"
-          onClick={local.onAction}
+          onClick={() => local.onAction?.()}
           onKeyDown={handleActionKeyDown}
           type="button"
           aria-label={local.actionLabel}
@@ -212,5 +183,5 @@ const PremiumSectionHeader: Component<PremiumSectionHeaderProps> = (rawProps) =>
   );
 };
 
-export { PremiumSectionHeader };
-export default PremiumSectionHeader;
+export { GlassSectionHeader };
+export default GlassSectionHeader;

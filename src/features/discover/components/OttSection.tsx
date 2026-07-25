@@ -19,7 +19,7 @@
 //   • "More" button opens a Play Store-style bottom sheet: 56-64px
 //     circular logos with the provider name BELOW each logo (never
 //     inside the circle). Responsive grid.
-//   • Premium empty state with retry — ONLY shown when BOTH movie and
+//   • GlassEmptyState with retry — ONLY shown when BOTH movie and
 //     TV results are empty.
 //
 

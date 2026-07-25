@@ -1,10 +1,10 @@
-// src/shared/ui/premium/buttons/PremiumButton.tsx
+// src/shared/ui/glass/GlassButton.tsx
 import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 
 // ─── Variant & Size Types ──────────────────────────────────────
 
 /** Button visual variant */
-type ButtonVariant = "primary" | "secondary" | "ghost" | "danger" | "success";
+type ButtonVariant = "primary" | "secondary" | "glass" | "ghost" | "danger" | "success";
 
 /** Button size */
 type ButtonSize = "compact" | "default" | "large";
@@ -14,26 +14,26 @@ type IconPosition = "left" | "right";
 
 // ─── Props ─────────────────────────────────────────────────────
 
-interface PremiumButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
-  /** Visual variant */
+export interface GlassButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonElement> {
+  /** Visual variant. @default "primary" */
   variant?: ButtonVariant;
-  /** Size preset: compact (dense), default (standard), large (hero CTA) */
+  /** Size preset: compact (dense), default (standard), large (hero CTA). @default "default" */
   size?: ButtonSize;
-  /** Show loading spinner and disable interaction */
+  /** Show loading spinner and disable interaction. @default false */
   loading?: boolean;
-  /** Disable the button */
+  /** Disable the button. @default false */
   disabled?: boolean;
-  /** Stretch to full container width */
+  /** Stretch to full container width. @default false */
   fullWidth?: boolean;
-  /** Material Symbol icon name */
+  /** Material Symbol icon name. */
   icon?: string;
-  /** Icon placement relative to label */
+  /** Icon placement relative to label. @default "left" */
   iconPosition?: IconPosition;
-  /** Render icon with FILL=1 (filled style) */
+  /** Render icon with FILL=1 (filled style). @default false */
   iconFill?: boolean;
-  /** Selected/toggle state — accent border + dim background */
+  /** Selected/toggle state. @default false */
   selected?: boolean;
-  /** Active/pressed-in visual state */
+  /** Active/pressed-in visual state. @default false */
   active?: boolean;
 }
 
@@ -44,6 +44,8 @@ const variantClasses: Record<ButtonVariant, string> = {
     "bg-primary text-on-primary shadow-glow hover:brightness-110",
   secondary:
     "bg-tier-2 text-primary border border-hairline-2 hover:bg-tier-3",
+  glass:
+    "bg-glass backdrop-blur-lg text-primary border border-glass-border hover:bg-glass-strong hover:backdrop-blur-2xl",
   ghost:
     "bg-transparent text-primary hover:bg-primary-dim",
   danger:
@@ -69,26 +71,10 @@ const iconSizeMap: Record<ButtonSize, string> = {
 // ─── Component ─────────────────────────────────────────────────
 
 /**
- * PremiumButton — full-featured button with variants, sizes, states,
+ * GlassButton — full-featured button with variants (including glass), sizes, states,
  * icon support, loading, disabled, selected, active, and touch feedback.
- *
- * @example
- * ```tsx
- * <PremiumButton variant="primary" icon="add" loading={saving()}>
- *   Save
- * </PremiumButton>
- * ```
- *
- * Design tokens used:
- * - Colors: --color-primary, --color-on-primary, --tier-*, --hairline-*,
- *   --color-danger, --color-success, --color-primary-dim
- * - Spacing: --space-* (p-2 through p-6)
- * - Radius: --radius-md
- * - Shadows: --shadow-glow
- * - Motion: --dur-fast, --ease-spring, --dur-micro
- * - Opacity: --opacity-disabled
  */
-const PremiumButton: Component<PremiumButtonProps> = (rawProps) => {
+const GlassButton: Component<GlassButtonProps> = (rawProps) => {
   const props = mergeProps(
     {
       variant: "primary" as ButtonVariant,
@@ -142,7 +128,7 @@ const PremiumButton: Component<PremiumButtonProps> = (rawProps) => {
     ];
 
     if (local.fullWidth) base.push("w-full");
-    if (local.selected) base.push("border border-primary bg-primary-dim");
+    if (local.selected) base.push("border-2 border-primary bg-primary-dim");
     if (local.active) base.push("scale-[0.97] brightness-90");
     if (isDisabled()) base.push("opacity-disabled pointer-events-none cursor-not-allowed");
     if (local.class) base.push(local.class);
@@ -205,5 +191,5 @@ const PremiumButton: Component<PremiumButtonProps> = (rawProps) => {
   );
 };
 
-export { PremiumButton };
-export default PremiumButton;
+export { GlassButton };
+export default GlassButton;

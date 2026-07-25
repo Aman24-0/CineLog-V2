@@ -13,7 +13,7 @@
 
 import { createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import { PremiumGradientSurface, PremiumSectionHeader, PremiumButton } from "~/shared/ui/premium";
+import { GlassSurface, GlassSectionHeader, GlassButton } from "~/shared/ui/glass";
 // Genre utilities are used by the genre counting logic inline
 // hasGenre and collectGenres patterns are applied manually for archetype mapping
 import type { WatchlistItem } from "~/shared/types";
@@ -153,15 +153,14 @@ const CinemaDna: Component<CinemaDnaProps> = (props) => {
       style={{ "margin-top": "var(--space-12)" }}
       aria-label="Cinema DNA insight"
     >
-      <PremiumSectionHeader
+      <GlassSectionHeader
         eyebrow="Insight"
         title="Cinema DNA"
         accent="bar"
         variant="compact"
       />
-      <PremiumGradientSurface
-        gradient="accent"
-        direction="down"
+      <GlassSurface
+        variant="strong"
         padding="comfortable"
         radius="lg"
       >
@@ -173,16 +172,16 @@ const CinemaDna: Component<CinemaDnaProps> = (props) => {
           </div>
           <p class="cinema-dna-archetype">{archetype().name}</p>
           <p class="cinema-dna-insight">{insight()}</p>
-          <PremiumButton
+          <GlassButton
             variant="primary"
             size="default"
             icon="explore"
             onClick={() => navigate("/profile/stats")}
           >
             Explore Your Taste
-          </PremiumButton>
+          </GlassButton>
         </div>
-      </PremiumGradientSurface>
+      </GlassSurface>
     </section>
   );
 };

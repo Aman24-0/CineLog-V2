@@ -16,7 +16,7 @@
 //   • Empty states: dashed outline + icon + short label
 
 import { Show, createMemo, type Component, type Accessor } from "solid-js";
-import { PremiumHeroCard } from "~/shared/ui/premium";
+import { GlassPosterCard } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { normalizeGenres } from "~/shared/utils/genres";
 import type { ProfileData, FavoriteDirector } from "../useProfileData";
@@ -153,13 +153,16 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 onKeyDown={(e) => { if (props.isEditing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); props.onPick("movie"); } }}
                 aria-label={`${mc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
-                <PremiumHeroCard
+                <GlassPosterCard
                   title={mc().title}
-                  subtitle={mc().subtitle}
+                  meta={mc().subtitle}
                   imageUrl={mc().imagePath ? tmdbImage(mc().imagePath, "w780") : undefined}
-                  aspectRatio="2:3"
-                  gradientStrength="heavy"
-                  size="compact"
+
+
+
+
+
+
                   onClick={() => props.isEditing && props.onPick("movie")}
                 />
                 {/* Personal reason — very small elegant subtitle */}

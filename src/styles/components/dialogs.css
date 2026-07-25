@@ -15,7 +15,7 @@
   animation: fadeIn var(--dur-base) ease-out both;
 }
 
-/* Premium modal surface — full glassmorphism.
+/* Glass modal surface — full glassmorphism.
    Individual modals can compose this with their own layout class. */
 .modal-surface {
   background: rgba(18, 18, 28, 0.78);

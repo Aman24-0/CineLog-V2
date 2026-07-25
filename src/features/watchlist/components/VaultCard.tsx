@@ -12,7 +12,7 @@ interface VaultCardProps {
 }
 
 /**
- * Premium timeline card — used in the Timeline view.
+ * GlassCard — used in the Timeline view.
  *
  * Design:
  *  - Horizontal layout: [timeline node] [poster] [info cluster] [chevron]
