@@ -1,60 +1,24 @@
 // src/shared/ui/MovieCard.tsx
-import { createSignal, Show, Component } from "solid-js";
+import { Component, Show, createSignal } from "solid-js";
 import Icon from "./Icon";
-import HighlightText from "./HighlightText";
-import MovieCardRatings from "./MovieCardRatings";
-import { formatRuntime } from "~/shared/utils/format";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import type { WatchlistItem } from "~/shared/types";
+import { formatRuntime } from "~/shared/utils/format";
+import MovieCardRatings from "./MovieCardRatings";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useToast } from "~/shared/hooks/useToast";
-import type { CollectionEntry, WatchlistItem } from "~/shared/types";
-
-export type MovieCardVariant = "compact" | "default" | "featured";
+import type { CollectionEntry } from "~/lib/supabase/repositories/collection";
+import HighlightText from "./HighlightText";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface MovieCardProps {
   movie: WatchlistItem;
-  search?: string;
+  variant?: "default" | "compact" | "featured";
   onClick: () => void;
-  /** Card variant — controls size, density, and visual emphasis.
-   *  - compact:  smallest, for rails and tight grids (100-130px wide)
-   *  - default:  standard, for vault grid (150-200px wide)
-   *  - featured: largest, with accent border + glow, for hero-adjacent placement
-   */
-  variant?: MovieCardVariant;
-  /**
-   * When true (default for vault cards), a heart button is rendered
-   * top-right that toggles the title's membership in the Favorites
-   * collection. Set to false on Discover/Search rails where the
-   * title is not yet in the vault (those surfaces use the Details
-   * modal's Folder action instead).
-   */
   showFavButton?: boolean;
+  search?: string;
 }
 
-/**
- * Scalable Movie Card system — CineLog's visual identity.
- *
- * Three variants share one core (poster + overlay + badges + info cluster)
- * but differ in density, typography, and emphasis. Future variants (hero,
- * timeline, collection) can be added by extending this component.
- *
- * Architecture:
- *  - MovieCard: variant router + shared state (imgLoaded, imgError)
- *  - CardPoster: handles image loading + fallback (shared)
- *  - CardBadges: status + tag/new-season badges (shared, density-aware)
- *  - CardInfo: title + metadata + ratings (density-aware per variant)
- *
- * The card is self-contained — no dependency on parent context beyond props.
- * All variants are SSR-safe (no client-only APIs).
- *
- * Polished:
- *  - focus-ring class added so keyboard users get a clear accent ring.
- *  - Hover transform slightly toned down (1.035 → 1.03) to feel less
- *    jittery on rapid mouse moves across a grid.
- *  - aria-label includes the title, year, and status for screen readers.
- *  - The card is a real <button>-like div (role=button, tabindex=0) with
- *    Enter/Space activation already handled.
- */
 const MovieCard: Component<MovieCardProps> = (props) => {
   const variant = () => props.variant ?? "default";
   const [imgLoaded, setImgLoaded] = createSignal(false);
@@ -155,14 +119,15 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const showFavButton = () => props.showFavButton !== false;
 
   return (
-    <div
+    <GlassCard
       onClick={() => props.onClick()}
-      onKeyDown={(e) => {
+      onKeyDown={(e: any) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           props.onClick();
         }
       }}
+      variant={variant() === "compact" ? "default" : variant() === "featured" ? "accent" : "glass"}
       class={cardClass()}
       role="button"
       tabindex={0}
@@ -358,7 +323,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           </Show>
         </div>
       </div>
-    </div>
+    </GlassCard>
   );
 };
 

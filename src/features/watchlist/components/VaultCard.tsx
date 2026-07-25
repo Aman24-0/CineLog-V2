@@ -4,6 +4,7 @@ import Icon from "~/shared/ui/Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import type { WatchlistItem } from "~/shared/types";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface VaultCardProps {
   item: WatchlistItem;
@@ -78,7 +79,7 @@ export default function VaultCard(props: VaultCardProps) {
       </div>
 
       {/* Timeline card body */}
-      <div class="timeline-card w-full p-3 rounded-[1.5rem] flex gap-3 items-center">
+      <GlassCard variant="glass" class="timeline-card w-full p-3 rounded-[1.5rem] flex gap-3 items-center" interactive>
         {/* Poster thumbnail */}
         <Show
           when={posterUrl()}
@@ -187,7 +188,7 @@ export default function VaultCard(props: VaultCardProps) {
         >
           <Icon name="chevron_right" style={{"font-size":"24px","color":"var(--p)"}} />
         </div>
-      </div>
+      </GlassCard>
     </div>
   );
 }

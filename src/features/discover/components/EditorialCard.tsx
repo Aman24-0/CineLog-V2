@@ -2,6 +2,7 @@
 import { Show, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
+import { GlassCard } from "~/shared/ui/glass";
 
 interface EditorialCardProps {
   title: TMDBTitle;

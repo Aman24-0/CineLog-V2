@@ -24,3 +24,16 @@ This phase successfully completed the full application migration to the new Glas
 - **Build**: The app correctly compiles (`npm run build`) via Vinxi with zero missing import or parsing errors.
 - **Testing**: The complete Vitest test suite (`npm run test`) comprising 27 suites and 618 tests runs successfully with a 100% pass rate.
 - **Architecture**: No legacy `.premium` CSS classes are used in the application anymore (verified via grep). The core routing, API integrations, and Supabase hooks remain functionally intact.
+
+## 4. Phase 3 Additional Migration
+- Refactored multiple .tsx files which previously returned raw HTML structures with `glass-*` or `premium-*` CSS classes applied directly on `div` elements to structurally compose and use the actual `Glass*` React/SolidJS components.
+- Components modified:
+  - `src/shared/ui/MovieCard.tsx` now correctly returns `GlassCard` instead of a `div` wrapping `vault-card-inner`.
+  - `src/features/watchlist/components/VaultCard.tsx` now structurally composes `GlassCard`.
+  - `src/features/watchlist/components/EmptyState.tsx` now structurally composes `GlassEmptyState`.
+  - `src/features/profile/components/YourStoryCard.tsx` now structurally composes `GlassCard`.
+  - `src/features/profile/components/RecentlyFinished.tsx` and `CurrentlyWatching.tsx` now use `GlassCard`.
+  - `src/shared/ui/AuthModal.tsx` and `src/features/details/components/ConfirmRemoveSheet.tsx` now correctly construct the UI using `GlassSurface` rather than standard divs.
+  - Removed remaining nested `empty-premium` references inside `ProfilePage`, `StatsPage`, `AchievementsPage`, and `UpcomingPage` and replaced them with the `GlassEmptyState` component.
+
+All updates continue to pass tests and compile successfully without regressions.

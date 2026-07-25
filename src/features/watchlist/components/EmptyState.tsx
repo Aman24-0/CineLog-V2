@@ -1,14 +1,15 @@
 // src/features/watchlist/components/EmptyState.tsx
 import { Show } from "solid-js";
+import { GlassEmptyState, GlassSurface, GlassButton } from "~/shared/ui/glass";
 import Icon from "~/shared/ui/Icon";
 
 interface EmptyStateProps {
-  isGuest: boolean;
-  onLogin: () => void;
+  isGuest?: boolean;
   title: string;
   message: string;
   actionText: string;
   onAction: () => void;
+  onLogin?: () => void;
 }
 
 /**
@@ -18,77 +19,48 @@ interface EmptyStateProps {
  *  - Guest: glass surface with accent CTA (sign-in prompt)
  *  - Filtered/empty: minimal centered state with secondary action
  *
- * Uses .glass-empty-state* CSS classes from the design system for consistency
- * with the dashboard empty states.
- *
  * Polished:
  *  - role="status" + aria-live so screen readers announce state changes.
  *  - .focus-ring on action buttons for keyboard users.
- *  - Guest variant uses glass surface with elevated shadow for depth.
- *  - Signed-in variant uses sentiment_dissatisfied icon to feel
- *    empathetic (not punitive) when filters return no results.
  */
 export default function EmptyState(props: EmptyStateProps) {
   return (
     <Show
       when={!props.isGuest}
       fallback={
-        // Guest variant — glass surface, prominent CTA
-        <div
-          class="glass-empty-state rounded-[2rem] border"
-          style={{
-            "border-color": "var(--hairline-2)",
-            background: "var(--glass-bg)",
-            "backdrop-filter": "blur(20px)",
-            "-webkit-backdrop-filter": "blur(20px)",
-            "box-shadow": "var(--shadow-premium)",
-          }}
+        <GlassSurface
+          variant="elevated"
+          class="rounded-[2rem] p-8 text-center flex flex-col items-center justify-center min-h-[300px]"
           role="status"
           aria-live="polite"
         >
-          <div class="glass-empty-state-icon" aria-hidden="true">
+          <div class="mb-4 text-[var(--p)]">
             <Icon
               name="video_library"
               fill
-              style={{ color: "var(--p)", "font-size": "32px" }}
+              style={{ "font-size": "32px" }}
             />
           </div>
-          <p class="glass-empty-state-title">{props.title}</p>
-          <p class="glass-empty-state-body">{props.message}</p>
-          <button
+          <h3 class="text-xl font-medium text-white mb-2">{props.title}</h3>
+          <p class="text-[var(--text-muted)] mb-6 max-w-[300px]">{props.message}</p>
+          <GlassButton
+            variant="primary"
             onClick={() => props.onAction()}
-            class="btn-primary focus-ring"
-            style={{ "margin-top": "var(--sp-2)" }}
             aria-label={props.actionText}
           >
             {props.actionText}
-          </button>
-        </div>
+          </GlassButton>
+        </GlassSurface>
       }
     >
-      {/* Signed-in empty / no matches variant */}
-      <div
-        class="glass-empty-state animate-fade-in"
-        style={{ padding: "var(--sp-12) var(--sp-6)" }}
-        role="status"
-        aria-live="polite"
-      >
-        <div class="glass-empty-state-icon" aria-hidden="true">
-          <Icon
-            name="sentiment_dissatisfied"
-            style={{ color: "var(--text-muted)", "font-size": "32px" }}
-          />
-        </div>
-        <p class="glass-empty-state-title">{props.title}</p>
-        <p class="glass-empty-state-body">{props.message}</p>
-        <button
-          onClick={() => props.onAction()}
-          class="btn-ghost focus-ring"
-          style={{ "margin-top": "var(--sp-2)" }}
-          aria-label={props.actionText}
-        >
-          {props.actionText}
-        </button>
+      <div class="py-12">
+        <GlassEmptyState
+          icon="sentiment_dissatisfied"
+          title={props.title}
+          message={props.message}
+          actionLabel={props.actionText}
+          onAction={props.onAction}
+        />
       </div>
     </Show>
   );

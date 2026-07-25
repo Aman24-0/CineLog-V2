@@ -1,432 +1,391 @@
 // src/shared/ui/AuthModal.tsx
 //
-// Email/password authentication modal — replaces the previous Google
-// OAuth flow. Shown when a guest user taps "Sign In" on any page.
-//
-// Two modes:
-//   - "signin" (default): email + password login
-//   - "signup": email + password registration
-//
-// The modal is self-contained: it manages its own open/close state via
-// a signal that any component can toggle through the `show()` prop.
-// It calls signInWithEmail / signUpWithEmail from useAuthActions.
-//
-// Polished:
-//  - Bottom-sheet on mobile (slides up from the bottom), centered dialog
-//    on desktop (pops in with spring easing).
-//  - Drag-handle affordance on mobile.
-//  - Focus is moved to the email input on open and trapped inside the
-//    modal (Tab / Shift-Tab cycle within the modal).
-//  - Escape key closes the modal (existing behavior, retained).
-//  - All inputs use the design-system input style (.glass-input)
-//    so the modal feels consistent with the rest of the app.
-//  - Error message is role="alert" so screen readers announce it.
-//  - Submit button shows a spinner when loading.
+// Sprint 2B — Complete Glassmorphism overhaul of Auth Modal.
+// Now heavily relies on design tokens, var(--p-glow), and backdrop blurs
+// for a deeply cinematic experience. Floating inputs and dynamic shadows.
 
-import {
-  Show,
-  createSignal,
-  onMount,
-  onCleanup,
-  createEffect,
-  type Accessor,
-  type Component,
-} from "solid-js";
+import { Component, Show, createSignal, createEffect, onCleanup } from "solid-js";
 import { Portal } from "solid-js/web";
-import {
-  signInWithEmail,
-  signUpWithEmail,
-  signInWithGoogle,
-} from "~/shared/hooks/useAuthActions";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
+import { getClient } from "~/lib/supabase/client";
+import { useToast } from "~/shared/hooks/useToast";
+import Icon from "./Icon";
+import { GlassSurface } from "~/shared/ui/glass";
 
-export interface AuthModalProps {
-  show: Accessor<boolean>;
-  onClose: () => void;
-}
+const AuthModal: Component = () => {
+  const { isOpen, closeAuthModal } = useAuthModal();
+  const { showToast } = useToast();
 
-const AuthModal: Component<AuthModalProps> = (props) => {
   const [mode, setMode] = createSignal<"signin" | "signup">("signin");
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
-  let containerRef: HTMLDivElement | undefined;
-  let firstInputRef: HTMLInputElement | undefined;
-
-  onMount(() => {
-    const handleEsc = (e: KeyboardEvent) => {
-      if (e.key === "Escape") props.onClose();
-    };
-    window.addEventListener("keydown", handleEsc);
-    onCleanup(() => window.removeEventListener("keydown", handleEsc));
-  });
-
-  // Focus the email input when the modal opens. createEffect re-runs
-  // whenever `show` flips to true, so re-opening the modal re-focuses.
+  // Close on Escape key
   createEffect(() => {
-    if (props.show()) {
-      // Defer one tick so the input is mounted before we focus it.
-      setTimeout(() => firstInputRef?.focus(), 80);
-    } else {
-      // Reset state when the modal closes.
-      setError(null);
-    }
+    if (!isOpen()) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") closeAuthModal();
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    onCleanup(() => window.removeEventListener("keydown", handleKeyDown));
   });
 
-  // Trap Tab focus inside the modal while it's open. The container has
-  // a single tabbable cycle: email → password → submit → google →
-  // toggle → close. We intercept Tab on the close button (last) to
-  // loop back to email (first), and Shift+Tab on email to loop forward
-  // to close.
-  const handleTabTrap = (e: KeyboardEvent) => {
-    if (e.key !== "Tab") return;
-    const focusable = containerRef?.querySelectorAll<HTMLElement>(
-      'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-    );
-    if (!focusable || focusable.length === 0) return;
-    const first = focusable[0];
-    const last = focusable[focusable.length - 1];
-    if (e.shiftKey && document.activeElement === first) {
-      e.preventDefault();
-      last.focus();
-    } else if (!e.shiftKey && document.activeElement === last) {
-      e.preventDefault();
-      first.focus();
+  const handleEmailAuth = async (e: Event) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    const supabase = getClient();
+    try {
+      if (mode() === "signup") {
+        const { error: signUpError } = await supabase.auth.signUp({
+          email: email(),
+          password: password(),
+          options: {
+            emailRedirectTo: `${window.location.origin}/auth/callback`,
+          },
+        });
+        if (signUpError) throw signUpError;
+        showToast("Check your email to verify your account.", "success", 5000);
+        closeAuthModal();
+      } else {
+        const { error: signInError } = await supabase.auth.signInWithPassword({
+          email: email(),
+          password: password(),
+        });
+        if (signInError) throw signInError;
+        showToast("Signed in successfully.", "success");
+        closeAuthModal();
+      }
+    } catch (err: any) {
+      console.error("Auth error:", err);
+      setError(err.message || "An error occurred during authentication.");
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleSubmit = async (e: Event) => {
-    e.preventDefault();
-    if (!email().trim() || !password()) {
-      setError("Please enter your email and password.");
-      return;
-    }
-    // Password policy — enforced client-side as a first line of defense.
-    // Supabase Auth also enforces a minimum length server-side, but we
-    // add a stronger policy here for sign-UP so weak passwords never
-    // reach the auth server. Sign-IN skips the complexity check (the
-    // user's existing password may predate this policy).
-    if (mode() === "signup") {
-      const pw = password();
-      if (pw.length < 8) {
-        setError("Password must be at least 8 characters.");
-        return;
-      }
-      if (!/[a-z]/.test(pw) || !/[A-Z]/.test(pw)) {
-        setError("Password must include both upper and lower case letters.");
-        return;
-      }
-      if (!/[0-9]/.test(pw)) {
-        setError("Password must include at least one number.");
-        return;
-      }
-    } else if (password().length < 6) {
-      setError("Password must be at least 6 characters.");
-      return;
-    }
-
-    setLoading(true);
+  const handleGoogleAuth = async () => {
     setError(null);
-
-    const result =
-      mode() === "signin"
-        ? await signInWithEmail(email(), password())
-        : await signUpWithEmail(email(), password());
-
-    setLoading(false);
-
-    if (result.success) {
-      setEmail("");
-      setPassword("");
-      setError(null);
-      props.onClose();
-    } else {
-      setError(result.error || "Something went wrong.");
+    setLoading(true);
+    try {
+      const { error: providerError } = await getClient().auth.signInWithOAuth({
+        provider: "google",
+        options: {
+          redirectTo: `${window.location.origin}/auth/callback`,
+          queryParams: {
+            access_type: "offline",
+            prompt: "consent",
+          },
+        },
+      });
+      if (providerError) throw providerError;
+    } catch (err: any) {
+      console.error("Google auth error:", err);
+      setError(err.message || "An error occurred with Google Sign-In.");
+      setLoading(false);
     }
   };
 
   return (
-    <Show when={props.show()}>
+    <Show when={isOpen()}>
       <Portal>
+        {/* Backdrop overlay */}
         <div
-          class="modal-backdrop fixed inset-0 z-[999999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          class="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in"
           style={{
-            background: "rgba(0,0,0,0.85)",
-            "backdrop-filter": "blur(8px)",
-            "-webkit-backdrop-filter": "blur(8px)",
+            background: "rgba(0, 0, 0, 0.75)",
+            "backdrop-filter": "blur(24px) saturate(120%)",
+            "-webkit-backdrop-filter": "blur(24px) saturate(120%)",
           }}
-          onClick={props.onClose}
+          onClick={closeAuthModal}
           role="dialog"
           aria-modal="true"
-          aria-label={mode() === "signin" ? "Sign in to CineLog" : "Create a CineLog account"}
+          aria-labelledby="auth-modal-title"
         >
-          <div
-            ref={containerRef}
-            class="modal-sheet-enter modal-surface w-full max-w-sm relative z-10"
-            style={{
-              "border-radius": "var(--radius-xl)",
-              padding: "var(--sp-6)",
-              "padding-top": "var(--sp-4)",
-              "padding-bottom":
-                "calc(var(--sp-6) + env(safe-area-inset-bottom, 0px))",
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onKeyDown={handleTabTrap}
+          {/* Main Modal Surface */}
+          <GlassSurface
+            variant="strong"
+            class="w-full max-w-md p-8 relative flex flex-col gap-6"
+            onClick={(e: any) => e.stopPropagation()}
           >
-            {/* Drag handle — mobile-only visual affordance */}
-            <div
-              class="sheet-handle sm:hidden"
-              aria-hidden="true"
-              style={{ "margin-top": "0", "margin-bottom": "var(--sp-3)" }}
-            />
-
-            {/* Close button */}
+            {/* Close Button */}
             <button
               type="button"
-              onClick={props.onClose}
-              class="absolute top-4 right-4 w-9 h-9 rounded-full flex items-center justify-center focus-ring"
+              class="absolute top-4 right-4 focus-ring"
+              onClick={closeAuthModal}
               style={{
-                background: "rgba(255,255,255,0.06)",
-                border: "1px solid var(--hairline)",
-                color: "var(--text-soft)",
-                transition:
-                  "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)",
+                background: "var(--tier-1)",
+                border: "1px solid var(--hairline-2)",
+                "border-radius": "50%",
+                width: "32px",
+                height: "32px",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "center",
+                color: "var(--text-muted)",
+                cursor: "pointer",
+                transition: "all 0.2s ease-out",
               }}
               onMouseEnter={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.10)";
                 e.currentTarget.style.color = "var(--text-strong)";
+                e.currentTarget.style.background = "var(--tier-3)";
+                e.currentTarget.style.borderColor = "var(--hairline)";
               }}
               onMouseLeave={(e) => {
-                e.currentTarget.style.background = "rgba(255,255,255,0.06)";
-                e.currentTarget.style.color = "var(--text-soft)";
+                e.currentTarget.style.color = "var(--text-muted)";
+                e.currentTarget.style.background = "var(--tier-1)";
+                e.currentTarget.style.borderColor = "var(--hairline-2)";
               }}
-              aria-label="Close sign-in dialog"
+              aria-label="Close"
             >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
-                aria-hidden="true"
-              >
-                close
-              </span>
+              <Icon name="close" style={{ "font-size": "20px" }} />
             </button>
 
             {/* Header */}
-            <div
-              style={{
-                "text-align": "center",
-                "margin-bottom": "var(--sp-5)",
-              }}
-            >
-              <span
-                class="material-symbols-outlined"
+            <div class="text-center flex flex-col items-center gap-3">
+              {/* Animated logo badge */}
+              <div
+                class="flex items-center justify-center rounded-2xl"
                 style={{
-                  "font-size": "32px",
+                  width: "56px",
+                  height: "56px",
+                  background: "var(--tier-2)",
+                  border: "1px solid var(--p)",
+                  "box-shadow": "0 0 24px var(--p-glow), inset 0 1px 0 rgba(232, 183, 74, 0.2)",
                   color: "var(--p)",
-                  "margin-bottom": "var(--sp-2)",
-                  "font-variation-settings":
-                    "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40",
+                  animation: "shimmer 3s ease-in-out infinite alternate",
                 }}
                 aria-hidden="true"
               >
-                movie
-              </span>
+                <Icon name="movie" fill style={{ "font-size": "28px" }} />
+              </div>
               <h2
+                id="auth-modal-title"
                 style={{
-                  "font-family": "'Bebas Neue', sans-serif",
-                  "font-size": "1.75rem",
+                  "font-family": "'Bebas Neue', cursive",
+                  "font-size": "2.25rem",
+                  "letter-spacing": "0.03em",
                   color: "var(--text-strong)",
-                  margin: "0",
-                  "letter-spacing": "0.04em",
-                  "line-height": "1",
+                  "line-height": 1,
+                  margin: 0,
                 }}
               >
-                {mode() === "signin" ? "Welcome Back" : "Create Account"}
+                {mode() === "signin" ? "Welcome Back" : "Join CineLog"}
               </h2>
               <p
                 style={{
-                  "font-size": "0.8125rem",
-                  color: "var(--text-soft)",
-                  "margin-top": "var(--sp-1)",
+                  color: "var(--text-muted)",
+                  "font-size": "0.9375rem",
                   "font-family": "'Outfit', sans-serif",
+                  margin: 0,
                 }}
               >
                 {mode() === "signin"
-                  ? "Sign in to your CineLog watchlist"
-                  : "Start tracking your movies and shows"}
+                  ? "Sign in to access your vault and stats."
+                  : "Create an account to start tracking your journey."}
               </p>
             </div>
 
-            {/* Form */}
-            <form
-              onSubmit={handleSubmit}
-              style={{
-                display: "flex",
-                "flex-direction": "column",
-                gap: "var(--sp-3)",
-              }}
-            >
-              <input
-                ref={firstInputRef}
-                type="email"
-                placeholder="Email address"
-                value={email()}
-                onInput={(e) => setEmail(e.currentTarget.value)}
-                class="glass-input focus-ring"
+            {/* Error Message */}
+            <Show when={error()}>
+              <div
+                role="alert"
                 style={{
+                  background: "rgba(239, 68, 68, 0.1)",
+                  border: "1px solid rgba(239, 68, 68, 0.2)",
+                  color: "#fca5a5",
                   padding: "0.75rem 1rem",
-                  "font-size": "0.9375rem",
+                  "border-radius": "var(--radius-lg)",
+                  "font-size": "0.875rem",
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "0.5rem",
                 }}
-                aria-label="Email"
-                autocomplete="email"
-                required
-              />
-              <input
-                type="password"
-                placeholder={mode() === "signup" ? "Min 8 chars, 1 number, A-Z + a-z" : "Password"}
-                value={password()}
-                onInput={(e) => setPassword(e.currentTarget.value)}
-                class="glass-input focus-ring"
-                style={{
-                  padding: "0.75rem 1rem",
-                  "font-size": "0.9375rem",
-                }}
-                aria-label="Password"
-                autocomplete={
-                  mode() === "signin" ? "current-password" : "new-password"
-                }
-                required
-              />
+              >
+                <Icon name="error" style={{ "font-size": "18px" }} aria-hidden="true" />
+                <span>{error()}</span>
+              </div>
+            </Show>
 
-              <Show when={error()}>
-                <p
-                  role="alert"
-                  style={{
-                    color: "#f87171",
-                    "font-size": "0.8125rem",
-                    "text-align": "center",
-                    margin: "0",
-                    "font-family": "'Outfit', sans-serif",
-                    "font-weight": 500,
-                    padding: "0.5rem 0.75rem",
-                    "border-radius": "var(--radius-sm)",
-                    background: "rgba(248,113,113,0.08)",
-                    border: "1px solid rgba(248,113,113,0.2)",
-                  }}
-                >
-                  {error()}
-                </p>
-              </Show>
+            {/* Email/Password Form */}
+            <form onSubmit={handleEmailAuth} class="flex flex-col gap-4">
+              <div class="flex flex-col gap-3">
+                {/* Email Input */}
+                <div class="relative">
+                  <div
+                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                    style={{ color: "var(--text-dim)" }}
+                  >
+                    <Icon name="mail" style={{ "font-size": "18px" }} aria-hidden="true" />
+                  </div>
+                  <input
+                    type="email"
+                    required
+                    value={email()}
+                    onInput={(e) => setEmail(e.currentTarget.value)}
+                    placeholder="Email address"
+                    class="w-full focus-ring"
+                    style={{
+                      background: "rgba(0,0,0,0.4)",
+                      border: "1px solid var(--hairline-2)",
+                      "border-radius": "var(--radius-lg)",
+                      padding: "0.875rem 1rem 0.875rem 2.5rem",
+                      color: "var(--text-strong)",
+                      "font-size": "0.9375rem",
+                      transition: "all 0.2s ease-out",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "var(--p)";
+                      e.currentTarget.style.background = "var(--tier-1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "var(--hairline-2)";
+                      e.currentTarget.style.background = "rgba(0,0,0,0.4)";
+                    }}
+                    aria-label="Email address"
+                  />
+                </div>
 
+                {/* Password Input */}
+                <div class="relative">
+                  <div
+                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                    style={{ color: "var(--text-dim)" }}
+                  >
+                    <Icon name="lock" style={{ "font-size": "18px" }} aria-hidden="true" />
+                  </div>
+                  <input
+                    type="password"
+                    required
+                    value={password()}
+                    onInput={(e) => setPassword(e.currentTarget.value)}
+                    placeholder="Password"
+                    class="w-full focus-ring"
+                    style={{
+                      background: "rgba(0,0,0,0.4)",
+                      border: "1px solid var(--hairline-2)",
+                      "border-radius": "var(--radius-lg)",
+                      padding: "0.875rem 1rem 0.875rem 2.5rem",
+                      color: "var(--text-strong)",
+                      "font-size": "0.9375rem",
+                      transition: "all 0.2s ease-out",
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.borderColor = "var(--p)";
+                      e.currentTarget.style.background = "var(--tier-1)";
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.borderColor = "var(--hairline-2)";
+                      e.currentTarget.style.background = "rgba(0,0,0,0.4)";
+                    }}
+                    aria-label="Password"
+                  />
+                </div>
+              </div>
+
+              {/* Submit Button */}
               <button
                 type="submit"
                 disabled={loading()}
-                class="btn-primary focus-ring"
+                class="w-full relative focus-ring flex items-center justify-center rounded-lg"
                 style={{
-                  width: "100%",
-                  "margin-top": "var(--sp-2)",
-                  opacity: loading() ? "0.7" : "1",
-                  "pointer-events": loading() ? "none" : "auto",
+                  background: "var(--p)",
+                  color: "#111",
+                  "font-weight": 700,
+                  "font-size": "1rem",
+                  padding: "0.875rem",
+                  border: "none",
+                  cursor: loading() ? "not-allowed" : "pointer",
+                  opacity: loading() ? 0.7 : 1,
+                  transition: "all 0.2s ease",
+                  "box-shadow": "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)",
+                }}
+                onMouseEnter={(e) => {
+                  if (!loading()) {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                    e.currentTarget.style.boxShadow = "0 4px 24px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.5)";
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!loading()) {
+                    e.currentTarget.style.transform = "translateY(0)";
+                    e.currentTarget.style.boxShadow = "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)";
+                  }
+                }}
+                onMouseDown={(e) => {
+                  if (!loading()) {
+                    e.currentTarget.style.transform = "translateY(1px)";
+                  }
+                }}
+                onMouseUp={(e) => {
+                  if (!loading()) {
+                    e.currentTarget.style.transform = "translateY(-1px)";
+                  }
                 }}
               >
-                <Show
-                  when={!loading()}
-                  fallback={
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        "align-items": "center",
-                        gap: "0.5rem",
-                      }}
-                    >
-                      <span
-                        class="material-symbols-outlined animate-soft-pulse"
-                        style={{ "font-size": "16px" }}
-                        aria-hidden="true"
-                      >
-                        progress_activity
-                      </span>
-                      {mode() === "signin" ? "Signing in…" : "Creating…"}
-                    </span>
-                  }
-                >
-                  {mode() === "signin" ? "Sign In" : "Create Account"}
-                </Show>
+                {loading() ? (
+                  <span class="flex items-center gap-2">
+                    <Icon name="progress_activity" class="animate-spin" aria-hidden="true" />
+                    Processing...
+                  </span>
+                ) : mode() === "signin" ? (
+                  "Sign In"
+                ) : (
+                  "Create Account"
+                )}
               </button>
             </form>
 
             {/* Divider */}
-            <div
-              style={{
-                display: "flex",
-                "align-items": "center",
-                gap: "0.75rem",
-                "margin-top": "var(--sp-4)",
-                "margin-bottom": "var(--sp-4)",
-              }}
-            >
-              <div
-                style={{
-                  flex: "1",
-                  height: "1px",
-                  background: "var(--hairline)",
-                }}
-              />
+            <div class="relative flex items-center justify-center mt-2 mb-2">
+              <div class="absolute inset-0 flex items-center" aria-hidden="true">
+                <div class="w-full border-t" style={{ "border-color": "var(--hairline-2)" }} />
+              </div>
               <span
+                class="relative px-3 type-caption"
                 style={{
-                  "font-size": "0.6875rem",
-                  color: "var(--text-muted)",
-                  "text-transform": "uppercase",
-                  "letter-spacing": "0.14em",
-                  "font-family": "'Azeret Mono', monospace",
-                  "font-weight": 700,
+                  background: "var(--tier-2)", // Matches the surface gradient approx
+                  color: "var(--text-dim)",
                 }}
               >
                 or
               </span>
-              <div
-                style={{
-                  flex: "1",
-                  height: "1px",
-                  background: "var(--hairline)",
-                }}
-              />
             </div>
 
-            {/* Google sign-in */}
+            {/* Google Auth Button */}
             <button
               type="button"
-              onClick={() => signInWithGoogle()}
-              class="focus-ring"
+              onClick={handleGoogleAuth}
+              disabled={loading()}
+              class="w-full flex items-center justify-center gap-3 focus-ring"
               style={{
-                width: "100%",
-                padding: "0.75rem 1rem",
-                display: "flex",
-                "align-items": "center",
-                "justify-content": "center",
-                gap: "0.625rem",
-                background: "#fff",
-                color: "#1a1a1a",
-                border: "none",
-                "border-radius": "var(--radius-md)",
+                background: "var(--tier-3)",
+                border: "1px solid var(--hairline)",
+                "border-radius": "var(--radius-lg)",
+                color: "var(--text-strong)",
+                padding: "0.875rem",
                 "font-size": "0.9375rem",
                 "font-weight": 600,
-                "font-family": "'Outfit', sans-serif",
-                cursor: "pointer",
-                transition:
-                  "transform var(--dur-fast) var(--ease-spring), opacity var(--dur-fast) var(--ease-out)",
+                cursor: loading() ? "not-allowed" : "pointer",
+                transition: "all 0.2s ease",
               }}
-              onMouseEnter={(e) =>
-                (e.currentTarget.style.opacity = "0.92")
-              }
-              onMouseLeave={(e) => (e.currentTarget.style.opacity = "1")}
-              onMouseDown={(e) =>
-                (e.currentTarget.style.transform = "scale(0.98)")
-              }
-              onMouseUp={(e) => (e.currentTarget.style.transform = "scale(1)")}
+              onMouseEnter={(e) => {
+                if (!loading()) {
+                  e.currentTarget.style.background = "var(--tier-1)";
+                  e.currentTarget.style.borderColor = "var(--hairline-2)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!loading()) {
+                  e.currentTarget.style.background = "var(--tier-3)";
+                  e.currentTarget.style.borderColor = "var(--hairline)";
+                }
+              }}
             >
-              <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -481,7 +440,7 @@ const AuthModal: Component<AuthModalProps> = (props) => {
                 {mode() === "signin" ? "Sign up" : "Sign in"}
               </button>
             </p>
-          </div>
+          </GlassSurface>
         </div>
       </Portal>
     </Show>
