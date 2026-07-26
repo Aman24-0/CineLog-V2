@@ -44,20 +44,14 @@ export default function VaultFilters(props: VaultFiltersProps) {
   return (
     <Portal>
       <div
-        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
-        style={{
-          background: "rgba(0,0,0,0.75)",
-          "backdrop-filter": "blur(12px)",
-          "-webkit-backdrop-filter": "blur(12px)",
-          "padding-bottom": "var(--nav-total-height)",
-        }}
+        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in glass-sheet-backdrop"
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label="Filter watchlist"
       >
         <div
-          class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+          class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter glass-sheet-surface-premium"
           style={{
             "max-height":
               "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
