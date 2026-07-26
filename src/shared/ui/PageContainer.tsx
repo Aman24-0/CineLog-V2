@@ -23,12 +23,13 @@ interface PageContainerProps {
  *  - Centered on desktop
  *  - Relative z-index above ambient effects
  *
- * ACCESSIBILITY: Renders a <main> landmark (WCAG 2.4.1). Each page
- * uses exactly one PageContainer, so there's exactly one <main> per
- * page — verified by the Vercel accessibility audit.
+ * ACCESSIBILITY: Renders a `<div role="region">` (NOT a `<main>`) so
+ * there is exactly ONE `<main>` landmark per page — provided by the
+ * AppShell root layout. Multiple `<main>` tags violate WCAG 2.4.1
+ * and were flagged by the Vercel accessibility audit.
  *
  * LAYOUT SHIFT (CLS): The `animate-fade-in` class was REMOVED from
- * the <main> element because it caused a 0.98 layout shift on page
+ * the page container because it caused a 0.98 layout shift on page
  * load. The animation used `both` fill-mode (opacity: 0 → 1) which
  * made the browser reserve different space during the animation,
  * shifting sibling elements (stats-glass-box, etc.). Content now
@@ -46,7 +47,9 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
     width() === "narrow" ? "max-w-2xl lg:max-w-4xl" : "";
 
   return (
-    <main
+    <div
+      role="region"
+      aria-label="Page content"
       class={`w-full px-4 sm:px-5 lg:px-12 ${maxWidth()} mx-auto relative z-10 ${props.class ?? ""}`}
       style={{
         "padding-top": props.paddingTop ?? "var(--sp-6)",
@@ -55,7 +58,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
       }}
     >
       {props.children}
-    </main>
+    </div>
   );
 };
 

@@ -123,7 +123,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
       <div class="spotlight-overlay" aria-hidden="true" />
 
       {/* Top-left badge — the fold identity */}
-      <div class="spotlight-badge" aria-label="Spotlight">
+      <div class="spotlight-badge">
         <span class="material-symbols-outlined" aria-hidden="true">
           auto_awesome
         </span>

@@ -53,7 +53,6 @@ const ProfileNavigation: Component<ProfileNavigationProps> = (props) => {
         type="button"
         class="settings-sign-out-button focus-ring"
         onClick={() => props.onSignOut()}
-        aria-label="Sign out"
       >
         <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
           logout

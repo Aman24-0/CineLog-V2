@@ -72,7 +72,7 @@ export default function CollectionsHeader(props: CollectionsHeaderProps) {
           </Show>
           <div class="universe-hero-overlay" aria-hidden="true" />
 
-          <div class="universe-hero-badge" aria-label="Featured Universe">
+          <div class="universe-hero-badge">
             <span
               class="material-symbols-outlined"
               style={{ "font-size": "12px", color: "var(--p)" }}

@@ -119,7 +119,6 @@ export default function VaultFilters(props: VaultFiltersProps) {
               onClick={() => props.onClear()}
               class="btn-ghost"
               style={{ "font-size": "0.6875rem" }}
-              aria-label="Clear All"
             >
               Clear All
             </button>
@@ -127,7 +126,6 @@ export default function VaultFilters(props: VaultFiltersProps) {
               onClick={() => props.onClose()}
               class="btn-primary"
               style={{ "font-size": "0.6875rem" }}
-              aria-label="Apply"
             >
               Apply
             </button>

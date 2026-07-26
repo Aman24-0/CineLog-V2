@@ -435,7 +435,6 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 onClick={handleSave}
                 disabled={saving() || uploading()}
                 style={{ flex: "1" }}
-                aria-label="Save banner"
               >
                 <Show
                   when={!saving()}

@@ -19,7 +19,9 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
  * STRUCTURE:
  *   <div class="app-shell-bg">
  *     <AppHeader />          ← <header role="banner">
- *     {props.children}       ← page content (each page wraps in <main>)
+ *     <main>                 ← SINGLE <main> landmark (WCAG 2.4.1)
+ *       {props.children}     ← page content (pages use <div role="region">)
+ *     </main>
  *     <ToastContainer />     ← aria-live region
  *     <BottomNavigation />   ← <nav role="navigation">
  *     <AuthModal />          ← Portal, rendered above
@@ -30,6 +32,10 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
  * INERT / ACCESSIBILITY (WCAG 1.3.1, 2.1.2, 4.1.2):
  *   When ANY modal is open (Details, Collection, Auth, Share), the
  *   background content (header + main + nav) is marked `inert`.
+ *   The `attr:inert` prefix is used because SolidJS's default attribute
+ *   handling can coerce boolean attributes to strings in some
+ *   configurations. `attr:inert` ensures the attribute is set as a true
+ *   HTML5 boolean attribute (present = inert, absent = interactive).
  *   The `inert` attribute:
  *     1. Hides the element and all descendants from the accessibility
  *        tree (equivalent to aria-hidden="true")
@@ -37,22 +43,15 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
  *        become non-focusable)
  *     3. Prevents click events from firing on the background
  *
- *   This is the WCAG-compliant way to handle modal dialogs. Previously,
- *   the background stayed focusable, which caused:
- *     - Screen reader users could Tab into hidden content
- *     - Keyboard focus could escape the modal
- *     - The Vercel audit flagged "ARIA hidden element must not contain
- *       focusable elements" because the modal's aria-hidden backdrop
- *       sat on top of focusable header/nav buttons
- *
- *   `inert` is supported in all modern browsers (Chrome 102+, Safari
- *   15.5+, Firefox 112+). For older browsers, the modal's focus trap
- *   (in DetailsModal) still contains keyboard focus manually.
+ *   This is the WCAG-compliant way to handle modal dialogs. We do NOT
+ *   use `aria-hidden="true"` on the background wrapper because `inert`
+ *   already handles AT hiding, and stacking both can cause audit tools
+ *   to flag "ARIA hidden element must not be focusable" false positives.
  *
  * SINGLE <main> LANDMARK (WCAG 1.3.1, 2.4.1):
- *   The AppShell does NOT render a <main> — each page route wraps its
- *   own content in <main> via PageContainer. This ensures exactly one
- *   <main> landmark per page (verified by the Vercel audit).
+ *   The AppShell renders EXACTLY ONE <main> landmark. Page routes
+ *   wrap their content in <div role="region"> (via PageContainer or
+ *   directly) so there is never a second <main> on the page.
  */
 const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
@@ -90,25 +89,33 @@ const AppShell: ParentComponent = (props) => {
           background: "var(--void)",
           color: "var(--text)",
         }}
-        // `inert` when a modal is open — hides this entire subtree from
-        // the accessibility tree AND removes all focusable descendants
-        // from the tab order. This is the WCAG-compliant way to handle
-        // modal background content.
+        // `inert` when a modal is open — hides this entire subtree
+        // from the accessibility tree AND removes all focusable
+        // descendants from the tab order. SolidJS natively handles
+        // `inert` as a boolean attribute (it's in the booleans list
+        // in solid-js/web), so `inert={true}` sets the attribute and
+        // `inert={undefined}` fully removes it. We use the explicit
+        // `? true : undefined` form (rather than just passing the
+        // boolean) so the attribute is FULLY REMOVED when the modal
+        // closes — some browsers treat `inert="false"` as inert=true
+        // (attribute presence = inert, regardless of value).
         //
-        // NOTE: aria-hidden is NOT added here because `inert` already
-        // handles both AT hiding and focus removal. Adding aria-hidden
-        // on the same element is redundant and can confuse audit tools
-        // that flag "ARIA hidden element must not be focusable" — even
-        // though inert makes elements non-focusable, some scanners
-        // don't recognize the inert→non-focusable relationship and
-        // report a false positive.
-        inert={anyModalOpen()}
+        // We do NOT use `aria-hidden="true"` here because `inert`
+        // already handles AT hiding, and stacking both can cause
+        // audit tools to flag "ARIA hidden element must not be
+        // focusable" false positives.
+        inert={anyModalOpen() ? true : undefined}
       >
         <AppHeader />
 
         <AnnouncementsBanner />
 
-        {props.children}
+        {/* SINGLE <main> landmark for the entire consumer app.
+            Page routes render <div role="region"> (not <main>) inside
+            this <main> so there is exactly one <main> per page. */}
+        <main id="main-content">
+          {props.children}
+        </main>
 
         <ToastContainer />
 
@@ -172,7 +179,10 @@ const AppShell: ParentComponent = (props) => {
         </Show>
       </div>
     }>
-      {/* Admin route: bare render — AdminShell handles its own layout */}
+      {/* Admin route: bare render — AdminShell handles its own layout.
+          Admin routes use <div role="region"> for content (not <main>)
+          so there is still exactly one <main> per page — provided by
+          the AdminShell. */}
       {props.children}
     </Show>
   );

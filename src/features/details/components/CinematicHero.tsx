@@ -150,7 +150,6 @@ export default function CinematicHero(props: CinematicHeroProps) {
                 href={`https://www.youtube.com/watch?v=${props.trailerKey}`}
                 target="_blank"
                 rel="noopener noreferrer"
-                aria-label="Watch trailer on YouTube"
               >
                 Watch on YouTube
               </a>

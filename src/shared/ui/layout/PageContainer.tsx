@@ -38,6 +38,11 @@ const sizeMap: Record<PageSize, string> = {
  *  - Focus management for skip-link navigation (tabindex=-1)
  *  - Centered on desktop via mx-auto
  *
+ * ACCESSIBILITY: Renders a `<div role="region">` (NOT a `<main>`) so
+ * there is exactly ONE `<main>` landmark per page — provided by the
+ * AppShell root layout. Multiple `<main>` tags violate WCAG 2.4.1
+ * (Bypass Blocks) and confuse screen reader landmark navigation.
+ *
  * The bottom padding accounts for the fixed bottom navigation bar
  * (`--nav-total-height`) plus an additional spacing buffer so content
  * never sits beneath the nav.
@@ -90,7 +95,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
       "z-base",
     ];
     // animate-fade-in was removed to prevent CLS (layout shift) on page
-    // load. The animation's `both` fill-mode caused the <main> element
+    // load. The animation's `both` fill-mode caused the page container
     // to reserve different space during the opacity transition, shifting
     // sibling elements by ~0.98 layout shift units (Vercel CLS audit).
     // Content now renders immediately without a fade-in.
@@ -105,14 +110,16 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
   });
 
   return (
-    <main
+    <div
+      role="region"
+      aria-label="Page content"
       {...rest}
       class={containerClass()}
       style={resolvedStyle()}
       tabindex={-1}
     >
       {local.children}
-    </main>
+    </div>
   );
 };
 

@@ -604,7 +604,6 @@ const AccountRoute: Component = () => {
                           type="button"
                           class="account-subaction-btn focus-ring"
                           onClick={() => setShowEmailSheet(true)}
-                          aria-label="Update email"
                         >
                           <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">alternate_email</span>
                           Update email
@@ -613,7 +612,6 @@ const AccountRoute: Component = () => {
                           type="button"
                           class="account-subaction-btn focus-ring"
                           onClick={() => setShowPasswordSheet(true)}
-                          aria-label="Change password"
                         >
                           <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">lock</span>
                           Change password

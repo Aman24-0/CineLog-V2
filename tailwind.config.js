@@ -115,6 +115,7 @@ export default {
         'lg': 'var(--radius-lg)',
         'xl': 'var(--radius-xl)',
         '2xl': 'var(--radius-2xl)',
+        '3xl': '32px',
         'modal': 'var(--radius-modal)',
         'pill': 'var(--radius-pill)',
         'full': 'var(--radius-full)',

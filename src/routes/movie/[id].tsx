@@ -250,10 +250,14 @@ export default function MovieDeepLinkRoute() {
         <Meta name="twitter:image" content={ogImage()} />
       </Show>
 
-      {/* The <main> landmark provides a WCAG 2.4.1-compliant main region.
-          The deep-link route shows a loading state while TMDB metadata
-          resolves, then the DetailsModal opens above it. */}
-      <main
+      {/* The deep-link route uses a <div role="region"> (NOT <main>) so
+          there is exactly ONE <main> landmark per page — provided by
+          the AppShell root layout. The region shows a loading state
+          while TMDB metadata resolves, then the DetailsModal opens
+          above it. */}
+      <div
+        role="region"
+        aria-label="Movie details"
         style={{
           "min-height": "100vh",
           display: "flex",
@@ -301,7 +305,7 @@ export default function MovieDeepLinkRoute() {
             </div>
           </Show>
         </Show>
-      </main>
+      </div>
 
       {/* The DetailsModal is rendered at the AppShell level when
           selectedItem() is set. We don't render it here to avoid

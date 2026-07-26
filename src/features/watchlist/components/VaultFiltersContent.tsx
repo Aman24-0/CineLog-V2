@@ -193,7 +193,6 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               "font-size": "0.5625rem",
               "font-weight": 800,
             }}
-            aria-label="Save"
           >
             Save
           </button>

@@ -172,8 +172,12 @@ export default function TvDeepLinkRoute() {
         <Meta name="twitter:image" content={ogImage()} />
       </Show>
 
-      {/* The <main> landmark provides a WCAG 2.4.1-compliant main region. */}
-      <main
+      {/* The deep-link route uses a <div role="region"> (NOT <main>) so
+          there is exactly ONE <main> landmark per page — provided by
+          the AppShell root layout. */}
+      <div
+        role="region"
+        aria-label="Series details"
         style={{
           "min-height": "100vh",
           display: "flex",
@@ -221,7 +225,7 @@ export default function TvDeepLinkRoute() {
             </div>
           </Show>
         </Show>
-      </main>
+      </div>
     </>
   );
 }

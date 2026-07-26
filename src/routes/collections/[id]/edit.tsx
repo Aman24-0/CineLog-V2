@@ -20,7 +20,6 @@ export default function UniverseEditRoute() {
               class="btn-primary focus-ring"
               onClick={() => reset()}
               style={{ "margin-top": "var(--sp-2)" }}
-              aria-label="Retry"
             >
               Retry
             </button>

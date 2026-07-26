@@ -399,7 +399,9 @@ const AdminShell: ParentComponent = (props) => {
             </div>
           </header>
 
-          {/* Page content */}
+          {/* Page content — AdminShell is the root layout for /admin
+              routes (AppShell renders bare children for admin), so this
+              is the SINGLE <main> landmark for admin pages. */}
           <main
             style={{
               flex: 1,

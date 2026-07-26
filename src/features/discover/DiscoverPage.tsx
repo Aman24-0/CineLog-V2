@@ -426,7 +426,7 @@ export default function DiscoverPage() {
             focused on the search input, but WCAG requires an explicit
             submit button. This is visually hidden but available to
             screen readers and keyboard navigation. */}
-        <button type="submit" class="sr-only" aria-label="Submit search">
+        <button type="submit" class="sr-only">
           Search
         </button>
       </form>
@@ -582,8 +582,8 @@ export default function DiscoverPage() {
                       <p class="discover-surprise-overview">{surpriseTitle()?.overview}</p>
                     </Show>
                     <div class="discover-surprise-actions">
-                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)} aria-label="View details">Details</button>
-                      <button class="discover-surprise-vault-btn focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to vault">
+                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)}>Details</button>
+                      <button class="discover-surprise-vault-btn focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)}>
                         <span class="material-symbols-outlined" style={{ "font-size": "14px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">add</span>
                         Add to Vault
                       </button>

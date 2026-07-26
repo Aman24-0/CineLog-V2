@@ -3,7 +3,6 @@ import { Show } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import { GlassSurface } from "~/shared/ui/glass";
 import { hapticDouble } from "~/shared/utils/haptic";
 
 interface ConfirmRemoveSheetProps {
@@ -18,56 +17,81 @@ interface ConfirmRemoveSheetProps {
 /**
  * ConfirmRemoveSheet — a premium bottom sheet that asks the user to
  * confirm before removing an item from their vault.
+ *
+ * RESPONSIVE LAYOUT:
+ *   - Mobile (default): true bottom-sheet — pinned to the bottom edge
+ *     with rounded top corners, slides up via `animate-slide-up`.
+ *   - Desktop (sm+): centered modal — centered with all corners rounded,
+ *     fades in via `sm:animate-fade-in`.
+ *
+ * The backdrop doubles as the flex container that positions the sheet
+ * (justify-end on mobile, justify+items-center on desktop). This avoids
+ * the previous approach where a separate `.sheet-container` was
+ * absolutely positioned and behaved as a floating desktop box on
+ * mobile devices.
+ *
+ * ACCESSIBILITY:
+ *   - role="dialog" + aria-modal="true" on the sheet surface.
+ *   - The sheet's accessible name comes from the visible <h2> heading
+ *     ("Remove from Vault?") via aria-labelledby — no aria-label
+ *     duplication.
+ *   - Buttons use visible text as their accessible name (no aria-label).
+ *   - The backdrop is purely visual; clicking it dismisses the sheet.
+ *     No aria-hidden on the backdrop — it is naturally excluded from
+ *     the modal dialog's accessible tree.
  */
 export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
   const modalState = useModalState();
 
   return (
     <Portal>
-      {/* Backdrop — aria-hidden + tabindex="-1" so the Vercel a11y audit
-          does not flag "ARIA hidden element must not be focusable". The
-          backdrop is purely visual; pointer events still fire so the user
-          can tap outside the sheet to dismiss. */}
+      {/*
+        Backdrop — doubles as the positioning flex container.
+        Mobile: justify-end → sheet hugs the bottom edge.
+        Desktop (sm+): justify-center + items-center → sheet floats centered.
+        Clicking the backdrop dismisses (unless a removal is in-flight).
+      */}
       <div
-        class="sheet-backdrop animate-fade-in"
+        class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col justify-end sm:justify-center sm:items-center"
         onClick={() => {
           if (!props.isRemoving) props.onClose();
         }}
-        aria-hidden="true"
-        tabindex="-1"
         style={{
           "z-index": modalState.zIndexBase + 2,
         }}
-      />
-
-      {/* Sheet Container — proper modal semantics for screen readers */}
-      <div
-        class="sheet-container sheet-container-active"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Remove from vault confirmation"
-        style={{
-          "z-index": modalState.zIndexBase + 3,
-        }}
       >
-        {/* The sheet surface itself.
-            Flex column layout: content area is scrollable (overflow-y:auto,
-            flex-1, min-h-0) so on short viewports the poster+text can
-            scroll while the action row stays pinned at the bottom.
-            The outer sheet-content CSS has overflow:hidden for
-            border-radius clipping + flex column direction. */}
-        <GlassSurface
-          strength="strong"
-          class="sheet-content"
-          onClick={(e: any) => e.stopPropagation()}
+        {/*
+          Sheet Surface — bottom-sheet on mobile, centered modal on desktop.
+          The `onClick` stopPropagation lets clicks inside the sheet NOT
+          bubble up to the backdrop (which would dismiss it).
+        */}
+        <div
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="confirm-remove-sheet-title"
+          class="w-full sm:max-w-md bg-glass sm:rounded-2xl rounded-t-3xl p-6 pb-8 sm:pb-6 transform transition-transform animate-slide-up sm:animate-fade-in"
+          onClick={(e: MouseEvent) => e.stopPropagation()}
+          style={{
+            "z-index": modalState.zIndexBase + 3,
+            "max-height": "90vh",
+            "overflow-y": "auto",
+            "border-top": "1px solid var(--glass-border-warm-strong)",
+            "border-left": "1px solid var(--glass-border-warm-strong)",
+            "border-right": "1px solid var(--glass-border-warm-strong)",
+            "box-shadow":
+              "var(--shadow-glass-elevated), 0 0 24px var(--p-glow), inset 0 1px 0 rgba(232,183,74,0.10)",
+            "padding-bottom": "calc(2rem + env(safe-area-inset-bottom, 0px))",
+          }}
         >
           {/* Drag handle area (visual only) */}
-          <div class="sheet-handle" aria-hidden="true" />
+          <div
+            class="sheet-handle"
+            aria-hidden="true"
+            style={{ "margin-bottom": "1rem" }}
+          />
 
-          {/* Scrollable content area — flex-1 min-h-0 allows this
-              to shrink and scroll when viewport is short, while the
-              action row below stays pinned. */}
-          <div class="px-6 flex flex-col items-center text-center gap-4 overflow-y-auto flex-1 min-h-0">
+          {/* Scrollable content area */}
+          <div class="flex flex-col items-center text-center gap-4">
             {/* Thumbnail */}
             <Show
               when={props.posterPath}
@@ -112,6 +136,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             {/* Text Content */}
             <div class="flex flex-col gap-2">
               <h2
+                id="confirm-remove-sheet-title"
                 class="type-title"
                 style={{ "font-size": "1.25rem", color: "var(--text-strong)" }}
               >
@@ -121,21 +146,27 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 class="type-body"
                 style={{ "font-size": "0.9375rem", color: "var(--text-muted)" }}
               >
-                This will remove <span style={{ color: "var(--text)", "font-weight": 500 }}>{props.title}</span> from your watchlist, collections, and history. This action cannot be undone.
+                This will remove{" "}
+                <span
+                  style={{ color: "var(--text)", "font-weight": 500 }}
+                >
+                  {props.title}
+                </span>{" "}
+                from your watchlist, collections, and history. This action
+                cannot be undone.
               </p>
             </div>
           </div>
 
-          {/* Action Row — pinned at the bottom, never scrolls away.
-              flex-shrink-0 prevents it from collapsing when the content
-              area above needs to scroll. */}
+          {/*
+            Action Row — full-width buttons on mobile (flex-row, each flex-1).
+            On desktop the same layout works; the buttons share the row.
+          */}
           <div
-            class="px-6 pt-3 pb-5 flex-shrink-0 flex w-full gap-3"
+            class="pt-5 mt-5 flex w-full gap-3"
             style={{ "border-top": "1px solid var(--hairline)" }}
           >
-            {/* Cancel button — visible text "Cancel" is the accessible
-                name. aria-label removed per WCAG: visible text should be
-                the accessible name, not overridden by aria-label. */}
+            {/* Cancel button — visible text "Cancel" is the accessible name. */}
             <button
               type="button"
               class="btn-ghost flex-1 focus-ring"
@@ -147,11 +178,11 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             >
               Cancel
             </button>
-            {/* Remove button — visible text ("Remove" / "Removing…")
-                is the accessible name. aria-label removed: the visible
-                text already provides the accessible name, and when
-                isRemoving is true, aria-label="Remove" would contradict
-                the visible "Removing…" text. */}
+            {/*
+              Remove button — visible text ("Remove" / "Removing…") is the
+              accessible name. No aria-label, so the visible text always
+              matches the announced label (including the "Removing…" state).
+            */}
             <button
               type="button"
               class="btn-danger flex-1 focus-ring"
@@ -185,7 +216,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
               {props.isRemoving ? "Removing…" : "Remove"}
             </button>
           </div>
-        </GlassSurface>
+        </div>
       </div>
     </Portal>
   );

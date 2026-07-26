@@ -213,7 +213,6 @@ export default function CollectionsPage() {
                 type="button"
                 class="collections-fold-action focus-ring"
                 onClick={() => setShowAddUniverse(true)}
-                aria-label="Add universe"
                 style={{ "margin-left": "auto" }}
               >
                 <span

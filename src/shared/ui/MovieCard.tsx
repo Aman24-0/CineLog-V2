@@ -1,5 +1,5 @@
 // src/shared/ui/MovieCard.tsx
-import { Component, Show, createSignal, batch } from "solid-js";
+import { Component, Show, createSignal, createEffect, batch } from "solid-js";
 import Icon from "./Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem, CollectionEntry } from "~/shared/types";
@@ -72,6 +72,45 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     return collections.isInCollection(id, String(props.movie.id), props.movie.media_type);
   };
 
+  // ─── Localized favorite signal (INP optimization) ───────────────────
+  //
+  // The favorite button used to read `isFavourite()` directly in its
+  // class/aria-label/aria-pressed bindings. Because `isFavourite()`
+  // depends on `userCollections()` (via `favoritesCollection()` and
+  // `isInCollection()`), ANY mutation to the collections signal —
+  // including `addToCollection`/`removeFromCollection` on a single
+  // card — would re-evaluate `isFavourite()` in EVERY mounted card
+  // (100+ in a typical vault). Each re-evaluation runs a `find()` over
+  // all collections + a `some()` over the Favorites collection's
+  // entries, costing O(n + m) per card. With 100 cards this produced
+  // 800ms+ main-thread blocks (Vercel INP audit).
+  //
+  // Fix: keep a LOCAL signal `localIsFav` that is the ONLY reactive
+  // dependency for the button's class/aria-label/aria-pressed. The
+  // signal is:
+  //   1. Initialized from `isFavourite()` on mount.
+  //   2. Synced from `isFavourite()` via `createEffect` — but only
+  //      `setLocalIsFav` when the value actually changed, so cards
+  //      whose favorite status didn't change don't trigger a re-render
+  //      of their button.
+  //   3. Updated OPTIMISTICALLY in `toggleFavourite` so the user sees
+  //      instant feedback (<5ms) without waiting for the collections
+  //      signal to update and propagate.
+  //
+  // The `createEffect` still runs for every card when `userCollections()`
+  // changes, but it's a cheap boolean comparison. The expensive DOM
+  // update only happens for the card whose favorite status actually
+  // changed — exactly what SolidJS's fine-grained reactivity is designed
+  // for.
+  const [localIsFav, setLocalIsFav] = createSignal<boolean>(isFavourite());
+  createEffect(() => {
+    const next = isFavourite();
+    // Only update the local signal when the value actually changed.
+    // This prevents a re-render of the button for every card on every
+    // collections mutation.
+    setLocalIsFav((prev) => (prev === next ? prev : next));
+  });
+
   const toggleFavourite = (e: MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
@@ -91,12 +130,18 @@ const MovieCard: Component<MovieCardProps> = (props) => {
       first_air_date: props.movie.first_air_date,
       runtime: props.movie.runtime,
     };
+    // Optimistic local update — flip the local signal IMMEDIATELY so
+    // the user sees instant feedback. The collections signal updates
+    // in the background; the createEffect above will reconcile if the
+    // server-side state disagrees (e.g., on rollback).
+    const nextFav = !localIsFav();
+    setLocalIsFav(nextFav);
     // batch() wraps reactive state updates so SolidJS batches them
     // into a single render cycle, reducing INP by avoiding double
     // re-renders (collection signal + toast signal triggering
     // separate reactive updates).
     batch(() => {
-      if (isFavourite()) {
+      if (!nextFav) {
         void collections.removeFromCollection(colId, entry.id, entry.media_type).then(() => {
           showToast("Removed from Favorites", "info", 1200);
         });
@@ -238,14 +283,18 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
         {/* Favourite heart button (top-right) — only when showFavButton
             is true (default). The heart toggles membership in the
-            Favorites collection. */}
+            Favorites collection. The button reads `localIsFav()` (a
+            local signal) instead of `isFavourite()` so only this
+            card's button re-renders on toggle, not the entire grid.
+            aria-label is REQUIRED because the button's only content is
+            an aria-hidden icon (no visible text for screen readers). */}
         <Show when={showFavButton()}>
           <button
             type="button"
-            class={`vault-fav-btn focus-ring${isFavourite() ? " is-favourite" : ""}`}
+            class={`vault-fav-btn focus-ring${localIsFav() ? " is-favourite" : ""}`}
             onClick={toggleFavourite}
-            aria-label={isFavourite() ? "Remove from Favorites" : "Add to Favorites"}
-            aria-pressed={isFavourite()}
+            aria-label={localIsFav() ? "Remove from Favorites" : "Add to Favorites"}
+            aria-pressed={localIsFav()}
           >
             <span class="material-symbols-outlined" aria-hidden="true">
               favorite

@@ -135,7 +135,6 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
                 type="button"
                 class="episode-card-action episode-card-action-add"
                 onClick={() => props.onAddToVault()}
-                aria-label="Add to watchlist to track this episode"
               >
                 <span
                   class="material-symbols-outlined"

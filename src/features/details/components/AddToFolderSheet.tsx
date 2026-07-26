@@ -235,7 +235,6 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                 type="button"
                 class="folder-sheet-create-btn"
                 onClick={() => setShowCreate(true)}
-                aria-label="Create new collection"
               >
                 <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
                 Create New Collection
