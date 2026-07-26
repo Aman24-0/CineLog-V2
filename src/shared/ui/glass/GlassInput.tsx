@@ -43,12 +43,16 @@ const GlassInput: Component<GlassInputProps> = (rawProps) => {
         <input
           {...rest}
           class={[
-            "w-full bg-glass backdrop-blur-lg border border-glass-border rounded-lg text-text-strong",
-            "transition-all duration-base ease-standard placeholder:text-text-muted focus:outline-none focus:border-primary focus:bg-glass-strong focus:shadow-glow",
+            "w-full bg-glass backdrop-blur-xl border border-glass-border rounded-lg text-text-strong",
+            "transition-all duration-base ease-standard placeholder:text-text-muted",
+            "focus:outline-none focus:border-primary focus:bg-glass-strong focus:shadow-glow",
             local.size === "large" ? "h-14 text-lg px-4" : "h-11 text-base px-3",
             local.icon ? (local.size === "large" ? "pl-11" : "pl-10") : "",
             local.rightContent ? "pr-10" : "",
           ].filter(Boolean).join(" ")}
+          style={{
+            "box-shadow": "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.04)",
+          }}
         />
         <Show when={local.rightContent}>
           <div class="absolute right-2 flex items-center justify-center">

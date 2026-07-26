@@ -3,6 +3,93 @@
    deeper shadows, and refined spotlight hero. */
 
 /* ============================================================
+   PHASE 4 — STRENGTHENED GLASS TREATMENT
+   ============================================================ */
+
+/* Spotlight — stronger borders + golden inner highlight */
+.spotlight {
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: var(--shadow-hero),
+              0 0 0 1px rgba(232,183,74,0.05),
+              0 0 32px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10) !important;
+}
+.spotlight-badge {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5),
+              0 0 0 1px rgba(232,183,74,0.10),
+              inset 0 1px 0 rgba(232,183,74,0.10) !important;
+  color: var(--p) !important;
+}
+
+/* Trajectory cards — full glass treatment */
+.trajectory-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: var(--shadow-glass-card),
+              inset 0 1px 0 rgba(232,183,74,0.06) !important;
+}
+.trajectory-card:hover {
+  border-color: rgba(232,183,74,0.25) !important;
+  box-shadow: var(--shadow-glass-elevated),
+              0 0 16px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10) !important;
+}
+
+/* Discover insight strip cards — premium glass pills */
+.discover-insight-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.35),
+              0 0 0 1px rgba(232,183,74,0.05),
+              inset 0 1px 0 rgba(232,183,74,0.06) !important;
+}
+
+/* Discover continue card — premium glass */
+.discover-continue-card {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: var(--shadow-glass-card),
+              inset 0 1px 0 rgba(232,183,74,0.06) !important;
+}
+
+/* Genre chip — stronger glass */
+.genre-chip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30),
+              inset 0 1px 0 rgba(232,183,74,0.05);
+}
+.genre-chip[data-active="true"] {
+  background: var(--active-bg) !important;
+  border-color: var(--active-border) !important;
+  color: var(--active-text) !important;
+  box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.10) !important;
+}
+
+/* Genre explorer panel — full glass when expanded */
+.genre-explorer-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-glass-card), inset 0 1px 0 rgba(232,183,74,0.06);
+}
+
+/* ============================================================
    PHASE 2.x — DISCOVER V2
    "What incredible movie or TV show should I discover next?"
    The signature fold is the Spotlight — one title, hand-picked.
@@ -54,24 +141,34 @@
   gap: var(--sp-4);
 }
 .discover-fold-label {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.6875rem;
-  font-weight: 700;
-  letter-spacing: 0.16em;
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.375rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-strong);
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+}
+@media (min-width: 640px) {
+  .discover-fold-label { font-size: 1.625rem; }
 }
 .discover-fold-label::before {
   content: '';
-  width: 3px;
-  height: 12px;
+  width: 4px;
+  height: 18px;
   background: var(--p);
   border-radius: 2px;
   flex-shrink: 0;
-  box-shadow: 0 0 6px var(--p-glow);
+  box-shadow: 0 0 8px var(--p-glow), 0 0 16px var(--p-glow);
+}
+.discover-fold-label .material-symbols-outlined {
+  color: var(--p);
+  font-size: 18px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 6px var(--p-glow));
 }
 .discover-fold-skeleton {
   height: 200px;
@@ -967,12 +1064,19 @@
 }
 
 .discover-insight-label {
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.5rem;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--text-muted);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+.discover-insight-icon {
+  font-size: 14px;
+  color: var(--p);
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 4px var(--p-glow));
 }
 
 /* ============================================================

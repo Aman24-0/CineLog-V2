@@ -41,17 +41,17 @@ export interface GlassButtonProps extends JSX.ButtonHTMLAttributes<HTMLButtonEle
 
 const variantClasses: Record<ButtonVariant, string> = {
   primary:
-    "bg-primary text-on-primary shadow-glow hover:brightness-110",
+    "bg-primary text-on-primary shadow-glow hover:brightness-110 hover:-translate-y-0.5",
   secondary:
-    "bg-tier-2 text-primary border border-hairline-2 hover:bg-tier-3",
+    "bg-glass backdrop-blur-md text-primary border border-glass-border hover:bg-glass-strong hover:-translate-y-0.5",
   glass:
-    "bg-glass backdrop-blur-lg text-primary border border-glass-border hover:bg-glass-strong hover:backdrop-blur-2xl",
+    "bg-glass backdrop-blur-xl text-primary border border-glass-border hover:bg-glass-strong hover:backdrop-blur-2xl hover:-translate-y-0.5",
   ghost:
-    "bg-transparent text-primary hover:bg-primary-dim",
+    "bg-transparent text-primary hover:bg-primary-dim hover:-translate-y-0.5",
   danger:
-    "bg-danger text-on-primary hover:brightness-110",
+    "bg-danger text-on-primary hover:brightness-110 hover:-translate-y-0.5",
   success:
-    "bg-success text-on-primary hover:brightness-110",
+    "bg-success text-on-primary hover:brightness-110 hover:-translate-y-0.5",
 };
 
 // ─── Size Class Maps ───────────────────────────────────────────

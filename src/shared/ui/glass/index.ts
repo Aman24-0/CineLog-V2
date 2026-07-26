@@ -24,3 +24,6 @@ export * from "./GlassLoadingState";
 export * from "./GlassListItem";
 export * from "./GlassStatCard";
 export * from "./GlassAvatar";
+export * from "./GlassTabs";
+export * from "./GlassSheet";
+export * from "./GlassModal";

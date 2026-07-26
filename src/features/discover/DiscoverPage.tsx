@@ -462,7 +462,7 @@ export default function DiscoverPage() {
               <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
                 <section class="discover-fold" aria-label="Continue your universes">
                   <div class="discover-fold-label">
-                    <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">collections_bookmark</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">collections_bookmark</span>
                     Continue Your Universes
                   </div>
                   <div class="search-rail" role="list">
@@ -495,7 +495,7 @@ export default function DiscoverPage() {
                 <For each={insightCards()}>
                   {(card) => (
                     <div class="discover-insight-card">
-                    <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">{card.icon}</span>
+                    <span class="material-symbols-outlined discover-insight-icon" aria-hidden="true">{card.icon}</span>
                     <span class="discover-insight-label">{card.text}</span>
                   </div>
                 )}

@@ -1,0 +1,646 @@
+/* src/styles/components/glass-system.css — Phase 4 Glassmorphism Migration
+   =====================================================================
+
+   This file consolidates ALL Glass component system styling in one place.
+   It defines the visual language for:
+
+   1. Glass primitives — GlassSurface, GlassCard, GlassButton, etc.
+      (overrides/supplements the Tailwind classes used in those components)
+   2. New Glass containers — GlassSheet, GlassModal, GlassTabs
+   3. Global glass tokens — strengthened blur, golden highlights, layered shadows
+
+   Visual language:
+   - Strong frosted glass blur (backdrop-blur 20-32px)
+   - Layered translucent surfaces (tier-0/1/2/3 + glass overlays)
+   - Soft golden highlights (top inner border, accent glow)
+   - Thin glass borders (1px hairline-2 with gold tint)
+   - Deep layered shadows (premium + elevated + glow)
+   - Consistent radius (rounded-lg = 12px default)
+   - Smooth spring-based transitions on hover/tap
+*/
+
+/* ============================================================
+   GLOBAL GLASS TONE — strengthen existing tokens
+   ============================================================ */
+
+:root {
+  /* Slightly stronger glass opacity for better legibility */
+  --glass-bg: rgba(15, 15, 22, 0.72);
+  --glass-bg-strong: rgba(13, 13, 20, 0.86);
+
+  /* Premium layered shadows — used by GlassCard, GlassSheet, GlassModal */
+  --shadow-glass-card: 0 8px 24px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.35),
+                       inset 0 1px 0 rgba(232,183,74,0.06);
+  --shadow-glass-elevated: 0 16px 48px rgba(0,0,0,0.65), 0 4px 16px rgba(0,0,0,0.45),
+                           inset 0 1px 0 rgba(232,183,74,0.08);
+  --shadow-glass-glow: 0 0 0 1px color-mix(in srgb, var(--p) 22%, transparent),
+                       0 0 24px var(--p-glow),
+                       0 8px 24px rgba(0,0,0,0.45);
+
+  /* Glass border with golden tint */
+  --glass-border-warm: rgba(232,183,74,0.10);
+  --glass-border-warm-strong: rgba(232,183,74,0.18);
+}
+
+/* ============================================================
+   APP HEADER — premium sticky glass
+   ============================================================ */
+
+.app-header-glass {
+  background: rgba(8, 8, 13, 0.86);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border-bottom: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.45),
+              inset 0 -1px 0 rgba(232,183,74,0.04);
+  padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
+  padding-bottom: 0.875rem;
+  padding-left: 1.25rem;
+  padding-right: 1.25rem;
+}
+
+.app-header-avatar {
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  padding: 0.25rem;
+  padding-right: 0.625rem;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35),
+              inset 0 1px 0 rgba(232,183,74,0.06);
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.app-header-avatar:hover {
+  background: var(--glass-bg-strong);
+  border-color: rgba(232,183,74,0.30);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.45),
+              0 0 12px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  transform: translateY(-1px);
+}
+.app-header-avatar:active { transform: scale(0.97); }
+
+/* ============================================================
+   BOTTOM NAVIGATION — premium floating glass pill
+   ============================================================ */
+
+.bottom-nav-glass {
+  bottom: calc(var(--nav-float-margin, 1rem) + env(safe-area-inset-bottom, 0px));
+  left: 50%;
+  transform: translateX(-50%);
+  width: calc(100% - 2 * var(--nav-float-inset, 1rem));
+  max-width: 420px;
+  height: var(--nav-height);
+  z-index: 40;
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: 2rem;
+  box-shadow: 0 12px 36px rgba(0,0,0,0.75),
+              0 4px 12px rgba(0,0,0,0.55),
+              0 0 0 1px rgba(232,183,74,0.06),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  overflow: hidden;
+}
+
+/* ============================================================
+   GlassCard — strengthen the visual presence
+   ============================================================ */
+
+.glass-card,
+[class*="bg-glass"]:not(.glass-tab):not(.glass-chip):not(.glass-input-wrapper):not(.modal-glass-surface):not(.sheet-glass-surface) {
+  /* Subtle top inner highlight to simulate light from above */
+  box-shadow: var(--shadow-glass-card);
+}
+
+/* Make sure interactive glass cards have a clear hover lift */
+.glass-card.glass-card-interactive:hover,
+.glass-card[class*="hover:"]:hover {
+  box-shadow: var(--shadow-glass-elevated), 0 0 16px var(--p-glow);
+}
+
+/* ============================================================
+   GlassTabs — pill / underline / segmented variants
+   ============================================================ */
+
+.glass-tabs {
+  display: flex;
+  gap: 0.375rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  padding-bottom: 2px;
+}
+.glass-tabs::-webkit-scrollbar { display: none; }
+
+.glass-tabs-full-width {
+  display: flex;
+  width: 100%;
+}
+.glass-tabs-full-width .glass-tab {
+  flex: 1 1 0%;
+  justify-content: center;
+}
+
+.glass-tab {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  flex-shrink: 0;
+  cursor: pointer;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+  border-radius: var(--radius-pill);
+  -webkit-tap-highlight-color: transparent;
+}
+.glass-tab:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+}
+.glass-tab-label {
+  display: inline-block;
+  line-height: 1.2;
+}
+.glass-tab-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.25rem;
+  height: 1.25rem;
+  padding: 0 0.375rem;
+  border-radius: var(--radius-pill);
+  background: var(--tier-3);
+  color: var(--text-muted);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0;
+}
+.glass-tab-disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* — Pill variant (default) — */
+.glass-tabs-pill {
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: rgba(13,13,20,0.50);
+  border: 1px solid var(--hairline-2);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  gap: 2px;
+}
+.glass-tab-pill {
+  border-radius: var(--radius-pill);
+}
+.glass-tab-pill:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
+  background: rgba(232,183,74,0.06);
+  color: var(--text-strong);
+}
+.glass-tab-pill.glass-tab-active {
+  background: var(--active-bg);
+  color: var(--active-text);
+  border-color: var(--active-border);
+  box-shadow: var(--active-glow), inset 0 1px 0 rgba(255,255,255,0.10);
+  font-weight: 700;
+}
+.glass-tab-pill.glass-tab-active .glass-tab-count {
+  background: rgba(0,0,0,0.18);
+  color: var(--active-text);
+}
+
+/* — Underline variant — */
+.glass-tabs-underline {
+  gap: 0;
+  border-bottom: 1px solid var(--hairline-2);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  border-top: none;
+  border-left: none;
+  border-right: none;
+  padding: 0;
+  border-radius: 0;
+}
+.glass-tab-underline {
+  position: relative;
+  border-radius: 0;
+  border: none;
+  padding-bottom: calc(var(--pb, 0.5rem) + 3px);
+}
+.glass-tab-underline::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%) scaleX(0);
+  width: 60%;
+  height: 2px;
+  background: var(--p);
+  border-radius: 2px 2px 0 0;
+  transition: transform var(--dur-base) var(--ease-spring);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+.glass-tab-underline:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
+  color: var(--text-strong);
+  background: rgba(232,183,74,0.04);
+}
+.glass-tab-underline.glass-tab-active {
+  color: var(--p);
+  background: transparent;
+}
+.glass-tab-underline.glass-tab-active::after {
+  transform: translateX(-50%) scaleX(1);
+}
+
+/* — Segmented variant (iOS-style) — */
+.glass-tabs-segmented {
+  padding: 3px;
+  border-radius: var(--radius-md);
+  background: rgba(13,13,20,0.50);
+  border: 1px solid var(--hairline-2);
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  gap: 2px;
+}
+.glass-tab-segmented {
+  border-radius: calc(var(--radius-md) - 3px);
+}
+.glass-tab-segmented:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
+  background: rgba(232,183,74,0.06);
+  color: var(--text-strong);
+}
+.glass-tab-segmented.glass-tab-active {
+  background: var(--active-bg);
+  color: var(--active-text);
+  box-shadow: var(--active-glow), inset 0 1px 0 rgba(255,255,255,0.10);
+  font-weight: 700;
+}
+
+/* ============================================================
+   GlassSheet — frosted bottom sheet
+   ============================================================ */
+
+.sheet-glass {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  max-height: var(--sheet-snap, 70vh);
+  z-index: 999991;
+  pointer-events: auto;
+  animation: sheet-slide-up var(--dur-modal, 320ms) var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1));
+}
+
+.sheet-glass-surface {
+  display: flex;
+  flex-direction: column;
+  max-height: inherit;
+  border-top-left-radius: var(--radius-2xl, 24px);
+  border-top-right-radius: var(--radius-2xl, 24px);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-bottom: none;
+  box-shadow: var(--shadow-glass-elevated),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  overflow: hidden;
+  /* Slide-up origin */
+  transform-origin: bottom center;
+}
+
+/* Safe area aware padding at the bottom of the sheet */
+@supports (padding: env(safe-area-inset-bottom)) {
+  .sheet-glass-surface {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+}
+
+.sheet-glass-handle {
+  width: 36px;
+  height: 4px;
+  border-radius: var(--radius-pill);
+  background: var(--hairline-3);
+  margin: 0.625rem auto 0.25rem;
+  flex-shrink: 0;
+}
+
+.sheet-glass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3, 0.75rem);
+  padding: 0.75rem 1.25rem 0.5rem;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+.sheet-glass-title-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.sheet-glass-icon {
+  font-size: 20px;
+  color: var(--p);
+  flex-shrink: 0;
+}
+.sheet-glass-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--text-strong);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sheet-glass-header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+
+.sheet-glass-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1rem 1.25rem 1.5rem;
+}
+
+@keyframes sheet-slide-up {
+  from { transform: translateY(100%); opacity: 0.5; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+/* ============================================================
+   GlassModal — centered frosted modal
+   ============================================================ */
+
+.modal-glass {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  z-index: 999991;
+  pointer-events: none; /* let the backdrop receive clicks */
+}
+
+.modal-glass-surface {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 2rem);
+  width: 100%;
+  border-radius: var(--radius-2xl, 24px);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: var(--shadow-glass-elevated),
+              0 0 32px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  overflow: hidden;
+  transform-origin: center center;
+}
+
+.modal-glass-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3, 0.75rem);
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--hairline);
+  flex-shrink: 0;
+}
+.modal-glass-title-cluster {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-width: 0;
+}
+.modal-glass-icon {
+  font-size: 22px;
+  color: var(--p);
+  flex-shrink: 0;
+}
+.modal-glass-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--text-strong);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.modal-glass-header-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-shrink: 0;
+}
+.modal-glass-close {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.modal-glass-close:hover {
+  background: var(--tier-4);
+  color: var(--text-strong);
+  transform: scale(1.06);
+}
+.modal-glass-close:active {
+  transform: scale(0.92);
+}
+
+.modal-glass-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 1.25rem;
+}
+
+/* ============================================================
+   STRENGTHENED GLASS for legacy classes
+   ============================================================ */
+
+/* Search bar — full glass treatment */
+.search-bar {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(150%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.06) !important;
+}
+
+/* Filter chip — stronger glass */
+.filter-chip {
+  background: rgba(232,183,74,0.12) !important;
+  border: 1px solid rgba(232,183,74,0.32) !important;
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35),
+              0 0 0 1px rgba(232,183,74,0.10),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+}
+
+/* View toggle — make it more glassy */
+.view-toggle {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.06);
+}
+
+/* Filter button — glass treatment */
+.filter-button {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.06);
+}
+.filter-button[data-active="true"] {
+  background: var(--active-bg) !important;
+  border-color: var(--active-border) !important;
+  color: var(--active-text) !important;
+  box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.10) !important;
+}
+
+/* Quick filter tab — stronger glass */
+.quick-filter-tab {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(16px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.05);
+}
+.quick-filter-tab[data-active="true"] {
+  background: var(--active-bg) !important;
+  border-color: var(--active-border) !important;
+  color: var(--active-text) !important;
+  box-shadow: var(--active-glow), 0 4px 16px rgba(0,0,0,0.45),
+              inset 0 1px 0 rgba(255,255,255,0.10) !important;
+}
+
+/* ============================================================
+   POSTER CARDS — strengthen visual treatment
+   ============================================================ */
+
+/* Search rail card — premium glass poster */
+.search-rail-poster {
+  background: var(--tier-2) !important;
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.55),
+              0 0 0 1px rgba(232,183,74,0.05),
+              inset 0 1px 0 rgba(232,183,74,0.06) !important;
+  transition: transform var(--dur-base) var(--ease-spring),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+.search-rail-card:hover .search-rail-poster {
+  box-shadow: 0 12px 32px rgba(0,0,0,0.7),
+              0 0 16px var(--p-glow),
+              0 0 0 1px color-mix(in srgb, var(--p) 30%, transparent),
+              inset 0 1px 0 rgba(232,183,74,0.10) !important;
+}
+
+/* Vault card inner — stronger premium feel */
+.vault-card-inner {
+  border: 1px solid var(--glass-border-warm-strong) !important;
+  box-shadow: var(--shadow-premium), 0 0 0 1px rgba(232,183,74,0.04),
+              inset 0 1px 0 rgba(232,183,74,0.08) !important;
+}
+
+/* ============================================================
+   GLASS SURFACE ADD-ONS — soft golden top highlight
+   ============================================================ */
+
+/* Apply a subtle gold inner top border to any glass surface */
+.glass-surface-highlight,
+.GlassCard,
+.glass-card {
+  position: relative;
+}
+.glass-surface-highlight::before,
+.glass-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background: linear-gradient(180deg,
+    rgba(232,183,74,0.06) 0%,
+    rgba(232,183,74,0) 18%
+  );
+  z-index: 1;
+}
+
+/* ============================================================
+   RATING CHIPS — premium glass treatment
+   ============================================================ */
+
+.rating-chip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(8px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.4), inset 0 1px 0 rgba(232,183,74,0.04);
+}
+
+/* ============================================================
+   STATUS BADGES — premium glass treatment
+   ============================================================ */
+
+.tag-chip {
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(10px) saturate(140%) !important;
+  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(232,183,74,0.06);
+}
+
+/* ============================================================
+   AMBIENT GLOW — soft accent behind hero content
+   ============================================================ */
+
+.ambient-glow {
+  position: fixed;
+  top: -10%;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 80vw;
+  height: 40vh;
+  background: radial-gradient(ellipse at center,
+    color-mix(in srgb, var(--p) 8%, transparent) 0%,
+    transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(40px);
+}

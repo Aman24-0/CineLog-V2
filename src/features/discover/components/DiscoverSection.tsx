@@ -17,7 +17,7 @@ export function DiscoverSection(props: DiscoverSectionProps) {
   return (
     <section class="discover-fold" aria-label={props.label}>
       <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">{props.icon}</span>
+        <span class="material-symbols-outlined" aria-hidden="true">{props.icon}</span>
         {props.label}
       </div>
       <Show when={!props.loading} fallback={

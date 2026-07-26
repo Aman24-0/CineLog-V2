@@ -37,14 +37,10 @@ const TABS: TabDef[] = [
  * horizontally scrollable on mobile (no wrapping) to preserve the
  * one-line layout.
  *
- * "In Progress" was removed (it was a virtual status that duplicated
- * "Watching" — both filtered for status === "Watching" with active
- * progress). Replaced with "Dropped" so the user can filter titles they
- * abandoned. The detail modal's Dropped button feeds this filter.
- *
- * PERFORMANCE: The status counts are computed in a SINGLE pass over the
- * watchlist via createMemo, not 10 separate .filter() calls (2 per tab
- * × 5 tabs). The memo only re-runs when the watchlist actually changes.
+ * PHASE 4 (Glass UI migration): now uses the unified `.quick-filter-bar`
+ * + `.quick-filter-tab` classes with strengthened glass treatment
+ * (backdrop blur, golden border, layered shadow). The active state
+ * uses the accent color with a glow.
  */
 const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
   // Single-pass status count — runs once per watchlist change, not once
@@ -86,7 +82,10 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
               aria-selected={props.active() === tab.value}
               aria-label={`${tab.label} — ${count()} titles`}
             >
-              {tab.label}
+              <span class="material-symbols-outlined quick-filter-tab-icon" aria-hidden="true">
+                {tab.icon}
+              </span>
+              <span class="quick-filter-tab-label">{tab.label}</span>
               <Show when={count() > 0}>
                 <span class="quick-filter-tab-count">{count()}</span>
               </Show>

@@ -35,13 +35,7 @@ export interface WatchlistHeaderProps {
 export default function WatchlistHeader(props: WatchlistHeaderProps) {
   return (
     <div
-      class="sticky top-0 z-40 pt-4 pb-3 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-4"
-      style={{
-        background: "var(--glass-bg-strong)",
-        "backdrop-filter": "blur(24px)",
-        "-webkit-backdrop-filter": "blur(24px)",
-        "border-bottom": "1px solid var(--hairline)",
-      }}
+      class="sticky top-0 z-40 pt-4 pb-3 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-4 watchlist-header-glass"
     >
       <VaultHeader
         viewMode={props.viewMode}

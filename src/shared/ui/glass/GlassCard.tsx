@@ -18,9 +18,9 @@ type CardBorder = "none" | "default";
 // ─── Token Maps ────────────────────────────────────────────────
 
 const variantClasses: Record<CardVariant, string> = {
-  "glass": "bg-glass backdrop-blur-lg",
+  "glass": "bg-glass backdrop-blur-xl",
   "glass-strong": "bg-glass-strong backdrop-blur-2xl",
-  accent: "bg-glass backdrop-blur-lg shadow-glow",
+  accent: "bg-glass backdrop-blur-xl shadow-glow",
 };
 
 const sizeClasses: Record<CardSize, string> = {
