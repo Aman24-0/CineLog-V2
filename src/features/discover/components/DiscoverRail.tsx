@@ -2,9 +2,15 @@
 //
 // DiscoverRail — horizontal scroll-snap carousel of movie/TV posters.
 //
+// Premium Phase 4 upgrade:
+//   Each card now shows a glass rating badge (top-right) when vote_average
+//   is present, plus a subtle glass overlay gradient for depth. Hover/tap
+//   animations are smoother and the typography is refined.
+//
 // Reuses the existing .search-rail CSS (same visual language as the
 // Search page's trending rail). Each card shows:
-//   - Poster (w185)
+//   - Poster (w185 → upgraded to w342 for premium sharpness on retina)
+//   - Glass rating badge (top-right) when vote_average > 0
 //   - Title (2-line clamp)
 //   - Year + rating meta
 //
@@ -53,43 +59,74 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
     >
       <div class="search-rail" role="list">
         <For each={props.titles.slice(0, 20)}>
-          {(title) => (
-            <button
-              type="button"
-              class="search-rail-card focus-ring"
-              onClick={() => props.onSelect(title)}
-              role="listitem"
-              aria-label={`${title.title || title.name || "Untitled"}${title.release_date || title.first_air_date ? `, ${(title.release_date || title.first_air_date || "").split("-")[0]}` : ""}`}
-            >
-              <div class="search-rail-poster">
-                <Show
-                  when={title.poster_path}
-                  fallback={
-                    <div class="search-rail-poster-fallback">
-                      <span class="material-symbols-outlined" style={{ "font-size": "24px", color: "var(--text-dim)" }} aria-hidden="true">
-                        movie
-                      </span>
-                    </div>
-                  }
-                >
-                  <img
-                    src={tmdbImage(title.poster_path, "w185")}
-                    class="search-rail-poster-img"
-                    loading="lazy"
-                    decoding="async"
-                    alt=""
-                    aria-hidden="true"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                  />
-                </Show>
-              </div>
-              <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
-              <p class="search-rail-meta">
-                {(title.release_date || title.first_air_date || "").split("-")[0] || ""}
-                {title.vote_average ? ` · ★ ${title.vote_average.toFixed(1)}` : ""}
-              </p>
-            </button>
-          )}
+          {(title) => {
+            const year = () =>
+              (title.release_date || title.first_air_date || "").split("-")[0] || "";
+            const rating = () =>
+              title.vote_average ? title.vote_average.toFixed(1) : null;
+            const isVault = () => !!(title as TMDBTitle & { _inVault?: boolean })._inVault;
+
+            return (
+              <button
+                type="button"
+                class="search-rail-card focus-ring"
+                onClick={() => props.onSelect(title)}
+                role="listitem"
+                aria-label={`${title.title || title.name || "Untitled"}${year() ? `, ${year()}` : ""}${rating() ? `, rated ${rating()}` : ""}`}
+              >
+                <div class="search-rail-poster">
+                  <Show
+                    when={title.poster_path}
+                    fallback={
+                      <div class="search-rail-poster-fallback">
+                        <span class="material-symbols-outlined" style={{ "font-size": "28px", color: "var(--text-dim)" }} aria-hidden="true">
+                          movie
+                        </span>
+                      </div>
+                    }
+                  >
+                    <img
+                      src={tmdbImage(title.poster_path, "w342")}
+                      class="search-rail-poster-img"
+                      loading="lazy"
+                      decoding="async"
+                      alt=""
+                      aria-hidden="true"
+                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    />
+                  </Show>
+
+                  {/* Premium glass rating badge — top-right corner */}
+                  <Show when={rating()}>
+                    <span class="search-rail-rating" aria-label={`Rated ${rating()}`}>
+                      <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                      {rating()}
+                    </span>
+                  </Show>
+
+                  {/* Premium glass vault status badge — top-left corner */}
+                  <Show when={isVault()}>
+                    <span class="search-rail-status" aria-label="In your vault">
+                      <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">check_circle</span>
+                      In Vault
+                    </span>
+                  </Show>
+                </div>
+                <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
+                <p class="search-rail-meta">
+                  <Show when={year()}>
+                    <span>{year()}</span>
+                  </Show>
+                  <Show when={year() && title.media_type}>
+                    <span style={{ color: "var(--text-dim)" }}>·</span>
+                  </Show>
+                  <Show when={title.media_type}>
+                    <span>{title.media_type === "tv" ? "Series" : "Movie"}</span>
+                  </Show>
+                </p>
+              </button>
+            );
+          }}
         </For>
       </div>
     </Show>

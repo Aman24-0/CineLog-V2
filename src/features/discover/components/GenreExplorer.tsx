@@ -287,7 +287,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
               aria-controls="genre-explorer-panel"
               aria-label={`Browse ${genre.name} movies and series`}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">
+              <span class="material-symbols-outlined genre-chip-icon" aria-hidden="true">
                 {genre.icon}
               </span>
               {genre.name}
@@ -344,44 +344,65 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
               >
                 <div class="search-rail" role="list">
                   <For each={visibleItems()}>
-                    {(title) => (
-                      <button
-                        type="button"
-                        class="search-rail-card focus-ring"
-                        onClick={() => props.onSelect(title)}
-                        role="listitem"
-                        aria-label={`${title.title || title.name || "Untitled"}, ${(title.release_date || title.first_air_date || "").split("-")[0] || ""}${title.media_type === "tv" ? ", Series" : ", Movie"}`}
-                      >
-                        <div class="search-rail-poster">
-                          <Show
-                            when={title.poster_path}
-                            fallback={
-                              <div class="search-rail-poster-fallback">
-                                <span class="material-symbols-outlined" style={{ "font-size": "24px", color: "var(--text-dim)" }} aria-hidden="true">
-                                  movie
-                                </span>
-                              </div>
-                            }
-                          >
-                            <img
-                              src={tmdbImage(title.poster_path, "w185")}
-                              class="search-rail-poster-img"
-                              loading="lazy"
-                              decoding="async"
-                              alt=""
-                              aria-hidden="true"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }}
-                            />
-                          </Show>
-                        </div>
-                        <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
-                        <p class="search-rail-meta">
-                          {(title.release_date || title.first_air_date || "").split("-")[0] || ""}
-                          {title.vote_average ? ` · ★ ${title.vote_average.toFixed(1)}` : ""}
-                          {` · ${title.media_type === "tv" ? "Series" : "Movie"}`}
-                        </p>
-                      </button>
-                    )}
+                    {(title) => {
+                      const year = () =>
+                        (title.release_date || title.first_air_date || "").split("-")[0] || "";
+                      const rating = () =>
+                        title.vote_average ? title.vote_average.toFixed(1) : null;
+
+                      return (
+                        <button
+                          type="button"
+                          class="search-rail-card focus-ring"
+                          onClick={() => props.onSelect(title)}
+                          role="listitem"
+                          aria-label={`${title.title || title.name || "Untitled"}, ${year()}${title.media_type === "tv" ? ", Series" : ", Movie"}${rating() ? `, rated ${rating()}` : ""}`}
+                        >
+                          <div class="search-rail-poster">
+                            <Show
+                              when={title.poster_path}
+                              fallback={
+                                <div class="search-rail-poster-fallback">
+                                  <span class="material-symbols-outlined" style={{ "font-size": "28px", color: "var(--text-dim)" }} aria-hidden="true">
+                                    movie
+                                  </span>
+                                </div>
+                              }
+                            >
+                              <img
+                                src={tmdbImage(title.poster_path, "w342")}
+                                class="search-rail-poster-img"
+                                loading="lazy"
+                                decoding="async"
+                                alt=""
+                                aria-hidden="true"
+                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              />
+                            </Show>
+
+                            {/* Premium glass rating badge — top-right corner */}
+                            <Show when={rating()}>
+                              <span class="search-rail-rating" aria-label={`Rated ${rating()}`}>
+                                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                                {rating()}
+                              </span>
+                            </Show>
+                          </div>
+                          <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
+                          <p class="search-rail-meta">
+                            <Show when={year()}>
+                              <span>{year()}</span>
+                            </Show>
+                            <Show when={year() && title.media_type}>
+                              <span style={{ color: "var(--text-dim)" }}>·</span>
+                            </Show>
+                            <Show when={title.media_type}>
+                              <span>{title.media_type === "tv" ? "Series" : "Movie"}</span>
+                            </Show>
+                          </p>
+                        </button>
+                      );
+                    }}
                   </For>
                 </div>
 

@@ -547,7 +547,7 @@ export default function DiscoverPage() {
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Surprise Me" error={e} />}>
             <section class="discover-fold" aria-label="Surprise me">
               <div class="discover-fold-label">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">casino</span>
+                <span class="material-symbols-outlined" aria-hidden="true">casino</span>
                 Surprise Me
               </div>
               <Show when={surpriseTitle() && !surpriseLoading()} fallback={<div class="discover-surprise-skeleton skeleton-base" />}>
@@ -567,7 +567,7 @@ export default function DiscoverPage() {
                       <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)} aria-label="View details">Details</button>
                       <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to watchlist">Add to Watchlist</button>
                       <button class="btn-ghost focus-ring" onClick={rollSurprise} aria-label="Shuffle for another pick">
-                        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">shuffle</span>
+                        <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
                         Shuffle
                       </button>
                     </div>
@@ -584,14 +584,14 @@ export default function DiscoverPage() {
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
               <section class="discover-fold" aria-label="Weekend picks">
                 <div class="discover-fold-label">
-                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">weekend</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">weekend</span>
                   Weekend Picks
                 </div>
                 <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
                   <For each={weekendPicks}>
                     {(pick, i) => (
                       <button type="button" class="quick-filter-tab focus-ring" data-active={weekendPick() === i()} onClick={() => fetchWeekendPick(i())} aria-label={pick.label}>
-                        <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">{pick.icon}</span>
+                        <span class="material-symbols-outlined" aria-hidden="true">{pick.icon}</span>
                         {pick.label}
                       </button>
                     )}
@@ -681,7 +681,7 @@ export default function DiscoverPage() {
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
               <section class="discover-fold" aria-label="New on OTT">
                 <div class="discover-fold-label">
-                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">live_tv</span>
                   New on OTT
                 </div>
                 <OttSection onSelect={handleOpenTitle} region={region()} vaultKeys={vaultKeys} />
@@ -731,7 +731,7 @@ export default function DiscoverPage() {
                 Sign in to make Spotlight yours — every pick adapts to what you love.
               </p>
               <button class="btn-primary focus-ring" onClick={handleLogin} style={{ margin: "0 auto", display: "flex" }}>
-                <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">login</span>
+                <span class="material-symbols-outlined" aria-hidden="true">login</span>
                 Sign In to Begin
               </button>
             </div>

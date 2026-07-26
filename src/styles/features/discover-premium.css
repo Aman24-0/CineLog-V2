@@ -1,0 +1,1472 @@
+/* src/styles/features/discover-premium.css — Premium Cinematic Discover
+   =====================================================================
+
+   This file transforms the Discover page into a premium cinematic streaming
+   experience. It overrides and extends the existing discover.css with:
+
+   1. Cinematic background — layered radial gradients + ambient lighting
+   2. Spotlight hero — much larger, layered gradients, blur overlays,
+      premium title hierarchy, premium metadata pills, premium CTA layout,
+      deep layered shadows
+   3. Movie rails — larger posters, better spacing, premium section headers,
+      premium "See All" button, smooth scroll-snap
+   4. Movie cards — premium glass overlay, smooth hover/tap, premium rating
+      badge, premium status badges, refined typography, better poster
+      proportions
+   5. Search — premium floating search, focus animation, premium placeholder
+   6. Genre Explorer — premium chips, active chip glow, better spacing
+   7. Insight Cards — strong glass surfaces, premium icon treatment,
+      refined typography
+   8. Continue Universes + Surprise Me — premium glass cards
+   9. Motion — smooth transitions, soft elevation, no excessive animation
+
+   All changes are visual only — no business logic, routing, or API calls.
+   Existing functionality is preserved.
+*/
+
+/* ============================================================
+   1. CINEMATIC BACKGROUND — layered radial gradients + lighting
+   ============================================================ */
+
+/* The Discover page gets its own ambient lighting setup. Two radial
+   gradients at the top create a "spotlight from above" effect (warm
+   gold + cool blue), while a third faint vignette at the bottom keeps
+   contrast high for the rails. The gradients are subtle enough to
+   not interfere with content readability. */
+.discover-folds,
+.discover-skeleton,
+.discover-search-bar-form ~ .page-enter {
+  position: relative;
+}
+
+/* Page-level ambient glow — the existing .ambient-glow div is rendered
+   inside the PageContainer. We strengthen it into a proper cinematic
+   lighting setup with two layered radial gradients. */
+.discover-folds::before,
+.page-enter.discover-folds::before {
+  content: '';
+  position: fixed;
+  top: -20vh;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120vw;
+  height: 70vh;
+  background:
+    radial-gradient(ellipse 60% 50% at 50% 0%,
+      color-mix(in srgb, var(--p) 12%, transparent) 0%,
+      color-mix(in srgb, var(--p) 4%, transparent) 40%,
+      transparent 70%),
+    radial-gradient(ellipse 40% 30% at 20% 10%,
+      color-mix(in srgb, var(--p2, #FF6B35) 8%, transparent) 0%,
+      transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(60px);
+  opacity: 0.9;
+}
+
+/* Bottom vignette — keeps the rails section readable */
+.discover-folds::after,
+.page-enter.discover-folds::after {
+  content: '';
+  position: fixed;
+  bottom: -10vh;
+  left: 0;
+  right: 0;
+  height: 40vh;
+  background: radial-gradient(ellipse 80% 60% at 50% 100%,
+    rgba(8,8,13,0.45) 0%,
+    transparent 60%);
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* Ensure all direct children of discover-folds sit above the gradients */
+.discover-folds > * {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   2. SPOTLIGHT HERO — cinematic, much larger, premium
+   ============================================================ */
+
+/* Bigger, more cinematic — 560px mobile / 640px desktop (was 460/500).
+   The extra height gives the title + meta + actions room to breathe. */
+.discover-folds .spotlight {
+  height: 560px;
+  border-radius: var(--radius-2xl, 24px);
+  background: var(--tier-2);
+  position: relative;
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight { height: 640px; }
+}
+@media (min-width: 1024px) {
+  .discover-folds .spotlight { height: 680px; }
+}
+
+/* Backdrop — slightly brighter for premium feel + slower zoom */
+.discover-folds .spotlight-backdrop {
+  filter: brightness(0.68) saturate(0.95);
+  transform: scale(1.12);
+}
+.discover-folds .spotlight-backdrop.img-loaded {
+  filter: brightness(0.70) saturate(0.95);
+  transform: scale(1);
+}
+
+/* Multi-layer gradient overlay — DEEPER for cinematic depth.
+   Layer 1: bottom-to-top dark fade (text legibility)
+   Layer 2: top vignette (badge legibility)
+   Layer 3: left-side fade (text legibility on wide screens)
+   Layer 4: subtle gold accent from the bottom-left (cinematic warmth)
+   Layer 5: subtle blue accent from the top-right (cinematic cool) */
+.discover-folds .spotlight-overlay {
+  background:
+    /* Layer 1 — bottom fade */
+    linear-gradient(to top,
+      var(--tier-1) 0%,
+      rgba(8,8,13,0.97) 6%,
+      rgba(8,8,13,0.78) 18%,
+      rgba(8,8,13,0.40) 40%,
+      rgba(8,8,13,0.10) 65%,
+      transparent 100%),
+    /* Layer 2 — top vignette */
+    linear-gradient(to bottom,
+      rgba(8,8,13,0.65) 0%,
+      rgba(8,8,13,0.22) 14%,
+      transparent 32%),
+    /* Layer 3 — left fade */
+    linear-gradient(to right,
+      rgba(8,8,13,0.55) 0%,
+      rgba(8,8,13,0.18) 25%,
+      transparent 55%),
+    /* Layer 4 — warm gold accent (bottom-left) */
+    radial-gradient(ellipse 60% 40% at 0% 100%,
+      color-mix(in srgb, var(--p) 18%, transparent) 0%,
+      transparent 60%),
+    /* Layer 5 — cool accent (top-right) */
+    radial-gradient(ellipse 50% 35% at 100% 0%,
+      color-mix(in srgb, var(--p2, #FF6B35) 10%, transparent) 0%,
+      transparent 60%);
+}
+
+/* Premium badge — larger, with a glow ring + filled icon */
+.discover-folds .spotlight-badge {
+  position: absolute;
+  top: var(--sp-5, 1.25rem);
+  left: var(--sp-5, 1.25rem);
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(24px) saturate(160%);
+  -webkit-backdrop-filter: blur(24px) saturate(160%);
+  border: 1px solid var(--glass-border-warm-strong);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--p);
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.5),
+    0 0 0 1px rgba(232,183,74,0.10),
+    0 0 16px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+}
+.discover-folds .spotlight-badge .material-symbols-outlined {
+  font-size: 14px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 4px var(--p-glow));
+}
+
+/* Content cluster — more breathing room, better hierarchy */
+.discover-folds .spotlight-content {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 3;
+  padding: var(--sp-6, 1.5rem) var(--sp-5, 1.25rem) var(--sp-6, 1.5rem);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 0.75rem);
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight-content {
+    padding: var(--sp-8, 2rem) var(--sp-8, 2rem) var(--sp-8, 2rem);
+    gap: var(--sp-4, 1rem);
+    max-width: 720px;
+  }
+}
+
+/* "Because you…" eyebrow — premium Azeret Mono with gold + glow */
+.discover-folds .spotlight-reason {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p);
+  margin: 0;
+  text-shadow: 0 1px 8px rgba(0,0,0,1), 0 0 12px var(--p-glow);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.discover-folds .spotlight-reason::before {
+  content: '';
+  width: 16px;
+  height: 1px;
+  background: var(--p);
+  box-shadow: 0 0 6px var(--p-glow);
+  flex-shrink: 0;
+}
+
+/* Title — BIGGER Bebas Neue, 3rem mobile / 4rem desktop (was 2.25/3) */
+.discover-folds .spotlight-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 3rem;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
+  color: var(--text-strong);
+  margin: 0;
+  text-shadow:
+    0 2px 32px rgba(0,0,0,0.95),
+    0 1px 6px rgba(0,0,0,1),
+    0 0 1px rgba(0,0,0,1);
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight-title { font-size: 4rem; }
+}
+@media (min-width: 1024px) {
+  .discover-folds .spotlight-title { font-size: 4.5rem; }
+}
+
+/* Meta pills — premium glass with backdrop blur + gold tint */
+.discover-folds .spotlight-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+.discover-folds .spotlight-meta .v2-pill {
+  padding: 0.375rem 0.75rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.4),
+    inset 0 1px 0 rgba(232,183,74,0.08);
+}
+.discover-folds .spotlight-meta .v2-pill[data-rating-display="true"] {
+  color: #f5c518;
+  border-color: rgba(245,197,24,0.35);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.4),
+    0 0 8px rgba(245,197,24,0.20),
+    inset 0 1px 0 rgba(245,197,24,0.10);
+}
+.discover-folds .spotlight-meta .v2-pill-accent {
+  color: var(--p);
+  border-color: color-mix(in srgb, var(--p) 35%, transparent);
+  background: color-mix(in srgb, var(--p) 12%, var(--glass-bg-strong));
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.4),
+    0 0 10px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+}
+
+/* Actions — premium layout with better spacing */
+.discover-folds .spotlight-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.625rem;
+  margin-top: var(--sp-4, 1rem);
+  align-items: center;
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight-actions {
+    gap: 0.75rem;
+  }
+}
+
+/* Premium genre pills row — small glass pills below the meta row */
+.discover-folds .spotlight-genres {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.375rem;
+  margin-top: 0.25rem;
+}
+.discover-folds .spotlight-genre-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.25rem 0.625rem;
+  border-radius: var(--radius-pill);
+  background: rgba(232,183,74,0.08);
+  backdrop-filter: blur(10px) saturate(140%);
+  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  border: 1px solid rgba(232,183,74,0.18);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  box-shadow: inset 0 1px 0 rgba(232,183,74,0.06);
+}
+
+/* Premium overview excerpt — Outfit, 2-line clamp, soft text */
+.discover-folds .spotlight-overview {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0.25rem 0 0;
+  max-width: 580px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight-overview {
+    font-size: 0.9375rem;
+    -webkit-line-clamp: 2;
+  }
+}
+
+/* Premium "Add to Vault" CTA — frosted glass with white tint */
+.discover-folds .spotlight-actions .btn-primary[style*="rgba(255,255,255"],
+.discover-folds .spotlight-actions button[style*="background: rgba(255,255,255"] {
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #FFFFFF !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow:
+    0 4px 16px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  backdrop-filter: blur(16px) saturate(160%);
+  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  transition: transform var(--dur-base) var(--ease-spring),
+              background var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out) !important;
+}
+.discover-folds .spotlight-actions .btn-primary[style*="rgba(255,255,255"]:hover,
+.discover-folds .spotlight-actions button[style*="background: rgba(255,255,255"]:hover {
+  background: rgba(255, 255, 255, 0.20) !important;
+  transform: translateY(-2px) !important;
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.22) !important;
+}
+
+/* Premium primary Details button — gold glow on hover */
+.discover-folds .spotlight-actions .btn-primary:not([style*="rgba(255,255,255"]) {
+  transition: transform var(--dur-base) var(--ease-spring),
+              filter var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out);
+}
+.discover-folds .spotlight-actions .btn-primary:not([style*="rgba(255,255,255"]):hover {
+  transform: translateY(-2px);
+  filter: brightness(1.10);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 8px 24px var(--p-glow),
+    0 4px 12px rgba(8,8,13,0.5);
+}
+
+/* Premium "Not in the mood" reroll button — frosted glass pill */
+.discover-folds .spotlight-reroll {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(14px) saturate(140%);
+  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  border: 1px solid var(--glass-border-warm-strong);
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.discover-folds .spotlight-reroll:hover {
+  background: var(--glass-bg-strong);
+  border-color: rgba(232,183,74,0.30);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+}
+.discover-folds .spotlight-reroll:active {
+  transform: scale(0.96);
+}
+
+/* Premium skeleton — shimmer with gold tint */
+.discover-folds .spotlight-skeleton-reason,
+.discover-folds .spotlight-skeleton-title,
+.discover-folds .spotlight-skeleton-meta,
+.discover-folds .spotlight-skeleton-actions {
+  background: linear-gradient(105deg,
+    rgba(232,183,74,0.04) 25%,
+    rgba(232,183,74,0.10) 50%,
+    rgba(232,183,74,0.04) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+
+/* ============================================================
+   3. MOVIE CARDS — premium glass overlay + refined typography
+   ============================================================ */
+
+/* Premium poster — bigger shadow + golden border on hover */
+.discover-folds .search-rail-poster,
+.discover-folds .genre-explorer-panel .search-rail-poster {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-card, 14px);
+  overflow: hidden;
+  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--tier-3);
+  box-shadow:
+    0 8px 24px rgba(0,0,0,0.55),
+    0 2px 8px rgba(0,0,0,0.40),
+    inset 0 1px 0 rgba(232,183,74,0.06);
+  transition: transform var(--dur-base) var(--ease-spring),
+              box-shadow var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out);
+}
+
+/* Premium hover — soft elevation + golden glow + scale */
+.discover-folds .search-rail-card:hover .search-rail-poster,
+.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster {
+  border-color: rgba(232,183,74,0.35);
+  box-shadow:
+    0 16px 40px rgba(0,0,0,0.7),
+    0 4px 16px rgba(0,0,0,0.50),
+    0 0 20px var(--p-glow),
+    0 0 0 1px color-mix(in srgb, var(--p) 25%, transparent),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+}
+
+/* Premium poster image — slightly brighter + smoother zoom */
+.discover-folds .search-rail-poster-img,
+.discover-folds .genre-explorer-panel .search-rail-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: brightness(0.94) saturate(0.96);
+  transition: transform var(--dur-base) var(--ease-smooth),
+              filter var(--dur-base) var(--ease-out);
+}
+.discover-folds .search-rail-card:hover .search-rail-poster-img,
+.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster-img {
+  transform: scale(1.06);
+  filter: brightness(1) saturate(1);
+}
+
+/* Premium glass overlay on each poster — gradient + status/rating badges
+   This is rendered via ::after on the poster so we don't need to change
+   the DiscoverRail JSX. The overlay adds depth + a subtle bottom gradient
+   that makes the title text more readable when it appears below. */
+.discover-folds .search-rail-poster::after,
+.discover-folds .genre-explorer-panel .search-rail-poster::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: linear-gradient(to top,
+    rgba(8,8,13,0.45) 0%,
+    rgba(8,8,13,0.18) 20%,
+    transparent 40%);
+  z-index: 1;
+  transition: opacity var(--dur-base) var(--ease-out);
+}
+.discover-folds .search-rail-card:hover .search-rail-poster::after,
+.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster::after {
+  opacity: 0.7;
+}
+
+/* Premium rating badge — top-right corner with gold glow */
+.discover-folds .search-rail-card .search-rail-rating,
+.discover-folds .genre-explorer-panel .search-rail-card .search-rail-rating {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid rgba(245,197,24,0.30);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  color: #f5c518;
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.5),
+    0 0 8px rgba(245,197,24,0.20),
+    inset 0 1px 0 rgba(245,197,24,0.10);
+}
+
+/* Premium status badge (top-left) — for vault titles in rails */
+.discover-folds .search-rail-card .search-rail-status,
+.discover-folds .genre-explorer-panel .search-rail-card .search-rail-status {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 3;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 7px;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(10px) saturate(150%);
+  -webkit-backdrop-filter: blur(10px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5rem;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-body);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.5),
+    inset 0 1px 0 rgba(232,183,74,0.08);
+}
+
+/* Premium card title — Outfit, refined weight + size */
+.discover-folds .search-rail-title,
+.discover-folds .genre-explorer-panel .search-rail-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.3;
+  letter-spacing: 0.005em;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.discover-folds .search-rail-card:hover .search-rail-title,
+.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-title {
+  color: var(--p);
+}
+
+/* Premium meta — Azeret Mono with gold rating */
+.discover-folds .search-rail-meta,
+.discover-folds .genre-explorer-panel .search-rail-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin: 2px 0 0;
+  text-transform: uppercase;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+/* ============================================================
+   4. MOVIE RAILS — larger posters, better spacing, smooth scroll
+   ============================================================ */
+
+/* Premium rail — slightly larger gap for breathing room + smooth scroll */
+.discover-folds .search-rail,
+.discover-folds .genre-explorer-panel .search-rail {
+  display: flex;
+  gap: var(--sp-4, 1rem);
+  overflow-x: auto;
+  scroll-snap-type: x proximity;
+  padding-bottom: var(--sp-3, 0.75rem);
+  padding-left: var(--sp-1, 0.25rem);
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  scroll-behavior: smooth;
+  /* Mask the edges so cards fade in/out smoothly */
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0,
+    black 8px,
+    black calc(100% - 8px),
+    transparent 100%);
+}
+.discover-folds .search-rail::-webkit-scrollbar,
+.discover-folds .genre-explorer-panel .search-rail::-webkit-scrollbar {
+  display: none;
+}
+
+/* Premium card size — keep the existing 130/160px (DO NOT reduce).
+   Add a touch more bottom padding for the title/meta cluster. */
+.discover-folds .search-rail-card,
+.discover-folds .genre-explorer-panel .search-rail-card {
+  flex-shrink: 0;
+  width: 140px;
+  background: transparent;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  scroll-snap-align: start;
+  transition: transform var(--dur-base) var(--ease-spring);
+}
+@media (min-width: 640px) {
+  .discover-folds .search-rail-card,
+  .discover-folds .genre-explorer-panel .search-rail-card { width: 170px; }
+}
+@media (min-width: 1024px) {
+  .discover-folds .search-rail-card,
+  .discover-folds .genre-explorer-panel .search-rail-card { width: 180px; }
+}
+.discover-folds .search-rail-card:hover,
+.discover-folds .genre-explorer-panel .search-rail-card:hover {
+  transform: translateY(-4px);
+}
+.discover-folds .search-rail-card:active,
+.discover-folds .genre-explorer-panel .search-rail-card:active {
+  transform: scale(0.97);
+}
+
+/* ============================================================
+   5. PREMIUM SEARCH — floating, focus animation, premium placeholder
+   ============================================================ */
+
+/* Premium floating search — stronger glass + gold focus glow */
+.discover-folds ~ .discover-search-bar-form,
+.search-bar-form.discover-search-bar-form {
+  position: sticky;
+  top: var(--app-header-height, 0px);
+  z-index: 20;
+  background: rgba(8, 8, 13, 0.78);
+  backdrop-filter: blur(28px) saturate(170%);
+  -webkit-backdrop-filter: blur(28px) saturate(170%);
+  border-bottom: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.35),
+              inset 0 -1px 0 rgba(232,183,74,0.04);
+  margin-bottom: var(--sp-6, 1.5rem);
+  padding: var(--sp-3, 0.75rem) var(--sp-5, 1.25rem);
+}
+
+/* Premium search input container — pill with golden focus glow */
+.search-bar-form.discover-search-bar-form .search-bar {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 0.75rem);
+  padding: 0.875rem 1.125rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.40),
+    inset 0 1px 0 rgba(232,183,74,0.06);
+  transition: border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              background var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+
+/* Premium focus state — gold border + gold glow + slight scale */
+.search-bar-form.discover-search-bar-form .search-bar:focus-within {
+  border-color: var(--p);
+  background: var(--glass-bg-strong);
+  box-shadow:
+    0 0 0 3px var(--p-dim),
+    0 0 20px var(--p-glow),
+    0 4px 16px rgba(0,0,0,0.45),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+  transform: translateY(-1px);
+}
+
+/* Premium search icon — gold on focus */
+.search-bar-form.discover-search-bar-form .search-bar-icon {
+  font-size: 22px;
+  color: var(--text-muted);
+  flex-shrink: 0;
+  transition: color var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.search-bar-form.discover-search-bar-form .search-bar:focus-within .search-bar-icon {
+  color: var(--p);
+  transform: scale(1.08);
+  filter: drop-shadow(0 0 6px var(--p-glow));
+}
+
+/* Premium placeholder — Outfit, slightly larger */
+.search-bar-form.discover-search-bar-form .search-bar-input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: 'Outfit', sans-serif;
+  font-size: 1rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  -webkit-appearance: none;
+  letter-spacing: 0.005em;
+}
+.search-bar-form.discover-search-bar-form .search-bar-input::placeholder {
+  color: var(--text-muted);
+  font-weight: 400;
+  letter-spacing: 0.01em;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+.search-bar-form.discover-search-bar-form .search-bar:focus-within .search-bar-input::placeholder {
+  color: var(--text-dim);
+}
+
+/* Premium clear button — gold hover */
+.search-bar-form.discover-search-bar-form .search-bar-clear {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline-2);
+  cursor: pointer;
+  color: var(--text-soft);
+  flex-shrink: 0;
+  transition: background var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.search-bar-form.discover-search-bar-form .search-bar-clear:hover {
+  background: var(--p-dim);
+  border-color: var(--p);
+  color: var(--p);
+  transform: scale(1.08) rotate(90deg);
+  box-shadow: 0 0 12px var(--p-glow);
+}
+.search-bar-form.discover-search-bar-form .search-bar-clear:active {
+  transform: scale(0.92);
+}
+
+/* ============================================================
+   6. GENRE EXPLORER — premium chips with active glow
+   ============================================================ */
+
+/* Premium genre chips container — more gap, smoother scroll */
+.discover-folds .genre-explorer-chips,
+.discover-folds .genre-explorer .quick-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  padding: 4px 2px 8px;
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+}
+.discover-folds .genre-explorer-chips::-webkit-scrollbar,
+.discover-folds .genre-explorer .quick-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Premium genre chip — bigger, glassy, with golden glow on active */
+.discover-folds .genre-chip,
+.discover-folds .genre-explorer .quick-filter-tab {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow:
+    0 2px 8px rgba(0,0,0,0.30),
+    inset 0 1px 0 rgba(232,183,74,0.06);
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.discover-folds .genre-chip:hover,
+.discover-folds .genre-explorer .quick-filter-tab:hover {
+  background: rgba(232,183,74,0.10);
+  border-color: rgba(232,183,74,0.25);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+}
+
+/* Premium active genre chip — gold bg + glow + filled icon */
+.discover-folds .genre-chip[data-active="true"],
+.discover-folds .genre-explorer .quick-filter-tab[data-active="true"] {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
+  box-shadow:
+    var(--active-glow),
+    0 4px 16px rgba(0,0,0,0.45),
+    0 0 20px var(--p-glow),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+  font-weight: 700;
+}
+.discover-folds .genre-chip[data-active="true"] .material-symbols-outlined,
+.discover-folds .genre-explorer .quick-filter-tab[data-active="true"] .material-symbols-outlined {
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 4px rgba(0,0,0,0.3));
+}
+
+/* Premium genre chip icons — bigger + filled when active */
+.discover-folds .genre-chip .material-symbols-outlined,
+.discover-folds .genre-explorer .quick-filter-tab .material-symbols-outlined {
+  font-size: 14px;
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  color: var(--p);
+  filter: drop-shadow(0 0 4px var(--p-glow));
+  transition: font-variation-settings var(--dur-base) var(--ease-out);
+}
+
+/* Premium genre explorer panel — full glass when expanded */
+.discover-folds .genre-explorer-panel.is-expanded {
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: var(--radius-lg);
+  box-shadow:
+    var(--shadow-glass-card),
+    inset 0 1px 0 rgba(232,183,74,0.06);
+  padding: var(--sp-4, 1rem);
+  margin-top: var(--sp-3, 0.75rem);
+}
+
+/* ============================================================
+   7. INSIGHT CARDS — strong glass, premium icon, refined type
+   ============================================================ */
+
+/* Premium insight strip — slightly larger gap + smoother scroll */
+.discover-folds .discover-insight-strip {
+  display: flex;
+  gap: 0.625rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  -webkit-overflow-scrolling: touch;
+  padding: var(--sp-2, 0.5rem) 2px var(--sp-4, 1rem);
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+}
+.discover-folds .discover-insight-strip::-webkit-scrollbar {
+  display: none;
+}
+
+/* Premium insight card — strong glass with golden border + soft glow */
+.discover-folds .discover-insight-card {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.625rem 1rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(160%);
+  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  border: 1px solid var(--glass-border-warm-strong);
+  flex-shrink: 0;
+  box-shadow:
+    0 4px 14px rgba(0,0,0,0.40),
+    0 0 0 1px rgba(232,183,74,0.06),
+    inset 0 1px 0 rgba(232,183,74,0.08);
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.discover-folds .discover-insight-card:hover {
+  background: var(--glass-bg-strong);
+  border-color: rgba(232,183,74,0.30);
+  box-shadow:
+    0 6px 18px rgba(0,0,0,0.50),
+    0 0 16px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.12);
+  transform: translateY(-2px);
+}
+
+/* Premium insight icon — gold, filled, with glow */
+.discover-folds .discover-insight-icon {
+  font-size: 16px;
+  color: var(--p);
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 6px var(--p-glow));
+  flex-shrink: 0;
+}
+
+/* Premium insight label — Outfit, slightly larger, refined */
+.discover-folds .discover-insight-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  color: var(--text-body);
+  white-space: nowrap;
+}
+
+/* ============================================================
+   8. CONTINUE UNIVERSES + SURPRISE ME — premium glass cards
+   ============================================================ */
+
+/* Premium continue universe card — bigger, glassy, with golden border */
+.discover-folds .discover-continue-card {
+  flex-shrink: 0;
+  width: 220px;
+  padding: var(--sp-4, 1rem);
+  border-radius: var(--radius-lg);
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 0.5rem);
+  scroll-snap-align: start;
+  box-shadow:
+    var(--shadow-glass-card),
+    inset 0 1px 0 rgba(232,183,74,0.06);
+  transition: border-color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-base) var(--ease-spring);
+}
+.discover-folds .discover-continue-card:hover {
+  border-color: rgba(232,183,74,0.30);
+  box-shadow:
+    var(--shadow-glass-elevated),
+    0 0 16px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+  transform: translateY(-3px);
+}
+
+/* Premium continue card name — bigger + bolder */
+.discover-folds .discover-continue-name {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  letter-spacing: 0.005em;
+}
+
+/* Premium continue card count — gold Azeret Mono */
+.discover-folds .discover-continue-count {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--p);
+  margin: 0;
+  text-shadow: 0 0 6px var(--p-glow);
+}
+
+/* Premium continue poster — slightly bigger + golden border */
+.discover-folds .discover-continue-poster {
+  width: 60px;
+  height: 90px;
+  border-radius: var(--radius-sm);
+  object-fit: cover;
+  cursor: pointer;
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+  transition: transform var(--dur-fast) var(--ease-spring),
+              box-shadow var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out);
+}
+.discover-folds .discover-continue-poster:hover {
+  transform: scale(1.06);
+  border-color: var(--p);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 10px var(--p-glow);
+}
+
+/* Premium Surprise Me card — full glass with cinematic overlay */
+.discover-folds .discover-surprise-card {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  border-radius: var(--radius-2xl, 24px);
+  overflow: hidden;
+  background: var(--tier-2);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow:
+    var(--shadow-glass-elevated),
+    0 0 24px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.10);
+}
+
+/* Premium surprise backdrop — slightly brighter */
+.discover-folds .discover-surprise-backdrop {
+  filter: brightness(0.55) saturate(0.95);
+  transition: transform 1200ms var(--ease-smooth),
+              filter 600ms var(--ease-out);
+}
+.discover-folds .discover-surprise-card:hover .discover-surprise-backdrop {
+  transform: scale(1.04);
+  filter: brightness(0.62) saturate(1);
+}
+
+/* Premium surprise overlay — deeper gradient + gold accent */
+.discover-folds .discover-surprise-overlay {
+  background:
+    linear-gradient(to top,
+      rgba(8,8,13,0.97) 0%,
+      rgba(8,8,13,0.65) 40%,
+      rgba(8,8,13,0.20) 70%,
+      transparent 100%),
+    radial-gradient(ellipse 60% 40% at 0% 100%,
+      color-mix(in srgb, var(--p) 14%, transparent) 0%,
+      transparent 60%);
+}
+
+/* Premium surprise title — bigger + glow */
+.discover-folds .discover-surprise-title {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 2rem;
+  line-height: 0.95;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0 0 6px;
+  text-shadow: 0 2px 20px rgba(0,0,0,0.95), 0 0 1px rgba(0,0,0,1);
+}
+@media (min-width: 640px) {
+  .discover-folds .discover-surprise-title { font-size: 2.5rem; }
+}
+
+/* Premium surprise meta — Azeret Mono with gold rating */
+.discover-folds .discover-surprise-meta {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: var(--text-soft);
+  margin: 0 0 var(--sp-3, 0.75rem);
+  text-transform: uppercase;
+}
+
+/* ============================================================
+   9. SECTION HEADERS — premium "See All" button
+   ============================================================ */
+
+/* Premium discover-fold-label — already styled, just refine spacing */
+.discover-folds .discover-fold-label {
+  font-family: 'Bebas Neue', cursive;
+  font-size: 1.5rem;
+  font-weight: 400;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-strong);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  margin: 0;
+}
+@media (min-width: 640px) {
+  .discover-folds .discover-fold-label { font-size: 1.75rem; }
+}
+
+/* Premium accent bar before the label — bigger + double glow */
+.discover-folds .discover-fold-label::before {
+  content: '';
+  width: 4px;
+  height: 22px;
+  background: var(--p);
+  border-radius: 2px;
+  flex-shrink: 0;
+  box-shadow: 0 0 8px var(--p-glow), 0 0 16px var(--p-glow);
+}
+@media (min-width: 640px) {
+  .discover-folds .discover-fold-label::before { height: 24px; }
+}
+
+/* Premium fold label icon — gold, filled, with glow */
+.discover-folds .discover-fold-label .material-symbols-outlined {
+  color: var(--p);
+  font-size: 20px;
+  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  filter: drop-shadow(0 0 6px var(--p-glow));
+}
+
+/* Premium "See All" / "Load more" button — glassy gold pill */
+.discover-folds .search-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-3, 0.75rem) var(--sp-4, 1rem);
+  margin-top: var(--sp-3, 0.75rem);
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.06);
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.discover-folds .search-load-more:hover {
+  background: rgba(232,183,74,0.10);
+  border-color: rgba(232,183,74,0.30);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 16px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  transform: translateY(-2px);
+}
+.discover-folds .search-load-more:active {
+  transform: scale(0.97);
+}
+
+/* Premium "Load more" text — gold Outfit */
+.discover-folds .search-load-more-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: none;
+  color: var(--p);
+  text-shadow: 0 0 8px var(--p-glow);
+}
+
+/* Premium end-of-results text — Azeret Mono, centered */
+.discover-folds .search-end-of-results {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  padding: var(--sp-6, 1.5rem) var(--sp-4, 1rem);
+  color: var(--text-dim);
+}
+
+/* ============================================================
+   10. PREMIUM SKELETON — golden shimmer for loading states
+   ============================================================ */
+
+.discover-folds .skeleton-base,
+.discover-folds .search-rail-poster.skeleton-base,
+.discover-folds .genre-explorer-panel .search-rail-poster.skeleton-base {
+  background: linear-gradient(105deg,
+    rgba(232,183,74,0.03) 25%,
+    rgba(232,183,74,0.08) 50%,
+    rgba(232,183,74,0.03) 75%);
+  background-size: 300% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.40), inset 0 1px 0 rgba(232,183,74,0.04);
+}
+
+/* ============================================================
+   11. PREMIUM EMPTY STATE — refined icon + message
+   ============================================================ */
+
+.discover-folds .discover-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3, 0.75rem);
+  padding: var(--sp-8, 2rem) var(--sp-4, 1rem);
+  text-align: center;
+  min-height: 160px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 2px 12px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.04);
+}
+
+.discover-folds .discover-empty-icon {
+  font-size: 36px !important;
+  color: var(--p);
+  opacity: 0.7;
+  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+  filter: drop-shadow(0 0 12px var(--p-glow));
+}
+
+.discover-folds .discover-empty-message {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.45;
+}
+
+.discover-folds .discover-empty-hint {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.discover-folds .discover-empty-retry {
+  margin-top: var(--sp-2, 0.5rem);
+  padding: 0.5rem 1rem;
+  font-size: 0.625rem;
+  letter-spacing: 0.10em;
+  text-transform: uppercase;
+  font-family: 'Outfit', sans-serif;
+  font-weight: 700;
+  color: var(--p);
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  background: rgba(232,183,74,0.08);
+  backdrop-filter: blur(8px) saturate(140%);
+  -webkit-backdrop-filter: blur(8px) saturate(140%);
+}
+.discover-folds .discover-empty-retry:hover {
+  background: var(--active-bg);
+  color: var(--active-text);
+  border-color: var(--active-border);
+  box-shadow: var(--active-glow);
+}
+
+/* ============================================================
+   12. PREMIUM GUEST CTA — refined sign-in nudge
+   ============================================================ */
+
+.discover-folds .discover-guest-nudge {
+  padding: var(--sp-10, 2.5rem) var(--sp-4, 1rem);
+  text-align: center;
+  background: var(--glass-bg);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-radius: var(--radius-xl, 16px);
+  box-shadow: var(--shadow-glass-card), inset 0 1px 0 rgba(232,183,74,0.06);
+}
+
+/* ============================================================
+   13. PREMIUM WEEKEND PICKS — refined chip tabs
+   ============================================================ */
+
+.discover-folds .discover-fold .quick-filter-bar {
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  padding: 4px 2px 8px;
+  scroll-behavior: smooth;
+}
+.discover-folds .discover-fold .quick-filter-bar::-webkit-scrollbar {
+  display: none;
+}
+
+.discover-folds .discover-fold .quick-filter-tab {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: var(--glass-bg);
+  backdrop-filter: blur(16px) saturate(150%);
+  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.06);
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
+}
+.discover-folds .discover-fold .quick-filter-tab:hover {
+  background: rgba(232,183,74,0.10);
+  border-color: rgba(232,183,74,0.25);
+  color: var(--text-strong);
+  transform: translateY(-1px);
+}
+.discover-folds .discover-fold .quick-filter-tab[data-active="true"] {
+  background: var(--active-bg);
+  border-color: var(--active-border);
+  color: var(--active-text);
+  box-shadow:
+    var(--active-glow),
+    0 4px 16px rgba(0,0,0,0.45),
+    0 0 20px var(--p-glow),
+    inset 0 1px 0 rgba(255,255,255,0.12);
+  font-weight: 700;
+}
+
+/* ============================================================
+   14. PREMIUM OTT SECTION — refined provider chips
+   ============================================================ */
+
+.discover-folds .ott-provider-bar {
+  display: flex;
+  gap: var(--sp-3, 0.75rem);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  -ms-overflow-style: none;
+  padding: var(--sp-2, 0.5rem) 2px var(--sp-3, 0.75rem);
+  scroll-behavior: smooth;
+  -webkit-mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+  mask-image: linear-gradient(to right,
+    transparent 0,
+    black 4px,
+    black calc(100% - 4px),
+    transparent 100%);
+}
+.discover-folds .ott-provider-bar::-webkit-scrollbar {
+  display: none;
+}
+
+/* ============================================================
+   15. PREMIUM FOLD RHYTHM — more breathing room between sections
+   ============================================================ */
+
+.discover-folds {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-10, 2.5rem);
+}
+.discover-folds .discover-fold {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4, 1rem);
+}
+
+/* ============================================================
+   16. MOTION — smooth transitions, soft elevation
+   ============================================================ */
+
+/* Ensure all interactive elements have smooth, spring-based transitions */
+.discover-folds .search-rail-card,
+.discover-folds .genre-explorer-panel .search-rail-card,
+.discover-folds .discover-continue-card,
+.discover-folds .discover-insight-card,
+.discover-folds .discover-surprise-card,
+.discover-folds .genre-chip,
+.discover-folds .quick-filter-tab,
+.discover-folds .search-load-more {
+  will-change: transform;
+}
+
+/* Reduced motion — flatten all transitions */
+@media (prefers-reduced-motion: reduce) {
+  .discover-folds .spotlight-backdrop,
+  .discover-folds .search-rail-poster-img,
+  .discover-folds .genre-explorer-panel .search-rail-poster-img,
+  .discover-folds .discover-surprise-backdrop,
+  .discover-folds .search-rail-card,
+  .discover-folds .genre-explorer-panel .search-rail-card,
+  .discover-folds .discover-continue-card,
+  .discover-folds .discover-insight-card,
+  .discover-folds .genre-chip,
+  .discover-folds .quick-filter-tab,
+  .discover-folds .search-load-more,
+  .discover-folds .search-bar,
+  .discover-folds .search-bar-clear,
+  .discover-folds .search-bar-icon {
+    transition-duration: 120ms !important;
+    animation-duration: 120ms !important;
+  }
+  .discover-folds .search-rail-card:hover,
+  .discover-folds .genre-explorer-panel .search-rail-card:hover,
+  .discover-folds .discover-continue-card:hover,
+  .discover-folds .discover-insight-card:hover {
+    transform: none;
+  }
+}

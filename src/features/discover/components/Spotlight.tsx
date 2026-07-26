@@ -1,5 +1,5 @@
 // src/features/discover/components/Spotlight.tsx
-import { Show, createSignal, createMemo, Component } from "solid-js";
+import { Show, For, createSignal, createMemo, Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRating } from "~/core/preferences";
 import { Button } from "~/shared/ui/primitives";
@@ -24,6 +24,16 @@ interface SpotlightProps {
  *   - Details (primary) — opens the Details modal
  *   - Add to Vault (primary, secondary emphasis) — one-tap save
  *   - Not in the mood (ghost) — re-rolls the Spotlight
+ *
+ * Premium Phase 4 upgrade:
+ *   - Larger hero (560px mobile / 640px desktop)
+ *   - Deeper layered gradients (5 layers including gold + cool accents)
+ *   - Bigger Bebas Neue title (3rem mobile / 4rem desktop)
+ *   - Premium glass metadata pills with backdrop blur + gold tint
+ *   - Overview excerpt (1-line clamp) below the meta pills
+ *   - Genre pills row (when available)
+ *   - Premium CTA layout with frosted "Add to Vault" + gold "Details"
+ *   - Premium "Not in the mood" frosted glass pill
  *
  * Visual language inherited from the Details page CinematicHero + the
  * Dashboard DashboardHero: full-bleed backdrop, multi-layer gradient
@@ -66,6 +76,9 @@ const Spotlight: Component<SpotlightProps> = (props) => {
   const mediaLabel = () => (pick()?.title.media_type === "tv" ? "Series" : "Movie");
   const imdb = () =>
     pick()?.title.vote_average ? pick()!.title.vote_average!.toFixed(1) : null;
+  const overview = () => pick()?.title.overview ?? "";
+  const genres = () => pick()?.title.genres ?? [];
+  const director = () => pick()?.title.director ?? "";
 
   // Vault relationship — is this title already in the vault?
   // Uses findInVault (matches on id AND media_type) to avoid TMDB namespace
@@ -106,12 +119,12 @@ const Spotlight: Component<SpotlightProps> = (props) => {
         />
       </Show>
 
-      {/* Multi-layer gradient overlay (inherited from CinematicHero) */}
+      {/* Multi-layer gradient overlay (5 layers — see CSS for details) */}
       <div class="spotlight-overlay" aria-hidden="true" />
 
       {/* Top-left badge — the fold identity */}
       <div class="spotlight-badge" aria-label="Spotlight">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">
+        <span class="material-symbols-outlined" aria-hidden="true">
           auto_awesome
         </span>
         Spotlight
@@ -144,21 +157,44 @@ const Spotlight: Component<SpotlightProps> = (props) => {
           {/* Title */}
           <h2 class="spotlight-title">{title()}</h2>
 
-          {/* Quick meta pills — year, type, IMDb */}
+          {/* Quick meta pills — year, type, IMDb, vault status */}
           <div class="spotlight-meta">
             <Show when={year()}>
               <span class="v2-pill">{year()}</span>
             </Show>
             <span class="v2-pill">{mediaLabel()}</span>
             <Show when={imdb()}>
-              <span class="v2-pill" style={{ color: "#f5c518", "border-color": "rgba(245,197,24,0.25)" }} data-rating-display="true">
+              <span class="v2-pill" data-rating-display="true">
+                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
                 {formatRating(pick()?.title.vote_average)}
+              </span>
+            </Show>
+            <Show when={director()}>
+              <span class="v2-pill">
+                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">person</span>
+                {director()}
               </span>
             </Show>
             <Show when={vaultStatusLabel()}>
               <span class="v2-pill v2-pill-accent">{vaultStatusLabel()}</span>
             </Show>
           </div>
+
+          {/* Genre pills (when available) */}
+          <Show when={genres().length > 0}>
+            <div class="spotlight-genres">
+              <For each={genres().slice(0, 3)}>
+                {(genre) => (
+                  <span class="spotlight-genre-pill">{genre}</span>
+                )}
+              </For>
+            </div>
+          </Show>
+
+          {/* Overview excerpt — 2-line clamp for cinematic feel */}
+          <Show when={overview()}>
+            <p class="spotlight-overview">{overview()}</p>
+          </Show>
 
           {/* Actions — Details + Add to Vault are primary; Not in the mood is secondary */}
           <div class="spotlight-actions">
@@ -217,7 +253,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
               onClick={props.onReroll}
               aria-label="Not in the mood — show me a different Spotlight"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+              <span class="material-symbols-outlined" aria-hidden="true">
                 shuffle
               </span>
               <span class="spotlight-reroll-label">Not in the mood</span>
