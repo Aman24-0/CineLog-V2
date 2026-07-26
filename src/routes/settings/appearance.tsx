@@ -263,6 +263,7 @@ const AppearanceRoute: Component = () => {
                   }}
                   tabindex={0}
                   role="button"
+                  aria-label="Toggle spoiler reveal"
                 >
                   <Show when={spoilerRevealed()} fallback="Tap to reveal spoiler — major plot twist ahead">
                     The detective was the villain all along.

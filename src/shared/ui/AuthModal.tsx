@@ -108,15 +108,18 @@ const AuthModal: Component = () => {
             "-webkit-backdrop-filter": "blur(24px) saturate(120%)",
           }}
           onClick={closeAuthModal}
-          role="dialog"
-          aria-modal="true"
-          aria-labelledby="auth-modal-title"
         >
-          {/* Main Modal Surface */}
+          {/* Main Modal Surface — role="dialog" lives HERE,
+              on the actual dialog surface, NOT on the backdrop.
+              This ensures screen readers identify the correct
+              interactive container per WCAG 4.1.2. */}
           <GlassSurface
             strength="strong"
             class="w-full max-w-md p-8 relative flex flex-col gap-6"
             onClick={(e: any) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="auth-modal-title"
           >
             {/* Close Button */}
             <button

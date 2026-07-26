@@ -649,6 +649,82 @@
 }
 
 /* ============================================================
+   GPU ACCELERATION — eliminate frame drops during scrolling
+   and navigation on glass surfaces. backdrop-filter is already
+   GPU-composited, but transforms on interactive glass elements
+   (hover lift, active scale, sheet slide-up) must also be
+   composited to avoid repainting the backdrop on every frame.
+   ============================================================ */
+
+.app-header-glass {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.bottom-nav-glass {
+  will-change: transform;
+  /* translateX(-50%) is already applied; promote to GPU layer */
+  transform: translateX(-50%) translateZ(0);
+}
+
+.glass-card,
+[class*="bg-glass"]:not(.glass-tab):not(.glass-chip):not(.glass-input-wrapper):not(.modal-glass-surface):not(.sheet-glass-surface) {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.glass-sheet-surface-premium,
+.sheet-glass-surface {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.modal-glass-surface {
+  will-change: transform;
+  transform: translateZ(0);
+}
+
+.app-header-avatar {
+  will-change: transform;
+}
+
+.modal-glass-close {
+  will-change: transform;
+}
+
+/* ============================================================
+   MOBILE OVERFLOW SAFETY — prevent horizontal scrollbar
+   and iOS/Android viewport issues with glass surfaces.
+
+   On iOS Safari, 100vh includes the URL bar area, causing
+   content to overflow. Using 100dvh (dynamic viewport height)
+   fixes this. We also clamp the app shell to prevent
+   horizontal overflow from backdrop-filter edge bleed.
+   ============================================================ */
+
+.app-shell-bg {
+  overflow-x: hidden;
+  /* Use dynamic viewport height where supported (iOS Safari 15+),
+     fall back to 100vh for older browsers */
+  min-height: 100dvh;
+}
+
+@supports not (min-height: 100dvh) {
+  .app-shell-bg {
+    min-height: 100vh;
+  }
+}
+
+/* Prevent horizontal overflow from wide glass tabs/rails on mobile */
+.glass-tabs,
+.cast-crew-rail,
+.discover-rail-scroll {
+  max-width: 100vw;
+  overflow-x: auto;
+  overflow-y: hidden;
+}
+
+/* ============================================================
    AMBIENT GLOW — soft accent behind hero content
    ============================================================ */
 

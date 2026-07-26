@@ -309,6 +309,8 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                     "object-fit": "cover",
                   }}
                   alt="Banner preview"
+                  loading="lazy"
+                  decoding="async"
                   onError={(e) => {
                     (e.currentTarget as HTMLImageElement).style.display = "none";
                   }}

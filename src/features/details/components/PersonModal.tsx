@@ -213,6 +213,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
                 src={profileUrl()}
                 class="person-modal-avatar"
                 alt={person()?.name ?? props.personName ?? ""}
+                loading="lazy"
                 decoding="async"
                 onError={(e) => { e.currentTarget.style.display = "none"; }}
               />

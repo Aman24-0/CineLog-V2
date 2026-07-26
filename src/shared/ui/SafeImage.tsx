@@ -52,6 +52,10 @@ export interface SafeImageProps {
   loading?: "lazy" | "eager";
   /** Pass-through for native decoding attr (default "async"). */
   decoding?: "async" | "sync" | "auto";
+  /** Intrinsic width — reserves horizontal space before load, reducing CLS. */
+  width?: number;
+  /** Intrinsic height — reserves vertical space before load, reducing CLS. */
+  height?: number;
 }
 
 const SafeImage: Component<SafeImageProps> = (props) => {
@@ -68,6 +72,8 @@ const SafeImage: Component<SafeImageProps> = (props) => {
         style={props.style}
         loading={props.loading ?? "lazy"}
         decoding={props.decoding ?? "async"}
+        width={props.width}
+        height={props.height}
         onError={() => {
           setErrored(true);
           props.onError?.();

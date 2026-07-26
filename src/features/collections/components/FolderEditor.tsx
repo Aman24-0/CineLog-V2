@@ -206,6 +206,8 @@ export default function FolderEditor(props: FolderEditorProps) {
                   class="folder-editor-backdrop-thumb"
                   alt=""
                   aria-hidden="true"
+                  loading="lazy"
+                  decoding="async"
                 />
               </Show>
             </button>

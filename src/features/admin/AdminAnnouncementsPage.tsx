@@ -324,8 +324,8 @@ const AdminAnnouncementsPage: Component = () => {
                       >
                         {a.is_active ? "ACTIVE" : "INACTIVE"}
                       </button>
-                      <button onClick={() => openEdit(a)} style={iconBtn} title="Edit">✏️</button>
-                      <button onClick={() => remove(a)} style={iconBtnDanger} title="Delete">🗑️</button>
+                      <button onClick={() => openEdit(a)} style={iconBtn} title="Edit" aria-label="Edit announcement">✏️</button>
+                      <button onClick={() => remove(a)} style={iconBtnDanger} title="Delete" aria-label="Delete announcement">🗑️</button>
                     </Show>
                     <Show when={a.deleted_at}>
                       <span style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>

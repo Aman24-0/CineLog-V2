@@ -14,6 +14,8 @@ export interface GlassChipProps extends JSX.HTMLAttributes<HTMLDivElement> {
   icon?: string;
   /** Material Symbol icon name for a trailing action (e.g. "close"). */
   trailingIcon?: string;
+  /** Accessible label for the trailing icon button (required when onTrailingIconClick is provided). */
+  trailingIconLabel?: string;
   /** Click handler for the entire chip. */
   onClick?: (e: MouseEvent) => void;
   /** Click handler for the trailing icon (e.g. for removing the chip). */
@@ -39,7 +41,7 @@ const variantClasses: Record<ChipVariant, string> = {
 const GlassChip: Component<GlassChipProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "label", "variant", "icon", "trailingIcon", "onClick", "onTrailingIconClick", "selected", "class"
+    "label", "variant", "icon", "trailingIcon", "trailingIconLabel", "onClick", "onTrailingIconClick", "selected", "class"
   ]);
 
   const isInteractive = () => !!local.onClick;
@@ -110,6 +112,7 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
               local.onTrailingIconClick(e);
             }
           }}
+          aria-label={local.onTrailingIconClick ? (local.trailingIconLabel ?? `Remove ${local.label}`) : undefined}
           aria-hidden={!local.onTrailingIconClick}
           tabindex={local.onTrailingIconClick ? 0 : -1}
         >

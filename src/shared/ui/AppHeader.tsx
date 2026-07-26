@@ -51,9 +51,11 @@ const AppHeader: Component = () => {
       class="sticky top-0 z-30 flex items-center justify-between app-header-glass"
       role="banner"
     >
-      {/* Wordmark */}
+      {/* Wordmark — aria-label ensures screen readers announce
+          "CineLog" as a word rather than letter-by-letter */}
       <h1
         class="font-headline m-0"
+        aria-label="CineLog"
         style={{
           "font-size": "1.5rem",
           "line-height": "1",
