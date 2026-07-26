@@ -115,48 +115,50 @@
 
 /* Backdrop — slightly brighter for premium feel + slower zoom */
 .discover-folds .spotlight-backdrop {
-  filter: brightness(0.68) saturate(0.95);
+  filter: brightness(0.76) saturate(0.95);
   transform: scale(1.12);
+  /* Prioritize faces and key artwork at the top of the poster */
+  object-position: center 20%;
 }
 .discover-folds .spotlight-backdrop.img-loaded {
-  filter: brightness(0.70) saturate(0.95);
+  filter: brightness(0.78) saturate(0.95);
   transform: scale(1);
 }
 
-/* Multi-layer gradient overlay — DEEPER for cinematic depth.
-   Layer 1: bottom-to-top dark fade (text legibility)
-   Layer 2: top vignette (badge legibility)
-   Layer 3: left-side fade (text legibility on wide screens)
-   Layer 4: subtle gold accent from the bottom-left (cinematic warmth)
-   Layer 5: subtle blue accent from the top-right (cinematic cool) */
+/* Multi-layer gradient overlay — artwork-focused, elegant.
+   The overlay is lighter than before so more of the backdrop
+   artwork is visible. Only the bottom 45% and left side get
+   strong dark for text legibility. Top vignette is minimal.
+   Gold + cool accents add cinematic depth without hiding artwork.
+   This creates an Apple TV+ / Netflix feel where the image dominates. */
 .discover-folds .spotlight-overlay {
   background:
-    /* Layer 1 — bottom fade */
+    /* Layer 1 — bottom fade (text legibility, lower 45% only) */
     linear-gradient(to top,
       var(--tier-1) 0%,
-      rgba(8,8,13,0.97) 6%,
-      rgba(8,8,13,0.78) 18%,
-      rgba(8,8,13,0.40) 40%,
-      rgba(8,8,13,0.10) 65%,
-      transparent 100%),
-    /* Layer 2 — top vignette */
+      rgba(8,8,13,0.94) 4%,
+      rgba(8,8,13,0.72) 16%,
+      rgba(8,8,13,0.35) 38%,
+      rgba(8,8,13,0.08) 60%,
+      transparent 80%),
+    /* Layer 2 — top vignette (minimal, badge legibility) */
     linear-gradient(to bottom,
-      rgba(8,8,13,0.65) 0%,
-      rgba(8,8,13,0.22) 14%,
-      transparent 32%),
-    /* Layer 3 — left fade */
+      rgba(8,8,13,0.42) 0%,
+      rgba(8,8,13,0.12) 10%,
+      transparent 22%),
+    /* Layer 3 — left fade (text legibility on wide screens) */
     linear-gradient(to right,
-      rgba(8,8,13,0.55) 0%,
-      rgba(8,8,13,0.18) 25%,
-      transparent 55%),
+      rgba(8,8,13,0.48) 0%,
+      rgba(8,8,13,0.14) 22%,
+      transparent 50%),
     /* Layer 4 — warm gold accent (bottom-left) */
-    radial-gradient(ellipse 60% 40% at 0% 100%,
-      color-mix(in srgb, var(--p) 18%, transparent) 0%,
-      transparent 60%),
-    /* Layer 5 — cool accent (top-right) */
-    radial-gradient(ellipse 50% 35% at 100% 0%,
-      color-mix(in srgb, var(--p2, #FF6B35) 10%, transparent) 0%,
-      transparent 60%);
+    radial-gradient(ellipse 55% 35% at 0% 100%,
+      color-mix(in srgb, var(--p) 20%, transparent) 0%,
+      transparent 55%),
+    /* Layer 5 — cool accent (top-right, subtle) */
+    radial-gradient(ellipse 40% 28% at 100% 0%,
+      color-mix(in srgb, var(--p2, #FF6B35) 8%, transparent) 0%,
+      transparent 50%);
 }
 
 /* Premium badge — larger, with a glow ring + filled icon */
@@ -235,11 +237,11 @@
   flex-shrink: 0;
 }
 
-/* Title — BIGGER Bebas Neue, 3rem mobile / 4rem desktop (was 2.25/3) */
+/* Title — BIGGER Bebas Neue, dominant cinematic heading */
 .discover-folds .spotlight-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 3rem;
-  line-height: 0.92;
+  font-size: 3.5rem;
+  line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--text-strong);
   margin: 0;
@@ -253,10 +255,10 @@
   overflow: hidden;
 }
 @media (min-width: 640px) {
-  .discover-folds .spotlight-title { font-size: 4rem; }
+  .discover-folds .spotlight-title { font-size: 4.5rem; }
 }
 @media (min-width: 1024px) {
-  .discover-folds .spotlight-title { font-size: 4.5rem; }
+  .discover-folds .spotlight-title { font-size: 5rem; }
 }
 
 /* Meta pills — premium glass with backdrop blur + gold tint */
@@ -459,7 +461,7 @@
   position: relative;
   width: 100%;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius-card, 14px);
+  border-radius: var(--radius-card, 16px);
   overflow: hidden;
   border: 1px solid var(--glass-border-warm-strong);
   background: var(--tier-3);
@@ -646,12 +648,25 @@
   display: none;
 }
 
-/* Premium card size — keep the existing 130/160px (DO NOT reduce).
-   Add a touch more bottom padding for the title/meta cluster. */
+/* Premium rail — slightly wider gap for better spacing with larger cards */
+.discover-folds .search-rail,
+.discover-folds .genre-explorer-panel .search-rail {
+  gap: 14px;
+}
+@media (min-width: 640px) {
+  .discover-folds .search-rail,
+  .discover-folds .genre-explorer-panel .search-rail {
+    gap: 16px;
+  }
+}
+
+/* Premium card size — larger for premium feel (10-15% increase).
+   Aspect-ratio remains 2/3 for correct poster proportions.
+   Gap increases proportionally for better spacing. */
 .discover-folds .search-rail-card,
 .discover-folds .genre-explorer-panel .search-rail-card {
   flex-shrink: 0;
-  width: 140px;
+  width: 155px;
   background: transparent;
   border: none;
   padding: 0;
@@ -659,17 +674,17 @@
   text-align: left;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 10px;
   scroll-snap-align: start;
   transition: transform var(--dur-base) var(--ease-spring);
 }
 @media (min-width: 640px) {
   .discover-folds .search-rail-card,
-  .discover-folds .genre-explorer-panel .search-rail-card { width: 170px; }
+  .discover-folds .genre-explorer-panel .search-rail-card { width: 190px; }
 }
 @media (min-width: 1024px) {
   .discover-folds .search-rail-card,
-  .discover-folds .genre-explorer-panel .search-rail-card { width: 180px; }
+  .discover-folds .genre-explorer-panel .search-rail-card { width: 200px; }
 }
 .discover-folds .search-rail-card:hover,
 .discover-folds .genre-explorer-panel .search-rail-card:hover {
@@ -1108,54 +1123,54 @@
   filter: brightness(0.85) saturate(1);
 }
 
-/* Premium surprise overlay — cinematic gradient ONLY behind text area.
-   Multi-layer: bottom fade + left fade + gold accent. The right 40-50%
-   of the artwork stays almost unobscured. */
+/* Premium surprise overlay — lighter, artwork-focused.
+   Only the lower-left corner has strong gradient for readability.
+   The top 60% and right 40% of artwork remain almost unobscured,
+   creating a Netflix/Apple TV+ feel where the poster dominates. */
 .discover-folds .discover-surprise-overlay {
   background:
-    /* Layer 1 — bottom fade (text legibility anchor) */
+    /* Layer 1 — bottom fade (text legibility, lower 40% only) */
     linear-gradient(to top,
-      rgba(8,8,13,0.95) 0%,
-      rgba(8,8,13,0.70) 25%,
-      rgba(8,8,13,0.28) 50%,
-      rgba(8,8,13,0.08) 65%,
-      transparent 75%),
-    /* Layer 2 — left fade (text contrast on wide screens) */
-    linear-gradient(to right,
-      rgba(8,8,13,0.72) 0%,
-      rgba(8,8,13,0.40) 30%,
-      rgba(8,8,13,0.12) 50%,
+      rgba(8,8,13,0.90) 0%,
+      rgba(8,8,13,0.60) 18%,
+      rgba(8,8,13,0.22) 38%,
+      rgba(8,8,13,0.06) 55%,
       transparent 65%),
-    /* Layer 3 — top vignette (subtle, for badge/eyebrow readability) */
-    linear-gradient(to bottom,
-      rgba(8,8,13,0.50) 0%,
-      rgba(8,8,13,0.15) 12%,
-      transparent 25%),
-    /* Layer 4 — warm gold accent (bottom-left, cinematic warmth) */
-    radial-gradient(ellipse 60% 40% at 0% 100%,
-      color-mix(in srgb, var(--p) 18%, transparent) 0%,
-      transparent 60%);
+    /* Layer 2 — left fade (text contrast, narrow band) */
+    linear-gradient(to right,
+      rgba(8,8,13,0.62) 0%,
+      rgba(8,8,13,0.28) 25%,
+      rgba(8,8,13,0.08) 45%,
+      transparent 60%),
+    /* Layer 3 — warm gold accent (bottom-left, cinematic warmth) */
+    radial-gradient(ellipse 55% 35% at 0% 100%,
+      color-mix(in srgb, var(--p) 15%, transparent) 0%,
+      transparent 55%);
 }
 
-/* Premium surprise title — bold cinematic heading, the visual focal point */
+/* Premium surprise title — bold cinematic heading, the visual focal point.
+   Title NEVER gets cropped: long titles wrap naturally to 2 lines.
+   Bebas Neue handles wrapping gracefully at these sizes. */
 .discover-folds .discover-surprise-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 2.5rem;
-  line-height: 0.92;
+  font-size: 2.75rem;
+  line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--text-strong);
   margin: 0;
-  margin-top: var(--sp-1, 0.25rem);
+  margin-top: 4px;
+  overflow-wrap: break-word;
+  word-break: break-word;
   text-shadow:
     0 2px 32px rgba(0,0,0,0.95),
     0 1px 6px rgba(0,0,0,1),
     0 0 1px rgba(0,0,0,1);
 }
 @media (min-width: 640px) {
-  .discover-folds .discover-surprise-title { font-size: 3rem; }
+  .discover-folds .discover-surprise-title { font-size: 3.25rem; }
 }
 @media (min-width: 1024px) {
-  .discover-folds .discover-surprise-title { font-size: 3.5rem; }
+  .discover-folds .discover-surprise-title { font-size: 3.75rem; }
 }
 
 /* Premium surprise meta — glass v2-pills with backdrop blur + gold tint */
@@ -1271,7 +1286,8 @@
   .discover-folds .discover-surprise-content {
     max-width: 55%;
     padding: var(--sp-6, 1.5rem);
-    gap: var(--sp-3, 0.75rem);
+    padding-bottom: var(--sp-6, 1.5rem);
+    gap: 8px;
   }
 }
 
