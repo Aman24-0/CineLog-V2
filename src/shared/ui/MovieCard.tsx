@@ -2,12 +2,11 @@
 import { Component, Show, createSignal } from "solid-js";
 import Icon from "./Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { WatchlistItem } from "~/shared/types";
+import type { WatchlistItem, CollectionEntry } from "~/shared/types";
 import { formatRuntime } from "~/shared/utils/format";
 import MovieCardRatings from "./MovieCardRatings";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useToast } from "~/shared/hooks/useToast";
-import type { CollectionEntry } from "~/lib/supabase/repositories/collection";
 import HighlightText from "./HighlightText";
 import { GlassCard } from "~/shared/ui/glass";
 
@@ -127,7 +126,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           props.onClick();
         }
       }}
-      variant={variant() === "compact" ? "default" : variant() === "featured" ? "accent" : "glass"}
+      variant={variant() === "featured" ? "accent" : "glass"}
       class={cardClass()}
       role="button"
       tabindex={0}

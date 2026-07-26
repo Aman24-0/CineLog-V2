@@ -118,6 +118,17 @@ export function useModalState() {
     selectedItem,
     setSelectedItem,
     openTitle,
-    closeTitle
+    closeTitle,
+    /**
+     * Base z-index for sheets opened from the Details modal.
+     *
+     * Consumers like ConfirmRemoveSheet add a small offset to this value
+     * (e.g. `zIndexBase + 2` for the backdrop, `zIndexBase + 3` for the
+     * sheet) so the confirmation sheet always paints above the Details
+     * modal. Previously this property was missing, so `modalState.zIndexBase`
+     * was `undefined` and `undefined + 2 = NaN` produced invalid
+     * `z-index: NaN` CSS, leaving the sheet without a stacking context.
+     */
+    zIndexBase: 999990,
   };
 }

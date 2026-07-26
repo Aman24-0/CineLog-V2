@@ -29,7 +29,7 @@ export default function EmptyState(props: EmptyStateProps) {
       when={!props.isGuest}
       fallback={
         <GlassSurface
-          variant="elevated"
+          strength="strong"
           class="rounded-[2rem] p-8 text-center flex flex-col items-center justify-center min-h-[300px]"
           role="status"
           aria-live="polite"
@@ -58,8 +58,15 @@ export default function EmptyState(props: EmptyStateProps) {
           icon="sentiment_dissatisfied"
           title={props.title}
           message={props.message}
-          actionLabel={props.actionText}
-          onAction={props.onAction}
+          action={
+            <GlassButton
+              variant="primary"
+              onClick={() => props.onAction()}
+              aria-label={props.actionText}
+            >
+              {props.actionText}
+            </GlassButton>
+          }
         />
       </div>
     </Show>

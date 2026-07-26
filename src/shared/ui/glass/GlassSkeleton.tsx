@@ -173,7 +173,13 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
       <div {...rest} class={`flex flex-col gap-2 ${local.class || ""}`} style={local.style} aria-hidden="true">
         <For each={Array.from({ length: local.lines })}>
           {(_, i) => {
-            const w = i === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
+            // `i` is an Accessor<number>; `local.lines` is a plain number.
+            // The previous comparison `i === local.lines - 1` compared an
+            // Accessor to a number, which TS flagged as "unintentional"
+            // and which always evaluated to false — so every skeleton
+            // line was rendered full-width instead of the last line
+            // being shorter (w-2/3) like the design intends.
+            const w = i() === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
             const wProps = resolveWidth(w);
             const hProps = resolveHeight("h-4");
             return (

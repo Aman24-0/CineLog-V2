@@ -33,7 +33,7 @@ const DangerZone: Component<DangerZoneProps> = (props) => {
         variant="compact"
       />
       <GlassSurface
-        border="subtle"
+        border={true}
         padding="comfortable"
         radius="lg"
         style={{

@@ -65,7 +65,7 @@ const WatchlistSummary: Component<WatchlistSummaryProps> = (props) => {
         variant="glass"
         size="comfortable"
         hoverable
-        border="subtle"
+        border="default"
         style={{ width: "100%" }}
       >
         <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>

@@ -57,7 +57,7 @@ const CollectionModal = lazy(() => import("~/features/collection/CollectionModal
 const AppShell: ParentComponent = (props) => {
   const { selectedItem } = useModalState();
   const { collectionSelectedItem } = useCollectionModal();
-  const { authModalOpen, closeAuthModal } = useAuthModal();
+  const { authModalOpen } = useAuthModal();
   const location = useLocation();
 
   // Admin routes render their own layout (AdminShell) with its own sidebar,
@@ -109,8 +109,11 @@ const AppShell: ParentComponent = (props) => {
 
         <BottomNavigation />
 
-        {/* Auth modal — opened from any page when a guest tries to sign in */}
-        <AuthModal show={authModalOpen} onClose={closeAuthModal} />
+        {/* Auth modal — opened from any page when a guest tries to sign in.
+            AuthModal takes no props; it reads open/close state directly from
+            the useAuthModal() hook. Previously this passed `show` / `onClose`
+            which were silently ignored and also produced a TS error. */}
+        <AuthModal />
 
         {/* Details modal — opened from Vault, Discover, Search, or Collection.
             Shown when selectedItem() is truthy. The Suspense fallback is a

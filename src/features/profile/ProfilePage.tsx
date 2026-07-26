@@ -24,6 +24,7 @@ import { GlassAvatar } from "~/shared/ui/glass";
 import { setDiscoverRegion } from "~/core/config/discoverRegion";
 import { useProfileData } from "./useProfileData";
 import { useUsernameCheck } from "./useUsernameCheck";
+import { useStats } from "./useStats";
 
 // Sub-components
 import ProfileBanner from "./components/ProfileBanner";
@@ -33,7 +34,13 @@ import AchievementBadges from "./components/AchievementBadges";
 import ProfileNavigation from "./components/ProfileNavigation";
 import BannerEditor from "./components/BannerEditor";
 
-import type { WatchlistItem, BannerType } from "~/shared/types";
+// BannerType is defined in BannerEditor (the only producer). ProfilePage
+// only consumes it as a parameter type for the onSave handler. Previously
+// this imported `BannerType` from `~/shared/types`, which never exported
+// that symbol — TS resolved it to `any` at runtime, but the type-only
+// import still produced a compile error.
+import type { BannerType } from "./components/BannerEditor";
+import type { WatchlistItem } from "~/shared/types";
 
 const ProfilePage: Component = () => {
   const { user, isSignedIn } = useAuth();
@@ -42,10 +49,22 @@ const ProfilePage: Component = () => {
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
 
-  const uid = () => user()?.id;
+  // The User type from useAuth() exposes `uid` (mapped from Supabase's
+  // user.id), NOT `id`. The previous `user()?.id` always returned undefined,
+  // which silently skipped profile refetches on sign-in and uid changes.
+  const uid = () => user()?.uid;
 
-  const { data, loading, error, refetch, saveProfile } = useProfileData();
+  // useProfileData returns { data, loading, error, saving, saveProfile,
+  // refetch, watchlist, isGuest } — note that `watchlist` is exposed
+  // directly on the hook (it does NOT live inside `data()`, which only
+  // holds the profile row + enriched favorites). Previously this file
+  // read `data()?.watchlist` and `data()?.stats`, which were always
+  // undefined because those fields don't exist on ProfileData.
+  const { data, loading, error, refetch, saveProfile, watchlist } = useProfileData();
   const usernameCheck = useUsernameCheck();
+  // Stats are derived from the watchlist via useStats, not stored on the
+  // profile. StatsGrid expects an Accessor<StatsData | null>.
+  const { stats } = useStats();
 
   const [isEditing, setIsEditing] = createSignal(false);
   const [editName, setEditName] = createSignal("");
@@ -57,8 +76,6 @@ const ProfilePage: Component = () => {
 
   const currentUsername = createMemo(() => data()?.profile?.username ?? "");
   const avatarUrl = createMemo(() => data()?.profile?.avatar_url ?? null);
-  const stats = createMemo(() => data()?.stats);
-  const watchlist = createMemo(() => data()?.watchlist ?? []);
   const memberSince = createMemo(() => {
     const joined = data()?.profile?.created_at;
     if (!joined) return null;
@@ -87,8 +104,15 @@ const ProfilePage: Component = () => {
     usernameCheck.reset();
   };
 
+  // When the user enters edit mode (or types a new username while editing),
+  // run the debounced availability check. The hook exposes an imperative
+  // `check(username, currentUsername, userId)` because ProfilePage manages
+  // its own edit-form state with local signals rather than passing reactive
+  // accessors up-front.
   createEffect(() => {
-    if (isEditing()) usernameCheck.check(editUsername());
+    if (isEditing()) {
+      usernameCheck.check(editUsername(), currentUsername(), uid());
+    }
   });
 
   const handleSave = async () => {
@@ -123,9 +147,15 @@ const ProfilePage: Component = () => {
     }
   };
 
-  const handleSaveBanner = (type: BannerType, url: string | null) => {
-    refetch();
+  // BannerEditor's onSave contract is (type, url) => Promise<boolean>,
+  // where the boolean indicates whether the save succeeded. Previously
+  // this returned void, which the TS checker flagged and which would
+  // have caused BannerEditor's `await onSave(...)` to receive undefined
+  // and treat the save as failed even though refetch() ran fine.
+  const handleSaveBanner = async (type: BannerType, url: string | null): Promise<boolean> => {
+    await refetch();
     setBannerEditorOpen(false);
+    return true;
   };
 
   const handleSignOut = async () => {
@@ -209,7 +239,7 @@ const ProfilePage: Component = () => {
                   <div class="profile-avatar-wrap profile-avatar-wrap-v2">
                     <GlassAvatar
                       src={avatarUrl() ?? undefined}
-                      fallback={initial()}
+                      name={data()?.profile?.display_name ?? user()?.displayName ?? initial()}
                       size="xl"
                     />
                     <Show when={isEditing()}>

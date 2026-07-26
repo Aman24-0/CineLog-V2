@@ -44,7 +44,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
       >
         {/* The sheet surface itself */}
         <GlassSurface
-          variant="strong"
+          strength="strong"
           class="sheet-content p-6 pb-8 flex flex-col gap-6"
           onClick={(e: any) => e.stopPropagation()}
         >

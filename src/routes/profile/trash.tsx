@@ -1,7 +1,7 @@
 // src/routes/profile/trash.tsx
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import { GlassEmptyState } from "~/shared/ui/glass";
+import { GlassEmptyState, GlassButton } from "~/shared/ui/glass";
 import TrashPage from "~/features/trash/TrashPage";
 
 export default function TrashRoute() {
@@ -13,11 +13,13 @@ export default function TrashRoute() {
           <div class="profile-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
             <GlassEmptyState
               icon="error"
-              iconFill
               title="Couldn't load trash"
               message={error.message || "Something went wrong loading your trash."}
-              actionLabel="Retry"
-              onAction={() => reset()}
+              action={
+                <GlassButton variant="primary" onClick={() => reset()} aria-label="Retry">
+                  Retry
+                </GlassButton>
+              }
             />
           </div>
         )}

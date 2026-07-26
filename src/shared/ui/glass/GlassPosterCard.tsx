@@ -62,7 +62,7 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
     <GlassCard
       {...rest}
       variant="glass"
-      size="none"
+      size="compact"
       padding="none"
       interactive={!!local.onClick}
       selected={local.selected}

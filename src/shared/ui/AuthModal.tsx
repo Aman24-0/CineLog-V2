@@ -13,7 +13,14 @@ import Icon from "./Icon";
 import { GlassSurface } from "~/shared/ui/glass";
 
 const AuthModal: Component = () => {
-  const { isOpen, closeAuthModal } = useAuthModal();
+  // useAuthModal() returns { authModalOpen, openAuthModal, closeAuthModal }.
+  // Previously this destructured `isOpen` which does not exist on the hook —
+  // calling `isOpen()` then threw "isOpen is not a function" (minified to
+  // "e is not a function" / "t is not a function"), which was caught by the
+  // GlobalErrorBoundary and shown as the full-screen "Something went wrong"
+  // fallback on EVERY page load (AuthModal is mounted unconditionally in
+  // AppShell). See /upload/Screenshot_2026-07-25-19-24-*.jpg.
+  const { authModalOpen: isOpen, closeAuthModal } = useAuthModal();
   const { showToast } = useToast();
 
   const [mode, setMode] = createSignal<"signin" | "signup">("signin");
@@ -107,7 +114,7 @@ const AuthModal: Component = () => {
         >
           {/* Main Modal Surface */}
           <GlassSurface
-            variant="strong"
+            strength="strong"
             class="w-full max-w-md p-8 relative flex flex-col gap-6"
             onClick={(e: any) => e.stopPropagation()}
           >

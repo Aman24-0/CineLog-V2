@@ -5,7 +5,7 @@
 
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import { GlassEmptyState } from "~/shared/ui/glass";
+import { GlassEmptyState, GlassButton } from "~/shared/ui/glass";
 import ProfilePage from "~/features/profile/ProfilePage";
 
 export default function ProfileRoute() {
@@ -17,11 +17,13 @@ export default function ProfileRoute() {
           <div class="profile-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
             <GlassEmptyState
               icon="error"
-              iconFill
               title="Couldn't load profile"
               message={error.message || "Something went wrong loading your profile."}
-              actionLabel="Retry"
-              onAction={() => reset()}
+              action={
+                <GlassButton variant="primary" onClick={() => reset()} aria-label="Retry">
+                  Retry
+                </GlassButton>
+              }
             />
           </div>
         )}

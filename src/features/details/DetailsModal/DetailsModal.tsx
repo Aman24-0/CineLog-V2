@@ -328,7 +328,9 @@ export default function DetailsModal() {
         {/* Remove confirmation sheet — destructive action, requires explicit confirm */}
         <Show when={showRemoveConfirm() && vaultItem()}>
           <ConfirmRemoveSheet
-            item={vaultItem()!}
+            itemId={String(vaultItem()!.id)}
+            title={vaultItem()!.title || vaultItem()!.name || "this title"}
+            posterPath={vaultItem()!.poster_path ?? null}
             isRemoving={isRemoving()}
             onConfirm={handleRemoveFromVault}
             onClose={() => !isRemoving() && setShowRemoveConfirm(false)}

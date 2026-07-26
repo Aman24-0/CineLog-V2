@@ -8,7 +8,7 @@ type SectionVariant = "default" | "compact" | "large";
 /** Accent decoration for the section header. */
 type SectionAccent = "none" | "bar" | "dot" | "glow";
 
-interface SectionContainerProps extends JSX.HTMLAttributes<HTMLDivElement> {
+interface SectionContainerProps extends Omit<JSX.HTMLAttributes<HTMLElement>, "ref"> {
   /** Optional title to render a GlassSectionHeader. */
   title?: string;
   /** Eyebrow text above the title. */

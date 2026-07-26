@@ -160,7 +160,7 @@ const CinemaDna: Component<CinemaDnaProps> = (props) => {
         variant="compact"
       />
       <GlassSurface
-        variant="strong"
+        strength="strong"
         padding="comfortable"
         radius="lg"
       >
