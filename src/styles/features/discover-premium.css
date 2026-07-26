@@ -1137,18 +1137,25 @@
       transparent 60%);
 }
 
-/* Premium surprise title — bigger + glow, similar to Spotlight */
+/* Premium surprise title — bold cinematic heading, the visual focal point */
 .discover-folds .discover-surprise-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 1.75rem;
-  line-height: 0.95;
-  letter-spacing: 0.02em;
+  font-size: 2.5rem;
+  line-height: 0.92;
+  letter-spacing: 0.01em;
   color: var(--text-strong);
   margin: 0;
-  text-shadow: 0 2px 20px rgba(0,0,0,0.95), 0 0 1px rgba(0,0,0,1);
+  margin-top: var(--sp-1, 0.25rem);
+  text-shadow:
+    0 2px 32px rgba(0,0,0,0.95),
+    0 1px 6px rgba(0,0,0,1),
+    0 0 1px rgba(0,0,0,1);
 }
 @media (min-width: 640px) {
-  .discover-folds .discover-surprise-title { font-size: 2.25rem; }
+  .discover-folds .discover-surprise-title { font-size: 3rem; }
+}
+@media (min-width: 1024px) {
+  .discover-folds .discover-surprise-title { font-size: 3.5rem; }
 }
 
 /* Premium surprise meta — glass v2-pills with backdrop blur + gold tint */

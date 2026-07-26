@@ -561,7 +561,7 @@ export default function DiscoverPage() {
                   {/* Cinematic gradient — only behind text, lets artwork breathe */}
                   <div class="discover-surprise-overlay" />
                   <div class="discover-surprise-content">
-                    <h3 class="discover-surprise-title">{surpriseTitle()?.title || surpriseTitle()?.name || "Untitled"}</h3>
+                    {/* Layout order: Meta → Title → Overview → Actions */}
                     <div class="discover-surprise-meta">
                       <Show when={(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}>
                         <span class="v2-pill">{(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}</span>
@@ -576,6 +576,7 @@ export default function DiscoverPage() {
                         {(genre) => <span class="v2-pill">{genre}</span>}
                       </For>
                     </div>
+                    <h3 class="discover-surprise-title">{surpriseTitle()?.title || surpriseTitle()?.name || "Untitled"}</h3>
                     <Show when={surpriseTitle()?.overview}>
                       <p class="discover-surprise-overview">{surpriseTitle()?.overview}</p>
                     </Show>
