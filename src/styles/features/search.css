@@ -234,7 +234,7 @@
 /* Trending rail */
 .search-rail {
   display: flex;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
   overflow-x: auto;
   scroll-snap-type: x proximity;
   padding-bottom: var(--sp-2);

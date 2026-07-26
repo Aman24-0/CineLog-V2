@@ -457,7 +457,7 @@
 /* Vault shelf rail */
 .vault-shelf-rail {
   display: flex;
-  gap: var(--sp-3);
+  gap: var(--sp-4);
   overflow-x: auto;
   padding-bottom: var(--sp-2);
   scroll-snap-type: x proximity;
