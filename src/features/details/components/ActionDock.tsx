@@ -97,7 +97,7 @@ export default function ActionDock(props: ActionDockProps) {
               disabled={props.isAdding}
               class="action-dock-btn action-dock-btn-primary"
               data-active="true"
-              aria-label="Add to your watchlist"
+              aria-label="Add to Watchlist"
             >
               <span
                 class="material-symbols-outlined"
@@ -116,7 +116,7 @@ export default function ActionDock(props: ActionDockProps) {
                 type="button"
                 onClick={() => props.onPlayTrailer()}
                 class="action-dock-btn"
-                aria-label="Watch trailer"
+                aria-label="Trailer"
               >
                 <span
                   class="material-symbols-outlined"
@@ -133,7 +133,7 @@ export default function ActionDock(props: ActionDockProps) {
                 type="button"
                 onClick={() => props.onShare?.()}
                 class="action-dock-btn"
-                aria-label="Share this title"
+                aria-label="Share"
               >
                 <span
                   class="material-symbols-outlined"
@@ -158,7 +158,6 @@ export default function ActionDock(props: ActionDockProps) {
                 class="action-dock-btn action-dock-status-btn"
                 data-active={currentStatus() === btn.value}
                 aria-pressed={currentStatus() === btn.value}
-                aria-label={`Mark as ${btn.label}`}
               >
                 <span
                   class="material-symbols-outlined"
@@ -183,7 +182,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onPlayTrailer()}
               class="action-dock-btn"
-              aria-label="Watch trailer"
+              aria-label="Trailer"
             >
               <span
                 class="material-symbols-outlined"
@@ -201,7 +200,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onOpenFolders?.()}
               class="action-dock-btn"
-              aria-label="Add to folder"
+              aria-label="Folder"
             >
               <span
                 class="material-symbols-outlined"
@@ -219,7 +218,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onShare?.()}
               class="action-dock-btn"
-              aria-label="Share this title"
+              aria-label="Share"
             >
               <span
                 class="material-symbols-outlined"
@@ -236,7 +235,7 @@ export default function ActionDock(props: ActionDockProps) {
             type="button"
             onClick={() => props.onEdit()}
             class="action-dock-btn"
-            aria-label="Edit details"
+            aria-label="Edit"
           >
             <span
               class="material-symbols-outlined"
@@ -258,7 +257,7 @@ export default function ActionDock(props: ActionDockProps) {
                 props.onRemove?.();
               }}
               class="action-dock-btn action-dock-btn-danger"
-              aria-label="Remove from watchlist"
+              aria-label="Delete"
             >
               <span
                 class="material-symbols-outlined"

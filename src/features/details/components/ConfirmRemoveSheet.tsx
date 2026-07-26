@@ -131,7 +131,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 props.onClose();
               }}
               disabled={props.isRemoving}
-              aria-label="Cancel removal"
+              aria-label="Cancel"
             >
               Cancel
             </button>
@@ -144,7 +144,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 props.onConfirm();
               }}
               disabled={props.isRemoving}
-              aria-label="Remove from watchlist"
+              aria-label="Remove"
             >
               <Show
                 when={!props.isRemoving}

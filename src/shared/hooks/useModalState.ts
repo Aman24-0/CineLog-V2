@@ -125,10 +125,14 @@ export function useModalState() {
      * Consumers like ConfirmRemoveSheet add a small offset to this value
      * (e.g. `zIndexBase + 2` for the backdrop, `zIndexBase + 3` for the
      * sheet) so the confirmation sheet always paints above the Details
-     * modal. Previously this property was missing, so `modalState.zIndexBase`
-     * was `undefined` and `undefined + 2 = NaN` produced invalid
-     * `z-index: NaN` CSS, leaving the sheet without a stacking context.
+     * modal (which uses z-[999999]).
+     *
+     * Previously this was 999990, meaning zIndexBase + 3 = 999993 was
+     * BELOW the modal's z-999999 — the sheet was invisible behind the
+     * modal backdrop, causing "delete vibrates but does nothing" (the
+     * sheet WAS rendering but stacked below the modal). Setting this to
+     * 1000000 ensures zIndexBase + 3 = 1000003 is safely above 999999.
      */
-    zIndexBase: 999990,
+    zIndexBase: 1000000,
   };
 }

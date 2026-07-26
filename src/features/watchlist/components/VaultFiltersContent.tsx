@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
-import { For, Show, createSignal, type Accessor } from "solid-js";
+import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { FilterSel, RangeFilter } from "./FilterControls";
 import type { VaultFilters as FilterType } from "~/shared/types";
@@ -28,6 +28,15 @@ export interface VaultFiltersContentProps {
 export default function VaultFiltersContent(props: VaultFiltersContentProps) {
   const [presetName, setPresetName] = createSignal("");
 
+  /** Batched setFilters — wraps each filter update in batch() so the
+      filtered memo re-computes ONCE instead of triggering cascading
+      micro-renders. This is the primary INP optimization for the
+      filter drawer — each dropdown change previously caused a full
+      vault re-filter + re-render on the main thread. */
+  const batchedSet = (patch: Partial<FilterType>) => {
+    batch(() => props.setFilters({ ...props.filters, ...patch }));
+  };
+
   const handleSavePreset = async () => {
     if (!presetName().trim()) return;
     await props.onSavePreset(presetName().trim());
@@ -46,7 +55,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
           <FilterSel
             label="Status"
             val={props.filters.status}
-            set={(v) => props.setFilters({ ...props.filters, status: v })}
+            set={(v) => batchedSet({ status: v })}
             opts={[
               { l: "All", v: "all" },
               { l: "Planned", v: "Planned" },
@@ -58,7 +67,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
           <FilterSel
             label="Type"
             val={props.filters.type}
-            set={(v) => props.setFilters({ ...props.filters, type: v })}
+            set={(v) => batchedSet({ type: v })}
             opts={[
               { l: "All", v: "all" },
               { l: "Movies", v: "movie" },
@@ -68,7 +77,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
           <FilterSel
             label="Region"
             val={props.filters.region}
-            set={(v) => props.setFilters({ ...props.filters, region: v })}
+            set={(v) => batchedSet({ region: v })}
             opts={[
               { l: "All", v: "all" },
               { l: "Indian", v: "Indian" },
@@ -78,19 +87,19 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
           <FilterSel
             label="Genre"
             val={props.filters.genre}
-            set={(v) => props.setFilters({ ...props.filters, genre: v })}
+            set={(v) => batchedSet({ genre: v })}
             opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
           />
           <FilterSel
             label="Platform"
             val={props.filters.platform}
-            set={(v) => props.setFilters({ ...props.filters, platform: v })}
+            set={(v) => batchedSet({ platform: v })}
             opts={[{ l: "All Platforms", v: "all" }, ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))]}
           />
           <FilterSel
             label="Tag"
             val={props.filters.tag}
-            set={(v) => props.setFilters({ ...props.filters, tag: v })}
+            set={(v) => batchedSet({ tag: v })}
             opts={[{ l: "All Tags", v: "all" }, ...props.uniqueTags.map((t) => ({ l: t, v: t }))]}
           />
         </div>
@@ -104,8 +113,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="IMDb"
             min={props.filters.imdbMin}
             max={props.filters.imdbMax}
-            setMin={(v) => props.setFilters({ ...props.filters, imdbMin: v })}
-            setMax={(v) => props.setFilters({ ...props.filters, imdbMax: v })}
+            setMin={(v) => batchedSet({ imdbMin: v })}
+            setMax={(v) => batchedSet({ imdbMax: v })}
             minPlaceholder="0"
             maxPlaceholder="10"
           />
@@ -113,8 +122,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="Rotten Tomatoes %"
             min={props.filters.rtMin}
             max={props.filters.rtMax}
-            setMin={(v) => props.setFilters({ ...props.filters, rtMin: v })}
-            setMax={(v) => props.setFilters({ ...props.filters, rtMax: v })}
+            setMin={(v) => batchedSet({ rtMin: v })}
+            setMax={(v) => batchedSet({ rtMax: v })}
             minPlaceholder="0"
             maxPlaceholder="100"
           />
@@ -122,8 +131,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="Year"
             min={props.filters.yearMin}
             max={props.filters.yearMax}
-            setMin={(v) => props.setFilters({ ...props.filters, yearMin: v })}
-            setMax={(v) => props.setFilters({ ...props.filters, yearMax: v })}
+            setMin={(v) => batchedSet({ yearMin: v })}
+            setMax={(v) => batchedSet({ yearMax: v })}
             minPlaceholder="1990"
             maxPlaceholder="2026"
           />
@@ -131,8 +140,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="Runtime (min)"
             min={props.filters.runtimeMin}
             max={props.filters.runtimeMax}
-            setMin={(v) => props.setFilters({ ...props.filters, runtimeMin: v })}
-            setMax={(v) => props.setFilters({ ...props.filters, runtimeMax: v })}
+            setMin={(v) => batchedSet({ runtimeMin: v })}
+            setMax={(v) => batchedSet({ runtimeMax: v })}
             minPlaceholder="Min"
             maxPlaceholder="Max"
           />
@@ -145,7 +154,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
         <FilterSel
           label="Order"
           val={props.filters.sort}
-          set={(v) => props.setFilters({ ...props.filters, sort: v })}
+          set={(v) => batchedSet({ sort: v })}
           opts={[
             { l: "Recently Added", v: "recent" },
             { l: "Recently Updated", v: "updated" },
@@ -184,7 +193,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               "font-size": "0.5625rem",
               "font-weight": 800,
             }}
-            aria-label="Save current filters as preset"
+            aria-label="Save"
           >
             Save
           </button>
@@ -216,7 +225,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 >
                   <button
                     class="flex-1 text-left text-sm text-white px-1 truncate hover:text-[var(--p)] transition-colors flex items-center gap-2"
-                    onClick={() => props.setFilters(preset.filters)}
+                    onClick={() => batch(() => props.setFilters(preset.filters))}
                   >
                     <Icon name="bookmark" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true" />
                     <span class="truncate">{preset.name}</span>

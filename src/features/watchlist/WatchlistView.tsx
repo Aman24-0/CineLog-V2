@@ -1,5 +1,5 @@
 // src/features/watchlist/WatchlistView.tsx
-import { createSignal, onMount, onCleanup, Show } from "solid-js";
+import { createSignal, onMount, onCleanup, Show, batch } from "solid-js";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -119,17 +119,24 @@ export default function WatchlistView() {
   });
 
   const handleClearStatusTab = () => {
-    setActiveStatusTab("all");
-    setFilters({ ...filters(), status: "all" });
+    batch(() => {
+      setActiveStatusTab("all");
+      setFilters({ ...filters(), status: "all" });
+    });
   };
 
   const handleSelectStatusTab = (status: string) => {
-    setActiveStatusTab(status);
-    if (status === "all") {
-      setFilters({ ...filters(), status: "all" });
-    } else {
-      setFilters({ ...filters(), status });
-    }
+    // batch() defers reactive updates until both signals are set,
+    // so the filtered memo re-computes ONCE instead of cascading
+    // two micro-renders (statusTab change + filter change).
+    batch(() => {
+      setActiveStatusTab(status);
+      if (status === "all") {
+        setFilters({ ...filters(), status: "all" });
+      } else {
+        setFilters({ ...filters(), status });
+      }
+    });
   };
 
   return (

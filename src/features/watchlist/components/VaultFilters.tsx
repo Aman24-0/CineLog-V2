@@ -48,7 +48,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
-        aria-label="Filter watchlist"
+        aria-label="Filters"
       >
         <div
           class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter glass-sheet-surface-premium"
@@ -85,7 +85,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
                 color: "var(--text-soft)",
                 border: "1px solid var(--hairline)",
               }}
-              aria-label="Close filters"
+              aria-label="Close"
             >
               <Icon name="close" style={{"font-size":"16px"}} aria-hidden="true" />
             </button>
@@ -119,7 +119,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
               onClick={() => props.onClear()}
               class="btn-ghost"
               style={{ "font-size": "0.6875rem" }}
-              aria-label="Clear all filters"
+              aria-label="Clear All"
             >
               Clear All
             </button>
@@ -127,7 +127,7 @@ export default function VaultFilters(props: VaultFiltersProps) {
               onClick={() => props.onClose()}
               class="btn-primary"
               style={{ "font-size": "0.6875rem" }}
-              aria-label="Apply filters and close"
+              aria-label="Apply"
             >
               Apply
             </button>

@@ -144,7 +144,6 @@ const MovieCard: Component<MovieCardProps> = (props) => {
       class={cardClass()}
       role="button"
       tabindex={0}
-      aria-label={title()}
     >
       <div class="vault-card-inner">
         {/* Loading skeleton */}

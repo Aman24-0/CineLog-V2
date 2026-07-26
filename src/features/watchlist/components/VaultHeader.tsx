@@ -69,7 +69,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
           onClick={() => props.onFilterClick()}
           class="filter-button focus-ring"
           data-active={props.activeFilterCount() > 0}
-          aria-label={`Filter watchlist${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
+          aria-label={`Filter${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
           aria-pressed={props.activeFilterCount() > 0}
         >
           <Icon name="tune" style={{ "font-size": "14px" }} aria-hidden="true" />

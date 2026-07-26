@@ -2131,6 +2131,7 @@
   grid-template-columns: repeat(auto-fill, minmax(72px, 1fr));
   gap: var(--space-2);
   padding: var(--space-1);
+  contain: content;
 }
 .wheretowatch-card {
   display: flex;
