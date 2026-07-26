@@ -50,16 +50,24 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
           "z-index": modalState.zIndexBase + 3,
         }}
       >
-        {/* The sheet surface itself */}
+        {/* The sheet surface itself.
+            Flex column layout: content area is scrollable (overflow-y:auto,
+            flex-1, min-h-0) so on short viewports the poster+text can
+            scroll while the action row stays pinned at the bottom.
+            The outer sheet-content CSS has overflow:hidden for
+            border-radius clipping + flex column direction. */}
         <GlassSurface
           strength="strong"
-          class="sheet-content p-6 pb-8 flex flex-col gap-6"
+          class="sheet-content"
           onClick={(e: any) => e.stopPropagation()}
         >
           {/* Drag handle area (visual only) */}
           <div class="sheet-handle" aria-hidden="true" />
 
-          <div class="px-6 flex flex-col items-center text-center gap-4">
+          {/* Scrollable content area — flex-1 min-h-0 allows this
+              to shrink and scroll when viewport is short, while the
+              action row below stays pinned. */}
+          <div class="px-6 flex flex-col items-center text-center gap-4 overflow-y-auto flex-1 min-h-0">
             {/* Thumbnail */}
             <Show
               when={props.posterPath}
@@ -118,11 +126,16 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             </div>
           </div>
 
-          {/* Action Row */}
+          {/* Action Row — pinned at the bottom, never scrolls away.
+              flex-shrink-0 prevents it from collapsing when the content
+              area above needs to scroll. */}
           <div
-            class="px-6 pt-3 pb-5 flex-shrink-0 flex gap-2"
+            class="px-6 pt-3 pb-5 flex-shrink-0 flex w-full gap-3"
             style={{ "border-top": "1px solid var(--hairline)" }}
           >
+            {/* Cancel button — visible text "Cancel" is the accessible
+                name. aria-label removed per WCAG: visible text should be
+                the accessible name, not overridden by aria-label. */}
             <button
               type="button"
               class="btn-ghost flex-1 focus-ring"
@@ -131,10 +144,14 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 props.onClose();
               }}
               disabled={props.isRemoving}
-              aria-label="Cancel"
             >
               Cancel
             </button>
+            {/* Remove button — visible text ("Remove" / "Removing…")
+                is the accessible name. aria-label removed: the visible
+                text already provides the accessible name, and when
+                isRemoving is true, aria-label="Remove" would contradict
+                the visible "Removing…" text. */}
             <button
               type="button"
               class="btn-danger flex-1 focus-ring"
@@ -144,7 +161,6 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 props.onConfirm();
               }}
               disabled={props.isRemoving}
-              aria-label="Remove"
             >
               <Show
                 when={!props.isRemoving}

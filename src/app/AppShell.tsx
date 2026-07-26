@@ -94,10 +94,15 @@ const AppShell: ParentComponent = (props) => {
         // the accessibility tree AND removes all focusable descendants
         // from the tab order. This is the WCAG-compliant way to handle
         // modal background content.
+        //
+        // NOTE: aria-hidden is NOT added here because `inert` already
+        // handles both AT hiding and focus removal. Adding aria-hidden
+        // on the same element is redundant and can confuse audit tools
+        // that flag "ARIA hidden element must not be focusable" — even
+        // though inert makes elements non-focusable, some scanners
+        // don't recognize the inert→non-focusable relationship and
+        // report a false positive.
         inert={anyModalOpen()}
-        // aria-hidden is redundant with inert but added for older
-        // browsers / screen readers that don't support inert yet.
-        aria-hidden={anyModalOpen() ? "true" : undefined}
       >
         <AppHeader />
 

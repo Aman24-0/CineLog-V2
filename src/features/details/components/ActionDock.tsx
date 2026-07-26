@@ -91,13 +91,17 @@ export default function ActionDock(props: ActionDockProps) {
         fallback={
           /* Non-vault title: primary CTA is "Add to Vault" + Trailer + Share */
           <div class="action-dock-row">
+            {/* Add to Watchlist button — icon-only on mobile, text on sm+.
+                aria-labelledby points to the visible text span which provides
+                the accessible name on both mobile (hidden span still read by
+                AT via aria-labelledby) and desktop (visible text = name). */}
             <button
               type="button"
               onClick={() => props.onAddToVault()}
               disabled={props.isAdding}
               class="action-dock-btn action-dock-btn-primary"
               data-active="true"
-              aria-label="Add to Watchlist"
+              aria-labelledby="action-add-label"
             >
               <span
                 class="material-symbols-outlined"
@@ -109,14 +113,14 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 {props.isAdding ? "progress_activity" : "add"}
               </span>
-              <span class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Watchlist"}</span>
+              <span id="action-add-label" class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Watchlist"}</span>
             </button>
             <Show when={props.hasTrailer}>
               <button
                 type="button"
                 onClick={() => props.onPlayTrailer()}
                 class="action-dock-btn"
-                aria-label="Trailer"
+                aria-labelledby="action-trailer-label-nonvault"
               >
                 <span
                   class="material-symbols-outlined"
@@ -125,7 +129,7 @@ export default function ActionDock(props: ActionDockProps) {
                 >
                   play_arrow
                 </span>
-                <span class="hidden sm:inline">Trailer</span>
+                <span id="action-trailer-label-nonvault" class="hidden sm:inline">Trailer</span>
               </button>
             </Show>
             <Show when={props.onShare}>
@@ -133,7 +137,7 @@ export default function ActionDock(props: ActionDockProps) {
                 type="button"
                 onClick={() => props.onShare?.()}
                 class="action-dock-btn"
-                aria-label="Share"
+                aria-labelledby="action-share-label-nonvault"
               >
                 <span
                   class="material-symbols-outlined"
@@ -142,7 +146,7 @@ export default function ActionDock(props: ActionDockProps) {
                 >
                   share
                 </span>
-                <span class="hidden sm:inline">Share</span>
+                <span id="action-share-label-nonvault" class="hidden sm:inline">Share</span>
               </button>
             </Show>
           </div>
@@ -182,7 +186,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onPlayTrailer()}
               class="action-dock-btn"
-              aria-label="Trailer"
+              aria-labelledby="action-trailer-label"
             >
               <span
                 class="material-symbols-outlined"
@@ -191,7 +195,7 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 play_arrow
               </span>
-              <span class="hidden sm:inline">Trailer</span>
+              <span id="action-trailer-label" class="hidden sm:inline">Trailer</span>
             </button>
           </Show>
 
@@ -200,7 +204,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onOpenFolders?.()}
               class="action-dock-btn"
-              aria-label="Folder"
+              aria-labelledby="action-folder-label"
             >
               <span
                 class="material-symbols-outlined"
@@ -209,7 +213,7 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 folder
               </span>
-              <span class="hidden sm:inline">Folder</span>
+              <span id="action-folder-label" class="hidden sm:inline">Folder</span>
             </button>
           </Show>
 
@@ -218,7 +222,7 @@ export default function ActionDock(props: ActionDockProps) {
               type="button"
               onClick={() => props.onShare?.()}
               class="action-dock-btn"
-              aria-label="Share"
+              aria-labelledby="action-share-label"
             >
               <span
                 class="material-symbols-outlined"
@@ -227,7 +231,7 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 share
               </span>
-              <span class="hidden sm:inline">Share</span>
+              <span id="action-share-label" class="hidden sm:inline">Share</span>
             </button>
           </Show>
 
@@ -235,7 +239,7 @@ export default function ActionDock(props: ActionDockProps) {
             type="button"
             onClick={() => props.onEdit()}
             class="action-dock-btn"
-            aria-label="Edit"
+            aria-labelledby="action-edit-label"
           >
             <span
               class="material-symbols-outlined"
@@ -244,7 +248,7 @@ export default function ActionDock(props: ActionDockProps) {
             >
               edit
             </span>
-            <span class="hidden sm:inline">Edit</span>
+            <span id="action-edit-label" class="hidden sm:inline">Edit</span>
           </button>
 
           <Show when={props.onRemove}>
@@ -257,7 +261,7 @@ export default function ActionDock(props: ActionDockProps) {
                 props.onRemove?.();
               }}
               class="action-dock-btn action-dock-btn-danger"
-              aria-label="Delete"
+              aria-labelledby="action-delete-label"
             >
               <span
                 class="material-symbols-outlined"
@@ -266,7 +270,7 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 delete
               </span>
-              <span class="hidden sm:inline">Delete</span>
+              <span id="action-delete-label" class="hidden sm:inline">Delete</span>
             </button>
           </Show>
         </div>

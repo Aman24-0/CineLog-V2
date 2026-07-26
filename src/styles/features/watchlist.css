@@ -23,6 +23,12 @@
 .vault-card-premium:hover { transform: translateY(-3px) scale(1.02); will-change: transform; }
 .vault-card-premium:active { transform: translateY(0) scale(0.95); transition-duration: var(--dur-fast); will-change: auto; }
 
+/* vault-card-inner — the inner card surface.
+   contain:content isolates each card's rendering from sibling
+   cards, preventing layout recalculation of the entire grid
+   when one card's state changes (hover, status badge, poster
+   load). This is the primary INP optimization for large vaults.
+   content-visibility:auto skips offscreen cards entirely. */
 .vault-card-inner {
   aspect-ratio: 2/3;
   border-radius: var(--radius-card);
@@ -31,6 +37,9 @@
   box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.05);
   background: var(--tier-2);
   position: relative;
+  contain: content;
+  content-visibility: auto;
+  contain-intrinsic-size: auto 300px;
   transition: border-color var(--dur-base) var(--ease-out),
               box-shadow var(--dur-base) var(--ease-out);
 }
@@ -512,6 +521,10 @@
 }
 .quick-filter-bar::-webkit-scrollbar { display: none; }
 
+/* quick-filter-tab — GPU-composited transitions for reduced INP.
+   will-change:transform,opacity promotes the tab to its own
+   compositor layer so background/border/box-shadow transitions
+   don't trigger main-thread layout recalculation. */
 .quick-filter-tab {
   font-family: 'Outfit', sans-serif;
   font-size: 0.75rem;
@@ -528,11 +541,13 @@
   cursor: pointer;
   white-space: nowrap;
   flex-shrink: 0;
+  will-change: transform, opacity;
   transition: background var(--dur-base) var(--ease-out),
               border-color var(--dur-base) var(--ease-out),
               color var(--dur-base) var(--ease-out),
               box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+              transform var(--dur-fast) var(--ease-spring),
+              opacity var(--dur-fast) var(--ease-out);
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
