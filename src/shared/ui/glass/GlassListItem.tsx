@@ -181,6 +181,10 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
           src={local.imageUrl}
           alt={local.imageAlt ?? ""}
           class={`${imageSizeMap[local.size]} rounded-sm object-cover shrink-0`}
+          loading="lazy"
+          decoding="async"
+          width={local.size === "compact" ? 32 : local.size === "default" ? 44 : 56}
+          height={local.size === "compact" ? 32 : local.size === "default" ? 44 : 56}
           draggable="false"
         />
       </Show>

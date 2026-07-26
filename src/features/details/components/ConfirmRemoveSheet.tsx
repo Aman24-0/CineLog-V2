@@ -87,6 +87,8 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                   src={tmdbImage(props.posterPath, "w185")}
                   alt=""
                   class="absolute inset-0 w-full h-full object-cover"
+                  loading="lazy"
+                  decoding="async"
                 />
               </div>
             </Show>

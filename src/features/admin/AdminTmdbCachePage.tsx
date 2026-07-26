@@ -339,7 +339,7 @@ const AdminTmdbCachePage: Component = () => {
                     </div>
                   </div>
                 </div>
-                <button onClick={() => deleteEntry(e)} style={iconBtnDanger} title="Delete">🗑️</button>
+                <button onClick={() => deleteEntry(e)} style={iconBtnDanger} title="Delete" aria-label="Delete cache entry">🗑️</button>
               </div>
             )}
           </For>

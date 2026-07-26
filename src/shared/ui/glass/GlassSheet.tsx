@@ -1,5 +1,5 @@
 // src/shared/ui/glass/GlassSheet.tsx
-import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps } from "solid-js";
+import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps, createEffect } from "solid-js";
 import { Portal } from "solid-js/web";
 
 // ─── Variant Types ─────────────────────────────────────────────
@@ -82,10 +82,15 @@ const defaultProps: Required<
  *  - role="dialog" aria-modal="true"
  *  - ESC closes the sheet (unless disableBackdropClose)
  *  - Backdrop tap closes (unless disableBackdropClose)
- *  - Focus is trapped inside the sheet while open (basic Tab cycling)
+ *  - Focus moves into the sheet when it opens (auto-focuses
+ *    the first focusable element, typically the close button)
  */
 const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
+
+  // Focus management: auto-focus the first focusable element
+  // inside the sheet when it opens.
+  let sheetSurfaceRef: HTMLDivElement | undefined;
 
   // ESC key handler
   onMount(() => {
@@ -97,6 +102,19 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
+  });
+
+  // Auto-focus first focusable element when sheet opens
+  createEffect(() => {
+    if (props.open && sheetSurfaceRef) {
+      requestAnimationFrame(() => {
+        if (!sheetSurfaceRef) return;
+        const focusable = sheetSurfaceRef.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable) focusable.focus();
+      });
+    }
   });
 
   return (
@@ -130,6 +148,7 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
           }}
         >
           <div
+            ref={sheetSurfaceRef}
             class={`sheet-glass-surface ${strengthBg[props.strength]} ${props.class || ""}`}
           >
             <Show when={props.showHandle}>

@@ -1,9 +1,13 @@
 // src/features/details/DetailsModal/DetailsCast.tsx
-import { Show, For, createSignal, createMemo, onCleanup, type Accessor, type Component } from "solid-js";
+import { Show, For, createSignal, createMemo, onCleanup, lazy, Suspense, type Accessor, type Component } from "solid-js";
 import DetailSection from "~/features/details/components/DetailSection";
-import PersonModal from "~/features/details/components/PersonModal";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBDetails, TMDBCastMember, TMDBCrewMember } from "~/shared/types";
+
+// Dynamic import — PersonModal is a heavy component (full-screen modal
+// with its own TMDB API calls). Lazy loading reduces initial bundle
+// size since it's only needed when a user clicks a cast/crew card.
+const PersonModal = lazy(() => import("~/features/details/components/PersonModal"));
 
 /**
  * DetailsCast — Cast & Crew section with images + clickable person modal.
@@ -193,12 +197,14 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
       </DetailSection>
 
       <Show when={selectedPerson()}>
-        <PersonModal
-          personId={selectedPerson()!.id}
-          personName={selectedPerson()!.name}
-          initialProfilePath={selectedPerson()!.profilePath}
-          onClose={handleClosePerson}
-        />
+        <Suspense fallback={null}>
+          <PersonModal
+            personId={selectedPerson()!.id}
+            personName={selectedPerson()!.name}
+            initialProfilePath={selectedPerson()!.profilePath}
+            onClose={handleClosePerson}
+          />
+        </Suspense>
       </Show>
     </Show>
   );

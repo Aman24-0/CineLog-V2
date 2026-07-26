@@ -1,4 +1,5 @@
 import { createSignal } from "solid-js";
+import { hapticForToastType } from "~/shared/utils/haptic";
 
 export type ToastType =
   | "success"
@@ -80,6 +81,11 @@ export function useToast() {
       }
       return next;
     });
+
+    // Haptic feedback — light tap for success/info, double-tap for errors.
+    // Safe fallback: on browsers that don't support navigator.vibrate
+    // (iOS Safari, desktop), the utility silently skips the call.
+    hapticForToastType(type);
 
     if (duration > 0) {
       setTimeout(() => dismissToast(id), duration);

@@ -67,8 +67,7 @@ export default function TimelineEntry(props: TimelineEntryProps) {
   return (
     <div
       class={`universe-timeline-item${!props.item.inVault ? " universe-timeline-missing" : ""}${props.item.entry.isPinned ? " universe-timeline-pinned" : ""}${props.selected ? " universe-timeline-selected" : ""}${props.selectMode ? " universe-timeline-select-mode" : ""}`}
-      role="listitem"
-      role-button={props.selectMode ? undefined : "button"}
+      role={props.selectMode ? "listitem" : "button"}
       tabindex={0}
       onClick={handleClick}
       onKeyDown={(e) => {

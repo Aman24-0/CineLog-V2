@@ -199,6 +199,8 @@ export default function DetailsModal() {
                 class="cinematic-ambient"
                 alt=""
                 aria-hidden="true"
+                loading="lazy"
+                decoding="async"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}

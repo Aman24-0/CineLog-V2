@@ -198,7 +198,7 @@
     --text-body: #EDE8DA;
     --text-soft: rgba(237,232,218,0.72);
     --text-muted: rgba(237,232,218,0.58);
-    --text-dim: rgba(237,232,218,0.42);
+    --text-dim: rgba(237,232,218,0.50);
 
     /* Glass tokens — warm cinema glass */
     --glass-bg: rgba(13,13,20,0.78);

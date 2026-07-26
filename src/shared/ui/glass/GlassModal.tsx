@@ -1,5 +1,5 @@
 // src/shared/ui/glass/GlassModal.tsx
-import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps } from "solid-js";
+import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps, createEffect } from "solid-js";
 import { Portal } from "solid-js/web";
 
 // ─── Variant Types ─────────────────────────────────────────────
@@ -83,9 +83,18 @@ const defaultProps: Required<
  *  - role="dialog" aria-modal="true"
  *  - ESC closes the modal (unless disableBackdropClose)
  *  - Backdrop tap closes (unless disableBackdropClose)
+ *  - Focus moves into the dialog when it opens (auto-focuses the
+ *    close button, which is always present when showCloseButton=true)
  */
 const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
+
+  // Focus management: auto-focus the first focusable element
+  // inside the modal when it opens. This ensures keyboard users
+  // don't have to Tab through the background page to reach the
+  // dialog. We use a ref on the close button as the primary target,
+  // falling back to querying all focusable elements.
+  let modalSurfaceRef: HTMLDivElement | undefined;
 
   // ESC key handler
   onMount(() => {
@@ -97,6 +106,27 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
+  });
+
+  // Auto-focus first focusable element when modal opens
+  createEffect(() => {
+    if (props.open && modalSurfaceRef) {
+      // Delay to allow the Portal to render the DOM
+      requestAnimationFrame(() => {
+        if (!modalSurfaceRef) return;
+        // Find the close button first (best UX target), or any focusable element
+        const closeBtn = modalSurfaceRef.querySelector<HTMLButtonElement>("button.modal-glass-close");
+        if (closeBtn) {
+          closeBtn.focus();
+          return;
+        }
+        // Fallback: first focusable element
+        const focusable = modalSurfaceRef.querySelector<HTMLElement>(
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
+        );
+        if (focusable) focusable.focus();
+      });
+    }
   });
 
   return (
@@ -127,6 +157,7 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
           }}
         >
           <div
+            ref={modalSurfaceRef}
             class={`modal-glass-surface ${strengthSurface[props.strength]} ${sizeMaxWidth[props.size]} ${props.class || ""}`}
             onClick={(e) => e.stopPropagation()}
           >

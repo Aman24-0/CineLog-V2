@@ -284,8 +284,8 @@ const AdminCollectionsPage: Component = () => {
                     >
                       ✏️ Edit entries
                     </A>
-                    <button onClick={() => openEdit(u)} style={iconBtn} title="Edit metadata">⚙️</button>
-                    <button onClick={() => remove(u)} style={iconBtnDanger} title="Delete">🗑️</button>
+                    <button onClick={() => openEdit(u)} style={iconBtn} title="Edit metadata" aria-label="Edit collection metadata">⚙️</button>
+                    <button onClick={() => remove(u)} style={iconBtnDanger} title="Delete" aria-label="Delete collection">🗑️</button>
                   </div>
                 </div>
               </div>

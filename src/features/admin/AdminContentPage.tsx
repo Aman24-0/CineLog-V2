@@ -340,8 +340,8 @@ const AdminContentPage: Component = () => {
                     >
                       {e.is_active ? "ACTIVE" : "INACTIVE"}
                     </button>
-                    <button onClick={() => openEdit(e)} style={iconBtn} title="Edit">✏️</button>
-                    <button onClick={() => remove(e)} style={iconBtnDanger} title="Remove">🗑️</button>
+                    <button onClick={() => openEdit(e)} style={iconBtn} title="Edit" aria-label="Edit content entry">✏️</button>
+                    <button onClick={() => remove(e)} style={iconBtnDanger} title="Remove" aria-label="Remove content entry">🗑️</button>
                   </Show>
                 </div>
               </div>
