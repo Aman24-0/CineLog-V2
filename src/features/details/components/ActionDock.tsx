@@ -1,6 +1,7 @@
 // src/features/details/components/ActionDock.tsx
 import { Show, For } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
+import { hapticHeavy } from "~/shared/utils/haptic";
 
 interface ActionDockProps {
   /** TMDB identity — always present */
@@ -250,7 +251,12 @@ export default function ActionDock(props: ActionDockProps) {
           <Show when={props.onRemove}>
             <button
               type="button"
-              onClick={() => props.onRemove?.()}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                hapticHeavy();
+                props.onRemove?.();
+              }}
               class="action-dock-btn action-dock-btn-danger"
               aria-label="Remove from watchlist"
             >

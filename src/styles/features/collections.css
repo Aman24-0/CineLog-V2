@@ -764,6 +764,9 @@
 /* === YOUR COLLECTIONS — folder grid with poster collage === */
 .collections-folder-grid {
   display: grid; grid-template-columns: repeat(2, 1fr); gap: var(--sp-3);
+  /* CSS containment: skips rendering offscreen collection cards,
+     speeding up paint on pages with many collections. */
+  contain: content;
 }
 @media (min-width: 640px) { .collections-folder-grid { grid-template-columns: repeat(3, 1fr); } }
 

@@ -475,6 +475,10 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
   gap: var(--sp-3);
+  /* CSS containment: skips rendering offscreen grid items for faster
+     paint on large vaults. contain-intrinsic-size estimates the
+     row height so the browser can allocate space without rendering. */
+  contain: content;
 }
 @media (min-width: 375px) {
   .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }
@@ -662,6 +666,11 @@
 .vault-shelf-card {
   width: 130px;
   flex-shrink: 0;
+  /* content-visibility: auto skips rendering offscreen shelf cards.
+     contain-intrinsic-size provides an estimated height so the
+     browser doesn't collapse layout for offscreen items. */
+  content-visibility: auto;
+  contain-intrinsic-size: auto 260px;
 }
 @media (min-width: 640px) {
   .vault-shelf-card { width: 160px; }
@@ -685,6 +694,10 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  /* contain: layout style paint isolates the button's rendering
+     from parent card layout changes, reducing INP on the
+     focus-ring transition (previously ~2s render-blocking). */
+  contain: layout style paint;
   cursor: pointer;
   z-index: 5;
   transition: background 200ms ease, transform 200ms ease, border-color 200ms ease;

@@ -96,7 +96,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
           <div class="vault-shelf-grid" role="list">
             <For each={gridItems()}>
               {(m) => (
-                <div role="listitem">
+                <div role="listitem" aria-label={m.title || m.name || "Untitled title"}>
                   <MovieCard
                     movie={m}
                     variant="compact"
@@ -113,7 +113,9 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
         <div class="vault-shelf-rail" role="list">
           <For each={railItems()}>
             {(m) => (
-              <div class="vault-shelf-card" role="listitem">
+              <div class="vault-shelf-card" role="listitem"
+                aria-label={m.title || m.name || "Untitled title"}
+              >
                 <MovieCard
                   movie={m}
                   variant="compact"

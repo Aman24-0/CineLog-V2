@@ -32,6 +32,7 @@ import DetailsCast from "./DetailsCast";
 import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
 import WhereToWatch from "~/features/details/components/WhereToWatch";
+import UserCollectionInfo from "~/features/details/components/UserCollectionInfo";
 
 import { useDetailsForm } from "./useDetailsForm";
 import { useDetailsActions } from "./useDetailsActions";
@@ -297,6 +298,14 @@ export default function DetailsModal() {
                         omdb={omdb}
                         vaultItem={vaultItem}
                       />
+                      {/* User Collection — only shows if this title belongs to
+                          a user-created folder or subscribed universe. TMDB
+                          belongs_to_collection is deliberately NOT rendered
+                          here — it refers to franchise bundles, not personal
+                          organization. */}
+                      <Show when={baseItem()}>
+                        <UserCollectionInfo currentItem={baseItem()!} />
+                      </Show>
                       {/* Where to Watch — between Details and Episodes.
                           Country-filtered: only shows platforms available in
                           the user's set region (from Account settings). */}

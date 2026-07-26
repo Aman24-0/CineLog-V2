@@ -4,6 +4,7 @@ import { Portal } from "solid-js/web";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { GlassSurface } from "~/shared/ui/glass";
+import { hapticDouble } from "~/shared/utils/haptic";
 
 interface ConfirmRemoveSheetProps {
   itemId: string;
@@ -118,7 +119,10 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             <button
               type="button"
               class="btn-ghost flex-1 focus-ring"
-              onClick={() => props.onClose()}
+              onClick={(e) => {
+                e.stopPropagation();
+                props.onClose();
+              }}
               disabled={props.isRemoving}
               aria-label="Cancel removal"
             >
@@ -127,7 +131,11 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             <button
               type="button"
               class="btn-danger flex-1 focus-ring"
-              onClick={() => props.onConfirm()}
+              onClick={(e) => {
+                e.stopPropagation();
+                hapticDouble();
+                props.onConfirm();
+              }}
               disabled={props.isRemoving}
               aria-label="Remove from watchlist"
             >

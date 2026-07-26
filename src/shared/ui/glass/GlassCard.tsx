@@ -200,12 +200,18 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
     }
   };
 
+  /** Whether this interactive card has an accessible name.
+   *  Prevents a11y violation: role="button" without accessible name. */
+  const hasAccessibleName = (): boolean =>
+    local.interactive &&
+    (("aria-label" in rest) || ("aria-labelledby" in rest));
+
   return (
     <div
       {...rest}
       class={cardClasses()}
       style={accentBorderStyle()}
-      role={local.interactive && !local.disabled ? "button" : undefined}
+      role={local.interactive && !local.disabled && hasAccessibleName() ? "button" : undefined}
       tabindex={local.interactive && !local.disabled ? 0 : undefined}
       aria-disabled={local.disabled || undefined}
       aria-busy={local.loading || undefined}

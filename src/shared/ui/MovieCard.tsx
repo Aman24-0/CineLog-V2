@@ -1,5 +1,5 @@
 // src/shared/ui/MovieCard.tsx
-import { Component, Show, createSignal } from "solid-js";
+import { Component, Show, createSignal, batch } from "solid-js";
 import Icon from "./Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem, CollectionEntry } from "~/shared/types";
@@ -91,15 +91,21 @@ const MovieCard: Component<MovieCardProps> = (props) => {
       first_air_date: props.movie.first_air_date,
       runtime: props.movie.runtime,
     };
-    if (isFavourite()) {
-      void collections.removeFromCollection(colId, entry.id, entry.media_type).then(() => {
-        showToast("Removed from Favorites", "info", 1200);
-      });
-    } else {
-      void collections.addToCollection(colId, entry).then(() => {
-        showToast("Added to Favorites", "success", 1200);
-      });
-    }
+    // batch() wraps reactive state updates so SolidJS batches them
+    // into a single render cycle, reducing INP by avoiding double
+    // re-renders (collection signal + toast signal triggering
+    // separate reactive updates).
+    batch(() => {
+      if (isFavourite()) {
+        void collections.removeFromCollection(colId, entry.id, entry.media_type).then(() => {
+          showToast("Removed from Favorites", "info", 1200);
+        });
+      } else {
+        void collections.addToCollection(colId, entry).then(() => {
+          showToast("Added to Favorites", "success", 1200);
+        });
+      }
+    });
   };
 
   // Variant-aware class
@@ -138,7 +144,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
       class={cardClass()}
       role="button"
       tabindex={0}
-      aria-label={`${title()}${year() ? `, ${year()}` : ""} — ${statusLabel()}`}
+      aria-label={title()}
     >
       <div class="vault-card-inner">
         {/* Loading skeleton */}
