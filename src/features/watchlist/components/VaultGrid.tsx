@@ -31,7 +31,7 @@ export default function VaultGrid(props: VaultGridProps) {
       <div class="vault-shelf-grid animate-fade-in" role="list" aria-label="Watchlist grid">
         <For each={props.items}>
           {(m) => (
-            <div role="listitem" aria-label={m.title || m.name || "Untitled title"}>
+            <div role="listitem">
               <MovieCard movie={m} variant="compact" search={props.search} onClick={() => props.onOpenMovie(m.id)} />
             </div>
           )}

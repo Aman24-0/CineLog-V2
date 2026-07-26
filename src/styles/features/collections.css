@@ -767,6 +767,10 @@
   /* CSS containment: skips rendering offscreen collection cards,
      speeding up paint on pages with many collections. */
   contain: content;
+  /* content-visibility: auto skips layout/paint of offscreen cards,
+     reducing INP on pages with many collections. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 200px;
 }
 @media (min-width: 640px) { .collections-folder-grid { grid-template-columns: repeat(3, 1fr); } }
 

@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultHeader.tsx
-import { Show } from "solid-js";
+import { Show, batch } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 
 interface VaultHeaderProps {
@@ -45,7 +45,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
         {/* View mode toggle */}
         <div class="view-toggle" role="group" aria-label="View mode">
           <button
-            onClick={() => props.setViewMode("grid")}
+            onClick={() => batch(() => props.setViewMode("grid"))}
             class="view-toggle-btn focus-ring"
             data-active={props.viewMode() === "grid"}
             aria-label="Grid view"
@@ -54,7 +54,7 @@ export default function VaultHeader(props: VaultHeaderProps) {
             <Icon name="grid_view" style={{ "font-size": "16px" }} aria-hidden="true" />
           </button>
           <button
-            onClick={() => props.setViewMode("timeline")}
+            onClick={() => batch(() => props.setViewMode("timeline"))}
             class="view-toggle-btn focus-ring"
             data-active={props.viewMode() === "timeline"}
             aria-label="Timeline view"

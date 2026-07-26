@@ -462,6 +462,7 @@
   padding-bottom: var(--sp-2);
   scroll-snap-type: x proximity;
   -webkit-overflow-scrolling: touch;
+  contain: content;
 }
 .vault-shelf-rail > * {
   scroll-snap-align: start;
@@ -479,6 +480,12 @@
      paint on large vaults. contain-intrinsic-size estimates the
      row height so the browser can allocate space without rendering. */
   contain: content;
+  /* content-visibility: auto lets the browser skip layout/paint of
+     offscreen children entirely, dramatically reducing INP on vaults
+     with 500+ items. contain-intrinsic-size provides a height estimate
+     so scrollbar position stays accurate without forcing a render. */
+  content-visibility: auto;
+  contain-intrinsic-size: 0 280px;
 }
 @media (min-width: 375px) {
   .vault-shelf-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); }

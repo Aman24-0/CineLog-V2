@@ -24,21 +24,28 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
 
   return (
     <Portal>
-      {/* Backdrop */}
+      {/* Backdrop — aria-hidden + tabindex="-1" so the Vercel a11y audit
+          does not flag "ARIA hidden element must not be focusable". The
+          backdrop is purely visual; pointer events still fire so the user
+          can tap outside the sheet to dismiss. */}
       <div
         class="sheet-backdrop animate-fade-in"
         onClick={() => {
           if (!props.isRemoving) props.onClose();
         }}
         aria-hidden="true"
+        tabindex="-1"
         style={{
           "z-index": modalState.zIndexBase + 2,
         }}
       />
 
-      {/* Sheet Container */}
+      {/* Sheet Container — proper modal semantics for screen readers */}
       <div
         class="sheet-container sheet-container-active"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Remove from vault confirmation"
         style={{
           "z-index": modalState.zIndexBase + 3,
         }}

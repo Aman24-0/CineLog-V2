@@ -6,15 +6,15 @@ import type { WatchlistItem } from "~/shared/types";
 const SimilarTitles = lazy(
   () => import("~/features/details/components/SimilarTitles"),
 );
-const FranchiseInfo = lazy(
-  () => import("~/features/details/components/FranchiseInfo"),
-);
 
 /**
- * DetailsRecommendations — wraps the lazy-loaded FranchiseInfo +
- * SimilarTitles rails. Both consume the user's vault (to mark which
- * recommendations are already owned) and an onSelect callback that
- * re-opens Details for the tapped title.
+ * DetailsRecommendations — lazy-loaded SimilarTitles rail.
+ *
+ * FranchiseInfo (TMDB franchise detection) was REMOVED because it
+ * created a duplicate "Collection" panel alongside the user-only
+ * UserCollectionInfo component. The DetailsModal now shows exactly
+ * ONE collection section, and ONLY when the title belongs to a
+ * user-created folder or subscribed universe in Supabase.
  */
 export interface DetailsRecommendationsProps {
   baseItem: Accessor<WatchlistItem | null>;
@@ -25,13 +25,6 @@ export interface DetailsRecommendationsProps {
 export default function DetailsRecommendations(props: DetailsRecommendationsProps) {
   return (
     <Show when={props.baseItem()}>
-      <Suspense fallback={<div class="h-24 v2-card animate-pulse" />}>
-        <FranchiseInfo
-          currentItem={props.baseItem()!}
-          watchlist={props.watchlist()}
-          onSelect={props.onSelect}
-        />
-      </Suspense>
       <Suspense fallback={<div class="h-24 v2-card animate-pulse" />}>
         <SimilarTitles
           currentItem={props.baseItem()!}

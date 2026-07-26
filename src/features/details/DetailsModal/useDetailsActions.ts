@@ -1,10 +1,11 @@
 // src/features/details/DetailsModal/useDetailsActions.ts
-import { createSignal, createMemo, createEffect, onCleanup } from "solid-js";
+import { createSignal, createMemo, createEffect, onCleanup, batch } from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { pickTrailer, fetchAnyVideoKey } from "~/core/tmdb/tmdb";
+import { hapticTap, hapticDouble } from "~/shared/utils/haptic";
 import {
   createVaultItemInSupabase,
   deleteVaultItemInSupabase,
@@ -344,11 +345,17 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     try {
       await deleteVaultItemInSupabase(uid, v.id, v.media_type);
       const name = v.title || v.name || "Title";
-      showToast(`Removed "${name}"`, "success");
-      args.onRemoved();
+      batch(() => {
+        showToast(`Removed "${name}"`, "success");
+        hapticTap();
+        args.onRemoved();
+      });
     } catch (err) {
       console.error("Failed to remove from vault:", err);
-      showToast("Couldn't remove title. Please try again.", "error");
+      batch(() => {
+        showToast("Couldn't remove title. Please try again.", "error");
+        hapticDouble();
+      });
     } finally {
       setIsRemoving(false);
     }

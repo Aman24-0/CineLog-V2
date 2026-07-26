@@ -80,6 +80,7 @@ const QuickFilterTabs: Component<QuickFilterTabsProps> = (props) => {
               onClick={() => batch(() => props.onSelect(tab.value))}
               role="tab"
               aria-selected={props.active() === tab.value}
+              aria-label={`${tab.label}${count() > 0 ? ` - ${count()} titles` : ""}`}
             >
               <span class="material-symbols-outlined quick-filter-tab-icon" aria-hidden="true">
                 {tab.icon}

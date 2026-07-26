@@ -79,6 +79,7 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
             alt={local.imageAlt || ""}
             class="absolute inset-0 w-full h-full object-cover transition-transform duration-base ease-smooth group-hover:scale-[1.04]"
             loading="lazy"
+            decoding="async"
           />
         </Show>
         <Show when={!local.loading && !local.imageUrl}>

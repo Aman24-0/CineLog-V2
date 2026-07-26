@@ -4,6 +4,7 @@ import { useNavigate } from "@solidjs/router";
 import DetailSection from "./DetailSection";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useCuratedUniverses } from "~/features/collections/hooks/useCuratedUniverses";
+import { closeTitle } from "~/shared/hooks/useModalState";
 import type { WatchlistItem, Collection } from "~/shared/types";
 
 interface UserCollectionInfoProps {
@@ -69,7 +70,13 @@ const UserCollectionInfo: Component<UserCollectionInfoProps> = (props) => {
               <button
                 type="button"
                 class="franchise-trigger"
-                onClick={() => navigate(`/collections/${col.id}`)}
+                onClick={() => {
+                  // Close the DetailsModal FIRST so the user lands on
+                  // the collection page seamlessly — no backdrop navigation
+                  // bug where the collection page renders *behind* the modal.
+                  closeTitle();
+                  navigate(`/collections/${col.id}`);
+                }}
                 aria-label={`Open ${col.name} collection`}
               >
                 <div class="franchise-trigger-icon">
