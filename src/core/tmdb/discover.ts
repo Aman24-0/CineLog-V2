@@ -1,5 +1,4 @@
 // src/core/tmdb/discover.ts
-import { TMDB_KEY } from "./tmdb";
 import type { TMDBTitle } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { GENRE_ID, genreIdFor } from "./genres";
@@ -21,7 +20,10 @@ export type { TMDBRawItem };
  * `./discoverNormalize.ts`.
  */
 
-const API = "https://api.themoviedb.org/3";
+// All TMDB API calls now go through the server-side proxy at /api/media/*
+// which injects the API key from TMDB_API_KEY (server-only env var).
+// This fixes ISP/DNS blocking in certain regions and keeps the key hidden.
+const API = "/api/media";
 
 // ---------------------------------------------------------------------------
 // Timeout helper — prevents fetch() from hanging forever
@@ -70,7 +72,6 @@ export async function discoverMovies(opts: {
   withKeywords?: number;
 }): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": String(opts.voteCountGte ?? 100),
@@ -109,7 +110,6 @@ export async function discoverTv(opts: {
   page?: number;
 }): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": String(opts.voteCountGte ?? 50),
@@ -145,7 +145,7 @@ export async function getRecommendations(
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/${mediaType}/${id}/recommendations?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/${mediaType}/${id}/recommendations?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getRecommendations failed: ${r.status}`);
       return r.json();
@@ -167,7 +167,7 @@ export async function getTrending(
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/trending/${mediaType}/${window}?api_key=${TMDB_KEY}&language=en-US`
+        `${API}/trending/${mediaType}/${window}?language=en-US`
       );
       if (!r.ok) throw new Error(`getTrending failed: ${r.status}`);
       return r.json();
@@ -187,7 +187,7 @@ export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/movie/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/movie/top_rated?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedMovies failed: ${r.status}`);
       return r.json();
@@ -202,7 +202,6 @@ export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
  */
 export async function searchMulti(query: string): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     query,
     page: "1",
@@ -236,7 +235,7 @@ export async function fetchTitleDirector(
   id: number | string
 ): Promise<string | undefined> {
   const res = await fetchWithTimeout(
-    `${API}/${mediaType}/${id}/credits?api_key=${TMDB_KEY}&language=en-US`
+    `${API}/${mediaType}/${id}/credits?language=en-US`
   );
   if (!res.ok) return undefined;
   const json = await res.json();
@@ -265,7 +264,7 @@ export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/movie/now_playing?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
+        `${API}/movie/now_playing?language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getNowPlaying failed: ${r.status}`);
       return r.json();
@@ -284,7 +283,7 @@ export async function getUpcoming(region = "IN"): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/movie/upcoming?api_key=${TMDB_KEY}&language=en-US&region=${region}&page=1`
+        `${API}/movie/upcoming?language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getUpcoming failed: ${r.status}`);
       return r.json();
@@ -303,7 +302,7 @@ export async function getTopRatedTv(): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/tv/top_rated?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/tv/top_rated?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedTv failed: ${r.status}`);
       return r.json();
@@ -322,7 +321,7 @@ export async function getAiringToday(): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/tv/airing_today?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/tv/airing_today?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getAiringToday failed: ${r.status}`);
       return r.json();
@@ -341,7 +340,7 @@ export async function getOnTheAir(): Promise<TMDBTitle[]> {
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/tv/on_the_air?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/tv/on_the_air?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getOnTheAir failed: ${r.status}`);
       return r.json();
@@ -360,7 +359,7 @@ export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<T
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/${mediaType}/popular?api_key=${TMDB_KEY}&language=en-US&page=1`
+        `${API}/${mediaType}/popular?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getPopular failed: ${r.status}`);
       return r.json();
@@ -387,7 +386,7 @@ export async function getWatchProviderList(region = "IN"): Promise<Array<{ provi
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/watch/providers/movie?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
+        `${API}/watch/providers/movie?language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderList failed: ${r.status}`);
       return r.json();
@@ -410,7 +409,6 @@ export async function discoverMoviesWithProvider(
   opts: { sortBy?: string; page?: number } = {}
 ): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": "50",
@@ -447,7 +445,6 @@ export async function discoverTvWithProvider(
   opts: { sortBy?: string; page?: number } = {}
 ): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
     "vote_count.gte": "50",
@@ -484,7 +481,7 @@ export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ pro
     TMDB_TTL,
     async () => {
       const r = await fetchWithTimeout(
-        `${API}/watch/providers/tv?api_key=${TMDB_KEY}&language=en-US&watch_region=${region}`
+        `${API}/watch/providers/tv?language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderListTv failed: ${r.status}`);
       return r.json();

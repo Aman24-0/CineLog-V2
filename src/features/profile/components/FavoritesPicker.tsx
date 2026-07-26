@@ -71,15 +71,16 @@ const FavoritesPicker: Component<FavoritesPickerProps> = (props) => {
     }
     setLoading(true);
     try {
-      const API = "https://api.themoviedb.org/3";
-      const key = import.meta.env.VITE_TMDB_API_KEY;
+      // All TMDB API calls now go through the server-side proxy at /api/media/*
+      // which injects the API key from TMDB_API_KEY (server-only env var).
+      const API = "/api/media";
       let endpoint: string;
       if (props.slot === "movie") {
-        endpoint = `/search/movie?query=${encodeURIComponent(q)}&api_key=${key}&language=en-US&page=1`;
+        endpoint = `/search/movie?query=${encodeURIComponent(q)}&language=en-US&page=1`;
       } else if (props.slot === "series") {
-        endpoint = `/search/tv?query=${encodeURIComponent(q)}&api_key=${key}&language=en-US&page=1`;
+        endpoint = `/search/tv?query=${encodeURIComponent(q)}&language=en-US&page=1`;
       } else if (props.slot === "director") {
-        endpoint = `/search/person?query=${encodeURIComponent(q)}&api_key=${key}&language=en-US&page=1`;
+        endpoint = `/search/person?query=${encodeURIComponent(q)}&language=en-US&page=1`;
       } else {
         return;
       }
