@@ -1100,7 +1100,7 @@
 .discover-folds .discover-surprise-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 2.35 / 1;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-2xl, 24px);
   overflow: hidden;
   background: var(--tier-2);
@@ -1237,7 +1237,7 @@
   display: flex;
   gap: 0.375rem;
   align-items: center;
-  margin-top: 0;
+  margin-top: auto;
   flex-shrink: 0;
 }
 

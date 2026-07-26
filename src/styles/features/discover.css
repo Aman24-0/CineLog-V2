@@ -1151,14 +1151,14 @@
 
 .discover-surprise-skeleton {
   width: 100%;
-  aspect-ratio: 2.35 / 1;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-xl);
 }
 
 .discover-surprise-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 2.35 / 1;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--tier-2);
@@ -1273,6 +1273,7 @@
   gap: var(--sp-1);
   align-items: center;
   flex-shrink: 0;
+  margin-top: auto;
 }
 
 /* Vault button — frosted glass secondary, compact */
