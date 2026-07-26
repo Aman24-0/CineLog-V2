@@ -566,13 +566,14 @@ export default function DiscoverPage() {
                       <Show when={(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}>
                         <span class="v2-pill">{(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}</span>
                       </Show>
+                      <span class="v2-pill" data-type-display="true">{surpriseTitle()?.release_date ? "Film" : "TV"}</span>
                       <Show when={surpriseTitle()?.vote_average}>
                         <span class="v2-pill" data-rating-display="true">
                           <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
                           {surpriseTitle()!.vote_average!.toFixed(1)}
                         </span>
                       </Show>
-                      <For each={(surpriseTitle()?.genres ?? []).slice(0, 3)}>
+                      <For each={(surpriseTitle()?.genres ?? []).slice(0, 2)}>
                         {(genre) => <span class="v2-pill">{genre}</span>}
                       </For>
                     </div>

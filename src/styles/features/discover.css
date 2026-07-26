@@ -1151,14 +1151,14 @@
 
 .discover-surprise-skeleton {
   width: 100%;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 2.35 / 1;
   border-radius: var(--radius-xl);
 }
 
 .discover-surprise-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 2 / 1;
+  aspect-ratio: 2.35 / 1;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--tier-2);
@@ -1175,73 +1175,77 @@
   /* Prioritize top of poster — faces and key artwork are at the top.
      center 20% keeps the upper portion visible, reducing top crop. */
   object-position: center 20%;
-  /* Brighter than before — artwork should be clearly visible */
-  filter: brightness(0.72) saturate(0.95);
+  /* Artwork-first: poster should immediately catch the eye.
+     brightness 0.85 keeps artwork vivid while ensuring text contrast. */
+  filter: brightness(0.85) saturate(0.95);
 }
 
-/* Cinematic gradient — ONLY behind text area (bottom-left quarter),
-   not full-width. This lets 70-75% of the artwork remain visible. */
+/* Cinematic gradient — ONLY the bottom-left text area is darkened.
+   The rest of the artwork stays bright and unobscured.
+   Short, tight gradients so 75-80% of poster is clearly visible. */
 .discover-surprise-overlay {
   position: absolute;
   inset: 0;
   background:
-    /* Bottom fade — only the lower 40% gets strong dark for text readability */
+    /* Bottom fade — compact, only lower 30% darkened for text */
     linear-gradient(to top,
-      rgba(0,0,0,0.88) 0%,
-      rgba(0,0,0,0.60) 20%,
-      rgba(0,0,0,0.22) 40%,
-      rgba(0,0,0,0.06) 55%,
-      transparent 65%),
-    /* Left fade — anchors text readability in the lower-left */
+      rgba(0,0,0,0.70) 0%,
+      rgba(0,0,0,0.35) 12%,
+      rgba(0,0,0,0.10) 25%,
+      transparent 35%),
+    /* Left fade — narrow band for text contrast */
     linear-gradient(to right,
-      rgba(0,0,0,0.65) 0%,
-      rgba(0,0,0,0.30) 30%,
-      rgba(0,0,0,0.08) 50%,
-      transparent 60%);
+      rgba(0,0,0,0.45) 0%,
+      rgba(0,0,0,0.18) 14%,
+      rgba(0,0,0,0.04) 26%,
+      transparent 36%);
   pointer-events: none;
 }
 
-/* Content cluster — anchored firmly at lower-left, compact */
+/* Content cluster — anchored at lower-left, compact and narrow.
+   Text occupies ~45-50% of hero width so artwork dominates.
+   Tight spacing keeps content near the bottom edge. */
 .discover-surprise-content {
   position: absolute;
   bottom: 0;
   left: 0;
-  max-width: 65%;
-  padding: var(--sp-4);
-  padding-bottom: var(--sp-5, 1.25rem);
+  max-width: 50%;
+  padding: var(--sp-3);
+  padding-bottom: var(--sp-4, 1rem);
   z-index: 2;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: 4px;
 }
 
 .discover-surprise-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 2rem;
-  line-height: 1.05;
+  font-size: 1.75rem;
+  line-height: 1.1;
   letter-spacing: 0.02em;
   color: var(--text-strong);
   margin: 0;
-  margin-top: 4px;
+  margin-top: 2px;
   text-shadow: 0 2px 16px rgba(0,0,0,0.95), 0 0 1px rgba(0,0,0,1);
   /* Title NEVER gets cropped. Long titles naturally wrap to 2 lines.
-     Bebas Neue at 2rem + line-height 1.05 fits comfortably within
-     the lower-left content area. */
+     Bebas Neue at 1.75rem + line-height 1.1 stays balanced —
+     large enough to be the focal text, small enough that even
+     very long titles never exceed 55% of hero height. */
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
-/* Meta row — glass v2-pills for year, rating, genres */
+/* Meta row — compact glass v2-pills, stay on one row whenever possible */
 .discover-surprise-meta {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.375rem;
+  gap: 0.25rem;
 }
 
-/* Short overview — max 2 lines, Outfit body */
+/* Short overview — max 2 lines, ellipsis fade, Outfit body */
 .discover-surprise-overview {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 400;
   line-height: 1.45;
   color: var(--text-soft);
@@ -1253,19 +1257,19 @@
   text-shadow: 0 1px 6px rgba(0,0,0,0.9);
 }
 
-/* Action buttons — compact, horizontal row */
+/* Action buttons — compact horizontal row, minimal height */
 .discover-surprise-actions {
   display: flex;
-  gap: var(--sp-2);
+  gap: var(--sp-1);
   align-items: center;
 }
 
-/* Vault button — frosted glass secondary style */
+/* Vault button — frosted glass secondary, compact */
 .discover-surprise-vault-btn {
   display: inline-flex;
   align-items: center;
-  gap: 0.375rem;
-  padding: 0.5rem 0.875rem;
+  gap: 0.25rem;
+  padding: 0.4rem 0.75rem;
   border-radius: var(--radius-pill);
   background: rgba(255,255,255,0.14);
   color: #FFFFFF;
@@ -1274,7 +1278,7 @@
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
   font-family: 'Outfit', sans-serif;
-  font-size: 0.6875rem;
+  font-size: 0.625rem;
   font-weight: 600;
   letter-spacing: 0.04em;
   cursor: pointer;
@@ -1291,14 +1295,14 @@
   transform: scale(0.96);
 }
 
-/* Floating shuffle — circular icon button, bottom-right */
+/* Floating shuffle — circular icon button, bottom-right, compact */
 .discover-surprise-shuffle {
   position: absolute;
-  bottom: var(--sp-4);
-  right: var(--sp-4);
+  bottom: var(--sp-3);
+  right: var(--sp-3);
   z-index: 3;
-  width: 40px;
-  height: 40px;
+  width: 36px;
+  height: 36px;
   border-radius: 50%;
   display: inline-flex;
   align-items: center;
@@ -1331,12 +1335,12 @@
 }
 
 @media (max-width: 380px) {
-  .discover-surprise-title { font-size: 1.5rem; }
-  .discover-surprise-content { max-width: 70%; padding: var(--sp-3); }
-  .discover-surprise-shuffle { width: 32px; height: 32px; bottom: var(--sp-3); right: var(--sp-3); }
-  .discover-surprise-shuffle .material-symbols-outlined { font-size: 14px; }
-  .discover-surprise-actions .btn-primary { padding: 0.375rem 0.75rem; font-size: 0.5rem; }
-  .discover-surprise-vault-btn { padding: 0.375rem 0.625rem; font-size: 0.5625rem; }
+  .discover-surprise-title { font-size: 1.25rem; }
+  .discover-surprise-content { max-width: 55%; padding: var(--sp-2); }
+  .discover-surprise-shuffle { width: 28px; height: 28px; bottom: var(--sp-2); right: var(--sp-2); }
+  .discover-surprise-shuffle .material-symbols-outlined { font-size: 12px; }
+  .discover-surprise-actions .btn-primary { padding: 0.35rem 0.625rem; font-size: 0.5rem; }
+  .discover-surprise-vault-btn { padding: 0.35rem 0.5rem; font-size: 0.5rem; }
 }
 
 /* ============================================================
