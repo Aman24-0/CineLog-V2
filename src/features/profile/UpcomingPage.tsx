@@ -75,7 +75,7 @@ import {
   Show, For, createSignal, createMemo, createEffect, type Component,
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { tmdbImage, TMDB_KEY } from "~/core/tmdb/tmdb";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { openTitle } from "~/shared/hooks/useModalState";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -118,7 +118,9 @@ interface UpcomingGroup {
 
 // ── Constants ────────────────────────────────────────────────────────
 
-const API = "https://api.themoviedb.org/3";
+// All TMDB API calls now go through the server-side proxy at /api/media/*
+// which injects the API key from TMDB_API_KEY (server-only env var).
+const API = "/api/media";
 const WINDOW_DAYS = 30;
 
 // Max TV series to fetch episode details for (each costs one /tv/{id}
@@ -233,7 +235,6 @@ async function fetchUpcomingMovies(
   language: string | null,
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: "release_date.asc",
     "release_date.gte": startDate,
@@ -299,7 +300,6 @@ async function fetchUpcomingTv(
   language: string | null,
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
-    api_key: TMDB_KEY,
     language: "en-US",
     sort_by: "popularity.desc", // famous shows first
     "air_date.gte": startDate, // any series with an episode airing in this window
@@ -352,7 +352,7 @@ async function fetchWatchProvider(
       buildCacheKey(`tmdb:watch_providers:${mediaType}:${id}:${region}`, {}),
       TMDB_TTL,
       async () => {
-        const r = await fetch(`${API}/${mediaType}/${id}/watch/providers?api_key=${TMDB_KEY}`);
+        const r = await fetch(`${API}/${mediaType}/${id}/watch/providers`);
         if (!r.ok) throw new Error(`watch providers failed: ${r.status}`);
         return r.json();
       },
@@ -407,7 +407,7 @@ async function fetchTvDetails(
         // Append watch/providers to the same request so we get network,
         // next_episode_to_air, AND OTT providers in a single API call.
         const r = await fetch(
-          `${API}/tv/${id}?api_key=${TMDB_KEY}&language=en-US&append_to_response=next_episode_to_air,watch/providers`,
+          `${API}/tv/${id}?language=en-US&append_to_response=next_episode_to_air,watch/providers`,
         );
         if (!r.ok) throw new Error(`tv details failed: ${r.status}`);
         return r.json();

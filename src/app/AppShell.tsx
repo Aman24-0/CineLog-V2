@@ -84,7 +84,7 @@ const AppShell: ParentComponent = (props) => {
   return (
     <Show when={isAdminRoute()} fallback={
       <div
-        class="min-h-screen app-shell-bg"
+        class="min-h-screen w-full app-shell-bg"
         style={{
           "padding-bottom": "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
           background: "var(--void)",

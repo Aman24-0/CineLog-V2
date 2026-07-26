@@ -1,6 +1,7 @@
 /* src/styles/components/dialogs.css — Phase 14.2 CSS architecture
    Polished: refined modal/sheet enter animations, backdrop fade, and
-   a unified .modal-backdrop + .modal-surface language. */
+   a unified .modal-backdrop + .modal-surface language.
+   PHASE 4: Strengthened glass with golden tint + layered shadows. */
 
 /* Bottom-sheet enter (mobile) / pop-in (≥640px) */
 .modal-sheet-enter { animation: sheetUp var(--dur-modal) var(--ease-spring) both; }
@@ -15,16 +16,17 @@
   animation: fadeIn var(--dur-base) ease-out both;
 }
 
-/* Glass modal surface — full glassmorphism.
+/* Glass modal surface — full glassmorphism with golden tint.
    Individual modals can compose this with their own layout class. */
 .modal-surface {
-  background: rgba(18, 18, 28, 0.78);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
-  border: 1px solid rgba(255, 255, 255, 0.09);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(32px) saturate(170%);
+  -webkit-backdrop-filter: blur(32px) saturate(170%);
+  border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
-    var(--shadow-hero),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06),
+    var(--shadow-glass-elevated),
+    0 0 32px var(--p-glow),
+    inset 0 1px 0 rgba(232,183,74,0.10),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   position: relative;
   z-index: 1;
@@ -38,4 +40,57 @@
   background: var(--hairline-3);
   margin: 0 auto var(--sp-3);
   flex-shrink: 0;
+}
+
+/* Sheet backdrop — used by bottom sheets like ConfirmRemoveSheet */
+.sheet-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(16px) saturate(140%);
+  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  pointer-events: auto;
+}
+
+/* Sheet container — centers the sheet surface */
+.sheet-container {
+  position: fixed;
+  left: 50%;
+  bottom: 0;
+  transform: translateX(-50%);
+  width: 100%;
+  max-width: 28rem;
+  pointer-events: auto;
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+.sheet-container-active {
+  animation: sheetUp var(--dur-modal) var(--ease-spring) both;
+}
+@media (min-width: 640px) {
+  .sheet-container {
+    bottom: 50%;
+    transform: translate(-50%, 50%);
+    max-width: 32rem;
+  }
+  .sheet-container-active {
+    animation: popInSpring var(--dur-modal) var(--ease-spring) both;
+  }
+}
+
+/* Sheet content — premium glass surface */
+.sheet-content {
+  border-top-left-radius: var(--radius-2xl, 24px);
+  border-top-right-radius: var(--radius-2xl, 24px);
+  border: 1px solid var(--glass-border-warm-strong);
+  border-bottom: none;
+  box-shadow: var(--shadow-glass-elevated),
+              0 0 24px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10);
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .sheet-content {
+    border-radius: var(--radius-2xl, 24px);
+    border: 1px solid var(--glass-border-warm-strong);
+  }
 }

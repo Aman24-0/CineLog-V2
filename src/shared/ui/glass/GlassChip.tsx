@@ -28,8 +28,8 @@ const defaultProps: Required<Pick<GlassChipProps, "variant" | "selected">> = {
 };
 
 const variantClasses: Record<ChipVariant, string> = {
-  default: "bg-tier-2 border-hairline-2 text-text-body",
-  glass: "bg-glass backdrop-blur-lg border-glass-border text-text-body",
+  default: "bg-glass backdrop-blur-md border-glass-border text-text-body",
+  glass: "bg-glass backdrop-blur-xl border-glass-border text-text-body",
   accent: "bg-primary-dim border-primary text-primary shadow-glow",
 };
 

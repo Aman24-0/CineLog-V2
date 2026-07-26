@@ -214,14 +214,15 @@ export function useProfileData() {
 
 async function fetchFavoriteDirector(personId: string): Promise<FavoriteDirector | null> {
   try {
-    const API = "https://api.themoviedb.org/3";
-    const key = import.meta.env.VITE_TMDB_API_KEY;
+    // All TMDB API calls now go through the server-side proxy at /api/media/*
+    // which injects the API key from TMDB_API_KEY (server-only env var).
+    const API = "/api/media";
     // 10s AbortController timeout prevents this fetch from hanging forever
     // and blocking the profile page from rendering.
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
     try {
-      const res = await fetch(`${API}/person/${personId}?api_key=${key}&language=en-US`, {
+      const res = await fetch(`${API}/person/${personId}?language=en-US`, {
         signal: controller.signal,
       });
       if (!res.ok) return null;

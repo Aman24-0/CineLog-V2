@@ -28,7 +28,7 @@ export default function LoadingSkeleton() {
             <div class="flex gap-3 overflow-hidden pb-2">
               <For each={Array.from({ length: 5 })}>
                 {() => (
-                  <div class="shrink-0" style={{ width: "120px" }}>
+                  <div class="shrink-0" style={{ width: "140px" }}>
                     <Skeleton
                       width="100%"
                       height="0"

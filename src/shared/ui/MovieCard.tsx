@@ -127,6 +127,14 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         }
       }}
       variant={variant() === "featured" ? "accent" : "glass"}
+      // padding="none" + size="compact" + border="none" — the MovieCard's
+      // .vault-card-inner already manages its own border, shadow, padding,
+      // and aspect ratio (2:3). The previous default GlassCard padding
+      // (p-4 gap-3) was shrinking the poster by 16px on every side,
+      // which is why "movie cards became smaller after previous fixes".
+      padding="none"
+      size="compact"
+      border="none"
       class={cardClass()}
       role="button"
       tabindex={0}

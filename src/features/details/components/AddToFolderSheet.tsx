@@ -100,28 +100,17 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
   return (
     <Portal>
       <div
-        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
-        style={{
-          background: "rgba(0,0,0,0.75)",
-          "backdrop-filter": "blur(12px)",
-          "-webkit-backdrop-filter": "blur(12px)",
-          "padding-bottom": "var(--nav-total-height)"
-        }}
+        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in glass-sheet-backdrop"
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label="Add to folder"
       >
         <div
-          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter glass-sheet-surface-premium"
           style={{
             "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
             "min-height": "0",
-            background: "var(--glass-bg-strong)",
-            "backdrop-filter": "blur(28px)",
-            "-webkit-backdrop-filter": "blur(28px)",
-            border: "1px solid var(--hairline-2)",
-            "box-shadow": "var(--shadow-elevated)"
           }}
           onClick={(e) => e.stopPropagation()}
         >

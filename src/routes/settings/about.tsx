@@ -86,7 +86,7 @@ const AboutRoute: Component = () => {
     { key: "Environment", value: env.DEV ? "development" : "production" },
     { key: "SolidJS", value: "1.9.x" },
     { key: "Supabase Region", value: "ap-south-1" },
-    { key: "TMDB API", value: env.VITE_TMDB_API_KEY ? "configured" : "missing" },
+    { key: "TMDB API", value: env.VITE_TMDB_API_KEY ? "configured (proxy)" : "missing" },
     { key: "Supabase URL", value: env.VITE_SUPABASE_URL ? "configured" : "missing" },
   ];
 

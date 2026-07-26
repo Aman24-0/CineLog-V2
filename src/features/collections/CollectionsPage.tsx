@@ -122,12 +122,27 @@ export default function CollectionsPage() {
             <div class="collections-fold-label">
               <span
                 class="material-symbols-outlined"
-                style={{"font-size":"12px","color":"var(--p)"}}
                 aria-hidden="true"
               >
                 folder
               </span>
               Your Collections
+              <button
+                type="button"
+                class="collections-smart-btn focus-ring"
+                onClick={() => setShowSmartBuilder(true)}
+                aria-label="Create smart collection"
+                style={{ "margin-left": "auto" }}
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{"font-size":"14px"}}
+                  aria-hidden="true"
+                >
+                  auto_awesome
+                </span>
+                Smart
+              </button>
               <button
                 type="button"
                 class="collections-fold-action focus-ring"
@@ -142,22 +157,6 @@ export default function CollectionsPage() {
                   add
                 </span>
                 New
-              </button>
-              <button
-                type="button"
-                class="collections-smart-btn focus-ring"
-                onClick={() => setShowSmartBuilder(true)}
-                aria-label="Create smart collection"
-                style={{ "margin-left": "auto" }}
-              >
-                <span
-                  class="material-symbols-outlined"
-                  style={{"font-size":"12px"}}
-                  aria-hidden="true"
-                >
-                  auto_awesome
-                </span>
-                Smart
               </button>
             </div>
 
@@ -205,7 +204,6 @@ export default function CollectionsPage() {
             <div class="collections-fold-label">
               <span
                 class="material-symbols-outlined"
-                style={{"font-size":"12px","color":"var(--p)"}}
                 aria-hidden="true"
               >
                 public

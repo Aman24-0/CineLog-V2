@@ -6,6 +6,7 @@
    deleted and its responsibilities moved to Watchlist + Profile. */
 
 @import "./discover.css";
+@import "./discover-premium.css";
 @import "./search.css";
 @import "./watchlist.css";
 @import "./collections.css";

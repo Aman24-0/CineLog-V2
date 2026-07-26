@@ -13,10 +13,17 @@ import type {
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/core/preferences";
 
-export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY;
+// TMDB_KEY is kept for backward compatibility with files that import it,
+// but it is no longer used in fetch calls — the server proxy injects
+// the API key from TMDB_API_KEY (server-only env var). The VITE_ prefix
+// key remains in the client bundle for the About page diagnostic only.
+export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY ?? "";
 
 const IMG_BASE = "https://image.tmdb.org/t/p";
-const API = "https://api.themoviedb.org/3";
+// All TMDB API calls now go through the server-side proxy at /api/media/*
+// which injects the API key server-side and adds caching/retry logic.
+// This fixes ISP/DNS blocking in certain regions and keeps the key hidden.
+const API = "/api/media";
 
 /**
  * Build a TMDB image URL. Sizes follow TMDB's documented w-pixel conventions.
@@ -69,7 +76,8 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
-        const res = await fetch(`${API}${finalEndpoint}&api_key=${TMDB_KEY}`, {
+        // API key is injected by the server proxy — no need to include it here.
+        const res = await fetch(`${API}${finalEndpoint}`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);

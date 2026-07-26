@@ -462,7 +462,7 @@ export default function DiscoverPage() {
               <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Continue Universes" error={e} />}>
                 <section class="discover-fold" aria-label="Continue your universes">
                   <div class="discover-fold-label">
-                    <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">collections_bookmark</span>
+                    <span class="material-symbols-outlined" aria-hidden="true">collections_bookmark</span>
                     Continue Your Universes
                   </div>
                   <div class="search-rail" role="list">
@@ -495,7 +495,7 @@ export default function DiscoverPage() {
                 <For each={insightCards()}>
                   {(card) => (
                     <div class="discover-insight-card">
-                    <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">{card.icon}</span>
+                    <span class="material-symbols-outlined discover-insight-icon" aria-hidden="true">{card.icon}</span>
                     <span class="discover-insight-label">{card.text}</span>
                   </div>
                 )}
@@ -542,12 +542,15 @@ export default function DiscoverPage() {
             </ErrorBoundary>
           </Show>
 
-          {/* 7. SURPRISE ME — gated by the 'random_picker' feature flag + homepage config */}
+          {/* 7. SURPRISE ME — cinematic poster-first hero
+              Redesigned: poster/artwork is the main focus (70-75% visible),
+              minimal text overlay with glass pills, compact action buttons,
+              floating shuffle icon in bottom-right corner. */}
           <Show when={featureFlags.isEnabled("random_picker") && homepageConfig.isEnabled("surprise_me")}>
           <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Surprise Me" error={e} />}>
             <section class="discover-fold" aria-label="Surprise me">
               <div class="discover-fold-label">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">casino</span>
+                <span class="material-symbols-outlined" aria-hidden="true">casino</span>
                 Surprise Me
               </div>
               <Show when={surpriseTitle() && !surpriseLoading()} fallback={<div class="discover-surprise-skeleton skeleton-base" />}>
@@ -555,23 +558,41 @@ export default function DiscoverPage() {
                   <Show when={surpriseTitle()?.backdrop_path}>
                     <img src={tmdbImage(surpriseTitle()!.backdrop_path, "w780")} class="discover-surprise-backdrop" loading="lazy" decoding="async" alt="" aria-hidden="true" onError={(e) => { e.currentTarget.style.display = "none"; }} />
                   </Show>
+                  {/* Cinematic gradient — only behind text, lets artwork breathe */}
                   <div class="discover-surprise-overlay" />
                   <div class="discover-surprise-content">
-                    <p class="discover-surprise-title">{surpriseTitle()?.title || surpriseTitle()?.name || "Untitled"}</p>
-                    <p class="discover-surprise-meta">
-                      {(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0] || ""}
-                      {surpriseTitle()?.vote_average ? ` · ★ ${surpriseTitle()!.vote_average!.toFixed(1)}` : ""}
-                      {surpriseTitle()?.genres?.length ? ` · ${(surpriseTitle()!.genres ?? []).slice(0, 2).join(", ")}` : ""}
-                    </p>
+                    {/* Layout order: Meta → Title → Overview → Actions */}
+                    <div class="discover-surprise-meta">
+                      <Show when={(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}>
+                        <span class="v2-pill">{(surpriseTitle()?.release_date || surpriseTitle()?.first_air_date || "").split("-")[0]}</span>
+                      </Show>
+                      <span class="v2-pill" data-type-display="true">{surpriseTitle()?.release_date ? "Film" : "TV"}</span>
+                      <Show when={surpriseTitle()?.vote_average}>
+                        <span class="v2-pill" data-rating-display="true">
+                          <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                          {surpriseTitle()!.vote_average!.toFixed(1)}
+                        </span>
+                      </Show>
+                      <For each={(surpriseTitle()?.genres ?? []).slice(0, 2)}>
+                        {(genre) => <span class="v2-pill">{genre}</span>}
+                      </For>
+                    </div>
+                    <h3 class="discover-surprise-title">{surpriseTitle()?.title || surpriseTitle()?.name || "Untitled"}</h3>
+                    <Show when={surpriseTitle()?.overview}>
+                      <p class="discover-surprise-overview">{surpriseTitle()?.overview}</p>
+                    </Show>
                     <div class="discover-surprise-actions">
                       <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && handleOpenTitle(surpriseTitle()!)} aria-label="View details">Details</button>
-                      <button class="btn-primary focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to watchlist">Add to Watchlist</button>
-                      <button class="btn-ghost focus-ring" onClick={rollSurprise} aria-label="Shuffle for another pick">
-                        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">shuffle</span>
-                        Shuffle
+                      <button class="discover-surprise-vault-btn focus-ring" onClick={() => surpriseTitle() && addToVault(surpriseTitle()!)} aria-label="Add to vault">
+                        <span class="material-symbols-outlined" style={{ "font-size": "14px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">add</span>
+                        Add to Vault
                       </button>
                     </div>
                   </div>
+                  {/* Floating shuffle — circular icon, bottom-right */}
+                  <button class="discover-surprise-shuffle focus-ring" onClick={rollSurprise} aria-label="Shuffle for another pick" type="button">
+                    <span class="material-symbols-outlined" aria-hidden="true">shuffle</span>
+                  </button>
                 </div>
               </Show>
             </section>
@@ -584,14 +605,14 @@ export default function DiscoverPage() {
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
               <section class="discover-fold" aria-label="Weekend picks">
                 <div class="discover-fold-label">
-                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">weekend</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">weekend</span>
                   Weekend Picks
                 </div>
                 <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-3)" }}>
                   <For each={weekendPicks}>
                     {(pick, i) => (
                       <button type="button" class="quick-filter-tab focus-ring" data-active={weekendPick() === i()} onClick={() => fetchWeekendPick(i())} aria-label={pick.label}>
-                        <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">{pick.icon}</span>
+                        <span class="material-symbols-outlined" aria-hidden="true">{pick.icon}</span>
                         {pick.label}
                       </button>
                     )}
@@ -681,7 +702,7 @@ export default function DiscoverPage() {
             <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
               <section class="discover-fold" aria-label="New on OTT">
                 <div class="discover-fold-label">
-                  <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--p)" }} aria-hidden="true">live_tv</span>
+                  <span class="material-symbols-outlined" aria-hidden="true">live_tv</span>
                   New on OTT
                 </div>
                 <OttSection onSelect={handleOpenTitle} region={region()} vaultKeys={vaultKeys} />
@@ -731,7 +752,7 @@ export default function DiscoverPage() {
                 Sign in to make Spotlight yours — every pick adapts to what you love.
               </p>
               <button class="btn-primary focus-ring" onClick={handleLogin} style={{ margin: "0 auto", display: "flex" }}>
-                <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">login</span>
+                <span class="material-symbols-outlined" aria-hidden="true">login</span>
                 Sign In to Begin
               </button>
             </div>

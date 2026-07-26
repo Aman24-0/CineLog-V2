@@ -17,7 +17,7 @@ type GlassRadius = "none" | "sm" | "md" | "lg" | "xl";
 const strengthMap: Record<GlassStrength, { bg: string; blur: string }> = {
   default: {
     bg: "bg-glass",          // --glass-bg (72% opacity)
-    blur: "backdrop-blur-lg", // --blur-lg (20px)
+    blur: "backdrop-blur-xl", // stronger blur for premium feel
   },
   strong: {
     bg: "bg-glass-strong",   // --glass-bg-strong (88% opacity)

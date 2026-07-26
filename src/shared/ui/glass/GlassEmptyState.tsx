@@ -81,7 +81,7 @@ const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
     ];
 
     if (local.surface) {
-      base.push("bg-glass backdrop-blur-lg border border-glass-border rounded-lg");
+      base.push("bg-glass backdrop-blur-xl border border-glass-border rounded-lg shadow-glass-card");
     }
 
     if (local.class) base.push(local.class);
@@ -90,13 +90,14 @@ const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
 
   return (
     <div {...rest} class={containerClasses()} style={local.style}>
-      {/* Icon Container */}
+      {/* Icon Container — premium glass with golden tint */}
       <div
-        class={`flex items-center justify-center rounded-full bg-tier-3 text-text-dim border border-hairline-2 flex-shrink-0 ${iconContainerSize[local.variant]}`}
+        class={`flex items-center justify-center rounded-full bg-glass backdrop-blur-md text-primary border border-glass-border flex-shrink-0 ${iconContainerSize[local.variant]}`}
+        style={{ "box-shadow": "0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.10)" }}
       >
         <span
           class={`material-symbols-outlined ${iconFontSize[local.variant]}`}
-          style={{ "font-variation-settings": "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 48" }}
+          style={{ "font-variation-settings": "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48" }}
           aria-hidden="true"
         >
           {local.icon}

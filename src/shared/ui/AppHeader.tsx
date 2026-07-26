@@ -48,17 +48,7 @@ const AppHeader: Component = () => {
 
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between app-header-bg"
-      style={{
-        background: "rgba(10, 10, 16, 0.82)",
-        "backdrop-filter": "blur(28px) saturate(160%)",
-        "-webkit-backdrop-filter": "blur(28px) saturate(160%)",
-        "border-bottom": "1px solid rgba(255,255,255,0.07)",
-        "padding-top": "calc(0.875rem + env(safe-area-inset-top, 0px))",
-        "padding-bottom": "0.875rem",
-        "padding-left": "1.25rem",
-        "padding-right": "1.25rem",
-      }}
+      class="sticky top-0 z-30 flex items-center justify-between app-header-glass"
       role="banner"
     >
       {/* Wordmark */}
@@ -78,23 +68,7 @@ const AppHeader: Component = () => {
       <button
         type="button"
         onClick={handleAvatarClick}
-        class="flex items-center gap-2 rounded-full overflow-hidden focus-ring"
-        style={{
-          background: "var(--hairline)",
-          border: "1px solid var(--hairline-2)",
-          padding: "0.25rem",
-          "padding-right": "0.625rem",
-          transition:
-            "background var(--dur-base) var(--ease-out), border-color var(--dur-base) var(--ease-out), transform var(--dur-fast) var(--ease-spring)",
-        }}
-        onMouseEnter={(e) => {
-          e.currentTarget.style.background = "var(--hairline-2)";
-          e.currentTarget.style.borderColor = "var(--hairline-3)";
-        }}
-        onMouseLeave={(e) => {
-          e.currentTarget.style.background = "var(--hairline)";
-          e.currentTarget.style.borderColor = "var(--hairline-2)";
-        }}
+        class="flex items-center gap-2 rounded-full overflow-hidden focus-ring app-header-avatar"
         aria-label={
           isSignedIn()
             ? `View your profile — signed in as ${user()?.displayName || user()?.email || "user"}`

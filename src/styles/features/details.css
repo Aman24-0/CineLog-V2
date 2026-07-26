@@ -6,20 +6,27 @@
    CineLog's signature identity: one continuous cinematic surface.
    ============================================================ */
 
-/* Cinematic modal container — full-bleed, no rounded top on mobile */
+/* Cinematic modal container — full-bleed, no rounded top on mobile.
+   PHASE 4: Strengthened glass treatment with golden border + glow. */
 .cinematic-modal {
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(32px) saturate(160%);
+  -webkit-backdrop-filter: blur(32px) saturate(160%);
   overflow: hidden;
   position: relative;
   max-height: 100vh;
   display: flex;
   flex-direction: column;
+  border-left: 1px solid var(--glass-border-warm-strong);
+  border-right: 1px solid var(--glass-border-warm-strong);
 }
 @media (min-width: 640px) {
   .cinematic-modal {
     border-radius: var(--radius-modal);
-    border: 1px solid var(--hairline-2);
-    box-shadow: var(--shadow-hero);
+    border: 1px solid var(--glass-border-warm-strong);
+    box-shadow: var(--shadow-glass-elevated),
+                0 0 32px var(--p-glow),
+                inset 0 1px 0 rgba(232,183,74,0.10);
     max-height: 95vh;
   }
 }
@@ -213,10 +220,12 @@
   padding: 0.75rem;
   border-radius: var(--radius-lg);
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(28px) saturate(1.4);
-  -webkit-backdrop-filter: blur(28px) saturate(1.4);
-  border: 1px solid var(--hairline-2);
-  box-shadow: var(--shadow-elevated);
+  backdrop-filter: blur(32px) saturate(1.6);
+  -webkit-backdrop-filter: blur(32px) saturate(1.6);
+  border: 1px solid var(--glass-border-warm-strong);
+  box-shadow: var(--shadow-glass-elevated),
+              0 0 24px var(--p-glow),
+              inset 0 1px 0 rgba(232,183,74,0.10);
   display: flex;
   align-items: center;
   gap: 0.5rem;
@@ -233,8 +242,10 @@
   min-width: 0;
   height: 44px;
   border-radius: var(--radius-md);
-  border: 1px solid var(--hairline);
-  background: rgba(232,183,74,0.02);
+  border: 1px solid var(--hairline-2);
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
   color: var(--text-body);
   font-family: 'Outfit', sans-serif;
   font-size: 0.6875rem;
@@ -246,14 +257,20 @@
   align-items: center;
   justify-content: center;
   gap: 0.375rem;
-  transition: all var(--dur-base) var(--ease-out);
+  transition: background var(--dur-base) var(--ease-out),
+              border-color var(--dur-base) var(--ease-out),
+              color var(--dur-base) var(--ease-out),
+              box-shadow var(--dur-base) var(--ease-out),
+              transform var(--dur-fast) var(--ease-spring);
   white-space: nowrap;
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(232,183,74,0.04);
 }
 .action-dock-btn:hover {
-  background: rgba(232,183,74,0.04);
-  border-color: var(--hairline-3);
+  background: rgba(232,183,74,0.08);
+  border-color: rgba(232,183,74,0.20);
   color: var(--text-strong);
+  transform: translateY(-1px);
 }
 .action-dock-btn:active {
   transform: scale(0.96);
@@ -263,7 +280,9 @@
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
-  box-shadow: var(--active-glow), inset 0 0 0 1px var(--active-border);
+  box-shadow: var(--active-glow),
+              inset 0 0 0 1px var(--active-border),
+              inset 0 1px 0 rgba(255,255,255,0.10);
   font-weight: 800;
 }
 .action-dock-btn-primary {
@@ -271,21 +290,28 @@
   border-color: var(--active-border);
   color: var(--active-text);
   font-weight: 800;
+  box-shadow: var(--active-glow), inset 0 1px 0 rgba(255,255,255,0.10);
 }
 .action-dock-btn-primary:hover {
   background: var(--active-bg);
   filter: brightness(1.08);
   color: var(--active-text);
+  transform: translateY(-1px);
+  box-shadow: var(--active-glow),
+              0 4px 16px rgba(0,0,0,0.5),
+              inset 0 1px 0 rgba(255,255,255,0.15);
 }
 .action-dock-btn-danger {
   color: #f87171;
-  border-color: rgba(248, 113, 113, 0.2);
-  background: rgba(248, 113, 113, 0.04);
+  border-color: rgba(248, 113, 113, 0.30);
+  background: rgba(248, 113, 113, 0.08);
 }
 .action-dock-btn-danger:hover {
-  background: rgba(248, 113, 113, 0.12);
-  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.18);
+  border-color: rgba(248, 113, 113, 0.55);
   color: #fca5a5;
+  box-shadow: 0 4px 12px rgba(248,113,113,0.20),
+              inset 0 1px 0 rgba(248,113,113,0.10);
 }
 .action-dock-divider {
   width: 1px;
@@ -998,6 +1024,48 @@
   width: 100%;
   height: 100%;
   border: none;
+}
+/* Trailer embed fallback — shown when YouTube blocks the embed.
+   Centered within the trailer-player area with a "Watch on YouTube"
+   link that opens the video directly on youtube.com. */
+.cinematic-trailer-fallback {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2, 0.5rem);
+  background: rgba(8,8,13,0.85);
+  text-align: center;
+}
+.cinematic-trailer-fallback-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--text-soft);
+  margin: 0;
+}
+.cinematic-trailer-fallback-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.5rem 1rem;
+  border-radius: var(--radius-pill);
+  background: rgba(255,0,0,0.12);
+  border: 1px solid rgba(255,0,0,0.30);
+  color: #FFFFFF;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out), transform var(--dur-fast) var(--ease-spring);
+}
+.cinematic-trailer-fallback-link:hover {
+  background: rgba(255,0,0,0.22);
+  transform: translateY(-1px);
 }
 /* Close trailer button — top left of the hero, restores the backdrop */
 .cinematic-trailer-close {
