@@ -1085,7 +1085,7 @@
 .discover-folds .discover-surprise-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 21 / 9;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-2xl, 24px);
   overflow: hidden;
   background: var(--tier-2);
@@ -1096,8 +1096,9 @@
     inset 0 1px 0 rgba(232,183,74,0.10);
 }
 
-/* Premium surprise backdrop — brighter so artwork is clearly visible */
+/* Premium surprise backdrop — brighter, top-priority crop for faces */
 .discover-folds .discover-surprise-backdrop {
+  object-position: center 20%;
   filter: brightness(0.78) saturate(0.95);
   transition: transform 1200ms var(--ease-smooth),
               filter 600ms var(--ease-out);

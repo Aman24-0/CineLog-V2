@@ -1149,14 +1149,14 @@
 
 .discover-surprise-skeleton {
   width: 100%;
-  aspect-ratio: 21 / 9;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-xl);
 }
 
 .discover-surprise-card {
   position: relative;
   width: 100%;
-  aspect-ratio: 21 / 9;
+  aspect-ratio: 2 / 1;
   border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--tier-2);
@@ -1170,6 +1170,9 @@
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Prioritize top of poster — faces and key artwork are at the top.
+     center 20% keeps the upper portion visible, reducing top crop. */
+  object-position: center 20%;
   /* Brighter than before — artwork should be clearly visible */
   filter: brightness(0.72) saturate(0.95);
 }
