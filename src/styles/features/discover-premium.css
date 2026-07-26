@@ -486,20 +486,24 @@
     inset 0 1px 0 rgba(232,183,74,0.10);
 }
 
-/* Premium poster image — slightly brighter + smoother zoom */
+/* Premium poster image — slightly brighter + smoother zoom.
+   INP FIX: Only transition `transform` (GPU-composited). The previous
+   rule also transitioned `filter` (brightness/saturate), which forces
+   a full repaint of the image on every animation frame — with 20+
+   posters in a rail this caused 600ms+ render blocks on hover/scroll.
+   `filter` is now applied as a static value; only `transform` animates. */
 .discover-folds .search-rail-poster-img,
 .discover-folds .genre-explorer-panel .search-rail-poster-img {
   width: 100%;
   height: 100%;
   object-fit: cover;
   filter: brightness(0.94) saturate(0.96);
-  transition: transform var(--dur-base) var(--ease-smooth),
-              filter var(--dur-base) var(--ease-out);
+  transition: transform var(--dur-base) var(--ease-smooth);
+  will-change: transform;
 }
 .discover-folds .search-rail-card:hover .search-rail-poster-img,
 .discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster-img {
   transform: scale(1.06);
-  filter: brightness(1) saturate(1);
 }
 
 /* Premium glass overlay on each poster — gradient + status/rating badges
@@ -1111,16 +1115,19 @@
     inset 0 1px 0 rgba(232,183,74,0.10);
 }
 
-/* Premium surprise backdrop — artwork-first, poster vivid and visible */
+/* Premium surprise backdrop — artwork-first, poster vivid and visible.
+   INP FIX: Only transition `transform` (GPU-composited). The previous
+   rule transitioned `filter` too, which forces a full image repaint
+   on every frame — the surprise backdrop is a large w780 image, so
+   repainting it caused 600ms+ render blocks on hover. */
 .discover-folds .discover-surprise-backdrop {
   object-position: center 20%;
   filter: brightness(0.88) saturate(0.95);
-  transition: transform 1200ms var(--ease-smooth),
-              filter 600ms var(--ease-out);
+  transition: transform 1200ms var(--ease-smooth);
+  will-change: transform;
 }
 .discover-folds .discover-surprise-card:hover .discover-surprise-backdrop {
   transform: scale(1.04);
-  filter: brightness(0.92) saturate(1);
 }
 
 /* Premium surprise overlay — minimal, artwork-focused.

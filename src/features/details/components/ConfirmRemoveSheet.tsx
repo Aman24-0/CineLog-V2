@@ -146,14 +146,15 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 class="type-body"
                 style={{ "font-size": "0.9375rem", color: "var(--text-muted)" }}
               >
-                This will remove{" "}
+                This will move{" "}
                 <span
                   style={{ color: "var(--text)", "font-weight": 500 }}
                 >
                   {props.title}
                 </span>{" "}
-                from your watchlist, collections, and history. This action
-                cannot be undone.
+                to Trash. It will be removed from your watchlist,
+                collections, and history. You can restore it from Trash
+                within 30 days before it's permanently deleted.
               </p>
             </div>
           </div>

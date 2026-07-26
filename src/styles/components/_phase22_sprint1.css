@@ -150,7 +150,13 @@
 }
 
 /* V2 Pill — unified pill style for badges, tags, status indicators.
-   PHASE 4: Strengthened glass treatment with golden border + soft glow. */
+   PHASE 4: Strengthened glass treatment with golden border + soft glow.
+   INP FIX: Removed `backdrop-filter: blur(10px) saturate(140%)`. With
+   5-10 pills visible at once (metadata rows, status badges, rating
+   chips) each pill was creating its own GPU blur layer — 700ms+ render
+   blocks on modal open. The semi-transparent `var(--glass-bg)` already
+   provides the glass look; the blur was barely visible on small pills
+   but caused major compositing cost. */
 .v2-pill {
   display: inline-flex;
   align-items: center;
@@ -163,8 +169,6 @@
   letter-spacing: 0.1em;
   text-transform: uppercase;
   background: var(--glass-bg);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
   border: 1px solid var(--glass-border-warm-strong);
   color: var(--text-soft);
   white-space: nowrap;

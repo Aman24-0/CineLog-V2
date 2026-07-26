@@ -126,7 +126,12 @@ const SectionContainer: ParentComponent<SectionContainerProps> = (props) => {
             "opacity": expanded() ? "1" : "0",
             "visibility": expanded() ? "visible" : "hidden",
           }}
-          aria-hidden={!expanded()}
+          // `inert` when collapsed — removes all focusable descendants
+          // from the tab order AND hides them from AT. We do NOT use
+          // `aria-hidden` here because the audit flags "ARIA hidden
+          // element must not be focusable" — `inert` handles both
+          // AT hiding and focus removal in one attribute.
+          inert={expanded() ? undefined : true}
         >
           <div class={`overflow-hidden ${hasHeader() ? "pt-2" : ""}`}>
             {local.children}

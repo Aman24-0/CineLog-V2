@@ -254,7 +254,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   };
 
   return (
-    <div class="your-activity-card animate-fade-up">
+    <div class="your-activity-card">
       {/* Header — accent bar + "Your Activity" label (no Edit button — that's in the ActionDock) */}
       <div class="your-activity-header">
         <div class="your-activity-label">

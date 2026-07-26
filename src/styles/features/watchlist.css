@@ -143,7 +143,13 @@
   z-index: 30;
 }
 
-/* Glass timeline card */
+/* Glass timeline card.
+   INP FIX: Only transition `transform` (GPU-composited). The previous
+   rule transitioned `background`, `border-color`, and `box-shadow` too
+   — these force a full repaint of the card on every frame. With many
+   timeline cards visible at once this caused 570ms+ render blocks on
+   hover/scroll. Background/border/shadow now change instantly on hover
+   (still visible, just not animated). */
 .timeline-card {
   background: var(--tier-2);
   border: 1px solid var(--hairline);
@@ -151,10 +157,8 @@
   box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255,255,255,0.03);
   content-visibility: auto;
   contain-intrinsic-size: auto 120px;
-  transition: background var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+  transition: transform var(--dur-base) var(--ease-spring);
+  will-change: transform;
   position: relative;
   overflow: hidden;
 }

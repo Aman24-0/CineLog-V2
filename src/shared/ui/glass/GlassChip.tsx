@@ -103,23 +103,41 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
       <span>{local.label}</span>
 
       <Show when={local.trailingIcon}>
-        <button
-          type="button"
-          class="flex items-center justify-center rounded-full p-[2px] -mr-1 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
-          onClick={(e) => {
-            if (local.onTrailingIconClick) {
-              e.stopPropagation();
-              local.onTrailingIconClick(e);
-            }
-          }}
-          aria-label={local.onTrailingIconClick ? (local.trailingIconLabel ?? `Remove ${local.label}`) : undefined}
-          aria-hidden={!local.onTrailingIconClick}
-          tabindex={local.onTrailingIconClick ? 0 : -1}
+        <Show
+          when={local.onTrailingIconClick}
+          fallback={
+            /* Icon-only trailing decoration — no button, no aria-hidden.
+               The previous version rendered a <button aria-hidden> which
+               is an a11y violation (aria-hidden element must not be
+               focusable). When there's no onTrailingIconClick handler,
+               the trailing icon is purely decorative — render it as a
+               non-interactive <span>. */
+            <span
+              class="flex items-center justify-center rounded-full p-[2px] -mr-1"
+              aria-hidden="true"
+            >
+              <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
+                {local.trailingIcon}
+              </span>
+            </span>
+          }
         >
-           <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
-             {local.trailingIcon}
-           </span>
-        </button>
+          <button
+            type="button"
+            class="flex items-center justify-center rounded-full p-[2px] -mr-1 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            onClick={(e) => {
+              if (local.onTrailingIconClick) {
+                e.stopPropagation();
+                local.onTrailingIconClick(e);
+              }
+            }}
+            aria-label={local.trailingIconLabel ?? `Remove ${local.label}`}
+          >
+            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
+              {local.trailingIcon}
+            </span>
+          </button>
+        </Show>
       </Show>
     </div>
   );
