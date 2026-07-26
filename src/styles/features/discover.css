@@ -1202,14 +1202,18 @@
   pointer-events: none;
 }
 
-/* Content cluster — anchored at lower-left, compact and narrow.
+/* Content cluster — anchored at lower-left, constrained within card.
    Text occupies ~45-50% of hero width so artwork dominates.
+   max-height reserves a top safe area so the title NEVER touches
+   or crosses the rounded top border, regardless of title length.
+   The card's overflow:hidden is the final clip boundary.
    Tight spacing keeps content near the bottom edge. */
 .discover-surprise-content {
   position: absolute;
   bottom: 0;
   left: 0;
   max-width: 50%;
+  max-height: calc(100% - var(--sp-3, 0.75rem));
   padding: var(--sp-3);
   padding-bottom: var(--sp-4, 1rem);
   z-index: 2;
@@ -1218,28 +1222,33 @@
   gap: 4px;
 }
 
+/* Title — balanced cinematic heading, capped at 2 lines.
+   -webkit-line-clamp ensures very long titles never overflow the card.
+   Font size auto-reduces on small screens via clamp() so even
+   worst-case 2-line titles fit within the reserved content area.
+   Never crops, never clips, never uses negative positioning. */
 .discover-surprise-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 1.75rem;
-  line-height: 1.1;
+  font-size: 1.5rem;
+  line-height: 1.05;
   letter-spacing: 0.02em;
   color: var(--text-strong);
   margin: 0;
-  margin-top: 2px;
   text-shadow: 0 2px 16px rgba(0,0,0,0.95), 0 0 1px rgba(0,0,0,1);
-  /* Title NEVER gets cropped. Long titles naturally wrap to 2 lines.
-     Bebas Neue at 1.75rem + line-height 1.1 stays balanced —
-     large enough to be the focal text, small enough that even
-     very long titles never exceed 55% of hero height. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
   overflow-wrap: break-word;
   word-break: break-word;
 }
 
-/* Meta row — compact glass v2-pills, stay on one row whenever possible */
+/* Meta row — compact glass v2-pills, never shrinks in flex layout */
 .discover-surprise-meta {
   display: flex;
   flex-wrap: wrap;
   gap: 0.25rem;
+  flex-shrink: 0;
 }
 
 /* Short overview — max 2 lines, ellipsis fade, Outfit body */
@@ -1257,11 +1266,13 @@
   text-shadow: 0 1px 6px rgba(0,0,0,0.9);
 }
 
-/* Action buttons — compact horizontal row, minimal height */
+/* Action buttons — compact horizontal row, pinned near bottom,
+   never shrinks in flex layout */
 .discover-surprise-actions {
   display: flex;
   gap: var(--sp-1);
   align-items: center;
+  flex-shrink: 0;
 }
 
 /* Vault button — frosted glass secondary, compact */
@@ -1335,12 +1346,13 @@
 }
 
 @media (max-width: 380px) {
-  .discover-surprise-title { font-size: 1.25rem; }
-  .discover-surprise-content { max-width: 55%; padding: var(--sp-2); }
+  .discover-surprise-title { font-size: 0.875rem; line-height: 1.05; }
+  .discover-surprise-content { max-width: 55%; padding: var(--sp-2); gap: 2px; }
+  .discover-surprise-overview { display: none; }
   .discover-surprise-shuffle { width: 28px; height: 28px; bottom: var(--sp-2); right: var(--sp-2); }
   .discover-surprise-shuffle .material-symbols-outlined { font-size: 12px; }
-  .discover-surprise-actions .btn-primary { padding: 0.35rem 0.625rem; font-size: 0.5rem; }
-  .discover-surprise-vault-btn { padding: 0.35rem 0.5rem; font-size: 0.5rem; }
+  .discover-surprise-actions .btn-primary { padding: 0.3rem 0.5rem; font-size: 0.5rem; }
+  .discover-surprise-vault-btn { padding: 0.3rem 0.4rem; font-size: 0.5rem; }
 }
 
 /* ============================================================
