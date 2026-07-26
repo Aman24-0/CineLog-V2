@@ -41,15 +41,21 @@
 
 /* Page-level ambient glow — the existing .ambient-glow div is rendered
    inside the PageContainer. We strengthen it into a proper cinematic
-   lighting setup with two layered radial gradients. */
+   lighting setup with two layered radial gradients.
+
+   LAYOUT-SAFE: width: 100vw + left: 0 (NOT 120vw + translateX(-50%)).
+   The previous 120vw caused horizontal overflow on mobile because
+   position:fixed elements wider than the viewport extend the
+   document's scroll width, and body's overflow-x:clip does NOT clip
+   fixed-position descendants. Using 100vw + left:0 covers the full
+   viewport without exceeding it. */
 .discover-folds::before,
 .page-enter.discover-folds::before {
   content: '';
   position: fixed;
   top: -20vh;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 120vw;
+  left: 0;
+  width: 100vw;
   height: 70vh;
   background:
     radial-gradient(ellipse 60% 50% at 50% 0%,
@@ -678,7 +684,12 @@
    5. PREMIUM SEARCH — floating, focus animation, premium placeholder
    ============================================================ */
 
-/* Premium floating search — stronger glass + gold focus glow */
+/* Premium floating search — stronger glass + gold focus glow.
+   LAYOUT-SAFE: padding-left/right uses 1rem on mobile and 1.25rem on
+   ≥640px to match the negative margins in .search-bar-form (which were
+   fixed to match PageContainer's px-4/sm:px-5). The previous
+   var(--sp-5, 1.25rem) was always 20px which mismatched the 16px mobile
+   negative margin. */
 .discover-folds ~ .discover-search-bar-form,
 .search-bar-form.discover-search-bar-form {
   position: sticky;
@@ -691,7 +702,14 @@
   box-shadow: 0 4px 20px rgba(0,0,0,0.35),
               inset 0 -1px 0 rgba(232,183,74,0.04);
   margin-bottom: var(--sp-6, 1.5rem);
-  padding: var(--sp-3, 0.75rem) var(--sp-5, 1.25rem);
+  padding: var(--sp-3, 0.75rem) 1rem;
+}
+@media (min-width: 640px) {
+  .discover-folds ~ .discover-search-bar-form,
+  .search-bar-form.discover-search-bar-form {
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
 }
 
 /* Premium search input container — pill with golden focus glow */

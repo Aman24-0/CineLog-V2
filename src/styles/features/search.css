@@ -31,7 +31,12 @@
   max-width: 320px;
 }
 
-/* Search bar — premium glass with stronger blur + golden border on focus */
+/* Search bar — premium glass with stronger blur + golden border on focus
+   LAYOUT-SAFE: negative margins use 1rem on mobile and 1.25rem on ≥640px
+   to EXACTLY match PageContainer's px-4 (mobile) / sm:px-5 (≥640px)
+   padding. The previous calc(-1 * var(--sp-5)) was always 20px which
+   overflowed the 16px mobile padding by 4px on each side, causing
+   horizontal scroll on mobile. */
 .search-bar-form {
   margin-bottom: var(--sp-6);
   position: sticky;
@@ -42,11 +47,19 @@
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
   border-bottom: 1px solid var(--glass-border-warm-strong);
-  margin-left: calc(-1 * var(--sp-5));
-  margin-right: calc(-1 * var(--sp-5));
-  padding-left: var(--sp-5);
-  padding-right: var(--sp-5);
+  margin-left: calc(-1 * 1rem);
+  margin-right: calc(-1 * 1rem);
+  padding-left: 1rem;
+  padding-right: 1rem;
   box-shadow: 0 4px 16px rgba(0,0,0,0.35);
+}
+@media (min-width: 640px) {
+  .search-bar-form {
+    margin-left: calc(-1 * 1.25rem);
+    margin-right: calc(-1 * 1.25rem);
+    padding-left: 1.25rem;
+    padding-right: 1.25rem;
+  }
 }
 .search-bar {
   display: flex;

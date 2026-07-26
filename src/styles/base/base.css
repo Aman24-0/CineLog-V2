@@ -18,6 +18,20 @@
 }
 
 @layer base {
+  /* html — the document root. overflow-x:clip here is the PRIMARY
+     horizontal-overflow containment. body's overflow-x:clip does NOT
+     clip position:fixed descendants (fixed elements are positioned
+     relative to the viewport, not the body). html's overflow-x:clip
+     DOES clip them. This is the root-cause fix for the mobile
+     horizontal-scroll / black-strip bug. */
+  html {
+    overflow-x: clip;
+    /* width:100% ensures html never exceeds the viewport even when
+       a child uses 100vw (which includes scrollbar gutter on some
+       desktop browsers — on mobile there's no scrollbar so 100vw
+       == viewport width, but width:100% is more robust). */
+    width: 100%;
+  }
   body {
     background-color: var(--void);
     color: var(--text);
@@ -28,6 +42,10 @@
     -moz-osx-font-smoothing: grayscale;
     text-rendering: optimizeLegibility;
     overflow-x: clip;
+    /* width:100% (NOT max-width:100vw) — max-width:100vw + safe-area
+       padding narrows content on notched devices, creating a black
+       strip. width:100% fills the html element exactly. */
+    width: 100%;
     min-height: 100vh;
     letter-spacing: 0.015em;
   }
@@ -108,10 +126,12 @@
   }
 }
 
+/* Mobile narrow-viewport tuning — keep card max-width:100% so posters
+   never overflow their grid cell. The previous html,body { max-width:100vw }
+   was removed because it conflicted with safe-area padding and caused a
+   black strip on notched devices. The base html/body { width:100% }
+   rule (above) now handles viewport filling correctly. */
 @media (max-width: 412px) {
-  html, body {
-    max-width: 100vw;
-  }
   .movie-card, .movie-card-inner,
   .vault-card-premium, .vault-card-inner {
     max-width: 100%;
