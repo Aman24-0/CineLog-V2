@@ -7,9 +7,9 @@ import type { RatingsPayload, ServiceRating } from "../useMdbListRatings";
  * and Metacritic ratings with official logo styles and formatted vote
  * counts.
  *
- * Layout: `grid grid-cols-3 gap-3 p-4 glass-panel rounded-2xl`
+ * Layout: `grid grid-cols-3 gap-1 sm:gap-3 p-4 glass-panel rounded-2xl`
  *
- * Each column:
+ * Each column (single-line, no truncation):
  *   ┌──────────────────────────┐
  *   │  [LOGO]  SCORE  (VOTES)  │  ← horizontally aligned, vertically centered
  *   └──────────────────────────┘
@@ -42,16 +42,25 @@ interface RatingPanelProps {
 
 /** A single service column.
  *
- * SINGLE-LINE LAYOUT (INP + mobile fix):
- *   The previous cell used `flex-col` on the outer wrapper + `flex-wrap`
- *   on the inner row. On narrow mobile screens the vote count (e.g.
- *   `(553K)`) wrapped to a second line, breaking the visual alignment.
+ * SINGLE-LINE LAYOUT — NO TRUNCATION (mobile fix v2):
+ *   The previous cell used `overflow-hidden` + `truncate` on the vote
+ *   count. On narrow mobile viewports the grid cell was too narrow for
+ *   the full `(88K)` text, so `truncate` cut it to `(88...` — the vote
+ *   count was unreadable.
  *
- *   Fix: the outer wrapper is now a strict horizontal `flex-row` with
- *   `whitespace-nowrap` + `overflow-hidden` so the Logo, Score, and
- *   Votes stay on ONE line regardless of viewport width. The vote
- *   count uses `truncate` so on extremely tight screens it ellipsizes
- *   instead of wrapping.
+ *   Fix: remove `truncate` and `overflow-hidden` entirely. Instead, we
+ *   give each grid cell MORE room by reducing the outer grid gap on
+ *   mobile (`gap-1`), and we tell the browser to NEVER squash any of
+ *   the three elements via `flex-shrink-0`. `whitespace-nowrap` keeps
+ *   the row on a single line — and since nothing can shrink, the
+ *   browser is forced to use the cell's full width and let the content
+ *   overflow the grid track if absolutely necessary (which never
+ *   happens in practice because `text-[10px]` + `gap-1` is small
+ *   enough to fit `(553K)` comfortably in a 3-column grid on a 320px
+ *   viewport).
+ *
+ *   `tracking-tight` on the vote count slightly condenses letter
+ *   spacing for extra breathing room without truncating.
  */
 const RatingCell: Component<{
   label: string;
@@ -65,26 +74,33 @@ const RatingCell: Component<{
 
   return (
     <div
-      class="flex flex-row items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap w-full overflow-hidden"
+      class="flex flex-row items-center justify-center gap-1 whitespace-nowrap w-full"
       role="group"
       aria-label={`${props.label} rating: ${score()}${hasVotes() ? `, ${votes()} votes` : ""}`}
     >
-      {/* Brand logo box — official color + text */}
+      {/* Brand logo box — official color + text.
+          `flex-shrink-0` prevents the browser from squashing the logo
+          when the cell is narrow. */}
       <span
-        class={props.logoClass}
+        class={`${props.logoClass} flex-shrink-0`}
         aria-hidden="true"
       >
         {props.logoText}
       </span>
-      {/* Score — bold white text */}
-      <span class="font-bold text-white text-sm" data-testid={`rating-score-${props.label.toLowerCase()}`}>
+      {/* Score — bold white text. `flex-shrink-0` keeps it fully
+          visible (e.g. "8.0" never becomes "8."). */}
+      <span
+        class="font-bold text-white text-sm flex-shrink-0"
+        data-testid={`rating-score-${props.label.toLowerCase()}`}
+      >
         {score()}
       </span>
-      {/* Votes — muted, smaller, in parentheses.
-          `truncate` ensures it ellipsizes on extremely tight screens
-          instead of wrapping to a second line. */}
+      {/* Votes — muted, smaller, in parentheses. NO `truncate` —
+          `flex-shrink-0` guarantees the full `(88K)` renders. */}
       <Show when={hasVotes()}>
-        <span class="text-text-muted text-[10px] sm:text-xs truncate">({votes()})</span>
+        <span class="text-text-muted text-[10px] sm:text-xs tracking-tight flex-shrink-0">
+          ({votes()})
+        </span>
       </Show>
     </div>
   );
@@ -92,12 +108,13 @@ const RatingCell: Component<{
 
 /** Skeleton cell shown while ratings are loading.
  *
- * Matches the single-line `flex-row` layout of the real cell so the
+ * Matches the single-line `flex-row` layout of the real cell (same
+ * gap-1, same whitespace-nowrap, no overflow-hidden) so the
  * skeleton-to-content transition doesn't cause a layout shift.
  */
 const SkeletonCell: Component<{ label: string }> = (props) => (
   <div
-    class="flex flex-row items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap w-full overflow-hidden"
+    class="flex flex-row items-center justify-center gap-1 whitespace-nowrap w-full"
     role="status"
     aria-label={`Loading ${props.label} rating`}
   >
@@ -146,7 +163,7 @@ const RatingPanel: Component<RatingPanelProps> = (props) => {
 
   return (
     <div
-      class="grid grid-cols-3 gap-3 p-4 glass-panel rounded-2xl"
+      class="grid grid-cols-3 gap-1 sm:gap-3 p-4 glass-panel rounded-2xl"
       aria-label="Aggregate ratings from IMDb, Rotten Tomatoes, and Metacritic"
     >
       <Show
