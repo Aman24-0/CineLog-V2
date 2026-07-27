@@ -147,23 +147,42 @@ export function useVaultFiltering(
     return [...set].sort();
   });
   const uniquePlatforms = createMemo(() => {
+    // Single-pass Set accumulation across ALL possible platform sources.
+    // Previously this only checked `platformsList`, which left the Platform
+    // dropdown empty for users whose items store the platform under
+    // `watchProgress.server` or `providers` (TMDB watch-provider field).
+    // Now we check every known field per item, filter out null/empty/
+    // whitespace, trim, and dedupe via the Set.
     const set = new Set<string>();
     const list = args.watchlist();
     for (let i = 0; i < list.length; i++) {
-      const pl = list[i].platformsList;
+      const item = list[i];
+
+      // Source 1: platformsList (legacy array of provider names)
+      const pl = item.platformsList;
       if (pl && Array.isArray(pl)) {
         for (let j = 0; j < pl.length; j++) {
           const p = pl[j];
-          // Filter out null/empty/whitespace-only platform names
           if (p && typeof p === "string" && p.trim()) {
             set.add(p.trim());
           }
         }
       }
-      // Also check watchProgress.server as a fallback source for
-      // platform names (some vault items have the streaming platform
-      // stored there instead of in platformsList).
-      const server = list[i].watchProgress?.server;
+
+      // Source 2: providers (TMDB watch-provider field, if populated)
+      const prov = item.providers;
+      if (prov && Array.isArray(prov)) {
+        for (let j = 0; j < prov.length; j++) {
+          const p = prov[j];
+          if (p && typeof p === "string" && p.trim()) {
+            set.add(p.trim());
+          }
+        }
+      }
+
+      // Source 3: watchProgress.server (some items store the streaming
+      // platform here instead of in platformsList/providers)
+      const server = item.watchProgress?.server;
       if (server && typeof server === "string" && server.trim()) {
         set.add(server.trim());
       }

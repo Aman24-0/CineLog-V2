@@ -535,15 +535,20 @@
   box-shadow: 0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.06) !important;
 }
 
-/* Filter chip — stronger glass */
+/* Filter chip — stronger glass + HIGH CONTRAST text.
+   Previously this used a faint gold tint (rgba 0.12) with dark text
+   (var(--active-text) = #08080D), making the chips unreadable.
+   Now: visible gold-tinted background + white text so the active-filter
+   pills (e.g. "INDIAN x") are always legible. */
 .filter-chip {
-  background: rgba(232,183,74,0.12) !important;
-  border: 1px solid rgba(232,183,74,0.32) !important;
+  background: rgba(232,183,74,0.20) !important;
+  border: 1px solid var(--p, #E8B74A) !important;
+  color: #ffffff !important;
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
   box-shadow: 0 2px 8px rgba(0,0,0,0.35),
-              0 0 0 1px rgba(232,183,74,0.10),
-              inset 0 1px 0 rgba(232,183,74,0.10);
+              0 0 0 1px rgba(232,183,74,0.20),
+              inset 0 1px 0 rgba(255,255,255,0.10);
 }
 
 /* View toggle — make it more glassy */

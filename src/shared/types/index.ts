@@ -93,6 +93,17 @@ export interface WatchlistItem {
   runtime?: number;
   genresList?: string[];
   platformsList?: string[];
+  /** Streaming/watch providers (e.g. ["Netflix", "Prime Video"]). Sometimes
+   *  populated by the watch-provider enrichment step. The Platform filter
+   *  checks this field in addition to `platformsList` and `watchProgress.server`. */
+  providers?: string[];
+  /** TMDB origin_country (e.g. ["IN", "US"]). Used by the Region filter to
+   *  detect Indian vs International titles when the explicit `region` field
+   *  is missing. Populated by the TMDB enrichment step. */
+  origin_country?: string[];
+  /** TMDB spoken_languages. Used by the Region filter as a fallback signal
+   *  for Indian titles (Hindi/Tamil/Telugu/etc. language codes). */
+  spoken_languages?: TMDBSpokenLanguage[];
   castList?: string[];
   director?: string;          // e.g. "Christopher Nolan" (searchable)
   tag?: string;

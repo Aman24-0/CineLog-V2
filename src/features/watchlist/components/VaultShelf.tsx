@@ -25,6 +25,14 @@ interface VaultShelfProps {
    * expanding the shelf inline.
    */
   onSeeAll?: () => void;
+  /**
+   * STRICT HIDE — when true, the ENTIRE "See All" button is hidden
+   * (not just the click handler). This is used by the catch-all "all"
+   * section in Dashboard mode where a "See All" button would be
+   * redundant (the user is already viewing the all-status list).
+   * Takes precedence over both `onSeeAll` and the toggleExpand fallback.
+   */
+  hideSeeAll?: boolean;
 }
 
 /**
@@ -37,7 +45,10 @@ interface VaultShelfProps {
  */
 const VaultShelf: Component<VaultShelfProps> = (props) => {
   const isExpanded = () => props.expanded ?? false;
-  const showExpandAction = () => props.section.items.length > 6;
+  // The "See All" button is rendered when there are more than 6 items AND
+  // the parent hasn't explicitly hidden it via `hideSeeAll={true}`.
+  const showExpandAction = () =>
+    props.hideSeeAll !== true && props.section.items.length > 6;
 
   const railItems = () => props.section.items.slice(0, 6);
   const gridItems = () =>
@@ -70,6 +81,10 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
           <span class="vault-shelf-count">{props.section.subtitle}</span>
         </div>
 
+        {/* "See All" button — strictly hidden when `hideSeeAll={true}`.
+            The Show wrapper ensures the ENTIRE button (not just the click
+            handler) is removed from the DOM, so there's no redundant
+            navigation affordance on the catch-all "all" section. */}
         <Show when={showExpandAction()}>
           <button
             type="button"

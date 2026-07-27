@@ -81,7 +81,26 @@ export default function VaultCard(props: VaultCardProps) {
       tabindex={0}
       aria-label={`${title()}, ${props.date ? props.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "date unknown"}`}
     >
-      {/* Timeline card body — no floating day bubble (removed per v2 spec) */}
+      {/* EXACT WATCH DATE — restored per v3 spec.
+          Subtle glass pill positioned to the left of the poster, vertically
+          centered. Shows e.g. "21 Jul" so users can see the exact watch date
+          per card (the Month/Year group header still carries the broader
+          date context). Hidden when there's no date (avoids empty pill). */}
+      <Show when={props.date}>
+        <div
+          class="timeline-day-pill shrink-0 flex flex-col items-center justify-center"
+          aria-hidden="true"
+        >
+          <span class="timeline-day-num">
+            {props.date!.toLocaleDateString("en-US", { day: "numeric" })}
+          </span>
+          <span class="timeline-day-mon">
+            {props.date!.toLocaleDateString("en-US", { month: "short" })}
+          </span>
+        </div>
+      </Show>
+
+      {/* Timeline card body */}
       <GlassCard variant="glass" class="timeline-card w-full p-3 rounded-[1.5rem] flex gap-3 items-center" interactive>
         {/* Poster thumbnail with progress bar */}
         <div

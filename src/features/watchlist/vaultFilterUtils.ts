@@ -100,7 +100,7 @@ export function filterByAdvanced(
 ): WatchlistItem[] {
   let out = items;
   if (f.type !== "all") out = out.filter((m) => m.media_type === f.type);
-  if (f.region !== "all") out = out.filter((m) => (m.region || "International") === f.region);
+  if (f.region !== "all") out = out.filter((m) => matchesRegion(m, f.region));
   if (f.genre !== "all") out = out.filter((m) => {
     if (!m.genresList || !Array.isArray(m.genresList)) return false;
     return m.genresList.some((g) => {
@@ -110,9 +110,73 @@ export function filterByAdvanced(
       return name === f.genre;
     });
   });
-  if (f.platform !== "all") out = out.filter((m) => m.platformsList?.includes(f.platform));
+  if (f.platform !== "all") out = out.filter((m) => matchesPlatform(m, f.platform));
   if (f.tag !== "all") out = out.filter((m) => m.tag === f.tag);
   return out;
+}
+
+/**
+ * Region filter — robustly detects "Indian" vs "International" titles.
+ *
+ * Checks (in priority order) for the "Indian" region:
+ *   1. Explicit `m.region === "Indian"` (legacy field, still used)
+ *   2. `m.origin_country` array includes "IN" (TMDB)
+ *   3. `m.spoken_languages` array includes any Indian language code
+ *      (hi, ta, te, kn, ml, bn, mr, gu, pa, ur, or, as)
+ *
+ * "International" matches anything that is NOT Indian (including items
+ * with no region data at all — backwards compatible with the previous
+ * "defaults missing region to International" behavior).
+ *
+ * All array accesses use optional chaining + Array.isArray() guards so
+ * the filter is safe when the arrays are missing (older vault items).
+ */
+const INDIAN_LANGUAGE_CODES = new Set([
+  "hi", "ta", "te", "kn", "ml", "bn", "mr", "gu", "pa", "ur", "or", "as",
+]);
+
+function matchesRegion(m: WatchlistItem, region: string): boolean {
+  if (region === "Indian") {
+    // 1. Explicit region field
+    if (m.region === "Indian") return true;
+    // 2. TMDB origin_country includes IN
+    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN")) return true;
+    // 3. Spoken languages include an Indian language code
+    if (Array.isArray(m.spoken_languages)) {
+      for (const lang of m.spoken_languages) {
+        if (!lang || typeof lang !== "object") continue;
+        const code = typeof lang.iso_639_1 === "string" ? lang.iso_639_1.toLowerCase() : "";
+        if (code && INDIAN_LANGUAGE_CODES.has(code)) return true;
+      }
+    }
+    return false;
+  }
+  if (region === "International") {
+    // NOT Indian — includes items with no region data (backwards compat).
+    if (m.region === "Indian") return false;
+    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN")) return false;
+    return true;
+  }
+  // Unknown region value — pass through (don't filter)
+  return true;
+}
+
+/**
+ * Platform filter — matches if the platform string is found in ANY of
+ * the platform-carrying fields on the item:
+ *   - `platformsList` (legacy array)
+ *   - `providers` (TMDB watch-provider field)
+ *   - `watchProgress.server` (single-string fallback)
+ *
+ * This mirrors the `uniquePlatforms` extraction in useVaultFiltering.ts
+ * so the dropdown options and the filter predicate stay in sync.
+ */
+function matchesPlatform(m: WatchlistItem, platform: string): boolean {
+  if (Array.isArray(m.platformsList) && m.platformsList.includes(platform)) return true;
+  if (Array.isArray(m.providers) && m.providers.includes(platform)) return true;
+  const server = m.watchProgress?.server;
+  if (typeof server === "string" && server === platform) return true;
+  return false;
 }
 
 /** Apply the numeric range filters (IMDb / RT / year / runtime). */

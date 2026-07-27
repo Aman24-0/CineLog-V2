@@ -100,9 +100,11 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
 
           {/* DASHBOARD MODE: adaptive shelves with headers + "See All".
               The catch-all "all" section (the last section in dashboard
-              mode) does NOT get a "See All" button — it's the infinite
-              list of remaining titles, and "See All" would just switch
-              to the "all" status chip which is already active. */}
+              mode) gets `hideSeeAll={true}` — the ENTIRE "See All" button
+              is removed from the DOM (not just the click handler), because
+              "See All" would just switch to the "all" status chip which
+              is already active. Other sections get "See All" which switches
+              the status chip. */}
           <Show when={!props.isFlatMode()}>
             <For each={props.sections()}>
               {(section) => (
@@ -113,10 +115,11 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
                   expanded={props.expandedShelves().has(section.id)}
                   onToggleExpand={() => props.onToggleShelf(section.id)}
                   maxItems={props.displayLimit()}
-                  // The catch-all "all" section in dashboard mode does NOT
-                  // get a "See All" button (it would be redundant — the
-                  // user is already in "All" mode). Other sections get
-                  // "See All" which switches the status chip.
+                  // STRICT HIDE for the catch-all "all" section — the
+                  // VaultShelf component removes the entire button from
+                  // the DOM when `hideSeeAll === true`, eliminating the
+                  // redundant navigation affordance entirely.
+                  hideSeeAll={section.id === "all"}
                   onSeeAll={section.id === "all" ? undefined : () => {
                     const statusMap: Record<string, string> = {
                       "in-progress": "Watching",
