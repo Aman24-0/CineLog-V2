@@ -3,6 +3,7 @@ import { Show } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
+import { getEpisodeProgress } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 import { GlassCard } from "~/shared/ui/glass";
 
@@ -10,25 +11,30 @@ interface VaultCardProps {
   item: WatchlistItem;
   date: Date | null;
   onOpenMovie: (id: string) => void;
+  /**
+   * SELECTION MODE (future batch management) — when true, the card shows
+   * a checkbox overlay. Default: false.
+   */
+  isSelectionMode?: boolean;
+  isSelected?: boolean;
+  onToggleSelect?: () => void;
 }
 
 /**
- * GlassCard — used in the Timeline view.
+ * VaultCard — used in the Timeline view.
  *
- * Design:
- *  - Horizontal layout: [timeline node] [poster] [info cluster] [chevron]
- *  - Timeline node (positioned by parent) shows the day of the month
- *  - Poster: 2:3 ratio thumbnail with refined shadow + lazy load
- *  - Info cluster: title (truncate), badges (type + status), rating row
- *  - Hover: left accent bar appears, card slides right 4px, border brightens
- *  - Touch feedback via .timeline-card active state
+ * POLISHED TIMELINE (v2):
+ *  - Removed the individual floating day bubble (wasted horizontal space).
+ *    The Month/Year group header now carries the date context.
+ *  - Horizontal layout: [poster] [info cluster] [chevron]
+ *  - TV shows with status "Watching" show episode progress text +
+ *    a thin progress bar at the bottom edge of the poster thumbnail.
+ *  - Selection mode prep: accepts isSelectionMode prop for future
+ *    batch management.
  *
  * The card is self-contained — no dependency on parent context beyond props.
  */
 export default function VaultCard(props: VaultCardProps) {
-  const day = () => (props.date ? props.date.getDate() : "—");
-  const monthShort = () =>
-    props.date ? props.date.toLocaleString("en-US", { month: "short" }) : "";
   const title = () => props.item.title || props.item.name || "Untitled";
   const year = () =>
     (props.item.release_date || props.item.first_air_date || "").split("-")[0] || "";
@@ -44,58 +50,51 @@ export default function VaultCard(props: VaultCardProps) {
   const posterUrl = () =>
     props.item.poster_path ? tmdbImage(props.item.poster_path, "w185") : "";
 
+  // TV episode progress — for TV shows with status "Watching"
+  const episodeProgress = () => {
+    if (props.item.media_type !== "tv") return null;
+    if (props.item.status !== "Watching") return null;
+    return getEpisodeProgress(props.item);
+  };
+
   return (
     <div
-      class="relative flex items-center group cursor-pointer pl-12 pr-3 animate-timeline-in"
-      onClick={() => props.onOpenMovie(props.item.id)}
+      class="relative flex items-center group cursor-pointer pl-3 pr-3 animate-timeline-in"
+      onClick={() => {
+        if (props.isSelectionMode) {
+          props.onToggleSelect?.();
+        } else {
+          props.onOpenMovie(props.item.id);
+        }
+      }}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          props.onOpenMovie(props.item.id);
+          if (props.isSelectionMode) {
+            props.onToggleSelect?.();
+          } else {
+            props.onOpenMovie(props.item.id);
+          }
         }
       }}
       role="article"
       tabindex={0}
       aria-label={`${title()}, ${props.date ? props.date.toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" }) : "date unknown"}`}
     >
-      {/* Timeline node — date indicator */}
-      <div
-        class="absolute left-[1.25rem] -translate-x-1/2 z-10 flex flex-col items-center justify-center w-10 h-10 rounded-full"
-        style={{
-          background: "var(--tier-1)",
-          border: "2px solid var(--p)",
-          "box-shadow": "0 0 0 3px var(--tier-1), 0 0 12px var(--p-glow), 0 4px 8px rgba(0,0,0,0.4)"
-        }}
-        aria-hidden="true"
-      >
-        <span style={{ color: "var(--text-strong)", "font-size": "12px", "font-weight": 800, "font-family": "'Bebas Neue', cursive", "line-height": 1 }}>
-          {day()}
-        </span>
-        <Show when={monthShort()}>
-          <span style={{ color: "var(--p)", "font-size": "7px", "font-weight": 700, "letter-spacing": "0.06em", "text-transform": "uppercase", "font-family": "'Azeret Mono', monospace", "line-height": 1, "margin-top": "1px" }}>
-            {monthShort()}
-          </span>
-        </Show>
-      </div>
-
-      {/* Timeline card body */}
+      {/* Timeline card body — no floating day bubble (removed per v2 spec) */}
       <GlassCard variant="glass" class="timeline-card w-full p-3 rounded-[1.5rem] flex gap-3 items-center" interactive>
-        {/* Poster thumbnail */}
-        <Show
-          when={posterUrl()}
-          fallback={
-            <div
-              class="w-14 h-20 sm:w-16 sm:h-24 rounded-xl flex items-center justify-center shrink-0"
-              style={{ background: "var(--tier-3)", border: "1px solid var(--hairline)" }}
-              aria-hidden="true"
-            >
-              <Icon name="movie" style={{"color":"var(--text-dim)","font-size":"20px"}} />
-            </div>
-          }
+        {/* Poster thumbnail with progress bar */}
+        <div
+          class="w-14 h-20 sm:w-16 sm:h-24 rounded-xl overflow-hidden relative shrink-0"
+          style={{ background: "var(--tier-3)", "box-shadow": "var(--shadow-premium)" }}
         >
-          <div
-            class="w-14 h-20 sm:w-16 sm:h-24 rounded-xl overflow-hidden relative shrink-0"
-            style={{ background: "var(--tier-3)", "box-shadow": "var(--shadow-premium)" }}
+          <Show
+            when={posterUrl()}
+            fallback={
+              <div class="absolute inset-0 flex items-center justify-center" aria-hidden="true">
+                <Icon name="movie" style={{"color":"var(--text-dim)","font-size":"20px"}} />
+              </div>
+            }
           >
             <div class="poster-loading" aria-hidden="true" />
             <img
@@ -111,8 +110,50 @@ export default function VaultCard(props: VaultCardProps) {
               alt=""
               aria-hidden="true"
             />
-          </div>
-        </Show>
+          </Show>
+
+          {/* TV Episode Progress Bar — thin bar at the bottom edge of
+              the poster thumbnail, ONLY for TV shows with status "Watching". */}
+          <Show when={episodeProgress()}>
+            <div
+              class="absolute bottom-0 left-0 w-full h-1"
+              style={{ background: "rgba(255,255,255,0.20)" }}
+              aria-hidden="true"
+            >
+              <div
+                class="h-full"
+                style={{
+                  background: "var(--p, #e8b74a)",
+                  width: `${episodeProgress()!.pct}%`,
+                  transition: "width 400ms ease-out",
+                }}
+              />
+            </div>
+          </Show>
+
+          {/* Selection mode checkbox overlay */}
+          <Show when={props.isSelectionMode}>
+            <div
+              class="absolute top-1 right-1 z-[4] flex items-center justify-center rounded-full"
+              style={{
+                width: "24px",
+                height: "24px",
+                background: props.isSelected ? "var(--p)" : "rgba(0,0,0,0.5)",
+                border: props.isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
+              }}
+              aria-hidden="true"
+            >
+              <Show when={props.isSelected}>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "14px", color: "var(--on-primary, #0a0a0a)" }}
+                >
+                  check
+                </span>
+              </Show>
+            </div>
+          </Show>
+        </div>
 
         {/* Info cluster */}
         <div class="flex-1 flex flex-col justify-center py-1 min-w-0 gap-1.5">
@@ -149,36 +190,53 @@ export default function VaultCard(props: VaultCardProps) {
             </Show>
           </div>
 
-          <div class="flex items-center gap-2 flex-wrap">
-            <Show when={props.item.imdbRating}>
-              <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "#f5c518" }}>
-                <Icon name="star" fill style={{"font-size":"10px","color":"#f5c518"}} aria-hidden="true" />
-                {props.item.imdbRating}
+          {/* TV episode progress text (for watching TV shows) OR rating row */}
+          <Show
+            when={episodeProgress()}
+            fallback={
+              <div class="flex items-center gap-2 flex-wrap">
+                <Show when={props.item.imdbRating}>
+                  <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "#f5c518" }}>
+                    <Icon name="star" fill style={{"font-size":"10px","color":"#f5c518"}} aria-hidden="true" />
+                    {props.item.imdbRating}
+                  </span>
+                </Show>
+                <Show when={props.item.rating}>
+                  <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "var(--p)" }}>
+                    <Icon name="person" fill style={{"font-size":"10px","color":"var(--p)"}} aria-hidden="true" />
+                    {props.item.rating}/10
+                  </span>
+                </Show>
+                <Show when={props.item.status === "Completed"}>
+                  <span
+                    class="inline-flex items-center gap-1 type-meta shrink-0"
+                    style={{
+                      "font-size": "0.5rem",
+                      color: "#60a5fa",
+                      background: "rgba(96,165,250,0.08)",
+                      border: "1px solid rgba(96,165,250,0.25)",
+                      padding: "2px 6px",
+                      "border-radius": "var(--radius-pill)"
+                    }}
+                  >
+                    <Icon name="task_alt" style={{"font-size":"10px"}} aria-hidden="true" />
+                    {statusLabel()}
+                  </span>
+                </Show>
+              </div>
+            }
+          >
+            {/* TV episode progress text: S{season} E{episode} • {watched}/{total} Eps */}
+            <div class="flex items-center gap-1.5 type-meta" style={{ "font-size": "0.5625rem" }}>
+              <span style={{ color: "var(--p)", "font-weight": 600 }}>
+                S{episodeProgress()!.season} E{episodeProgress()!.episode}
               </span>
-            </Show>
-            <Show when={props.item.rating}>
-              <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "var(--p)" }}>
-                <Icon name="person" fill style={{"font-size":"10px","color":"var(--p)"}} aria-hidden="true" />
-                {props.item.rating}/10
+              <span style={{ color: "var(--text-dim)" }}>·</span>
+              <span style={{ color: "var(--text-muted)" }}>
+                {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
               </span>
-            </Show>
-            <Show when={props.item.status === "Completed"}>
-              <span
-                class="inline-flex items-center gap-1 type-meta shrink-0"
-                style={{
-                  "font-size": "0.5rem",
-                  color: "#60a5fa",
-                  background: "rgba(96,165,250,0.08)",
-                  border: "1px solid rgba(96,165,250,0.25)",
-                  padding: "2px 6px",
-                  "border-radius": "var(--radius-pill)"
-                }}
-              >
-                <Icon name="task_alt" style={{"font-size":"10px"}} aria-hidden="true" />
-                {statusLabel()}
-              </span>
-            </Show>
-          </div>
+            </div>
+          </Show>
         </div>
 
         {/* Hover chevron */}

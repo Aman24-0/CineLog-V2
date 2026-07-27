@@ -11,9 +11,16 @@ import type { VaultSection } from "../useVaultSections";
 /**
  * WatchlistGrid — the grid + timeline content area of the Vault page.
  *
- * Two view modes:
- *   - "grid": adaptive shelves (default) OR flat grid (search/filter mode)
- *   - "timeline": completed titles grouped by month, with a vertical rail
+ * DYNAMIC LAYOUT ENGINE (v2):
+ *   - Dashboard mode (status = "all", no search/filters): renders
+ *     adaptive shelves (Continue Watching, Planned, Recently Completed,
+ *     Dropped). Each shelf has a "See All ▾" button that switches the
+ *     active status chip to that category.
+ *   - Single-status mode (e.g. "Watching", "Dropped"): hides all
+ *     sectional headers and renders a single flat grid containing ONLY
+ *     items matching that status.
+ *   - Timeline mode: grouped by Month/Year with sleek sticky glass
+ *     headers (no individual day bubbles).
  *
  * Empty states:
  *   - Guest + empty vault → "Sign In to Begin" CTA
@@ -36,6 +43,10 @@ export interface WatchlistGridProps {
   onLogin: () => void;
   onClearFilters: () => void;
   onReload: () => void;
+  /** The active status tab — used to switch between dashboard and single-status modes */
+  activeStatusTab: Accessor<string>;
+  /** Called when a "See All" button is tapped — switches the active status chip */
+  onSelectStatusTab: (status: string) => void;
 }
 
 export default function WatchlistGrid(props: WatchlistGridProps) {
@@ -60,7 +71,7 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
             />
           }
         >
-          {/* Adaptive shelves (default) or flat grid (search/filter mode) */}
+          {/* Adaptive shelves (dashboard mode) or flat grid (single-status/search mode) */}
           <For each={props.sections()}>
             {(section) => (
               <VaultShelf
@@ -70,6 +81,19 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
                 expanded={props.expandedShelves().has(section.id)}
                 onToggleExpand={() => props.onToggleShelf(section.id)}
                 maxItems={props.displayLimit()}
+                onSeeAll={() => {
+                  // "See All ▾" — switch the active status chip to this
+                  // section's category so the grid shows only that status.
+                  const statusMap: Record<string, string> = {
+                    "in-progress": "Watching",
+                    "watching": "Watching",
+                    "planned": "Planned",
+                    "recently-completed": "Completed",
+                    "all": "all",
+                  };
+                  const targetStatus = statusMap[section.id] ?? "all";
+                  props.onSelectStatusTab(targetStatus);
+                }}
               />
             )}
           </For>
@@ -99,7 +123,14 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
   );
 }
 
-/** Inner timeline view — extracted to keep the parent under 250 lines. */
+/** Inner timeline view — extracted to keep the parent under 250 lines.
+ *
+ * POLISHED TIMELINE (v2):
+ *   - Removed individual floating day bubbles (wasted horizontal space).
+ *   - Items are grouped by Month/Year with a sleek sticky glass header
+ *     for each group.
+ *   - Cards list underneath each header in a clean vertical flow.
+ */
 interface TimelineViewProps {
   filtered: Accessor<WatchlistItem[]>;
   displayLimit: Accessor<number>;
@@ -148,14 +179,17 @@ function TimelineView(props: TimelineViewProps) {
       }
     >
       <div
-        class="relative space-y-8 animate-fade-in pb-10"
+        class="relative space-y-6 animate-fade-in pb-10"
         role="feed"
         aria-label="Watch history timeline"
       >
+        {/* Vertical rail — subtle line connecting the groups */}
         <div class="timeline-rail" aria-hidden="true" />
         <For each={groupedTimeline()}>
           {(group) => (
             <div class="relative" role="group" aria-label={group.label}>
+              {/* Sticky glass Month/Year header — replaces the old
+                  floating day bubbles. Cleaner, less visual noise. */}
               <div class="timeline-month-pill">
                 <Icon
                   name="event"
@@ -164,6 +198,7 @@ function TimelineView(props: TimelineViewProps) {
                 />
                 {group.label}
               </div>
+              {/* Cards in a clean vertical flow — no per-card day bubble */}
               <div class="space-y-3 timeline-stagger">
                 <For each={group.items}>
                   {(m) => (

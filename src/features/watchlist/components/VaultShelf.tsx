@@ -17,30 +17,23 @@ interface VaultShelfProps {
    *  hundreds of MovieCard components synchronously. Not applied to the
    *  rail view (always shows 6). */
   maxItems?: number;
+  /**
+   * Called when the user taps "See All ▾" on a shelf. The parent switches
+   * the active status chip to this section's category so the grid shows
+   * only that status. When provided, this REPLACES the toggleExpand
+   * behavior — "See All" now navigates to the filtered view instead of
+   * expanding the shelf inline.
+   */
+  onSeeAll?: () => void;
 }
 
 /**
  * VaultShelf — a status-grouped section with header + rail/grid.
  *
- * ADAPTIVE DISPLAY:
- *  - By default, shows a horizontal rail of up to 6 items (quick browse)
- *  - "See All" action expands to a full grid showing all items in the section
- *  - If the section has ≤ 6 items, no "See All" action is shown (rail shows all)
- *
- * DEDUPLICATION:
- *  The shelf only renders items passed to it via `section.items`. The
- *  `useVaultSections` hook already handles deduplication — items claimed
- *  by higher-priority shelves are excluded from lower-priority shelves.
- *  The shelf itself is dedup-unaware; it just renders what it's given.
- *
- * DESIGN LANGUAGE:
- *  - Uses .vault-shelf-header with accent-bar title pattern (inherited from
- *    DashboardSection / DetailSection)
- *  - Uses .vault-shelf-rail for horizontal scroll-snap
- *  - Uses .vault-shelf-grid for expanded grid (2/4/6 columns responsive)
- *  - MovieCard variant="compact" for rail, variant="default" for grid
- *
- * The shelf is self-contained — all data comes from the VaultSection prop.
+ * v2: The "See All" button now calls `onSeeAll` (if provided) to switch
+ * the active status chip to this section's category, showing a flat grid
+ * of only that status. When `onSeeAll` is NOT provided, falls back to
+ * the original toggleExpand behavior (inline expand/collapse).
  */
 const VaultShelf: Component<VaultShelfProps> = (props) => {
   const isExpanded = () => props.expanded ?? false;
@@ -51,6 +44,14 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
     props.maxItems != null
       ? props.section.items.slice(0, props.maxItems)
       : props.section.items;
+
+  const handleSeeAll = () => {
+    if (props.onSeeAll) {
+      props.onSeeAll();
+    } else {
+      props.onToggleExpand?.();
+    }
+  };
 
   return (
     <section class="vault-shelf animate-fade-up" aria-label={props.section.title}>
@@ -73,13 +74,15 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
           <button
             type="button"
             class="vault-shelf-action"
-            onClick={() => props.onToggleExpand?.()}
-            aria-label={isExpanded() ? `Collapse ${props.section.title}` : `See all ${props.section.title}`}
+            onClick={handleSeeAll}
+            aria-label={isExpanded() && !props.onSeeAll ? `Collapse ${props.section.title}` : `See all ${props.section.title}`}
           >
-            {isExpanded() ? "Show Less" : "See All"}
+            {/* When onSeeAll is provided, always show "See All" (navigates
+                to the filtered grid). Otherwise toggle between See All / Show Less. */}
+            {props.onSeeAll ? "See All" : isExpanded() ? "Show Less" : "See All"}
             <span
               class="material-symbols-outlined"
-              style={{ "font-size": "10px", transition: "transform 200ms ease-out", transform: isExpanded() ? "rotate(180deg)" : "none" }}
+              style={{ "font-size": "10px", transition: "transform 200ms ease-out", transform: isExpanded() && !props.onSeeAll ? "rotate(180deg)" : "none" }}
               aria-hidden="true"
             >
               expand_more

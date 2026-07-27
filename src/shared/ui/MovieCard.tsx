@@ -5,6 +5,7 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useLazyImdbRating } from "~/shared/hooks/useLazyImdbRating";
 import type { WatchlistItem, CollectionEntry } from "~/shared/types";
 import { formatRuntime } from "~/shared/utils/format";
+import { getEpisodeProgress } from "~/shared/utils/progress";
 import MovieCardRatings from "./MovieCardRatings";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useToast } from "~/shared/hooks/useToast";
@@ -17,6 +18,18 @@ interface MovieCardProps {
   onClick: () => void;
   showFavButton?: boolean;
   search?: string;
+  /**
+   * SELECTION MODE (future batch management) — when true, the card shows
+   * a checkbox overlay instead of the favorite button, and clicking the
+   * card toggles selection instead of opening details. The parent owns
+   * the selection state; this prop just controls the visual mode.
+   * Default: false (normal mode).
+   */
+  isSelectionMode?: boolean;
+  /** Whether this card is currently selected (only relevant in selection mode) */
+  isSelected?: boolean;
+  /** Called when the card is tapped in selection mode */
+  onToggleSelect?: () => void;
 }
 
 const MovieCard: Component<MovieCardProps> = (props) => {
@@ -185,10 +198,31 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const effectiveImdbRating = () =>
     lazyImdbRating() ?? props.movie.imdbRating ?? props.movie.tmdbRating ?? null;
 
+  // TV EPISODE PROGRESS — for TV shows with status "Watching", compute
+  // the series-wide episode progress using the shared progress engine.
+  // The compact variant shows the progress text (S{season} E{episode} •
+  // {watched}/{total} Eps) AND a thin progress bar at the bottom edge
+  // of the poster. Non-watching or non-TV titles show the normal
+  // year + rating metadata.
+  const episodeProgress = () => {
+    if (props.movie.media_type !== "tv") return null;
+    if (props.movie.status !== "Watching") return null;
+    return getEpisodeProgress(props.movie);
+  };
+  const hasEpisodeProgress = () => episodeProgress() !== null;
+
   return (
     <GlassCard
       ref={cardRef}
-      onClick={() => props.onClick()}
+      onClick={() => {
+        // In selection mode, tapping the card toggles selection
+        // instead of opening details.
+        if (props.isSelectionMode) {
+          props.onToggleSelect?.();
+        } else {
+          props.onClick();
+        }
+      }}
       onKeyDown={(e: any) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
@@ -299,14 +333,51 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           {statusLabel()}
         </div>
 
+        {/* Selection mode checkbox overlay — replaces the favorite button
+            when isSelectionMode is true. A circular checkbox that fills
+            with the accent color when selected. Touch target ≥ 44×44px
+            (the button has w-11 h-11 = 44px). */}
+        <Show when={props.isSelectionMode}>
+          <button
+            type="button"
+            class="absolute top-2 right-2 z-[4] flex items-center justify-center rounded-full focus-ring"
+            style={{
+              width: "44px",
+              height: "44px",
+              background: props.isSelected ? "var(--p)" : "rgba(0,0,0,0.5)",
+              border: props.isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
+              "backdrop-filter": "blur(8px)",
+              "-webkit-backdrop-filter": "blur(8px)",
+              transition: "background 150ms ease-out, border-color 150ms ease-out",
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              e.preventDefault();
+              props.onToggleSelect?.();
+            }}
+            aria-label={props.isSelected ? `Deselect ${title()}` : `Select ${title()}`}
+            aria-pressed={props.isSelected}
+          >
+            <Show when={props.isSelected}>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px", color: "var(--on-primary, #0a0a0a)" }}
+                aria-hidden="true"
+              >
+                check
+              </span>
+            </Show>
+          </button>
+        </Show>
+
         {/* Favourite heart button (top-right) — only when showFavButton
-            is true (default). The heart toggles membership in the
-            Favorites collection. The button reads `localIsFav()` (a
-            local signal) instead of `isFavourite()` so only this
-            card's button re-renders on toggle, not the entire grid.
-            aria-label is REQUIRED because the button's only content is
-            an aria-hidden icon (no visible text for screen readers). */}
-        <Show when={showFavButton()}>
+            is true (default) AND NOT in selection mode. The heart toggles
+            membership in the Favorites collection. The button reads
+            `localIsFav()` (a local signal) instead of `isFavourite()` so
+            only this card's button re-renders on toggle, not the entire
+            grid. aria-label is REQUIRED because the button's only content
+            is an aria-hidden icon (no visible text for screen readers). */}
+        <Show when={showFavButton() && !props.isSelectionMode}>
           <button
             type="button"
             class={`vault-fav-btn focus-ring${localIsFav() ? " is-favourite" : ""}`}
@@ -335,6 +406,30 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             aria-hidden="true"
           >
             New Season
+          </div>
+        </Show>
+
+        {/* TV Episode Progress Bar — thin bar at the bottom edge of the
+            poster, ONLY for TV shows with status "Watching". Shows the
+            series-wide completion percentage. Sits above the info cluster
+            so it's visible against the poster artwork. */}
+        <Show when={hasEpisodeProgress()}>
+          <div
+            class="absolute bottom-0 left-0 w-full h-1"
+            style={{
+              "z-index": 2,
+              background: "rgba(255,255,255,0.20)",
+            }}
+            aria-hidden="true"
+          >
+            <div
+              class="h-full"
+              style={{
+                background: "var(--p, #e8b74a)",
+                width: `${episodeProgress()!.pct}%`,
+                transition: "width 400ms ease-out",
+              }}
+            />
           </div>
         </Show>
 
@@ -385,24 +480,45 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             <MovieCardRatings movie={props.movie} overrideImdbRating={lazyImdbRating()} />
           </Show>
 
-          {/* Compact variant: show only year + IMDb rating inline.
+          {/* Compact variant: show year + IMDb rating inline OR episode
+              progress for TV shows with status "Watching".
               Uses the lazy MDBList IMDb score (falls back to OMDb/TMDB
               while loading) so the badge matches the Details modal. */}
           <Show when={variant() === "compact"}>
-            <div
-              class="flex items-center gap-1.5 type-subtitle"
-              aria-hidden="true"
+            <Show
+              when={hasEpisodeProgress()}
+              fallback={
+                <div
+                  class="flex items-center gap-1.5 type-subtitle"
+                  aria-hidden="true"
+                >
+                  <Show when={year()}>
+                    <span>{year()}</span>
+                  </Show>
+                  <Show when={effectiveImdbRating()}>
+                    <span style={{ color: "var(--text-dim)" }}>·</span>
+                    <span style={{ color: "#f5c518" }}>
+                      ★ {effectiveImdbRating()}
+                    </span>
+                  </Show>
+                </div>
+              }
             >
-              <Show when={year()}>
-                <span>{year()}</span>
-              </Show>
-              <Show when={effectiveImdbRating()}>
-                <span style={{ color: "var(--text-dim)" }}>·</span>
-                <span style={{ color: "#f5c518" }}>
-                  ★ {effectiveImdbRating()}
+              {/* TV episode progress — replaces year/rating for watching TV shows.
+                  Format: S{season} E{episode} • {watched}/{total} Eps */}
+              <div
+                class="flex items-center gap-1.5 type-subtitle"
+                aria-hidden="true"
+              >
+                <span style={{ color: "var(--p)", "font-weight": 600 }}>
+                  S{episodeProgress()!.season} E{episodeProgress()!.episode}
                 </span>
-              </Show>
-            </div>
+                <span style={{ color: "var(--text-dim)" }}>·</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
+                </span>
+              </div>
+            </Show>
           </Show>
         </div>
       </div>

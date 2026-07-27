@@ -8,7 +8,6 @@ import { useVault } from "./useVault";
 import { useVaultSections } from "./useVaultSections";
 import { useVaultFiltering } from "./useVaultFiltering";
 import WatchlistHeader from "./components/WatchlistHeader";
-import WatchlistStats from "./components/WatchlistStats";
 import WatchlistGrid from "./components/WatchlistGrid";
 import WatchlistDialogs from "./components/WatchlistDialogs";
 import EmptyState from "./components/EmptyState";
@@ -17,15 +16,18 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
 /**
  * WatchlistView — orchestration only.
  *
- * Owns top-level state (view mode, display limit, expanded shelves, filter
- * drawer visibility) and composes the section components:
- *   - WatchlistHeader (sticky header with search + filter tabs + chips)
- *   - WatchlistStats (result count context bar)
- *   - WatchlistGrid (grid or timeline view)
- *   - WatchlistDialogs (filter drawer)
+ * OVERHAULED LAYOUT (v2):
+ *   - Removed the redundant WatchlistStats bar (the inline status chips
+ *     already show live counts, making a separate stats bar redundant).
+ *   - The sticky header combines search + view toggle + filter icon +
+ *     status chips into a single compact control center.
+ *   - Dynamic layout engine: "All" = dashboard sections (Continue
+ *     Watching, Planned, Recently Completed, Dropped) with "See All"
+ *     buttons that switch the status chip; a specific status = single
+ *     flat grid.
  *
- * Filter logic lives in `useVaultFiltering`; section shelf logic lives in
- * `useVaultSections`. This component just wires them together.
+ * Owns top-level state (view mode, display limit, expanded shelves, filter
+ * drawer visibility) and composes the section components.
  */
 export default function WatchlistView() {
   const { openTitle } = useModalState();
@@ -38,21 +40,6 @@ export default function WatchlistView() {
   const [expandedShelves, setExpandedShelves] = createSignal<Set<string>>(new Set());
 
   // Deferred view-mode switch for INP optimization.
-  //
-  // When the user taps a view-toggle button, we want the button's
-  // active state to paint IMMEDIATELY (so the user sees feedback) and
-  // the heavy view swap (re-rendering 100+ cards) to happen on the
-  // NEXT animation frame. This keeps the Interaction-to-Next-Paint
-  // under 50ms instead of 100-280ms.
-  //
-  // How it works:
-  //   1. User clicks the toggle button
-  //   2. setViewMode() schedules the state change via requestAnimationFrame
-  //   3. The browser paints the current frame (button shows pressed state)
-  //   4. On the next frame, viewMode() updates and Solid re-renders the grid
-  //
-  // Without this, the click handler blocks for 100-280ms while Solid
-  // synchronously destroys the old view and mounts the new one.
   const setViewMode = (mode: "grid" | "timeline") => {
     if (viewMode() === mode) return;
     requestAnimationFrame(() => setViewModeInternal(mode));
@@ -118,13 +105,6 @@ export default function WatchlistView() {
     flatMode: isFlatMode,
   });
 
-  const handleClearStatusTab = () => {
-    batch(() => {
-      setActiveStatusTab("all");
-      setFilters({ ...filters(), status: "all" });
-    });
-  };
-
   const handleSelectStatusTab = (status: string) => {
     // batch() defers reactive updates until both signals are set,
     // so the filtered memo re-computes ONCE instead of cascading
@@ -136,6 +116,8 @@ export default function WatchlistView() {
       } else {
         setFilters({ ...filters(), status });
       }
+      // Reset display limit when switching tabs
+      setDisplayLimit(20);
     });
   };
 
@@ -160,14 +142,10 @@ export default function WatchlistView() {
         setFilters={setFilters}
       />
 
-      <WatchlistStats
-        isFlatMode={isFlatMode}
-        loading={loading}
-        filteredCount={() => filtered().length}
-        search={search}
-        activeStatusTab={activeStatusTab}
-        onClearStatusTab={handleClearStatusTab}
-      />
+      {/* WatchlistStats REMOVED — the inline status chips in the header
+          already show live counts, making a separate stats bar redundant.
+          The filtered count is still visible via the section subtitles
+          (in dashboard mode) or the grid's natural rendering (in flat mode). */}
 
       <Show
         when={!loading()}
@@ -202,6 +180,8 @@ export default function WatchlistView() {
             onLogin={handleLogin}
             onClearFilters={clearFilters}
             onReload={handleReload}
+            activeStatusTab={activeStatusTab}
+            onSelectStatusTab={handleSelectStatusTab}
           />
         </Show>
       </Show>
