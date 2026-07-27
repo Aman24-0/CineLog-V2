@@ -7,13 +7,22 @@ import QuickFilterTabs from "./QuickFilterTabs";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 
 /**
- * WatchlistHeader — the sticky top section of the Vault page.
+ * WatchlistHeader — ZERO-WASTE sticky control center (v2).
  *
- * Composes:
- *   - VaultHeader (brand + view-mode toggle + filter button with badge)
- *   - VaultSearch (debounced search input + clear-all)
- *   - QuickFilterTabs (grid mode only — All / In-Progress / Watching / Planned / Completed)
- *   - Active filter chips (clickable to remove)
+ * Layout (single sticky bar):
+ *   ┌─────────────────────────────────────────────────────┐
+ *   │ [search bar................] [grid|timeline] [filter] │  ← single flex-row
+ *   │ [All 47] [Watching 5] [Planned 12] [Completed 27]... │  ← status chips
+ *   │ [active filter chips if any]                          │
+ *   └─────────────────────────────────────────────────────┘
+ *
+ * Changes from v1:
+ *   - The large "WATCHLIST" text heading has been DELETED.
+ *   - Search bar + view toggle + filter button are in a SINGLE
+ *     horizontal flex-row (not stacked vertically).
+ *   - Status chips are immediately below the search row.
+ *   - When a specific status chip is active (not "all"), the sections
+ *     hook collapses to a flat grid — no "ALL TITLES" fallback header.
  */
 export interface WatchlistHeaderProps {
   viewMode: Accessor<"grid" | "timeline">;
@@ -35,24 +44,29 @@ export interface WatchlistHeaderProps {
 export default function WatchlistHeader(props: WatchlistHeaderProps) {
   return (
     <div
-      class="sticky top-0 z-40 pt-4 pb-3 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-4 watchlist-header-glass"
+      class="sticky top-0 z-40 pt-4 pb-2 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-3 watchlist-header-glass"
     >
-      <VaultHeader
-        viewMode={props.viewMode}
-        setViewMode={props.setViewMode}
-        activeFilterCount={props.activeFilterCount}
-        onFilterClick={props.onFilterClick}
-      />
-      <VaultSearch
-        value={props.searchInput}
-        onInput={props.onSearchInput}
-        hasActiveFilters={() => props.activeFilterCount() > 0 || props.activeStatusTab() !== "all"}
-        onClearAll={props.onClearAll}
-      />
+      {/* SINGLE horizontal row: search bar + view toggle + filter button */}
+      <div class="flex flex-row items-center gap-2 w-full">
+        <div class="flex-1 min-w-0">
+          <VaultSearch
+            value={props.searchInput}
+            onInput={props.onSearchInput}
+            hasActiveFilters={() => props.activeFilterCount() > 0 || props.activeStatusTab() !== "all"}
+            onClearAll={props.onClearAll}
+          />
+        </div>
+        <VaultHeader
+          viewMode={props.viewMode}
+          setViewMode={props.setViewMode}
+          activeFilterCount={props.activeFilterCount}
+          onFilterClick={props.onFilterClick}
+        />
+      </div>
 
-      {/* Quick-filter tabs (only in grid mode) */}
+      {/* Status chips — horizontally scrollable, immediately below the search row */}
       <Show when={props.viewMode() === "grid"}>
-        <div style={{ "margin-top": "0.75rem" }}>
+        <div style={{ "margin-top": "0.625rem" }}>
           <QuickFilterTabs
             active={props.activeStatusTab}
             onSelect={(status) => {
@@ -70,7 +84,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
 
       {/* Active filter chips */}
       <Show when={props.chips().length > 0}>
-        <div class="flex gap-2 flex-wrap mt-3">
+        <div class="flex gap-2 flex-wrap mt-2">
           <For each={props.chips()}>
             {(chip) => (
               <button

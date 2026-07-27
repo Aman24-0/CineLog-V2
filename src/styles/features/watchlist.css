@@ -236,6 +236,69 @@
 }
 .filter-select-premium option { background: var(--tier-1); color: var(--text-strong); }
 
+/* Filter chip option — horizontal scrollable toggle chip for short lists
+   (Type, Region). Active chip gets the accent color. */
+.filter-chip-option {
+  flex-shrink: 0;
+  padding: 0.5rem 0.875rem;
+  border-radius: var(--radius-pill);
+  background: rgba(18,18,28,0.72);
+  border: 1px solid rgba(255,255,255,0.09);
+  color: var(--text-body);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background var(--dur-fast) var(--ease-out),
+              border-color var(--dur-fast) var(--ease-out),
+              color var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+.filter-chip-option[data-active="true"] {
+  background: var(--p-dim);
+  border-color: var(--p);
+  color: var(--p);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+.filter-chip-option:hover:not([data-active="true"]) {
+  border-color: rgba(255,255,255,0.18);
+  color: var(--text-strong);
+}
+
+/* Dark-theme polished range input for the filter drawer metrics
+   (IMDb, RT, Year, Runtime). Replaces the plain white text inputs. */
+.filter-range-input {
+  width: 100%;
+  background: #1A1A1A;
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--radius-md, 8px);
+  padding: 0.625rem 1rem;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: #FFFFFF;
+  outline: none;
+  transition: border-color var(--dur-fast) var(--ease-out),
+              box-shadow var(--dur-fast) var(--ease-out);
+}
+.filter-range-input::placeholder {
+  color: #6B7280;
+}
+.filter-range-input:focus {
+  border-color: var(--p, #e8b74a);
+  box-shadow: 0 0 0 2px var(--p-dim, rgba(232,183,74,0.15));
+}
+/* Hide number input spinners — cleaner dark UI */
+.filter-range-input::-webkit-inner-spin-button,
+.filter-range-input::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.filter-range-input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
 .filter-input-premium {
   width: 100%;
   background: rgba(18,18,28,0.72);

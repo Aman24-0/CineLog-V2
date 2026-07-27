@@ -411,15 +411,14 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
         {/* TV Episode Progress Bar — thin bar at the bottom edge of the
             poster, ONLY for TV shows with status "Watching". Shows the
-            series-wide completion percentage. Sits above the info cluster
-            so it's visible against the poster artwork. */}
+            series-wide completion percentage. Uses a dark track
+            (bg-black/50) so the accent fill is visible against any
+            poster artwork. z-20 keeps it above the poster image but
+            below the info cluster. */}
         <Show when={hasEpisodeProgress()}>
           <div
-            class="absolute bottom-0 left-0 w-full h-1"
-            style={{
-              "z-index": 2,
-              background: "rgba(255,255,255,0.20)",
-            }}
+            class="absolute bottom-0 left-0 w-full h-1.5 z-20"
+            style={{ background: "rgba(0,0,0,0.5)" }}
             aria-hidden="true"
           >
             <div
@@ -505,7 +504,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               }
             >
               {/* TV episode progress — replaces year/rating for watching TV shows.
-                  Format: S{season} E{episode} • {watched}/{total} Eps */}
+                  Format: S{season} E{episode} • {watched}/{total} Eps
+                  When totalEps is 0 (no season data cached), show ONLY
+                  S{season} E{episode} (no fraction) to avoid "0/0 Eps". */}
               <div
                 class="flex items-center gap-1.5 type-subtitle"
                 aria-hidden="true"
@@ -513,10 +514,12 @@ const MovieCard: Component<MovieCardProps> = (props) => {
                 <span style={{ color: "var(--p)", "font-weight": 600 }}>
                   S{episodeProgress()!.season} E{episodeProgress()!.episode}
                 </span>
-                <span style={{ color: "var(--text-dim)" }}>·</span>
-                <span style={{ color: "var(--text-muted)" }}>
-                  {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
-                </span>
+                <Show when={episodeProgress()!.seriesTotalEps > 0}>
+                  <span style={{ color: "var(--text-dim)" }}>·</span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
+                  </span>
+                </Show>
               </div>
             </Show>
           </Show>

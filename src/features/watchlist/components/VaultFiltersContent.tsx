@@ -1,16 +1,27 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
 import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import { FilterSel, RangeFilter } from "./FilterControls";
+import { FilterSel, RangeFilter, FilterChips } from "./FilterControls";
 import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 
 /**
  * VaultFiltersContent — the scrollable body of the filter drawer.
  *
- * Four sections, each with a `filter-section-title`:
- *   1. Content — Status / Type / Region / Genre / Platform / Tag dropdowns
- *   2. Ratings & Metrics — IMDb / RT / Year / Runtime range inputs
+ * v2 REDESIGN:
+ *   - REMOVED Status filter (now handled by header status chips).
+ *   - REMOVED Tags filter (feature not currently supported).
+ *   - Type + Region converted from <select> dropdowns to horizontal
+ *     selectable chip rows (FilterChips component).
+ *   - Platform filter uses the dynamic TMDB provider list from
+ *     streamingProviders preference (passed via uniquePlatforms).
+ *   - Metric inputs (IMDb, RT, Year, Runtime) use dark-theme polished
+ *     numeric inputs (.filter-range-input class) instead of plain white
+ *     text inputs.
+ *
+ * Sections:
+ *   1. Content — Type (chips) / Region (chips) / Genre (dropdown) / Platform (dropdown)
+ *   2. Ratings & Metrics — IMDb / RT / Year / Runtime range inputs (dark theme)
  *   3. Sort By — single dropdown with 9 sort options
  *   4. Presets — save/load/delete named filter presets
  */
@@ -30,9 +41,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
 
   /** Batched setFilters — wraps each filter update in batch() so the
       filtered memo re-computes ONCE instead of triggering cascading
-      micro-renders. This is the primary INP optimization for the
-      filter drawer — each dropdown change previously caused a full
-      vault re-filter + re-render on the main thread. */
+      micro-renders. */
   const batchedSet = (patch: Partial<FilterType>) => {
     batch(() => props.setFilters({ ...props.filters, ...patch }));
   };
@@ -48,23 +57,12 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
       class="flex-1 overflow-y-auto hide-scrollbar px-6 py-4 space-y-4"
       style={{ "overscroll-behavior": "contain", "-webkit-overscroll-behavior": "contain" }}
     >
-      {/* CONTENT section */}
+      {/* CONTENT section — Status + Tags REMOVED. Type/Region are now chips. */}
       <div>
         <p class="filter-section-title">Content</p>
         <div class="space-y-3">
-          <FilterSel
-            label="Status"
-            val={props.filters.status}
-            set={(v) => batchedSet({ status: v })}
-            opts={[
-              { l: "All", v: "all" },
-              { l: "Planned", v: "Planned" },
-              { l: "Watching", v: "Watching" },
-              { l: "Completed", v: "Completed" },
-              { l: "Dropped", v: "Dropped" },
-            ]}
-          />
-          <FilterSel
+          {/* Type — chip selector (was a dropdown) */}
+          <FilterChips
             label="Type"
             val={props.filters.type}
             set={(v) => batchedSet({ type: v })}
@@ -74,7 +72,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               { l: "Series", v: "tv" },
             ]}
           />
-          <FilterSel
+          {/* Region — chip selector (was a dropdown) */}
+          <FilterChips
             label="Region"
             val={props.filters.region}
             set={(v) => batchedSet({ region: v })}
@@ -84,28 +83,27 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               { l: "International", v: "International" },
             ]}
           />
+          {/* Genre — dropdown (long list, chips would overflow) */}
           <FilterSel
             label="Genre"
             val={props.filters.genre}
             set={(v) => batchedSet({ genre: v })}
             opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
           />
+          {/* Platform — dropdown populated from the user's vault
+              platformsList data (uniquePlatforms from useVaultFiltering). */}
           <FilterSel
             label="Platform"
             val={props.filters.platform}
             set={(v) => batchedSet({ platform: v })}
             opts={[{ l: "All Platforms", v: "all" }, ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))]}
           />
-          <FilterSel
-            label="Tag"
-            val={props.filters.tag}
-            set={(v) => batchedSet({ tag: v })}
-            opts={[{ l: "All Tags", v: "all" }, ...props.uniqueTags.map((t) => ({ l: t, v: t }))]}
-          />
+          {/* Status + Tag filters REMOVED — Status is handled by the
+              header status chips; Tags feature is not currently supported. */}
         </div>
       </div>
 
-      {/* RATINGS & METRICS section */}
+      {/* RATINGS & METRICS section — dark-theme polished inputs */}
       <div>
         <p class="filter-section-title">Ratings & Metrics</p>
         <div class="space-y-3">

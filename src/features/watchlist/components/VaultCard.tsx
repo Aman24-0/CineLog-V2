@@ -226,15 +226,18 @@ export default function VaultCard(props: VaultCardProps) {
               </div>
             }
           >
-            {/* TV episode progress text: S{season} E{episode} • {watched}/{total} Eps */}
+            {/* TV episode progress text: S{season} E{episode} • {watched}/{total} Eps
+                When totalEps is 0 (no season data), show ONLY S{season} E{episode}. */}
             <div class="flex items-center gap-1.5 type-meta" style={{ "font-size": "0.5625rem" }}>
               <span style={{ color: "var(--p)", "font-weight": 600 }}>
                 S{episodeProgress()!.season} E{episodeProgress()!.episode}
               </span>
-              <span style={{ color: "var(--text-dim)" }}>·</span>
-              <span style={{ color: "var(--text-muted)" }}>
-                {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
-              </span>
+              <Show when={episodeProgress()!.seriesTotalEps > 0}>
+                <span style={{ color: "var(--text-dim)" }}>·</span>
+                <span style={{ color: "var(--text-muted)" }}>
+                  {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
+                </span>
+              </Show>
             </div>
           </Show>
         </div>

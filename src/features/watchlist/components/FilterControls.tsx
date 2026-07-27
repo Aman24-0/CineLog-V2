@@ -4,10 +4,12 @@ import { For, type Component } from "solid-js";
 /**
  * FilterControls — reusable form primitives for the VaultFilters drawer.
  *
- * Extracted from VaultFilters.tsx to keep the main component focused on
- * layout + state. Two primitives:
- *   - FilterSel: premium-styled <select> with a label
+ * Three primitives:
+ *   - FilterSel: premium-styled <select> with a label (for long lists like Genre)
+ *   - FilterChips: horizontal scrollable chip selector (for short lists like Type/Region)
  *   - RangeFilter: two side-by-side number inputs (min/max) with a label
+ *
+ * v2: Added FilterChips + dark-theme polished RangeFilter inputs.
  */
 
 export interface FilterOption {
@@ -45,6 +47,45 @@ export const FilterSel: Component<{
   );
 };
 
+/**
+ * FilterChips — horizontal scrollable chip selector for short option lists.
+ *
+ * Replaces <select> dropdowns for filters with ≤5 options (Type, Region).
+ * Each chip is a toggle button — the active chip gets the accent color.
+ * Horizontally scrollable on mobile (no wrapping) to preserve the
+ * one-line layout.
+ */
+export const FilterChips: Component<{
+  label: string;
+  val: string;
+  set: (v: string) => void;
+  opts: FilterOption[];
+}> = (props) => {
+  return (
+    <div class="flex flex-col gap-1.5">
+      <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
+        {props.label}
+      </span>
+      <div class="flex gap-2 overflow-x-auto hide-scrollbar" role="tablist" aria-label={props.label}>
+        <For each={props.opts}>
+          {(opt) => (
+            <button
+              type="button"
+              class="filter-chip-option focus-ring"
+              data-active={props.val === opt.v}
+              onClick={() => props.set(opt.v)}
+              role="tab"
+              aria-selected={props.val === opt.v}
+            >
+              {opt.l}
+            </button>
+          )}
+        </For>
+      </div>
+    </div>
+  );
+};
+
 export const RangeFilter: Component<{
   label: string;
   min: string;
@@ -65,7 +106,7 @@ export const RangeFilter: Component<{
         type="number"
         placeholder={props.minPlaceholder || "Min"}
         aria-label={`${props.label} minimum`}
-        class="glass-input"
+        class="filter-range-input"
       />
       <input
         value={props.max}
@@ -73,7 +114,7 @@ export const RangeFilter: Component<{
         type="number"
         placeholder={props.maxPlaceholder || "Max"}
         aria-label={`${props.label} maximum`}
-        class="glass-input"
+        class="filter-range-input"
       />
     </div>
   </div>
