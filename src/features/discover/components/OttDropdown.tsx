@@ -1,20 +1,21 @@
 // src/features/discover/components/OttDropdown.tsx
 //
 // OttDropdown — a sleek glass dropdown that lives next to the "NEW ON OTT"
-// row header. It lists ONLY the OTT providers the user has selected in
-// their "STREAMING PROVIDERS" settings (Content & Discover settings page).
+// row header. It lists the OTT providers the user has selected in their
+// "STREAMING PROVIDERS" settings, resolved against the DYNAMIC TMDB
+// provider list for the user's region.
 //
 // Behaviour:
 //   • If the user has selected ≥1 provider, the dropdown lists those
-//     providers (by display name) and the active selection drives the
+//     providers (resolved to their real TMDB provider_name + logo_path
+//     via the dynamic region fetch) and the active selection drives the
 //     /discover/movie?with_watch_providers={id}&watch_region={region}
 //     fetch in the parent.
 //   • If the user has NO providers selected, the dropdown lists the TOP
-//     available providers for their country (fetched from TMDB's
-//     /watch/providers/movie endpoint) so the row is never empty.
-//   • The dropdown is a <details> element under the hood for keyboard
-//     accessibility (Enter/Space toggles, Esc closes) — no custom
-//     keydown handling needed.
+//     10 providers for their country (sorted by display_priority) so
+//     the row is never empty.
+//   • There are NO hardcoded provider name/logo tables — every name and
+//     logo comes from TMDB's /watch/providers/{movie,tv} response.
 //
 // The provider id selected by the user is exposed via the `selected`
 // accessor and the `onSelect` callback. The parent owns the actual
@@ -24,25 +25,9 @@ import {
   For, Show, createSignal, createMemo, onMount, createEffect,
   type Component,
 } from "solid-js";
-import {
-  streamingProviders,
-  getCuratedProvidersForRegion,
-} from "~/core/preferences";
+import { streamingProviders, mergeAndSortProviders } from "~/core/preferences";
 import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-
-// ─── Provider display-name + logo resolution ──────────────────────────
-//
-// We use the shared curated provider registry (from core/preferences) as
-// the source of truth for display names + canonical IDs. This keeps the
-// OttDropdown in sync with the Settings page — when the user picks
-// "JioStar" in settings, the dropdown shows "JioStar" (not "Jio Cinema"
-// or "Hotstar").
-//
-// For user-selected provider IDs that aren't in the curated list (e.g.
-// a previously-selected provider that's no longer curated), we fall
-// back to a TMDB provider-list lookup (fetched on mount) so unknown
-// providers still render with their real name + logo.
 
 interface OttDropdownProps {
   /** The user's ISO 3166-1 watch region (e.g. "IN", "US"). */
@@ -63,50 +48,49 @@ interface ProviderOption {
 }
 
 /**
- * OttDropdown — glass-styled <details>-based dropdown.
- *
- * Why <details>/<summary>:
- *   - Native keyboard support (Enter/Space toggles, Esc closes in some
- *     browsers, click-outside still works via a small overlay).
- *   - No portal needed — the dropdown panel is positioned absolutely
- *     under the summary.
- *   - Screen readers announce it as a disclosure widget by default.
+ * OttDropdown — glass-styled dropdown.
  *
  * The summary shows the active provider's name (or "All Providers" when
  * nothing is selected). The panel lists every available option.
+ *
+ * Provider names + logos are resolved from the DYNAMIC TMDB region
+ * provider list (fetched on mount + when the region changes). There is
+ * NO hardcoded lookup table — if TMDB doesn't return a provider, it
+ * doesn't appear in the dropdown.
  */
 const OttDropdown: Component<OttDropdownProps> = (props) => {
   const [open, setOpen] = createSignal(false);
+  // The full merged + sorted provider list for the user's region.
+  // Used to resolve display names + logos for the user's selected
+  // provider IDs, and as the fallback when no providers are selected.
   const [regionProviders, setRegionProviders] = createSignal<ProviderOption[]>([]);
 
-  // Fetch the region's available providers (movie + TV merged) so we can:
-  //   1. Resolve display names + logos for user-selected provider IDs
-  //      that aren't in our curated PROVIDER_DISPLAY_NAMES table.
-  //   2. Have a fallback list when the user has NO providers selected.
+  /**
+   * Fetch ALL providers for the region from TMDB (movie + TV merged,
+   * deduplicated by provider_id, sorted by display_priority). This is
+   * the single source of truth for provider names + logos — no
+   * hardcoded fallback table.
+   */
   const loadRegionProviders = async (region: string) => {
     try {
       const [movieRes, tvRes] = await Promise.allSettled([
         getWatchProviderList(region),
         getWatchProviderListTv(region),
       ]);
-      const combined: ProviderOption[] = [];
-      const seen = new Set<string>();
-      for (const res of [movieRes, tvRes]) {
-        if (res.status !== "fulfilled") continue;
-        for (const row of res.value) {
-          const id = String(row.providerId);
-          if (seen.has(id)) continue;
-          seen.add(id);
-          combined.push({
-            id,
-            name: row.providerName,
-            logoPath: row.logoPath,
-          });
-        }
-      }
-      setRegionProviders(combined);
+      const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
+      const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
+      // mergeAndSortProviders returns TmdbProvider[] (id, name, logoPath,
+      // displayPriority) — we strip displayPriority here since the
+      // dropdown only needs id/name/logoPath.
+      const merged = mergeAndSortProviders(movieRows, tvRows).map((p) => ({
+        id: p.id,
+        name: p.name,
+        logoPath: p.logoPath,
+      }));
+      setRegionProviders(merged);
     } catch (err) {
       console.warn("[OttDropdown] Failed to load region providers:", err);
+      setRegionProviders([]);
     }
   };
 
@@ -117,50 +101,33 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     void loadRegionProviders(r);
   });
 
-  // Resolve a provider id → { name, logoPath }.
-  // Uses the shared curated registry first (so "JioStar" resolves
-  // correctly for both id 122 and alias 220), then falls back to the
-  // TMDB region provider list, then to a generic "Provider {id}" label.
+  /**
+   * Resolve a provider id → { name, logoPath } using the DYNAMIC TMDB
+   * region provider list. If the id isn't in the TMDB list (e.g. the
+   * user previously selected a provider that's no longer available in
+   * their region), returns a "Provider {id}" fallback so the dropdown
+   * never shows a blank label.
+   */
   const resolveProvider = (id: string): ProviderOption => {
-    const curatedList = getCuratedProvidersForRegion(props.region);
-    // Check if this id matches a curated provider (canonical or alias).
-    const curated = curatedList.find(
-      (p) => p.id === id || p.aliasIds?.includes(id),
-    );
-    if (curated) {
-      const fromRegion = regionProviders().find((p) => p.id === id || p.id === curated.id);
-      return { id: curated.id, name: curated.name, logoPath: fromRegion?.logoPath ?? null };
-    }
     const fromRegion = regionProviders().find((p) => p.id === id);
     if (fromRegion) return fromRegion;
     return { id, name: `Provider ${id}`, logoPath: null };
   };
 
-  // The dropdown's option list:
-  //   • If the user has selected providers → show ONLY those.
-  //   • Otherwise → show the curated providers for the region (India →
-  //     the accurate 6-provider list, other regions → the global
-  //     fallback). This avoids the raw TMDB list which includes
-  //     duplicate/invalid entries (rent/buy Amazon Video, etc.).
-  //     Logos are resolved from the TMDB region provider list.
+  /**
+   * The dropdown's option list:
+   *   • If the user has selected providers → show ONLY those, resolved
+   *     against the dynamic TMDB list.
+   *   • Otherwise → show the TOP 10 providers for the region (already
+   *     sorted by display_priority from mergeAndSortProviders).
+   */
   const options = createMemo<ProviderOption[]>(() => {
     const userPicks = streamingProviders();
     if (userPicks.length > 0) {
       return userPicks.map(resolveProvider);
     }
-    // Fallback: curated providers for the region, with logos resolved
-    // from the TMDB region provider list.
-    const curated = getCuratedProvidersForRegion(props.region);
-    return curated.map((p) => {
-      const fromRegion = regionProviders().find(
-        (rp) => rp.id === p.id || p.aliasIds?.includes(rp.id),
-      );
-      return {
-        id: p.id,
-        name: p.name,
-        logoPath: fromRegion?.logoPath ?? null,
-      };
-    });
+    // Fallback: top 10 providers for the region (sorted by display_priority).
+    return regionProviders().slice(0, 10);
   });
 
   // The summary label — the active provider's name, or "All Providers"
@@ -177,11 +144,8 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     setOpen(false);
   };
 
-  // Click-outside-to-close (the <details> element doesn't do this
-  // natively). We use a fixed full-screen transparent overlay behind
-  // the open panel so taps anywhere close the dropdown — this is more
-  // reliable than a window click listener (which fires before the
-  // summary's toggle on some browsers).
+  // Click-outside-to-close. We use a fixed full-screen transparent
+  // overlay behind the open panel so taps anywhere close the dropdown.
   return (
     <div class="ott-dropdown-wrap">
       <button

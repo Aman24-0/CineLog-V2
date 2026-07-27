@@ -11,17 +11,17 @@
 //
 // All preferences are persisted via src/core/preferences.
 //
-// OTT PROVIDER SELECTOR (v2 redesign):
-//   • For India (IN), shows ONLY the accurate curated list: Netflix,
-//     Prime Video (119, not rent/buy 10), JioStar (122+220 combined),
-//     Sony LIV (237), ZEE5 (232), Apple TV+ (350). Unavailable services
-//     like Hulu/Max are hidden.
-//   • For other regions, shows a global fallback list.
-//   • Each toggle shows the provider's official TMDB logo (fetched from
-//     /watch/providers/movie?watch_region={region}) alongside the name.
+// OTT PROVIDER SELECTOR (v3 — fully dynamic):
+//   NO hardcoded provider lists. The page fetches ALL official streaming
+//   providers for the user's country directly from TMDB's
+//   /watch/providers/{movie,tv}?watch_region={country} endpoints,
+//   merges them, deduplicates by provider_id, and sorts by TMDB's
+//   display_priority ascending (so Netflix/Prime appear at the top).
+//   Every provider TMDB returns is shown — no curation, no alias
+//   merging, no hidden services.
 
 import { Title } from "@solidjs/meta";
-import { For, Show, createMemo, createSignal, onMount, type Component } from "solid-js";
+import { For, Show, createMemo, createSignal, onMount, createEffect, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { ControlRow, Segmented, ToggleRow, SelectRow } from "~/features/settings/sharedControls";
@@ -39,9 +39,8 @@ import {
   setDefaultDiscoverTab,
   ratingScale,
   setRatingScale,
-  getCuratedProvidersForRegion,
-  isProviderActive,
-  type CuratedProvider,
+  mergeAndSortProviders,
+  type TmdbProvider,
   type DiscoverTab,
   type RatingScale,
 } from "~/core/preferences";
@@ -79,60 +78,48 @@ const ContentDiscoverRoute: Component = () => {
   const { showToast } = useToast();
   const region = useDiscoverRegion();
 
-  // Curated provider list for the user's region (India → accurate list,
-  // other regions → global fallback). Logos are fetched at runtime.
-  const [providers, setProviders] = createSignal<CuratedProvider[]>([]);
-  const [logosLoading, setLogosLoading] = createSignal(true);
+  // Dynamic provider list — fetched from TMDB on mount + when the
+  // region changes. Contains EVERY official provider for the user's
+  // country, sorted by display_priority.
+  const [providers, setProviders] = createSignal<TmdbProvider[]>([]);
+  const [providersLoading, setProvidersLoading] = createSignal(true);
 
-  /** Fetch TMDB provider logos for the current region and merge them
-   *  into the curated provider list. Falls back to a letter avatar
-   *  (handled in the UI) when a logo can't be resolved. */
-  const loadProviderLogos = async (reg: string) => {
-    setLogosLoading(true);
+  /**
+   * Fetch ALL streaming providers for the given region from TMDB.
+   * Merges the movie + TV lists, deduplicates by provider_id, and
+   * sorts by display_priority ascending. The result is the complete
+   * set of official providers for the user's country — no hardcoded
+   * filtering, no alias merging.
+   */
+  const loadProviders = async (reg: string) => {
+    setProvidersLoading(true);
     try {
       const [movieRes, tvRes] = await Promise.allSettled([
         getWatchProviderList(reg),
         getWatchProviderListTv(reg),
       ]);
-      // Build an id → logoPath map from both lists (movie + TV).
-      const logoMap = new Map<string, string>();
-      for (const res of [movieRes, tvRes]) {
-        if (res.status !== "fulfilled") continue;
-        for (const row of res.value) {
-          if (row.logoPath && !logoMap.has(String(row.providerId))) {
-            logoMap.set(String(row.providerId), row.logoPath);
-          }
-        }
-      }
-      // Merge logos into the curated list. For alias-merged providers
-      // (e.g. JioStar), prefer the canonical id's logo, then fall back
-      // to the first alias logo that exists.
-      const curated = getCuratedProvidersForRegion(reg);
-      const merged = curated.map((p) => {
-        let logo = logoMap.get(p.id) ?? null;
-        if (!logo && p.aliasIds) {
-          for (const alias of p.aliasIds) {
-            const aliasLogo = logoMap.get(alias);
-            if (aliasLogo) { logo = aliasLogo; break; }
-          }
-        }
-        return { ...p, logoPath: logo };
-      });
-      setProviders(merged);
+      const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
+      const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
+      // mergeAndSortProviders handles dedup + sort by display_priority.
+      setProviders(mergeAndSortProviders(movieRows, tvRows));
     } catch (err) {
-      console.warn("[content-discover] Failed to load provider logos:", err);
-      // Fall back to the curated list without logos (UI shows letter avatar).
-      setProviders(getCuratedProvidersForRegion(reg));
+      console.warn("[content-discover] Failed to load providers:", err);
+      setProviders([]);
     } finally {
-      setLogosLoading(false);
+      setProvidersLoading(false);
     }
   };
 
-  onMount(() => { void loadProviderLogos(region()); });
+  onMount(() => { void loadProviders(region()); });
+  // Refetch when the region changes (user switched country in settings).
+  createEffect(() => {
+    const r = region();
+    void loadProviders(r);
+  });
 
-  const handleToggleProvider = (provider: CuratedProvider) => {
+  const handleToggleProvider = (provider: TmdbProvider) => {
     toggleStreamingProvider(provider.id);
-    const isActive = isProviderActive(provider, streamingProviders());
+    const isActive = streamingProviders().includes(provider.id);
     showToast(isActive ? "Provider added to your subscriptions" : "Provider removed", "info", 1200);
   };
 
@@ -205,7 +192,7 @@ const ContentDiscoverRoute: Component = () => {
               </div>
             </section>
 
-            {/* Streaming providers — curated per-region with official TMDB logos */}
+            {/* Streaming providers — fully dynamic from TMDB, with official logos */}
             <section class="sec-section">
               <p class="sec-section-label">
                 Streaming Providers
@@ -222,7 +209,7 @@ const ContentDiscoverRoute: Component = () => {
                 <div class="provider-chip-grid">
                   <For each={providers()}>
                     {(provider) => {
-                      const active = createMemo(() => isProviderActive(provider, streamingProviders()));
+                      const active = createMemo(() => streamingProviders().includes(provider.id));
                       const logoUrl = createMemo(() => provider.logoPath ? tmdbImage(provider.logoPath, "w92") : "");
                       return (
                         <button
@@ -256,7 +243,7 @@ const ContentDiscoverRoute: Component = () => {
                       );
                     }}
                   </For>
-                  <Show when={logosLoading() && providers().length === 0}>
+                  <Show when={providersLoading() && providers().length === 0}>
                     <div class="provider-chip-loading">Loading providers…</div>
                   </Show>
                 </div>

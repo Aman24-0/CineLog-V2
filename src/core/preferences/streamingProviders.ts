@@ -3,17 +3,14 @@
 // A set of TMDB watch_provider IDs the user is subscribed to.
 // Used by Discover OTT section + Where-to-watch on detail pages.
 //
-// INDIA CURATION (v2):
-//   The raw TMDB watch providers API returns duplicate/invalid entries
-//   (rent/buy "Amazon Video" instead of flatrate "Amazon Prime Video",
-//   inactive/merged providers like Disney+ standalone, etc.). For India
-//   we curate a SHORT, ACCURATE list of the actually-active flatrate
-//   services, with canonical IDs that the Discover /discover/movie?
-//   with_watch_providers=ID query respects.
-//
-//   The curated list is exported below so BOTH the Settings page (for
-//   the toggle UI) and the Discover page (for the OTT dropdown) read
-//   from the same source of truth.
+// DYNAMIC PROVIDER LIST (v3):
+//   There are NO hardcoded provider lists here. Both the Settings page
+//   and the Discover OTT dropdown fetch the full provider list directly
+//   from TMDB's /watch/providers/{movie,tv}?watch_region={country}
+//   endpoints, merge them, deduplicate by provider_id, and sort by
+//   TMDB's display_priority ascending. This ensures every official
+//   streaming provider for the user's country is available — no manual
+//   curation, no alias mapping, no hidden services.
 
 import { createSignal, createEffect } from "solid-js";
 import { isServer } from "solid-js/web";
@@ -53,105 +50,93 @@ export function hasStreamingProvider(id: string): boolean {
   return streamingProviders().includes(id);
 }
 
-// ─── Curated provider registry ────────────────────────────────────────
+// ─── Dynamic provider types + utilities ───────────────────────────────
 
 /**
- * A curated streaming provider entry.
+ * A single TMDB watch provider — the shape returned by
+ * /watch/providers/{movie,tv}?watch_region={region}.
  *
- * `id` is the CANONICAL TMDB watch_provider ID we send to
- * /discover/movie?with_watch_providers={id}. For alias-merged providers
- * (e.g. JioStar = JioCinema + Hotstar), `id` is the primary ID we use
- * for the discover query, and `aliasIds` lists every TMDB ID that
- * should toggle this same button (so a user who previously selected
- * either alias is shown as active).
+ * This is the ONLY provider type used by the Settings page and the
+ * Discover OTT dropdown. There are no curated/aliased variants —
+ * every provider is fetched directly from TMDB.
  */
-export interface CuratedProvider {
-  /** Canonical TMDB provider ID (string, for the discover query). */
+export interface TmdbProvider {
+  /** TMDB watch_provider ID (as a string for the discover query). */
   id: string;
-  /** Aliases — other TMDB IDs that map to this same provider button. */
-  aliasIds?: string[];
-  /** Display name shown in the UI. */
+  /** Official TMDB provider_name (e.g. "Netflix", "Amazon Prime Video"). */
   name: string;
-  /**
-   * TMDB logo_path for this provider (e.g. "/8OUSXUW5n6fO7xofp5WhFpk6fS9.jpg").
-   * Fetched at runtime from /watch/providers/movie for the user's region.
-   * Null until the runtime fetch resolves (the UI shows a letter avatar
-   * fallback while null).
-   */
+  /** TMDB logo_path (e.g. "/8OUSXUW5n6fO7xofp5WhFpk6fS9.jpg"). */
   logoPath: string | null;
+  /**
+   * TMDB display_priority — a 0-based integer where lower = more
+   * popular in the region. Used to sort the merged movie+TV list so
+   * Netflix/Prime appear at the top.
+   */
+  displayPriority: number;
 }
 
 /**
- * INDIA-curated provider list — the accurate, active flatrate services.
- *
- * IDs are the canonical TMDB watch_provider IDs that the Discover
- * /discover/movie?with_watch_providers={id}&watch_region=IN query
- * respects. These were verified against TMDB's /watch/providers/movie
- * ?watch_region=IN response:
- *
- *   - Netflix (8)              — flatrate, active
- *   - Prime Video (119)        — flatrate Amazon Prime (NOT 10 = rent/buy Amazon Video)
- *   - JioStar (122 = JioCinema primary) — alias-combines Hotstar (122)
- *     and JioCinema (220) under one unified "JioStar" button
- *   - Sony LIV (237)           — flatrate, active
- *   - ZEE5 (232)               — flatrate, active
- *   - Apple TV+ (350)          — flatrate, active
- *
- * Unavailable/merged services (Hulu, Max, HBO Max, Disney+ standalone,
- * Peacock, Paramount+) are intentionally HIDDEN for India because they
- * don't have a flatrate offering there.
+ * Raw row shape from getWatchProviderList / getWatchProviderListTv.
+ * Kept here (not in discover.ts) so the merge utility is self-contained
+ * and doesn't need to know about the TMDB fetch layer.
  */
-export const INDIA_CURATED_PROVIDERS: CuratedProvider[] = [
-  { id: "8",   name: "Netflix",    logoPath: null },
-  { id: "119", name: "Prime Video", logoPath: null },
-  { id: "122", name: "JioStar",    aliasIds: ["122", "220"], logoPath: null },
-  { id: "237", name: "Sony LIV",   logoPath: null },
-  { id: "232", name: "ZEE5",       logoPath: null },
-  { id: "350", name: "Apple TV+",  logoPath: null },
-];
+interface TmdbProviderRow {
+  providerId: number;
+  providerName: string;
+  logoPath: string | null;
+  displayPriority: number;
+}
 
 /**
- * FALLBACK (non-India) provider list — a curated set of the major
- * global streamers. Used when the user's country is NOT India so the
- * settings page isn't empty. Logos are fetched at runtime for the
- * user's region; if a provider isn't available in their region, the
- * toggle still works (the discover query just returns no results).
- */
-export const GLOBAL_FALLBACK_PROVIDERS: CuratedProvider[] = [
-  { id: "8",   name: "Netflix",      logoPath: null },
-  { id: "9",   name: "Prime Video",  logoPath: null },
-  { id: "337", name: "Disney+",      logoPath: null },
-  { id: "2",   name: "Apple TV+",    logoPath: null },
-  { id: "15",  name: "Hulu",         logoPath: null },
-  { id: "384", name: "Max",          logoPath: null },
-  { id: "283", name: "Crunchyroll",  logoPath: null },
-  { id: "200", name: "MUBI",         logoPath: null },
-];
-
-/**
- * Get the curated provider list for a region.
+ * Merge the movie + TV provider lists from TMDB into a single
+ * deduplicated list, sorted by display_priority ascending.
  *
- * For India (IN), returns the accurate India-curated list. For any
- * other region, returns the global fallback list. The caller is
- * responsible for fetching logo_path values from TMDB's
- * /watch/providers/movie endpoint and merging them into the returned
- * entries.
+ * Rules:
+ *   1. Deduplicate by provider_id — if a provider appears in both the
+ *      movie and TV lists, keep the first occurrence (movie list wins
+ *      because it's passed first; the movie display_priority is
+ *      generally the canonical one).
+ *   2. Sort by display_priority ascending — TMDB's priority puts the
+ *      most popular providers (Netflix, Prime, etc.) at the top.
+ *   3. IDs are normalized to strings (the discover query + the
+ *      streamingProviders preference both use string IDs).
+ *
+ * @param movieRows  Rows from getWatchProviderList(region)
+ * @param tvRows     Rows from getWatchProviderListTv(region)
+ * @returns Merged, deduplicated, sorted TmdbProvider[]
  */
-export function getCuratedProvidersForRegion(region: string): CuratedProvider[] {
-  if (region.toUpperCase() === "IN") {
-    return INDIA_CURATED_PROVIDERS.map((p) => ({ ...p }));
+export function mergeAndSortProviders(
+  movieRows: TmdbProviderRow[],
+  tvRows: TmdbProviderRow[],
+): TmdbProvider[] {
+  const seen = new Set<string>();
+  const merged: TmdbProvider[] = [];
+  // Movie list first — its display_priority is generally canonical.
+  for (const row of movieRows) {
+    const id = String(row.providerId);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    merged.push({
+      id,
+      name: row.providerName,
+      logoPath: row.logoPath,
+      displayPriority: row.displayPriority,
+    });
   }
-  return GLOBAL_FALLBACK_PROVIDERS.map((p) => ({ ...p }));
-}
-
-/**
- * Check if a user-selected provider id is active under a curated
- * provider (matching either the canonical id OR any alias id).
- */
-export function isProviderActive(
-  curated: CuratedProvider,
-  selectedIds: string[],
-): boolean {
-  const allIds = new Set([curated.id, ...(curated.aliasIds ?? [])]);
-  return selectedIds.some((id) => allIds.has(id));
+  // TV list — add any providers not already in the movie list.
+  for (const row of tvRows) {
+    const id = String(row.providerId);
+    if (seen.has(id)) continue;
+    seen.add(id);
+    merged.push({
+      id,
+      name: row.providerName,
+      logoPath: row.logoPath,
+      // TV-only providers keep their TV display_priority.
+      displayPriority: row.displayPriority,
+    });
+  }
+  // Sort by display_priority ascending (most popular first).
+  merged.sort((a, b) => a.displayPriority - b.displayPriority);
+  return merged;
 }

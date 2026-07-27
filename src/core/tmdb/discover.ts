@@ -381,8 +381,12 @@ export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<T
  * with_watch_providers parameter — but that requires a specific
  * provider ID. This helper returns the provider list so the UI can
  * pick providers and then fetch titles for each.
+ *
+ * `displayPriority` mirrors TMDB's `display_priority` field — a 0-based
+ * integer where lower = more popular in the region. Callers sort by
+ * this to show Netflix/Prime at the top of the list.
  */
-export async function getWatchProviderList(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null }>> {
+export async function getWatchProviderList(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null; displayPriority: number }>> {
   const res = await cachedFetch(
     buildCacheKey("tmdb:watch_providers_list", { region }),
     TMDB_TTL,
@@ -394,10 +398,11 @@ export async function getWatchProviderList(region = "IN"): Promise<Array<{ provi
       return r.json();
     }
   );
-  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null }) => ({
+  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null; display_priority?: number }) => ({
     providerId: p.provider_id,
     providerName: p.provider_name,
     logoPath: p.logo_path,
+    displayPriority: p.display_priority ?? 999,
   }));
 }
 
@@ -476,8 +481,11 @@ export async function discoverTvWithProvider(
  * providers appear in only one list. The OTT section merges both lists
  * so a provider like "JioHotstar" that primarily streams TV/movies in
  * India shows up regardless of which TMDB list it appears in.
+ *
+ * `displayPriority` mirrors TMDB's `display_priority` field (same as
+ * the movie endpoint).
  */
-export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null }>> {
+export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null; displayPriority: number }>> {
   const res = await cachedFetch(
     buildCacheKey("tmdb:watch_providers_list_tv", { region }),
     TMDB_TTL,
@@ -489,9 +497,10 @@ export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ pro
       return r.json();
     }
   );
-  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null }) => ({
+  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null; display_priority?: number }) => ({
     providerId: p.provider_id,
     providerName: p.provider_name,
     logoPath: p.logo_path,
+    displayPriority: p.display_priority ?? 999,
   }));
 }
