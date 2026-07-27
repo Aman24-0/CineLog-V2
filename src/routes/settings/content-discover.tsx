@@ -5,14 +5,23 @@
 // Controls:
 //   • Adult content filter (toggle) + content rating cap (dropdown)
 //   • Hide spoilers (moved here from Appearance)
-//   • Streaming provider subscriptions (multi-select chip grid)
+//   • Streaming provider subscriptions (multi-select with LOGOS)
 //   • Default Discover tab (Movies / Series / All)
 //   • Rating scale (5-star / 10-star / thumbs)
 //
 // All preferences are persisted via src/core/preferences.
+//
+// OTT PROVIDER SELECTOR (v2 redesign):
+//   • For India (IN), shows ONLY the accurate curated list: Netflix,
+//     Prime Video (119, not rent/buy 10), JioStar (122+220 combined),
+//     Sony LIV (237), ZEE5 (232), Apple TV+ (350). Unavailable services
+//     like Hulu/Max are hidden.
+//   • For other regions, shows a global fallback list.
+//   • Each toggle shows the provider's official TMDB logo (fetched from
+//     /watch/providers/movie?watch_region={region}) alongside the name.
 
 import { Title } from "@solidjs/meta";
-import { For, Show, createMemo, type Component } from "solid-js";
+import { For, Show, createMemo, createSignal, onMount, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { ControlRow, Segmented, ToggleRow, SelectRow } from "~/features/settings/sharedControls";
@@ -30,41 +39,15 @@ import {
   setDefaultDiscoverTab,
   ratingScale,
   setRatingScale,
+  getCuratedProvidersForRegion,
+  isProviderActive,
+  type CuratedProvider,
   type DiscoverTab,
   type RatingScale,
 } from "~/core/preferences";
-
-/**
- * Streaming providers — curated list of the most common worldwide.
- * IDs are TMDB watch_provider IDs (used by /tv/{id}/watch/providers and
- * /discover/{movie,tv}?with_watch_providers=ID).
- *
- * Display name + an emoji/letter avatar (we don't fetch provider logos
- * to keep this page lightweight — the OTT section in Discover already
- * uses the official logos).
- */
-const PROVIDERS: { id: string; name: string; avatar: string }[] = [
-  { id: "8",   name: "Netflix",          avatar: "N" },
-  { id: "9",   name: "Prime Video",      avatar: "P" },
-  { id: "337", name: "Disney+",          avatar: "D" },
-  { id: "2",   name: "Apple TV+",        avatar: "" },
-  { id: "15", name: "Hulu",              avatar: "H" },
-  { id: "119", name: "Amazon Prime",     avatar: "A" },
-  { id: "283", name: "Crunchyroll",      avatar: "C" },
-  { id: "350", name: "Apple TV",         avatar: "" },
-  { id: "190", name: "Hotstar",          avatar: "H" },
-  { id: "122", name: "Jio Cinema",       avatar: "J" },
-  { id: "232", name: "Zee5",             avatar: "Z" },
-  { id: "1196", name: "Sony LIV",        avatar: "S" },
-  { id: "1820", name: "MX Player",       avatar: "M" },
-  { id: "247", name: "Voot",             avatar: "V" },
-  { id: "21", name: "HBO Max",           avatar: "M" },
-  { id: "384", name: "Max",              avatar: "M" },
-  { id: "188", name: "YouTube Premium",  avatar: "Y" },
-  { id: "291", name: "Paramount+",       avatar: "P" },
-  { id: "299", name: "Peacock",          avatar: "P" },
-  { id: "200", name: "MUBI",             avatar: "M" },
-];
+import { useDiscoverRegion } from "~/core/config/discoverRegion";
+import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 
 const DISCOVER_TAB_OPTIONS: { id: DiscoverTab; label: string }[] = [
   { id: "all",   label: "All" },
@@ -94,12 +77,62 @@ const RATING_CAP_OPTIONS = [
 
 const ContentDiscoverRoute: Component = () => {
   const { showToast } = useToast();
+  const region = useDiscoverRegion();
 
-  const isProviderActive = (id: string) => streamingProviders().includes(id);
+  // Curated provider list for the user's region (India → accurate list,
+  // other regions → global fallback). Logos are fetched at runtime.
+  const [providers, setProviders] = createSignal<CuratedProvider[]>([]);
+  const [logosLoading, setLogosLoading] = createSignal(true);
 
-  const handleToggleProvider = (id: string) => {
-    toggleStreamingProvider(id);
-    const isActive = streamingProviders().includes(id);
+  /** Fetch TMDB provider logos for the current region and merge them
+   *  into the curated provider list. Falls back to a letter avatar
+   *  (handled in the UI) when a logo can't be resolved. */
+  const loadProviderLogos = async (reg: string) => {
+    setLogosLoading(true);
+    try {
+      const [movieRes, tvRes] = await Promise.allSettled([
+        getWatchProviderList(reg),
+        getWatchProviderListTv(reg),
+      ]);
+      // Build an id → logoPath map from both lists (movie + TV).
+      const logoMap = new Map<string, string>();
+      for (const res of [movieRes, tvRes]) {
+        if (res.status !== "fulfilled") continue;
+        for (const row of res.value) {
+          if (row.logoPath && !logoMap.has(String(row.providerId))) {
+            logoMap.set(String(row.providerId), row.logoPath);
+          }
+        }
+      }
+      // Merge logos into the curated list. For alias-merged providers
+      // (e.g. JioStar), prefer the canonical id's logo, then fall back
+      // to the first alias logo that exists.
+      const curated = getCuratedProvidersForRegion(reg);
+      const merged = curated.map((p) => {
+        let logo = logoMap.get(p.id) ?? null;
+        if (!logo && p.aliasIds) {
+          for (const alias of p.aliasIds) {
+            const aliasLogo = logoMap.get(alias);
+            if (aliasLogo) { logo = aliasLogo; break; }
+          }
+        }
+        return { ...p, logoPath: logo };
+      });
+      setProviders(merged);
+    } catch (err) {
+      console.warn("[content-discover] Failed to load provider logos:", err);
+      // Fall back to the curated list without logos (UI shows letter avatar).
+      setProviders(getCuratedProvidersForRegion(reg));
+    } finally {
+      setLogosLoading(false);
+    }
+  };
+
+  onMount(() => { void loadProviderLogos(region()); });
+
+  const handleToggleProvider = (provider: CuratedProvider) => {
+    toggleStreamingProvider(provider.id);
+    const isActive = isProviderActive(provider, streamingProviders());
     showToast(isActive ? "Provider added to your subscriptions" : "Provider removed", "info", 1200);
   };
 
@@ -172,7 +205,7 @@ const ContentDiscoverRoute: Component = () => {
               </div>
             </section>
 
-            {/* Streaming providers */}
+            {/* Streaming providers — curated per-region with official TMDB logos */}
             <section class="sec-section">
               <p class="sec-section-label">
                 Streaming Providers
@@ -187,22 +220,45 @@ const ContentDiscoverRoute: Component = () => {
                   Tap the providers you subscribe to. Discover will prioritize titles available on your services, and Where-to-watch will only show your providers.
                 </p>
                 <div class="provider-chip-grid">
-                  <For each={PROVIDERS}>
-                    {(provider) => (
-                      <button
-                        type="button"
-                        class="provider-chip focus-ring"
-                        data-active={isProviderActive(provider.id)}
-                        onClick={() => handleToggleProvider(provider.id)}
-                        aria-label={`${isProviderActive(provider.id) ? "Remove" : "Add"} ${provider.name}`}
-                        aria-pressed={isProviderActive(provider.id)}
-                      >
-                        <div class="provider-chip-icon" aria-hidden="true">{provider.avatar || provider.name.charAt(0)}</div>
-                        <span class="provider-chip-name">{provider.name}</span>
-                        <span class="material-symbols-outlined provider-chip-check" aria-hidden="true">check_circle</span>
-                      </button>
-                    )}
+                  <For each={providers()}>
+                    {(provider) => {
+                      const active = createMemo(() => isProviderActive(provider, streamingProviders()));
+                      const logoUrl = createMemo(() => provider.logoPath ? tmdbImage(provider.logoPath, "w92") : "");
+                      return (
+                        <button
+                          type="button"
+                          class="provider-chip focus-ring"
+                          data-active={active()}
+                          onClick={() => handleToggleProvider(provider)}
+                          aria-label={`${active() ? "Remove" : "Add"} ${provider.name}`}
+                          aria-pressed={active()}
+                        >
+                          <div class="provider-chip-icon" aria-hidden="true">
+                            <Show when={logoUrl()} fallback={
+                              <span class="provider-chip-icon-letter">{provider.name.charAt(0)}</span>
+                            }>
+                              <img
+                                src={logoUrl()}
+                                class="provider-chip-logo"
+                                alt=""
+                                loading="lazy"
+                                decoding="async"
+                                onError={(e) => {
+                                  // Hide the broken image so the letter fallback shows.
+                                  e.currentTarget.style.display = "none";
+                                }}
+                              />
+                            </Show>
+                          </div>
+                          <span class="provider-chip-name">{provider.name}</span>
+                          <span class="material-symbols-outlined provider-chip-check" aria-hidden="true">check_circle</span>
+                        </button>
+                      );
+                    }}
                   </For>
+                  <Show when={logosLoading() && providers().length === 0}>
+                    <div class="provider-chip-loading">Loading providers…</div>
+                  </Show>
                 </div>
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>

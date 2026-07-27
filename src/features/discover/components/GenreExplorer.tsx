@@ -88,34 +88,52 @@ void MOVIE_GENRES;
 /**
  * Fetch one page of genre results.
  *
+ * QUERY DIVERSITY (v2):
+ *   Previously this fetched `sort_by=popularity.desc` which always
+ *   returned the same newest popular movies — the same 2026 blockbusters
+ *   that appear in every other Discover row. Now we sort by
+ *   `vote_average.desc` with `vote_count.gte=1500` to surface acclaimed
+ *   genre classics, AND we pick a random page (1-5) on the FIRST page
+ *   fetch so different users / sessions explore different catalogs.
+ *
+ *   Load-more requests use the sequential next page (page 2, 3, ...)
+ *   so the continuous carousel still flows naturally after the first
+ *   random page.
+ *
  * Fetches from both movie and TV discover endpoints in parallel, then
  * interleaves the results (movie, tv, movie, tv...) for variety. Returns
  * ~20 items per page (10 movies + 10 TV). Deduplicates by composite
  * "{media_type}/{id}" key in case the same title appears in both.
- *
- * Mirrors the helper that used to live in features/search/genreBrowseUtils.ts,
- * but inlined here so the Discover feature doesn't depend on the search
- * feature (the search page is gone, so we own this logic now).
  */
 async function fetchGenrePage(
   genre: GenreDef,
   page: number,
 ): Promise<TMDBTitle[]> {
+  // For the first page, pick a random starting page (1-5) so the
+  // carousel shows different titles each session. For subsequent
+  // pages (load-more), use the sequential page number so the carousel
+  // flows continuously from the first random page.
+  const fetchPage = page === 1 ? (1 + Math.floor(Math.random() * 5)) : page;
+
   const promises: Promise<TMDBTitle[]>[] = [
     discoverMovies({
       withGenres: [genre.movieId],
-      sortBy: "popularity.desc",
-      voteCountGte: 100,
-      page,
+      // Sort by vote_average.desc (not popularity.desc) so we get
+      // acclaimed genre classics instead of the same new blockbusters.
+      sortBy: "vote_average.desc",
+      // vote_count.gte=1500 ensures the results are well-known enough
+      // to be "acclaimed" (not obscure 1-vote 10/10 entries).
+      voteCountGte: 1500,
+      page: fetchPage,
     }),
   ];
   if (genre.tvId !== undefined) {
     promises.push(
       discoverTv({
         withGenres: [genre.tvId],
-        sortBy: "popularity.desc",
-        voteCountGte: 50,
-        page,
+        sortBy: "vote_average.desc",
+        voteCountGte: 500,
+        page: fetchPage,
       }),
     );
   }
@@ -161,6 +179,10 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
     }));
     setErrorGenre(null);
     try {
+      // fetchGenrePage picks a random page (1-5) for logical page 1 so
+      // different sessions explore different catalogs. The cache stores
+      // the LOGICAL page (1); loadMore passes 2, 3, ... which
+      // fetchGenrePage maps to sequential TMDB pages.
       const items = await fetchGenrePage(genre, 1);
       setCache((prev) => ({
         ...prev,

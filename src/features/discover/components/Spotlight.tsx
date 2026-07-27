@@ -25,21 +25,18 @@ interface SpotlightProps {
  *   - Add to Vault (primary, secondary emphasis) — one-tap save
  *   - Not in the mood (ghost) — re-rolls the Spotlight
  *
- * Premium Phase 4 upgrade:
- *   - Larger hero (560px mobile / 640px desktop)
- *   - Deeper layered gradients (5 layers including gold + cool accents)
- *   - Bigger Bebas Neue title (3rem mobile / 4rem desktop)
- *   - Premium glass metadata pills with backdrop blur + gold tint
- *   - Overview excerpt (1-line clamp) below the meta pills
- *   - Genre pills row (when available)
- *   - Premium CTA layout with frosted "Add to Vault" + gold "Details"
- *   - Premium "Not in the mood" frosted glass pill
+ * REFINEMENTS (personalized-discovery v2):
+ *   - Reduced vertical height (480px cap, 50vh on mobile) so the hero
+ *     takes up less screen space and the rest of Discover is visible
+ *     sooner. Was 560px mobile / 640-680px desktop.
+ *   - Removed the "Because you rated X 10/10" attribution text. The
+ *     hero now focuses purely on artwork, title, overview, rating,
+ *     and CTAs — no editorial reason sentence.
  *
  * Visual language inherited from the Details page CinematicHero + the
  * Dashboard DashboardHero: full-bleed backdrop, multi-layer gradient
  * overlay, Bebas Neue display title, v2-pill quick meta, btn-primary
- * + btn-ghost actions. The "Because you…" reason sits in the eyebrow
- * position — it's the first thing the user reads.
+ * + btn-ghost actions.
  *
  * Re-roll animation: backdrop crossfades, title slides up. The motion
  * says "we thought about this, here's the next one" — never a slot-
@@ -151,10 +148,9 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             </div>
           </Show>
         }>
-          {/* "Because you…" — the reason sentence. First thing the user reads. */}
-          <p class="spotlight-reason">{pick()!.reason}</p>
-
-          {/* Title */}
+          {/* Title — no attribution/reason text per the refined spec.
+              The hero focuses purely on artwork + title + overview +
+              rating + CTAs. */}
           <h2 class="spotlight-title">{title()}</h2>
 
           {/* Quick meta pills — year, type, IMDb, vault status */}

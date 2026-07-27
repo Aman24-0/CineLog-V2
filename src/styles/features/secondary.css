@@ -3148,8 +3148,8 @@
   box-shadow: 0 0 12px var(--p-glow);
 }
 .provider-chip-icon {
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: var(--radius-xs);
   background: var(--tier-3);
   display: flex;
@@ -3159,6 +3159,27 @@
   font-size: 14px;
   color: var(--text-strong);
   font-weight: 700;
+  overflow: hidden;
+  position: relative;
+}
+.provider-chip-logo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.provider-chip-icon-letter {
+  /* Centered letter fallback when the TMDB logo fails to load */
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+.provider-chip-loading {
+  grid-column: 1 / -1;
+  padding: var(--sp-3);
+  text-align: center;
+  font-size: 0.8125rem;
+  color: var(--text-muted);
 }
 .provider-chip-name {
   flex: 1;

@@ -183,33 +183,47 @@ export default function DiscoverPage() {
   // every title in the user's vault. `trackedTvSeasons` maps TV
   // tmdb_id → the highest season number the user has tracked.
   //
-  // The `filterFeed` helper applies BOTH rules:
-  //   1. Filter out titles in the vault (using excludedKeys).
-  //   2. EXCEPTION: keep TV titles where TMDB reports more seasons
-  //      than the user has tracked (number_of_seasons > tracked).
+  // The `filterFeed` helper applies THREE rules:
+  //   1. GLOBAL DEDUP: skip any title whose id is in `priorRenderedIds`
+  //      (already shown by an earlier row). This prevents the same
+  //      title from appearing in multiple Discover rows.
+  //   2. VAULT EXCLUSION: skip titles in the vault (using excludedKeys).
+  //   3. NEW SEASON EXCEPTION: keep TV titles where TMDB reports more
+  //      seasons than the user has tracked (number_of_seasons > tracked).
   //      These get added to `newSeasonBadgeIds` so the rail renders a
   //      "NEW SEASON OUT" badge on them.
+  //
+  // Returns `{ titles, badgeIds, renderedIds }` where `renderedIds` is
+  // the UNION of `priorRenderedIds` and the ids of the kept titles —
+  // the next row passes this as its `priorRenderedIds` so the dedup
+  // chain accumulates down the page.
   const excludedKeys = personalized.excludedKeys;
   const trackedTvSeasons = personalized.trackedTvSeasons;
 
   /**
-   * Filter a feed of TMDBTitle[] down to titles not in the user's vault,
-   * applying the New-Season-Out exception for TV shows. Returns both
-   * the filtered titles AND the set of TV ids that should get a badge.
+   * Filter a feed of TMDBTitle[] down to titles not already rendered
+   * by an earlier row AND not in the user's vault (with the New-Season
+   * exception for TV). Returns the filtered titles, the badge ids, and
+   * the updated renderedIds set for the next row.
    */
-  const filterFeed = (titles: TMDBTitle[]): { titles: TMDBTitle[]; badgeIds: Set<string> } => {
+  const filterFeed = (
+    titles: TMDBTitle[],
+    priorRenderedIds: Set<number> = new Set(),
+  ): { titles: TMDBTitle[]; badgeIds: Set<string>; renderedIds: Set<number> } => {
     const vault = excludedKeys();
     const tracked = trackedTvSeasons();
     const badgeIds = new Set<string>();
-    if (vault.size === 0 && tracked.size === 0) {
-      return { titles, badgeIds };
-    }
+    // Copy the prior set so we don't mutate the caller's reference.
+    const renderedIds = new Set(priorRenderedIds);
     const filtered: TMDBTitle[] = [];
     for (const t of titles) {
+      // GLOBAL DEDUP — skip if an earlier row already rendered this id.
+      if (renderedIds.has(t.id)) continue;
       const key = `${t.media_type}/${t.id}`;
       if (!vault.has(key)) {
-        // Not in vault — keep.
+        // Not in vault — keep + record the id for subsequent rows.
         filtered.push(t);
+        renderedIds.add(t.id);
         continue;
       }
       // In vault — apply the New-Season-Out exception for TV.
@@ -221,6 +235,7 @@ export default function DiscoverPage() {
         // (defensive — don't badge when TMDB data is missing).
         if (tmdbSeasons > 0 && tmdbSeasons > trackedCount) {
           filtered.push(t);
+          renderedIds.add(t.id);
           badgeIds.add(String(t.id));
         }
         // Otherwise: in vault, no new season → filter out.
@@ -228,8 +243,20 @@ export default function DiscoverPage() {
       // Movies in the vault are always filtered out (no new-season
       // concept for movies).
     }
-    return { titles: filtered, badgeIds };
+    return { titles: filtered, badgeIds, renderedIds };
   };
+
+  // ── GLOBAL DEDUP CHAIN ────────────────────────────────────────────
+  // Each row's filtered memo depends on the PREVIOUS row's renderedIds,
+  // so the rows chain in render order (Row 1 → Row 2 → ... → Row 6).
+  // This guarantees a title shown by Row 1 is never repeated by Row 2-6.
+  // The Spotlight pick is also added to the chain so no row repeats it.
+  const spotlightRenderedIds = createMemo<Set<number>>(() => {
+    const ids = new Set<number>();
+    const pick = spotlightPick();
+    if (pick) ids.add(pick.title.id);
+    return ids;
+  });
 
   // ── ROW 1: "Because you liked [Daily Seed Movie Title]" ──────────
   // Fetches /movie/{seedId}/recommendations. The seed rotates daily
@@ -252,7 +279,9 @@ export default function DiscoverPage() {
     const recs = await getRecommendations("movie", key.seedId);
     return recs;
   });
-  const row1Filtered = createMemo(() => filterFeed(row1.titles()));
+  // Dedup chain: Row 1 starts from the Spotlight's rendered ids so
+  // the Spotlight pick isn't repeated in Row 1.
+  const row1Filtered = createMemo(() => filterFeed(row1.titles(), spotlightRenderedIds()));
   const row1Label = createMemo(() => personalized.seedLabel());
 
   // ── ROW 2: "Trending in [User's Top Genre Name]" ─────────────────
@@ -274,7 +303,8 @@ export default function DiscoverPage() {
       voteCountGte: 100,
     });
   });
-  const row2Filtered = createMemo(() => filterFeed(row2.titles()));
+  // Dedup chain: Row 2 continues from Row 1's rendered ids.
+  const row2Filtered = createMemo(() => filterFeed(row2.titles(), row1Filtered().renderedIds));
   const row2Label = createMemo(() => {
     const name = personalized.topGenreName();
     if (name) return formatTopGenreLabel(name);
@@ -334,11 +364,17 @@ export default function DiscoverPage() {
     }
     return merged;
   });
-  const row3Filtered = createMemo(() => filterFeed(row3.titles()));
+  // Dedup chain: Row 3 continues from Row 2's rendered ids.
+  const row3Filtered = createMemo(() => filterFeed(row3.titles(), row2Filtered().renderedIds));
 
   // ── ROW 4: "Weekend Picks & Hidden Gems" ─────────────────────────
   // /discover/movie?vote_average.gte=7.0&vote_count.gte=100&vote_count.lte=1500
-  // &sort_by=popularity.desc
+  // &sort_by=popularity.desc&primary_release_date.lte=2023-12-31
+  //
+  // The primary_release_date.lte=2023 filter strictly excludes current-
+  // year blockbusters so the row surfaces actual hidden gems (acclaimed
+  // older films with moderate vote counts) instead of the same 2026
+  // movies that appear in every other row.
   const row4Key = createMemo(() => ({ day: personalizedDayKey() }));
   const row4 = useDiscoverRow(row4Key, async () => {
     return discoverMovies({
@@ -346,23 +382,31 @@ export default function DiscoverPage() {
       voteCountGte: 100,
       voteCountLte: 1500,
       sortBy: "popularity.desc",
+      // Exclude current-year blockbusters — hidden gems only.
+      // Use a fixed 2023-12-31 cutoff (not "current year - 1") so the
+      // cache key is stable across days and the apiCache layer can
+      // serve repeated visits instantly.
+      primaryReleaseDateLte: "2023-12-31",
     });
   });
-  const row4Filtered = createMemo(() => filterFeed(row4.titles()));
+  // Dedup chain: Row 4 continues from Row 3's rendered ids.
+  const row4Filtered = createMemo(() => filterFeed(row4.titles(), row3Filtered().renderedIds));
 
   // ── ROW 5: "Global Pulse" (/trending/all/day) ────────────────────
   const row5Key = createMemo(() => ({ day: personalizedDayKey() }));
   const row5 = useDiscoverRow(row5Key, async () => {
     return getTrending("all", "day");
   });
-  const row5Filtered = createMemo(() => filterFeed(row5.titles()));
+  // Dedup chain: Row 5 continues from Row 4's rendered ids.
+  const row5Filtered = createMemo(() => filterFeed(row5.titles(), row4Filtered().renderedIds));
 
   // ── ROW 6: "Coming Soon" (/movie/upcoming) ───────────────────────
   // Reuses the existing feeds.upcoming() signal (already region-aware
   // and cached) rather than re-fetching. The "See All" button routes
   // to /profile/upcoming.
   const navigate = useNavigate();
-  const upcomingFeed = createMemo(() => filterFeed(feeds.upcoming()));
+  // Dedup chain: Row 6 continues from Row 5's rendered ids.
+  const upcomingFeed = createMemo(() => filterFeed(feeds.upcoming(), row5Filtered().renderedIds));
 
   // Loading state — true only during the initial feeds fetch (first paint).
   const isLoading = createMemo(

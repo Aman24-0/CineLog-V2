@@ -24,43 +24,25 @@ import {
   For, Show, createSignal, createMemo, onMount, createEffect,
   type Component,
 } from "solid-js";
-import { streamingProviders } from "~/core/preferences";
+import {
+  streamingProviders,
+  getCuratedProvidersForRegion,
+} from "~/core/preferences";
 import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 
-// ─── Curated provider display names (id → name) ───────────────────────
+// ─── Provider display-name + logo resolution ──────────────────────────
 //
-// The user's selected providers are stored as STRING IDs in the
-// streamingProviders preference. We need display names for the dropdown
-// labels. This table mirrors the PROVIDERS list in
-// routes/settings/content-discover.tsx so the names match exactly what
-// the user saw when they picked them.
+// We use the shared curated provider registry (from core/preferences) as
+// the source of truth for display names + canonical IDs. This keeps the
+// OttDropdown in sync with the Settings page — when the user picks
+// "JioStar" in settings, the dropdown shows "JioStar" (not "Jio Cinema"
+// or "Hotstar").
 //
-// IDs not in this table fall back to a TMDB provider-list lookup
-// (fetched on mount) so unknown providers still render with their real
-// name + logo.
-const PROVIDER_DISPLAY_NAMES: Record<string, string> = {
-  "8": "Netflix",
-  "9": "Prime Video",
-  "337": "Disney+",
-  "2": "Apple TV+",
-  "15": "Hulu",
-  "119": "Amazon Prime",
-  "283": "Crunchyroll",
-  "350": "Apple TV",
-  "190": "Hotstar",
-  "122": "Jio Cinema",
-  "232": "Zee5",
-  "1196": "Sony LIV",
-  "1820": "MX Player",
-  "247": "Voot",
-  "21": "HBO Max",
-  "384": "Max",
-  "188": "YouTube Premium",
-  "291": "Paramount+",
-  "299": "Peacock",
-  "200": "MUBI",
-};
+// For user-selected provider IDs that aren't in the curated list (e.g.
+// a previously-selected provider that's no longer curated), we fall
+// back to a TMDB provider-list lookup (fetched on mount) so unknown
+// providers still render with their real name + logo.
 
 interface OttDropdownProps {
   /** The user's ISO 3166-1 watch region (e.g. "IN", "US"). */
@@ -136,11 +118,18 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
   });
 
   // Resolve a provider id → { name, logoPath }.
+  // Uses the shared curated registry first (so "JioStar" resolves
+  // correctly for both id 122 and alias 220), then falls back to the
+  // TMDB region provider list, then to a generic "Provider {id}" label.
   const resolveProvider = (id: string): ProviderOption => {
-    const curatedName = PROVIDER_DISPLAY_NAMES[id];
-    if (curatedName) {
-      const fromRegion = regionProviders().find((p) => p.id === id);
-      return { id, name: curatedName, logoPath: fromRegion?.logoPath ?? null };
+    const curatedList = getCuratedProvidersForRegion(props.region);
+    // Check if this id matches a curated provider (canonical or alias).
+    const curated = curatedList.find(
+      (p) => p.id === id || p.aliasIds?.includes(id),
+    );
+    if (curated) {
+      const fromRegion = regionProviders().find((p) => p.id === id || p.id === curated.id);
+      return { id: curated.id, name: curated.name, logoPath: fromRegion?.logoPath ?? null };
     }
     const fromRegion = regionProviders().find((p) => p.id === id);
     if (fromRegion) return fromRegion;
@@ -149,16 +138,29 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
 
   // The dropdown's option list:
   //   • If the user has selected providers → show ONLY those.
-  //   • Otherwise → show the top 10 available providers for their region.
+  //   • Otherwise → show the curated providers for the region (India →
+  //     the accurate 6-provider list, other regions → the global
+  //     fallback). This avoids the raw TMDB list which includes
+  //     duplicate/invalid entries (rent/buy Amazon Video, etc.).
+  //     Logos are resolved from the TMDB region provider list.
   const options = createMemo<ProviderOption[]>(() => {
     const userPicks = streamingProviders();
     if (userPicks.length > 0) {
       return userPicks.map(resolveProvider);
     }
-    // Fallback: top providers for the region (by TMDB's default order,
-    // which is roughly popularity). Limit to 10 so the panel stays
-    // scrollable on mobile.
-    return regionProviders().slice(0, 10);
+    // Fallback: curated providers for the region, with logos resolved
+    // from the TMDB region provider list.
+    const curated = getCuratedProvidersForRegion(props.region);
+    return curated.map((p) => {
+      const fromRegion = regionProviders().find(
+        (rp) => rp.id === p.id || p.aliasIds?.includes(rp.id),
+      );
+      return {
+        id: p.id,
+        name: p.name,
+        logoPath: fromRegion?.logoPath ?? null,
+      };
+    });
   });
 
   // The summary label — the active provider's name, or "All Providers"

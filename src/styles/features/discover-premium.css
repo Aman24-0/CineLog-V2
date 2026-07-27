@@ -97,20 +97,23 @@
    2. SPOTLIGHT HERO — cinematic, much larger, premium
    ============================================================ */
 
-/* Bigger, more cinematic — 560px mobile / 640px desktop (was 460/500).
-   The extra height gives the title + meta + actions room to breathe. */
+/* REFINED HEIGHT — smaller hero so the rest of Discover is visible
+   sooner. Was 560px mobile / 640-680px desktop; now capped at 480px
+   with a 50vh mobile fallback so short viewports don't overflow. */
 .discover-folds .spotlight {
-  height: 560px;
+  height: 50vh;
+  max-height: 480px;
+  min-height: 360px;
   border-radius: var(--radius-2xl, 24px);
   background: var(--tier-2);
   position: relative;
   overflow: hidden;
 }
 @media (min-width: 640px) {
-  .discover-folds .spotlight { height: 640px; }
+  .discover-folds .spotlight { height: 480px; }
 }
 @media (min-width: 1024px) {
-  .discover-folds .spotlight { height: 680px; }
+  .discover-folds .spotlight { height: 480px; }
 }
 
 /* Backdrop — slightly brighter for premium feel + slower zoom */
@@ -237,10 +240,11 @@
   flex-shrink: 0;
 }
 
-/* Title — BIGGER Bebas Neue, dominant cinematic heading */
+/* Title — Bebas Neue, scaled down to match the reduced hero height.
+   Was 3.5rem mobile / 4.5rem / 5rem desktop; now 2.5rem / 3rem / 3.5rem. */
 .discover-folds .spotlight-title {
   font-family: 'Bebas Neue', cursive;
-  font-size: 3.5rem;
+  font-size: 2.5rem;
   line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--text-strong);
@@ -250,15 +254,15 @@
     0 1px 6px rgba(0,0,0,1),
     0 0 1px rgba(0,0,0,1);
   display: -webkit-box;
-  -webkit-line-clamp: 3;
+  -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 @media (min-width: 640px) {
-  .discover-folds .spotlight-title { font-size: 4.5rem; }
+  .discover-folds .spotlight-title { font-size: 3rem; }
 }
 @media (min-width: 1024px) {
-  .discover-folds .spotlight-title { font-size: 5rem; }
+  .discover-folds .spotlight-title { font-size: 3.5rem; }
 }
 
 /* Meta pills — premium glass with backdrop blur + gold tint */
@@ -342,17 +346,18 @@
   box-shadow: inset 0 1px 0 rgba(232,183,74,0.06);
 }
 
-/* Premium overview excerpt — Outfit, 2-line clamp, soft text */
+/* Premium overview excerpt — Outfit, clamped to fit the reduced hero.
+   1 line on mobile, 2 lines on desktop. */
 .discover-folds .spotlight-overview {
   font-family: 'Outfit', sans-serif;
-  font-size: 0.875rem;
+  font-size: 0.8125rem;
   font-weight: 400;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text-soft);
   margin: 0.25rem 0 0;
   max-width: 580px;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-shadow: 0 1px 6px rgba(0,0,0,0.9);

@@ -66,6 +66,9 @@ export {
 export {
   streamingProviders, setStreamingProviders,
   toggleStreamingProvider, hasStreamingProvider,
+  getCuratedProvidersForRegion, isProviderActive,
+  INDIA_CURATED_PROVIDERS, GLOBAL_FALLBACK_PROVIDERS,
+  type CuratedProvider,
 } from "./streamingProviders";
 
 // Default discover tab
