@@ -40,7 +40,19 @@ interface RatingPanelProps {
   loading: boolean;
 }
 
-/** A single service column. */
+/** A single service column.
+ *
+ * SINGLE-LINE LAYOUT (INP + mobile fix):
+ *   The previous cell used `flex-col` on the outer wrapper + `flex-wrap`
+ *   on the inner row. On narrow mobile screens the vote count (e.g.
+ *   `(553K)`) wrapped to a second line, breaking the visual alignment.
+ *
+ *   Fix: the outer wrapper is now a strict horizontal `flex-row` with
+ *   `whitespace-nowrap` + `overflow-hidden` so the Logo, Score, and
+ *   Votes stay on ONE line regardless of viewport width. The vote
+ *   count uses `truncate` so on extremely tight screens it ellipsizes
+ *   instead of wrapping.
+ */
 const RatingCell: Component<{
   label: string;
   logoClass: string;
@@ -53,52 +65,54 @@ const RatingCell: Component<{
 
   return (
     <div
-      class="flex flex-col items-center justify-center gap-1.5"
+      class="flex flex-row items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap w-full overflow-hidden"
       role="group"
       aria-label={`${props.label} rating: ${score()}${hasVotes() ? `, ${votes()} votes` : ""}`}
     >
-      <div class="flex items-center gap-1.5 flex-wrap justify-center">
-        {/* Brand logo box — official color + text */}
-        <span
-          class={props.logoClass}
-          aria-hidden="true"
-        >
-          {props.logoText}
-        </span>
-        {/* Score — bold white text */}
-        <span class="font-bold text-white text-sm" data-testid={`rating-score-${props.label.toLowerCase()}`}>
-          {score()}
-        </span>
-        {/* Votes — muted, smaller, in parentheses */}
-        <Show when={hasVotes()}>
-          <span class="text-text-muted text-xs">({votes()})</span>
-        </Show>
-      </div>
+      {/* Brand logo box — official color + text */}
+      <span
+        class={props.logoClass}
+        aria-hidden="true"
+      >
+        {props.logoText}
+      </span>
+      {/* Score — bold white text */}
+      <span class="font-bold text-white text-sm" data-testid={`rating-score-${props.label.toLowerCase()}`}>
+        {score()}
+      </span>
+      {/* Votes — muted, smaller, in parentheses.
+          `truncate` ensures it ellipsizes on extremely tight screens
+          instead of wrapping to a second line. */}
+      <Show when={hasVotes()}>
+        <span class="text-text-muted text-[10px] sm:text-xs truncate">({votes()})</span>
+      </Show>
     </div>
   );
 };
 
-/** Skeleton cell shown while ratings are loading. */
+/** Skeleton cell shown while ratings are loading.
+ *
+ * Matches the single-line `flex-row` layout of the real cell so the
+ * skeleton-to-content transition doesn't cause a layout shift.
+ */
 const SkeletonCell: Component<{ label: string }> = (props) => (
   <div
-    class="flex flex-col items-center justify-center gap-1.5"
+    class="flex flex-row items-center justify-center gap-1 sm:gap-1.5 whitespace-nowrap w-full overflow-hidden"
     role="status"
     aria-label={`Loading ${props.label} rating`}
   >
-    <div class="flex items-center gap-1.5">
-      <span
-        class="inline-block w-8 h-3 rounded-sm bg-white/10 animate-pulse"
-        aria-hidden="true"
-      />
-      <span
-        class="inline-block w-7 h-3 rounded-sm bg-white/10 animate-pulse"
-        aria-hidden="true"
-      />
-      <span
-        class="inline-block w-6 h-2 rounded-sm bg-white/10 animate-pulse"
-        aria-hidden="true"
-      />
-    </div>
+    <span
+      class="inline-block w-8 h-3 rounded-sm bg-white/10 animate-pulse shrink-0"
+      aria-hidden="true"
+    />
+    <span
+      class="inline-block w-7 h-3 rounded-sm bg-white/10 animate-pulse shrink-0"
+      aria-hidden="true"
+    />
+    <span
+      class="inline-block w-6 h-2 rounded-sm bg-white/10 animate-pulse shrink-0"
+      aria-hidden="true"
+    />
   </div>
 );
 

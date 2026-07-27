@@ -88,10 +88,14 @@ interface RatingsPayload {
  *
  * The v2 Title Lookup endpoint returns the full title object. The
  * `ratings` array sits directly on the root object — each entry has
- * { source, value, votes }. The `source` is a lowercase identifier
- * like "imdb", "rotten_tomatoes", "metacritic". Some MDBList responses
- * also expose top-level scalar fields (e.g. `imdbrating`, `imdbvotes`)
- * which we use as a fallback when the `ratings` array is missing.
+ * { source, value, votes }. MDBList does NOT use a consistent naming
+ * convention for `source`:
+ *   - "imdb"          — IMDb
+ *   - "tomatoes"      — Rotten Tomatoes (NOT "rotten_tomatoes" or "rt")
+ *   - "metacritic"    — Metacritic
+ * Some MDBList responses also expose top-level scalar fields (e.g.
+ * `imdbrating`, `imdbvotes`) which we use as a fallback when the
+ * `ratings` array is missing.
  */
 interface MdbListRatingEntry {
   source?: string;
@@ -217,8 +221,16 @@ function normalizeScore(
 
 /**
  * Find a rating entry in the MDBList `ratings` array by source name.
- * MDBList uses lowercase identifiers: "imdb", "rotten_tomatoes",
- * "metacritic". We match case-insensitively for safety.
+ *
+ * MDBList's v2 Title Lookup endpoint uses these lowercase `source`
+ * identifiers inside the `ratings` array:
+ *   - "imdb"            — IMDb critic/user score
+ *   - "tomatoes"        — Rotten Tomatoes critic score (NOT "rt",
+ *                          "rotten_tomatoes", or "rottentomatoes")
+ *   - "metacritic"      — Metacritic metascore
+ *
+ * We match case-insensitively for safety, but the source names above
+ * are the canonical ones MDBList returns.
  */
 function findRatingEntry(
   ratings: MdbListRatingEntry[] | undefined,
@@ -248,16 +260,32 @@ type ScalarRatingKey =
  * response. Checks the `ratings` array first, then falls back to the
  * top-level scalar fields (imdbrating, rt_rating, etc.).
  *
+ * @param data            The parsed MDBList response.
+ * @param source          Our internal source identifier — used only to
+ *                        pick the correct score normalization rules
+ *                        (IMDb 1-decimal, RT integer+%, MC integer).
+ * @param mdbListSource   The actual `source` string MDBList uses inside
+ *                        its `ratings` array. This is what we `.find()`
+ *                        against. MDBList does NOT use a consistent
+ *                        naming convention — IMDb is "imdb", RT is
+ *                        "tomatoes" (not "rotten_tomatoes"), and
+ *                        Metacritic is "metacritic". Passing this
+ *                        explicitly avoids guesswork.
+ * @param topLevelScoreKey  Optional fallback scalar key on the root object.
+ * @param topLevelVotesKey  Optional fallback scalar key on the root object.
+ *
  * Returns null if no rating is available for this service.
  */
 function extractServiceRating(
   data: MdbListResponse,
   source: "imdb" | "rotten_tomatoes" | "metacritic",
+  mdbListSource: string,
   topLevelScoreKey?: ScalarRatingKey,
   topLevelVotesKey?: ScalarRatingKey,
 ): ServiceRating | null {
-  // 1. Try the ratings array (canonical source)
-  const entry = findRatingEntry(data.ratings, source);
+  // 1. Try the ratings array (canonical source). Use the explicit
+  //    MDBList source name — e.g. "tomatoes" for Rotten Tomatoes.
+  const entry = findRatingEntry(data.ratings, mdbListSource);
 
   // 2. Fall back to top-level scalar fields if the array entry is missing.
   //    We cast to the union of accepted types — the scalar keys only hold
@@ -444,12 +472,18 @@ export async function GET(event: APIEvent): Promise<Response> {
       });
     }
 
-    // Extract each service. MDBList's `ratings` array uses these source
-    // identifiers; the top-level scalar fields are fallbacks for older
-    // API versions.
+    // Extract each service. MDBList's `ratings` array source identifiers
+    // are NOT consistent across services:
+    //   - IMDb          → source === "imdb"
+    //   - Rotten Toms   → source === "tomatoes"  (NOT "rotten_tomatoes" or "rt")
+    //   - Metacritic    → source === "metacritic"
+    // We pass the explicit MDBList source name as the 3rd arg so the
+    // .find() matches correctly. The top-level scalar fields are kept
+    // as fallbacks for older MDBList API versions.
     const payload: RatingsPayload = {
       imdb: extractServiceRating(
         data,
+        "imdb",
         "imdb",
         "imdbrating",
         "imdbvotes",
@@ -457,11 +491,13 @@ export async function GET(event: APIEvent): Promise<Response> {
       rottenTomatoes: extractServiceRating(
         data,
         "rotten_tomatoes",
+        "tomatoes",
         "rt_rating",
         "rt_votes",
       ),
       metacritic: extractServiceRating(
         data,
+        "metacritic",
         "metacritic",
         "metacritic_rating",
         "metacritic_votes",
