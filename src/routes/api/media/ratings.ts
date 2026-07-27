@@ -5,7 +5,23 @@
  * Tomatoes, Metacritic) for a TMDB title via the MDBList API.
  *
  * Endpoint:
- *   GET /api/media/ratings?tmdb={tmdbId}
+ *   GET /api/media/ratings?tmdb={tmdbId}&type={movie|tv|show}
+ *
+ * MDBList API version:
+ *   This route uses MDBList's modern Title Lookup endpoint (path-based):
+ *     https://api.mdblist.com/tmdb/{media_type}/{tmdb_id}?apikey=KEY
+ *   The legacy `?tmdb=` query-string endpoint is deprecated and returns
+ *   stale/incomplete data. The path-based endpoint is the canonical
+ *   v2 lookup and returns the full title object including the
+ *   `ratings` array directly on the root object.
+ *
+ * Type mapping:
+ *   The frontend sends `type=movie` or `type=tv` (matching TMDB's
+ *   media_type). MDBList accepts `movie` and `show` as path segments,
+ *   so `tv`/`show` are both mapped to `show`:
+ *     movie  → movie
+ *     tv     → show
+ *     show   → show
  *
  * Why this exists:
  *   1. API key security — MDBLIST_API_KEY is read from server-side env
@@ -32,9 +48,9 @@
  *   { imdb: { ... }, rottenTomatoes: null, metacritic: null }
  *
  * Error responses:
- *   400 — missing or invalid ?tmdb= query param
+ *   400 — missing or invalid ?tmdb= / ?type= query param
  *   500 — MDBLIST_API_KEY not configured or upstream fetch failed
- *   502 — MDBList returned a non-2xx response
+ *   502 — MDBList returned a non-2xx response (logged with body text)
  *
  * Security: MDBLIST_API_KEY is server-only (no VITE_ prefix). It is
  * NEVER exposed to the browser. Falls back gracefully to a 500 with a
@@ -70,11 +86,12 @@ interface RatingsPayload {
 /**
  * MDBList API response shape (subset — only the fields we read).
  *
- * MDBList returns a `ratings` array of { source, value, votes } objects
- * for each aggregator. The `source` is a lowercase identifier like
- * "imdb", "rotten_tomatoes", "metacritic". Some entries also appear
- * under top-level scalar fields (e.g. `imdbrating`, `imdbvotes`) but
- * the `ratings` array is the canonical source.
+ * The v2 Title Lookup endpoint returns the full title object. The
+ * `ratings` array sits directly on the root object — each entry has
+ * { source, value, votes }. The `source` is a lowercase identifier
+ * like "imdb", "rotten_tomatoes", "metacritic". Some MDBList responses
+ * also expose top-level scalar fields (e.g. `imdbrating`, `imdbvotes`)
+ * which we use as a fallback when the `ratings` array is missing.
  */
 interface MdbListRatingEntry {
   source?: string;
@@ -140,6 +157,31 @@ function getMdbListApiKey(): string {
     throw new Error("MDBLIST_API_KEY is not set in server environment");
   }
   return key;
+}
+
+/**
+ * Map the frontend `type` query param to MDBList's accepted path segment.
+ *
+ * MDBList's Title Lookup endpoint accepts `movie` and `show` as the
+ * media-type path segment. The frontend sends `movie` or `tv` (matching
+ * TMDB's media_type convention), and some callers may send `show`
+ * directly. All of `tv` and `show` map to MDBList's `show`.
+ *
+ * Returns `null` for unknown types so the handler can return a 400.
+ *
+ * @example mapMediaType("movie") → "movie"
+ * @example mapMediaType("tv")    → "show"
+ * @example mapMediaType("show")  → "show"
+ * @example mapMediaType("abc")   → null
+ */
+function mapMediaType(
+  raw: string | null,
+): "movie" | "show" | null {
+  if (!raw) return null;
+  const lower = raw.toLowerCase();
+  if (lower === "movie") return "movie";
+  if (lower === "tv" || lower === "show") return "show";
+  return null;
 }
 
 /**
@@ -251,6 +293,7 @@ export async function GET(event: APIEvent): Promise<Response> {
   try {
     const url = new URL(event.request.url);
     const tmdbId = url.searchParams.get("tmdb");
+    const rawType = url.searchParams.get("type");
 
     // Validate ?tmdb= — must be present and a positive integer
     if (!tmdbId) {
@@ -266,6 +309,21 @@ export async function GET(event: APIEvent): Promise<Response> {
     if (!Number.isFinite(tmdbNum) || tmdbNum <= 0) {
       return new Response(
         JSON.stringify({ error: `Invalid tmdb id: "${tmdbId}"` }),
+        {
+          status: 400,
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
+        },
+      );
+    }
+
+    // Validate + map ?type= — frontend sends 'movie' or 'tv';
+    // MDBList accepts 'movie' or 'show'.
+    const mappedType = mapMediaType(rawType);
+    if (!mappedType) {
+      return new Response(
+        JSON.stringify({
+          error: `Missing or invalid type param: expected "movie", "tv", or "show" (got "${rawType ?? ""}")`,
+        }),
         {
           status: 400,
           headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
@@ -289,9 +347,11 @@ export async function GET(event: APIEvent): Promise<Response> {
       );
     }
 
-    // Fetch from MDBList
-    // Query: https://api.mdblist.com/?apikey=KEY&tmdb=TMDBID
-    const upstreamUrl = `${MDBLIST_BASE}/?apikey=${encodeURIComponent(apiKey)}&tmdb=${tmdbNum}`;
+    // Fetch from MDBList using the v2 Title Lookup endpoint (path-based).
+    // Format: https://api.mdblist.com/tmdb/{movie|show}/{tmdbId}?apikey=KEY
+    // The path-based endpoint is the canonical v2 lookup and returns the
+    // full title object with the `ratings` array on the root.
+    const upstreamUrl = `${MDBLIST_BASE}/tmdb/${mappedType}/${tmdbNum}?apikey=${encodeURIComponent(apiKey)}`;
     let upstreamRes: Response;
     try {
       upstreamRes = await fetch(upstreamUrl, {
@@ -308,12 +368,25 @@ export async function GET(event: APIEvent): Promise<Response> {
       );
     }
 
-    // MDBList returns 200 even for "not found" — the body has an error field.
     // Non-200 HTTP status is a real upstream failure.
+    // Read the response TEXT first so we can log it to Vercel logs for
+    // debugging — MDBList sometimes returns helpful error bodies (rate
+    // limit messages, invalid-key details) that JSON parsing would lose.
     if (!upstreamRes.ok) {
-      console.error(`[ratings] MDBList returned ${upstreamRes.status}`);
+      let errBody = "";
+      try {
+        errBody = await upstreamRes.text();
+      } catch {
+        errBody = "<unreadable body>";
+      }
+      console.error(
+        `[ratings] MDBList returned ${upstreamRes.status} ${upstreamRes.statusText} for ${mappedType}/${tmdbNum}:`,
+        errBody,
+      );
       return new Response(
-        JSON.stringify({ error: `Rating service returned ${upstreamRes.status}` }),
+        JSON.stringify({
+          error: `Rating service returned ${upstreamRes.status}`,
+        }),
         {
           status: 502,
           headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
@@ -321,11 +394,28 @@ export async function GET(event: APIEvent): Promise<Response> {
       );
     }
 
+    // 200 — parse the JSON body. MDBList's v2 Title Lookup returns the
+    // title object directly (not wrapped in an envelope). The `ratings`
+    // array sits on the root object.
     let data: MdbListResponse;
     try {
       data = (await upstreamRes.json()) as MdbListResponse;
     } catch (err) {
-      console.error("[ratings] Failed to parse MDBList JSON:", err);
+      // Log the raw text for Vercel logs — JSON parse failures usually
+      // mean MDBList returned an HTML error page or an empty body.
+      let rawText = "";
+      try {
+        // The body was already consumed by .json() above; .text() would
+        // throw. We log the parse error instead.
+        rawText = "(body already consumed by .json())";
+      } catch {
+        rawText = "(could not read body)";
+      }
+      console.error(
+        `[ratings] Failed to parse MDBList JSON for ${mappedType}/${tmdbNum}:`,
+        err,
+        rawText,
+      );
       return new Response(
         JSON.stringify({ error: "Invalid response from rating service" }),
         {
@@ -335,9 +425,13 @@ export async function GET(event: APIEvent): Promise<Response> {
       );
     }
 
-    // MDBList error field (e.g. "Movie not found")
+    // MDBList error field (e.g. "Movie not found"). The v2 endpoint may
+    // return a 200 with an error payload for unknown titles.
     if (data.response === "False" || (typeof data.error === "string" && data.error)) {
-      console.warn("[ratings] MDBList error:", data.error);
+      console.warn(
+        `[ratings] MDBList error for ${mappedType}/${tmdbNum}:`,
+        data.error,
+      );
       // Return empty ratings rather than an error — the UI shows "NR"
       const empty: RatingsPayload = {
         imdb: null,

@@ -10,10 +10,12 @@ import { createResource, createMemo, type Accessor } from "solid-js";
  *   - API key security (MDBLIST_API_KEY is server-only)
  *   - Long-term CDN caching (24h browser + 7d stale-while-revalidate)
  *   - Normalizing MDBList's varied response shapes into a stable payload
+ *   - Mapping frontend `media_type` ("movie"|"tv") to MDBList's path
+ *     segment ("movie"|"show") via the `type` query param
  *
- * We re-fetch whenever `tmdbId` changes (the user opens a different
- * title in the Details modal). The fetch is non-blocking — the UI
- * shows a skeleton loader while `loading()` is true.
+ * We re-fetch whenever `tmdbId` OR `mediaType` changes (the user opens
+ * a different title in the Details modal). The fetch is non-blocking —
+ * the UI shows a skeleton loader while `loading()` is true.
  *
  * If the fetch fails (network error, 500, etc.) we return `null` so
  * the UI can fall back to "NR" for all three services.
@@ -34,24 +36,55 @@ export interface RatingsPayload {
   metacritic: ServiceRating | null;
 }
 
+/** The media-type values the frontend sends (matches TMDB's convention). */
+export type FrontendMediaType = "movie" | "tv";
+
+/**
+ * Build a stable cache key for createResource. Returns null when either
+ * field is missing (so the fetch only fires when we have a complete
+ * identity). The string is `"${mediaType}/${tmdbId}"` so changing
+ * either value triggers a refetch.
+ */
+function buildSourceKey(
+  tmdbId: string | number | null | undefined,
+  mediaType: FrontendMediaType | null | undefined,
+): string | null {
+  if (tmdbId == null || tmdbId === "") return null;
+  if (!mediaType) return null;
+  return `${mediaType}/${tmdbId}`;
+}
+
 /**
  * @param tmdbId — accessor returning the TMDB id of the currently-open
- *   title, or null when no title is open. The fetch only fires when
- *   this returns a truthy value.
+ *   title, or null when no title is open.
+ * @param mediaType — accessor returning "movie" or "tv" for the
+ *   currently-open title. MDBList's v2 Title Lookup endpoint requires
+ *   this as a path segment (mapped to "movie"|"show" server-side).
  */
-export function useMdbListRatings(tmdbId: Accessor<string | number | null | undefined>) {
-  // Wrap the id in a memo so createResource only refetches when the id
-  // actually changes (not on every render of the parent).
-  const source = createMemo(() => {
-    const id = tmdbId();
-    if (id == null || id === "") return null;
-    return String(id);
-  });
+export function useMdbListRatings(
+  tmdbId: Accessor<string | number | null | undefined>,
+  mediaType: Accessor<FrontendMediaType | null | undefined>,
+) {
+  // Combine the two accessors into a single memo. createResource only
+  // refetches when the memo's return value changes (by reference for
+  // objects, by value for primitives — we return a string so it's
+  // compared by value).
+  const source = createMemo(() => buildSourceKey(tmdbId(), mediaType()));
 
-  const fetcher = async (id: string | null): Promise<RatingsPayload | null> => {
-    if (!id) return null;
+  const fetcher = async (sourceKey: string | null): Promise<RatingsPayload | null> => {
+    if (!sourceKey) return null;
+    // sourceKey is "${mediaType}/${tmdbId}" — split it back out so we
+    // can send them as separate query params to the server route.
+    const slashIdx = sourceKey.indexOf("/");
+    if (slashIdx < 0) return null;
+    const mt = sourceKey.slice(0, slashIdx);
+    const id = sourceKey.slice(slashIdx + 1);
+    if (!mt || !id) return null;
+
     try {
-      const res = await fetch(`/api/media/ratings?tmdb=${encodeURIComponent(id)}`);
+      const res = await fetch(
+        `/api/media/ratings?tmdb=${encodeURIComponent(id)}&type=${encodeURIComponent(mt)}`,
+      );
       if (!res.ok) return null;
       const data = (await res.json()) as RatingsPayload;
       return data;
