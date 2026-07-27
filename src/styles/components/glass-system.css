@@ -108,6 +108,19 @@
 }
 
 /* ============================================================
+   GLASS PANEL — lightweight glass surface for inline content blocks
+   (rating panels, stat rows, etc.). Lighter than .glass-sheet-surface
+   and .glass-card — no heavy shadows, just the glass tint + border.
+   ============================================================ */
+
+.glass-panel {
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid var(--glass-border-warm-strong);
+}
+
+/* ============================================================
    GLASS SHEET BACKDROP + SURFACE — shared by all bottom sheets
    (VaultFilters, AddToFolderSheet, ConfirmRemoveSheet, etc.)
    ============================================================ */

@@ -1,6 +1,6 @@
 // src/shared/utils/__tests__/format.test.ts
 import { describe, it, expect } from "vitest";
-import { formatRuntime, formatDateShort } from "../format";
+import { formatRuntime, formatDateShort, formatVoteCount } from "../format";
 
 describe("formatRuntime", () => {
   it("returns null for undefined", () => {
@@ -75,5 +75,91 @@ describe("formatDateShort", () => {
 
   it("returns null for an invalid Date object", () => {
     expect(formatDateShort(new Date("invalid"))).toBeNull();
+  });
+});
+
+describe("formatVoteCount", () => {
+  it("returns '0' for undefined", () => {
+    expect(formatVoteCount(undefined)).toBe("0");
+  });
+
+  it("returns '0' for null", () => {
+    expect(formatVoteCount(null)).toBe("0");
+  });
+
+  it("returns '0' for negative numbers", () => {
+    expect(formatVoteCount(-5)).toBe("0");
+  });
+
+  it("returns '0' for NaN strings", () => {
+    expect(formatVoteCount("not-a-number")).toBe("0");
+  });
+
+  it("returns '0' for zero", () => {
+    expect(formatVoteCount(0)).toBe("0");
+  });
+
+  it("returns the number as-is for values under 1000", () => {
+    expect(formatVoteCount(432)).toBe("432");
+    expect(formatVoteCount(1)).toBe("1");
+    expect(formatVoteCount(999)).toBe("999");
+  });
+
+  it("accepts string input (MDBList returns strings sometimes)", () => {
+    expect(formatVoteCount("432")).toBe("432");
+    expect(formatVoteCount("11000")).toBe("11K");
+  });
+
+  it("formats 1000 as '1K' (no trailing .0)", () => {
+    expect(formatVoteCount(1000)).toBe("1K");
+  });
+
+  it("formats 1500 as '1.5K' (one decimal)", () => {
+    expect(formatVoteCount(1500)).toBe("1.5K");
+  });
+
+  it("formats 8500 as '8.5K'", () => {
+    expect(formatVoteCount(8500)).toBe("8.5K");
+  });
+
+  it("formats 11000 as '11K' (no decimal at tens of K)", () => {
+    expect(formatVoteCount(11000)).toBe("11K");
+  });
+
+  it("formats 11500 as '12K' (rounds 11.5 up to 12)", () => {
+    expect(formatVoteCount(11500)).toBe("12K");
+  });
+
+  it("formats 100000 as '100K'", () => {
+    expect(formatVoteCount(100000)).toBe("100K");
+  });
+
+  it("formats 999999 as '1000K' (rounds up to 1000K)", () => {
+    // 999999 / 1000 = 999.999 → rounds to 1000
+    expect(formatVoteCount(999999)).toBe("1000K");
+  });
+
+  it("formats 1500000 as '1.5M'", () => {
+    expect(formatVoteCount(1500000)).toBe("1.5M");
+  });
+
+  it("formats 1000000 as '1M' (no trailing .0)", () => {
+    expect(formatVoteCount(1000000)).toBe("1M");
+  });
+
+  it("formats 2300000 as '2.3M'", () => {
+    expect(formatVoteCount(2300000)).toBe("2.3M");
+  });
+
+  it("formats 100000000 as '100M'", () => {
+    expect(formatVoteCount(100000000)).toBe("100M");
+  });
+
+  it("formats 1500000000 as '1.5B'", () => {
+    expect(formatVoteCount(1500000000)).toBe("1.5B");
+  });
+
+  it("handles Infinity as '0' (defensive)", () => {
+    expect(formatVoteCount(Infinity)).toBe("0");
   });
 });
