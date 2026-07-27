@@ -63,6 +63,7 @@ export async function discoverMovies(opts: {
   withoutGenres?: number[];
   sortBy?: string;                // e.g. "vote_average.desc", "popularity.asc"
   voteCountGte?: number;
+  voteCountLte?: number;          // upper bound on vote_count (e.g. for "hidden gems" / "weekend picks")
   voteAverageGte?: number;
   primaryReleaseDateGte?: string; // YYYY-MM-DD
   primaryReleaseDateLte?: string;
@@ -81,6 +82,7 @@ export async function discoverMovies(opts: {
   if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
   if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
   if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
+  if (opts.voteCountLte != null) params.set("vote_count.lte", String(opts.voteCountLte));
   if (opts.primaryReleaseDateGte) params.set("primary_release_date.gte", opts.primaryReleaseDateGte);
   if (opts.primaryReleaseDateLte) params.set("primary_release_date.lte", opts.primaryReleaseDateLte);
   if (opts.withRuntimeGte != null) params.set("with_runtime.gte", String(opts.withRuntimeGte));

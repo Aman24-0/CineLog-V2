@@ -42,6 +42,16 @@ interface DiscoverRailProps {
   emptyHint?: string;
   /** If provided AND titles is empty, renders a Retry button. */
   onRetry?: () => void;
+  /**
+   * Optional Set of TMDB tv ids (as strings) that should render a
+   * "NEW SEASON OUT" badge. Used by the personalized Discover page to
+   * flag TV shows the user has in their vault but where TMDB reports
+   * an unviewed active season.
+   *
+   * When provided, every title whose `media_type === "tv"` AND whose
+   * `id` is in the set gets the badge rendered on its card.
+   */
+  newSeasonBadgeIds?: Set<string>;
 }
 
 const DiscoverRail: Component<DiscoverRailProps> = (props) => {
@@ -65,6 +75,12 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
             const rating = () =>
               title.vote_average ? title.vote_average.toFixed(1) : null;
             const isVault = () => !!(title as TMDBTitle & { _inVault?: boolean })._inVault;
+            // NEW SEASON OUT badge — shown when the parent passes a set
+            // of TV ids that have an unviewed active season.
+            const showNewSeasonBadge = () =>
+              title.media_type === "tv" &&
+              !!props.newSeasonBadgeIds &&
+              props.newSeasonBadgeIds.has(String(title.id));
 
             return (
               <button
@@ -72,7 +88,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                 class="search-rail-card focus-ring"
                 onClick={() => props.onSelect(title)}
                 role="listitem"
-                aria-label={`${title.title || title.name || "Untitled"}${year() ? `, ${year()}` : ""}${rating() ? `, rated ${rating()}` : ""}`}
+                aria-label={`${title.title || title.name || "Untitled"}${year() ? `, ${year()}` : ""}${rating() ? `, rated ${rating()}` : ""}${showNewSeasonBadge() ? ", new season out" : ""}`}
               >
                 <div class="search-rail-poster">
                   <Show
@@ -94,6 +110,16 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                       aria-hidden="true"
                       onError={(e) => { e.currentTarget.style.display = "none"; }}
                     />
+                  </Show>
+
+                  {/* NEW SEASON OUT badge — rendered ABOVE the rating
+                      badge so it's never occluded. Only for TV titles
+                      the user has in their vault with an unviewed
+                      active season. */}
+                  <Show when={showNewSeasonBadge()}>
+                    <span class="new-season-out-badge" aria-label="New season out">
+                      NEW SEASON
+                    </span>
                   </Show>
 
                   {/* Premium glass rating badge — top-right corner */}
