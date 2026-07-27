@@ -48,7 +48,11 @@ const GlassInput: Component<GlassInputProps> = (rawProps) => {
             "focus:outline-none focus:border-primary focus:bg-glass-strong focus:shadow-glow",
             local.size === "large" ? "h-14 text-lg px-4" : "h-11 text-base px-3",
             local.icon ? (local.size === "large" ? "pl-11" : "pl-10") : "",
-            local.rightContent ? "pr-10" : "",
+            // Right padding: when rightContent is present, add extra padding
+            // so typed text never slides underneath the absolute-positioned
+            // clear/filter button. pr-10 is the base; pr-16 gives room for
+            // wider buttons (e.g. the "Clear" pill in VaultSearch).
+            local.rightContent ? "pr-16" : "",
           ].filter(Boolean).join(" ")}
           style={{
             "box-shadow": "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.04)",

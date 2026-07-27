@@ -1,6 +1,7 @@
 // src/features/watchlist/components/WatchlistGrid.tsx
 import { For, Show, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
+import MovieCard from "~/shared/ui/MovieCard";
 import { resolveTimelineDate } from "~/shared/utils/date";
 import type { WatchlistItem } from "~/shared/types";
 import VaultShelf from "./VaultShelf";
@@ -71,32 +72,65 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
             />
           }
         >
-          {/* Adaptive shelves (dashboard mode) or flat grid (single-status/search mode) */}
-          <For each={props.sections()}>
-            {(section) => (
-              <VaultShelf
-                section={section}
-                search={props.search}
-                onOpenMovie={props.onOpenMovie}
-                expanded={props.expandedShelves().has(section.id)}
-                onToggleExpand={() => props.onToggleShelf(section.id)}
-                maxItems={props.displayLimit()}
-                onSeeAll={() => {
-                  // "See All ▾" — switch the active status chip to this
-                  // section's category so the grid shows only that status.
-                  const statusMap: Record<string, string> = {
-                    "in-progress": "Watching",
-                    "watching": "Watching",
-                    "planned": "Planned",
-                    "recently-completed": "Completed",
-                    "all": "all",
-                  };
-                  const targetStatus = statusMap[section.id] ?? "all";
-                  props.onSelectStatusTab(targetStatus);
-                }}
-              />
-            )}
-          </For>
+          {/* FLAT MODE: render ONLY the raw grid of cards — no section
+              headers, no "See All" buttons. The flat section from
+              useVaultSections has id "all" and contains every filtered
+              item. We render the grid directly without the VaultShelf
+              wrapper so there's zero header chrome. */}
+          <Show when={props.isFlatMode()}>
+            <For each={props.sections()}>
+              {(section) => (
+                <div class="vault-shelf-grid" role="list">
+                  <For each={section.items.slice(0, props.displayLimit())}>
+                    {(m) => (
+                      <div role="listitem">
+                        <MovieCard
+                          movie={m}
+                          variant="compact"
+                          search={props.search()}
+                          onClick={() => props.onOpenMovie(m.id)}
+                        />
+                      </div>
+                    )}
+                  </For>
+                </div>
+              )}
+            </For>
+          </Show>
+
+          {/* DASHBOARD MODE: adaptive shelves with headers + "See All".
+              The catch-all "all" section (the last section in dashboard
+              mode) does NOT get a "See All" button — it's the infinite
+              list of remaining titles, and "See All" would just switch
+              to the "all" status chip which is already active. */}
+          <Show when={!props.isFlatMode()}>
+            <For each={props.sections()}>
+              {(section) => (
+                <VaultShelf
+                  section={section}
+                  search={props.search}
+                  onOpenMovie={props.onOpenMovie}
+                  expanded={props.expandedShelves().has(section.id)}
+                  onToggleExpand={() => props.onToggleShelf(section.id)}
+                  maxItems={props.displayLimit()}
+                  // The catch-all "all" section in dashboard mode does NOT
+                  // get a "See All" button (it would be redundant — the
+                  // user is already in "All" mode). Other sections get
+                  // "See All" which switches the status chip.
+                  onSeeAll={section.id === "all" ? undefined : () => {
+                    const statusMap: Record<string, string> = {
+                      "in-progress": "Watching",
+                      "watching": "Watching",
+                      "planned": "Planned",
+                      "recently-completed": "Completed",
+                    };
+                    const targetStatus = statusMap[section.id] ?? "all";
+                    props.onSelectStatusTab(targetStatus);
+                  }}
+                />
+              )}
+            </For>
+          </Show>
 
           {/* Infinite scroll indicator (flat mode only) */}
           <Show when={props.isFlatMode() && props.filtered().length > props.displayLimit()}>

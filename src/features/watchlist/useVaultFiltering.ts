@@ -151,9 +151,21 @@ export function useVaultFiltering(
     const list = args.watchlist();
     for (let i = 0; i < list.length; i++) {
       const pl = list[i].platformsList;
-      if (!pl) continue;
-      for (let j = 0; j < pl.length; j++) {
-        if (pl[j]) set.add(pl[j]);
+      if (pl && Array.isArray(pl)) {
+        for (let j = 0; j < pl.length; j++) {
+          const p = pl[j];
+          // Filter out null/empty/whitespace-only platform names
+          if (p && typeof p === "string" && p.trim()) {
+            set.add(p.trim());
+          }
+        }
+      }
+      // Also check watchProgress.server as a fallback source for
+      // platform names (some vault items have the streaming platform
+      // stored there instead of in platformsList).
+      const server = list[i].watchProgress?.server;
+      if (server && typeof server === "string" && server.trim()) {
+        set.add(server.trim());
       }
     }
     return [...set].sort();
