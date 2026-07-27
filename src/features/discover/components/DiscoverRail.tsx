@@ -28,6 +28,7 @@
 
 import { For, Show, createSignal, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { useLazyImdbRating } from "~/shared/hooks/useLazyImdbRating";
 import type { TMDBTitle } from "~/shared/types";
 import DiscoverEmptyState from "./DiscoverEmptyState";
 
@@ -93,7 +94,9 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
           {(title) => {
             const year = () =>
               (title.release_date || title.first_air_date || "").split("-")[0] || "";
-            const rating = () =>
+            // TMDB fallback rating — used while the MDBList IMDb score
+            // is loading or if MDBList returns null.
+            const tmdbRating = () =>
               title.vote_average ? title.vote_average.toFixed(1) : null;
             const isVault = () => !!(title as TMDBTitle & { _inVault?: boolean })._inVault;
             // NEW SEASON OUT badge — shown when the parent passes a set
@@ -103,8 +106,22 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
               !!props.newSeasonBadgeIds &&
               props.newSeasonBadgeIds.has(String(title.id));
 
+            // LAZY IMDb RATING — uses IntersectionObserver so the fetch
+            // only fires when this card scrolls into view. Falls back to
+            // TMDB's vote_average while loading or if MDBList is null.
+            let cardRef: HTMLButtonElement | undefined;
+            const { rating: imdbRating } = useLazyImdbRating(
+              () => title.id,
+              () => title.media_type,
+              () => cardRef,
+            );
+            // The effective rating shown on the badge: IMDb score when
+            // available, TMDB vote_average as fallback.
+            const rating = () => imdbRating() ?? tmdbRating();
+
             return (
               <button
+                ref={cardRef}
                 type="button"
                 class="search-rail-card focus-ring"
                 onClick={() => props.onSelect(title)}

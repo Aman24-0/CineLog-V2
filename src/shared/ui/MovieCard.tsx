@@ -2,6 +2,7 @@
 import { Component, Show, createSignal, createEffect, batch } from "solid-js";
 import Icon from "./Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { useLazyImdbRating } from "~/shared/hooks/useLazyImdbRating";
 import type { WatchlistItem, CollectionEntry } from "~/shared/types";
 import { formatRuntime } from "~/shared/utils/format";
 import MovieCardRatings from "./MovieCardRatings";
@@ -168,8 +169,25 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const showFavButton = () => props.showFavButton !== false;
 
+  // LAZY IMDb RATING — uses IntersectionObserver so the fetch only
+  // fires when this card scrolls into view. Falls back to the
+  // WatchlistItem's OMDb imdbRating (or tmdbRating) while loading or
+  // if MDBList returns null. This keeps card badges consistent with
+  // the MDBList rating shown in the Details modal.
+  let cardRef: HTMLDivElement | undefined;
+  const { rating: lazyImdbRating } = useLazyImdbRating(
+    () => props.movie.id,
+    () => props.movie.media_type,
+    () => cardRef,
+  );
+  // The effective IMDb rating: MDBList score when available, then
+  // OMDb imdbRating, then tmdbRating as last resort.
+  const effectiveImdbRating = () =>
+    lazyImdbRating() ?? props.movie.imdbRating ?? props.movie.tmdbRating ?? null;
+
   return (
     <GlassCard
+      ref={cardRef}
       onClick={() => props.onClick()}
       onKeyDown={(e: any) => {
         if (e.key === "Enter" || e.key === " ") {
@@ -360,12 +378,16 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             </p>
           </Show>
 
-          {/* Rating chips — 3 independent sources */}
+          {/* Rating chips — 3 independent sources.
+              Passes the lazy MDBList IMDb score as an override so the
+              IMDb chip matches the Details modal. */}
           <Show when={variant() !== "compact"}>
-            <MovieCardRatings movie={props.movie} />
+            <MovieCardRatings movie={props.movie} overrideImdbRating={lazyImdbRating()} />
           </Show>
 
-          {/* Compact variant: show only year + IMDb rating inline */}
+          {/* Compact variant: show only year + IMDb rating inline.
+              Uses the lazy MDBList IMDb score (falls back to OMDb/TMDB
+              while loading) so the badge matches the Details modal. */}
           <Show when={variant() === "compact"}>
             <div
               class="flex items-center gap-1.5 type-subtitle"
@@ -374,10 +396,10 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               <Show when={year()}>
                 <span>{year()}</span>
               </Show>
-              <Show when={props.movie.imdbRating}>
+              <Show when={effectiveImdbRating()}>
                 <span style={{ color: "var(--text-dim)" }}>·</span>
                 <span style={{ color: "#f5c518" }}>
-                  ★ {props.movie.imdbRating}
+                  ★ {effectiveImdbRating()}
                 </span>
               </Show>
             </div>
