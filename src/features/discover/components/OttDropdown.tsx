@@ -6,14 +6,16 @@
 // provider list for the user's region.
 //
 // Behaviour:
-//   • If the user has selected ≥1 provider, the dropdown lists those
-//     providers (resolved to their real TMDB provider_name + logo_path
-//     via the dynamic region fetch) and the active selection drives the
-//     /discover/movie?with_watch_providers={id}&watch_region={region}
-//     fetch in the parent.
-//   • If the user has NO providers selected, the dropdown lists the TOP
-//     10 providers for their country (sorted by display_priority) so
-//     the row is never empty.
+//   • If the user has selected ≥1 provider, the dropdown lists ONLY those
+//     providers that can be resolved to a valid TMDB provider object for
+//     the current region. Stale/unresolvable IDs (e.g. "1196" for a
+//     provider that's no longer available) are FILTERED OUT so the user
+//     never sees raw "Provider 1196" fallback strings.
+//   • If the user has NO providers selected (or all selected providers
+//     are stale), the dropdown lists the TOP 10 providers for their
+//     country (sorted by display_priority) so the row is never empty.
+//   • The trigger button displays the active provider's LOGO alongside
+//     its name — no logo only when the TMDB fetch hasn't resolved yet.
 //   • There are NO hardcoded provider name/logo tables — every name and
 //     logo comes from TMDB's /watch/providers/{movie,tv} response.
 //
@@ -50,8 +52,9 @@ interface ProviderOption {
 /**
  * OttDropdown — glass-styled dropdown.
  *
- * The summary shows the active provider's name (or "All Providers" when
- * nothing is selected). The panel lists every available option.
+ * The trigger shows the active provider's logo + name (or "All
+ * Providers" when nothing is selected). The panel lists every available
+ * option with its logo + name.
  *
  * Provider names + logos are resolved from the DYNAMIC TMDB region
  * provider list (fetched on mount + when the region changes). There is
@@ -102,41 +105,65 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
   });
 
   /**
-   * Resolve a provider id → { name, logoPath } using the DYNAMIC TMDB
-   * region provider list. If the id isn't in the TMDB list (e.g. the
-   * user previously selected a provider that's no longer available in
-   * their region), returns a "Provider {id}" fallback so the dropdown
-   * never shows a blank label.
+   * Resolve a provider id → ProviderOption using the DYNAMIC TMDB
+   * region provider list. Returns `null` if the id isn't in the TMDB
+   * list — the caller uses this to FILTER OUT stale/unresolvable IDs
+   * so the dropdown never shows raw "Provider {id}" fallback strings.
    */
-  const resolveProvider = (id: string): ProviderOption => {
+  const tryResolveProvider = (id: string): ProviderOption | null => {
     const fromRegion = regionProviders().find((p) => p.id === id);
-    if (fromRegion) return fromRegion;
-    return { id, name: `Provider ${id}`, logoPath: null };
+    return fromRegion ?? null;
   };
 
   /**
    * The dropdown's option list:
-   *   • If the user has selected providers → show ONLY those, resolved
-   *     against the dynamic TMDB list.
+   *   • If the user has selected providers → show ONLY those that
+   *     resolve to a valid TMDB provider for the current region.
+   *     Stale/unresolvable IDs are FILTERED OUT.
    *   • Otherwise → show the TOP 10 providers for the region (already
    *     sorted by display_priority from mergeAndSortProviders).
    */
   const options = createMemo<ProviderOption[]>(() => {
     const userPicks = streamingProviders();
     if (userPicks.length > 0) {
-      return userPicks.map(resolveProvider);
+      // Filter out any selected ID that doesn't resolve to a valid TMDB
+      // provider for the current region. This prevents raw "Provider 1196"
+      // fallback strings from appearing in the dropdown.
+      const resolved = userPicks
+        .map((id) => tryResolveProvider(id))
+        .filter((p): p is ProviderOption => p !== null);
+      // If ALL selected providers are stale (none resolve), fall back to
+      // the top 10 region providers so the dropdown is never empty.
+      if (resolved.length > 0) return resolved;
     }
     // Fallback: top 10 providers for the region (sorted by display_priority).
     return regionProviders().slice(0, 10);
   });
 
-  // The summary label — the active provider's name, or "All Providers"
-  // when nothing is selected yet (initial state before the effect
-  // auto-picks the first user provider).
-  const summaryLabel = createMemo(() => {
+  /**
+   * The active provider's resolved option — used to render the logo +
+   * name in the trigger button. Returns null when nothing is selected
+   * OR when the selected id can't be resolved (stale).
+   */
+  const activeProvider = createMemo<ProviderOption | null>(() => {
     const sel = props.selected();
-    if (!sel) return "All Providers";
-    return resolveProvider(sel).name;
+    if (!sel) return null;
+    return tryResolveProvider(sel);
+  });
+
+  // The summary label — the active provider's name, or "All Providers"
+  // when nothing is selected or the selected id is stale.
+  const summaryLabel = createMemo(() => {
+    const active = activeProvider();
+    if (!active) return "All Providers";
+    return active.name;
+  });
+
+  // The active provider's logo URL (for the trigger button icon).
+  const activeLogoUrl = createMemo(() => {
+    const active = activeProvider();
+    if (!active || !active.logoPath) return "";
+    return tmdbImage(active.logoPath, "w92");
   });
 
   const handleSelect = (id: string) => {
@@ -156,6 +183,19 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
         aria-expanded={open()}
         aria-label="Select streaming provider"
       >
+        {/* Active provider logo — small rounded icon inside the trigger.
+            Hidden when there's no active provider or no logo (the name
+            alone still communicates the selection). */}
+        <Show when={activeLogoUrl()}>
+          <img
+            src={activeLogoUrl()}
+            class="ott-dropdown-trigger-logo"
+            alt=""
+            aria-hidden="true"
+            loading="lazy"
+            decoding="async"
+          />
+        </Show>
         <span class="ott-dropdown-label">{summaryLabel()}</span>
         <span
           class="material-symbols-outlined ott-dropdown-chevron"

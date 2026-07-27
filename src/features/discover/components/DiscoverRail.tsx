@@ -26,7 +26,7 @@
 //     default "No titles available." message).
 //
 
-import { For, Show, type Component } from "solid-js";
+import { For, Show, createSignal, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
 import DiscoverEmptyState from "./DiscoverEmptyState";
@@ -52,9 +52,30 @@ interface DiscoverRailProps {
    * `id` is in the set gets the badge rendered on its card.
    */
   newSeasonBadgeIds?: Set<string>;
+  /**
+   * Number of titles to show initially before the "Show More" card.
+   * When the rail has more titles than this, a "Show More" card is
+   * appended at the end of the visible rail. Clicking it reveals the
+   * rest. Defaults to 10. Set to 0 or Infinity to disable expansion.
+   */
+  initialLimit?: number;
 }
 
 const DiscoverRail: Component<DiscoverRailProps> = (props) => {
+  // Expansion state — false = show `initialLimit` items, true = show all.
+  const [expanded, setExpanded] = createSignal(false);
+  const limit = () => props.initialLimit ?? 10;
+
+  // The visible slice — `limit` items when collapsed, all when expanded.
+  const visibleTitles = () => {
+    const all = props.titles;
+    if (limit() <= 0 || expanded()) return all;
+    return all.slice(0, limit());
+  };
+
+  // Whether the "Show More" card should appear.
+  const hasMore = () => limit() > 0 && !expanded() && props.titles.length > limit();
+
   return (
     <Show
       when={props.titles.length > 0}
@@ -68,7 +89,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
       }
     >
       <div class="search-rail" role="list">
-        <For each={props.titles.slice(0, 20)}>
+        <For each={visibleTitles()}>
           {(title) => {
             const year = () =>
               (title.release_date || title.first_air_date || "").split("-")[0] || "";
@@ -154,6 +175,25 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
             );
           }}
         </For>
+
+        {/* "Show More" card — appended at the end of the visible rail.
+            Clicking it expands the rail to show all titles. The card
+            shows how many more titles are available. */}
+        <Show when={hasMore()}>
+          <button
+            type="button"
+            class="search-rail-card search-rail-show-more focus-ring"
+            onClick={() => setExpanded(true)}
+            aria-label={`Show ${props.titles.length - limit()} more titles`}
+            role="listitem"
+          >
+            <div class="search-rail-show-more-inner">
+              <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
+              <span class="search-rail-show-more-count">+{props.titles.length - limit()}</span>
+              <span class="search-rail-show-more-label">Show More</span>
+            </div>
+          </button>
+        </Show>
       </div>
     </Show>
   );

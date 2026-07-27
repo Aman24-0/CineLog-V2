@@ -153,7 +153,10 @@ const Spotlight: Component<SpotlightProps> = (props) => {
               rating + CTAs. */}
           <h2 class="spotlight-title">{title()}</h2>
 
-          {/* Quick meta pills — year, type, IMDb, vault status */}
+          {/* Quick meta pills — year, type, IMDb, vault status.
+              On mobile these wrap into a single compact scrollable row
+              (overflow-x-auto, no-scrollbar) so they don't stack
+              vertically and eat into the backdrop artwork. */}
           <div class="spotlight-meta">
             <Show when={year()}>
               <span class="v2-pill">{year()}</span>
@@ -174,75 +177,80 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             <Show when={vaultStatusLabel()}>
               <span class="v2-pill v2-pill-accent">{vaultStatusLabel()}</span>
             </Show>
+            {/* Genre pills inline with the meta row on mobile (compact) */}
+            <For each={genres().slice(0, 3)}>
+              {(genre) => (
+                <span class="spotlight-genre-pill">{genre}</span>
+              )}
+            </For>
           </div>
 
-          {/* Genre pills (when available) */}
-          <Show when={genres().length > 0}>
-            <div class="spotlight-genres">
-              <For each={genres().slice(0, 3)}>
-                {(genre) => (
-                  <span class="spotlight-genre-pill">{genre}</span>
-                )}
-              </For>
-            </div>
-          </Show>
-
-          {/* Overview excerpt — 2-line clamp for cinematic feel */}
+          {/* Overview excerpt — 1 concise line on mobile, 2 on desktop */}
           <Show when={overview()}>
             <p class="spotlight-overview">{overview()}</p>
           </Show>
 
-          {/* Actions — Details + Add to Vault are primary; Not in the mood is secondary */}
+          {/* Actions — MOBILE RESTRUCTURE:
+              Primary row: [Details] + [Add to Vault] side by side (flex-row).
+              Secondary: [Not in the mood] is a compact icon+text link below,
+              NOT a giant third pill button. This keeps the backdrop artwork
+              visible on mobile instead of covering it with 3 stacked buttons.
+              Desktop keeps the original inline layout via the CSS media query. */}
           <div class="spotlight-actions">
-            <Button
-              variant="primary"
-              size="md"
-              icon="info"
-              onClick={() => pick() && props.onDetails(pick()!.title)}
-              aria-label={`View details for ${title()}`}
-            >
-              Details
-            </Button>
-
-            <Show
-              when={!inVault()}
-              fallback={
-                <Button
-                  variant="ghost"
-                  size="md"
-                  icon="check"
-                  iconFill
-                  disabled
-                  aria-label={`${title()} is already in your vault`}
-                >
-                  In Vault
-                </Button>
-              }
-            >
+            {/* Primary row — Details + Add to Vault side by side */}
+            <div class="spotlight-actions-primary">
               <Button
                 variant="primary"
                 size="md"
-                icon="add"
-                onClick={() => pick() && props.onAddToVault(pick()!.title)}
-                aria-label={`Add ${title()} to your vault`}
-                style={{
-                  /* Slightly de-emphasized vs. Details so Details stays primary CTA,
-                     but still clearly a primary action (not ghost).
-                     IMPORTANT: this button sits on the Spotlight's dark cinematic
-                     backdrop (brightness(0.62) + dark gradient overlay) in BOTH
-                     themes — so we use fixed light values, NOT var(--text-strong),
-                     which would become dark ink in light mode and disappear. */
-                  background: "rgba(255,255,255,0.12)",
-                  color: "#FFFFFF",
-                  "box-shadow": "0 0 0 1px rgba(255,255,255,0.22), 0 2px 8px rgba(0,0,0,0.4)",
-                  "backdrop-filter": "blur(12px)"
-                }}
+                icon="info"
+                onClick={() => pick() && props.onDetails(pick()!.title)}
+                aria-label={`View details for ${title()}`}
               >
-                Add to Vault
+                Details
               </Button>
-            </Show>
 
-            {/* Not in the mood — re-rolls the Spotlight, secondary placement */}
+              <Show
+                when={!inVault()}
+                fallback={
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    icon="check"
+                    iconFill
+                    disabled
+                    aria-label={`${title()} is already in your vault`}
+                  >
+                    In Vault
+                  </Button>
+                }
+              >
+                <Button
+                  variant="primary"
+                  size="md"
+                  icon="add"
+                  onClick={() => pick() && props.onAddToVault(pick()!.title)}
+                  aria-label={`Add ${title()} to your vault`}
+                  style={{
+                    /* Slightly de-emphasized vs. Details so Details stays primary CTA,
+                       but still clearly a primary action (not ghost).
+                       IMPORTANT: this button sits on the Spotlight's dark cinematic
+                       backdrop (brightness(0.62) + dark gradient overlay) in BOTH
+                       themes — so we use fixed light values, NOT var(--text-strong),
+                       which would become dark ink in light mode and disappear. */
+                    background: "rgba(255,255,255,0.12)",
+                    color: "#FFFFFF",
+                    "box-shadow": "0 0 0 1px rgba(255,255,255,0.22), 0 2px 8px rgba(0,0,0,0.4)",
+                    "backdrop-filter": "blur(12px)"
+                  }}
+                >
+                  Add to Vault
+                </Button>
+              </Show>
+            </div>
+
+            {/* Secondary — "Not in the mood" as a compact icon+text link.
+                On mobile this is a subtle text link below the primary row;
+                on desktop it sits inline with the primary buttons (via CSS). */}
             <button
               type="button"
               class="spotlight-reroll focus-ring"
