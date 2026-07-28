@@ -96,7 +96,11 @@ export function makeVaultFilters(
     region: "all",
     genre: "all",
     platform: "all",
-    sort: "recent",
+    // v2.6 — sort was split into sortField + sortDirection.
+    // Defaults match the previous `sort: "recent"` behavior:
+    // recently-added (added_date) descending (newest first).
+    sortField: "added_date",
+    sortDirection: "desc",
     tag: "all",
     imdbMin: "",
     imdbMax: "",

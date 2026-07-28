@@ -233,76 +233,152 @@ describe("filterByRanges", () => {
 });
 
 describe("sortItems", () => {
+  // v2.6 — sortItems now takes (items, field, direction) instead of a
+  // single "sort" string. The field set is wider (9 fields including
+  // new rt/mt) and direction is a separate orthogonal control.
+  // The default (added_date + desc) replaces the legacy "recent" mode.
   const items: WatchlistItem[] = [
     makeMovie({ id: "1", title: "Zebra", release_date: "2023-01-01", rating: 5, imdbRating: "6.0", runtime: 120, addedAt: "2024-01-01T00:00:00Z" }),
     makeMovie({ id: "2", title: "Alpha", release_date: "2020-01-01", rating: 9, imdbRating: "9.0", runtime: 90, addedAt: "2024-06-01T00:00:00Z" }),
     makeMovie({ id: "3", title: "Mike", release_date: "2021-01-01", rating: 7, imdbRating: "7.5", runtime: 60, addedAt: "2024-03-01T00:00:00Z" }),
   ];
 
-  it("sorts by recent (addedAt desc) by default", () => {
-    const result = sortItems([...items], "recent");
+  it("sorts by added_date desc (default — newest first)", () => {
+    const result = sortItems([...items], "added_date", "desc");
+    // 2024-06 → 2024-03 → 2024-01
     expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
   });
 
-  it("sorts by year_desc", () => {
-    const result = sortItems([...items], "year_desc");
+  it("sorts by added_date asc (oldest first)", () => {
+    const result = sortItems([...items], "added_date", "asc");
+    // 2024-01 → 2024-03 → 2024-06
     expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
   });
 
-  it("sorts by rating_desc", () => {
-    const result = sortItems([...items], "rating_desc");
-    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
-  });
-
-  it("sorts by imdb_desc", () => {
-    const result = sortItems([...items], "imdb_desc");
-    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
-  });
-
-  it("sorts by imdb_asc", () => {
-    const result = sortItems([...items], "imdb_asc");
+  it("sorts by release_date desc (newest year first)", () => {
+    const result = sortItems([...items], "release_date", "desc");
+    // 2023 → 2021 → 2020
     expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
   });
 
-  it("sorts by runtime_asc", () => {
-    const result = sortItems([...items], "runtime_asc");
+  it("sorts by release_date asc (oldest year first)", () => {
+    const result = sortItems([...items], "release_date", "asc");
+    // 2020 → 2021 → 2023
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
+  });
+
+  it("sorts by user_rating desc (high → low)", () => {
+    const result = sortItems([...items], "user_rating", "desc");
+    // 9 → 7 → 5
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
+  });
+
+  it("sorts by user_rating asc (low → high)", () => {
+    const result = sortItems([...items], "user_rating", "asc");
+    // 5 → 7 → 9
+    expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
+  });
+
+  it("sorts by imdb desc (high → low)", () => {
+    const result = sortItems([...items], "imdb", "desc");
+    // 9.0 → 7.5 → 6.0
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
+  });
+
+  it("sorts by imdb asc (low → high)", () => {
+    const result = sortItems([...items], "imdb", "asc");
+    // 6.0 → 7.5 → 9.0
+    expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
+  });
+
+  it("sorts by rt desc (high → low, strips %)", () => {
+    const items2 = [
+      makeMovie({ id: "1", rtRating: "60%" }),
+      makeMovie({ id: "2", rtRating: "95%" }),
+      makeMovie({ id: "3", rtRating: "75%" }),
+    ];
+    const result = sortItems([...items2], "rt", "desc");
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
+  });
+
+  it("sorts by mt desc (Metacritic high → low)", () => {
+    const items2 = [
+      makeMovie({ id: "1", mtRating: "55" }),
+      makeMovie({ id: "2", mtRating: "92" }),
+      makeMovie({ id: "3", mtRating: "73" }),
+    ];
+    const result = sortItems([...items2], "mt", "desc");
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
+  });
+
+  it("sorts by mt asc (Metacritic low → high)", () => {
+    const items2 = [
+      makeMovie({ id: "1", mtRating: "55" }),
+      makeMovie({ id: "2", mtRating: "92" }),
+      makeMovie({ id: "3", mtRating: "73" }),
+    ];
+    const result = sortItems([...items2], "mt", "asc");
+    expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
+  });
+
+  it("sorts by runtime desc (longest first)", () => {
+    const result = sortItems([...items], "runtime", "desc");
+    // 120 → 90 → 60
+    expect(result.map((m) => m.id)).toEqual(["1", "2", "3"]);
+  });
+
+  it("sorts by runtime asc (shortest first)", () => {
+    const result = sortItems([...items], "runtime", "asc");
+    // 60 → 90 → 120
     expect(result.map((m) => m.id)).toEqual(["3", "2", "1"]);
   });
 
-  it("sorts by title_asc", () => {
-    const result = sortItems([...items], "title_asc");
-    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]); // Alpha, Mike, Zebra
+  it("sorts by title asc (A → Z)", () => {
+    const result = sortItems([...items], "title", "asc");
+    // Alpha → Mike → Zebra
+    expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
   });
 
-  it("sorts by updated (updatedAt desc)", () => {
-    const items2 = [
-      makeMovie({ id: "1", updatedAt: "2024-01-01T00:00:00Z" }),
-      makeMovie({ id: "2", updatedAt: "2024-06-01T00:00:00Z" }),
-    ];
-    const result = sortItems(items2, "updated");
-    expect(result.map((m) => m.id)).toEqual(["2", "1"]);
+  it("sorts by title desc (Z → A)", () => {
+    const result = sortItems([...items], "title", "desc");
+    // Zebra → Mike → Alpha
+    expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
   });
 
-  it("sorts by watch_desc (watchDate desc)", () => {
+  it("sorts by watch_date desc (most recent watch first)", () => {
     const items2 = [
       makeMovie({ id: "1", watchDate: "2024-01-01" }),
       makeMovie({ id: "2", watchDate: "2024-06-01" }),
-      makeMovie({ id: "3" }), // no date
+      makeMovie({ id: "3" }), // no watch date
     ];
-    const result = sortItems(items2, "watch_desc");
+    const result = sortItems(items2, "watch_date", "desc");
     expect(result[0].id).toBe("2"); // most recent first
     expect(result[1].id).toBe("1");
-    expect(result[2].id).toBe("3"); // no-date items go last
+    expect(result[2].id).toBe("3"); // no-date items sink to bottom
   });
 
-  it("sorts by watch_asc (watchDate asc)", () => {
+  it("sorts by watch_date asc (oldest watch first)", () => {
     const items2 = [
       makeMovie({ id: "1", watchDate: "2024-01-01" }),
       makeMovie({ id: "2", watchDate: "2024-06-01" }),
     ];
-    const result = sortItems(items2, "watch_asc");
+    const result = sortItems(items2, "watch_date", "asc");
     expect(result[0].id).toBe("1");
     expect(result[1].id).toBe("2");
+  });
+
+  it("sinks items missing the sort field to the bottom (regardless of direction)", () => {
+    const items2 = [
+      makeMovie({ id: "1", imdbRating: "8.0" }),
+      makeMovie({ id: "2" }), // missing imdbRating
+      makeMovie({ id: "3", imdbRating: "6.0" }),
+    ];
+    const desc = sortItems([...items2], "imdb", "desc");
+    // 8.0 → 6.0 → (no rating sinks)
+    expect(desc.map((m) => m.id)).toEqual(["1", "3", "2"]);
+    const asc = sortItems([...items2], "imdb", "asc");
+    // 6.0 → 8.0 → (no rating still sinks, NOT floats to top)
+    expect(asc.map((m) => m.id)).toEqual(["3", "1", "2"]);
   });
 });
 
@@ -377,9 +453,25 @@ describe("countActiveFilters", () => {
       type: "movie", // 1
       region: "Indian", // 2
       genre: "Drama", // 3
-      sort: "year_desc", // 4 (sort !== recent)
+      sortField: "release_date", // 4 (sortField !== added_date)
     });
     expect(countActiveFilters(filters)).toBe(4);
+  });
+
+  it("counts non-default sortDirection as 1 active filter (even with default field)", () => {
+    const filters = makeVaultFilters({
+      sortField: "added_date", // default field
+      sortDirection: "asc", // non-default direction
+    });
+    expect(countActiveFilters(filters)).toBe(1);
+  });
+
+  it("counts sortField + sortDirection as 1 active filter (not 2) when both non-default", () => {
+    const filters = makeVaultFilters({
+      sortField: "imdb",
+      sortDirection: "asc",
+    });
+    expect(countActiveFilters(filters)).toBe(1);
   });
 
   it("counts imdbMin/imdbMax as one (combined with ||)", () => {
@@ -412,8 +504,12 @@ describe("hasAdvancedFiltersActive", () => {
     expect(hasAdvancedFiltersActive(makeVaultFilters({ type: "movie" }))).toBe(true);
   });
 
-  it("returns true when sort is not 'recent'", () => {
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ sort: "year_desc" }))).toBe(true);
+  it("returns true when sortField is not 'added_date'", () => {
+    expect(hasAdvancedFiltersActive(makeVaultFilters({ sortField: "release_date" }))).toBe(true);
+  });
+
+  it("returns true when sortDirection is not 'desc' (even with default field)", () => {
+    expect(hasAdvancedFiltersActive(makeVaultFilters({ sortDirection: "asc" }))).toBe(true);
   });
 
   it("returns true when any range filter is set", () => {

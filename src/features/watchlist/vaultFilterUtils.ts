@@ -1,7 +1,7 @@
 // src/features/watchlist/vaultFilterUtils.ts
 import { resolveTimelineDate } from "~/shared/utils/date";
 import { toMs } from "~/shared/utils/vaultStatus";
-import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import type { VaultFilters, WatchlistItem, SortField, SortDirection } from "~/shared/types";
 import { resolvePlatformDisplayName } from "./platformDisplayNames";
 
 /**
@@ -11,6 +11,117 @@ import { resolvePlatformDisplayName } from "./platformDisplayNames";
  * All functions are pure (no signals, no side effects) so they can be
  * unit-tested in isolation if needed.
  */
+
+/**
+ * normalizeVaultFilters — backwards-compatibility shim for presets saved
+ * before v2.6.
+ *
+ * The pre-v2.6 `VaultFilters` shape had a single `sort: string` field
+ * with values like `"recent"`, `"imdb_desc"`, `"watch_asc"`. Saved
+ * presets in Supabase still carry that legacy shape. The v2.6 shape
+ * splits sort into `sortField: SortField` + `sortDirection: SortDirection`.
+ *
+ * This helper:
+ *   1. Accepts a partial/legacy filters object (typed `unknown` for safety
+ *      since it crosses the Supabase JSONB boundary).
+ *   2. If `sortField` / `sortDirection` are already present (v2.6+ preset),
+ *      keeps them as-is (validated against the allowed unions).
+ *   3. If only the legacy `sort` string is present, derives the new pair
+ *      using the mapping below.
+ *   4. Fills in any other missing fields with defaults from `defaultFilters`.
+ *
+ * Legacy → new mapping:
+ *   "recent"      → added_date, desc
+ *   "updated"     → added_date, desc   (no separate "updated" field in v2.6;
+ *                                        added_date is the closest proxy)
+ *   "watch_desc"  → watch_date, desc
+ *   "watch_asc"   → watch_date, asc
+ *   "year_desc"   → release_date, desc
+ *   "rating_desc" → user_rating, desc
+ *   "imdb_desc"   → imdb, desc
+ *   "imdb_asc"    → imdb, asc
+ *   "runtime_asc" → runtime, asc
+ *   "title_asc"   → title, asc
+ *   (anything else / missing) → added_date, desc
+ */
+const LEGACY_SORT_MAP: Record<string, { field: SortField; direction: SortDirection }> = {
+  recent:      { field: "added_date",   direction: "desc" },
+  updated:     { field: "added_date",   direction: "desc" },
+  watch_desc:  { field: "watch_date",   direction: "desc" },
+  watch_asc:   { field: "watch_date",   direction: "asc"  },
+  year_desc:   { field: "release_date", direction: "desc" },
+  rating_desc: { field: "user_rating",  direction: "desc" },
+  imdb_desc:   { field: "imdb",         direction: "desc" },
+  imdb_asc:    { field: "imdb",         direction: "asc"  },
+  runtime_asc: { field: "runtime",      direction: "asc"  },
+  title_asc:   { field: "title",        direction: "asc"  },
+};
+
+const VALID_SORT_FIELDS: ReadonlySet<SortField> = new Set<SortField>([
+  "title", "release_date", "user_rating", "imdb", "rt", "mt",
+  "runtime", "added_date", "watch_date",
+]);
+
+export function normalizeVaultFilters(input: unknown): VaultFilters {
+  // Default base — same as defaultFilters in useVaultFiltering.ts.
+  // Inlined here to avoid a circular import (useVaultFiltering imports
+  // from vaultFilterUtils, not the other way around).
+  const out: VaultFilters = {
+    type: "all",
+    status: "all",
+    region: "all",
+    genre: "all",
+    platform: "all",
+    sortField: "added_date",
+    sortDirection: "desc",
+    tag: "all",
+    imdbMin: "", imdbMax: "",
+    rtMin: "", rtMax: "",
+    yearMin: "", yearMax: "",
+    runtimeMin: "", runtimeMax: "",
+  };
+  if (!input || typeof input !== "object") return out;
+  const f = input as Record<string, unknown>;
+  // Cast through `unknown` to assign dynamic keys — VaultFilters has no
+  // index signature, so a direct cast to Record<string, unknown> would
+  // fail TS2352. We've already validated `out` is the correct shape, so
+  // any key we assign here is a known field on VaultFilters.
+  const outMut = out as unknown as Record<string, unknown>;
+
+  // String fields — copy if present and string-typed, else leave default.
+  for (const k of ["type", "status", "region", "genre", "platform", "tag"]) {
+    if (typeof f[k] === "string") outMut[k] = f[k];
+  }
+  // Range fields — copy if present and string-typed.
+  for (const k of ["imdbMin", "imdbMax", "rtMin", "rtMax", "yearMin", "yearMax", "runtimeMin", "runtimeMax"]) {
+    if (typeof f[k] === "string") outMut[k] = f[k];
+  }
+
+  // Sort — prefer new shape, fall back to legacy `sort` string.
+  const sf = f.sortField;
+  const sd = f.sortDirection;
+  if (typeof sf === "string" && VALID_SORT_FIELDS.has(sf as SortField)) {
+    out.sortField = sf as SortField;
+  }
+  if (sd === "asc" || sd === "desc") {
+    out.sortDirection = sd;
+  }
+  // If either is still default AND a legacy `sort` string is present,
+  // use the legacy mapping to derive both. This handles presets saved
+  // pre-v2.6 (which only have `sort`, not `sortField`/`sortDirection`).
+  if (
+    (typeof sf !== "string" || !VALID_SORT_FIELDS.has(sf as SortField)) &&
+    (sd !== "asc" && sd !== "desc") &&
+    typeof f.sort === "string"
+  ) {
+    const legacy = LEGACY_SORT_MAP[f.sort];
+    if (legacy) {
+      out.sortField = legacy.field;
+      out.sortDirection = legacy.direction;
+    }
+  }
+  return out;
+}
 
 const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 
@@ -235,34 +346,122 @@ export function filterByRanges(
   });
 }
 
-/** Sort items according to the active sort key. */
-export function sortItems(items: WatchlistItem[], sort: VaultFilters["sort"]): WatchlistItem[] {
-  return [...items].sort((a, b) => {
-    if (sort === "watch_desc" || sort === "watch_asc") {
-      const dA = resolveTimelineDate(a), dB = resolveTimelineDate(b);
-      const hasA = dA !== null, hasB = dB !== null;
-      if (hasA && !hasB) return -1;
-      if (!hasA && hasB) return 1;
-      if (!hasA && !hasB) return 0;
-      return sort === "watch_desc"
-        ? dB!.getTime() - dA!.getTime()
-        : dA!.getTime() - dB!.getTime();
+/**
+ * Sort items by the given field + direction.
+ *
+ * v2.6 — Refactored from a single `sort` string (17+ combinations
+ * like "imdb_desc", "watch_asc") to a (field, direction) pair. This
+ * matches the new SortControl UI which exposes 9 fields × 2 directions
+ * = 18 combinations, but presents them as two side-by-side controls
+ * instead of one giant dropdown.
+ *
+ * Direction semantics:
+ *   - For numeric/date fields: desc = larger values first; asc = smaller first.
+ *   - For title: desc = Z → A; asc = A → Z.
+ *   The UI label always describes the resulting top-to-bottom display.
+ *
+ * Items missing the sort field (null/undefined/empty) sink to the
+ * bottom of the list regardless of direction — this is the same
+ * behavior as the previous "watch_desc"/"watch_asc" path which used
+ * `resolveTimelineDate()` and treated null as "last".
+ */
+export function sortItems(
+  items: WatchlistItem[],
+  field: SortField,
+  direction: SortDirection,
+): WatchlistItem[] {
+  // Pre-extract a sortable key for each item so the comparator is O(1)
+  // per comparison instead of re-parsing strings on every sort step.
+  // For date fields we use ms-since-epoch; for ratings/runtime we use
+  // numbers; for title we use a lowercased string. Missing keys are
+  // represented as `null` and sink to the bottom.
+  type Key = number | string | null;
+  const keyOf = (m: WatchlistItem): Key => {
+    switch (field) {
+      case "title": {
+        const t = (m.title || m.name || "").toLowerCase();
+        return t === "" ? null : t;
+      }
+      case "release_date": {
+        const d = m.release_date || m.first_air_date || "";
+        if (!d) return null;
+        // Lexicographic comparison of ISO dates = chronological comparison.
+        // No need to parse to Date — saves allocations.
+        return d;
+      }
+      case "user_rating": {
+        const n = Number(m.rating);
+        return isNaN(n) ? null : n;
+      }
+      case "imdb": {
+        const n = parseFloat(m.imdbRating || "");
+        return isNaN(n) ? null : n;
+      }
+      case "rt": {
+        const n = Number((m.rtRating || "").replace("%", ""));
+        return isNaN(n) ? null : n;
+      }
+      case "mt": {
+        const n = Number(m.mtRating ?? "");
+        return isNaN(n) ? null : n;
+      }
+      case "runtime": {
+        const n = Number(m.runtime);
+        return isNaN(n) ? null : n;
+      }
+      case "added_date": {
+        // addedAt can be a Date, ISO string, or { seconds, nanoseconds }.
+        const ms = toAddedAtMs(m.addedAt);
+        return isNaN(ms) ? null : ms;
+      }
+      case "watch_date": {
+        const d = resolveTimelineDate(m);
+        return d === null ? null : d.getTime();
+      }
+      default:
+        return null;
     }
-    if (sort === "year_desc")
-      return (
-        (parseInt((b.release_date || b.first_air_date || "").substring(0, 4)) || 0) -
-        (parseInt((a.release_date || a.first_air_date || "").substring(0, 4)) || 0)
-      );
-    if (sort === "rating_desc") return (b.rating || 0) - (a.rating || 0);
-    if (sort === "imdb_desc")
-      return (parseFloat(b.imdbRating || "0") || 0) - (parseFloat(a.imdbRating || "0") || 0);
-    if (sort === "imdb_asc")
-      return (parseFloat(a.imdbRating || "0") || 0) - (parseFloat(b.imdbRating || "0") || 0);
-    if (sort === "runtime_asc") return (a.runtime || 0) - (b.runtime || 0);
-    if (sort === "updated") return toAddedAtMs(b.updatedAt) - toAddedAtMs(a.updatedAt);
-    if (sort === "title_asc")
-      return (a.title || a.name || "").localeCompare(b.title || b.name || "");
-    return toAddedAtMs(b.addedAt) - toAddedAtMs(a.addedAt);
+  };
+
+  return [...items].sort((a, b) => {
+    const ka = keyOf(a);
+    const kb = keyOf(b);
+    // Missing keys sink to the bottom, regardless of direction.
+    const hasA = ka !== null;
+    const hasB = kb !== null;
+    if (hasA && !hasB) return -1;
+    if (!hasA && hasB) return 1;
+    if (!hasA && !hasB) return 0;
+
+    if (field === "title") {
+      // For title, asc = A → Z (lexicographic ascending).
+      // localeCompare returns negative when a < b, so:
+      //   asc  → return cmp (a<b means a first → A→Z ✓)
+      //   desc → return -cmp (a<b means b first → Z→A ✓)
+      const cmp = (ka as string).localeCompare(kb as string);
+      return direction === "asc" ? cmp : -cmp;
+    }
+
+    if (field === "release_date") {
+      // ISO date strings compare lexicographically = chronologically.
+      // cmp = -1 when a < b (a is older), +1 when a > b (a is newer).
+      const cmp = (ka as string) < (kb as string) ? -1 : (ka as string) > (kb as string) ? 1 : 0;
+      // desc (newest first): if a is newer (cmp=+1), want a first → return +1. So return cmp.
+      // asc  (oldest first): if a is older (cmp=-1), want a first → return -1. So return -cmp... wait.
+      // Actually: Array.sort treats negative as "a first", positive as "b first".
+      //   desc (newest first): a newer than b (cmp=+1) → want a first → return negative. So return -cmp.
+      //   asc  (oldest first): a older than b (cmp=-1) → want a first → return negative. So return cmp.
+      return direction === "asc" ? cmp : -cmp;
+    }
+
+    // Numeric fields (user_rating, imdb, rt, mt, runtime, added_date, watch_date).
+    // na - nb is negative when a < b, positive when a > b.
+    //   desc (larger first): a > b (positive na-nb) → want a first → return negative. So return -(na-nb) = nb-na.
+    //   asc  (smaller first): a < b (negative na-nb) → want a first → return negative. So return na-nb.
+    const na = ka as number;
+    const nb = kb as number;
+    const diff = na - nb;
+    return direction === "asc" ? diff : -diff;
   });
 }
 
@@ -298,7 +497,11 @@ export function countActiveFilters(f: VaultFilters): number {
   if (f.genre !== "all") count++;
   if (f.platform !== "all") count++;
   if (f.tag !== "all") count++;
-  if (f.sort !== "recent") count++;
+  // v2.6 — sort is "active" (non-default) when either the field or
+  // direction diverges from the defaults (added_date / desc). We treat
+  // any non-default sort as a single active filter so the badge count
+  // matches the user's mental model ("I changed the sort = 1 thing").
+  if (f.sortField !== "added_date" || f.sortDirection !== "desc") count++;
   if (f.imdbMin || f.imdbMax) count++;
   if (f.rtMin || f.rtMax) count++;
   if (f.yearMin || f.yearMax) count++;
@@ -310,7 +513,8 @@ export function countActiveFilters(f: VaultFilters): number {
 export function hasAdvancedFiltersActive(f: VaultFilters): boolean {
   return (
     f.type !== "all" || f.region !== "all" || f.genre !== "all" ||
-    f.platform !== "all" || f.tag !== "all" || f.sort !== "recent" ||
+    f.platform !== "all" || f.tag !== "all" ||
+    f.sortField !== "added_date" || f.sortDirection !== "desc" ||
     f.imdbMin !== "" || f.imdbMax !== "" || f.rtMin !== "" || f.rtMax !== "" ||
     f.yearMin !== "" || f.yearMax !== "" || f.runtimeMin !== "" || f.runtimeMax !== ""
   );

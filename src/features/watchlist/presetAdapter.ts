@@ -15,6 +15,7 @@
 import { getPresetRepository } from "~/lib/supabase/repositories";
 import type { PresetRow } from "~/lib/supabase/repositories";
 import type { FilterPreset, VaultFilters } from "~/shared/types";
+import { normalizeVaultFilters } from "./vaultFilterUtils";
 
 // ---------------------------------------------------------------------------
 // Row → FilterPreset mapping
@@ -23,15 +24,18 @@ import type { FilterPreset, VaultFilters } from "~/shared/types";
 /**
  * Map a Supabase `PresetRow` to the app's `FilterPreset` type.
  *
- * The `filters` JSONB column is cast to `VaultFilters` — the shape is
- * identical (14 string fields). The `createdAt` field maps from
- * `created_at` (kept as `any` to match the existing FilterPreset type).
+ * The `filters` JSONB column is normalized via `normalizeVaultFilters`
+ * to handle the v2.6 sort-shape migration: presets saved before v2.6
+ * have a single `sort: string` field; presets saved after have separate
+ * `sortField` + `sortDirection` fields. The normalizer accepts either
+ * shape and produces a v2.6-shaped `VaultFilters`. The `createdAt`
+ * field maps from `created_at`.
  */
 export function presetRowToFilterPreset(row: PresetRow): FilterPreset {
   return {
     id: row.id,
     name: row.name,
-    filters: row.filters as unknown as VaultFilters,
+    filters: normalizeVaultFilters(row.filters) as VaultFilters,
     createdAt: row.created_at,
   };
 }

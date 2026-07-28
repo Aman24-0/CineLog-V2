@@ -152,11 +152,24 @@
   -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
 }
 
-/* Floating poster — overlaps hero and content */
+/* Floating poster — overlaps hero and content
+ *
+ * ASPECT-RATIO FIX (v2.6):
+ *   The width and height are NO LONGER set here. They are owned by the
+ *   Tailwind utility classes on the element (`w-28 sm:w-32 flex-shrink-0
+ *   aspect-[2/3]`). Setting both width and height in CSS previously caused
+ *   the poster to fluctuate in size when the right-hand content column
+ *   (title + tagline + genre chips) had varying heights — in certain
+ *   flex/grid contexts the explicit height was overridden by the parent's
+ *   `align-items` rule, leaving the wrapper stretched to the tallest sibling.
+ *
+ *   By using `aspect-[2/3]` on the element + only setting `width` via
+ *   Tailwind, the height is derived automatically from the width and is
+ *   immune to parent-axis stretching. The remaining CSS here only owns
+ *   cosmetic properties (radius, shadow, background, transition) and the
+ *   image's fade-in opacity. */
 .floating-poster {
   position: relative;
-  width: 100px;
-  height: 150px;
   border-radius: var(--radius-card);
   overflow: hidden;
   flex-shrink: 0;
@@ -173,12 +186,6 @@
   transition: opacity var(--dur-slow) var(--ease-out);
 }
 .floating-poster img.img-loaded { opacity: 1; }
-@media (min-width: 640px) {
-  .floating-poster {
-    width: 120px;
-    height: 180px;
-  }
-}
 
 /* Hero content cluster — title + tagline + quick metadata.
  *

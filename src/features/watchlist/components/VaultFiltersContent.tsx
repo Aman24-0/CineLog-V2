@@ -1,8 +1,8 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
 import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import { FilterSel, RangeFilter, FilterChips } from "./FilterControls";
-import type { VaultFilters as FilterType } from "~/shared/types";
+import { FilterSel, RangeFilter, FilterChips, SortControl } from "./FilterControls";
+import type { VaultFilters as FilterType, SortField, SortDirection } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 
 /**
@@ -146,24 +146,21 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
         </div>
       </div>
 
-      {/* SORT section */}
+      {/* SORT section — v2.6 redesign.
+          Replaced the previous single <FilterSel> with 9 hardcoded
+          "Recently Added / IMDb High→Low / ..." options in favor of
+          SortControl: a side-by-side field dropdown + direction toggle.
+          This collapses 17+ sort combinations into 9 fields × 2 directions
+          and replaces the native <select> (which rendered an OS-default
+          white/grey menu that broke the dark glass theme) with a custom
+          SolidJS dropdown portal-rendered to body. */}
       <div>
         <p class="filter-section-title">Sort By</p>
-        <FilterSel
-          label="Order"
-          val={props.filters.sort}
-          set={(v) => batchedSet({ sort: v })}
-          opts={[
-            { l: "Recently Added", v: "recent" },
-            { l: "Recently Updated", v: "updated" },
-            { l: "Watch Date", v: "watch_desc" },
-            { l: "Release Year", v: "year_desc" },
-            { l: "User Rating", v: "rating_desc" },
-            { l: "IMDb High → Low", v: "imdb_desc" },
-            { l: "IMDb Low → High", v: "imdb_asc" },
-            { l: "Runtime", v: "runtime_asc" },
-            { l: "Alphabetical", v: "title_asc" },
-          ]}
+        <SortControl
+          field={props.filters.sortField}
+          direction={props.filters.sortDirection}
+          setField={(f: SortField) => batchedSet({ sortField: f })}
+          setDirection={(d: SortDirection) => batchedSet({ sortDirection: d })}
         />
       </div>
 

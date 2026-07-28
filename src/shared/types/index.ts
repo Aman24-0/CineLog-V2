@@ -114,6 +114,13 @@ export interface WatchlistItem {
   updatedAt?: string;
   imdbRating?: string;
   rtRating?: string;
+  /**
+   * Metacritic rating from MDBList (stored as string for legacy
+   * compatibility with imdbRating/rtRating). Optional because not all
+   * titles have a Metacritic score on MDBList. Used by the new
+   * `mt` sortField on the VaultFilters sort control.
+   */
+  mtRating?: string;
   tmdbRating?: string;
   release_date?: string;
   first_air_date?: string;
@@ -138,7 +145,31 @@ export interface VaultFilters {
   region: string;
   genre: string;
   platform: string;
-  sort: string;
+  /**
+   * Sort field — what to sort by.
+   *
+   * Supported values:
+   *   - "title"        — alphabetical by title
+   *   - "release_date" — TMDB release/first-air date
+   *   - "user_rating"  — the user's own rating (`WatchlistItem.rating`)
+   *   - "imdb"         — IMDb rating (from MDBList, stored on `imdbRating`)
+   *   - "rt"           — Rotten Tomatoes rating (stored on `rtRating`)
+   *   - "mt"           — Metacritic rating (stored on `mtRating`)
+   *   - "runtime"      — runtime in minutes
+   *   - "added_date"   — when the item was added to the vault (DEFAULT)
+   *   - "watch_date"   — the user's watch date (timeline view)
+   */
+  sortField: SortField;
+  /**
+   * Sort direction — "asc" or "desc".
+   *
+   * The label presented to the user is field-dependent (see
+   * `directionLabel` in SortControl):
+   *   - Ratings & Runtime: desc = "High to Low", asc = "Low to High"
+   *   - Dates:             desc = "Newest First", asc = "Oldest First"
+   *   - Title:             desc = "Z → A",        asc = "A → Z"
+   */
+  sortDirection: SortDirection;
   tag: string;
   imdbMin: string;
   imdbMax: string;
@@ -149,6 +180,40 @@ export interface VaultFilters {
   runtimeMin: string;
   runtimeMax: string;
 }
+
+/**
+ * SortField — the union of all supported sort fields.
+ *
+ * Kept narrow (a string-literal union) so the SortControl dropdown,
+ * the `sortItems` comparator, and the `directionLabel` memo all stay
+ * type-checked against the same canonical list. Adding a new sort field
+ * requires touching exactly three places: this union, the FIELD_LABELS
+ * map in SortControl, and the comparator switch in `sortItems`.
+ */
+export type SortField =
+  | "title"
+  | "release_date"
+  | "user_rating"
+  | "imdb"
+  | "rt"
+  | "mt"
+  | "runtime"
+  | "added_date"
+  | "watch_date";
+
+/**
+ * SortDirection — ascending or descending.
+ *
+ * The semantic meaning is field-dependent:
+ *   - For numeric/date fields, "desc" = larger values first (high ratings,
+ *     newest dates, longest runtime). "asc" = smaller values first.
+ *   - For title, "desc" = Z → A (alphabetical descending). "asc" = A → Z.
+ *
+ * The UI label presented to the user always describes the resulting
+ * top-to-bottom display order, so "↓ Newest First" (desc) means the
+ * newest item appears at the top of the list.
+ */
+export type SortDirection = "asc" | "desc";
 
 export interface FilterPreset {
   id: string;

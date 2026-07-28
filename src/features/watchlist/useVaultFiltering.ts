@@ -37,7 +37,11 @@ export const defaultFilters: VaultFilters = {
   region: "all",
   genre: "all",
   platform: "all",
-  sort: "recent",
+  // v2.6 — sort was split into sortField + sortDirection.
+  // Defaults match the previous `sort: "recent"` behavior:
+  // recently-added (added_date) descending (newest first).
+  sortField: "added_date",
+  sortDirection: "desc",
   tag: "all",
   imdbMin: "",
   imdbMax: "",
@@ -114,15 +118,16 @@ export function useVaultFiltering(
     }
   });
 
-  // View mode effect — timeline forces Completed + watch_desc
+  // View mode effect — timeline forces Completed + watch_date desc.
+  // Grid mode resets to added_date desc (recently-added default).
   let prevViewMode = "grid";
   createEffect(() => {
     const mode = args.viewMode();
     if (mode === "timeline" && prevViewMode !== "timeline") {
-      setFilters({ ...defaultFilters, status: "Completed", sort: "watch_desc" });
+      setFilters({ ...defaultFilters, status: "Completed", sortField: "watch_date", sortDirection: "desc" });
       setActiveStatusTab("Completed");
     } else if (mode === "grid" && prevViewMode === "timeline") {
-      setFilters({ ...defaultFilters, status: "all", sort: "recent" });
+      setFilters({ ...defaultFilters, status: "all", sortField: "added_date", sortDirection: "desc" });
       setActiveStatusTab("all");
     }
     prevViewMode = mode;
@@ -223,7 +228,7 @@ export function useVaultFiltering(
     f = filterByStatus(f, effectiveStatus);
     f = filterByAdvanced(f, filters());
     f = filterByRanges(f, filters());
-    return sortItems(f, filters().sort);
+    return sortItems(f, filters().sortField, filters().sortDirection);
   });
 
   const hasAdvancedFilters = createMemo(() => hasAdvancedFiltersActive(filters()));
