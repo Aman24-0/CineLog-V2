@@ -135,8 +135,20 @@ export const fetchTmdbDetails = async (
   // small — if a title has only non-English trailers, the
   // useDetailsActions hook falls back to a separate /videos fetch
   // without language filter (see fetchAnyVideoKey below).
+  //
+  // v2.6: For TV series, also append `aggregate_credits`. TMDB's
+  // regular /tv/{id}/credits endpoint only returns a SMALL subset of
+  // the cast (often just 1-2 people for older shows like *Dark*) —
+  // it's meant for "current season" cast. The aggregate_credits
+  // endpoint lists EVERY person who appeared in ANY episode across
+  // ALL seasons, with per-season/per-episode role detail. This is
+  // the source of truth for TV series cast. Movies don't have
+  // aggregate_credits, so we only append it for TV.
+  const appendParts = mediaType === "tv"
+    ? "videos,credits,aggregate_credits"
+    : "videos,credits";
   return tmdbFetch<TMDBDetails>(
-    `/${mediaType}/${id}?language=en-US&append_to_response=videos,credits&include_video_language=en,null`
+    `/${mediaType}/${id}?language=en-US&append_to_response=${appendParts}&include_video_language=en,null`
   );
 };
 

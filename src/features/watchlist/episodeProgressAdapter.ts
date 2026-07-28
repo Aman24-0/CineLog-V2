@@ -243,3 +243,48 @@ export async function markEpisodeCompletedInSupabase(
   }
   return true;
 }
+
+/**
+ * Unmark an episode — delete the `episode_progress` record for this
+ * episode AND all records at or after this position. Used by the
+ * bidirectional episode toggle when the user taps the filled-check
+ * toggle on a watched episode.
+ *
+ * v2.6 — added to support the unmark direction of the episode toggle.
+ *
+ * Why delete from this position FORWARD (not just the single record):
+ * the `episode_progress` table tracks per-episode watched records, and
+ * `getLatestEpisodeProgress` picks the most recently watched one
+ * (ordered by watched_at desc) as the "current tracker position". If
+ * we only deleted the clicked episode's record but left later records
+ * (e.g. S1E5, S1E6) intact, the next vault refresh would re-pick S1E6
+ * as "latest watched" and silently undo the rewind. Deleting forward
+ * guarantees the tracker stays at the rewound position.
+ *
+ * The caller is responsible for ALSO updating the vault row's
+ * season/episode to the new (rewound) tracker position — this function
+ * ONLY cleans up the episode_progress table.
+ *
+ * @returns true on success, false on failure.
+ */
+export async function unmarkEpisodeInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  fromSeason: number,
+  fromEpisode: number
+): Promise<boolean> {
+  const vaultId = await resolveVaultId(userId, itemId, mediaType);
+  if (!vaultId) {
+    console.error("[episodeProgressAdapter] Could not resolve vaultId for item:", itemId);
+    return false;
+  }
+
+  const repo = getEpisodeProgressRepository();
+  const { error } = await repo.deleteEpisodeProgressFrom(vaultId, fromSeason, fromEpisode);
+  if (error) {
+    console.error("[episodeProgressAdapter] deleteEpisodeProgressFrom error:", error);
+    return false;
+  }
+  return true;
+}

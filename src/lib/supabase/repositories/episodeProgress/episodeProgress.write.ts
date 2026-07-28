@@ -1,7 +1,8 @@
 /**
  * CineLog V2 — Episode Progress Repository: Write Operations
  * ---------------------------------------------------------------------
- * UPSERT + mark-completed operations over the `episode_progress` table.
+ * UPSERT + mark-completed + delete operations over the `episode_progress`
+ * table.
  *
  * UNIQUE(vault_id, season_number, episode_number) — the DB constraint
  * enables ON CONFLICT DO UPDATE for idempotent upserts (Database Bible
@@ -65,7 +66,7 @@ export async function markEpisodeCompleted(
 }
 
 /**
- * Delete all episode progress records for a vault item.
+ * Delete ALL episode progress records for a vault item.
  *
  * Called when a vault item is permanently deleted (cascade cleanup).
  * Soft-deleted vault items keep their progress so it can be restored.
@@ -81,3 +82,43 @@ export async function clearEpisodeProgress(
 
   return { error: toError(error) };
 }
+
+/**
+ * Delete all episode progress records at or AFTER a given position
+ * (season/episode) — used when the user unmarks an episode they
+ * previously watched.
+ *
+ * v2.6 — added to support the bidirectional episode toggle. When the
+ * user taps "unwatch" on S2E5, the application rewinds the tracker to
+ * S2E4 and must also delete the episode_progress records for S2E5 and
+ * everything after (S2E6, S2E7, ..., S3, S4, ...). Otherwise the
+ * `getLatestEpisodeProgress` query (which orders by watched_at desc)
+ * would still see the later records on the next vault refresh and
+ * re-pick them as the "latest watched", silently undoing the rewind.
+ *
+ * The predicate is: season_number > fromSeason, OR
+ * (season_number = fromSeason AND episode_number >= fromEpisode).
+ * Translated to Supabase filter chains: an OR of two conditions.
+ *
+ * NOTE: We use `gte` on episode_number (not `gt`) because the user
+ * is unmarking the clicked episode itself — that record must go too.
+ *
+ * @returns { error } — null on success, Error on failure.
+ */
+export async function deleteEpisodeProgressFrom(
+  supabase: TypedSupabaseClient,
+  vaultId: string,
+  fromSeason: number,
+  fromEpisode: number
+): Promise<EpisodeProgressWriteResult> {
+  const { error } = await supabase
+    .from(TABLE)
+    .delete()
+    .eq("vault_id", vaultId)
+    .or(
+      `season_number.gt.${fromSeason},and(season_number.eq.${fromSeason},episode_number.gte.${fromEpisode})`,
+    );
+
+  return { error: toError(error) };
+}
+

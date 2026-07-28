@@ -17,6 +17,7 @@ import {
 } from "./episodeProgress.read";
 import {
   clearEpisodeProgress,
+  deleteEpisodeProgressFrom,
   markEpisodeCompleted,
   upsertEpisodeProgress
 } from "./episodeProgress.write";
@@ -71,6 +72,20 @@ export class EpisodeProgressRepository {
 
   clearEpisodeProgress(vaultId: string): Promise<EpisodeProgressWriteResult> {
     return clearEpisodeProgress(this.supabase, vaultId);
+  }
+
+  /**
+   * Delete all episode_progress records for this vault item at or
+   * after the given (season, episode) position. Used by the
+   * bidirectional episode toggle's unmark path. See
+   * `episodeProgress.write.ts` for the full predicate + rationale.
+   */
+  deleteEpisodeProgressFrom(
+    vaultId: string,
+    fromSeason: number,
+    fromEpisode: number
+  ): Promise<EpisodeProgressWriteResult> {
+    return deleteEpisodeProgressFrom(this.supabase, vaultId, fromSeason, fromEpisode);
   }
 }
 

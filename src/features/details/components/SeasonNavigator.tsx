@@ -16,8 +16,20 @@ interface SeasonNavigatorProps {
    * metadata is TMDB data).
    */
   vaultItem?: WatchlistItem | null;
-  /** Called when the user toggles an episode's watched state (watchlist titles only) */
+  /** Mark an episode as watched — advances the tracker + upserts progress. */
   onEpisodeChange: (season: number, episode: number) => void;
+  /**
+   * Unmark an episode — the unwatch direction of the bidirectional
+   * toggle (v2.6). The parent (useDetailsProgress.handleEpisodeUnmark)
+   * deletes episode_progress records from this position onward and
+   * rewinds the tracker to (newTrackerSeason, newTrackerEpisode).
+   */
+  onEpisodeUnmark: (
+    unmarkSeason: number,
+    unmarkEpisode: number,
+    newTrackerSeason: number,
+    newTrackerEpisode: number,
+  ) => void;
   /** Called when the user taps "Add to Watchlist" on a non-watchlist title's episode */
   onAddToVault: () => void;
 }
@@ -29,8 +41,11 @@ interface SeasonNavigatorProps {
  * The tracker is the *state*; this is the *map*. They're now one surface.
  *
  * ARCHITECTURE:
- *   - Seasons render as an expandable accordion (collapsed by default;
- *     the user's current season auto-expands on mount).
+ *   - Seasons render as an expandable accordion. ALL seasons start
+ *     collapsed (v2.6) — the user must explicitly click to expand.
+ *     Previously the user's current season auto-expanded on mount,
+ *     which triggered an unnecessary TMDB fetch + render even when
+ *     the user was just casually browsing the series structure.
  *   - Each season header shows: season number, episode count, and the
  *     user's progress through that season (vault titles only).
  *   - Expanding a season lazily fetches its episode list from TMDB
@@ -40,13 +55,27 @@ interface SeasonNavigatorProps {
  *     watched toggle.
  *
  * WATCHING LOGIC:
- *   The toggle on an episode advances (or rewinds) the tracker to THAT
- *   exact episode via `onEpisodeChange(season, episode)`. This reuses
- *   the single source of truth — no duplicate progress logic.
+ *   The toggle on an episode advances (or rewinds) the tracker. Mark
+ *   watched calls `onEpisodeChange(season, episode)` (advances tracker
+ *   + upserts episode_progress). Mark unwatched calls `onEpisodeUnmark`
+ *   (deletes episode_progress records from this episode onward +
+ *   rewinds tracker to the previous episode). Both reuse the parent
+ *   `useDetailsProgress` hook as the single source of truth.
  *
  * PERFORMANCE:
  *   Seasons are fetched lazily — only when expanded. The accordion
  *   caches fetched seasons in a Map so re-expanding is instant.
+ *
+ * v2.6 — FOLD ALL SEASONS BY DEFAULT:
+ *   The initial state of `expandedSeasons` is now an empty Set. No
+ *   season auto-expands on mount. This avoids the unnecessary TMDB
+ *   fetch + episode-render that happened whenever a series detail
+ *   modal was opened, even if the user just wanted to browse the
+ *   metadata. Users explicitly click to expand a season.
+ *
+ *   The `onMount` prime-fetch is kept (now a no-op for the empty
+ *   initial state, but stays as a safety net in case a caller ever
+ *   pre-populates expandedSeasons).
  *
  * v2.5 — FIXED THE "DOUBLE-CLICK" BUG:
  *   Previously, the auto-expanded currentSeason (initial state of
@@ -59,7 +88,8 @@ interface SeasonNavigatorProps {
  *   The fix has three parts:
  *     1. `onMount` fetches any seasons already in expandedSeasons
  *        (typically just currentSeason), so the auto-expanded season
- *        starts loading immediately.
+ *        starts loading immediately. (In v2.6 this is a no-op for
+ *        the default empty state, but stays as a safety net.)
  *     2. `toggleSeason` calls `fetchSeason` whenever it expands a
  *        season that isn't cached yet.
  *     3. The render logic treats "expanded but not yet cached and not
@@ -77,8 +107,13 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
   const currentSeason = () => props.vaultItem?.season || props.item.season || 1;
   const currentEpisode = () => props.vaultItem?.episode || props.item.episode || 1;
 
+  // v2.6: All seasons start COLLAPSED. Previously this was
+  // `new Set([currentSeason()])` which auto-expanded the user's
+  // current season on mount — triggering a TMDB fetch + episode
+  // render even when the user was just browsing. Now the user must
+  // explicitly click a season header to expand it.
   const [expandedSeasons, setExpandedSeasons] = createSignal<Set<number>>(
-    new Set([currentSeason()]),
+    new Set(),
   );
 
   // Cache of fetched season details: seasonNumber -> TMDBEpisode[].
@@ -210,35 +245,53 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
    * `newWatched` is the desired state — true = mark as watched,
    * false = mark as unwatched.
    *
-   * Mark as watched: set tracker to this episode. The episode becomes
-   * the new "current" (in-progress) episode, and all prior episodes
-   * are considered watched.
+   * Mark as watched: call `onEpisodeChange(season, episode)` — the
+   * parent (useDetailsProgress.handleEpisodeChange) upserts the
+   * episode_progress record + advances the tracker to this episode.
    *
-   * Mark as unwatched: set tracker to the PREVIOUS episode. The
-   * clicked episode becomes "unwatched" (after the new tracker
-   * position). If this is episode 1 of season N, the tracker moves
-   * to the last episode of season N-1. If this is season 1 episode 1,
-   * unwatching is a no-op (can't go before the start of the series).
+   * Mark as unwatched: call `onEpisodeUnmark(season, episode,
+   * newTrackerSeason, newTrackerEpisode)` — the parent
+   * (useDetailsProgress.handleEpisodeUnmark) deletes the
+   * episode_progress records from this episode onward AND rewinds
+   * the tracker to the previous episode. The rewind position is
+   * computed here (in SeasonNavigator) because it depends on the
+   * series structure (seasonList), which the parent doesn't have
+   * direct access to.
    *
-   * Both directions reuse `onEpisodeChange` — the parent
-   * (useDetailsProgress.handleEpisodeChange) is the single source of
-   * truth for persisting tracker changes to Supabase.
+   * Rewind logic:
+   *   - Episode N > 1 of season S → rewind to (S, N-1)
+   *   - Episode 1 of season S (S > 1) → rewind to (S-1, last ep of S-1)
+   *   - Season 1, Episode 1: no-op (can't unwatch the very first episode)
+   *
+   * The delete-forward in the parent is critical: without it, the
+   * next vault refresh would re-pick a later episode as "latest
+   * watched" and silently undo the rewind.
    */
   const handleEpisodeToggle = (ep: TMDBEpisode, newWatched: boolean) => {
     if (newWatched) {
       props.onEpisodeChange(ep.season_number, ep.episode_number);
       return;
     }
-    // Unwatch: rewind tracker to the previous episode.
+    // Unwatch: compute the rewind position, then delegate to the parent.
     if (ep.episode_number > 1) {
-      props.onEpisodeChange(ep.season_number, ep.episode_number - 1);
+      props.onEpisodeUnmark(
+        ep.season_number,
+        ep.episode_number,
+        ep.season_number,
+        ep.episode_number - 1,
+      );
       return;
     }
     // Episode 1 of season N → rewind to last episode of season N-1.
     if (ep.season_number > 1) {
       const prevSeason = seasonList().find((s) => s.number === ep.season_number - 1);
       const prevEpCount = prevSeason?.count ?? 1;
-      props.onEpisodeChange(ep.season_number - 1, prevEpCount);
+      props.onEpisodeUnmark(
+        ep.season_number,
+        ep.episode_number,
+        ep.season_number - 1,
+        prevEpCount,
+      );
     }
     // Season 1, Episode 1: no-op (can't unwatch the very first episode).
   };

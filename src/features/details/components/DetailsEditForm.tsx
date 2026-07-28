@@ -42,6 +42,17 @@ interface DetailsEditFormProps {
  *
  * For movies, the form uses the existing flat rewatchDates array.
  *
+ * v2.6 — SEGMENTED RATING CONTROL:
+ *   The "My Rating" input is now a horizontal button group with 10
+ *   buttons (1–10) instead of a number input. Clicking a button sets
+ *   the rating to that value; the active button is highlighted with
+ *   the accent color. A separate "Clear" button (visible only when a
+ *   rating is selected) resets the rating to 0/unrated. The segmented
+ *   control is more tactile and discoverable than a number input —
+ *   the user sees the full scale at a glance and taps the desired
+ *   score, no typing required. The control wraps on narrow viewports
+ *   and is keyboard-accessible (each button is a real <button>).
+ *
  * The form is intentionally compact — every field uses the same dark
  * input treatment so the visual rhythm stays consistent.
  */
@@ -59,6 +70,25 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       .map((s) => s.season_number)
       .sort((a, b) => a - b);
   });
+
+  /**
+   * The current rating as a number (0 when unset/non-numeric).
+   * Used to highlight the active segment button.
+   */
+  const ratingValue = () => {
+    const n = Number(props.form().rating);
+    return Number.isFinite(n) ? n : 0;
+  };
+
+  /** Set the rating to a specific integer 1–10. */
+  const setRating = (n: number) => {
+    props.setForm("rating", String(n));
+  };
+
+  /** Clear the rating back to 0 (unrated). */
+  const clearRating = () => {
+    props.setForm("rating", "0");
+  };
 
   const MAX_REWATCH_COUNT = 99;
   const incrementRewatch = () => {
@@ -117,26 +147,56 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       role="form"
       aria-label="Edit watchlist entry"
     >
-      {/* My Rating — single-field row.
-          The Status dropdown was removed from this form: status is the
-          ActionDock's primary control (4 dedicated buttons that set the
-          status directly via handleSetStatus). Letting the user set it
-          again here caused confusion when the two controls disagreed.
-          Status can still be changed at any time via the ActionDock,
-          which remains visible above the edit form. */}
+      {/* My Rating — segmented control (v2.6).
+          Replaces the old <input type="number">. Ten buttons (1–10) in
+          a flex-wrap row; clicking sets the rating; the active button
+          is highlighted with the accent color. A "Clear" button appears
+          only when a rating is selected, letting the user reset to 0.
+
+          The Status dropdown was removed from this form (v2.5): status
+          is the ActionDock's primary control (4 dedicated buttons that
+          set the status directly via handleSetStatus). Letting the user
+          set it again here caused confusion when the two controls
+          disagreed. Status can still be changed at any time via the
+          ActionDock, which remains visible above the edit form. */}
       <div>
-        <label for="edit-rating" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Rating</label>
-        <input
-          id="edit-rating"
-          type="number"
-          step="0.1"
-          min="0"
-          max="10"
-          placeholder="0–10"
-          value={props.form().rating}
-          onInput={(e) => props.setForm("rating", e.currentTarget.value)}
-          class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
-        />
+        <div class="flex items-center justify-between mb-2">
+          <label class="type-label block" style={{"color":"var(--muted)"}}>My Rating</label>
+          <Show when={ratingValue() > 0}>
+            <button
+              type="button"
+              class="rating-segmented-clear"
+              onClick={clearRating}
+              aria-label="Clear rating"
+            >
+              Clear
+            </button>
+          </Show>
+        </div>
+        <div
+          class="rating-segmented-control"
+          role="radiogroup"
+          aria-label="My rating from 1 to 10"
+        >
+          <For each={[1, 2, 3, 4, 5, 6, 7, 8, 9, 10]}>
+            {(n) => {
+              const isSelected = () => ratingValue() === n;
+              return (
+                <button
+                  type="button"
+                  class="rating-segmented-btn"
+                  classList={{ "rating-segmented-btn-active": isSelected() }}
+                  role="radio"
+                  aria-checked={isSelected()}
+                  aria-label={`Rate ${n} out of 10`}
+                  onClick={() => setRating(n)}
+                >
+                  {n}
+                </button>
+              );
+            }}
+          </For>
+        </div>
       </div>
 
       {/* ── MOVIE re-watch tracking (flat list of dates) ── */}

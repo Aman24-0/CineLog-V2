@@ -14,13 +14,33 @@ const SeasonNavigator = lazy(
  *
  * The section label is ownership-aware: vault titles see "Episodes",
  * non-vault titles see "Episode Guide" (read-only browsing).
+ *
+ * v2.6 — added `onEpisodeUnmark` prop to support the bidirectional
+ * episode toggle. The watched direction still uses `onEpisodeChange`
+ * (advances tracker + upserts episode_progress); the unwatch direction
+ * uses `onEpisodeUnmark` (deletes episode_progress records from this
+ * position onward + rewinds the tracker). Both flow into the parent
+ * `useDetailsProgress` hook as the single source of truth.
  */
 export interface DetailsSeasonsProps {
   baseItem: Accessor<WatchlistItem | null>;
   details: Accessor<TMDBDetails | null>;
   vaultItem: Accessor<WatchlistItem | null>;
   inVault: Accessor<boolean>;
+  /** Mark an episode as watched — advances the tracker + upserts progress. */
   onEpisodeChange: (season: number, episode: number) => void;
+  /**
+   * Unmark an episode — the unwatch direction of the bidirectional
+   * toggle (v2.6). Deletes episode_progress records from
+   * (unmarkSeason, unmarkEpisode) onward and rewinds the tracker to
+   * (newTrackerSeason, newTrackerEpisode).
+   */
+  onEpisodeUnmark: (
+    unmarkSeason: number,
+    unmarkEpisode: number,
+    newTrackerSeason: number,
+    newTrackerEpisode: number,
+  ) => void;
   onAddToVault: () => void;
 }
 
@@ -37,6 +57,7 @@ export default function DetailsSeasons(props: DetailsSeasonsProps) {
             details={props.details()}
             vaultItem={props.vaultItem()}
             onEpisodeChange={props.onEpisodeChange}
+            onEpisodeUnmark={props.onEpisodeUnmark}
             onAddToVault={props.onAddToVault}
           />
         </Suspense>

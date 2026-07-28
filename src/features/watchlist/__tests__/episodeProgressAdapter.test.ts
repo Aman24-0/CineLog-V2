@@ -12,6 +12,7 @@ import {
   updateSeasonEpisodeInSupabase,
   updateWatchProgressInSupabase,
   markEpisodeCompletedInSupabase,
+  unmarkEpisodeInSupabase,
 } from "../episodeProgressAdapter";
 import { getVaultRepository, getEpisodeProgressRepository } from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
@@ -243,6 +244,54 @@ describe("episodeProgressAdapter", () => {
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
 
       const result = await markEpisodeCompletedInSupabase("user-1", "123", "tv", 2, 5);
+      expect(result).toBe(false);
+    });
+  });
+
+  describe("unmarkEpisodeInSupabase", () => {
+    it("resolves vault UUID and deletes episode progress from the given position onward", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+      };
+      const mockProgRepo = {
+        deleteEpisodeProgressFrom: vi.fn().mockResolvedValue({ error: null }),
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+
+      const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 2, 5);
+      expect(result).toBe(true);
+      // Verify the vault UUID was resolved via the TMDB identity.
+      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith("user-1", 123, "tv");
+      // Verify the delete was called with the correct vault + position.
+      expect(mockProgRepo.deleteEpisodeProgressFrom).toHaveBeenCalledWith(
+        "vault-uuid-1",
+        2,
+        5,
+      );
+    });
+
+    it("returns false when vault item not found", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null }),
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+
+      const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 1, 1);
+      expect(result).toBe(false);
+    });
+
+    it("returns false on delete error", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+      };
+      const mockProgRepo = {
+        deleteEpisodeProgressFrom: vi.fn().mockResolvedValue({ error: new Error("Delete fail") }),
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+
+      const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 2, 5);
       expect(result).toBe(false);
     });
   });

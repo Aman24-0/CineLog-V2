@@ -58,6 +58,17 @@ export interface UseDetailsActionsResult {
   /** Set status directly to a specific value (Planned / Watching / Completed / Dropped). */
   handleSetStatus: (status: WatchlistItem["status"]) => Promise<void>;
   handleEpisodeChange: (season: number, episode: number) => Promise<void>;
+  /**
+   * Unmark an episode — the unwatch direction of the bidirectional
+   * episode toggle (v2.6). Delegates to useDetailsProgress; see that
+   * hook for the full rationale on the delete-forward + rewind logic.
+   */
+  handleEpisodeUnmark: (
+    unmarkSeason: number,
+    unmarkEpisode: number,
+    newTrackerSeason: number,
+    newTrackerEpisode: number,
+  ) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
   handleRemoveFromVault: () => Promise<void>;

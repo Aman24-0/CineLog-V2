@@ -100,6 +100,7 @@ export default function DetailsModal() {
     handleStatusCycle,
     handleSetStatus,
     handleEpisodeChange,
+    handleEpisodeUnmark,
     handleSelectItem,
     handleRemoveFromVault,
   } = useDetailsActions({
@@ -330,6 +331,7 @@ export default function DetailsModal() {
                         vaultItem={vaultItem}
                         inVault={inVault}
                         onEpisodeChange={handleEpisodeChange}
+                        onEpisodeUnmark={handleEpisodeUnmark}
                         onAddToVault={handleAddToVault}
                       />
                       <DetailsRecommendations

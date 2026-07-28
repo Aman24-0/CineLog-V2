@@ -134,16 +134,29 @@ function formatMoneyLocal(
  *   `vaultItem` is present. All other cells are TMDB-sourced and
  *   always allowed.
  *
- * BOX OFFICE CELL (v2.4):
- *   Default: USD compact format ($1.7 million).
- *   On click: toggles to the user's local currency using a static
- *   exchange-rate table (₹16.32 crore for India, £1.3 million for
- *   UK, etc.). Re-click to revert to USD. Falls back to USD-only
- *   when the user's country has no currency mapping.
+ * CURRENCY TOGGLE (v2.6 — extended to Budget):
+ *   Both the Budget cell and the Box Office cell are clickable to
+ *   toggle between USD and the user's local currency. The two cells
+ *   share a single `showLocalCurrency` signal — flipping one flips
+ *   both, so the user sees a consistent currency view across the
+ *   money cells. The ⇄ icon next to the label hints at the
+ *   interactivity. Falls back to USD-only when the user's country
+ *   has no currency mapping (in which case the cells render as
+ *   non-interactive plain cells).
+ *
+ * TV SEASONS/EPISODES ORDERING (v2.6):
+ *   For TV series, the Seasons and Episodes cells are pushed FIRST
+ *   in the list (before Status) so they're guaranteed to land in
+ *   row 1, columns 1 and 2 of the grid — adjacent and on the same
+ *   row at every breakpoint. Previously Status was pushed first,
+ *   which on the 2-col mobile layout pushed Episodes down to row 2
+ *   and broke the natural "seasons × episodes" pairing.
  */
 export default function MetadataGrid(props: MetadataGridProps) {
   const region = useDiscoverRegion();
   // Per-mount toggle — starts in USD mode, click flips to local.
+  // Shared by both Budget and Box Office cells so the user sees a
+  // consistent currency view across the money cells.
   const [showLocalCurrency, setShowLocalCurrency] = createSignal(false);
 
   const cells = createMemo<MetaCell[]>(() => {
@@ -159,12 +172,11 @@ export default function MetadataGrid(props: MetadataGridProps) {
 
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
 
-    // Status (TMDB)
-    if (d?.status) {
-      list.push({ label: "Status", value: d.status });
-    }
-
-    // TV-specific
+    // v2.6: For TV, push Seasons + Episodes FIRST so they land in
+    // row 1 (cols 1 and 2) of the grid at every breakpoint. The
+    // natural pairing "Seasons × Episodes" reads best when they're
+    // adjacent on the same row — pushing Status before them broke
+    // that pairing on the 2-col mobile layout.
     if (isTv) {
       if (d?.number_of_seasons) {
         list.push({ label: "Seasons", value: String(d.number_of_seasons) });
@@ -172,6 +184,17 @@ export default function MetadataGrid(props: MetadataGridProps) {
       if (d?.number_of_episodes) {
         list.push({ label: "Episodes", value: String(d.number_of_episodes) });
       }
+    }
+
+    // Status (TMDB) — pushed after Seasons/Episodes for TV so the
+    // seasons pairing stays together in row 1. For movies, Status
+    // is still the first cell (no Seasons/Episodes to compete with).
+    if (d?.status) {
+      list.push({ label: "Status", value: d.status });
+    }
+
+    // TV-specific (continued)
+    if (isTv) {
       if (d?.networks && d.networks.length > 0) {
         list.push({ label: "Network", value: d.networks.map((n) => n.name).join(", ") });
       }
@@ -185,10 +208,17 @@ export default function MetadataGrid(props: MetadataGridProps) {
     // Budget (Movie only) — TMDB reports production budget in USD.
     // Hidden when 0 or unavailable (TMDB doesn't always have it,
     // and many indie films report $0 budget).
+    // v2.6: Now also supports the ⇄ currency toggle (same logic
+    // as Box Office — see canToggleCurrency memo below).
     if (!isTv) {
       const budgetUSD = formatMoneyUSD(d?.budget);
       if (budgetUSD) {
-        list.push({ label: "Budget", value: budgetUSD });
+        const localFormat = formatMoneyLocal(d?.budget ?? 0, region());
+        const showLocal = showLocalCurrency() && localFormat !== null;
+        list.push({
+          label: "Budget",
+          value: showLocal ? localFormat! : budgetUSD,
+        });
       }
     }
 
@@ -231,67 +261,95 @@ export default function MetadataGrid(props: MetadataGridProps) {
   });
 
   /**
-   * Whether the Box Office cell is interactive (clickable to toggle
-   * currency). Only true when:
-   *   - The title is a movie (box office only shows for movies)
-   *   - TMDB has a non-zero revenue
+   * Whether the money cells (Budget + Box Office) are interactive
+   * (clickable to toggle currency). True when:
+   *   - The title is a movie (money cells only show for movies)
+   *   - TMDB has a non-zero budget OR revenue (at least one cell
+   *     renders — both flip together via the shared signal)
    *   - The user's country has a non-USD currency mapping
+   *
+   * If only one of Budget/Revenue is present, only that cell renders
+   * as a button — but the canToggleCurrency gate is shared so the
+   * memo stays simple. Per-cell interactivity is decided in the
+   * render by checking the cell label against the toggleable labels.
    */
   const canToggleCurrency = createMemo(() => {
     const d = props.details;
     const b = props.baseItem;
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
     if (isTv) return false;
-    if (!d?.revenue || d.revenue <= 0) return false;
-    return formatMoneyLocal(d.revenue, region()) !== null;
+    // Need at least one non-zero money field for any toggle to make sense.
+    const hasBudget = !!d?.budget && d.budget > 0;
+    const hasRevenue = !!d?.revenue && d.revenue > 0;
+    if (!hasBudget && !hasRevenue) return false;
+    // The local format helper returns null when the region has no
+    // currency mapping (e.g. user in a country not in COUNTRY_CURRENCY).
+    // In that case there's nothing to toggle TO, so we hide the
+    // interactivity on both cells.
+    const probeAmount = d?.revenue ?? d?.budget ?? 0;
+    return formatMoneyLocal(probeAmount, region()) !== null;
   });
 
-  /** Click handler for the Box Office cell — flips the toggle. */
-  const handleBoxOfficeClick = () => {
+  /**
+   * The set of cell labels that should render as toggle buttons
+   * when `canToggleCurrency()` is true. Computed from the actual
+   * cells list so only cells that are present become buttons.
+   */
+  const toggleableLabels = createMemo<Set<string>>(() => {
+    if (!canToggleCurrency()) return new Set();
+    const out = new Set<string>();
+    for (const cell of cells()) {
+      if (cell.label === "Budget" || cell.label === "Box Office") {
+        out.add(cell.label);
+      }
+    }
+    return out;
+  });
+
+  /** Click handler for any money cell — flips the shared toggle. */
+  const handleMoneyCellClick = () => {
     if (!canToggleCurrency()) return;
     setShowLocalCurrency((v) => !v);
   };
-
-  // Find the index of the Box Office cell so we can render it as a button.
-  const boxOfficeIndex = createMemo(() =>
-    cells().findIndex((c) => c.label === "Box Office"),
-  );
 
   return (
     <Show when={cells().length > 0}>
       <div class="metadata-grid">
         <For each={cells()}>
-          {(cell, i) => (
-            <Show
-              when={i() === boxOfficeIndex() && canToggleCurrency()}
-              fallback={
-                <div class="metadata-cell">
-                  <span class="metadata-cell-label">{cell.label}</span>
-                  <span class="metadata-cell-value">{cell.value}</span>
-                </div>
-              }
-            >
-              <button
-                type="button"
-                class="metadata-cell metadata-cell-button"
-                onClick={handleBoxOfficeClick}
-                aria-label={`Box office: ${cell.value}. Tap to switch currency.`}
-                title="Tap to switch currency"
+          {(cell) => {
+            const isToggleable = () => toggleableLabels().has(cell.label);
+            return (
+              <Show
+                when={isToggleable()}
+                fallback={
+                  <div class="metadata-cell">
+                    <span class="metadata-cell-label">{cell.label}</span>
+                    <span class="metadata-cell-value">{cell.value}</span>
+                  </div>
+                }
               >
-                <span class="metadata-cell-label">
-                  Box Office
-                  <span
-                    class="material-symbols-outlined metadata-cell-currency-icon"
-                    style={{ "font-size": "11px" }}
-                    aria-hidden="true"
-                  >
-                    swap_horiz
+                <button
+                  type="button"
+                  class="metadata-cell metadata-cell-button"
+                  onClick={handleMoneyCellClick}
+                  aria-label={`${cell.label}: ${cell.value}. Tap to switch currency.`}
+                  title="Tap to switch currency"
+                >
+                  <span class="metadata-cell-label">
+                    {cell.label}
+                    <span
+                      class="material-symbols-outlined metadata-cell-currency-icon"
+                      style={{ "font-size": "11px" }}
+                      aria-hidden="true"
+                    >
+                      swap_horiz
+                    </span>
                   </span>
-                </span>
-                <span class="metadata-cell-value">{cell.value}</span>
-              </button>
-            </Show>
-          )}
+                  <span class="metadata-cell-value">{cell.value}</span>
+                </button>
+              </Show>
+            );
+          }}
         </For>
       </div>
     </Show>

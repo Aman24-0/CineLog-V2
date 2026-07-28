@@ -313,6 +313,16 @@ export interface TMDBDetails {
   };
   /** Populated when fetchTmdbDetails requests append_to_response=videos,credits */
   credits?: TMDBCredits;
+  /**
+   * Populated for TV series only — fetchTmdbDetails appends
+   * `aggregate_credits` to the request when media_type is "tv". The
+   * aggregate payload lists EVERY person who appeared in ANY episode
+   * across all seasons, with per-season/per-episode role detail.
+   * The regular `credits.cast` for TV only returns a small subset
+   * (often just 1-2 cast members for older shows like *Dark*), so
+   * the Details UI prefers `aggregate_credits.cast` when available.
+   */
+  aggregate_credits?: TMDBAggregateCredits;
 }
 
 /**
@@ -388,6 +398,60 @@ export interface TMDBCastMember {
   order: number;
   /** For TV only — seasons/episodes this cast member appears in. */
   episodes_count?: number;
+}
+
+/**
+ * TMDBAggregateCastRole — a single role entry within an aggregate
+ * cast member. TMDB's /tv/{id}/aggregate_credits groups all of a
+ * person's roles across the series into one entry, with `roles`
+ * holding per-season/per-episode detail. We mostly care about the
+ * `character` name and `episode_count` (used for sorting).
+ */
+export interface TMDBAggregateCastRole {
+  credit_id: string;
+  character: string;
+  episode_count: number;
+  season_number?: number;
+}
+
+/**
+ * TMDBAggregateCastMember — a single cast entry from
+ * /tv/{id}/aggregate_credits. Unlike the regular `credits.cast`
+ * (which only includes the "main" cast for the latest season),
+ * `aggregate_credits.cast` includes EVERY person who appeared in
+ * ANY episode of the series, with per-season/per-episode role
+ * detail. The `roles` array holds the per-credit breakdown; the
+ * total episode count is the sum of role.episode_count.
+ *
+ * This is the source of truth for TV series cast — TMDB's regular
+ * /tv/{id}/credits endpoint only returns a small subset (often
+ * just 1-2 cast members for older shows like *Dark*).
+ */
+export interface TMDBAggregateCastMember {
+  id: number;
+  name: string;
+  profile_path: string | null;
+  /** Always 0 for aggregate credits — ordering is by total_appearances. */
+  order: number;
+  /** Per-season/per-credit role breakdown. */
+  roles: TMDBAggregateCastRole[];
+  /** Total episodes this person appeared in across all seasons. */
+  total_episode_count?: number;
+  /** Cast-id used by TMDB — not currently used by the UI. */
+  cast_id?: number;
+}
+
+/**
+ * TMDBAggregateCredits — the aggregate_credits payload from
+ * /tv/{id}/aggregate_credits. Only present for TV series; movies
+ * never have this field. Populated by fetchTmdbDetails via
+ * append_to_response=videos,credits,aggregate_credits (TV only).
+ */
+export interface TMDBAggregateCredits {
+  id: number;
+  cast: TMDBAggregateCastMember[];
+  /** Aggregate crew — not currently used by the UI (regular crew is enough). */
+  crew?: TMDBCrewMember[];
 }
 
 /**

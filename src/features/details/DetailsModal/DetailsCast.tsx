@@ -2,7 +2,7 @@
 import { Show, For, createSignal, createMemo, onCleanup, lazy, Suspense, type Accessor, type Component } from "solid-js";
 import DetailSection from "~/features/details/components/DetailSection";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { TMDBDetails, TMDBCastMember } from "~/shared/types";
+import type { TMDBDetails, TMDBCastMember, TMDBAggregateCastMember } from "~/shared/types";
 
 // Dynamic import — PersonModal is a heavy component (full-screen modal
 // with its own TMDB API calls). Lazy loading reduces initial bundle
@@ -83,6 +83,21 @@ interface MergedCrewMember {
  *   a dark glass background, giving each person a distinct, recognizable
  *   avatar.
  *
+ * TV AGGREGATE CREDITS (v2.6):
+ *   For TV series, TMDB's regular `/tv/{id}/credits` endpoint only
+ *   returns a small subset of the cast (often just 1-2 people for
+ *   older shows like *Dark*) — it's meant for "current season" cast.
+ *   The `aggregate_credits` payload lists EVERY person who appeared in
+ *   ANY episode across ALL seasons, with per-season/per-episode role
+ *   detail. `fetchTmdbDetails` now appends `aggregate_credits` for TV
+ *   titles, and this component prefers `details.aggregate_credits.cast`
+ *   over `details.credits.cast` when the media type is TV and the
+ *   aggregate payload is present. This fixes the bug where TV shows
+ *   showed only 1-2 cast members instead of the full main cast.
+ *
+ *   For movies, the regular `credits.cast` is used (movies don't have
+ *   aggregate_credits).
+ *
  * Data source:
  *   Previously this component read OMDbRatings (text-only actor names).
  *   Now it reads TMDBDetails.credits — populated by fetchTmdbDetails
@@ -102,10 +117,75 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
 
   onCleanup(() => setSelectedPerson(null));
 
+  /**
+   * Cast list — prefers `aggregate_credits.cast` for TV (which
+   * includes the full series cast across all seasons) and falls back
+   * to `credits.cast` for movies or when the aggregate payload isn't
+   * available (e.g. older cached responses that predate v2.6).
+   *
+   * The aggregate cast has a different shape than regular cast —
+   * each member has a `roles` array (per-season/per-credit breakdown)
+   * instead of a single `character` field. We flatten the roles into
+   * a comma-separated character string ("Rick Grimes, Rick Grimes (voice)")
+   * and use the total episode count for sorting.
+   *
+   * Sorting:
+   *   - Aggregate cast: by total_episode_count desc (most appearances
+   *     first). TMDB sets `order` to 0 for all aggregate entries.
+   *   - Regular cast: by `order` asc (TMDB's top-billing order).
+   *
+   * Capped at 20 entries to keep the rail scrollable and the DOM
+   * size reasonable. Even with the full series cast, the top 20 by
+   * episode count is the right "main cast" cutoff.
+   */
   const cast = createMemo<TMDBCastMember[]>(() => {
-    const c = props.details()?.credits;
+    const d = props.details();
+    if (!d) return [];
+    const isTv = d.media_type === "tv";
+    const aggregate = isTv ? d.aggregate_credits?.cast : undefined;
+    if (aggregate && aggregate.length > 0) {
+      // Flatten aggregate cast into the regular TMDBCastMember shape
+      // so the rest of the component (rendering, PersonModal wiring)
+      // doesn't need to know about the aggregate vs regular distinction.
+      return aggregate
+        .map((m: TMDBAggregateCastMember) => {
+          // Combine all character names — dedupe identical strings so
+          // "Rick Grimes" + "Rick Grimes" doesn't show as "Rick Grimes, Rick Grimes".
+          const characters = Array.from(
+            new Set(
+              (m.roles ?? [])
+                .map((r) => r.character)
+                .filter((c): c is string => !!c && c.trim().length > 0),
+            ),
+          );
+          const totalEpisodes = m.total_episode_count
+            ?? (m.roles ?? []).reduce((sum, r) => sum + (r.episode_count ?? 0), 0);
+          const characterStr = characters.length > 0 ? characters.join(", ") : undefined;
+          return {
+            id: m.id,
+            name: m.name,
+            character: characterStr,
+            profile_path: m.profile_path,
+            // Stash the total episode count in `episodes_count` so the
+            // sort below can use it. Cast to TMDBCastMember shape —
+            // `episodes_count` is an existing optional field on that type.
+            order: m.order ?? 0,
+            episodes_count: totalEpisodes,
+          } as TMDBCastMember;
+        })
+        .sort((a, b) => {
+          // Aggregate cast: sort by total episodes desc (main cast first).
+          const ea = a.episodes_count ?? 0;
+          const eb = b.episodes_count ?? 0;
+          if (ea !== eb) return eb - ea;
+          // Tiebreaker: name asc for stable ordering.
+          return a.name.localeCompare(b.name);
+        })
+        .slice(0, 20);
+    }
+    // Regular credits (movies, or TV without aggregate_credits).
+    const c = d.credits;
     if (!c?.cast) return [];
-    // Show top 20 cast (ordered by TMDB's `order` field — top-billed first)
     return [...c.cast]
       .sort((a, b) => a.order - b.order)
       .slice(0, 20);
@@ -177,7 +257,10 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
     <Show when={hasAny()}>
       <DetailSection label="Cast & Crew" icon="groups">
         <div class="cast-crew-section">
-          {/* Cast — horizontal scroll of profile cards */}
+          {/* Cast — horizontal scroll of profile cards.
+              For TV series, this is sourced from aggregate_credits
+              (the full series cast across all seasons). For movies,
+              it's the regular credits.cast (top-billed first). */}
           <Show when={cast().length > 0}>
             <div class="cast-crew-block">
               <p class="cast-crew-block-label">Cast</p>
