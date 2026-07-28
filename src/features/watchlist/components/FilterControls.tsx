@@ -53,6 +53,170 @@ export const FilterSel: Component<{
 };
 
 /**
+ * GlassSelect — custom dark-glass dropdown replacement for native <select>.
+ *
+ * Used for the Genre and Platform filters in the VaultFilters drawer.
+ * Matches the SortControl visual language: `bg-[var(--tier-2)]` background,
+ * `border-[var(--hairline)]` hairline border, `rounded-xl`, glass
+ * `backdrop-blur-xl` on the menu, accent color (`var(--p)`) highlight on
+ * the active option.
+ *
+ * WHY NOT NATIVE <select>?
+ *   On mobile devices, the native <select> element opens an OS-default
+ *   white/grey modal picker that completely breaks the app's dark glass
+ *   theme. This custom dropdown renders entirely inside the drawer with
+ *   the same dark glass styling as the rest of the UI, so the visual
+ *   language is consistent across all filters.
+ *
+ * OPEN DIRECTION:
+ *   Opens DOWNWARDS (`top-full mt-2`). Genre and Platform live in the
+ *   Content section near the TOP of the drawer — there's plenty of room
+ *   below them, and the sticky CLEAR ALL / APPLY footer is far away. If
+ *   this filter ever moves near the bottom of the drawer, switch to
+ *   `bottom-full mb-2` (see SortControl) so the menu pops upwards
+ *   instead.
+ *
+ * STRUCTURE (mirrors SortControl):
+ *   - OUTER: `flex flex-col gap-1.5` (label on top, control below).
+ *   - WRAPPER: `relative w-full` with the menuRef — anchors the absolute
+ *     menu and serves as the click-outside boundary.
+ *   - TRIGGER: `<button>` styled with `bg-[var(--tier-2)]` +
+ *     `border-[var(--hairline)]` + `rounded-xl`. NOT absolute — it
+ *     participates in normal flow so the wrapper has a measurable height
+ *     for the menu's `top-full` to anchor against.
+ *   - MENU: the ONLY absolutely-positioned element. `top-full left-0 mt-2`
+ *     pops it DOWNWARDS from the trigger button. `max-h-60 overflow-y-auto`
+ *     caps the visible height so long option lists (20+ genres) are still
+ *     reachable on short viewports. `overflow-x-hidden` + each option's
+ *     `truncate` keep long labels from forcing the menu wider than the
+ *     trigger.
+ *
+ * REACTIVITY:
+ *   - `isOpen` signal controls dropdown visibility.
+ *   - `currentLabel` memo recomputes on `val` change to keep the trigger
+ *     button label in sync.
+ *   - Click-outside + resize listeners are registered in onMount
+ *     (SSR-safe) and cleaned up in onCleanup. No scroll listener —
+ *     matches SortControl v3 behavior (scrolling the drawer is natural
+ *     and shouldn't close the menu).
+ *
+ * NO <Portal>. NO absolute positioning on the trigger button. Only the
+ * dropdown menu div is absolute.
+ */
+export const GlassSelect: Component<{
+  label: string;
+  val: string;
+  set: (v: string) => void;
+  opts: FilterOption[];
+}> = (props) => {
+  // Dropdown open/close state. SolidJS signal — reactivity-safe.
+  const [isOpen, setIsOpen] = createSignal(false);
+
+  // Single ref on the WRAPPER — covers BOTH the trigger button AND the
+  // menu div, so click-outside detection is one `contains()` check.
+  let menuRef: HTMLDivElement | undefined;
+
+  /** Label of the currently selected option. Recomputes on val change. */
+  const currentLabel = createMemo(() => {
+    const found = props.opts.find((o) => o.v === props.val);
+    return found ? found.l : props.val;
+  });
+
+  // ── Click-outside + resize listeners ──────────────────────────────────
+  // Same pattern as SortControl: mousedown closes on outside click,
+  // resize closes because the trigger's position would no longer match
+  // the menu's. No scroll listener — see component docstring above.
+  onMount(() => {
+    const onPointerDown = (e: MouseEvent) => {
+      if (!isOpen()) return;
+      const target = e.target as Node | null;
+      if (!target) return;
+      if (menuRef && menuRef.contains(target)) return;
+      setIsOpen(false);
+    };
+    const onResize = () => {
+      if (isOpen()) setIsOpen(false);
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    window.addEventListener("resize", onResize);
+
+    onCleanup(() => {
+      document.removeEventListener("mousedown", onPointerDown);
+      window.removeEventListener("resize", onResize);
+    });
+  });
+
+  return (
+    <div class="flex flex-col gap-1.5">
+      <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
+        {props.label}
+      </span>
+
+      {/* WRAPPER — `relative w-full` anchors the absolute menu; the
+          menuRef on this div covers both the trigger button and the
+          menu for click-outside detection. */}
+      <div class="relative w-full" ref={menuRef}>
+
+        {/* TRIGGER — styled to match SortControl. NOT absolute. */}
+        <button
+          type="button"
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-[var(--tier-2)] text-[var(--text)]"
+          style={{ "border-color": "var(--hairline)" }}
+          onClick={() => setIsOpen(!isOpen())}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen()}
+          aria-label={`${props.label} — currently ${currentLabel()}`}
+        >
+          <span class="truncate text-sm font-medium">{currentLabel()}</span>
+          <span
+            class="material-symbols-outlined text-lg text-[var(--text-muted)]"
+            aria-hidden="true"
+          >
+            {isOpen() ? "expand_less" : "expand_more"}
+          </span>
+        </button>
+
+        {/* MENU — opens DOWNWARDS. The ONLY absolutely-positioned element. */}
+        <Show when={isOpen()}>
+          <div
+            class="absolute top-full left-0 mt-2 w-full max-h-60 overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] backdrop-blur-xl z-[100] shadow-elevated"
+            style={{ "border-color": "var(--hairline)" }}
+            role="listbox"
+            aria-label={props.label}
+          >
+            <For each={props.opts}>
+              {(option) => (
+                <button
+                  type="button"
+                  class="w-full text-left px-4 py-3 text-sm truncate hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  classList={{
+                    "text-[var(--p)] font-bold": props.val === option.v,
+                    "text-[var(--text-body)] font-medium": props.val !== option.v,
+                  }}
+                  style={{
+                    background:
+                      props.val === option.v ? "var(--p-dim)" : "transparent",
+                  }}
+                  onClick={() => {
+                    props.set(option.v);
+                    setIsOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={props.val === option.v}
+                >
+                  {option.l}
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
+      </div>
+    </div>
+  );
+};
+
+/**
  * FilterChips — horizontal scrollable chip selector for short option lists.
  *
  * Replaces <select> dropdowns for filters with ≤5 options (Type, Region).
@@ -260,12 +424,16 @@ export const SortControl: Component<{
     directionLabelText(props.filters.sortField, props.filters.sortDirection),
   );
 
-  // ── Click-outside + scroll + resize listeners ─────────────────────────
+  // ── Click-outside + resize listeners ──────────────────────────────────
   // Registered in onMount so they're attached only on the client (SSR-safe)
-  // and cleaned up when the SortControl unmounts (drawer close). The
-  // capture flag on the scroll listener is critical: most scrolls happen
-  // on inner containers (the drawer's overflow-y-auto area), not the
-  // window, so a non-capturing scroll listener would never fire.
+  // and cleaned up when the SortControl unmounts (drawer close).
+  //
+  // NOTE: No 'scroll' listener — in a mobile drawer, scrolling is natural
+  // and the user often pans while the menu is open to inspect underlying
+  // content. Closing on scroll was a regression; the menu should stay open
+  // until the user explicitly taps outside or picks an option. The
+  // 'resize' listener is kept because resizing changes the trigger button's
+  // position and would leave the menu visually detached from its anchor.
   onMount(() => {
     const onPointerDown = (e: MouseEvent) => {
       if (!isOpen()) return;
@@ -277,21 +445,18 @@ export const SortControl: Component<{
       // Click anywhere else — close.
       setIsOpen(false);
     };
-    // Close on any scroll (capture: true catches scroll events on inner
-    // containers, not just window) and on resize, since the field
-    // button's position would no longer match the menu's position.
-    const onScrollOrResize = () => {
+    // Close on resize, since the trigger button's position would no
+    // longer match the menu's absolute position.
+    const onResize = () => {
       if (isOpen()) setIsOpen(false);
     };
 
     document.addEventListener("mousedown", onPointerDown);
-    window.addEventListener("scroll", onScrollOrResize, true);
-    window.addEventListener("resize", onScrollOrResize);
+    window.addEventListener("resize", onResize);
 
     onCleanup(() => {
       document.removeEventListener("mousedown", onPointerDown);
-      window.removeEventListener("scroll", onScrollOrResize, true);
-      window.removeEventListener("resize", onScrollOrResize);
+      window.removeEventListener("resize", onResize);
     });
   });
 

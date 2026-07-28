@@ -1,7 +1,7 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
 import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import { FilterSel, RangeFilter, FilterChips, SortControl } from "./FilterControls";
+import { RangeFilter, FilterChips, SortControl, GlassSelect } from "./FilterControls";
 import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 
@@ -83,16 +83,21 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               { l: "International", v: "International" },
             ]}
           />
-          {/* Genre — dropdown (long list, chips would overflow) */}
-          <FilterSel
+          {/* Genre — custom dark-glass dropdown (was native <select>, which
+              opened an OS-default modal that broke the dark theme on mobile).
+              Long list, so chips would overflow — a dropdown is the right
+              pattern. Opens DOWNWARDS (top-full mt-2) because the Content
+              section is at the top of the drawer. */}
+          <GlassSelect
             label="Genre"
             val={props.filters.genre}
             set={(v) => batchedSet({ genre: v })}
             opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
           />
-          {/* Platform — dropdown populated from the user's vault
-              platformsList data (uniquePlatforms from useVaultFiltering). */}
-          <FilterSel
+          {/* Platform — custom dark-glass dropdown populated from the user's
+              vault platformsList data (uniquePlatforms from useVaultFiltering).
+              Same GlassSelect pattern as Genre above. */}
+          <GlassSelect
             label="Platform"
             val={props.filters.platform}
             set={(v) => batchedSet({ platform: v })}
