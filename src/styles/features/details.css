@@ -208,7 +208,11 @@
   padding: 1rem 1.5rem 0.5rem;
   display: flex;
   gap: 1rem;
-  align-items: flex-end;
+  /* v2.7 — top-align so the poster anchors at the top alongside the title,
+     regardless of how short the title/tagline content is. Previously
+     `flex-end` caused the poster to drift down (vertically center / bottom)
+     when the right-hand text column had very little content. */
+  align-items: flex-start;
   overflow: hidden;
   contain: content;
 }

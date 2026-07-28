@@ -1,6 +1,5 @@
 // src/features/watchlist/components/FilterControls.tsx
 import { For, Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
-import { Portal } from "solid-js/web";
 import Icon from "~/shared/ui/Icon";
 import type { SortField, SortDirection } from "~/shared/types";
 
@@ -129,28 +128,31 @@ export const RangeFilter: Component<{
 
 // ── SORT CONTROL ─────────────────────────────────────────────────────────
 // v2.6 — replaces the previous <FilterSel label="Order" ...> sort dropdown.
-// The previous UI exposed 9 sort "modes" as a single bloated <select>:
-//   Recently Added / Recently Updated / Watch Date / Release Year /
-//   User Rating / IMDb High→Low / IMDb Low→High / Runtime / Alphabetical
-// Some of those were redundant (IMDb High→Low and IMDb Low→High differ
-// only in direction) and the list was visually overwhelming on mobile.
-// The new SortControl splits sort into two orthogonal controls:
-//   LEFT  — a custom dropdown button showing the currently selected field.
-//           Clicking opens an absolute-positioned menu with 9 field options.
-//   RIGHT — a direction toggle button. Label is dynamic (createMemo) and
-//           field-dependent: ratings/runtime show "High to Low"/"Low to
-//           High", dates show "Newest First"/"Oldest First", title shows
-//           "Z → A"/"A → Z".
+// The previous UI exposed 9 sort "modes" as a single bloated <select>.
+// v2.7 — drops <Portal> and rewrites the dropdown as an inline
+// relative/absolute layer. Rationale: the filter drawer establishes
+// multiple overflow + transform contexts that broke the portal's
+// fixed positioning on mobile (menu clipped, off-screen, or unopenable).
+// Rendering the menu as an absolute child of the field selector's
+// `relative flex-1` wrapper keeps it anchored to the button, and the
+// `max-h-60 overflow-y-auto` cap keeps the menu scrollable within the
+// drawer's own scroll area.
+//
+// LAYOUT:
+//   Row: `flex gap-2 w-full`
+//   LEFT  — `relative flex-1` wrapper holding the field button + the
+//           absolute dropdown menu (`top-full left-0 mt-2 w-full z-50`).
+//   RIGHT — Compact square icon toggle (`w-11 h-11 flex-shrink-0`)
+//           showing arrow_downward (desc) or arrow_upward (asc).
+//           Text labels were too wide for mobile alongside the field
+//           selector; the icon is universal and takes a fixed 44×44.
 //
 // REACTIVITY:
 //   - `isOpen` signal controls the dropdown menu visibility.
-//   - `directionLabel` memo recomputes whenever `field` or `direction` changes.
+//   - `dirLabel` memo still recomputes for the aria-label so screen
+//     readers announce direction in friendly field-specific language.
 //   - Click-outside + scroll + resize listeners are registered in onMount
 //     and cleaned up in onCleanup (no leaks across drawer open/close).
-//   - The dropdown menu is rendered via <Portal> at document.body level
-//     so it escapes any `overflow-y-auto`/`overflow-hidden` ancestors
-//     (the filter drawer has overflow-y-auto on its scroll area, which
-//     would otherwise clip an absolutely-positioned child).
 
 /** Canonical ordered list of all sortable fields. The order here is the
  *  order shown in the dropdown menu. Add new fields to this array AND to
@@ -221,31 +223,13 @@ export const SortControl: Component<{
 }> = (props) => {
   // Dropdown open/close state. SolidJS signal — reactivity-safe.
   const [isOpen, setIsOpen] = createSignal(false);
-  // Computed position of the portal-rendered menu, derived from the
-  // field button's bounding rect whenever the menu opens. Stored as a
-  // signal so the Portal menu re-renders at the new position.
-  const [menuPos, setMenuPos] = createSignal<{ top: number; left: number; width: number }>({
-    top: 0, left: 0, width: 0,
-  });
 
   // Refs — assigned during render via ref={...}. Typed as `undefined`
   // initially because SolidJS refs run after the first render.
   let fieldBtnRef: HTMLButtonElement | undefined;
+  let menuRef: HTMLDivElement | undefined;
 
-  /** Open the dropdown menu. Reads the field button's bounding rect and
-   *  stashes it in `menuPos` so the Portal menu can be positioned
-   *  directly below the button. */
-  const openMenu = () => {
-    if (!fieldBtnRef) return;
-    const rect = fieldBtnRef.getBoundingClientRect();
-    setMenuPos({
-      top: rect.bottom + 4, // 4px gap below the button
-      left: rect.left,
-      width: rect.width,
-    });
-    setIsOpen(true);
-  };
-
+  const openMenu = () => setIsOpen(true);
   const closeMenu = () => setIsOpen(false);
   const toggleMenu = () => (isOpen() ? closeMenu() : openMenu());
 
@@ -254,7 +238,8 @@ export const SortControl: Component<{
     props.setDirection(props.direction === "desc" ? "asc" : "desc");
   };
 
-  /** Live direction label — recomputes whenever field or direction changes. */
+  /** Live direction label — recomputes whenever field or direction changes.
+   *  Used only for the aria-label now; the visible UI is the icon. */
   const dirLabel = createMemo(() => directionLabel(props.field, props.direction));
 
   // ── Click-outside + scroll + resize listeners ─────────────────────────
@@ -271,10 +256,9 @@ export const SortControl: Component<{
       // Click on the field button itself — let the button's onClick
       // handle the toggle, don't double-close here.
       if (fieldBtnRef && fieldBtnRef.contains(target)) return;
-      // Click inside the portal menu — let the option's onClick handle
+      // Click inside the dropdown menu — let the option's onClick handle
       // the selection, don't close here.
-      const menuEl = document.getElementById("sort-control-menu");
-      if (menuEl && menuEl.contains(target)) return;
+      if (menuRef && menuRef.contains(target)) return;
       // Click anywhere else — close.
       closeMenu();
     };
@@ -301,106 +285,103 @@ export const SortControl: Component<{
       <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
         Sort By
       </span>
-      {/* Side-by-side layout: field dropdown (left, flex-1) + direction toggle (right, shrink-0).
-          `relative` on the row so any non-portal decoration could anchor here, but the
-          actual dropdown menu is portal-rendered to body to escape overflow clipping. */}
-      <div class="flex items-center gap-2">
-        {/* LEFT — Field dropdown button.
-            Uses `filter-select-premium` for visual parity with FilterSel's <select>. */}
-        <button
-          ref={fieldBtnRef}
-          type="button"
-          class="filter-select-premium flex-1 flex items-center justify-between gap-2"
-          onClick={toggleMenu}
-          aria-haspopup="listbox"
-          aria-expanded={isOpen()}
-          aria-label={`Sort by field — currently ${fieldLabel(props.field)}`}
-        >
-          <span class="truncate">{fieldLabel(props.field)}</span>
-          <Icon
-            name={isOpen() ? "expand_less" : "expand_more"}
-            style={{ "font-size": "18px", "flex-shrink": "0", color: "var(--text-soft)" }}
-            aria-hidden="true"
-          />
-        </button>
+      {/* Compact side-by-side row: field selector (left, flex-1) +
+          direction icon toggle (right, fixed 44×44). */}
+      <div class="flex gap-2 w-full">
+        {/* LEFT — Field dropdown.
+            `relative flex-1` so the absolute menu anchors here and the
+            selector takes the remaining horizontal space. */}
+        <div class="relative flex-1">
+          <button
+            ref={fieldBtnRef}
+            type="button"
+            class="filter-select-premium w-full flex items-center justify-between gap-2"
+            onClick={toggleMenu}
+            aria-haspopup="listbox"
+            aria-expanded={isOpen()}
+            aria-label={`Sort by field — currently ${fieldLabel(props.field)}`}
+          >
+            <span class="truncate">{fieldLabel(props.field)}</span>
+            <Icon
+              name={isOpen() ? "expand_less" : "expand_more"}
+              style={{ "font-size": "18px", "flex-shrink": "0", color: "var(--text-soft)" }}
+              aria-hidden="true"
+            />
+          </button>
 
-        {/* RIGHT — Direction toggle button.
-            `shrink-0` + `min-width` keeps the button from collapsing and
-            prevents the label from truncating on mobile. */}
+          {/* Inline dropdown menu — absolute-positioned inside the
+              `relative flex-1` wrapper. No <Portal>; the menu flows in
+              the drawer's own stacking + scroll context so it stays
+              anchored to the field button on every viewport. */}
+          <Show when={isOpen()}>
+            <div
+              ref={menuRef}
+              class="absolute top-full left-0 mt-2 w-full z-50 max-h-60 overflow-y-auto rounded-xl border animate-fade-in"
+              style={{
+                background: "var(--glass-bg-strong)",
+                "backdrop-filter": "blur(20px) saturate(140%)",
+                "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
+                "border-color": "var(--hairline)",
+                "box-shadow": "var(--shadow-premium)",
+                padding: "0.25rem 0",
+              }}
+              role="listbox"
+              aria-label="Sort field"
+            >
+              <For each={ALL_SORT_FIELDS}>
+                {(f) => (
+                  <button
+                    type="button"
+                    class="w-full text-left transition-colors focus-ring"
+                    style={{
+                      padding: "0.625rem 0.875rem",
+                      background: f === props.field ? "var(--p-dim)" : "transparent",
+                      color: f === props.field ? "var(--p)" : "var(--text-body)",
+                      "font-family": "'Outfit', sans-serif",
+                      "font-size": "0.8125rem",
+                      "font-weight": f === props.field ? 700 : 500,
+                    }}
+                    onClick={() => {
+                      props.setField(f);
+                      closeMenu();
+                    }}
+                    role="option"
+                    aria-selected={f === props.field}
+                    onMouseEnter={(e) => {
+                      if (f !== props.field) {
+                        e.currentTarget.style.background = "rgba(255,255,255,0.04)";
+                      }
+                    }}
+                    onMouseLeave={(e) => {
+                      e.currentTarget.style.background = f === props.field ? "var(--p-dim)" : "transparent";
+                    }}
+                  >
+                    {fieldLabel(f)}
+                  </button>
+                )}
+              </For>
+            </div>
+          </Show>
+        </div>
+
+        {/* RIGHT — Compact direction toggle (square icon button).
+            Material Symbols: arrow_downward = desc, arrow_upward = asc.
+            The field-dependent directionLabel is kept only for the
+            aria-label so screen readers still announce "Newest First",
+            "High to Low", "Z → A", etc. in friendly language. */}
         <button
           type="button"
-          class="filter-select-premium shrink-0 focus-ring"
-          style={{
-            "min-width": "8.75rem",
-            "font-weight": 700,
-          }}
+          class="filter-select-premium w-11 h-11 flex-shrink-0 flex items-center justify-center focus-ring"
           onClick={toggleDirection}
           aria-label={`Sort direction — currently ${dirLabel()}`}
         >
-          {dirLabel()}
+          <Icon
+            name={props.direction === "desc" ? "arrow_downward" : "arrow_upward"}
+            style={{ "font-size": "20px", color: "var(--text-strong)" }}
+            aria-hidden="true"
+          />
         </button>
       </div>
-
-      {/* Dropdown menu — portal-rendered to document.body to escape the
-          filter drawer's overflow-y-auto clipping. Positioned fixed using
-          the field button's bounding rect (captured at open time). */}
-      <Show when={isOpen()}>
-        <Portal>
-          <div
-            id="sort-control-menu"
-            class="fixed animate-fade-in"
-            style={{
-              top: `${menuPos().top}px`,
-              left: `${menuPos().left}px`,
-              "min-width": `${Math.max(menuPos().width, 200)}px`,
-              background: "var(--glass-bg-strong)",
-              "backdrop-filter": "blur(20px) saturate(140%)",
-              "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
-              border: "1px solid var(--hairline)",
-              "border-radius": "var(--radius-md)",
-              "box-shadow": "var(--shadow-premium)",
-              "z-index": "var(--z-dropdown)",
-              overflow: "hidden",
-              padding: "0.25rem 0",
-            }}
-            role="listbox"
-            aria-label="Sort field"
-          >
-            <For each={ALL_SORT_FIELDS}>
-              {(f) => (
-                <button
-                  type="button"
-                  class="w-full text-left transition-colors focus-ring"
-                  style={{
-                    padding: "0.625rem 0.875rem",
-                    background: f === props.field ? "var(--p-dim)" : "transparent",
-                    color: f === props.field ? "var(--p)" : "var(--text-body)",
-                    "font-family": "'Outfit', sans-serif",
-                    "font-size": "0.8125rem",
-                    "font-weight": f === props.field ? 700 : 500,
-                  }}
-                  onClick={() => {
-                    props.setField(f);
-                    closeMenu();
-                  }}
-                  role="option"
-                  aria-selected={f === props.field}
-                  onMouseEnter={(e) => {
-                    if (f !== props.field) {
-                      e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    e.currentTarget.style.background = f === props.field ? "var(--p-dim)" : "transparent";
-                  }}
-                >
-                  {fieldLabel(f)}
-                </button>
-              )}
-            </For>
-          </div>
-        </Portal>
-      </Show>
     </div>
   );
 };

@@ -79,19 +79,21 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
     <div class="hero-content-cluster">
       {/* Floating poster
           ────────────────────────────────────────────────────────────
-          Strict dimension + aspect-ratio constraints (v2.6 fix):
-          The poster wrapper uses Tailwind utilities `w-28 sm:w-32` for a
+          Strict dimension + aspect-ratio constraints (v2.7 fix):
+          The poster wrapper uses Tailwind utilities `w-28 sm:w-36` for a
           fixed width, `flex-shrink-0` to prevent flexbox squeezing, and
-          `aspect-[2/3]` to derive the height from the width. This replaces
-          the previous CSS-only `width:100px; height:150px` rule, which
-          could fluctuate in some flex/grid contexts when the right-hand
-          column (title + tagline + genre chips) had varying content
-          height — the wrapper would stretch to match the tallest sibling.
+          `aspect-[2/3]` to derive the height from the width. The strict
+          `aspect-[2/3]` + `flex-shrink-0` combo guarantees the poster
+          never stretches or warps to match the right-hand text column's
+          height, regardless of how much (or how little) title/tagline/
+          genre content is present. Combined with `align-items: flex-start`
+          on the cluster (see details.css), the poster is pinned to the
+          top edge alongside the title.
 
           The image inside uses `w-full h-full object-cover` so it fills
           the constrained wrapper perfectly without warping, regardless
           of the source image's native dimensions. */}
-      <div class="floating-poster w-28 sm:w-32 flex-shrink-0 aspect-[2/3]">
+      <div class="floating-poster w-28 sm:w-36 flex-shrink-0 aspect-[2/3]">
         <Show
           when={posterUrl()}
           fallback={
