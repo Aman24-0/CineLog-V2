@@ -1,5 +1,5 @@
 // src/features/details/components/SeasonNavigator.tsx
-import { For, Show, createSignal, createMemo, Component } from "solid-js";
+import { For, Show, createSignal, createMemo, onMount, Component } from "solid-js";
 import { fetchSeasonDetails } from "~/core/tmdb/tmdb";
 import { getEpisodeProgress, resolveSeasons } from "~/shared/utils/progress";
 import type { WatchlistItem, TMDBDetails, TMDBEpisode } from "~/shared/types";
@@ -12,11 +12,11 @@ interface SeasonNavigatorProps {
   /**
    * User-owned watchlist item — null when the title is NOT in the watchlist.
    * When null, episode cards show "Add to Watchlist to Track" instead of
-   * "Mark as Watched". The season accordion still renders (episode
+   * the watched toggle. The season accordion still renders (episode
    * metadata is TMDB data).
    */
   vaultItem?: WatchlistItem | null;
-  /** Called when the user marks an episode as watched (watchlist titles only) */
+  /** Called when the user toggles an episode's watched state (watchlist titles only) */
   onEpisodeChange: (season: number, episode: number) => void;
   /** Called when the user taps "Add to Watchlist" on a non-watchlist title's episode */
   onAddToVault: () => void;
@@ -25,7 +25,7 @@ interface SeasonNavigatorProps {
 /**
  * SeasonNavigator — the cinematic episode companion.
  *
- * Replaces the old +/- EpisodeTracker with a spatial episode map.
+ * Replaces the old +/- Episode tracker with a spatial episode map.
  * The tracker is the *state*; this is the *map*. They're now one surface.
  *
  * ARCHITECTURE:
@@ -36,16 +36,42 @@ interface SeasonNavigatorProps {
  *   - Expanding a season lazily fetches its episode list from TMDB
  *     (fetchSeasonDetails) and renders EpisodeCards (see EpisodeCard.tsx).
  *   - Each EpisodeCard shows: still, episode number, title, runtime,
- *     air date, overview, vote average, and a "Mark as Watched" action.
+ *     air date, overview, vote average, and a right-aligned circular
+ *     watched toggle.
  *
  * WATCHING LOGIC:
- *   "Mark as Watched" on an episode advances the tracker to THAT exact
- *   episode via `onEpisodeChange(season, episode)`. This reuses the
- *   single source of truth — no duplicate progress logic.
+ *   The toggle on an episode advances (or rewinds) the tracker to THAT
+ *   exact episode via `onEpisodeChange(season, episode)`. This reuses
+ *   the single source of truth — no duplicate progress logic.
  *
  * PERFORMANCE:
  *   Seasons are fetched lazily — only when expanded. The accordion
  *   caches fetched seasons in a Map so re-expanding is instant.
+ *
+ * v2.5 — FIXED THE "DOUBLE-CLICK" BUG:
+ *   Previously, the auto-expanded currentSeason (initial state of
+ *   expandedSeasons) never triggered a fetch, because toggleSeason
+ *   was the only place fetchSeasonDetails was called and toggleSeason
+ *   is never invoked for the initial state. The user saw
+ *   "No episode data available" until they collapsed + re-expanded
+ *   the season.
+ *
+ *   The fix has three parts:
+ *     1. `onMount` fetches any seasons already in expandedSeasons
+ *        (typically just currentSeason), so the auto-expanded season
+ *        starts loading immediately.
+ *     2. `toggleSeason` calls `fetchSeason` whenever it expands a
+ *        season that isn't cached yet.
+ *     3. The render logic treats "expanded but not yet cached and not
+ *        loading" as "loading" (shows skeleton) instead of "empty"
+ *        (shows "No episode data available"). This covers the brief
+ *        async window between mounting and the fetch starting, so
+ *        users never see a misleading "no data" flash.
+ *
+ *   Additionally, `loadingSeason` was changed from a single number to
+ *   a Set (`loadingSeasons`) so multiple seasons can fetch concurrently
+ *   without blocking each other — important when the user rapidly
+ *   expands several seasons in a row.
  */
 const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
   const currentSeason = () => props.vaultItem?.season || props.item.season || 1;
@@ -55,11 +81,22 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
     new Set([currentSeason()]),
   );
 
-  // Cache of fetched season details: seasonNumber -> TMDBEpisode[]
+  // Cache of fetched season details: seasonNumber -> TMDBEpisode[].
+  // Once a season is in this map (even with an empty array), it's
+  // considered "fetched" — we won't re-fetch it. The empty-state
+  // message ("No episode data available") only shows for seasons that
+  // ARE in the cache but have zero episodes.
   const [seasonCache, setSeasonCache] = createSignal<Map<number, TMDBEpisode[]>>(
     new Map(),
   );
-  const [loadingSeason, setLoadingSeason] = createSignal<number | null>(null);
+  // Set of season numbers currently being fetched. Using a Set (instead
+  // of a single number) lets multiple seasons fetch concurrently —
+  // previously expanding Season 2 while Season 1 was still loading
+  // would silently skip the Season 2 fetch because `loadingSeason`
+  // was non-null.
+  const [loadingSeasons, setLoadingSeasons] = createSignal<Set<number>>(
+    new Set(),
+  );
 
   const seasonList = createMemo(() => {
     const itemForResolve = props.vaultItem || props.item;
@@ -73,28 +110,85 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
     return getEpisodeProgress(itemForProgress, props.details);
   });
 
-  const toggleSeason = async (seasonNumber: number) => {
+  /**
+   * Fetch a season's episode list from TMDB and cache it.
+   *
+   * Idempotent — concurrent calls for the same season number are
+   * de-duped via the loadingSeasons Set. Re-fetches are skipped if
+   * the season is already in the cache (even with an empty array,
+   * which represents "fetched but TMDB had no episodes for this
+   * season" — e.g. an upcoming season with no episode list yet).
+   *
+   * On fetch failure, an empty array is cached so we don't keep
+   * retrying on every render — the user can collapse + re-expand to
+   * retry manually if they suspect it was a transient network issue.
+   */
+  const fetchSeason = async (seasonNumber: number) => {
+    if (seasonCache().has(seasonNumber)) return;
+    if (loadingSeasons().has(seasonNumber)) return;
+    setLoadingSeasons((prev) => {
+      const next = new Set(prev);
+      next.add(seasonNumber);
+      return next;
+    });
+    try {
+      const data = await fetchSeasonDetails(props.item.id, seasonNumber);
+      setSeasonCache((prev) => {
+        const next = new Map(prev);
+        next.set(seasonNumber, data.episodes || []);
+        return next;
+      });
+    } catch (err) {
+      console.warn(`Failed to fetch season ${seasonNumber}:`, err);
+      // Cache an empty array on failure so we don't loop —
+      // the empty-state message will show instead of the skeleton.
+      setSeasonCache((prev) => {
+        const next = new Map(prev);
+        next.set(seasonNumber, []);
+        return next;
+      });
+    } finally {
+      setLoadingSeasons((prev) => {
+        const next = new Set(prev);
+        next.delete(seasonNumber);
+        return next;
+      });
+    }
+  };
+
+  /**
+   * On mount, fetch any seasons that are already expanded. The initial
+   * state has currentSeason expanded — without this, the auto-expanded
+   * current season would never fetch (toggleSeason is never called for
+   * the initial state) and the user would see the loading skeleton
+   * forever (or, before the render-logic fix, "No episode data
+   * available" until they collapsed + re-expanded).
+   */
+  onMount(() => {
+    for (const seasonNumber of expandedSeasons()) {
+      fetchSeason(seasonNumber);
+    }
+  });
+
+  /**
+   * Toggle a season's expanded state. When EXPANDING a season that
+   * isn't cached, immediately kick off the fetch — this is the user's
+   * primary entry point to fetching after mount.
+   *
+   * The fetch is fire-and-forget: fetchSeason is idempotent and
+   * internally de-dupes, so calling it speculatively is safe.
+   */
+  const toggleSeason = (seasonNumber: number) => {
+    const wasExpanded = expandedSeasons().has(seasonNumber);
     setExpandedSeasons((prev) => {
       const next = new Set(prev);
       if (next.has(seasonNumber)) next.delete(seasonNumber);
       else next.add(seasonNumber);
       return next;
     });
-
-    if (!seasonCache().has(seasonNumber) && !loadingSeason()) {
-      setLoadingSeason(seasonNumber);
-      try {
-        const data = await fetchSeasonDetails(props.item.id, seasonNumber);
-        setSeasonCache((prev) => {
-          const next = new Map(prev);
-          next.set(seasonNumber, data.episodes || []);
-          return next;
-        });
-      } catch (err) {
-        console.warn(`Failed to fetch season ${seasonNumber}:`, err);
-      } finally {
-        setLoadingSeason(null);
-      }
+    // Only fetch when expanding — collapsing doesn't need data.
+    if (!wasExpanded) {
+      fetchSeason(seasonNumber);
     }
   };
 
@@ -108,6 +202,45 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
     if (seasonNumber < cs) return { watched: seasonData.count, total: seasonData.count };
     if (seasonNumber === cs) return { watched: Math.min(ce, seasonData.count), total: seasonData.count };
     return { watched: 0, total: seasonData.count };
+  };
+
+  /**
+   * Handle an episode toggle from EpisodeCard.
+   *
+   * `newWatched` is the desired state — true = mark as watched,
+   * false = mark as unwatched.
+   *
+   * Mark as watched: set tracker to this episode. The episode becomes
+   * the new "current" (in-progress) episode, and all prior episodes
+   * are considered watched.
+   *
+   * Mark as unwatched: set tracker to the PREVIOUS episode. The
+   * clicked episode becomes "unwatched" (after the new tracker
+   * position). If this is episode 1 of season N, the tracker moves
+   * to the last episode of season N-1. If this is season 1 episode 1,
+   * unwatching is a no-op (can't go before the start of the series).
+   *
+   * Both directions reuse `onEpisodeChange` — the parent
+   * (useDetailsProgress.handleEpisodeChange) is the single source of
+   * truth for persisting tracker changes to Supabase.
+   */
+  const handleEpisodeToggle = (ep: TMDBEpisode, newWatched: boolean) => {
+    if (newWatched) {
+      props.onEpisodeChange(ep.season_number, ep.episode_number);
+      return;
+    }
+    // Unwatch: rewind tracker to the previous episode.
+    if (ep.episode_number > 1) {
+      props.onEpisodeChange(ep.season_number, ep.episode_number - 1);
+      return;
+    }
+    // Episode 1 of season N → rewind to last episode of season N-1.
+    if (ep.season_number > 1) {
+      const prevSeason = seasonList().find((s) => s.number === ep.season_number - 1);
+      const prevEpCount = prevSeason?.count ?? 1;
+      props.onEpisodeChange(ep.season_number - 1, prevEpCount);
+    }
+    // Season 1, Episode 1: no-op (can't unwatch the very first episode).
   };
 
   return (
@@ -146,7 +279,14 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
           {(season) => {
             const isExpanded = () => expandedSeasons().has(season.number);
             const episodes = () => seasonCache().get(season.number) || [];
-            const isLoading = () => loadingSeason() === season.number;
+            const isLoading = () => loadingSeasons().has(season.number);
+            // "Has this season been fetched at least once?" — once true,
+            // the empty-state message can show. Before this is true,
+            // we show the loading skeleton even if isLoading() is false
+            // (covers the brief async window between mount/expand and
+            // the fetch starting).
+            const isFetched = () => seasonCache().has(season.number);
+            const isFetching = () => isLoading() || !isFetched();
             const progress = () => seasonProgress(season.number);
             const isCurrent = () => currentSeason() === season.number;
 
@@ -188,13 +328,20 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                   </span>
                 </button>
 
-                {/* Episode list — lazily fetched */}
+                {/* Episode list — lazily fetched.
+                    Render tree:
+                      - Expanded AND has episodes → episode list
+                      - Expanded AND fetching (loading OR not yet fetched) → skeleton
+                      - Expanded AND fetched but empty → "No episode data available"
+                    The "fetching" branch covers the brief async window between
+                    mount/expand and the fetch starting, so users never see a
+                    misleading "no data" flash on first expansion. */}
                 <Show when={isExpanded()}>
                   <Show
-                    when={!isLoading() && episodes().length > 0}
+                    when={episodes().length > 0}
                     fallback={
                       <Show
-                        when={isLoading()}
+                        when={isFetching()}
                         fallback={
                           <p
                             class="season-accordion-empty type-micro"
@@ -228,8 +375,8 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                                   currentEpisode() > ep.episode_number))
                             }
                             inVault={!!props.vaultItem}
-                            onMarkWatched={() =>
-                              props.onEpisodeChange(ep.season_number, ep.episode_number)
+                            onToggle={(newWatched) =>
+                              handleEpisodeToggle(ep, newWatched)
                             }
                             onAddToVault={() => props.onAddToVault()}
                           />

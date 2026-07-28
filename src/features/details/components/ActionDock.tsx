@@ -13,8 +13,19 @@ interface ActionDockProps {
    * dock shows the status row + action buttons.
    */
   vaultItem?: WatchlistItem | null;
-  hasTrailer: boolean;
-  onPlayTrailer: () => void;
+  /**
+   * Whether a trailer is available. NO LONGER USED by the dock itself —
+   * kept in the interface for backwards compat with callers (DetailsActions)
+   * that still pass it. The actual "Watch Trailer" CTA now lives on the
+   * CinematicHero backdrop (Netflix-style overlay button).
+   */
+  hasTrailer?: boolean;
+  /**
+   * Open the trailer player. NO LONGER USED by the dock itself — same
+   * deprecation reason as `hasTrailer`. The hero's overlay button calls
+   * `onPlayTrailer` directly via the DetailsHero wrapper.
+   */
+  onPlayTrailer?: () => void;
   onEdit: () => void;
   /** Legacy cycle handler (Planned → Watching → Completed → Planned). Kept for compat. */
   onStatusCycle: () => void;
@@ -41,12 +52,17 @@ interface ActionDockProps {
  *     Line 1 — status buttons: [Planned] [Watching] [Completed] [Dropped]
  *       Each button sets the status directly. The active status is
  *       highlighted with the accent color.
- *     Line 2 — action buttons: [Trailer] [Folder] [Edit] [Delete]
+ *     Line 2 — action buttons: [Folder] [Share] [Edit] [Delete]
  *       (Rating button removed — it opens the same edit sheet as Edit,
  *        and the rating is already shown in the rating + activity panel.)
+ *       (Trailer button removed in v2.5 — the hero backdrop now owns
+ *        the "Watch Trailer" overlay CTA. Centralizing the trailer
+ *        entry point on the artwork matches the Netflix / Apple TV+
+ *        mental model: trailer = play the preview, which belongs on
+ *        the artwork, not in the action toolbar.)
  *
  *   Non-vault title (vaultItem null):
- *     [+ Add to Vault] | [Trailer]
+ *     [+ Add to Vault] | [Share]
  *
  * The dock uses .action-dock CSS for the frosted glass surface. On mobile
  * the buttons stack compactly; on desktop they have more breathing room.
@@ -89,7 +105,13 @@ export default function ActionDock(props: ActionDockProps) {
       <Show
         when={inVault()}
         fallback={
-          /* Non-vault title: primary CTA is "Add to Vault" + Trailer + Share */
+          /* Non-vault title: primary CTA is "Add to Vault" + Share.
+              Trailer was removed from the dock — the hero's backdrop
+              now shows a Netflix-style "Watch Trailer" overlay button
+              (see CinematicHero.tsx). Centralizing the trailer entry
+              point on the hero avoids duplication and matches the
+              user's mental model: trailer = play the preview, which
+              belongs on the artwork, not in the action toolbar. */
           <div class="action-dock-row">
             {/* Add to Watchlist button — icon-only on mobile, text on sm+.
                 aria-labelledby points to the visible text span which provides
@@ -115,23 +137,6 @@ export default function ActionDock(props: ActionDockProps) {
               </span>
               <span id="action-add-label" class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Watchlist"}</span>
             </button>
-            <Show when={props.hasTrailer}>
-              <button
-                type="button"
-                onClick={() => props.onPlayTrailer()}
-                class="action-dock-btn"
-                aria-labelledby="action-trailer-label-nonvault"
-              >
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  play_arrow
-                </span>
-                <span id="action-trailer-label-nonvault" class="hidden sm:inline">Trailer</span>
-              </button>
-            </Show>
             <Show when={props.onShare}>
               <button
                 type="button"
@@ -179,26 +184,10 @@ export default function ActionDock(props: ActionDockProps) {
           </For>
         </div>
 
-        {/* LINE 2 — action buttons */}
+        {/* LINE 2 — action buttons.
+            Trailer button removed — the hero backdrop now owns the
+            "Watch Trailer" overlay CTA (Netflix-style). */ }
         <div class="action-dock-row action-dock-actions-row">
-          <Show when={props.hasTrailer}>
-            <button
-              type="button"
-              onClick={() => props.onPlayTrailer()}
-              class="action-dock-btn"
-              aria-labelledby="action-trailer-label"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "16px" }}
-                aria-hidden="true"
-              >
-                play_arrow
-              </span>
-              <span id="action-trailer-label" class="hidden sm:inline">Trailer</span>
-            </button>
-          </Show>
-
           <Show when={props.onOpenFolders}>
             <button
               type="button"

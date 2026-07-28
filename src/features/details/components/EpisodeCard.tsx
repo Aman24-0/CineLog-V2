@@ -8,20 +8,45 @@ import type { TMDBEpisode } from "~/shared/types";
 /**
  * EpisodeCard — a single episode in the expanded SeasonNavigator list.
  *
- * Shows: still + episode number overlay + watched badge, then episode
- * title / runtime / air date / vote average, an expandable overview,
- * and a vault-aware action button:
- *   - Non-vault: "Add to Vault to Track" CTA
- *   - Vault + not watched: "Mark as Watched" (advances tracker)
- *   - Vault + watched + current: "Currently Watching" label
- *   - Vault + watched + not current: no action
+ * Layout:
+ *   [16:9 still with E# overlay]   [Title / meta / overview]   [Toggle]
+ *
+ * The right-aligned circular toggle replaces the previous large
+ * "MARK AS WATCHED" button row. Empty circle = unwatched, filled
+ * checkmark = watched. Tapping flips the state and the parent
+ * (SeasonNavigator.handleEpisodeToggle) advances or rewinds the
+ * tracker accordingly.
+ *
+ * For non-vault titles, the toggle becomes a small "+" button that
+ * triggers `onAddToVault` (calling out: "track this by adding it to
+ * your vault first").
+ *
+ * v2.5 — REDESIGN RATIONALE:
+ *   The old card had a prominent "Mark as Watched" button below the
+ *   overview. This was visually heavy, took vertical space, and
+ *   couldn't represent the watched state (the button only appeared
+ *   for unwatched episodes — watched episodes had either nothing or
+ *   a "Currently Watching" label, so the user had no way to UNWATCH
+ *   an episode). The new circular toggle:
+ *     - Always present (consistent affordance)
+ *     - Compact (28px circle in the top-right corner)
+ *     - Bidirectional (tap to mark watched, tap again to unwatch)
+ *     - State-clear (filled check vs empty circle at a glance)
  */
 export interface EpisodeCardProps {
   episode: TMDBEpisode;
   isCurrent: boolean;
   isWatched: boolean;
   inVault: boolean;
-  onMarkWatched: () => void;
+  /**
+   * Called when the user taps the circular toggle.
+   * `newWatched` is the desired new state:
+   *   - true = user wants this episode marked as watched
+   *   - false = user wants this episode marked as unwatched
+   * The parent (SeasonNavigator) translates this into an
+   * `onEpisodeChange` call that advances or rewinds the tracker.
+   */
+  onToggle: (newWatched: boolean) => void;
   onAddToVault: () => void;
 }
 
@@ -45,13 +70,40 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   const hasOverview = () =>
     props.episode.overview && props.episode.overview.trim().length > 0;
 
+  /**
+   * "Watched" state for the toggle's visual treatment.
+   *
+   * The current episode (the one the tracker is on) is treated as
+   * watched for toggle purposes — the user is on it because they
+   * just finished the previous one, so it makes sense to show a
+   * filled check. Tapping it then "unwatches" by rewinding the
+   * tracker to the previous episode.
+   */
+  const isWatchedState = () => props.isWatched || props.isCurrent;
+
+  const handleToggleClick = () => {
+    // Flip the current state. The parent decides what tracker move
+    // to make — EpisodeCard just signals intent.
+    props.onToggle(!isWatchedState());
+  };
+
+  const toggleAriaLabel = () => {
+    const epNum = props.episode.episode_number;
+    return isWatchedState()
+      ? `Mark episode ${epNum} as unwatched`
+      : `Mark episode ${epNum} as watched`;
+  };
+
   return (
     <article
       class={`episode-card${props.isCurrent ? " episode-card-current" : ""}${
         props.isWatched ? " episode-card-watched" : ""
       }`}
     >
-      {/* Still + number overlay */}
+      {/* Still + number overlay.
+          The old watched badge that sat in the top-right of the still
+          is gone — the toggle in the top-right of the card replaces it
+          and is the single source of truth for watched state. */}
       <div class="episode-card-still-wrap">
         <SafeImage
           src={stillUrl()}
@@ -72,20 +124,9 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
         <span class="episode-card-number" aria-hidden="true">
           E{props.episode.episode_number}
         </span>
-        <Show when={props.isWatched}>
-          <span class="episode-card-watched-badge" aria-label="Watched">
-            <span
-              class="material-symbols-outlined"
-              style={{"font-size":"12px"}}
-              aria-hidden="true"
-            >
-              check_circle
-            </span>
-          </span>
-        </Show>
       </div>
 
-      {/* Info + actions */}
+      {/* Info — title, meta, overview */}
       <div class="episode-card-body">
         <div class="episode-card-header">
           <h4 class="episode-card-title">
@@ -125,64 +166,68 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             {expanded() ? "Less" : "More"}
           </button>
         </Show>
+      </div>
 
-        {/* Action — vault-aware */}
-        <div class="episode-card-actions">
+      {/* Right-aligned circular toggle — vault-aware.
+          - In vault + watched: filled accent-color circle with check icon.
+            Tap to unwatch (rewinds tracker to previous episode).
+          - In vault + not watched: empty circle outline.
+            Tap to watch (advances tracker to this episode).
+          - Not in vault: small "+" button.
+            Tap to add the whole title to the vault. */}
+      <Show
+        when={props.inVault}
+        fallback={
+          <button
+            type="button"
+            class="episode-card-add-btn"
+            onClick={() => props.onAddToVault()}
+            aria-label={`Add to watchlist to track episode ${props.episode.episode_number}`}
+            title="Add to Watchlist to Track"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{"font-size":"18px"}}
+              aria-hidden="true"
+            >
+              add
+            </span>
+          </button>
+        }
+      >
+        <button
+          type="button"
+          class={`episode-card-toggle${isWatchedState() ? " episode-card-toggle-watched" : ""}`}
+          onClick={handleToggleClick}
+          aria-label={toggleAriaLabel()}
+          aria-pressed={isWatchedState()}
+          title={isWatchedState() ? "Mark as unwatched" : "Mark as watched"}
+        >
           <Show
-            when={props.inVault}
+            when={isWatchedState()}
             fallback={
-              <button
-                type="button"
-                class="episode-card-action episode-card-action-add"
-                onClick={() => props.onAddToVault()}
+              <span
+                class="material-symbols-outlined"
+                style={{"font-size":"20px"}}
+                aria-hidden="true"
               >
-                <span
-                  class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
-                  aria-hidden="true"
-                >
-                  add
-                </span>
-                Add to Watchlist to Track
-              </button>
+                radio_button_unchecked
+              </span>
             }
           >
-            <Show
-              when={!props.isWatched}
-              fallback={
-                <Show when={props.isCurrent}>
-                  <span class="episode-card-current-label">
-                    <span
-                      class="material-symbols-outlined"
-                      style={{"font-size":"14px"}}
-                      aria-hidden="true"
-                    >
-                      play_arrow
-                    </span>
-                    Currently Watching
-                  </span>
-                </Show>
-              }
+            <span
+              class="material-symbols-outlined"
+              style={{
+                "font-size": "20px",
+                "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+              }}
+              aria-hidden="true"
             >
-              <button
-                type="button"
-                class="episode-card-action episode-card-action-watch"
-                onClick={() => props.onMarkWatched()}
-                aria-label={`Mark episode ${props.episode.episode_number} as watched`}
-              >
-                <span
-                  class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
-                  aria-hidden="true"
-                >
-                  check
-                </span>
-                Mark as Watched
-              </button>
-            </Show>
+              check_circle
+            </span>
           </Show>
-        </div>
-      </div>
+        </button>
+      </Show>
     </article>
   );
 };

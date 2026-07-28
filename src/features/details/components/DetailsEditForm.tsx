@@ -117,36 +117,26 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       role="form"
       aria-label="Edit watchlist entry"
     >
-      {/* Status + Rating */}
-      <div class="grid grid-cols-2 gap-4">
-        <div>
-          <label for="edit-status" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Status</label>
-          <select
-            id="edit-status"
-            value={props.form().status}
-            onChange={(e) => props.setForm("status", e.currentTarget.value)}
-            class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
-          >
-            <option value="Planned">Planned</option>
-            <option value="Watching">Watching</option>
-            <option value="Completed">Completed</option>
-            <option value="Dropped">Dropped</option>
-          </select>
-        </div>
-        <div>
-          <label for="edit-rating" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Rating</label>
-          <input
-            id="edit-rating"
-            type="number"
-            step="0.1"
-            min="0"
-            max="10"
-            placeholder="0–10"
-            value={props.form().rating}
-            onInput={(e) => props.setForm("rating", e.currentTarget.value)}
-            class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
-          />
-        </div>
+      {/* My Rating — single-field row.
+          The Status dropdown was removed from this form: status is the
+          ActionDock's primary control (4 dedicated buttons that set the
+          status directly via handleSetStatus). Letting the user set it
+          again here caused confusion when the two controls disagreed.
+          Status can still be changed at any time via the ActionDock,
+          which remains visible above the edit form. */}
+      <div>
+        <label for="edit-rating" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Rating</label>
+        <input
+          id="edit-rating"
+          type="number"
+          step="0.1"
+          min="0"
+          max="10"
+          placeholder="0–10"
+          value={props.form().rating}
+          onInput={(e) => props.setForm("rating", e.currentTarget.value)}
+          class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all"
+        />
       </div>
 
       {/* ── MOVIE re-watch tracking (flat list of dates) ── */}

@@ -219,21 +219,33 @@ export default function DetailsModal() {
                 the close button was inside .cinematic-hero which has
                 overflow:hidden + scrolls out of view, causing the button to
                 disappear (BUG 2 fix). position:fixed + z-index:30 keeps it
-                above the hero (z:20) and always visible. */}
-            <button
-              onClick={close}
-              class="cinematic-close-btn"
-              aria-label="Close details"
-              style={{ position: "fixed" }}
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "18px" }}
-                aria-hidden="true"
+                above the hero (z:20) and always visible.
+
+                TRAILER CONFLICT FIX (v2.5):
+                When a trailer is actively playing, the hero already shows
+                its own "close trailer" button (top-left). Rendering the
+                modal's main X button at the same time produced two close
+                affordances side-by-side, confusing users about which one
+                closes the trailer vs. the whole modal. Now the modal X is
+                hidden while `showTrailer()` is true — the hero's trailer
+                close button takes over. Pressing the modal X again (after
+                the trailer is closed) closes the modal as before. */}
+            <Show when={!showTrailer()}>
+              <button
+                onClick={close}
+                class="cinematic-close-btn"
+                aria-label="Close details"
+                style={{ position: "fixed" }}
               >
-                close
-              </span>
-            </button>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "18px" }}
+                  aria-hidden="true"
+                >
+                  close
+                </span>
+              </button>
+            </Show>
 
             <Show when={!loading()} fallback={<DetailsSkeleton />}>
               <Show when={!error()} fallback={<DetailsError onRetry={retry} />}>
@@ -244,6 +256,8 @@ export default function DetailsModal() {
                       details={tmdb}
                       trailerActive={() => showTrailer() && hasTrailer()}
                       trailerKey={trailerKey}
+                      hasTrailer={hasTrailer}
+                      onPlayTrailer={() => setShowTrailer(true)}
                       onClose={close}
                       onCloseTrailer={() => setShowTrailer(false)}
                     />

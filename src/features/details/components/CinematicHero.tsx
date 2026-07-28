@@ -20,6 +20,14 @@ interface CinematicHeroProps {
   trailerKey?: string | null;
   /** Called when the user closes the trailer (taps the close-trailer button) */
   onCloseTrailer?: () => void;
+  /**
+   * Whether a trailer is available at all. When true AND the trailer
+   * isn't currently playing, a high-contrast "Watch Trailer" overlay
+   * button is rendered on top of the backdrop image (Netflix-style).
+   */
+  hasTrailer?: boolean;
+  /** Called when the user taps the "Watch Trailer" overlay button. */
+  onPlayTrailer?: () => void;
 }
 
 /**
@@ -47,6 +55,14 @@ interface CinematicHeroProps {
  *
  *  A "close trailer" button appears top-left when the trailer is active,
  *  so the user can return to the backdrop view.
+ *
+ * TRAILER CTA OVERLAY (v2.5):
+ *  When `hasTrailer` is true AND the trailer is NOT currently playing,
+ *  a high-contrast "Watch Trailer" overlay button is positioned
+ *  center-bottom of the backdrop image. Clicking it calls `onPlayTrailer`
+ *  which flips `trailerActive` to true (the orchestrator owns this
+ *  state) and the iframe replaces the backdrop. Netflix-style discovery
+ *  affordance: the trailer is one tap away without leaving the hero.
  *
  * SSR-safe: all data from props, no client-only APIs.
  */
@@ -124,6 +140,42 @@ export default function CinematicHero(props: CinematicHeroProps) {
       {/* Multi-layer gradient overlay — HIDDEN when trailer is active */}
       <Show when={!props.trailerActive}>
         <div class="cinematic-hero-overlay" aria-hidden="true" />
+      </Show>
+
+      {/* "Watch Trailer" overlay button — Netflix-style CTA on the backdrop.
+          Only renders when:
+            - A trailer is available (hasTrailer=true)
+            - The trailer is NOT currently playing (trailerActive=false)
+            - A backdrop URL exists (so the button has something to sit on)
+            - onPlayTrailer is wired (defensive — always true in DetailsModal)
+          The button is positioned center-bottom of the hero, above the
+          gradient overlay (z-index: 3) so it stays visible against any
+          backdrop. High-contrast white-on-black with backdrop blur so it
+          pops against both bright and dark backdrop images. */}
+      <Show when={
+        props.hasTrailer &&
+        !props.trailerActive &&
+        !!backdropUrl() &&
+        !!props.onPlayTrailer
+      }>
+        <button
+          type="button"
+          class="cinematic-hero-trailer-cta"
+          onClick={() => props.onPlayTrailer?.()}
+          aria-label="Watch trailer"
+        >
+          <span
+            class="material-symbols-outlined"
+            style={{
+              "font-size": "20px",
+              "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+            }}
+            aria-hidden="true"
+          >
+            play_circle
+          </span>
+          <span>Watch Trailer</span>
+        </button>
       </Show>
 
       {/* Trailer iframe — replaces the backdrop when active.

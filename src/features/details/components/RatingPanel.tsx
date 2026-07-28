@@ -72,11 +72,30 @@ const RatingCell: Component<{
   const votes = () => props.rating?.votes ?? "0";
   const hasVotes = () => props.rating !== null && votes() !== "0";
 
+  /**
+   * De-emphasis signal — when the service returned no real score
+   * (null rating, or score literally "NR" / "—" / empty), the whole
+   * cell visually recedes: opacity drops to ~45% and the brand logo
+   * box is dimmed via the `rating-cell-unavailable` modifier class.
+   *
+   * This keeps the 3-column layout stable (no jarring layout shift
+   * when one service is missing) while signaling "no data here" at
+   * a glance. Tapping still does nothing — NR is a passive state.
+   */
+  const isUnavailable = () => {
+    if (props.rating === null) return true;
+    const s = props.rating.score?.trim();
+    return !s || s === "NR" || s === "—" || s === "-";
+  };
+
   return (
     <div
-      class="flex flex-row items-center justify-center gap-1 whitespace-nowrap w-full"
+      class={`flex flex-row items-center justify-center gap-1 whitespace-nowrap w-full${
+        isUnavailable() ? " rating-cell-unavailable" : ""
+      }`}
       role="group"
       aria-label={`${props.label} rating: ${score()}${hasVotes() ? `, ${votes()} votes` : ""}`}
+      data-unavailable={isUnavailable() ? "true" : "false"}
     >
       {/* Brand logo box — official color + text.
           `flex-shrink-0` prevents the browser from squashing the logo

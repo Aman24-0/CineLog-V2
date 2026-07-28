@@ -1,6 +1,5 @@
 // src/features/details/components/MetadataGrid.tsx
 import { For, Show, createMemo, createSignal } from "solid-js";
-import { formatRuntime } from "~/shared/utils/format";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 
@@ -66,21 +65,24 @@ const COUNTRY_CURRENCY: Record<string, CurrencyInfo> = {
 };
 
 /**
- * Format a box-office revenue amount as "$1.2 million" / "$1.2 billion".
+ * Format a USD money amount as "$1.2 million" / "$1.2 billion".
  * Returns null when the value is missing or zero so the cell can be hidden.
+ *
+ * Shared by both Budget and Box Office cells — both come from TMDB as USD
+ * integers and use the same compact formatting.
  */
-function formatBoxOfficeUSD(revenue: number | undefined | null): string | null {
-  if (!revenue || revenue <= 0) return null;
+function formatMoneyUSD(amount: number | undefined | null): string | null {
+  if (!amount || amount <= 0) return null;
   const million = 1_000_000;
   const billion = 1_000_000_000;
-  if (revenue >= billion) {
-    return `$${(revenue / billion).toFixed(1)} billion`;
+  if (amount >= billion) {
+    return `$${(amount / billion).toFixed(1)} billion`;
   }
-  if (revenue >= million) {
-    return `$${(revenue / million).toFixed(1)} million`;
+  if (amount >= million) {
+    return `$${(amount / million).toFixed(1)} million`;
   }
   // Sub-million amounts — show as raw $ figure (e.g. "$450,000")
-  return `$${revenue.toLocaleString("en-US")}`;
+  return `$${amount.toLocaleString("en-US")}`;
 }
 
 /**
@@ -94,7 +96,7 @@ function formatBoxOfficeUSD(revenue: number | undefined | null): string | null {
  * Returns null if the country has no known currency mapping (caller
  * should fall back to USD).
  */
-function formatBoxOfficeLocal(
+function formatMoneyLocal(
   revenueUSD: number,
   region: string,
 ): string | null {
@@ -150,19 +152,12 @@ export default function MetadataGrid(props: MetadataGridProps) {
     const o = props.omdb;
     const list: MetaCell[] = [];
 
-    // Year
-    const year = (d?.release_date || d?.first_air_date || b?.release_date || b?.first_air_date || "").split("-")[0];
-    if (year) list.push({ label: "Year", value: year });
+    // Year, Type, and Runtime are intentionally NOT rendered here —
+    // the Hero section's quick-meta pills already display them, so
+    // duplicating them in the Details Grid was visual noise. See
+    // HeroContentCluster.tsx for the source-of-truth rendering.
 
-    // Type
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
-    list.push({ label: "Type", value: isTv ? "Series" : "Movie" });
-
-    // Runtime
-    const runtime = d?.runtime || d?.episode_run_time?.[0] || b?.runtime;
-    if (runtime && runtime > 0) {
-      list.push({ label: "Runtime", value: formatRuntime(runtime) || `${runtime}m` });
-    }
 
     // Status (TMDB)
     if (d?.status) {
@@ -187,13 +182,24 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "Studio", value: d.production_companies.slice(0, 2).map((p) => p.name).join(", ") });
     }
 
-    // Box Office (Movie only — from TMDB revenue)
-    // Hidden when revenue is 0 or unavailable (TMDB doesn't always have it).
+    // Budget (Movie only) — TMDB reports production budget in USD.
+    // Hidden when 0 or unavailable (TMDB doesn't always have it,
+    // and many indie films report $0 budget).
     if (!isTv) {
-      const boxOfficeUSD = formatBoxOfficeUSD(d?.revenue);
+      const budgetUSD = formatMoneyUSD(d?.budget);
+      if (budgetUSD) {
+        list.push({ label: "Budget", value: budgetUSD });
+      }
+    }
+
+    // Box Office / Revenue (Movie only) — from TMDB revenue.
+    // Hidden when revenue is 0 or unavailable.
+    // Tap-to-toggle currency conversion (USD ⇄ local) is preserved.
+    if (!isTv) {
+      const boxOfficeUSD = formatMoneyUSD(d?.revenue);
       if (boxOfficeUSD) {
         // When toggled on AND a local format exists, show local; else USD.
-        const localFormat = formatBoxOfficeLocal(d?.revenue ?? 0, region());
+        const localFormat = formatMoneyLocal(d?.revenue ?? 0, region());
         const showLocal = showLocalCurrency() && localFormat !== null;
         list.push({
           label: "Box Office",
@@ -237,7 +243,7 @@ export default function MetadataGrid(props: MetadataGridProps) {
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
     if (isTv) return false;
     if (!d?.revenue || d.revenue <= 0) return false;
-    return formatBoxOfficeLocal(d.revenue, region()) !== null;
+    return formatMoneyLocal(d.revenue, region()) !== null;
   });
 
   /** Click handler for the Box Office cell — flips the toggle. */

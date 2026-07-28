@@ -52,22 +52,13 @@ interface YourActivityCardProps {
 const YourActivityCard: Component<YourActivityCardProps> = (props) => {
   const [showRewatchDialog, setShowRewatchDialog] = createSignal(false);
 
-  const statusLabel = () => {
-    const s = props.vaultItem.status;
-    if (s === "Plan to Watch" || s === "Planned") return "Planned";
-    if (s === "Watching") return "Watching";
-    if (s === "Completed") return "Completed";
-    if (s === "Dropped") return "Dropped";
-    return s || "—";
-  };
-
-  const statusClass = () => {
-    const s = props.vaultItem.status;
-    if (s === "Watching") return "v2-pill-success";
-    if (s === "Completed") return "v2-pill-info";
-    if (s === "Dropped") return "v2-pill-danger";
-    return "v2-pill-accent";
-  };
+  // NOTE: The "Status" cell was removed from this card. Watch status is
+  // owned by the ActionDock's 4 dedicated status buttons (Planned /
+  // Watching / Completed / Dropped), which set the value directly via
+  // handleSetStatus and reflect the active state via the pressed
+  // highlight. Showing status here too was redundant. The remaining
+  // cells — Watched date, Your Rating, Date Added — are user-owned
+  // states that the ActionDock does NOT display, so they stay here.
 
   const isSeries = () => props.vaultItem.media_type === "tv";
 
@@ -265,14 +256,8 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         </div>
       </div>
 
-      {/* Activity cells — 2×2 grid */}
+      {/* Activity cells — 3 cells in a 2-col grid (third cell spans full width) */}
       <div class="your-activity-grid">
-        {/* Watch Status */}
-        <div class="your-activity-cell">
-          <span class="your-activity-cell-label">Status</span>
-          <span class={`v2-pill ${statusClass()}`}>{statusLabel()}</span>
-        </div>
-
         {/* Watch Date — clickable when there's per-season or rewatch detail */}
         <div class="your-activity-cell">
           <span class="your-activity-cell-label">Watched</span>
@@ -330,9 +315,9 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           </Show>
         </div>
 
-        {/* Date Added */}
+        {/* Date Added — full-width row when present (grid-column: 1 / -1) */}
         <Show when={dateAdded()}>
-          <div class="your-activity-cell">
+          <div class="your-activity-cell your-activity-cell-wide">
             <span class="your-activity-cell-label">Added</span>
             <span class="your-activity-cell-value your-activity-cell-muted">{dateAdded()}</span>
           </div>

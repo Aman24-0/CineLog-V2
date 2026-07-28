@@ -67,15 +67,13 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
     return path ? tmdbImage(path, "w342") : "";
   };
 
-  // Status pill — ONLY from the vault item. Never from baseItem.status
-  // (which may be a fake default set by Discover/Search for non-vault titles).
-  const statusLabel = () => {
-    const s = props.vaultItem?.status;
-    if (s === "Plan to Watch" || s === "Planned") return "Planned";
-    if (s === "Watching") return "Watching";
-    if (s === "Completed") return "Completed";
-    return null;
-  };
+  // NOTE: The Hero's quick-meta pills no longer render the watch-status
+  // pill ("Watching" / "Completed" / "Planned"). The ActionDock already
+  // owns status as its primary line-1 control (4 dedicated buttons that
+  // set the status directly), so the Hero pill was redundant and visually
+  // competing with the action bar. Status is still surfaced in the
+  // DetailsEditForm when explicitly editing — but read-only display is
+  // owned solely by the ActionDock's pressed-state highlight.
 
   return (
     <div class="hero-content-cluster">
@@ -120,7 +118,10 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           <p class="hero-tagline">{tagline()}</p>
         </Show>
 
-        {/* Quick metadata pills — TMDB data only (year, type, runtime) */}
+        {/* Quick metadata pills — TMDB data only (year, type, runtime).
+            The watch-status pill was intentionally removed — status is
+            owned by the ActionDock's 4 dedicated status buttons, which
+            highlight the active state with the accent color. */}
         <div class="hero-quick-meta">
           <Show when={year()}>
             <span class="v2-pill">{year()}</span>
@@ -128,12 +129,6 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           <span class="v2-pill">{isTv() ? "Series" : "Movie"}</span>
           <Show when={runtime() && runtime()! > 0}>
             <span class="v2-pill">{formatRuntime(runtime())}</span>
-          </Show>
-          {/* Status pill — user-owned, only when in vault */}
-          <Show when={statusLabel()}>
-            <span class={`v2-pill ${statusLabel() === "Watching" ? "v2-pill-success" : statusLabel() === "Completed" ? "v2-pill-info" : "v2-pill-accent"}`}>
-              {statusLabel()}
-            </span>
           </Show>
           {/* New Season badge — user-owned signal, only when in vault */}
           <Show when={props.vaultItem?.newSeasonAvailable}>
