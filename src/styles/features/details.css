@@ -208,11 +208,15 @@
   padding: 1rem 1.5rem 0.5rem;
   display: flex;
   gap: 1rem;
-  /* v2.7 — top-align so the poster anchors at the top alongside the title,
-     regardless of how short the title/tagline content is. Previously
-     `flex-end` caused the poster to drift down (vertically center / bottom)
-     when the right-hand text column had very little content. */
-  align-items: flex-start;
+  /* v2.8 — stretch alignment so the poster height dynamically matches
+     the height of the right-hand text column. Previously `flex-start`
+     (v2.7) pinned both children to the top, but the poster kept its
+     own aspect-ratio-derived height and left a gap below when the
+     text column was taller. `stretch` makes both columns the same
+     height; the poster wrapper no longer locks an aspect ratio (see
+     HeroContentCluster.tsx), so its height becomes 100% of the row
+     and the image fills it via object-cover. */
+  align-items: stretch;
   overflow: hidden;
   contain: content;
 }

@@ -282,16 +282,27 @@ export const SortControl: Component<{
 
   return (
     <div class="flex flex-col gap-1.5">
-      <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
-        Sort By
-      </span>
+      {/* v2.8 — internal "Sort By" label REMOVED.
+          VaultFiltersContent already renders a `<p class="filter-section-title">Sort By</p>`
+          section header (uppercase "SORT BY" with hairline rule) immediately
+          above this control, so rendering a second label here produced
+          "SORT BY" / "Sort By" stacked. The other filter primitives
+          (FilterSel, FilterChips, RangeFilter) DO keep their internal
+          labels because they are nested inside a `<div class="space-y-3">`
+          under their section title — they need the label to identify
+          which sub-filter they are. SortControl is the ONLY primitive
+          rendered directly under its section title, so the section
+          title alone is sufficient. */}
       {/* Compact side-by-side row: field selector (left, flex-1) +
           direction icon toggle (right, fixed 44×44). */}
       <div class="flex gap-2 w-full">
         {/* LEFT — Field dropdown.
-            `relative flex-1` so the absolute menu anchors here and the
-            selector takes the remaining horizontal space. */}
-        <div class="relative flex-1">
+            `relative flex-1 min-w-0` so the absolute menu anchors here,
+            the selector takes the remaining horizontal space, and the
+            `min-w-0` allows truncation to work inside flex children
+            (without it, flex items refuse to shrink below their
+            content's intrinsic min-width, breaking `truncate`). */}
+        <div class="relative flex-1 min-w-0">
           <button
             ref={fieldBtnRef}
             type="button"
@@ -310,19 +321,34 @@ export const SortControl: Component<{
           </button>
 
           {/* Inline dropdown menu — absolute-positioned inside the
-              `relative flex-1` wrapper. No <Portal>; the menu flows in
-              the drawer's own stacking + scroll context so it stays
-              anchored to the field button on every viewport. */}
+              `relative flex-1 min-w-0` wrapper. No <Portal>; the menu
+              flows in the drawer's own stacking + scroll context.
+
+              v2.8 fixes:
+              - Opens UPWARDS (`bottom-full mb-2` instead of `top-full
+                mt-2`) so the menu pops above the button. Previously
+                it opened downwards and was hidden behind the sticky
+                "CLEAR ALL / APPLY" footer at the bottom of the drawer.
+                Opening upwards keeps every option visible regardless
+                of how far the drawer is scrolled.
+              - `w-full max-w-full overflow-x-hidden` so long option
+                labels can never push the menu wider than the field
+                button's width (which previously broke the drawer
+                layout horizontally on mobile). Each option button
+                uses `truncate w-full text-left` so any overflow
+                gracefully cuts off with an ellipsis. */}
           <Show when={isOpen()}>
             <div
               ref={menuRef}
-              class="absolute top-full left-0 mt-2 w-full z-50 max-h-60 overflow-y-auto rounded-xl border animate-fade-in"
+              class="absolute bottom-full left-0 mb-2 w-full max-w-full overflow-x-hidden overflow-y-auto rounded-xl border animate-fade-in"
               style={{
                 background: "var(--glass-bg-strong)",
                 "backdrop-filter": "blur(20px) saturate(140%)",
                 "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
                 "border-color": "var(--hairline)",
                 "box-shadow": "var(--shadow-premium)",
+                "z-index": "50",
+                "max-height": "15rem",
                 padding: "0.25rem 0",
               }}
               role="listbox"
@@ -332,7 +358,7 @@ export const SortControl: Component<{
                 {(f) => (
                   <button
                     type="button"
-                    class="w-full text-left transition-colors focus-ring"
+                    class="w-full text-left truncate transition-colors focus-ring"
                     style={{
                       padding: "0.625rem 0.875rem",
                       background: f === props.field ? "var(--p-dim)" : "transparent",
@@ -340,6 +366,9 @@ export const SortControl: Component<{
                       "font-family": "'Outfit', sans-serif",
                       "font-size": "0.8125rem",
                       "font-weight": f === props.field ? 700 : 500,
+                      "overflow": "hidden",
+                      "text-overflow": "ellipsis",
+                      "white-space": "nowrap",
                     }}
                     onClick={() => {
                       props.setField(f);

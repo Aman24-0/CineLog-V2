@@ -79,21 +79,27 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
     <div class="hero-content-cluster">
       {/* Floating poster
           ────────────────────────────────────────────────────────────
-          Strict dimension + aspect-ratio constraints (v2.7 fix):
-          The poster wrapper uses Tailwind utilities `w-28 sm:w-36` for a
-          fixed width, `flex-shrink-0` to prevent flexbox squeezing, and
-          `aspect-[2/3]` to derive the height from the width. The strict
-          `aspect-[2/3]` + `flex-shrink-0` combo guarantees the poster
-          never stretches or warps to match the right-hand text column's
-          height, regardless of how much (or how little) title/tagline/
-          genre content is present. Combined with `align-items: flex-start`
-          on the cluster (see details.css), the poster is pinned to the
-          top edge alongside the title.
+          Dynamic-height poster (v2.8 fix):
+          The poster wrapper keeps its fixed width (`w-28 sm:w-36
+          flex-shrink-0`) but no longer locks an aspect ratio. The
+          height is driven by the right-hand text column via the
+          parent cluster's `align-items: stretch` (see details.css):
+          the wrapper stretches to whatever height the title + tagline
+          + quick-meta + genre chips add up to, and the image fills
+          it via `w-full h-full object-cover` without warping.
 
-          The image inside uses `w-full h-full object-cover` so it fills
-          the constrained wrapper perfectly without warping, regardless
-          of the source image's native dimensions. */}
-      <div class="floating-poster w-28 sm:w-36 flex-shrink-0 aspect-[2/3]">
+          This eliminates the previous gap-below-poster issue (when
+          the text column was taller than the locked 2:3 poster) and
+          the previous poster-drift issue (when the text column was
+          shorter and `align-items` drifted the poster to center/end).
+          Now the two columns are always the same height by construction.
+
+          `h-full` is the primary rule; `h-auto` is a belt-and-suspenders
+          fallback for any browser flexbox quirk where `stretch` +
+          `h-full` don't compose as expected. The wrapper's min-height
+          is left at auto so very short text columns still get at least
+          the image's natural height. */}
+      <div class="floating-poster w-28 sm:w-36 flex-shrink-0 h-full">
         <Show
           when={posterUrl()}
           fallback={
