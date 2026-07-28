@@ -122,6 +122,25 @@ export function vaultRowToWatchlistItem(
     //   have these fields — runtime stays undefined and the stats
     //   page treats it as 0 (graceful fallback until cache refreshes).
     runtime: computeRuntimeMinutes(row.media_type, tmdb),
+    // ── Cast & Director — powers vault search by actor/director name ──
+    // fetchTmdbMetadata (v3) requests append_to_response=credits and
+    // extracts the director name + top 15 cast names onto the TMDBTitle
+    // as `director` and `castList`. We hydrate these onto the
+    // WatchlistItem so matchSearch() in vaultFilterUtils can match
+    // queries like "Tom Holland" or "Christopher Nolan".
+    //
+    // FALLBACK CHAIN: CSV-imported / backup-restored items may already
+    // have `director` or `castList` set from the import payload — in
+    // that case we DON'T overwrite (the import data is authoritative
+    // for those items). For items added via normal TMDB search, the
+    // fields are undefined and we use the TMDB-derived values.
+    //
+    // Older cache entries (pre-this-change) won't have `director` /
+    // `castList` on the cached TMDBTitle — the search just won't match
+    // cast/director for those items until the cache expires (24h
+    // localStorage / 7d server) and the next fetch populates them.
+    director: tmdb?.director,
+    castList: Array.isArray(tmdb?.castList) ? tmdb.castList : undefined,
   };
 
   if (progress && row.media_type === "tv") {

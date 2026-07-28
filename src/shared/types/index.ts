@@ -106,6 +106,20 @@ export interface WatchlistItem {
   spoken_languages?: TMDBSpokenLanguage[];
   castList?: string[];
   director?: string;          // e.g. "Christopher Nolan" (searchable)
+  /**
+   * Full TMDB credits payload (cast + crew). Optional — populated when
+   * the vault item is enriched with TMDB credits data. Searched by
+   * matchSearch() in vaultFilterUtils so queries like "Tom Holland"
+   * (actor) or "Christopher Nolan" (director) match even when the
+   * flattened `castList` / `director` fields are absent.
+   *
+   * Note: most vault items do NOT carry this field — the vault list
+   * enrichment (userLibraryAdapter) populates the space-efficient
+   * `castList` + `director` summary instead. This field exists for
+   * items that have richer credits data (e.g. opened in the Details
+   * modal which fetches the full credits).
+   */
+  credits?: TMDBCredits;
   tag?: string;
   seasonDates?: Record<string, { start: string; end: string }>;
   franchises?: Record<string, number>;
@@ -663,6 +677,24 @@ export interface TMDBTitle {
    * (hi, ta, te, etc.) when origin_country is missing.
    */
   spoken_languages?: TMDBSpokenLanguage[];
+  /**
+   * Top cast member names (e.g. ["Tom Holland", "Zendaya", ...]).
+   * Populated by fetchTmdbMetadata when it requests
+   * append_to_response=credits — the top 15 cast names are extracted
+   * from credits.cast (ordered by `order`) and stored here as a
+   * space-efficient summary so the vault search index can match
+   * actor names without caching the full credits payload. The full
+   * credits object is stripped before caching to keep localStorage
+   * and the tmdb_cache table small.
+   */
+  castList?: string[];
+  /**
+   * Full credits payload — only present on freshly-fetched TMDBTitle
+   * objects (before caching). userLibraryAdapter reads this to hydrate
+   * WatchlistItem.credits for the Details modal; fetchTmdbMetadata
+   * strips it before returning so it's never persisted to cache.
+   */
+  credits?: TMDBCredits;
 }
 
 /**

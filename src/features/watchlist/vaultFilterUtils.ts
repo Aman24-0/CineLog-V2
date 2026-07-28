@@ -137,6 +137,15 @@ const toAddedAtMs = (v: WatchlistItem["addedAt"]) => toMs(v);
 // subsequent searches (including different queries) reuse the cached
 // string. The WeakMap lets GC reclaim entries when WatchlistItems are
 // removed from the vault.
+//
+// v3 — CREDITS SUPPORT: the search index now ALSO includes names from
+// `credits.cast` (all actor names) and `credits.crew` (director names,
+// filtered to job === "Director"). This makes searches like "Tom Holland"
+// or "Christopher Nolan" match even when the flattened `castList` /
+// `director` fields aren't populated (e.g. for items whose TMDB metadata
+// carries the full credits payload). For items that only have the
+// space-efficient `castList` + `director` summary (the common case from
+// userLibraryAdapter), those fields are already included below.
 const searchIndex = new WeakMap<WatchlistItem, string>();
 
 /** Build (or retrieve from cache) the lowercased searchable text for an item. */
@@ -153,10 +162,33 @@ function getSearchText(m: WatchlistItem): string {
       else if (g && typeof g === "object" && "name" in g) genresStr += " " + String((g as { name: unknown }).name);
     }
   }
-  // Build cast string without intermediate array
+  // Build cast string without intermediate array.
+  // `castList` is the space-efficient summary (top 15 names) populated
+  // by userLibraryAdapter from TMDB credits. This is the common case.
   let castStr = "";
   if (m.castList) {
     for (const c of m.castList) castStr += " " + c;
+  }
+  // Defensive: if the item carries the FULL credits payload (rare — only
+  // items opened in the Details modal hydrate this), include ALL cast
+  // names + director names from credits.crew. This catches the edge case
+  // where `castList` is absent but `credits` is present.
+  if (m.credits) {
+    if (Array.isArray(m.credits.cast)) {
+      for (const c of m.credits.cast) {
+        if (c && c.name) castStr += " " + c.name;
+      }
+    }
+    if (Array.isArray(m.credits.crew)) {
+      for (const member of m.credits.crew) {
+        // Only index Director crew entries — indexing ALL crew (gaffers,
+        // best boys, etc.) would pollute the search index and cause
+        // false-positive matches. Directors are the crew users search for.
+        if (member && member.job === "Director" && member.name) {
+          castStr += " " + member.name;
+        }
+      }
+    }
   }
   // Build platforms string without intermediate array
   let platformsStr = "";

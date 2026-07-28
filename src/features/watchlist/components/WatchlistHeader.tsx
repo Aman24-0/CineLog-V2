@@ -112,8 +112,20 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
               <Icon name="arrow_back" style={{ "font-size": "20px" }} aria-hidden="true" />
             </button>
 
-            {/* Search input — pl-10 (back arrow) + pr-16 (Clear button) so
-                text NEVER overlaps the icons. */}
+            {/* Search input — pl-10 (back arrow) + pr-12 (Clear button) so
+                text NEVER overlaps the icons.
+
+                v2 — TIGHTER RIGHT PADDING:
+                Previously pr-16 (4rem / 64px), which over-reserved space
+                for the Clear pill and truncated the long placeholder
+                ("Search title, cast, director, genre, platform, year...").
+                Now pr-12 (3rem / 48px) — the Clear pill is ~40px wide and
+                sits at right-2 (8px from the right edge), so 48px of right
+                padding clears it with no overlap while giving the placeholder
+                ~16px more breathing room. The native browser × (which used
+                to live in the right padding area and caused the "duplicate
+                clear buttons" bug) is hidden via `.search-premium::-webkit-
+                search-cancel-button` in watchlist.css. */}
             <input
               type="search"
               value={props.searchInput()}
@@ -125,7 +137,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
               class="search-premium w-full"
               style={{
                 "padding-left": "2.5rem",
-                "padding-right": "4rem",
+                "padding-right": "3rem",
                 "font-family": "'Outfit', sans-serif",
                 "font-size": "0.875rem",
                 "font-weight": 600,

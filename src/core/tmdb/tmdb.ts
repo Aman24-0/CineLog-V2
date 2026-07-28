@@ -197,6 +197,19 @@ export async function fetchPersonCombinedCredits(
  * The vault only stores user-owned state (status, rating, notes) + the
  * TMDB id — the title/poster must be fetched from TMDB on every load.
  *
+ * v3 — CREDITS FOR SEARCH:
+ *   Now requests `append_to_response=credits` so the cast & crew are
+ *   available to power vault search by actor/director name. The full
+ *   credits payload can be 50-100KB per title, which would blow past
+ *   localStorage limits if cached. So we extract a space-efficient
+ *   summary BEFORE returning:
+ *     - `director` (string) — first crew member with `job === "Director"`
+ *     - `castList` (string[]) — top 15 cast names (by `order`)
+ *   The full `credits` object is stripped from the returned TMDBTitle
+ *   so it's never persisted to the tmdb_cache table or localStorage.
+ *   userLibraryAdapter maps `director` + `castList` onto the
+ *   WatchlistItem, where matchSearch() picks them up.
+ *
  * Returns null on error so the caller can fall back to "Untitled" /
  * "NO POSTER" placeholders rather than crashing the whole vault render.
  *
@@ -208,10 +221,54 @@ export async function fetchTmdbMetadata(
   id: number | string,
 ): Promise<TMDBTitle | null> {
   try {
+    // append_to_response=credits fetches cast + crew in the same request
+    // so we can populate director + castList for vault search.
     const data = await tmdbFetch<TMDBTitle>(
-      `/${mediaType}/${id}?language=en-US`,
+      `/${mediaType}/${id}?language=en-US&append_to_response=credits`,
     );
-    return { ...data, media_type: mediaType };
+
+    // ── Extract director + top 15 cast names from credits ──────────
+    // We keep ONLY the names — not the full credits objects — so the
+    // cached TMDBTitle stays small (~1KB instead of ~50-100KB).
+    let director: string | undefined;
+    let castList: string[] | undefined;
+    const credits = data?.credits;
+    if (credits) {
+      // Director: first crew member with job === "Director" (TMDB
+      // typically lists the primary director first). TV series often
+      // have many directors across episodes; we take the first to
+      // keep the field a single searchable string.
+      if (Array.isArray(credits.crew)) {
+        for (const member of credits.crew) {
+          if (member && member.job === "Director" && member.name) {
+            director = member.name;
+            break;
+          }
+        }
+      }
+      // Cast: top 15 by `order` (TMDB sorts by billing — order 0 is
+      // the lead). 15 is enough to cover the main cast users search
+      // for without bloating the cache entry.
+      if (Array.isArray(credits.cast)) {
+        const top: string[] = [];
+        for (let i = 0; i < credits.cast.length && top.length < 15; i++) {
+          const c = credits.cast[i];
+          if (c && c.name) top.push(c.name);
+        }
+        if (top.length > 0) castList = top;
+      }
+    }
+
+    // Strip the full credits payload before returning so it's not
+    // cached. The extracted director + castList are the space-efficient
+    // summary that powers vault search.
+    const { credits: _strippedCredits, ...trimmed } = data;
+    return {
+      ...trimmed,
+      media_type: mediaType,
+      ...(director !== undefined && { director }),
+      ...(castList !== undefined && { castList }),
+    };
   } catch (err) {
     console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);
     return null;

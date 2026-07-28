@@ -406,6 +406,24 @@
   box-shadow: 0 0 0 3px var(--p-dim);
   background: var(--tier-2);
 }
+/* HIDE the native browser-rendered clear (×) button on <input type="search">.
+   WebKit/Chromium-based browsers (including Android Chrome) render a small
+   "x" icon inside search inputs when text is present. In the WatchlistHeader
+   expanded search, we already render a custom "Clear" pill button that
+   clears BOTH the search query AND all active filters — the native × only
+   clears the text, which is redundant and confusing. Hiding the native ×
+   leaves a single, unambiguous Clear affordance and reclaims the right
+   padding so the placeholder can span more of the input width. */
+.search-premium::-webkit-search-cancel-button {
+  -webkit-appearance: none;
+  appearance: none;
+  display: none;
+}
+.search-premium::-ms-clear {
+  display: none;
+  width: 0;
+  height: 0;
+}
 
 /* Glass view-mode toggle */
 .view-toggle {
