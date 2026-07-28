@@ -1,6 +1,5 @@
 // src/features/watchlist/components/FilterControls.tsx
 import { For, Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
-import Icon from "~/shared/ui/Icon";
 import type { SortField, SortDirection } from "~/shared/types";
 
 /**
@@ -127,32 +126,46 @@ export const RangeFilter: Component<{
 );
 
 // ── SORT CONTROL ─────────────────────────────────────────────────────────
-// v2.6 — replaces the previous <FilterSel label="Order" ...> sort dropdown.
-// The previous UI exposed 9 sort "modes" as a single bloated <select>.
-// v2.7 — drops <Portal> and rewrites the dropdown as an inline
-// relative/absolute layer. Rationale: the filter drawer establishes
-// multiple overflow + transform contexts that broke the portal's
-// fixed positioning on mobile (menu clipped, off-screen, or unopenable).
-// Rendering the menu as an absolute child of the field selector's
-// `relative flex-1` wrapper keeps it anchored to the button, and the
-// `max-h-60 overflow-y-auto` cap keeps the menu scrollable within the
-// drawer's own scroll area.
+// v2.9 — rewritten with a strict structural skeleton to fix the
+// overlapping/squished button regression introduced in v2.8.
 //
-// LAYOUT:
-//   Row: `flex gap-2 w-full`
-//   LEFT  — `relative flex-1` wrapper holding the field button + the
-//           absolute dropdown menu (`top-full left-0 mt-2 w-full z-50`).
-//   RIGHT — Compact square icon toggle (`w-11 h-11 flex-shrink-0`)
-//           showing arrow_downward (desc) or arrow_upward (asc).
-//           Text labels were too wide for mobile alongside the field
-//           selector; the icon is universal and takes a fixed 44×44.
+// KEY STRUCTURAL RULES (do not regress):
+//   1. The OUTER row is `flex items-center gap-2 w-full` — exactly two
+//      flex children: the LEFT wrapper and the RIGHT toggle button.
+//   2. The LEFT wrapper is `relative flex-1 min-w-0` and contains
+//      BOTH the trigger button AND the dropdown menu div. `min-w-0`
+//      is critical: without it, flex children refuse to shrink below
+//      their content's intrinsic min-width, and long option labels
+//      would force the whole row wider than the drawer.
+//   3. The trigger button is `w-full flex items-center justify-between`
+//      — NOT absolute. It participates in normal flow so the wrapper
+//      has a measurable height for the menu's `bottom-full` to anchor.
+//   4. The dropdown menu div is the ONLY absolutely-positioned element.
+//      It uses `bottom-full left-0 mb-2 w-full` to pop UPWARDS from
+//      the trigger button (avoids the sticky CLEAR ALL / APPLY footer).
+//   5. The RIGHT toggle is a fixed `w-11 h-11 flex-shrink-0` square.
+//      `flex-shrink-0` prevents it from being squeezed by the LEFT
+//      wrapper under any width pressure.
+//
+// No <Portal>. No absolute positioning on the buttons themselves.
+// Only the dropdown menu div is absolute.
 //
 // REACTIVITY:
-//   - `isOpen` signal controls the dropdown menu visibility.
-//   - `dirLabel` memo still recomputes for the aria-label so screen
-//     readers announce direction in friendly field-specific language.
-//   - Click-outside + scroll + resize listeners are registered in onMount
-//     and cleaned up in onCleanup (no leaks across drawer open/close).
+//   - `isOpen` signal controls dropdown visibility.
+//   - `currentFieldLabel` memo recomputes on sortField change.
+//   - `directionLabel` memo recomputes on sortField/sortDirection change
+//     and is used for the aria-label (screen-reader-friendly, field-
+//     specific language like "Newest First" / "High to Low" / "Z → A").
+//   - Click-outside + scroll + resize listeners are registered in
+//     onMount (SSR-safe) and cleaned up in onCleanup.
+//
+// PROP API (v2.9):
+//   Switched from { field, direction, setField, setDirection } to
+//   { filters, onChange } so the control owns nothing and the parent
+//   stays the single source of truth. `filters` is a structural slice
+//   ({ sortField, sortDirection }) — the parent passes its full
+//   VaultFilters object and the spread inside this component preserves
+//   every other filter field when emitting onChange.
 
 /** Canonical ordered list of all sortable fields. The order here is the
  *  order shown in the dropdown menu. Add new fields to this array AND to
@@ -187,18 +200,18 @@ function fieldLabel(f: SortField): string {
 }
 
 /**
- * Direction toggle label, field-dependent.
+ * Direction toggle label, field-dependent. Used for the aria-label so
+ * screen readers announce direction in friendly field-specific language.
  *
  * Conventions:
- *   - ↓  = sortDirection "desc" (larger values at the top of the list)
- *   - ↑  = sortDirection "asc"  (smaller values at the top of the list)
- *   - The text after the arrow describes what the user sees top-to-bottom.
+ *   - ↓ = sortDirection "desc" (larger values at the top of the list)
+ *   - ↑ = sortDirection "asc"  (smaller values at the top of the list)
  *
  * For title, "desc" = Z → A (alphabetical descending) and "asc" = A → Z.
  * This matches the pattern of the other dimensions (desc = larger first)
  * and keeps the arrow semantics consistent across all fields.
  */
-function directionLabel(field: SortField, direction: SortDirection): string {
+function directionLabelText(field: SortField, direction: SortDirection): string {
   const isTitle = field === "title";
   const isDate = field === "release_date" || field === "added_date" || field === "watch_date";
   if (isTitle) {
@@ -211,36 +224,41 @@ function directionLabel(field: SortField, direction: SortDirection): string {
   return direction === "desc" ? "↓ High to Low" : "↑ Low to High";
 }
 
+/** Static dropdown options array — derived once from ALL_SORT_FIELDS.
+ *  Used by the <For each={SORT_OPTIONS}> render. */
+const SORT_OPTIONS: { value: SortField; label: string }[] = ALL_SORT_FIELDS.map((f) => ({
+  value: f,
+  label: fieldLabel(f),
+}));
+
 export const SortControl: Component<{
-  /** Currently selected sort field */
-  field: SortField;
-  /** Currently selected sort direction */
-  direction: SortDirection;
-  /** Setter for sortField — called when user picks an option from the dropdown */
-  setField: (f: SortField) => void;
-  /** Setter for sortDirection — called when user clicks the direction toggle */
-  setDirection: (d: SortDirection) => void;
+  /** Current filter state. Accepts the parent's full VaultFilters object
+   *  (only `sortField` + `sortDirection` are read here); the spread
+   *  inside this component preserves all other fields when emitting
+   *  `onChange`, so non-sort filters are never clobbered. */
+  filters: { sortField: SortField; sortDirection: SortDirection };
+  /** Called with the next sort-state slice whenever the user changes the
+   *  sort field or direction. The caller merges it into their filter
+   *  store (e.g. via `batchedSet(next)`). */
+  onChange: (next: { sortField: SortField; sortDirection: SortDirection }) => void;
 }> = (props) => {
   // Dropdown open/close state. SolidJS signal — reactivity-safe.
   const [isOpen, setIsOpen] = createSignal(false);
 
-  // Refs — assigned during render via ref={...}. Typed as `undefined`
-  // initially because SolidJS refs run after the first render.
-  let fieldBtnRef: HTMLButtonElement | undefined;
+  // Single ref on the LEFT wrapper — covers BOTH the trigger button
+  // AND the menu div, so click-outside detection is one `contains()`
+  // check instead of two refs. (v2.9 simplification.)
   let menuRef: HTMLDivElement | undefined;
 
-  const openMenu = () => setIsOpen(true);
-  const closeMenu = () => setIsOpen(false);
-  const toggleMenu = () => (isOpen() ? closeMenu() : openMenu());
+  /** Label of the currently selected sort field. Recomputes on
+   *  props.filters.sortField change. */
+  const currentFieldLabel = createMemo(() => fieldLabel(props.filters.sortField));
 
-  /** Flip the direction between "asc" and "desc". */
-  const toggleDirection = () => {
-    props.setDirection(props.direction === "desc" ? "asc" : "desc");
-  };
-
-  /** Live direction label — recomputes whenever field or direction changes.
-   *  Used only for the aria-label now; the visible UI is the icon. */
-  const dirLabel = createMemo(() => directionLabel(props.field, props.direction));
+  /** Field-aware direction label for the aria-label (e.g. "Newest First",
+   *  "High to Low", "Z → A"). Recomputes on field or direction change. */
+  const directionLabel = createMemo(() =>
+    directionLabelText(props.filters.sortField, props.filters.sortDirection),
+  );
 
   // ── Click-outside + scroll + resize listeners ─────────────────────────
   // Registered in onMount so they're attached only on the client (SSR-safe)
@@ -253,20 +271,17 @@ export const SortControl: Component<{
       if (!isOpen()) return;
       const target = e.target as Node | null;
       if (!target) return;
-      // Click on the field button itself — let the button's onClick
-      // handle the toggle, don't double-close here.
-      if (fieldBtnRef && fieldBtnRef.contains(target)) return;
-      // Click inside the dropdown menu — let the option's onClick handle
-      // the selection, don't close here.
+      // Click inside the LEFT wrapper (button or menu) — let the
+      // respective onClick handle it, don't close here.
       if (menuRef && menuRef.contains(target)) return;
       // Click anywhere else — close.
-      closeMenu();
+      setIsOpen(false);
     };
     // Close on any scroll (capture: true catches scroll events on inner
     // containers, not just window) and on resize, since the field
     // button's position would no longer match the menu's position.
     const onScrollOrResize = () => {
-      if (isOpen()) closeMenu();
+      if (isOpen()) setIsOpen(false);
     };
 
     document.addEventListener("mousedown", onPointerDown);
@@ -281,136 +296,106 @@ export const SortControl: Component<{
   });
 
   return (
-    <div class="flex flex-col gap-1.5">
-      {/* v2.8 — internal "Sort By" label REMOVED.
-          VaultFiltersContent already renders a `<p class="filter-section-title">Sort By</p>`
-          section header (uppercase "SORT BY" with hairline rule) immediately
-          above this control, so rendering a second label here produced
-          "SORT BY" / "Sort By" stacked. The other filter primitives
-          (FilterSel, FilterChips, RangeFilter) DO keep their internal
-          labels because they are nested inside a `<div class="space-y-3">`
-          under their section title — they need the label to identify
-          which sub-filter they are. SortControl is the ONLY primitive
-          rendered directly under its section title, so the section
-          title alone is sufficient. */}
-      {/* Compact side-by-side row: field selector (left, flex-1) +
-          direction icon toggle (right, fixed 44×44). */}
-      <div class="flex gap-2 w-full">
-        {/* LEFT — Field dropdown.
-            `relative flex-1 min-w-0` so the absolute menu anchors here,
-            the selector takes the remaining horizontal space, and the
-            `min-w-0` allows truncation to work inside flex children
-            (without it, flex items refuse to shrink below their
-            content's intrinsic min-width, breaking `truncate`). */}
-        <div class="relative flex-1 min-w-0">
-          <button
-            ref={fieldBtnRef}
-            type="button"
-            class="filter-select-premium w-full flex items-center justify-between gap-2"
-            onClick={toggleMenu}
-            aria-haspopup="listbox"
-            aria-expanded={isOpen()}
-            aria-label={`Sort by field — currently ${fieldLabel(props.field)}`}
-          >
-            <span class="truncate">{fieldLabel(props.field)}</span>
-            <Icon
-              name={isOpen() ? "expand_less" : "expand_more"}
-              style={{ "font-size": "18px", "flex-shrink": "0", color: "var(--text-soft)" }}
-              aria-hidden="true"
-            />
-          </button>
+    <div class="flex items-center gap-2 w-full">
 
-          {/* Inline dropdown menu — absolute-positioned inside the
-              `relative flex-1 min-w-0` wrapper. No <Portal>; the menu
-              flows in the drawer's own stacking + scroll context.
+      {/* LEFT SIDE: Field Selector & Dropdown Menu
+          ────────────────────────────────────────────────────────────
+          `relative` anchors the absolute menu; `flex-1 min-w-0` lets the
+          wrapper take the remaining space AND shrink so `truncate` works
+          inside (long option labels won't push the row wider than the
+          drawer). `ref={menuRef}` is on THIS wrapper (not the menu div)
+          so click-outside detection covers both the button and the menu
+          with a single `contains()` check. */}
+      <div class="relative flex-1 min-w-0" ref={menuRef}>
 
-              v2.8 fixes:
-              - Opens UPWARDS (`bottom-full mb-2` instead of `top-full
-                mt-2`) so the menu pops above the button. Previously
-                it opened downwards and was hidden behind the sticky
-                "CLEAR ALL / APPLY" footer at the bottom of the drawer.
-                Opening upwards keeps every option visible regardless
-                of how far the drawer is scrolled.
-              - `w-full max-w-full overflow-x-hidden` so long option
-                labels can never push the menu wider than the field
-                button's width (which previously broke the drawer
-                layout horizontally on mobile). Each option button
-                uses `truncate w-full text-left` so any overflow
-                gracefully cuts off with an ellipsis. */}
-          <Show when={isOpen()}>
-            <div
-              ref={menuRef}
-              class="absolute bottom-full left-0 mb-2 w-full max-w-full overflow-x-hidden overflow-y-auto rounded-xl border animate-fade-in"
-              style={{
-                background: "var(--glass-bg-strong)",
-                "backdrop-filter": "blur(20px) saturate(140%)",
-                "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
-                "border-color": "var(--hairline)",
-                "box-shadow": "var(--shadow-premium)",
-                "z-index": "50",
-                "max-height": "15rem",
-                padding: "0.25rem 0",
-              }}
-              role="listbox"
-              aria-label="Sort field"
-            >
-              <For each={ALL_SORT_FIELDS}>
-                {(f) => (
-                  <button
-                    type="button"
-                    class="w-full text-left truncate transition-colors focus-ring"
-                    style={{
-                      padding: "0.625rem 0.875rem",
-                      background: f === props.field ? "var(--p-dim)" : "transparent",
-                      color: f === props.field ? "var(--p)" : "var(--text-body)",
-                      "font-family": "'Outfit', sans-serif",
-                      "font-size": "0.8125rem",
-                      "font-weight": f === props.field ? 700 : 500,
-                      "overflow": "hidden",
-                      "text-overflow": "ellipsis",
-                      "white-space": "nowrap",
-                    }}
-                    onClick={() => {
-                      props.setField(f);
-                      closeMenu();
-                    }}
-                    role="option"
-                    aria-selected={f === props.field}
-                    onMouseEnter={(e) => {
-                      if (f !== props.field) {
-                        e.currentTarget.style.background = "rgba(255,255,255,0.04)";
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      e.currentTarget.style.background = f === props.field ? "var(--p-dim)" : "transparent";
-                    }}
-                  >
-                    {fieldLabel(f)}
-                  </button>
-                )}
-              </For>
-            </div>
-          </Show>
-        </div>
-
-        {/* RIGHT — Compact direction toggle (square icon button).
-            Material Symbols: arrow_downward = desc, arrow_upward = asc.
-            The field-dependent directionLabel is kept only for the
-            aria-label so screen readers still announce "Newest First",
-            "High to Low", "Z → A", etc. in friendly language. */}
+        {/* 1. Main Dropdown Trigger Button
+            NOT absolute — participates in normal flow so the wrapper has
+            a measurable height for the menu's `bottom-full` to anchor. */}
         <button
           type="button"
-          class="filter-select-premium w-11 h-11 flex-shrink-0 flex items-center justify-center focus-ring"
-          onClick={toggleDirection}
-          aria-label={`Sort direction — currently ${dirLabel()}`}
+          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-[var(--tier-2)] text-[var(--text)]"
+          style={{ "border-color": "var(--hairline)" }}
+          onClick={() => setIsOpen(!isOpen())}
+          aria-haspopup="listbox"
+          aria-expanded={isOpen()}
+          aria-label={`Sort by field — currently ${currentFieldLabel()}`}
         >
-          <Icon
-            name={props.direction === "desc" ? "arrow_downward" : "arrow_upward"}
-            style={{ "font-size": "20px", color: "var(--text-strong)" }}
+          <span class="truncate text-sm font-medium">{currentFieldLabel()}</span>
+          <span
+            class="material-symbols-outlined text-lg text-[var(--text-muted)]"
             aria-hidden="true"
-          />
+          >
+            {isOpen() ? "expand_less" : "expand_more"}
+          </span>
         </button>
+
+        {/* 2. The Pop-UP Menu (Opens UPWARDS to avoid footer)
+            The ONLY absolutely-positioned element. `bottom-full mb-2`
+            pops it above the trigger button so it never gets hidden
+            behind the sticky CLEAR ALL / APPLY footer at the drawer's
+            bottom. `max-h-60 overflow-y-auto` caps the visible height
+            so all 9 options are reachable even on short viewports.
+            `overflow-x-hidden` + each option's `truncate` keep long
+            labels from forcing the menu wider than the trigger. */}
+        <Show when={isOpen()}>
+          <div
+            class="absolute bottom-full left-0 mb-2 w-full max-h-60 overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] backdrop-blur-xl z-[100] shadow-elevated"
+            style={{ "border-color": "var(--hairline)" }}
+            role="listbox"
+            aria-label="Sort field"
+          >
+            <For each={SORT_OPTIONS}>
+              {(option) => (
+                <button
+                  type="button"
+                  class="w-full text-left px-4 py-3 text-sm truncate hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  classList={{
+                    "text-[var(--p)] font-bold": props.filters.sortField === option.value,
+                    "text-[var(--text-body)] font-medium": props.filters.sortField !== option.value,
+                  }}
+                  style={{
+                    background:
+                      props.filters.sortField === option.value ? "var(--p-dim)" : "transparent",
+                  }}
+                  onClick={() => {
+                    props.onChange({
+                      ...props.filters,
+                      sortField: option.value,
+                    });
+                    setIsOpen(false);
+                  }}
+                  role="option"
+                  aria-selected={props.filters.sortField === option.value}
+                >
+                  {option.label}
+                </button>
+              )}
+            </For>
+          </div>
+        </Show>
       </div>
+
+      {/* RIGHT SIDE: Direction Toggle Button
+          Fixed 44×44 square, `flex-shrink-0` so it never gets squeezed
+          by the LEFT wrapper under width pressure. Material Symbols:
+          arrow_downward = desc, arrow_upward = asc. */}
+      <button
+        type="button"
+        class="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl border bg-[var(--tier-2)] text-[var(--text)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        style={{ "border-color": "var(--hairline)" }}
+        onClick={() =>
+          props.onChange({
+            ...props.filters,
+            sortDirection: props.filters.sortDirection === "asc" ? "desc" : "asc",
+          })
+        }
+        aria-label={`Sort direction — currently ${directionLabel()}`}
+      >
+        <span class="material-symbols-outlined text-xl" aria-hidden="true">
+          {props.filters.sortDirection === "desc" ? "arrow_downward" : "arrow_upward"}
+        </span>
+      </button>
+
     </div>
   );
 };

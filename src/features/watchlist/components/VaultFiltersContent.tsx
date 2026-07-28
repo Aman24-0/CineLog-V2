@@ -2,7 +2,7 @@
 import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { FilterSel, RangeFilter, FilterChips, SortControl } from "./FilterControls";
-import type { VaultFilters as FilterType, SortField, SortDirection } from "~/shared/types";
+import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 
 /**
@@ -146,21 +146,18 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
         </div>
       </div>
 
-      {/* SORT section — v2.6 redesign.
-          Replaced the previous single <FilterSel> with 9 hardcoded
-          "Recently Added / IMDb High→Low / ..." options in favor of
-          SortControl: a side-by-side field dropdown + direction toggle.
-          This collapses 17+ sort combinations into 9 fields × 2 directions
-          and replaces the native <select> (which rendered an OS-default
-          white/grey menu that broke the dark glass theme) with a custom
-          SolidJS dropdown portal-rendered to body. */}
+      {/* SORT section — v2.9 redesign.
+          SortControl now takes the full `filters` object + an `onChange`
+          callback (replacing the previous field/direction/setField/
+          setDirection quad). The control owns nothing — the parent stays
+          the single source of truth. `onChange` receives a partial
+          `{ sortField, sortDirection }` slice which `batchedSet` merges
+          into the filter store in a single batched update. */}
       <div>
         <p class="filter-section-title">Sort By</p>
         <SortControl
-          field={props.filters.sortField}
-          direction={props.filters.sortDirection}
-          setField={(f: SortField) => batchedSet({ sortField: f })}
-          setDirection={(d: SortDirection) => batchedSet({ sortDirection: d })}
+          filters={props.filters}
+          onChange={(next) => batchedSet(next)}
         />
       </div>
 
