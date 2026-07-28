@@ -12,6 +12,8 @@ import type {
 } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/core/preferences";
+import { isServer } from "solid-js/web";
+import { getBaseUrl } from "~/shared/utils/share";
 
 // TMDB_KEY is kept for backward compatibility with files that import it,
 // but it is no longer used in fetch calls — the server proxy injects
@@ -24,6 +26,31 @@ const IMG_BASE = "https://image.tmdb.org/t/p";
 // which injects the API key server-side and adds caching/retry logic.
 // This fixes ISP/DNS blocking in certain regions and keeps the key hidden.
 const API = "/api/media";
+
+/**
+ * Resolve the API base URL for fetch().
+ *
+ * On the CLIENT, relative URLs ("/api/media/...") work because the browser
+ * resolves them against the current page origin.
+ *
+ * On the SERVER (Node.js / Vercel serverless), fetch() requires an
+ * ABSOLUTE URL — relative URLs throw `TypeError: Invalid URL`. This is
+ * the root cause of the OG-tag SSR bug: the deep-link routes
+ * (src/routes/movie/[id].tsx, src/routes/tv/[id].tsx) call
+ * fetchTmdbMetadata() inside createResource({ deferStream: true }) so
+ * the SSR HTML is supposed to contain the per-title og:title / og:image
+ * tags. But if the server-side fetch throws, meta() resolves to null
+ * and the OG tags fall back to the generic "CineLog" defaults — so
+ * WhatsApp/Telegram/Slack scrapers see the app icon instead of the
+ * movie poster.
+ *
+ * Fix: when isServer, prepend the absolute base URL (configured via
+ * VITE_APP_BASE_URL, defaulting to the production Vercel URL) so the
+ * serverless function can call its own /api/media/* endpoints.
+ */
+function apiBaseUrl(): string {
+  return isServer ? getBaseUrl() : "";
+}
 
 /**
  * Build a TMDB image URL. Sizes follow TMDB's documented w-pixel conventions.
@@ -77,7 +104,8 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
       const timeoutId = setTimeout(() => controller.abort(), 10000);
       try {
         // API key is injected by the server proxy — no need to include it here.
-        const res = await fetch(`${API}${finalEndpoint}`, {
+        // On the server we need an absolute URL (see apiBaseUrl() doc).
+        const res = await fetch(`${apiBaseUrl()}${API}${finalEndpoint}`, {
           signal: controller.signal,
         });
         if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);

@@ -143,8 +143,14 @@ export default function TvDeepLinkRoute() {
     meta()?.name ? `${meta()!.name} — CineLog` : "CineLog";
   const ogDescription = () =>
     meta()?.overview ?? "Track your movies and shows on CineLog.";
+  // Use the absolute TMDB image URL. WhatsApp/Telegram/Slack scrapers
+  // REQUIRE an absolute URL (https://...) — relative URLs are ignored
+  // and the scraper falls back to the apple-touch-icon (the bug we're
+  // fixing). tmdbImage() already returns an absolute URL.
   const ogImage = () =>
     meta()?.poster_path ? tmdbImage(meta()!.poster_path, "w500") : "";
+  const ogImageAlt = () =>
+    meta()?.name ? `${meta()!.name} series poster` : "Series poster";
   const ogUrl = () => `${getBaseUrl()}/tv/${params.id}`;
 
   return (
@@ -152,24 +158,52 @@ export default function TvDeepLinkRoute() {
       <Title>{ogTitle()}</Title>
       <Meta name="description" content={ogDescription()} />
 
-      {/* Open Graph — server-rendered for chat-app scrapers */}
+      {/* Open Graph meta tags — rendered SERVER-SIDE so chat-app
+          scrapers (WhatsApp, iMessage, Telegram, Slack, Twitter)
+          see the per-series title + poster without running JS.
+
+          CRITICAL: og:title / og:description / og:url are rendered
+          UNCONDITIONALLY (not inside <Show>) so they always appear in
+          the SSR HTML even if the poster is missing. og:image is
+          wrapped in <Show> because an empty og:image is worse than
+          none (some scrapers reject the preview entirely).
+
+          og:image:width / og:image:height are REQUIRED by WhatsApp
+          and Facebook to render the preview thumbnail — without them,
+          the scraper may fall back to the apple-touch-icon even when
+          og:image is correctly set. TMDB w500 posters are 500x750
+          (2:3 aspect ratio).
+
+          og:image:secure_url is a fallback for scrapers that prefer
+          the HTTPS-specific tag over og:image (some older crawlers).
+
+          og:site_name and og:locale are domain-wide hints but
+          repeating them per-route doesn't hurt and helps scrapers
+          that don't read the global tags. */}
       <Meta property="og:title" content={ogTitle()} />
       <Meta property="og:type" content="video.episode" />
       <Meta property="og:description" content={ogDescription()} />
       <Meta property="og:url" content={ogUrl()} />
+      <Meta property="og:site_name" content="CineLog" />
+      <Meta property="og:locale" content="en_US" />
       <Show when={ogImage()}>
         <Meta property="og:image" content={ogImage()} />
-        <Meta
-          property="og:image:alt"
-          content={meta()?.name ? `${meta()!.name} series poster` : "Series poster"}
-        />
+        <Meta property="og:image:secure_url" content={ogImage()} />
+        <Meta property="og:image:type" content="image/jpeg" />
+        <Meta property="og:image:width" content="500" />
+        <Meta property="og:image:height" content="750" />
+        <Meta property="og:image:alt" content={ogImageAlt()} />
       </Show>
 
-      {/* Twitter Card tags */}
+      {/* Twitter Card tags — also picked up by some messengers.
+          twitter:card=summary_large_image tells Twitter/X to render
+          a large image preview (rather than a small square). */}
+      <Meta name="twitter:card" content="summary_large_image" />
       <Meta name="twitter:title" content={ogTitle()} />
       <Meta name="twitter:description" content={ogDescription()} />
+      <Meta name="twitter:image" content={ogImage()} />
       <Show when={ogImage()}>
-        <Meta name="twitter:image" content={ogImage()} />
+        <Meta name="twitter:image:alt" content={ogImageAlt()} />
       </Show>
 
       {/* The deep-link route uses a <div role="region"> (NOT <main>) so

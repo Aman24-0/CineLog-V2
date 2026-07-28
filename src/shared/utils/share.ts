@@ -24,6 +24,33 @@
 import type { TMDBDetails, WatchlistItem } from "~/shared/types";
 
 /**
+ * Shape of a single service's rating (IMDb / RT / Metacritic).
+ *
+ * This structurally matches `ServiceRating` from
+ * `~/features/details/useMdbListRatings` so callers can pass the
+ * `RatingsPayload` returned by `useMdbListRatings` directly without
+ * any conversion. We define it locally (rather than importing it) to
+ * avoid a `shared → features` dependency direction.
+ */
+export interface ShareServiceRating {
+  /** Display score, e.g. "8.0", "85%", "77". "NR" if unavailable. */
+  score: string;
+  /** Compact vote count, e.g. "11K", "432". "0" if unavailable. */
+  votes: string;
+}
+
+/**
+ * The MDBList ratings payload accepted by `buildShareText` /
+ * `buildShareTextBody`. Structurally compatible with the
+ * `RatingsPayload` returned by `useMdbListRatings`.
+ */
+export interface ShareMdbRatings {
+  imdb: ShareServiceRating | null;
+  rottenTomatoes: ShareServiceRating | null;
+  metacritic: ShareServiceRating | null;
+}
+
+/**
  * The canonical base URL for deep links.
  *
  * Priority:
@@ -131,6 +158,50 @@ export function formatRating(voteAverage: number | undefined | null): string {
 }
 
 /**
+ * Format a single MDBList service rating into a share-friendly token.
+ *
+ *   IMDb       → "7.5/10"  (already includes the /10 scale)
+ *   RT         → "85%"     (already includes the % sign)
+ *   Metacritic → "70"      (0-100 scale, no suffix)
+ *
+ * Returns "" if the rating is missing, "NR", or "0" — we don't want
+ * to pollute the share text with "NR" placeholders for services that
+ * don't have a score for this title.
+ */
+function formatMdbRating(rating: ShareServiceRating | null | undefined): string {
+  if (!rating) return "";
+  const score = (rating.score ?? "").trim();
+  if (!score || score === "NR" || score === "0") return "";
+  return score;
+}
+
+/**
+ * Build a single-line ratings summary from the MDBList payload.
+ *
+ * Returns a string like:
+ *   "IMDb: 7.5/10 | RT: 85% | MC: 70"
+ *
+ * Only services with a usable score are included. Returns "" if no
+ * service has a score (in which case the caller falls back to the
+ * TMDB vote_average line).
+ *
+ * The separators (" | ") are chosen to render correctly in WhatsApp,
+ * Telegram, SMS, and email — no special characters that get mangled
+ * by chat-app text formatting.
+ */
+export function formatMdbRatingsLine(mdb: ShareMdbRatings | null | undefined): string {
+  if (!mdb) return "";
+  const parts: string[] = [];
+  const imdb = formatMdbRating(mdb.imdb);
+  if (imdb) parts.push(`IMDb: ${imdb}`);
+  const rt = formatMdbRating(mdb.rottenTomatoes);
+  if (rt) parts.push(`RT: ${rt}`);
+  const mc = formatMdbRating(mdb.metacritic);
+  if (mc) parts.push(`MC: ${mc}`);
+  return parts.join(" | ");
+}
+
+/**
  * Truncate a string to `max` characters, appending an ellipsis if cut.
  * Used for the overview paragraph on the share card (otherwise long
  * overviews blow out the card height).
@@ -154,7 +225,8 @@ export function truncateOverview(text: string, max = 280): string {
  *
  * Layout:
  *   🎬 {Title}
- *   ⭐ Rating: {X.X/10}
+ *   ⭐ Ratings: IMDb: 7.5/10 | RT: 85% | MC: 70   (if mdbRatings provided)
+ *   ⭐ Rating: {X.X/10}                            (fallback: TMDB only)
  *   📅 Released: {Mon D, YYYY}
  *   🎭 {Genre1, Genre2, Genre3}
  *   📖 {Overview (truncated)}
@@ -167,13 +239,20 @@ export function truncateOverview(text: string, max = 280): string {
  * for clipboard copies (Copy Text). For `navigator.share({ url })`,
  * use `buildShareTextBody()` instead — passing `url` separately avoids
  * the link appearing twice in the shared message.
+ *
+ * @param mdbRatings Optional MDBList ratings payload (IMDb / RT / MC).
+ *   When provided AND at least one service has a usable score, the
+ *   share text uses the multi-service ratings line instead of the
+ *   single TMDB vote_average. When null/undefined or all services are
+ *   "NR", falls back to the TMDB vote_average.
  */
 export function buildShareText(
   details: TMDBDetails | WatchlistItem | null | undefined,
   mediaType: "movie" | "tv",
   tmdbId: number | string,
+  mdbRatings?: ShareMdbRatings | null,
 ): string {
-  const body = buildShareTextBody(details, mediaType);
+  const body = buildShareTextBody(details, mediaType, mdbRatings);
   const url = buildShareUrl(mediaType, tmdbId);
   return `${body}\n\n▶️ Start tracking your cinema log on CineLog:\n${url}`;
 }
@@ -188,30 +267,42 @@ export function buildShareText(
  *
  * Layout (same as buildShareText, minus the URL footer):
  *   🎬 {Title}
- *   ⭐ Rating: {X.X/10}
+ *   ⭐ Ratings: IMDb: 7.5/10 | RT: 85% | MC: 70   (if mdbRatings provided)
+ *   ⭐ Rating: {X.X/10}                            (fallback: TMDB only)
  *   📅 Released: {Mon D, YYYY}
  *   🎭 {Genre1, Genre2, Genre3}
  *   📺 {N} Season(s) · {M} Episode(s)   (TV only)
  *   📖 {Overview (truncated)}
  *
  *   ▶️ Start tracking your cinema log on CineLog
+ *
+ * @param mdbRatings Optional MDBList ratings payload. When provided,
+ *   the ratings line shows all available services (IMDb / RT / MC)
+ *   instead of just the TMDB vote_average. Falls back gracefully.
  */
 export function buildShareTextBody(
   details: TMDBDetails | WatchlistItem | null | undefined,
   mediaType: "movie" | "tv",
+  mdbRatings?: ShareMdbRatings | null,
 ): string {
   const title = resolveTitle(details);
   const dateIso = resolveReleaseDate(details);
   const dateLabel = formatReleaseDate(dateIso);
-  const rating = formatRating((details as TMDBDetails)?.vote_average);
+  const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
+  const mdbLine = formatMdbRatingsLine(mdbRatings ?? null);
   const overview = truncateOverview((details as TMDBDetails)?.overview ?? "", 280);
   const genres = (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
 
   const lines: string[] = [];
   lines.push(`🎬 ${title}`);
 
-  if (rating !== "N/A") {
-    lines.push(`⭐ Rating: ${rating}`);
+  // Ratings line — prefer the multi-service MDBList line when available.
+  // Fall back to the single TMDB vote_average so the share text always
+  // has SOME rating (unless both are unavailable).
+  if (mdbLine) {
+    lines.push(`⭐ Ratings: ${mdbLine}`);
+  } else if (tmdbRating !== "N/A") {
+    lines.push(`⭐ Rating: ${tmdbRating}`);
   }
   if (dateLabel) {
     lines.push(`📅 Released: ${dateLabel}`);
