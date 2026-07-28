@@ -520,6 +520,20 @@ export interface TMDBTitle {
   number_of_episodes?: number;
   /** Total season count (TMDB /tv/{id} response). */
   number_of_seasons?: number;
+  /**
+   * TMDB origin_country (e.g. ["IN", "US"]). Returned by both /movie/{id}
+   * and /tv/{id}. Hydrated onto the WatchlistItem by userLibraryAdapter
+   * so the Region filter can detect Indian vs International titles when
+   * the explicit `region` field is missing.
+   */
+  origin_country?: string[];
+  /**
+   * TMDB spoken_languages. Returned by both /movie/{id} and /tv/{id}.
+   * Each entry has { english_name, iso_639_1, name }. Hydrated onto the
+   * WatchlistItem so the Region filter can fall back to language codes
+   * (hi, ta, te, etc.) when origin_country is missing.
+   */
+  spoken_languages?: TMDBSpokenLanguage[];
 }
 
 /**

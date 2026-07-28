@@ -12,6 +12,7 @@ import {
   countActiveFilters,
   hasAdvancedFiltersActive,
 } from "./vaultFilterUtils";
+import { resolvePlatformDisplayName } from "./platformDisplayNames";
 
 /**
  * useVaultFiltering — owns the filter state + the filtered/sorted memo
@@ -153,38 +154,52 @@ export function useVaultFiltering(
     // `watchProgress.server` or `providers` (TMDB watch-provider field).
     // Now we check every known field per item, filter out null/empty/
     // whitespace, trim, and dedupe via the Set.
+    //
+    // DISPLAY NAME RESOLUTION (v3):
+    //   Raw strings from `providers` (TMDB numeric IDs as strings like "8")
+    //   and `watchProgress.server` (lowercase slugs like "netflix") are
+    //   passed through `resolvePlatformDisplayName()` so the dropdown
+    //   renders "Netflix", "Prime Video", etc. instead of "8" or "netflix".
+    //   This keeps the dropdown options human-readable AND ensures the
+    //   filter predicate (matchesPlatform) compares against the same
+    //   canonical name.
     const set = new Set<string>();
     const list = args.watchlist();
     for (let i = 0; i < list.length; i++) {
       const item = list[i];
 
-      // Source 1: platformsList (legacy array of provider names)
+      // Source 1: platformsList (legacy array of provider names — usually
+      // already human-readable, but we normalize for consistency).
       const pl = item.platformsList;
       if (pl && Array.isArray(pl)) {
         for (let j = 0; j < pl.length; j++) {
           const p = pl[j];
           if (p && typeof p === "string" && p.trim()) {
-            set.add(p.trim());
+            const resolved = resolvePlatformDisplayName(p);
+            if (resolved) set.add(resolved);
           }
         }
       }
 
-      // Source 2: providers (TMDB watch-provider field, if populated)
+      // Source 2: providers (TMDB watch-provider field — may contain
+      // numeric IDs as strings, e.g. "8" for Netflix).
       const prov = item.providers;
       if (prov && Array.isArray(prov)) {
         for (let j = 0; j < prov.length; j++) {
           const p = prov[j];
           if (p && typeof p === "string" && p.trim()) {
-            set.add(p.trim());
+            const resolved = resolvePlatformDisplayName(p);
+            if (resolved) set.add(resolved);
           }
         }
       }
 
       // Source 3: watchProgress.server (some items store the streaming
-      // platform here instead of in platformsList/providers)
+      // platform here — may be a raw ID, a lowercase slug, or a name).
       const server = item.watchProgress?.server;
       if (server && typeof server === "string" && server.trim()) {
-        set.add(server.trim());
+        const resolved = resolvePlatformDisplayName(server);
+        if (resolved) set.add(resolved);
       }
     }
     return [...set].sort();

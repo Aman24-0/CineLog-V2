@@ -1,30 +1,41 @@
 // src/features/watchlist/components/WatchlistHeader.tsx
-import { For, Show, createSignal, type Accessor } from "solid-js";
+import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import VaultHeader from "./VaultHeader";
 import QuickFilterTabs from "./QuickFilterTabs";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 
 /**
- * WatchlistHeader — ZERO-WASTE sticky control center (v3).
+ * WatchlistHeader — three-row sticky control center (v4).
  *
- * EXPANDABLE SEARCH (v3):
- *   ┌─────────────────────────────────────────────────────┐
- *   │ Collapsed: [grid|timeline] [filter] [🔍 search btn] │  ← default
- *   │ Expanded:  [← back] [search input............] [clr]│  ← full width
- *   │ [All 47] [Watching 5] [Planned 12] [Completed 27]...│  ← status chips
- *   │ [active filter chips if any]                          │
- *   └─────────────────────────────────────────────────────┘
+ * LAYOUT RESTRUCTURE (v4):
+ *   The previous version clumped all controls in the top-left, leaving
+ *   empty black space on the right. The new layout uses THREE full-width
+ *   rows so controls span the entire header width:
  *
- * The collapsed state shows the View Toggle + Filter Button + a circular
- * "Search" icon button inline. Tapping the Search button expands the
- * input to take the ENTIRE header width (`w-full`), hiding the View
- * Toggle and Filter Button. The expanded input has a "Back" arrow (←)
- * on the left to collapse the search, and a "Clear" button on the right.
+ *   ┌──────────────────────────────────────────────────────────────┐
+ *   │ MAIN ACTION BAR  (flex justify-between items-center w-full)   │
+ *   │   LEFT:  [grid|timeline] [stats count badge]                   │
+ *   │   RIGHT: [filter btn] [🔍 search btn]                          │
+ *   ├──────────────────────────────────────────────────────────────┤
+ *   │ TABS ROW  (flex overflow-x-auto hide-scrollbar gap-2 mb-3)    │
+ *   │   [All 47] [Watching 5] [Planned 12] [Completed 27] [Dropped 3]│
+ *   ├──────────────────────────────────────────────────────────────┤
+ *   │ CHIPS ROW  (flex flex-wrap gap-2) — only when filters active  │
+ *   │   [INDIAN ×] [FANTASY ×] [NETFLIX ×]                          │
+ *   └──────────────────────────────────────────────────────────────┘
  *
- * Because the expanded input takes full width, it uses `pl-10 pr-16`
- * padding so text NEVER overlaps the back arrow (left) or the Clear
- * button (right).
+ *   The View Toggle is inlined here (instead of using VaultHeader) so
+ *   the Grid/Timeline buttons can live in the LEFT group while the
+ *   Filter + Search buttons live in the RIGHT group — satisfying the
+ *   `justify-between` layout that spans the full header width.
+ *
+ * EXPANDABLE SEARCH:
+ *   When the Search icon button is tapped, the Main Action Bar is
+ *   REPLACED by a full-width search input with a back arrow (←) on the
+ *   left and a Clear button on the right. The Tabs Row and Chips Row
+ *   remain visible below the expanded search so the user keeps their
+ *   context. The expanded input uses `pl-10 pr-16` padding so text
+ *   NEVER overlaps the icons.
  */
 export interface WatchlistHeaderProps {
   viewMode: Accessor<"grid" | "timeline">;
@@ -44,58 +55,44 @@ export interface WatchlistHeaderProps {
 }
 
 export default function WatchlistHeader(props: WatchlistHeaderProps) {
-  // Collapsed ↔ Expanded search state. When expanded, the search input
-  // takes the full header width and hides the View Toggle + Filter Button.
+  // Collapsed ↔ Expanded search state. When expanded, the Main Action Bar
+  // is replaced by a full-width search input.
   const [isSearchExpanded, setIsSearchExpanded] = createSignal(false);
 
-  /** Collapse the search — also clears the query so the user returns to
-   *  the unfiltered view. */
+  /** Collapse the search — returns to the Main Action Bar view. */
   const collapseSearch = () => {
     setIsSearchExpanded(false);
   };
 
-  /** Whether the Clear button should be visible — only when there's
-   *  text in the search input OR there are active filters/status tab. */
+  /** Whether the Clear button should be visible in the expanded search —
+   *  only when there's text in the search input OR there are active
+   *  filters/status tab. */
   const showClear = () =>
     props.searchInput().length > 0 ||
     props.activeFilterCount() > 0 ||
     props.activeStatusTab() !== "all";
 
+  /** Total vault count for the stats badge in the Main Action Bar. */
+  const totalCount = () => props.watchlist().length;
+
   return (
     <div
       class="sticky top-0 z-40 pt-4 pb-2 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-3 watchlist-header-glass"
     >
-      {/* SINGLE horizontal row — contents depend on search-expanded state */}
-      <div class="flex flex-row items-center gap-2 w-full">
-        {/* ── COLLAPSED: View Toggle + Filter Button + circular Search icon ── */}
-        <Show when={!isSearchExpanded()}>
-          <VaultHeader
-            viewMode={props.viewMode}
-            setViewMode={props.setViewMode}
-            activeFilterCount={props.activeFilterCount}
-            onFilterClick={props.onFilterClick}
-          />
-          {/* Circular "Search" icon button — expands the search input */}
-          <button
-            type="button"
-            onClick={() => setIsSearchExpanded(true)}
-            class="filter-button focus-ring flex items-center justify-center shrink-0"
-            style={{
-              width: "40px",
-              height: "40px",
-              "border-radius": "var(--radius-pill)",
-            }}
-            aria-label="Search watchlist"
-            aria-expanded="false"
-          >
-            <Icon name="search" style={{ "font-size": "18px" }} aria-hidden="true" />
-          </button>
-          <div class="flex-1" />
-        </Show>
+      {/* ───────────────────────────────────────────────────────────────
+          MAIN ACTION BAR  OR  EXPANDED SEARCH
+          The Main Action Bar uses `flex justify-between items-center w-full`
+          so the View Toggle (left) and the Filter + Search buttons (right)
+          span the ENTIRE header width — no empty black space on the right.
 
-        {/* ── EXPANDED: full-width Search Input with Back arrow + Clear ── */}
-        <Show when={isSearchExpanded()}>
-          <div class="w-full relative flex items-center">
+          When search is expanded, this row is REPLACED by a full-width
+          search input with a back arrow (←) and Clear button.
+          ─────────────────────────────────────────────────────────────── */}
+      <Show
+        when={!isSearchExpanded()}
+        fallback={
+          /* ── EXPANDED: full-width Search Input with Back arrow + Clear ── */
+          <div class="w-full relative flex items-center mb-4">
             {/* Back arrow (←) — left side, collapses the search */}
             <button
               type="button"
@@ -164,13 +161,134 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
               </button>
             </Show>
           </div>
-        </Show>
-      </div>
+        }
+      >
+        {/* ── COLLAPSED: Main Action Bar ──
+            `flex justify-between items-center w-full` so the left group
+            (View Toggle + stats) and the right group (Filter + Search)
+            push to opposite edges of the header — no empty space. */}
+        <div class="flex justify-between items-center w-full mb-4">
+          {/* LEFT group: View Toggle (grid/timeline) + a subtle vault-count
+              badge. The count gives the user a quick "you have N titles"
+              readout without needing a separate stats bar. */}
+          <div class="flex items-center gap-2">
+            {/* View mode toggle — inlined here (instead of using VaultHeader)
+                so the Grid/Timeline buttons stay in the LEFT group while
+                Filter + Search go in the RIGHT group. */}
+            <div class="view-toggle" role="group" aria-label="View mode">
+              <button
+                onClick={() => batch(() => props.setViewMode("grid"))}
+                class="view-toggle-btn focus-ring"
+                data-active={props.viewMode() === "grid"}
+                aria-label="Grid view"
+                aria-pressed={props.viewMode() === "grid"}
+              >
+                <Icon name="grid_view" style={{ "font-size": "16px" }} aria-hidden="true" />
+              </button>
+              <button
+                onClick={() => batch(() => props.setViewMode("timeline"))}
+                class="view-toggle-btn focus-ring"
+                data-active={props.viewMode() === "timeline"}
+                aria-label="Timeline view"
+                aria-pressed={props.viewMode() === "timeline"}
+              >
+                <Icon name="timeline" style={{ "font-size": "16px" }} aria-hidden="true" />
+              </button>
+            </div>
+            {/* Vault count badge — only shown when there are items, so an
+                empty vault doesn't show a misleading "0". */}
+            <Show when={totalCount() > 0}>
+              <span
+                class="type-meta shrink-0 hidden sm:inline-flex items-center gap-1"
+                style={{
+                  "font-size": "0.5625rem",
+                  "font-weight": 800,
+                  "letter-spacing": "0.10em",
+                  "text-transform": "uppercase",
+                  color: "var(--text-muted)",
+                  "padding": "0.375rem 0.625rem",
+                  "border-radius": "var(--radius-pill)",
+                  background: "var(--tier-1)",
+                  border: "1px solid var(--hairline)",
+                }}
+                aria-label={`${totalCount()} titles in your vault`}
+              >
+                <Icon name="video_library" style={{"font-size":"12px"}} aria-hidden="true" />
+                {totalCount()}
+              </span>
+            </Show>
+          </div>
 
-      {/* Status chips — horizontally scrollable, immediately below the search row.
-          Hidden in timeline mode (timeline forces Completed + watch_desc). */}
+          {/* RIGHT group: Filter Button + circular Search icon button.
+              These are right-aligned via the parent's `justify-between`. */}
+          <div class="flex items-center gap-2">
+            {/* Filter Button — opens the filter drawer. Shows a count
+                badge when filters are active. */}
+            <button
+              type="button"
+              onClick={() => props.onFilterClick()}
+              class="filter-button focus-ring flex items-center justify-center shrink-0"
+              data-active={props.activeFilterCount() > 0}
+              style={{
+                height: "40px",
+                "padding": "0 0.875rem",
+                "border-radius": "var(--radius-pill)",
+                gap: "0.375rem",
+              }}
+              aria-label={`Filter${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
+              aria-pressed={props.activeFilterCount() > 0}
+            >
+              <Icon name="tune" style={{ "font-size": "16px" }} aria-hidden="true" />
+              <span
+                class="type-meta"
+                style={{
+                  "font-size": "0.5625rem",
+                  "font-weight": 800,
+                  "letter-spacing": "0.10em",
+                  "text-transform": "uppercase",
+                }}
+              >
+                Filter
+              </span>
+              <Show when={props.activeFilterCount() > 0}>
+                <span class="filter-count-badge" aria-hidden="true">
+                  {props.activeFilterCount()}
+                </span>
+              </Show>
+            </button>
+
+            {/* Circular "Search" icon button — expands the search input */}
+            <button
+              type="button"
+              onClick={() => setIsSearchExpanded(true)}
+              class="filter-button focus-ring flex items-center justify-center shrink-0"
+              style={{
+                width: "40px",
+                height: "40px",
+                "border-radius": "var(--radius-pill)",
+              }}
+              aria-label="Search watchlist"
+              aria-expanded="false"
+            >
+              <Icon name="search" style={{ "font-size": "18px" }} aria-hidden="true" />
+            </button>
+          </div>
+        </div>
+      </Show>
+
+      {/* ───────────────────────────────────────────────────────────────
+          TABS ROW
+          The status pills (All / Watching / Planned / Completed / Dropped)
+          live inside QuickFilterTabs, which already renders a
+          `.quick-filter-bar` container with `display:flex; gap:0.375rem;
+          overflow-x:auto; scrollbar-width:none;` so the pills scroll
+          horizontally on mobile without wrapping or overflowing.
+          We add `mb-3` spacing here and let the inner bar take the full
+          width. Hidden in timeline mode (timeline forces Completed +
+          watch_desc).
+          ─────────────────────────────────────────────────────────────── */}
       <Show when={props.viewMode() === "grid"}>
-        <div style={{ "margin-top": "0.625rem" }}>
+        <div class="mb-3">
           <QuickFilterTabs
             active={props.activeStatusTab}
             onSelect={(status) => {
@@ -186,11 +304,15 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
         </div>
       </Show>
 
-      {/* Active filter chips — small pills below the status chips.
+      {/* ───────────────────────────────────────────────────────────────
+          CHIPS ROW
+          `flex flex-wrap gap-2` — active filter pills (e.g. "INDIAN ×",
+          "FANTASY ×", "NETFLIX ×") wrap to multiple lines if needed.
           Highly visible: gold-tinted bg + white text (see watchlist.css
-          `.filter-chip` rule). */}
+          `.filter-chip` rule). Only rendered when there are active chips.
+          ─────────────────────────────────────────────────────────────── */}
       <Show when={props.chips().length > 0}>
-        <div class="flex gap-2 flex-wrap mt-2">
+        <div class="flex flex-wrap gap-2">
           <For each={props.chips()}>
             {(chip) => (
               <button
@@ -208,3 +330,4 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
     </div>
   );
 }
+

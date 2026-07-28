@@ -2,6 +2,7 @@
 import { resolveTimelineDate } from "~/shared/utils/date";
 import { toMs } from "~/shared/utils/vaultStatus";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
+import { resolvePlatformDisplayName } from "./platformDisplayNames";
 
 /**
  * vaultFilterUtils — pure filtering + sorting helpers used by
@@ -168,14 +169,46 @@ function matchesRegion(m: WatchlistItem, region: string): boolean {
  *   - `providers` (TMDB watch-provider field)
  *   - `watchProgress.server` (single-string fallback)
  *
+ * DISPLAY NAME RESOLUTION (v3):
+ *   Because `uniquePlatforms` (in useVaultFiltering.ts) resolves raw IDs
+ *   to canonical display names ("8" → "Netflix"), the filter VALUE
+ *   (`f.platform`) is always a display name. This function mirrors that
+ *   resolution on each item's stored platform strings BEFORE comparing,
+ *   so a stored provider ID "8" correctly matches a filter value of
+ *   "Netflix". Without this, the dropdown would show "Netflix" but the
+ *   filter would return zero matches.
+ *
  * This mirrors the `uniquePlatforms` extraction in useVaultFiltering.ts
  * so the dropdown options and the filter predicate stay in sync.
  */
 function matchesPlatform(m: WatchlistItem, platform: string): boolean {
-  if (Array.isArray(m.platformsList) && m.platformsList.includes(platform)) return true;
-  if (Array.isArray(m.providers) && m.providers.includes(platform)) return true;
+  // Resolve the filter value once (it should already be a display name,
+  // but resolve defensively in case a preset saved a raw ID).
+  const targetName = resolvePlatformDisplayName(platform) || platform;
+
+  if (Array.isArray(m.platformsList)) {
+    for (const p of m.platformsList) {
+      if (typeof p === "string" && p.trim()) {
+        if (resolvePlatformDisplayName(p) === targetName) return true;
+        // Also allow direct string equality as a fallback (covers names
+        // not in our canonical table).
+        if (p.trim() === platform) return true;
+      }
+    }
+  }
+  if (Array.isArray(m.providers)) {
+    for (const p of m.providers) {
+      if (typeof p === "string" && p.trim()) {
+        if (resolvePlatformDisplayName(p) === targetName) return true;
+        if (p.trim() === platform) return true;
+      }
+    }
+  }
   const server = m.watchProgress?.server;
-  if (typeof server === "string" && server === platform) return true;
+  if (typeof server === "string" && server.trim()) {
+    if (resolvePlatformDisplayName(server) === targetName) return true;
+    if (server.trim() === platform) return true;
+  }
   return false;
 }
 
@@ -239,7 +272,12 @@ export function computeChips(f: VaultFilters): { label: string; key: string }[] 
   if (f.type !== "all") out.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
   if (f.region !== "all") out.push({ label: f.region, key: "region" });
   if (f.genre !== "all") out.push({ label: f.genre, key: "genre" });
-  if (f.platform !== "all") out.push({ label: f.platform, key: "platform" });
+  // Resolve platform to its display name so the chip shows "Netflix"
+  // instead of a raw ID like "8" (covers presets saved with raw IDs).
+  if (f.platform !== "all") {
+    const display = resolvePlatformDisplayName(f.platform) || f.platform;
+    out.push({ label: display, key: "platform" });
+  }
   if (f.tag !== "all") out.push({ label: f.tag, key: "tag" });
   if (f.imdbMin) out.push({ label: `IMDb > ${f.imdbMin}`, key: "imdbMin" });
   if (f.imdbMax) out.push({ label: `IMDb < ${f.imdbMax}`, key: "imdbMax" });

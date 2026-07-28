@@ -100,6 +100,19 @@ export function vaultRowToWatchlistItem(
     // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
     tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
     genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
+    // ── Region filter hydration (v3) ─────────────────────────────────
+    // TMDB returns origin_country (e.g. ["IN", "US"]) and spoken_languages
+    // (array of { iso_639_1, name, english_name }) on both /movie/{id}
+    // and /tv/{id}. We hydrate these onto the WatchlistItem so the Region
+    // filter in vaultFilterUtils.ts can detect Indian vs International
+    // titles even when the legacy `region` field is missing.
+    //
+    // Older cache entries (pre-2026-07) won't have these fields — the
+    // Region filter's matchesRegion() safely falls back to the explicit
+    // `region` field, so legacy items still work (they just won't match
+    // "Indian" unless `region === "Indian"` was explicitly set).
+    origin_country: Array.isArray(tmdb?.origin_country) ? tmdb.origin_country : undefined,
+    spoken_languages: Array.isArray(tmdb?.spoken_languages) ? tmdb.spoken_languages : undefined,
     // ── Runtime (minutes) — drives the "Hours Watched" stat ──────────
     // Movies: TMDB returns a single `runtime` (e.g. 120 min).
     // TV series: TMDB returns `episode_run_time` (array of typical
