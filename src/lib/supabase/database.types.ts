@@ -63,6 +63,7 @@ export type Database = {
           collection_id: string
           created_at: string
           id: string
+          order_index: number
           position: number
           vault_id: string
         }
@@ -70,6 +71,7 @@ export type Database = {
           collection_id: string
           created_at?: string
           id?: string
+          order_index?: number
           position?: number
           vault_id: string
         }
@@ -77,6 +79,7 @@ export type Database = {
           collection_id?: string
           created_at?: string
           id?: string
+          order_index?: number
           position?: number
           vault_id?: string
         }
@@ -99,6 +102,7 @@ export type Database = {
       }
       collections: {
         Row: {
+          archived_at: string | null
           banner_url: string | null
           collection_type: Database["public"]["Enums"]["collection_type"]
           color: string | null
@@ -114,6 +118,7 @@ export type Database = {
           view_mode: Database["public"]["Enums"]["collection_view_type"]
         }
         Insert: {
+          archived_at?: string | null
           banner_url?: string | null
           collection_type: Database["public"]["Enums"]["collection_type"]
           color?: string | null
@@ -129,6 +134,7 @@ export type Database = {
           view_mode?: Database["public"]["Enums"]["collection_view_type"]
         }
         Update: {
+          archived_at?: string | null
           banner_url?: string | null
           collection_type?: Database["public"]["Enums"]["collection_type"]
           color?: string | null
@@ -238,6 +244,39 @@ export type Database = {
           id?: string
           name?: string
           slug?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      universe_phases: {
+        Row: {
+          id: string
+          universe_id: string
+          label: string
+          description: string | null
+          before_entry_id: string | null
+          order_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          universe_id: string
+          label: string
+          description?: string | null
+          before_entry_id?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          universe_id?: string
+          label?: string
+          description?: string | null
+          before_entry_id?: string | null
+          order_index?: number
+          created_at?: string
           updated_at?: string
         }
         Relationships: []

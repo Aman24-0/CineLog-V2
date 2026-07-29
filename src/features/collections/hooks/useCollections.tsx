@@ -23,12 +23,14 @@ import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
 import {
+  archiveCollectionInSupabase,
   createCollectionInSupabase,
   deleteCollectionInSupabase,
   duplicateCollectionInSupabase,
   ensureFavoritesExistsInSupabase,
   fetchCollectionsFromSupabase,
   renameCollectionInSupabase,
+  unarchiveCollectionInSupabase,
   updateCollectionMetaInSupabase,
 } from "../collectionAdapter";
 import {
@@ -108,7 +110,10 @@ const applyMetaLocally = (
   if (meta.color !== undefined) updated.accentColor = meta.color ?? undefined;
   // Unsupported fields — applied locally even though server won't persist.
   if (meta.emoji !== undefined) updated.emoji = meta.emoji;
-  if (meta.isArchived !== undefined) updated.isArchived = meta.isArchived;
+  if (meta.isArchived !== undefined) {
+    updated.isArchived = meta.isArchived;
+    updated.archivedAt = meta.isArchived ? (updated.archivedAt ?? new Date().toISOString()) : null;
+  }
   updated.updatedAt = new Date().toISOString();
   return updated;
 };
@@ -561,6 +566,86 @@ const useCollectionsLogic = () => {
     }
   };
 
+  /**
+   * Archive a user collection — sets `archived_at = NOW()` on the row.
+   * Optimistic: marks the local Collection as archived immediately so
+   * the grid removes it on the next render (the active grid filters
+   * on `!isArchived`). The "Show Archived" toggle re-surfaces it.
+   *
+   * On success: the calling code usually navigates the user back to
+   * /collections (handled at the call site, not here).
+   */
+  const archiveCollection = async (collectionId: string): Promise<boolean> => {
+    const uid = getCurrentUid();
+    if (!uid) return false;
+
+    const snapshot = userCollections();
+    const nowIso = new Date().toISOString();
+    try {
+      // Optimistic: flag local copy as archived.
+      setUserCollections((prev) =>
+        prev.map((c) =>
+          c.id === collectionId
+            ? { ...c, archivedAt: nowIso, isArchived: true, updatedAt: nowIso }
+            : c
+        )
+      );
+      await archiveCollectionInSupabase(collectionId);
+      showToast("Collection archived", "success", 1500);
+      return true;
+    } catch (err) {
+      setUserCollections(snapshot);
+      console.error("Failed to archive collection:", err);
+      showToast("Failed to archive.", "error");
+      return false;
+    }
+  };
+
+  /**
+   * Unarchive a user collection — clears `archived_at`. Brings the
+   * collection back into the default Collections grid.
+   */
+  const unarchiveCollection = async (collectionId: string): Promise<boolean> => {
+    const uid = getCurrentUid();
+    if (!uid) return false;
+
+    const snapshot = userCollections();
+    try {
+      setUserCollections((prev) =>
+        prev.map((c) =>
+          c.id === collectionId
+            ? { ...c, archivedAt: null, isArchived: false, updatedAt: new Date().toISOString() }
+            : c
+        )
+      );
+      await unarchiveCollectionInSupabase(collectionId);
+      showToast("Collection restored", "success", 1500);
+      return true;
+    } catch (err) {
+      setUserCollections(snapshot);
+      console.error("Failed to unarchive collection:", err);
+      showToast("Failed to unarchive.", "error");
+      return false;
+    }
+  };
+
+  /**
+   * Fetch collections including archived ones — used by the
+   * "Show Archived" toggle on the Collections page. The result
+   * includes BOTH active and archived collections; the caller
+   * filters client-side on `isArchived`.
+   */
+  const fetchWithArchived = async (): Promise<void> => {
+    const uid = getCurrentUid();
+    if (!uid) return;
+    try {
+      const items = await fetchCollectionsFromSupabase(uid, { includeArchived: true });
+      setUserCollections(Array.isArray(items) ? items : []);
+    } catch (err) {
+      console.error("[useCollections] fetchWithArchived failed:", err);
+    }
+  };
+
   const createSmartCollection = async (name: string, rules: SmartRule[]): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) { showToast("Sign in to create collections.", "error"); return; }
@@ -650,6 +735,7 @@ const useCollectionsLogic = () => {
     createSmartCollection, updateSmartRules,
     refreshCollections,
     removeVaultItemFromAllUserCollections,
+    archiveCollection, unarchiveCollection, fetchWithArchived,
     ...queries,
   };
 };

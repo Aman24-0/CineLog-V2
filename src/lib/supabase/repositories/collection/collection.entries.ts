@@ -146,6 +146,12 @@ export async function clearCollection(
  * the lifecycle module's reorder/move operations; exposed here so
  * callers can do single-position patches if needed.
  *
+ * Writes BOTH `position` (legacy 1-based column used by all existing
+ * reads) AND `order_index` (the new 0-based column used by the
+ * drag-to-reorder feature on user collections). Keeping them in sync
+ * means old code that reads `position` and new code that reads
+ * `order_index` see the same ordering.
+ *
  * @returns The updated entry row, or `null` + `error`.
  */
 export async function updateEntryPosition(
@@ -158,7 +164,7 @@ export async function updateEntryPosition(
 
   const { data, error } = await supabase
     .from(ENTRIES_TABLE)
-    .update(toPositionUpdate(newPosition))
+    .update({ ...toPositionUpdate(newPosition), order_index: newPosition })
     .eq("collection_id", identity.collectionId)
     .eq("vault_id", identity.vaultId)
     .select()

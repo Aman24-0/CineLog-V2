@@ -21,7 +21,7 @@ const EMOJIS = ["🎬", "🌟", "🎭", "🎪", "🏆", "❤️", "🔥", "⚡",
 /**
  * FolderEditor — bottom sheet for user collection customization.
  *
- * Features:
+ * Features (v3):
  *   - Rename
  *   - Description
  *   - Backdrop image (URL paste OR pick from titles in this folder)
@@ -30,9 +30,19 @@ const EMOJIS = ["🎬", "🌟", "🎭", "🎪", "🏆", "❤️", "🔥", "⚡",
  *       (UniverseDashboard), Add-to-folder tile (AddToFolderSheet)
  *   - Accent color picker
  *   - Emoji picker
- *   - Archive toggle
- *   - Duplicate
+ *   - Duplicate (copies metadata AND all entries)
  *   - Delete
+ *
+ * Removed (v3): the in-modal Archive toggle. Archive is now a
+ * dedicated action on the collection detail page's action dock
+ * (and on the grid card hover), which immediately navigates the
+ * user back to /collections. Keeping it here as well created two
+ * sources of truth and confused users who expected the modal to
+ * close on archive.
+ *
+ * New (v3): Live preview pane at the top of the sheet showing how
+ * the hero will look with the currently-selected backdrop and
+ * accent color. Updates immediately on every change.
  */
 export default function FolderEditor(props: FolderEditorProps) {
   const { renameCollection, updateCollectionMeta, duplicateCollection, deleteCollection } = useCollections();
@@ -43,6 +53,16 @@ export default function FolderEditor(props: FolderEditorProps) {
   const [showColorPicker, setShowColorPicker] = createSignal(false);
   const [showBackdropPicker, setShowBackdropPicker] = createSignal(false);
   const [backdropUrlInput, setBackdropUrlInput] = createSignal("");
+  // Live preview state — local signals that update immediately as
+  // the user types/picks. Persisted on blur/change via the existing
+  // handlers. The preview reads from these signals (not the prop)
+  // so it reflects pending edits before they hit Supabase.
+  const [previewBackdrop, setPreviewBackdrop] = createSignal<string | null>(
+    props.collection.backdrop_path ?? null,
+  );
+  const [previewAccent, setPreviewAccent] = createSignal<string | null>(
+    props.collection.accentColor ?? null,
+  );
 
   // Build a list of backdrop candidates from the folder's entries.
   // Dedupe by path, limit to 12 so the picker stays scrollable.
@@ -62,7 +82,7 @@ export default function FolderEditor(props: FolderEditorProps) {
   });
 
   const currentBackdropUrl = createMemo(() => {
-    const p = props.collection.backdrop_path;
+    const p = previewBackdrop() ?? props.collection.backdrop_path;
     if (!p) return null;
     if (p.startsWith("http")) return p;
     return tmdbImage(p, "w342");
@@ -80,6 +100,7 @@ export default function FolderEditor(props: FolderEditorProps) {
   };
 
   const handleAccentColor = (color: string) => {
+    setPreviewAccent(color);
     updateCollectionMeta(props.collection.id, { accentColor: color });
     setShowColorPicker(false);
   };
@@ -89,9 +110,11 @@ export default function FolderEditor(props: FolderEditorProps) {
     setShowEmojiPicker(false);
   };
 
-  const handleArchive = () => {
-    updateCollectionMeta(props.collection.id, { isArchived: !props.collection.isArchived });
-  };
+  // Archive toggle removed in v3 — archive is now a dedicated action
+  // on the collection detail page's action dock. The in-modal toggle
+  // was removed because (a) it created a second source of truth for
+  // archive state, and (b) the modal stayed open after archiving,
+  // confusing users who expected it to close.
 
   const handleDuplicate = () => {
     duplicateCollection(props.collection.id);
@@ -107,6 +130,7 @@ export default function FolderEditor(props: FolderEditorProps) {
   const handleSetBackdropUrl = () => {
     const url = backdropUrlInput().trim();
     if (!url) return;
+    setPreviewBackdrop(url);
     updateCollectionMeta(props.collection.id, { bannerUrl: url });
     setBackdropUrlInput("");
     setShowBackdropPicker(false);
@@ -115,11 +139,13 @@ export default function FolderEditor(props: FolderEditorProps) {
   const handlePickEntryBackdrop = (path: string) => {
     // Store the raw TMDB path — AddToFolderSheet / UniverseDashboard
     // will pass it through tmdbImage() at render time.
+    setPreviewBackdrop(path);
     updateCollectionMeta(props.collection.id, { bannerUrl: path });
     setShowBackdropPicker(false);
   };
 
   const handleClearBackdrop = () => {
+    setPreviewBackdrop(null);
     updateCollectionMeta(props.collection.id, { bannerUrl: null });
     setShowBackdropPicker(false);
   };
@@ -143,6 +169,127 @@ export default function FolderEditor(props: FolderEditorProps) {
             <button type="button" class="folder-editor-close" onClick={props.onClose} aria-label="Close">
               <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">close</span>
             </button>
+          </div>
+
+          {/* Live preview — shows how the hero will look with the
+              currently-selected backdrop and accent color. Updates
+              immediately on every change (local signals), so the
+              user sees the result before persisting. */}
+          <div
+            class="folder-editor-preview"
+            style={{
+              position: "relative",
+              width: "100%",
+              "aspect-ratio": "16/9",
+              "border-radius": "var(--radius-md, 0.75rem)",
+              overflow: "hidden",
+              "margin-bottom": "var(--sp-3)",
+              background: "var(--tier-2)",
+              border: "1px solid var(--hairline)",
+            }}
+          >
+            <Show
+              when={previewBackdrop()}
+              fallback={
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "0",
+                    display: "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    color: "var(--text-dim)",
+                    "font-family": "'Outfit', sans-serif",
+                    "font-size": "0.75rem",
+                  }}
+                >
+                  No backdrop set
+                </div>
+              }
+            >
+              <img
+                src={(() => {
+                  const p = previewBackdrop()!;
+                  return p.startsWith("http") ? p : tmdbImage(p, "w500");
+                })()}
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  width: "100%",
+                  height: "100%",
+                  "object-fit": "cover",
+                }}
+                alt=""
+                aria-hidden="true"
+                loading="lazy"
+                decoding="async"
+                onError={(e) => { e.currentTarget.style.display = "none"; }}
+              />
+              {/* Accent-color gradient overlay — mirrors the hero
+                  overlay used by UniverseDashboard. */}
+              <div
+                style={{
+                  position: "absolute",
+                  inset: "0",
+                  background: `linear-gradient(180deg, transparent 30%, ${
+                    previewAccent() ?? "var(--p)"
+                  }33 100%)`,
+                }}
+                aria-hidden="true"
+              />
+              {/* Title preview — bottom-left, like the real hero */}
+              <div
+                style={{
+                  position: "absolute",
+                  left: "var(--sp-3)",
+                  bottom: "var(--sp-3)",
+                  right: "var(--sp-3)",
+                }}
+              >
+                <div
+                  style={{
+                    display: "inline-flex",
+                    "align-items": "center",
+                    gap: "6px",
+                    "max-width": "100%",
+                  }}
+                >
+                  <Show when={props.collection.emoji}>
+                    <span style={{ "font-size": "1rem" }}>{props.collection.emoji}</span>
+                  </Show>
+                  <span
+                    style={{
+                      "font-family": "'Bebas Neue', sans-serif",
+                      "font-size": "1.25rem",
+                      "letter-spacing": "0.04em",
+                      color: "#fff",
+                      "text-shadow": "0 2px 8px rgba(0,0,0,0.7)",
+                      "white-space": "nowrap",
+                      overflow: "hidden",
+                      "text-overflow": "ellipsis",
+                    }}
+                  >
+                    {name() || "Collection name"}
+                  </span>
+                </div>
+                <Show when={description()}>
+                  <p
+                    style={{
+                      margin: "4px 0 0",
+                      "font-family": "'Outfit', sans-serif",
+                      "font-size": "0.6875rem",
+                      color: "rgba(255,255,255,0.85)",
+                      "text-shadow": "0 1px 4px rgba(0,0,0,0.7)",
+                      overflow: "hidden",
+                      "text-overflow": "ellipsis",
+                      "white-space": "nowrap",
+                    }}
+                  >
+                    {description()}
+                  </p>
+                </Show>
+              </div>
+            </Show>
           </div>
 
           {/* Emoji + Name */}
@@ -315,12 +462,8 @@ export default function FolderEditor(props: FolderEditorProps) {
 
           {/* Actions */}
           <div class="folder-editor-actions">
-            <button type="button" class="folder-editor-action-btn" onClick={handleArchive}>
-              <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">
-                {props.collection.isArchived ? "unarchive" : "archive"}
-              </span>
-              {props.collection.isArchived ? "Unarchive" : "Archive"}
-            </button>
+            {/* Archive toggle removed in v3 — archive is now a dedicated
+                page action on the collection detail page's action dock. */}
             <button type="button" class="folder-editor-action-btn" onClick={handleDuplicate}>
               <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">content_copy</span>
               Duplicate

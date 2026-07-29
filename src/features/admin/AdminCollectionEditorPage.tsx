@@ -41,6 +41,7 @@ import {
 import { useParams, useNavigate, A } from "@solidjs/router";
 import TmdbSearchModal from "./collectionEditor/TmdbSearchModal";
 import EntryRow from "./collectionEditor/EntryRow";
+import UniversePhasesPanel from "./collectionEditor/UniversePhasesPanel";
 import {
   type AdminUniverse,
   type AdminEntry,
@@ -673,6 +674,18 @@ const AdminCollectionEditorPage: Component = () => {
             + Add title from TMDB
           </button>
         </div>
+
+        {/* Timeline Dividers panel — admin-managed phase dividers
+            stored in the `universe_phases` table. The user-side detail
+            page fetches these and renders them as section headers
+            between entries. NO hardcoded data — every divider is
+            configured here. */}
+        <Show when={universe()}>
+          <UniversePhasesPanel
+            universeId={universe()!.id}
+            entries={entries()}
+          />
+        </Show>
 
         {/* Entry list — flat for story/release modes, grouped by franchise
             for the franchise mode (mirrors the consumer TimelineEngine

@@ -27,14 +27,24 @@ import { fetchEntriesForCollection, addEntryToCollectionByTmdbId, removeEntryFro
  * collection, and merges them into the app's `Collection` shape.
  * Sorted: Favorites first, then by created_at desc.
  *
+ * @param userId            The Supabase user id.
+ * @param options.includeArchived  When true, archived rows are also
+ *                                 returned (default false — only active
+ *                                 collections). The caller can split
+ *                                 the result on `isArchived` to render
+ *                                 them in a separate "Archived" section.
  * @returns An array of `Collection` objects (empty if none or error).
  */
-export async function fetchCollectionsFromSupabase(userId: string): Promise<Collection[]> {
+export async function fetchCollectionsFromSupabase(
+  userId: string,
+  options?: { includeArchived?: boolean }
+): Promise<Collection[]> {
   const repo = getCollectionRepository();
   const { data: rows, error } = await repo.getCollections({
     userId,
     sort: { field: "created_at", direction: "desc" },
-    pagination: { limit: 200 }
+    pagination: { limit: 200 },
+    includeArchived: options?.includeArchived ?? false,
   });
 
   if (error) {
@@ -60,6 +70,34 @@ export async function fetchCollectionsFromSupabase(userId: string): Promise<Coll
   });
 
   return collectionsWithEntries;
+}
+
+// ---------------------------------------------------------------------------
+// Archive / Unarchive — dedicated operations that bypass the
+// generic updateCollection path so they can use the locked predicates
+// (only archive if not already archived, only unarchive if archived).
+// ---------------------------------------------------------------------------
+
+/**
+ * Archive a user collection. Sets `archived_at = NOW()` on the row.
+ * The collection is NOT soft-deleted — it remains queryable and can
+ * be unarchived later. The Collections grid filters archived rows out
+ * by default; the user toggles "Show Archived" to surface them.
+ */
+export async function archiveCollectionInSupabase(collectionId: string): Promise<void> {
+  const repo = getCollectionRepository();
+  const { error } = await repo.archiveCollection(collectionId);
+  if (error) throw error;
+}
+
+/**
+ * Unarchive a user collection. Clears `archived_at`. Brings the
+ * collection back into the default Collections grid.
+ */
+export async function unarchiveCollectionInSupabase(collectionId: string): Promise<void> {
+  const repo = getCollectionRepository();
+  const { error } = await repo.unarchiveCollection(collectionId);
+  if (error) throw error;
 }
 
 // ---------------------------------------------------------------------------
@@ -110,7 +148,8 @@ export async function renameCollectionInSupabase(
 }
 
 /**
- * Update collection metadata (description, cover, banner, color, sort mode, view mode).
+ * Update collection metadata (description, cover, banner, color, sort
+ * mode, view mode, archived_at).
  */
 export async function updateCollectionMetaInSupabase(
   collectionId: string,
@@ -122,6 +161,8 @@ export async function updateCollectionMetaInSupabase(
     color?: string | null;
     sortMode?: import("~/lib/supabase/repositories").SortModeType;
     viewMode?: import("~/lib/supabase/repositories").CollectionViewType;
+    /** ISO timestamp to archive; `null` to unarchive. */
+    archivedAt?: string | null;
   }
 ): Promise<void> {
   const repo = getCollectionRepository();
@@ -162,13 +203,34 @@ export async function duplicateCollectionInSupabase(
 
   const entries = await fetchEntriesForCollection(collectionId);
 
-  // 2. Create the duplicate
+  // 2. Create the duplicate — copy ALL supported metadata fields so
+  //    the clone is a true visual duplicate (cover, banner, accent
+  //    color, description, collection_type, sort/view mode).
+  const sourceRow = source as CollectionRow & { color?: string | null };
   const newId = await createCollectionInSupabase(userId, `${source.name} (copy)`, {
-    description: source.description ?? undefined
+    description: source.description ?? undefined,
   });
   if (!newId) throw new Error("Failed to create duplicate collection");
 
-  // 3. Copy entries
+  // Apply the rest of the metadata via updateCollection so we can
+  // pass cover/banner/color/sortMode/viewMode in one shot. The
+  // createCollectionInSupabase path only accepts name+description+
+  // collectionType — the rest have to be patched.
+  try {
+    await repo.updateCollection(newId, {
+      coverUrl: source.cover_url,
+      bannerUrl: source.banner_url,
+      color: sourceRow.color ?? null,
+      sortMode: source.sort_mode,
+      viewMode: source.view_mode,
+    });
+  } catch (err) {
+    // Non-fatal — the duplicate still exists with name + description.
+    console.warn("[collectionAdapter] Failed to copy metadata on duplicate:", err);
+  }
+
+  // 3. Copy entries — preserves the source order via the ordered
+  //    add-loop (each addToCollection appends to the end).
   for (const entry of entries) {
     await addEntryToCollectionByTmdbId(userId, newId, entry.id, entry.media_type);
   }

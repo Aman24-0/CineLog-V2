@@ -127,10 +127,16 @@ export const COLLECTION_FEATURE_SUPPORT = {
     supported: false as const,
     limitation: "The collections table has no emoji column.",
   },
-  /** Collection archived flag — NOT supported (no column). */
+  /** Collection archived flag — supported via `archived_at` column.
+   *  NULL = active, ISO timestamp = archived. The dedicated
+   *  archiveCollection / unarchiveCollection methods on the
+   *  CollectionRepository are the preferred write path — they use
+   *  locked predicates (only archive if not already archived, etc.).
+   *  The updateCollectionMeta path can also clear/set archivedAt
+   *  for legacy callers that still pass isArchived. */
   isArchived: {
-    supported: false as const,
-    limitation: "The collections table has no is_archived column.",
+    supported: true as const,
+    mappedTo: "archived_at",
   },
   /** Collection accentColor — mapped to `color` column. */
   accentColor: {
@@ -181,6 +187,7 @@ export interface SeparatedMetaFields {
     coverUrl?: string | null;
     bannerUrl?: string | null;
     color?: string | null;
+    archivedAt?: string | null;
   };
   dropped: UnsupportedFieldsWarning | null;
 }
@@ -189,8 +196,10 @@ export interface SeparatedMetaFields {
  * Separate supported collection metadata fields from unsupported ones.
  *
  * Supported fields are mapped to their Supabase column names.
- * Unsupported fields (emoji, isArchived) are collected into a warning
- * — they are NOT silently ignored.
+ * `isArchived` is translated into `archivedAt` (NOW() / null) so
+ * callers can persist it through the standard updateCollectionMeta
+ * path. `emoji` remains unsupported and is collected into a warning
+ * — it is NOT silently ignored.
  */
 export function detectUnsupportedMetaFields(meta: CollectionMetaInput): SeparatedMetaFields {
   const droppedFields: string[] = [];
@@ -199,9 +208,15 @@ export function detectUnsupportedMetaFields(meta: CollectionMetaInput): Separate
     droppedFields.push("emoji");
     console.warn(`[updateCollectionMeta] "emoji" not supported: ${COLLECTION_FEATURE_SUPPORT.emoji.limitation}`);
   }
+
+  // Translate isArchived → archivedAt (NOW() when archiving, null when unarchiving).
+  // The dedicated archiveCollection/unarchiveCollection methods on
+  // the repository are preferred (they use locked predicates), but
+  // the meta path also supports it for callers that batch metadata
+  // updates (e.g. FolderEditor's archive toggle).
+  let archivedAt: string | null | undefined = undefined;
   if (meta.isArchived !== undefined) {
-    droppedFields.push("isArchived");
-    console.warn(`[updateCollectionMeta] "isArchived" not supported: ${COLLECTION_FEATURE_SUPPORT.isArchived.limitation}`);
+    archivedAt = meta.isArchived ? new Date().toISOString() : null;
   }
 
   return {
@@ -211,6 +226,7 @@ export function detectUnsupportedMetaFields(meta: CollectionMetaInput): Separate
       coverUrl: meta.coverUrl,
       bannerUrl: meta.bannerUrl,
       color: meta.color ?? meta.accentColor ?? null,
+      archivedAt,
     },
     dropped: droppedFields.length > 0
       ? { droppedFields, reason: "Fields have no corresponding column in the collections table." }

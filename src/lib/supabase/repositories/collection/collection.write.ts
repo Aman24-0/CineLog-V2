@@ -133,3 +133,50 @@ export async function restoreCollection(
 
   return { data, error: toError(error) };
 }
+
+/**
+ * Archive a collection — sets `archived_at = NOW()`. The collection
+ * row remains live (not soft-deleted) but is hidden from the default
+ * Collections grid (which queries `archived_at IS NULL`). The user
+ * can still find it via the "Show Archived" toggle and unarchive it.
+ *
+ * @returns The archived collection row, or `null` + `error`.
+ */
+export async function archiveCollection(
+  supabase: TypedSupabaseClient,
+  collectionId: string
+): Promise<CollectionResult<CollectionRow>> {
+  const archivedAt = new Date().toISOString();
+  const { data, error } = await supabase
+    .from(COLLECTIONS_TABLE)
+    .update({ archived_at: archivedAt })
+    .eq("id", collectionId)
+    .is("deleted_at", null)
+    .is("archived_at", null)
+    .select()
+    .single();
+
+  return { data, error: toError(error) };
+}
+
+/**
+ * Unarchive a collection — clears `archived_at`. Brings the collection
+ * back into the default Collections grid.
+ *
+ * @returns The unarchived collection row, or `null` + `error`.
+ */
+export async function unarchiveCollection(
+  supabase: TypedSupabaseClient,
+  collectionId: string
+): Promise<CollectionResult<CollectionRow>> {
+  const { data, error } = await supabase
+    .from(COLLECTIONS_TABLE)
+    .update({ archived_at: null })
+    .eq("id", collectionId)
+    .is("deleted_at", null)
+    .not("archived_at", "is", null)
+    .select()
+    .single();
+
+  return { data, error: toError(error) };
+}

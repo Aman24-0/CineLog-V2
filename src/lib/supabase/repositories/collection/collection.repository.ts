@@ -42,9 +42,11 @@ import {
   removeItem
 } from "./collection.entries";
 import {
+  archiveCollection,
   createCollection,
   deleteCollection,
   restoreCollection,
+  unarchiveCollection,
   updateCollection
 } from "./collection.write";
 import {
@@ -129,6 +131,16 @@ export class CollectionRepository {
   /** Restore a soft-deleted collection (clears deleted_at). */
   restoreCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
     return restoreCollection(this.supabase, collectionId);
+  }
+
+  /** Archive a collection (sets archived_at = NOW()). */
+  archiveCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+    return archiveCollection(this.supabase, collectionId);
+  }
+
+  /** Unarchive a collection (clears archived_at). */
+  unarchiveCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+    return unarchiveCollection(this.supabase, collectionId);
   }
 
   // ---- Entry reads -----------------------------------------------------

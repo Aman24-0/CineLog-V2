@@ -100,6 +100,7 @@ export function collectionRowToCollection(
   row: CollectionRow,
   entries: CollectionEntry[]
 ): Collection {
+  const archivedAt = (row as CollectionRow & { archived_at?: string | null }).archived_at ?? null;
   return {
     id: row.id,
     name: row.name,
@@ -111,6 +112,8 @@ export function collectionRowToCollection(
     accentColor: row.color ?? undefined,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
+    archivedAt,
+    isArchived: archivedAt !== null,
     sortOrder: row.sort_mode as Collection["sortOrder"] | undefined,
     entries,
     // Smart collection support — smartRules are not stored in the

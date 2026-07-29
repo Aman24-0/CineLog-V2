@@ -1,5 +1,5 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createSignal, createEffect, ErrorBoundary, For, type Component } from "solid-js";
+import { Show, createSignal, createEffect, createMemo, ErrorBoundary, For, type Component } from "solid-js";
 import { isServer } from "solid-js/web";
 import { Portal } from "solid-js/web";
 import { useParams, useNavigate } from "@solidjs/router";
@@ -9,10 +9,18 @@ import { useVault } from "~/features/watchlist/useVault";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useCollections } from "./hooks/useCollections";
 import { useModalState } from "~/shared/hooks/useModalState";
-import { fetchCuratedUniverseBySlug } from "./curatedUniverseAdapter";
+import { useToast } from "~/shared/hooks/useToast";
+import { fetchCuratedUniverseBySlug, fetchPhasesForUniverse, withPhases } from "./curatedUniverseAdapter";
+import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
+import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import UniverseDashboard from "./components/UniverseDashboard";
 import TimelineEngine from "./components/TimelineEngine";
-import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider, WatchlistItem } from "~/shared/types";
+import CollectionActionDock from "./components/CollectionActionDock";
+import CollectionToolbar from "./components/CollectionToolbar";
+import FolderEditor from "./components/FolderEditor";
+import { useCollectionFilter } from "./hooks/useCollectionFilter";
+import { useCollectionSort, type UserCollectionSortMode } from "./hooks/useCollectionSort";
+import type { Collection, CollectionEntry, UniversePhase, ViewingOrder, TimelineProvider, WatchlistItem } from "~/shared/types";
 
 /**
  * CollectionDetailPage — renders a single collection or curated universe.
@@ -39,8 +47,19 @@ export default function CollectionDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
   const { watchlist } = useVault();
-  const { userCollections, getUniversePrefs, removeFromCollection, addToCollection, refreshCollections } = useCollections();
+  const {
+    userCollections,
+    getUniversePrefs,
+    removeFromCollection,
+    addToCollection,
+    refreshCollections,
+    archiveCollection,
+    deleteCollection,
+  } = useCollections();
   const { openTitle } = useModalState();
+  const { showToast } = useToast();
+  const { removeUniverseFromPrefs } = useUniversePrefsLogic();
+  const { refresh: refreshUniverses } = useCuratedUniverses();
 
   const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
   const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
@@ -50,6 +69,38 @@ export default function CollectionDetailPage() {
   const [collection, setCollection] = createSignal<Collection | null>(null);
   const [loading, setLoading] = createSignal(true);
   const [notFound, setNotFound] = createSignal(false);
+  // Phase dividers — fetched separately for curated universes.
+  // Empty for user collections.
+  const [phases, setPhases] = createSignal<UniversePhase[]>([]);
+  // Folder editor modal — opened by the "Edit" action in the dock.
+  const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
+  // Delete confirmation dialog
+  const [deleteTarget, setDeleteTarget] = createSignal<Collection | null>(null);
+  // Unsubscribe confirmation dialog (universes only)
+  const [unsubscribeTarget, setUnsubscribeTarget] = createSignal<Collection | null>(null);
+
+  const isUniverse = createMemo(() => collection()?.type === "curated");
+
+  // Sort mode — only used for USER collections. Universes use the
+  // activeOrder signal (story/release/franchise) directly. The hook
+  // is instantiated (not destructured) so its reactive state is
+  // ready when the toolbar changes modes; we read the mode back via
+  // the userSortMode signal below.
+  void useCollectionSort();
+  const [userSortMode, setUserSortMode] = createSignal<UserCollectionSortMode>("manual");
+
+  // Filter — search + status pills. Applies to BOTH user collections
+  // and universes. The vault status lookup is built from the user's
+  // watchlist so the pills can show "Watching 5 / Completed 12" etc.
+  const statusOf = createMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const item of watchlist()) {
+      map[`${item.media_type}:${item.id}`] = (item.status ?? "planned").toLowerCase();
+    }
+    return map;
+  });
+
+  const filter = useCollectionFilter({ statusOf });
 
   // ── Batch Select Mode ──────────────────────────────────────────
   // When active, each timeline entry shows a checkbox. Selected
@@ -140,6 +191,7 @@ export default function CollectionDetailPage() {
     const myEpoch = ++resolveEpoch;
     setLoading(true);
     setNotFound(false);
+    setPhases([]);
 
     try {
       // 1. Check user collections first (synchronous lookup).
@@ -167,7 +219,13 @@ export default function CollectionDetailPage() {
       if (myEpoch !== resolveEpoch) return; // stale
 
       if (curated) {
-        setCollection(curated);
+        // 4. For curated universes, also fetch admin-authored phase
+        //    dividers from the `universe_phases` table. These are
+        //    rendered as section headers in the TimelineEngine.
+        const universePhases = await fetchPhasesForUniverse(curated.id);
+        if (myEpoch !== resolveEpoch) return;
+        setCollection(universePhases.length > 0 ? withPhases(curated, universePhases) : curated);
+        setPhases(universePhases);
       } else {
         setNotFound(true);
       }
@@ -180,6 +238,63 @@ export default function CollectionDetailPage() {
         setLoading(false);
       }
     }
+  };
+
+  // ── Action dock handlers ──
+  const handleShare = () => {
+    const col = collection();
+    if (!col) return;
+    const url = typeof window !== "undefined"
+      ? `${window.location.origin}/collections/${col.id}`
+      : "";
+    if (url && navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(
+        () => showToast("Collection link copied", "success", 1500),
+        () => showToast("Copy failed", "error", 1500),
+      );
+    }
+  };
+
+  const handleArchive = async () => {
+    const col = collection();
+    if (!col) return;
+    const ok = await archiveCollection(col.id);
+    if (ok) {
+      // Immediately navigate the user back to /collections as
+      // specified — the archived collection is hidden from the
+      // default grid.
+      navigate("/collections");
+    }
+  };
+
+  const handleDelete = () => {
+    const col = collection();
+    if (!col) return;
+    setDeleteTarget(col);
+  };
+
+  const confirmDelete = async () => {
+    const target = deleteTarget();
+    if (!target) return;
+    await deleteCollection(target.id);
+    setDeleteTarget(null);
+    navigate("/collections");
+  };
+
+  const handleUnsubscribe = () => {
+    const col = collection();
+    if (!col) return;
+    setUnsubscribeTarget(col);
+  };
+
+  const confirmUnsubscribe = async () => {
+    const target = unsubscribeTarget();
+    if (!target) return;
+    await removeUniverseFromPrefs(target.id);
+    await refreshUniverses();
+    setUnsubscribeTarget(null);
+    showToast(`Unsubscribed from "${target.name}"`, "success");
+    navigate("/collections");
   };
 
   // Trigger fetch when params.id changes or userCollections populates.
@@ -280,10 +395,37 @@ export default function CollectionDetailPage() {
               onOpenMoveDialog={() => setShowMoveDialog(true)}
             />
 
+            {/* Action Dock — contextual actions for the collection.
+                USER collections: Add Titles, Edit, Share, More (Archive/Delete).
+                SUBSCRIBED UNIVERSES: Share, Unsubscribe only. */}
+            <CollectionActionDock
+              collection={collection()!}
+              onAddTitles={() => navigate(`/collections/${collection()!.id}/edit`)}
+              onEdit={() => setEditingFolder(collection()!)}
+              onShare={handleShare}
+              onArchive={handleArchive}
+              onDelete={handleDelete}
+              onUnsubscribe={handleUnsubscribe}
+            />
+
+            {/* Toolbar — sort (user collections only), search, status pills.
+                Universes are locked to "Timeline Order". */}
+            <CollectionToolbar
+              collection={collection()!}
+              search={filter.search}
+              onSearchInput={filter.onSearchInput}
+              status={filter.status}
+              onStatusChange={filter.setStatus}
+              sortMode={isUniverse() ? undefined : userSortMode}
+              onSortModeChange={isUniverse() ? undefined : setUserSortMode}
+            />
+
             {/* Entry renderer — single Timeline view (rail + numbered nodes).
                 The view-mode toggle was removed in v3 — there's only one
                 view now. The active sort is conveyed by the order-switch
-                buttons above and by the Timeline header label. */}
+                buttons above and by the Timeline header label.
+                For universes, phase dividers are rendered as section
+                headers between entries. */}
             <TimelineEngine
               collection={collection()!}
               order={activeOrder()}
@@ -293,8 +435,121 @@ export default function CollectionDetailPage() {
               selectedIds={selectedIds()}
               onToggleSelected={toggleSelected}
               onEdit={() => navigate(`/collections/${collection()!.id}/edit`)}
+              phases={phases()}
             />
           </div>
+
+          {/* Folder editor modal — opened by the Edit action */}
+          <Show when={editingFolder()}>
+            <FolderEditor
+              collection={editingFolder()!}
+              onClose={() => setEditingFolder(null)}
+            />
+          </Show>
+
+          {/* Delete confirmation dialog */}
+          <Show when={deleteTarget()}>
+            {(target) => (
+              <div
+                class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+                style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+                onClick={() => setDeleteTarget(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Delete ${target().name}`}
+              >
+                <div
+                  class="modal-surface w-full max-w-sm p-6"
+                  style={{ "border-radius": "var(--radius-xl)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
+                    <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
+                      <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                        delete
+                      </span>
+                    </div>
+                    <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
+                      Delete "{target().name}"?
+                    </h3>
+                    <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
+                      This will permanently remove the collection and all its entries. This cannot be undone.
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+                    <button
+                      type="button"
+                      class="btn-ghost focus-ring"
+                      onClick={() => setDeleteTarget(null)}
+                      style={{ flex: "1" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-primary focus-ring setting-row-danger"
+                      onClick={confirmDelete}
+                      style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Show>
+
+          {/* Unsubscribe confirmation dialog (universes only) */}
+          <Show when={unsubscribeTarget()}>
+            {(target) => (
+              <div
+                class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+                style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+                onClick={() => setUnsubscribeTarget(null)}
+                role="dialog"
+                aria-modal="true"
+                aria-label={`Unsubscribe from ${target().name}`}
+              >
+                <div
+                  class="modal-surface w-full max-w-sm p-6"
+                  style={{ "border-radius": "var(--radius-xl)" }}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
+                    <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
+                      <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                        remove_circle
+                      </span>
+                    </div>
+                    <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
+                      Unsubscribe from "{target().name}"?
+                    </h3>
+                    <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
+                      You'll lose access to this universe's timeline. You can re-subscribe anytime from "Add Universe".
+                    </p>
+                  </div>
+                  <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+                    <button
+                      type="button"
+                      class="btn-ghost focus-ring"
+                      onClick={() => setUnsubscribeTarget(null)}
+                      style={{ flex: "1" }}
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      class="btn-primary focus-ring setting-row-danger"
+                      onClick={confirmUnsubscribe}
+                      style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
+                    >
+                      Unsubscribe
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
+          </Show>
 
           {/* Move-to-folder dialog — shown when user clicks "Move" in select mode */}
           <Show when={showMoveDialog()}>

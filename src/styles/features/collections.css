@@ -2203,3 +2203,654 @@
   flex-wrap: wrap;
   margin-bottom: var(--sp-3);
 }
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Phase Divider — section headers for curated universe timelines.
+   Rendered between groups of entries when the admin has configured
+   phase dividers (e.g. "Phase 1: Avengers Assemble"). The user has
+   no edit access; phases come from the universe_phases table.
+   ────────────────────────────────────────────────────────────────────────── */
+.phase-divider {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  gap: var(--sp-3);
+  margin: var(--sp-6) 0 var(--sp-3);
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--radius-lg, 1rem);
+  background:
+    linear-gradient(135deg, var(--phase-accent-glow, transparent), transparent 70%),
+    var(--tier-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--phase-accent, var(--hairline));
+  box-shadow:
+    0 0 0 1px var(--phase-accent-glow, transparent) inset,
+    0 4px 24px -8px var(--phase-accent-glow, transparent);
+  overflow: hidden;
+}
+
+.phase-divider::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  background: var(--phase-accent, var(--p));
+  opacity: 0.9;
+}
+
+.phase-divider-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 36px;
+  padding-right: var(--sp-3);
+  border-right: 1px solid var(--hairline);
+}
+
+.phase-divider-index {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.05em;
+  color: var(--phase-accent, var(--p));
+  text-shadow: 0 0 12px var(--phase-accent-glow, transparent);
+}
+
+.phase-divider-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.phase-divider-label {
+  margin: 0;
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.25rem;
+  letter-spacing: 0.08em;
+  color: var(--text-strong, #fff);
+  text-transform: uppercase;
+  line-height: 1.1;
+}
+
+.phase-divider-description {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  line-height: 1.4;
+}
+
+@media (max-width: 640px) {
+  .phase-divider {
+    padding: var(--sp-3) var(--sp-4);
+    gap: var(--sp-2);
+  }
+  .phase-divider-marker {
+    min-width: 28px;
+    padding-right: var(--sp-2);
+  }
+  .phase-divider-index {
+    font-size: 1.25rem;
+  }
+  .phase-divider-label {
+    font-size: 1.0625rem;
+  }
+  .phase-divider-description {
+    font-size: 0.75rem;
+  }
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Archived Collections Section — "Show Archived" toggle reveals these.
+   Each archived card is dimmed and shows an "Archived" overlay badge.
+   ────────────────────────────────────────────────────────────────────────── */
+.archived-collections-section {
+  margin-top: var(--sp-8);
+  padding-top: var(--sp-6);
+  border-top: 1px dashed var(--hairline);
+}
+
+.archived-collections-label {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: var(--sp-4);
+}
+
+.archived-collections-label .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--text-dim);
+}
+
+.collection-card.is-archived {
+  opacity: 0.55;
+  filter: grayscale(0.4);
+  transition: opacity 0.2s ease, filter 0.2s ease;
+}
+
+.collection-card.is-archived:hover {
+  opacity: 0.85;
+  filter: grayscale(0.15);
+}
+
+.collection-card-archived-badge {
+  position: absolute;
+  top: 8px;
+  left: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  border-radius: 999px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #f5c518;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  border: 1px solid rgba(245, 197, 24, 0.4);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+
+.collection-card-archived-badge .material-symbols-outlined {
+  font-size: 10px;
+}
+
+.collection-card-unarchive-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  background: var(--p, #e62429);
+  color: #fff;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  box-shadow: 0 4px 12px -4px var(--p, #e62429);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.collection-card-unarchive-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 6px 16px -4px var(--p, #e62429);
+}
+
+.collection-card-unarchive-btn .material-symbols-outlined {
+  font-size: 12px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Collection Detail — action dock (Add Titles / Edit / Share / More)
+   ────────────────────────────────────────────────────────────────────────── */
+.collection-action-dock {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+  padding: var(--sp-3) 0;
+  margin-bottom: var(--sp-4);
+}
+
+.collection-action-dock-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 999px;
+  background: var(--tier-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  color: var(--text-soft, rgba(255, 255, 255, 0.85));
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.collection-action-dock-btn:hover {
+  background: var(--tier-3, rgba(255, 255, 255, 0.07));
+  color: var(--text-strong, #fff);
+  border-color: var(--p, #e62429);
+}
+
+.collection-action-dock-btn-primary {
+  background: var(--p, #e62429);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 12px -4px var(--p, #e62429);
+}
+
+.collection-action-dock-btn-primary:hover {
+  background: var(--p-dim, #c01a23);
+  border-color: transparent;
+  color: #fff;
+}
+
+.collection-action-dock-btn .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.collection-action-dock-more {
+  position: relative;
+}
+
+.collection-action-dock-more-menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--glass-bg-strong, rgba(20, 22, 30, 0.92));
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+  border: 1px solid var(--hairline-2, rgba(255, 255, 255, 0.1));
+  border-radius: var(--radius-md, 0.75rem);
+  box-shadow: var(--shadow-elevated, 0 12px 40px -8px rgba(0, 0, 0, 0.5));
+  z-index: 50;
+  overflow: hidden;
+  padding: 4px;
+}
+
+.collection-action-dock-more-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-soft, rgba(255, 255, 255, 0.85));
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.75rem;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.collection-action-dock-more-menu-item:hover {
+  background: var(--tier-3, rgba(255, 255, 255, 0.07));
+  color: var(--text-strong, #fff);
+}
+
+.collection-action-dock-more-menu-item.danger {
+  color: #f87171;
+}
+
+.collection-action-dock-more-menu-item.danger:hover {
+  background: rgba(248, 113, 113, 0.1);
+}
+
+.collection-action-dock-more-menu-item .material-symbols-outlined {
+  font-size: 14px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Collection Detail — sort/filter/search toolbar
+   ────────────────────────────────────────────────────────────────────────── */
+.collection-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+
+.collection-toolbar-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.collection-toolbar-search {
+  flex: 1;
+  min-width: 200px;
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: var(--tier-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  transition: border-color 0.15s ease;
+}
+
+.collection-toolbar-search:focus-within {
+  border-color: var(--p, #e62429);
+}
+
+.collection-toolbar-search input {
+  flex: 1;
+  min-width: 0;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text-strong, #fff);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+}
+
+.collection-toolbar-search input::placeholder {
+  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+}
+
+.collection-toolbar-search .material-symbols-outlined {
+  font-size: 16px;
+  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+}
+
+.collection-toolbar-pills {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.collection-toolbar-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: var(--tier-2, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.collection-toolbar-pill:hover {
+  color: var(--text-strong, #fff);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.collection-toolbar-pill.is-active {
+  background: var(--p, #e62429);
+  color: #fff;
+  border-color: transparent;
+  box-shadow: 0 4px 10px -4px var(--p, #e62429);
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Entry List Row — drag-to-reorder list item (manual sort mode only)
+   ────────────────────────────────────────────────────────────────────────── */
+.entry-list-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--radius-md, 0.75rem);
+  background: var(--tier-2, rgba(255, 255, 255, 0.03));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
+  transition: background 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  cursor: pointer;
+}
+
+.entry-list-row:hover {
+  background: var(--tier-3, rgba(255, 255, 255, 0.06));
+  border-color: rgba(255, 255, 255, 0.12);
+}
+
+.entry-list-row.is-dragging {
+  opacity: 0.5;
+  transform: scale(0.98);
+}
+
+.entry-list-row.is-drop-target {
+  border-color: var(--p, #e62429);
+  box-shadow: 0 0 0 2px var(--p-dim, rgba(230, 36, 41, 0.3));
+}
+
+.entry-list-row-drag-handle {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 36px;
+  flex-shrink: 0;
+  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+  cursor: grab;
+  touch-action: none;
+}
+
+.entry-list-row-drag-handle:active {
+  cursor: grabbing;
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+}
+
+.entry-list-row-drag-handle .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.entry-list-row-poster {
+  width: 40px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  object-fit: cover;
+  background: var(--tier-3, rgba(255, 255, 255, 0.05));
+}
+
+.entry-list-row-poster-fallback {
+  width: 40px;
+  height: 60px;
+  flex-shrink: 0;
+  border-radius: 4px;
+  background: var(--tier-3, rgba(255, 255, 255, 0.05));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-dim, rgba(255, 255, 255, 0.3));
+}
+
+.entry-list-row-poster-fallback .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.entry-list-row-main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.entry-list-row-title {
+  margin: 0;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--text-strong, #fff);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry-list-row-meta {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+}
+
+.entry-list-row-year {
+  font-family: 'Azeret Mono', monospace;
+  letter-spacing: 0.05em;
+}
+
+.entry-list-row-status {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.entry-list-row-status.watching {
+  background: rgba(59, 130, 246, 0.15);
+  color: #93c5fd;
+  border: 1px solid rgba(59, 130, 246, 0.3);
+}
+
+.entry-list-row-status.completed {
+  background: rgba(34, 197, 94, 0.15);
+  color: #86efac;
+  border: 1px solid rgba(34, 197, 94, 0.3);
+}
+
+.entry-list-row-status.planned {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fcd34d;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.entry-list-row-status.on_hold {
+  background: rgba(168, 85, 247, 0.15);
+  color: #d8b4fe;
+  border: 1px solid rgba(168, 85, 247, 0.3);
+}
+
+.entry-list-row-status.dropped {
+  background: rgba(239, 68, 68, 0.15);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.entry-list-row-rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  color: #f5c518;
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+}
+
+.entry-list-row-rating .material-symbols-outlined {
+  font-size: 11px;
+  font-variation-settings: 'FILL' 1, 'wght' 400;
+}
+
+.entry-list-row-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.entry-list-row:hover .entry-list-row-actions {
+  opacity: 1;
+}
+
+.entry-list-row-action {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 6px;
+  background: transparent;
+  border: 1px solid transparent;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.entry-list-row-action:hover {
+  background: var(--tier-3, rgba(255, 255, 255, 0.07));
+  color: var(--text-strong, #fff);
+  border-color: var(--hairline, rgba(255, 255, 255, 0.1));
+}
+
+.entry-list-row-action.danger:hover {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.3);
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.entry-list-row-action .material-symbols-outlined {
+  font-size: 14px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Show Archived toggle button (on the main Collections page)
+   ────────────────────────────────────────────────────────────────────────── */
+.collections-show-archived-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: 999px;
+  background: transparent;
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.collections-show-archived-toggle:hover {
+  color: var(--text-soft, rgba(255, 255, 255, 0.8));
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.collections-show-archived-toggle.is-active {
+  color: #f5c518;
+  border-color: rgba(245, 197, 24, 0.4);
+  background: rgba(245, 197, 24, 0.08);
+}
+
+.collections-show-archived-toggle .material-symbols-outlined {
+  font-size: 13px;
+}
+
+/* ──────────────────────────────────────────────────────────────────────────
+   Collections page — dynamic subtitle (X Collections · Y Universes)
+   ────────────────────────────────────────────────────────────────────────── */
+.collections-page-subtitle-counts {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-1);
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  letter-spacing: 0.05em;
+  color: var(--text-dim, rgba(255, 255, 255, 0.4));
+  text-transform: uppercase;
+}
+
+.collections-page-subtitle-counts-dot {
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: var(--text-dim, rgba(255, 255, 255, 0.3));
+}

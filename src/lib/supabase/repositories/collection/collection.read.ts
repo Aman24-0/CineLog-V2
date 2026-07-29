@@ -70,7 +70,9 @@ export async function getCollection(
 
 /**
  * List collections with optional filtering, sorting, and pagination.
- * Excludes soft-deleted rows.
+ * Excludes soft-deleted rows. By default also excludes archived rows
+ * (`archived_at IS NOT NULL`); pass `includeArchived: true` to include
+ * them (used by the "Show Archived" toggle on the Collections page).
  *
  * @returns An array of rows (empty if none match). `error` is null on success.
  */
@@ -82,6 +84,14 @@ export async function getCollections(
     .from(COLLECTIONS_TABLE)
     .select()
     .is("deleted_at", null);
+
+  // Default: exclude archived rows. The Collections grid only shows
+  // active folders; archived ones live behind the "Show Archived"
+  // toggle which calls back with includeArchived=true and then
+  // filters client-side.
+  if (!filter?.includeArchived) {
+    query = query.is("archived_at", null);
+  }
 
   if (filter?.userId !== undefined) {
     query = query.eq("user_id", filter.userId);

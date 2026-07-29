@@ -4,10 +4,12 @@ import { useVault } from "~/features/watchlist/useVault";
 import type {
   Collection,
   CollectionEntry,
+  UniversePhase,
   ViewingOrder,
   TimelineProvider,
 } from "~/shared/types";
 import TimelineEntry from "./TimelineEntry";
+import PhaseDivider from "./PhaseDivider";
 import {
   sortAndEnrich,
   groupByFranchise,
@@ -27,6 +29,15 @@ interface TimelineEngineProps {
   selectedIds?: Set<string>;
   onToggleSelected?: (entry: CollectionEntry) => void;
   onEdit?: () => void;
+  /**
+   * Admin-authored phase dividers for curated universes. The engine
+   * renders a PhaseDivider BEFORE any entry whose `id` (TMDB id as
+   * string) matches a phase's `beforeEntryId`. NULL beforeEntryId
+   * means "render at the very top".
+   *
+   * User collections should NOT pass phases — they're admin-only.
+   */
+  phases?: UniversePhase[];
 }
 
 /**
@@ -114,6 +125,30 @@ export default function TimelineEngine(props: TimelineEngineProps) {
     return props.selectedIds.has(`${entry.media_type}:${entry.id}`);
   };
 
+  // Build a lookup of phase dividers keyed by the entry id they
+  // appear BEFORE. Multiple phases can target the same entry (rare
+  // but supported via orderIndex). Phases with NULL beforeEntryId
+  // are rendered at the very top.
+  const phasesByEntry = createMemo<Map<string, UniversePhase[]>>(() => {
+    const map = new Map<string, UniversePhase[]>();
+    if (!props.phases || props.phases.length === 0) return map;
+    for (const phase of props.phases) {
+      const key = phase.beforeEntryId ?? "__TOP__";
+      const list = map.get(key) ?? [];
+      list.push(phase);
+      map.set(key, list);
+    }
+    return map;
+  });
+
+  const accentColor = () => props.collection.accentColor;
+
+  // Phase index counter — increments for each rendered phase so the
+  // numeric badge shows 1, 2, 3, ... in document order regardless of
+  // the orderIndex values the admin set.
+  let phaseCounter = 0;
+  const nextPhaseIndex = () => ++phaseCounter;
+
   return (
     <div class="universe-timeline-section">
       {/* Header row: section label (matches the active sort, e.g.
@@ -141,6 +176,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
           </button>
         </Show>
       </div>
+
+      {/* Phase dividers with NULL beforeEntryId render at the very
+          top of the timeline (a "Phase 0" intro). */}
 
       {/* Franchise mode — group by movie series (Iron Man, Thor, etc.) */}
       <Show when={renderMode() === "franchise"}>
@@ -246,22 +284,48 @@ export default function TimelineEngine(props: TimelineEngineProps) {
 
       {/* Flat timeline mode (storyline without year grouping, release, custom) */}
       <Show when={renderMode() === "flat"}>
+        {/* Top-of-timeline phase dividers (NULL beforeEntryId) */}
+        <Show when={(phasesByEntry().get("__TOP__") ?? []).length > 0}>
+          <For each={phasesByEntry().get("__TOP__") ?? []}>
+            {(phase) => (
+              <PhaseDivider
+                phase={phase}
+                accentColor={accentColor()}
+                index={nextPhaseIndex()}
+              />
+            )}
+          </For>
+        </Show>
         <div class="universe-timeline-wrap">
           <div class="universe-timeline-rail" aria-hidden="true" />
           <div class="universe-timeline timeline-stagger" role="list">
             <For each={sortedEntries()}>
               {(item, i) => (
-                <TimelineEntry
-                  item={item}
-                  index={i() + 1}
-                  showIncidentYear={useIncidentYear()}
-                  onOpen={() => props.onOpenEntry(item.entry)}
-                  titleOf={titleOf}
-                  yearOf={yearOf}
-                  selectMode={props.selectMode}
-                  selected={isSelected(item.entry)}
-                  onToggleSelect={() => props.onToggleSelected?.(item.entry)}
-                />
+                <>
+                  {/* Phase divider(s) that should appear BEFORE this entry. */}
+                  <Show when={(phasesByEntry().get(item.entry.id) ?? []).length > 0}>
+                    <For each={phasesByEntry().get(item.entry.id) ?? []}>
+                      {(phase) => (
+                        <PhaseDivider
+                          phase={phase}
+                          accentColor={accentColor()}
+                          index={nextPhaseIndex()}
+                        />
+                      )}
+                    </For>
+                  </Show>
+                  <TimelineEntry
+                    item={item}
+                    index={i() + 1}
+                    showIncidentYear={useIncidentYear()}
+                    onOpen={() => props.onOpenEntry(item.entry)}
+                    titleOf={titleOf}
+                    yearOf={yearOf}
+                    selectMode={props.selectMode}
+                    selected={isSelected(item.entry)}
+                    onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                  />
+                </>
               )}
             </For>
           </div>

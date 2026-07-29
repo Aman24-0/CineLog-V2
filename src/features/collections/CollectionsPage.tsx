@@ -1,5 +1,5 @@
 // src/features/collections/CollectionsPage.tsx
-import { Show, createSignal, ErrorBoundary, lazy, Suspense, For } from "solid-js";
+import { Show, createSignal, createMemo, ErrorBoundary, lazy, Suspense, For } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -11,6 +11,7 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import CollectionsGrid from "./components/CollectionsGrid";
+import ArchivedCollectionsSection from "./components/ArchivedCollectionsSection";
 import type { Collection } from "~/shared/types";
 
 // Lazy-load modals so they don't bloat the initial bundle.
@@ -43,6 +44,9 @@ export default function CollectionsPage() {
     curatedCollections: _curatedCollections,
     loading,
     createCollection,
+    archiveCollection,
+    unarchiveCollection,
+    fetchWithArchived,
   } = useCollections();
   const { subscribedUniverses, refresh: refreshUniverses } = useCuratedUniverses();
   const { removeUniverseFromPrefs } = useUniversePrefsLogic();
@@ -55,6 +59,30 @@ export default function CollectionsPage() {
   const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
   const [showAddUniverse, setShowAddUniverse] = createSignal(false);
   const [unsubscribeTarget, setUnsubscribeTarget] = createSignal<Collection | null>(null);
+  const [showArchived, setShowArchived] = createSignal(false);
+
+  // Active collections — exclude archived. The default fetch (in
+  // useCollections.loadForUid) already filters archived at the DB
+  // layer; this is a defensive client-side filter in case the
+  // signal was populated by fetchWithArchived (which includes both).
+  const activeCollections = createMemo(() =>
+    userCollections().filter((c) => !c.isArchived),
+  );
+
+  // Archived collections — only present in the signal after the user
+  // toggles "Show Archived" (which calls fetchWithArchived). Before
+  // the toggle, this is empty.
+  const archivedCollections = createMemo(() =>
+    userCollections().filter((c) => c.isArchived),
+  );
+
+  // Dynamic subtitle counts: "X Collections · Y Subscribed Universes".
+  // Computed from the live signals so the count updates immediately
+  // on create/delete/archive/subscribe/unsubscribe.
+  const subtitleCounts = createMemo(() => ({
+    collections: activeCollections().length,
+    universes: subscribedUniverses().length,
+  }));
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -71,6 +99,32 @@ export default function CollectionsPage() {
     await refreshUniverses();
     setUnsubscribeTarget(null);
     showToast(`Unsubscribed from "${target.name}"`, "success");
+  };
+
+  const handleToggleShowArchived = async () => {
+    const next = !showArchived();
+    setShowArchived(next);
+    if (next) {
+      // Fetch with archived included. The signal will then contain
+      // BOTH active and archived; activeCollections and
+      // archivedCollections memos split them.
+      await fetchWithArchived();
+    }
+  };
+
+  const handleArchive = async (col: Collection) => {
+    const ok = await archiveCollection(col.id);
+    if (ok && showArchived()) {
+      // Refresh so the archived section shows the newly-archived card.
+      await fetchWithArchived();
+    }
+  };
+
+  const handleUnarchive = async (collectionId: string) => {
+    await unarchiveCollection(collectionId);
+    if (showArchived()) {
+      await fetchWithArchived();
+    }
   };
 
   return (
@@ -115,6 +169,14 @@ export default function CollectionsPage() {
             <p class="collections-page-subtitle">
               Organize your titles into folders and subscribe to curated universes.
             </p>
+            {/* Dynamic subtitle counts — X Collections · Y Subscribed Universes.
+                Computed via createMemo so it updates immediately on any
+                create/delete/archive/subscribe/unsubscribe. */}
+            <p class="collections-page-subtitle-counts">
+              <span>{subtitleCounts().collections} {subtitleCounts().collections !== 1 ? "Collections" : "Collection"}</span>
+              <span class="collections-page-subtitle-counts-dot" aria-hidden="true" />
+              <span>{subtitleCounts().universes} {subtitleCounts().universes !== 1 ? "Subscribed Universes" : "Subscribed Universe"}</span>
+            </p>
           </div>
 
           {/* === USER COLLECTIONS === */}
@@ -158,6 +220,22 @@ export default function CollectionsPage() {
                 </span>
                 New
               </button>
+              {/* Show Archived toggle — only visible once at least one
+                  collection has been archived. Clicking it fetches with
+                  archived included and reveals the archived section. */}
+              <button
+                type="button"
+                class={`collections-show-archived-toggle focus-ring${showArchived() ? " is-active" : ""}`}
+                onClick={handleToggleShowArchived}
+                aria-pressed={showArchived()}
+                aria-label={showArchived() ? "Hide archived collections" : "Show archived collections"}
+                title={showArchived() ? "Hide archived" : "Show archived"}
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  {showArchived() ? "archive" : "unarchive"}
+                </span>
+                {showArchived() ? "Hide Archived" : "Show Archived"}
+              </button>
             </div>
 
             <Show when={showCreate()}>
@@ -194,9 +272,20 @@ export default function CollectionsPage() {
 
             <CollectionsGrid
               loading={loading}
-              userCollections={userCollections}
+              userCollections={activeCollections}
               onEditFolder={(col) => setEditingFolder(col)}
+              onArchive={handleArchive}
             />
+
+            {/* Archived section — only rendered when the toggle is on.
+                Each archived card is dimmed and exposes only an
+                "Unarchive" button (no edit / delete). */}
+            <Show when={showArchived()}>
+              <ArchivedCollectionsSection
+                collections={archivedCollections}
+                onUnarchive={handleUnarchive}
+              />
+            </Show>
           </section>
 
           {/* === SUBSCRIBED UNIVERSES === */}

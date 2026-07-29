@@ -948,7 +948,12 @@ export interface Collection {
   coverImagePath?: string;
   /** Custom background image path */
   backgroundImagePath?: string;
-  /** Whether the folder is archived */
+  /** ISO timestamp when the user archived this collection.
+   *  NULL = active. Non-null = archived (hidden from the main
+   *  Collections grid unless the user toggles "Show Archived").
+   *  Mirrors the DB column `collections.archived_at`. */
+  archivedAt?: string | null;
+  /** Convenience flag derived from `archivedAt`. True when archived. */
   isArchived?: boolean;
   /** Whether the folder is marked as favorite */
   isFavorite?: boolean;
@@ -956,10 +961,38 @@ export interface Collection {
   isSmart?: boolean;
   /** Rules for smart collections */
   smartRules?: SmartRule[];
+  /** Combinator for smart collection rules — AND (default) or OR. */
+  smartRulesCombinator?: "and" | "or";
   /** Sort mode for entries */
   sortOrder?: "manual" | "date" | "title" | "rating";
   /** ISO timestamp of last title watched in this universe */
   lastWatchedAt?: string;
+  /** Curated universes ONLY — admin-authored phase dividers.
+   *  Empty/undefined for user collections. Fetched from the
+   *  `universe_phases` table; NEVER hardcoded. */
+  phases?: UniversePhase[];
+}
+
+/**
+ * UniversePhase — admin-authored section divider for a curated universe.
+ * Stored in the `universe_phases` table. The user-side detail page
+ * renders these as headers BEFORE the entry identified by
+ * `beforeEntryId` (or at the very top when `beforeEntryId` is null).
+ * Users have NO edit access — these come entirely from the admin panel.
+ */
+export interface UniversePhase {
+  id: string;
+  universeId: string;
+  label: string;
+  description?: string | null;
+  /** ID of the curated_universe_entries row this divider appears BEFORE.
+   *  NULL = render at the very top of the timeline. */
+  beforeEntryId?: string | null;
+  /** Sort order — lower comes first when multiple phases share the
+   *  same `beforeEntryId` (rare but possible). */
+  orderIndex: number;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /* ============================================================
@@ -1012,7 +1045,7 @@ export interface UniversePreferences {
    ============================================================ */
 
 export interface SmartRule {
-  field: "director" | "genre" | "franchise" | "year" | "rating" | "status" | "keyword";
-  operator: "is" | "contains" | "gte" | "lte" | "between";
+  field: "director" | "genre" | "franchise" | "year" | "rating" | "status" | "keyword" | "release_date";
+  operator: "is" | "is_not" | "contains" | "gte" | "lte" | "between";
   value: string | number | [number, number];
 }

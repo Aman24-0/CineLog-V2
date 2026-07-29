@@ -22,7 +22,7 @@ import type {
   CuratedUniverseRow,
   CuratedUniverseEntryRow,
 } from "~/lib/supabase/repositories";
-import type { TMDBTitle, Collection, CollectionEntry, ViewingOrder, ViewingOrderOption } from "~/shared/types";
+import type { TMDBTitle, Collection, CollectionEntry, UniversePhase, ViewingOrder, ViewingOrderOption } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
 // Constants — the 3 unified viewing orders shown in BOTH admin + consumer UI
@@ -320,4 +320,71 @@ export async function fetchSubscribedUniverseIds(userId: string): Promise<Set<st
     return new Set();
   }
   return new Set(data.map((s) => s.universe.id));
+}
+
+// ---------------------------------------------------------------------------
+// Phase dividers — admin-authored section headers for curated universes.
+// Stored in the `universe_phases` table. The user-side detail page
+// renders them as section headers BEFORE the entry identified by
+// `beforeEntryId`. Users have NO edit access — these come entirely
+// from the admin panel.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all phase dividers for a curated universe, ordered by
+ * `order_index` ascending. Returns an empty array on error or when
+ * no phases have been configured.
+ *
+ * Each phase has a `beforeEntryId` pointing at a
+ * `curated_universe_entries.id` (NOT the TMDB id). The consumer
+ * detail page walks the sorted entries; whenever it encounters the
+ * entry whose row id matches `beforeEntryId`, it renders the phase
+ * header first, then the entry.
+ */
+export async function fetchPhasesForUniverse(universeId: string): Promise<UniversePhase[]> {
+  try {
+    const { getClient } = await import("~/lib/supabase/client");
+    const supabase = getClient();
+    const { data, error } = await supabase
+      .from("universe_phases")
+      .select("id, universe_id, label, description, before_entry_id, order_index, created_at, updated_at")
+      .eq("universe_id", universeId)
+      .order("order_index", { ascending: true });
+    if (error) {
+      console.error("[curatedUniverseAdapter] Error fetching universe_phases:", error);
+      return [];
+    }
+    if (!data || data.length === 0) return [];
+    return (data as Array<{
+      id: string;
+      universe_id: string;
+      label: string;
+      description: string | null;
+      before_entry_id: string | null;
+      order_index: number;
+      created_at: string;
+      updated_at: string;
+    }>).map((row) => ({
+      id: row.id,
+      universeId: row.universe_id,
+      label: row.label,
+      description: row.description,
+      beforeEntryId: row.before_entry_id,
+      orderIndex: row.order_index,
+      createdAt: row.created_at,
+      updatedAt: row.updated_at,
+    }));
+  } catch (err) {
+    console.error("[curatedUniverseAdapter] Failed to fetch universe_phases:", err);
+    return [];
+  }
+}
+
+/**
+ * Attach fetched phase dividers to an existing Collection object.
+ * Used by the detail page after it resolves the universe — phases
+ * are fetched as a separate query and merged in.
+ */
+export function withPhases(collection: Collection, phases: UniversePhase[]): Collection {
+  return { ...collection, phases };
 }

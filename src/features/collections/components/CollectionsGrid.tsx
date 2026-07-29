@@ -26,6 +26,10 @@ export interface CollectionsGridProps {
   loading: Accessor<boolean>;
   userCollections: Accessor<Collection[]>;
   onEditFolder: (col: Collection) => void;
+  /** Optional archive callback — when provided, each card shows an
+   *  Archive action in its hover menu. The detail page also exposes
+   *  Archive via its action dock; this is the grid-level shortcut. */
+  onArchive?: (col: Collection) => void;
 }
 
 export default function CollectionsGrid(props: CollectionsGridProps) {
@@ -64,6 +68,7 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
               col={col}
               onOpen={() => navigate(`/collections/${col.id}`)}
               onEdit={() => props.onEditFolder(col)}
+              onArchive={props.onArchive ? () => props.onArchive!(col) : undefined}
             />
           )}
         </For>
@@ -80,6 +85,7 @@ interface CollectionCardProps {
   col: Collection;
   onOpen: () => void;
   onEdit: () => void;
+  onArchive?: () => void;
 }
 
 function CollectionCard(props: CollectionCardProps) {
@@ -226,6 +232,13 @@ function CollectionCard(props: CollectionCardProps) {
           <Show when={props.col.isSmart}>
             <span class="collection-badge collection-badge-smart" title="Smart Collection">
               <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">auto_awesome</span>
+              <span style={{ "font-size": "0.5rem", "margin-left": "2px", "letter-spacing": "0.05em" }}>SMART</span>
+            </span>
+          </Show>
+          <Show when={!props.col.isSmart && !props.col.isFavorites}>
+            <span class="collection-badge" title="Custom collection">
+              <span class="material-symbols-outlined" style={{ "font-size": "10px", color: "var(--text-soft)" }} aria-hidden="true">folder</span>
+              <span style={{ "font-size": "0.5rem", "margin-left": "2px", "letter-spacing": "0.05em", color: "var(--text-soft)" }}>CUSTOM</span>
             </span>
           </Show>
           <Show when={props.col.isFavorites}>
@@ -235,7 +248,7 @@ function CollectionCard(props: CollectionCardProps) {
           </Show>
         </div>
 
-        {/* Three-dot menu */}
+        {/* Three-dot menu (Edit) */}
         <button
           type="button"
           class="collection-card-menu focus-ring"
@@ -244,11 +257,34 @@ function CollectionCard(props: CollectionCardProps) {
             props.onEdit();
           }}
           aria-label={`Edit ${props.col.name}`}
+          title="Edit collection"
         >
           <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
             more_vert
           </span>
         </button>
+
+        {/* Archive shortcut — only when an onArchive handler is
+            provided (i.e. on the main Collections grid, not the
+            archived section). Sits next to the three-dot menu so
+            both quick actions are visible on hover. */}
+        <Show when={props.onArchive}>
+          <button
+            type="button"
+            class="collection-card-menu focus-ring"
+            style={{ right: "40px" }}
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onArchive?.();
+            }}
+            aria-label={`Archive ${props.col.name}`}
+            title="Archive collection"
+          >
+            <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--text-dim)" }} aria-hidden="true">
+              archive
+            </span>
+          </button>
+        </Show>
       </div>
 
       {/* Info area */}

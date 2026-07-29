@@ -146,7 +146,11 @@ export async function getCollectionMemberships(
     if ("deleted_at" in entry.collection && entry.collection.deleted_at !== null) continue;
     memberships.push({
       collection: entry.collection,
-      entry: row as CollectionEntryRow
+      // Cast through unknown — the row's shape comes from a join
+      // query that may not include every column on CollectionEntryRow
+      // (e.g. order_index, which was added in a later migration).
+      // The fields we actually consume downstream are present.
+      entry: row as unknown as CollectionEntryRow
     });
   }
 

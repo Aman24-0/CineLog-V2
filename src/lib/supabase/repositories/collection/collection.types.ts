@@ -95,6 +95,8 @@ export interface UpdateCollectionPayload {
   readonly color?: string | null;
   readonly sortMode?: SortModeType;
   readonly viewMode?: CollectionViewType;
+  /** ISO timestamp to archive; `null` to unarchive. */
+  readonly archivedAt?: string | null;
 }
 
 /**
@@ -154,10 +156,16 @@ export interface CollectionPagination {
 /**
  * Filter for {@link getCollections}. All fields optional — when
  * omitted, no filter is applied for that field.
+ *
+ * `includeArchived` (default `false`): when false, archived rows
+ * (`archived_at IS NOT NULL`) are excluded. When true, archived rows
+ * are included so the "Show Archived" section on the Collections
+ * page can list them.
  */
 export interface CollectionListFilter {
   readonly userId?: string;
   readonly collectionType?: CollectionType;
+  readonly includeArchived?: boolean;
 }
 
 /**

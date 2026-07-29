@@ -99,6 +99,11 @@ export function toCollectionUpdate(
   if (payload.color !== undefined) update.color = payload.color;
   if (payload.sortMode !== undefined) update.sort_mode = payload.sortMode;
   if (payload.viewMode !== undefined) update.view_mode = payload.viewMode;
+  // archived_at — NULL = active, ISO timestamp = archived.
+  // The dedicated archive/unarchive helpers below set this via the
+  // repository, but we also surface it on UpdateCollectionPayload so
+  // the generic updateCollection path can clear/set it if needed.
+  if (payload.archivedAt !== undefined) update.archived_at = payload.archivedAt;
   return update;
 }
 
