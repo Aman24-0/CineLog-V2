@@ -1,7 +1,7 @@
 // src/routes/profile/stats.tsx
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import StatsPage from "~/features/profile/StatsPage";
+import StatisticsPage from "~/features/stats/StatisticsPage";
 
 export default function StatsRoute() {
   return (
@@ -20,7 +20,7 @@ export default function StatsRoute() {
           </div>
         )}
       >
-        <StatsPage />
+        <StatisticsPage />
       </ErrorBoundary>
     </>
   );
