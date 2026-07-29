@@ -6,11 +6,15 @@
 //   • Avatar (80px circle) — Google OAuth avatar OR profile.avatar_url
 //     OR initials fallback. Editable via the edit modal.
 //   • Display name (bold) + @username + "Member since [Month Year]"
+//   • Name row also holds inline icon buttons (compact, icon-only):
+//       - Edit pencil  → only on the viewer's own profile
+//       - Share icon    → always (own + public profile visitors)
+//     Both sit immediately to the right of the display name so the
+//     header stays compact (V3.2 cleanup — moved out of the action
+//     row that used to live below the bio).
 //   • Bio (truncated to 2 lines, expandable)
-//   • Action row:
-//       - Own profile: Share button only (edit lives behind the
-//         pencil icon next to the display name, per V3.1 cleanup)
-//       - Other users (future): Follow / Unfollow + Share
+//   • Action row (other users only, when follow handlers are wired):
+//       Follow / Unfollow
 //   • Social stats: followers / following (clickable in future)
 //
 // The component is purely presentational — all data + handlers come
@@ -90,6 +94,10 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
         <div class="profile-header-v3-text">
           <div class="profile-header-v3-name-row">
             <h1 class="profile-header-v3-name">{displayName()}</h1>
+            {/* Edit pencil — only on the viewer's own profile. Opens
+                the EditProfileModal (avatar / banner / bio / social
+                links / privacy). Icon-only to keep the name row
+                compact; the aria-label carries the affordance. */}
             <Show when={props.isOwnProfile()}>
               <GlassIconButton
                 icon="edit"
@@ -99,31 +107,24 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
                 onClick={() => props.onEdit()}
                 aria-label="Edit profile"
               />
-              {/* Share — moved here from the action row in V3.2 so the
-                  header stays compact and the share entry-point sits
-                  visually next to the edit pencil (both are icon-only). */}
-              <GlassIconButton
-                icon="share"
-                variant="ghost"
-                size="compact"
-                label="Share profile"
-                onClick={() => props.onShare()}
-                aria-label="Share profile"
-              />
             </Show>
-            {/* Public profile (someone else's): expose Share as an icon
-                button next to the name so visitors can re-share. Follow /
-                Unfollow buttons (when wired) live in the action row below. */}
-            <Show when={!props.isOwnProfile()}>
-              <GlassIconButton
-                icon="share"
-                variant="ghost"
-                size="compact"
-                label="Share profile"
-                onClick={() => props.onShare()}
-                aria-label={`Share ${displayName()}'s profile`}
-              />
-            </Show>
+            {/* Share — rendered for BOTH own and public profiles so
+                visitors can re-share. Sits immediately next to the
+                edit pencil (when present) so the two profile actions
+                are grouped visually. Icon-only; aria-label differs
+                for own vs other to give screen-reader users context. */}
+            <GlassIconButton
+              icon="share"
+              variant="ghost"
+              size="compact"
+              label="Share profile"
+              onClick={() => props.onShare()}
+              aria-label={
+                props.isOwnProfile()
+                  ? "Share profile"
+                  : `Share ${displayName()}'s profile`
+              }
+            />
           </div>
           <Show when={username()}>
             <p class="profile-header-v3-username">@{username()}</p>
@@ -139,9 +140,9 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
 
       {/* Action row — only rendered for OTHER users' profiles AND only
           when follow handlers are wired (otherwise the buttons would be
-          no-ops). For the viewer's own profile the action row is empty
-          because both Edit and Share now live as icon buttons in the
-          name row (V3.2 cleanup — keeps the header compact). */}
+          no-ops). The viewer's own profile renders NO action row —
+          both Edit and Share live as icon buttons in the name row
+          above (V3.2 cleanup — keeps the header compact). */}
       <Show when={!props.isOwnProfile() && (props.onFollow || props.onUnfollow)}>
         <div class="profile-header-v3-actions">
           <Show
