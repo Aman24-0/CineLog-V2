@@ -38,6 +38,14 @@ interface TimelineEngineProps {
    * User collections should NOT pass phases — they're admin-only.
    */
   phases?: UniversePhase[];
+  /**
+   * Add-to-watchlist handler — wired into each TimelineEntry's
+   * "+" missing badge. Lets users browsing a curated universe
+   * one-tap add a non-vault title to their watchlist. Only
+   * relevant for universes (user-collection entries come from
+   * the vault by definition, so they're never "missing").
+   */
+  onAddToWatchlist?: (entry: CollectionEntry) => void;
 }
 
 /**
@@ -204,6 +212,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
                         onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
                       />
                     )}
                   </For>
@@ -238,6 +247,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
                         onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
                       />
                     )}
                   </For>
@@ -272,6 +282,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
                         onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
                       />
                     )}
                   </For>
@@ -324,6 +335,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                     selectMode={props.selectMode}
                     selected={isSelected(item.entry)}
                     onToggleSelect={() => props.onToggleSelected?.(item.entry)}
+                    onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
                   />
                 </>
               )}

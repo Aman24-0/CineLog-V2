@@ -42,6 +42,11 @@ export interface TimelineEntryProps {
   selectMode?: boolean;
   selected?: boolean;
   onToggleSelect?: () => void;
+  /** Add-to-watchlist handler. When provided AND the entry isn't in
+   *  the user's vault, the "+" missing badge becomes a clickable
+   *  button that calls this handler. Lets users browsing a curated
+   *  universe one-tap add a title they haven't watched yet. */
+  onAddToWatchlist?: () => void;
 }
 
 export default function TimelineEntry(props: TimelineEntryProps) {
@@ -158,9 +163,28 @@ export default function TimelineEntry(props: TimelineEntryProps) {
       </div>
 
       <Show when={!props.item.inVault && !props.selectMode}>
-        <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
-          <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
-        </span>
+        <Show
+          when={props.onAddToWatchlist}
+          fallback={
+            // No handler — render as a static informational badge.
+            <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
+              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
+            </span>
+          }
+        >
+          <button
+            type="button"
+            class="universe-timeline-missing-badge universe-timeline-missing-btn focus-ring"
+            onClick={(e) => {
+              e.stopPropagation();
+              props.onAddToWatchlist?.();
+            }}
+            aria-label={`Add ${props.titleOf(props.item.entry)} to your watchlist`}
+            title="Add to watchlist"
+          >
+            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
+          </button>
+        </Show>
       </Show>
     </div>
   );

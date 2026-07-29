@@ -62,21 +62,14 @@ const CollectionSortFilter: Component<CollectionSortFilterProps> = (props) => {
     <div class="collection-sort-filter">
       <div class="collection-sort-filter-row">
         {/* Sort dropdown — user collections only.
-            Universes are locked to "Timeline Order" managed by the admin. */}
+            Universes are locked to admin-defined timeline order; we
+            intentionally render NO sort label or badge for universes
+            (the row shows only search + filter chips). */}
         <Show when={!isUniverse() && props.sortMode && props.onSortModeChange}>
           <SortDropdown
             value={props.sortMode!()}
             onChange={props.onSortModeChange!}
           />
-        </Show>
-        <Show when={isUniverse()}>
-          <div
-            class="collection-sort-filter-timeline-badge"
-            title="Universes are always shown in timeline order"
-          >
-            <span class="material-symbols-outlined" aria-hidden="true">timeline</span>
-            <span>Timeline Order</span>
-          </div>
         </Show>
 
         {/* Search input — flex-1 so it grows, min-w so it doesn't

@@ -5,14 +5,10 @@ import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useCollections } from "./hooks/useCollections";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
-import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
-import { useToast } from "~/shared/hooks/useToast";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import CollectionsGrid from "./components/CollectionsGrid";
 import ArchivedCollectionsSection from "./components/ArchivedCollectionsSection";
-import type { Collection } from "~/shared/types";
 
 // Lazy-load modals so they don't bloat the initial bundle.
 const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
@@ -38,27 +34,22 @@ const AddUniverseModal = lazy(() => import("./components/AddUniverseModal"));
  */
 export default function CollectionsPage() {
   const navigate = useNavigate();
-  const { showToast } = useToast();
   const {
     userCollections,
     curatedCollections: _curatedCollections,
     loading,
     createCollection,
-    archiveCollection,
     unarchiveCollection,
     fetchWithArchived,
   } = useCollections();
-  const { subscribedUniverses, refresh: refreshUniverses } = useCuratedUniverses();
-  const { removeUniverseFromPrefs } = useUniversePrefsLogic();
+  const { subscribedUniverses } = useCuratedUniverses();
 
   void _curatedCollections;
 
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
-  const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
   const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
   const [showAddUniverse, setShowAddUniverse] = createSignal(false);
-  const [unsubscribeTarget, setUnsubscribeTarget] = createSignal<Collection | null>(null);
   const [showArchived, setShowArchived] = createSignal(false);
 
   // Active collections — exclude archived. The default fetch (in
@@ -92,15 +83,6 @@ export default function CollectionsPage() {
     setShowCreate(false);
   };
 
-  const handleUnsubscribe = async () => {
-    const target = unsubscribeTarget();
-    if (!target) return;
-    await removeUniverseFromPrefs(target.id);
-    await refreshUniverses();
-    setUnsubscribeTarget(null);
-    showToast(`Unsubscribed from "${target.name}"`, "success");
-  };
-
   const handleToggleShowArchived = async () => {
     const next = !showArchived();
     setShowArchived(next);
@@ -108,14 +90,6 @@ export default function CollectionsPage() {
       // Fetch with archived included. The signal will then contain
       // BOTH active and archived; activeCollections and
       // archivedCollections memos split them.
-      await fetchWithArchived();
-    }
-  };
-
-  const handleArchive = async (col: Collection) => {
-    const ok = await archiveCollection(col.id);
-    if (ok && showArchived()) {
-      // Refresh so the archived section shows the newly-archived card.
       await fetchWithArchived();
     }
   };
@@ -273,8 +247,6 @@ export default function CollectionsPage() {
             <CollectionsGrid
               loading={loading}
               userCollections={activeCollections}
-              onEditFolder={(col) => setEditingFolder(col)}
-              onArchive={handleArchive}
             />
 
             {/* Archived section — only rendered when the toggle is on.
@@ -432,39 +404,17 @@ export default function CollectionsPage() {
                             />
                           </Show>
                         </Show>
-
-                        {/* Universe badge */}
-                        <div class="collection-card-badges">
-                          <span class="collection-badge" title="Curated Universe">
-                            <span class="material-symbols-outlined" style={{ "font-size": "10px", color: "var(--p)" }} aria-hidden="true">public</span>
-                          </span>
-                        </div>
-
-                        {/* Unsubscribe button — uses the same remove_circle
-                            icon as the confirmation dialog so the action
-                            is unambiguous. (Previously a three-dot menu
-                            which looked like a generic "more options"
-                            affordance.) */}
-                        <button
-                          type="button"
-                          class="collection-card-menu focus-ring"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setUnsubscribeTarget(uni);
-                          }}
-                          aria-label={`Unsubscribe from ${uni.name}`}
-                          title={`Unsubscribe from ${uni.name}`}
-                        >
-                          <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "#f87171" }} aria-hidden="true">
-                            remove_circle
-                          </span>
-                        </button>
                       </div>
 
-                      {/* Info area */}
+                      {/* Info area — clean tile, no inline actions.
+                          Universe management (unsubscribe) lives inside
+                          the universe detail page's action bar. */}
                       <div class="collection-card-info">
                         <div class="collection-card-name-row">
-                          <p class="collection-card-name">{uni.name}</p>
+                          {/* title attr shows the full universe name on
+                              hover since the CSS truncates with
+                              line-clamp-1. */}
+                          <p class="collection-card-name" title={uni.name}>{uni.name}</p>
                         </div>
                         <Show when={uni.description}>
                           <p class="collection-card-desc">{uni.description}</p>
@@ -484,76 +434,18 @@ export default function CollectionsPage() {
           </section>
         </div>
 
-        {/* Folder editor modal */}
-        <Show when={editingFolder()}>
-          <FolderEditor
-            collection={editingFolder()!}
-            onClose={() => setEditingFolder(null)}
-          />
-        </Show>
-
         {/* Smart collection builder */}
         <Show when={showSmartBuilder()}>
           <SmartCollectionBuilder onClose={() => setShowSmartBuilder(false)} />
         </Show>
 
-        {/* Add Universe modal — lists ALL curated_universes from Supabase */}
+        {/* Add Universe modal — lists ALL curated_universes from Supabase.
+            Universe unsubscribe was moved to the universe detail page's
+            action bar — no inline unsubscribe on grid cards anymore. */}
         <Show when={showAddUniverse()}>
           <Suspense fallback={null}>
             <AddUniverseModal onClose={() => setShowAddUniverse(false)} />
           </Suspense>
-        </Show>
-
-        {/* Unsubscribe confirmation dialog */}
-        <Show when={unsubscribeTarget()}>
-          {(target) => (
-            <div
-              class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
-              style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
-              onClick={() => setUnsubscribeTarget(null)}
-              role="dialog"
-              aria-modal="true"
-              aria-label={`Unsubscribe from ${target().name}`}
-            >
-              <div
-                class="modal-surface w-full max-w-sm p-6"
-                style={{ "border-radius": "var(--radius-xl)" }}
-                onClick={(e) => e.stopPropagation()}
-              >
-                <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
-                  <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
-                    <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
-                      remove_circle
-                    </span>
-                  </div>
-                  <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
-                    Unsubscribe from "{target().name}"?
-                  </h3>
-                  <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
-                    You'll lose access to this universe's timeline. You can re-subscribe anytime from "Add Universe".
-                  </p>
-                </div>
-                <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-                  <button
-                    type="button"
-                    class="btn-ghost focus-ring"
-                    onClick={() => setUnsubscribeTarget(null)}
-                    style={{ flex: "1" }}
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    type="button"
-                    class="btn-primary focus-ring setting-row-danger"
-                    onClick={handleUnsubscribe}
-                    style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
-                  >
-                    Unsubscribe
-                  </button>
-                </div>
-              </div>
-            </div>
-          )}
         </Show>
       </ErrorBoundary>
     </PageContainer>

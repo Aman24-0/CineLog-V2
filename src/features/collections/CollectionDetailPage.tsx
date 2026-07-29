@@ -6,6 +6,7 @@ import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useVault } from "~/features/watchlist/useVault";
+import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useCollections } from "./hooks/useCollections";
 import { useModalState } from "~/shared/hooks/useModalState";
@@ -76,7 +77,7 @@ import type { Collection, CollectionEntry, UniversePhase, ViewingOrder, Timeline
 export default function CollectionDetailPage() {
   const params = useParams();
   const navigate = useNavigate();
-  const { watchlist } = useVault();
+  const { watchlist, refresh: refreshVault } = useVault();
   const {
     userCollections,
     getUniversePrefs,
@@ -363,6 +364,41 @@ export default function CollectionDetailPage() {
     openTitle(baseItem, watchlist());
   };
 
+  // Add a universe entry that isn't in the user's vault to the vault.
+  // Used by the TimelineEntry "+" missing badge on the universe detail
+  // page — lets users browsing a curated universe one-tap add titles
+  // they haven't watched yet. After the create succeeds, we refresh
+  // the vault so the filter's vaultMap updates immediately (the entry
+  // will then show under its matching status pill and the "+"
+  // badge disappears).
+  const handleAddToWatchlist = async (entry: CollectionEntry) => {
+    const uid = getCurrentUid();
+    if (!uid) {
+      showToast("Sign in to save titles to your vault.", "error");
+      return;
+    }
+    try {
+      const item: WatchlistItem = {
+        id: String(entry.id),
+        title: entry.title,
+        name: entry.name,
+        media_type: entry.media_type,
+        poster_path: entry.poster_path,
+        backdrop_path: entry.backdrop_path,
+        status: "Planned",
+        release_date: entry.release_date,
+        first_air_date: entry.first_air_date,
+      };
+      await createVaultItemInSupabase(uid, item);
+      await refreshVault();
+      const name = entry.title || entry.name || "Title";
+      showToast(`Added "${name}" to your watchlist`, "success", 1800);
+    } catch (err) {
+      console.error("[CollectionDetailPage] Failed to add to vault:", err);
+      showToast("Failed to add to watchlist.", "error");
+    }
+  };
+
   // Trigger fetch when params.id changes or userCollections populates.
   createEffect(() => {
     const id = params.id;
@@ -440,6 +476,48 @@ export default function CollectionDetailPage() {
       }
       return true;
     });
+  });
+
+  // ── Universe entries + filter ──────────────────────────────────
+  // Universes use the TimelineEngine for rendering, but the same
+  // search/status filter from Row 2 must apply. We build a filtered
+  // Collection object (entries replaced) and pass it to TimelineEngine.
+  //
+  // Filter semantics for universes (per spec):
+  //   - "all"        → every entry, including those not in the user's
+  //                    vault (treated as "Unwatched").
+  //   - "watching"   → only entries whose vault status === "Watching".
+  //   - "completed"  → only entries whose vault status === "Completed".
+  //   - "planned"    → only entries whose vault status === "Planned"
+  //                    (also covers legacy "Plan to Watch").
+  //   - search       → matches title, franchise, entryType on the entry
+  //                    plus cast/director/genre from the joined vault
+  //                    item (vault item is null for non-vault entries).
+  const universeEntries = createMemo<CollectionEntry[]>(() => {
+    const col = collection();
+    if (!col || col.type !== "curated") return [];
+    return col.entries ?? [];
+  });
+
+  // Use the filter factory from useCollectionFilter — same matchesStatus
+  // + matchesSearch logic as the user-entries path, just wrapped in a
+  // memo that tracks universeEntries + the filter's status/search signals.
+  // Note: `filter` here is the useCollectionFilter hook's RETURN OBJECT
+  // (status/search/setStatus signals + a `filter` factory method). We
+  // call `filter.filter(...)` to invoke the factory.
+  const filteredUniverseEntries = filter.filter(universeEntries);
+
+  // Build a derived Collection with the filtered entries for TimelineEngine.
+  // Returns null when collection() is null; the parent only reads this
+  // inside <Show when={collection()}> blocks so null is never observed.
+  const universeCollection = createMemo<Collection | null>(() => {
+    const col = collection();
+    if (!col) return null;
+    const entries = filteredUniverseEntries();
+    // Skip cloning when no filter is active — preserves object identity
+    // so TimelineEngine's keyed <For> doesn't re-render every entry.
+    if (entries.length === (col.entries ?? []).length) return col;
+    return { ...col, entries };
   });
 
   // Whether to show drag handles on entry rows. Only when:
@@ -550,17 +628,39 @@ export default function CollectionDetailPage() {
             />
 
             {/* Entry renderer — flat list for user collections,
-                TimelineEngine for universes. */}
+                TimelineEngine for universes. Both paths apply the
+                Row 2 search + status filter to their entries. */}
             <Show
               when={!isUniverse()}
               fallback={
-                <TimelineEngine
-                  collection={collection()!}
-                  order={activeOrder()}
-                  provider={activeProvider()}
-                  onOpenEntry={handleOpenEntry}
-                  phases={phases()}
-                />
+                <Show
+                  when={filteredUniverseEntries().length > 0}
+                  fallback={
+                    <GlassEmptyState
+                      icon="video_library"
+                      title={
+                        filter.debouncedSearch() || filter.status() !== "all"
+                          ? "No titles match"
+                          : "No titles yet"
+                      }
+                      message={
+                        filter.debouncedSearch() || filter.status() !== "all"
+                          ? "Try adjusting your search or filters."
+                          : "This universe has no titles yet."
+                      }
+                      variant="default"
+                    />
+                  }
+                >
+                  <TimelineEngine
+                    collection={universeCollection() ?? collection()!}
+                    order={activeOrder()}
+                    provider={activeProvider()}
+                    onOpenEntry={handleOpenEntry}
+                    onAddToWatchlist={handleAddToWatchlist}
+                    phases={phases()}
+                  />
+                </Show>
               }
             >
               <Show

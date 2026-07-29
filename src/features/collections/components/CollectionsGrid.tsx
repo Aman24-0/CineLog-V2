@@ -7,29 +7,23 @@ import type { Collection, CollectionEntry } from "~/shared/types";
 /**
  * CollectionsGrid — the user's personal folder grid.
  *
- * GlassCard system with:
- *   • 2×2 poster collage (or fan for 1-3 posters)
- *   • Empty state with icon illustration
- *   • Collection name + description (2-line clamp)
- *   • Stats: movie count, series count, updated time
- *   • Badges: Smart, Pinned, Favorite
- *   • Accent color glow
- *   • Three-dot menu for quick actions
+ * v5 — clean tiles per spec:
+ *   • Cards are CLICK-ONLY navigation tiles. No inline action buttons
+ *     (no edit pencil, no archive shortcut, no unsubscribe). All
+ *     folder/universe management happens inside the detail page via
+ *     the action bar + hero pencil.
+ *   • No status / SMART / CUSTOM / FAVORITE badges. The card shows
+ *     only: poster collage (or backdrop), title (truncated with hover
+ *     tooltip), item count ("2 Movies"), and last updated time.
  *
- * Performance:
- *   Posters use w92 size (cached by TMDB apiCache). No individual
- *   fetches — all poster paths come from the collection's entries
- *   which are already loaded.
+ * Posters use w92 size (cached by TMDB apiCache). No individual
+ * fetches — all poster paths come from the collection's entries
+ * which are already loaded.
  */
 
 export interface CollectionsGridProps {
   loading: Accessor<boolean>;
   userCollections: Accessor<Collection[]>;
-  onEditFolder: (col: Collection) => void;
-  /** Optional archive callback — when provided, each card shows an
-   *  Archive action in its hover menu. The detail page also exposes
-   *  Archive via its action dock; this is the grid-level shortcut. */
-  onArchive?: (col: Collection) => void;
 }
 
 export default function CollectionsGrid(props: CollectionsGridProps) {
@@ -67,8 +61,6 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
             <CollectionCard
               col={col}
               onOpen={() => navigate(`/collections/${col.id}`)}
-              onEdit={() => props.onEditFolder(col)}
-              onArchive={props.onArchive ? () => props.onArchive!(col) : undefined}
             />
           )}
         </For>
@@ -78,14 +70,12 @@ export default function CollectionsGrid(props: CollectionsGridProps) {
 }
 
 // ---------------------------------------------------------------------------
-// CollectionCard — single premium folder card
+// CollectionCard — single clean folder tile (click-to-open only)
 // ---------------------------------------------------------------------------
 
 interface CollectionCardProps {
   col: Collection;
   onOpen: () => void;
-  onEdit: () => void;
-  onArchive?: () => void;
 }
 
 function CollectionCard(props: CollectionCardProps) {
@@ -163,10 +153,6 @@ function CollectionCard(props: CollectionCardProps) {
       class={`collection-card${props.col.isFavorites ? " collection-card-favorites" : ""}${props.col.isSmart ? " collection-card-smart" : ""}`}
       style={accentStyle()}
       onClick={() => props.onOpen()}
-      onContextMenu={(e) => {
-        e.preventDefault();
-        props.onEdit();
-      }}
       role="button"
       tabindex={0}
       aria-label={`${props.col.name}, ${statsText() || "empty collection"}`}
@@ -226,65 +212,6 @@ function CollectionCard(props: CollectionCardProps) {
         >
           <PosterCollage posters={posters()} />
         </Show>
-
-        {/* Badges (top-right) */}
-        <div class="collection-card-badges">
-          <Show when={props.col.isSmart}>
-            <span class="collection-badge collection-badge-smart" title="Smart Collection">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">auto_awesome</span>
-              <span style={{ "font-size": "0.5rem", "margin-left": "2px", "letter-spacing": "0.05em" }}>SMART</span>
-            </span>
-          </Show>
-          <Show when={!props.col.isSmart && !props.col.isFavorites}>
-            <span class="collection-badge" title="Custom collection">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px", color: "var(--text-soft)" }} aria-hidden="true">folder</span>
-              <span style={{ "font-size": "0.5rem", "margin-left": "2px", "letter-spacing": "0.05em", color: "var(--text-soft)" }}>CUSTOM</span>
-            </span>
-          </Show>
-          <Show when={props.col.isFavorites}>
-            <span class="collection-badge collection-badge-favorite" title="Favorites">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">star</span>
-            </span>
-          </Show>
-        </div>
-
-        {/* Three-dot menu (Edit) */}
-        <button
-          type="button"
-          class="collection-card-menu focus-ring"
-          onClick={(e) => {
-            e.stopPropagation();
-            props.onEdit();
-          }}
-          aria-label={`Edit ${props.col.name}`}
-          title="Edit collection"
-        >
-          <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
-            more_vert
-          </span>
-        </button>
-
-        {/* Archive shortcut — only when an onArchive handler is
-            provided (i.e. on the main Collections grid, not the
-            archived section). Sits next to the three-dot menu so
-            both quick actions are visible on hover. */}
-        <Show when={props.onArchive}>
-          <button
-            type="button"
-            class="collection-card-menu focus-ring"
-            style={{ right: "40px" }}
-            onClick={(e) => {
-              e.stopPropagation();
-              props.onArchive?.();
-            }}
-            aria-label={`Archive ${props.col.name}`}
-            title="Archive collection"
-          >
-            <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--text-dim)" }} aria-hidden="true">
-              archive
-            </span>
-          </button>
-        </Show>
       </div>
 
       {/* Info area */}
@@ -293,7 +220,10 @@ function CollectionCard(props: CollectionCardProps) {
           <Show when={props.col.emoji}>
             <span class="collection-card-emoji">{props.col.emoji}</span>
           </Show>
-          <p class="collection-card-name">{props.col.name}</p>
+          {/* title attribute provides a hover tooltip showing the full
+              name — the CSS truncates with line-clamp-1, so without
+              this the user couldn't read a long folder name. */}
+          <p class="collection-card-name" title={props.col.name}>{props.col.name}</p>
         </div>
 
         <Show when={props.col.description}>

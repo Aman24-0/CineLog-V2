@@ -25,7 +25,6 @@ export interface CollectionsFiltersProps {
   onCancelCreate: () => void;
   onShowCreate: () => void;
   onShowSmartBuilder: () => void;
-  onEditFolder: (col: Collection) => void;
 }
 
 export default function CollectionsFilters(props: CollectionsFiltersProps) {
@@ -128,7 +127,6 @@ export default function CollectionsFilters(props: CollectionsFiltersProps) {
         <CollectionsGrid
           loading={props.loading}
           userCollections={props.userCollections}
-          onEditFolder={props.onEditFolder}
         />
       </section>
     </>
