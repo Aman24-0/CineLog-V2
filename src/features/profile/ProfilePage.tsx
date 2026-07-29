@@ -41,6 +41,7 @@ import { useProfileData } from "./useProfileData";
 import { useStats } from "./useStats";
 import { useSocialStats } from "./hooks/useSocialStats";
 import { useProfileTabs } from "./hooks/useProfileTabs";
+import { shareProfileLink } from "./utils/share";
 
 // Sub-components (new V3 layout)
 import ProfileBanner from "./components/ProfileBanner";
@@ -80,30 +81,20 @@ const ProfilePage: Component = () => {
     if (uid()) refetch();
   });
 
-  // Share profile link — copies {origin}/u/{username} to clipboard.
-  // Origin resolution: prefer VITE_APP_URL (set in production Vercel env);
-  // otherwise fall back to the current window.location.origin so the link
-  // always points at whichever deployment the user is actually viewing
-  // (preview branches, localhost, etc.). The previous hard-coded
-  // https://cinelog.app/ produced dead links.
+  // Share profile link — uses the shared shareProfileLink helper which
+  // tries navigator.share (native sheet) first, then falls back to
+  // clipboard. The URL is built from VITE_APP_URL || window.location.origin
+  // and points to /u/{username} (the public profile route).
   const handleShare = async () => {
     const username = data()?.profile?.username;
     if (!username) {
       showToast("Set a username before sharing your profile.", "info");
       return;
     }
-    const baseUrl =
-      (import.meta.env.VITE_APP_URL as string | undefined) ||
-      (typeof window !== "undefined" ? window.location.origin : "");
-    const url = `${baseUrl}/u/${username}`;
-    try {
-      await navigator.clipboard.writeText(url);
-      showToast("Profile link copied to clipboard.", "success", 1800);
-    } catch {
-      // Clipboard API can fail in non-secure contexts — fall back to a toast
-      // with the URL so the user can copy it manually.
-      showToast(`Share link: ${url}`, "info", 4000);
-    }
+    const name = data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile";
+    await shareProfileLink(username, name, (msg, kind, durationMs) =>
+      showToast(msg, kind, durationMs),
+    );
   };
 
   const handleSignOut = async () => {

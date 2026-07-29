@@ -3751,6 +3751,22 @@
 .profile-header-v3-avatar-edit .material-symbols-outlined {
   font-size: 13px;
 }
+/* Private-profile lock avatar — used on the /u/[username] route when
+   the profile exists but is_private = true. The public lookup function
+   returns no rows for private profiles, so we render a generic lock
+   icon as the avatar (the actual profile photo isn't disclosed). */
+.profile-private-lock-avatar {
+  width: 80px;
+  height: 80px;
+  border-radius: 999px;
+  border: 3px solid var(--bg, #0a0a0f);
+  background: var(--tier-3, rgba(255, 255, 255, 0.06));
+  color: var(--text-dim, rgba(255, 255, 255, 0.45));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
 .profile-header-v3-text {
   flex: 1;
   min-width: 0;

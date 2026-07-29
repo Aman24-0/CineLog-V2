@@ -819,6 +819,58 @@ export type Database = {
         Args: { p_username: string }
         Returns: boolean
       }
+      // ── Public profile lookup (V3.2 — /u/[username] route) ──
+      // Returns the public-facing columns of a profile row when
+      // is_public = true AND deleted_at IS NULL; returns no rows
+      // otherwise. Callable by anon + authenticated. Bypasses RLS
+      // via SECURITY DEFINER — see migration 20260731_public_profile_lookup.sql.
+      get_public_profile_by_username: {
+        Args: { p_username: string }
+        Returns: {
+          id: string
+          username: string
+          display_name: string
+          bio: string | null
+          avatar_url: string | null
+          banner_url: string | null
+          banner_type: string
+          favorite_movie_id: string | null
+          favorite_series_id: string | null
+          favorite_director_id: string | null
+          social_links: Json
+          is_public: boolean
+          created_at: string
+        }[]
+      }
+      // ── Public vault lookup (V3.2 — /u/[username] route) ──
+      // Returns non-deleted vault rows for a user whose profile is
+      // public. Joins profiles to enforce is_public = true at query
+      // time. Callable by anon + authenticated.
+      get_public_vault_by_user: {
+        Args: { p_user_id: string }
+        Returns: {
+          id: string
+          user_id: string
+          tmdb_id: number
+          media_type: string
+          status: string
+          is_favorite: boolean
+          is_pinned: boolean
+          rating: number | null
+          notes: string | null
+          rewatch_count: number
+          progress_minutes: number | null
+          watched_on: string | null
+          started_at: string | null
+          completed_at: string | null
+          last_activity_at: string | null
+          created_at: string
+          updated_at: string
+          season_dates: Json | null
+          season_rewatch_count: number
+          season_rewatch_dates: Json | null
+        }[]
+      }
     }
     Enums: {
       activity_action_type:
