@@ -80,14 +80,22 @@ const ProfilePage: Component = () => {
     if (uid()) refetch();
   });
 
-  // Share profile link — copies https://cinelog.app/u/{username} to clipboard.
+  // Share profile link — copies {origin}/u/{username} to clipboard.
+  // Origin resolution: prefer VITE_APP_URL (set in production Vercel env);
+  // otherwise fall back to the current window.location.origin so the link
+  // always points at whichever deployment the user is actually viewing
+  // (preview branches, localhost, etc.). The previous hard-coded
+  // https://cinelog.app/ produced dead links.
   const handleShare = async () => {
     const username = data()?.profile?.username;
     if (!username) {
       showToast("Set a username before sharing your profile.", "info");
       return;
     }
-    const url = `https://cinelog.app/u/${username}`;
+    const baseUrl =
+      (import.meta.env.VITE_APP_URL as string | undefined) ||
+      (typeof window !== "undefined" ? window.location.origin : "");
+    const url = `${baseUrl}/u/${username}`;
     try {
       await navigator.clipboard.writeText(url);
       showToast("Profile link copied to clipboard.", "success", 1800);
@@ -229,10 +237,12 @@ const ProfilePage: Component = () => {
             {/* 5. Quick action row — Stats / Upcoming / Settings / Trash */}
             <QuickActionRow />
 
-            {/* 6. Sign out — quiet, full-width, below the quick actions */}
+            {/* 6. Sign out — quiet, full-width, below the quick actions.
+                   Carries a red danger accent so users can spot the
+                   destructive action at a glance (V3.1 fix). */}
             <button
               type="button"
-              class="profile-v3-sign-out focus-ring"
+              class="profile-v3-sign-out profile-v3-sign-out-danger focus-ring"
               onClick={handleSignOut}
             >
               <span class="material-symbols-outlined" aria-hidden="true">logout</span>

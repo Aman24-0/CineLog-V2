@@ -8,7 +8,8 @@
 //   • Display name (bold) + @username + "Member since [Month Year]"
 //   • Bio (truncated to 2 lines, expandable)
 //   • Action row:
-//       - Own profile: "Edit Profile" button + Share button + pencil
+//       - Own profile: Share button only (edit lives behind the
+//         pencil icon next to the display name, per V3.1 cleanup)
 //       - Other users (future): Follow / Unfollow + Share
 //   • Social stats: followers / following (clickable in future)
 //
@@ -48,7 +49,13 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
     () => props.profile()?.display_name ?? props.user()?.displayName ?? "Cinephile",
   );
   const username = createMemo(() => props.profile()?.username ?? "");
-  const avatarUrl = createMemo(() => props.profile()?.avatar_url ?? null);
+  // Avatar priority: profile.avatar_url → OAuth (Google) photoURL → initials.
+  // The Google picture is sourced from `user.user_metadata.avatar_url` by
+  // useAuth (mapped to `photoURL`). This ensures Google-OAuth users see
+  // their profile picture even before they've manually set avatar_url.
+  const avatarUrl = createMemo(
+    () => props.profile()?.avatar_url ?? props.user()?.photoURL ?? null,
+  );
   const bio = createMemo(() => props.profile()?.bio ?? "");
   const initial = createMemo(() => displayName().charAt(0) || "U");
 
@@ -77,16 +84,6 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
             size="xl"
             class="profile-header-v3-avatar"
           />
-          <Show when={props.isOwnProfile()}>
-            <button
-              type="button"
-              class="profile-header-v3-avatar-edit focus-ring"
-              onClick={() => props.onEdit()}
-              aria-label="Edit avatar"
-            >
-              <span class="material-symbols-outlined" aria-hidden="true">photo_camera</span>
-            </button>
-          </Show>
         </div>
 
         {/* Identity text */}
@@ -119,43 +116,38 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
       {/* Action row */}
       <div class="profile-header-v3-actions">
         <Show
-          when={props.isOwnProfile()}
+          when={!props.isOwnProfile()}
           fallback={
-            <Show
-              when={props.isFollowing?.() ?? false}
-              fallback={
-                <GlassButton
-                  variant="primary"
-                  size="compact"
-                  icon="person_add"
-                  onClick={() => props.onFollow?.()}
-                  aria-label={`Follow ${displayName()}`}
-                >
-                  Follow
-                </GlassButton>
-              }
-            >
-              <GlassButton
-                variant="ghost"
-                size="compact"
-                icon="person_remove"
-                onClick={() => props.onUnfollow?.()}
-                aria-label={`Unfollow ${displayName()}`}
-              >
-                Following
-              </GlassButton>
-            </Show>
+            /* Own profile: the only entry-point to the edit modal is the
+               pencil icon next to the display name (per V3.1 cleanup).
+               The action row just exposes Share. */
+            null
           }
         >
-          <GlassButton
-            variant="secondary"
-            size="compact"
-            icon="edit"
-            onClick={() => props.onEdit()}
-            aria-label="Edit profile"
+          <Show
+            when={props.isFollowing?.() ?? false}
+            fallback={
+              <GlassButton
+                variant="primary"
+                size="compact"
+                icon="person_add"
+                onClick={() => props.onFollow?.()}
+                aria-label={`Follow ${displayName()}`}
+              >
+                Follow
+              </GlassButton>
+            }
           >
-            Edit Profile
-          </GlassButton>
+            <GlassButton
+              variant="ghost"
+              size="compact"
+              icon="person_remove"
+              onClick={() => props.onUnfollow?.()}
+              aria-label={`Unfollow ${displayName()}`}
+            >
+              Following
+            </GlassButton>
+          </Show>
         </Show>
 
         <GlassButton

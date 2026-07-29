@@ -7,7 +7,14 @@ import type { BannerType } from "./BannerEditor";
 interface ProfileBannerProps {
   data: ProfileData | null;
   isEditing: boolean;
-  onChooseBanner: () => void;
+  /**
+   * Called when the user clicks the (now-removed) banner edit overlay.
+   * Kept in the props interface for backwards compatibility — the
+   * banner-edit entry point now lives exclusively inside the Edit
+   * Profile modal (Banner section), so this handler is no longer
+   * invoked from the banner itself. V3.1 cleanup.
+   */
+  onChooseBanner?: () => void;
 }
 
 /**
@@ -153,18 +160,12 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
       {/* Multi-layer gradient overlay */}
       <div class="profile-banner-overlay" aria-hidden="true" />
 
-      {/* Camera/edit icon — always visible so users can discover customization */}
-      <button
-        type="button"
-        class="profile-banner-edit-btn focus-ring"
-        onClick={() => props.onChooseBanner()}
-        aria-label="Customize banner"
-      >
-        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
-          photo_camera
-        </span>
-        <span class="profile-banner-edit-label">Banner</span>
-      </button>
+      {/* Banner-edit overlay REMOVED in V3.1 cleanup.
+          The banner is now editable exclusively via the Edit Profile
+          modal (Banner section), reached through the pencil icon next
+          to the display name. Keeping the `onChooseBanner` prop in the
+          interface for backwards compatibility, but it is no longer
+          invoked from this component. */}
     </div>
   );
 };

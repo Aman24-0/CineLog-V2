@@ -4415,6 +4415,21 @@
 .profile-v3-sign-out .material-symbols-outlined {
   font-size: 16px;
 }
+/* Danger variant — always-on red accent so the destructive Sign Out
+   action stands out from the neutral quick-action tiles above. V3.1. */
+.profile-v3-sign-out-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+  background: rgba(248, 113, 113, 0.06);
+}
+.profile-v3-sign-out-danger:hover {
+  background: rgba(248, 113, 113, 0.14);
+  color: #fca5a5;
+  border-color: rgba(248, 113, 113, 0.55);
+}
+.profile-v3-sign-out-danger:focus-visible {
+  outline-color: rgba(248, 113, 113, 0.7);
+}
 
 /* ─── Social Stats (V3 — inline variant) ───────────────────────────────── */
 .profile-social-stats-v3 {
@@ -4460,7 +4475,7 @@
 .edit-profile-modal-sheet {
   width: 100%;
   max-width: 540px;
-  max-height: 90vh;
+  max-height: 100vh;
   display: flex;
   flex-direction: column;
   background: var(--bg-elevated, #14141a);
@@ -4469,6 +4484,11 @@
   border-radius: 1rem 1rem 0 0;
   overflow: hidden;
   animation: profile-edit-slide-up 0.22s ease;
+  /* Reserve clearance for the floating bottom-nav on mobile so the
+     Save / Cancel footer buttons aren't visually covered by it.
+     The nav floats at `bottom: 1rem` with `--nav-height` height, so
+     ~5rem of padding keeps the modal above it. */
+  margin-bottom: calc(var(--nav-height, 4rem) + 2rem + env(safe-area-inset-bottom, 0px));
 }
 @keyframes profile-edit-slide-up {
   from { transform: translateY(100%); }
@@ -4481,6 +4501,10 @@
   .edit-profile-modal-sheet {
     border-radius: 1rem;
     border-bottom: 1px solid var(--hairline-2, rgba(255, 255, 255, 0.12));
+    /* On desktop the sheet is centered (align-items: center), so the
+       mobile margin-bottom clearance is no longer needed — reset it
+       so the sheet sits flush in the viewport center. */
+    margin-bottom: 0;
   }
 }
 .edit-profile-modal-header {
@@ -4716,6 +4740,11 @@
   justify-content: flex-end;
   gap: 0.5rem;
   padding: 0.875rem 1.25rem;
+  /* Extra bottom padding so the Save/Cancel buttons always clear
+     the floating bottom-nav on small screens (the modal sheet is
+     anchored to the bottom of the viewport via align-items: flex-end).
+     Safe-area inset handles iOS home-indicator / Android nav bar. */
+  padding-bottom: calc(0.875rem + env(safe-area-inset-bottom, 0px));
   border-top: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
 }
