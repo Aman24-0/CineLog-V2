@@ -1,6 +1,7 @@
 // src/features/details/components/MetadataGrid.tsx
 import { For, Show, createMemo, createSignal } from "solid-js";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
+import { formatDateLong } from "~/shared/utils/format";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 
 interface MetadataGridProps {
@@ -191,6 +192,26 @@ export default function MetadataGrid(props: MetadataGridProps) {
     // is still the first cell (no Seasons/Episodes to compete with).
     if (d?.status) {
       list.push({ label: "Status", value: d.status });
+    }
+
+    // Release Date (full) — TMDB stores this as `release_date` for
+    // movies and `first_air_date` for TV (both YYYY-MM-DD strings).
+    // The Hero/quick-meta pills already show the YEAR (split on "-"),
+    // so the grid's Release Date cell shows the FULL readable date
+    // (e.g. "September 1, 2000") to add information without
+    // duplicating the hero. Hidden when the date is missing/invalid
+    // — `formatDateLong` returns null for null/undefined/empty/garbage.
+    // Falls back to baseItem's date (vault-sourced) when TMDB
+    // details haven't loaded yet.
+    const releaseDateRaw =
+      d?.release_date ||
+      d?.first_air_date ||
+      b?.release_date ||
+      b?.first_air_date ||
+      null;
+    const releaseDateFormatted = formatDateLong(releaseDateRaw);
+    if (releaseDateFormatted) {
+      list.push({ label: "Release Date", value: releaseDateFormatted });
     }
 
     // TV-specific (continued)

@@ -1,6 +1,6 @@
 // src/shared/utils/__tests__/format.test.ts
 import { describe, it, expect } from "vitest";
-import { formatRuntime, formatDateShort, formatVoteCount } from "../format";
+import { formatRuntime, formatDateShort, formatDateLong, formatVoteCount } from "../format";
 
 describe("formatRuntime", () => {
   it("returns null for undefined", () => {
@@ -75,6 +75,58 @@ describe("formatDateShort", () => {
 
   it("returns null for an invalid Date object", () => {
     expect(formatDateShort(new Date("invalid"))).toBeNull();
+  });
+});
+
+describe("formatDateLong", () => {
+  it("returns null for undefined", () => {
+    expect(formatDateLong(undefined)).toBeNull();
+  });
+
+  it("returns null for null", () => {
+    expect(formatDateLong(null)).toBeNull();
+  });
+
+  it("returns null for empty string", () => {
+    expect(formatDateLong("")).toBeNull();
+  });
+
+  it("formats a YYYY-MM-DD date string with full month name", () => {
+    // September 1, 2000 — the example from the spec
+    expect(formatDateLong("2000-09-01")).toBe("September 1, 2000");
+  });
+
+  it("formats an ISO datetime string with full month name", () => {
+    expect(formatDateLong("2026-07-14T12:00:00Z")).toMatch(/^July 14, 2026$/);
+  });
+
+  it("formats a Date object", () => {
+    const d = new Date("2026-02-12T00:00:00Z");
+    expect(formatDateLong(d)).toMatch(/^February 12, 2026$/);
+  });
+
+  it("formats an epoch number", () => {
+    // 2000-01-01T00:00:00Z = 946684800000 ms
+    expect(formatDateLong(946684800000)).toMatch(/^January 1, 2000$/);
+  });
+
+  it("returns the original string for an invalid date string", () => {
+    expect(formatDateLong("not-a-date")).toBe("not-a-date");
+  });
+
+  it("returns null for an invalid Date object", () => {
+    expect(formatDateLong(new Date("invalid"))).toBeNull();
+  });
+
+  it("preserves the year at the end of the formatted string", () => {
+    expect(formatDateLong("1999-12-31")).toMatch(/1999$/);
+  });
+
+  it("uses the long (full) month name, not the abbreviation", () => {
+    const result = formatDateLong("2026-03-08");
+    expect(result).toBe("March 8, 2026");
+    // Guard against accidentally reverting to "Mar 8, 2026"
+    expect(result?.startsWith("Mar ")).toBe(false);
   });
 });
 

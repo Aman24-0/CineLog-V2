@@ -94,3 +94,42 @@ export function formatDateShort(
     year: "numeric",
   });
 }
+
+/**
+ * Format an ISO date string (or Date / epoch ms) as "September 1, 2000".
+ *
+ * Long-month counterpart to `formatDateShort` — used by the Details
+ * modal's metadata grid for the "RELEASE DATE" cell, where the full
+ * human-readable date reads better than the abbreviated "Sep 1, 2000"
+ * form (the grid cell has room for it and the user is in a browsing
+ * context, not a dense list).
+ *
+ * Mirrors `formatDateShort` semantics: returns null for null/undefined/
+ * empty, and returns the original string when the input is a string
+ * that doesn't parse to a valid Date (so callers don't crash on bad
+ * TMDB data).
+ *
+ * @example formatDateLong("2000-09-01")           → "September 1, 2000"
+ * @example formatDateLong("2000-09-01T00:00:00Z") → "September 1, 2000"
+ * @example formatDateLong(undefined)               → null
+ * @example formatDateLong("not-a-date")            → "not-a-date"
+ */
+export function formatDateLong(
+  input: string | number | Date | null | undefined,
+): string | null {
+  if (input == null || input === "") return null;
+  let d: Date;
+  if (input instanceof Date) {
+    d = input;
+  } else if (typeof input === "number") {
+    d = new Date(input);
+  } else {
+    d = new Date(input);
+  }
+  if (isNaN(d.getTime())) return typeof input === "string" ? input : null;
+  return d.toLocaleDateString("en-US", {
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
+}
