@@ -3776,7 +3776,12 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2, 0.5rem);
-  flex-wrap: wrap;
+  /* No flex-wrap — the edit + share icon buttons MUST stay inline next
+     to the display name. Wrapping was causing the icons to drop to a
+     new line on narrow viewports / long names, making them appear
+     visually detached from the name (looked like they were "below the
+     bio"). The name truncates with an ellipsis instead. */
+  min-width: 0;
 }
 .profile-header-v3-name {
   font-family: 'Outfit', sans-serif;
@@ -3785,6 +3790,20 @@
   color: var(--text-strong, #fff);
   margin: 0;
   line-height: 1.2;
+  /* Truncate long display names instead of pushing the icon buttons
+     to a new line. flex: 1 lets the name take all available space,
+     min-width: 0 + overflow: hidden + text-overflow: ellipsis clips
+     gracefully when the row is tight. */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Icon buttons in the name row must never shrink or wrap — they stay
+   pinned to the right of the display name. */
+.profile-header-v3-name-row > :not(.profile-header-v3-name) {
+  flex: 0 0 auto;
 }
 .profile-header-v3-username {
   font-family: 'Outfit', sans-serif;
