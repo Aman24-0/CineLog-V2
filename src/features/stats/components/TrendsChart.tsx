@@ -1,29 +1,21 @@
 // src/features/stats/components/TrendsChart.tsx
 //
-// TrendsChart — a line chart showing cumulative completions over the
-// last 12 months. Each point on the line is the running total of
-// completed titles up to and including that month. This gives a
-// sense of pace: a steep slope means a productive streak, a flat
-// segment means a dry spell.
+// TrendsChart — an area + line chart showing cumulative completions
+// over the last 12 months. Each point on the line is the running
+// total of completed titles up to and including that month. This
+// gives a sense of pace: a steep slope means a productive streak, a
+// flat segment means a dry spell.
 //
 // Below the chart, three pace chips surface the average daily /
 // weekly / monthly completions (computed over the last 90 days by
 // the getWatchPace calculator).
+//
+// Implementation note: previously used recharts (React-only). Now
+// uses the pure-SolidJS AreaChartV primitive.
 
-import { createMemo, Show, For, type Component, type Accessor } from "solid-js";
-import {
-  ResponsiveContainer,
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Area,
-  AreaChart,
-} from "recharts";
+import { createMemo, For, Show, type Component, type Accessor } from "solid-js";
 import ChartContainer from "./ChartContainer";
-import StatsTooltip from "./StatsTooltip";
+import { AreaChartV, type AreaVPoint } from "./SvgChart";
 import type { MonthBucket, WatchPace } from "~/lib/supabase/repositories/stats";
 
 interface TrendsChartProps {
@@ -47,6 +39,18 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
       return { month: m.month, cumulative: running, completed: m.count };
     });
   });
+
+  const points = createMemo<AreaVPoint[]>(() =>
+    rows().map((r) => ({
+      label: r.month,
+      value: r.cumulative,
+      tooltipLabel: r.month,
+      tooltipRows: [
+        { name: "Cumulative", value: String(r.cumulative), color: "#f5c518" },
+        { name: "This month", value: String(r.completed), color: "rgba(255,255,255,0.5)" },
+      ],
+    })),
+  );
 
   const paceChips = createMemo(() => {
     const p = props.pace();
@@ -81,50 +85,12 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
         </div>
       }
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <AreaChart data={rows()} margin={{ top: 10, right: 16, left: -16, bottom: 0 }}>
-          <defs>
-            <linearGradient id="statsTrendArea" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#f5c518" stop-opacity={0.45} />
-              <stop offset="100%" stop-color="#f5c518" stop-opacity={0} />
-            </linearGradient>
-          </defs>
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "'Azeret Mono', monospace" }}
-            axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
-            tickLine={false}
-          />
-          <YAxis
-            allowDecimals={false}
-            tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'Azeret Mono', monospace" }}
-            axisLine={false}
-            tickLine={false}
-            width={32}
-          />
-          <Tooltip
-            cursor={{ stroke: "rgba(255,255,255,0.2)", strokeWidth: 1 }}
-            content={
-              <StatsTooltip
-                valueFormatter={(v) => `${v} total`}
-                labelFormatter={(label) => `${label}`}
-              />
-            }
-          />
-          <Area
-            type="monotone"
-            dataKey="cumulative"
-            name="Cumulative"
-            stroke="#f5c518"
-            strokeWidth={2.5}
-            fill="url(#statsTrendArea)"
-            dot={{ r: 3, fill: "#f5c518", strokeWidth: 0 }}
-            activeDot={{ r: 5, fill: "#f5c518", stroke: "#0a0a0f", strokeWidth: 2 }}
-          />
-          <Line type="monotone" dataKey="cumulative" stroke="transparent" dot={false} />
-        </AreaChart>
-      </ResponsiveContainer>
+      <Show
+        when={rows().length > 0}
+        fallback={<p class="stats-chart-empty">No completed titles yet.</p>}
+      >
+        <AreaChartV points={points()} height={260} />
+      </Show>
     </ChartContainer>
   );
 };

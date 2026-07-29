@@ -1,26 +1,21 @@
 // src/features/stats/components/ActivityChart.tsx
 //
 // ActivityChart — a vertical bar chart showing how many titles the
-// user completed per month over the last 12 months. The bars use a
-// gold gradient that matches the app's accent colour, and the chart
+// user completed per month over the last 12 months. Bars use a gold
+// gradient that matches the app's accent colour, and the chart
 // includes a Movies-vs-Series toggle that overlays two bars per
 // month when enabled.
 //
 // Data source: getMonthlyActivity() from the stats repository.
+//
+// Implementation note: this previously used recharts (a React-only
+// library). recharts' React hooks crashed inside SolidJS, manifesting
+// as "e is not a function" at runtime. We now use the pure-SolidJS
+// SvgChart primitives.
 
-import { createSignal, createMemo, Show, For, type Component, type Accessor } from "solid-js";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-} from "recharts";
+import { createSignal, createMemo, Show, type Component, type Accessor } from "solid-js";
 import ChartContainer from "./ChartContainer";
-import StatsTooltip from "./StatsTooltip";
+import { BarChartV, type BarVItem, type TooltipRow } from "./SvgChart";
 import type { MonthBucket } from "~/lib/supabase/repositories/stats";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -36,6 +31,8 @@ interface Row {
   count: number;
   movies: number;
   series: number;
+  /** YYYY-MM key — used for tooltip / display. */
+  key: string;
 }
 
 const ActivityChart: Component<ActivityChartProps> = (props) => {
@@ -47,7 +44,12 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
   const rows = createMemo<Row[]>(() => {
     const base = props.monthly();
     if (!showSplit()) {
-      return base.map((b) => ({ ...b, movies: 0, series: 0 }));
+      return base.map((b, idx) => ({
+        ...b,
+        movies: 0,
+        series: 0,
+        key: monthKey(idx),
+      }));
     }
     // Re-bucket the watchlist by completion month + media_type.
     const map = new Map<string, { movies: number; series: number }>();
@@ -58,26 +60,47 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
       const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
       map.set(key, { movies: 0, series: 0 });
     }
-    props.watchlist().forEach((m) => {
-      if (m.status !== "Completed") return;
-      const dateStr = m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
-      if (!dateStr) return;
-      const d = new Date(dateStr);
-      if (isNaN(d.getTime())) return;
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = map.get(key);
-      if (!entry) return;
-      if (m.media_type === "movie") entry.movies++;
-      else if (m.media_type === "tv") entry.series++;
-    });
+    const wl = props.watchlist();
+    if (Array.isArray(wl)) {
+      wl.forEach((m) => {
+        if (m.status !== "Completed") return;
+        const dateStr = m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
+        if (!dateStr) return;
+        const d = new Date(dateStr);
+        if (isNaN(d.getTime())) return;
+        const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+        const entry = map.get(key);
+        if (!entry) return;
+        if (m.media_type === "movie") entry.movies++;
+        else if (m.media_type === "tv") entry.series++;
+      });
+    }
     return base.map((b, idx) => {
-      const now2 = new Date();
-      const d = new Date(now2.getFullYear(), now2.getMonth() - (11 - idx), 1);
-      const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const entry = map.get(key) ?? { movies: 0, series: 0 };
-      return { ...b, movies: entry.movies, series: entry.series };
+      const entry = map.get(monthKey(idx)) ?? { movies: 0, series: 0 };
+      return { ...b, movies: entry.movies, series: entry.series, key: monthKey(idx) };
     });
   });
+
+  const items = createMemo<BarVItem[]>(() =>
+    rows().map((r) => {
+      const tooltipRows: TooltipRow[] = showSplit()
+        ? [
+            { name: "Movies", value: String(r.movies), color: "#f5c518" },
+            { name: "Series", value: String(r.series), color: "#7c8cff" },
+            { name: "Total", value: String(r.count), color: "rgba(255,255,255,0.4)" },
+          ]
+        : [{ name: "Completed", value: String(r.count), color: "#f5c518" }];
+      return {
+        label: r.month,
+        value: r.count,
+        secondary: r.series,
+        color: "#f5c518",
+        secondaryColor: "#7c8cff",
+        tooltipLabel: `${r.month} ${r.year}`,
+        tooltipRows,
+      };
+    }),
+  );
 
   return (
     <ChartContainer
@@ -100,51 +123,21 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
         </button>
       }
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart data={rows()} margin={{ top: 10, right: 8, left: -16, bottom: 0 }} barCategoryGap="20%">
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" vertical={false} />
-          <XAxis
-            dataKey="month"
-            tick={{ fill: "rgba(255,255,255,0.6)", fontSize: 11, fontFamily: "'Azeret Mono', monospace" }}
-            axisLine={{ stroke: "rgba(255,255,255,0.08)" }}
-            tickLine={false}
-          />
-          <YAxis
-            allowDecimals={false}
-            tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'Azeret Mono', monospace" }}
-            axisLine={false}
-            tickLine={false}
-            width={32}
-          />
-          <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.04)" }}
-            content={<StatsTooltip valueFormatter={(v) => `${v} title${v === 1 ? "" : "s"}`} />}
-          />
-          <Show
-            when={showSplit()}
-            fallback={
-              <Bar dataKey="count" name="Completed" radius={[4, 4, 0, 0]} maxBarSize={36}>
-                <For each={rows()}>
-                  {(entry) => (
-                    <Cell fill={entry.count > 0 ? "url(#statsBarGold)" : "rgba(255,255,255,0.08)"} />
-                  )}
-                </For>
-              </Bar>
-            }
-          >
-            <Bar dataKey="movies" name="Movies" fill="#f5c518" radius={[4, 4, 0, 0]} maxBarSize={18} />
-            <Bar dataKey="series" name="Series" fill="#7c8cff" radius={[4, 4, 0, 0]} maxBarSize={18} />
-          </Show>
-          <defs>
-            <linearGradient id="statsBarGold" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0%" stop-color="#f5c518" />
-              <stop offset="100%" stop-color="#d4a014" />
-            </linearGradient>
-          </defs>
-        </BarChart>
-      </ResponsiveContainer>
+      <Show
+        when={items().length > 0}
+        fallback={<p class="stats-chart-empty">No activity yet.</p>}
+      >
+        <BarChartV items={items()} split={showSplit()} height={260} />
+      </Show>
     </ChartContainer>
   );
 };
+
+/** Build the YYYY-MM key for the i-th most recent month (0 = oldest of the 12). */
+function monthKey(idx: number): string {
+  const now = new Date();
+  const d = new Date(now.getFullYear(), now.getMonth() - (11 - idx), 1);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
+}
 
 export default ActivityChart;

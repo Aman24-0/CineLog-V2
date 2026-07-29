@@ -8,22 +8,15 @@
 //
 // Clicking a bar navigates to /search with the genre as a query
 // parameter, so users can dive into the titles behind the bar.
+//
+// Implementation note: this previously used recharts (a React-only
+// library). recharts' React hooks crashed inside SolidJS. We now use
+// the pure-SolidJS BarChartH primitive.
 
-import { For, type Component, type Accessor } from "solid-js";
+import { Show, type Component, type Accessor } from "solid-js";
 import { useNavigate } from "@solidjs/router";
-import {
-  ResponsiveContainer,
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  Cell,
-  LabelList,
-} from "recharts";
 import ChartContainer from "./ChartContainer";
-import StatsTooltip from "./StatsTooltip";
+import { BarChartH, type BarHItem } from "./SvgChart";
 import type { GenreCount } from "~/lib/supabase/repositories/stats";
 
 interface GenreChartProps {
@@ -44,12 +37,19 @@ const PALETTE = [
 const GenreChart: Component<GenreChartProps> = (props) => {
   const navigate = useNavigate();
 
-  // recharts horizontal bar chart: layout="vertical" swaps X and Y axes.
-  // We pass the top 8 genres (already sorted desc by the calculator).
+  // Top 8 genres (already sorted desc by the calculator).
   const data = (): GenreCount[] => props.genres().slice(0, 8);
 
-  const handleClick = (genre: string) => {
-    navigate(`/search?genre=${encodeURIComponent(genre)}`);
+  const items = (): BarHItem[] =>
+    data().map((g, idx) => ({
+      label: g.genre,
+      value: g.count,
+      color: PALETTE[idx % PALETTE.length],
+      tooltipLabel: g.genre,
+    }));
+
+  const handleClick = (item: BarHItem) => {
+    navigate(`/search?genre=${encodeURIComponent(item.label)}`);
   };
 
   return (
@@ -59,45 +59,12 @@ const GenreChart: Component<GenreChartProps> = (props) => {
       subtitle="Your taste profile — click a bar to explore"
       height="340px"
     >
-      <ResponsiveContainer width="100%" height="100%">
-        <BarChart
-          layout="vertical"
-          data={data()}
-          margin={{ top: 4, right: 32, left: 8, bottom: 4 }}
-          barCategoryGap="22%"
-        >
-          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.06)" horizontal={false} />
-          <XAxis
-            type="number"
-            allowDecimals={false}
-            tick={{ fill: "rgba(255,255,255,0.4)", fontSize: 11, fontFamily: "'Azeret Mono', monospace" }}
-            axisLine={false}
-            tickLine={false}
-          />
-          <YAxis
-            type="category"
-            dataKey="genre"
-            tick={{ fill: "rgba(255,255,255,0.75)", fontSize: 12, fontFamily: "'Outfit', sans-serif" }}
-            axisLine={false}
-            tickLine={false}
-            width={104}
-          />
-          <Tooltip
-            cursor={{ fill: "rgba(255,255,255,0.04)" }}
-            content={<StatsTooltip valueFormatter={(v) => `${v} title${v === 1 ? "" : "s"}`} />}
-          />
-          <Bar dataKey="count" name="Titles" radius={[0, 4, 4, 0]} maxBarSize={28} cursor="pointer">
-            <For each={data()}>
-              {(_, idx) => <Cell fill={PALETTE[idx() % PALETTE.length]} onClick={() => handleClick(data()[idx()].genre)} />}
-            </For>
-            <LabelList
-              dataKey="count"
-              position="right"
-              style={{ fill: "rgba(255,255,255,0.7)", fontSize: 11, fontFamily: "'Azeret Mono', monospace", fontWeight: 600 }}
-            />
-          </Bar>
-        </BarChart>
-      </ResponsiveContainer>
+      <Show
+        when={data().length > 0}
+        fallback={<p class="stats-chart-empty">No genre data yet — TMDB enrichment will populate this.</p>}
+      >
+        <BarChartH items={items()} onBarClick={handleClick} height={Math.max(120, data().length * 32 + 16)} />
+      </Show>
     </ChartContainer>
   );
 };

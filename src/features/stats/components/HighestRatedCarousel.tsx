@@ -23,7 +23,16 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
   const library = useUserLibrary();
 
   const handleOpen = (item: HighestRatedItem) => {
-    openTitle(item.item, library.watchlist());
+    // Defensive: openTitle needs the current watchlist so it can
+    // find the matching item by id. We wrap in a try/catch and
+    // validate library.watchlist is callable to avoid breaking the
+    // carousel if the library context is mid-teardown.
+    try {
+      if (!library || typeof library.watchlist !== "function") return;
+      openTitle(item.item, library.watchlist());
+    } catch (err) {
+      console.error("[HighestRatedCarousel] openTitle failed:", err);
+    }
   };
 
   return (

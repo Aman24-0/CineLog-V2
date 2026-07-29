@@ -56,6 +56,20 @@ const StatisticsPage: Component = () => {
   const [activeTab, setActiveTab] = usePersistentStatsTab("activity");
   const [shareOpen, setShareOpen] = createSignal(false);
 
+  // Safe accessor for the watchlist — guards against `library` being
+  // null (which would throw) or `watchlist` not being a function.
+  // Falls back to [] so chart components receive a stable empty
+  // array instead of an undefined value.
+  const watchlist = createMemo(() => {
+    try {
+      if (!library || typeof library.watchlist !== "function") return [];
+      const list = library.watchlist();
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  });
+
   // The active tab determines which chart(s) are rendered. We use a
   // Switch-like cascade of <Show> blocks because SolidJS doesn't have
   // a built-in <Switch> for non-boolean values.
@@ -67,7 +81,7 @@ const StatisticsPage: Component = () => {
       case "activity":
         return (
           <div class="stats-tab-stack">
-            <ActivityChart monthly={() => s.monthly} watchlist={library.watchlist} />
+            <ActivityChart monthly={() => s.monthly} watchlist={watchlist} />
             <MovieSeriesPie split={() => s.split} />
           </div>
         );
@@ -213,7 +227,7 @@ const StatisticsPage: Component = () => {
           open={shareOpen()}
           onClose={() => setShareOpen(false)}
           stats={stats()!}
-          watchlist={library.watchlist()}
+          watchlist={watchlist()}
         />
       </Show>
     </PageContainer>

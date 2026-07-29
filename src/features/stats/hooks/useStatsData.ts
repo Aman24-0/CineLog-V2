@@ -25,6 +25,7 @@ import { createMemo, type Accessor } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { getStatsData, type AllStats } from "~/lib/supabase/repositories/stats";
+import type { WatchlistItem } from "~/shared/types";
 
 export interface UseStatsDataResult {
   /** The derived stats payload. Null while loading or when the user has no titles. */
@@ -43,17 +44,43 @@ export function useStatsData(): UseStatsDataResult {
 
   const isGuest = createMemo(() => !isSignedIn());
 
+  // Guard: `library.watchlist` is always a function per the
+  // UserLibrary contract, but we check defensively so a future
+  // refactor can't crash the Stats page — instead it shows the
+  // empty state.
+  const safeWatchlist = createMemo<WatchlistItem[]>(() => {
+    try {
+      if (!library || typeof library.watchlist !== "function") return [];
+      const list = library.watchlist();
+      return Array.isArray(list) ? list : [];
+    } catch {
+      return [];
+    }
+  });
+
   const loading = createMemo(
-    () => library.loading() || (isSignedIn() && library.watchlist().length === 0 && !library.error()),
+    () =>
+      library.loading() ||
+      (isSignedIn() && safeWatchlist().length === 0 && !library.error()),
   );
 
   const stats = createMemo<AllStats | null>(() => {
-    const list = library.watchlist();
+    const list = safeWatchlist();
     if (!list || list.length === 0) return null;
-    return getStatsData(list);
+    try {
+      return getStatsData(list);
+    } catch (err) {
+      // Defensive: if a calculator throws on malformed data, we
+      // return null so the page shows the empty state instead of
+      // crashing the route's error boundary.
+      console.error("[useStatsData] getStatsData failed:", err);
+      return null;
+    }
   });
 
-  const isEmpty = createMemo(() => !loading() && isSignedIn() && library.watchlist().length === 0);
+  const isEmpty = createMemo(
+    () => !loading() && isSignedIn() && safeWatchlist().length === 0,
+  );
 
   return { stats, loading, isEmpty, isGuest };
 }

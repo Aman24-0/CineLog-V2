@@ -223,7 +223,9 @@
 .stats-chart-body {
   width: 100%;
   min-height: 200px;
-  /* recharts ResponsiveContainer fills this. */
+  /* SVG chart primitives fill this. position:relative so the
+     floating tooltip overlay (absolutely positioned) anchors here. */
+  position: relative;
 }
 
 .stats-chart-footer {
@@ -821,3 +823,60 @@
     min-height: 240px;
   }
 }
+
+/* ─── SVG chart primitives ─────────────────────────────────────────── */
+/*
+ * The Statistics page replaced recharts (a React-only library that
+ * crashed inside SolidJS) with pure-SolidJS SVG primitives defined in
+ * src/features/stats/components/SvgChart.tsx. These styles target
+ * the SVG markup they emit.
+ */
+
+.stats-svg-chart {
+  width: 100%;
+  display: block;
+}
+
+.stats-svg-chart svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+}
+
+/* Donut chart centre overlay (the number inside the hole). */
+.stats-donut-wrap {
+  position: relative;
+}
+
+/* Empty-state inline message used by chart bodies when data is missing. */
+.stats-chart-empty {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-dim, rgba(255, 255, 255, 0.5));
+  margin: 0;
+  padding: var(--sp-6, 1.5rem) var(--sp-2, 0.5rem);
+  text-align: center;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px dashed var(--hairline, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+}
+
+/* Floating tooltip — extends .stats-tooltip with absolute positioning. */
+.stats-tooltip-floating {
+  pointer-events: none;
+  white-space: nowrap;
+  animation: stats-tooltip-pop 120ms ease-out;
+}
+
+@keyframes stats-tooltip-pop {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -90%);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -100%);
+  }
+}
+
