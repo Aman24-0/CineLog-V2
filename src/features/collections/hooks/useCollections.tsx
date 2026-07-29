@@ -549,15 +549,23 @@ const useCollectionsLogic = () => {
 
     const snapshot = userCollections();
     try {
-      // Optimistic: update entries to the new order
+      // Optimistic: update entries to the new order. Stamp each entry
+      // with its 0-based orderIndex BEFORE persisting so the local
+      // signal stays in sync with the DB. Without this, the next sort
+      // pass (which reads entry.orderIndex) would re-order the entries
+      // back to their previous orderIndex values.
+      const stamped = entries.map((e, i) => ({ ...e, orderIndex: i }));
       setUserCollections((prev) =>
         prev.map((c) =>
           c.id === collectionId
-            ? { ...c, entries, updatedAt: new Date().toISOString() }
+            ? { ...c, entries: stamped, updatedAt: new Date().toISOString() }
             : c
         )
       );
 
+      // Persist. `reorderEntriesInCollection` writes BOTH `position`
+      // (legacy 1-based) AND `order_index` (0-based) in a single
+      // transaction via collection.entries.updateEntryPosition.
       await reorderEntriesInCollection(collectionId, entries.map((e) => e.id));
     } catch (err) {
       setUserCollections(snapshot);

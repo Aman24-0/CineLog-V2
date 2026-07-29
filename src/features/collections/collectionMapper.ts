@@ -81,6 +81,11 @@ export function entryRowToCollectionEntry(
     release_date: tmdb?.release_date ?? undefined,
     first_air_date: tmdb?.first_air_date ?? undefined,
     order: row.position,
+    // order_index is the user-set manual order for USER collections
+    // (added in migration 20260729_add_archived_at_to_collections).
+    // Backfilled from `position` so existing folders start in their
+    // current visual order. Falls back to 0 when null.
+    orderIndex: (row as CollectionEntryRow & { order_index?: number | null }).order_index ?? 0,
   };
 }
 

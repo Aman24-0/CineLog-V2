@@ -15,6 +15,13 @@ interface UniverseDashboardProps {
   activeProvider: TimelineProvider;
   onOrderChange: (order: ViewingOrder) => void;
   onProviderChange: (provider: TimelineProvider) => void;
+  /**
+   * Called when the user clicks the pencil icon at the bottom-right
+   * of the hero. Opens the FolderEditor (metadata edit modal) on the
+   * parent. Only rendered for USER collections — universes are
+   * read-only and never show the pencil.
+   */
+  onEdit?: () => void;
   // ── Batch Select Mode (v2.1) ──
   selectMode?: boolean;
   selectedCount?: number;
@@ -135,7 +142,10 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
 
         <div class="universe-detail-hero-content">
           <p class="universe-detail-hero-eyebrow">
-            {props.collection.type === "curated" ? "Cinematic Universe" :
+            {/* Universes are admin-curated — show "Curated by CineLog"
+                instead of a creator name. User collections get the
+                existing "Your Collection" eyebrow. */}
+            {props.collection.type === "curated" ? "Curated by CineLog" :
              props.collection.type === "user" ? "Your Collection" : "Official Collection"}
           </p>
           <h1 class="universe-detail-hero-title">{props.collection.name}</h1>
@@ -178,6 +188,21 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             </div>
           </div>
         </div>
+
+        {/* Pencil edit button — bottom-right of the hero backdrop.
+            Opens the FolderEditor (metadata edit modal).
+            USER collections only — universes are read-only. */}
+        <Show when={props.onEdit && props.collection.type !== "curated"}>
+          <button
+            type="button"
+            class="universe-detail-hero-edit focus-ring"
+            onClick={() => props.onEdit?.()}
+            aria-label={`Edit ${props.collection.name}`}
+            title="Edit collection"
+          >
+            <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+          </button>
+        </Show>
       </div>
 
       {/* Continue card — ONLY for curated universes.

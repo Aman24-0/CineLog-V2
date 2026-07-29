@@ -15,33 +15,63 @@ import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import UniverseDashboard from "./components/UniverseDashboard";
 import TimelineEngine from "./components/TimelineEngine";
-import CollectionActionDock from "./components/CollectionActionDock";
-import CollectionToolbar from "./components/CollectionToolbar";
+import CollectionActionBar from "./components/CollectionActionBar";
+import CollectionSortFilter from "./components/CollectionSortFilter";
+import AddTitlesModal from "./components/AddTitlesModal";
+import ReorderModal from "./components/ReorderModal";
+import EntryListRow from "./components/EntryListRow";
 import FolderEditor from "./components/FolderEditor";
 import { useCollectionFilter } from "./hooks/useCollectionFilter";
 import { useCollectionSort, type UserCollectionSortMode } from "./hooks/useCollectionSort";
+import { GlassEmptyState } from "~/shared/ui/glass";
 import type { Collection, CollectionEntry, UniversePhase, ViewingOrder, TimelineProvider, WatchlistItem } from "~/shared/types";
 
 /**
  * CollectionDetailPage — renders a single collection or curated universe.
  *
- * ARCHITECTURE (Database Bible):
+ * ARCHITECTURE (v4 — final polish):
  *   The route param `id` can be:
  *     1. A user collection UUID → looked up in userCollections()
  *     2. A curated universe slug → fetched from Supabase curated_universes
  *
+ * LAYOUT (single page, no more edit-page navigation):
+ *
+ *   ┌─ UniverseDashboard (hero + stats + pencil edit) ─┐
+ *   │  Curated by CineLog (for universes)              │
+ *   │  Title                                            │
+ *   │  Stats strip                          [✏️]        │
+ *   └─────────────────────────────────────────────────┘
+ *   ┌─ Row 1: CollectionActionBar ─────────────────────┐
+ *   │ [+ Add Titles] [↕ Reorder] [Share]    [⋮ More]   │  (user)
+ *   │ [Share] [Unsubscribe]                            │  (universe)
+ *   └─────────────────────────────────────────────────┘
+ *   ┌─ Row 2: CollectionSortFilter ────────────────────┐
+ *   │ [Sort ▾] [🔍 Search…] [All][Watching][Completed][Planned] │
+ *   └─────────────────────────────────────────────────┘
+ *   ┌─ Entry list ─────────────────────────────────────┐
+ *   │ USER collections: EntryListRow × N (flat list,    │
+ *   │   with drag handles when sort=Manual)             │
+ *   │ UNIVERSES: TimelineEngine (rail + numbered nodes  │
+ *   │   + phase dividers between entries)               │
+ *   └─────────────────────────────────────────────────┘
+ *
+ * Removed (v4):
+ *   - The "Edit Timeline" full-page route (/collections/[id]/edit).
+ *     Replaced by the ReorderModal (in-context modal sheet).
+ *   - The "Edit" text in the action bar. The hero's pencil icon
+ *     (bottom-right of the backdrop) is now the only edit entry point.
+ *   - Custom Entry creation. The old UniverseEditPage allowed custom
+ *     entries; that whole page is gone, so custom entries can no
+ *     longer be created. Existing custom entries (if any) still
+ *     render but can't be edited.
+ *   - Universe overrides (pin/hide/notes). Universes are now fully
+ *     read-only on the consumer side. The saveOverrides method still
+ *     exists on useCollections for compatibility but is no longer
+ *     invoked from any UI.
+ *
  * SSR safety:
  *   loading is ALWAYS true initially (including SSR) so the skeleton
  *   renders. The createEffect on the client resolves the collection.
- *
- * RACE CONDITION PREVENTION:
- *   A `resolveEpoch` counter tracks the latest resolveCollection call.
- *   When userCollections populates (changing from 0 to N), the effect
- *   re-runs. The previous async fetch (which was searching for a curated
- *   universe with a UUID) is still in flight. When it resolves, it
- *   checks if its epoch matches the current one — if not, it ignores
- *   the result. This prevents stale `notFound = true` from overriding
- *   a successful collection lookup.
  */
 export default function CollectionDetailPage() {
   const params = useParams();
@@ -54,7 +84,10 @@ export default function CollectionDetailPage() {
     addToCollection,
     refreshCollections,
     archiveCollection,
+    unarchiveCollection,
     deleteCollection,
+    duplicateCollection,
+    reorderEntries,
   } = useCollections();
   const { openTitle } = useModalState();
   const { showToast } = useToast();
@@ -72,8 +105,12 @@ export default function CollectionDetailPage() {
   // Phase dividers — fetched separately for curated universes.
   // Empty for user collections.
   const [phases, setPhases] = createSignal<UniversePhase[]>([]);
-  // Folder editor modal — opened by the "Edit" action in the dock.
+  // Folder editor modal — opened by the pencil icon on the hero.
   const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
+  // Add Titles modal — opened by the Add Titles action.
+  const [showAddTitles, setShowAddTitles] = createSignal(false);
+  // Reorder modal — opened by the Reorder action.
+  const [showReorder, setShowReorder] = createSignal(false);
   // Delete confirmation dialog
   const [deleteTarget, setDeleteTarget] = createSignal<Collection | null>(null);
   // Unsubscribe confirmation dialog (universes only)
@@ -82,101 +119,47 @@ export default function CollectionDetailPage() {
   const isUniverse = createMemo(() => collection()?.type === "curated");
 
   // Sort mode — only used for USER collections. Universes use the
-  // activeOrder signal (story/release/franchise) directly. The hook
-  // is instantiated (not destructured) so its reactive state is
-  // ready when the toolbar changes modes; we read the mode back via
-  // the userSortMode signal below.
-  void useCollectionSort();
+  // activeOrder signal (story/release/franchise) directly.
   const [userSortMode, setUserSortMode] = createSignal<UserCollectionSortMode>("manual");
 
   // Filter — search + status pills. Applies to BOTH user collections
-  // and universes. The vault status lookup is built from the user's
-  // watchlist so the pills can show "Watching 5 / Completed 12" etc.
-  const statusOf = createMemo<Record<string, string>>(() => {
-    const map: Record<string, string> = {};
+  // and universes. The vault is passed so the filter can resolve each
+  // entry's status + the rich cast/director/genre search index.
+  const filter = useCollectionFilter({ vault: watchlist });
+
+  // Sort hook for USER collections — wraps the entries accessor and
+  // returns a sorted memo. Universes skip this (TimelineEngine does
+  // its own sort via timelineSort.ts).
+  const sortHook = useCollectionSort();
+  const sortMode = () => isUniverse() ? "manual" as UserCollectionSortMode : userSortMode();
+
+  // ── Vault lookups for the EntryListRow (status, rating, episode progress) ──
+  const vaultMap = createMemo<Map<string, WatchlistItem>>(() => {
+    const map = new Map<string, WatchlistItem>();
     for (const item of watchlist()) {
-      map[`${item.media_type}:${item.id}`] = (item.status ?? "planned").toLowerCase();
+      map.set(`${item.media_type}:${item.id}`, item);
     }
     return map;
   });
 
-  const filter = useCollectionFilter({ statusOf });
-
-  // ── Batch Select Mode ──────────────────────────────────────────
-  // When active, each timeline entry shows a checkbox. Selected
-  // entries can be removed from this folder or moved to another
-  // folder. The Select button lives in UniverseDashboard; the
-  // checkboxes live in TimelineEntry. State is lifted here so both
-  // can read/write it.
-  const [selectMode, setSelectMode] = createSignal(false);
-  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set());
-  const [showMoveDialog, setShowMoveDialog] = createSignal(false);
-
-  const toggleSelectMode = () => {
-    setSelectMode(!selectMode());
-    if (selectMode()) {
-      // Entering select mode — clear any previous selection
-      setSelectedIds(new Set<string>());
+  // Episode progress string for a TV entry (e.g. "3/10 eps").
+  // Returns null for movies or when no tracker is set.
+  const episodeProgressOf = (entry: CollectionEntry): string | null => {
+    if (entry.media_type !== "tv") return null;
+    const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
+    if (!v) return null;
+    const season = v.season;
+    const episode = v.episode;
+    // Prefer seasons array for the total — fall back to totalEps.
+    let total: number | null = null;
+    if (v.seasons && v.seasons.length > 0) {
+      const s = v.seasons.find((s) => s.number === season);
+      if (s) total = s.count;
     }
-  };
-
-  const toggleSelected = (entry: CollectionEntry) => {
-    const key = `${entry.media_type}:${entry.id}`;
-    setSelectedIds((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  };
-
-  const selectedCount = () => selectedIds().size;
-
-  // Batch remove: remove every selected entry from this collection.
-  const handleBatchRemove = async () => {
-    const col = collection();
-    if (!col) return;
-    const count = selectedIds().size;
-    if (count === 0) return;
-    const ids = Array.from(selectedIds());
-    // Run deletes in parallel with Promise.allSettled (instead of
-    // sequential loop). Each individual removeFromCollection call
-    // previously triggered a refreshCollections() after each delete —
-    // for 20 items that was 20 Supabase refetches. We pass a flag
-    // to skip the per-item refresh and do ONE refresh at the end.
-    await Promise.allSettled(
-      ids.map((key) => {
-        const [mediaType, id] = key.split(":");
-        return removeFromCollection(col.id, id, mediaType);
-      })
-    );
-    // Single refresh after all deletes are complete.
-    const uid = getCurrentUid();
-    if (uid) await refreshCollections(uid);
-    setSelectedIds(new Set<string>());
-    setSelectMode(false);
-  };
-
-  // Move selected entries to another folder: add to target, then
-  // remove from current.
-  const handleMoveToFolder = async (targetCollectionId: string) => {
-    const col = collection();
-    if (!col) return;
-    const ids = Array.from(selectedIds());
-    for (const key of ids) {
-      const [mediaType, id] = key.split(":");
-      // Find the entry to build a CollectionEntry for addToCollection
-      const entry = (col.entries ?? []).find(
-        (e) => String(e.id) === id && e.media_type === mediaType
-      );
-      if (entry) {
-        await addToCollection(targetCollectionId, entry);
-        await removeFromCollection(col.id, id, mediaType);
-      }
-    }
-    setSelectedIds(new Set<string>());
-    setSelectMode(false);
-    setShowMoveDialog(false);
+    if (total == null) total = v.totalEps ?? null;
+    if (season == null || episode == null) return null;
+    if (total == null) return `S${season} E${episode}`;
+    return `S${season} E${episode}/${total}`;
   };
 
   // Race condition guard — incremented on every resolveCollection call.
@@ -184,7 +167,6 @@ export default function CollectionDetailPage() {
   // the current one. If not, the result is stale and ignored.
   let resolveEpoch = 0;
 
-  // Resolve the collection. Client-only.
   const resolveCollection = async (id: string) => {
     if (isServer) return;
 
@@ -197,7 +179,6 @@ export default function CollectionDetailPage() {
       // 1. Check user collections first (synchronous lookup).
       const userCol = userCollections().find((c) => c.id === id);
       if (userCol) {
-        // Check for staleness — another resolve might have started.
         if (myEpoch !== resolveEpoch) return;
         setCollection(userCol);
         setLoading(false);
@@ -209,7 +190,6 @@ export default function CollectionDetailPage() {
       //    to populate. The createEffect will re-run when
       //    userCollections().length changes.
       if (userCollections().length === 0) {
-        // Keep loading true — the effect will re-run when collections load.
         return;
       }
 
@@ -240,7 +220,7 @@ export default function CollectionDetailPage() {
     }
   };
 
-  // ── Action dock handlers ──
+  // ── Action handlers ──────────────────────────────────────────
   const handleShare = () => {
     const col = collection();
     if (!col) return;
@@ -260,11 +240,17 @@ export default function CollectionDetailPage() {
     if (!col) return;
     const ok = await archiveCollection(col.id);
     if (ok) {
-      // Immediately navigate the user back to /collections as
-      // specified — the archived collection is hidden from the
-      // default grid.
+      // Immediately navigate the user back to /collections — the
+      // archived collection is hidden from the default grid.
       navigate("/collections");
     }
+  };
+
+  const handleUnarchive = async () => {
+    const col = collection();
+    if (!col) return;
+    await unarchiveCollection(col.id);
+    showToast("Collection restored.", "success", 1500);
   };
 
   const handleDelete = () => {
@@ -281,6 +267,13 @@ export default function CollectionDetailPage() {
     navigate("/collections");
   };
 
+  const handleDuplicate = async () => {
+    const col = collection();
+    if (!col) return;
+    await duplicateCollection(col.id);
+    showToast("Collection duplicated.", "success", 1500);
+  };
+
   const handleUnsubscribe = () => {
     const col = collection();
     if (!col) return;
@@ -295,6 +288,79 @@ export default function CollectionDetailPage() {
     setUnsubscribeTarget(null);
     showToast(`Unsubscribed from "${target.name}"`, "success");
     navigate("/collections");
+  };
+
+  // ── Entry actions (status / rating cycle / remove) ─────────────
+  const { updateStatus, updateRating } = useVault();
+  void addToCollection; // addToCollection is used by AddTitlesModal directly
+
+  const cycleStatus = async (entry: CollectionEntry) => {
+    const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
+    const current = v?.status ?? null;
+    // Planned → Watching → Completed → Planned (loop)
+    const next = current === "Planned" ? "Watching"
+              : current === "Watching" ? "Completed"
+              : current === "Completed" ? "Planned"
+              : "Planned";
+    // If not in vault, the cycle starts at Planned (which also adds
+    // the title to the vault via updateStatus on a non-existent id —
+    // for now we just no-op when not in vault; the user should add it
+    // via the row's "+" button which opens the Details modal).
+    if (!v) {
+      showToast("Open the title to add it to your watchlist first.", "info", 2000);
+      return;
+    }
+    try {
+      await updateStatus(v.id, next);
+    } catch (err) {
+      console.error("[CollectionDetailPage] Failed to update status:", err);
+      showToast("Failed to update status.", "error");
+    }
+  };
+
+  const cycleRating = async (entry: CollectionEntry) => {
+    const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
+    if (!v) {
+      showToast("Open the title to rate it first.", "info", 2000);
+      return;
+    }
+    // Cycle: 0 → 5 → 6 → 7 → 8 → 9 → 10 → 0
+    const current = v.rating ?? 0;
+    const next = current === 0 ? 5
+              : current === 5 ? 6
+              : current === 6 ? 7
+              : current === 7 ? 8
+              : current === 8 ? 9
+              : current === 9 ? 10
+              : current === 10 ? 0
+              : 5;
+    try {
+      await updateRating(v.id, next);
+    } catch (err) {
+      console.error("[CollectionDetailPage] Failed to update rating:", err);
+      showToast("Failed to update rating.", "error");
+    }
+  };
+
+  const handleRemoveEntry = async (entry: CollectionEntry) => {
+    const col = collection();
+    if (!col) return;
+    await removeFromCollection(col.id, entry.id, entry.media_type);
+  };
+
+  const handleOpenEntry = (entry: CollectionEntry) => {
+    const baseItem: WatchlistItem = {
+      id: String(entry.id),
+      title: entry.title,
+      name: entry.name,
+      media_type: entry.media_type,
+      poster_path: entry.poster_path,
+      backdrop_path: entry.backdrop_path,
+      status: "Planned",
+      release_date: entry.release_date,
+      first_air_date: entry.first_air_date
+    };
+    openTitle(baseItem, watchlist());
   };
 
   // Trigger fetch when params.id changes or userCollections populates.
@@ -315,20 +381,84 @@ export default function CollectionDetailPage() {
     setActiveProvider(prefs?.preferredProvider ?? "cinelog");
   });
 
-  const handleOpenEntry = (entry: CollectionEntry) => {
-    const baseItem: WatchlistItem = {
-      id: String(entry.id),
-      title: entry.title,
-      name: entry.name,
-      media_type: entry.media_type,
-      poster_path: entry.poster_path,
-      backdrop_path: entry.backdrop_path,
-      status: "Planned",
-      release_date: entry.release_date,
-      first_air_date: entry.first_air_date
-    };
-    openTitle(baseItem, watchlist());
-  };
+  // ── Filtered + sorted entries (USER collections only — universes use TimelineEngine) ──
+  const userEntries = createMemo<CollectionEntry[]>(() => {
+    const col = collection();
+    if (!col || col.type === "curated") return [];
+    return col.entries ?? [];
+  });
+
+  // Apply sort, then filter. Both are pure memos.
+  const sortedUserEntries = createMemo(() => {
+    const entries = userEntries();
+    if (entries.length === 0) return [];
+    return sortHook.sortNow(entries);
+  });
+
+  const filteredUserEntries = createMemo(() => {
+    const entries = sortedUserEntries();
+    if (entries.length === 0) return [];
+    const s = filter.status();
+    const q = filter.debouncedSearch();
+    if (s === "all" && !q) return entries;
+    // Reuse the filter's matchesStatus + matchesSearch via a fresh
+    // pass — the filter hook exposes a `filter` factory but that
+    // wraps an accessor; here we apply it inline for clarity.
+    return entries.filter((e) => {
+      // Status check
+      if (s !== "all") {
+        const v = vaultMap().get(`${e.media_type}:${e.id}`);
+        if (!v) return false; // not in vault → only visible under "all"
+        const st = (v.status ?? "").toLowerCase();
+        if (s === "planned") {
+          if (st !== "planned" && st !== "plan to watch") return false;
+        } else if (st !== s) {
+          return false;
+        }
+      }
+      // Search check
+      if (q) {
+        const title = (e.title ?? e.name ?? "").toLowerCase();
+        if (title.includes(q)) return true;
+        if ((e.franchise ?? "").toLowerCase().includes(q)) return true;
+        if ((e.entryType ?? "").toLowerCase().includes(q)) return true;
+        const v = vaultMap().get(`${e.media_type}:${e.id}`);
+        if (v) {
+          if ((v.director ?? "").toLowerCase().includes(q)) return true;
+          if (v.castList) {
+            for (const c of v.castList) {
+              if (c.toLowerCase().includes(q)) return true;
+            }
+          }
+          if (v.genresList) {
+            for (const g of v.genresList) {
+              if (typeof g === "string" && g.toLowerCase().includes(q)) return true;
+            }
+          }
+        }
+        return false;
+      }
+      return true;
+    });
+  });
+
+  // Whether to show drag handles on entry rows. Only when:
+  //   - User collection (not universe)
+  //   - Sort mode = Manual
+  //   - No active filter (search or status pill other than All) —
+  //     dragging when the list is filtered would reorder the wrong
+  //     subset, so we hide handles until filters are cleared.
+  const showDragHandles = createMemo(() =>
+    !isUniverse()
+    && userSortMode() === "manual"
+    && filter.status() === "all"
+    && !filter.debouncedSearch(),
+  );
+
+  // Whether to show the Reorder button in the action bar — same
+  // conditions as the drag handles, but the button is always useful
+  // even with filters (since ReorderModal operates on the full list).
+  const showReorderButton = createMemo(() => !isUniverse() && userSortMode() === "manual");
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
@@ -337,9 +467,12 @@ export default function CollectionDetailPage() {
 
       {/* Loading state — always renders during SSR + initial client load */}
       <Show when={loading()}>
-        <div class="page-enter" style={{ padding: "var(--sp-12)", "text-align": "center" }}>
-          <div class="skeleton-base" style={{ width: "60%", height: "2rem", margin: "0 auto var(--sp-4)" }} />
-          <div class="skeleton-base" style={{ width: "40%", height: "1rem", margin: "0 auto" }} />
+        <div class="page-enter" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+          {/* Simple skeleton — the hero loads fast so we don't need
+              a fancy multi-shape placeholder. */}
+          <div class="skeleton-base" style={{ width: "100%", "aspect-ratio": "16/9", "border-radius": "var(--radius-md)", "margin-bottom": "var(--sp-4)" }} />
+          <div class="skeleton-base" style={{ width: "60%", height: "1.5rem", "margin": "0 auto var(--sp-2)" }} />
+          <div class="skeleton-base" style={{ width: "40%", height: "1rem", "margin": "0 auto" }} />
         </div>
       </Show>
 
@@ -380,37 +513,33 @@ export default function CollectionDetailPage() {
           }}
         >
           <div class="page-enter relative">
-            {/* Universe Dashboard — enhanced hero + stats + actions.
-                The sort order selector lives here. */}
+            {/* Hero — UniverseDashboard. Pencil icon (bottom-right)
+                opens the FolderEditor for USER collections. */}
             <UniverseDashboard
               collection={collection()!}
               activeOrder={activeOrder()}
               activeProvider={activeProvider()}
               onOrderChange={setActiveOrder}
               onProviderChange={setActiveProvider}
-              selectMode={selectMode()}
-              selectedCount={selectedCount()}
-              onToggleSelectMode={toggleSelectMode}
-              onBatchRemove={handleBatchRemove}
-              onOpenMoveDialog={() => setShowMoveDialog(true)}
+              onEdit={!isUniverse() ? () => setEditingFolder(collection()!) : undefined}
             />
 
-            {/* Action Dock — contextual actions for the collection.
-                USER collections: Add Titles, Edit, Share, More (Archive/Delete).
-                SUBSCRIBED UNIVERSES: Share, Unsubscribe only. */}
-            <CollectionActionDock
+            {/* Row 1: Action Bar */}
+            <CollectionActionBar
               collection={collection()!}
-              onAddTitles={() => navigate(`/collections/${collection()!.id}/edit`)}
-              onEdit={() => setEditingFolder(collection()!)}
+              showReorder={showReorderButton()}
+              onAddTitles={() => setShowAddTitles(true)}
+              onReorder={() => setShowReorder(true)}
               onShare={handleShare}
               onArchive={handleArchive}
+              onUnarchive={handleUnarchive}
               onDelete={handleDelete}
+              onDuplicate={handleDuplicate}
               onUnsubscribe={handleUnsubscribe}
             />
 
-            {/* Toolbar — sort (user collections only), search, status pills.
-                Universes are locked to "Timeline Order". */}
-            <CollectionToolbar
+            {/* Row 2: Sort + Search + Filter chips */}
+            <CollectionSortFilter
               collection={collection()!}
               search={filter.search}
               onSearchInput={filter.onSearchInput}
@@ -420,30 +549,86 @@ export default function CollectionDetailPage() {
               onSortModeChange={isUniverse() ? undefined : setUserSortMode}
             />
 
-            {/* Entry renderer — single Timeline view (rail + numbered nodes).
-                The view-mode toggle was removed in v3 — there's only one
-                view now. The active sort is conveyed by the order-switch
-                buttons above and by the Timeline header label.
-                For universes, phase dividers are rendered as section
-                headers between entries. */}
-            <TimelineEngine
-              collection={collection()!}
-              order={activeOrder()}
-              provider={activeProvider()}
-              onOpenEntry={handleOpenEntry}
-              selectMode={selectMode()}
-              selectedIds={selectedIds()}
-              onToggleSelected={toggleSelected}
-              onEdit={() => navigate(`/collections/${collection()!.id}/edit`)}
-              phases={phases()}
-            />
+            {/* Entry renderer — flat list for user collections,
+                TimelineEngine for universes. */}
+            <Show
+              when={!isUniverse()}
+              fallback={
+                <TimelineEngine
+                  collection={collection()!}
+                  order={activeOrder()}
+                  provider={activeProvider()}
+                  onOpenEntry={handleOpenEntry}
+                  phases={phases()}
+                />
+              }
+            >
+              <Show
+                when={filteredUserEntries().length > 0}
+                fallback={
+                  <GlassEmptyState
+                    icon="video_library"
+                    title={
+                      filter.debouncedSearch() || filter.status() !== "all"
+                        ? "No titles match"
+                        : "No titles yet"
+                    }
+                    message={
+                      filter.debouncedSearch() || filter.status() !== "all"
+                        ? "Try adjusting your search or filters."
+                        : "Use 'Add Titles' above to pull titles from your watchlist into this collection."
+                    }
+                    variant="default"
+                  />
+                }
+              >
+                <div class="collection-entry-list" role="list">
+                  <For each={filteredUserEntries()}>
+                    {(entry, i) => {
+                      const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
+                      return (
+                        <EntryListRow
+                          entry={entry}
+                          index={i()}
+                          status={v?.status}
+                          rating={v?.rating}
+                          episodeProgress={episodeProgressOf(entry) ?? undefined}
+                          draggable={showDragHandles()}
+                          showRemove
+                          onOpen={() => handleOpenEntry(entry)}
+                          onCycleStatus={() => cycleStatus(entry)}
+                          onCycleRating={() => cycleRating(entry)}
+                          onRemove={() => handleRemoveEntry(entry)}
+                        />
+                      );
+                    }}
+                  </For>
+                </div>
+              </Show>
+            </Show>
           </div>
 
-          {/* Folder editor modal — opened by the Edit action */}
+          {/* Folder editor modal — opened by the pencil icon */}
           <Show when={editingFolder()}>
             <FolderEditor
               collection={editingFolder()!}
               onClose={() => setEditingFolder(null)}
+            />
+          </Show>
+
+          {/* Add Titles modal — opened by the Add Titles action */}
+          <Show when={showAddTitles()}>
+            <AddTitlesModal
+              collection={collection()!}
+              onClose={() => setShowAddTitles(false)}
+            />
+          </Show>
+
+          {/* Reorder modal — opened by the Reorder action */}
+          <Show when={showReorder()}>
+            <ReorderModal
+              collection={collection()!}
+              onClose={() => setShowReorder(false)}
             />
           </Show>
 
@@ -550,126 +735,8 @@ export default function CollectionDetailPage() {
               </div>
             )}
           </Show>
-
-          {/* Move-to-folder dialog — shown when user clicks "Move" in select mode */}
-          <Show when={showMoveDialog()}>
-            <MoveToFolderDialog
-              currentCollectionId={collection()!.id}
-              selectedCount={selectedCount()}
-              onClose={() => setShowMoveDialog(false)}
-              onMove={handleMoveToFolder}
-            />
-          </Show>
         </ErrorBoundary>
       </Show>
     </PageContainer>
   );
 }
-
-// ──────────────────────────────────────────────────────────────────────────
-// MoveToFolderDialog — pick a target folder to move selected entries to.
-// Reuses the same folder-tile visual language as AddToFolderSheet.
-// ──────────────────────────────────────────────────────────────────────────
-
-interface MoveToFolderDialogProps {
-  currentCollectionId: string;
-  selectedCount: number;
-  onClose: () => void;
-  onMove: (targetCollectionId: string) => void;
-}
-
-const MoveToFolderDialog: Component<MoveToFolderDialogProps> = (props) => {
-  const { userCollections } = useCollections();
-
-  // Other folders (exclude the current one — can't move to the same folder)
-  const targetFolders = () =>
-    userCollections().filter((c) => c.id !== props.currentCollectionId);
-
-  return (
-    <Portal>
-      <div
-        class="fixed inset-0 z-[999998] flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
-        style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(12px)", "-webkit-backdrop-filter": "blur(12px)" }}
-        onClick={() => props.onClose()}
-        role="dialog"
-        aria-modal="true"
-        aria-label="Move to folder"
-      >
-        <div
-          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
-          style={{
-            "max-height": "70dvh",
-            "min-height": "0",
-            background: "var(--glass-bg-strong)",
-            "backdrop-filter": "blur(28px)",
-            "-webkit-backdrop-filter": "blur(28px)",
-            border: "1px solid var(--hairline-2)",
-            "box-shadow": "var(--shadow-elevated)",
-          }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div class="flex justify-between items-center px-6 pt-5 pb-4 flex-shrink-0" style={{ "border-bottom": "1px solid var(--hairline)" }}>
-            <div>
-              <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
-                Move {props.selectedCount} {props.selectedCount === 1 ? "title" : "titles"}
-              </h3>
-              <p style={{ "font-size": "0.75rem", color: "var(--text-dim)", margin: "4px 0 0" }}>
-                Choose a destination folder
-              </p>
-            </div>
-            <button
-              onClick={() => props.onClose()}
-              class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
-              style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-soft)", border: "1px solid var(--hairline)" }}
-              aria-label="Close"
-            >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
-            </button>
-          </div>
-
-          {/* Folder list */}
-          <div class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-2.5" style={{ "overscroll-behavior": "contain" }}>
-            <Show when={targetFolders().length > 0} fallback={
-              <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-6)" }}>
-                No other folders. Create one from the Collections page first.
-              </p>
-            }>
-              <For each={targetFolders()}>
-                {(col) => (
-                  <button
-                    type="button"
-                    class="folder-tile focus-ring"
-                    onClick={() => props.onMove(col.id)}
-                    aria-label={`Move to ${col.name}`}
-                  >
-                    <div class="folder-tile-icon">
-                      <Show when={col.isFavorites} fallback={
-                        <span class="material-symbols-outlined" aria-hidden="true">folder</span>
-                      }>
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
-                          aria-hidden="true"
-                        >favorite</span>
-                      </Show>
-                    </div>
-                    <div class="folder-tile-text">
-                      <p class="folder-tile-name">{col.name}</p>
-                      <p class="folder-tile-count">
-                        {col.entries?.length ?? 0} {(col.entries?.length ?? 0) === 1 ? "title" : "titles"}
-                      </p>
-                    </div>
-                    <span class="material-symbols-outlined" style={{ "font-size": "20px", color: "var(--text-dim)" }} aria-hidden="true">
-                      chevron_right
-                    </span>
-                  </button>
-                )}
-              </For>
-            </Show>
-          </div>
-        </div>
-      </div>
-    </Portal>
-  );
-};

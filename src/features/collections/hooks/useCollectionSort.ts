@@ -48,11 +48,12 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
     const copy = entries.slice();
     switch (m) {
       case "manual":
-        // Preserve the existing order (entry.order from the DB). The
-        // drag-to-reorder handler mutates the source array via
-        // useCollections.reorderEntries; this sort is a no-op so the
-        // dragged order stays intact.
-        return copy.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        // User's manual drag-to-reorder. Uses `orderIndex` (the
+        // `collection_entries.order_index` column, 0-based). Falls back
+        // to legacy `order` (= `position`, 1-based) when orderIndex is
+        // missing — both are monotonic so mixing them in the fallback
+        // still produces a stable order.
+        return copy.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
       case "release": {
         const dateOf = (e: CollectionEntry): number => {
           const s = e.release_date ?? e.first_air_date;
@@ -63,8 +64,8 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
         return copy.sort((a, b) => dateOf(a) - dateOf(b));
       }
       case "added":
-        // entry.order is the 1-based insertion position. Lower = added earlier.
-        return copy.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        // Date added — lower orderIndex/order = added earlier.
+        return copy.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
       case "title": {
         const titleOf = (e: CollectionEntry): string =>
           (e.title ?? e.name ?? "").toLowerCase().replace(/^the\s+/, "");

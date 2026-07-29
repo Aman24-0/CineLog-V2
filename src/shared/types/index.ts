@@ -864,6 +864,17 @@ export interface CollectionEntry {
   first_air_date?: string;
   /** Admin's primary ordering (curated_universe_entries.position). */
   order?: number;
+  /**
+   * User-set manual ordering for USER collections
+   * (collection_entries.order_index). 0-based. Set by the ReorderModal
+   * drag-and-drop flow and persisted in a single transaction via
+   * `useCollections.reorderEntries`. Lower = earlier in the list.
+   *
+   * Curated universe entries don't use this field — their order is
+   * owned by the admin via `position` / `story_position` /
+   * `release_position` on `curated_universe_entries`.
+   */
+  orderIndex?: number;
   /** Storyline sort index (curated_universe_entries.story_position).
    *  Lower = earlier in the in-universe chronology. */
   storyOrder?: number;
