@@ -98,10 +98,17 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
 
 // ---------------------------------------------------------------------------
 // ProgressRing — small circular SVG progress indicator
+//
+// Sized to visually pair with the 32px stat icon on the left side of
+// the card (40px outer diameter, 3px stroke). Top-aligned so it sits
+// on the same baseline as the icon row and never crowds the value
+// text on narrow mobile cards.
 // ---------------------------------------------------------------------------
 
 const ProgressRing: Component<{ value: number }> = (props) => {
-  const radius = 24;
+  const size = 40;
+  const center = size / 2;
+  const radius = 16;
   const circumference = 2 * Math.PI * radius;
   const offset = (): number => {
     const pct = Math.max(0, Math.min(100, props.value));
@@ -109,26 +116,26 @@ const ProgressRing: Component<{ value: number }> = (props) => {
   };
   return (
     <div class="stats-overview-ring" aria-hidden="true">
-      <svg width="56" height="56" viewBox="0 0 56 56">
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`}>
         <circle
-          cx="28"
-          cy="28"
+          cx={center}
+          cy={center}
           r={radius}
           fill="none"
           stroke="var(--tier-3, rgba(255,255,255,0.08))"
-          stroke-width="4"
+          stroke-width="3"
         />
         <circle
-          cx="28"
-          cy="28"
+          cx={center}
+          cy={center}
           r={radius}
           fill="none"
           stroke="var(--p, #f5c518)"
-          stroke-width="4"
+          stroke-width="3"
           stroke-linecap="round"
           stroke-dasharray={`${circumference}`}
           stroke-dashoffset={`${offset()}`}
-          transform="rotate(-90 28 28)"
+          transform={`rotate(-90 ${center} ${center})`}
           style={{ transition: "stroke-dashoffset 800ms var(--ease-smooth, ease)" }}
         />
       </svg>

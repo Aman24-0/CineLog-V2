@@ -122,12 +122,16 @@
   margin: 0;
 }
 
-/* Progress ring */
+/* Progress ring — 40px outer diameter, top-aligned so it pairs with
+   the 32px stat icon at the top-left of the card. The smaller size
+   keeps the ring from crowding the value text on narrow cards. */
 .stats-overview-ring {
   position: relative;
-  width: 56px;
-  height: 56px;
+  width: 40px;
+  height: 40px;
   flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 0;
 }
 
 .stats-overview-ring-label {
@@ -137,7 +141,7 @@
   align-items: center;
   justify-content: center;
   font-family: 'Azeret Mono', monospace;
-  font-size: 0.625rem;
+  font-size: 0.5625rem;
   font-weight: 700;
   color: var(--p, #f5c518);
 }
@@ -149,7 +153,8 @@
 }
 
 .stats-tab-content {
-  min-height: 320px;
+  min-height: 340px;
+  padding-bottom: var(--sp-2, 0.5rem);
 }
 
 .stats-tab-stack {
