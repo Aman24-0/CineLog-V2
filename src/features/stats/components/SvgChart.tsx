@@ -103,13 +103,17 @@ export interface BarChartVProps {
   yTickFormat?: (v: number) => string;
   /** Tooltip datum builder (called per bar on hover). */
   buildTooltip?: (item: BarVItem, idx: number) => TooltipDatum;
+  /** Rotate X-axis labels -45deg. Useful for long labels (months, decades). @default false */
+  rotateLabels?: boolean;
+  /** When true, bars scale up slightly on hover to indicate interactivity. @default true */
+  hoverScale?: boolean;
 }
 
 const DEFAULT_HEIGHT = 240;
 
 export const BarChartV: Component<BarChartVProps> = (props) => {
   const height = (): number => props.height ?? DEFAULT_HEIGHT;
-  const padding = { top: 12, right: 8, bottom: 28, left: 36 };
+  const padding = { top: 12, right: 8, bottom: 32, left: 36 };
   const W = 320;
   const H = (): number => height();
   const innerW = (): number => W - padding.left - padding.right;
@@ -137,6 +141,7 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
   const secondaryBarW = (): number => Math.min(18, barAreaW() * 0.32);
 
   const { hover, setHover, clearHover } = useChartTooltip();
+  const [hoverIdx, setHoverIdx] = createSignal<number | null>(null);
 
   const xForBar = (idx: number): number =>
     padding.left + barAreaW() * idx + barAreaW() / 2;
@@ -149,6 +154,7 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
     const ctm = target.getBoundingClientRect();
     const container = target.ownerSVGElement?.getBoundingClientRect();
     if (!container) return;
+    setHoverIdx(idx);
     const datum = props.buildTooltip
       ? props.buildTooltip(item, idx)
       : {
@@ -161,6 +167,14 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
       data: datum,
     });
   };
+
+  const handleLeave = () => {
+    clearHover();
+    setHoverIdx(null);
+  };
+
+  const labelY = (): number => H() - padding.bottom + 16;
+  const shouldRotate = (): boolean => !!props.rotateLabels && props.items.length > 6;
 
   return (
     <div class="stats-svg-chart" style={{ position: "relative", height: `${H()}px` }}>
@@ -206,8 +220,21 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
             const secondaryH = padding.top + innerH() - secondaryTop;
             const secondaryColor = item.secondaryColor ?? "#7c8cff";
             const halfW = props.split ? secondaryBarW() / 2 : barW() / 2;
+            const isHover = hoverIdx() === idx();
+            const hoverOpacity = props.hoverScale === false ? 1 : isHover ? 1 : (hoverIdx() === null ? 1 : 0.55);
+            const hoverTransform = props.hoverScale === false || !isHover
+              ? "translate(0,0) scale(1)"
+              : "translate(0,-2) scale(1.04)";
             return (
-              <g>
+              <g
+                style={{
+                  transform: hoverTransform,
+                  "transform-origin": `${cx}px ${padding.top + innerH()}px`,
+                  "transform-box": "fill-box",
+                  transition: "transform 160ms var(--ease-smooth, ease), opacity 160ms ease",
+                  opacity: hoverOpacity,
+                }}
+              >
                 {/* Bar (or split bars) */}
                 <Show
                   when={props.split}
@@ -223,8 +250,8 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                       opacity={item.value > 0 ? 1 : 0.18}
                       onMouseEnter={(e) => handleEnter(item, idx(), e)}
                       onMouseMove={(e) => handleEnter(item, idx(), e)}
-                      onMouseLeave={clearHover}
-                      style={{ cursor: "pointer", transition: "opacity 120ms ease" }}
+                      onMouseLeave={handleLeave}
+                      style={{ cursor: "pointer" }}
                     />
                   }
                 >
@@ -239,7 +266,7 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                     opacity={item.value > 0 ? 1 : 0.18}
                     onMouseEnter={(e) => handleEnter(item, idx(), e)}
                     onMouseMove={(e) => handleEnter(item, idx(), e)}
-                    onMouseLeave={clearHover}
+                    onMouseLeave={handleLeave}
                     style={{ cursor: "pointer" }}
                   />
                   <rect
@@ -253,7 +280,7 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                     opacity={secondary > 0 ? 1 : 0.18}
                     onMouseEnter={(e) => handleEnter(item, idx(), e)}
                     onMouseMove={(e) => handleEnter(item, idx(), e)}
-                    onMouseLeave={clearHover}
+                    onMouseLeave={handleLeave}
                     style={{ cursor: "pointer" }}
                   />
                 </Show>
@@ -261,11 +288,12 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                 {/* X-axis label */}
                 <text
                   x={cx}
-                  y={H() - padding.bottom + 18}
-                  text-anchor="middle"
+                  y={labelY()}
+                  text-anchor={shouldRotate() ? "end" : "middle"}
                   font-size="10"
                   font-family="'Azeret Mono', monospace"
                   fill="rgba(255,255,255,0.6)"
+                  transform={shouldRotate() ? `rotate(-45, ${cx}, ${labelY()})` : undefined}
                 >
                   {item.label}
                 </text>
@@ -296,6 +324,8 @@ export interface BarChartHProps {
   items: BarHItem[];
   color?: string;
   height?: number;
+  /** Row height in CSS pixels. Smaller = more compact bars. @default 28 */
+  rowHeight?: number;
   /** Called when the user clicks a bar. */
   onBarClick?: (item: BarHItem, idx: number) => void;
   buildTooltip?: (item: BarHItem, idx: number) => TooltipDatum;
@@ -303,19 +333,22 @@ export interface BarChartHProps {
 
 export const BarChartH: Component<BarChartHProps> = (props) => {
   const W = 320;
-  const rowH = 32;
-  const padding = { top: 8, right: 36, bottom: 8, left: 108 };
-  const H = (): number => Math.max(120, props.items.length * rowH + padding.top + padding.bottom);
+  const rowH = (): number => props.rowHeight ?? 28;
+  const padding = { top: 6, right: 36, bottom: 6, left: 108 };
+  const H = (): number =>
+    Math.max(120, props.items.length * rowH() + padding.top + padding.bottom);
   const innerW = (): number => W - padding.left - padding.right;
   const max = createMemo(() => Math.max(1, ...props.items.map((i) => i.value)));
 
   const { hover, setHover, clearHover } = useChartTooltip();
+  const [hoverIdx, setHoverIdx] = createSignal<number | null>(null);
 
   const handleEnter = (item: BarHItem, idx: number, evt: MouseEvent) => {
     const target = evt.currentTarget as SVGRectElement;
     const ctm = target.getBoundingClientRect();
     const container = target.ownerSVGElement?.getBoundingClientRect();
     if (!container) return;
+    setHoverIdx(idx);
     const datum = props.buildTooltip
       ? props.buildTooltip(item, idx)
       : {
@@ -329,18 +362,30 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
     });
   };
 
+  const handleLeave = () => {
+    clearHover();
+    setHoverIdx(null);
+  };
+
   return (
     <div class="stats-svg-chart" style={{ position: "relative", height: `${H()}px` }}>
       <svg viewBox={`0 0 ${W} ${H()}`} width="100%" height={H()} preserveAspectRatio="xMidYMid meet">
         <For each={props.items}>
           {(item, idx) => {
-            const y = padding.top + idx() * rowH;
-            const barH = 18;
-            const barY = y + (rowH - barH) / 2;
+            const y = padding.top + idx() * rowH();
+            const barH = Math.max(14, rowH() - 8);
+            const barY = y + (rowH() - barH) / 2;
             const w = (item.value / max()) * innerW();
             const color = item.color ?? "#f5c518";
+            const isHover = hoverIdx() === idx();
+            const dimmed = hoverIdx() !== null && !isHover;
             return (
-              <g>
+              <g
+                style={{
+                  opacity: dimmed ? 0.55 : 1,
+                  transition: "opacity 160ms ease",
+                }}
+              >
                 {/* Label */}
                 <text
                   x={padding.left - 10}
@@ -348,11 +393,12 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   text-anchor="end"
                   font-size="11"
                   font-family="'Outfit', sans-serif"
-                  fill="rgba(255,255,255,0.78)"
+                  fill={isHover ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.78)"}
+                  style={{ transition: "fill 160ms ease" }}
                 >
                   {truncate(item.label, 16)}
                 </text>
-                {/* Bar */}
+                {/* Bar track */}
                 <rect
                   x={padding.left}
                   y={barY}
@@ -362,6 +408,7 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   ry={4}
                   fill="rgba(255,255,255,0.04)"
                 />
+                {/* Bar fill */}
                 <rect
                   x={padding.left}
                   y={barY}
@@ -372,9 +419,13 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   fill={color}
                   onMouseEnter={(e) => handleEnter(item, idx(), e)}
                   onMouseMove={(e) => handleEnter(item, idx(), e)}
-                  onMouseLeave={clearHover}
+                  onMouseLeave={handleLeave}
                   onClick={() => props.onBarClick?.(item, idx())}
-                  style={{ cursor: props.onBarClick ? "pointer" : "default", transition: "width 400ms var(--ease-smooth, ease)" }}
+                  style={{
+                    cursor: props.onBarClick ? "pointer" : "default",
+                    transition: "width 400ms var(--ease-smooth, ease), filter 160ms ease",
+                    filter: isHover ? "brightness(1.15)" : "none",
+                  }}
                 />
                 {/* Value label at the right of the bar */}
                 <text
@@ -383,7 +434,8 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   font-size="11"
                   font-family="'Azeret Mono', monospace"
                   font-weight="600"
-                  fill="rgba(255,255,255,0.7)"
+                  fill={isHover ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)"}
+                  style={{ transition: "fill 160ms ease" }}
                 >
                   {item.value}
                 </text>

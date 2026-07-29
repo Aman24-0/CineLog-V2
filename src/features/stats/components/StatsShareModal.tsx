@@ -2,20 +2,24 @@
 //
 // StatsShareModal — a GlassModal that shows a shareable summary card
 // with the user's key stats (total titles, hours watched, avg rating,
-// completion %, top genre) and two actions:
+// completion %, top genre) and three actions:
 //
 //   1. Share — uses the Web Share API when available (mobile native
 //      sheet), otherwise copies a text summary to the clipboard.
 //   2. Export CSV — generates a CSV of the user's ratings and
 //      triggers a browser download.
+//   3. Download as Image — uses html2canvas to rasterise the share
+//      card to a PNG and download it. The card has its own ref so
+//      we capture only the branded card, not the whole modal chrome.
 //
 // The modal is presentational — it receives the stats via props and
 // calls back to the parent for sharing/exporting so the parent owns
 // the user's library data.
 
-import { Show, For, type Component } from "solid-js";
-import { GlassModal, GlassButton } from "~/shared/ui/glass";
+import { Show, For, createSignal, type Component } from "solid-js";
+import { GlassModal, GlassButton, GlassAvatar } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
+import { useAuth } from "~/shared/hooks/useAuth";
 import type { AllStats } from "~/lib/supabase/repositories/stats";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -27,6 +31,10 @@ interface StatsShareModalProps {
   watchlist: WatchlistItem[];
   /** Optional profile username for the public stats link. */
   username?: string;
+  /** Optional display name shown in the branded header. */
+  displayName?: string;
+  /** Optional avatar URL shown in the branded header. */
+  avatarUrl?: string | null;
 }
 
 interface SummaryRow {
@@ -36,8 +44,22 @@ interface SummaryRow {
 
 const StatsShareModal: Component<StatsShareModalProps> = (props) => {
   const { showToast } = useToast();
+  const { user } = useAuth();
   const notify = (msg: string, type: "success" | "error" | "info", duration?: number) =>
     showToast(msg, type, duration ?? (type === "error" ? 4000 : 2500));
+
+  // Ref to the shareable card so html2canvas can capture only that
+  // element rather than the whole modal (which includes the action
+  // buttons and footer that shouldn't be in the image).
+  let cardRef: HTMLDivElement | undefined;
+
+  const [capturing, setCapturing] = createSignal(false);
+
+  // Resolve display name + avatar — props override auth user.
+  const displayName = (): string =>
+    props.displayName ?? user()?.displayName ?? "CineLog user";
+  const avatarUrl = (): string | null | undefined =>
+    props.avatarUrl !== undefined ? props.avatarUrl : user()?.photoURL;
 
   const summaryRows = (): SummaryRow[] => {
     const s = props.stats;
@@ -139,6 +161,54 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
     }
   };
 
+  /**
+   * handleDownloadImage — rasterise the share card to a PNG and
+   * download it. Uses html2canvas (loaded dynamically so the rest
+   * of the app doesn't pay the bundle cost unless the user clicks
+   * the button).
+   *
+   * The cardRef captures only the branded share card — not the
+   * modal header or action buttons — so the downloaded image looks
+   * like a self-contained shareable.
+   */
+  const handleDownloadImage = async () => {
+    if (!cardRef) {
+      notify("Couldn't find the card to capture.", "error");
+      return;
+    }
+    if (capturing()) return;
+    setCapturing(true);
+    try {
+      const html2canvas = (await import("html2canvas")).default;
+      const canvas = await html2canvas(cardRef, {
+        backgroundColor: "#0a0a0f",
+        scale: 2, // 2x for retina quality
+        useCORS: true,
+        logging: false,
+      });
+      canvas.toBlob((blob) => {
+        if (!blob) {
+          notify("Couldn't generate the image.", "error");
+          return;
+        }
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `cinelog-stats-${new Date().toISOString().slice(0, 10)}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        notify("Image downloaded", "success");
+      }, "image/png");
+    } catch (err) {
+      console.error("[StatsShareModal] html2canvas failed:", err);
+      notify("Couldn't capture the card as an image.", "error", 4000);
+    } finally {
+      setCapturing(false);
+    }
+  };
+
   return (
     <GlassModal
       open={props.open}
@@ -148,12 +218,27 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
       size="md"
     >
       <div class="stats-share-modal-body">
-        <div class="stats-share-card">
-          <div class="stats-share-card-header">
-            <span class="material-symbols-outlined" aria-hidden="true">insights</span>
-            <div>
-              <p class="stats-share-card-eyebrow">CineLog</p>
-              <p class="stats-share-card-title">My Cinematic Stats</p>
+        {/* Branded share card — captured by html2canvas */}
+        <div class="stats-share-card stats-share-card-branded" ref={cardRef}>
+          <div class="stats-share-card-header stats-share-card-header-branded">
+            <GlassAvatar
+              src={avatarUrl() ?? null}
+              name={displayName()}
+              size="sm"
+              class="stats-share-card-avatar"
+            />
+            <div class="stats-share-card-brand">
+              <div class="stats-share-card-logo">
+                <span class="stats-share-card-logo-text">
+                  <span class="stats-share-card-logo-cine">CINE</span>
+                  <span class="stats-share-card-logo-log">LOG</span>
+                </span>
+                <span class="material-symbols-outlined stats-share-card-logo-icon" aria-hidden="true">
+                  movie
+                </span>
+              </div>
+              <p class="stats-share-card-eyebrow">My Cinematic Stats</p>
+              <p class="stats-share-card-name">{displayName()}</p>
             </div>
           </div>
           <div class="stats-share-card-grid">
@@ -180,6 +265,16 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
           </GlassButton>
           <GlassButton
             variant="secondary"
+            size="default"
+            icon="image"
+            fullWidth
+            disabled={capturing()}
+            onClick={handleDownloadImage}
+          >
+            {capturing() ? "Capturing…" : "Download as Image"}
+          </GlassButton>
+          <GlassButton
+            variant="ghost"
             size="default"
             icon="download"
             fullWidth

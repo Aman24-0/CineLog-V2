@@ -73,6 +73,10 @@ const StatisticsPage: Component = () => {
   // The active tab determines which chart(s) are rendered. We use a
   // Switch-like cascade of <Show> blocks because SolidJS doesn't have
   // a built-in <Switch> for non-boolean values.
+  //
+  // NOTE: MovieSeriesPie is intentionally NOT in the Activity tab —
+  // it lives as a fixed widget below the tab content so the movies
+  // vs series split is always visible regardless of the active tab.
   const tabContent = createMemo(() => {
     const tab = activeTab();
     const s = stats();
@@ -82,7 +86,6 @@ const StatisticsPage: Component = () => {
         return (
           <div class="stats-tab-stack">
             <ActivityChart monthly={() => s.monthly} watchlist={watchlist} />
-            <MovieSeriesPie split={() => s.split} />
           </div>
         );
       case "genres":
@@ -95,7 +98,6 @@ const StatisticsPage: Component = () => {
         return (
           <div class="stats-tab-stack">
             <RatingsHistogram ratings={() => s.ratings} />
-            <HighestRatedCarousel items={() => s.highestRated} />
           </div>
         );
       case "decades":
@@ -183,13 +185,21 @@ const StatisticsPage: Component = () => {
               {/* Overview cards */}
               <StatsOverview overview={() => stats()!.overview} />
 
-              {/* Tabs + content */}
+              {/* Tabs + content — gap-6 spacing above the tab bar gives
+                  breathing room after the overview cards. The stats-tabs-gap
+                  class is defined in stats.css. */}
+              <div class="stats-tabs-gap" />
               <StatsTabs active={activeTab} onChange={setActiveTab} />
               <div class="stats-tab-content">
                 <Suspense fallback={<GlassSkeleton class="h-72 rounded-lg" />}>
                   {tabContent()}
                 </Suspense>
               </div>
+
+              {/* Fixed widget — Movies vs Series donut. Always visible
+                  regardless of the active tab so the user can reference
+                  their content split from any tab. */}
+              <MovieSeriesPie split={() => stats()!.split} />
 
               {/* Always-visible carousel */}
               <HighestRatedCarousel items={() => stats()!.highestRated} />

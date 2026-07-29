@@ -2,11 +2,11 @@
 //
 // RatingsHistogram — a vertical bar chart with ratings 1-10 on the
 // X-axis and the count of titles at each rating on the Y-axis. Bars
-// are colour-coded by rating intensity:
-//
-//   1-4  → red    (you didn't like it)
-//   5-7  → orange (it was okay)
-//   8-10 → green  (you loved it)
+// use a continuous colour gradient from the app's cool muted accent
+// (low ratings, hue ~30°) to a bright gold (high ratings, hue ~50°),
+// with lightness rising from 38% to 60% so the colour brightens as
+// ratings improve. This replaces the previous red/orange/green
+// discrete palette with a smoother, on-brand gradient.
 //
 // The tooltip shows the count AND the percentage of rated titles at
 // that score, which gives context for sparse distributions.
@@ -23,10 +23,24 @@ interface RatingsHistogramProps {
   ratings: Accessor<RatingBucket[]>;
 }
 
+/**
+ * Smooth colour for a rating 1-10.
+ *
+ * The gradient interpolates two axes:
+ *  - Hue:    18° (warm amber-red) → 50° (bright gold)
+ *  - Light:  38%  (deep)          → 60%  (luminous)
+ *  - Sat:    fixed at 85% so the colours stay vivid.
+ *
+ * The result is a perceptually-smooth ramp that starts dark amber
+ * for ratings 1-3, warms through orange around 5-6, and finishes
+ * on the app's signature gold for 9-10.
+ */
 function barColor(rating: number): string {
-  if (rating <= 4) return "#ef4444"; // red
-  if (rating <= 7) return "#f59e0b"; // orange
-  return "#22c55e"; // green
+  const r = Math.max(1, Math.min(10, rating));
+  const t = (r - 1) / 9; // 0..1
+  const hue = 18 + t * 32; // 18 → 50
+  const light = 38 + t * 22; // 38 → 60
+  return `hsl(${hue.toFixed(1)}, 85%, ${light.toFixed(1)}%)`;
 }
 
 const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
@@ -46,7 +60,7 @@ const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
         tooltipRows: [
           {
             name: "Titles",
-            value: `${count}${count === 1 ? "" : ""} · ${pct}%`,
+            value: `${count} · ${pct}%`,
             color: barColor(r.rating),
           },
         ],

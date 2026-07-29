@@ -1,10 +1,10 @@
 // src/features/stats/components/DecadeChart.tsx
 //
 // DecadeChart — a vertical bar chart of titles per release decade.
-// Decades with zero titles are excluded by the calculator, so the
-// chart only shows eras the user actually watches. The X-axis labels
-// are decade strings like "1950s", "1960s", ... — short enough to
-// fit even on a 320px-wide phone.
+// Decades with zero titles are filtered out both by the stats
+// repository AND here in the UI (defense-in-depth) so empty bars
+// never appear. The X-axis labels are decade strings like "1950s",
+// "1960s", ... — short enough to fit even on a 320px-wide phone.
 //
 // The favourite decade (the one with the highest count) gets a
 // brighter bar; the rest are dimmed gold so the eye is drawn to the
@@ -23,14 +23,21 @@ interface DecadeChartProps {
 }
 
 const DecadeChart: Component<DecadeChartProps> = (props) => {
+  // Defense-in-depth: filter out zero-count decades at the UI layer
+  // as well as the repository layer. This guarantees no empty bars
+  // ever render even if the repository contract changes.
+  const visibleDecades = createMemo<DecadeCount[]>(() =>
+    props.decades().filter((d) => d.count > 0),
+  );
+
   const favoriteDecade = createMemo<string | null>(() => {
-    const d = props.decades();
+    const d = visibleDecades();
     if (d.length === 0) return null;
     return d.reduce((max, x) => (x.count > max.count ? x : max)).decade;
   });
 
   const items = createMemo<BarVItem[]>(() =>
-    props.decades().map((d) => ({
+    visibleDecades().map((d) => ({
       label: d.decade,
       value: d.count,
       color: d.decade === favoriteDecade() ? "#f5c518" : "rgba(245,197,24,0.45)",
@@ -57,10 +64,10 @@ const DecadeChart: Component<DecadeChartProps> = (props) => {
       height="300px"
     >
       <Show
-        when={props.decades().length > 0}
+        when={visibleDecades().length > 0}
         fallback={<p class="stats-chart-empty">No decade data yet.</p>}
       >
-        <BarChartV items={items()} height={260} />
+        <BarChartV items={items()} height={260} rotateLabels={visibleDecades().length > 6} />
       </Show>
     </ChartContainer>
   );

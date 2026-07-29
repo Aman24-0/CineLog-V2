@@ -109,25 +109,28 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
       subtitle="Titles completed per month — last 12 months"
       height="300px"
       headerRight={
-        <button
-          type="button"
-          class={`stats-toggle ${showSplit() ? "stats-toggle-active" : ""}`}
-          onClick={() => setShowSplit((v) => !v)}
-          aria-pressed={showSplit()}
-          aria-label="Toggle movies vs series overlay"
-        >
-          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
-            stacked_bar_chart
-          </span>
-          <span>Movies vs Series</span>
-        </button>
+        <div class="stats-toggle-group">
+          <span class="stats-toggle-label">Show per type</span>
+          <button
+            type="button"
+            class={`stats-toggle ${showSplit() ? "stats-toggle-active" : ""}`}
+            onClick={() => setShowSplit((v) => !v)}
+            aria-pressed={showSplit()}
+            aria-label="Toggle movies vs series overlay"
+          >
+            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+              stacked_bar_chart
+            </span>
+            <span>Movies vs Series</span>
+          </button>
+        </div>
       }
     >
       <Show
         when={items().length > 0}
         fallback={<p class="stats-chart-empty">No activity yet.</p>}
       >
-        <BarChartV items={items()} split={showSplit()} height={260} />
+        <BarChartV items={items()} split={showSplit()} height={260} rotateLabels />
       </Show>
     </ChartContainer>
   );

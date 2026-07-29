@@ -6,9 +6,11 @@
 // gives a sense of pace: a steep slope means a productive streak, a
 // flat segment means a dry spell.
 //
-// Below the chart, three pace chips surface the average daily /
-// weekly / monthly completions (computed over the last 90 days by
-// the getWatchPace calculator).
+// Below the chart, three GlassBadge components surface the average
+// daily / weekly / monthly completions (computed over the last 90
+// days by the getWatchPace calculator). The badges use the design
+// system's `info` intent so they read as subtle meta information
+// rather than primary actions.
 //
 // Implementation note: previously used recharts (React-only). Now
 // uses the pure-SolidJS AreaChartV primitive.
@@ -16,6 +18,7 @@
 import { createMemo, For, Show, type Component, type Accessor } from "solid-js";
 import ChartContainer from "./ChartContainer";
 import { AreaChartV, type AreaVPoint } from "./SvgChart";
+import { GlassBadge } from "~/shared/ui/glass";
 import type { MonthBucket, WatchPace } from "~/lib/supabase/repositories/stats";
 
 interface TrendsChartProps {
@@ -52,7 +55,7 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
     })),
   );
 
-  const paceChips = createMemo(() => {
+  const paceBadges = createMemo(() => {
     const p = props.pace();
     return [
       { label: "per day", value: p.daily.toFixed(2), icon: "today" },
@@ -68,17 +71,18 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
       subtitle="Running total of completed titles over the last 12 months"
       height="300px"
       footer={
-        <div class="stats-pace-row">
-          <For each={paceChips()}>
+        <div class="stats-pace-row stats-pace-row-badges">
+          <For each={paceBadges()}>
             {(chip) => (
-              <div class="stats-pace-chip">
-                <span class="material-symbols-outlined stats-pace-chip-icon" aria-hidden="true">
-                  {chip.icon}
-                </span>
-                <div class="stats-pace-chip-text">
-                  <p class="stats-pace-chip-value">{chip.value}</p>
-                  <p class="stats-pace-chip-label">{chip.label}</p>
-                </div>
+              <div class="stats-pace-badge-wrap">
+                <GlassBadge
+                  intent="info"
+                  size="default"
+                  icon={chip.icon}
+                  glass
+                  class="stats-pace-badge"
+                  label={`${chip.value} · ${chip.label}`}
+                />
               </div>
             )}
           </For>

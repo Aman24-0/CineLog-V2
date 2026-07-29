@@ -63,7 +63,12 @@ const GenreChart: Component<GenreChartProps> = (props) => {
         when={data().length > 0}
         fallback={<p class="stats-chart-empty">No genre data yet — TMDB enrichment will populate this.</p>}
       >
-        <BarChartH items={items()} onBarClick={handleClick} height={Math.max(120, data().length * 32 + 16)} />
+        <BarChartH
+          items={items()}
+          onBarClick={handleClick}
+          rowHeight={26}
+          height={Math.max(120, data().length * 26 + 12)}
+        />
       </Show>
     </ChartContainer>
   );
