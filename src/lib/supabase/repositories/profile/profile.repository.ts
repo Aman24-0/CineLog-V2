@@ -36,7 +36,9 @@ import {
   updateAvatar,
   updateBio,
   updatePreferences,
-  updateProfile
+  updateProfile,
+  updateProfileMetadata,
+  toggleProfileVisibility,
 } from "./profile.write";
 import {
   permanentlyDeleteProfile,
@@ -114,6 +116,32 @@ export class ProfileRepository {
   /** Update only the bio (validates 160-char limit). */
   updateBio(userId: string, bio: string | null): Promise<ProfileResult<ProfileRow>> {
     return updateBio(this.supabase, userId, bio);
+  }
+
+  /**
+   * Update profile metadata for the Profile redesign (display name, bio,
+   * avatar / banner URL overrides, social links). Convenience wrapper
+   * around {@link updateProfile} for the redesign payload shape.
+   */
+  updateProfileMetadata(
+    userId: string,
+    payload: {
+      displayName?: string;
+      bio?: string | null;
+      avatarUrl?: string | null;
+      bannerUrl?: string | null;
+      socialLinks?: Record<string, string> | null;
+    }
+  ): Promise<ProfileResult<ProfileRow>> {
+    return updateProfileMetadata(this.supabase, userId, payload);
+  }
+
+  /** Toggle profile visibility (public / private). */
+  toggleProfileVisibility(
+    userId: string,
+    isPublic: boolean
+  ): Promise<ProfileResult<ProfileRow>> {
+    return toggleProfileVisibility(this.supabase, userId, isPublic);
   }
 
   /** Upsert the preferences row (1:1 with profiles). */

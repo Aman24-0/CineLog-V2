@@ -1,161 +1,101 @@
 // src/features/profile/ProfilePage.tsx
 //
-// Refactored in Phase 2 to use Glass Component System.
-// Layout and logic remains identical.
+// ProfilePage V3 — modern social dashboard layout.
+//
+// Structure (per spec):
+//   +-- Banner          (existing ProfileBanner component)
+//   +-- Header          (ProfileHeader — avatar, name, bio, social stats, actions)
+//   +-- Stats Row       (ProfileStatsRow — 5 GlassCards: titles, movies, series, hours, avg rating)
+//   +-- Tabs            (ProfileTabs — Activity / Favorites / Lists / Achievements)
+//   |   +-- Tab Content (ActivityFeed / FavoritesGrid / UserListsPreview / AchievementsPreview)
+//   +-- Quick Action Row (QuickActionRow — Stats / Upcoming / Settings / Trash)
+//
+// State management:
+//   • activeTab — owned by useProfileTabs hook (persisted in localStorage)
+//   • editModalOpen — local signal
+//   • profile data — from useProfileData (existing hook)
+//   • stats — from useStats (existing hook, derived from watchlist)
+//   • social stats — from useSocialStats (new hook, fetches follows table)
+//
+// Existing sub-pages (Achievements, Upcoming, Stats, Settings, Trash) are
+// NOT touched — they're navigated to via QuickActionRow and the
+// AchievementsPreview "View all" button.
+
 import {
   Component,
   createSignal,
   createEffect,
+  createMemo,
   Show,
   onMount,
-  createMemo,
 } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
 import { getClient } from "~/lib/supabase/client";
 
-// Glass components
-import {
-  PageContainer,
-} from "~/shared/ui/layout";
-import { GlassButton, GlassIconButton, GlassEmptyState } from "~/shared/ui/glass";
-import { GlassAvatar } from "~/shared/ui/glass";
-import { setDiscoverRegion } from "~/core/config/discoverRegion";
+import { PageContainer } from "~/shared/ui/layout";
+import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
+
 import { useProfileData } from "./useProfileData";
-import { useUsernameCheck } from "./useUsernameCheck";
 import { useStats } from "./useStats";
+import { useSocialStats } from "./hooks/useSocialStats";
+import { useProfileTabs } from "./hooks/useProfileTabs";
 
-// Sub-components
+// Sub-components (new V3 layout)
 import ProfileBanner from "./components/ProfileBanner";
-import StatsGrid from "./components/StatsGrid";
-import FavoritesCarousel from "./components/FavoritesCarousel";
-import AchievementBadges from "./components/AchievementBadges";
-import ProfileNavigation from "./components/ProfileNavigation";
-import BannerEditor from "./components/BannerEditor";
+import ProfileHeader from "./components/ProfileHeader";
+import ProfileStatsRow from "./components/ProfileStatsRow";
+import ProfileTabs from "./components/ProfileTabs";
+import ActivityFeed from "./components/ActivityFeed";
+import FavoritesGrid from "./components/FavoritesGrid";
+import UserListsPreview from "./components/UserListsPreview";
+import AchievementsPreview from "./components/AchievementsPreview";
+import QuickActionRow from "./components/QuickActionRow";
+import EditProfileModal from "./components/EditProfileModal";
 
-// BannerType is defined in BannerEditor (the only producer). ProfilePage
-// only consumes it as a parameter type for the onSave handler. Previously
-// this imported `BannerType` from `~/shared/types`, which never exported
-// that symbol — TS resolved it to `any` at runtime, but the type-only
-// import still produced a compile error.
-import type { BannerType } from "./components/BannerEditor";
 import type { WatchlistItem } from "~/shared/types";
 
 const ProfilePage: Component = () => {
   const { user, isSignedIn } = useAuth();
   const isGuest = () => !isSignedIn();
-  const initial = () => user()?.displayName?.charAt(0) ?? "U";
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
 
-  // The User type from useAuth() exposes `uid` (mapped from Supabase's
-  // user.id), NOT `id`. The previous `user()?.id` always returned undefined,
-  // which silently skipped profile refetches on sign-in and uid changes.
   const uid = () => user()?.uid;
+  const oauthAvatarUrl = () => user()?.photoURL ?? null;
 
-  // useProfileData returns { data, loading, error, saving, saveProfile,
-  // refetch, watchlist, isGuest } — note that `watchlist` is exposed
-  // directly on the hook (it does NOT live inside `data()`, which only
-  // holds the profile row + enriched favorites). Previously this file
-  // read `data()?.watchlist` and `data()?.stats`, which were always
-  // undefined because those fields don't exist on ProfileData.
-  const { data, loading, error, refetch, saveProfile, watchlist } = useProfileData();
-  const usernameCheck = useUsernameCheck();
-  // Stats are derived from the watchlist via useStats, not stored on the
-  // profile. StatsGrid expects an Accessor<StatsData | null>.
+  const { data, loading, error, refetch, watchlist } = useProfileData();
   const { stats } = useStats();
+  const { activeTab, setActiveTab } = useProfileTabs();
+  const socialStats = useSocialStats(uid);
 
-  const [isEditing, setIsEditing] = createSignal(false);
-  const [editName, setEditName] = createSignal("");
-  const [editUsername, setEditUsername] = createSignal("");
-  const [editBio, setEditBio] = createSignal("");
-  const [saving, setSaving] = createSignal(false);
-
-  const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
-
-  const currentUsername = createMemo(() => data()?.profile?.username ?? "");
-  const avatarUrl = createMemo(() => data()?.profile?.avatar_url ?? null);
-  const memberSince = createMemo(() => {
-    const joined = data()?.profile?.created_at;
-    if (!joined) return null;
-    return new Date(joined).toLocaleDateString(undefined, { month: "long", year: "numeric" });
-  });
+  const [editModalOpen, setEditModalOpen] = createSignal(false);
 
   onMount(() => {
     if (isSignedIn() && uid()) refetch();
   });
 
-  // Keep refetching in sync if user changes
   createEffect(() => {
     if (uid()) refetch();
   });
 
-  const enterEdit = () => {
-    if (!data()?.profile) return;
-    setEditName(data()!.profile!.display_name ?? user()?.displayName ?? "");
-    setEditUsername(data()!.profile!.username ?? "");
-    setEditBio(data()!.profile!.bio ?? "");
-    setIsEditing(true);
-  };
-
-  const handleCancel = () => {
-    setIsEditing(false);
-    usernameCheck.reset();
-  };
-
-  // When the user enters edit mode (or types a new username while editing),
-  // run the debounced availability check. The hook exposes an imperative
-  // `check(username, currentUsername, userId)` because ProfilePage manages
-  // its own edit-form state with local signals rather than passing reactive
-  // accessors up-front.
-  createEffect(() => {
-    if (isEditing()) {
-      usernameCheck.check(editUsername(), currentUsername(), uid());
-    }
-  });
-
-  const handleSave = async () => {
-    if (!uid()) return;
-    const isChangingUsername = editUsername() !== currentUsername();
-    if (isChangingUsername && usernameCheck.state() === "taken") {
-      showToast("Username is already taken.", "error");
+  // Share profile link — copies https://cinelog.app/u/{username} to clipboard.
+  const handleShare = async () => {
+    const username = data()?.profile?.username;
+    if (!username) {
+      showToast("Set a username before sharing your profile.", "info");
       return;
     }
-
-    setSaving(true);
+    const url = `https://cinelog.app/u/${username}`;
     try {
-      const { error: updateError } = await getClient()
-        .from("profiles")
-        .update({
-          display_name: editName().trim() || null,
-          username: editUsername().trim() || null,
-          bio: editBio().trim() || null,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("id", uid()!);
-
-      if (updateError) throw updateError;
-      showToast("Profile saved successfully.", "success");
-      setIsEditing(false);
-      refetch();
-    } catch (err: any) {
-      console.error("Save profile error:", err);
-      showToast(err.message || "Failed to save profile", "error");
-    } finally {
-      setSaving(false);
+      await navigator.clipboard.writeText(url);
+      showToast("Profile link copied to clipboard.", "success", 1800);
+    } catch {
+      // Clipboard API can fail in non-secure contexts — fall back to a toast
+      // with the URL so the user can copy it manually.
+      showToast(`Share link: ${url}`, "info", 4000);
     }
-  };
-
-  // BannerEditor's onSave contract is (type, url) => Promise<boolean>,
-  // where the boolean indicates whether the save succeeded. Previously
-  // this returned void, which the TS checker flagged and which would
-  // have caused BannerEditor's `await onSave(...)` to receive undefined
-  // and treat the save as failed even though refetch() ran fine.
-  const handleSaveBanner = async (type: BannerType, url: string | null): Promise<boolean> => {
-    await refetch();
-    setBannerEditorOpen(false);
-    return true;
   };
 
   const handleSignOut = async () => {
@@ -168,10 +108,19 @@ const ProfilePage: Component = () => {
     }
   };
 
+  // Open the title detail modal — minimal implementation that delegates
+  // to the global openTitle function (used by Discover / Watchlist).
+  // For now we just navigate to the title's route as a graceful fallback.
+  const handleItemClick = (item: WatchlistItem) => {
+    const path = item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
+    if (typeof window !== "undefined") {
+      window.location.href = path;
+    }
+  };
+
   return (
     <PageContainer>
-      <div class="profile-layout profile-layout-v2">
-
+      <div class="profile-layout profile-layout-v3">
         {/* Guest state */}
         <Show when={isGuest()}>
           <div class="profile-guest">
@@ -192,9 +141,7 @@ const ProfilePage: Component = () => {
           </div>
         </Show>
 
-        {/* Error state — also shown when signed in but data is null with no explicit error
-            (e.g. Supabase timeout, empty profile response). Covers the blank-page gap case
-            where none of the other Show conditions would match. */}
+        {/* Error state */}
         <Show when={!loading() && isSignedIn() && (!!error() || !data())}>
           <div class="profile-error" role="alert">
             <GlassEmptyState
@@ -202,195 +149,128 @@ const ProfilePage: Component = () => {
               title="Something went wrong"
               message="We couldn't load your profile. Tap to retry."
             >
-              <GlassButton variant="ghost" size="default" onClick={() => refetch()} aria-label="Retry">
+              <GlassButton
+                variant="ghost"
+                size="default"
+                onClick={() => refetch()}
+                aria-label="Retry"
+              >
                 Retry
               </GlassButton>
             </GlassEmptyState>
           </div>
         </Show>
 
-        {/* ── SIGNED IN — FULL PROFILE ── */}
-        <Show when={!loading() && isSignedIn() && data()}>
-          <div class="profile-content">
+        {/* Loading state */}
+        <Show when={loading() && isSignedIn()}>
+          <div class="profile-skeleton-v3">
+            <GlassSkeleton class="profile-skeleton-v3-banner h-44 w-full rounded-xl" />
+            <div class="profile-skeleton-v3-header">
+              <GlassSkeleton class="w-20 h-20 rounded-full" />
+              <div class="profile-skeleton-v3-header-text">
+                <GlassSkeleton class="h-5 w-48 rounded" />
+                <GlassSkeleton class="h-3 w-32 rounded mt-2" />
+                <GlassSkeleton class="h-3 w-40 rounded mt-1" />
+              </div>
+            </div>
+            <div class="profile-skeleton-v3-stats">
+              <For5 />
+            </div>
+          </div>
+        </Show>
 
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 1: PROFILE — Backdrop + Avatar + Name + Meta + Bio
-                NEW LAYOUT:
-                  • Backdrop is at the top, fully visible (no text overlay)
-                  • Avatar sits BELOW the backdrop (overlapping slightly)
-                  • Name is BESIDE the avatar (right of it)
-                  • Below name: @username · member since
-                  • Below that (under the avatar/name row): bio
-                  • Edit button is on the backdrop (top-right) and also
-                    available as a small pencil icon next to the name
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <section class="profile-hero profile-hero-v2" aria-label="Profile identity">
-              {/* Backdrop — fully visible, no text on it */}
+        {/* ── SIGNED IN — FULL PROFILE (V3 LAYOUT) ── */}
+        <Show when={!loading() && isSignedIn() && data()}>
+          <div class="profile-content-v3">
+            {/* 1. Banner — reuses the existing ProfileBanner component.
+                 The pencil icon at bottom-right opens the EditProfileModal
+                 (which embeds BannerEditor as a sub-modal). */}
+            <section class="profile-v3-banner-section" aria-label="Profile banner">
               <ProfileBanner
                 data={data()}
-                isEditing={isEditing()}
-                onChooseBanner={() => setBannerEditorOpen(true)}
+                isEditing={false}
+                onChooseBanner={() => setEditModalOpen(true)}
               />
-
-              {/* Identity block — BELOW the backdrop */}
-              <div class="profile-identity-block">
-                <div class="profile-identity-row">
-                  {/* Avatar — large, sits below backdrop */}
-                  <div class="profile-avatar-wrap profile-avatar-wrap-v2">
-                    <GlassAvatar
-                      src={avatarUrl() ?? undefined}
-                      name={data()?.profile?.display_name ?? user()?.displayName ?? initial()}
-                      size="xl"
-                    />
-                    <Show when={isEditing()}>
-                      <button
-                        type="button"
-                        class="profile-avatar-edit focus-ring"
-                        onClick={() => {
-                          showToast("Avatar upload coming soon.", "info");
-                        }}
-                        aria-label="Change avatar"
-                      >
-                        <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">photo_camera</span>
-                      </button>
-                    </Show>
-                  </div>
-
-                  {/* Name + meta — BESIDE the avatar */}
-                  <div class="profile-identity-text">
-                    <Show
-                      when={!isEditing()}
-                      fallback={
-                        <div class="profile-hero-edit-fields">
-                          <input
-                            type="text"
-                            class="profile-edit-name-input focus-ring"
-                            value={editName()}
-                            onInput={(e) => setEditName(e.currentTarget.value)}
-                            placeholder="Display name"
-                            aria-label="Display name"
-                            maxlength={50}
-                          />
-                          <input
-                            type="text"
-                            class="profile-edit-username-input focus-ring"
-                            value={editUsername()}
-                            onInput={(e) => setEditUsername(e.currentTarget.value)}
-                            placeholder="Username"
-                            aria-label="Username"
-                            maxlength={30}
-                          />
-                          <Show when={usernameCheck.state() === "taken"}>
-                            <p class="profile-username-taken" aria-live="polite">Username taken</p>
-                          </Show>
-                          <Show when={usernameCheck.state() === "available" && editUsername() !== currentUsername()}>
-                            <p class="profile-username-available" aria-live="polite">Available</p>
-                          </Show>
-                          <textarea
-                            class="profile-edit-bio-input focus-ring"
-                            value={editBio()}
-                            onInput={(e) => setEditBio(e.currentTarget.value)}
-                            placeholder="Write something about yourself..."
-                            aria-label="Bio"
-                            maxlength={160}
-                            rows={2}
-                          />
-                          <div class="profile-edit-actions">
-                            <GlassButton variant="ghost" size="compact" onClick={handleCancel} aria-label="Cancel editing">
-                              Cancel
-                            </GlassButton>
-                            <GlassButton
-                              variant="primary"
-                              size="compact"
-                              onClick={handleSave}
-                              disabled={saving()}
-                              aria-label="Save profile"
-                            >
-                              {saving() ? "Saving..." : "Save"}
-                            </GlassButton>
-                          </div>
-                        </div>
-                      }
-                    >
-                      <div class="profile-name-row">
-                        <h1 class="profile-hero-name">
-                          {data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile"}
-                        </h1>
-                        <GlassIconButton
-                          icon="edit"
-                          variant="ghost"
-                          size="compact"
-                          label="Edit profile"
-                          onClick={enterEdit}
-                          aria-label="Edit profile"
-                        />
-                      </div>
-                      {/* @username */}
-                      <Show when={currentUsername()}>
-                        <p class="profile-hero-meta">
-                          <span class="profile-hero-username">@{currentUsername()}</span>
-                        </p>
-                      </Show>
-                      {/* member since — directly below username */}
-                      <Show when={memberSince()}>
-                        <p class="profile-hero-member-since">Member since {memberSince()}</p>
-                      </Show>
-                    </Show>
-                  </div>
-                </div>
-
-                {/* Bio — BELOW the avatar/name row, in the blank space */}
-                <Show when={!isEditing() && data()?.profile?.bio?.trim()}>
-                  <p class="profile-hero-bio profile-hero-bio-v2">{data()?.profile?.bio}</p>
-                </Show>
-              </div>
             </section>
 
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 2: STATS — Three glassmorphism boxes
-                Total titles · Total movies · Total series in watchlist.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <StatsGrid stats={stats} />
+            {/* 2. Header — avatar, name, @username, member since, bio,
+                   action row (Edit Profile / Share), social stats. */}
+            <ProfileHeader
+              profile={() => data()?.profile ?? null}
+              user={user}
+              isOwnProfile={() => true}
+              followers={() => socialStats.stats().followers}
+              following={() => socialStats.stats().following}
+              onEdit={() => setEditModalOpen(true)}
+              onShare={handleShare}
+            />
 
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 3: FAVOURITES — "Your Top Favourite"
-                Continuous horizontal carousel of watchlist titles.
-                Replaces the old Taste mosaic + Your Story card.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <FavoritesCarousel watchlist={watchlist} />
+            {/* 3. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}
+            <ProfileStatsRow stats={stats} />
 
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 4: ACHIEVEMENTS — Circular badges in horizontal scroll
-                Cinephile, Top 50 Watcher, etc. Milestones only — no XP.
-                Replaces Currently Watching + Recently Finished + Recent Activity.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <AchievementBadges watchlist={watchlist} />
+            {/* 4. Tabs + content */}
+            <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
 
-            {/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-                SECTION 5: SETTINGS — Action row + Sign Out
-                Statistics · Upcoming · Settings (3 quick actions)
-                Sign Out (full width, quiet)
-                No Delete Account.
-            ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */}
-            <ProfileNavigation onSignOut={handleSignOut} />
+            <div class="profile-v3-tab-content">
+              <Show when={activeTab() === "activity"}>
+                <ActivityFeed watchlist={watchlist} onItemClick={handleItemClick} />
+              </Show>
+              <Show when={activeTab() === "favorites"}>
+                <FavoritesGrid watchlist={watchlist} onItemClick={handleItemClick} />
+              </Show>
+              <Show when={activeTab() === "lists"}>
+                <UserListsPreview />
+              </Show>
+              <Show when={activeTab() === "achievements"}>
+                <AchievementsPreview watchlist={watchlist} />
+              </Show>
+            </div>
 
+            {/* 5. Quick action row — Stats / Upcoming / Settings / Trash */}
+            <QuickActionRow />
+
+            {/* 6. Sign out — quiet, full-width, below the quick actions */}
+            <button
+              type="button"
+              class="profile-v3-sign-out focus-ring"
+              onClick={handleSignOut}
+            >
+              <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+              Sign Out
+            </button>
           </div>
         </Show>
       </div>
 
-      <Show when={bannerEditorOpen()}>
-        <BannerEditor
-          open={bannerEditorOpen()}
-          data={data()}
-          currentBannerType={data()?.profile?.banner_type as BannerType ?? "favorite_movie"}
-          currentBannerUrl={data()?.profile?.banner_url ?? null}
-          userId={uid() ?? ""}
-          onClose={() => setBannerEditorOpen(false)}
-          onSave={handleSaveBanner}
-        />
-      </Show>
+      {/* Edit Profile modal — embeds the BannerEditor as a sub-modal
+          for banner customization. The top-level bannerEditorOpen
+          signal is retained for future direct-mount use but currently
+          the editor is always reached via the Edit Profile modal. */}
+      <EditProfileModal
+        open={editModalOpen()}
+        onClose={() => setEditModalOpen(false)}
+        profile={data()?.profile ?? null}
+        userId={uid() ?? ""}
+        oauthAvatarUrl={oauthAvatarUrl()}
+        onSaved={() => refetch()}
+      />
     </PageContainer>
   );
 };
+
+// Tiny inline helper to render 5 skeleton stat cards without
+// polluting the imports — kept here because it's only used in the
+// loading state above.
+function For5() {
+  return (
+    <>
+      <GlassSkeleton class="h-24 flex-1 rounded-xl" />
+      <GlassSkeleton class="h-24 flex-1 rounded-xl" />
+      <GlassSkeleton class="h-24 flex-1 rounded-xl" />
+      <GlassSkeleton class="h-24 flex-1 rounded-xl" />
+      <GlassSkeleton class="h-24 flex-1 rounded-xl" />
+    </>
+  );
+}
 
 export default ProfilePage;

@@ -174,3 +174,22 @@ export type {
   PresetListResult,
   PresetWriteResult
 } from "./preset";
+
+// ---- FollowsRepository (Profile Redesign) ---------------------------------
+// Modular: follows/ subfolder. Manages the `follows` table — the social
+// graph for follower / following relationships.
+export {
+  followUser,
+  unfollowUser,
+  getFollowers,
+  getFollowing,
+  getFollowCounts,
+  isFollowing,
+} from "./follows";
+
+export type {
+  FollowRow,
+  FollowCounts,
+  FollowResult,
+  FollowWriteResult,
+} from "./follows";

@@ -151,6 +151,45 @@ export async function updateBio(
   return updateProfile(supabase, userId, { bio });
 }
 
+/**
+ * Update profile metadata for the Profile redesign (social links,
+ * avatar/banner URL overrides, bio, display name, and visibility).
+ *
+ * Convenience wrapper around {@link updateProfile} that takes the
+ * Profile-redesign payload shape (camelCase) and forwards the
+ * camelCase → snake_case mapping to `toProfileUpdate`.
+ *
+ * All fields are optional — pass only what you want to change.
+ *
+ * @returns The updated profile row, or `null` + `error`.
+ */
+export async function updateProfileMetadata(
+  supabase: TypedSupabaseClient,
+  userId: string,
+  payload: {
+    displayName?: string;
+    bio?: string | null;
+    avatarUrl?: string | null;
+    bannerUrl?: string | null;
+    socialLinks?: Record<string, string> | null;
+  }
+): Promise<ProfileResult<ProfileRow>> {
+  return updateProfile(supabase, userId, payload);
+}
+
+/**
+ * Toggle profile visibility (public / private).
+ *
+ * @returns The updated profile row, or `null` + `error`.
+ */
+export async function toggleProfileVisibility(
+  supabase: TypedSupabaseClient,
+  userId: string,
+  isPublic: boolean
+): Promise<ProfileResult<ProfileRow>> {
+  return updateProfile(supabase, userId, { isPublic });
+}
+
 // ---------------------------------------------------------------------------
 // Preferences — upsert on the 1:1 user_preferences table
 // ---------------------------------------------------------------------------
