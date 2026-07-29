@@ -3773,15 +3773,20 @@
   padding-bottom: 0.25rem;
 }
 .profile-header-v3-name-row {
-  display: flex;
-  align-items: center;
-  gap: var(--sp-2, 0.5rem);
-  /* No flex-wrap — the edit + share icon buttons MUST stay inline next
-     to the display name. Wrapping was causing the icons to drop to a
-     new line on narrow viewports / long names, making them appear
-     visually detached from the name (looked like they were "below the
-     bio"). The name truncates with an ellipsis instead. */
-  min-width: 0;
+  display: flex !important;
+  flex-wrap: nowrap !important;
+  align-items: center !important;
+  gap: var(--sp-2, 0.5rem) !important;
+  /* CRITICAL: the edit + share icon buttons MUST stay on the same
+     horizontal line as the display name. Previously flex-wrap: wrap
+     was set, which caused the share icon to drop to its own line
+     below the name on mobile (it appeared centered beneath the name,
+     visually detached from the edit pencil). !important is used here
+     because GlassIconButton injects Tailwind utility classes that
+     could otherwise interfere. The name truncates with an ellipsis
+     instead of pushing the icons to a new line. */
+  min-width: 0 !important;
+  width: 100% !important;
 }
 .profile-header-v3-name {
   font-family: 'Outfit', sans-serif;
@@ -3794,16 +3799,20 @@
      to a new line. flex: 1 lets the name take all available space,
      min-width: 0 + overflow: hidden + text-overflow: ellipsis clips
      gracefully when the row is tight. */
-  flex: 1 1 auto;
-  min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  flex: 1 1 auto !important;
+  min-width: 0 !important;
+  overflow: hidden !important;
+  text-overflow: ellipsis !important;
+  white-space: nowrap !important;
 }
 /* Icon buttons in the name row must never shrink or wrap — they stay
-   pinned to the right of the display name. */
+   pinned to the right of the display name. !important needed because
+   GlassIconButton injects its own Tailwind classes. */
+.profile-header-v3-name-row > button,
 .profile-header-v3-name-row > :not(.profile-header-v3-name) {
-  flex: 0 0 auto;
+  flex: 0 0 auto !important;
+  flex-shrink: 0 !important;
+  white-space: nowrap !important;
 }
 .profile-header-v3-username {
   font-family: 'Outfit', sans-serif;
