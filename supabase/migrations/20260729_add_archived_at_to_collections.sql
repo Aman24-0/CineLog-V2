@@ -73,6 +73,12 @@ CREATE INDEX IF NOT EXISTS idx_universe_phases_universe
 
 -- RLS — admin-only writes; any signed-in user can read (subscribed
 -- universes are visible to everyone who has subscribed).
+--
+-- Uses the SAME admin predicate as admin_phase1/2/3 migrations:
+--   profiles.is_admin = TRUE AND admin_disabled_at IS NULL
+-- (NOT profiles.role = 'admin' — that column does not exist on this
+-- project's profiles table; using it causes "column profiles.role
+-- does not exist" at policy-create time.)
 ALTER TABLE universe_phases ENABLE ROW LEVEL SECURITY;
 
 DROP POLICY IF EXISTS "universe_phases_read" ON universe_phases;
@@ -84,15 +90,17 @@ CREATE POLICY "universe_phases_admin_write" ON universe_phases
   FOR ALL TO authenticated
   USING (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-        AND profiles.role = 'admin'
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.is_admin = TRUE
+        AND p.admin_disabled_at IS NULL
     )
   )
   WITH CHECK (
     EXISTS (
-      SELECT 1 FROM profiles
-      WHERE profiles.id = auth.uid()
-        AND profiles.role = 'admin'
+      SELECT 1 FROM public.profiles p
+      WHERE p.id = auth.uid()
+        AND p.is_admin = TRUE
+        AND p.admin_disabled_at IS NULL
     )
   );
