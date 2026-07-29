@@ -61,7 +61,7 @@ const DecadeChart: Component<DecadeChartProps> = (props) => {
           ? `You love the ${favoriteDecade()}`
           : "Eras of cinema you watch"
       }
-      height="300px"
+      height="100%"
     >
       <Show
         when={visibleDecades().length > 0}

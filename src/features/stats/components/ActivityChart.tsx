@@ -107,7 +107,7 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
       icon="calendar_month"
       title="Monthly Activity"
       subtitle="Titles completed per month — last 12 months"
-      height="300px"
+      height="100%"
       headerRight={
         <div class="stats-toggle-group">
           <span class="stats-toggle-label">Show per type</span>

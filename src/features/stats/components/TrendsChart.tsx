@@ -69,7 +69,7 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
       icon="trending_up"
       title="Cumulative Trend"
       subtitle="Running total of completed titles over the last 12 months"
-      height="300px"
+      height="100%"
       footer={
         <div class="stats-pace-row stats-pace-row-badges">
           <For each={paceBadges()}>

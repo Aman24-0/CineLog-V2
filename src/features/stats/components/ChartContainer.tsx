@@ -23,7 +23,7 @@ interface ChartContainerProps {
   icon: string;
   title: string;
   subtitle?: string;
-  /** Body height — accepts any CSS length. @default "300px" */
+  /** Body height — accepts any CSS length. @default "100%" */
   height?: string;
   /** Optional footer (legend, note, action). */
   footer?: JSX.Element;
@@ -42,9 +42,9 @@ interface ChartContainerProps {
 }
 
 const ChartContainer: Component<ChartContainerProps> = (props) => {
-  const height = (): string => props.height ?? "300px";
+  const height = (): string => props.height ?? "100%";
   return (
-    <GlassCard class={`stats-chart-card ${props.class ?? ""}`} padding={props.padding ?? "default"}>
+    <GlassCard class={`stats-chart-card ${props.class ?? ""}`} padding={props.padding ?? "compact"}>
       <div class="stats-chart-header">
         <div class="stats-chart-header-left">
           <div class="stats-chart-icon" aria-hidden="true">

@@ -77,6 +77,11 @@ const StatisticsPage: Component = () => {
   // NOTE: MovieSeriesPie is intentionally NOT in the Activity tab —
   // it lives as a fixed widget below the tab content so the movies
   // vs series split is always visible regardless of the active tab.
+  //
+  // The wrapping <div class="stats-tab-stack h-full"> makes the chart
+  // card fill the fixed-height tab panel (340px) so the panel no
+  // longer shrinks to fit chart content — eliminating vertical jumps
+  // when switching between tabs.
   const tabContent = createMemo(() => {
     const tab = activeTab();
     const s = stats();
@@ -84,37 +89,37 @@ const StatisticsPage: Component = () => {
     switch (tab) {
       case "activity":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <ActivityChart monthly={() => s.monthly} watchlist={watchlist} />
           </div>
         );
       case "genres":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <GenreChart genres={() => s.genres} />
           </div>
         );
       case "ratings":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <RatingsHistogram ratings={() => s.ratings} />
           </div>
         );
       case "decades":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <DecadeChart decades={() => s.decades} />
           </div>
         );
       case "people":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <PeopleList directors={() => s.directors} actors={() => s.actors} />
           </div>
         );
       case "trends":
         return (
-          <div class="stats-tab-stack">
+          <div class="stats-tab-stack h-full">
             <TrendsChart monthly={() => s.monthly} pace={() => s.pace} />
           </div>
         );

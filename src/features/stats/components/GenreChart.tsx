@@ -57,7 +57,7 @@ const GenreChart: Component<GenreChartProps> = (props) => {
       icon="palette"
       title="Top Genres"
       subtitle="Your taste profile — click a bar to explore"
-      height="340px"
+      height="100%"
     >
       <Show
         when={data().length > 0}

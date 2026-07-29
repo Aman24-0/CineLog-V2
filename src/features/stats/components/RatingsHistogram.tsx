@@ -75,7 +75,7 @@ const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
       icon="star"
       title="Ratings Distribution"
       subtitle="How you rate the titles you watch"
-      height="300px"
+      height="100%"
     >
       <Show
         when={hasRatings()}
