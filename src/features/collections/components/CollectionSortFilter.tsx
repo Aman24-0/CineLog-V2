@@ -78,7 +78,7 @@ const CollectionSortFilter: Component<CollectionSortFilterProps> = (props) => {
           <span class="material-symbols-outlined" aria-hidden="true">search</span>
           <input
             type="text"
-            placeholder="Search title, cast, director, genre..."
+            placeholder="Search titles..."
             value={props.search()}
             onInput={(e) => props.onSearchInput(e.currentTarget.value)}
             aria-label="Search within this collection"

@@ -2702,102 +2702,15 @@
   letter-spacing: 0.05em;
 }
 
-.entry-list-row-status {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 8px;
-  border-radius: 999px;
-  font-size: 0.5625rem;
-  font-weight: 600;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.entry-list-row-status.watching {
-  background: rgba(59, 130, 246, 0.15);
-  color: #93c5fd;
-  border: 1px solid rgba(59, 130, 246, 0.3);
-}
-
-.entry-list-row-status.completed {
-  background: rgba(34, 197, 94, 0.15);
-  color: #86efac;
-  border: 1px solid rgba(34, 197, 94, 0.3);
-}
-
-.entry-list-row-status.planned {
-  background: rgba(245, 158, 11, 0.15);
-  color: #fcd34d;
-  border: 1px solid rgba(245, 158, 11, 0.3);
-}
-
-.entry-list-row-status.on_hold {
-  background: rgba(168, 85, 247, 0.15);
-  color: #d8b4fe;
-  border: 1px solid rgba(168, 85, 247, 0.3);
-}
-
-.entry-list-row-status.dropped {
-  background: rgba(239, 68, 68, 0.15);
-  color: #fca5a5;
-  border: 1px solid rgba(239, 68, 68, 0.3);
-}
-
-.entry-list-row-rating {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  color: #f5c518;
-  font-family: 'Azeret Mono', monospace;
-  font-size: 0.6875rem;
-}
-
-.entry-list-row-rating .material-symbols-outlined {
-  font-size: 11px;
-  font-variation-settings: 'FILL' 1, 'wght' 400;
-}
-
-.entry-list-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.entry-list-row:hover .entry-list-row-actions {
-  opacity: 1;
-}
-
-.entry-list-row-action {
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 6px;
-  background: transparent;
-  border: 1px solid transparent;
-  color: var(--text-dim, rgba(255, 255, 255, 0.5));
-  cursor: pointer;
-  transition: all 0.15s ease;
-}
-
-.entry-list-row-action:hover {
-  background: var(--tier-3, rgba(255, 255, 255, 0.07));
-  color: var(--text-strong, #fff);
-  border-color: var(--hairline, rgba(255, 255, 255, 0.1));
-}
-
-.entry-list-row-action.danger:hover {
-  color: #f87171;
-  border-color: rgba(248, 113, 113, 0.3);
-  background: rgba(248, 113, 113, 0.08);
-}
-
-.entry-list-row-action .material-symbols-outlined {
-  font-size: 14px;
-}
+/* ─── EntryListRow v5 (cleaned up) ───────────────────────────────────────
+   The status badge, + add-to-watchlist icon, and hover-reveal actions
+   were removed in v5. The only action button is the ALWAYS-visible
+   Remove-from-collection button. Its styling lives in the redesigned
+   block further down (search for "EntryListRow (redesigned)").
+   This block keeps the layout rules (.entry-list-row, -drag-handle,
+   -poster, -main, -title, -meta, -year) that the redesigned block
+   also references.
+   ──────────────────────────────────────────────────────────────────── */
 
 /* ──────────────────────────────────────────────────────────────────────────
    Show Archived toggle button (on the main Collections page)
@@ -3386,13 +3299,11 @@
   font-family: 'Outfit', sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
-  cursor: pointer;
   flex-shrink: 0;
   transition: all 0.12s ease;
-}
-
-.entry-list-row-rating:hover {
-  background: rgba(245, 197, 24, 0.18);
+  /* Display-only (not a button). Rating changes happen in the title
+     detail modal, not inline on the row. */
+  user-select: none;
 }
 
 .entry-list-row-rating .material-symbols-outlined {
@@ -3404,79 +3315,37 @@
   font-variant-numeric: tabular-nums;
 }
 
-.entry-list-row-status-btn {
-  background: transparent;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  flex-shrink: 0;
-}
-
-.entry-list-row-status-add {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px dashed rgba(255, 255, 255, 0.2);
-  color: var(--text-soft, rgba(255, 255, 255, 0.7));
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.12s ease;
-}
-
-.entry-list-row-status-add:hover {
-  background: rgba(245, 197, 24, 0.12);
-  border-color: rgba(245, 197, 24, 0.4);
-  color: #f5c518;
-}
-
-.entry-list-row-status-add .material-symbols-outlined {
-  font-size: 16px;
-}
-
-.entry-list-row-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  opacity: 0;
-  transition: opacity 0.15s ease;
-}
-
-.entry-list-row:hover .entry-list-row-actions {
-  opacity: 1;
-}
-
+/* Remove-from-collection button — ALWAYS visible (not hover-reveal),
+   with adequate padding (32×32 hit area) and clear contrast so it's
+   not accidentally clicked. Danger color on hover. */
 .entry-list-row-action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 32px;
+  height: 32px;
   border-radius: 999px;
   background: transparent;
-  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.14));
   color: var(--text-soft, rgba(255, 255, 255, 0.8));
   cursor: pointer;
+  flex-shrink: 0;
   transition: all 0.12s ease;
 }
 
 .entry-list-row-action:hover {
-  background: var(--tier-3, rgba(255, 255, 255, 0.1));
-  color: var(--text-strong, #fff);
-}
-
-.entry-list-row-action.danger:hover {
-  background: rgba(248, 113, 113, 0.15);
-  border-color: rgba(248, 113, 113, 0.4);
+  background: rgba(248, 113, 113, 0.12);
+  border-color: rgba(248, 113, 113, 0.45);
   color: #f87171;
 }
 
+.entry-list-row-action:focus-visible {
+  outline: 2px solid rgba(248, 113, 113, 0.55);
+  outline-offset: 2px;
+}
+
 .entry-list-row-action .material-symbols-outlined {
-  font-size: 14px;
+  font-size: 16px;
 }
 
 /* ─── UniverseDashboard — pencil edit button (bottom-right of hero) ────── */
