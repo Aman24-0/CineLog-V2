@@ -83,7 +83,7 @@
 //   search results. Clearing the query restores the Discover layout.
 
 import { createSignal, createMemo, createEffect, Show, For, ErrorBoundary, Suspense, type JSX } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { useNavigate, useSearchParams } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -122,6 +122,16 @@ import SearchResults from "~/features/search/SearchResults";
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
+
+  // Read URL search params so deep links like `/discover?genre=Sci-Fi`
+  // can drive the GenreExplorer's initial state. Used by the Statistics
+  // page's Top Genres chart — clicking a bar navigates here with the
+  // genre name as the `genre` query param.
+  const [searchParams] = useSearchParams();
+  const initialGenre = createMemo(() => {
+    const g = searchParams.genre;
+    return typeof g === "string" ? g : undefined;
+  });
 
   // Feature flags + homepage config (admin-controlled per-section visibility).
   const featureFlags = useFeatureFlags();
@@ -463,7 +473,11 @@ export default function DiscoverPage() {
             <Show when={homepageConfig.isEnabled("genre_explorer")}>
               <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
                 <DiscoverSectionWrapper label="Genre Explorer" icon="palette">
-                  <GenreExplorer onSelect={handleOpenTitle} vaultKeys={excludedKeys} />
+                  <GenreExplorer
+                    onSelect={handleOpenTitle}
+                    vaultKeys={excludedKeys}
+                    initialGenre={initialGenre()}
+                  />
                 </DiscoverSectionWrapper>
               </ErrorBoundary>
             </Show>

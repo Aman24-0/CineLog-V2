@@ -21,7 +21,7 @@
 //
 
 import {
-  For, Show, createSignal, createMemo, type Component,
+  For, Show, createSignal, createMemo, onMount, type Component,
 } from "solid-js";
 import { discoverMovies, discoverTv } from "~/core/tmdb/discover";
 import { MOVIE_GENRES } from "~/core/tmdb/genres";
@@ -38,6 +38,14 @@ interface GenreExplorerProps {
    * already added. When omitted (e.g. for guests), no filtering is applied.
    */
   vaultKeys?: () => Set<string>;
+  /**
+   * Optional genre NAME to auto-expand on mount. Used by the Discover
+   * page when the user arrives via a `/discover?genre=<name>` link
+   * (e.g. from the Statistics page's Top Genres chart). The match is
+   * case-insensitive; if the name doesn't match any chip, the
+   * explorer renders in its default collapsed state.
+   */
+  initialGenre?: string;
 }
 
 interface GenreDef {
@@ -171,6 +179,23 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
   // instantly without re-fetching.
   const [cache, setCache] = createSignal<Record<string, GenreCacheEntry>>({});
   const [errorGenre, setErrorGenre] = createSignal<Error | null>(null);
+
+  // Auto-expand the genre named in `props.initialGenre` on mount. Used
+  // when the user clicks a genre bar on the Statistics page and lands
+  // on /discover?genre=<Name>. Case-insensitive match against the
+  // GENRES list; if no match, the explorer stays in its default
+  // collapsed state (no error, no jarring scroll).
+  onMount(() => {
+    const wanted = props.initialGenre?.trim();
+    if (!wanted) return;
+    const needle = wanted.toLowerCase();
+    const match = GENRES.find((g) => g.name.toLowerCase() === needle);
+    if (!match) return;
+    setExpandedGenre(match.movieId);
+    if (!cache()[match.name]) {
+      void fetchFirstPage(match);
+    }
+  });
 
   const fetchFirstPage = async (genre: GenreDef) => {
     setCache((prev) => ({

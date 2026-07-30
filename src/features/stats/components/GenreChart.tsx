@@ -6,8 +6,10 @@
 // axis. The bar width encodes the count; the colour is a stable gold
 // accent.
 //
-// Clicking a bar navigates to /search with the genre as a query
-// parameter, so users can dive into the titles behind the bar.
+// Clicking a bar navigates to /discover with the genre as a `genre`
+// query parameter. The Discover page reads the param and auto-expands
+// the matching genre chip in the GenreExplorer so the user lands on a
+// ready-filtered carousel of that genre.
 //
 // Implementation note: this previously used recharts (a React-only
 // library). recharts' React hooks crashed inside SolidJS. We now use
@@ -49,7 +51,11 @@ const GenreChart: Component<GenreChartProps> = (props) => {
     }));
 
   const handleClick = (item: BarHItem) => {
-    navigate(`/search?genre=${encodeURIComponent(item.label)}`);
+    // Navigate to /discover?genre=<name>. The Discover page reads the
+    // `genre` query param via useSearchParams() and auto-expands the
+    // matching chip in the GenreExplorer so the user lands on a
+    // ready-filtered carousel.
+    navigate(`/discover?genre=${encodeURIComponent(item.label)}`);
   };
 
   return (
