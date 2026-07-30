@@ -13,12 +13,14 @@
     "test:coverage": "vitest run --coverage"
   },
   "dependencies": {
+    "@solid-primitives/timer": "^1.4.4",
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.14.5",
     "@solidjs/start": "^1.0.10",
     "@supabase/supabase-js": "^2.110.2",
     "@thisbeyond/solid-dnd": "^0.7.5",
     "@vercel/speed-insights": "^2.0.0",
+    "date-fns": "^4.4.0",
     "html2canvas": "^1.4.1",
     "solid-js": "^1.9.3"
   },

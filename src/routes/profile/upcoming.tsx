@@ -1,7 +1,7 @@
 // src/routes/profile/upcoming.tsx
 import { Title } from "@solidjs/meta";
 import { ErrorBoundary } from "solid-js";
-import UpcomingPage from "~/features/profile/UpcomingPage";
+import UpcomingPage from "~/features/upcoming/UpcomingPage";
 
 export default function UpcomingRoute() {
   return (
@@ -13,7 +13,11 @@ export default function UpcomingRoute() {
             <div class="glass-empty-state" role="alert">
               <h3 class="glass-empty-state-title">Something went wrong</h3>
               <p class="glass-empty-state-body">{error.message}</p>
-              <button class="btn-primary focus-ring" onClick={() => reset()} style={{ "margin-top": "var(--sp-2)" }}>
+              <button
+                class="btn-primary focus-ring"
+                onClick={() => reset()}
+                style={{ "margin-top": "var(--sp-2)" }}
+              >
                 Retry
               </button>
             </div>
