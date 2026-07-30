@@ -4,14 +4,18 @@
 //   • Region (country selector)
 //   • Date range (start/end with presets)
 //   • Genre (multi-select chips, max 3)
-//   • Platform (multi-select chips)
-//   • Minimum rating (slider 0-10)
+//   • Type (all / movies / series)
 //
 // All state is owned by the parent (controlled). The sheet calls
 // onApply() and onReset() — the parent is responsible for mutating
 // the actual filter signals.
+//
+// The "Minimum Rating" slider was removed in v3 — upcoming titles
+// typically have 0 votes (nobody has seen them yet), so the filter
+// either returned nothing or actively excluded the most relevant
+// upcoming releases.
 
-import { type Component, For, Show } from "solid-js";
+import { type Component, For, Show, createMemo } from "solid-js";
 import { GlassModal } from "~/shared/ui/glass";
 import { MOVIE_GENRES } from "~/core/tmdb/genres";
 import DateRangePicker, { type DateRange } from "./DateRangePicker";
@@ -20,8 +24,10 @@ export interface UpcomingFilters {
   region: string;
   dateRange: DateRange;
   genres: number[];
-  platforms: string[];
-  minRating: number;
+  /** @deprecated Kept for backward-compat — no longer surfaced in the UI. */
+  platforms?: string[];
+  /** @deprecated Kept for backward-compat — the repository ignores it. */
+  minRating?: number;
   mediaType: "all" | "movie" | "tv";
 }
 
@@ -32,6 +38,13 @@ interface FilterSheetProps {
   onChange: (next: UpcomingFilters) => void;
   onApply: () => void;
   onReset: () => void;
+  /**
+   * The user's profile country (ISO 3166-1 alpha-2). When provided,
+   * the "Region" dropdown shows a "(your country)" hint next to the
+   * matching option. The parent is still responsible for setting
+   * `value.region` to this country on initial mount.
+   */
+  defaultRegion?: string;
 }
 
 // Curated genre list (id → label) — same set as the Discover page.
@@ -63,9 +76,21 @@ const REGIONS: { code: string; label: string }[] = [
   { code: "JP", label: "Japan" },
   { code: "KR", label: "South Korea" },
   { code: "AE", label: "UAE" },
+  { code: "BR", label: "Brazil" },
+  { code: "MX", label: "Mexico" },
+  { code: "ES", label: "Spain" },
+  { code: "IT", label: "Italy" },
+  { code: "NL", label: "Netherlands" },
+  { code: "SG", label: "Singapore" },
 ];
 
 const FilterSheet: Component<FilterSheetProps> = (props) => {
+  // Whether the currently-selected region matches the user's profile
+  // country — used to show a "(your country)" hint in the dropdown.
+  const isUserCountry = createMemo(
+    () => !!props.defaultRegion && props.value.region === props.defaultRegion,
+  );
+
   const toggleGenre = (id: number) => {
     const cur = props.value.genres;
     if (cur.includes(id)) {
@@ -115,8 +140,17 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
 
         {/* Region */}
         <section class="upcoming-filter-section">
-          <h4 class="upcoming-filter-section-title">Region</h4>
-          <label class="upcoming-filter-select-wrap">
+          <h4 class="upcoming-filter-section-title">
+            Region
+            <Show when={isUserCountry()}>
+              <span class="upcoming-filter-section-hint">your country</span>
+            </Show>
+          </h4>
+          {/* Wrapper is `relative` + `max-w-full` + `overflow-visible`
+              so the chevron (positioned absolute, right-2) never gets
+              clipped. The select itself reserves right padding (pr-8)
+              so the text never underlaps the chevron. */}
+          <div class="upcoming-filter-select-wrap">
             <select
               class="upcoming-filter-select"
               value={props.value.region}
@@ -129,10 +163,13 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
                 {(r) => <option value={r.code}>{r.label}</option>}
               </For>
             </select>
-            <span class="material-symbols-outlined upcoming-filter-chevron" aria-hidden="true">
+            <span
+              class="material-symbols-outlined upcoming-filter-chevron"
+              aria-hidden="true"
+            >
               expand_more
             </span>
-          </label>
+          </div>
         </section>
 
         {/* Date range */}
@@ -172,31 +209,6 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
               )}
             </For>
           </div>
-        </section>
-
-        {/* Minimum rating */}
-        <section class="upcoming-filter-section">
-          <h4 class="upcoming-filter-section-title">
-            Minimum Rating
-            <span class="upcoming-filter-section-hint">
-              {props.value.minRating > 0 ? `${props.value.minRating}+` : "Any"}
-            </span>
-          </h4>
-          <input
-            type="range"
-            class="upcoming-filter-slider"
-            min="0"
-            max="10"
-            step="0.5"
-            value={props.value.minRating}
-            onInput={(e) =>
-              props.onChange({
-                ...props.value,
-                minRating: parseFloat(e.currentTarget.value),
-              })
-            }
-            aria-label="Minimum rating"
-          />
         </section>
       </div>
 

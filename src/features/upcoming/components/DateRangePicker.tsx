@@ -7,8 +7,15 @@
 //
 // All state is owned by the parent (this is a controlled component).
 // The component calls onChange({start, end}) on any change.
+//
+// Display label: the human-readable "From — To" string is rendered
+// via date-fns `format(date, 'dd MMM yyyy')` so users always see the
+// current year (e.g. "30 Jul 2026 — 29 Aug 2026"), regardless of
+// browser locale quirks with <input type="date">. The actual date
+// inputs remain HTML5 native pickers for accessibility.
 
-import { type Component, createMemo, For } from "solid-js";
+import { type Component, createMemo, For, Show } from "solid-js";
+import { format, parseISO } from "date-fns";
 
 export interface DateRange {
   start: string; // YYYY-MM-DD
@@ -48,8 +55,31 @@ function presetFor(value: DateRange): PresetKey {
   return "custom";
 }
 
+/**
+ * Format a YYYY-MM-DD string as "dd MMM yyyy" (e.g. "30 Jul 2026").
+ * Falls back to the raw string if parsing fails — never throws.
+ */
+function formatDisplay(dateStr: string): string {
+  if (!dateStr) return "—";
+  try {
+    const d = parseISO(dateStr);
+    if (isNaN(d.getTime())) return dateStr;
+    return format(d, "dd MMM yyyy");
+  } catch {
+    return dateStr;
+  }
+}
+
 const DateRangePicker: Component<DateRangePickerProps> = (props) => {
   const activePreset = createMemo(() => presetFor(props.value));
+
+  // Human-readable range summary, e.g. "30 Jul 2026 — 29 Aug 2026".
+  // Shown above the inputs so the user can always see the active
+  // window at a glance without having to interpret the native date
+  // input UI (which varies wildly across browsers).
+  const rangeLabel = createMemo(() => {
+    return `${formatDisplay(props.value.start)} — ${formatDisplay(props.value.end)}`;
+  });
 
   const applyPreset = (key: PresetKey) => {
     const today = todayStr();
@@ -80,6 +110,11 @@ const DateRangePicker: Component<DateRangePickerProps> = (props) => {
           )}
         </For>
       </div>
+      <Show when={activePreset() === "custom"}>
+        <p class="upcoming-date-range-label" aria-live="polite">
+          {rangeLabel()}
+        </p>
+      </Show>
       <div class="upcoming-date-inputs">
         <label class="upcoming-date-input-wrap">
           <span class="upcoming-date-input-label">From</span>

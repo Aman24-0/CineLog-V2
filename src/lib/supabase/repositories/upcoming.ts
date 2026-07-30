@@ -12,17 +12,19 @@
 // (e.g. before the user runs the migration) or when Supabase is
 // unreachable.
 //
-// The TMDB-side fetch (getUpcomingTitles) composes the discover helpers
-// from ~/core/tmdb/discover. It uses the server-side /api/media/* proxy,
-// so the API key is read from TMDB_API_KEY (server-only). There is NO
-// need for a client-side VITE_TMDB_API_KEY.
+// The TMDB-side fetch (getUpcomingTitles) uses raw fetch() against the
+// server-side /api/media/* proxy (so the API key is read from
+// TMDB_API_KEY server-side). It does NOT use the discoverMovies /
+// discoverTv helpers because those helpers do not support
+// `with_release_country` (movies) or `air_date.gte/lte` (TV), both of
+// which are critical for region-accurate upcoming results.
 
 import { getClient } from "~/lib/supabase/client";
 import type { TMDBTitle } from "~/shared/types";
 import {
-  discoverMovies,
-  discoverTv,
-} from "~/core/tmdb/discover";
+  normalizeList,
+  type TMDBRawItem,
+} from "~/core/tmdb/discoverNormalize";
 
 // ---------------------------------------------------------------------------
 // Types
@@ -65,6 +67,11 @@ export interface UpcomingQueryParams {
   startDate: string; // YYYY-MM-DD
   endDate: string;   // YYYY-MM-DD
   genres?: number[]; // TMDB genre IDs
+  /**
+   * @deprecated Kept for backward-compat with callers that still pass
+   *   it. The repository ignores this field — minimum-rating filtering
+   *   is irrelevant for upcoming titles because most have 0 votes.
+   */
   minRating?: number;
   mediaType?: "all" | "movie" | "tv";
   sortBy?: "date" | "rating" | "popularity" | "title";
@@ -128,6 +135,7 @@ function getMockUpcomingTitles(): TMDBTitle[] {
       overview: "Mock title — for development only.",
       first_air_date: shift(2), vote_average: 8.6, vote_count: 0,
       genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
+      seasonNumber: 2, episodeNumber: 5, episodeAirDate: shift(2),
     },
     {
       id: 900004, title: "Midnight Protocol", media_type: "movie",
@@ -142,6 +150,7 @@ function getMockUpcomingTitles(): TMDBTitle[] {
       overview: "Mock title — for development only.",
       first_air_date: shift(6), vote_average: 7.8, vote_count: 0,
       genre_ids: [18], genres: ["Drama"],
+      seasonNumber: 1, episodeNumber: 3, episodeAirDate: shift(6),
     },
     {
       id: 900006, title: "Beneath the Glass Sea", media_type: "movie",
@@ -163,6 +172,7 @@ function getMockUpcomingTitles(): TMDBTitle[] {
       overview: "Mock title — for development only.",
       first_air_date: shift(15), vote_average: 8.0, vote_count: 0,
       genre_ids: [10759, 18], genres: ["Action & Adventure", "Drama"],
+      seasonNumber: 3, episodeNumber: 1, episodeAirDate: shift(15),
     },
     {
       id: 900009, title: "Concrete Garden", media_type: "movie",
@@ -184,6 +194,7 @@ function getMockUpcomingTitles(): TMDBTitle[] {
       overview: "Mock title — for development only.",
       first_air_date: shift(30), vote_average: 8.7, vote_count: 0,
       genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
+      seasonNumber: 2, episodeNumber: 8, episodeAirDate: shift(30),
     },
     {
       id: 900012, title: "The Quiet Architect", media_type: "movie",
@@ -205,26 +216,284 @@ function isMockMode(): boolean {
 }
 
 // ---------------------------------------------------------------------------
-// TMDB fetch — thin wrapper that lives here so the page imports a single
-// repository module for both TMDB reads and Supabase persistence.
+// TMDB fetch primitives — raw fetch against the /api/media/* proxy.
+// ---------------------------------------------------------------------------
+
+const API = "/api/media";
+const TMDB_FETCH_TIMEOUT_MS = 10_000;
+
+async function fetchWithTimeout(url: string, timeoutMs = TMDB_FETCH_TIMEOUT_MS): Promise<Response> {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Build a URLSearchParams for /discover/movie that returns titles
+ * actually releasing in the user's region within the date window.
+ *
+ * v3 region fix:
+ *   - `with_release_country` filters to movies that have a release
+ *     entry in the user's country (so banned / unreleased titles drop).
+ *   - `release_date.gte/lte` + `region` makes the date window apply
+ *     to the in-region release date, not the worldwide first release.
+ *   - `sort_by=release_date.asc` so the earliest releases come first.
+ */
+function buildMovieParams(params: UpcomingQueryParams, page: number): URLSearchParams {
+  const p = new URLSearchParams({
+    language: "en-US",
+    sort_by: "release_date.asc",
+    "release_date.gte": params.startDate,
+    "release_date.lte": params.endDate,
+    region: params.region,
+    with_release_country: params.region,
+    include_adult: "false",
+    page: String(page),
+  });
+  if (params.genres?.length) p.set("with_genres", params.genres.join(","));
+  return p;
+}
+
+/**
+ * Build a URLSearchParams for /discover/tv that returns series with at
+ * least one episode airing in the date window.
+ *
+ * v3 fix:
+ *   - Uses `air_date.gte/lte` (NOT `first_air_date.gte/lte`) so we
+ *     capture both brand-new premieres AND new episodes of running
+ *     series (House of the Dragon S3 E5, etc.).
+ *   - `with_watch_providers` + `watch_region` would be the strict
+ *     region filter, but TMDB's watch-provider filter excludes any
+ *     series that hasn't been licensed for streaming in that region
+ *     yet — which would drop most upcoming/network shows. We rely on
+ *     `with_origin_country` as a soft filter instead (the same
+ *     approach TMDB uses for its own "On TV" sections).
+ *   - `sort_by=popularity.desc` so famous shows come first.
+ */
+function buildTvParams(params: UpcomingQueryParams, page: number): URLSearchParams {
+  const p = new URLSearchParams({
+    language: "en-US",
+    sort_by: "popularity.desc",
+    "air_date.gte": params.startDate,
+    "air_date.lte": params.endDate,
+    with_origin_country: params.region,
+    include_adult: "false",
+    page: String(page),
+  });
+  if (params.genres?.length) p.set("with_genres", params.genres.join(","));
+  return p;
+}
+
+/**
+ * Discover movies (paginated). Up to `maxPages` pages of 20 results
+ * each are fetched. Pagination stops early if TMDB returns < 20
+ * results on a page or reports `page >= total_pages`.
+ */
+async function discoverUpcomingMovies(
+  params: UpcomingQueryParams,
+  maxPages = 3,
+): Promise<TMDBTitle[]> {
+  const out: TMDBTitle[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${API}/discover/movie?${buildMovieParams(params, page)}`;
+    debug(`[movie] page ${page} → ${url}`);
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(url);
+    } catch (err) {
+      debug(`[movie] page ${page} network error:`, err);
+      throw new Error(`discover/movie fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (!res.ok) {
+      debug(`[movie] page ${page} HTTP ${res.status}`);
+      throw new Error(`discover/movie failed (page ${page}): HTTP ${res.status}`);
+    }
+    const data = await res.json() as { results?: TMDBRawItem[]; total_pages?: number };
+    const results = normalizeList(data.results, "movie");
+    out.push(...results);
+    debug(`[movie] page ${page} returned ${results.length} result(s)`);
+    if (results.length < 20) break;
+    if (data.total_pages && page >= data.total_pages) break;
+  }
+  return out;
+}
+
+/**
+ * Discover TV series (paginated). Same pagination strategy as movies.
+ */
+async function discoverUpcomingTv(
+  params: UpcomingQueryParams,
+  maxPages = 3,
+): Promise<TMDBTitle[]> {
+  const out: TMDBTitle[] = [];
+  for (let page = 1; page <= maxPages; page++) {
+    const url = `${API}/discover/tv?${buildTvParams(params, page)}`;
+    debug(`[tv] page ${page} → ${url}`);
+    let res: Response;
+    try {
+      res = await fetchWithTimeout(url);
+    } catch (err) {
+      debug(`[tv] page ${page} network error:`, err);
+      throw new Error(`discover/tv fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+    if (!res.ok) {
+      debug(`[tv] page ${page} HTTP ${res.status}`);
+      throw new Error(`discover/tv failed (page ${page}): HTTP ${res.status}`);
+    }
+    const data = await res.json() as { results?: TMDBRawItem[]; total_pages?: number };
+    const results = normalizeList(data.results, "tv");
+    out.push(...results);
+    debug(`[tv] page ${page} returned ${results.length} result(s)`);
+    if (results.length < 20) break;
+    if (data.total_pages && page >= data.total_pages) break;
+  }
+  return out;
+}
+
+// ---------------------------------------------------------------------------
+// TV enrichment: next-episode details
+// ---------------------------------------------------------------------------
+
+interface NextEpisodeInfo {
+  season: number;
+  episode: number;
+  air_date: string | null;
+}
+
+/**
+ * getNextEpisode — fetch the next-episode-to-air for a TV series.
+ *
+ * Returns null if the series has no upcoming episode (e.g. ended, or
+ * the next air date is unknown), or if the fetch fails. We never
+ * throw — a missing next-episode just means the card shows the
+ * series' first_air_date as fallback.
+ *
+ * Endpoint: /tv/{id}/next_episode_to_air
+ * Docs: https://developer.themoviedb.org/reference/tv-series-next-episode-to-air
+ */
+export async function getNextEpisode(
+  tvId: number | string,
+): Promise<NextEpisodeInfo | null> {
+  try {
+    const url = `${API}/tv/${tvId}/next_episode_to_air?language=en-US`;
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) {
+      debug(`[next-episode] tv/${tvId} HTTP ${res.status}`);
+      return null;
+    }
+    const data = await res.json() as {
+      season_number?: number;
+      episode_number?: number;
+      air_date?: string | null;
+    } | null;
+    if (!data || data.season_number == null || data.episode_number == null) {
+      return null;
+    }
+    return {
+      season: data.season_number,
+      episode: data.episode_number,
+      air_date: data.air_date ?? null,
+    };
+  } catch (err) {
+    debug(`[next-episode] tv/${tvId} error:`, err);
+    return null;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Watch providers enrichment
+// ---------------------------------------------------------------------------
+
+/**
+ * getWatchProviders — fetch the streaming/rent/buy provider names for
+ * a title in the user's region.
+ *
+ * Returns an array of provider names (e.g. ["Netflix", "Amazon Prime
+ * Video"]). Empty array if no providers are available in the region
+ * or the fetch fails. We dedupe by provider_name and cap at 4 names
+ * to keep the card UI compact.
+ *
+ * Endpoint: /{type}/{id}/watch/providers
+ * Docs: https://developer.themoviedb.org/reference/movie-watch-providers
+ */
+export async function getWatchProviders(
+  id: number | string,
+  type: "movie" | "tv",
+  region: string,
+): Promise<string[]> {
+  try {
+    const url = `${API}/${type}/${id}/watch/providers?language=en-US`;
+    const res = await fetchWithTimeout(url);
+    if (!res.ok) {
+      debug(`[providers] ${type}/${id} HTTP ${res.status}`);
+      return [];
+    }
+    const data = await res.json() as {
+      results?: Record<string, {
+        link?: string;
+        flatrate?: Array<{ provider_name: string }>;
+        rent?: Array<{ provider_name: string }>;
+        buy?: Array<{ provider_name: string }>;
+        free?: Array<{ provider_name: string }>;
+        ads?: Array<{ provider_name: string }>;
+      }>;
+    };
+    const regionEntry = data.results?.[region];
+    if (!regionEntry) return [];
+    // Priority: flatrate (subscription) > rent > buy > free > ads
+    const names: string[] = [];
+    const seen = new Set<string>();
+    const pushAll = (arr: Array<{ provider_name: string }> | undefined) => {
+      if (!Array.isArray(arr)) return;
+      for (const p of arr) {
+        const n = p.provider_name;
+        if (!n || seen.has(n)) continue;
+        seen.add(n);
+        names.push(n);
+        if (names.length >= 4) return;
+      }
+    };
+    pushAll(regionEntry.flatrate);
+    if (names.length < 4) pushAll(regionEntry.rent);
+    if (names.length < 4) pushAll(regionEntry.buy);
+    if (names.length < 4) pushAll(regionEntry.free);
+    if (names.length < 4) pushAll(regionEntry.ads);
+    return names;
+  } catch (err) {
+    debug(`[providers] ${type}/${id} error:`, err);
+    return [];
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Main fetch — getUpcomingTitles
 // ---------------------------------------------------------------------------
 
 /**
  * Fetch upcoming movies + TV from TMDB, filtered by the given params.
  *
- * Movies: discover/movie with primary_release_date.gte/lte + region.
- * TV:     discover/tv with first_air_date.gte/lte + with_origin_country
- *         (TMDB doesn't support a true `region` filter on /discover/tv,
- *         so we use with_origin_country as a reasonable proxy).
+ * Movies: discover/movie with `release_date.gte/lte` + `region` +
+ *         `with_release_country`. Returns ONLY movies that have a
+ *         release entry in the user's country within the date window.
  *
- * Both are fetched in parallel and merged. Results are sorted by date
- * ascending by default; the caller can re-sort via `sortBy`.
+ * TV:     discover/tv with `air_date.gte/lte` + `with_origin_country`.
+ *         Returns ANY series with at least one episode airing in the
+ *         window — captures both new premieres and ongoing series.
+ *
+ * Both are fetched in parallel and merged. For TV series, we also
+ * fetch next-episode details (season/episode number) for the top N
+ * results so the card can display "S2 E5". For all titles, we batch
+ * fetch watch providers for the top N results so the card can show
+ * OTT platform badges.
  *
  * NOTE on `vote_count.gte`: we intentionally DO NOT set it. Upcoming
  * titles (especially future-dated ones) typically have ZERO votes
  * because nobody has seen them yet. The old code passed `voteCountGte: 5`
- * which filtered out 99% of upcoming releases and left only one Bulgarian
- * festival title in the result — that was the bug.
+ * which filtered out 99% of upcoming releases.
  */
 export async function getUpcomingTitles(
   params: UpcomingQueryParams,
@@ -233,7 +502,6 @@ export async function getUpcomingTitles(
   if (isMockMode()) {
     debug("MOCK MODE — returning mock titles (cinelog:upcoming:mock=1)");
     const mock = getMockUpcomingTitles();
-    // Apply date filter to mock so changing the range behaves correctly.
     return mock.filter((t) => {
       const d = t.release_date || t.first_air_date || "";
       return d >= params.startDate && d <= params.endDate;
@@ -242,29 +510,23 @@ export async function getUpcomingTitles(
 
   debug("query params:", params);
 
+  // Defaults: mediaType "all" if not specified. Region defaults to
+  // "US" — empty string would cause TMDB to 422.
+  const effectiveParams: UpcomingQueryParams = {
+    ...params,
+    region: params.region || "US",
+    mediaType: params.mediaType ?? "all",
+  };
+
   const moviePromise =
-    params.mediaType === "tv"
+    effectiveParams.mediaType === "tv"
       ? Promise.resolve([] as TMDBTitle[])
-      : discoverMovies({
-          primaryReleaseDateGte: params.startDate,
-          primaryReleaseDateLte: params.endDate,
-          withGenres: params.genres,
-          voteAverageGte: params.minRating,
-          sortBy: "popularity.desc",
-          region: params.region,
-        });
+      : discoverUpcomingMovies(effectiveParams);
 
   const tvPromise =
-    params.mediaType === "movie"
+    effectiveParams.mediaType === "movie"
       ? Promise.resolve([] as TMDBTitle[])
-      : discoverTv({
-          firstAirDateGte: params.startDate,
-          firstAirDateLte: params.endDate,
-          withGenres: params.genres,
-          voteAverageGte: params.minRating,
-          sortBy: "popularity.desc",
-          region: params.region,
-        });
+      : discoverUpcomingTv(effectiveParams);
 
   const [movies, tv] = await Promise.allSettled([moviePromise, tvPromise]);
 
@@ -278,8 +540,7 @@ export async function getUpcomingTitles(
       (tv.status === "rejected" ? ` (rejected: ${(tv as PromiseRejectedResult).reason?.message ?? "unknown"})` : ""),
   );
 
-  // Merge + dedupe by TMDB id (movie and TV namespaces are disjoint,
-  // but we dedupe anyway in case TMDB returns the same row twice).
+  // Merge + dedupe by TMDB id.
   const seen = new Set<number>();
   const merged: TMDBTitle[] = [];
   for (const t of [...movieList, ...tvList]) {
@@ -288,14 +549,49 @@ export async function getUpcomingTitles(
     merged.push(t);
   }
 
-  // Filter out titles with no release/air date — we can't show them on
-  // a calendar. We also re-clip to the [startDate, endDate] window in
-  // case TMDB returned out-of-range rows (TV /discover/tv can be loose
-  // about first_air_date.lte).
+  // Client-side date clip — TMDB /discover/tv's `air_date.lte` is
+  // occasionally loose, and `with_origin_country` does not strictly
+  // enforce a release-date-in-region. We drop anything without a
+  // usable date OR with a date outside the window.
   const withDates = merged.filter((t) => {
     const d = t.release_date || t.first_air_date;
-    return !!d && d >= params.startDate && d <= params.endDate;
+    return !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate;
   });
+
+  debug(`merged + filtered: ${withDates.length} title(s) in range`);
+
+  // ── TV enrichment: next episode (season/episode) ───────────────
+  // We only enrich the first 20 TV results to avoid hammering TMDB
+  // (each series is one extra HTTP call). Beyond 20, the card just
+  // shows the first_air_date as fallback.
+  const tvToEnrich = withDates.filter((t) => t.media_type === "tv").slice(0, 20);
+  if (tvToEnrich.length > 0) {
+    debug(`enriching next-episode for ${tvToEnrich.length} TV series`);
+    await Promise.all(
+      tvToEnrich.map(async (t) => {
+        const next = await getNextEpisode(t.id);
+        if (next) {
+          t.seasonNumber = next.season;
+          t.episodeNumber = next.episode;
+          if (next.air_date) t.episodeAirDate = next.air_date;
+        }
+      }),
+    );
+  }
+
+  // ── Watch-provider enrichment: top 20 titles (movie + TV) ──────
+  // Provider calls are expensive (one per title), so we cap at 20.
+  // The rest get an empty `providers` array (the card shows nothing).
+  const titlesForProviders = withDates.slice(0, 20);
+  if (titlesForProviders.length > 0) {
+    debug(`enriching watch-providers for ${titlesForProviders.length} titles`);
+    await Promise.all(
+      titlesForProviders.map(async (t) => {
+        const type: "movie" | "tv" = t.media_type === "tv" ? "tv" : "movie";
+        t.providers = await getWatchProviders(t.id, type, effectiveParams.region);
+      }),
+    );
+  }
 
   // Default sort: date ascending. Caller can re-sort via sortBy.
   withDates.sort((a, b) => {
@@ -304,13 +600,10 @@ export async function getUpcomingTitles(
     return ad.localeCompare(bd);
   });
 
-  debug(`merged + filtered: ${withDates.length} title(s) in range`);
+  debug(`final result: ${withDates.length} title(s)`);
 
   // Last-resort fallback: if BOTH calls failed (rejected) AND we got
-  // zero titles, return mock data so the page isn't blank. We only do
-  // this when we know the API is broken — if the API succeeded but
-  // returned empty, that's a legitimate "no upcoming titles" result
-  // and we should show the empty state instead of fake data.
+  // zero titles, return mock data so the page isn't blank.
   if (withDates.length === 0 && movies.status === "rejected" && tv.status === "rejected") {
     console.warn(
       "[upcoming] Both TMDB calls failed. Falling back to mock data for development. " +
@@ -318,7 +611,7 @@ export async function getUpcomingTitles(
     );
     return getMockUpcomingTitles().filter((t) => {
       const d = t.release_date || t.first_air_date || "";
-      return d >= params.startDate && d <= params.endDate;
+      return d >= effectiveParams.startDate && d <= effectiveParams.endDate;
     });
   }
 
@@ -582,4 +875,8 @@ export async function markReminderSent(reminderId: string): Promise<boolean> {
 }
 
 // Exposed for unit tests / dev tools.
-export const __testing__ = { getMockUpcomingTitles };
+export const __testing__ = {
+  getMockUpcomingTitles,
+  buildMovieParams,
+  buildTvParams,
+};

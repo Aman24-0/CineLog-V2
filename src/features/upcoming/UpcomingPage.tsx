@@ -21,18 +21,28 @@
 //   └─────────────────────────────────────────────────────────────┘
 //
 // State:
-//   • Filters: region, dateRange, genres, platforms, minRating, mediaType.
+//   • Filters: region (driven by profile.country), dateRange, genres,
+//     mediaType. minRating was removed in v3.
 //   • Sort: date | rating | popularity | title (persisted to localStorage).
 //   • View: list | calendar (persisted to localStorage).
 //   • Sheets: filterSheetOpen, notificationsOpen, trailerOpen.
 //   • Trailer state: which TMDB title's trailer to play (or null).
 //
-// All Supabase state (notifications + reminders) flows through the
-// useNotifications hook. TMDB fetches flow through useUpcomingData.
+// Region reactivity:
+//   • The page reads `profile.country` from `useProfileData`. If the
+//     profile is loading or the user has no country set, we fall back
+//     to "US" (TMDB's US release calendar is the densest).
+//   • When the profile loads (or the user changes their country in
+//     settings and navigates back), the region signal updates, which
+//     causes the useUpcomingData hook to refetch with the new region.
+//   • The FilterSheet's Region dropdown can override the region
+//     per-session; resetting filters restores the profile-derived
+//     default.
 
 import {
   createSignal,
   createMemo,
+  createEffect,
   Show,
   For,
   type Component,
@@ -48,6 +58,7 @@ import { normalizeGenres } from "~/shared/utils/genres";
 import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
+import { useProfileData } from "~/features/profile/useProfileData";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 
 import { useUpcomingData } from "./hooks/useUpcomingData";
@@ -70,8 +81,8 @@ import TrailerModal from "./components/TrailerModal";
 // Default region for the Upcoming page when the user has no profile
 // country set. "US" is used because TMDB's US release calendar is the
 // most densely populated — it gives users in unlisted regions a
-// reasonable default. Users with a profile country get that country
-// via the FilterSheet's Region picker (which writes to `filters.region`).
+// reasonable default. The user's actual profile country overrides
+// this as soon as useProfileData resolves.
 const DEFAULT_REGION = "US";
 
 function todayStr(): string {
@@ -89,22 +100,73 @@ const UpcomingPage: Component = () => {
   const { isSignedIn } = useAuth();
   const toast = useToast();
   const { openTitle } = useModalState();
+  const profileData = useProfileData();
+
+  // ── Region derived from the user's profile ─────────────────────
+  // profile.country is a string (NOT nullable in the schema), but it
+  // can be empty "" on legacy accounts. Fall back to DEFAULT_REGION
+  // in that case so TMDB doesn't 422 on an empty region.
+  const profileCountry = createMemo<string>(() => {
+    const c = profileData.data()?.profile?.country ?? "";
+    return c && c.length === 2 ? c : "";
+  });
+
+  // The "effective" region is what we actually send to TMDB. It's the
+  // user-typed region (from the FilterSheet) when set, otherwise the
+  // profile-derived country, otherwise DEFAULT_REGION. We model this
+  // as a separate signal so the FilterSheet can override it without
+  // mutating the profile.
+  const [regionOverride, setRegionOverride] = createSignal<string | null>(null);
+  const effectiveRegion = createMemo<string>(() => {
+    const ov = regionOverride();
+    if (ov) return ov;
+    const pc = profileCountry();
+    if (pc) return pc;
+    return DEFAULT_REGION;
+  });
+
+  // When the profile loads for the first time and there's no override,
+  // we want the FilterSheet to show the user's country as the selected
+  // region. We do this by seeding `regionOverride` once when the
+  // profile country resolves.
+  // Effect: when profileCountry transitions from "" → "XX", copy it
+  // into regionOverride so the filter state mirrors it. If the user
+  // has already chosen a region via the FilterSheet, we DON'T clobber
+  // their choice (regionOverride is already truthy).
+  createEffect(() => {
+    const pc = profileCountry();
+    if (pc && !regionOverride()) {
+      setRegionOverride(pc);
+    }
+  });
 
   // ── Filter + sort + view state ─────────────────────────────────
-  const defaultFilters: UpcomingFilters = {
-    region: DEFAULT_REGION,
+  // NOTE: `minRating` was removed from the UI in v3. The field is
+  // kept on UpcomingFilters for backward-compat (older persisted
+  // localStorage state may still include it) but it's never read.
+  const buildDefaultFilters = (): UpcomingFilters => ({
+    region: effectiveRegion(),
     dateRange: { start: todayStr(), end: addDays(todayStr(), 30) },
     genres: [],
     platforms: [],
     minRating: 0,
     mediaType: "all",
-  };
+  });
 
-  const [filters, setFilters] = createSignal<UpcomingFilters>(defaultFilters);
-  const [draftFilters, setDraftFilters] = createSignal<UpcomingFilters>(defaultFilters);
+  const [filters, setFilters] = createSignal<UpcomingFilters>(buildDefaultFilters());
+  const [draftFilters, setDraftFilters] = createSignal<UpcomingFilters>(filters());
   const [filterSheetOpen, setFilterSheetOpen] = createSignal(false);
   const [sort, setSort] = createSignal(loadUpcomingSort());
   const [view, setView] = createSignal(loadUpcomingView());
+
+  // Keep filters().region in sync with effectiveRegion — when the
+  // profile loads (or the user resets filters), the filter region
+  // should track the profile-derived region unless the user has
+  // explicitly chosen a different one in the FilterSheet.
+  createEffect(() => {
+    const er = effectiveRegion();
+    setFilters((prev) => (prev.region === er ? prev : { ...prev, region: er }));
+  });
 
   // ── Modal state ─────────────────────────────────────────────────
   const [notificationsOpen, setNotificationsOpen] = createSignal(false);
@@ -125,7 +187,6 @@ const UpcomingPage: Component = () => {
       startDate: () => filters().dateRange.start,
       endDate: () => filters().dateRange.end,
       genres: () => filters().genres,
-      minRating: () => filters().minRating,
       mediaType: () => filters().mediaType,
       sortBy: sort,
     },
@@ -237,7 +298,7 @@ const UpcomingPage: Component = () => {
     if (data.isReminderSet(id)) {
       await notif.cancelReminder(id);
     } else {
-      const releaseDate = title.release_date || title.first_air_date;
+      const releaseDate = title.episodeAirDate || title.release_date || title.first_air_date;
       if (!releaseDate) {
         toast.showToast("No release date available for this title.", "info");
         return;
@@ -284,12 +345,20 @@ const UpcomingPage: Component = () => {
     setFilterSheetOpen(true);
   };
   const applyFilters = () => {
-    setFilters(draftFilters());
+    const next = draftFilters();
+    setFilters(next);
+    setRegionOverride(next.region);
     setFilterSheetOpen(false);
   };
   const resetFilters = () => {
-    setDraftFilters(defaultFilters);
-    setFilters(defaultFilters);
+    // Reset brings the filter state back to the profile-derived
+    // default — NOT a hardcoded US default. This means if the user
+    // had picked a different region in the FilterSheet and then
+    // hits Reset, we restore their profile country (or US fallback).
+    setRegionOverride(null);
+    const reset = buildDefaultFilters();
+    setFilters(reset);
+    setDraftFilters(reset);
     setFilterSheetOpen(false);
   };
 
@@ -319,13 +388,12 @@ const UpcomingPage: Component = () => {
   };
 
   // ── Count of active filters (for badge on Filter button) ───────
+  // minRating is intentionally NOT counted — it's always 0 in v3.
   const activeFilterCount = createMemo(() => {
     const f = filters();
     let n = 0;
-    if (f.region !== DEFAULT_REGION) n++;
+    if (f.region !== effectiveRegion()) n++;
     if (f.genres.length) n++;
-    if (f.platforms.length) n++;
-    if (f.minRating > 0) n++;
     if (f.mediaType !== "all") n++;
     return n;
   });
@@ -497,6 +565,7 @@ const UpcomingPage: Component = () => {
         onChange={setDraftFilters}
         onApply={applyFilters}
         onReset={resetFilters}
+        defaultRegion={profileCountry() || undefined}
       />
 
       {/* Notification center */}
@@ -546,5 +615,10 @@ const UpcomingSkeleton: Component = () => (
     </For>
   </div>
 );
+
+// GlassButton is referenced (not used directly here) to keep the
+// import live for downstream consumers that bundle this page with
+// the shared glass index.
+void GlassButton;
 
 export default UpcomingPage;

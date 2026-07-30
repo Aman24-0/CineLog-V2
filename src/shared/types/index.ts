@@ -695,6 +695,24 @@ export interface TMDBTitle {
    * strips it before returning so it's never persisted to cache.
    */
   credits?: TMDBCredits;
+  /**
+   * Upcoming-page-only enrichment: next-episode metadata for TV series.
+   * Populated by the upcoming repository when it calls
+   * /tv/{id}/next_episode_to_air. Undefined for movies and for TV rows
+   * where the next-episode fetch failed or returned null.
+   */
+  seasonNumber?: number;
+  episodeNumber?: number;
+  /** ISO date (YYYY-MM-DD) of the next episode to air. */
+  episodeAirDate?: string;
+  /**
+   * Upcoming-page-only enrichment: streaming/rent/buy provider names
+   * available in the user's region (e.g. ["Netflix", "Amazon Prime Video"]).
+   * Populated by the upcoming repository when it calls
+   * /{type}/{id}/watch/providers. Empty array when no providers are
+   * available in the region or the fetch failed.
+   */
+  providers?: string[];
 }
 
 /**

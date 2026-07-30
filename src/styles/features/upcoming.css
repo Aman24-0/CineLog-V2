@@ -86,6 +86,15 @@
   flex-wrap: wrap;
 }
 
+.upcoming-date-range-label {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  margin: 0;
+  letter-spacing: 0.02em;
+}
+
 .upcoming-date-input-wrap {
   display: flex;
   flex-direction: column;
@@ -215,17 +224,26 @@
 
 .upcoming-view-toggle {
   display: inline-flex;
+  flex-wrap: wrap;
+  gap: 2px;
   padding: 2px;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-pill, 9999px);
+  /* `overflow: hidden` is OK here — the toggle itself is rounded
+     and the buttons sit inside. The buttons get `flex-shrink: 0`
+     so they don't compress, they wrap to the next line instead. */
+  overflow: hidden;
+  max-width: 100%;
 }
 
 .upcoming-view-toggle-btn {
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0.375rem 0.75rem;
+  /* Mobile: tighter padding so both buttons fit on a 320px screen.
+     sm+ restores the comfortable desktop padding. */
+  padding: 0.25rem 0.5rem;
   border: none;
   background: transparent;
   border-radius: var(--radius-pill, 9999px);
@@ -234,7 +252,14 @@
   font-weight: 600;
   color: var(--text-soft, rgba(255, 255, 255, 0.7));
   cursor: pointer;
+  flex-shrink: 0;
+  white-space: nowrap;
   transition: background var(--dur-fast, 120ms), color var(--dur-fast, 120ms);
+}
+@media (min-width: 640px) {
+  .upcoming-view-toggle-btn {
+    padding: 0.375rem 0.75rem;
+  }
 }
 .upcoming-view-toggle-btn .material-symbols-outlined {
   font-size: 14px;
@@ -497,6 +522,55 @@
 }
 .upcoming-card-vault-badge .material-symbols-outlined {
   font-size: 11px;
+}
+
+/* ─── Upcoming card: episode tag (S2 E5) ─────────────────────────── */
+
+.upcoming-card-episode {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--p, #f5c518);
+  background: rgba(245, 197, 24, 0.12);
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  border-radius: 4px;
+  padding: 1px 5px;
+  text-transform: uppercase;
+}
+
+/* ─── Upcoming card: poster fallback initial ─────────────────────── */
+
+.upcoming-card-poster-initial {
+  font-family: 'Outfit', sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  line-height: 1;
+  user-select: none;
+}
+
+/* ─── Upcoming card: provider badges row ─────────────────────────── */
+
+.upcoming-card-providers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.upcoming-card-provider-chip {
+  /* Override GlassBadge's default uppercase — provider names are
+     proper nouns ("Netflix", "Amazon Prime Video") and shouldn't be
+     uppercased. */
+  text-transform: none !important;
+  letter-spacing: 0 !important;
+  font-weight: 600 !important;
+  /* Compact horizontal padding so 3-4 chips fit on a 320px screen. */
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .upcoming-card-actions {
@@ -779,6 +853,13 @@
   position: relative;
   display: inline-flex;
   align-items: center;
+  /* `overflow: visible` (the default) is critical — the chevron
+     is positioned absolute, right: 8px. Any `overflow: hidden`
+     here would clip it on narrow viewports. The wrapper also has
+     `max-w-full` so it never pushes the section wider than its
+     parent, but never clips the chevron. */
+  max-width: 100%;
+  overflow: visible;
 }
 
 .upcoming-filter-select {
@@ -786,6 +867,9 @@
   font-family: 'Outfit', sans-serif;
   font-size: 0.8125rem;
   font-weight: 600;
+  /* pr-8 (2rem right padding) reserves room for the chevron so the
+     longest country label ("United Kingdom") never underlaps the
+     arrow. The chevron is positioned absolute, right: 8px. */
   padding: 0.5rem 2rem 0.5rem 0.75rem;
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
@@ -793,6 +877,10 @@
   color: var(--text-strong, #fff);
   outline: none;
   cursor: pointer;
+  /* Allow the select to shrink on narrow viewports — the chevron
+     stays in place because it's positioned absolute. */
+  max-width: 100%;
+  min-width: 0;
 }
 .upcoming-filter-select option {
   background: var(--void, #0a0c12);

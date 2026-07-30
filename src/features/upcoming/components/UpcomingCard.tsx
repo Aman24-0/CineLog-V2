@@ -6,9 +6,9 @@
 //   ┌─────────────────────────────────────────────────────────────┐
 //   │ ┌──────┐                                                     │
 //   │ │      │  Title (bold)                              [TODAY]  │
-//   │ │ POST │  2026 · Movie · ★ 7.8                                │
+//   │ │ POST │  2026 · Movie · ★ 7.8 · S2 E5                       │
 //   │ │  ER  │  Releases Fri, Jul 31                                │
-//   │ │      │  [Netflix] [Prime]                                   │
+//   │ │      │  [Netflix] [Amazon]                                  │
 //   │ └──────┘                                                     │
 //   │  ▶  Trailer   ＋ Watchlist   🔔 Remind   📤 Share            │
 //   └─────────────────────────────────────────────────────────────┘
@@ -21,10 +21,19 @@
 //
 // Click on the card body (poster/title) opens the Details modal via
 // onOpen.
+//
+// Enrichment (v3):
+//   • TV series with a next episode render "S2 E5" in the metadata row.
+//   • Titles with watch providers render up to 4 GlassBadge chips
+//     below the release date row.
+//   • Poster fallback shows the title's first initial when the path
+//     is null OR the image fails to load (onError swaps in the
+//     fallback element).
 
-import { type Component, Show, createMemo } from "solid-js";
+import { type Component, Show, createMemo, createSignal, For } from "solid-js";
 import type { TMDBTitle } from "~/shared/types";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import { GlassBadge } from "~/shared/ui/glass";
 import CountdownBadge from "./CountdownBadge";
 
 interface UpcomingCardProps {
@@ -67,7 +76,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
     (props.title.release_date || props.title.first_air_date || "").slice(0, 4),
   );
   const releaseDate = createMemo(
-    () => props.title.release_date || props.title.first_air_date || "",
+    () => props.title.episodeAirDate || props.title.release_date || props.title.first_air_date || "",
   );
   const mediaLabel = createMemo(() =>
     props.title.media_type === "tv" ? "Series" : "Movie",
@@ -75,6 +84,30 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
   const rating = createMemo(() =>
     props.title.vote_average ? props.title.vote_average.toFixed(1) : null,
   );
+  // "S2 E5" — only for TV series with a populated next episode.
+  const episodeTag = createMemo(() => {
+    if (props.title.media_type !== "tv") return null;
+    const s = props.title.seasonNumber;
+    const e = props.title.episodeNumber;
+    if (s == null || e == null) return null;
+    return `S${s} E${e}`;
+  });
+  // Up to 4 provider names (the repository already caps at 4 but we
+  // slice again as a safety net).
+  const providers = createMemo(() => (props.title.providers ?? []).slice(0, 4));
+
+  // Poster fallback state — when the <img> errors (broken path, 404,
+  // network failure), we swap to the fallback element. We also start
+  // in fallback mode when there's no poster_path at all.
+  const [posterBroken, setPosterBroken] = createSignal(false);
+  const showPoster = createMemo(
+    () => !!props.title.poster_path && !posterBroken(),
+  );
+  // First letter for the placeholder (used when no poster).
+  const placeholderInitial = createMemo(() => {
+    const t = title() || "?";
+    return t.charAt(0).toUpperCase();
+  });
 
   return (
     <article class="upcoming-card">
@@ -86,16 +119,25 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
         aria-label={`Open details for ${title()}`}
       >
         <Show
-          when={props.title.poster_path}
+          when={showPoster()}
           fallback={
             <div class="upcoming-card-poster-fallback">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "28px", color: "var(--text-dim)" }}
-                aria-hidden="true"
+              <Show
+                when={placeholderInitial()}
+                fallback={
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "28px", color: "var(--text-dim)" }}
+                    aria-hidden="true"
+                  >
+                    movie
+                  </span>
+                }
               >
-                movie
-              </span>
+                <span class="upcoming-card-poster-initial" aria-hidden="true">
+                  {placeholderInitial()}
+                </span>
+              </Show>
             </div>
           }
         >
@@ -105,9 +147,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             loading="lazy"
             decoding="async"
             alt=""
-            onError={(e) => {
-              e.currentTarget.style.display = "none";
-            }}
+            onError={() => setPosterBroken(true)}
           />
         </Show>
         <Show when={releaseDate()}>
@@ -131,6 +171,10 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             <span class="upcoming-card-dot">·</span>
           </Show>
           <span>{mediaLabel()}</span>
+          <Show when={episodeTag()}>
+            <span class="upcoming-card-dot">·</span>
+            <span class="upcoming-card-episode">{episodeTag()}</span>
+          </Show>
           <Show when={rating()}>
             <span class="upcoming-card-dot">·</span>
             <span class="upcoming-card-rating">
@@ -168,6 +212,20 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             </span>
             In your vault
           </span>
+        </Show>
+        <Show when={providers().length > 0}>
+          <div class="upcoming-card-providers" aria-label="Available on">
+            <For each={providers()}>
+              {(name) => (
+                <GlassBadge
+                  size="compact"
+                  intent="default"
+                  label={name}
+                  class="upcoming-card-provider-chip"
+                />
+              )}
+            </For>
+          </div>
         </Show>
       </button>
 

@@ -37,7 +37,11 @@ interface ViewToggleProps {
 
 const ViewToggle: Component<ViewToggleProps> = (props) => {
   return (
-    <div class="upcoming-view-toggle" role="tablist" aria-label="Upcoming view">
+    <div
+      class="upcoming-view-toggle"
+      role="tablist"
+      aria-label="Upcoming view"
+    >
       <button
         type="button"
         role="tab"
