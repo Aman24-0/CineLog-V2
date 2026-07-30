@@ -85,6 +85,7 @@
 import { createSignal, createMemo, createEffect, Show, For, ErrorBoundary, Suspense, type JSX } from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { useAuth } from "~/shared/hooks/useAuth";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
@@ -121,6 +122,7 @@ import SearchResults from "~/features/search/SearchResults";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
+  const { user } = useAuth();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Read URL search params so deep links like `/discover?genre=Sci-Fi`
@@ -168,25 +170,30 @@ export default function DiscoverPage() {
   // vault AND the current date.
   const personalized = usePersonalizedDiscover(watchlist, isGuest);
 
-  // === SPOTLIGHT (daily rotating hero) ===
-  // The existing useSpotlight hook already picks a title from the
-  // user's taste graph. We keep it as the Spotlight — it already
-  // rotates via the seed signal. The "Because you…" reason text is
-  // removed from the UI per the spec (pure artwork + title + overview).
-  const [spotlightSeed, setSpotlightSeed] = createSignal(0);
-  const [spotlightExclude, setSpotlightExclude] = createSignal<number | null>(null);
-  const { pick: spotlightPick, loading: spotlightLoading } = useSpotlight({
-    taste, vault: watchlist, excludeId: spotlightExclude, seed: spotlightSeed,
-  });
+  // === SPOTLIGHT (daily rotating hero, personalized) =================
+  // The Spotlight hook now owns:
+  //   • Daily rotation — caches today's pick per user in localStorage.
+  //   • 30-day no-repeat — every shown/shuffled title is recorded and
+  //     excluded for 30 days.
+  //   • Taste-based selection — uses the strategy chain (because-you-
+  //     watched → hidden-gems → genre-deep-dive → acclaimed-fallback
+  //     → trending) with the user's TasteProfile.
+  //   • Shuffle — adds the current pick to the seen list + fetches a
+  //     new one. The new pick becomes today's cached pick.
+  // The hook's `pick` signal is reactive, so the SpotlightRenderedIds
+  // memo below picks up shuffles automatically and prevents the rest
+  // of Discover from repeating the Spotlight title.
+  const userId = createMemo(() => user()?.uid ?? null);
+  const {
+    pick: spotlightPick,
+    loading: spotlightLoading,
+    error: spotlightError,
+    shuffle: shuffleSpotlight,
+    retry: retrySpotlight,
+  } = useSpotlight({ taste, vault: watchlist, userId });
 
   const feeds = useDiscoverFeeds(region);
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
-
-  const handleReroll = () => {
-    const current = spotlightPick();
-    if (current) setSpotlightExclude(current.title.id);
-    setSpotlightSeed((s) => s + Math.floor(Math.random() * 997) + 1);
-  };
 
   // ── VAULT EXCLUSION + NEW SEASON LOGIC ────────────────────────────
   // `excludedKeys` is the set of "{media_type}/{tmdb_id}" keys for
@@ -485,17 +492,17 @@ export default function DiscoverPage() {
             {/* 2. DAILY ROTATING SPOTLIGHT HERO */}
             <Show when={homepageConfig.isEnabled("spotlight")}>
               <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Spotlight" error={e} />}>
-                <Suspense fallback={<DiscoverSkeleton />}>
-                  <Spotlight
-                    pick={spotlightPick}
-                    loading={spotlightLoading}
-                    isGuest={isGuest()}
-                    vault={watchlist()}
-                    onDetails={handleOpenTitle}
-                    onAddToVault={addToVault}
-                    onReroll={handleReroll}
-                  />
-                </Suspense>
+                <Spotlight
+                  pick={spotlightPick}
+                  loading={spotlightLoading()}
+                  error={spotlightError}
+                  isGuest={isGuest()}
+                  vault={watchlist()}
+                  onDetails={handleOpenTitle}
+                  onAddToVault={addToVault}
+                  onShuffle={() => void shuffleSpotlight()}
+                  onRetry={() => void retrySpotlight()}
+                />
               </ErrorBoundary>
             </Show>
 

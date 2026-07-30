@@ -4,16 +4,22 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRating } from "~/core/preferences";
 import { Button } from "~/shared/ui/primitives";
 import { findInVault } from "~/shared/utils/vaultMatch";
+import SpotlightSkeleton from "./SpotlightSkeleton";
 import type { SpotlightPick, WatchlistItem } from "~/shared/types";
 
 interface SpotlightProps {
-  pick: () => SpotlightPick | null | undefined;
+  pick: () => SpotlightPick | null;
   loading: boolean;
+  /** Human-readable error string. When non-null AND no pick is available, the error UI shows. */
+  error: () => string | null;
   isGuest: boolean;
   vault: WatchlistItem[];
   onDetails: (title: SpotlightPick["title"]) => void;
   onAddToVault: (title: SpotlightPick["title"]) => void;
-  onReroll: () => void;
+  /** Shuffle — record the current pick as seen and fetch a new one. */
+  onShuffle: () => void;
+  /** Retry — re-run the fetcher after an error. */
+  onRetry: () => void;
 }
 
 /**
@@ -23,22 +29,27 @@ interface SpotlightProps {
  * cinematic. Three actions:
  *   - Details (primary) — opens the Details modal
  *   - Add to Vault (primary, secondary emphasis) — one-tap save
- *   - Not in the mood (ghost) — re-rolls the Spotlight
+ *   - Shuffle (ghost) — records the current pick as seen and
+ *     fetches a new one. The skipped title won't reappear for 30 days.
  *
- * REFINEMENTS (personalized-discovery v2):
- *   - Reduced vertical height (480px cap, 50vh on mobile) so the hero
- *     takes up less screen space and the rest of Discover is visible
- *     sooner. Was 560px mobile / 640-680px desktop.
- *   - Removed the "Because you rated X 10/10" attribution text. The
- *     hero now focuses purely on artwork, title, overview, rating,
- *     and CTAs — no editorial reason sentence.
+ * REFINEMENTS (Personalized-Discovery v3):
+ *   • Loading state — renders `<SpotlightSkeleton />` (the SAME shell
+ *     as a populated Spotlight with shimmering bars) instead of the
+ *     old "Try Again" message. The skeleton renders on SSR + initial
+ *     client paint, so the user never sees a flash of the error UI
+ *     during the brief initial fetch.
+ *   • Error state — only shows when the fetcher genuinely fails to
+ *     find any eligible title (all candidates in vault or seen in the
+ *     last 30 days). Includes a Retry button.
+ *   • Daily rotation + 30-day no-repeat + shuffle — driven by the
+ *     `useSpotlight` hook; this component is purely presentational.
  *
  * Visual language inherited from the Details page CinematicHero + the
  * Dashboard DashboardHero: full-bleed backdrop, multi-layer gradient
  * overlay, Bebas Neue display title, v2-pill quick meta, btn-primary
  * + btn-ghost actions.
  *
- * Re-roll animation: backdrop crossfades, title slides up. The motion
+ * Shuffle animation: backdrop crossfades, title slides up. The motion
  * says "we thought about this, here's the next one" — never a slot-
  * machine spin.
  */
@@ -46,7 +57,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
   const [backdropLoaded, setBackdropLoaded] = createSignal(false);
   const [rerollFade, setRerollFade] = createSignal(false);
 
-  // Reset backdrop load state when the pick id changes (re-roll)
+  // Reset backdrop load state when the pick id changes (shuffle)
   let lastId: number | null = null;
   const pick = createMemo(() => {
     const p = props.pick();
@@ -93,61 +104,96 @@ const Spotlight: Component<SpotlightProps> = (props) => {
     return null;
   };
 
-  // Empty / loading / error states
+  // ── Render: skeleton → error → content ────────────────────────────
+  //
+  // Order of precedence:
+  //   1. If we have a pick → render the populated Spotlight.
+  //   2. Else if loading → render the skeleton (no error message).
+  //   3. Else (no pick + not loading) → render the error/empty state
+  //      with a Retry button. The error string comes from the hook;
+  //      if it's null we fall back to a generic message.
+  //
+  // IMPORTANT: the skeleton is rendered as the FIRST fallback so that
+  // the brief initial fetch (50-300ms typical) never shows the error
+  // UI. The error UI only appears when the fetcher genuinely fails.
+
+  const errorMessage = () =>
+    props.error() ?? "We couldn't pick a Spotlight right now. Try again in a moment.";
+
   return (
-    <section
-      class={`spotlight animate-fade-in${rerollFade() ? " spotlight-rerolling" : ""}`}
-      role="region"
-      aria-label="Spotlight — one title picked for you"
-      aria-busy={props.loading}
+    <Show
+      when={pick()}
+      fallback={
+        <Show
+          when={props.loading}
+          fallback={
+            // Error / empty state — only shown when there's no pick AND
+            // we're not loading. This is the genuine "no eligible title"
+            // case, not the brief initial-load flash.
+            <section
+              class="spotlight"
+              role="region"
+              aria-label="Spotlight — unavailable"
+            >
+              <div class="spotlight-backdrop-fallback" aria-hidden="true" />
+              <div class="spotlight-overlay" aria-hidden="true" />
+              <div class="spotlight-badge">
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  auto_awesome
+                </span>
+                Spotlight
+              </div>
+              <div class="spotlight-content">
+                <div class="spotlight-empty">
+                  <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px" }}>
+                    {errorMessage()}
+                  </p>
+                  <Button variant="ghost" size="md" icon="refresh" onClick={props.onRetry}>
+                    Try Again
+                  </Button>
+                </div>
+              </div>
+            </section>
+          }
+        >
+          <SpotlightSkeleton />
+        </Show>
+      }
     >
-      {/* Backdrop */}
-      <Show when={backdropUrl()} fallback={<div class="spotlight-backdrop-fallback" aria-hidden="true" />}>
-        <img
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
-          src={backdropUrl()}
-          class={`spotlight-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
-          loading="eager"
-          decoding="async"
-          {...({ fetchpriority: "high" } as Record<string, string>)}
-          onLoad={() => setBackdropLoaded(true)}
-          alt=""
-          aria-hidden="true"
-        />
-      </Show>
+      <section
+        class={`spotlight animate-fade-in${rerollFade() ? " spotlight-rerolling" : ""}`}
+        role="region"
+        aria-label="Spotlight — one title picked for you"
+        aria-busy={props.loading}
+      >
+        {/* Backdrop */}
+        <Show when={backdropUrl()} fallback={<div class="spotlight-backdrop-fallback" aria-hidden="true" />}>
+          <img
+            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            src={backdropUrl()}
+            class={`spotlight-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
+            loading="eager"
+            decoding="async"
+            {...({ fetchpriority: "high" } as Record<string, string>)}
+            onLoad={() => setBackdropLoaded(true)}
+            alt=""
+            aria-hidden="true"
+          />
+        </Show>
 
-      {/* Multi-layer gradient overlay (5 layers — see CSS for details) */}
-      <div class="spotlight-overlay" aria-hidden="true" />
+        {/* Multi-layer gradient overlay (5 layers — see CSS for details) */}
+        <div class="spotlight-overlay" aria-hidden="true" />
 
-      {/* Top-left badge — the fold identity */}
-      <div class="spotlight-badge">
-        <span class="material-symbols-outlined" aria-hidden="true">
-          auto_awesome
-        </span>
-        Spotlight
-      </div>
+        {/* Top-left badge — the fold identity */}
+        <div class="spotlight-badge">
+          <span class="material-symbols-outlined" aria-hidden="true">
+            auto_awesome
+          </span>
+          Spotlight
+        </div>
 
-      {/* Content cluster */}
-      <div class="spotlight-content">
-        <Show when={pick()} fallback={
-          <Show when={props.loading} fallback={
-            <div class="spotlight-empty">
-              <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px" }}>
-                We couldn't pick a Spotlight right now. Try again in a moment.
-              </p>
-              <Button variant="ghost" size="md" icon="refresh" onClick={props.onReroll}>
-                Try Again
-              </Button>
-            </div>
-          }>
-            <div class="spotlight-skeleton" aria-hidden="true">
-              <div class="spotlight-skeleton-reason" />
-              <div class="spotlight-skeleton-title" />
-              <div class="spotlight-skeleton-meta" />
-              <div class="spotlight-skeleton-actions" />
-            </div>
-          </Show>
-        }>
+        {/* Content cluster */}
+        <div class="spotlight-content">
           {/* Title — no attribution/reason text per the refined spec.
               The hero focuses purely on artwork + title + overview +
               rating + CTAs. */}
@@ -192,7 +238,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
 
           {/* Actions — MOBILE RESTRUCTURE:
               Primary row: [Details] + [Add to Vault] side by side (flex-row).
-              Secondary: [Not in the mood] is a compact icon+text link below,
+              Secondary: [Shuffle] is a compact icon+text link below,
               NOT a giant third pill button. This keeps the backdrop artwork
               visible on mobile instead of covering it with 3 stacked buttons.
               Desktop keeps the original inline layout via the CSS media query. */}
@@ -248,24 +294,29 @@ const Spotlight: Component<SpotlightProps> = (props) => {
               </Show>
             </div>
 
-            {/* Secondary — "Not in the mood" as a compact icon+text link.
+            {/* Secondary — "Shuffle" as a compact icon+text link.
                 On mobile this is a subtle text link below the primary row;
-                on desktop it sits inline with the primary buttons (via CSS). */}
+                on desktop it sits inline with the primary buttons (via CSS).
+                Clicking it records the current pick as seen (30-day cooldown)
+                and fetches a new one. */}
             <button
               type="button"
               class="spotlight-reroll focus-ring"
-              onClick={props.onReroll}
-              aria-label="Not in the mood — show me a different Spotlight"
+              onClick={props.onShuffle}
+              aria-label="Shuffle — show me a different Spotlight"
+              disabled={props.loading}
             >
               <span class="material-symbols-outlined" aria-hidden="true">
                 shuffle
               </span>
-              <span class="spotlight-reroll-label">Not in the mood</span>
+              <span class="spotlight-reroll-label">
+                {props.loading ? "Finding…" : "Shuffle"}
+              </span>
             </button>
           </div>
-        </Show>
-      </div>
-    </section>
+        </div>
+      </section>
+    </Show>
   );
 };
 
