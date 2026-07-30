@@ -389,34 +389,74 @@ interface NextEpisodeInfo {
  * throw — a missing next-episode just means the card shows the
  * series' first_air_date as fallback.
  *
- * Endpoint: /tv/{id}/next_episode_to_air
- * Docs: https://developer.themoviedb.org/reference/tv-series-next-episode-to-air
+ * v6 fix: The dedicated `/tv/{id}/next_episode_to_air` endpoint has
+ * become unreliable — TMDB returns HTTP 404 for many popular series
+ * (House of the Dragon, Silo, etc.) even when a next episode IS
+ * scheduled. However, the `/tv/{id}` series-details endpoint reliably
+ * includes a `next_episode_to_air` field with the same data. So we
+ * now try the dedicated endpoint first (smaller payload), and fall
+ * back to the series-details endpoint on 404 or empty response.
+ *
+ * Endpoints:
+ *   Primary: /tv/{id}/next_episode_to_air
+ *   Fallback: /tv/{id} (extract `next_episode_to_air` field)
  */
 export async function getNextEpisode(
   tvId: number | string,
 ): Promise<NextEpisodeInfo | null> {
+  // ── Primary: dedicated next_episode_to_air endpoint ──────────
   try {
     const url = `${API}/tv/${tvId}/next_episode_to_air?language=en-US`;
     const res = await fetchWithTimeout(url);
+    if (res.ok) {
+      const data = await res.json() as {
+        season_number?: number;
+        episode_number?: number;
+        air_date?: string | null;
+      } | null;
+      if (data && data.season_number != null && data.episode_number != null) {
+        return {
+          season: data.season_number,
+          episode: data.episode_number,
+          air_date: data.air_date ?? null,
+        };
+      }
+    } else {
+      debug(`[next-episode] tv/${tvId} primary HTTP ${res.status} — falling back to /tv/{id}`);
+    }
+  } catch (err) {
+    debug(`[next-episode] tv/${tvId} primary error:`, err);
+  }
+
+  // ── Fallback: /tv/{id} series details (includes next_episode_to_air) ──
+  // The dedicated endpoint returns 404 for many series even when a
+  // next episode exists. The /tv/{id} response always includes the
+  // `next_episode_to_air` field (null when no next episode is scheduled).
+  try {
+    const url = `${API}/tv/${tvId}?language=en-US`;
+    const res = await fetchWithTimeout(url);
     if (!res.ok) {
-      debug(`[next-episode] tv/${tvId} HTTP ${res.status}`);
+      debug(`[next-episode] tv/${tvId} fallback HTTP ${res.status}`);
       return null;
     }
     const data = await res.json() as {
-      season_number?: number;
-      episode_number?: number;
-      air_date?: string | null;
+      next_episode_to_air?: {
+        season_number?: number;
+        episode_number?: number;
+        air_date?: string | null;
+      } | null;
     } | null;
-    if (!data || data.season_number == null || data.episode_number == null) {
+    const ep = data?.next_episode_to_air;
+    if (!ep || ep.season_number == null || ep.episode_number == null) {
       return null;
     }
     return {
-      season: data.season_number,
-      episode: data.episode_number,
-      air_date: data.air_date ?? null,
+      season: ep.season_number,
+      episode: ep.episode_number,
+      air_date: ep.air_date ?? null,
     };
   } catch (err) {
-    debug(`[next-episode] tv/${tvId} error:`, err);
+    debug(`[next-episode] tv/${tvId} fallback error:`, err);
     return null;
   }
 }

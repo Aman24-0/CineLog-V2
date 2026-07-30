@@ -324,7 +324,12 @@ const UpcomingPage: Component = () => {
 
   const handleShare = async (title: TMDBTitle) => {
     const name = title.title || title.name || "this title";
-    const url = `${window.location.origin}/details/${title.media_type}/${title.id}`;
+    // Share link uses the canonical deep-link route /{type}/{id}
+    // (e.g. /tv/125988, /movie/550). The old /details/{type}/{id}
+    // format was a 404 — there's a redirect route in place for
+    // backwards compatibility with old shared links, but new shares
+    // should use the correct path directly.
+    const url = `${window.location.origin}/${title.media_type}/${title.id}`;
     const shareData = {
       title: `CineLog — ${name}`,
       text: `Check out ${name} on CineLog.`,
@@ -582,9 +587,9 @@ const UpcomingPage: Component = () => {
         onMarkAllRead={notif.markAllRead}
         onClearRead={notif.clearRead}
         onOpenTitle={(relatedId, relatedType) => {
-          // We only have the TMDB id — navigate to the details route.
-          // The Details modal can be opened from there.
-          navigate(`/details/${relatedType ?? "movie"}/${relatedId}`);
+          // Navigate to the canonical deep-link route /{type}/{id}.
+          // The Details modal opens automatically from there.
+          navigate(`/${relatedType ?? "movie"}/${relatedId}`);
         }}
       />
 

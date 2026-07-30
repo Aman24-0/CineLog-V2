@@ -574,6 +574,42 @@
   text-transform: uppercase;
 }
 
+/* ─── Upcoming card: next-episode row (S3 E7 · Aug 2) ───────────── */
+/* Prominent row showing the next episode number and actual air date
+   for TV series. Only rendered when next-episode data is available. */
+
+.upcoming-card-episode-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text, #fff);
+  margin: 4px 0 2px;
+  padding: 4px 8px;
+  background: rgba(245, 197, 24, 0.08);
+  border: 1px solid rgba(245, 197, 24, 0.18);
+  border-radius: 6px;
+  align-self: flex-start;
+  max-width: 100%;
+}
+.upcoming-card-episode-row .material-symbols-outlined {
+  font-size: 14px;
+  color: var(--p, #f5c518);
+}
+.upcoming-card-episode-tag {
+  font-family: 'Azeret Mono', monospace;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--p, #f5c518);
+  text-transform: uppercase;
+}
+.upcoming-card-episode-date {
+  color: var(--text-soft, rgba(255, 255, 255, 0.85));
+  font-weight: 600;
+}
+
 /* ─── Upcoming card: poster fallback initial ─────────────────────── */
 
 .upcoming-card-poster-initial {

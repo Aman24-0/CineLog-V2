@@ -150,7 +150,7 @@ const AppHeader: Component = () => {
           onClearRead={notif.clearRead}
           onOpenTitle={(relatedId, relatedType) => {
             setNotifOpen(false);
-            navigate(`/details/${relatedType ?? "movie"}/${relatedId}`);
+            navigate(`/${relatedType ?? "movie"}/${relatedId}`);
           }}
         />
       </Show>

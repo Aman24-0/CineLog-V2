@@ -68,7 +68,6 @@ function relativeDate(dateStr: string, isTvWithMissingEpisode?: boolean): string
   const diff = Math.round((d.getTime() - now.getTime()) / 86400000);
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
-  if (diff > 1 && diff < 7) return `In ${diff} days`;
   if (diff < 0) {
     // For TV series where we only have first_air_date (premiere date in
     // the past) and we couldn't fetch the next-episode air date, the
@@ -79,8 +78,24 @@ function relativeDate(dateStr: string, isTvWithMissingEpisode?: boolean): string
     if (isTvWithMissingEpisode) return "Series returning";
     return "Out now";
   }
+  // For dates >1 day in the future, show the actual calendar date
+  // (e.g., "Aug 2") so the user knows exactly when the episode/movie
+  // is releasing. Previously this showed "In N days" for 2-6 days,
+  // which is less informative for upcoming releases.
   return d.toLocaleDateString(undefined, {
-    weekday: "short",
+    month: "short",
+    day: "numeric",
+  });
+}
+
+/**
+ * Format an ISO date string as a compact actual date (e.g., "Aug 2").
+ * Used for TV series with next-episode info, where the user wants to
+ * see the exact release date alongside the episode number.
+ */
+function formatActualDate(dateStr: string): string {
+  const d = new Date(dateStr + "T00:00:00");
+  return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
   });
@@ -191,10 +206,6 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             <span class="upcoming-card-dot">·</span>
           </Show>
           <span>{mediaLabel()}</span>
-          <Show when={episodeTag()}>
-            <span class="upcoming-card-dot">·</span>
-            <span class="upcoming-card-episode">{episodeTag()}</span>
-          </Show>
           <Show when={rating()}>
             <span class="upcoming-card-dot">·</span>
             <span class="upcoming-card-rating">
@@ -209,6 +220,26 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             </span>
           </Show>
         </p>
+        {/* ── Next-episode row (TV series only) ─────────────────────
+            Shows "S3 E7 · Aug 2" prominently so the user knows exactly
+            which episode is releasing and when. Only rendered when we
+            have next-episode data (seasonNumber + episodeNumber). */}
+        <Show when={episodeTag() && releaseDate()}>
+          <p class="upcoming-card-episode-row">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
+              tv
+            </span>
+            <span class="upcoming-card-episode-tag">{episodeTag()}</span>
+            <span class="upcoming-card-dot">·</span>
+            <span class="upcoming-card-episode-date">
+              {formatActualDate(releaseDate())}
+            </span>
+          </p>
+        </Show>
         <p class="upcoming-card-release">
           <span
             class="material-symbols-outlined"
