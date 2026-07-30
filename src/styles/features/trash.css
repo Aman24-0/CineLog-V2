@@ -1,0 +1,531 @@
+/* src/styles/features/trash.css
+   ============================================================
+   Trash Page v3 — Redesigned styles
+   ------------------------------------------------------------
+   Visual language: Glass design system (frosted cards, hairline
+   borders, golden accent). All cards use the .glass-card base from
+   GlassCard.tsx; this file adds Trash-specific layout overrides,
+   the action bar, header, empty state, error state, and skeleton
+   shimmer.
+
+   Responsive: at max-width: 480px the cards collapse to a tighter
+   layout (smaller poster, smaller buttons, single-row actions).
+   ============================================================ */
+
+/* ─── Page shell ─────────────────────────────────────────────── */
+
+.trash-page {
+  padding-top: var(--sp-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+}
+
+.trash-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4);
+  min-height: 50vh;
+}
+
+/* ─── Header ─────────────────────────────────────────────────── */
+
+.trash-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-2);
+}
+
+.trash-header-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  min-height: 36px;
+}
+
+.trash-back-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 10px 6px 4px;
+  background: transparent;
+  border: none;
+  color: var(--text-soft);
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  cursor: pointer;
+  border-radius: var(--radius-md);
+  transition: color var(--dur-fast) var(--ease-out),
+              background var(--dur-fast) var(--ease-out);
+}
+.trash-back-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+.trash-back-btn:hover {
+  color: var(--p);
+  background: var(--tier-2);
+}
+
+.trash-header-count {
+  /* GlassBadge already provides the visual; this just nudges the
+     alignment so the badge sits flush with the back arrow. */
+  flex-shrink: 0;
+}
+
+.trash-header-titles {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+/* ─── Action bar ─────────────────────────────────────────────── */
+
+.trash-action-bar {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-2);
+}
+
+.trash-action-restore-all,
+.trash-action-clear {
+  flex: 1;
+}
+
+/* ─── Group renderer ─────────────────────────────────────────── */
+
+.trash-group {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.trash-group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 var(--sp-1);
+  margin-top: var(--sp-2);
+}
+
+.trash-group-label {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+}
+
+.trash-group-count {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--text-dim);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: 9999px;
+  padding: 1px 8px;
+}
+
+.trash-group-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+/* ─── Item card ──────────────────────────────────────────────── */
+
+.trash-item-card {
+  /* Override GlassCard's default padding to give the row a tighter,
+     more list-like rhythm. The internal poster + info + actions
+     rows handle their own padding. */
+  padding: var(--sp-3) !important;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.trash-item-card-row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+
+/* Poster thumbnail — 60×90 by default, 80×120 on desktop */
+.trash-item-card-poster {
+  width: 60px;
+  height: 90px;
+  flex-shrink: 0;
+  border-radius: var(--radius-sm, 4px);
+  overflow: hidden;
+  background: var(--tier-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--hairline-2);
+}
+@media (min-width: 640px) {
+  .trash-item-card-poster {
+    width: 80px;
+    height: 120px;
+  }
+}
+
+.trash-item-card-poster-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.trash-item-card-poster-fallback {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(
+    135deg,
+    var(--tier-3) 0%,
+    var(--tier-2) 100%
+  );
+}
+.trash-item-card-poster-fallback .material-symbols-outlined {
+  font-size: 28px;
+  color: var(--text-dim);
+}
+
+.trash-item-card-poster-initial {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 2rem;
+  font-weight: 700;
+  color: var(--text-soft);
+  line-height: 1;
+  user-select: none;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Folder variant — uses the same dimensions but with a folder icon */
+.trash-item-card-poster-folder .trash-item-card-poster-fallback {
+  background: linear-gradient(
+    135deg,
+    rgba(245, 197, 24, 0.08) 0%,
+    var(--tier-2) 100%
+  );
+}
+.trash-item-card-poster-folder .trash-item-card-poster-fallback .material-symbols-outlined {
+  color: var(--p);
+  opacity: 0.7;
+}
+
+/* Info column */
+.trash-item-card-info {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trash-item-card-title-row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.trash-item-card-title {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-strong);
+  margin: 0;
+  line-height: 1.3;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.trash-item-card-year {
+  font-family: 'Azeret Mono', monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+.trash-item-card-meta-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.trash-item-card-meta-dot {
+  color: var(--text-dim);
+  font-size: 0.625rem;
+}
+
+.trash-item-card-meta-text {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--text-soft);
+}
+
+.trash-item-card-expiry {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+.trash-item-card-expiry .material-symbols-outlined {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+/* Actions row — two equal-width buttons */
+.trash-item-card-actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.trash-item-card-restore,
+.trash-item-card-delete {
+  flex: 1;
+}
+
+/* ─── Empty state ────────────────────────────────────────────── */
+
+.trash-empty-state-wrapper {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-8) var(--sp-2);
+}
+
+.trash-empty-state {
+  max-width: 420px;
+  width: 100%;
+}
+
+/* ─── Error state ────────────────────────────────────────────── */
+
+.trash-error {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: var(--sp-10) var(--sp-4);
+  gap: var(--sp-3);
+}
+
+.trash-error-title {
+  font-family: 'Bebas Neue', sans-serif;
+  font-size: 1.5rem;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.trash-error-desc {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 320px;
+  line-height: 1.5;
+}
+
+/* ─── Skeleton (loading) ─────────────────────────────────────── */
+
+.trash-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+
+.trash-item-card-skeleton {
+  pointer-events: none;
+}
+
+.trash-skeleton-poster {
+  width: 60px;
+  height: 90px;
+  border-radius: var(--radius-sm, 4px);
+  background: var(--tier-3);
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+@media (min-width: 640px) {
+  .trash-skeleton-poster {
+    width: 80px;
+    height: 120px;
+  }
+}
+
+.trash-skeleton-line {
+  height: 12px;
+  border-radius: 4px;
+  background: var(--tier-3);
+  position: relative;
+  overflow: hidden;
+}
+.trash-skeleton-line-title {
+  width: 70%;
+  height: 16px;
+}
+.trash-skeleton-line-meta {
+  width: 50%;
+  height: 10px;
+}
+.trash-skeleton-line-expiry {
+  width: 35%;
+  height: 10px;
+}
+
+.trash-skeleton-btn {
+  flex: 1;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--tier-3);
+  position: relative;
+  overflow: hidden;
+}
+
+/* Shimmer animation shared by all skeleton elements */
+.trash-skeleton-poster::after,
+.trash-skeleton-line::after,
+.trash-skeleton-btn::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.06) 50%,
+    transparent 100%
+  );
+  background-size: 200% 100%;
+  animation: trash-shimmer 1.8s ease-in-out infinite;
+}
+
+@keyframes trash-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ─── Confirm dialog ─────────────────────────────────────────── */
+
+.trash-confirm-dialog .modal-glass-surface {
+  /* Slightly smaller padding for a tight confirmation dialog */
+  padding: var(--sp-5);
+}
+
+.trash-confirm-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.trash-confirm-message {
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  line-height: 1.55;
+  margin: 0;
+  text-align: center;
+}
+
+.trash-confirm-warning-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-family: 'Outfit', sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  border-radius: var(--radius-sm, 4px);
+  padding: 6px 10px;
+  margin: 0;
+}
+.trash-confirm-warning-row .material-symbols-outlined {
+  font-size: 14px;
+}
+
+.trash-confirm-actions {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+}
+
+/* ─── Mobile responsive ──────────────────────────────────────── */
+
+@media (max-width: 480px) {
+  .trash-page {
+    padding-top: var(--sp-4);
+    gap: var(--sp-3);
+  }
+
+  .trash-action-bar {
+    gap: var(--sp-2);
+  }
+
+  .trash-item-card {
+    padding: var(--sp-2) !important;
+    gap: var(--sp-2);
+  }
+
+  .trash-item-card-row {
+    gap: var(--sp-2);
+  }
+
+  .trash-item-card-title {
+    font-size: 0.875rem;
+    -webkit-line-clamp: 1;
+  }
+
+  /* On very small screens, stack the action buttons vertically to
+     give each one full width — easier to tap. */
+  .trash-item-card-actions {
+    flex-direction: column;
+    gap: var(--sp-1);
+  }
+
+  .trash-group-list {
+    gap: var(--sp-2);
+  }
+
+  .trash-empty-state-wrapper {
+    padding: var(--sp-6) var(--sp-2);
+  }
+}
+
+/* ─── Reduce motion ──────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .trash-skeleton-poster::after,
+  .trash-skeleton-line::after,
+  .trash-skeleton-btn::after {
+    animation: none;
+  }
+  .sec-fade-in {
+    animation: none !important;
+  }
+}
