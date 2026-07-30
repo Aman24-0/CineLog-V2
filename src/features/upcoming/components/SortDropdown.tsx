@@ -4,7 +4,7 @@
 // system. Options: Date (asc), Rating (desc), Popularity (desc),
 // Title (asc). Persisted to localStorage.
 
-import { type Component, type Accessor } from "solid-js";
+import { type Component, type Accessor, For } from "solid-js";
 import type { UpcomingSort } from "../hooks/useUpcomingData";
 
 const STORAGE_KEY = "cinelog:upcoming:sort";
@@ -39,13 +39,16 @@ const OPTIONS: { value: UpcomingSort; label: string; icon: string }[] = [
   { value: "date", label: "Release Date", icon: "event" },
   { value: "rating", label: "Rating", icon: "star" },
   { value: "popularity", label: "Popularity", icon: "trending_up" },
-  { value: "title", label: "Title (A–Z)", icon: "sort_by_alpha" },
+  { value: "title", label: "Title (A–Z)", icon: "sort_by_alpha" }
 ];
 
 const SortDropdown: Component<SortDropdownProps> = (props) => {
   return (
     <label class="upcoming-sort-dropdown">
-      <span class="material-symbols-outlined upcoming-sort-icon" aria-hidden="true">
+      <span
+        class="material-symbols-outlined upcoming-sort-icon"
+        aria-hidden="true"
+      >
         sort
       </span>
       <select
@@ -54,11 +57,14 @@ const SortDropdown: Component<SortDropdownProps> = (props) => {
         onChange={(e) => props.onChange(e.currentTarget.value as UpcomingSort)}
         aria-label="Sort upcoming titles"
       >
-        {OPTIONS.map((o) => (
-          <option value={o.value}>{o.label}</option>
-        ))}
+        <For each={OPTIONS}>
+          {(o) => <option value={o.value}>{o.label}</option>}
+        </For>
       </select>
-      <span class="material-symbols-outlined upcoming-sort-chevron" aria-hidden="true">
+      <span
+        class="material-symbols-outlined upcoming-sort-chevron"
+        aria-hidden="true"
+      >
         expand_more
       </span>
     </label>

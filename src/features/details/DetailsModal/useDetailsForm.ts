@@ -48,7 +48,7 @@ export interface UseDetailsFormResult {
 }
 
 export function useDetailsForm(
-  vaultItem: Accessor<WatchlistItem | null>,
+  vaultItem: Accessor<WatchlistItem | null>
 ): UseDetailsFormResult {
   const [isEditing, setIsEditing] = createSignal(false);
   const [form, setFormState] = createSignal<DetailsFormState>({
@@ -60,7 +60,7 @@ export function useDetailsForm(
     rewatchDates: [],
     seasonDates: {},
     seasonRewatchCount: "0",
-    seasonRewatchDates: [],
+    seasonRewatchDates: []
   });
 
   const resetTo = (v: WatchlistItem | null) => {
@@ -85,16 +85,22 @@ export function useDetailsForm(
       const seasonDates = v.seasonDates ? { ...v.seasonDates } : {};
       const seasonRewatchCount = v.seasonRewatchCount ?? 0;
       let seasonRewatchDates: Record<string, { start: string; end: string }>[];
-      if (v.seasonRewatchDates && v.seasonRewatchDates.length === seasonRewatchCount) {
+      if (
+        v.seasonRewatchDates &&
+        v.seasonRewatchDates.length === seasonRewatchCount
+      ) {
         seasonRewatchDates = v.seasonRewatchDates.map((m) => ({ ...m }));
       } else if (v.seasonRewatchDates && v.seasonRewatchDates.length > 0) {
         seasonRewatchDates = v.seasonRewatchDates.map((m) => ({ ...m }));
-        while (seasonRewatchDates.length < seasonRewatchCount) seasonRewatchDates.push({});
+        while (seasonRewatchDates.length < seasonRewatchCount)
+          seasonRewatchDates.push({});
         if (seasonRewatchDates.length > seasonRewatchCount) {
           seasonRewatchDates = seasonRewatchDates.slice(0, seasonRewatchCount);
         }
       } else {
-        seasonRewatchDates = new Array(seasonRewatchCount).fill(null).map(() => ({}));
+        seasonRewatchDates = new Array(seasonRewatchCount)
+          .fill(null)
+          .map(() => ({}));
       }
 
       setFormState({
@@ -106,7 +112,7 @@ export function useDetailsForm(
         rewatchDates: dates,
         seasonDates,
         seasonRewatchCount: String(seasonRewatchCount),
-        seasonRewatchDates,
+        seasonRewatchDates
       });
     } else {
       // Non-vault title — reset the form to defaults (no user-owned state)
@@ -119,7 +125,7 @@ export function useDetailsForm(
         rewatchDates: [],
         seasonDates: {},
         seasonRewatchCount: "0",
-        seasonRewatchDates: [],
+        seasonRewatchDates: []
       });
     }
     setIsEditing(false);
@@ -147,14 +153,18 @@ export function useDetailsForm(
     // SERIES per-season comparison
     const itemSeasonDates = v.seasonDates ?? {};
     const formSeasonDates = form().seasonDates;
-    const seasonDatesEqual = JSON.stringify(itemSeasonDates) === JSON.stringify(formSeasonDates);
+    const seasonDatesEqual =
+      JSON.stringify(itemSeasonDates) === JSON.stringify(formSeasonDates);
     const currentSeasonRewatch = Number(form().seasonRewatchCount) || 0;
     const itemSeasonRewatch = v.seasonRewatchCount ?? 0;
     const itemSeasonRewatchDates = v.seasonRewatchDates ?? [];
     const formSeasonRewatchDates = form().seasonRewatchDates;
     const seasonRewatchDatesEqual =
       itemSeasonRewatchDates.length === formSeasonRewatchDates.length &&
-      itemSeasonRewatchDates.every((m, i) => JSON.stringify(m) === JSON.stringify(formSeasonRewatchDates[i] ?? {}));
+      itemSeasonRewatchDates.every(
+        (m, i) =>
+          JSON.stringify(m) === JSON.stringify(formSeasonRewatchDates[i] ?? {})
+      );
     return (
       form().status !== (v.status || "Planned") ||
       currentRating !== itemRating ||
@@ -201,7 +211,7 @@ export function useDetailsForm(
           ...prev,
           rewatchCount: String(newCount),
           rewatchDates: newDates,
-          watchDate: newDates[0] ?? "",
+          watchDate: newDates[0] ?? ""
         };
       }
       if (key === "rewatchDates") {
@@ -210,11 +220,12 @@ export function useDetailsForm(
           const newDates = [...prev.rewatchDates];
           while (newDates.length <= parsed.index) newDates.push("");
           newDates[parsed.index] = parsed.date;
-          const newWatchDate = parsed.index === 0 ? parsed.date : prev.watchDate;
+          const newWatchDate =
+            parsed.index === 0 ? parsed.date : prev.watchDate;
           return {
             ...prev,
             rewatchDates: newDates,
-            watchDate: newWatchDate,
+            watchDate: newWatchDate
           };
         } catch {
           return prev;
@@ -223,12 +234,19 @@ export function useDetailsForm(
       if (key === "seasonDates") {
         // value is JSON: {"season":"1","field":"start"|"end","date":"YYYY-MM-DD"}
         try {
-          const parsed = JSON.parse(value) as { season: string; field: "start" | "end"; date: string };
+          const parsed = JSON.parse(value) as {
+            season: string;
+            field: "start" | "end";
+            date: string;
+          };
           const newSeasonDates = { ...prev.seasonDates };
-          const existing = newSeasonDates[parsed.season] ?? { start: "", end: "" };
+          const existing = newSeasonDates[parsed.season] ?? {
+            start: "",
+            end: ""
+          };
           newSeasonDates[parsed.season] = {
             ...existing,
-            [parsed.field]: parsed.date,
+            [parsed.field]: parsed.date
           };
           return { ...prev, seasonDates: newSeasonDates };
         } catch {
@@ -245,7 +263,7 @@ export function useDetailsForm(
         return {
           ...prev,
           seasonRewatchCount: String(newCount),
-          seasonRewatchDates: newRewatchDates,
+          seasonRewatchDates: newRewatchDates
         };
       }
       if (key === "seasonRewatchDates") {
@@ -258,12 +276,13 @@ export function useDetailsForm(
             date: string;
           };
           const newRewatchDates = [...prev.seasonRewatchDates];
-          while (newRewatchDates.length <= parsed.rewatchIndex) newRewatchDates.push({});
+          while (newRewatchDates.length <= parsed.rewatchIndex)
+            newRewatchDates.push({});
           const entry = { ...newRewatchDates[parsed.rewatchIndex] };
           const existing = entry[parsed.season] ?? { start: "", end: "" };
           entry[parsed.season] = {
             ...existing,
-            [parsed.field]: parsed.date,
+            [parsed.field]: parsed.date
           };
           newRewatchDates[parsed.rewatchIndex] = entry;
           return { ...prev, seasonRewatchDates: newRewatchDates };
@@ -282,6 +301,6 @@ export function useDetailsForm(
     isDirty,
     resetTo,
     isEditing,
-    setIsEditing,
+    setIsEditing
   };
 }

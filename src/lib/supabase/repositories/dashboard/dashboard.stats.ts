@@ -71,7 +71,7 @@ export async function getVaultCounts(
     watching: 0,
     completed: 0,
     onHold: 0,
-    dropped: 0,
+    dropped: 0
   };
   let favorites = 0;
   let pinned = 0;
@@ -79,11 +79,21 @@ export async function getVaultCounts(
   for (const row of rows) {
     // Count by status
     switch (row.status) {
-      case "planned":   byStatus.planned++;   break;
-      case "watching":  byStatus.watching++;  break;
-      case "completed": byStatus.completed++; break;
-      case "on_hold":   byStatus.onHold++;    break;
-      case "dropped":   byStatus.dropped++;   break;
+      case "planned":
+        byStatus.planned++;
+        break;
+      case "watching":
+        byStatus.watching++;
+        break;
+      case "completed":
+        byStatus.completed++;
+        break;
+      case "on_hold":
+        byStatus.onHold++;
+        break;
+      case "dropped":
+        byStatus.dropped++;
+        break;
     }
     if (row.is_favorite) favorites++;
     if (row.is_pinned) pinned++;
@@ -131,7 +141,8 @@ export async function getCollectionCounts(
 
   for (const row of rows) {
     if (row.collection_type === "user" && row.user_id === userId) user++;
-    else if (row.collection_type === "curated" && row.user_id === null) curated++;
+    else if (row.collection_type === "curated" && row.user_id === null)
+      curated++;
     else if (row.collection_type === "smart" && row.user_id === userId) smart++;
   }
 

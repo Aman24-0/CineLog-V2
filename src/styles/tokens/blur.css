@@ -12,12 +12,12 @@
 
     /* ─── Semantic blur scale (new) ───
        Maps to the hardcoded blur values found in components. */
-    --blur-xs: 4px;       /* Episode card number backdrop */
-    --blur-sm: 8px;       /* Tag chip, rating chip, relationship pill, collection badge */
-    --blur-md: 12px;      /* Close button, badge-accent, search bar, spotlight badge */
-    --blur-lg: 20px;      /* = --glass-blur — Rating cluster backdrop, profile shimmer, scroll-to-top */
-    --blur-xl: 24px;      /* Toast, search bar sticky */
-    --blur-2xl: 28px;     /* = calc(--glass-blur + 8px) — Filter drawer, action dock, strong glass */
-    --blur-3xl: 60px;     /* Cinematic ambient backdrop */
+    --blur-xs: 4px; /* Episode card number backdrop */
+    --blur-sm: 8px; /* Tag chip, rating chip, relationship pill, collection badge */
+    --blur-md: 12px; /* Close button, badge-accent, search bar, spotlight badge */
+    --blur-lg: 20px; /* = --glass-blur — Rating cluster backdrop, profile shimmer, scroll-to-top */
+    --blur-xl: 24px; /* Toast, search bar sticky */
+    --blur-2xl: 28px; /* = calc(--glass-blur + 8px) — Filter drawer, action dock, strong glass */
+    --blur-3xl: 60px; /* Cinematic ambient backdrop */
   }
 }

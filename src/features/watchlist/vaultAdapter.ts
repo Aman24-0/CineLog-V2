@@ -35,7 +35,7 @@ import { getVaultRepository } from "~/lib/supabase/repositories";
 import type {
   VaultIdentity,
   VaultStatus,
-  VaultUpdate,
+  VaultUpdate
 } from "~/lib/supabase/repositories";
 import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 import type { WatchlistItem } from "~/shared/types";
@@ -47,7 +47,7 @@ export {
   fetchVaultFromSupabase,
   vaultIdentity,
   createVaultItemInSupabase,
-  upsertVaultItemInSupabase,
+  upsertVaultItemInSupabase
 } from "./vaultReadAdapter";
 
 // ---------------------------------------------------------------------------
@@ -59,13 +59,14 @@ export async function updateStatusInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  status: string,
+  status: string
 ): Promise<void> {
   const repo = getVaultRepository();
-  const vaultStatus = (STATUS_TO_DB[status as WatchlistItem["status"]] ?? "planned") as VaultStatus;
+  const vaultStatus = (STATUS_TO_DB[status as WatchlistItem["status"]] ??
+    "planned") as VaultStatus;
   const { error } = await repo.updateStatus(
     { userId, tmdbId: Number(itemId), mediaType },
-    vaultStatus,
+    vaultStatus
   );
   if (error) throw error;
 }
@@ -75,12 +76,12 @@ export async function updateRatingInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  rating: number,
+  rating: number
 ): Promise<void> {
   const repo = getVaultRepository();
   const { error } = await repo.updateRating(
     { userId, tmdbId: Number(itemId), mediaType },
-    rating,
+    rating
   );
   if (error) throw error;
 }
@@ -90,12 +91,12 @@ export async function updateNotesInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  notes: string,
+  notes: string
 ): Promise<void> {
   const repo = getVaultRepository();
   const { error } = await repo.updateNotes(
     { userId, tmdbId: Number(itemId), mediaType },
-    notes,
+    notes
   );
   if (error) throw error;
 }
@@ -119,7 +120,7 @@ export async function updateWatchDateInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  watchDate: string,
+  watchDate: string
 ): Promise<void> {
   const repo = getVaultRepository();
   let update: VaultUpdate;
@@ -141,7 +142,7 @@ export async function updateWatchDateInSupabase(
     // started_at and completed_at is fine.
     update = {
       started_at: watchDate || null,
-      completed_at: watchDate || null,
+      completed_at: watchDate || null
     };
   } else {
     // Movie: write to watched_on only. Never touch started_at/completed_at
@@ -150,7 +151,7 @@ export async function updateWatchDateInSupabase(
   }
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    update,
+    update
   );
   if (error) throw error;
 }
@@ -177,7 +178,7 @@ export async function updateRewatchInSupabase(
   itemId: string,
   mediaType: WatchlistItem["media_type"],
   rewatchCount: number,
-  rewatchDates: string[],
+  rewatchDates: string[]
 ): Promise<void> {
   const repo = getVaultRepository();
   // Filter out empty strings — only persist dates that are actually set.
@@ -186,11 +187,11 @@ export async function updateRewatchInSupabase(
   // First attempt: write both count + dates together.
   const combinedUpdate = {
     rewatch_count: rewatchCount,
-    rewatch_dates: cleanDates,
+    rewatch_dates: cleanDates
   } as VaultUpdate;
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    combinedUpdate,
+    combinedUpdate
   );
 
   if (!error) return;
@@ -198,15 +199,19 @@ export async function updateRewatchInSupabase(
   // If the error looks like "column rewatch_dates does not exist",
   // fall back to writing only rewatch_count (which already exists).
   const msg = String(error?.message ?? error ?? "").toLowerCase();
-  if (msg.includes("rewatch_dates") || msg.includes("does not exist") || msg.includes("column")) {
+  if (
+    msg.includes("rewatch_dates") ||
+    msg.includes("does not exist") ||
+    msg.includes("column")
+  ) {
     console.warn(
       "[vaultAdapter] rewatch_dates column not found — falling back to rewatch_count only. " +
-      "Run scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable date tracking.",
-      error,
+        "Run scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable date tracking.",
+      error
     );
     const { error: countOnlyError } = await repo.updateVaultItem(
       { userId, tmdbId: Number(itemId), mediaType },
-      { rewatch_count: rewatchCount } as VaultUpdate,
+      { rewatch_count: rewatchCount } as VaultUpdate
     );
     if (countOnlyError) throw countOnlyError;
     return;
@@ -221,12 +226,12 @@ export async function updateProgressInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  progressMinutes: number,
+  progressMinutes: number
 ): Promise<void> {
   const repo = getVaultRepository();
   const { error } = await repo.updateProgress(
     { userId, tmdbId: Number(itemId), mediaType },
-    progressMinutes,
+    progressMinutes
   );
   if (error) throw error;
 }
@@ -236,13 +241,13 @@ export async function toggleFavoriteInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  currentValue: boolean,
+  currentValue: boolean
 ): Promise<void> {
   const repo = getVaultRepository();
   const update: VaultUpdate = { is_favorite: !currentValue };
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    update,
+    update
   );
   if (error) throw error;
 }
@@ -252,13 +257,13 @@ export async function togglePinnedInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  currentValue: boolean,
+  currentValue: boolean
 ): Promise<void> {
   const repo = getVaultRepository();
   const update: VaultUpdate = { is_pinned: !currentValue };
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    update,
+    update
   );
   if (error) throw error;
 }
@@ -277,11 +282,13 @@ export async function togglePinnedInSupabase(
 export async function deleteVaultItemInSupabase(
   userId: string,
   itemId: string,
-  mediaType: WatchlistItem["media_type"],
+  mediaType: WatchlistItem["media_type"]
 ): Promise<void> {
   const repo = getVaultRepository();
   const { data: vaultRow, error: lookupError } = await repo.getVaultByTmdbId(
-    userId, Number(itemId), mediaType,
+    userId,
+    Number(itemId),
+    mediaType
   );
   if (lookupError) throw lookupError;
   const vaultId = vaultRow?.id;
@@ -290,7 +297,7 @@ export async function deleteVaultItemInSupabase(
   const { error } = await repo.deleteVaultItem({
     userId,
     tmdbId: Number(itemId),
-    mediaType,
+    mediaType
   });
   if (error) throw error;
 
@@ -309,13 +316,13 @@ export async function deleteVaultItemInSupabase(
       if (cascadeError) {
         console.warn(
           `[vaultAdapter] cascade delete of collection_entries failed for vault ${vaultId}:`,
-          cascadeError,
+          cascadeError
         );
       }
     } catch (err) {
       console.warn(
         `[vaultAdapter] cascade delete threw for vault ${vaultId}:`,
-        err,
+        err
       );
     }
   }
@@ -325,13 +332,13 @@ export async function deleteVaultItemInSupabase(
 export async function restoreVaultItemInSupabase(
   userId: string,
   itemId: string,
-  mediaType: WatchlistItem["media_type"],
+  mediaType: WatchlistItem["media_type"]
 ): Promise<void> {
   const repo = getVaultRepository();
   const { error } = await repo.restoreVaultItem({
     userId,
     tmdbId: Number(itemId),
-    mediaType,
+    mediaType
   });
   if (error) throw error;
 }
@@ -341,12 +348,12 @@ export async function updateVaultItemInSupabase(
   userId: string,
   itemId: string,
   mediaType: WatchlistItem["media_type"],
-  update: VaultUpdate,
+  update: VaultUpdate
 ): Promise<void> {
   const repo = getVaultRepository();
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    update,
+    update
   );
   if (error) throw error;
 }
@@ -373,7 +380,7 @@ export async function updateSeasonDatesInSupabase(
   mediaType: WatchlistItem["media_type"],
   seasonDates: Record<string, { start: string; end: string }>,
   seasonRewatchCount: number,
-  seasonRewatchDates: Record<string, { start: string; end: string }>[],
+  seasonRewatchDates: Record<string, { start: string; end: string }>[]
 ): Promise<void> {
   const repo = getVaultRepository();
   // Clean empty entries from seasonDates (don't persist seasons with no dates set)
@@ -393,12 +400,12 @@ export async function updateSeasonDatesInSupabase(
   const combinedUpdate = {
     season_dates: cleanSeasonDates,
     season_rewatch_count: seasonRewatchCount,
-    season_rewatch_dates: cleanSeasonRewatchDates,
+    season_rewatch_dates: cleanSeasonRewatchDates
   } as VaultUpdate;
 
   const { error } = await repo.updateVaultItem(
     { userId, tmdbId: Number(itemId), mediaType },
-    combinedUpdate,
+    combinedUpdate
   );
 
   if (!error) return;
@@ -416,8 +423,8 @@ export async function updateSeasonDatesInSupabase(
   ) {
     console.warn(
       "[vaultAdapter] season_dates/season_rewatch_count/season_rewatch_dates columns not found — " +
-      "Run scripts/add_season_dates_columns.sql in the Supabase SQL editor to enable series per-season tracking.",
-      error,
+        "Run scripts/add_season_dates_columns.sql in the Supabase SQL editor to enable series per-season tracking.",
+      error
     );
     return;
   }

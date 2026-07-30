@@ -31,7 +31,11 @@ export function validateName(name: string): Error | null {
  * Validate that filters is a non-null object. Returns `null` if valid.
  */
 export function validateFilters(filters: unknown): Error | null {
-  if (filters === null || filters === undefined || typeof filters !== "object") {
+  if (
+    filters === null ||
+    filters === undefined ||
+    typeof filters !== "object"
+  ) {
     return new Error("[PresetRepository] filters must be a non-null object.");
   }
   return null;
@@ -48,7 +52,7 @@ export function toInsert(payload: CreatePresetPayload): PresetInsert {
   return {
     user_id: payload.userId,
     name: payload.name,
-    filters: payload.filters as unknown as import("../../database.types").Json,
+    filters: payload.filters as unknown as import("../../database.types").Json
   };
 }
 
@@ -65,7 +69,9 @@ export function toRenameUpdate(name: string): PresetUpdate {
 
 export type { TypedSupabaseClient } from "./preset.types";
 
-export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
+export function resolveClient(
+  client?: TypedSupabaseClient
+): TypedSupabaseClient {
   return client ?? getClient();
 }
 

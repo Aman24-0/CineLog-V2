@@ -3,6 +3,7 @@ import type { TMDBTitle } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
 import { GENRE_ID, genreIdFor } from "./genres";
 import { normalizeList, type TMDBRawItem } from "./discoverNormalize";
+import { fetchWithRetry } from "./fetchHelpers";
 
 // Re-export genre helpers + raw type so existing consumers can keep
 // importing from discover.ts.
@@ -18,6 +19,11 @@ export type { TMDBRawItem };
  * All endpoints are server-safe (plain fetch, no client-only APIs).
  * Genre maps live in `./genres.ts`. Normalization lives in
  * `./discoverNormalize.ts`.
+ *
+ * Network resilience: every endpoint goes through `fetchWithRetry`
+ * (10-second timeout + single retry on 5xx / network error) AND
+ * `cachedFetch` (in-memory cache with 10-min TTL + in-flight dedup so
+ * concurrent identical requests share a single Promise).
  */
 
 // All TMDB API calls now go through the server-side proxy at /api/media/*
@@ -25,45 +31,17 @@ export type { TMDBRawItem };
 // This fixes ISP/DNS blocking in certain regions and keeps the key hidden.
 const API = "/api/media";
 
-// ---------------------------------------------------------------------------
-// Timeout helper — prevents fetch() from hanging forever
-// ---------------------------------------------------------------------------
-
-/** Default timeout for TMDB discover API calls (10 seconds). */
-const TMDB_FETCH_TIMEOUT_MS = 10_000;
-
-/**
- * fetch with AbortController timeout.
- * If the server is unreachable or slow, the request is aborted after
- * `timeoutMs` milliseconds instead of hanging indefinitely (which would
- * leave the Discover page stuck on a skeleton forever).
- */
-async function fetchWithTimeout(
-  url: string,
-  timeoutMs: number = TMDB_FETCH_TIMEOUT_MS,
-): Promise<Response> {
-  const controller = new AbortController();
-  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    return res;
-  } finally {
-    clearTimeout(timeoutId);
-  }
-}
-
-
 /* ------------------------------------------------------------------
    Endpoint wrappers. Each returns TMDBTitle[] (already normalized).
    ------------------------------------------------------------------ */
 
 /** discover/movie — the workhorse for "Because you watched", "Hidden gems", etc. */
 export async function discoverMovies(opts: {
-  withGenres?: number[];          // genre IDs
+  withGenres?: number[]; // genre IDs
   withoutGenres?: number[];
-  sortBy?: string;                // e.g. "vote_average.desc", "popularity.asc"
+  sortBy?: string; // e.g. "vote_average.desc", "popularity.asc"
   voteCountGte?: number;
-  voteCountLte?: number;          // upper bound on vote_count (e.g. for "hidden gems" / "weekend picks")
+  voteCountLte?: number; // upper bound on vote_count (e.g. for "hidden gems" / "weekend picks")
   voteAverageGte?: number;
   primaryReleaseDateGte?: string; // YYYY-MM-DD
   primaryReleaseDateLte?: string;
@@ -93,22 +71,31 @@ export async function discoverMovies(opts: {
   if (opts.voteCountGte != null) {
     params.set("vote_count.gte", String(opts.voteCountGte));
   }
-  if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
-  if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
-  if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
-  if (opts.voteCountLte != null) params.set("vote_count.lte", String(opts.voteCountLte));
-  if (opts.primaryReleaseDateGte) params.set("primary_release_date.gte", opts.primaryReleaseDateGte);
-  if (opts.primaryReleaseDateLte) params.set("primary_release_date.lte", opts.primaryReleaseDateLte);
-  if (opts.withRuntimeGte != null) params.set("with_runtime.gte", String(opts.withRuntimeGte));
-  if (opts.withRuntimeLte != null) params.set("with_runtime.lte", String(opts.withRuntimeLte));
-  if (opts.withKeywords != null) params.set("with_keywords", String(opts.withKeywords));
+  if (opts.withGenres?.length)
+    params.set("with_genres", opts.withGenres.join(","));
+  if (opts.withoutGenres?.length)
+    params.set("without_genres", opts.withoutGenres.join(","));
+  if (opts.voteAverageGte != null)
+    params.set("vote_average.gte", String(opts.voteAverageGte));
+  if (opts.voteCountLte != null)
+    params.set("vote_count.lte", String(opts.voteCountLte));
+  if (opts.primaryReleaseDateGte)
+    params.set("primary_release_date.gte", opts.primaryReleaseDateGte);
+  if (opts.primaryReleaseDateLte)
+    params.set("primary_release_date.lte", opts.primaryReleaseDateLte);
+  if (opts.withRuntimeGte != null)
+    params.set("with_runtime.gte", String(opts.withRuntimeGte));
+  if (opts.withRuntimeLte != null)
+    params.set("with_runtime.lte", String(opts.withRuntimeLte));
+  if (opts.withKeywords != null)
+    params.set("with_keywords", String(opts.withKeywords));
   if (opts.region) params.set("region", opts.region);
 
   const res = await cachedFetch(
     buildCacheKey("tmdb:discover/movie", { q: params.toString() }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(`${API}/discover/movie?${params}`);
+      const r = await fetchWithRetry(`${API}/discover/movie?${params}`);
       if (!r.ok) throw new Error(`discoverMovies failed: ${r.status}`);
       return r.json();
     }
@@ -147,18 +134,23 @@ export async function discoverTv(opts: {
   if (opts.voteCountGte != null) {
     params.set("vote_count.gte", String(opts.voteCountGte));
   }
-  if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
-  if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
-  if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
-  if (opts.firstAirDateGte) params.set("first_air_date.gte", opts.firstAirDateGte);
-  if (opts.firstAirDateLte) params.set("first_air_date.lte", opts.firstAirDateLte);
+  if (opts.withGenres?.length)
+    params.set("with_genres", opts.withGenres.join(","));
+  if (opts.withoutGenres?.length)
+    params.set("without_genres", opts.withoutGenres.join(","));
+  if (opts.voteAverageGte != null)
+    params.set("vote_average.gte", String(opts.voteAverageGte));
+  if (opts.firstAirDateGte)
+    params.set("first_air_date.gte", opts.firstAirDateGte);
+  if (opts.firstAirDateLte)
+    params.set("first_air_date.lte", opts.firstAirDateLte);
   if (opts.region) params.set("with_origin_country", opts.region);
 
   const res = await cachedFetch(
     buildCacheKey("tmdb:discover/tv", { q: params.toString() }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(`${API}/discover/tv?${params}`);
+      const r = await fetchWithRetry(`${API}/discover/tv?${params}`);
       if (!r.ok) throw new Error(`discoverTv failed: ${r.status}`);
       return r.json();
     }
@@ -178,7 +170,7 @@ export async function getRecommendations(
     buildCacheKey("tmdb:recommendations", { type: mediaType, id: String(id) }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/${mediaType}/${id}/recommendations?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getRecommendations failed: ${r.status}`);
@@ -200,7 +192,7 @@ export async function getTrending(
     buildCacheKey("tmdb:trending", { type: mediaType, window }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/trending/${mediaType}/${window}?language=en-US`
       );
       if (!r.ok) throw new Error(`getTrending failed: ${r.status}`);
@@ -220,7 +212,7 @@ export async function getTopRatedMovies(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:top_rated"),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/movie/top_rated?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedMovies failed: ${r.status}`);
@@ -245,13 +237,15 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:search/multi", { q: query }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(`${API}/search/multi?${params}`);
+      const r = await fetchWithRetry(`${API}/search/multi?${params}`);
       if (!r.ok) throw new Error(`searchMulti failed: ${r.status}`);
       return r.json();
     }
   );
   return normalizeList(
-    (res.results || []).filter((r: TMDBRawItem) => r.media_type === "movie" || r.media_type === "tv")
+    (res.results || []).filter(
+      (r: TMDBRawItem) => r.media_type === "movie" || r.media_type === "tv"
+    )
   );
 }
 
@@ -268,19 +262,23 @@ export async function fetchTitleDirector(
   mediaType: "movie" | "tv",
   id: number | string
 ): Promise<string | undefined> {
-  const res = await fetchWithTimeout(
+  const res = await fetchWithRetry(
     `${API}/${mediaType}/${id}/credits?language=en-US`
   );
   if (!res.ok) return undefined;
   const json = await res.json();
-  const crew: Array<{ job: string; name: string; department?: string }> = json.crew || [];
+  const crew: Array<{ job: string; name: string; department?: string }> =
+    json.crew || [];
   // Movies: look for "Director". TV: look for "Creator" (sometimes "Executive Producer").
   if (mediaType === "movie") {
     const dir = crew.find((c) => c.job === "Director");
     return dir?.name;
   }
-  const creator = crew.find((c) => c.job === "Creator") ||
-    crew.find((c) => c.job === "Executive Producer" && c.department === "Production");
+  const creator =
+    crew.find((c) => c.job === "Creator") ||
+    crew.find(
+      (c) => c.job === "Executive Producer" && c.department === "Production"
+    );
   return creator?.name;
 }
 
@@ -297,7 +295,7 @@ export async function getNowPlaying(region = "IN"): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:now_playing", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/movie/now_playing?language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getNowPlaying failed: ${r.status}`);
@@ -316,7 +314,7 @@ export async function getUpcoming(region = "IN"): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:upcoming", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/movie/upcoming?language=en-US&region=${region}&page=1`
       );
       if (!r.ok) throw new Error(`getUpcoming failed: ${r.status}`);
@@ -335,29 +333,10 @@ export async function getTopRatedTv(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:top_rated_tv"),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/tv/top_rated?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getTopRatedTv failed: ${r.status}`);
-      return r.json();
-    }
-  );
-  return normalizeList(res.results, "tv");
-}
-
-/**
- * getAiringToday — TV series airing new episodes today.
- * Uses /tv/airing_today.
- */
-export async function getAiringToday(): Promise<TMDBTitle[]> {
-  const res = await cachedFetch(
-    buildCacheKey("tmdb:airing_today"),
-    TMDB_TTL,
-    async () => {
-      const r = await fetchWithTimeout(
-        `${API}/tv/airing_today?language=en-US&page=1`
-      );
-      if (!r.ok) throw new Error(`getAiringToday failed: ${r.status}`);
       return r.json();
     }
   );
@@ -373,7 +352,7 @@ export async function getOnTheAir(): Promise<TMDBTitle[]> {
     buildCacheKey("tmdb:on_the_air"),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/tv/on_the_air?language=en-US&page=1`
       );
       if (!r.ok) throw new Error(`getOnTheAir failed: ${r.status}`);
@@ -381,25 +360,6 @@ export async function getOnTheAir(): Promise<TMDBTitle[]> {
     }
   );
   return normalizeList(res.results, "tv");
-}
-
-/**
- * getPopular — popular movies or TV.
- * Uses /movie/popular or /tv/popular.
- */
-export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<TMDBTitle[]> {
-  const res = await cachedFetch(
-    buildCacheKey("tmdb:popular", { type: mediaType }),
-    TMDB_TTL,
-    async () => {
-      const r = await fetchWithTimeout(
-        `${API}/${mediaType}/popular?language=en-US&page=1`
-      );
-      if (!r.ok) throw new Error(`getPopular failed: ${r.status}`);
-      return r.json();
-    }
-  );
-  return normalizeList(res.results, mediaType);
 }
 
 /**
@@ -418,24 +378,40 @@ export async function getPopular(mediaType: "movie" | "tv" = "movie"): Promise<T
  * integer where lower = more popular in the region. Callers sort by
  * this to show Netflix/Prime at the top of the list.
  */
-export async function getWatchProviderList(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null; displayPriority: number }>> {
+export async function getWatchProviderList(
+  region = "IN"
+): Promise<
+  Array<{
+    providerId: number;
+    providerName: string;
+    logoPath: string | null;
+    displayPriority: number;
+  }>
+> {
   const res = await cachedFetch(
     buildCacheKey("tmdb:watch_providers_list", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/watch/providers/movie?language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderList failed: ${r.status}`);
       return r.json();
     }
   );
-  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null; display_priority?: number }) => ({
-    providerId: p.provider_id,
-    providerName: p.provider_name,
-    logoPath: p.logo_path,
-    displayPriority: p.display_priority ?? 999,
-  }));
+  return (res.results || []).map(
+    (p: {
+      provider_id: number;
+      provider_name: string;
+      logo_path: string | null;
+      display_priority?: number;
+    }) => ({
+      providerId: p.provider_id,
+      providerName: p.provider_name,
+      logoPath: p.logo_path,
+      displayPriority: p.display_priority ?? 999
+    })
+  );
 }
 
 /**
@@ -454,15 +430,20 @@ export async function discoverMoviesWithProvider(
     page: String(opts.page ?? 1),
     include_adult: "false",
     with_watch_providers: String(providerId),
-    watch_region: region,
+    watch_region: region
   });
 
   const res = await cachedFetch(
-    buildCacheKey("tmdb:discover/movie_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
+    buildCacheKey("tmdb:discover/movie_provider", {
+      providerId,
+      region,
+      sort: opts.sortBy ?? "pop"
+    }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(`${API}/discover/movie?${params}`);
-      if (!r.ok) throw new Error(`discoverMoviesWithProvider failed: ${r.status}`);
+      const r = await fetchWithRetry(`${API}/discover/movie?${params}`);
+      if (!r.ok)
+        throw new Error(`discoverMoviesWithProvider failed: ${r.status}`);
       return r.json();
     }
   );
@@ -490,14 +471,18 @@ export async function discoverTvWithProvider(
     page: String(opts.page ?? 1),
     include_adult: "false",
     with_watch_providers: String(providerId),
-    watch_region: region,
+    watch_region: region
   });
 
   const res = await cachedFetch(
-    buildCacheKey("tmdb:discover/tv_provider", { providerId, region, sort: opts.sortBy ?? "pop" }),
+    buildCacheKey("tmdb:discover/tv_provider", {
+      providerId,
+      region,
+      sort: opts.sortBy ?? "pop"
+    }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(`${API}/discover/tv?${params}`);
+      const r = await fetchWithRetry(`${API}/discover/tv?${params}`);
       if (!r.ok) throw new Error(`discoverTvWithProvider failed: ${r.status}`);
       return r.json();
     }
@@ -517,22 +502,38 @@ export async function discoverTvWithProvider(
  * `displayPriority` mirrors TMDB's `display_priority` field (same as
  * the movie endpoint).
  */
-export async function getWatchProviderListTv(region = "IN"): Promise<Array<{ providerId: number; providerName: string; logoPath: string | null; displayPriority: number }>> {
+export async function getWatchProviderListTv(
+  region = "IN"
+): Promise<
+  Array<{
+    providerId: number;
+    providerName: string;
+    logoPath: string | null;
+    displayPriority: number;
+  }>
+> {
   const res = await cachedFetch(
     buildCacheKey("tmdb:watch_providers_list_tv", { region }),
     TMDB_TTL,
     async () => {
-      const r = await fetchWithTimeout(
+      const r = await fetchWithRetry(
         `${API}/watch/providers/tv?language=en-US&watch_region=${region}`
       );
       if (!r.ok) throw new Error(`getWatchProviderListTv failed: ${r.status}`);
       return r.json();
     }
   );
-  return (res.results || []).map((p: { provider_id: number; provider_name: string; logo_path: string | null; display_priority?: number }) => ({
-    providerId: p.provider_id,
-    providerName: p.provider_name,
-    logoPath: p.logo_path,
-    displayPriority: p.display_priority ?? 999,
-  }));
+  return (res.results || []).map(
+    (p: {
+      provider_id: number;
+      provider_name: string;
+      logo_path: string | null;
+      display_priority?: number;
+    }) => ({
+      providerId: p.provider_id,
+      providerName: p.provider_name,
+      logoPath: p.logo_path,
+      displayPriority: p.display_priority ?? 999
+    })
+  );
 }

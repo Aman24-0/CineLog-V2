@@ -4,7 +4,7 @@ import {
   RECENT_KEY,
   MAX_RECENT,
   loadRecent,
-  saveRecent,
+  saveRecent
 } from "../searchStorage";
 
 describe("searchStorage", () => {
@@ -38,7 +38,10 @@ describe("searchStorage", () => {
     });
 
     it("filters non-string entries", () => {
-      localStorage.setItem(RECENT_KEY, JSON.stringify(["valid", 123, null, "also-valid"]));
+      localStorage.setItem(
+        RECENT_KEY,
+        JSON.stringify(["valid", 123, null, "also-valid"])
+      );
       expect(loadRecent()).toEqual(["valid", "also-valid"]);
     });
 

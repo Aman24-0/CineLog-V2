@@ -58,21 +58,30 @@ export interface CsvExportOptions {
  * Format defaults to "generic" which includes all CineLog data.
  * Use format="letterboxd" for Letterboxd-compatible export (movies only).
  */
-export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions = {}): string {
+export function watchlistToCsv(
+  items: WatchlistItem[],
+  options: CsvExportOptions = {}
+): string {
   const format = options.format ?? "generic";
 
   if (format === "letterboxd") {
     // Letterboxd format: Position, Name, Year, Letterboxd URI, Rating10
     // Only movies — Letterboxd is film-only.
     const movies = items.filter((i) => i.media_type !== "tv");
-    const header = csvRow(["Position", "Name", "Year", "Letterboxd URI", "Rating10"]);
+    const header = csvRow([
+      "Position",
+      "Name",
+      "Year",
+      "Letterboxd URI",
+      "Rating10"
+    ]);
     const rows = movies.map((item, idx) =>
       csvRow([
         idx + 1,
         item.title || item.name || "Untitled",
         yearOf(item.watchDate),
         `https://www.themoviedb.org/movie/${item.id}`,
-        item.rating ?? "",
+        item.rating ?? ""
       ])
     );
     return [header, ...rows].join("\n");
@@ -80,7 +89,14 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
 
   if (format === "trakt") {
     // Trakt CSV: Title, Year, Type (movie/show), Rating (1-10), WatchedAt (ISO), Status
-    const header = csvRow(["Title", "Year", "Type", "Rating", "WatchedAt", "Status"]);
+    const header = csvRow([
+      "Title",
+      "Year",
+      "Type",
+      "Rating",
+      "WatchedAt",
+      "Status"
+    ]);
     const rows = items.map((item) =>
       csvRow([
         item.title || item.name || "Untitled",
@@ -88,7 +104,7 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
         item.media_type === "tv" ? "show" : "movie",
         item.rating ?? "",
         isoOf(item.addedAt),
-        item.status ?? "",
+        item.status ?? ""
       ])
     );
     return [header, ...rows].join("\n");
@@ -97,9 +113,21 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
   if (format === "imdb") {
     // IMDb CSV: Position, Const, Created, Modified, Description, Title, URL, Title Type, IMDb Rating, Runtime (mins), Year, Genres, Num Votes, Release Date, Directors
     const header = csvRow([
-      "Position", "Const", "Created", "Modified", "Description",
-      "Title", "URL", "Title Type", "IMDb Rating", "Runtime (mins)",
-      "Year", "Genres", "Num Votes", "Release Date", "Directors",
+      "Position",
+      "Const",
+      "Created",
+      "Modified",
+      "Description",
+      "Title",
+      "URL",
+      "Title Type",
+      "IMDb Rating",
+      "Runtime (mins)",
+      "Year",
+      "Genres",
+      "Num Votes",
+      "Release Date",
+      "Directors"
     ]);
     const rows = items.map((item, idx) =>
       csvRow([
@@ -117,7 +145,7 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
         (item.genresList ?? []).join(","),
         "",
         item.watchDate ?? "",
-        item.director ?? "",
+        item.director ?? ""
       ])
     );
     return [header, ...rows].join("\n");
@@ -125,9 +153,20 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
 
   // Generic — full CineLog data
   const header = csvRow([
-    "id", "title", "media_type", "status", "rating",
-    "added_at", "updated_at", "watch_date", "runtime",
-    "genres", "notes", "director", "poster_path", "backdrop_path",
+    "id",
+    "title",
+    "media_type",
+    "status",
+    "rating",
+    "added_at",
+    "updated_at",
+    "watch_date",
+    "runtime",
+    "genres",
+    "notes",
+    "director",
+    "poster_path",
+    "backdrop_path"
   ]);
   const rows = items.map((item) =>
     csvRow([
@@ -144,7 +183,7 @@ export function watchlistToCsv(items: WatchlistItem[], options: CsvExportOptions
       item.notes ?? "",
       item.director ?? "",
       item.poster_path ?? "",
-      item.backdrop_path ?? "",
+      item.backdrop_path ?? ""
     ])
   );
   return [header, ...rows].join("\n");

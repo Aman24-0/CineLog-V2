@@ -10,10 +10,18 @@ import {
   toCollectionEntryInsert,
   toPositionUpdate,
   applySort,
-  applyPagination,
+  applyPagination
 } from "../collection/collection.utils";
-import type { CollectionRow, CreateCollectionPayload, UpdateCollectionPayload, AddItemPayload } from "../collection/collection.types";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import type {
+  CollectionRow,
+  CreateCollectionPayload,
+  UpdateCollectionPayload,
+  AddItemPayload
+} from "../collection/collection.types";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 
 const mockCollectionRow: CollectionRow = {
   id: "col-1",
@@ -26,7 +34,7 @@ const mockCollectionRow: CollectionRow = {
   view_mode: "grid",
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as CollectionRow;
 
 describe("CollectionRepository", () => {
@@ -72,11 +80,19 @@ describe("CollectionRepository", () => {
 
   describe("searchCollections", () => {
     it("returns matching collections", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockCollectionRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockCollectionRow]
+      });
       const repo = new CollectionRepository(client as never);
-      const result = await repo.searchCollections({ userId: "user-1", searchTerm: "My" });
+      const result = await repo.searchCollections({
+        userId: "user-1",
+        searchTerm: "My"
+      });
       expect(result.data).toHaveLength(1);
-      expect(query.ilike).toHaveBeenCalledWith("name", expect.stringContaining("My"));
+      expect(query.ilike).toHaveBeenCalledWith(
+        "name",
+        expect.stringContaining("My")
+      );
     });
   });
 
@@ -87,7 +103,7 @@ describe("CollectionRepository", () => {
       const payload: CreateCollectionPayload = {
         userId: "user-1",
         name: "My Collection",
-        collectionType: "user",
+        collectionType: "user"
       };
       const result = await repo.createCollection(payload);
       expect(result.data).toEqual(mockCollectionRow);
@@ -99,7 +115,7 @@ describe("CollectionRepository", () => {
       const result = await repo.createCollection({
         userId: "user-1",
         name: "",
-        collectionType: "user",
+        collectionType: "user"
       });
       expect(result.error).toBeInstanceOf(Error);
       expect(result.error!.message).toContain("non-empty");
@@ -108,7 +124,9 @@ describe("CollectionRepository", () => {
 
   describe("updateCollection", () => {
     it("updates collection on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockCollectionRow, name: "Updated" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockCollectionRow, name: "Updated" }
+      });
       const repo = new CollectionRepository(client as never);
       const payload: UpdateCollectionPayload = { name: "Updated" };
       const result = await repo.updateCollection("col-1", payload);
@@ -135,7 +153,9 @@ describe("CollectionRepository", () => {
 
   describe("restoreCollection", () => {
     it("returns the restored row on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockCollectionRow, deleted_at: null } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockCollectionRow, deleted_at: null }
+      });
       const repo = new CollectionRepository(client as never);
       const result = await repo.restoreCollection("col-1");
       expect(result.data?.deleted_at).toBeNull();
@@ -144,7 +164,13 @@ describe("CollectionRepository", () => {
 
   describe("getItems", () => {
     it("returns list of entries", async () => {
-      const mockEntry = { id: "entry-1", collection_id: "col-1", tmdb_id: 123, media_type: "movie", position: 0 };
+      const mockEntry = {
+        id: "entry-1",
+        collection_id: "col-1",
+        tmdb_id: 123,
+        media_type: "movie",
+        position: 0
+      };
       const { client } = createMockSupabase({ listData: [mockEntry] });
       const repo = new CollectionRepository(client as never);
       const result = await repo.getItems("col-1");
@@ -164,31 +190,42 @@ describe("CollectionRepository", () => {
       const mockEntry = { id: "entry-1" };
       const { client } = createMockSupabase({ singleData: mockEntry });
       const repo = new CollectionRepository(client as never);
-      const result = await repo.itemExists({ collectionId: "col-1", vaultId: "vault-1" });
+      const result = await repo.itemExists({
+        collectionId: "col-1",
+        vaultId: "vault-1"
+      });
       expect(result.exists).toBe(true);
     });
 
     it("returns false when item does not exist", async () => {
       const { client } = createMockSupabase({ singleData: null });
       const repo = new CollectionRepository(client as never);
-      const result = await repo.itemExists({ collectionId: "col-1", vaultId: "vault-1" });
+      const result = await repo.itemExists({
+        collectionId: "col-1",
+        vaultId: "vault-1"
+      });
       expect(result.exists).toBe(false);
     });
   });
 
   describe("addItem", () => {
     it("adds item on success", async () => {
-      const mockEntry = { id: "entry-1", collection_id: "col-1", vault_id: "vault-1", position: 0 };
+      const mockEntry = {
+        id: "entry-1",
+        collection_id: "col-1",
+        vault_id: "vault-1",
+        position: 0
+      };
       // itemExists (maybeSingle) returns null → exists=false → proceeds to insert
       // insert+single returns the new entry
       const { client } = createMockSupabase({
         maybeSingleData: null, // item doesn't exist yet
-        singleData: mockEntry, // insert returns the new entry
+        singleData: mockEntry // insert returns the new entry
       });
       const repo = new CollectionRepository(client as never);
       const payload: AddItemPayload = {
         collectionId: "col-1",
-        vaultId: "vault-1",
+        vaultId: "vault-1"
       };
       const result = await repo.addItem(payload);
       expect(result.data).toEqual(mockEntry);
@@ -199,7 +236,10 @@ describe("CollectionRepository", () => {
     it("returns no error on success", async () => {
       const { client } = createMockSupabase({ listData: [] });
       const repo = new CollectionRepository(client as never);
-      const result = await repo.removeItem({ collectionId: "col-1", vaultId: "vault-1" });
+      const result = await repo.removeItem({
+        collectionId: "col-1",
+        vaultId: "vault-1"
+      });
       expect(result.error).toBeNull();
     });
   });
@@ -263,7 +303,7 @@ describe("collection.utils", () => {
       const result = toCollectionInsert({
         userId: "u1",
         name: "Test",
-        type: "user",
+        type: "user"
       } as CreateCollectionPayload);
       expect(result.user_id).toBe("u1");
       expect(result.name).toBe("Test");
@@ -272,7 +312,9 @@ describe("collection.utils", () => {
 
   describe("toCollectionUpdate", () => {
     it("maps partial payload to update shape", () => {
-      const result = toCollectionUpdate({ name: "Updated" } as UpdateCollectionPayload);
+      const result = toCollectionUpdate({
+        name: "Updated"
+      } as UpdateCollectionPayload);
       expect(result.name).toBe("Updated");
     });
   });
@@ -282,9 +324,9 @@ describe("collection.utils", () => {
       const result = toCollectionEntryInsert(
         {
           collectionId: "c1",
-          vaultId: "vault-1",
+          vaultId: "vault-1"
         },
-        0, // resolvedPosition
+        0 // resolvedPosition
       );
       expect(result.collection_id).toBe("c1");
       expect(result.vault_id).toBe("vault-1");
@@ -314,7 +356,9 @@ describe("collection.utils", () => {
     it("applies descending sort", () => {
       const query = { order: vi.fn().mockReturnThis() };
       applySort(query, { field: "created_at", direction: "desc" });
-      expect(query.order).toHaveBeenCalledWith("created_at", { ascending: false });
+      expect(query.order).toHaveBeenCalledWith("created_at", {
+        ascending: false
+      });
     });
   });
 

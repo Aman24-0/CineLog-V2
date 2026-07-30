@@ -21,12 +21,19 @@ const DangerZoneCard: Component = () => {
       <div class="sync-danger-card">
         <div class="sync-danger-header">
           <div class="sync-danger-icon" aria-hidden="true">
-            <span class="material-symbols-outlined" style={{ "font-size": "22px", color: "#f87171" }} aria-hidden="true">warning</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "22px", color: "#f87171" }}
+              aria-hidden="true"
+            >
+              warning
+            </span>
           </div>
           <div class="sync-danger-text">
             <p class="sync-danger-title">Danger Zone</p>
             <p class="sync-danger-body">
-              These actions permanently remove your CineLog library. This cannot be undone.
+              These actions permanently remove your CineLog library. This cannot
+              be undone.
             </p>
           </div>
         </div>
@@ -35,7 +42,8 @@ const DangerZoneCard: Component = () => {
           <div class="sync-danger-action-text">
             <p class="sync-danger-action-title">Reset Library</p>
             <p class="sync-danger-action-desc">
-              Delete every movie, series, collection and watch history while keeping your account.
+              Delete every movie, series, collection and watch history while
+              keeping your account.
             </p>
           </div>
           <button
@@ -44,13 +52,22 @@ const DangerZoneCard: Component = () => {
             onClick={() => setShowConfirm(true)}
             aria-label="Reset library"
           >
-            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">delete</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
+              delete
+            </span>
             Reset
           </button>
         </div>
       </div>
 
-      <ResetConfirmSheet open={showConfirm()} onClose={() => setShowConfirm(false)} />
+      <ResetConfirmSheet
+        open={showConfirm()}
+        onClose={() => setShowConfirm(false)}
+      />
     </>
   );
 };

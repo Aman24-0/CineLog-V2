@@ -3,7 +3,7 @@ import { describe, it, expect } from "vitest";
 import {
   fnv1aHash,
   todayDateString,
-  formatTopGenreLabel,
+  formatTopGenreLabel
 } from "../usePersonalizedDiscover";
 
 describe("fnv1aHash", () => {
@@ -87,7 +87,11 @@ describe("formatTopGenreLabel", () => {
   });
 
   it("handles multi-word genre names", () => {
-    expect(formatTopGenreLabel("Action & Adventure")).toBe("Trending in Action & Adventure");
-    expect(formatTopGenreLabel("Science Fiction")).toBe("Trending in Science Fiction");
+    expect(formatTopGenreLabel("Action & Adventure")).toBe(
+      "Trending in Action & Adventure"
+    );
+    expect(formatTopGenreLabel("Science Fiction")).toBe(
+      "Trending in Science Fiction"
+    );
   });
 });

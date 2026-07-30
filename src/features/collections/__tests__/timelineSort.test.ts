@@ -4,16 +4,20 @@ import {
   sortAndEnrich,
   groupByPhase,
   groupByStoryYear,
-  type TimelineItem,
+  type TimelineItem
 } from "../components/timelineSort";
-import { makeCollectionEntry, makeMovie, makeTVSeries } from "~/__test-fixtures__/factories";
-import type {CollectionEntry} from "~/shared/types";
+import {
+  makeCollectionEntry,
+  makeMovie,
+  makeTVSeries
+} from "~/__test-fixtures__/factories";
+import type { CollectionEntry } from "~/shared/types";
 
 describe("sortAndEnrich", () => {
   const entries: CollectionEntry[] = [
     makeCollectionEntry({ id: "1", release_date: "2023-06-15", order: 2 }),
     makeCollectionEntry({ id: "2", release_date: "2020-01-01", order: 1 }),
-    makeCollectionEntry({ id: "3", release_date: "2021-03-10", order: 3 }),
+    makeCollectionEntry({ id: "3", release_date: "2021-03-10", order: 3 })
   ];
 
   it("sorts by release order (release_date ascending)", () => {
@@ -30,7 +34,7 @@ describe("sortAndEnrich", () => {
     const sagaEntries: CollectionEntry[] = [
       makeCollectionEntry({ id: "1", phase: "Phase 2", order: 1 }),
       makeCollectionEntry({ id: "2", phase: "Phase 1", order: 2 }),
-      makeCollectionEntry({ id: "3", phase: "Phase 1", order: 1 }),
+      makeCollectionEntry({ id: "3", phase: "Phase 1", order: 1 })
     ];
     const result = sortAndEnrich(sagaEntries, [], "saga");
     expect(result.map((r) => r.entry.id)).toEqual(["3", "2", "1"]);
@@ -43,7 +47,7 @@ describe("sortAndEnrich", () => {
     const storyEntries: CollectionEntry[] = [
       makeCollectionEntry({ id: "1", incidentYear: 1943, order: 1 }),
       makeCollectionEntry({ id: "2", incidentYear: 2008, order: 1 }),
-      makeCollectionEntry({ id: "3", incidentYear: 1990, order: 1 }),
+      makeCollectionEntry({ id: "3", incidentYear: 1990, order: 1 })
     ];
     const result = sortAndEnrich(storyEntries, [], "story");
     expect(result.map((r) => r.entry.id)).toEqual(["1", "3", "2"]);
@@ -53,9 +57,24 @@ describe("sortAndEnrich", () => {
     // Entries without an incidentYear sink to the bottom and are sorted
     // by storyOrder (legacy DB column) as fallback.
     const storyEntries: CollectionEntry[] = [
-      makeCollectionEntry({ id: "1", incidentYear: undefined, storyOrder: 5, order: 5 }),
-      makeCollectionEntry({ id: "2", incidentYear: 1995, storyOrder: 1, order: 1 }),
-      makeCollectionEntry({ id: "3", incidentYear: undefined, storyOrder: 2, order: 2 }),
+      makeCollectionEntry({
+        id: "1",
+        incidentYear: undefined,
+        storyOrder: 5,
+        order: 5
+      }),
+      makeCollectionEntry({
+        id: "2",
+        incidentYear: 1995,
+        storyOrder: 1,
+        order: 1
+      }),
+      makeCollectionEntry({
+        id: "3",
+        incidentYear: undefined,
+        storyOrder: 2,
+        order: 2
+      })
     ];
     const result = sortAndEnrich(storyEntries, [], "story");
     // id:2 (1995) comes first; id:1 and id:3 have no incidentYear so they
@@ -67,7 +86,7 @@ describe("sortAndEnrich", () => {
     const customEntries: CollectionEntry[] = [
       makeCollectionEntry({ id: "1", customOrder: 1, isPinned: false }),
       makeCollectionEntry({ id: "2", customOrder: 0, isPinned: true }),
-      makeCollectionEntry({ id: "3", customOrder: 0, isPinned: false }),
+      makeCollectionEntry({ id: "3", customOrder: 0, isPinned: false })
     ];
     const result = sortAndEnrich(customEntries, [], "custom");
     // Pinned first (id:2), then by customOrder (id:3 before id:1)
@@ -75,9 +94,7 @@ describe("sortAndEnrich", () => {
   });
 
   it("enriches with vault status (inVault, status, rating)", () => {
-    const vault = [
-      makeMovie({ id: "2", status: "Completed", rating: 9 }),
-    ];
+    const vault = [makeMovie({ id: "2", status: "Completed", rating: 9 })];
     const result = sortAndEnrich(entries, vault, "release");
     const item2 = result.find((r) => r.entry.id === "2");
     expect(item2?.inVault).toBe(true);
@@ -95,7 +112,7 @@ describe("sortAndEnrich", () => {
   it("matches vault entries by id + media_type (no cross-namespace collision)", () => {
     const entries2: CollectionEntry[] = [
       makeCollectionEntry({ id: "1398", media_type: "movie" }),
-      makeCollectionEntry({ id: "1398", media_type: "tv" }),
+      makeCollectionEntry({ id: "1398", media_type: "tv" })
     ];
     const vault = [makeTVSeries({ id: "1398" })]; // only tv/1398 in vault
     const result = sortAndEnrich(entries2, vault, "release");
@@ -108,7 +125,7 @@ describe("sortAndEnrich", () => {
   it("uses order ?? 0 when order is undefined (chronological)", () => {
     const entries2: CollectionEntry[] = [
       makeCollectionEntry({ id: "1", order: undefined }),
-      makeCollectionEntry({ id: "2", order: undefined }),
+      makeCollectionEntry({ id: "2", order: undefined })
     ];
     const result = sortAndEnrich(entries2, [], "chronological");
     expect(result).toHaveLength(2);
@@ -117,7 +134,7 @@ describe("sortAndEnrich", () => {
   it("handles entries without release_date (treated as empty string)", () => {
     const entries2: CollectionEntry[] = [
       makeCollectionEntry({ id: "1", release_date: undefined }),
-      makeCollectionEntry({ id: "2", release_date: "2020-01-01" }),
+      makeCollectionEntry({ id: "2", release_date: "2020-01-01" })
     ];
     const result = sortAndEnrich(entries2, [], "release");
     // Empty string sorts before any date
@@ -138,9 +155,27 @@ describe("groupByPhase", () => {
     // groupByPhase creates a new group each time the phase changes,
     // so input must be pre-sorted (sortAndEnrich handles this in prod).
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ phase: "Phase 1" }), vaultItem: null, inVault: false, status: null, rating: null },
-      { entry: makeCollectionEntry({ phase: "Phase 1" }), vaultItem: null, inVault: false, status: null, rating: null },
-      { entry: makeCollectionEntry({ phase: "Phase 2" }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ phase: "Phase 1" }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      },
+      {
+        entry: makeCollectionEntry({ phase: "Phase 1" }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      },
+      {
+        entry: makeCollectionEntry({ phase: "Phase 2" }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByPhase(items, "saga");
     expect(result).not.toBeNull();
@@ -153,7 +188,13 @@ describe("groupByPhase", () => {
 
   it("groups items with undefined phase as 'Other'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ phase: undefined }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ phase: undefined }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByPhase(items, "saga");
     expect(result![0].phase).toBe("Other");
@@ -171,9 +212,27 @@ describe("groupByStoryYear", () => {
     // groupByStoryYear creates a new group each time the year changes,
     // so input must be pre-sorted (sortAndEnrich handles this in prod).
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: 2008 }), vaultItem: null, inVault: false, status: null, rating: null },
-      { entry: makeCollectionEntry({ storyYear: 2008 }), vaultItem: null, inVault: false, status: null, rating: null },
-      { entry: makeCollectionEntry({ storyYear: 2012 }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: 2008 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      },
+      {
+        entry: makeCollectionEntry({ storyYear: 2008 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      },
+      {
+        entry: makeCollectionEntry({ storyYear: 2012 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result).not.toBeNull();
@@ -185,7 +244,13 @@ describe("groupByStoryYear", () => {
 
   it("labels negative storyYear as 'BBY'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: -100 }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: -100 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result![0].yearLabel).toBe("100 BBY");
@@ -193,7 +258,13 @@ describe("groupByStoryYear", () => {
 
   it("labels storyYear=0 as '0 BBY / ABY'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: 0 }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: 0 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result![0].yearLabel).toBe("0 BBY / ABY");
@@ -201,7 +272,13 @@ describe("groupByStoryYear", () => {
 
   it("labels small positive year (<=1800) as 'ABY'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: 500 }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: 500 }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result![0].yearLabel).toBe("500 ABY");
@@ -209,7 +286,13 @@ describe("groupByStoryYear", () => {
 
   it("labels undefined storyYear as 'Unknown'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: undefined }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: undefined }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result![0].yearLabel).toBe("Unknown");
@@ -217,7 +300,13 @@ describe("groupByStoryYear", () => {
 
   it("labels null storyYear as 'Unknown'", () => {
     const items: TimelineItem[] = [
-      { entry: makeCollectionEntry({ storyYear: null as unknown as undefined }), vaultItem: null, inVault: false, status: null, rating: null },
+      {
+        entry: makeCollectionEntry({ storyYear: null as unknown as undefined }),
+        vaultItem: null,
+        inVault: false,
+        status: null,
+        rating: null
+      }
     ];
     const result = groupByStoryYear(items, "story");
     expect(result![0].yearLabel).toBe("Unknown");

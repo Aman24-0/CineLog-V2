@@ -55,8 +55,7 @@ function currentKey(userId: string | null): string {
 /** True when running in a browser with localStorage access. */
 function hasLocalStorage(): boolean {
   return (
-    typeof window !== "undefined" &&
-    typeof window.localStorage !== "undefined"
+    typeof window !== "undefined" && typeof window.localStorage !== "undefined"
   );
 }
 
@@ -75,7 +74,11 @@ function readSeen(userId: string | null): SeenMap {
     const raw = window.localStorage.getItem(seenKey(userId));
     if (!raw) return {};
     const parsed = JSON.parse(raw);
-    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+    if (
+      typeof parsed !== "object" ||
+      parsed === null ||
+      Array.isArray(parsed)
+    ) {
       return {};
     }
     return parsed as SeenMap;
@@ -111,7 +114,7 @@ export function addSeenTitle(
   userId: string | null,
   mediaType: string,
   tmdbId: number,
-  timestamp: number = Date.now(),
+  timestamp: number = Date.now()
 ): void {
   const map = readSeen(userId);
   map[titleKey(mediaType, tmdbId)] = timestamp;
@@ -126,7 +129,7 @@ export function addSeenTitle(
 export function isTitleSeen(
   userId: string | null,
   mediaType: string,
-  tmdbId: number,
+  tmdbId: number
 ): boolean {
   const map = readSeen(userId);
   const ts = map[titleKey(mediaType, tmdbId)];
@@ -164,7 +167,9 @@ export function getSeenTitles(userId: string | null): Map<string, number> {
   // re-read stale entries on every Spotlight fetch.
   if (pruned) {
     const cleaned: SeenMap = {};
-    result.forEach((ts, key) => { cleaned[key] = ts; });
+    result.forEach((ts, key) => {
+      cleaned[key] = ts;
+    });
     writeSeen(userId, cleaned);
   }
 
@@ -199,7 +204,9 @@ interface CachedSpotlight {
  * Does NOT check whether the date matches today — the caller decides
  * whether to reuse a stale cache or invalidate it.
  */
-export function getCachedSpotlight(userId: string | null): CachedSpotlight | null {
+export function getCachedSpotlight(
+  userId: string | null
+): CachedSpotlight | null {
   if (!hasLocalStorage()) return null;
   try {
     const raw = window.localStorage.getItem(currentKey(userId));
@@ -227,7 +234,7 @@ export function getCachedSpotlight(userId: string | null): CachedSpotlight | nul
  */
 export function setCachedSpotlight(
   userId: string | null,
-  pick: SpotlightPick,
+  pick: SpotlightPick
 ): void {
   if (!hasLocalStorage()) return;
   try {

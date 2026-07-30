@@ -26,7 +26,10 @@ export function loadRecent(): string[] {
 export function saveRecent(items: string[]): void {
   if (typeof localStorage === "undefined") return;
   try {
-    localStorage.setItem(RECENT_KEY, JSON.stringify(items.slice(0, MAX_RECENT)));
+    localStorage.setItem(
+      RECENT_KEY,
+      JSON.stringify(items.slice(0, MAX_RECENT))
+    );
   } catch {
     /* ignore quota errors */
   }

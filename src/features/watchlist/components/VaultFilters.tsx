@@ -44,50 +44,61 @@ export default function VaultFilters(props: VaultFiltersProps) {
   return (
     <Portal>
       <div
-        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in glass-sheet-backdrop"
+        class="animate-fade-in glass-sheet-backdrop fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label="Filters"
       >
         <div
-          class="filter-drawer w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter glass-sheet-surface-premium"
+          class="filter-drawer modal-sheet-enter glass-sheet-surface-premium flex w-full max-w-sm flex-col rounded-t-[2rem] sm:rounded-[2rem]"
           style={{
             "max-height":
               "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
-            "min-height": "0",
+            "min-height": "0"
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Mobile drag handle */}
           <div
-            class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
-            style={{"background":"var(--hairline-2)"}}
+            class="mx-auto mb-2 mt-4 h-1.5 w-12 flex-shrink-0 rounded-full sm:hidden"
+            style={{ background: "var(--hairline-2)" }}
             aria-hidden="true"
           />
 
           {/* Header */}
           <div
-            class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0"
-            style={{"border-bottom":"1px solid var(--hairline)"}}
+            class="flex flex-shrink-0 items-center justify-between px-6 pb-4 pt-4"
+            style={{ "border-bottom": "1px solid var(--hairline)" }}
           >
             <div class="flex items-center gap-2">
-              <Icon name="tune" style={{"color":"var(--p)","font-size":"18px"}} aria-hidden="true" />
-              <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
+              <Icon
+                name="tune"
+                style={{ color: "var(--p)", "font-size": "18px" }}
+                aria-hidden="true"
+              />
+              <h3
+                class="type-headline text-white"
+                style={{ "font-size": "1rem", margin: 0 }}
+              >
                 Filters
               </h3>
             </div>
             <button
               onClick={() => props.onClose()}
-              class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+              class="flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
               style={{
                 background: "rgba(255,255,255,0.04)",
                 color: "var(--text-soft)",
-                border: "1px solid var(--hairline)",
+                border: "1px solid var(--hairline)"
               }}
               aria-label="Close"
             >
-              <Icon name="close" style={{"font-size":"16px"}} aria-hidden="true" />
+              <Icon
+                name="close"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              />
             </button>
           </div>
 
@@ -106,13 +117,14 @@ export default function VaultFilters(props: VaultFiltersProps) {
               The padding-bottom accounts for BOTH the iOS safe-area inset
               AND the bottom nav height so buttons are always reachable. */}
           <div
-            class="grid grid-cols-2 gap-3 px-6 pt-4 pb-4 flex-shrink-0"
+            class="grid flex-shrink-0 grid-cols-2 gap-3 px-6 pb-4 pt-4"
             style={{
               "border-top": "1px solid var(--hairline)",
-              "padding-bottom": "calc(env(safe-area-inset-bottom, 0px) + var(--sp-5))",
+              "padding-bottom":
+                "calc(env(safe-area-inset-bottom, 0px) + var(--sp-5))",
               background: "var(--glass-bg-strong)",
               "backdrop-filter": "blur(20px)",
-              "-webkit-backdrop-filter": "blur(20px)",
+              "-webkit-backdrop-filter": "blur(20px)"
             }}
           >
             <button

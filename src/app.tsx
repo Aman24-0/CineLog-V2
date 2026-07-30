@@ -25,13 +25,15 @@ import {
   reducedMotion,
   highContrast,
   customAccent,
-  posterQuality,
+  posterQuality
 } from "./core/preferences";
 import AppShell from "./app/AppShell";
 import { GlobalErrorBoundary } from "~/shared/ui/GlobalErrorBoundary";
+import { OfflineBanner } from "~/shared/ui/OfflineBanner";
 import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
+import { GlassLoadingState } from "~/shared/ui/glass";
 
 // Read the signals so the createEffects are tracked. The return values are
 // discarded — the effects are what matter.
@@ -51,11 +53,16 @@ export default function App() {
       root={(props) => (
         <MetaProvider>
           <GlobalErrorBoundary>
+            <OfflineBanner />
             <UserLibraryProvider>
               <VaultProvider>
                 <CollectionsProvider>
                   <AppShell>
-                    <Suspense fallback={<div>Loading...</div>}>
+                    <Suspense
+                      fallback={
+                        <GlassLoadingState fullHeight message="Loading" />
+                      }
+                    >
                       {props.children}
                     </Suspense>
                   </AppShell>

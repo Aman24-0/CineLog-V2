@@ -5,7 +5,7 @@ import {
   TV_GENRES,
   resolveGenres,
   GENRE_ID,
-  genreIdFor,
+  genreIdFor
 } from "../genres";
 
 describe("MOVIE_GENRES", () => {
@@ -54,7 +54,10 @@ describe("resolveGenres", () => {
   });
 
   it("resolves tv genre ids to names", () => {
-    expect(resolveGenres([10759, 18], "tv")).toEqual(["Action & Adventure", "Drama"]);
+    expect(resolveGenres([10759, 18], "tv")).toEqual([
+      "Action & Adventure",
+      "Drama"
+    ]);
   });
 
   it("uses movie map for movie media type", () => {
@@ -68,7 +71,11 @@ describe("resolveGenres", () => {
   });
 
   it("preserves order of input ids", () => {
-    expect(resolveGenres([35, 28, 18], "movie")).toEqual(["Comedy", "Action", "Drama"]);
+    expect(resolveGenres([35, 28, 18], "movie")).toEqual([
+      "Comedy",
+      "Action",
+      "Drama"
+    ]);
   });
 });
 

@@ -26,26 +26,26 @@ const SEVERITY_STYLES: Record<
     bg: "rgba(59, 130, 246, 0.12)",
     border: "rgb(59, 130, 246)",
     fg: "rgb(191, 219, 254)",
-    icon: "ℹ️",
+    icon: "ℹ️"
   },
   success: {
     bg: "rgba(34, 197, 94, 0.12)",
     border: "rgb(34, 197, 94)",
     fg: "rgb(187, 247, 208)",
-    icon: "✅",
+    icon: "✅"
   },
   warning: {
     bg: "rgba(245, 158, 11, 0.12)",
     border: "rgb(245, 158, 11)",
     fg: "rgb(253, 230, 138)",
-    icon: "⚠️",
+    icon: "⚠️"
   },
   error: {
     bg: "rgba(239, 68, 68, 0.12)",
     border: "rgb(239, 68, 68)",
     fg: "rgb(254, 202, 202)",
-    icon: "🛑",
-  },
+    icon: "🛑"
+  }
 };
 
 const AnnouncementsBanner: Component = () => {
@@ -59,7 +59,7 @@ const AnnouncementsBanner: Component = () => {
         style={{
           display: "flex",
           "flex-direction": "column",
-          gap: "0",
+          gap: "0"
         }}
       >
         <For each={visibleBanners()}>
@@ -76,12 +76,19 @@ const AnnouncementsBanner: Component = () => {
                   display: "flex",
                   "align-items": "center",
                   gap: "var(--sp-2)",
-                  "font-size": "0.85rem",
+                  "font-size": "0.85rem"
                 }}
               >
-                <span style={{ "flex-shrink": 0, "font-size": "0.95rem" }}>{s.icon}</span>
+                <span style={{ "flex-shrink": 0, "font-size": "0.95rem" }}>
+                  {s.icon}
+                </span>
                 <div style={{ flex: 1, "min-width": 0 }}>
-                  <span style={{ "font-weight": "600", "margin-right": "var(--sp-2)" }}>
+                  <span
+                    style={{
+                      "font-weight": "600",
+                      "margin-right": "var(--sp-2)"
+                    }}
+                  >
                     {a.title}
                   </span>
                   <Show when={a.body}>
@@ -94,7 +101,7 @@ const AnnouncementsBanner: Component = () => {
                         "margin-left": "var(--sp-2)",
                         color: s.fg,
                         "text-decoration": "underline",
-                        "font-weight": "600",
+                        "font-weight": "600"
                       }}
                     >
                       {a.cta_label} →
@@ -115,7 +122,7 @@ const AnnouncementsBanner: Component = () => {
                       "font-size": "1rem",
                       "line-height": "1",
                       opacity: 0.7,
-                      "border-radius": "var(--radius-sm)",
+                      "border-radius": "var(--radius-sm)"
                     }}
                     title="Dismiss"
                   >

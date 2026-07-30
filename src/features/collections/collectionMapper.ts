@@ -12,8 +12,16 @@
  * into the single `Collection` shape the UI expects.
  */
 
-import type { CollectionRow, CollectionEntryRow } from "~/lib/supabase/repositories";
-import type { Collection, CollectionEntry, CollectionType, TMDBTitle } from "~/shared/types";
+import type {
+  CollectionRow,
+  CollectionEntryRow
+} from "~/lib/supabase/repositories";
+import type {
+  Collection,
+  CollectionEntry,
+  CollectionType,
+  TMDBTitle
+} from "~/shared/types";
 
 // ---------------------------------------------------------------------------
 // Type mapping helpers
@@ -85,7 +93,9 @@ export function entryRowToCollectionEntry(
     // (added in migration 20260729_add_archived_at_to_collections).
     // Backfilled from `position` so existing folders start in their
     // current visual order. Falls back to 0 when null.
-    orderIndex: (row as CollectionEntryRow & { order_index?: number | null }).order_index ?? 0,
+    orderIndex:
+      (row as CollectionEntryRow & { order_index?: number | null })
+        .order_index ?? 0
   };
 }
 
@@ -105,7 +115,9 @@ export function collectionRowToCollection(
   row: CollectionRow,
   entries: CollectionEntry[]
 ): Collection {
-  const archivedAt = (row as CollectionRow & { archived_at?: string | null }).archived_at ?? null;
+  const archivedAt =
+    (row as CollectionRow & { archived_at?: string | null }).archived_at ??
+    null;
   return {
     id: row.id,
     name: row.name,
@@ -131,7 +143,7 @@ export function collectionRowToCollection(
     // isFavorites is not a column in the Supabase schema — the Favorites
     // folder is identified by name ("Favorites") in the app. The UI
     // sorts by isFavorites, so we set it based on the name.
-    isFavorites: row.name === "Favorites",
+    isFavorites: row.name === "Favorites"
   };
 }
 
@@ -171,6 +183,6 @@ export function collectionToCreatePayload(
     description: options?.description ?? null,
     coverUrl: options?.coverUrl ?? null,
     bannerUrl: options?.bannerUrl ?? null,
-    color: options?.color ?? null,
+    color: options?.color ?? null
   };
 }

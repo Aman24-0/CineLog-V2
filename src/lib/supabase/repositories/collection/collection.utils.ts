@@ -92,8 +92,10 @@ export function toCollectionUpdate(
 ): CollectionUpdate {
   const update: CollectionUpdate = {};
   if (payload.name !== undefined) update.name = payload.name;
-  if (payload.collectionType !== undefined) update.collection_type = payload.collectionType;
-  if (payload.description !== undefined) update.description = payload.description;
+  if (payload.collectionType !== undefined)
+    update.collection_type = payload.collectionType;
+  if (payload.description !== undefined)
+    update.description = payload.description;
   if (payload.coverUrl !== undefined) update.cover_url = payload.coverUrl;
   if (payload.bannerUrl !== undefined) update.banner_url = payload.bannerUrl;
   if (payload.color !== undefined) update.color = payload.color;
@@ -146,7 +148,11 @@ export function toPositionUpdate(newPosition: number): CollectionEntryUpdate {
  * Generic over the builder type so it works for both the `collections`
  * and `collection_entries` tables.
  */
-export function applySort<TQuery extends { order: (column: string, opts?: { ascending?: boolean }) => TQuery }>(
+export function applySort<
+  TQuery extends {
+    order: (column: string, opts?: { ascending?: boolean }) => TQuery;
+  }
+>(
   query: TQuery,
   sort: { field: string; direction?: "asc" | "desc" } | undefined
 ): TQuery {
@@ -160,7 +166,9 @@ export function applySort<TQuery extends { order: (column: string, opts?: { asce
  *
  * Uses PostgREST's `.range(from, to)` which is inclusive on both ends.
  */
-export function applyPagination<TQuery extends { range: (from: number, to: number) => TQuery }>(
+export function applyPagination<
+  TQuery extends { range: (from: number, to: number) => TQuery }
+>(
   query: TQuery,
   pagination: { limit: number; offset?: number } | undefined
 ): TQuery {

@@ -8,7 +8,7 @@ import { lazy } from "solid-js";
 import AdminShell from "~/features/admin/AdminShell";
 
 const AdminFeatureFlagsPage = lazy(
-  () => import("~/features/admin/AdminFeatureFlagsPage"),
+  () => import("~/features/admin/AdminFeatureFlagsPage")
 );
 
 export default function AdminFeatureFlagsRoute() {

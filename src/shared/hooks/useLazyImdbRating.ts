@@ -58,7 +58,10 @@ const inFlight = new Set<string>();
  * This is how the in-flight dedup works — the second card registers
  * its callback and gets notified when the first card's fetch completes.
  */
-const pendingCallbacks = new Map<string, Array<(score: string | null) => void>>();
+const pendingCallbacks = new Map<
+  string,
+  Array<(score: string | null) => void>
+>();
 
 // ─── Hook ────────────────────────────────────────────────────────────
 
@@ -85,7 +88,7 @@ export interface LazyImdbRating {
 export function useLazyImdbRating(
   tmdbId: Accessor<string | number | null | undefined>,
   mediaType: Accessor<"movie" | "tv" | null | undefined>,
-  elementRef: Accessor<HTMLElement | undefined>,
+  elementRef: Accessor<HTMLElement | undefined>
 ): LazyImdbRating {
   const [rating, setRating] = createSignal<string | null>(null);
   const [loading, setLoading] = createSignal(false);
@@ -141,7 +144,9 @@ export function useLazyImdbRating(
     const mt = key.slice(0, slashIdx);
     const id = key.slice(slashIdx + 1);
 
-    fetch(`/api/media/ratings?tmdb=${encodeURIComponent(id)}&type=${encodeURIComponent(mt)}`)
+    fetch(
+      `/api/media/ratings?tmdb=${encodeURIComponent(id)}&type=${encodeURIComponent(mt)}`
+    )
       .then((res) => {
         if (!res.ok) return null;
         return res.json();
@@ -204,7 +209,7 @@ export function useLazyImdbRating(
           }
         }
       },
-      { rootMargin: "200px 0px", threshold: 0 },
+      { rootMargin: "200px 0px", threshold: 0 }
     );
 
     // Observe the element. It might not be available yet (SolidJS sets

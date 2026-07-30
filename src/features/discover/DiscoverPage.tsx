@@ -82,7 +82,16 @@
 //   Explorer + Discover sections are temporarily replaced by the
 //   search results. Clearing the query restores the Discover layout.
 
-import { createSignal, createMemo, createEffect, Show, For, ErrorBoundary, Suspense, type JSX } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  Show,
+  For,
+  ErrorBoundary,
+  Suspense,
+  type JSX
+} from "solid-js";
 import { useNavigate, useSearchParams } from "@solidjs/router";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
@@ -91,7 +100,10 @@ import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
 import { useSpotlight } from "./hooks/useSpotlight";
 import { useDiscoverFeeds } from "./hooks/useDiscoverFeeds";
-import { usePersonalizedDiscover, formatTopGenreLabel } from "./hooks/usePersonalizedDiscover";
+import {
+  usePersonalizedDiscover,
+  formatTopGenreLabel
+} from "./hooks/usePersonalizedDiscover";
 import { useDiscoverRow } from "./hooks/useDiscoverRow";
 import { useDiscoverActions } from "./useDiscoverActions";
 import Spotlight from "./components/Spotlight";
@@ -99,15 +111,13 @@ import DiscoverRail from "./components/DiscoverRail";
 import GenreExplorer from "./components/GenreExplorer";
 import OttDropdown from "./components/OttDropdown";
 import DiscoverSkeleton from "./components/DiscoverSkeleton";
-import DiscoverEmptyState from "./components/DiscoverEmptyState";
 import { DiscoverSectionError } from "./components/DiscoverSectionError";
 import {
   discoverMovies,
   discoverMoviesWithProvider,
   discoverTvWithProvider,
   getRecommendations,
-  getTrending,
-  getUpcoming,
+  getTrending
 } from "~/core/tmdb/discover";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { streamingProviders } from "~/core/preferences";
@@ -154,7 +164,7 @@ export default function DiscoverPage() {
     error: searchError,
     commitSearch,
     isInVault,
-    hasQuery,
+    hasQuery
   } = useSearch({ vault: watchlist });
 
   const handleSearchSubmit = (e: Event) => {
@@ -189,11 +199,14 @@ export default function DiscoverPage() {
     loading: spotlightLoading,
     error: spotlightError,
     shuffle: shuffleSpotlight,
-    retry: retrySpotlight,
+    retry: retrySpotlight
   } = useSpotlight({ taste, vault: watchlist, userId, authReady });
 
   const feeds = useDiscoverFeeds(region);
-  const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
+  const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({
+    watchlist,
+    isGuest
+  });
 
   // ── VAULT EXCLUSION + NEW SEASON LOGIC ────────────────────────────
   // `excludedKeys` is the set of "{media_type}/{tmdb_id}" keys for
@@ -225,8 +238,12 @@ export default function DiscoverPage() {
    */
   const filterFeed = (
     titles: TMDBTitle[],
-    priorRenderedIds: Set<number> = new Set(),
-  ): { titles: TMDBTitle[]; badgeIds: Set<string>; renderedIds: Set<number> } => {
+    priorRenderedIds: Set<number> = new Set()
+  ): {
+    titles: TMDBTitle[];
+    badgeIds: Set<string>;
+    renderedIds: Set<number>;
+  } => {
     const vault = excludedKeys();
     const tracked = trackedTvSeasons();
     const badgeIds = new Set<string>();
@@ -298,7 +315,9 @@ export default function DiscoverPage() {
   });
   // Dedup chain: Row 1 starts from the Spotlight's rendered ids so
   // the Spotlight pick isn't repeated in Row 1.
-  const row1Filtered = createMemo(() => filterFeed(row1.titles(), spotlightRenderedIds()));
+  const row1Filtered = createMemo(() =>
+    filterFeed(row1.titles(), spotlightRenderedIds())
+  );
   const row1Label = createMemo(() => personalized.seedLabel());
 
   // ── ROW 2: "Trending in [User's Top Genre Name]" ─────────────────
@@ -317,11 +336,13 @@ export default function DiscoverPage() {
     return discoverMovies({
       withGenres: [key.genreId],
       sortBy: "popularity.desc",
-      voteCountGte: 100,
+      voteCountGte: 100
     });
   });
   // Dedup chain: Row 2 continues from Row 1's rendered ids.
-  const row2Filtered = createMemo(() => filterFeed(row2.titles(), row1Filtered().renderedIds));
+  const row2Filtered = createMemo(() =>
+    filterFeed(row2.titles(), row1Filtered().renderedIds)
+  );
   const row2Label = createMemo(() => {
     const name = personalized.topGenreName();
     if (name) return formatTopGenreLabel(name);
@@ -361,8 +382,10 @@ export default function DiscoverPage() {
     const pid = parseInt(key.providerId, 10);
     if (!Number.isFinite(pid)) return [];
     const [movieRes, tvRes] = await Promise.allSettled([
-      discoverMoviesWithProvider(pid, key.region, { sortBy: "popularity.desc" }),
-      discoverTvWithProvider(pid, key.region, { sortBy: "popularity.desc" }),
+      discoverMoviesWithProvider(pid, key.region, {
+        sortBy: "popularity.desc"
+      }),
+      discoverTvWithProvider(pid, key.region, { sortBy: "popularity.desc" })
     ]);
     const movies = movieRes.status === "fulfilled" ? movieRes.value : [];
     const tv = tvRes.status === "fulfilled" ? tvRes.value : [];
@@ -382,7 +405,9 @@ export default function DiscoverPage() {
     return merged;
   });
   // Dedup chain: Row 3 continues from Row 2's rendered ids.
-  const row3Filtered = createMemo(() => filterFeed(row3.titles(), row2Filtered().renderedIds));
+  const row3Filtered = createMemo(() =>
+    filterFeed(row3.titles(), row2Filtered().renderedIds)
+  );
 
   // ── ROW 4: "Weekend Picks & Hidden Gems" ─────────────────────────
   // /discover/movie?vote_average.gte=7.0&vote_count.gte=100&vote_count.lte=1500
@@ -403,11 +428,13 @@ export default function DiscoverPage() {
       // Use a fixed 2023-12-31 cutoff (not "current year - 1") so the
       // cache key is stable across days and the apiCache layer can
       // serve repeated visits instantly.
-      primaryReleaseDateLte: "2023-12-31",
+      primaryReleaseDateLte: "2023-12-31"
     });
   });
   // Dedup chain: Row 4 continues from Row 3's rendered ids.
-  const row4Filtered = createMemo(() => filterFeed(row4.titles(), row3Filtered().renderedIds));
+  const row4Filtered = createMemo(() =>
+    filterFeed(row4.titles(), row3Filtered().renderedIds)
+  );
 
   // ── ROW 5: "Global Pulse" (/trending/all/day) ────────────────────
   const row5Key = createMemo(() => ({ day: personalizedDayKey() }));
@@ -415,7 +442,9 @@ export default function DiscoverPage() {
     return getTrending("all", "day");
   });
   // Dedup chain: Row 5 continues from Row 4's rendered ids.
-  const row5Filtered = createMemo(() => filterFeed(row5.titles(), row4Filtered().renderedIds));
+  const row5Filtered = createMemo(() =>
+    filterFeed(row5.titles(), row4Filtered().renderedIds)
+  );
 
   // ── ROW 6: "Coming Soon" (/movie/upcoming) ───────────────────────
   // Reuses the existing feeds.upcoming() signal (already region-aware
@@ -423,11 +452,16 @@ export default function DiscoverPage() {
   // to /profile/upcoming.
   const navigate = useNavigate();
   // Dedup chain: Row 6 continues from Row 5's rendered ids.
-  const upcomingFeed = createMemo(() => filterFeed(feeds.upcoming(), row5Filtered().renderedIds));
+  const upcomingFeed = createMemo(() =>
+    filterFeed(feeds.upcoming(), row5Filtered().renderedIds)
+  );
 
   // Loading state — true only during the initial feeds fetch (first paint).
   const isLoading = createMemo(
-    () => feeds.loading() && feeds.upcoming().length === 0 && row5.titles().length === 0,
+    () =>
+      feeds.loading() &&
+      feeds.upcoming().length === 0 &&
+      row5.titles().length === 0
   );
 
   return (
@@ -442,7 +476,10 @@ export default function DiscoverPage() {
         role="search"
       >
         <div class="search-bar">
-          <span class="material-symbols-outlined search-bar-icon" aria-hidden="true">
+          <span
+            class="material-symbols-outlined search-bar-icon"
+            aria-hidden="true"
+          >
             search
           </span>
           <input
@@ -462,214 +499,295 @@ export default function DiscoverPage() {
               onClick={() => setQuery("")}
               aria-label="Clear search"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
                 close
               </span>
             </button>
           </Show>
         </div>
-        <button type="submit" class="sr-only">Search</button>
+        <button type="submit" class="sr-only">
+          Search
+        </button>
       </form>
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
         {/* === SEARCH RESULTS MODE === */}
-        <Show when={showSearchResults()} fallback={
-          <div class="page-enter relative discover-folds">
+        <Show
+          when={showSearchResults()}
+          fallback={
+            <div class="page-enter discover-folds relative">
+              {/* 1. GENRE EXPLORER (Command Center part 2) */}
+              <Show when={homepageConfig.isEnabled("genre_explorer")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Genre Explorer" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper label="Genre Explorer" icon="palette">
+                    <GenreExplorer
+                      onSelect={handleOpenTitle}
+                      vaultKeys={excludedKeys}
+                      initialGenre={initialGenre()}
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
 
-            {/* 1. GENRE EXPLORER (Command Center part 2) */}
-            <Show when={homepageConfig.isEnabled("genre_explorer")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Genre Explorer" error={e} />}>
-                <DiscoverSectionWrapper label="Genre Explorer" icon="palette">
-                  <GenreExplorer
-                    onSelect={handleOpenTitle}
-                    vaultKeys={excludedKeys}
-                    initialGenre={initialGenre()}
+              {/* 2. DAILY ROTATING SPOTLIGHT HERO */}
+              <Show when={homepageConfig.isEnabled("spotlight")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Spotlight" error={e} />
+                  )}
+                >
+                  <Spotlight
+                    pick={spotlightPick}
+                    loading={spotlightLoading()}
+                    error={spotlightError}
+                    isGuest={isGuest()}
+                    vault={watchlist()}
+                    onDetails={handleOpenTitle}
+                    onAddToVault={addToVault}
+                    onShuffle={() => void shuffleSpotlight()}
+                    onRetry={() => void retrySpotlight()}
                   />
-                </DiscoverSectionWrapper>
-              </ErrorBoundary>
-            </Show>
+                </ErrorBoundary>
+              </Show>
 
-            {/* 2. DAILY ROTATING SPOTLIGHT HERO */}
-            <Show when={homepageConfig.isEnabled("spotlight")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Spotlight" error={e} />}>
-                <Spotlight
-                  pick={spotlightPick}
-                  loading={spotlightLoading()}
-                  error={spotlightError}
-                  isGuest={isGuest()}
-                  vault={watchlist()}
-                  onDetails={handleOpenTitle}
-                  onAddToVault={addToVault}
-                  onShuffle={() => void shuffleSpotlight()}
-                  onRetry={() => void retrySpotlight()}
-                />
-              </ErrorBoundary>
-            </Show>
-
-            {/* 3. ROW 1 — "Because you liked [Daily Seed Movie Title]" */}
-            {/* Hidden on cold start (no seed → no recommendations). */}
-            <Show when={personalized.seedTitle() !== null && homepageConfig.isEnabled("because_you_love")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Recommendations" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <DiscoverSectionWrapper
-                    label={row1Label()}
-                    icon="auto_awesome"
-                    loading={row1.loading() && row1Filtered().titles.length === 0}
-                  >
-                    <DiscoverRail
-                      titles={row1Filtered().titles}
-                      onSelect={handleOpenTitle}
-                      newSeasonBadgeIds={row1Filtered().badgeIds}
-                      emptyText="No recommendations today."
-                      emptyIcon="auto_awesome"
-                      onRetry={row1.loading() ? undefined : row1.retry}
-                    />
-                  </DiscoverSectionWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
-
-            {/* 4. ROW 2 — "Trending in [User's Top Genre Name]" */}
-            <Show when={homepageConfig.isEnabled("trending")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Trending in Genre" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <DiscoverSectionWrapper
-                    label={row2Label()}
-                    icon="trending_up"
-                    loading={row2.loading() && row2Filtered().titles.length === 0}
-                  >
-                    <DiscoverRail
-                      titles={row2Filtered().titles}
-                      onSelect={handleOpenTitle}
-                      newSeasonBadgeIds={row2Filtered().badgeIds}
-                      emptyText="No titles in this genre right now."
-                      emptyIcon="trending_up"
-                      onRetry={row2.loading() ? undefined : row2.retry}
-                    />
-                  </DiscoverSectionWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
-
-            {/* 5. ROW 3 — "NEW ON OTT" + OttDropdown */}
-            <Show when={homepageConfig.isEnabled("new_on_ott")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="New on OTT" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <section class="discover-fold" aria-label="New on OTT">
-                    <div class="discover-fold-header">
-                      <div class="discover-fold-label">
-                        <span class="material-symbols-outlined" aria-hidden="true">live_tv</span>
-                        New on OTT
-                      </div>
-                      <OttDropdown
-                        region={region()}
-                        selected={ottSelected}
-                        onSelect={setOttSelected}
-                      />
-                    </div>
-                    <Show
-                      when={!row3.loading() || row3Filtered().titles.length > 0}
-                      fallback={<RowSkeletonRail />}
+              {/* 3. ROW 1 — "Because you liked [Daily Seed Movie Title]" */}
+              {/* Hidden on cold start (no seed → no recommendations). */}
+              <Show
+                when={
+                  personalized.seedTitle() !== null &&
+                  homepageConfig.isEnabled("because_you_love")
+                }
+              >
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Recommendations" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <DiscoverSectionWrapper
+                      label={row1Label()}
+                      icon="auto_awesome"
+                      loading={
+                        row1.loading() && row1Filtered().titles.length === 0
+                      }
                     >
                       <DiscoverRail
-                        titles={row3Filtered().titles}
+                        titles={row1Filtered().titles}
                         onSelect={handleOpenTitle}
-                        newSeasonBadgeIds={row3Filtered().badgeIds}
-                        emptyText="Nothing streaming on this provider right now."
-                        emptyHint="Try another provider from the dropdown above."
-                        emptyIcon="live_tv"
-                        onRetry={row3.loading() ? undefined : row3.retry}
+                        newSeasonBadgeIds={row1Filtered().badgeIds}
+                        emptyText="No recommendations today."
+                        emptyIcon="auto_awesome"
+                        onRetry={row1.loading() ? undefined : row1.retry}
                       />
-                    </Show>
-                  </section>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
+                    </DiscoverSectionWrapper>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
 
-            {/* 6. ROW 4 — "Weekend Picks & Hidden Gems" */}
-            <Show when={homepageConfig.isEnabled("weekend_picks")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Weekend Picks" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <DiscoverSectionWrapper
-                    label="Weekend Picks & Hidden Gems"
-                    icon="diamond"
-                    loading={row4.loading() && row4Filtered().titles.length === 0}
+              {/* 4. ROW 2 — "Trending in [User's Top Genre Name]" */}
+              <Show when={homepageConfig.isEnabled("trending")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Trending in Genre" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <DiscoverSectionWrapper
+                      label={row2Label()}
+                      icon="trending_up"
+                      loading={
+                        row2.loading() && row2Filtered().titles.length === 0
+                      }
+                    >
+                      <DiscoverRail
+                        titles={row2Filtered().titles}
+                        onSelect={handleOpenTitle}
+                        newSeasonBadgeIds={row2Filtered().badgeIds}
+                        emptyText="No titles in this genre right now."
+                        emptyIcon="trending_up"
+                        onRetry={row2.loading() ? undefined : row2.retry}
+                      />
+                    </DiscoverSectionWrapper>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 5. ROW 3 — "NEW ON OTT" + OttDropdown */}
+              <Show when={homepageConfig.isEnabled("new_on_ott")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="New on OTT" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <section class="discover-fold" aria-label="New on OTT">
+                      <div class="discover-fold-header">
+                        <div class="discover-fold-label">
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            live_tv
+                          </span>
+                          New on OTT
+                        </div>
+                        <OttDropdown
+                          region={region()}
+                          selected={ottSelected}
+                          onSelect={setOttSelected}
+                        />
+                      </div>
+                      <Show
+                        when={
+                          !row3.loading() || row3Filtered().titles.length > 0
+                        }
+                        fallback={<RowSkeletonRail />}
+                      >
+                        <DiscoverRail
+                          titles={row3Filtered().titles}
+                          onSelect={handleOpenTitle}
+                          newSeasonBadgeIds={row3Filtered().badgeIds}
+                          emptyText="Nothing streaming on this provider right now."
+                          emptyHint="Try another provider from the dropdown above."
+                          emptyIcon="live_tv"
+                          onRetry={row3.loading() ? undefined : row3.retry}
+                        />
+                      </Show>
+                    </section>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 6. ROW 4 — "Weekend Picks & Hidden Gems" */}
+              <Show when={homepageConfig.isEnabled("weekend_picks")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Weekend Picks" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <DiscoverSectionWrapper
+                      label="Weekend Picks & Hidden Gems"
+                      icon="diamond"
+                      loading={
+                        row4.loading() && row4Filtered().titles.length === 0
+                      }
+                    >
+                      <DiscoverRail
+                        titles={row4Filtered().titles}
+                        onSelect={handleOpenTitle}
+                        newSeasonBadgeIds={row4Filtered().badgeIds}
+                        emptyText="No hidden gems found right now."
+                        emptyIcon="diamond"
+                        onRetry={row4.loading() ? undefined : row4.retry}
+                      />
+                    </DiscoverSectionWrapper>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 7. ROW 5 — "Global Pulse" (/trending/all/day) */}
+              <Show when={homepageConfig.isEnabled("trending")}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Global Pulse" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <DiscoverSectionWrapper
+                      label="Global Pulse"
+                      icon="public"
+                      loading={
+                        row5.loading() && row5Filtered().titles.length === 0
+                      }
+                    >
+                      <DiscoverRail
+                        titles={row5Filtered().titles}
+                        onSelect={handleOpenTitle}
+                        newSeasonBadgeIds={row5Filtered().badgeIds}
+                        emptyText="No trending titles today."
+                        emptyIcon="public"
+                        onRetry={row5.loading() ? undefined : row5.retry}
+                      />
+                    </DiscoverSectionWrapper>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 8. ROW 6 — "Coming Soon" (/movie/upcoming) */}
+              <Show
+                when={
+                  featureFlags.isEnabled("upcoming") &&
+                  homepageConfig.isEnabled("coming_soon")
+                }
+              >
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Coming Soon" error={e} />
+                  )}
+                >
+                  <Suspense fallback={<RowSkeleton />}>
+                    <DiscoverSectionWrapper
+                      label="Coming Soon"
+                      icon="upcoming"
+                      loading={
+                        feeds.loading() && upcomingFeed().titles.length === 0
+                      }
+                      actionLabel="See All"
+                      onAction={() => navigate("/profile/upcoming")}
+                    >
+                      <DiscoverRail
+                        titles={upcomingFeed().titles}
+                        onSelect={handleOpenTitle}
+                        newSeasonBadgeIds={upcomingFeed().badgeIds}
+                        emptyText="No upcoming releases."
+                        emptyIcon="upcoming"
+                        onRetry={feeds.loading() ? undefined : feeds.retry}
+                      />
+                    </DiscoverSectionWrapper>
+                  </Suspense>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 9. GUEST SIGN-IN CTA */}
+              <Show when={isGuest()}>
+                <div class="discover-guest-nudge">
+                  <p
+                    class="type-body-soft"
+                    style={{
+                      "text-align": "center",
+                      "max-width": "280px",
+                      margin: "0 auto var(--sp-3)"
+                    }}
                   >
-                    <DiscoverRail
-                      titles={row4Filtered().titles}
-                      onSelect={handleOpenTitle}
-                      newSeasonBadgeIds={row4Filtered().badgeIds}
-                      emptyText="No hidden gems found right now."
-                      emptyIcon="diamond"
-                      onRetry={row4.loading() ? undefined : row4.retry}
-                    />
-                  </DiscoverSectionWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
-
-            {/* 7. ROW 5 — "Global Pulse" (/trending/all/day) */}
-            <Show when={homepageConfig.isEnabled("trending")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Global Pulse" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <DiscoverSectionWrapper
-                    label="Global Pulse"
-                    icon="public"
-                    loading={row5.loading() && row5Filtered().titles.length === 0}
+                    Sign in to make Spotlight yours — every pick adapts to what
+                    you love.
+                  </p>
+                  <button
+                    class="btn-primary focus-ring"
+                    onClick={handleLogin}
+                    style={{ margin: "0 auto", display: "flex" }}
                   >
-                    <DiscoverRail
-                      titles={row5Filtered().titles}
-                      onSelect={handleOpenTitle}
-                      newSeasonBadgeIds={row5Filtered().badgeIds}
-                      emptyText="No trending titles today."
-                      emptyIcon="public"
-                      onRetry={row5.loading() ? undefined : row5.retry}
-                    />
-                  </DiscoverSectionWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
-
-            {/* 8. ROW 6 — "Coming Soon" (/movie/upcoming) */}
-            <Show when={featureFlags.isEnabled("upcoming") && homepageConfig.isEnabled("coming_soon")}>
-              <ErrorBoundary fallback={(e) => <DiscoverSectionError label="Coming Soon" error={e} />}>
-                <Suspense fallback={<RowSkeleton />}>
-                  <DiscoverSectionWrapper
-                    label="Coming Soon"
-                    icon="upcoming"
-                    loading={feeds.loading() && upcomingFeed().titles.length === 0}
-                    actionLabel="See All"
-                    onAction={() => navigate("/profile/upcoming")}
-                  >
-                    <DiscoverRail
-                      titles={upcomingFeed().titles}
-                      onSelect={handleOpenTitle}
-                      newSeasonBadgeIds={upcomingFeed().badgeIds}
-                      emptyText="No upcoming releases."
-                      emptyIcon="upcoming"
-                      onRetry={feeds.loading() ? undefined : feeds.retry}
-                    />
-                  </DiscoverSectionWrapper>
-                </Suspense>
-              </ErrorBoundary>
-            </Show>
-
-            {/* 9. GUEST SIGN-IN CTA */}
-            <Show when={isGuest()}>
-              <div class="discover-guest-nudge">
-                <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px", margin: "0 auto var(--sp-3)" }}>
-                  Sign in to make Spotlight yours — every pick adapts to what you love.
-                </p>
-                <button class="btn-primary focus-ring" onClick={handleLogin} style={{ margin: "0 auto", display: "flex" }}>
-                  <span class="material-symbols-outlined" aria-hidden="true">login</span>
-                  Sign In to Begin
-                </button>
-              </div>
-            </Show>
-          </div>
-        }>
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      login
+                    </span>
+                    Sign In to Begin
+                  </button>
+                </div>
+              </Show>
+            </div>
+          }
+        >
           {/* === SEARCH RESULTS (shown when query ≥ 2 chars, debounced) === */}
-          <div class="page-enter relative discover-folds">
+          <div class="page-enter discover-folds relative">
             <SearchResults
               loading={searchLoading}
               error={searchError}
@@ -687,6 +805,14 @@ export default function DiscoverPage() {
 }
 
 // ─── Local helper components (kept in this file to avoid file sprawl) ───
+
+// Shared module-level styles for the skeleton rails. Each Discover
+// section's loading fallback renders 6 skeleton cards; the same style
+// is used by DiscoverSectionWrapper, RowSkeletonRail, and the calendar
+// / spotlight skeletons. Hoisting to module scope prevents one
+// allocation per skeleton card per mount.
+const SKELETON_CARD_STYLE: JSX.CSSProperties = { cursor: "default" };
+const SKELETON_LABEL_STYLE: JSX.CSSProperties = { opacity: 0.4 };
 
 /**
  * DiscoverSectionWrapper — thin wrapper around the standard Discover
@@ -710,7 +836,9 @@ function DiscoverSectionWrapper(props: {
     <section class="discover-fold" aria-label={props.label}>
       <div class="discover-fold-header">
         <div class="discover-fold-label">
-          <span class="material-symbols-outlined" aria-hidden="true">{props.icon}</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            {props.icon}
+          </span>
           {props.label}
         </div>
         <Show when={props.actionLabel && props.onAction}>
@@ -721,7 +849,9 @@ function DiscoverSectionWrapper(props: {
             aria-label={props.actionLabel}
           >
             <span>{props.actionLabel}</span>
-            <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              chevron_right
+            </span>
           </button>
         </Show>
       </div>
@@ -731,7 +861,7 @@ function DiscoverSectionWrapper(props: {
           <div class="search-rail">
             <For each={Array.from({ length: 6 })}>
               {() => (
-                <div class="search-rail-card" style={{ cursor: "default" }}>
+                <div class="search-rail-card" style={SKELETON_CARD_STYLE}>
                   <div class="search-rail-poster skeleton-base" />
                 </div>
               )}
@@ -751,7 +881,7 @@ function RowSkeletonRail() {
     <div class="search-rail">
       <For each={Array.from({ length: 6 })}>
         {() => (
-          <div class="search-rail-card" style={{ cursor: "default" }}>
+          <div class="search-rail-card" style={SKELETON_CARD_STYLE}>
             <div class="search-rail-poster skeleton-base" />
           </div>
         )}
@@ -765,8 +895,10 @@ function RowSkeleton() {
   return (
     <section class="discover-fold">
       <div class="discover-fold-header">
-        <div class="discover-fold-label" style={{ opacity: 0.4 }}>
-          <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+        <div class="discover-fold-label" style={SKELETON_LABEL_STYLE}>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            movie
+          </span>
           Loading…
         </div>
       </div>

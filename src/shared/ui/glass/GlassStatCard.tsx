@@ -16,39 +16,48 @@ type StatTrend = "up" | "down" | "neutral";
 // ─── Token Maps ────────────────────────────────────────────────
 
 const variantClasses: Record<StatVariant, { iconColor: string }> = {
-  "glass": {
-    iconColor: "text-text-soft",
+  glass: {
+    iconColor: "text-text-soft"
   },
   "glass-strong": {
-    iconColor: "text-text-strong",
+    iconColor: "text-text-strong"
   },
   accent: {
-    iconColor: "text-primary",
-  },
+    iconColor: "text-primary"
+  }
 };
 
-const sizeClasses: Record<StatSize, { padding: "compact" | "default" | "comfortable"; value: string; label: string; icon: string; gap: string }> = {
+const sizeClasses: Record<
+  StatSize,
+  {
+    padding: "compact" | "default" | "comfortable";
+    value: string;
+    label: string;
+    icon: string;
+    gap: string;
+  }
+> = {
   compact: {
     padding: "compact",
     value: "text-xl",
     label: "text-xs",
     icon: "text-lg",
-    gap: "gap-1",
+    gap: "gap-1"
   },
   default: {
     padding: "default",
     value: "text-3xl",
     label: "text-sm",
     icon: "text-2xl",
-    gap: "gap-2",
+    gap: "gap-2"
   },
   large: {
     padding: "comfortable",
     value: "text-5xl",
     label: "text-md",
     icon: "text-3xl",
-    gap: "gap-3",
-  },
+    gap: "gap-3"
+  }
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -76,12 +85,12 @@ export interface GlassStatCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassStatCardProps,
-  "variant" | "size" | "loading"
->> = {
+const defaultProps: Required<
+  Pick<GlassStatCardProps, "variant" | "size" | "loading">
+> = {
   variant: "glass",
   size: "default",
-  loading: false,
+  loading: false
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -92,7 +101,16 @@ const defaultProps: Required<Pick<GlassStatCardProps,
 const GlassStatCard: Component<GlassStatCardProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "value", "label", "variant", "size", "icon", "trend", "trendValue", "loading", "onClick", "class"
+    "value",
+    "label",
+    "variant",
+    "size",
+    "icon",
+    "trend",
+    "trendValue",
+    "loading",
+    "onClick",
+    "class"
   ]);
 
   const sizeTokens = () => sizeClasses[local.size];
@@ -109,9 +127,11 @@ const GlassStatCard: Component<GlassStatCardProps> = (rawProps) => {
       aria-label={`${local.label}: ${local.value}${local.trendValue ? ` (${local.trendValue} ${local.trend})` : ""}`}
       class={`flex flex-col justify-between ${local.class || ""}`}
     >
-      <div class="flex items-start justify-between w-full">
+      <div class="flex w-full items-start justify-between">
         {/* Label */}
-        <p class={`font-label uppercase tracking-widest text-text-muted ${sizeTokens().label}`}>
+        <p
+          class={`font-label uppercase tracking-widest text-text-muted ${sizeTokens().label}`}
+        >
           {local.label}
         </p>
 
@@ -119,7 +139,10 @@ const GlassStatCard: Component<GlassStatCardProps> = (rawProps) => {
         <Show when={local.icon}>
           <span
             class={`material-symbols-outlined ${variantTokens().iconColor} ${sizeTokens().icon}`}
-            style={{ "font-variation-settings": "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}
+            style={{
+              "font-variation-settings":
+                "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24"
+            }}
             aria-hidden="true"
           >
             {local.icon}
@@ -132,10 +155,12 @@ const GlassStatCard: Component<GlassStatCardProps> = (rawProps) => {
         <Show
           when={!local.loading}
           fallback={
-            <div class="h-8 w-16 bg-tier-3 rounded-sm" aria-hidden="true" />
+            <div class="h-8 w-16 rounded-sm bg-tier-3" aria-hidden="true" />
           }
         >
-          <span class={`font-display font-bold text-text-strong tracking-tight ${sizeTokens().value} leading-none`}>
+          <span
+            class={`font-display font-bold tracking-tight text-text-strong ${sizeTokens().value} leading-none`}
+          >
             {local.value}
           </span>
         </Show>
@@ -144,14 +169,23 @@ const GlassStatCard: Component<GlassStatCardProps> = (rawProps) => {
         <Show when={local.trend && local.trendValue && !local.loading}>
           <div
             class={[
-              "flex items-center gap-0.5 text-sm font-semibold rounded-sm px-1.5 py-0.5",
-              local.trend === "up" ? "text-success bg-success/10" : "",
-              local.trend === "down" ? "text-danger bg-danger/10" : "",
-              local.trend === "neutral" ? "text-text-muted bg-tier-3" : "",
-            ].filter(Boolean).join(" ")}
+              "flex items-center gap-0.5 rounded-sm px-1.5 py-0.5 text-sm font-semibold",
+              local.trend === "up" ? "bg-success/10 text-success" : "",
+              local.trend === "down" ? "bg-danger/10 text-danger" : "",
+              local.trend === "neutral" ? "bg-tier-3 text-text-muted" : ""
+            ]
+              .filter(Boolean)
+              .join(" ")}
           >
-            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
-              {local.trend === "up" ? "trending_up" : local.trend === "down" ? "trending_down" : "trending_flat"}
+            <span
+              class="material-symbols-outlined text-[14px]"
+              aria-hidden="true"
+            >
+              {local.trend === "up"
+                ? "trending_up"
+                : local.trend === "down"
+                  ? "trending_down"
+                  : "trending_flat"}
             </span>
             <span>{local.trendValue}</span>
           </div>

@@ -27,7 +27,10 @@ interface ChangePasswordSheetProps {
 }
 
 /** Password strength estimate — 0 to 4. Purely heuristic. */
-function passwordStrength(pw: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
+function passwordStrength(pw: string): {
+  score: 0 | 1 | 2 | 3 | 4;
+  label: string;
+} {
   if (!pw) return { score: 0, label: "—" };
   let score = 0;
   if (pw.length >= 8) score++;
@@ -56,7 +59,9 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
   const mode = () => (hasEmailIdentity() ? "change" : "set");
 
   const strength = createMemo(() => passwordStrength(newPw()));
-  const passwordsMatch = createMemo(() => newPw() === confirmPw() && newPw().length > 0);
+  const passwordsMatch = createMemo(
+    () => newPw() === confirmPw() && newPw().length > 0
+  );
   const canSubmit = createMemo(() => {
     if (busy()) return false;
     if (newPw().length < 8) return false;
@@ -70,7 +75,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
     setBusy(true);
     const result = await changePassword(
       newPw(),
-      mode() === "change" ? currentPw() : undefined,
+      mode() === "change" ? currentPw() : undefined
     );
     setBusy(false);
     if (result.success) setDone(true);
@@ -102,31 +107,58 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
       onClose={handleClose}
       title={mode() === "change" ? "Change Password" : "Set Password"}
       icon="lock"
-      subtitle={mode() === "change"
-        ? "Pick a strong password you don't use anywhere else."
-        : "Set a password so you can sign in with email + password."}
+      subtitle={
+        mode() === "change"
+          ? "Pick a strong password you don't use anywhere else."
+          : "Set a password so you can sign in with email + password."
+      }
       busy={busy()}
     >
       <Show
         when={!done()}
         fallback={
-          <div class="flex flex-col items-center text-center py-6">
+          <div class="flex flex-col items-center py-6 text-center">
             <div
-              class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: "rgba(72, 187, 120, 0.12)", border: "1px solid rgba(72, 187, 120, 0.3)" }}
+              class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+              style={{
+                background: "rgba(72, 187, 120, 0.12)",
+                border: "1px solid rgba(72, 187, 120, 0.3)"
+              }}
               aria-hidden="true"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#6ee7b7" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "32px", color: "#6ee7b7" }}
+                aria-hidden="true"
+              >
                 check_circle
               </span>
             </div>
-            <h4 class="type-headline" style={{ "font-size": "1rem", margin: "0 0 0.5rem", color: "var(--text-strong)" }}>
+            <h4
+              class="type-headline"
+              style={{
+                "font-size": "1rem",
+                margin: "0 0 0.5rem",
+                color: "var(--text-strong)"
+              }}
+            >
               Password {mode() === "change" ? "Updated" : "Set"}
             </h4>
-            <p class="type-body-soft" style={{ margin: 0, "font-size": "0.8125rem", "max-width": "280px" }}>
+            <p
+              class="type-body-soft"
+              style={{
+                margin: 0,
+                "font-size": "0.8125rem",
+                "max-width": "280px"
+              }}
+            >
               Use this password next time you sign in with email.
             </p>
-            <button class="btn-primary focus-ring mt-5" onClick={handleClose} style={{ "min-width": "120px" }}>
+            <button
+              class="btn-primary focus-ring mt-5"
+              onClick={handleClose}
+              style={{ "min-width": "120px" }}
+            >
               Done
             </button>
           </div>
@@ -135,7 +167,9 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
         {/* Current password — only in "change" mode */}
         <Show when={mode() === "change"}>
           <div style={{ "margin-bottom": "1rem" }}>
-            <label class="account-sheet-label" for="current-pw-input">Current password</label>
+            <label class="account-sheet-label" for="current-pw-input">
+              Current password
+            </label>
             <div class="account-sheet-input-wrap">
               <input
                 id="current-pw-input"
@@ -155,14 +189,24 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
                 aria-label={showCurrent() ? "Hide password" : "Show password"}
                 tabindex={0}
               >
-                <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
                   {showCurrent() ? "visibility_off" : "visibility"}
                 </span>
               </button>
             </div>
             <Show when={resetSent()}>
               <p class="account-sheet-hint account-sheet-hint-success">
-                <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">check</span>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "12px" }}
+                  aria-hidden="true"
+                >
+                  check
+                </span>
                 Reset link sent to {user()?.email}.
               </p>
             </Show>
@@ -180,7 +224,9 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
 
         {/* New password */}
         <div style={{ "margin-bottom": "1rem" }}>
-          <label class="account-sheet-label" for="new-pw-input">New password</label>
+          <label class="account-sheet-label" for="new-pw-input">
+            New password
+          </label>
           <div class="account-sheet-input-wrap">
             <input
               id="new-pw-input"
@@ -200,7 +246,11 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               aria-label={showNew() ? "Hide password" : "Show password"}
               tabindex={0}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
                 {showNew() ? "visibility_off" : "visibility"}
               </span>
             </button>
@@ -214,23 +264,31 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
                     <div
                       class="account-sheet-strength-bar"
                       classList={{
-                        "account-sheet-strength-bar-active": i <= strength().score,
-                        "account-sheet-strength-bar-weak": i <= strength().score && strength().score <= 1,
-                        "account-sheet-strength-bar-medium": i <= strength().score && strength().score === 2,
-                        "account-sheet-strength-bar-strong": i <= strength().score && strength().score >= 3,
+                        "account-sheet-strength-bar-active":
+                          i <= strength().score,
+                        "account-sheet-strength-bar-weak":
+                          i <= strength().score && strength().score <= 1,
+                        "account-sheet-strength-bar-medium":
+                          i <= strength().score && strength().score === 2,
+                        "account-sheet-strength-bar-strong":
+                          i <= strength().score && strength().score >= 3
                       }}
                     />
                   )}
                 </For>
               </div>
-              <span class="account-sheet-strength-label">{strength().label}</span>
+              <span class="account-sheet-strength-label">
+                {strength().label}
+              </span>
             </div>
           </Show>
         </div>
 
         {/* Confirm password */}
         <div style={{ "margin-bottom": "1.5rem" }}>
-          <label class="account-sheet-label" for="confirm-pw-input">Confirm new password</label>
+          <label class="account-sheet-label" for="confirm-pw-input">
+            Confirm new password
+          </label>
           <div class="account-sheet-input-wrap">
             <input
               id="confirm-pw-input"
@@ -250,14 +308,24 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
               aria-label={showConfirm() ? "Hide password" : "Show password"}
               tabindex={0}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
                 {showConfirm() ? "visibility_off" : "visibility"}
               </span>
             </button>
           </div>
           <Show when={confirmPw().length > 0 && !passwordsMatch()}>
             <p class="account-sheet-hint account-sheet-hint-warn">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                info
+              </span>
               Passwords don't match.
             </p>
           </Show>
@@ -267,7 +335,7 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
         <div class="flex gap-2">
           <button
             type="button"
-            class="btn-ghost flex-1 focus-ring"
+            class="btn-ghost focus-ring flex-1"
             onClick={handleClose}
             disabled={busy()}
           >
@@ -275,12 +343,24 @@ const ChangePasswordSheet: Component<ChangePasswordSheetProps> = (props) => {
           </button>
           <button
             type="button"
-            class="btn-primary flex-1 focus-ring"
+            class="btn-primary focus-ring flex-1"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit()}
           >
-            <Show when={busy()} fallback={mode() === "change" ? "Update Password" : "Set Password"}>
-              <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">
+            <Show
+              when={busy()}
+              fallback={
+                mode() === "change" ? "Update Password" : "Set Password"
+              }
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{
+                  "font-size": "14px",
+                  animation: "spin 1s linear infinite"
+                }}
+                aria-hidden="true"
+              >
                 progress_activity
               </span>
               Saving…

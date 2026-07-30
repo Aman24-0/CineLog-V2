@@ -22,7 +22,14 @@
  * It only loads and exposes the user's vault.
  */
 
-import { createContext, useContext, createSignal, createMemo, createEffect, ParentComponent } from "solid-js";
+import {
+  createContext,
+  useContext,
+  createSignal,
+  createMemo,
+  createEffect,
+  ParentComponent
+} from "solid-js";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
 import { useAuth } from "~/shared/hooks/useAuth";
 import type { WatchlistItem } from "~/shared/types";
@@ -38,12 +45,12 @@ export interface UserLibrary {
   readonly error: () => string | null;
   readonly refresh: () => Promise<void>;
   /** Optimistic local update — merges partial fields into one item.
- *  Replaces a full refresh() for single-item mutations. Creates a new
- *  array reference so SolidJS reactivity detects the change, but only
- *  the modified item is shallow-merged (the rest keep the same refs). */
+   *  Replaces a full refresh() for single-item mutations. Creates a new
+   *  array reference so SolidJS reactivity detects the change, but only
+   *  the modified item is shallow-merged (the rest keep the same refs). */
   readonly updateItem: (itemId: string, update: Partial<WatchlistItem>) => void;
   /** Optimistic local removal — removes one item from the array.
- *  Used by delete operations to avoid a full refresh(). */
+   *  Used by delete operations to avoid a full refresh(). */
   readonly removeItem: (itemId: string) => void;
 }
 
@@ -102,13 +109,19 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     try {
       const items = await fetchUserLibrary(userId);
       // Discard if user changed while fetch was in-flight
-      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
+      if (fetchUid !== currentFetchUid) {
+        isFetching = false;
+        return;
+      }
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
       console.error("[UserLibraryProvider] Fetch error:", err);
       // Discard if user changed while fetch was in-flight
-      if (fetchUid !== currentFetchUid) { isFetching = false; return; }
+      if (fetchUid !== currentFetchUid) {
+        isFetching = false;
+        return;
+      }
       setError("Failed to load your library.");
       setLoading(false);
     } finally {
@@ -154,7 +167,9 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       // Safety-net: unblock UI if the vault fetch hangs (network issues, etc.)
       safetyTimerId = setTimeout(() => {
         if (isFetching) {
-          console.warn("[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI");
+          console.warn(
+            "[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI"
+          );
           setLoading(false);
           isFetching = false;
         }
@@ -206,7 +221,7 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     error,
     refresh: doFetch,
     updateItem,
-    removeItem,
+    removeItem
   };
 
   return (

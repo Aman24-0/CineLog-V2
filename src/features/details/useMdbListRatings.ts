@@ -47,7 +47,7 @@ export type FrontendMediaType = "movie" | "tv";
  */
 function buildSourceKey(
   tmdbId: string | number | null | undefined,
-  mediaType: FrontendMediaType | null | undefined,
+  mediaType: FrontendMediaType | null | undefined
 ): string | null {
   if (tmdbId == null || tmdbId === "") return null;
   if (!mediaType) return null;
@@ -63,7 +63,7 @@ function buildSourceKey(
  */
 export function useMdbListRatings(
   tmdbId: Accessor<string | number | null | undefined>,
-  mediaType: Accessor<FrontendMediaType | null | undefined>,
+  mediaType: Accessor<FrontendMediaType | null | undefined>
 ) {
   // Combine the two accessors into a single memo. createResource only
   // refetches when the memo's return value changes (by reference for
@@ -71,7 +71,9 @@ export function useMdbListRatings(
   // compared by value).
   const source = createMemo(() => buildSourceKey(tmdbId(), mediaType()));
 
-  const fetcher = async (sourceKey: string | null): Promise<RatingsPayload | null> => {
+  const fetcher = async (
+    sourceKey: string | null
+  ): Promise<RatingsPayload | null> => {
     if (!sourceKey) return null;
     // sourceKey is "${mediaType}/${tmdbId}" — split it back out so we
     // can send them as separate query params to the server route.
@@ -83,7 +85,7 @@ export function useMdbListRatings(
 
     try {
       const res = await fetch(
-        `/api/media/ratings?tmdb=${encodeURIComponent(id)}&type=${encodeURIComponent(mt)}`,
+        `/api/media/ratings?tmdb=${encodeURIComponent(id)}&type=${encodeURIComponent(mt)}`
       );
       if (!res.ok) return null;
       const data = (await res.json()) as RatingsPayload;
@@ -99,6 +101,6 @@ export function useMdbListRatings(
   return {
     ratings: () => data() ?? null,
     loading: () => data.loading,
-    error: () => data.error,
+    error: () => data.error
   };
 }

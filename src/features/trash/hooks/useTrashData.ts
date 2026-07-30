@@ -30,7 +30,7 @@ import {
   restoreVaultItemInSupabase,
   restoreCollectionInSupabase,
   type TrashedVaultItem,
-  type TrashedCollection,
+  type TrashedCollection
 } from "~/features/trash/trashAdapter";
 
 export interface UseTrashDataResult {
@@ -79,7 +79,7 @@ const GROUP_LABELS: Record<TrashGroupKey, string> = {
   today: "Today",
   yesterday: "Yesterday",
   this_week: "This Week",
-  older: "Older",
+  older: "Older"
 };
 
 function startOfDay(d: Date): Date {
@@ -92,7 +92,7 @@ function bucketForDeletedAt(deletedAt: string): TrashGroupKey {
   const now = startOfDay(new Date());
   const d = startOfDay(new Date(deletedAt));
   const diffDays = Math.round(
-    (now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000),
+    (now.getTime() - d.getTime()) / (24 * 60 * 60 * 1000)
   );
   if (diffDays <= 0) return "today";
   if (diffDays === 1) return "yesterday";
@@ -134,7 +134,7 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     try {
       const [vItems, cols] = await Promise.all([
         fetchTrashedVaultItems(userId),
-        fetchTrashedCollections(userId),
+        fetchTrashedCollections(userId)
       ]);
       setVaultItems(vItems);
       setCollections(cols);
@@ -151,7 +151,7 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
   });
 
   const totalCount = createMemo(
-    () => vaultItems().length + collections().length,
+    () => vaultItems().length + collections().length
   );
 
   // Group all items by deletion date bucket. Each group preserves the
@@ -161,14 +161,17 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     const c = collections();
     if (v.length === 0 && c.length === 0) return [];
 
-    const buckets: Record<TrashGroupKey, {
-      vaultItems: TrashedVaultItem[];
-      collections: TrashedCollection[];
-    }> = {
+    const buckets: Record<
+      TrashGroupKey,
+      {
+        vaultItems: TrashedVaultItem[];
+        collections: TrashedCollection[];
+      }
+    > = {
       today: { vaultItems: [], collections: [] },
       yesterday: { vaultItems: [], collections: [] },
       this_week: { vaultItems: [], collections: [] },
-      older: { vaultItems: [], collections: [] },
+      older: { vaultItems: [], collections: [] }
     };
 
     for (const item of v) {
@@ -179,12 +182,15 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     }
 
     return (Object.keys(buckets) as TrashGroupKey[])
-      .filter((k) => buckets[k].vaultItems.length > 0 || buckets[k].collections.length > 0)
+      .filter(
+        (k) =>
+          buckets[k].vaultItems.length > 0 || buckets[k].collections.length > 0
+      )
       .map((k) => ({
         key: k,
         label: GROUP_LABELS[k],
         vaultItems: buckets[k].vaultItems,
-        collections: buckets[k].collections,
+        collections: buckets[k].collections
       }));
   });
 
@@ -210,7 +216,9 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     }
   };
 
-  const restoreCollection = async (col: TrashedCollection): Promise<boolean> => {
+  const restoreCollection = async (
+    col: TrashedCollection
+  ): Promise<boolean> => {
     if (busy()) return false;
     setBusy(true);
     try {
@@ -225,7 +233,10 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     }
   };
 
-  const restoreAll = async (): Promise<{ vault: number; collections: number }> => {
+  const restoreAll = async (): Promise<{
+    vault: number;
+    collections: number;
+  }> => {
     const userId = uid();
     if (!userId || busy()) return { vault: 0, collections: 0 };
     setBusy(true);
@@ -238,7 +249,11 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
           await restoreVaultItemInSupabase(userId, item.id, item.media_type);
           vaultOk++;
         } catch (err) {
-          console.error("[useTrashData] restoreAll: vault item failed:", item.id, err);
+          console.error(
+            "[useTrashData] restoreAll: vault item failed:",
+            item.id,
+            err
+          );
         }
       }
       for (const col of collections()) {
@@ -246,7 +261,11 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
           await restoreCollectionInSupabase(col.id);
           colOk++;
         } catch (err) {
-          console.error("[useTrashData] restoreAll: collection failed:", col.id, err);
+          console.error(
+            "[useTrashData] restoreAll: collection failed:",
+            col.id,
+            err
+          );
         }
       }
       // Optimistically clear the lists — every item that succeeded
@@ -262,7 +281,7 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
   };
 
   const deleteVaultItemPermanently = async (
-    item: TrashedVaultItem,
+    item: TrashedVaultItem
   ): Promise<boolean> => {
     const userId = uid();
     if (!userId || busy()) return false;
@@ -280,7 +299,7 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
   };
 
   const deleteCollectionPermanently = async (
-    col: TrashedCollection,
+    col: TrashedCollection
   ): Promise<boolean> => {
     if (busy()) return false;
     setBusy(true);
@@ -296,7 +315,10 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     }
   };
 
-  const clearAll = async (): Promise<{ vault: number; collections: number }> => {
+  const clearAll = async (): Promise<{
+    vault: number;
+    collections: number;
+  }> => {
     const userId = uid();
     if (!userId || busy()) return { vault: 0, collections: 0 };
     setBusy(true);
@@ -327,6 +349,6 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     restoreAll,
     deleteVaultItemPermanently,
     deleteCollectionPermanently,
-    clearAll,
+    clearAll
   };
 }

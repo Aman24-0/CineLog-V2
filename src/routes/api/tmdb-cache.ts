@@ -102,7 +102,11 @@ export async function GET(event: APIEvent) {
     }
 
     // Parse keys into (media_type, tmdb_id) pairs
-    const pairs: Array<{ mediaType: string; tmdbId: number; originalKey: string }> = [];
+    const pairs: Array<{
+      mediaType: string;
+      tmdbId: number;
+      originalKey: string;
+    }> = [];
     for (const key of keys) {
       const parsed = parseKey(key);
       if (parsed) {
@@ -174,7 +178,9 @@ export async function GET(event: APIEvent) {
 // Returns: { upserted: number }
 export async function POST(event: APIEvent) {
   try {
-    const body = await event.request.json() as { entries?: CacheUpsertEntry[] };
+    const body = (await event.request.json()) as {
+      entries?: CacheUpsertEntry[];
+    };
     const entries = body?.entries;
 
     if (!Array.isArray(entries) || entries.length === 0) {
@@ -186,20 +192,25 @@ export async function POST(event: APIEvent) {
     const supabase = getServiceClient();
 
     // Set expires_at to 7 days from now
-    const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+    const expiresAt = new Date(
+      Date.now() + 7 * 24 * 60 * 60 * 1000
+    ).toISOString();
 
     const rows: CacheUpsertRow[] = entries.map((entry) => ({
       tmdb_id: entry.tmdb_id,
       media_type: entry.media_type,
       data: entry.data,
-      expires_at: expiresAt,
+      expires_at: expiresAt
     }));
 
     // Batch upsert — insert new, update existing
     // The unique constraint is on (media_type, tmdb_id)
     const { error } = await supabase
       .from("tmdb_cache")
-      .upsert(rows, { onConflict: "media_type,tmdb_id", ignoreDuplicates: false });
+      .upsert(rows, {
+        onConflict: "media_type,tmdb_id",
+        ignoreDuplicates: false
+      });
 
     if (error) {
       console.error("[tmdb-cache API] Write error:", error);

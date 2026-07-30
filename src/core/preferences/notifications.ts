@@ -32,7 +32,7 @@ const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
   quietHoursEnd: "07:00",
   weeklyDigestTime: "09:00",
   weeklyDigestDay: 1, // Monday
-  episodeReminderLead: 60, // 1 hour before
+  episodeReminderLead: 60 // 1 hour before
 };
 
 function readNotifPrefs(): NotificationPrefs {
@@ -47,7 +47,8 @@ function readNotifPrefs(): NotificationPrefs {
   }
 }
 
-export const [notifPrefs, setNotifPrefs] = createSignal<NotificationPrefs>(readNotifPrefs());
+export const [notifPrefs, setNotifPrefs] =
+  createSignal<NotificationPrefs>(readNotifPrefs());
 
 createEffect(() => {
   if (isServer) return;
@@ -58,7 +59,10 @@ createEffect(() => {
   }
 });
 
-export function updateNotifPref<K extends keyof NotificationPrefs>(key: K, value: NotificationPrefs[K]): void {
+export function updateNotifPref<K extends keyof NotificationPrefs>(
+  key: K,
+  value: NotificationPrefs[K]
+): void {
   setNotifPrefs((prev) => ({ ...prev, [key]: value }));
 }
 

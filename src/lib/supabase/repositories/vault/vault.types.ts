@@ -4,7 +4,13 @@
  * Type definitions for the `vault` table (Database Bible §03).
  */
 
-import type { Database, Enums, Tables, TablesInsert, TablesUpdate } from "../../database.types";
+import type {
+  Database,
+  Enums,
+  Tables,
+  TablesInsert,
+  TablesUpdate
+} from "../../database.types";
 
 // ---------------------------------------------------------------------------
 // Row / Insert / Update aliases
@@ -52,14 +58,22 @@ export interface CreateVaultItemPayload {
   /** Number of full-series re-watch passes (TV only). */
   readonly seasonRewatchCount?: number;
   /** Per-re-watch per-season start/end maps (TV only). */
-  readonly seasonRewatchDates?: Record<string, { start: string; end: string }>[];
+  readonly seasonRewatchDates?: Record<
+    string,
+    { start: string; end: string }
+  >[];
   /** Original add timestamp — preserved across imports so the timeline stays accurate. */
   readonly createdAt?: string;
 }
 
 export type VaultSortField =
-  | "created_at" | "updated_at" | "last_activity_at"
-  | "rating" | "watched_on" | "started_at" | "completed_at";
+  | "created_at"
+  | "updated_at"
+  | "last_activity_at"
+  | "rating"
+  | "watched_on"
+  | "started_at"
+  | "completed_at";
 
 export type SortDirection = "asc" | "desc";
 
@@ -98,4 +112,5 @@ export interface VaultListResult {
 // Typed Supabase client
 // ---------------------------------------------------------------------------
 
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<Database>;

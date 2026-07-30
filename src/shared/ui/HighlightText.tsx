@@ -10,12 +10,18 @@ export default function HighlightText(props: HighlightTextProps) {
   const parts = () => {
     if (!props.text) return [];
     if (!props.search || !props.search.trim()) return [props.text];
-    const regex = new RegExp(`(${props.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`, "gi");
+    const regex = new RegExp(
+      `(${props.search.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")})`,
+      "gi"
+    );
     return props.text.split(regex);
   };
 
   return (
-    <Show when={props.search && props.search.trim().length > 0} fallback={<>{props.text}</>}>
+    <Show
+      when={props.search && props.search.trim().length > 0}
+      fallback={<>{props.text}</>}
+    >
       <For each={parts()}>
         {(part) => (
           <Show

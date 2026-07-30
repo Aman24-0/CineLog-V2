@@ -5,7 +5,7 @@ import DetailSection from "./DetailSection";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useCuratedUniverses } from "~/features/collections/hooks/useCuratedUniverses";
 import { closeTitle } from "~/shared/hooks/useModalState";
-import type { WatchlistItem, Collection } from "~/shared/types";
+import type { WatchlistItem } from "~/shared/types";
 
 interface UserCollectionInfoProps {
   currentItem: WatchlistItem;
@@ -49,16 +49,14 @@ const UserCollectionInfo: Component<UserCollectionInfoProps> = (props) => {
     const id = tmdbId();
     const mt = mediaType();
     return subscribedUniverses().filter((uni) =>
-      (uni.entries ?? []).some(
-        (e) => e.id === id && e.media_type === mt
-      )
+      (uni.entries ?? []).some((e) => e.id === id && e.media_type === mt)
     );
   });
 
   /** All matching collections (folders + universes). */
   const allMatches = createMemo(() => [
     ...matchingFolders(),
-    ...matchingUniverses(),
+    ...matchingUniverses()
   ]);
 
   return (
@@ -92,8 +90,8 @@ const UserCollectionInfo: Component<UserCollectionInfoProps> = (props) => {
                   <p class="franchise-trigger-name">{col.name}</p>
                   <p class="franchise-trigger-meta">
                     {(col.entries ?? []).length} titles
-                    {col.type === "curated" ? " · Universe" : " · Your folder"}
-                    · View collection
+                    {col.type === "curated" ? " · Universe" : " · Your folder"}·
+                    View collection
                   </p>
                 </div>
                 <span

@@ -26,7 +26,11 @@
 // themselves are SECURITY DEFINER so they bypass RLS — that's needed
 // to clean up other users' rows. We log every invocation.
 
-import { requireAdmin, type AdminAPIEvent, type AdminUser } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent,
+  type AdminUser
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -58,7 +62,7 @@ const OPERATIONS: OperationDef[] = [
       "Permanently delete profiles (and cascade) that were soft-deleted more than N days ago. Does NOT remove the auth.users row — use the Supabase dashboard for that.",
     destructive: true,
     default_days: 90,
-    min_days: 7,
+    min_days: 7
   },
   {
     name: "purge_old_activity_log",
@@ -67,7 +71,7 @@ const OPERATIONS: OperationDef[] = [
       "Delete activity_log rows older than N days. Activity log is high-volume; pruning keeps the table small.",
     destructive: true,
     default_days: 180,
-    min_days: 30,
+    min_days: 30
   },
   {
     name: "purge_expired_tmdb_cache",
@@ -76,14 +80,14 @@ const OPERATIONS: OperationDef[] = [
       "Delete tmdb_cache rows older than N days. The cache will be re-populated on demand.",
     destructive: false,
     default_days: 30,
-    min_days: 1,
+    min_days: 1
   },
   {
     name: "purge_orphaned_collection_entries",
     label: "Purge orphaned collection entries",
     description:
       "Delete collection_entries whose vault_id no longer exists. Defensive cleanup — should normally be a no-op.",
-    destructive: true,
+    destructive: true
   },
   {
     name: "cleanup_old_admin_actions",
@@ -92,28 +96,28 @@ const OPERATIONS: OperationDef[] = [
       "Delete admin_actions rows older than N days. The audit log is append-only; this is the only way to remove old entries.",
     destructive: true,
     default_days: 365,
-    min_days: 90,
+    min_days: 90
   },
   {
     name: "refresh_admin_analytics",
     label: "Refresh analytics now",
     description:
       "Manually trigger a refresh of all admin materialized views. The pg_cron job runs this hourly at minute 5.",
-    destructive: false,
+    destructive: false
   },
   {
     name: "vacuum_analyze_hint",
     label: "VACUUM ANALYZE hint",
     description:
       "VACUUM cannot run inside a transaction. This returns instructions for running it via the Supabase SQL editor.",
-    destructive: false,
-  },
+    destructive: false
+  }
 ];
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -132,7 +136,8 @@ export async function GET(event: APIEvent) {
     // Get the 20 most recent runs
     const { data: recentRuns, error } = await supabase
       .from("maintenance_runs")
-      .select(`
+      .select(
+        `
         id,
         admin_id,
         operation,
@@ -142,7 +147,8 @@ export async function GET(event: APIEvent) {
         error,
         started_at,
         finished_at
-      `)
+      `
+      )
       .order("started_at", { ascending: false })
       .limit(20);
 
@@ -154,9 +160,9 @@ export async function GET(event: APIEvent) {
     return jsonResponse(
       {
         operations: OPERATIONS,
-        recent_runs: recentRuns ?? [],
+        recent_runs: recentRuns ?? []
       },
-      200,
+      200
     );
   } catch (err) {
     console.error("[admin/maintenance] error:", err);
@@ -185,7 +191,9 @@ export async function POST(event: APIEvent) {
   try {
     const body = (await event.request.json().catch(() => ({}))) as RunBody;
     const opName = typeof body.operation === "string" ? body.operation : "";
-    const args = (typeof body.args === "object" && body.args !== null ? body.args : {}) as {
+    const args = (
+      typeof body.args === "object" && body.args !== null ? body.args : {}
+    ) as {
       days?: number;
     };
 
@@ -202,7 +210,7 @@ export async function POST(event: APIEvent) {
         if (opDef.min_days !== undefined && args.days < opDef.min_days) {
           return jsonResponse(
             { error: `days must be at least ${opDef.min_days}` },
-            400,
+            400
           );
         }
         days = Math.floor(args.days);
@@ -219,13 +227,16 @@ export async function POST(event: APIEvent) {
         admin_id: admin.id,
         operation: opDef.name,
         status: "running",
-        started_at: startedAt,
+        started_at: startedAt
       })
       .select("id")
       .single();
 
     if (insertError || !runRow) {
-      console.error("[admin/maintenance] failed to insert run row:", insertError);
+      console.error(
+        "[admin/maintenance] failed to insert run row:",
+        insertError
+      );
       return jsonResponse({ error: "Failed to start maintenance run" }, 500);
     }
 
@@ -246,7 +257,7 @@ export async function POST(event: APIEvent) {
 
       const { data: rpcResult, error: rpcError } = await supabase.rpc(
         opDef.name,
-        rpcArgs,
+        rpcArgs
       );
 
       if (rpcError) {
@@ -255,7 +266,8 @@ export async function POST(event: APIEvent) {
       } else if (rpcResult && typeof rpcResult === "object") {
         // The function returns jsonb_build_object(...) — parse it
         const result = rpcResult as Record<string, unknown>;
-        rowsAffected = typeof result.rows_affected === "number" ? result.rows_affected : 0;
+        rowsAffected =
+          typeof result.rows_affected === "number" ? result.rows_affected : 0;
         details = result;
         if (typeof result.note === "string") {
           details.note = result.note;
@@ -275,7 +287,7 @@ export async function POST(event: APIEvent) {
         rows_affected: rowsAffected,
         details,
         error: runError,
-        finished_at: finishedAt,
+        finished_at: finishedAt
       })
       .eq("id", runId);
 
@@ -289,8 +301,9 @@ export async function POST(event: APIEvent) {
         args: { days },
         status,
         rows_affected: rowsAffected,
-        duration_ms: new Date(finishedAt).getTime() - new Date(startedAt).getTime(),
-      },
+        duration_ms:
+          new Date(finishedAt).getTime() - new Date(startedAt).getTime()
+      }
     });
 
     if (status === "failed") {
@@ -300,9 +313,9 @@ export async function POST(event: APIEvent) {
           run_id: runId,
           operation: opDef.name,
           error: runError,
-          rows_affected: rowsAffected,
+          rows_affected: rowsAffected
         },
-        500,
+        500
       );
     }
 
@@ -315,9 +328,9 @@ export async function POST(event: APIEvent) {
         rows_affected: rowsAffected,
         details,
         started_at: startedAt,
-        finished_at: finishedAt,
+        finished_at: finishedAt
       },
-      200,
+      200
     );
   } catch (err) {
     console.error("[admin/maintenance] POST error:", err);

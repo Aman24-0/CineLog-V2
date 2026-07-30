@@ -20,7 +20,10 @@
 // All 16 Discover sections are pre-seeded. Missing keys in client requests
 // are preserved (merge), so partial updates are safe.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -38,7 +41,7 @@ interface HomepageConfig {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -60,8 +63,8 @@ const DEFAULT_CONFIG: HomepageConfig = {
     top_rated_series: { enabled: true, order: 13 },
     new_on_ott: { enabled: true, order: 14 },
     new_seasons: { enabled: true, order: 15 },
-    coming_soon: { enabled: true, order: 16 },
-  },
+    coming_soon: { enabled: true, order: 16 }
+  }
 };
 
 export const SECTION_KEYS = Object.keys(DEFAULT_CONFIG.sections);
@@ -82,7 +85,7 @@ export const SECTION_LABELS: Record<string, string> = {
   top_rated_series: "Top Rated Series",
   new_on_ott: "New on OTT",
   new_seasons: "New Seasons",
-  coming_soon: "Coming Soon",
+  coming_soon: "Coming Soon"
 };
 
 // ─── GET ───────────────────────────────────────────────────────────
@@ -107,7 +110,7 @@ export async function GET(event: APIEvent) {
     const config = data.value as HomepageConfig;
     // Merge with defaults so newly-added sections appear even if DB row is old
     const merged: HomepageConfig = {
-      sections: { ...DEFAULT_CONFIG.sections, ...(config.sections ?? {}) },
+      sections: { ...DEFAULT_CONFIG.sections, ...(config.sections ?? {}) }
     };
 
     return jsonResponse({ config: merged });
@@ -141,8 +144,10 @@ export async function PUT(event: APIEvent) {
       const sec = body.sections[key];
       if (typeof sec.enabled !== "boolean" || typeof sec.order !== "number") {
         return jsonResponse(
-          { error: `Section "${key}" must have { enabled: boolean, order: number }` },
-          400,
+          {
+            error: `Section "${key}" must have { enabled: boolean, order: number }`
+          },
+          400
         );
       }
     }
@@ -156,9 +161,9 @@ export async function PUT(event: APIEvent) {
         {
           key: "homepage_sections",
           value: config as unknown as never,
-          updated_by: adminResult.admin.id,
+          updated_by: adminResult.admin.id
         },
-        { onConflict: "key" },
+        { onConflict: "key" }
       )
       .select("value")
       .single();
@@ -169,7 +174,7 @@ export async function PUT(event: APIEvent) {
       action: "homepage.update",
       entity_type: "app_config",
       entity_id: "homepage_sections",
-      payload: { sections_count: Object.keys(config.sections).length },
+      payload: { sections_count: Object.keys(config.sections).length }
     });
 
     return jsonResponse({ config: data.value as HomepageConfig });

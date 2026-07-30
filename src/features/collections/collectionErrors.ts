@@ -112,7 +112,7 @@ export const COLLECTION_FEATURE_SUPPORT = {
     limitation:
       "The collections table has no JSONB or rules column. " +
       "Smart collection rules are evaluated client-side only and cannot be persisted. " +
-      "Database Bible §04 defines collection_type='smart' but does not define a rules column.",
+      "Database Bible §04 defines collection_type='smart' but does not define a rules column."
   },
   /** Entry media_type — resolved from vault, not stored on collection_entries. */
   entryMediaType: {
@@ -120,12 +120,12 @@ export const COLLECTION_FEATURE_SUPPORT = {
     limitation:
       "The collection_entries table has no media_type column. " +
       "media_type must be resolved from the vault row via FK. " +
-      "If the vault item is deleted, media_type is unresolvable.",
+      "If the vault item is deleted, media_type is unresolvable."
   },
   /** Collection emoji — NOT supported (no column). */
   emoji: {
     supported: false as const,
-    limitation: "The collections table has no emoji column.",
+    limitation: "The collections table has no emoji column."
   },
   /** Collection archived flag — supported via `archived_at` column.
    *  NULL = active, ISO timestamp = archived. The dedicated
@@ -136,20 +136,22 @@ export const COLLECTION_FEATURE_SUPPORT = {
    *  for legacy callers that still pass isArchived. */
   isArchived: {
     supported: true as const,
-    mappedTo: "archived_at",
+    mappedTo: "archived_at"
   },
   /** Collection accentColor — mapped to `color` column. */
   accentColor: {
     supported: true as const,
-    mappedTo: "color",
-  },
+    mappedTo: "color"
+  }
 } as const;
 
 /**
  * Check if a feature is supported and return a typed error if not.
  * Throws {@link UnsupportedFeatureError} if the feature is not supported.
  */
-export function requireFeatureSupport(feature: keyof typeof COLLECTION_FEATURE_SUPPORT): void {
+export function requireFeatureSupport(
+  feature: keyof typeof COLLECTION_FEATURE_SUPPORT
+): void {
   const info = COLLECTION_FEATURE_SUPPORT[feature];
   if (!info.supported) {
     throw new UnsupportedFeatureError(feature, info.limitation);
@@ -201,12 +203,16 @@ export interface SeparatedMetaFields {
  * path. `emoji` remains unsupported and is collected into a warning
  * — it is NOT silently ignored.
  */
-export function detectUnsupportedMetaFields(meta: CollectionMetaInput): SeparatedMetaFields {
+export function detectUnsupportedMetaFields(
+  meta: CollectionMetaInput
+): SeparatedMetaFields {
   const droppedFields: string[] = [];
 
   if (meta.emoji !== undefined) {
     droppedFields.push("emoji");
-    console.warn(`[updateCollectionMeta] "emoji" not supported: ${COLLECTION_FEATURE_SUPPORT.emoji.limitation}`);
+    console.warn(
+      `[updateCollectionMeta] "emoji" not supported: ${COLLECTION_FEATURE_SUPPORT.emoji.limitation}`
+    );
   }
 
   // Translate isArchived → archivedAt (NOW() when archiving, null when unarchiving).
@@ -226,10 +232,15 @@ export function detectUnsupportedMetaFields(meta: CollectionMetaInput): Separate
       coverUrl: meta.coverUrl,
       bannerUrl: meta.bannerUrl,
       color: meta.color ?? meta.accentColor ?? null,
-      archivedAt,
+      archivedAt
     },
-    dropped: droppedFields.length > 0
-      ? { droppedFields, reason: "Fields have no corresponding column in the collections table." }
-      : null,
+    dropped:
+      droppedFields.length > 0
+        ? {
+            droppedFields,
+            reason:
+              "Fields have no corresponding column in the collections table."
+          }
+        : null
   };
 }

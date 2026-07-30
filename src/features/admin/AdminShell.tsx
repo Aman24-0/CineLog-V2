@@ -24,7 +24,14 @@
 //   to /admin/login. While the session check is in flight, a loading
 //   spinner is shown.
 
-import { ParentComponent, Show, createMemo, For, onMount, createSignal } from "solid-js";
+import {
+  ParentComponent,
+  Show,
+  createMemo,
+  For,
+  onMount,
+  createSignal
+} from "solid-js";
 import { useNavigate, useLocation, A } from "@solidjs/router";
 import { useAdminAuth } from "./hooks/useAdminAuth";
 
@@ -37,18 +44,78 @@ interface NavItem {
 
 // Navigation items (Phase 1 + Phase 2)
 const NAV_ITEMS: NavItem[] = [
-  { href: "/admin", label: "Dashboard", icon: "📊", description: "Overview metrics" },
-  { href: "/admin/users", label: "Users", icon: "👥", description: "Manage user accounts" },
-  { href: "/admin/feature-flags", label: "Feature Flags", icon: "⚙️", description: "Toggle app features" },
-  { href: "/admin/content", label: "Content", icon: "🎬", description: "Featured & pinned titles" },
-  { href: "/admin/homepage", label: "Homepage", icon: "🔥", description: "Discover section toggles" },
-  { href: "/admin/collections", label: "Collections", icon: "📦", description: "Curated universes CRUD" },
-  { href: "/admin/announcements", label: "Announcements", icon: "📢", description: "Banners & notices" },
-  { href: "/admin/tmdb-cache", label: "TMDB Cache", icon: "🗄️", description: "Cache stats & ops" },
-  { href: "/admin/analytics", label: "Analytics", icon: "📈", description: "Aggregated engagement metrics" },
-  { href: "/admin/maintenance", label: "Maintenance", icon: "🔧", description: "Cleanup & vacuum operations" },
-  { href: "/admin/settings", label: "Settings", icon: "🌍", description: "Site-wide configuration" },
-  { href: "/admin/logs", label: "Audit Logs", icon: "📝", description: "Admin action history" },
+  {
+    href: "/admin",
+    label: "Dashboard",
+    icon: "📊",
+    description: "Overview metrics"
+  },
+  {
+    href: "/admin/users",
+    label: "Users",
+    icon: "👥",
+    description: "Manage user accounts"
+  },
+  {
+    href: "/admin/feature-flags",
+    label: "Feature Flags",
+    icon: "⚙️",
+    description: "Toggle app features"
+  },
+  {
+    href: "/admin/content",
+    label: "Content",
+    icon: "🎬",
+    description: "Featured & pinned titles"
+  },
+  {
+    href: "/admin/homepage",
+    label: "Homepage",
+    icon: "🔥",
+    description: "Discover section toggles"
+  },
+  {
+    href: "/admin/collections",
+    label: "Collections",
+    icon: "📦",
+    description: "Curated universes CRUD"
+  },
+  {
+    href: "/admin/announcements",
+    label: "Announcements",
+    icon: "📢",
+    description: "Banners & notices"
+  },
+  {
+    href: "/admin/tmdb-cache",
+    label: "TMDB Cache",
+    icon: "🗄️",
+    description: "Cache stats & ops"
+  },
+  {
+    href: "/admin/analytics",
+    label: "Analytics",
+    icon: "📈",
+    description: "Aggregated engagement metrics"
+  },
+  {
+    href: "/admin/maintenance",
+    label: "Maintenance",
+    icon: "🔧",
+    description: "Cleanup & vacuum operations"
+  },
+  {
+    href: "/admin/settings",
+    label: "Settings",
+    icon: "🌍",
+    description: "Site-wide configuration"
+  },
+  {
+    href: "/admin/logs",
+    label: "Audit Logs",
+    icon: "📝",
+    description: "Admin action history"
+  }
 ];
 
 // (Phase 3 items are now in NAV_ITEMS — this is kept for backwards
@@ -122,11 +189,18 @@ const AdminShell: ParentComponent = (props) => {
                 "justify-content": "center",
                 background: "var(--void)",
                 color: "var(--text-muted)",
-                "font-size": "0.9375rem",
+                "font-size": "0.9375rem"
               }}
             >
               <div style={{ "text-align": "center" }}>
-                <div style={{ "font-size": "2rem", "margin-bottom": "var(--sp-3)" }}>⏳</div>
+                <div
+                  style={{
+                    "font-size": "2rem",
+                    "margin-bottom": "var(--sp-3)"
+                  }}
+                >
+                  ⏳
+                </div>
                 <div>Verifying admin session…</div>
               </div>
             </div>
@@ -140,12 +214,18 @@ const AdminShell: ParentComponent = (props) => {
               "justify-content": "center",
               background: "var(--void)",
               color: "var(--text-muted)",
-              "font-size": "0.9375rem",
+              "font-size": "0.9375rem"
             }}
           >
             <div style={{ "text-align": "center" }}>
-              <div style={{ "font-size": "2rem", "margin-bottom": "var(--sp-3)" }}>🔒</div>
-              <div style={{ "margin-bottom": "var(--sp-4)" }}>Redirecting to login…</div>
+              <div
+                style={{ "font-size": "2rem", "margin-bottom": "var(--sp-3)" }}
+              >
+                🔒
+              </div>
+              <div style={{ "margin-bottom": "var(--sp-4)" }}>
+                Redirecting to login…
+              </div>
             </div>
           </div>
         </Show>
@@ -157,7 +237,7 @@ const AdminShell: ParentComponent = (props) => {
           display: "flex",
           "min-height": "100vh",
           background: "var(--void)",
-          color: "var(--text)",
+          color: "var(--text)"
         }}
       >
         {/* Mobile hamburger */}
@@ -171,13 +251,13 @@ const AdminShell: ParentComponent = (props) => {
             top: "var(--sp-3)",
             left: "var(--sp-3)",
             "z-index": 60,
-            "background": "var(--tier-2)",
+            background: "var(--tier-2)",
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-2)",
             "font-size": "1.25rem",
             cursor: "pointer",
-            color: "var(--text)",
+            color: "var(--text)"
           }}
         >
           ☰
@@ -191,8 +271,8 @@ const AdminShell: ParentComponent = (props) => {
               display: "none",
               position: "fixed",
               inset: 0,
-              "background": "rgba(0,0,0,0.6)",
-              "z-index": 40,
+              background: "rgba(0,0,0,0.6)",
+              "z-index": 40
             }}
             class="admin-sidebar-overlay"
           />
@@ -204,24 +284,30 @@ const AdminShell: ParentComponent = (props) => {
           style={{
             width: "240px",
             "flex-shrink": 0,
-            "background": "var(--tier-1)",
+            background: "var(--tier-1)",
             "border-right": "1px solid var(--hairline)",
-            "padding": "var(--sp-5) var(--sp-3)",
+            padding: "var(--sp-5) var(--sp-3)",
             "overflow-y": "auto",
-            "position": "sticky",
+            position: "sticky",
             top: 0,
-            "max-height": "100vh",
+            "max-height": "100vh"
           }}
         >
           {/* Brand */}
           <div
             style={{
-              "padding": "0 var(--sp-3) var(--sp-5)",
+              padding: "0 var(--sp-3) var(--sp-5)",
               "border-bottom": "1px solid var(--hairline)",
-              "margin-bottom": "var(--sp-4)",
+              "margin-bottom": "var(--sp-4)"
             }}
           >
-            <div style={{ "font-size": "1.125rem", "font-weight": "700", color: "var(--text)" }}>
+            <div
+              style={{
+                "font-size": "1.125rem",
+                "font-weight": "700",
+                color: "var(--text)"
+              }}
+            >
               🎬 CineLog
             </div>
             <div
@@ -230,7 +316,7 @@ const AdminShell: ParentComponent = (props) => {
                 color: "var(--text-muted)",
                 "text-transform": "uppercase",
                 "letter-spacing": "0.1em",
-                "margin-top": "2px",
+                "margin-top": "2px"
               }}
             >
               Admin Panel
@@ -238,7 +324,9 @@ const AdminShell: ParentComponent = (props) => {
           </div>
 
           {/* Active nav */}
-          <nav style={{ display: "flex", "flex-direction": "column", gap: "2px" }}>
+          <nav
+            style={{ display: "flex", "flex-direction": "column", gap: "2px" }}
+          >
             <For each={NAV_ITEMS}>
               {(item) => (
                 <A
@@ -253,12 +341,18 @@ const AdminShell: ParentComponent = (props) => {
                     "text-decoration": "none",
                     "font-size": "0.875rem",
                     "font-weight": isActive(item.href) ? "600" : "400",
-                    "background": isActive(item.href) ? "var(--p-dim)" : "transparent",
-                    color: isActive(item.href) ? "var(--p)" : "var(--text-secondary)",
-                    transition: "all 0.15s ease",
+                    background: isActive(item.href)
+                      ? "var(--p-dim)"
+                      : "transparent",
+                    color: isActive(item.href)
+                      ? "var(--p)"
+                      : "var(--text-secondary)",
+                    transition: "all 0.15s ease"
                   }}
                 >
-                  <span style={{ "font-size": "1rem", "line-height": 1 }}>{item.icon}</span>
+                  <span style={{ "font-size": "1rem", "line-height": "1" }}>
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
                 </A>
               )}
@@ -267,8 +361,8 @@ const AdminShell: ParentComponent = (props) => {
             {/* Divider */}
             <div
               style={{
-                "margin": "var(--sp-4) 0 var(--sp-2)",
-                "border-top": "1px solid var(--hairline)",
+                margin: "var(--sp-4) 0 var(--sp-2)",
+                "border-top": "1px solid var(--hairline)"
               }}
             />
 
@@ -287,10 +381,12 @@ const AdminShell: ParentComponent = (props) => {
                     "font-weight": "400",
                     color: "var(--text-muted)",
                     opacity: 0.5,
-                    cursor: "not-allowed",
+                    cursor: "not-allowed"
                   }}
                 >
-                  <span style={{ "font-size": "1rem", "line-height": 1 }}>{item.icon}</span>
+                  <span style={{ "font-size": "1rem", "line-height": "1" }}>
+                    {item.icon}
+                  </span>
                   <span>{item.label}</span>
                 </div>
               )}
@@ -305,26 +401,35 @@ const AdminShell: ParentComponent = (props) => {
             flex: 1,
             "min-width": 0,
             display: "flex",
-            "flex-direction": "column",
+            "flex-direction": "column"
           }}
         >
           {/* TopBar */}
           <header
             class="admin-topbar"
             style={{
-              "padding": "var(--sp-3) var(--sp-6)",
-              "background": "var(--tier-1)",
+              padding: "var(--sp-3) var(--sp-6)",
+              background: "var(--tier-1)",
               "border-bottom": "1px solid var(--hairline)",
               display: "flex",
               "align-items": "center",
               "justify-content": "space-between",
-              "position": "sticky",
+              position: "sticky",
               top: 0,
-              "z-index": 30,
+              "z-index": 30
             }}
           >
-            <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>
-              <span style={{ "font-size": "1.125rem" }} class="admin-hamburger-hidden">
+            <div
+              style={{
+                display: "flex",
+                "align-items": "center",
+                gap: "var(--sp-3)"
+              }}
+            >
+              <span
+                style={{ "font-size": "1.125rem" }}
+                class="admin-hamburger-hidden"
+              >
                 🎬
               </span>
               <h1
@@ -332,14 +437,20 @@ const AdminShell: ParentComponent = (props) => {
                   "font-size": "1rem",
                   "font-weight": "600",
                   margin: 0,
-                  color: "var(--text)",
+                  color: "var(--text)"
                 }}
               >
                 {breadcrumb()}
               </h1>
             </div>
 
-            <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-4)" }}>
+            <div
+              style={{
+                display: "flex",
+                "align-items": "center",
+                gap: "var(--sp-4)"
+              }}
+            >
               <Show when={auth.admin()}>
                 {(admin) => (
                   <div
@@ -348,7 +459,7 @@ const AdminShell: ParentComponent = (props) => {
                       "align-items": "center",
                       gap: "var(--sp-2)",
                       "font-size": "0.8125rem",
-                      color: "var(--text-secondary)",
+                      color: "var(--text-secondary)"
                     }}
                   >
                     <div
@@ -362,7 +473,7 @@ const AdminShell: ParentComponent = (props) => {
                         "align-items": "center",
                         "justify-content": "center",
                         "font-weight": "600",
-                        "font-size": "0.75rem",
+                        "font-size": "0.75rem"
                       }}
                     >
                       {admin().display_name.charAt(0).toUpperCase()}
@@ -375,7 +486,7 @@ const AdminShell: ParentComponent = (props) => {
               <button
                 onClick={handleLogout}
                 style={{
-                  "background": "transparent",
+                  background: "transparent",
                   border: "1px solid var(--hairline-2)",
                   "border-radius": "var(--radius-md)",
                   padding: "var(--sp-2) var(--sp-3)",
@@ -383,7 +494,7 @@ const AdminShell: ParentComponent = (props) => {
                   "font-size": "0.8125rem",
                   "font-weight": "500",
                   cursor: "pointer",
-                  transition: "all 0.15s ease",
+                  transition: "all 0.15s ease"
                 }}
                 onMouseEnter={(e) => {
                   e.currentTarget.style.background = "var(--tier-2)";
@@ -406,7 +517,7 @@ const AdminShell: ParentComponent = (props) => {
             style={{
               flex: 1,
               padding: "var(--sp-6)",
-              "overflow-y": "auto",
+              "overflow-y": "auto"
             }}
           >
             {props.children}

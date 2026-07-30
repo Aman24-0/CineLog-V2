@@ -86,27 +86,35 @@ export function useProfileData() {
 
     const { data: profile, error } = await profileRepo.getProfile(id);
     if (error) throw error;
-    if (!profile) return { profile: null, favoriteMovie: null, favoriteSeries: null, favoriteDirector: null };
+    if (!profile)
+      return {
+        profile: null,
+        favoriteMovie: null,
+        favoriteSeries: null,
+        favoriteDirector: null
+      };
 
     // Enrich favorites in parallel — each is independent and may fail
     // silently (the tile shows an empty state if enrichment fails).
     const [movie, series, director] = await Promise.all([
       profile.favorite_movie_id
-        ? fetchTmdbMetadata("movie", profile.favorite_movie_id).catch(() => null)
+        ? fetchTmdbMetadata("movie", profile.favorite_movie_id).catch(
+            () => null
+          )
         : Promise.resolve(null),
       profile.favorite_series_id
         ? fetchTmdbMetadata("tv", profile.favorite_series_id).catch(() => null)
         : Promise.resolve(null),
       profile.favorite_director_id
         ? fetchFavoriteDirector(profile.favorite_director_id).catch(() => null)
-        : Promise.resolve(null),
+        : Promise.resolve(null)
     ]);
 
     return {
       profile,
       favoriteMovie: movie,
       favoriteSeries: series,
-      favoriteDirector: director,
+      favoriteDirector: director
     };
   };
 
@@ -136,7 +144,7 @@ export function useProfileData() {
         loader(),
         new Promise<null>((_, reject) =>
           setTimeout(() => reject(new Error("Profile load timed out")), 8000)
-        ),
+        )
       ]);
       // Discard stale result if user changed while fetch was in-flight
       if (uid() !== id) return;
@@ -175,7 +183,9 @@ export function useProfileData() {
    * Save profile fields to Supabase, then refetch so the UI reflects
    * the new state immediately.
    */
-  const saveProfile = async (payload: UpdateProfilePayload): Promise<boolean> => {
+  const saveProfile = async (
+    payload: UpdateProfilePayload
+  ): Promise<boolean> => {
     const id = uid();
     if (!id) return false;
 
@@ -204,7 +214,7 @@ export function useProfileData() {
     refetch,
     // Expose the watchlist for the summary section.
     watchlist: library.watchlist,
-    isGuest: () => authReady() && !isSignedIn(),
+    isGuest: () => authReady() && !isSignedIn()
   };
 }
 
@@ -212,7 +222,9 @@ export function useProfileData() {
 // Helper: fetch a TMDB person (director) by id
 // ---------------------------------------------------------------------------
 
-async function fetchFavoriteDirector(personId: string): Promise<FavoriteDirector | null> {
+async function fetchFavoriteDirector(
+  personId: string
+): Promise<FavoriteDirector | null> {
   try {
     // All TMDB API calls now go through the server-side proxy at /api/media/*
     // which injects the API key from TMDB_API_KEY (server-only env var).
@@ -223,14 +235,14 @@ async function fetchFavoriteDirector(personId: string): Promise<FavoriteDirector
     const timeoutId = setTimeout(() => controller.abort(), 10_000);
     try {
       const res = await fetch(`${API}/person/${personId}?language=en-US`, {
-        signal: controller.signal,
+        signal: controller.signal
       });
       if (!res.ok) return null;
       const data = await res.json();
       return {
         id: String(data.id),
         name: data.name ?? "Unknown",
-        profile_path: data.profile_path ?? null,
+        profile_path: data.profile_path ?? null
       };
     } finally {
       clearTimeout(timeoutId);

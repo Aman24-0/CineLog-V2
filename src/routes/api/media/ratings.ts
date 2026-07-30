@@ -135,12 +135,12 @@ const MDBLIST_BASE = "https://api.mdblist.com";
 //   rating is fine to serve while we fetch a fresh one)
 const CACHE_HEADERS_SUCCESS = {
   "Cache-Control":
-    "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800",
+    "public, max-age=86400, s-maxage=86400, stale-while-revalidate=604800"
 };
 
 // Shorter cache for errors — don't poison the CDN with long-lived 4xx/5xx
 const CACHE_HEADERS_ERROR = {
-  "Cache-Control": "public, max-age=60, s-maxage=120",
+  "Cache-Control": "public, max-age=60, s-maxage=120"
 };
 
 // ─── Helpers ──────────────────────────────────────────────────────────
@@ -178,9 +178,7 @@ function getMdbListApiKey(): string {
  * @example mapMediaType("show")  → "show"
  * @example mapMediaType("abc")   → null
  */
-function mapMediaType(
-  raw: string | null,
-): "movie" | "show" | null {
+function mapMediaType(raw: string | null): "movie" | "show" | null {
   if (!raw) return null;
   const lower = raw.toLowerCase();
   if (lower === "movie") return "movie";
@@ -201,7 +199,7 @@ function mapMediaType(
  */
 function normalizeScore(
   source: "imdb" | "rotten_tomatoes" | "metacritic",
-  raw: number | string | null | undefined,
+  raw: number | string | null | undefined
 ): string {
   if (raw == null) return "NR";
   const n = typeof raw === "string" ? parseFloat(raw) : raw;
@@ -234,7 +232,7 @@ function normalizeScore(
  */
 function findRatingEntry(
   ratings: MdbListRatingEntry[] | undefined,
-  source: string,
+  source: string
 ): MdbListRatingEntry | null {
   if (!Array.isArray(ratings)) return null;
   const lower = source.toLowerCase();
@@ -281,7 +279,7 @@ function extractServiceRating(
   source: "imdb" | "rotten_tomatoes" | "metacritic",
   mdbListSource: string,
   topLevelScoreKey?: ScalarRatingKey,
-  topLevelVotesKey?: ScalarRatingKey,
+  topLevelVotesKey?: ScalarRatingKey
 ): ServiceRating | null {
   // 1. Try the ratings array (canonical source). Use the explicit
   //    MDBList source name — e.g. "tomatoes" for Rotten Tomatoes.
@@ -293,10 +291,14 @@ function extractServiceRating(
   const rawScore =
     entry?.value ??
     entry?.score ??
-    (topLevelScoreKey ? (data[topLevelScoreKey] as number | string | null | undefined) : null);
+    (topLevelScoreKey
+      ? (data[topLevelScoreKey] as number | string | null | undefined)
+      : null);
   const rawVotes =
     entry?.votes ??
-    (topLevelVotesKey ? (data[topLevelVotesKey] as number | string | null | undefined) : null);
+    (topLevelVotesKey
+      ? (data[topLevelVotesKey] as number | string | null | undefined)
+      : null);
 
   const score = normalizeScore(source, rawScore ?? null);
   const votes = formatVoteCount(rawVotes ?? null);
@@ -315,7 +317,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     "Access-Control-Allow-Origin": "*",
     "Access-Control-Allow-Methods": "GET, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type",
-    "Content-Type": "application/json",
+    "Content-Type": "application/json"
   };
 
   try {
@@ -329,8 +331,8 @@ export async function GET(event: APIEvent): Promise<Response> {
         JSON.stringify({ error: "Missing required query param: tmdb" }),
         {
           status: 400,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
     const tmdbNum = parseInt(tmdbId, 10);
@@ -339,8 +341,8 @@ export async function GET(event: APIEvent): Promise<Response> {
         JSON.stringify({ error: `Invalid tmdb id: "${tmdbId}"` }),
         {
           status: 400,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
@@ -350,12 +352,12 @@ export async function GET(event: APIEvent): Promise<Response> {
     if (!mappedType) {
       return new Response(
         JSON.stringify({
-          error: `Missing or invalid type param: expected "movie", "tv", or "show" (got "${rawType ?? ""}")`,
+          error: `Missing or invalid type param: expected "movie", "tv", or "show" (got "${rawType ?? ""}")`
         }),
         {
           status: 400,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
@@ -370,8 +372,8 @@ export async function GET(event: APIEvent): Promise<Response> {
         JSON.stringify({ error: "Rating service not configured" }),
         {
           status: 500,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
@@ -383,7 +385,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     let upstreamRes: Response;
     try {
       upstreamRes = await fetch(upstreamUrl, {
-        headers: { Accept: "application/json" },
+        headers: { Accept: "application/json" }
       });
     } catch (err) {
       console.error("[ratings] Upstream fetch failed:", err);
@@ -391,8 +393,8 @@ export async function GET(event: APIEvent): Promise<Response> {
         JSON.stringify({ error: "Failed to reach rating service" }),
         {
           status: 502,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
@@ -409,16 +411,16 @@ export async function GET(event: APIEvent): Promise<Response> {
       }
       console.error(
         `[ratings] MDBList returned ${upstreamRes.status} ${upstreamRes.statusText} for ${mappedType}/${tmdbNum}:`,
-        errBody,
+        errBody
       );
       return new Response(
         JSON.stringify({
-          error: `Rating service returned ${upstreamRes.status}`,
+          error: `Rating service returned ${upstreamRes.status}`
         }),
         {
           status: 502,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
@@ -442,33 +444,36 @@ export async function GET(event: APIEvent): Promise<Response> {
       console.error(
         `[ratings] Failed to parse MDBList JSON for ${mappedType}/${tmdbNum}:`,
         err,
-        rawText,
+        rawText
       );
       return new Response(
         JSON.stringify({ error: "Invalid response from rating service" }),
         {
           status: 502,
-          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-        },
+          headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+        }
       );
     }
 
     // MDBList error field (e.g. "Movie not found"). The v2 endpoint may
     // return a 200 with an error payload for unknown titles.
-    if (data.response === "False" || (typeof data.error === "string" && data.error)) {
+    if (
+      data.response === "False" ||
+      (typeof data.error === "string" && data.error)
+    ) {
       console.warn(
         `[ratings] MDBList error for ${mappedType}/${tmdbNum}:`,
-        data.error,
+        data.error
       );
       // Return empty ratings rather than an error — the UI shows "NR"
       const empty: RatingsPayload = {
         imdb: null,
         rottenTomatoes: null,
-        metacritic: null,
+        metacritic: null
       };
       return new Response(JSON.stringify(empty), {
         status: 200,
-        headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS },
+        headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS }
       });
     }
 
@@ -486,38 +491,35 @@ export async function GET(event: APIEvent): Promise<Response> {
         "imdb",
         "imdb",
         "imdbrating",
-        "imdbvotes",
+        "imdbvotes"
       ),
       rottenTomatoes: extractServiceRating(
         data,
         "rotten_tomatoes",
         "tomatoes",
         "rt_rating",
-        "rt_votes",
+        "rt_votes"
       ),
       metacritic: extractServiceRating(
         data,
         "metacritic",
         "metacritic",
         "metacritic_rating",
-        "metacritic_votes",
-      ),
+        "metacritic_votes"
+      )
     };
 
     return new Response(JSON.stringify(payload), {
       status: 200,
-      headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS },
+      headers: { ...corsHeaders, ...CACHE_HEADERS_SUCCESS }
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
     console.error("[ratings] GET error:", errMsg);
-    return new Response(
-      JSON.stringify({ error: errMsg }),
-      {
-        status: 500,
-        headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR },
-      },
-    );
+    return new Response(JSON.stringify({ error: errMsg }), {
+      status: 500,
+      headers: { ...corsHeaders, ...CACHE_HEADERS_ERROR }
+    });
   }
 }
 
@@ -530,7 +532,7 @@ export async function OPTIONS(): Promise<Response> {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Max-Age": "86400", // 24h — browsers cache preflight results
-    },
+      "Access-Control-Max-Age": "86400" // 24h — browsers cache preflight results
+    }
   });
 }

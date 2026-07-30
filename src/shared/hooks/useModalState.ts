@@ -83,7 +83,10 @@ function handlePopState() {
  * Also pushes a browser history entry so the Back button closes the
  * modal instead of navigating away from the page.
  */
-export function openTitle(baseItem: WatchlistItem, vault: WatchlistItem[]): void {
+export function openTitle(
+  baseItem: WatchlistItem,
+  vault: WatchlistItem[]
+): void {
   const vaultItem = findInVault(vault, baseItem);
   // If the title is in the vault, use the vault item as BOTH baseItem and
   // vaultItem — the vault item is a superset of TMDB identity. This keeps
@@ -133,6 +136,6 @@ export function useModalState() {
      * sheet WAS rendering but stacked below the modal). Setting this to
      * 1000000 ensures zIndexBase + 3 = 1000003 is safely above 999999.
      */
-    zIndexBase: 1000000,
+    zIndexBase: 1000000
   };
 }

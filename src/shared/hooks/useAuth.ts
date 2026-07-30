@@ -71,7 +71,10 @@ let initialSessionChecked = false;
 export function _resetAuthStateForTesting(): void {
   initialSessionChecked = false;
   listenerCount = 0;
-  if (unsub) { unsub(); unsub = null; }
+  if (unsub) {
+    unsub();
+    unsub = null;
+  }
 }
 
 /**
@@ -87,20 +90,22 @@ function mapSupabaseUser(session: Session | null): User | null {
   const supabaseUser = session.user;
   return {
     uid: supabaseUser.id,
-    displayName: supabaseUser.user_metadata?.full_name
-      ?? supabaseUser.user_metadata?.name
-      ?? supabaseUser.user_metadata?.display_name
-      ?? null,
+    displayName:
+      supabaseUser.user_metadata?.full_name ??
+      supabaseUser.user_metadata?.name ??
+      supabaseUser.user_metadata?.display_name ??
+      null,
     email: supabaseUser.email ?? null,
-    photoURL: supabaseUser.user_metadata?.avatar_url
-      ?? supabaseUser.user_metadata?.picture
-      ?? null,
+    photoURL:
+      supabaseUser.user_metadata?.avatar_url ??
+      supabaseUser.user_metadata?.picture ??
+      null,
     // Extract linked auth providers from Supabase app_metadata.
     // This is the SINGLE source of truth for which providers are connected
     // (google, email, github, apple, etc.). The Account page reads this
     // array to show "Connected" vs "Available" — NOT hardcoded values.
     providers: supabaseUser.app_metadata?.providers ?? [],
-    createdAt: supabaseUser.created_at,
+    createdAt: supabaseUser.created_at
   };
 }
 
@@ -224,7 +229,7 @@ async function ensureProfileForUser(supabaseUser: {
     const client = getBrowserClient();
     await ensureProfile(client, supabaseUser.id, {
       email: supabaseUser.email ?? null,
-      userMetadata: supabaseUser.user_metadata ?? null,
+      userMetadata: supabaseUser.user_metadata ?? null
     });
   } catch (err) {
     // Non-fatal — the profile might already exist from the Supabase trigger.

@@ -100,16 +100,13 @@ const RatingCell: Component<{
       {/* Brand logo box — official color + text.
           `flex-shrink-0` prevents the browser from squashing the logo
           when the cell is narrow. */}
-      <span
-        class={`${props.logoClass} flex-shrink-0`}
-        aria-hidden="true"
-      >
+      <span class={`${props.logoClass} flex-shrink-0`} aria-hidden="true">
         {props.logoText}
       </span>
       {/* Score — bold white text. `flex-shrink-0` keeps it fully
           visible (e.g. "8.0" never becomes "8."). */}
       <span
-        class="font-bold text-white text-sm flex-shrink-0"
+        class="flex-shrink-0 text-sm font-bold text-white"
         data-testid={`rating-score-${props.label.toLowerCase()}`}
       >
         {score()}
@@ -117,7 +114,7 @@ const RatingCell: Component<{
       {/* Votes — muted, smaller, in parentheses. NO `truncate` —
           `flex-shrink-0` guarantees the full `(88K)` renders. */}
       <Show when={hasVotes()}>
-        <span class="text-text-muted text-[10px] sm:text-xs tracking-tight flex-shrink-0">
+        <span class="flex-shrink-0 text-[10px] tracking-tight text-text-muted sm:text-xs">
           ({votes()})
         </span>
       </Show>
@@ -133,20 +130,20 @@ const RatingCell: Component<{
  */
 const SkeletonCell: Component<{ label: string }> = (props) => (
   <div
-    class="flex flex-row items-center justify-center gap-1 whitespace-nowrap w-full"
+    class="flex w-full flex-row items-center justify-center gap-1 whitespace-nowrap"
     role="status"
     aria-label={`Loading ${props.label} rating`}
   >
     <span
-      class="inline-block w-8 h-3 rounded-sm bg-white/10 animate-pulse shrink-0"
+      class="inline-block h-3 w-8 shrink-0 animate-pulse rounded-sm bg-white/10"
       aria-hidden="true"
     />
     <span
-      class="inline-block w-7 h-3 rounded-sm bg-white/10 animate-pulse shrink-0"
+      class="inline-block h-3 w-7 shrink-0 animate-pulse rounded-sm bg-white/10"
       aria-hidden="true"
     />
     <span
-      class="inline-block w-6 h-2 rounded-sm bg-white/10 animate-pulse shrink-0"
+      class="inline-block h-2 w-6 shrink-0 animate-pulse rounded-sm bg-white/10"
       aria-hidden="true"
     />
   </div>
@@ -162,27 +159,27 @@ const RatingPanel: Component<RatingPanelProps> = (props) => {
       logoText: "IMDb",
       logoClass:
         "bg-[#f5c518] text-black font-extrabold px-1.5 py-0.5 rounded-sm text-[10px] tracking-tight leading-none",
-      get: (r: RatingsPayload | null) => r?.imdb ?? null,
+      get: (r: RatingsPayload | null) => r?.imdb ?? null
     },
     {
       label: "Rotten Tomatoes",
       logoText: "RT",
       logoClass:
         "bg-[#fa320a] text-white font-bold px-1.5 py-0.5 rounded-sm text-[10px] tracking-tight leading-none",
-      get: (r: RatingsPayload | null) => r?.rottenTomatoes ?? null,
+      get: (r: RatingsPayload | null) => r?.rottenTomatoes ?? null
     },
     {
       label: "Metacritic",
       logoText: "MC",
       logoClass:
         "bg-[#00ce7a] text-black font-extrabold px-1.5 py-0.5 rounded-sm text-[10px] tracking-tight leading-none",
-      get: (r: RatingsPayload | null) => r?.metacritic ?? null,
-    },
+      get: (r: RatingsPayload | null) => r?.metacritic ?? null
+    }
   ] as const;
 
   return (
     <div
-      class="grid grid-cols-3 gap-1 sm:gap-3 p-4 glass-panel rounded-2xl"
+      class="glass-panel grid grid-cols-3 gap-1 rounded-2xl p-4 sm:gap-3"
       aria-label="Aggregate ratings from IMDb, Rotten Tomatoes, and Metacritic"
     >
       <Show

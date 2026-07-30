@@ -1,13 +1,21 @@
 // src/features/collections/components/CollectionSortFilter.tsx
-import { Show, For, createSignal, onMount, onCleanup, type Accessor, type Component } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  onMount,
+  onCleanup,
+  type Accessor,
+  type Component
+} from "solid-js";
 import type { Collection } from "~/shared/types";
 import {
   STATUS_FILTER_OPTIONS,
-  type CollectionStatusFilter,
+  type CollectionStatusFilter
 } from "../hooks/useCollectionFilter";
 import {
   type UserCollectionSortMode,
-  USER_SORT_OPTIONS,
+  USER_SORT_OPTIONS
 } from "../hooks/useCollectionSort";
 
 /**
@@ -75,7 +83,9 @@ const CollectionSortFilter: Component<CollectionSortFilterProps> = (props) => {
         {/* Search input — flex-1 so it grows, min-w so it doesn't
             shrink to nothing when chips wrap on mobile. */}
         <div class="collection-sort-filter-search">
-          <span class="material-symbols-outlined" aria-hidden="true">search</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            search
+          </span>
           <input
             type="text"
             placeholder="Search titles..."
@@ -90,7 +100,9 @@ const CollectionSortFilter: Component<CollectionSortFilterProps> = (props) => {
               onClick={() => props.onSearchInput("")}
               aria-label="Clear search"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                close
+              </span>
             </button>
           </Show>
         </div>
@@ -150,8 +162,12 @@ function SortDropdown(props: SortDropdownProps) {
         aria-expanded={open()}
         aria-label="Sort entries"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">sort</span>
-        <span class="collection-sort-filter-dropdown-label">{currentLabel()}</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          sort
+        </span>
+        <span class="collection-sort-filter-dropdown-label">
+          {currentLabel()}
+        </span>
         <span
           class="material-symbols-outlined collection-sort-filter-dropdown-caret"
           aria-hidden="true"

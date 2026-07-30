@@ -10,7 +10,6 @@
 import { createMemo, type Component } from "solid-js";
 
 const DevicesCard: Component = () => {
-
   const deviceName = createMemo(() => {
     if (typeof navigator === "undefined") return "This device";
     const ua = navigator.userAgent;
@@ -28,7 +27,13 @@ const DevicesCard: Component = () => {
     <div class="sync-devices-card">
       <div class="sync-devices-current">
         <div class="sync-devices-icon" aria-hidden="true">
-          <span class="material-symbols-outlined" style={{ "font-size": "20px", color: "var(--p)" }} aria-hidden="true">devices</span>
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "20px", color: "var(--p)" }}
+            aria-hidden="true"
+          >
+            devices
+          </span>
         </div>
         <div class="sync-devices-text">
           <p class="sync-devices-name">{deviceName()}</p>
@@ -37,8 +42,17 @@ const DevicesCard: Component = () => {
         <span class="sync-devices-badge">This device</span>
       </div>
       <div class="sync-devices-future">
-        <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--text-dim)" }} aria-hidden="true">lock_clock</span>
-        <span>Multi-device management, remote sign-out, and session history are coming soon.</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "14px", color: "var(--text-dim)" }}
+          aria-hidden="true"
+        >
+          lock_clock
+        </span>
+        <span>
+          Multi-device management, remote sign-out, and session history are
+          coming soon.
+        </span>
       </div>
     </div>
   );

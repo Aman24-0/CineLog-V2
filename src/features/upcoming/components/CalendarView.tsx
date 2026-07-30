@@ -21,8 +21,18 @@ interface CalendarViewProps {
 
 const WEEKDAY_LABELS = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"];
 const MONTH_LABELS = [
-  "January", "February", "March", "April", "May", "June",
-  "July", "August", "September", "October", "November", "December",
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December"
 ];
 
 function pad(n: number): string {
@@ -76,7 +86,7 @@ const CalendarView: Component<CalendarViewProps> = (props) => {
         day,
         inMonth: false,
         isToday: false,
-        count: 0,
+        count: 0
       });
     }
     // Current month days.
@@ -87,7 +97,7 @@ const CalendarView: Component<CalendarViewProps> = (props) => {
         day,
         inMonth: true,
         isToday: ds === today,
-        count: props.buckets().get(ds)?.length ?? 0,
+        count: props.buckets().get(ds)?.length ?? 0
       });
     }
     // Trailing days from the next month to fill the 42-cell grid.
@@ -100,7 +110,7 @@ const CalendarView: Component<CalendarViewProps> = (props) => {
         day,
         inMonth: false,
         isToday: false,
-        count: 0,
+        count: 0
       });
     }
     return out;
@@ -132,7 +142,9 @@ const CalendarView: Component<CalendarViewProps> = (props) => {
           onClick={prevMonth}
           aria-label="Previous month"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">chevron_left</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            chevron_left
+          </span>
         </button>
         <button
           type="button"
@@ -148,7 +160,9 @@ const CalendarView: Component<CalendarViewProps> = (props) => {
           onClick={nextMonth}
           aria-label="Next month"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            chevron_right
+          </span>
         </button>
       </div>
       <div class="upcoming-calendar-weekdays" role="row">

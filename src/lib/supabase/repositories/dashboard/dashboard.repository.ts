@@ -86,7 +86,9 @@ export class DashboardRepository {
   }
 
   /** Collection counts by type (user / curated / smart). */
-  getCollectionCounts(userId: string): Promise<DashboardResult<CollectionCounts>> {
+  getCollectionCounts(
+    userId: string
+  ): Promise<DashboardResult<CollectionCounts>> {
     return getCollectionCounts(this.supabase, userId);
   }
 

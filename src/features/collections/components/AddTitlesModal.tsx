@@ -7,7 +7,11 @@ import { useCollectionSearch } from "../hooks/useCollectionSearch";
 import { useToast } from "~/shared/hooks/useToast";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { GlassEmptyState } from "~/shared/ui/glass";
-import type { Collection, CollectionEntry, WatchlistItem } from "~/shared/types";
+import type {
+  Collection,
+  CollectionEntry,
+  WatchlistItem
+} from "~/shared/types";
 
 /**
  * AddTitlesModal — adds titles from the user's watchlist (vault) to
@@ -56,7 +60,7 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
   const search = useCollectionSearch({
     vault: watchlist,
     existingKeys,
-    limit: 60,
+    limit: 60
   });
 
   // Track which keys are currently being added (for the per-row spinner).
@@ -78,7 +82,7 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
         first_air_date: item.first_air_date,
         // orderIndex will be stamped by the parent on next render —
         // the entries array determines it implicitly.
-        orderIndex: (props.collection.entries ?? []).length,
+        orderIndex: (props.collection.entries ?? []).length
       };
       await addToCollection(props.collection.id, entry);
     } catch (err) {
@@ -97,7 +101,7 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
     <Portal>
       <div
         class="add-titles-modal-overlay"
-        onClick={props.onClose}
+        onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label={`Add titles to ${props.collection.name}`}
@@ -117,16 +121,20 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
             <button
               type="button"
               class="add-titles-modal-close focus-ring"
-              onClick={props.onClose}
+              onClick={() => props.onClose()}
               aria-label="Close"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                close
+              </span>
             </button>
           </div>
 
           {/* Search input */}
           <div class="add-titles-modal-search">
-            <span class="material-symbols-outlined" aria-hidden="true">search</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              search
+            </span>
             <input
               type="text"
               placeholder="Search your watchlist by title, cast, director, genre..."
@@ -142,7 +150,9 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                 onClick={() => search.reset()}
                 aria-label="Clear search"
               >
-                <span class="material-symbols-outlined" aria-hidden="true">close</span>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
               </button>
             </Show>
           </div>
@@ -179,8 +189,16 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                     <Show
                       when={result.item.poster_path}
                       fallback={
-                        <div class="add-titles-result-poster-fallback" aria-hidden="true">
-                          <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+                        <div
+                          class="add-titles-result-poster-fallback"
+                          aria-hidden="true"
+                        >
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            movie
+                          </span>
                         </div>
                       }
                     >
@@ -191,7 +209,9 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                         decoding="async"
                         alt=""
                         aria-hidden="true"
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
                       />
                     </Show>
 
@@ -201,9 +221,25 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                         {result.item.title || result.item.name || "Untitled"}
                       </p>
                       <p class="add-titles-result-meta">
-                        <span>{result.item.media_type === "tv" ? "Series" : "Movie"}</span>
-                        <Show when={(result.item.release_date || result.item.first_air_date || "").slice(0, 4)}>
-                          <span> · {(result.item.release_date || result.item.first_air_date || "").slice(0, 4)}</span>
+                        <span>
+                          {result.item.media_type === "tv" ? "Series" : "Movie"}
+                        </span>
+                        <Show
+                          when={(
+                            result.item.release_date ||
+                            result.item.first_air_date ||
+                            ""
+                          ).slice(0, 4)}
+                        >
+                          <span>
+                            {" "}
+                            ·{" "}
+                            {(
+                              result.item.release_date ||
+                              result.item.first_air_date ||
+                              ""
+                            ).slice(0, 4)}
+                          </span>
                         </Show>
                       </p>
                     </div>
@@ -212,8 +248,16 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                     <Show
                       when={!result.alreadyInCollection}
                       fallback={
-                        <span class="add-titles-result-added" aria-label="Already in collection">
-                          <span class="material-symbols-outlined" aria-hidden="true">check</span>
+                        <span
+                          class="add-titles-result-added"
+                          aria-label="Already in collection"
+                        >
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            check
+                          </span>
                           Added
                         </span>
                       }
@@ -228,12 +272,20 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
                         <Show
                           when={!addingKeys().has(result.key)}
                           fallback={
-                            <span class="material-symbols-outlined add-titles-result-add-spinner" aria-hidden="true">
+                            <span
+                              class="material-symbols-outlined add-titles-result-add-spinner"
+                              aria-hidden="true"
+                            >
                               progress_activity
                             </span>
                           }
                         >
-                          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            add
+                          </span>
                         </Show>
                         <span>Add</span>
                       </button>
@@ -249,7 +301,7 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
             <button
               type="button"
               class="btn-primary focus-ring"
-              onClick={props.onClose}
+              onClick={() => props.onClose()}
             >
               Done
             </button>

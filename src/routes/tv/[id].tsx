@@ -13,7 +13,13 @@
 // setSelectedItem-directly pattern (avoids the modal reopen bug),
 // and the close-to-navigate behavior.
 
-import { createResource, Show, onMount, onCleanup, createEffect } from "solid-js";
+import {
+  createResource,
+  Show,
+  onMount,
+  onCleanup,
+  createEffect
+} from "solid-js";
 import { useParams, useNavigate } from "@solidjs/router";
 import { Title, Meta } from "@solidjs/meta";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
@@ -49,7 +55,7 @@ function buildBaseItem(meta: {
     status: "Planned" as const,
     release_date: meta.release_date,
     first_air_date: meta.first_air_date,
-    genresList: meta.genres,
+    genresList: meta.genres
   };
 }
 
@@ -76,7 +82,7 @@ export default function TvDeepLinkRoute() {
         return null;
       }
     },
-    { deferStream: true },
+    { deferStream: true }
   );
 
   // ── Open the modal once BOTH conditions are met ──────────────────
@@ -93,7 +99,7 @@ export default function TvDeepLinkRoute() {
         const vaultItem = findInVault(watchlist(), baseItem);
         setSelectedItem({
           baseItem: vaultItem ?? baseItem,
-          vaultItem,
+          vaultItem
         });
       }
     };
@@ -126,7 +132,7 @@ export default function TvDeepLinkRoute() {
     if (vaultItem?.id !== current.vaultItem?.id) {
       setSelectedItem({
         baseItem: vaultItem ?? current.baseItem,
-        vaultItem,
+        vaultItem
       });
     }
   });
@@ -217,24 +223,29 @@ export default function TvDeepLinkRoute() {
           display: "flex",
           "align-items": "center",
           "justify-content": "center",
-          "padding": "2rem",
+          padding: "2rem",
           background: "var(--void)",
-          color: "var(--text-soft)",
+          color: "var(--text-soft)"
         }}
       >
         <Show
           when={!meta.loading}
-          fallback={<div style={{ "text-align": "center" }}>Loading series…</div>}
+          fallback={
+            <div style={{ "text-align": "center" }}>Loading series…</div>
+          }
         >
           <Show
             when={meta()}
             fallback={
               <div style={{ "text-align": "center" }}>
-                <div style={{ "font-size": "1.25rem", "margin-bottom": "0.5rem" }}>
+                <div
+                  style={{ "font-size": "1.25rem", "margin-bottom": "0.5rem" }}
+                >
                   Series not found
                 </div>
                 <div style={{ "font-size": "0.875rem", opacity: 0.7 }}>
-                  The link may be broken or the series may have been removed from TMDB.
+                  The link may be broken or the series may have been removed
+                  from TMDB.
                 </div>
                 <a
                   href="/discover"
@@ -246,7 +257,7 @@ export default function TvDeepLinkRoute() {
                     color: "white",
                     "border-radius": "9999px",
                     "text-decoration": "none",
-                    "font-weight": 600,
+                    "font-weight": 600
                   }}
                 >
                   Go to Discover

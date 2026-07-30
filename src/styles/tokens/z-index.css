@@ -17,18 +17,18 @@
        Maps to the existing hardcoded z-index values found
        across the codebase. Each token has a clear semantic
        purpose and sufficient gap to prevent collisions. */
-    --z-base: 0;           /* Ambient glow, profile content */
-    --z-overlay: 1;        /* Gradient overlays, hero content, modal surface */
-    --z-content: 2;        /* Card gradients, spotlight content, hero cluster */
-    --z-badge: 3;          /* Spotlight badge, universe badge */
-    --z-media: 5;          /* Cinematic trailer player */
-    --z-indicator: 10;     /* Timeline node */
-    --z-sticky: 30;        /* Timeline month pill, search bar, sticky elements */
-    --z-dropdown: 40;      /* Navigation, dropdown menus */
-    --z-overlay-high: 50;  /* Overlay panels, sheets */
-    --z-modal: 100;        /* Modal dialogs */
-    --z-toast: 9999;       /* Toast notification stack */
-    --z-tooltip: 10000;    /* Tooltips (above toasts) */
-    --z-max: 999999;       /* Modal backdrops, highest layer */
+    --z-base: 0; /* Ambient glow, profile content */
+    --z-overlay: 1; /* Gradient overlays, hero content, modal surface */
+    --z-content: 2; /* Card gradients, spotlight content, hero cluster */
+    --z-badge: 3; /* Spotlight badge, universe badge */
+    --z-media: 5; /* Cinematic trailer player */
+    --z-indicator: 10; /* Timeline node */
+    --z-sticky: 30; /* Timeline month pill, search bar, sticky elements */
+    --z-dropdown: 40; /* Navigation, dropdown menus */
+    --z-overlay-high: 50; /* Overlay panels, sheets */
+    --z-modal: 100; /* Modal dialogs */
+    --z-toast: 9999; /* Toast notification stack */
+    --z-tooltip: 10000; /* Tooltips (above toasts) */
+    --z-max: 999999; /* Modal backdrops, highest layer */
   }
 }

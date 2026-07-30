@@ -31,7 +31,11 @@
 // state — there's no "deactivated account" UI to show.
 
 import {
-  Show, createSignal, onMount, createMemo, type Component,
+  Show,
+  createSignal,
+  onMount,
+  createMemo,
+  type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAuth } from "~/shared/hooks/useAuth";
@@ -53,7 +57,9 @@ interface DeactivateAccountSheetProps {
   onClose: () => void;
 }
 
-const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) => {
+const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (
+  props
+) => {
   const { user } = useAuth();
   const { showToast } = useToast();
   const profileRepo = useProfile();
@@ -68,7 +74,9 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
 
   onMount(() => {
     if (props.open) document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = ""; };
+    return () => {
+      document.body.style.overflow = "";
+    };
   });
 
   // For "delete" mode, the user must type their email or username to confirm.
@@ -80,8 +88,10 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
     return "DEACTIVATE";
   });
 
-  const canConfirm = createMemo(() =>
-    confirmText().trim().toLowerCase() === expectedText() && phase() === "confirm",
+  const canConfirm = createMemo(
+    () =>
+      confirmText().trim().toLowerCase() === expectedText() &&
+      phase() === "confirm"
   );
 
   const handleConfirm = async () => {
@@ -111,7 +121,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
           library.refresh(),
           vault.refreshPresets(uid),
           collections.refreshCollections(uid),
-          collections.refreshUniversePrefs(uid),
+          collections.refreshUniversePrefs(uid)
         ]);
         clearApiCache();
       }
@@ -124,8 +134,10 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
       setErrorMsg(err instanceof Error ? err.message : "Something went wrong.");
       setPhase("confirm");
       showToast(
-        props.mode === "deactivate" ? "Couldn't deactivate account." : "Couldn't delete account.",
-        "error",
+        props.mode === "deactivate"
+          ? "Couldn't deactivate account."
+          : "Couldn't delete account.",
+        "error"
       );
     }
   };
@@ -144,7 +156,9 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
   };
 
   const title = () =>
-    props.mode === "delete" ? "Permanently Delete Account" : "Deactivate Account";
+    props.mode === "delete"
+      ? "Permanently Delete Account"
+      : "Deactivate Account";
 
   const subtitle = () =>
     props.mode === "delete"
@@ -155,12 +169,12 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
           style={{
             background: "rgba(0,0,0,0.88)",
             "backdrop-filter": "blur(12px)",
             "-webkit-backdrop-filter": "blur(12px)",
-            "padding-bottom": "var(--nav-total-height)",
+            "padding-bottom": "var(--nav-total-height)"
           }}
           onClick={() => handleClose()}
           role="dialog"
@@ -168,21 +182,22 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
           aria-label={title()}
         >
           <div
-            class="w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter relative"
+            class="modal-sheet-enter relative flex w-full max-w-md flex-col rounded-t-[2rem] sm:rounded-[2rem]"
             style={{
-              "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
+              "max-height":
+                "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
               "min-height": "0",
               background: "var(--glass-bg-strong)",
               "backdrop-filter": "blur(28px)",
               "-webkit-backdrop-filter": "blur(28px)",
               border: "1px solid rgba(248, 113, 113, 0.3)",
-              "box-shadow": "var(--shadow-elevated)",
+              "box-shadow": "var(--shadow-elevated)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle */}
             <div
-              class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
+              class="mx-auto mb-2 mt-4 h-1.5 w-12 flex-shrink-0 rounded-full sm:hidden"
               style={{ background: "var(--hairline-2)" }}
               aria-hidden="true"
             />
@@ -191,35 +206,63 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
             <Show when={phase() !== "working"}>
               <button
                 onClick={() => handleClose()}
-                class="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 z-10"
+                class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
                 style={{
                   background: "rgba(255,255,255,0.04)",
                   color: "var(--text-soft)",
-                  border: "1px solid var(--hairline)",
+                  border: "1px solid var(--hairline)"
                 }}
                 aria-label="Close"
               >
-                <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  close
+                </span>
               </button>
             </Show>
 
             {/* === CONFIRM PHASE === */}
             <Show when={phase() === "confirm"}>
-              <div class="px-6 pt-5 pb-5 overflow-y-auto" style={{ "overscroll-behavior": "contain" }}>
-                <div class="flex items-center gap-2 mb-3">
-                  <span class="material-symbols-outlined" style={{ color: "#f87171", "font-size": "20px" }} aria-hidden="true">
+              <div
+                class="overflow-y-auto px-6 pb-5 pt-5"
+                style={{ "overscroll-behavior": "contain" }}
+              >
+                <div class="mb-3 flex items-center gap-2">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ color: "#f87171", "font-size": "20px" }}
+                    aria-hidden="true"
+                  >
                     {props.mode === "delete" ? "dangerous" : "warning"}
                   </span>
-                  <h3 class="type-headline" style={{ "font-size": "1rem", margin: 0, color: "#fca5a5" }}>
+                  <h3
+                    class="type-headline"
+                    style={{ "font-size": "1rem", margin: 0, color: "#fca5a5" }}
+                  >
                     {title()}
                   </h3>
                 </div>
 
-                <p class="type-body-soft" style={{ margin: "0 0 var(--sp-3)", "font-size": "0.8125rem" }}>
+                <p
+                  class="type-body-soft"
+                  style={{
+                    margin: "0 0 var(--sp-3)",
+                    "font-size": "0.8125rem"
+                  }}
+                >
                   {subtitle()}
                 </p>
 
-                <p class="type-body-soft" style={{ margin: "0 0 var(--sp-2)", "font-size": "0.8125rem" }}>
+                <p
+                  class="type-body-soft"
+                  style={{
+                    margin: "0 0 var(--sp-2)",
+                    "font-size": "0.8125rem"
+                  }}
+                >
                   {props.mode === "delete"
                     ? "This will permanently remove:"
                     : "During the 7-day deactivation window:"}
@@ -233,7 +276,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                       "padding-left": "1.25rem",
                       "font-size": "0.75rem",
                       "line-height": "1.7",
-                      color: "#fca5a5",
+                      color: "#fca5a5"
                     }}
                   >
                     <li>Watchlist &amp; watch progress</li>
@@ -242,8 +285,15 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                     <li>Ratings, reviews, notes</li>
                     <li>Sync history &amp; achievements</li>
                   </ul>
-                  <p class="type-micro" style={{ color: "var(--text-muted)", margin: "0 0 var(--sp-3)" }}>
-                    Your Supabase auth identity is kept so you can sign in again later — you'll start with a fresh, empty CineLog account.
+                  <p
+                    class="type-micro"
+                    style={{
+                      color: "var(--text-muted)",
+                      margin: "0 0 var(--sp-3)"
+                    }}
+                  >
+                    Your Supabase auth identity is kept so you can sign in again
+                    later — you'll start with a fresh, empty CineLog account.
                   </p>
                 </Show>
 
@@ -255,7 +305,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                       "padding-left": "1.25rem",
                       "font-size": "0.75rem",
                       "line-height": "1.7",
-                      color: "var(--text-soft)",
+                      color: "var(--text-soft)"
                     }}
                   >
                     <li>Your data stays intact (not deleted yet)</li>
@@ -267,7 +317,10 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
 
                 {/* Type-to-confirm */}
                 <div class="mb-4">
-                  <p class="type-micro" style={{ color: "var(--text-muted)", margin: "0 0 0.5rem" }}>
+                  <p
+                    class="type-micro"
+                    style={{ color: "var(--text-muted)", margin: "0 0 0.5rem" }}
+                  >
                     {props.mode === "delete"
                       ? `Type your email (${expectedText()}) to confirm:`
                       : "Type DEACTIVATE to confirm:"}
@@ -276,11 +329,13 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                     type="text"
                     value={confirmText()}
                     onInput={(e) => setConfirmText(e.currentTarget.value)}
-                    onKeyDown={(e) => { if (e.key === "Escape") handleClose(); }}
+                    onKeyDown={(e) => {
+                      if (e.key === "Escape") handleClose();
+                    }}
                     placeholder={expectedText()}
                     autocomplete="off"
                     spellcheck={false}
-                    class="w-full px-3 py-2.5 rounded-lg outline-none"
+                    class="w-full rounded-lg px-3 py-2.5 outline-none"
                     style={{
                       background: "rgba(248, 113, 113, 0.06)",
                       border: "1px solid rgba(248, 113, 113, 0.2)",
@@ -288,7 +343,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                       "font-family": "'Azeret Mono', monospace",
                       "font-size": "0.875rem",
                       "font-weight": 700,
-                      "letter-spacing": "0.05em",
+                      "letter-spacing": "0.05em"
                     }}
                     aria-label={`Type ${expectedText()} to confirm`}
                   />
@@ -300,7 +355,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                     style={{
                       color: "#fca5a5",
                       margin: "0 0 var(--sp-3)",
-                      "font-size": "0.75rem",
+                      "font-size": "0.75rem"
                     }}
                   >
                     {errorMsg()}
@@ -311,19 +366,23 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                 <div class="flex gap-2">
                   <button
                     type="button"
-                    class="btn-ghost flex-1 focus-ring"
+                    class="btn-ghost focus-ring flex-1"
                     onClick={() => handleClose()}
                   >
                     Cancel
                   </button>
                   <button
                     type="button"
-                    class="btn-danger flex-1 focus-ring"
+                    class="btn-danger focus-ring flex-1"
                     onClick={() => void handleConfirm()}
                     disabled={!canConfirm()}
                     aria-label={title()}
                   >
-                    <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "14px" }}
+                      aria-hidden="true"
+                    >
                       {props.mode === "delete" ? "delete_forever" : "block"}
                     </span>
                     {props.mode === "delete" ? "Delete Account" : "Deactivate"}
@@ -334,7 +393,7 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
 
             {/* === WORKING PHASE === */}
             <Show when={phase() === "working"}>
-              <div class="px-6 pt-8 pb-8 flex flex-col items-center text-center">
+              <div class="flex flex-col items-center px-6 pb-8 pt-8 text-center">
                 <div class="sync-reset-spinner" aria-hidden="true">
                   <span
                     class="material-symbols-outlined animate-spin"
@@ -344,10 +403,21 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
                     progress_activity
                   </span>
                 </div>
-                <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: "var(--sp-3) 0 var(--sp-1)" }}>
-                  {props.mode === "delete" ? "Deleting your account…" : "Deactivating…"}
+                <h3
+                  class="type-headline text-white"
+                  style={{
+                    "font-size": "1rem",
+                    margin: "var(--sp-3) 0 var(--sp-1)"
+                  }}
+                >
+                  {props.mode === "delete"
+                    ? "Deleting your account…"
+                    : "Deactivating…"}
                 </h3>
-                <p class="type-body-soft" style={{ margin: 0, "font-size": "0.8125rem" }}>
+                <p
+                  class="type-body-soft"
+                  style={{ margin: 0, "font-size": "0.8125rem" }}
+                >
                   Please don't close this window.
                 </p>
               </div>
@@ -355,25 +425,47 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (props) =
 
             {/* === DONE PHASE === */}
             <Show when={phase() === "done"}>
-              <div class="px-6 pt-8 pb-8 flex flex-col items-center text-center">
+              <div class="flex flex-col items-center px-6 pb-8 pt-8 text-center">
                 <div
-                  class="w-16 h-16 rounded-full flex items-center justify-center mb-3"
-                  style={{ background: "rgba(72, 187, 120, 0.12)", border: "1px solid rgba(72, 187, 120, 0.3)" }}
+                  class="mb-3 flex h-16 w-16 items-center justify-center rounded-full"
+                  style={{
+                    background: "rgba(72, 187, 120, 0.12)",
+                    border: "1px solid rgba(72, 187, 120, 0.3)"
+                  }}
                   aria-hidden="true"
                 >
-                  <span class="material-symbols-outlined" style={{ "font-size": "36px", color: "#6ee7b7" }} aria-hidden="true">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "36px", color: "#6ee7b7" }}
+                    aria-hidden="true"
+                  >
                     check_circle
                   </span>
                 </div>
-                <h3 class="type-headline text-white" style={{ "font-size": "1.125rem", margin: "0 0 var(--sp-2)" }}>
-                  {props.mode === "delete" ? "Account Deleted" : "Account Deactivated"}
+                <h3
+                  class="type-headline text-white"
+                  style={{ "font-size": "1.125rem", margin: "0 0 var(--sp-2)" }}
+                >
+                  {props.mode === "delete"
+                    ? "Account Deleted"
+                    : "Account Deactivated"}
                 </h3>
-                <p class="type-body-soft" style={{ margin: "0 0 var(--sp-5)", "font-size": "0.8125rem", "max-width": "280px" }}>
+                <p
+                  class="type-body-soft"
+                  style={{
+                    margin: "0 0 var(--sp-5)",
+                    "font-size": "0.8125rem",
+                    "max-width": "280px"
+                  }}
+                >
                   {props.mode === "delete"
                     ? "Your CineLog account has been permanently removed. Goodbye."
                     : "Your account is scheduled for deletion in 7 days. Sign in before then to cancel."}
                 </p>
-                <button class="btn-primary focus-ring" onClick={() => handleClose()}>
+                <button
+                  class="btn-primary focus-ring"
+                  onClick={() => handleClose()}
+                >
                   Done
                 </button>
               </div>

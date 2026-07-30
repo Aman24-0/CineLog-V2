@@ -60,8 +60,12 @@ export async function getVaultByStatus(
   status: VaultStatus,
   options?: { sort?: VaultSort; pagination?: VaultPagination }
 ): Promise<VaultListResult> {
-  let query = supabase.from(TABLE).select()
-    .eq("user_id", userId).eq("status", status).is("deleted_at", null);
+  let query = supabase
+    .from(TABLE)
+    .select()
+    .eq("user_id", userId)
+    .eq("status", status)
+    .is("deleted_at", null);
   query = applySort(query, options?.sort);
   query = applyPagination(query, options?.pagination);
   const { data, error } = await query;
@@ -76,8 +80,12 @@ export async function getFavorites(
   userId: string,
   options?: { sort?: VaultSort; pagination?: VaultPagination }
 ): Promise<VaultListResult> {
-  let query = supabase.from(TABLE).select()
-    .eq("user_id", userId).eq("is_favorite", true).is("deleted_at", null);
+  let query = supabase
+    .from(TABLE)
+    .select()
+    .eq("user_id", userId)
+    .eq("is_favorite", true)
+    .is("deleted_at", null);
   query = applySort(query, options?.sort);
   query = applyPagination(query, options?.pagination);
   const { data, error } = await query;
@@ -92,8 +100,12 @@ export async function getPinned(
   userId: string,
   options?: { sort?: VaultSort; pagination?: VaultPagination }
 ): Promise<VaultListResult> {
-  let query = supabase.from(TABLE).select()
-    .eq("user_id", userId).eq("is_pinned", true).is("deleted_at", null);
+  let query = supabase
+    .from(TABLE)
+    .select()
+    .eq("user_id", userId)
+    .eq("is_pinned", true)
+    .is("deleted_at", null);
   query = applySort(query, options?.sort);
   query = applyPagination(query, options?.pagination);
   const { data, error } = await query;
@@ -108,8 +120,11 @@ export async function getRecentlyUpdated(
   userId: string,
   pagination?: VaultPagination
 ): Promise<VaultListResult> {
-  let query = supabase.from(TABLE).select()
-    .eq("user_id", userId).is("deleted_at", null)
+  let query = supabase
+    .from(TABLE)
+    .select()
+    .eq("user_id", userId)
+    .is("deleted_at", null)
     .order("updated_at", { ascending: false });
   query = applyPagination(query, pagination);
   const { data, error } = await query;
@@ -124,7 +139,9 @@ export async function searchVault(
   query: VaultSearchQuery
 ): Promise<VaultListResult> {
   const pattern = `%${query.searchTerm}%`;
-  let dbQuery = supabase.from(TABLE).select()
+  let dbQuery = supabase
+    .from(TABLE)
+    .select()
     .eq("user_id", query.userId)
     .ilike("notes", pattern)
     .is("deleted_at", null);

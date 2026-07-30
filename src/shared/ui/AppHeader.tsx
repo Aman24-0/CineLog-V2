@@ -1,11 +1,41 @@
 // src/shared/ui/AppHeader.tsx
-import { Show, createMemo, createSignal, type Component } from "solid-js";
+import {
+  Show,
+  createMemo,
+  createSignal,
+  type Component,
+  type JSX
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import HeaderNotificationBell from "~/features/upcoming/components/HeaderNotificationBell";
 import { useNotifications } from "~/features/upcoming/hooks/useNotifications";
 import NotificationCenter from "~/features/upcoming/components/NotificationCenter";
+
+// ─── Module-level style constants ────────────────────────────────────
+// Static styles shared across every AppHeader render. Extracted to
+// module level so they're allocated once (not per header mount) and
+// the prop reference stays stable for downstream consumers.
+const WORDMARK_STYLE: JSX.CSSProperties = {
+  "font-size": "1.5rem",
+  "line-height": "1",
+  "letter-spacing": "0.08em",
+  color: "var(--text-strong)"
+};
+const WORDMARK_ACCENT_STYLE: JSX.CSSProperties = { color: "var(--p)" };
+const AVATAR_INITIAL_STYLE: JSX.CSSProperties = {
+  background: "var(--p-dim)",
+  color: "var(--p)",
+  "font-weight": 700,
+  "font-size": "13px",
+  "font-family": "'Outfit', sans-serif"
+};
+const DISPLAY_NAME_STYLE: JSX.CSSProperties = {
+  color: "var(--text-body)",
+  "font-size": "0.8125rem",
+  "font-weight": 600
+};
 
 /**
  * AppHeader — sticky application header.
@@ -58,22 +88,13 @@ const AppHeader: Component = () => {
 
   return (
     <header
-      class="sticky top-0 z-30 flex items-center justify-between app-header-glass"
+      class="app-header-glass sticky top-0 z-30 flex items-center justify-between"
       role="banner"
     >
       {/* Wordmark — aria-label ensures screen readers announce
           "CineLog" as a word rather than letter-by-letter */}
-      <h1
-        class="font-headline m-0"
-        aria-label="CineLog"
-        style={{
-          "font-size": "1.5rem",
-          "line-height": "1",
-          "letter-spacing": "0.08em",
-          color: "var(--text-strong)",
-        }}
-      >
-        CINE<span style={{ color: "var(--p)" }}>LOG</span>
+      <h1 class="font-headline m-0" aria-label="CineLog" style={WORDMARK_STYLE}>
+        CINE<span style={WORDMARK_ACCENT_STYLE}>LOG</span>
       </h1>
 
       {/* Right cluster: notification bell + avatar pill */}
@@ -87,7 +108,7 @@ const AppHeader: Component = () => {
         <button
           type="button"
           onClick={handleAvatarClick}
-          class="flex items-center gap-2 rounded-full overflow-hidden focus-ring app-header-avatar"
+          class="focus-ring app-header-avatar flex items-center gap-2 overflow-hidden rounded-full"
           aria-label={
             isSignedIn()
               ? `View your profile — signed in as ${user()?.displayName || user()?.email || "user"}`
@@ -98,14 +119,8 @@ const AppHeader: Component = () => {
             when={user()?.photoURL}
             fallback={
               <div
-                class="flex h-8 w-8 items-center justify-center rounded-full shrink-0"
-                style={{
-                  background: "var(--p-dim)",
-                  color: "var(--p)",
-                  "font-weight": 700,
-                  "font-size": "13px",
-                  "font-family": "'Outfit', sans-serif",
-                }}
+                class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full"
+                style={AVATAR_INITIAL_STYLE}
                 aria-hidden="true"
               >
                 {initial()}
@@ -120,18 +135,14 @@ const AppHeader: Component = () => {
               }}
               src={user()!.photoURL!}
               alt=""
-              class="h-8 w-8 rounded-full object-cover shrink-0"
+              class="h-8 w-8 shrink-0 rounded-full object-cover"
               referrerpolicy="no-referrer"
             />
           </Show>
           <Show when={isSignedIn()}>
             <span
-              class="hidden sm:block max-w-[120px] truncate"
-              style={{
-                color: "var(--text-body)",
-                "font-size": "0.8125rem",
-                "font-weight": 600,
-              }}
+              class="hidden max-w-[120px] truncate sm:block"
+              style={DISPLAY_NAME_STYLE}
             >
               {user()?.displayName || user()?.email}
             </span>

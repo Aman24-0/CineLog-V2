@@ -21,14 +21,7 @@
 // NOT touched — they're navigated to via QuickActionRow and the
 // AchievementsPreview "View all" button.
 
-import {
-  Component,
-  createSignal,
-  createEffect,
-  createMemo,
-  Show,
-  onMount,
-} from "solid-js";
+import { Component, createSignal, createEffect, Show, onMount } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
@@ -91,9 +84,10 @@ const ProfilePage: Component = () => {
       showToast("Set a username before sharing your profile.", "info");
       return;
     }
-    const name = data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile";
+    const name =
+      data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile";
     await shareProfileLink(username, name, (msg, kind, durationMs) =>
-      showToast(msg, kind, durationMs),
+      showToast(msg, kind, durationMs)
     );
   };
 
@@ -101,9 +95,10 @@ const ProfilePage: Component = () => {
     try {
       await getClient().auth.signOut();
       showToast("Signed out successfully", "success");
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Sign out error:", err);
-      showToast(err.message || "Failed to sign out", "error");
+      const msg = err instanceof Error ? err.message : "Failed to sign out";
+      showToast(msg, "error");
     }
   };
 
@@ -111,7 +106,8 @@ const ProfilePage: Component = () => {
   // to the global openTitle function (used by Discover / Watchlist).
   // For now we just navigate to the title's route as a graceful fallback.
   const handleItemClick = (item: WatchlistItem) => {
-    const path = item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
+    const path =
+      item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
     if (typeof window !== "undefined") {
       window.location.href = path;
     }
@@ -162,14 +158,20 @@ const ProfilePage: Component = () => {
 
         {/* Loading state */}
         <Show when={loading() && isSignedIn()}>
-          <div class="profile-skeleton-v3">
+          <div
+            class="profile-skeleton-v3"
+            role="status"
+            aria-live="polite"
+            aria-busy="true"
+            aria-label="Loading profile"
+          >
             <GlassSkeleton class="profile-skeleton-v3-banner h-44 w-full rounded-xl" />
             <div class="profile-skeleton-v3-header">
-              <GlassSkeleton class="w-20 h-20 rounded-full" />
+              <GlassSkeleton class="h-20 w-20 rounded-full" />
               <div class="profile-skeleton-v3-header-text">
                 <GlassSkeleton class="h-5 w-48 rounded" />
-                <GlassSkeleton class="h-3 w-32 rounded mt-2" />
-                <GlassSkeleton class="h-3 w-40 rounded mt-1" />
+                <GlassSkeleton class="mt-2 h-3 w-32 rounded" />
+                <GlassSkeleton class="mt-1 h-3 w-40 rounded" />
               </div>
             </div>
             <div class="profile-skeleton-v3-stats">
@@ -184,7 +186,10 @@ const ProfilePage: Component = () => {
             {/* 1. Banner — reuses the existing ProfileBanner component.
                  The pencil icon at bottom-right opens the EditProfileModal
                  (which embeds BannerEditor as a sub-modal). */}
-            <section class="profile-v3-banner-section" aria-label="Profile banner">
+            <section
+              class="profile-v3-banner-section"
+              aria-label="Profile banner"
+            >
               <ProfileBanner
                 data={data()}
                 isEditing={false}
@@ -210,18 +215,43 @@ const ProfilePage: Component = () => {
             {/* 4. Tabs + content */}
             <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
 
-            <div class="profile-v3-tab-content">
+            <div
+              class="profile-v3-tab-content"
+              id="profile-tab-panel"
+              role="tabpanel"
+              aria-labelledby={`profile-tab-${activeTab()}`}
+              tabindex={0}
+            >
+              {/* Each tab's content is wrapped in a keyed-by-Show
+                  <div class="animate-fade-in"> so the fade-in animation
+                  re-fires every time the user switches tabs (the Show
+                  unmounts its children when its `when` becomes false,
+                  then remounts them — fresh mount = fresh animation). */}
               <Show when={activeTab() === "activity"}>
-                <ActivityFeed watchlist={watchlist} onItemClick={handleItemClick} />
+                <div class="animate-fade-in">
+                  <ActivityFeed
+                    watchlist={watchlist}
+                    onItemClick={handleItemClick}
+                  />
+                </div>
               </Show>
               <Show when={activeTab() === "favorites"}>
-                <FavoritesGrid watchlist={watchlist} onItemClick={handleItemClick} />
+                <div class="animate-fade-in">
+                  <FavoritesGrid
+                    watchlist={watchlist}
+                    onItemClick={handleItemClick}
+                  />
+                </div>
               </Show>
               <Show when={activeTab() === "lists"}>
-                <UserListsPreview />
+                <div class="animate-fade-in">
+                  <UserListsPreview />
+                </div>
               </Show>
               <Show when={activeTab() === "achievements"}>
-                <AchievementsPreview watchlist={watchlist} />
+                <div class="animate-fade-in">
+                  <AchievementsPreview watchlist={watchlist} />
+                </div>
               </Show>
             </div>
 
@@ -236,7 +266,9 @@ const ProfilePage: Component = () => {
               class="profile-v3-sign-out profile-v3-sign-out-danger focus-ring"
               onClick={handleSignOut}
             >
-              <span class="material-symbols-outlined" aria-hidden="true">logout</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                logout
+              </span>
               Sign Out
             </button>
           </div>

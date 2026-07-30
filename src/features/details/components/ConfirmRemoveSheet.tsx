@@ -52,12 +52,12 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
         Clicking the backdrop dismisses (unless a removal is in-flight).
       */}
       <div
-        class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex flex-col justify-end sm:justify-center sm:items-center"
+        class="fixed inset-0 z-50 flex flex-col justify-end bg-black/60 backdrop-blur-sm sm:items-center sm:justify-center"
         onClick={() => {
           if (!props.isRemoving) props.onClose();
         }}
         style={{
-          "z-index": modalState.zIndexBase + 2,
+          "z-index": modalState.zIndexBase + 2
         }}
       >
         {/*
@@ -69,7 +69,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
           role="dialog"
           aria-modal="true"
           aria-labelledby="confirm-remove-sheet-title"
-          class="w-full sm:max-w-md bg-glass sm:rounded-2xl rounded-t-3xl p-6 pb-8 sm:pb-6 transform transition-transform animate-slide-up sm:animate-fade-in"
+          class="animate-slide-up sm:animate-fade-in w-full transform rounded-t-3xl bg-glass p-6 pb-8 transition-transform sm:max-w-md sm:rounded-2xl sm:pb-6"
           onClick={(e: MouseEvent) => e.stopPropagation()}
           style={{
             "z-index": modalState.zIndexBase + 3,
@@ -80,7 +80,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             "border-right": "1px solid var(--glass-border-warm-strong)",
             "box-shadow":
               "var(--shadow-glass-elevated), 0 0 24px var(--p-glow), inset 0 1px 0 rgba(232,183,74,0.10)",
-            "padding-bottom": "calc(2rem + env(safe-area-inset-bottom, 0px))",
+            "padding-bottom": "calc(2rem + env(safe-area-inset-bottom, 0px))"
           }}
         >
           {/* Drag handle area (visual only) */}
@@ -91,7 +91,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
           />
 
           {/* Scrollable content area */}
-          <div class="flex flex-col items-center text-center gap-4">
+          <div class="flex flex-col items-center gap-4 text-center">
             {/* Thumbnail */}
             <Show
               when={props.posterPath}
@@ -102,7 +102,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                     width: "80px",
                     height: "120px",
                     background: "var(--tier-2)",
-                    border: "1px solid var(--hairline-2)",
+                    border: "1px solid var(--hairline-2)"
                   }}
                 >
                   <span
@@ -115,18 +115,18 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
               }
             >
               <div
-                class="rounded-xl overflow-hidden relative"
+                class="relative overflow-hidden rounded-xl"
                 style={{
                   width: "80px",
                   height: "120px",
                   "box-shadow": "var(--shadow-elevated)",
-                  border: "1px solid rgba(255,255,255,0.08)",
+                  border: "1px solid rgba(255,255,255,0.08)"
                 }}
               >
                 <img
                   src={tmdbImage(props.posterPath, "w185")}
                   alt=""
-                  class="absolute inset-0 w-full h-full object-cover"
+                  class="absolute inset-0 h-full w-full object-cover"
                   loading="lazy"
                   decoding="async"
                 />
@@ -147,14 +147,12 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                 style={{ "font-size": "0.9375rem", color: "var(--text-muted)" }}
               >
                 This will move{" "}
-                <span
-                  style={{ color: "var(--text)", "font-weight": 500 }}
-                >
+                <span style={{ color: "var(--text)", "font-weight": 500 }}>
                   {props.title}
                 </span>{" "}
-                to Trash. It will be removed from your watchlist,
-                collections, and history. You can restore it from Trash
-                within 30 days before it's permanently deleted.
+                to Trash. It will be removed from your watchlist, collections,
+                and history. You can restore it from Trash within 30 days before
+                it's permanently deleted.
               </p>
             </div>
           </div>
@@ -164,13 +162,13 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             On desktop the same layout works; the buttons share the row.
           */}
           <div
-            class="pt-5 mt-5 flex w-full gap-3"
+            class="mt-5 flex w-full gap-3 pt-5"
             style={{ "border-top": "1px solid var(--hairline)" }}
           >
             {/* Cancel button — visible text "Cancel" is the accessible name. */}
             <button
               type="button"
-              class="btn-ghost flex-1 focus-ring"
+              class="btn-ghost focus-ring flex-1"
               onClick={(e) => {
                 e.stopPropagation();
                 props.onClose();
@@ -186,7 +184,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
             */}
             <button
               type="button"
-              class="btn-danger flex-1 focus-ring"
+              class="btn-danger focus-ring flex-1"
               onClick={(e) => {
                 e.stopPropagation();
                 hapticDouble();

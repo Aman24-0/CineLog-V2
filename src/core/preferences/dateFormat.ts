@@ -25,12 +25,12 @@ createEffect(() => {
 const DATE_SEPARATORS: Record<DateFormat, string> = {
   dmy: "/",
   mdy: "/",
-  ymd: "-",
+  ymd: "-"
 };
 const DATE_ORDER: Record<DateFormat, ("y" | "m" | "d")[]> = {
   dmy: ["d", "m", "y"],
   mdy: ["m", "d", "y"],
-  ymd: ["y", "m", "d"],
+  ymd: ["y", "m", "d"]
 };
 
 /**
@@ -39,12 +39,17 @@ const DATE_ORDER: Record<DateFormat, ("y" | "m" | "d")[]> = {
  */
 export function formatDateUser(dateStr: string): string {
   if (!dateStr) return "";
-  const d = dateStr.length <= 10 ? new Date(dateStr + "T00:00:00") : new Date(dateStr);
+  const d =
+    dateStr.length <= 10 ? new Date(dateStr + "T00:00:00") : new Date(dateStr);
   if (isNaN(d.getTime())) return "";
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
-  const parts: Record<"y" | "m" | "d", string> = { y: String(yyyy), m: mm, d: dd };
+  const parts: Record<"y" | "m" | "d", string> = {
+    y: String(yyyy),
+    m: mm,
+    d: dd
+  };
   const fmt = dateFormat();
   return DATE_ORDER[fmt].map((k) => parts[k]).join(DATE_SEPARATORS[fmt]);
 }

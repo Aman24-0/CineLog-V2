@@ -21,7 +21,7 @@ const DEFAULT_CAL_PREFS: CalendarPrefs = {
   firstDayOfWeek: 1, // Monday (matches most of the world outside US)
   timeFormat: "24h",
   releaseTimezone: "local",
-  defaultView: "week",
+  defaultView: "week"
 };
 
 function readCalPrefs(): CalendarPrefs {
@@ -36,7 +36,8 @@ function readCalPrefs(): CalendarPrefs {
   }
 }
 
-export const [calPrefs, setCalPrefs] = createSignal<CalendarPrefs>(readCalPrefs());
+export const [calPrefs, setCalPrefs] =
+  createSignal<CalendarPrefs>(readCalPrefs());
 
 createEffect(() => {
   if (isServer) return;
@@ -47,7 +48,10 @@ createEffect(() => {
   }
 });
 
-export function updateCalPref<K extends keyof CalendarPrefs>(key: K, value: CalendarPrefs[K]): void {
+export function updateCalPref<K extends keyof CalendarPrefs>(
+  key: K,
+  value: CalendarPrefs[K]
+): void {
   setCalPrefs((prev) => ({ ...prev, [key]: value }));
 }
 
@@ -71,9 +75,17 @@ export function formatTimeUser(timeStr: string): string {
   const d = new Date(timeStr);
   if (!isNaN(d.getTime())) {
     if (tf === "12h") {
-      return d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit", hour12: true });
+      return d.toLocaleTimeString(undefined, {
+        hour: "numeric",
+        minute: "2-digit",
+        hour12: true
+      });
     }
-    return d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit", hour12: false });
+    return d.toLocaleTimeString(undefined, {
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false
+    });
   }
   return timeStr;
 }

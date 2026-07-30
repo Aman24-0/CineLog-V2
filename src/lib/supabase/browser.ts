@@ -52,7 +52,8 @@ import { isServer } from "solid-js/web";
  * Prefixed with the project name to avoid colliding with any other
  * library that may also stash a Supabase client on the global object.
  */
-const BROWSER_CLIENT_GLOBAL_KEY = "__CINELOG_SUPABASE_BROWSER_CLIENT__" as const;
+const BROWSER_CLIENT_GLOBAL_KEY =
+  "__CINELOG_SUPABASE_BROWSER_CLIENT__" as const;
 
 /**
  * Structural shape we expect on `globalThis` for singleton caching.
@@ -121,8 +122,8 @@ export function createBrowserClient(): SupabaseClient {
   if (isServer) {
     throw new Error(
       "[CineLog Supabase] createBrowserClient() was called on the server. " +
-        "Use createServerClient() from \"src/lib/supabase/server.ts\" instead, " +
-        "or the environment-aware getClient() from \"src/lib/supabase/client.ts\"."
+        'Use createServerClient() from "src/lib/supabase/server.ts" instead, ' +
+        'or the environment-aware getClient() from "src/lib/supabase/client.ts".'
     );
   }
 
@@ -153,8 +154,8 @@ export function getBrowserClient(): SupabaseClient {
   if (isServer) {
     throw new Error(
       "[CineLog Supabase] getBrowserClient() was called on the server. " +
-        "Use createServerClient() from \"src/lib/supabase/server.ts\" instead, " +
-        "or the environment-aware getClient() from \"src/lib/supabase/client.ts\"."
+        'Use createServerClient() from "src/lib/supabase/server.ts" instead, ' +
+        'or the environment-aware getClient() from "src/lib/supabase/client.ts".'
     );
   }
 

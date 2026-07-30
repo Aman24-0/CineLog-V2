@@ -39,13 +39,13 @@ export const DEFAULT_FEATURE_FLAGS: Record<string, boolean> = {
   upcoming: true,
   random_picker: true,
   ai_recommendations: false,
-  experimental_features: false,
+  experimental_features: false
 };
 
 // ─── Module-level signals ─────────────────────────────────────────
 
 const [flags, setFlags] = createSignal<Record<string, boolean>>({
-  ...DEFAULT_FEATURE_FLAGS,
+  ...DEFAULT_FEATURE_FLAGS
 });
 const [ready, setReady] = createSignal<boolean>(false);
 
@@ -55,7 +55,7 @@ if (!isServer) {
   // Fetch on module load (browser only)
   void fetch("/api/feature-flags", {
     credentials: "omit",
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   })
     .then((r) => r.json().catch(() => ({ flags: DEFAULT_FEATURE_FLAGS })))
     .then((body: { flags?: Record<string, boolean> }) => {
@@ -91,7 +91,7 @@ export function useFeatureFlags(): FeatureFlagsHook {
       try {
         const resp = await fetch("/api/feature-flags?_=" + Date.now(), {
           credentials: "omit",
-          headers: { "Content-Type": "application/json" },
+          headers: { "Content-Type": "application/json" }
         });
         const body = (await resp.json().catch(() => ({}))) as {
           flags?: Record<string, boolean>;
@@ -102,7 +102,7 @@ export function useFeatureFlags(): FeatureFlagsHook {
       } catch {
         // ignore
       }
-    },
+    }
   };
 }
 

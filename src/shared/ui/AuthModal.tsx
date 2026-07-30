@@ -4,7 +4,13 @@
 // Now heavily relies on design tokens, var(--p-glow), and backdrop blurs
 // for a deeply cinematic experience. Floating inputs and dynamic shadows.
 
-import { Component, Show, createSignal, createEffect, onCleanup } from "solid-js";
+import {
+  Component,
+  Show,
+  createSignal,
+  createEffect,
+  onCleanup
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { getClient } from "~/lib/supabase/client";
@@ -51,8 +57,8 @@ const AuthModal: Component = () => {
           email: email(),
           password: password(),
           options: {
-            emailRedirectTo: `${window.location.origin}/auth/callback`,
-          },
+            emailRedirectTo: `${window.location.origin}/auth/callback`
+          }
         });
         if (signUpError) throw signUpError;
         showToast("Check your email to verify your account.", "success", 5000);
@@ -60,15 +66,19 @@ const AuthModal: Component = () => {
       } else {
         const { error: signInError } = await supabase.auth.signInWithPassword({
           email: email(),
-          password: password(),
+          password: password()
         });
         if (signInError) throw signInError;
         showToast("Signed in successfully.", "success");
         closeAuthModal();
       }
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Auth error:", err);
-      setError(err.message || "An error occurred during authentication.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "An error occurred during authentication.";
+      setError(msg);
     } finally {
       setLoading(false);
     }
@@ -84,14 +94,18 @@ const AuthModal: Component = () => {
           redirectTo: `${window.location.origin}/auth/callback`,
           queryParams: {
             access_type: "offline",
-            prompt: "consent",
-          },
-        },
+            prompt: "consent"
+          }
+        }
       });
       if (providerError) throw providerError;
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Google auth error:", err);
-      setError(err.message || "An error occurred with Google Sign-In.");
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "An error occurred with Google Sign-In.";
+      setError(msg);
       setLoading(false);
     }
   };
@@ -101,11 +115,11 @@ const AuthModal: Component = () => {
       <Portal>
         {/* Backdrop overlay */}
         <div
-          class="fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6 animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[9999] flex items-center justify-center p-4 sm:p-6"
           style={{
             background: "rgba(0, 0, 0, 0.75)",
             "backdrop-filter": "blur(24px) saturate(120%)",
-            "-webkit-backdrop-filter": "blur(24px) saturate(120%)",
+            "-webkit-backdrop-filter": "blur(24px) saturate(120%)"
           }}
           onClick={closeAuthModal}
         >
@@ -115,8 +129,8 @@ const AuthModal: Component = () => {
               interactive container per WCAG 4.1.2. */}
           <GlassSurface
             strength="strong"
-            class="w-full max-w-md p-8 relative flex flex-col gap-6"
-            onClick={(e: any) => e.stopPropagation()}
+            class="relative flex w-full max-w-md flex-col gap-6 p-8"
+            onClick={(e: MouseEvent) => e.stopPropagation()}
             role="dialog"
             aria-modal="true"
             aria-labelledby="auth-modal-title"
@@ -124,7 +138,7 @@ const AuthModal: Component = () => {
             {/* Close Button */}
             <button
               type="button"
-              class="absolute top-4 right-4 focus-ring"
+              class="focus-ring absolute right-4 top-4"
               onClick={closeAuthModal}
               style={{
                 background: "var(--tier-1)",
@@ -137,7 +151,7 @@ const AuthModal: Component = () => {
                 "justify-content": "center",
                 color: "var(--text-muted)",
                 cursor: "pointer",
-                transition: "all 0.2s ease-out",
+                transition: "all 0.2s ease-out"
               }}
               onMouseEnter={(e) => {
                 e.currentTarget.style.color = "var(--text-strong)";
@@ -155,7 +169,7 @@ const AuthModal: Component = () => {
             </button>
 
             {/* Header */}
-            <div class="text-center flex flex-col items-center gap-3">
+            <div class="flex flex-col items-center gap-3 text-center">
               {/* Animated logo badge */}
               <div
                 class="flex items-center justify-center rounded-2xl"
@@ -164,9 +178,10 @@ const AuthModal: Component = () => {
                   height: "56px",
                   background: "var(--tier-2)",
                   border: "1px solid var(--p)",
-                  "box-shadow": "0 0 24px var(--p-glow), inset 0 1px 0 rgba(232, 183, 74, 0.2)",
+                  "box-shadow":
+                    "0 0 24px var(--p-glow), inset 0 1px 0 rgba(232, 183, 74, 0.2)",
                   color: "var(--p)",
-                  animation: "shimmer 3s ease-in-out infinite alternate",
+                  animation: "shimmer 3s ease-in-out infinite alternate"
                 }}
                 aria-hidden="true"
               >
@@ -179,8 +194,8 @@ const AuthModal: Component = () => {
                   "font-size": "2.25rem",
                   "letter-spacing": "0.03em",
                   color: "var(--text-strong)",
-                  "line-height": 1,
-                  margin: 0,
+                  "line-height": "1",
+                  margin: 0
                 }}
               >
                 {mode() === "signin" ? "Welcome Back" : "Join CineLog"}
@@ -190,7 +205,7 @@ const AuthModal: Component = () => {
                   color: "var(--text-muted)",
                   "font-size": "0.9375rem",
                   "font-family": "'Outfit', sans-serif",
-                  margin: 0,
+                  margin: 0
                 }}
               >
                 {mode() === "signin"
@@ -212,10 +227,14 @@ const AuthModal: Component = () => {
                   "font-size": "0.875rem",
                   display: "flex",
                   "align-items": "center",
-                  gap: "0.5rem",
+                  gap: "0.5rem"
                 }}
               >
-                <Icon name="error" style={{ "font-size": "18px" }} aria-hidden="true" />
+                <Icon
+                  name="error"
+                  style={{ "font-size": "18px" }}
+                  aria-hidden="true"
+                />
                 <span>{error()}</span>
               </div>
             </Show>
@@ -226,10 +245,14 @@ const AuthModal: Component = () => {
                 {/* Email Input */}
                 <div class="relative">
                   <div
-                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                    class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
                     style={{ color: "var(--text-dim)" }}
                   >
-                    <Icon name="mail" style={{ "font-size": "18px" }} aria-hidden="true" />
+                    <Icon
+                      name="mail"
+                      style={{ "font-size": "18px" }}
+                      aria-hidden="true"
+                    />
                   </div>
                   <input
                     type="email"
@@ -237,7 +260,7 @@ const AuthModal: Component = () => {
                     value={email()}
                     onInput={(e) => setEmail(e.currentTarget.value)}
                     placeholder="Email address"
-                    class="w-full focus-ring"
+                    class="focus-ring w-full"
                     style={{
                       background: "rgba(0,0,0,0.4)",
                       border: "1px solid var(--hairline-2)",
@@ -245,7 +268,7 @@ const AuthModal: Component = () => {
                       padding: "0.875rem 1rem 0.875rem 2.5rem",
                       color: "var(--text-strong)",
                       "font-size": "0.9375rem",
-                      transition: "all 0.2s ease-out",
+                      transition: "all 0.2s ease-out"
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "var(--p)";
@@ -262,10 +285,14 @@ const AuthModal: Component = () => {
                 {/* Password Input */}
                 <div class="relative">
                   <div
-                    class="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none"
+                    class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
                     style={{ color: "var(--text-dim)" }}
                   >
-                    <Icon name="lock" style={{ "font-size": "18px" }} aria-hidden="true" />
+                    <Icon
+                      name="lock"
+                      style={{ "font-size": "18px" }}
+                      aria-hidden="true"
+                    />
                   </div>
                   <input
                     type="password"
@@ -273,7 +300,7 @@ const AuthModal: Component = () => {
                     value={password()}
                     onInput={(e) => setPassword(e.currentTarget.value)}
                     placeholder="Password"
-                    class="w-full focus-ring"
+                    class="focus-ring w-full"
                     style={{
                       background: "rgba(0,0,0,0.4)",
                       border: "1px solid var(--hairline-2)",
@@ -281,7 +308,7 @@ const AuthModal: Component = () => {
                       padding: "0.875rem 1rem 0.875rem 2.5rem",
                       color: "var(--text-strong)",
                       "font-size": "0.9375rem",
-                      transition: "all 0.2s ease-out",
+                      transition: "all 0.2s ease-out"
                     }}
                     onFocus={(e) => {
                       e.currentTarget.style.borderColor = "var(--p)";
@@ -300,7 +327,7 @@ const AuthModal: Component = () => {
               <button
                 type="submit"
                 disabled={loading()}
-                class="w-full relative focus-ring flex items-center justify-center rounded-lg"
+                class="focus-ring relative flex w-full items-center justify-center rounded-lg"
                 style={{
                   background: "var(--p)",
                   color: "#111",
@@ -311,18 +338,21 @@ const AuthModal: Component = () => {
                   cursor: loading() ? "not-allowed" : "pointer",
                   opacity: loading() ? 0.7 : 1,
                   transition: "all 0.2s ease",
-                  "box-shadow": "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)",
+                  "box-shadow":
+                    "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)"
                 }}
                 onMouseEnter={(e) => {
                   if (!loading()) {
                     e.currentTarget.style.transform = "translateY(-1px)";
-                    e.currentTarget.style.boxShadow = "0 4px 24px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.5)";
+                    e.currentTarget.style.boxShadow =
+                      "0 4px 24px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.5)";
                   }
                 }}
                 onMouseLeave={(e) => {
                   if (!loading()) {
                     e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)";
+                    e.currentTarget.style.boxShadow =
+                      "0 0 20px var(--p-glow), inset 0 1px 0 rgba(255,255,255,0.4)";
                   }
                 }}
                 onMouseDown={(e) => {
@@ -338,7 +368,11 @@ const AuthModal: Component = () => {
               >
                 {loading() ? (
                   <span class="flex items-center gap-2">
-                    <Icon name="progress_activity" class="animate-spin" aria-hidden="true" />
+                    <Icon
+                      name="progress_activity"
+                      class="animate-spin"
+                      aria-hidden="true"
+                    />
                     Processing...
                   </span>
                 ) : mode() === "signin" ? (
@@ -350,15 +384,21 @@ const AuthModal: Component = () => {
             </form>
 
             {/* Divider */}
-            <div class="relative flex items-center justify-center mt-2 mb-2">
-              <div class="absolute inset-0 flex items-center" aria-hidden="true">
-                <div class="w-full border-t" style={{ "border-color": "var(--hairline-2)" }} />
+            <div class="relative mb-2 mt-2 flex items-center justify-center">
+              <div
+                class="absolute inset-0 flex items-center"
+                aria-hidden="true"
+              >
+                <div
+                  class="w-full border-t"
+                  style={{ "border-color": "var(--hairline-2)" }}
+                />
               </div>
               <span
-                class="relative px-3 type-caption"
+                class="type-caption relative px-3"
                 style={{
                   background: "var(--tier-2)", // Matches the surface gradient approx
-                  color: "var(--text-dim)",
+                  color: "var(--text-dim)"
                 }}
               >
                 or
@@ -370,7 +410,7 @@ const AuthModal: Component = () => {
               type="button"
               onClick={handleGoogleAuth}
               disabled={loading()}
-              class="w-full flex items-center justify-center gap-3 focus-ring"
+              class="focus-ring flex w-full items-center justify-center gap-3"
               style={{
                 background: "var(--tier-3)",
                 border: "1px solid var(--hairline)",
@@ -380,7 +420,7 @@ const AuthModal: Component = () => {
                 "font-size": "0.9375rem",
                 "font-weight": 600,
                 cursor: loading() ? "not-allowed" : "pointer",
-                transition: "all 0.2s ease",
+                transition: "all 0.2s ease"
               }}
               onMouseEnter={(e) => {
                 if (!loading()) {
@@ -395,7 +435,12 @@ const AuthModal: Component = () => {
                 }
               }}
             >
-              <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
+              <svg
+                viewBox="0 0 24 24"
+                width="18"
+                height="18"
+                aria-hidden="true"
+              >
                 <path
                   fill="#4285F4"
                   d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -423,7 +468,7 @@ const AuthModal: Component = () => {
                 "margin-top": "var(--sp-4)",
                 "font-size": "0.8125rem",
                 color: "var(--text-muted)",
-                "font-family": "'Outfit', sans-serif",
+                "font-family": "'Outfit', sans-serif"
               }}
             >
               {mode() === "signin"
@@ -444,7 +489,7 @@ const AuthModal: Component = () => {
                   "font-size": "0.8125rem",
                   "font-weight": 700,
                   "text-decoration": "underline",
-                  "text-underline-offset": "2px",
+                  "text-underline-offset": "2px"
                 }}
               >
                 {mode() === "signin" ? "Sign up" : "Sign in"}

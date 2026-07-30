@@ -50,7 +50,8 @@ export interface ProfileHeaderProps {
 
 const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
   const displayName = createMemo(
-    () => props.profile()?.display_name ?? props.user()?.displayName ?? "Cinephile",
+    () =>
+      props.profile()?.display_name ?? props.user()?.displayName ?? "Cinephile"
   );
   const username = createMemo(() => props.profile()?.username ?? "");
   // Avatar priority: profile.avatar_url → OAuth (Google) photoURL → initials.
@@ -58,10 +59,9 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
   // useAuth (mapped to `photoURL`). This ensures Google-OAuth users see
   // their profile picture even before they've manually set avatar_url.
   const avatarUrl = createMemo(
-    () => props.profile()?.avatar_url ?? props.user()?.photoURL ?? null,
+    () => props.profile()?.avatar_url ?? props.user()?.photoURL ?? null
   );
   const bio = createMemo(() => props.profile()?.bio ?? "");
-  const initial = createMemo(() => displayName().charAt(0) || "U");
 
   const memberSince = createMemo(() => {
     const joined = props.profile()?.created_at;
@@ -69,7 +69,7 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
     try {
       return new Date(joined).toLocaleDateString(undefined, {
         month: "long",
-        year: "numeric",
+        year: "numeric"
       });
     } catch {
       return null;
@@ -130,7 +130,9 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
             <p class="profile-header-v3-username">@{username()}</p>
           </Show>
           <Show when={memberSince()}>
-            <p class="profile-header-v3-member-since">Member since {memberSince()}</p>
+            <p class="profile-header-v3-member-since">
+              Member since {memberSince()}
+            </p>
           </Show>
           <Show when={bio()}>
             <p class="profile-header-v3-bio">{bio()}</p>
@@ -143,7 +145,9 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
           no-ops). The viewer's own profile renders NO action row —
           both Edit and Share live as icon buttons in the name row
           above (V3.2 cleanup — keeps the header compact). */}
-      <Show when={!props.isOwnProfile() && (props.onFollow || props.onUnfollow)}>
+      <Show
+        when={!props.isOwnProfile() && (props.onFollow || props.onUnfollow)}
+      >
         <div class="profile-header-v3-actions">
           <Show
             when={props.isFollowing?.() ?? false}
@@ -182,7 +186,9 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
           <span class="profile-header-v3-social-num">{props.following()}</span>
           <span class="profile-header-v3-social-label">Following</span>
         </button>
-        <span class="profile-header-v3-social-divider" aria-hidden="true">·</span>
+        <span class="profile-header-v3-social-divider" aria-hidden="true">
+          ·
+        </span>
         <button
           type="button"
           class="profile-header-v3-social-stat focus-ring"

@@ -19,7 +19,7 @@ import { format, parseISO } from "date-fns";
 
 export interface DateRange {
   start: string; // YYYY-MM-DD
-  end: string;   // YYYY-MM-DD
+  end: string; // YYYY-MM-DD
 }
 
 type PresetKey = "today" | "7days" | "30days" | "90days" | "custom";
@@ -33,7 +33,7 @@ const PRESETS: { key: PresetKey; label: string }[] = [
   { key: "today", label: "Today" },
   { key: "7days", label: "7 Days" },
   { key: "30days", label: "30 Days" },
-  { key: "90days", label: "90 Days" },
+  { key: "90days", label: "90 Days" }
 ];
 
 function todayStr(): string {
@@ -50,8 +50,10 @@ function presetFor(value: DateRange): PresetKey {
   const today = todayStr();
   if (value.start === today && value.end === today) return "today";
   if (value.start === today && value.end === addDays(today, 7)) return "7days";
-  if (value.start === today && value.end === addDays(today, 30)) return "30days";
-  if (value.start === today && value.end === addDays(today, 90)) return "90days";
+  if (value.start === today && value.end === addDays(today, 30))
+    return "30days";
+  if (value.start === today && value.end === addDays(today, 90))
+    return "90days";
   return "custom";
 }
 
@@ -96,7 +98,11 @@ const DateRangePicker: Component<DateRangePickerProps> = (props) => {
 
   return (
     <div class="upcoming-date-range">
-      <div class="upcoming-date-presets" role="group" aria-label="Quick date range presets">
+      <div
+        class="upcoming-date-presets"
+        role="group"
+        aria-label="Quick date range presets"
+      >
         <For each={PRESETS}>
           {(p) => (
             <button

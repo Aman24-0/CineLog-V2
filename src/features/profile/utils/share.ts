@@ -33,7 +33,11 @@ export function buildProfileShareUrl(username: string): string {
 export async function shareProfileLink(
   username: string,
   displayName: string,
-  notify: (msg: string, kind: "success" | "info" | "error", durationMs?: number) => void,
+  notify: (
+    msg: string,
+    kind: "success" | "info" | "error",
+    durationMs?: number
+  ) => void
 ): Promise<boolean> {
   const url = buildProfileShareUrl(username);
   if (!url) {
@@ -44,12 +48,15 @@ export async function shareProfileLink(
   // 1. Try the Web Share API when available (mobile browsers, Safari,
   //    Chrome on some platforms). It surfaces the native share sheet
   //    which lets the user pick WhatsApp / Telegram / Messages / etc.
-  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+  if (
+    typeof navigator !== "undefined" &&
+    typeof navigator.share === "function"
+  ) {
     try {
       await navigator.share({
         title: `${displayName} on CineLog`,
         text: `Check out ${displayName}'s profile on CineLog`,
-        url,
+        url
       });
       // navigator.share resolves on actual share (and on some browsers
       // when the user dismisses the sheet without sharing). Either way

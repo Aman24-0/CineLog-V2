@@ -12,7 +12,9 @@ const toDate = (value: WatchlistItem["addedAt"]): Date | null => {
     return isNaN(d.getTime()) ? null : d;
   }
   if (typeof value === "object" && typeof value.seconds === "number") {
-    return new Date(value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6));
+    return new Date(
+      value.seconds * 1000 + Math.floor((value.nanoseconds || 0) / 1e6)
+    );
   }
   return null;
 };

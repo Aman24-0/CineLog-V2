@@ -1,10 +1,6 @@
 // src/features/details/DetailsModal/types.ts
 import type { Accessor } from "solid-js";
-import type {
-  WatchlistItem,
-  TMDBDetails,
-  OMDbRatings,
-} from "~/shared/types";
+import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 
 /**
  * Shared prop interfaces for the DetailsModal section components.

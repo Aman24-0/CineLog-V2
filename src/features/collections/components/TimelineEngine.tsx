@@ -6,7 +6,7 @@ import type {
   CollectionEntry,
   UniversePhase,
   ViewingOrder,
-  TimelineProvider,
+  TimelineProvider
 } from "~/shared/types";
 import TimelineEntry from "./TimelineEntry";
 import PhaseDivider from "./PhaseDivider";
@@ -15,7 +15,7 @@ import {
   groupByFranchise,
   groupByPhase,
   groupByStoryYear,
-  type TimelineItem,
+  type TimelineItem
 } from "./timelineSort";
 
 interface TimelineEngineProps {
@@ -78,22 +78,22 @@ export default function TimelineEngine(props: TimelineEngineProps) {
 
   /** Sort entries based on current viewing order, enrich with vault status. */
   const sortedEntries = createMemo<TimelineItem[]>(() =>
-    sortAndEnrich(mergedEntries(), watchlist(), props.order),
+    sortAndEnrich(mergedEntries(), watchlist(), props.order)
   );
 
   /** Group entries for franchise mode. */
   const groupedByFranchise = createMemo(() =>
-    groupByFranchise(sortedEntries(), props.order),
+    groupByFranchise(sortedEntries(), props.order)
   );
 
   /** Group entries for saga/phase mode. */
   const groupedByPhase = createMemo(() =>
-    groupByPhase(sortedEntries(), props.order),
+    groupByPhase(sortedEntries(), props.order)
   );
 
   /** Group entries for story/year mode. */
   const groupedByStoryYear = createMemo(() =>
-    groupByStoryYear(sortedEntries(), props.order),
+    groupByStoryYear(sortedEntries(), props.order)
   );
 
   const titleOf = (e: CollectionEntry) => e.title || e.name || "Untitled";
@@ -165,7 +165,7 @@ export default function TimelineEngine(props: TimelineEngineProps) {
         <div class="universe-timeline-label">
           <span
             class="material-symbols-outlined"
-            style={{"font-size":"12px","color":"var(--p)"}}
+            style={{ "font-size": "12px", color: "var(--p)" }}
             aria-hidden="true"
           >
             timeline
@@ -179,7 +179,13 @@ export default function TimelineEngine(props: TimelineEngineProps) {
             onClick={() => props.onEdit!()}
             aria-label="Edit timeline"
           >
-            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">edit</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
+              edit
+            </span>
             Edit
           </button>
         </Show>
@@ -195,7 +201,10 @@ export default function TimelineEngine(props: TimelineEngineProps) {
             <div class="universe-phase-group">
               <div class="universe-phase-header">
                 <span class="universe-phase-name">{group.franchise}</span>
-                <span class="universe-phase-count">{group.items.length} {group.items.length === 1 ? "title" : "titles"}</span>
+                <span class="universe-phase-count">
+                  {group.items.length}{" "}
+                  {group.items.length === 1 ? "title" : "titles"}
+                </span>
               </div>
               <div class="universe-timeline-wrap">
                 <div class="universe-timeline-rail" aria-hidden="true" />
@@ -211,8 +220,14 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         yearOf={yearOf}
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
-                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
-                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
+                        onToggleSelect={() =>
+                          props.onToggleSelected?.(item.entry)
+                        }
+                        onAddToWatchlist={
+                          props.onAddToWatchlist
+                            ? () => props.onAddToWatchlist!(item.entry)
+                            : undefined
+                        }
                       />
                     )}
                   </For>
@@ -230,7 +245,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
             <div class="universe-story-group">
               <div class="universe-story-year-header">
                 <span class="universe-story-year-label">{group.yearLabel}</span>
-                <span class="universe-story-year-count">{group.items.length}</span>
+                <span class="universe-story-year-count">
+                  {group.items.length}
+                </span>
               </div>
               <div class="universe-timeline-wrap">
                 <div class="universe-timeline-rail" aria-hidden="true" />
@@ -246,8 +263,14 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         yearOf={yearOf}
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
-                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
-                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
+                        onToggleSelect={() =>
+                          props.onToggleSelected?.(item.entry)
+                        }
+                        onAddToWatchlist={
+                          props.onAddToWatchlist
+                            ? () => props.onAddToWatchlist!(item.entry)
+                            : undefined
+                        }
                       />
                     )}
                   </For>
@@ -265,7 +288,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
             <div class="universe-phase-group">
               <div class="universe-phase-header">
                 <span class="universe-phase-name">{group.phase}</span>
-                <span class="universe-phase-count">{group.items.length} titles</span>
+                <span class="universe-phase-count">
+                  {group.items.length} titles
+                </span>
               </div>
               <div class="universe-timeline-wrap">
                 <div class="universe-timeline-rail" aria-hidden="true" />
@@ -281,8 +306,14 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                         yearOf={yearOf}
                         selectMode={props.selectMode}
                         selected={isSelected(item.entry)}
-                        onToggleSelect={() => props.onToggleSelected?.(item.entry)}
-                        onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
+                        onToggleSelect={() =>
+                          props.onToggleSelected?.(item.entry)
+                        }
+                        onAddToWatchlist={
+                          props.onAddToWatchlist
+                            ? () => props.onAddToWatchlist!(item.entry)
+                            : undefined
+                        }
                       />
                     )}
                   </For>
@@ -314,7 +345,9 @@ export default function TimelineEngine(props: TimelineEngineProps) {
               {(item, i) => (
                 <>
                   {/* Phase divider(s) that should appear BEFORE this entry. */}
-                  <Show when={(phasesByEntry().get(item.entry.id) ?? []).length > 0}>
+                  <Show
+                    when={(phasesByEntry().get(item.entry.id) ?? []).length > 0}
+                  >
                     <For each={phasesByEntry().get(item.entry.id) ?? []}>
                       {(phase) => (
                         <PhaseDivider
@@ -335,7 +368,11 @@ export default function TimelineEngine(props: TimelineEngineProps) {
                     selectMode={props.selectMode}
                     selected={isSelected(item.entry)}
                     onToggleSelect={() => props.onToggleSelected?.(item.entry)}
-                    onAddToWatchlist={props.onAddToWatchlist ? () => props.onAddToWatchlist!(item.entry) : undefined}
+                    onAddToWatchlist={
+                      props.onAddToWatchlist
+                        ? () => props.onAddToWatchlist!(item.entry)
+                        : undefined
+                    }
                   />
                 </>
               )}

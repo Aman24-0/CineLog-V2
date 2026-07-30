@@ -50,11 +50,14 @@ const GlassSearchBar: Component<GlassSearchBarProps> = (props) => {
           <Show when={props.query.length > 0}>
             <button
               type="button"
-              class="flex items-center justify-center w-8 h-8 rounded-full text-text-muted hover:text-text-strong hover:bg-tier-3 transition-colors focus-ring"
+              class="focus-ring flex h-8 w-8 items-center justify-center rounded-full text-text-muted transition-colors hover:bg-tier-3 hover:text-text-strong"
               onClick={props.onClear}
               aria-label="Clear search"
             >
-              <span class="material-symbols-outlined text-[18px]" aria-hidden="true">
+              <span
+                class="material-symbols-outlined text-[18px]"
+                aria-hidden="true"
+              >
                 close
               </span>
             </button>

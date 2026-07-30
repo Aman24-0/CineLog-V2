@@ -1,5 +1,5 @@
 // src/shared/utils/__tests__/seenTitles.test.ts
-import { describe, it, expect, beforeEach, vi } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import {
   addSeenTitle,
   isTitleSeen,
@@ -9,7 +9,7 @@ import {
   setCachedSpotlight,
   clearCachedSpotlight,
   todayKey,
-  SEEN_TITLES_TTL_MS,
+  SEEN_TITLES_TTL_MS
 } from "../seenTitles";
 import type { SpotlightPick, TMDBTitle } from "~/shared/types";
 
@@ -26,13 +26,13 @@ const baseTitle: TMDBTitle = {
   overview: "A test movie",
   release_date: "2024-01-01",
   genre_ids: [28],
-  genres: ["Action"],
+  genres: ["Action"]
 } as unknown as TMDBTitle;
 
 const makePick = (): SpotlightPick => ({
   title: baseTitle,
   reason: "Because you tested",
-  strategy: "acclaimed-fallback",
+  strategy: "acclaimed-fallback"
 });
 
 // localStorage is cleared in test/setup.ts beforeEach, so each test
@@ -99,7 +99,7 @@ describe("addSeenTitle / isTitleSeen", () => {
   });
 
   it("is idempotent — adding twice updates the timestamp", () => {
-    const oldTs = Date.now() - (10 * 24 * 60 * 60 * 1000); // 10 days ago
+    const oldTs = Date.now() - 10 * 24 * 60 * 60 * 1000; // 10 days ago
     addSeenTitle("user-1", "movie", 123, oldTs);
     // Add again with current timestamp — should refresh
     addSeenTitle("user-1", "movie", 123);
@@ -128,7 +128,12 @@ describe("getSeenTitles", () => {
     // Fresh
     addSeenTitle("user-1", "movie", 100);
     // Expired (31 days ago)
-    addSeenTitle("user-1", "movie", 200, Date.now() - (SEEN_TITLES_TTL_MS + 5000));
+    addSeenTitle(
+      "user-1",
+      "movie",
+      200,
+      Date.now() - (SEEN_TITLES_TTL_MS + 5000)
+    );
 
     const map = getSeenTitles("user-1");
     expect(map.size).toBe(1);
@@ -137,7 +142,12 @@ describe("getSeenTitles", () => {
   });
 
   it("persists the pruned map so subsequent reads don't re-encounter stale entries", () => {
-    addSeenTitle("user-1", "movie", 200, Date.now() - (SEEN_TITLES_TTL_MS + 5000));
+    addSeenTitle(
+      "user-1",
+      "movie",
+      200,
+      Date.now() - (SEEN_TITLES_TTL_MS + 5000)
+    );
     // First read prunes
     const m1 = getSeenTitles("user-1");
     expect(m1.size).toBe(0);
@@ -221,7 +231,7 @@ describe("SSR safety", () => {
     const original = (globalThis as { localStorage?: Storage }).localStorage;
     Object.defineProperty(globalThis, "localStorage", {
       value: undefined,
-      configurable: true,
+      configurable: true
     });
 
     try {
@@ -236,7 +246,7 @@ describe("SSR safety", () => {
     } finally {
       Object.defineProperty(globalThis, "localStorage", {
         value: original,
-        configurable: true,
+        configurable: true
       });
     }
   });

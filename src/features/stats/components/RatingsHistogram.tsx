@@ -45,7 +45,7 @@ function barColor(rating: number): string {
 
 const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
   const total = createMemo((): number =>
-    props.ratings().reduce((sum, r) => sum + r.count, 0),
+    props.ratings().reduce((sum, r) => sum + r.count, 0)
   );
 
   const items = createMemo<BarVItem[]>(() =>
@@ -61,11 +61,11 @@ const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
           {
             name: "Titles",
             value: `${count} · ${pct}%`,
-            color: barColor(r.rating),
-          },
-        ],
+            color: barColor(r.rating)
+          }
+        ]
       };
-    }),
+    })
   );
 
   const hasRatings = createMemo(() => total() > 0);
@@ -79,7 +79,9 @@ const RatingsHistogram: Component<RatingsHistogramProps> = (props) => {
     >
       <Show
         when={hasRatings()}
-        fallback={<p class="stats-chart-empty">You haven't rated any titles yet.</p>}
+        fallback={
+          <p class="stats-chart-empty">You haven't rated any titles yet.</p>
+        }
       >
         <BarChartV items={items()} height={260} />
       </Show>

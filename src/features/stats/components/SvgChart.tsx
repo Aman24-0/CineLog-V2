@@ -27,7 +27,7 @@ import {
   createSignal,
   createMemo,
   type Component,
-  type JSX,
+  type JSX
 } from "solid-js";
 
 // ---------------------------------------------------------------------------
@@ -121,7 +121,10 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
 
   const yMax = createMemo(() => {
     if (props.yMax !== undefined && props.yMax > 0) return props.yMax;
-    const max = Math.max(1, ...props.items.map((i) => Math.max(i.value, i.secondary ?? 0)));
+    const max = Math.max(
+      1,
+      ...props.items.map((i) => Math.max(i.value, i.secondary ?? 0))
+    );
     // Round up to a clean number so gridlines look stable.
     if (max <= 4) return max;
     if (max <= 10) return 10;
@@ -133,7 +136,13 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
     const m = yMax();
     if (m <= 4) return Array.from({ length: m + 1 }, (_, i) => i);
     if (m <= 10) return [0, 2, 4, 6, 8, 10];
-    return [0, Math.round(m / 4), Math.round(m / 2), Math.round((3 * m) / 4), m];
+    return [
+      0,
+      Math.round(m / 4),
+      Math.round(m / 2),
+      Math.round((3 * m) / 4),
+      m
+    ];
   });
 
   const barAreaW = (): number => innerW() / Math.max(1, props.items.length);
@@ -159,12 +168,14 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
       ? props.buildTooltip(item, idx)
       : {
           label: item.tooltipLabel ?? item.label,
-          rows: [{ name: "Count", value: String(item.value), color: item.color }],
+          rows: [
+            { name: "Count", value: String(item.value), color: item.color }
+          ]
         };
     setHover({
       x: ctm.left - container.left + ctm.width / 2,
       y: ctm.top - container.top,
-      data: datum,
+      data: datum
     });
   };
 
@@ -174,11 +185,20 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
   };
 
   const labelY = (): number => H() - padding.bottom + 16;
-  const shouldRotate = (): boolean => !!props.rotateLabels && props.items.length > 6;
+  const shouldRotate = (): boolean =>
+    !!props.rotateLabels && props.items.length > 6;
 
   return (
-    <div class="stats-svg-chart" style={{ position: "relative", height: `${H()}px` }}>
-      <svg viewBox={`0 0 ${W} ${H()}`} width="100%" height={H()} preserveAspectRatio="xMidYMid meet">
+    <div
+      class="stats-svg-chart"
+      style={{ position: "relative", height: `${H()}px` }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H()}`}
+        width="100%"
+        height={H()}
+        preserveAspectRatio="xMidYMid meet"
+      >
         {/* Gridlines */}
         <For each={yTicks()}>
           {(tick) => {
@@ -221,18 +241,27 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
             const secondaryColor = item.secondaryColor ?? "#7c8cff";
             const halfW = props.split ? secondaryBarW() / 2 : barW() / 2;
             const isHover = hoverIdx() === idx();
-            const hoverOpacity = props.hoverScale === false ? 1 : isHover ? 1 : (hoverIdx() === null ? 1 : 0.55);
-            const hoverTransform = props.hoverScale === false || !isHover
-              ? "translate(0,0) scale(1)"
-              : "translate(0,-2) scale(1.04)";
+            const hoverOpacity =
+              props.hoverScale === false
+                ? 1
+                : isHover
+                  ? 1
+                  : hoverIdx() === null
+                    ? 1
+                    : 0.55;
+            const hoverTransform =
+              props.hoverScale === false || !isHover
+                ? "translate(0,0) scale(1)"
+                : "translate(0,-2) scale(1.04)";
             return (
               <g
                 style={{
                   transform: hoverTransform,
                   "transform-origin": `${cx}px ${padding.top + innerH()}px`,
                   "transform-box": "fill-box",
-                  transition: "transform 160ms var(--ease-smooth, ease), opacity 160ms ease",
-                  opacity: hoverOpacity,
+                  transition:
+                    "transform 160ms var(--ease-smooth, ease), opacity 160ms ease",
+                  opacity: hoverOpacity
                 }}
               >
                 {/* Bar (or split bars) */}
@@ -293,7 +322,11 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                   font-size="10"
                   font-family="'Azeret Mono', monospace"
                   fill="rgba(255,255,255,0.6)"
-                  transform={shouldRotate() ? `rotate(-45, ${cx}, ${labelY()})` : undefined}
+                  transform={
+                    shouldRotate()
+                      ? `rotate(-45, ${cx}, ${labelY()})`
+                      : undefined
+                  }
                 >
                   {item.label}
                 </text>
@@ -353,12 +386,14 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
       ? props.buildTooltip(item, idx)
       : {
           label: item.tooltipLabel ?? item.label,
-          rows: [{ name: "Titles", value: String(item.value), color: item.color }],
+          rows: [
+            { name: "Titles", value: String(item.value), color: item.color }
+          ]
         };
     setHover({
       x: ctm.left - container.left + ctm.width,
       y: ctm.top - container.top + ctm.height / 2,
-      data: datum,
+      data: datum
     });
   };
 
@@ -368,8 +403,16 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
   };
 
   return (
-    <div class="stats-svg-chart" style={{ position: "relative", height: `${H()}px` }}>
-      <svg viewBox={`0 0 ${W} ${H()}`} width="100%" height={H()} preserveAspectRatio="xMidYMid meet">
+    <div
+      class="stats-svg-chart"
+      style={{ position: "relative", height: `${H()}px` }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H()}`}
+        width="100%"
+        height={H()}
+        preserveAspectRatio="xMidYMid meet"
+      >
         <For each={props.items}>
           {(item, idx) => {
             const y = padding.top + idx() * rowH();
@@ -383,7 +426,7 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
               <g
                 style={{
                   opacity: dimmed ? 0.55 : 1,
-                  transition: "opacity 160ms ease",
+                  transition: "opacity 160ms ease"
                 }}
               >
                 {/* Label */}
@@ -393,7 +436,11 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   text-anchor="end"
                   font-size="11"
                   font-family="'Outfit', sans-serif"
-                  fill={isHover ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.78)"}
+                  fill={
+                    isHover
+                      ? "rgba(255,255,255,0.95)"
+                      : "rgba(255,255,255,0.78)"
+                  }
                   style={{ transition: "fill 160ms ease" }}
                 >
                   {truncate(item.label, 16)}
@@ -423,8 +470,9 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   onClick={() => props.onBarClick?.(item, idx())}
                   style={{
                     cursor: props.onBarClick ? "pointer" : "default",
-                    transition: "width 400ms var(--ease-smooth, ease), filter 160ms ease",
-                    filter: isHover ? "brightness(1.15)" : "none",
+                    transition:
+                      "width 400ms var(--ease-smooth, ease), filter 160ms ease",
+                    filter: isHover ? "brightness(1.15)" : "none"
                   }}
                 />
                 {/* Value label at the right of the bar */}
@@ -434,7 +482,9 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   font-size="11"
                   font-family="'Azeret Mono', monospace"
                   font-weight="600"
-                  fill={isHover ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)"}
+                  fill={
+                    isHover ? "rgba(255,255,255,0.95)" : "rgba(255,255,255,0.7)"
+                  }
                   style={{ transition: "fill 160ms ease" }}
                 >
                   {item.value}
@@ -480,7 +530,7 @@ export const DonutChart: Component<DonutChartProps> = (props) => {
   const innerR = (): number => outerR() * 0.62;
 
   const total = createMemo(() =>
-    props.slices.reduce((s, sl) => s + sl.value, 0),
+    props.slices.reduce((s, sl) => s + sl.value, 0)
   );
 
   // Build the slice arcs as SVG path data.
@@ -509,18 +559,34 @@ export const DonutChart: Component<DonutChartProps> = (props) => {
       ? props.buildTooltip(slice, idx)
       : {
           label: slice.tooltipLabel ?? slice.name,
-          rows: [{ name: slice.name, value: String(slice.value), color: slice.color }],
+          rows: [
+            { name: slice.name, value: String(slice.value), color: slice.color }
+          ]
         };
     setHover({
       x: ctm.left - container.left + ctm.width / 2,
       y: ctm.top - container.top,
-      data: datum,
+      data: datum
     });
   };
 
   return (
-    <div class="stats-svg-chart stats-donut-wrap" style={{ position: "relative", height: `${H()}px`, display: "flex", "align-items": "center", "justify-content": "center" }}>
-      <svg viewBox={`0 0 ${W} ${H()}`} width="100%" height={H()} preserveAspectRatio="xMidYMid meet">
+    <div
+      class="stats-svg-chart stats-donut-wrap"
+      style={{
+        position: "relative",
+        height: `${H()}px`,
+        display: "flex",
+        "align-items": "center",
+        "justify-content": "center"
+      }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H()}`}
+        width="100%"
+        height={H()}
+        preserveAspectRatio="xMidYMid meet"
+      >
         <Show
           when={total() > 0}
           fallback={
@@ -578,7 +644,7 @@ function donutPath(
   innerR: number,
   outerR: number,
   startAngle: number,
-  endAngle: number,
+  endAngle: number
 ): string {
   // If the slice covers the full circle, split into two semicircle paths
   // to avoid the degenerate single-point arc.
@@ -586,7 +652,7 @@ function donutPath(
   if (fullCircle) {
     return [
       donutPath(cx, cy, innerR, outerR, startAngle, startAngle + Math.PI),
-      donutPath(cx, cy, innerR, outerR, startAngle + Math.PI, endAngle),
+      donutPath(cx, cy, innerR, outerR, startAngle + Math.PI, endAngle)
     ].join(" ");
   }
 
@@ -602,14 +668,14 @@ function donutPath(
     `A ${outerR} ${outerR} 0 ${largeArc} 1 ${outerEnd.x} ${outerEnd.y}`,
     `L ${innerStart.x} ${innerStart.y}`,
     `A ${innerR} ${innerR} 0 ${largeArc} 0 ${innerEnd.x} ${innerEnd.y}`,
-    "Z",
+    "Z"
   ].join(" ");
 }
 
 function polarToCartesian(cx: number, cy: number, r: number, angle: number) {
   return {
     x: cx + r * Math.cos(angle),
-    y: cy + r * Math.sin(angle),
+    y: cy + r * Math.sin(angle)
   };
 }
 
@@ -651,7 +717,13 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
     const m = yMax();
     if (m <= 4) return Array.from({ length: m + 1 }, (_, i) => i);
     if (m <= 10) return [0, 2, 4, 6, 8, 10];
-    return [0, Math.round(m / 4), Math.round(m / 2), Math.round((3 * m) / 4), m];
+    return [
+      0,
+      Math.round(m / 4),
+      Math.round(m / 2),
+      Math.round((3 * m) / 4),
+      m
+    ];
   });
 
   const xForIdx = (idx: number): number => {
@@ -666,7 +738,10 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
     const pts = props.points;
     if (pts.length === 0) return "";
     return pts
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${xForIdx(i).toFixed(2)} ${yForValue(p.value).toFixed(2)}`)
+      .map(
+        (p, i) =>
+          `${i === 0 ? "M" : "L"} ${xForIdx(i).toFixed(2)} ${yForValue(p.value).toFixed(2)}`
+      )
       .join(" ");
   });
 
@@ -674,7 +749,10 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
     const pts = props.points;
     if (pts.length === 0) return "";
     const top = pts
-      .map((p, i) => `${i === 0 ? "M" : "L"} ${xForIdx(i).toFixed(2)} ${yForValue(p.value).toFixed(2)}`)
+      .map(
+        (p, i) =>
+          `${i === 0 ? "M" : "L"} ${xForIdx(i).toFixed(2)} ${yForValue(p.value).toFixed(2)}`
+      )
       .join(" ");
     const baseY = padding.top + innerH();
     const lastX = xForIdx(pts.length - 1);
@@ -695,18 +773,26 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
       ? props.buildTooltip(point, idx)
       : {
           label: point.tooltipLabel ?? point.label,
-          rows: [{ name: "Total", value: String(point.value), color: color() }],
+          rows: [{ name: "Total", value: String(point.value), color: color() }]
         };
     setHover({
       x: ctm.left - container.left,
       y: ctm.top - container.top,
-      data: datum,
+      data: datum
     });
   };
 
   return (
-    <div class="stats-svg-chart" style={{ position: "relative", height: `${H()}px` }}>
-      <svg viewBox={`0 0 ${W} ${H()}`} width="100%" height={H()} preserveAspectRatio="xMidYMid meet">
+    <div
+      class="stats-svg-chart"
+      style={{ position: "relative", height: `${H()}px` }}
+    >
+      <svg
+        viewBox={`0 0 ${W} ${H()}`}
+        width="100%"
+        height={H()}
+        preserveAspectRatio="xMidYMid meet"
+      >
         <defs>
           <linearGradient id="statsTrendArea" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0%" stop-color={color()} stop-opacity="0.45" />
@@ -777,7 +863,10 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
                   stroke-width={isHover ? 2 : 0}
                   onMouseEnter={(e) => handleEnter(point, idx(), e)}
                   onMouseMove={(e) => handleEnter(point, idx(), e)}
-                  onMouseLeave={() => { clearHover(); setHoverIdx(null); }}
+                  onMouseLeave={() => {
+                    clearHover();
+                    setHoverIdx(null);
+                  }}
                   style={{ cursor: "pointer", transition: "r 120ms ease" }}
                 />
                 <text
@@ -805,7 +894,9 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
 // ChartTooltip — the actual hover tooltip rendered for any chart
 // ---------------------------------------------------------------------------
 
-const ChartTooltip: Component<{ hover: () => TooltipState | null }> = (props) => {
+const ChartTooltip: Component<{ hover: () => TooltipState | null }> = (
+  props
+) => {
   const positioned = createMemo(() => {
     const h = props.hover();
     if (!h || !h.data) return null;
@@ -824,7 +915,7 @@ const ChartTooltip: Component<{ hover: () => TooltipState | null }> = (props) =>
             left: `${state().x}px`,
             top: `${state().y}px`,
             transform: "translate(-50%, -100%)",
-            "z-index": "10",
+            "z-index": "10"
           }}
           role="status"
         >
@@ -834,7 +925,11 @@ const ChartTooltip: Component<{ hover: () => TooltipState | null }> = (props) =>
               {(row) => (
                 <div class="stats-tooltip-row">
                   <Show when={row.color}>
-                    <span class="stats-tooltip-dot" style={{ background: row.color }} aria-hidden="true" />
+                    <span
+                      class="stats-tooltip-dot"
+                      style={{ background: row.color }}
+                      aria-hidden="true"
+                    />
                   </Show>
                   <span class="stats-tooltip-name">{row.name}</span>
                   <span class="stats-tooltip-value">{row.value}</span>

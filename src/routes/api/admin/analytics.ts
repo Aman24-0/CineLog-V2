@@ -20,7 +20,10 @@
 // The response is a single JSON object so the page can render with
 // one round-trip.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 interface APIEvent extends AdminAPIEvent {}
@@ -78,7 +81,7 @@ interface AnalyticsResponse {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -102,28 +105,57 @@ export async function GET(event: APIEvent) {
       summaryUsersResp,
       summaryVaultResp,
       summaryCollectionsResp,
-      recentSignupsResp,
+      recentSignupsResp
     ] = await Promise.all([
-      supabase.from("mv_admin_user_growth").select("*").order("day", { ascending: true }),
-      supabase.from("mv_admin_active_users").select("*").order("day", { ascending: true }),
-      supabase.from("mv_admin_content_engagement").select("*").order("day", { ascending: false }).limit(200),
-      supabase.from("mv_admin_top_titles").select("*").order("vault_count", { ascending: false }),
-      supabase.from("app_config").select("value").eq("key", "analytics_last_refresh").single(),
-      supabase.from("profiles").select("id", { count: "exact", head: true }).is("deleted_at", null),
-      supabase.from("vault").select("id", { count: "exact", head: true }).is("deleted_at", null),
-      supabase.from("collections").select("id", { count: "exact", head: true }).is("deleted_at", null),
+      supabase
+        .from("mv_admin_user_growth")
+        .select("*")
+        .order("day", { ascending: true }),
+      supabase
+        .from("mv_admin_active_users")
+        .select("*")
+        .order("day", { ascending: true }),
+      supabase
+        .from("mv_admin_content_engagement")
+        .select("*")
+        .order("day", { ascending: false })
+        .limit(200),
+      supabase
+        .from("mv_admin_top_titles")
+        .select("*")
+        .order("vault_count", { ascending: false }),
+      supabase
+        .from("app_config")
+        .select("value")
+        .eq("key", "analytics_last_refresh")
+        .single(),
+      supabase
+        .from("profiles")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null),
+      supabase
+        .from("vault")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null),
+      supabase
+        .from("collections")
+        .select("id", { count: "exact", head: true })
+        .is("deleted_at", null),
       // Recent signups — not from MV (we want real-time)
       supabase
         .from("profiles")
         .select("created_at")
         .is("deleted_at", null)
         .order("created_at", { ascending: false })
-        .limit(500),
+        .limit(500)
     ]);
 
     // Errors from MVs are non-fatal — the page just renders with empty arrays
     if (userGrowthResp.error) {
-      console.error("[admin/analytics] mv_admin_user_growth error:", userGrowthResp.error);
+      console.error(
+        "[admin/analytics] mv_admin_user_growth error:",
+        userGrowthResp.error
+      );
     }
 
     // ─── Compute summary metrics ───────────────────────────────
@@ -132,10 +164,18 @@ export async function GET(event: APIEvent) {
     const cutoff7d = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
     const cutoff30d = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-    const recentSignups = (recentSignupsResp.data ?? []) as { created_at: string }[];
-    const newUsers24h = recentSignups.filter((r) => new Date(r.created_at) >= cutoff24h).length;
-    const newUsers7d = recentSignups.filter((r) => new Date(r.created_at) >= cutoff7d).length;
-    const newUsers30d = recentSignups.filter((r) => new Date(r.created_at) >= cutoff30d).length;
+    const recentSignups = (recentSignupsResp.data ?? []) as {
+      created_at: string;
+    }[];
+    const newUsers24h = recentSignups.filter(
+      (r) => new Date(r.created_at) >= cutoff24h
+    ).length;
+    const newUsers7d = recentSignups.filter(
+      (r) => new Date(r.created_at) >= cutoff7d
+    ).length;
+    const newUsers30d = recentSignups.filter(
+      (r) => new Date(r.created_at) >= cutoff30d
+    ).length;
 
     // DAU/WAU/MAU from the most recent row of mv_admin_active_users
     const activeUsersRows = (activeUsersResp.data ?? []) as {
@@ -150,7 +190,8 @@ export async function GET(event: APIEvent) {
     const mauThisMonth = latestActive?.mau ?? 0;
 
     // ─── Refresh metadata ──────────────────────────────────────
-    const lastRefreshRaw = (lastRefreshResp.data?.value as { at?: string | null } | null) ?? null;
+    const lastRefreshRaw =
+      (lastRefreshResp.data?.value as { at?: string | null } | null) ?? null;
     const lastRefresh = lastRefreshRaw?.at ?? null;
 
     // pg_cron runs at minute 5 of every hour. Estimate minutes remaining.
@@ -161,9 +202,11 @@ export async function GET(event: APIEvent) {
     })();
 
     const response: AnalyticsResponse = {
-      user_growth: (userGrowthResp.data ?? []) as AnalyticsResponse["user_growth"],
+      user_growth: (userGrowthResp.data ??
+        []) as AnalyticsResponse["user_growth"],
       active_users: activeUsersRows,
-      content_engagement: (engagementResp.data ?? []) as AnalyticsResponse["content_engagement"],
+      content_engagement: (engagementResp.data ??
+        []) as AnalyticsResponse["content_engagement"],
       top_titles: (topTitlesResp.data ?? []) as AnalyticsResponse["top_titles"],
       summary: {
         total_users: summaryUsersResp.count ?? 0,
@@ -174,11 +217,11 @@ export async function GET(event: APIEvent) {
         mau_this_month: mauThisMonth,
         new_users_30d: newUsers30d,
         new_users_7d: newUsers7d,
-        new_users_24h: newUsers24h,
+        new_users_24h: newUsers24h
       },
       last_refresh: lastRefresh,
       next_refresh_eta_minutes: minutesUntilNextRefresh,
-      fetched_at: now.toISOString(),
+      fetched_at: now.toISOString()
     };
 
     return jsonResponse(response, 200);

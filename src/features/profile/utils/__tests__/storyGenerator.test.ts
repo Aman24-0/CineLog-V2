@@ -25,15 +25,18 @@ describe("generateIdentityChips", () => {
     avgRating: 0,
     topRated: null,
     mostRewatched: null,
-    ...overrides,
+    ...overrides
   });
 
-  const createMockWatchlist = (length: number, overrides: Partial<WatchlistItem> = {}): WatchlistItem[] => {
+  const createMockWatchlist = (
+    length: number,
+    overrides: Partial<WatchlistItem> = {}
+  ): WatchlistItem[] => {
     return Array.from({ length }).map((_, i) => ({
       id: `id-${i}`,
       media_type: "movie",
       status: "Completed",
-      ...overrides,
+      ...overrides
     }));
   };
 
@@ -54,7 +57,11 @@ describe("generateIdentityChips", () => {
         topGenres: [{ name: "Science Fiction", count: 3, pct: 30 }]
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(3));
-      expect(chips).toContainEqual({ label: "Sci-Fi Lover", icon: "🚀", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Sci-Fi Lover",
+        icon: "🚀",
+        isEmoji: true
+      });
     });
 
     it("should return Horror Aficionado for horror genre", () => {
@@ -62,7 +69,11 @@ describe("generateIdentityChips", () => {
         topGenres: [{ name: "Horror", count: 3, pct: 30 }]
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(3));
-      expect(chips).toContainEqual({ label: "Horror Aficionado", icon: "👻", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Horror Aficionado",
+        icon: "👻",
+        isEmoji: true
+      });
     });
 
     it("should return generic genre lover for unmapped genre", () => {
@@ -70,7 +81,11 @@ describe("generateIdentityChips", () => {
         topGenres: [{ name: "Western", count: 3, pct: 30 }]
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(3));
-      expect(chips).toContainEqual({ label: "Western Lover", icon: "🎬", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Western Lover",
+        icon: "🎬",
+        isEmoji: true
+      });
     });
 
     it("should not return genre chip if top genre count is less than 3", () => {
@@ -88,7 +103,11 @@ describe("generateIdentityChips", () => {
         topDirectors: [{ name: "Christopher Nolan", count: 3 }]
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(3));
-      expect(chips).toContainEqual({ label: "Nolan Fan", icon: "🎬", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Nolan Fan",
+        icon: "🎬",
+        isEmoji: true
+      });
     });
 
     it("should not return Director Fan if count < 3", () => {
@@ -96,7 +115,9 @@ describe("generateIdentityChips", () => {
         topDirectors: [{ name: "Christopher Nolan", count: 2 }]
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(3));
-      expect(chips).not.toContainEqual(expect.objectContaining({ label: expect.stringContaining("Fan") }));
+      expect(chips).not.toContainEqual(
+        expect.objectContaining({ label: expect.stringContaining("Fan") })
+      );
     });
   });
 
@@ -107,7 +128,11 @@ describe("generateIdentityChips", () => {
         total: 8
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(8));
-      expect(chips).toContainEqual({ label: "90s Cinema", icon: "📼", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "90s Cinema",
+        icon: "📼",
+        isEmoji: true
+      });
     });
 
     it("should not return era chip if total < 8", () => {
@@ -116,7 +141,9 @@ describe("generateIdentityChips", () => {
         total: 7
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(7));
-      expect(chips).not.toContainEqual(expect.objectContaining({ label: "90s Cinema" }));
+      expect(chips).not.toContainEqual(
+        expect.objectContaining({ label: "90s Cinema" })
+      );
     });
   });
 
@@ -125,14 +152,20 @@ describe("generateIdentityChips", () => {
       const stats = createMockStats();
       const watchlist = createMockWatchlist(4, { runtime: 140 });
       const chips = generateIdentityChips(stats, watchlist);
-      expect(chips).toContainEqual({ label: "Slow Cinema", icon: "🎬", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Slow Cinema",
+        icon: "🎬",
+        isEmoji: true
+      });
     });
 
     it("should not return Slow Cinema if avg runtime < 130", () => {
       const stats = createMockStats();
       const watchlist = createMockWatchlist(4, { runtime: 120 });
       const chips = generateIdentityChips(stats, watchlist);
-      expect(chips).not.toContainEqual(expect.objectContaining({ label: "Slow Cinema" }));
+      expect(chips).not.toContainEqual(
+        expect.objectContaining({ label: "Slow Cinema" })
+      );
     });
   });
 
@@ -143,7 +176,11 @@ describe("generateIdentityChips", () => {
       watchlist[0].original_title = "기생충";
       watchlist[1].original_title = "올드보이";
       const chips = generateIdentityChips(stats, watchlist);
-      expect(chips).toContainEqual({ label: "Korean Cinema", icon: "🇰🇷", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Korean Cinema",
+        icon: "🇰🇷",
+        isEmoji: true
+      });
     });
 
     it("should return Japanese Cinema if >= 2 japanese items", () => {
@@ -152,7 +189,11 @@ describe("generateIdentityChips", () => {
       watchlist[0].original_title = "となりのトトロ";
       watchlist[1].original_title = "アキラ";
       const chips = generateIdentityChips(stats, watchlist);
-      expect(chips).toContainEqual({ label: "Japanese Cinema", icon: "🇯🇵", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Japanese Cinema",
+        icon: "🇯🇵",
+        isEmoji: true
+      });
     });
   });
 
@@ -163,7 +204,11 @@ describe("generateIdentityChips", () => {
         movieCount: 5
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(13));
-      expect(chips).toContainEqual({ label: "Series Devotee", icon: "📺", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Series Devotee",
+        icon: "📺",
+        isEmoji: true
+      });
     });
 
     it("should return Film Purist if movieCount >= 8 and >= 1.5x tvCount", () => {
@@ -172,7 +217,11 @@ describe("generateIdentityChips", () => {
         tvCount: 5
       });
       const chips = generateIdentityChips(stats, createMockWatchlist(14));
-      expect(chips).toContainEqual({ label: "Film Purist", icon: "🎞️", isEmoji: true });
+      expect(chips).toContainEqual({
+        label: "Film Purist",
+        icon: "🎞️",
+        isEmoji: true
+      });
     });
   });
 

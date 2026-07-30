@@ -5,7 +5,7 @@ import DetailSection from "~/features/details/components/DetailSection";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
 const SeasonNavigator = lazy(
-  () => import("~/features/details/components/SeasonNavigator"),
+  () => import("~/features/details/components/SeasonNavigator")
 );
 
 /**
@@ -39,19 +39,21 @@ export interface DetailsSeasonsProps {
     unmarkSeason: number,
     unmarkEpisode: number,
     newTrackerSeason: number,
-    newTrackerEpisode: number,
+    newTrackerEpisode: number
   ) => void;
   onAddToVault: () => void;
 }
 
 export default function DetailsSeasons(props: DetailsSeasonsProps) {
   return (
-    <Show when={props.baseItem()?.media_type === "tv" && props.details()?.seasons}>
+    <Show
+      when={props.baseItem()?.media_type === "tv" && props.details()?.seasons}
+    >
       <DetailSection
         label={props.inVault() ? "Episodes" : "Episode Guide"}
         icon="video_library"
       >
-        <Suspense fallback={<div class="h-48 v2-card animate-pulse" />}>
+        <Suspense fallback={<div class="v2-card h-48 animate-pulse" />}>
           <SeasonNavigator
             item={props.baseItem()!}
             details={props.details()}

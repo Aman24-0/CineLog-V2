@@ -24,8 +24,10 @@ export interface CollectionTimelineProps {
 }
 
 const titleOf = (t: TMDBTitle) => t.title || t.name || "Untitled";
-const yearOf = (t: TMDBTitle) => (t.release_date || t.first_air_date || "").split("-")[0] || "";
-const imdbOf = (t: TMDBTitle) => (t.vote_average ? t.vote_average.toFixed(1) : null);
+const yearOf = (t: TMDBTitle) =>
+  (t.release_date || t.first_air_date || "").split("-")[0] || "";
+const imdbOf = (t: TMDBTitle) =>
+  t.vote_average ? t.vote_average.toFixed(1) : null;
 
 export default function CollectionTimeline(props: CollectionTimelineProps) {
   return (
@@ -33,7 +35,7 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
       <div class="collection-timeline-label">
         <span
           class="material-symbols-outlined"
-          style={{"font-size":"12px","color":"var(--p)"}}
+          style={{ "font-size": "12px", color: "var(--p)" }}
           aria-hidden="true"
         >
           timeline
@@ -61,10 +63,16 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
                 <Show
                   when={item.title.poster_path || item.title.backdrop_path}
                   fallback={
-                    <div class="collection-timeline-poster-fallback" aria-hidden="true">
+                    <div
+                      class="collection-timeline-poster-fallback"
+                      aria-hidden="true"
+                    >
                       <span
                         class="material-symbols-outlined"
-                        style={{"font-size":"20px","color":"var(--text-dim)"}}
+                        style={{
+                          "font-size": "20px",
+                          color: "var(--text-dim)"
+                        }}
                         aria-hidden="true"
                       >
                         movie
@@ -73,8 +81,13 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
                   }
                 >
                   <img
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
-                    src={tmdbImage(item.title.poster_path || item.title.backdrop_path, "w185")}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
+                    src={tmdbImage(
+                      item.title.poster_path || item.title.backdrop_path,
+                      "w185"
+                    )}
                     class="collection-timeline-poster-img"
                     loading="lazy"
                     decoding="async"
@@ -90,7 +103,7 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
                   >
                     <span
                       class="material-symbols-outlined"
-                      style={{"font-size":"10px"}}
+                      style={{ "font-size": "10px" }}
                       aria-hidden="true"
                     >
                       check
@@ -118,12 +131,16 @@ export default function CollectionTimeline(props: CollectionTimelineProps) {
                   {item.title.media_type === "tv" ? "Series" : "Movie"}
                   <Show when={imdbOf(item.title)}>
                     {" · "}
-                    <span style={{"color":"#f5c518"}}>★ {imdbOf(item.title)}</span>
+                    <span style={{ color: "#f5c518" }}>
+                      ★ {imdbOf(item.title)}
+                    </span>
                   </Show>
                 </p>
                 <Show when={item.rating && item.rating > 0}>
                   <p class="collection-timeline-user-rating">
-                    <span style={{"color":"var(--p)"}}>★ Your {item.rating}</span>
+                    <span style={{ color: "var(--p)" }}>
+                      ★ Your {item.rating}
+                    </span>
                   </p>
                 </Show>
               </div>

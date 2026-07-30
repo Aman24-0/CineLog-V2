@@ -8,11 +8,25 @@
 // All preferences are persisted via src/core/preferences.
 
 import { Title } from "@solidjs/meta";
-import { Show, createMemo, createSignal, createEffect, type Component } from "solid-js";
+import {
+  Show,
+  createMemo,
+  createSignal,
+  createEffect,
+  type Component
+} from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { ControlRow, Segmented, SelectRow } from "~/features/settings/sharedControls";
-import { COUNTRIES, countryLabel, DEFAULT_COUNTRY_CODE } from "~/shared/data/countryLanguages";
+import {
+  ControlRow,
+  Segmented,
+  SelectRow
+} from "~/features/settings/sharedControls";
+import {
+  COUNTRIES,
+  countryLabel,
+  DEFAULT_COUNTRY_CODE
+} from "~/shared/data/countryLanguages";
 import { setDiscoverRegion } from "~/core/config/discoverRegion";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { useToast } from "~/shared/hooks/useToast";
@@ -25,7 +39,7 @@ import {
   defaultVaultStatus,
   setDefaultVaultStatus,
   type VaultStatus,
-  type LanguageCode,
+  type LanguageCode
 } from "~/core/preferences";
 
 const VAULT_STATUS_OPTIONS: { id: VaultStatus; label: string }[] = [
@@ -33,7 +47,7 @@ const VAULT_STATUS_OPTIONS: { id: VaultStatus; label: string }[] = [
   { id: "Plan to Watch", label: "Plan to Watch" },
   { id: "Watching", label: "Watching" },
   { id: "Completed", label: "Completed" },
-  { id: "Dropped", label: "Dropped" },
+  { id: "Dropped", label: "Dropped" }
 ];
 
 /**
@@ -61,7 +75,7 @@ const UI_LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
   { code: "bn", label: "Bengali", native: "বাংলা" },
   { code: "mr", label: "Marathi", native: "मराठी" },
   { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ" },
-  { code: "gu", label: "Gujarati", native: "ગુજરાતી" },
+  { code: "gu", label: "Gujarati", native: "ગુજરાતી" }
 ];
 
 const ProfilePreferencesRoute: Component = () => {
@@ -106,7 +120,9 @@ const ProfilePreferencesRoute: Component = () => {
     }
     setSavingName(true);
     try {
-      const { error } = await profileRepo.updateProfile(uid, { displayName: trimmed });
+      const { error } = await profileRepo.updateProfile(uid, {
+        displayName: trimmed
+      });
       if (error) throw error;
       setDisplayName(trimmed);
       setEditingName(false);
@@ -128,7 +144,9 @@ const ProfilePreferencesRoute: Component = () => {
     setCountry(newCountry);
     setSavingCountry(true);
     try {
-      const { error } = await profileRepo.updateProfile(uid, { country: newCountry });
+      const { error } = await profileRepo.updateProfile(uid, {
+        country: newCountry
+      });
       if (error) throw error;
       setDiscoverRegion(newCountry);
       showToast(`Country set to ${countryLabel(newCountry)}`, "success", 1800);
@@ -149,18 +167,16 @@ const ProfilePreferencesRoute: Component = () => {
   const languageOptions = createMemo(() =>
     UI_LANGUAGES.map((l) => ({
       value: l.code,
-      label: `${l.native} (${l.label})`,
+      label: `${l.native} (${l.label})`
     }))
   );
 
   // Fallback language options — same list, but skip the primary language
   const fallbackOptions = createMemo(() =>
-    UI_LANGUAGES
-      .filter((l) => l.code !== language())
-      .map((l) => ({
-        value: l.code,
-        label: `${l.native} (${l.label})`,
-      }))
+    UI_LANGUAGES.filter((l) => l.code !== language()).map((l) => ({
+      value: l.code,
+      label: `${l.native} (${l.label})`
+    }))
   );
 
   return (
@@ -170,8 +186,18 @@ const ProfilePreferencesRoute: Component = () => {
         <ScrollToTop />
         <div class="sec-page sec-fade-in">
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                arrow_back
+              </span>
               Settings
             </a>
             <p class="sec-eyebrow">Settings</p>
@@ -189,11 +215,19 @@ const ProfilePreferencesRoute: Component = () => {
                 <div class="setting-row-control">
                   <div class="setting-row-control-header">
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">person</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        person
+                      </span>
                     </div>
                     <div class="setting-row-control-meta">
                       <span class="setting-row-control-label">Your name</span>
-                      <span class="setting-row-control-desc">Used for greetings and your profile initials.</span>
+                      <span class="setting-row-control-desc">
+                        Used for greetings and your profile initials.
+                      </span>
                     </div>
                   </div>
                   <Show
@@ -217,7 +251,13 @@ const ProfilePreferencesRoute: Component = () => {
                           disabled={savingName()}
                         >
                           <Show when={!savingName()} fallback="Saving…">
-                            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">save</span>
+                            <span
+                              class="material-symbols-outlined"
+                              style={{ "font-size": "14px" }}
+                              aria-hidden="true"
+                            >
+                              save
+                            </span>
                             Save
                           </Show>
                         </button>
@@ -235,8 +275,22 @@ const ProfilePreferencesRoute: Component = () => {
                       </div>
                     }
                   >
-                    <div style={{ display: "flex", gap: "var(--sp-2)", "align-items": "center", "margin-top": "var(--sp-1)" }}>
-                      <span style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.9375rem", "font-weight": 600, color: "var(--text-strong)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        gap: "var(--sp-2)",
+                        "align-items": "center",
+                        "margin-top": "var(--sp-1)"
+                      }}
+                    >
+                      <span
+                        style={{
+                          "font-family": "'Outfit', sans-serif",
+                          "font-size": "0.9375rem",
+                          "font-weight": 600,
+                          color: "var(--text-strong)"
+                        }}
+                      >
                         {displayName() || "Not set"}
                       </span>
                       <button
@@ -247,7 +301,13 @@ const ProfilePreferencesRoute: Component = () => {
                           setEditingName(true);
                         }}
                       >
-                        <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">edit</span>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "14px" }}
+                          aria-hidden="true"
+                        >
+                          edit
+                        </span>
                         Edit
                       </button>
                     </div>
@@ -269,7 +329,15 @@ const ProfilePreferencesRoute: Component = () => {
                   options={countryOptions()}
                 />
                 <Show when={savingCountry()}>
-                  <div style={{ padding: "0 var(--sp-5)", color: "var(--text-muted)", "font-size": "0.75rem" }}>Saving…</div>
+                  <div
+                    style={{
+                      padding: "0 var(--sp-5)",
+                      color: "var(--text-muted)",
+                      "font-size": "0.75rem"
+                    }}
+                  >
+                    Saving…
+                  </div>
                 </Show>
               </div>
             </section>
@@ -296,9 +364,19 @@ const ProfilePreferencesRoute: Component = () => {
                 />
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>How it works:</strong> CineLog asks TMDB for titles in your primary language. If TMDB has no overview in that language, it fetches again with your fallback language and uses that. The full UI translation to your primary language is on the roadmap.
+                  <strong>How it works:</strong> CineLog asks TMDB for titles in
+                  your primary language. If TMDB has no overview in that
+                  language, it fetches again with your fallback language and
+                  uses that. The full UI translation to your primary language is
+                  on the roadmap.
                 </p>
               </div>
             </section>
@@ -321,9 +399,17 @@ const ProfilePreferencesRoute: Component = () => {
                 </ControlRow>
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>Example:</strong> If you set this to "Watching", every new title you add to your vault starts in the Watching state. You can always change it later from the title's Details page.
+                  <strong>Example:</strong> If you set this to "Watching", every
+                  new title you add to your vault starts in the Watching state.
+                  You can always change it later from the title's Details page.
                 </p>
               </div>
             </section>

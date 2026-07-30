@@ -35,16 +35,12 @@ export interface GlassIconButtonProps extends JSX.ButtonHTMLAttributes<HTMLButto
 // ─── Variant Class Maps ────────────────────────────────────────
 
 const variantClasses: Record<IconButtonVariant, string> = {
-  primary:
-    "bg-primary text-on-primary shadow-glow hover:brightness-110",
-  secondary:
-    "bg-tier-2 text-primary border border-hairline-2 hover:bg-tier-3",
+  primary: "bg-primary text-on-primary shadow-glow hover:brightness-110",
+  secondary: "bg-tier-2 text-primary border border-hairline-2 hover:bg-tier-3",
   glass:
     "bg-glass backdrop-blur-lg text-primary border border-glass-border hover:bg-glass-strong hover:backdrop-blur-2xl",
-  ghost:
-    "bg-transparent text-primary hover:bg-primary-dim",
-  danger:
-    "bg-danger text-on-primary hover:brightness-110",
+  ghost: "bg-transparent text-primary hover:bg-primary-dim",
+  danger: "bg-danger text-on-primary hover:brightness-110"
 };
 
 // ─── Size Class Maps ───────────────────────────────────────────
@@ -52,7 +48,7 @@ const variantClasses: Record<IconButtonVariant, string> = {
 const sizeClasses: Record<IconButtonSize, { btn: string; icon: string }> = {
   compact: { btn: "w-8 h-8", icon: "text-md" },
   default: { btn: "w-11 h-11", icon: "text-lg" },
-  large:   { btn: "w-13 h-13", icon: "text-xl" },
+  large: { btn: "w-13 h-13", icon: "text-xl" }
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -69,14 +65,24 @@ const GlassIconButton: Component<GlassIconButtonProps> = (rawProps) => {
       loading: false,
       disabled: false,
       iconFill: false,
-      selected: false,
+      selected: false
     },
-    rawProps,
+    rawProps
   );
 
   const [local, rest] = splitProps(props, [
-    "variant", "size", "icon", "iconFill", "loading", "disabled",
-    "label", "selected", "badge", "class", "style", "onClick",
+    "variant",
+    "size",
+    "icon",
+    "iconFill",
+    "loading",
+    "disabled",
+    "label",
+    "selected",
+    "badge",
+    "class",
+    "style",
+    "onClick"
   ]);
 
   const isDisabled = (): boolean => local.disabled || local.loading;
@@ -106,11 +112,13 @@ const GlassIconButton: Component<GlassIconButtonProps> = (rawProps) => {
       "focus-ring cursor-pointer select-none",
       "active:scale-[0.95]",
       variantClasses[local.variant],
-      sizeClasses[local.size].btn,
+      sizeClasses[local.size].btn
     ];
 
-    if (local.selected) base.push("border-2 border-primary bg-primary-dim text-primary");
-    if (isDisabled()) base.push("opacity-disabled pointer-events-none cursor-not-allowed");
+    if (local.selected)
+      base.push("border-2 border-primary bg-primary-dim text-primary");
+    if (isDisabled())
+      base.push("opacity-disabled pointer-events-none cursor-not-allowed");
     if (local.class) base.push(local.class);
 
     return base.join(" ");
@@ -134,7 +142,7 @@ const GlassIconButton: Component<GlassIconButtonProps> = (rawProps) => {
         when={!local.loading}
         fallback={
           <span
-            class="animate-spin inline-block rounded-full border-2 border-current border-t-transparent"
+            class="inline-block animate-spin rounded-full border-2 border-current border-t-transparent"
             style={{ width: "1.2em", height: "1.2em", "border-width": "2px" }}
             aria-hidden="true"
           />
@@ -150,9 +158,11 @@ const GlassIconButton: Component<GlassIconButtonProps> = (rawProps) => {
       </Show>
 
       {/* Badge */}
-      <Show when={local.badge !== undefined && local.badge > 0 && !local.loading}>
+      <Show
+        when={local.badge !== undefined && local.badge > 0 && !local.loading}
+      >
         <span
-          class="absolute -top-1 -right-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-[4px] font-mono text-[9px] font-bold text-on-primary shadow-glow"
+          class="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-danger px-[4px] font-mono text-[9px] font-bold text-on-primary shadow-glow"
           aria-hidden="true"
         >
           {local.badge! > 99 ? "99+" : local.badge}

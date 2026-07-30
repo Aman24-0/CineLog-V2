@@ -26,18 +26,28 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=60, s-maxage=120, stale-while-revalidate=600",
-    },
+      "Cache-Control":
+        "public, max-age=60, s-maxage=120, stale-while-revalidate=600"
+    }
   });
 }
 
-const VALID_SLOTS = new Set(["hero", "spotlight", "rail", "pinned", "editor_pick"]);
+const VALID_SLOTS = new Set([
+  "hero",
+  "spotlight",
+  "rail",
+  "pinned",
+  "editor_pick"
+]);
 
 export async function GET(event: APIEvent) {
   try {
     const url = new URL(event.request.url);
     const slot = url.searchParams.get("slot");
-    const limit = Math.min(50, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10)));
+    const limit = Math.min(
+      50,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10))
+    );
 
     if (slot && !VALID_SLOTS.has(slot)) {
       return jsonResponse({ error: "Invalid slot" }, 400);
@@ -50,7 +60,7 @@ export async function GET(event: APIEvent) {
     }
 
     const supabase = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
     const now = new Date().toISOString();
@@ -58,7 +68,7 @@ export async function GET(event: APIEvent) {
     let query = supabase
       .from("featured_content")
       .select(
-        "id, slot, tmdb_id, media_type, title_override, tagline, position, starts_at, ends_at",
+        "id, slot, tmdb_id, media_type, title_override, tagline, position, starts_at, ends_at"
       )
       .eq("is_active", true)
       .is("deleted_at", null)
@@ -82,7 +92,7 @@ export async function GET(event: APIEvent) {
         spotlight: [],
         rail: [],
         pinned: [],
-        editor_pick: [],
+        editor_pick: []
       };
       for (const row of data ?? []) {
         if (grouped[row.slot]) grouped[row.slot].push(row);

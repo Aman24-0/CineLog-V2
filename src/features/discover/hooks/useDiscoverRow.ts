@@ -38,7 +38,7 @@ export interface DiscoverRow {
  */
 export function useDiscoverRow<T>(
   queryKey: Accessor<T | null>,
-  fetcher: (key: T) => Promise<TMDBTitle[]>,
+  fetcher: (key: T) => Promise<TMDBTitle[]>
 ): DiscoverRow {
   const [titles, setTitles] = createSignal<TMDBTitle[]>([]);
   const [loading, setLoading] = createSignal(false);
@@ -80,7 +80,9 @@ export function useDiscoverRow<T>(
       });
   });
 
-  onCleanup(() => { fetchSeq++; });
+  onCleanup(() => {
+    fetchSeq++;
+  });
 
   const retry = () => setRetryTick((t) => t + 1);
 

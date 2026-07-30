@@ -36,7 +36,10 @@ export interface SyncHistoryGroup {
   entries: SyncHistoryEntry[];
 }
 
-export function useSyncHistory(): { groups: Accessor<SyncHistoryGroup[]>; total: Accessor<number> } {
+export function useSyncHistory(): {
+  groups: Accessor<SyncHistoryGroup[]>;
+  total: Accessor<number>;
+} {
   const library = useUserLibrary();
 
   const groups = createMemo<SyncHistoryGroup[]>(() => {
@@ -52,7 +55,7 @@ export function useSyncHistory(): { groups: Accessor<SyncHistoryGroup[]>; total:
           timestamp: addedAt,
           icon: "add_circle",
           label: `Added ${item.title || item.name || "a title"}`,
-          dayLabel: dayLabelFor(addedAt),
+          dayLabel: dayLabelFor(addedAt)
         });
       }
       // Updated event (rating/status/notes change) — only if different from addedAt
@@ -72,7 +75,7 @@ export function useSyncHistory(): { groups: Accessor<SyncHistoryGroup[]>; total:
           timestamp: updatedAt,
           icon,
           label,
-          dayLabel: dayLabelFor(updatedAt),
+          dayLabel: dayLabelFor(updatedAt)
         });
       }
     }
@@ -88,10 +91,15 @@ export function useSyncHistory(): { groups: Accessor<SyncHistoryGroup[]>; total:
       groupMap.set(entry.dayLabel, existing);
     }
 
-    return Array.from(groupMap.entries()).map(([dayLabel, es]) => ({ dayLabel, entries: es }));
+    return Array.from(groupMap.entries()).map(([dayLabel, es]) => ({
+      dayLabel,
+      entries: es
+    }));
   });
 
-  const total = createMemo(() => groups().reduce((sum, g) => sum + g.entries.length, 0));
+  const total = createMemo(() =>
+    groups().reduce((sum, g) => sum + g.entries.length, 0)
+  );
 
   return { groups, total };
 }
@@ -100,7 +108,9 @@ export function useSyncHistory(): { groups: Accessor<SyncHistoryGroup[]>; total:
 // Helpers
 // ---------------------------------------------------------------------------
 
-function parseTimestamp(value: WatchlistItem["addedAt"] | WatchlistItem["updatedAt"]): number | null {
+function parseTimestamp(
+  value: WatchlistItem["addedAt"] | WatchlistItem["updatedAt"]
+): number | null {
   if (!value) return null;
   if (typeof value === "string") {
     const ms = Date.parse(value);
@@ -116,7 +126,11 @@ function parseTimestamp(value: WatchlistItem["addedAt"] | WatchlistItem["updated
 function dayLabelFor(timestamp: number): string {
   const now = new Date();
   const date = new Date(timestamp);
-  const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+  const startOfToday = new Date(
+    now.getFullYear(),
+    now.getMonth(),
+    now.getDate()
+  ).getTime();
   const startOfYesterday = startOfToday - 24 * 60 * 60 * 1000;
   if (timestamp >= startOfToday) return "Today";
   if (timestamp >= startOfYesterday) return "Yesterday";

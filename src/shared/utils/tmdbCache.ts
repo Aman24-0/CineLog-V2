@@ -105,7 +105,6 @@ export async function fetchCachedMetadataBatch(
 
   // If all keys found in localStorage, return immediately
   if (missingKeys.length === 0) {
-    console.log(`[tmdbCache] All ${keys.length} keys found in localStorage cache`);
     return lsHits;
   }
 
@@ -123,9 +122,12 @@ export async function fetchCachedMetadataBatch(
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), 5000);
       try {
-        const res = await fetch(`/api/tmdb-cache?keys=${encodeURIComponent(keysParam)}`, {
-          signal: controller.signal,
-        });
+        const res = await fetch(
+          `/api/tmdb-cache?keys=${encodeURIComponent(keysParam)}`,
+          {
+            signal: controller.signal
+          }
+        );
         clearTimeout(timeoutId);
         if (!res.ok) {
           console.warn(`[tmdbCache] Server API returned ${res.status}`);
@@ -133,13 +135,18 @@ export async function fetchCachedMetadataBatch(
         }
         const json = await res.json();
         if (json.data) {
-          for (const [key, data] of Object.entries(json.data as Record<string, TMDBTitle>)) {
+          for (const [key, data] of Object.entries(
+            json.data as Record<string, TMDBTitle>
+          )) {
             serverMap.set(key, data);
           }
         }
       } catch (chunkErr) {
         clearTimeout(timeoutId);
-        console.warn("[tmdbCache] Chunk fetch failed (timeout or network):", chunkErr);
+        console.warn(
+          "[tmdbCache] Chunk fetch failed (timeout or network):",
+          chunkErr
+        );
       }
     }
   } catch (err) {
@@ -157,12 +164,6 @@ export async function fetchCachedMetadataBatch(
   if (lsUpdates.length > 0) {
     writeLSCache(lsUpdates);
   }
-
-  console.log(
-    `[tmdbCache] Fetched ${keys.length} keys: ` +
-    `${lsHits.size} from localStorage, ${serverMap.size} from server, ` +
-    `${keys.length - lsHits.size - serverMap.size} missing`
-  );
 
   return result;
 }
@@ -192,7 +193,7 @@ export async function cacheMetadataEntries(
     fetch("/api/tmdb-cache", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ entries }),
+      body: JSON.stringify({ entries })
     }).catch((err) => {
       console.warn("[tmdbCache] Background cache write failed:", err);
     });
@@ -205,6 +206,9 @@ export async function cacheMetadataEntries(
  * Build a tmdb_cache key from media_type and tmdb_id.
  * Format: "movie/550" or "tv/1399"
  */
-export function buildCacheKey(mediaType: "movie" | "tv", tmdbId: number | string): string {
+export function buildCacheKey(
+  mediaType: "movie" | "tv",
+  tmdbId: number | string
+): string {
   return `${mediaType}/${tmdbId}`;
 }

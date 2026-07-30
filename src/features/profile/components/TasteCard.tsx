@@ -40,12 +40,16 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const m = d.favoriteMovie;
     const year = (m.release_date ?? "").split("-")[0] || undefined;
     const genres = normalizeGenres(m.genres ?? []);
-    const reason = generateFavoriteReason("movie", { title: m.title, genres, year }).reason;
+    const reason = generateFavoriteReason("movie", {
+      title: m.title,
+      genres,
+      year
+    }).reason;
     return {
       title: m.title ?? m.name ?? "Untitled",
       subtitle: year,
       reason,
-      imagePath: m.poster_path ?? m.backdrop_path ?? null,
+      imagePath: m.poster_path ?? m.backdrop_path ?? null
     };
   };
 
@@ -56,12 +60,16 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const s = d.favoriteSeries;
     const year = (s.first_air_date ?? "").split("-")[0] || undefined;
     const genres = normalizeGenres(s.genres ?? []);
-    const reason = generateFavoriteReason("series", { title: s.name, genres, year }).reason;
+    const reason = generateFavoriteReason("series", {
+      title: s.name,
+      genres,
+      year
+    }).reason;
     return {
       title: s.name ?? s.title ?? "Untitled",
       subtitle: year,
       reason,
-      imagePath: s.poster_path ?? s.backdrop_path ?? null,
+      imagePath: s.poster_path ?? s.backdrop_path ?? null
     };
   };
 
@@ -70,11 +78,13 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const d = props.data;
     if (!d?.profile?.favorite_director_id || !d.favoriteDirector) return null;
     const dir: FavoriteDirector = d.favoriteDirector;
-    const reason = generateFavoriteReason("director", { directorName: dir.name }).reason;
+    const reason = generateFavoriteReason("director", {
+      directorName: dir.name
+    }).reason;
     return {
       title: dir.name,
       reason,
-      imagePath: dir.profile_path,
+      imagePath: dir.profile_path
     };
   };
 
@@ -96,7 +106,7 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const segments = top.map((g) => ({
       name: g.name,
       pct: g.pct,
-      isDominant: g === top[0],
+      isDominant: g === top[0]
     }));
     if (otherPct > 0) {
       segments.push({ name: "Other", pct: otherPct, isDominant: false });
@@ -109,9 +119,10 @@ const TasteCard: Component<TasteCardProps> = (props) => {
     const s = props.stats();
     const genre = props.data?.profile?.favorite_genre;
     if (!s || !genre) return null;
-    const match = s.topGenres.find((g) =>
-      g.name.toLowerCase().includes(genre.toLowerCase()) ||
-      genre.toLowerCase().includes(g.name.toLowerCase())
+    const match = s.topGenres.find(
+      (g) =>
+        g.name.toLowerCase().includes(genre.toLowerCase()) ||
+        genre.toLowerCase().includes(g.name.toLowerCase())
     );
     return match?.count ?? null;
   });
@@ -134,11 +145,21 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 type="button"
                 class="taste-tile-empty taste-tile-empty-hero focus-ring"
                 onClick={() => props.onPick("movie")}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onPick("movie"); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    props.onPick("movie");
+                  }
+                }}
                 aria-label="Set your favorite movie"
               >
                 <div class="taste-tile-empty-inner">
-                  <span class="material-symbols-outlined taste-tile-empty-icon" aria-hidden="true">movie</span>
+                  <span
+                    class="material-symbols-outlined taste-tile-empty-icon"
+                    aria-hidden="true"
+                  >
+                    movie
+                  </span>
                   <p class="taste-tile-empty-cta">Film</p>
                 </div>
               </button>
@@ -150,18 +171,22 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 role="button"
                 tabindex={0}
                 onClick={() => props.isEditing && props.onPick("movie")}
-                onKeyDown={(e) => { if (props.isEditing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); props.onPick("movie"); } }}
+                onKeyDown={(e) => {
+                  if (props.isEditing && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    props.onPick("movie");
+                  }
+                }}
                 aria-label={`${mc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
                 <GlassPosterCard
                   title={mc().title}
                   meta={mc().subtitle}
-                  imageUrl={mc().imagePath ? tmdbImage(mc().imagePath, "w780") : undefined}
-
-
-
-
-
+                  imageUrl={
+                    mc().imagePath
+                      ? tmdbImage(mc().imagePath, "w780")
+                      : undefined
+                  }
 
                   onClick={() => props.isEditing && props.onPick("movie")}
                 />
@@ -172,7 +197,13 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 <Show when={props.isEditing}>
                   <div class="taste-tile-change-overlay" aria-hidden="true">
                     <span class="taste-tile-change-text">
-                      <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">swap_horiz</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "14px" }}
+                        aria-hidden="true"
+                      >
+                        swap_horiz
+                      </span>
                       Change
                     </span>
                   </div>
@@ -191,11 +222,21 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 type="button"
                 class="taste-tile-empty taste-tile-empty-medium focus-ring"
                 onClick={() => props.onPick("series")}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onPick("series"); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    props.onPick("series");
+                  }
+                }}
                 aria-label="Set your favorite series"
               >
                 <div class="taste-tile-empty-inner">
-                  <span class="material-symbols-outlined taste-tile-empty-icon" aria-hidden="true">tv</span>
+                  <span
+                    class="material-symbols-outlined taste-tile-empty-icon"
+                    aria-hidden="true"
+                  >
+                    tv
+                  </span>
                   <p class="taste-tile-empty-cta">Series</p>
                 </div>
               </button>
@@ -207,7 +248,12 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 role="button"
                 tabindex={0}
                 onClick={() => props.isEditing && props.onPick("series")}
-                onKeyDown={(e) => { if (props.isEditing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); props.onPick("series"); } }}
+                onKeyDown={(e) => {
+                  if (props.isEditing && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    props.onPick("series");
+                  }
+                }}
                 aria-label={`${sc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
                 <img
@@ -217,11 +263,15 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                   decoding="async"
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
                 <div class="taste-card-poster-overlay" aria-hidden="true" />
                 <div class="taste-card-poster-content">
-                  <p class="taste-card-title taste-card-title-series">{sc().title}</p>
+                  <p class="taste-card-title taste-card-title-series">
+                    {sc().title}
+                  </p>
                   <Show when={sc().subtitle}>
                     <p class="taste-card-subtitle">{sc().subtitle}</p>
                   </Show>
@@ -232,7 +282,13 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 <Show when={props.isEditing}>
                   <div class="taste-tile-change-overlay" aria-hidden="true">
                     <span class="taste-tile-change-text">
-                      <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">swap_horiz</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "14px" }}
+                        aria-hidden="true"
+                      >
+                        swap_horiz
+                      </span>
                       Change
                     </span>
                   </div>
@@ -251,11 +307,21 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 type="button"
                 class="taste-tile-empty taste-tile-empty-medium focus-ring"
                 onClick={() => props.onPick("director")}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onPick("director"); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    props.onPick("director");
+                  }
+                }}
                 aria-label="Set your favorite director"
               >
                 <div class="taste-tile-empty-inner">
-                  <span class="material-symbols-outlined taste-tile-empty-icon" aria-hidden="true">person</span>
+                  <span
+                    class="material-symbols-outlined taste-tile-empty-icon"
+                    aria-hidden="true"
+                  >
+                    person
+                  </span>
                   <p class="taste-tile-empty-cta">Director</p>
                 </div>
               </button>
@@ -267,7 +333,12 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 role="button"
                 tabindex={0}
                 onClick={() => props.isEditing && props.onPick("director")}
-                onKeyDown={(e) => { if (props.isEditing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); props.onPick("director"); } }}
+                onKeyDown={(e) => {
+                  if (props.isEditing && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    props.onPick("director");
+                  }
+                }}
                 aria-label={`${dc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
                 <Show when={dc().imagePath}>
@@ -278,7 +349,9 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                     decoding="async"
                     alt=""
                     aria-hidden="true"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
                   />
                 </Show>
                 <div class="taste-director-info">
@@ -288,9 +361,18 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                   </Show>
                 </div>
                 <Show when={props.isEditing}>
-                  <div class="taste-tile-change-overlay taste-tile-change-overlay-horiz" aria-hidden="true">
+                  <div
+                    class="taste-tile-change-overlay taste-tile-change-overlay-horiz"
+                    aria-hidden="true"
+                  >
                     <span class="taste-tile-change-text">
-                      <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">swap_horiz</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "14px" }}
+                        aria-hidden="true"
+                      >
+                        swap_horiz
+                      </span>
                       Change
                     </span>
                   </div>
@@ -309,11 +391,21 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 type="button"
                 class="taste-tile-empty taste-tile-empty-genre focus-ring"
                 onClick={() => props.onPick("genre")}
-                onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); props.onPick("genre"); } }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault();
+                    props.onPick("genre");
+                  }
+                }}
                 aria-label="Set your favorite genre"
               >
                 <div class="taste-tile-empty-inner">
-                  <span class="material-symbols-outlined taste-tile-empty-icon" aria-hidden="true">palette</span>
+                  <span
+                    class="material-symbols-outlined taste-tile-empty-icon"
+                    aria-hidden="true"
+                  >
+                    palette
+                  </span>
                   <p class="taste-tile-empty-cta">Genre</p>
                 </div>
               </button>
@@ -325,7 +417,12 @@ const TasteCard: Component<TasteCardProps> = (props) => {
                 role="button"
                 tabindex={0}
                 onClick={() => props.isEditing && props.onPick("genre")}
-                onKeyDown={(e) => { if (props.isEditing && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); props.onPick("genre"); } }}
+                onKeyDown={(e) => {
+                  if (props.isEditing && (e.key === "Enter" || e.key === " ")) {
+                    e.preventDefault();
+                    props.onPick("genre");
+                  }
+                }}
                 aria-label={`Genre: ${gc().title}.${props.isEditing ? " Tap to change." : ""}`}
               >
                 <p class="taste-genre-name-typography">{gc().title}</p>
@@ -341,7 +438,11 @@ const TasteCard: Component<TasteCardProps> = (props) => {
 
           {/* Genre breakdown bar — shows top genre distribution */}
           <Show when={genreBreakdown().length >= 2}>
-            <div class="taste-genre-breakdown" role="img" aria-label="Genre distribution">
+            <div
+              class="taste-genre-breakdown"
+              role="img"
+              aria-label="Genre distribution"
+            >
               <For each={genreBreakdown()}>
                 {(seg) => (
                   <div

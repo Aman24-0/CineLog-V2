@@ -64,7 +64,10 @@ export interface EntryUpdate {
 }
 
 /** Build a TMDB poster URL from a poster_path. */
-export function posterUrl(path: string | null | undefined, size = "w185"): string {
+export function posterUrl(
+  path: string | null | undefined,
+  size = "w185"
+): string {
   if (!path) return "";
   if (path.startsWith("http")) return path;
   return `https://image.tmdb.org/t/p/${size}${path}`;

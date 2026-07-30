@@ -30,20 +30,28 @@ import type { WatchlistItem, WatchProgress } from "~/shared/types";
 // ---------------------------------------------------------------------------
 
 export type BackupFormat =
-  | "flat-array"           // V1 export: [...items]
-  | "wrapped-v2"           // V2 export: { version, library: { watchlist } }
-  | "wrapper-data"         // future: { data: [...] }
-  | "wrapper-items"        // future: { items: [...] }
-  | "wrapper-watchlist"    // future: { watchlist: [...] }
-  | "wrapper-library"      // future: { library: [...] }
-  | "wrapper-vault"        // future: { vault: [...] }
-  | "wrapper-movies"       // future: { movies: [...] }
+  | "flat-array" // V1 export: [...items]
+  | "wrapped-v2" // V2 export: { version, library: { watchlist } }
+  | "wrapper-data" // future: { data: [...] }
+  | "wrapper-items" // future: { items: [...] }
+  | "wrapper-watchlist" // future: { watchlist: [...] }
+  | "wrapper-library" // future: { library: [...] }
+  | "wrapper-vault" // future: { vault: [...] }
+  | "wrapper-movies" // future: { movies: [...] }
   | "unknown";
 
 /** Known wrapper keys that might hold an array of items. */
 const ARRAY_WRAPPER_KEYS = [
-  "watchlist", "library", "vault", "data", "items",
-  "movies", "series", "titles", "entries", "backup",
+  "watchlist",
+  "library",
+  "vault",
+  "data",
+  "items",
+  "movies",
+  "series",
+  "titles",
+  "entries",
+  "backup"
 ] as const;
 
 /**
@@ -67,7 +75,8 @@ export function detectBackupFormat(parsed: unknown): BackupFormat {
   // V2 wrapped: { version, library: { watchlist: [...] } }
   if (
     typeof obj.version === "number" &&
-    obj.library && typeof obj.library === "object" &&
+    obj.library &&
+    typeof obj.library === "object" &&
     Array.isArray((obj.library as Record<string, unknown>).watchlist)
   ) {
     return "wrapped-v2";
@@ -77,13 +86,20 @@ export function detectBackupFormat(parsed: unknown): BackupFormat {
   for (const key of ARRAY_WRAPPER_KEYS) {
     if (Array.isArray(obj[key])) {
       switch (key) {
-        case "data": return "wrapper-data";
-        case "items": return "wrapper-items";
-        case "watchlist": return "wrapper-watchlist";
-        case "library": return "wrapper-library";
-        case "vault": return "wrapper-vault";
-        case "movies": return "wrapper-movies";
-        default: return `wrapper-${key}` as BackupFormat;
+        case "data":
+          return "wrapper-data";
+        case "items":
+          return "wrapper-items";
+        case "watchlist":
+          return "wrapper-watchlist";
+        case "library":
+          return "wrapper-library";
+        case "vault":
+          return "wrapper-vault";
+        case "movies":
+          return "wrapper-movies";
+        default:
+          return `wrapper-${key}` as BackupFormat;
       }
     }
   }
@@ -103,7 +119,10 @@ export function detectBackupFormat(parsed: unknown): BackupFormat {
  * Extract the raw item array from any detected format.
  * Returns an array of unknown objects — they still need normalization.
  */
-export function extractRawItems(parsed: unknown, format: BackupFormat): unknown[] {
+export function extractRawItems(
+  parsed: unknown,
+  format: BackupFormat
+): unknown[] {
   if (format === "flat-array" && Array.isArray(parsed)) return parsed;
 
   if (!parsed || typeof parsed !== "object") return [];
@@ -154,14 +173,16 @@ const LEGACY_FIELD_MAP: Record<string, string> = {
   // notes aliases
   comment: "notes",
   comments: "notes",
-  review: "notes",
+  review: "notes"
 };
 
 /**
  * Map legacy field names to canonical names.
  * Does NOT mutate the original — returns a new object.
  */
-function mapLegacyFields(raw: Record<string, unknown>): Record<string, unknown> {
+function mapLegacyFields(
+  raw: Record<string, unknown>
+): Record<string, unknown> {
   const out: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(raw)) {
     const canonical = LEGACY_FIELD_MAP[key] ?? key;
@@ -178,7 +199,13 @@ function mapLegacyFields(raw: Record<string, unknown>): Record<string, unknown> 
 // ---------------------------------------------------------------------------
 
 /** Canonical V2 statuses (Title Case, matching WatchlistItem.status). */
-const VALID_STATUSES = new Set(["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"]);
+const VALID_STATUSES = new Set([
+  "Planned",
+  "Watching",
+  "Completed",
+  "Plan to Watch",
+  "Dropped"
+]);
 
 /** Map of lowercase/legacy status strings → canonical V2 status. */
 const STATUS_MAP: Record<string, WatchlistItem["status"]> = {
@@ -194,13 +221,13 @@ const STATUS_MAP: Record<string, WatchlistItem["status"]> = {
   watched: "Completed",
   finished: "Completed",
   done: "Completed",
-  paused: "Plan to Watch",  // V2's "Plan to Watch" is closest to "Paused"
+  paused: "Plan to Watch", // V2's "Plan to Watch" is closest to "Paused"
   onhold: "Plan to Watch",
   "on-hold": "Plan to Watch",
   abandoned: "Dropped",
   skipped: "Dropped",
   none: "Planned",
-  "": "Planned",
+  "": "Planned"
 };
 
 export function normalizeStatus(raw: unknown): WatchlistItem["status"] {
@@ -339,7 +366,7 @@ const DEFAULT_PROGRESS: WatchProgress = {
   season: 1,
   episode: 1,
   server: null,
-  updatedAt: new Date().toISOString(),
+  updatedAt: new Date().toISOString()
 };
 
 export function normalizeProgress(raw: unknown): WatchProgress {
@@ -351,7 +378,7 @@ export function normalizeProgress(raw: unknown): WatchProgress {
     season: typeof p.season === "number" ? p.season : 1,
     episode: typeof p.episode === "number" ? p.episode : 1,
     server: typeof p.server === "string" ? p.server : null,
-    updatedAt: normalizeDate(p.updatedAt) ?? new Date().toISOString(),
+    updatedAt: normalizeDate(p.updatedAt) ?? new Date().toISOString()
   };
 }
 
@@ -387,7 +414,9 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
     const addedAt = normalizeDate(mapped.addedAt) ?? new Date().toISOString();
     const updatedAt = normalizeDate(mapped.updatedAt) ?? addedAt;
     const watchDate = normalizeDate(mapped.watchDate);
-    const releaseDate = normalizeDate(mapped.release_date) ?? normalizeDate(mapped.first_air_date);
+    const releaseDate =
+      normalizeDate(mapped.release_date) ??
+      normalizeDate(mapped.first_air_date);
 
     // --- Text fields ---
     const title = typeof mapped.title === "string" ? mapped.title : undefined;
@@ -402,15 +431,20 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
     const castList = normalizeStringArray(mapped.castList);
 
     // --- Numbers ---
-    const runtime = typeof mapped.runtime === "number" ? mapped.runtime : undefined;
-    const totalEps = typeof mapped.totalEps === "number" ? mapped.totalEps : undefined;
-    const season = typeof mapped.season === "number" ? mapped.season : undefined;
-    const episode = typeof mapped.episode === "number" ? mapped.episode : undefined;
+    const runtime =
+      typeof mapped.runtime === "number" ? mapped.runtime : undefined;
+    const totalEps =
+      typeof mapped.totalEps === "number" ? mapped.totalEps : undefined;
+    const season =
+      typeof mapped.season === "number" ? mapped.season : undefined;
+    const episode =
+      typeof mapped.episode === "number" ? mapped.episode : undefined;
 
     // --- Progress ---
-    const watchProgress = mapped.watchProgress != null
-      ? normalizeProgress(mapped.watchProgress)
-      : undefined;
+    const watchProgress =
+      mapped.watchProgress != null
+        ? normalizeProgress(mapped.watchProgress)
+        : undefined;
 
     // --- Ratings strings (IMDb/RT/TMDB) ---
     const imdbRating = normalizeNullableString(mapped.imdbRating);
@@ -422,19 +456,36 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
     const tag = normalizeNullableString(mapped.tag);
     const director = normalizeNullableString(mapped.director);
     const imdbId = normalizeNullableString(mapped.imdbId);
-    const newSeasonAvailable = typeof mapped.newSeasonAvailable === "boolean" ? mapped.newSeasonAvailable : undefined;
+    const newSeasonAvailable =
+      typeof mapped.newSeasonAvailable === "boolean"
+        ? mapped.newSeasonAvailable
+        : undefined;
     const directPlayUrl = normalizeNullableString(mapped.directPlayUrl);
 
     // --- Re-watch tracking (preserved from V2 backups) ---
-    const rewatchCount = typeof mapped.rewatchCount === "number" ? mapped.rewatchCount : undefined;
-    const rewatchDates = Array.isArray(mapped.rewatchDates) ? mapped.rewatchDates.filter((d): d is string => typeof d === "string") : undefined;
+    const rewatchCount =
+      typeof mapped.rewatchCount === "number" ? mapped.rewatchCount : undefined;
+    const rewatchDates = Array.isArray(mapped.rewatchDates)
+      ? mapped.rewatchDates.filter((d): d is string => typeof d === "string")
+      : undefined;
 
     // --- Series per-season dates (preserved from V2 backups) ---
-    const seasonDates = (mapped.seasonDates != null && typeof mapped.seasonDates === "object" && !Array.isArray(mapped.seasonDates))
-      ? mapped.seasonDates as Record<string, { start: string; end: string }>
+    const seasonDates =
+      mapped.seasonDates != null &&
+      typeof mapped.seasonDates === "object" &&
+      !Array.isArray(mapped.seasonDates)
+        ? (mapped.seasonDates as Record<string, { start: string; end: string }>)
+        : undefined;
+    const seasonRewatchCount =
+      typeof mapped.seasonRewatchCount === "number"
+        ? mapped.seasonRewatchCount
+        : undefined;
+    const seasonRewatchDates = Array.isArray(mapped.seasonRewatchDates)
+      ? (mapped.seasonRewatchDates as Record<
+          string,
+          { start: string; end: string }
+        >[])
       : undefined;
-    const seasonRewatchCount = typeof mapped.seasonRewatchCount === "number" ? mapped.seasonRewatchCount : undefined;
-    const seasonRewatchDates = Array.isArray(mapped.seasonRewatchDates) ? mapped.seasonRewatchDates as Record<string, { start: string; end: string }>[] : undefined;
 
     const item: WatchlistItem = {
       id,
@@ -472,12 +523,16 @@ export function normalizeWatchlistItem(raw: unknown): WatchlistItem | null {
       ...(rewatchDates != null && { rewatchDates }),
       ...(seasonDates != null && { seasonDates }),
       ...(seasonRewatchCount != null && { seasonRewatchCount }),
-      ...(seasonRewatchDates != null && { seasonRewatchDates }),
+      ...(seasonRewatchDates != null && { seasonRewatchDates })
     };
 
     return item;
   } catch (err) {
-    console.error("[normalizeWatchlistItem] Failed to normalize item:", raw, err);
+    console.error(
+      "[normalizeWatchlistItem] Failed to normalize item:",
+      raw,
+      err
+    );
     return null;
   }
 }
@@ -500,7 +555,13 @@ function normalizeMediaType(...candidates: unknown[]): "movie" | "tv" | null {
     if (typeof c !== "string") continue;
     const lower = c.toLowerCase().trim();
     if (lower === "movie" || lower === "film") return "movie";
-    if (lower === "tv" || lower === "series" || lower === "show" || lower === "television") return "tv";
+    if (
+      lower === "tv" ||
+      lower === "series" ||
+      lower === "show" ||
+      lower === "television"
+    )
+      return "tv";
   }
   return null;
 }
@@ -515,7 +576,9 @@ function normalizeNullableString(raw: unknown): string | null | undefined {
 /** Normalize a value to a string[] (empty array if missing/invalid). */
 function normalizeStringArray(raw: unknown): string[] {
   if (!Array.isArray(raw)) return [];
-  return raw.filter((v): v is string => typeof v === "string" && v.trim().length > 0);
+  return raw.filter(
+    (v): v is string => typeof v === "string" && v.trim().length > 0
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -533,13 +596,19 @@ export interface ValidationFailure {
  *
  * MUST run AFTER normalization.
  */
-export function validateItem(item: WatchlistItem | null): { reason: string } | null {
+export function validateItem(
+  item: WatchlistItem | null
+): { reason: string } | null {
   if (item == null) return { reason: "Normalization failed" };
   if (!item.id) return { reason: "Missing TMDB ID" };
   if (item.media_type !== "movie" && item.media_type !== "tv") {
     return { reason: "Invalid media type" };
   }
-  if (!["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"].includes(item.status)) {
+  if (
+    !["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"].includes(
+      item.status
+    )
+  ) {
     return { reason: "Invalid status" };
   }
   return null;
@@ -565,8 +634,15 @@ export function wasRepaired(raw: unknown): boolean {
     o.genresList == null ||
     o.platformsList == null ||
     o.notes == null ||
-    (typeof o.id === "number") || // numeric id → string id is a repair
-    (typeof o.status === "string" && !["Planned", "Watching", "Completed", "Plan to Watch", "Dropped"].includes(o.status))
+    typeof o.id === "number" || // numeric id → string id is a repair
+    (typeof o.status === "string" &&
+      ![
+        "Planned",
+        "Watching",
+        "Completed",
+        "Plan to Watch",
+        "Dropped"
+      ].includes(o.status))
   );
 }
 
@@ -599,7 +675,10 @@ export function normalizeBatch(rawItems: unknown[]): NormalizedBatch {
     const normalized = normalizeWatchlistItem(raw);
     const validation = validateItem(normalized);
     if (validation != null || normalized == null) {
-      failures.push({ reason: validation?.reason ?? "Normalization failed", item: raw });
+      failures.push({
+        reason: validation?.reason ?? "Normalization failed",
+        item: raw
+      });
       continue;
     }
     if (wasFixed) repairedCount++;

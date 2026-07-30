@@ -15,7 +15,13 @@ import type {
   VaultStatus,
   VaultUpdate
 } from "./vault.types";
-import { toVaultInsert, validateRating, validateProgressMinutes, toError, isMissingColumnError } from "./vault.utils";
+import {
+  toVaultInsert,
+  validateRating,
+  validateProgressMinutes,
+  toError,
+  isMissingColumnError
+} from "./vault.utils";
 
 const TABLE = "vault" as const;
 
@@ -62,7 +68,7 @@ export async function upsertVaultItem(
     .from(TABLE)
     .upsert(toVaultInsert(payload), {
       onConflict: "user_id,tmdb_id,media_type",
-      ignoreDuplicates: false,
+      ignoreDuplicates: false
     })
     .select()
     .single();
@@ -71,14 +77,14 @@ export async function upsertVaultItem(
   if (error && isMissingColumnError(error)) {
     console.warn(
       "[upsertVaultItem] Extended columns missing — retrying without season_dates/rewatch_dates. " +
-      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
-      error,
+        "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
+      error
     );
     const retry = await supabase
       .from(TABLE)
       .upsert(toVaultInsert(payload, { includeExtendedFields: false }), {
         onConflict: "user_id,tmdb_id,media_type",
-        ignoreDuplicates: false,
+        ignoreDuplicates: false
       })
       .select()
       .single();
@@ -114,17 +120,15 @@ export const VAULT_BATCH_SIZE = 100;
 
 export async function upsertVaultItemsBatch(
   supabase: TypedSupabaseClient,
-  payloads: CreateVaultItemPayload[],
+  payloads: CreateVaultItemPayload[]
 ): Promise<{ count: number; error: Error | null }> {
   if (payloads.length === 0) return { count: 0, error: null };
   const rows = payloads.map((p) => toVaultInsert(p));
-  let { data, error } = await supabase
-    .from(TABLE)
-    .upsert(rows, {
-      onConflict: "user_id,tmdb_id,media_type",
-      ignoreDuplicates: false,
-      count: "exact",
-    });
+  let { data, error } = await supabase.from(TABLE).upsert(rows, {
+    onConflict: "user_id,tmdb_id,media_type",
+    ignoreDuplicates: false,
+    count: "exact"
+  });
 
   // If the error is "column does not exist" (missing v2.2/v2.3 columns),
   // retry the entire batch WITHOUT extended fields. This lets imports
@@ -132,17 +136,17 @@ export async function upsertVaultItemsBatch(
   if (error && isMissingColumnError(error)) {
     console.warn(
       "[upsertVaultItemsBatch] Extended columns missing — retrying batch without season_dates/rewatch_dates. " +
-      "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
-      error,
+        "Run scripts/add_season_dates_columns.sql + scripts/add_rewatch_dates_column.sql in the Supabase SQL editor to enable full tracking.",
+      error
     );
-    const bareRows = payloads.map((p) => toVaultInsert(p, { includeExtendedFields: false }));
-    const retry = await supabase
-      .from(TABLE)
-      .upsert(bareRows, {
-        onConflict: "user_id,tmdb_id,media_type",
-        ignoreDuplicates: false,
-        count: "exact",
-      });
+    const bareRows = payloads.map((p) =>
+      toVaultInsert(p, { includeExtendedFields: false })
+    );
+    const retry = await supabase.from(TABLE).upsert(bareRows, {
+      onConflict: "user_id,tmdb_id,media_type",
+      ignoreDuplicates: false,
+      count: "exact"
+    });
     data = retry.data;
     error = retry.error;
   }

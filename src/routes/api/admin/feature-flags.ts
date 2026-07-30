@@ -11,7 +11,10 @@
 //
 // All mutations are audit-logged.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -24,7 +27,7 @@ interface FeatureFlags {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -53,8 +56,8 @@ export async function GET(event: APIEvent) {
           upcoming: true,
           random_picker: true,
           ai_recommendations: false,
-          experimental_features: false,
-        } satisfies FeatureFlags,
+          experimental_features: false
+        } satisfies FeatureFlags
       });
     }
 
@@ -92,13 +95,15 @@ export async function PUT(event: APIEvent) {
       if (typeof value !== "boolean") {
         return jsonResponse(
           { error: `Flag '${key}' must be a boolean, got ${typeof value}` },
-          400,
+          400
         );
       }
       if (!/^[a-z_][a-z0-9_]*$/.test(key)) {
         return jsonResponse(
-          { error: `Flag name '${key}' must be snake_case (lowercase letters, digits, underscore)` },
-          400,
+          {
+            error: `Flag name '${key}' must be snake_case (lowercase letters, digits, underscore)`
+          },
+          400
         );
       }
     }
@@ -122,16 +127,14 @@ export async function PUT(event: APIEvent) {
     const updatedFlags: FeatureFlags = { ...currentFlags, ...body.flags };
 
     // Upsert
-    const { error: upsertError } = await supabase
-      .from("app_config")
-      .upsert(
-        {
-          key: "feature_flags",
-          value: updatedFlags,
-          updated_by: adminResult.admin.id,
-        },
-        { onConflict: "key" },
-      );
+    const { error: upsertError } = await supabase.from("app_config").upsert(
+      {
+        key: "feature_flags",
+        value: updatedFlags,
+        updated_by: adminResult.admin.id
+      },
+      { onConflict: "key" }
+    );
 
     if (upsertError) {
       console.error("[CineLog Admin] Feature flags upsert error:", upsertError);
@@ -146,7 +149,7 @@ export async function PUT(event: APIEvent) {
           action: "feature_flag.toggle",
           entity_type: "feature_flag",
           entity_id: key,
-          payload: { old: oldValue ?? null, new: newValue },
+          payload: { old: oldValue ?? null, new: newValue }
         });
       }
     }

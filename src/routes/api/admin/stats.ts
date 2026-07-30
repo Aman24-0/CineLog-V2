@@ -16,7 +16,10 @@
 //
 // All queries use the service_role client to bypass RLS.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 interface APIEvent extends AdminAPIEvent {}
@@ -47,7 +50,7 @@ interface AdminStats {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -62,9 +65,15 @@ export async function GET(event: APIEvent) {
     const supabase = createAdminClient();
     const now = new Date();
     const isoNow = now.toISOString();
-    const iso24hAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString();
-    const iso7dAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const iso30dAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const iso24hAgo = new Date(
+      now.getTime() - 24 * 60 * 60 * 1000
+    ).toISOString();
+    const iso7dAgo = new Date(
+      now.getTime() - 7 * 24 * 60 * 60 * 1000
+    ).toISOString();
+    const iso30dAgo = new Date(
+      now.getTime() - 30 * 24 * 60 * 60 * 1000
+    ).toISOString();
 
     // ─── Run queries in parallel for speed ────────────────────────────
     const [
@@ -76,7 +85,7 @@ export async function GET(event: APIEvent) {
       vaultMediaTypeResp,
       tmdbCacheCountResp,
       tmdbCacheExpiredResp,
-      activityLogCountResp,
+      activityLogCountResp
     ] = await Promise.all([
       // 1. Total users (non-deleted profiles)
       supabase
@@ -109,15 +118,10 @@ export async function GET(event: APIEvent) {
         .is("deleted_at", null),
 
       // 4. Movies vs TV (group by media_type)
-      supabase
-        .from("vault")
-        .select("media_type")
-        .is("deleted_at", null),
+      supabase.from("vault").select("media_type").is("deleted_at", null),
 
       // 5a. TMDB cache entry count
-      supabase
-        .from("tmdb_cache")
-        .select("id", { count: "exact", head: true }),
+      supabase.from("tmdb_cache").select("id", { count: "exact", head: true }),
 
       // 5b. TMDB cache expired entries
       supabase
@@ -126,9 +130,7 @@ export async function GET(event: APIEvent) {
         .lt("expires_at", isoNow),
 
       // 6. Activity log total (proxy for API request count)
-      supabase
-        .from("activity_log")
-        .select("id", { count: "exact", head: true }),
+      supabase.from("activity_log").select("id", { count: "exact", head: true })
     ]);
 
     // Aggregate movies vs TV
@@ -137,7 +139,8 @@ export async function GET(event: APIEvent) {
     let tvShows = 0;
     for (const row of mediaRows as Array<{ media_type: string }>) {
       if (row.media_type === "movie") movies++;
-      else if (row.media_type === "tv" || row.media_type === "series") tvShows++;
+      else if (row.media_type === "tv" || row.media_type === "series")
+        tvShows++;
     }
 
     // Best-effort: database size via Supabase Management API
@@ -145,7 +148,7 @@ export async function GET(event: APIEvent) {
     try {
       const pat = process.env.SUPABASE_ACCESS_TOKEN;
       const projectRef = (process.env.VITE_SUPABASE_URL || "").match(
-        /https:\/\/([a-z0-9]+)\.supabase\.co/,
+        /https:\/\/([a-z0-9]+)\.supabase\.co/
       )?.[1];
       if (pat && projectRef) {
         const resp = await fetch(
@@ -153,15 +156,16 @@ export async function GET(event: APIEvent) {
           {
             headers: {
               Authorization: `Bearer ${pat}`,
-              "User-Agent": "cinelog-admin/1.0",
+              "User-Agent": "cinelog-admin/1.0"
             },
-            signal: AbortSignal.timeout(5000),
-          },
+            signal: AbortSignal.timeout(5000)
+          }
         );
         if (resp.ok) {
           const data = (await resp.json()) as { size?: number };
           if (typeof data.size === "number") {
-            databaseSizeMb = Math.round((data.size / (1024 * 1024)) * 100) / 100;
+            databaseSizeMb =
+              Math.round((data.size / (1024 * 1024)) * 100) / 100;
           }
         }
       }
@@ -174,29 +178,30 @@ export async function GET(event: APIEvent) {
     // so we approximate: 5KB per entry on average (TMDB responses are
     // typically 2-8KB). This is a rough estimate.
     const tmdbCacheEntries = tmdbCacheCountResp.count ?? 0;
-    const tmdbCacheSizeMb = Math.round((tmdbCacheEntries * 5 / 1024) * 100) / 100;
+    const tmdbCacheSizeMb =
+      Math.round(((tmdbCacheEntries * 5) / 1024) * 100) / 100;
 
     const stats: AdminStats = {
       total_users: totalUsersResp.count ?? 0,
       active_users: {
         h24: active24hResp.count ?? 0,
         d7: active7dResp.count ?? 0,
-        d30: active30dResp.count ?? 0,
+        d30: active30dResp.count ?? 0
       },
       total_watchlist_entries: totalVaultResp.count ?? 0,
       movies_vs_tv: {
         movies,
-        tv_shows: tvShows,
+        tv_shows: tvShows
       },
       tmdb_cache: {
         entries: tmdbCacheEntries,
         expired: tmdbCacheExpiredResp.count ?? 0,
-        size_mb: tmdbCacheSizeMb,
+        size_mb: tmdbCacheSizeMb
       },
       api_request_count: activityLogCountResp.count ?? 0,
       server_status: "online",
       database_size_mb: databaseSizeMb,
-      fetched_at: isoNow,
+      fetched_at: isoNow
     };
 
     return jsonResponse(stats);

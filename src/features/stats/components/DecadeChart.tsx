@@ -27,7 +27,7 @@ const DecadeChart: Component<DecadeChartProps> = (props) => {
   // as well as the repository layer. This guarantees no empty bars
   // ever render even if the repository contract changes.
   const visibleDecades = createMemo<DecadeCount[]>(() =>
-    props.decades().filter((d) => d.count > 0),
+    props.decades().filter((d) => d.count > 0)
   );
 
   const favoriteDecade = createMemo<string | null>(() => {
@@ -40,16 +40,18 @@ const DecadeChart: Component<DecadeChartProps> = (props) => {
     visibleDecades().map((d) => ({
       label: d.decade,
       value: d.count,
-      color: d.decade === favoriteDecade() ? "#f5c518" : "rgba(245,197,24,0.45)",
+      color:
+        d.decade === favoriteDecade() ? "#f5c518" : "rgba(245,197,24,0.45)",
       tooltipLabel: d.decade,
       tooltipRows: [
         {
           name: "Titles",
           value: String(d.count),
-          color: d.decade === favoriteDecade() ? "#f5c518" : "rgba(245,197,24,0.6)",
-        },
-      ],
-    })),
+          color:
+            d.decade === favoriteDecade() ? "#f5c518" : "rgba(245,197,24,0.6)"
+        }
+      ]
+    }))
   );
 
   return (
@@ -67,7 +69,11 @@ const DecadeChart: Component<DecadeChartProps> = (props) => {
         when={visibleDecades().length > 0}
         fallback={<p class="stats-chart-empty">No decade data yet.</p>}
       >
-        <BarChartV items={items()} height={260} rotateLabels={visibleDecades().length > 6} />
+        <BarChartV
+          items={items()}
+          height={260}
+          rotateLabels={visibleDecades().length > 6}
+        />
       </Show>
     </ChartContainer>
   );

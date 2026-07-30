@@ -4,7 +4,7 @@ import type {
   CreateVaultItemPayload,
   VaultIdentity,
   VaultRow,
-  VaultStatus,
+  VaultStatus
 } from "~/lib/supabase/repositories";
 import { enrichWithEpisodeProgressAsync } from "./episodeProgressAdapter";
 import { STATUS_TO_UI, STATUS_TO_DB } from "~/shared/utils/vaultStatus";
@@ -73,9 +73,15 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     updatedAt: row.updated_at,
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],
-    seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
+    seasonDates:
+      (row.season_dates as Record<string, { start: string; end: string }>) ??
+      {},
     seasonRewatchCount: row.season_rewatch_count ?? 0,
-    seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
+    seasonRewatchDates:
+      (row.season_rewatch_dates as Record<
+        string,
+        { start: string; end: string }
+      >[]) ?? []
   };
 }
 
@@ -90,7 +96,7 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
  * query to the `episode_progress` table.
  */
 export async function fetchVaultFromSupabase(
-  userId: string,
+  userId: string
 ): Promise<WatchlistItem[]> {
   const repo = getVaultRepository();
   const statuses: VaultStatus[] = [
@@ -98,19 +104,22 @@ export async function fetchVaultFromSupabase(
     "watching",
     "completed",
     "on_hold",
-    "dropped",
+    "dropped"
   ];
 
   const results = await Promise.all(
     statuses.map((status) =>
-      repo.getVaultByStatus(userId, status, { pagination: { limit: 1000 } }),
-    ),
+      repo.getVaultByStatus(userId, status, { pagination: { limit: 1000 } })
+    )
   );
 
   const allRows: VaultRow[] = [];
   for (const result of results) {
     if (result.error) {
-      console.error("[vaultAdapter] Error fetching vault status:", result.error);
+      console.error(
+        "[vaultAdapter] Error fetching vault status:",
+        result.error
+      );
       continue;
     }
     allRows.push(...result.data);
@@ -121,8 +130,10 @@ export async function fetchVaultFromSupabase(
 
   // Sort by created_at desc (matching the previous Firestore orderBy)
   enrichedItems.sort((a, b) => {
-    const timeA = typeof a.addedAt === "string" ? new Date(a.addedAt).getTime() : 0;
-    const timeB = typeof b.addedAt === "string" ? new Date(b.addedAt).getTime() : 0;
+    const timeA =
+      typeof a.addedAt === "string" ? new Date(a.addedAt).getTime() : 0;
+    const timeB =
+      typeof b.addedAt === "string" ? new Date(b.addedAt).getTime() : 0;
     return timeB - timeA;
   });
 
@@ -133,11 +144,14 @@ export async function fetchVaultFromSupabase(
  * Build a `VaultIdentity` from a `WatchlistItem`.
  * The composite key is (user_id, tmdb_id, media_type).
  */
-export function vaultIdentity(userId: string, item: WatchlistItem): VaultIdentity {
+export function vaultIdentity(
+  userId: string,
+  item: WatchlistItem
+): VaultIdentity {
   return {
     userId,
     tmdbId: Number(item.id),
-    mediaType: item.media_type,
+    mediaType: item.media_type
   };
 }
 
@@ -158,7 +172,7 @@ export function vaultIdentity(userId: string, item: WatchlistItem): VaultIdentit
  */
 export async function createVaultItemInSupabase(
   userId: string,
-  item: WatchlistItem,
+  item: WatchlistItem
 ): Promise<WatchlistItem> {
   const repo = getVaultRepository();
   // Media-type-aware payload: the vault table has CHECK constraints
@@ -174,14 +188,22 @@ export async function createVaultItemInSupabase(
     userId,
     tmdbId: Number(item.id),
     mediaType: item.media_type,
-    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ??
+      "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
     // Movies use watched_on + progress_minutes; TV uses started_at + completed_at.
     watchedOn: isMovie ? watchDate : undefined,
-    progressMinutes: isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-      ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-      : undefined,
+    progressMinutes:
+      isMovie &&
+      typeof item.runtime === "number" &&
+      item.watchProgress &&
+      item.watchProgress.duration > 0
+        ? Math.min(
+            item.watchProgress.currentTime || 0,
+            item.watchProgress.duration
+          )
+        : undefined,
     startedAt: isTV ? watchDate : undefined,
     completedAt: isTV && isCompleted && watchDate ? watchDate : undefined,
     // Preserve re-watch tracking (movies + series)
@@ -196,11 +218,15 @@ export async function createVaultItemInSupabase(
     createdAt:
       typeof item.addedAt === "string"
         ? item.addedAt
-        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+        : item.addedAt &&
+            typeof item.addedAt === "object" &&
+            "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
     // lastActivityAt = most recent activity (updatedAt or addedAt or now)
-    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    lastActivityAt:
+      item.updatedAt ??
+      (typeof item.addedAt === "string" ? item.addedAt : undefined)
   };
 
   const { data, error } = await repo.createVaultItem(payload);
@@ -224,7 +250,7 @@ export async function createVaultItemInSupabase(
  */
 export async function upsertVaultItemInSupabase(
   userId: string,
-  item: WatchlistItem,
+  item: WatchlistItem
 ): Promise<WatchlistItem> {
   const repo = getVaultRepository();
   // Media-type-aware payload — see createVaultItemInSupabase for the
@@ -238,13 +264,21 @@ export async function upsertVaultItemInSupabase(
     userId,
     tmdbId: Number(item.id),
     mediaType: item.media_type,
-    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ??
+      "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
     watchedOn: isMovie ? watchDate : undefined,
-    progressMinutes: isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-      ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-      : undefined,
+    progressMinutes:
+      isMovie &&
+      typeof item.runtime === "number" &&
+      item.watchProgress &&
+      item.watchProgress.duration > 0
+        ? Math.min(
+            item.watchProgress.currentTime || 0,
+            item.watchProgress.duration
+          )
+        : undefined,
     startedAt: isTV ? watchDate : undefined,
     completedAt: isTV && isCompleted && watchDate ? watchDate : undefined,
     rewatchCount: item.rewatchCount,
@@ -255,10 +289,14 @@ export async function upsertVaultItemInSupabase(
     createdAt:
       typeof item.addedAt === "string"
         ? item.addedAt
-        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+        : item.addedAt &&
+            typeof item.addedAt === "object" &&
+            "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
-    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    lastActivityAt:
+      item.updatedAt ??
+      (typeof item.addedAt === "string" ? item.addedAt : undefined)
   };
 
   const { data, error } = await repo.upsertVaultItem(payload);

@@ -1,5 +1,12 @@
 // src/features/profile/components/ProfileBanner.tsx
-import { Show, createSignal, createMemo, createEffect, on, type Component } from "solid-js";
+import {
+  Show,
+  createSignal,
+  createMemo,
+  createEffect,
+  on,
+  type Component
+} from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { ProfileData } from "../useProfileData";
 import type { BannerType } from "./BannerEditor";
@@ -68,7 +75,8 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
 
     if (type === "favorite_movie") {
       // Try favorite movie backdrop, then series backdrop
-      const path = d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
+      const path =
+        d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
       return path ? tmdbImage(path, "w1280") : null;
     }
 
@@ -81,7 +89,8 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
   // 'upload' or 'url'), then to gradient.
   const fallbackUrl = (): string | null => {
     const d = props.data;
-    const path = d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
+    const path =
+      d?.favoriteMovie?.backdrop_path ?? d?.favoriteSeries?.backdrop_path;
     return path ? tmdbImage(path, "w1280") : null;
   };
 

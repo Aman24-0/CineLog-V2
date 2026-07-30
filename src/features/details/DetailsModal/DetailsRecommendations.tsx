@@ -4,7 +4,7 @@ import type { Accessor } from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 
 const SimilarTitles = lazy(
-  () => import("~/features/details/components/SimilarTitles"),
+  () => import("~/features/details/components/SimilarTitles")
 );
 
 /**
@@ -22,10 +22,12 @@ export interface DetailsRecommendationsProps {
   onSelect: (item: WatchlistItem) => void;
 }
 
-export default function DetailsRecommendations(props: DetailsRecommendationsProps) {
+export default function DetailsRecommendations(
+  props: DetailsRecommendationsProps
+) {
   return (
     <Show when={props.baseItem()}>
-      <Suspense fallback={<div class="h-24 v2-card animate-pulse" />}>
+      <Suspense fallback={<div class="v2-card h-24 animate-pulse" />}>
         <SimilarTitles
           currentItem={props.baseItem()!}
           watchlist={props.watchlist()}

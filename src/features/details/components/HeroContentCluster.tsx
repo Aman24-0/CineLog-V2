@@ -53,14 +53,17 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
     ).split("-")[0];
 
   const runtime = () =>
-    props.details?.runtime || props.details?.episode_run_time?.[0] || props.baseItem?.runtime;
+    props.details?.runtime ||
+    props.details?.episode_run_time?.[0] ||
+    props.baseItem?.runtime;
 
   const isTv = () =>
     props.baseItem?.media_type === "tv" || props.details?.media_type === "tv";
 
   const tagline = () => props.details?.tagline?.trim();
 
-  const genres = () => props.details?.genres?.map((g) => g.name).slice(0, 3) ?? [];
+  const genres = () =>
+    props.details?.genres?.map((g) => g.name).slice(0, 3) ?? [];
 
   const posterUrl = () => {
     const path = props.baseItem?.poster_path || props.details?.poster_path;
@@ -99,12 +102,12 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           `h-full` don't compose as expected. The wrapper's min-height
           is left at auto so very short text columns still get at least
           the image's natural height. */}
-      <div class="floating-poster w-28 sm:w-36 flex-shrink-0 h-full">
+      <div class="floating-poster h-full w-28 flex-shrink-0 sm:w-36">
         <Show
           when={posterUrl()}
           fallback={
             <div
-              class="w-full h-full flex items-center justify-center"
+              class="flex h-full w-full items-center justify-center"
               style={{ background: "var(--tier-3)" }}
               aria-hidden="true"
             >
@@ -119,9 +122,11 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           }
         >
           <img
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             src={posterUrl()}
-            class={`w-full h-full object-cover${posterLoaded() ? " img-loaded" : ""}`}
+            class={`h-full w-full object-cover${posterLoaded() ? " img-loaded" : ""}`}
             loading="eager"
             decoding="async"
             onLoad={() => setPosterLoaded(true)}
@@ -132,8 +137,10 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
       </div>
 
       {/* Title + tagline + quick-meta */}
-      <div class="flex-1 min-w-0 pb-1">
-        <h1 class="hero-title" id="details-modal-title">{title()}</h1>
+      <div class="min-w-0 flex-1 pb-1">
+        <h1 class="hero-title" id="details-modal-title">
+          {title()}
+        </h1>
 
         <Show when={tagline()}>
           <p class="hero-tagline">{tagline()}</p>
@@ -162,7 +169,9 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           <div class="hero-quick-meta" style={{ "margin-top": "0.5rem" }}>
             <For each={genres()}>
               {(genre) => (
-                <span class="v2-pill" style={{ "font-size": "0.5rem" }}>{genre}</span>
+                <span class="v2-pill" style={{ "font-size": "0.5rem" }}>
+                  {genre}
+                </span>
               )}
             </For>
           </div>

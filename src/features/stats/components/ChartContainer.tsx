@@ -44,11 +44,18 @@ interface ChartContainerProps {
 const ChartContainer: Component<ChartContainerProps> = (props) => {
   const height = (): string => props.height ?? "100%";
   return (
-    <GlassCard class={`stats-chart-card ${props.class ?? ""}`} padding={props.padding ?? "compact"}>
+    <GlassCard
+      class={`stats-chart-card ${props.class ?? ""}`}
+      padding={props.padding ?? "compact"}
+    >
       <div class="stats-chart-header">
         <div class="stats-chart-header-left">
           <div class="stats-chart-icon" aria-hidden="true">
-            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            >
               {props.icon}
             </span>
           </div>
@@ -67,10 +74,25 @@ const ChartContainer: Component<ChartContainerProps> = (props) => {
         <Show
           when={!props.loading}
           fallback={
-            <div class="stats-chart-skeleton" style={{ height: "100%", width: "100%", display: "flex", "align-items": "center", "justify-content": "center" }}>
+            <div
+              class="stats-chart-skeleton"
+              style={{
+                height: "100%",
+                width: "100%",
+                display: "flex",
+                "align-items": "center",
+                "justify-content": "center"
+              }}
+            >
               <Show
                 when={props.skeletonVariant === "circle"}
-                fallback={<GlassSkeleton width="100%" height="100%" class="rounded-lg" />}
+                fallback={
+                  <GlassSkeleton
+                    width="100%"
+                    height="100%"
+                    class="rounded-lg"
+                  />
+                }
               >
                 <GlassSkeleton variant="circle" width="lg" height="h-32" />
               </Show>

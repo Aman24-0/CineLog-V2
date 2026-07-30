@@ -20,7 +20,10 @@
  * no recommendation engine, no external API integration.
  */
 
-export { DiscoverRepository, getDiscoverRepository } from "./discover.repository";
+export {
+  DiscoverRepository,
+  getDiscoverRepository
+} from "./discover.repository";
 
 export type {
   // Row aliases — CuratedUniverseRow / CuratedUniverseEntryRow /

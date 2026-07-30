@@ -20,7 +20,6 @@ interface UseVaultSectionsArgs {
   flatMode: Accessor<boolean>;
 }
 
-
 /**
  * useVaultSections — the brain of the Vault browsing experience.
  *
@@ -52,14 +51,16 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
 
     // If flat mode (search or advanced filters), return a single "All Titles" section
     if (args.flatMode()) {
-      return [{
-        id: "all",
-        title: "All Titles",
-        icon: "video_library",
-        subtitle: `${list.length} title${list.length !== 1 ? "s" : ""}`,
-        items: list,
-        railByDefault: false
-      }];
+      return [
+        {
+          id: "all",
+          title: "All Titles",
+          icon: "video_library",
+          subtitle: `${list.length} title${list.length !== 1 ? "s" : ""}`,
+          items: list,
+          railByDefault: false
+        }
+      ];
     }
 
     const claimed = new Set<string>();
@@ -67,7 +68,9 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
 
     // 1. In Progress — items with status === "Watching" (isWatchable gate)
     //    Uses the shared progress engine — no legacy V1 data can leak in.
-    const inProgress = getContinueWatchingList(list.filter((m) => !claimed.has(m.id)));
+    const inProgress = getContinueWatchingList(
+      list.filter((m) => !claimed.has(m.id))
+    );
 
     if (inProgress.length > 0) {
       inProgress.forEach((m) => claimed.add(m.id));
@@ -173,7 +176,8 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
       const inProgress = isWatchable(m); // status === "Watching"
       const planned = m.status === "Planned" || m.status === "Plan to Watch";
       const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const recentCompleted = m.status === "Completed" &&
+      const recentCompleted =
+        m.status === "Completed" &&
         (resolveTimelineDate(m)?.getTime() || 0) >= ninetyDaysAgo;
       return inProgress || planned || recentCompleted;
     }).length;

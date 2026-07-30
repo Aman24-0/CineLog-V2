@@ -26,13 +26,13 @@ export interface GlassChipProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 const defaultProps: Required<Pick<GlassChipProps, "variant" | "selected">> = {
   variant: "glass",
-  selected: false,
+  selected: false
 };
 
 const variantClasses: Record<ChipVariant, string> = {
   default: "bg-glass backdrop-blur-md border-glass-border text-text-body",
   glass: "bg-glass backdrop-blur-xl border-glass-border text-text-body",
-  accent: "bg-primary-dim border-primary text-primary shadow-glow",
+  accent: "bg-primary-dim border-primary text-primary shadow-glow"
 };
 
 /**
@@ -41,7 +41,15 @@ const variantClasses: Record<ChipVariant, string> = {
 const GlassChip: Component<GlassChipProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "label", "variant", "icon", "trailingIcon", "trailingIconLabel", "onClick", "onTrailingIconClick", "selected", "class"
+    "label",
+    "variant",
+    "icon",
+    "trailingIcon",
+    "trailingIconLabel",
+    "onClick",
+    "onTrailingIconClick",
+    "selected",
+    "class"
   ]);
 
   const isInteractive = () => !!local.onClick;
@@ -53,7 +61,7 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
       "rounded-pill",
       "font-outfit font-medium text-sm",
       "border",
-      "transition-all duration-fast ease-out",
+      "transition-all duration-fast ease-out"
     ];
 
     if (local.selected) {
@@ -66,7 +74,9 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
       base.push(
         "cursor-pointer",
         "focus-ring",
-        local.variant === "glass" ? "hover:bg-glass-strong hover:backdrop-blur-2xl" : "hover:bg-tier-3 hover:border-hairline-3",
+        local.variant === "glass"
+          ? "hover:bg-glass-strong hover:backdrop-blur-2xl"
+          : "hover:bg-tier-3 hover:border-hairline-3",
         "active:scale-[0.97]"
       );
     }
@@ -113,10 +123,13 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
                the trailing icon is purely decorative — render it as a
                non-interactive <span>. */
             <span
-              class="flex items-center justify-center rounded-full p-[2px] -mr-1"
+              class="-mr-1 flex items-center justify-center rounded-full p-[2px]"
               aria-hidden="true"
             >
-              <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
+              <span
+                class="material-symbols-outlined text-[14px]"
+                aria-hidden="true"
+              >
                 {local.trailingIcon}
               </span>
             </span>
@@ -124,7 +137,7 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
         >
           <button
             type="button"
-            class="flex items-center justify-center rounded-full p-[2px] -mr-1 hover:bg-black/10 dark:hover:bg-white/10 transition-colors"
+            class="-mr-1 flex items-center justify-center rounded-full p-[2px] transition-colors hover:bg-black/10 dark:hover:bg-white/10"
             onClick={(e) => {
               if (local.onTrailingIconClick) {
                 e.stopPropagation();
@@ -133,7 +146,10 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
             }}
             aria-label={local.trailingIconLabel ?? `Remove ${local.label}`}
           >
-            <span class="material-symbols-outlined text-[14px]" aria-hidden="true">
+            <span
+              class="material-symbols-outlined text-[14px]"
+              aria-hidden="true"
+            >
               {local.trailingIcon}
             </span>
           </button>

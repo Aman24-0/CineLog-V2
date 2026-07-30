@@ -19,7 +19,7 @@ import { createResource, createMemo, type Accessor } from "solid-js";
 import {
   getUpcomingTitles,
   type UpcomingQueryParams,
-  type UserReminderRow,
+  type UserReminderRow
 } from "~/lib/supabase/repositories/upcoming";
 import type { TMDBTitle } from "~/shared/types";
 
@@ -59,7 +59,7 @@ function startOfWeek(): string {
 
 export function useUpcomingData(
   filters: UpcomingDataFilters,
-  reminders: Accessor<UserReminderRow[]>,
+  reminders: Accessor<UserReminderRow[]>
 ) {
   // Build the query params memo. The createResource reads this.
   // Region defaults to "US" when the caller passes an empty string —
@@ -71,7 +71,7 @@ export function useUpcomingData(
     endDate: filters.endDate(),
     genres: filters.genres().length ? filters.genres() : undefined,
     mediaType: filters.mediaType(),
-    sortBy: filters.sortBy(),
+    sortBy: filters.sortBy()
   }));
 
   // Refetch whenever the params memo changes. The source function is
@@ -87,14 +87,18 @@ export function useUpcomingData(
     const list = titlesResource() ?? [];
     const sort = filters.sortBy();
     if (sort === "rating") {
-      return [...list].sort((a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0));
+      return [...list].sort(
+        (a, b) => (b.vote_average ?? 0) - (a.vote_average ?? 0)
+      );
     }
     if (sort === "popularity") {
-      return [...list].sort((a, b) => (b.vote_count ?? 0) - (a.vote_count ?? 0));
+      return [...list].sort(
+        (a, b) => (b.vote_count ?? 0) - (a.vote_count ?? 0)
+      );
     }
     if (sort === "title") {
       return [...list].sort((a, b) =>
-        (a.title || a.name || "").localeCompare(b.title || b.name || ""),
+        (a.title || a.name || "").localeCompare(b.title || b.name || "")
       );
     }
     // Default: date ascending (already sorted by repository).
@@ -107,10 +111,12 @@ export function useUpcomingData(
   const groups = createMemo<UpcomingGroup[]>(() => {
     const list = titles();
     const todayStr = today();
-    const tomorrowStr = new Date(Date.now() + 86400000).toISOString().slice(0, 10);
+    const tomorrowStr = new Date(Date.now() + 86400000)
+      .toISOString()
+      .slice(0, 10);
     const weekStart = startOfWeek();
     const weekEnd = new Date(
-      new Date(weekStart + "T00:00:00").getTime() + 6 * 86400000,
+      new Date(weekStart + "T00:00:00").getTime() + 6 * 86400000
     )
       .toISOString()
       .slice(0, 10);
@@ -119,26 +125,30 @@ export function useUpcomingData(
       today: [],
       tomorrow: [],
       this_week: [],
-      later: [],
+      later: []
     };
 
     for (const t of list) {
       // Prefer the next-episode air date for TV series when present —
       // it's more accurate than first_air_date for ongoing shows.
-      const dateStr = t.episodeAirDate || t.release_date || t.first_air_date || "";
+      const dateStr =
+        t.episodeAirDate || t.release_date || t.first_air_date || "";
       if (!dateStr) continue;
       if (isSameDate(dateStr, todayStr)) buckets.today.push(t);
       else if (isSameDate(dateStr, tomorrowStr)) buckets.tomorrow.push(t);
-      else if (dateStr >= weekStart && dateStr <= weekEnd) buckets.this_week.push(t);
+      else if (dateStr >= weekStart && dateStr <= weekEnd)
+        buckets.this_week.push(t);
       else buckets.later.push(t);
     }
 
-    return ([
-      { key: "today", label: "Today", titles: buckets.today },
-      { key: "tomorrow", label: "Tomorrow", titles: buckets.tomorrow },
-      { key: "this_week", label: "This Week", titles: buckets.this_week },
-      { key: "later", label: "Later", titles: buckets.later },
-    ] as UpcomingGroup[]).filter((g) => g.titles.length > 0);
+    return (
+      [
+        { key: "today", label: "Today", titles: buckets.today },
+        { key: "tomorrow", label: "Tomorrow", titles: buckets.tomorrow },
+        { key: "this_week", label: "This Week", titles: buckets.this_week },
+        { key: "later", label: "Later", titles: buckets.later }
+      ] as UpcomingGroup[]
+    ).filter((g) => g.titles.length > 0);
   });
 
   // Calendar view: a map of YYYY-MM-DD → titles. Used by the CalendarView
@@ -159,7 +169,7 @@ export function useUpcomingData(
   // Convenience: is a title in the user's reminders? Used by cards to
   // render the bell as active.
   const reminderIds = createMemo<Set<string>>(
-    () => new Set(reminders().map((r) => r.tmdb_id)),
+    () => new Set(reminders().map((r) => r.tmdb_id))
   );
 
   const isReminderSet = (tmdbId: string | number): boolean =>
@@ -171,7 +181,8 @@ export function useUpcomingData(
   // type when the resource is Unresolved, which breaks downstream
   // consumers).
   const loading: Accessor<boolean> = () => titlesResource.loading;
-  const error: Accessor<Error | undefined> = () => titlesResource.error ?? undefined;
+  const error: Accessor<Error | undefined> = () =>
+    titlesResource.error ?? undefined;
 
   return {
     titles,
@@ -190,6 +201,6 @@ export function useUpcomingData(
         // refetch() can throw when the resource is Unresolved — ignore.
       }
     },
-    isReminderSet,
+    isReminderSet
   };
 }

@@ -45,7 +45,10 @@ interface LinkEmailPasswordSheetProps {
 }
 
 /** Password strength estimate — 0 to 4. Purely heuristic. */
-function passwordStrength(pw: string): { score: 0 | 1 | 2 | 3 | 4; label: string } {
+function passwordStrength(pw: string): {
+  score: 0 | 1 | 2 | 3 | 4;
+  label: string;
+} {
   if (!pw) return { score: 0, label: "—" };
   let score = 0;
   if (pw.length >= 8) score++;
@@ -56,7 +59,9 @@ function passwordStrength(pw: string): { score: 0 | 1 | 2 | 3 | 4; label: string
   return { score: score as 0 | 1 | 2 | 3 | 4, label: labels[score] };
 }
 
-const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) => {
+const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (
+  props
+) => {
   const { user } = useAuth();
 
   // Pre-fill with the OAuth email so the common case is one tap to
@@ -77,7 +82,9 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
   });
 
   const strength = createMemo(() => passwordStrength(newPw()));
-  const passwordsMatch = createMemo(() => newPw() === confirmPw() && newPw().length > 0);
+  const passwordsMatch = createMemo(
+    () => newPw() === confirmPw() && newPw().length > 0
+  );
 
   const canSubmit = createMemo(() => {
     if (busy()) return false;
@@ -132,20 +139,43 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
       <Show
         when={!done()}
         fallback={
-          <div class="flex flex-col items-center text-center py-6">
+          <div class="flex flex-col items-center py-6 text-center">
             <div
-              class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: "rgba(72, 187, 120, 0.12)", border: "1px solid rgba(72, 187, 120, 0.3)" }}
+              class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+              style={{
+                background: "rgba(72, 187, 120, 0.12)",
+                border: "1px solid rgba(72, 187, 120, 0.3)"
+              }}
               aria-hidden="true"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#6ee7b7" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "32px", color: "#6ee7b7" }}
+                aria-hidden="true"
+              >
                 check_circle
               </span>
             </div>
-            <h4 class="type-headline" style={{ "font-size": "1rem", margin: "0 0 0.5rem", color: "var(--text-strong)" }}>
-              {emailChangePending() ? "Password Set" : "Email + Password Linked"}
+            <h4
+              class="type-headline"
+              style={{
+                "font-size": "1rem",
+                margin: "0 0 0.5rem",
+                color: "var(--text-strong)"
+              }}
+            >
+              {emailChangePending()
+                ? "Password Set"
+                : "Email + Password Linked"}
             </h4>
-            <p class="type-body-soft" style={{ margin: 0, "font-size": "0.8125rem", "max-width": "300px" }}>
+            <p
+              class="type-body-soft"
+              style={{
+                margin: 0,
+                "font-size": "0.8125rem",
+                "max-width": "300px"
+              }}
+            >
               <Show
                 when={emailChangePending()}
                 fallback={
@@ -153,11 +183,17 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
                 }
               >
                 Your password is active now. We also sent a confirmation link to{" "}
-                <strong style={{ color: "var(--text-strong)" }}>{email().trim()}</strong> — click it
-                to finish switching to that email.
+                <strong style={{ color: "var(--text-strong)" }}>
+                  {email().trim()}
+                </strong>{" "}
+                — click it to finish switching to that email.
               </Show>
             </p>
-            <button class="btn-primary focus-ring mt-5" onClick={handleClose} style={{ "min-width": "120px" }}>
+            <button
+              class="btn-primary focus-ring mt-5"
+              onClick={handleClose}
+              style={{ "min-width": "120px" }}
+            >
               Done
             </button>
           </div>
@@ -165,13 +201,17 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
       >
         {/* Email input — pre-filled with OAuth email, editable */}
         <div style={{ "margin-bottom": "1rem" }}>
-          <label class="account-sheet-label" for="link-email-input">Email address</label>
+          <label class="account-sheet-label" for="link-email-input">
+            Email address
+          </label>
           <input
             id="link-email-input"
             type="email"
             value={email()}
             onInput={(e) => setEmail(e.currentTarget.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && canSubmit()) void handleSubmit(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canSubmit()) void handleSubmit();
+            }}
             placeholder="you@example.com"
             autocomplete="email"
             spellcheck={false}
@@ -180,27 +220,62 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
           />
           <Show when={email() && !emailValid()}>
             <p class="account-sheet-hint account-sheet-hint-warn">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                info
+              </span>
               Enter a valid email address.
             </p>
           </Show>
-          <Show when={user()?.email && email().trim().toLowerCase() === (user()?.email ?? "").toLowerCase()}>
+          <Show
+            when={
+              user()?.email &&
+              email().trim().toLowerCase() ===
+                (user()?.email ?? "").toLowerCase()
+            }
+          >
             <p class="account-sheet-hint">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">lock</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                lock
+              </span>
               This is your current email — only a password will be added.
             </p>
           </Show>
-          <Show when={user()?.email && email() && email().trim().toLowerCase() !== (user()?.email ?? "").toLowerCase() && emailValid()}>
+          <Show
+            when={
+              user()?.email &&
+              email() &&
+              email().trim().toLowerCase() !==
+                (user()?.email ?? "").toLowerCase() &&
+              emailValid()
+            }
+          >
             <p class="account-sheet-hint account-sheet-hint-warn">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
-              Changing your email will send a confirmation link to the new address.
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                info
+              </span>
+              Changing your email will send a confirmation link to the new
+              address.
             </p>
           </Show>
         </div>
 
         {/* New password */}
         <div style={{ "margin-bottom": "1rem" }}>
-          <label class="account-sheet-label" for="link-new-pw-input">New password</label>
+          <label class="account-sheet-label" for="link-new-pw-input">
+            New password
+          </label>
           <div class="account-sheet-input-wrap">
             <input
               id="link-new-pw-input"
@@ -220,7 +295,11 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
               aria-label={showNew() ? "Hide password" : "Show password"}
               tabindex={0}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
                 {showNew() ? "visibility_off" : "visibility"}
               </span>
             </button>
@@ -234,23 +313,31 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
                     <div
                       class="account-sheet-strength-bar"
                       classList={{
-                        "account-sheet-strength-bar-active": i <= strength().score,
-                        "account-sheet-strength-bar-weak": i <= strength().score && strength().score <= 1,
-                        "account-sheet-strength-bar-medium": i <= strength().score && strength().score === 2,
-                        "account-sheet-strength-bar-strong": i <= strength().score && strength().score >= 3,
+                        "account-sheet-strength-bar-active":
+                          i <= strength().score,
+                        "account-sheet-strength-bar-weak":
+                          i <= strength().score && strength().score <= 1,
+                        "account-sheet-strength-bar-medium":
+                          i <= strength().score && strength().score === 2,
+                        "account-sheet-strength-bar-strong":
+                          i <= strength().score && strength().score >= 3
                       }}
                     />
                   )}
                 </For>
               </div>
-              <span class="account-sheet-strength-label">{strength().label}</span>
+              <span class="account-sheet-strength-label">
+                {strength().label}
+              </span>
             </div>
           </Show>
         </div>
 
         {/* Confirm password */}
         <div style={{ "margin-bottom": "1.5rem" }}>
-          <label class="account-sheet-label" for="link-confirm-pw-input">Confirm new password</label>
+          <label class="account-sheet-label" for="link-confirm-pw-input">
+            Confirm new password
+          </label>
           <div class="account-sheet-input-wrap">
             <input
               id="link-confirm-pw-input"
@@ -270,14 +357,24 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
               aria-label={showConfirm() ? "Hide password" : "Show password"}
               tabindex={0}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
                 {showConfirm() ? "visibility_off" : "visibility"}
               </span>
             </button>
           </div>
           <Show when={confirmPw().length > 0 && !passwordsMatch()}>
             <p class="account-sheet-hint account-sheet-hint-warn">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                info
+              </span>
               Passwords don't match.
             </p>
           </Show>
@@ -287,7 +384,7 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
         <div class="flex gap-2">
           <button
             type="button"
-            class="btn-ghost flex-1 focus-ring"
+            class="btn-ghost focus-ring flex-1"
             onClick={handleClose}
             disabled={busy()}
           >
@@ -295,12 +392,19 @@ const LinkEmailPasswordSheet: Component<LinkEmailPasswordSheetProps> = (props) =
           </button>
           <button
             type="button"
-            class="btn-primary flex-1 focus-ring"
+            class="btn-primary focus-ring flex-1"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit()}
           >
             <Show when={busy()} fallback="Connect">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{
+                  "font-size": "14px",
+                  animation: "spin 1s linear infinite"
+                }}
+                aria-hidden="true"
+              >
                 progress_activity
               </span>
               Linking…

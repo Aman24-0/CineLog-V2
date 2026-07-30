@@ -11,32 +11,36 @@ import type {
   Collection,
   VaultFilters,
   FilterPreset,
-  CachedSeasonInfo,
+  CachedSeasonInfo
 } from "~/shared/types";
 
 export function makeWatchlistItem(
-  overrides: Partial<WatchlistItem> = {},
+  overrides: Partial<WatchlistItem> = {}
 ): WatchlistItem {
   return {
     id: "1",
     title: "Test Movie",
     media_type: "movie",
     status: "Planned",
-    ...overrides,
+    ...overrides
   };
 }
 
-export function makeMovie(overrides: Partial<WatchlistItem> = {}): WatchlistItem {
+export function makeMovie(
+  overrides: Partial<WatchlistItem> = {}
+): WatchlistItem {
   return makeWatchlistItem({
     media_type: "movie",
     title: "Test Movie",
     release_date: "2023-01-15",
     runtime: 120,
-    ...overrides,
+    ...overrides
   });
 }
 
-export function makeTVSeries(overrides: Partial<WatchlistItem> = {}): WatchlistItem {
+export function makeTVSeries(
+  overrides: Partial<WatchlistItem> = {}
+): WatchlistItem {
   return makeWatchlistItem({
     media_type: "tv",
     name: "Test Series",
@@ -44,7 +48,7 @@ export function makeTVSeries(overrides: Partial<WatchlistItem> = {}): WatchlistI
     status: "Watching",
     season: 1,
     episode: 1,
-    ...overrides,
+    ...overrides
   });
 }
 
@@ -60,12 +64,12 @@ export function makeTMDBTitle(overrides: Partial<TMDBTitle> = {}): TMDBTitle {
     vote_count: 1000,
     genre_ids: [28, 35],
     genres: ["Action", "Comedy"],
-    ...overrides,
+    ...overrides
   };
 }
 
 export function makeCollectionEntry(
-  overrides: Partial<CollectionEntry> = {},
+  overrides: Partial<CollectionEntry> = {}
 ): CollectionEntry {
   return {
     id: "1",
@@ -73,22 +77,24 @@ export function makeCollectionEntry(
     title: "Test Entry",
     release_date: "2023-01-15",
     order: 0,
-    ...overrides,
+    ...overrides
   };
 }
 
-export function makeCollection(overrides: Partial<Collection> = {}): Collection {
+export function makeCollection(
+  overrides: Partial<Collection> = {}
+): Collection {
   return {
     id: "test-collection",
     name: "Test Collection",
     type: "user",
     entries: [],
-    ...overrides,
+    ...overrides
   };
 }
 
 export function makeVaultFilters(
-  overrides: Partial<VaultFilters> = {},
+  overrides: Partial<VaultFilters> = {}
 ): VaultFilters {
   return {
     type: "all",
@@ -110,22 +116,24 @@ export function makeVaultFilters(
     yearMax: "",
     runtimeMin: "",
     runtimeMax: "",
-    ...overrides,
+    ...overrides
   };
 }
 
-export function makeFilterPreset(overrides: Partial<FilterPreset> = {}): FilterPreset {
+export function makeFilterPreset(
+  overrides: Partial<FilterPreset> = {}
+): FilterPreset {
   return {
     id: "preset-1",
     name: "Test Preset",
     filters: makeVaultFilters(),
     createdAt: "2024-01-01T00:00:00Z",
-    ...overrides,
+    ...overrides
   };
 }
 
 export function makeSeasons(
-  seasons: Array<{ number: number; count: number }>,
+  seasons: Array<{ number: number; count: number }>
 ): CachedSeasonInfo[] {
   return seasons.map((s) => ({ ...s }));
 }

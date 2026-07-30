@@ -15,19 +15,19 @@ const variantClasses: Record<DividerVariant, string> = {
   default: "bg-hairline",
   subtle: "bg-hairline opacity-muted",
   strong: "bg-hairline-3",
-  accent: "bg-primary",
+  accent: "bg-primary"
 };
 
 const spacingHorizontal: Record<DividerSpacing, string> = {
   compact: "my-2",
   default: "my-4",
-  wide: "my-8",
+  wide: "my-8"
 };
 
 const spacingVertical: Record<DividerSpacing, string> = {
   compact: "mx-2",
   default: "mx-4",
-  wide: "mx-8",
+  wide: "mx-8"
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -45,11 +45,13 @@ export interface GlassDividerProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassDividerProps, "variant" | "spacing" | "vertical" | "label">> = {
+const defaultProps: Required<
+  Pick<GlassDividerProps, "variant" | "spacing" | "vertical" | "label">
+> = {
   variant: "default",
   spacing: "default",
   vertical: false,
-  label: undefined as unknown as string,
+  label: undefined as unknown as string
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -61,26 +63,22 @@ const defaultProps: Required<Pick<GlassDividerProps, "variant" | "spacing" | "ve
 const GlassDivider: Component<GlassDividerProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "variant", "spacing", "vertical", "label", "class", "style",
+    "variant",
+    "spacing",
+    "vertical",
+    "label",
+    "class",
+    "style"
   ]);
 
   /** Classes for a simple divider (no label) */
   const simpleClass = (): string => {
-    const base: string[] = [
-      variantClasses[local.variant],
-    ];
+    const base: string[] = [variantClasses[local.variant]];
 
     if (local.vertical) {
-      base.push(
-        "w-px h-full",
-        "inline-block",
-        spacingVertical[local.spacing],
-      );
+      base.push("w-px h-full", "inline-block", spacingVertical[local.spacing]);
     } else {
-      base.push(
-        "h-px w-full",
-        spacingHorizontal[local.spacing],
-      );
+      base.push("h-px w-full", spacingHorizontal[local.spacing]);
     }
 
     if (local.class) base.push(local.class);
@@ -92,7 +90,7 @@ const GlassDivider: Component<GlassDividerProps> = (rawProps) => {
   const labeledClass = (): string => {
     const base: string[] = [
       "flex items-center",
-      spacingHorizontal[local.spacing],
+      spacingHorizontal[local.spacing]
     ];
 
     if (local.class) base.push(local.class);
@@ -122,13 +120,13 @@ const GlassDivider: Component<GlassDividerProps> = (rawProps) => {
       >
         {/* Left line */}
         <div
-          class={`flex-1 h-px ${variantClasses[local.variant]}`}
+          class={`h-px flex-1 ${variantClasses[local.variant]}`}
           aria-hidden="true"
         />
 
         {/* Centered label */}
         <span
-          class="px-3 bg-void text-text-dim font-label text-2xs uppercase tracking-label select-none"
+          class="select-none bg-void px-3 font-label text-2xs uppercase tracking-label text-text-dim"
           aria-hidden="true"
         >
           {local.label}
@@ -136,7 +134,7 @@ const GlassDivider: Component<GlassDividerProps> = (rawProps) => {
 
         {/* Right line */}
         <div
-          class={`flex-1 h-px ${variantClasses[local.variant]}`}
+          class={`h-px flex-1 ${variantClasses[local.variant]}`}
           aria-hidden="true"
         />
       </div>

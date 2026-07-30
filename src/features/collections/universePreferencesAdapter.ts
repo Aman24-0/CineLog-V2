@@ -29,7 +29,12 @@
  */
 
 import { getClient } from "~/lib/supabase/client";
-import type { UniversePreferences, CollectionEntry, ViewingOrder, TimelineProvider } from "~/shared/types";
+import type {
+  UniversePreferences,
+  CollectionEntry,
+  ViewingOrder,
+  TimelineProvider
+} from "~/shared/types";
 
 const TABLE = "user_universe_subscriptions" as const;
 
@@ -57,7 +62,10 @@ export async function fetchUniversePreferencesFromSupabase(
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[universePreferencesAdapter] Error fetching subscriptions:", error);
+    console.error(
+      "[universePreferencesAdapter] Error fetching subscriptions:",
+      error
+    );
     return [];
   }
   if (!data) return [];
@@ -88,7 +96,7 @@ export async function fetchUniversePreferencesFromSupabase(
       preferredOrder,
       preferredProvider,
       customOverrides,
-      addedAt: row.created_at,
+      addedAt: row.created_at
     } as UniversePreferences;
   });
 }
@@ -100,16 +108,20 @@ export async function fetchUniversePreferencesFromSupabase(
 /**
  * Add a universe subscription (creates a row in user_universe_subscriptions).
  */
-export async function addUniverseSubscription(userId: string, universeId: string): Promise<void> {
+export async function addUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
   const supabase = getClient();
-  const { error } = await supabase
-    .from(TABLE)
-    .upsert({
+  const { error } = await supabase.from(TABLE).upsert(
+    {
       user_id: userId,
       universe_id: universeId,
       is_pinned: false,
-      custom_sort: null,
-    }, { onConflict: "user_id,universe_id" });
+      custom_sort: null
+    },
+    { onConflict: "user_id,universe_id" }
+  );
 
   if (error) throw error;
 }
@@ -117,7 +129,10 @@ export async function addUniverseSubscription(userId: string, universeId: string
 /**
  * Remove a universe subscription (deletes the row).
  */
-export async function removeUniverseSubscription(userId: string, universeId: string): Promise<void> {
+export async function removeUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase
     .from(TABLE)
@@ -131,7 +146,10 @@ export async function removeUniverseSubscription(userId: string, universeId: str
 /**
  * Pin a universe (sets is_pinned = true).
  */
-export async function pinUniverseSubscription(userId: string, universeId: string): Promise<void> {
+export async function pinUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase
     .from(TABLE)
@@ -145,7 +163,10 @@ export async function pinUniverseSubscription(userId: string, universeId: string
 /**
  * Unpin a universe (sets is_pinned = false).
  */
-export async function unpinUniverseSubscription(userId: string, universeId: string): Promise<void> {
+export async function unpinUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase
     .from(TABLE)

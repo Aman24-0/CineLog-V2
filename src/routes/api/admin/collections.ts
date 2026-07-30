@@ -22,7 +22,10 @@
 // in the existing schema. We use the service role (bypasses RLS) for all
 // mutations, which is appropriate for admin-only access.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -51,8 +54,11 @@ interface UniverseInput {
  * stored as-is and the consumer adapter will default users to the
  * Franchise sort.
  */
-function normalizeDefaultView(v: string | undefined): "timeline" | "release" | "story" | "franchise" {
-  if (v === "release" || v === "story" || v === "franchise" || v === "timeline") return v;
+function normalizeDefaultView(
+  v: string | undefined
+): "timeline" | "release" | "story" | "franchise" {
+  if (v === "release" || v === "story" || v === "franchise" || v === "timeline")
+    return v;
   return "timeline";
 }
 
@@ -65,7 +71,9 @@ function normalizeDefaultView(v: string | undefined): "timeline" | "release" | "
  * We sniff the message for the telltale "invalid input value for enum"
  * phrase to be safe across Supabase versions.
  */
-function isEnumValueError(err: { code?: string; message?: string } | null | undefined): boolean {
+function isEnumValueError(
+  err: { code?: string; message?: string } | null | undefined
+): boolean {
   if (!err) return false;
   const msg = (err.message ?? "").toLowerCase();
   if (msg.includes("invalid input value for enum")) return true;
@@ -87,7 +95,7 @@ function demoteFranchise(v: unknown): "timeline" | "release" | "story" {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -130,7 +138,11 @@ export async function GET(event: APIEvent) {
         }
       }
 
-      return jsonResponse({ universe, entries: entries ?? [], subscriber_count });
+      return jsonResponse({
+        universe,
+        entries: entries ?? [],
+        subscriber_count
+      });
     }
 
     const { data, error } = await supabase
@@ -153,7 +165,9 @@ export async function POST(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as UniverseInput;
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as UniverseInput;
     if (!body.slug || !body.name) {
       return jsonResponse({ error: "slug and name are required" }, 400);
     }
@@ -165,7 +179,7 @@ export async function POST(event: APIEvent) {
       default_view: normalizeDefaultView(body.default_view),
       color: body.color ?? null,
       cover_url: body.cover_url ?? null,
-      banner_url: body.banner_url ?? null,
+      banner_url: body.banner_url ?? null
     };
 
     const supabase = createAdminClient();
@@ -178,8 +192,14 @@ export async function POST(event: APIEvent) {
     // Defensive: if the DB enum doesn't yet include 'franchise' (i.e.
     // the 20260724 migration hasn't been applied), retry with 'story'
     // (closest semantic match) so the save doesn't fail.
-    if (error && isEnumValueError(error) && insert.default_view === "franchise") {
-      console.warn("[admin/collections] POST: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable.");
+    if (
+      error &&
+      isEnumValueError(error) &&
+      insert.default_view === "franchise"
+    ) {
+      console.warn(
+        "[admin/collections] POST: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable."
+      );
       insert.default_view = demoteFranchise(insert.default_view);
       ({ data, error } = await supabase
         .from("curated_universes")
@@ -190,7 +210,10 @@ export async function POST(event: APIEvent) {
 
     if (error) {
       if (error.code === "23505") {
-        return jsonResponse({ error: "A universe with that slug already exists." }, 409);
+        return jsonResponse(
+          { error: "A universe with that slug already exists." },
+          409
+        );
       }
       return jsonResponse({ error: error.message }, 500);
     }
@@ -199,7 +222,7 @@ export async function POST(event: APIEvent) {
       action: "curated_universe.create",
       entity_type: "curated_universe",
       entity_id: data.id,
-      payload: { slug: data.slug, name: data.name },
+      payload: { slug: data.slug, name: data.name }
     });
 
     return jsonResponse({ universe: data }, 201);
@@ -216,7 +239,9 @@ export async function PATCH(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as UniverseInput & {
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as UniverseInput & {
       id?: string;
     };
     if (!body.id) return jsonResponse({ error: "id is required" }, 400);
@@ -229,12 +254,13 @@ export async function PATCH(event: APIEvent) {
       "default_view",
       "color",
       "cover_url",
-      "banner_url",
+      "banner_url"
     ] as const) {
       if (body[key] !== undefined) {
-        update[key] = key === "default_view"
-          ? normalizeDefaultView(body[key] as string | undefined)
-          : body[key];
+        update[key] =
+          key === "default_view"
+            ? normalizeDefaultView(body[key] as string | undefined)
+            : body[key];
       }
     }
     if (update.slug) update.slug = (update.slug as string).trim().toLowerCase();
@@ -249,8 +275,14 @@ export async function PATCH(event: APIEvent) {
 
     // Defensive: if the DB enum doesn't yet include 'franchise', retry
     // with 'story' so the update doesn't fail. Same pattern as POST.
-    if (error && isEnumValueError(error) && update.default_view === "franchise") {
-      console.warn("[admin/collections] PATCH: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable.");
+    if (
+      error &&
+      isEnumValueError(error) &&
+      update.default_view === "franchise"
+    ) {
+      console.warn(
+        "[admin/collections] PATCH: DB enum missing 'franchise' — retrying with 'story'. Apply migration 20260724_universe_default_view_franchise.sql to enable."
+      );
       update.default_view = demoteFranchise(update.default_view);
       ({ data, error } = await supabase
         .from("curated_universes")
@@ -260,13 +292,14 @@ export async function PATCH(event: APIEvent) {
         .single());
     }
 
-    if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
+    if (error || !data)
+      return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 
     await logAdminAction(event, adminResult.admin, {
       action: "curated_universe.update",
       entity_type: "curated_universe",
       entity_id: data.id,
-      payload: { changes: Object.keys(update) },
+      payload: { changes: Object.keys(update) }
     });
 
     return jsonResponse({ universe: data });
@@ -297,15 +330,21 @@ export async function DELETE(event: APIEvent) {
       .single();
 
     // Cascade: delete entries first (no FK ON DELETE CASCADE in existing schema)
-    await supabase.from("curated_universe_entries").delete().eq("universe_id", id);
-    const { error } = await supabase.from("curated_universes").delete().eq("id", id);
+    await supabase
+      .from("curated_universe_entries")
+      .delete()
+      .eq("universe_id", id);
+    const { error } = await supabase
+      .from("curated_universes")
+      .delete()
+      .eq("id", id);
     if (error) return jsonResponse({ error: error.message }, 500);
 
     await logAdminAction(event, adminResult.admin, {
       action: "curated_universe.delete",
       entity_type: "curated_universe",
       entity_id: id,
-      payload: { slug: existing?.slug, name: existing?.name },
+      payload: { slug: existing?.slug, name: existing?.name }
     });
 
     return jsonResponse({ ok: true });

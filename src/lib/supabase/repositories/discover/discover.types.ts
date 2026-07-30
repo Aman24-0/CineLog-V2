@@ -155,4 +155,7 @@ export interface DiscoverBooleanResult {
 /**
  * The Supabase client generic over the CineLog `Database` schema.
  */
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<import("../../database.types").Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<
+    import("../../database.types").Database
+  >;

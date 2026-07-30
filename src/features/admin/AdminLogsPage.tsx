@@ -54,12 +54,14 @@ const AdminLogsPage: Component = () => {
     try {
       const params = new URLSearchParams({
         page: page().toString(),
-        limit: PAGE_SIZE.toString(),
+        limit: PAGE_SIZE.toString()
       });
       if (actionFilter()) params.set("action", actionFilter());
       if (entityTypeFilter()) params.set("entity_type", entityTypeFilter());
 
-      const resp = await fetch(`/api/admin/logs?${params}`, { credentials: "include" });
+      const resp = await fetch(`/api/admin/logs?${params}`, {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -106,7 +108,7 @@ const AdminLogsPage: Component = () => {
             "font-size": "1.5rem",
             "font-weight": "700",
             margin: "0 0 var(--sp-1) 0",
-            color: "var(--text)",
+            color: "var(--text)"
           }}
         >
           Audit Logs
@@ -115,7 +117,7 @@ const AdminLogsPage: Component = () => {
           style={{
             "font-size": "0.875rem",
             color: "var(--text-muted)",
-            margin: 0,
+            margin: 0
           }}
         >
           Immutable record of all admin actions. Read-only.
@@ -129,7 +131,7 @@ const AdminLogsPage: Component = () => {
           gap: "var(--sp-3)",
           "margin-bottom": "var(--sp-4)",
           "flex-wrap": "wrap",
-          "align-items": "center",
+          "align-items": "center"
         }}
       >
         <select
@@ -164,14 +166,14 @@ const AdminLogsPage: Component = () => {
             void fetchLogs();
           }}
           style={{
-            "background": "var(--p)",
+            background: "var(--p)",
             color: "var(--on-primary)",
             border: "none",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-2) var(--sp-4)",
             "font-size": "0.8125rem",
             "font-weight": "500",
-            cursor: "pointer",
+            cursor: "pointer"
           }}
         >
           Apply
@@ -185,13 +187,13 @@ const AdminLogsPage: Component = () => {
             setTimeout(fetchLogs, 50);
           }}
           style={{
-            "background": "transparent",
+            background: "transparent",
             border: "1px solid var(--hairline-2)",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-2) var(--sp-4)",
             "font-size": "0.8125rem",
             color: "var(--text-secondary)",
-            cursor: "pointer",
+            cursor: "pointer"
           }}
         >
           Clear
@@ -201,13 +203,13 @@ const AdminLogsPage: Component = () => {
           <button
             onClick={fetchLogs}
             style={{
-              "background": "transparent",
+              background: "transparent",
               border: "1px solid var(--hairline-2)",
               "border-radius": "var(--radius-md)",
               padding: "var(--sp-2) var(--sp-4)",
               "font-size": "0.8125rem",
               color: "var(--text-secondary)",
-              cursor: "pointer",
+              cursor: "pointer"
             }}
           >
             ↻ Refresh
@@ -219,13 +221,13 @@ const AdminLogsPage: Component = () => {
         <div
           role="alert"
           style={{
-            "background": "rgba(239, 68, 68, 0.1)",
+            background: "rgba(239, 68, 68, 0.1)",
             border: "1px solid rgba(239, 68, 68, 0.3)",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-4)",
             "margin-bottom": "var(--sp-4)",
             "font-size": "0.875rem",
-            color: "rgb(252, 165, 165)",
+            color: "rgb(252, 165, 165)"
           }}
         >
           {error()}
@@ -235,10 +237,10 @@ const AdminLogsPage: Component = () => {
       {/* Logs table */}
       <div
         style={{
-          "background": "var(--tier-1)",
+          background: "var(--tier-1)",
           border: "1px solid var(--hairline)",
           "border-radius": "var(--radius-lg)",
-          overflow: "hidden",
+          overflow: "hidden"
         }}
       >
         <div style={{ "overflow-x": "auto" }}>
@@ -246,15 +248,15 @@ const AdminLogsPage: Component = () => {
             style={{
               width: "100%",
               "border-collapse": "collapse",
-              "font-size": "0.8125rem",
+              "font-size": "0.8125rem"
             }}
           >
             <thead>
               <tr
                 style={{
-                  "background": "var(--tier-2)",
+                  background: "var(--tier-2)",
                   "text-align": "left",
-                  "border-bottom": "1px solid var(--hairline)",
+                  "border-bottom": "1px solid var(--hairline)"
                 }}
               >
                 <th style={thStyle}>Time</th>
@@ -267,7 +269,14 @@ const AdminLogsPage: Component = () => {
             <tbody>
               <Show when={loading()}>
                 <tr>
-                  <td colspan={5} style={{ padding: "var(--sp-6)", "text-align": "center", color: "var(--text-muted)" }}>
+                  <td
+                    colspan={5}
+                    style={{
+                      padding: "var(--sp-6)",
+                      "text-align": "center",
+                      color: "var(--text-muted)"
+                    }}
+                  >
                     Loading…
                   </td>
                 </tr>
@@ -275,7 +284,14 @@ const AdminLogsPage: Component = () => {
 
               <Show when={!loading() && logs().length === 0}>
                 <tr>
-                  <td colspan={5} style={{ padding: "var(--sp-6)", "text-align": "center", color: "var(--text-muted)" }}>
+                  <td
+                    colspan={5}
+                    style={{
+                      padding: "var(--sp-6)",
+                      "text-align": "center",
+                      color: "var(--text-muted)"
+                    }}
+                  >
                     No log entries found
                   </td>
                 </tr>
@@ -288,19 +304,32 @@ const AdminLogsPage: Component = () => {
                     style={{
                       "border-bottom": "1px solid var(--hairline)",
                       cursor: "pointer",
-                      transition: "background 0.15s ease",
+                      transition: "background 0.15s ease"
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tier-2)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--tier-2)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
                     <td style={tdStyle}>
-                      <span style={{ "white-space": "nowrap" }}>{formatDate(log.created_at)}</span>
+                      <span style={{ "white-space": "nowrap" }}>
+                        {formatDate(log.created_at)}
+                      </span>
                     </td>
                     <td style={tdStyle}>
-                      <div style={{ "font-weight": "500", color: "var(--text)" }}>
+                      <div
+                        style={{ "font-weight": "500", color: "var(--text)" }}
+                      >
                         {log.admin_display_name ?? "Unknown"}
                       </div>
-                      <div style={{ "font-size": "0.6875rem", color: "var(--text-muted)" }}>
+                      <div
+                        style={{
+                          "font-size": "0.6875rem",
+                          color: "var(--text-muted)"
+                        }}
+                      >
                         @{log.admin_username ?? "unknown"}
                       </div>
                     </td>
@@ -309,7 +338,7 @@ const AdminLogsPage: Component = () => {
                         style={{
                           color: actionColor(log.action),
                           "font-size": "0.75rem",
-                          "font-weight": "500",
+                          "font-weight": "500"
                         }}
                       >
                         {log.action}
@@ -317,14 +346,16 @@ const AdminLogsPage: Component = () => {
                     </td>
                     <td style={tdStyle}>
                       <Show when={log.entity_type}>
-                        <span style={{ color: "var(--text-secondary)" }}>{log.entity_type}</span>
+                        <span style={{ color: "var(--text-secondary)" }}>
+                          {log.entity_type}
+                        </span>
                         <Show when={log.entity_id}>
                           <span
                             style={{
                               "font-size": "0.6875rem",
                               color: "var(--text-muted)",
                               "margin-left": "var(--sp-2)",
-                              "font-family": "monospace",
+                              "font-family": "monospace"
                             }}
                           >
                             {log.entity_id?.length && log.entity_id.length > 12
@@ -335,7 +366,13 @@ const AdminLogsPage: Component = () => {
                       </Show>
                     </td>
                     <td style={tdStyle}>
-                      <span style={{ "font-family": "monospace", "font-size": "0.75rem", color: "var(--text-muted)" }}>
+                      <span
+                        style={{
+                          "font-family": "monospace",
+                          "font-size": "0.75rem",
+                          color: "var(--text-muted)"
+                        }}
+                      >
                         {log.ip_address ?? "—"}
                       </span>
                     </td>
@@ -356,7 +393,7 @@ const AdminLogsPage: Component = () => {
             "align-items": "center",
             "margin-top": "var(--sp-4)",
             "font-size": "0.8125rem",
-            color: "var(--text-muted)",
+            color: "var(--text-muted)"
           }}
         >
           <span>
@@ -398,20 +435,20 @@ const AdminLogsPage: Component = () => {
             style={{
               position: "fixed",
               inset: 0,
-              "background": "rgba(0,0,0,0.7)",
+              background: "rgba(0,0,0,0.7)",
               "backdrop-filter": "blur(4px)",
               "z-index": 1000,
               display: "flex",
               "align-items": "center",
               "justify-content": "center",
-              padding: "var(--sp-4)",
+              padding: "var(--sp-4)"
             }}
             onClick={() => setSelected(null)}
           >
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                "background": "var(--tier-1)",
+                background: "var(--tier-1)",
                 border: "1px solid var(--hairline)",
                 "border-radius": "var(--radius-lg)",
                 padding: "var(--sp-6)",
@@ -419,7 +456,7 @@ const AdminLogsPage: Component = () => {
                 width: "100%",
                 "max-height": "80vh",
                 "overflow-y": "auto",
-                "box-shadow": "var(--shadow-xl)",
+                "box-shadow": "var(--shadow-xl)"
               }}
             >
               <div
@@ -427,7 +464,7 @@ const AdminLogsPage: Component = () => {
                   display: "flex",
                   "justify-content": "space-between",
                   "align-items": "start",
-                  "margin-bottom": "var(--sp-4)",
+                  "margin-bottom": "var(--sp-4)"
                 }}
               >
                 <h3
@@ -435,7 +472,7 @@ const AdminLogsPage: Component = () => {
                     "font-size": "1.125rem",
                     "font-weight": "600",
                     margin: 0,
-                    color: "var(--text)",
+                    color: "var(--text)"
                   }}
                 >
                   Log Detail
@@ -443,12 +480,12 @@ const AdminLogsPage: Component = () => {
                 <button
                   onClick={() => setSelected(null)}
                   style={{
-                    "background": "transparent",
+                    background: "transparent",
                     border: "none",
                     color: "var(--text-muted)",
                     "font-size": "1.25rem",
                     cursor: "pointer",
-                    "padding": "0 4px",
+                    padding: "0 4px"
                   }}
                   aria-label="Close"
                 >
@@ -456,41 +493,83 @@ const AdminLogsPage: Component = () => {
                 </button>
               </div>
 
-              <dl style={{ display: "grid", "grid-template-columns": "120px 1fr", gap: "var(--sp-2) var(--sp-4)", "font-size": "0.875rem" }}>
+              <dl
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "120px 1fr",
+                  gap: "var(--sp-2) var(--sp-4)",
+                  "font-size": "0.875rem"
+                }}
+              >
                 <dt style={{ color: "var(--text-muted)" }}>ID</dt>
-                <dd style={{ margin: 0, "font-family": "monospace", "font-size": "0.75rem", color: "var(--text-secondary)" }}>{log().id}</dd>
+                <dd
+                  style={{
+                    margin: 0,
+                    "font-family": "monospace",
+                    "font-size": "0.75rem",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  {log().id}
+                </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>Time</dt>
-                <dd style={{ margin: 0, color: "var(--text)" }}>{formatDate(log().created_at)}</dd>
+                <dd style={{ margin: 0, color: "var(--text)" }}>
+                  {formatDate(log().created_at)}
+                </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>Admin</dt>
                 <dd style={{ margin: 0, color: "var(--text)" }}>
                   {log().admin_display_name ?? "Unknown"}{" "}
-                  <span style={{ color: "var(--text-muted)" }}>@{log().admin_username ?? "unknown"}</span>
+                  <span style={{ color: "var(--text-muted)" }}>
+                    @{log().admin_username ?? "unknown"}
+                  </span>
                 </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>Action</dt>
                 <dd style={{ margin: 0 }}>
-                  <code style={{ color: actionColor(log().action) }}>{log().action}</code>
+                  <code style={{ color: actionColor(log().action) }}>
+                    {log().action}
+                  </code>
                 </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>Entity</dt>
                 <dd style={{ margin: 0, color: "var(--text-secondary)" }}>
                   {log().entity_type ?? "—"}
                   <Show when={log().entity_id}>
-                    <span style={{ "font-family": "monospace", "font-size": "0.75rem", "margin-left": "var(--sp-2)" }}>
+                    <span
+                      style={{
+                        "font-family": "monospace",
+                        "font-size": "0.75rem",
+                        "margin-left": "var(--sp-2)"
+                      }}
+                    >
                       {log().entity_id}
                     </span>
                   </Show>
                 </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>IP</dt>
-                <dd style={{ margin: 0, "font-family": "monospace", "font-size": "0.75rem", color: "var(--text-secondary)" }}>
+                <dd
+                  style={{
+                    margin: 0,
+                    "font-family": "monospace",
+                    "font-size": "0.75rem",
+                    color: "var(--text-secondary)"
+                  }}
+                >
                   {log().ip_address ?? "—"}
                 </dd>
 
                 <dt style={{ color: "var(--text-muted)" }}>User-Agent</dt>
-                <dd style={{ margin: 0, "font-size": "0.75rem", color: "var(--text-muted)", "word-break": "break-all" }}>
+                <dd
+                  style={{
+                    margin: 0,
+                    "font-size": "0.75rem",
+                    color: "var(--text-muted)",
+                    "word-break": "break-all"
+                  }}
+                >
                   {log().user_agent ?? "—"}
                 </dd>
               </dl>
@@ -504,14 +583,14 @@ const AdminLogsPage: Component = () => {
                       color: "var(--text-muted)",
                       "text-transform": "uppercase",
                       "letter-spacing": "0.05em",
-                      "margin-bottom": "var(--sp-2)",
+                      "margin-bottom": "var(--sp-2)"
                     }}
                   >
                     Payload
                   </div>
                   <pre
                     style={{
-                      "background": "var(--tier-2)",
+                      background: "var(--tier-2)",
                       border: "1px solid var(--hairline)",
                       "border-radius": "var(--radius-md)",
                       padding: "var(--sp-3)",
@@ -522,7 +601,7 @@ const AdminLogsPage: Component = () => {
                       "word-break": "break-all",
                       margin: 0,
                       "max-height": "300px",
-                      "overflow-y": "auto",
+                      "overflow-y": "auto"
                     }}
                   >
                     {JSON.stringify(log().payload, null, 2)}
@@ -543,36 +622,36 @@ const thStyle: Record<string, string> = {
   padding: "var(--sp-3) var(--sp-4)",
   "font-weight": "600",
   color: "var(--text-secondary)",
-  "text-align": "left",
+  "text-align": "left"
 };
 
 const tdStyle: Record<string, string> = {
   padding: "var(--sp-3) var(--sp-4)",
   color: "var(--text-secondary)",
-  "vertical-align": "top",
+  "vertical-align": "top"
 };
 
 const inputStyle: Record<string, string> = {
   padding: "var(--sp-2) var(--sp-3)",
-  "background": "var(--tier-2)",
+  background: "var(--tier-2)",
   border: "1px solid var(--hairline-2)",
   "border-radius": "var(--radius-md)",
   color: "var(--text)",
   "font-size": "0.8125rem",
   outline: "none",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 function pageBtnStyle(disabled: boolean): Record<string, string> {
   return {
-    "background": "transparent",
+    background: "transparent",
     border: "1px solid var(--hairline-2)",
     "border-radius": "var(--radius-sm)",
     padding: "6px 12px",
     "font-size": "0.8125rem",
     color: disabled ? "var(--text-muted)" : "var(--text-secondary)",
     cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? "0.5" : "1",
+    opacity: disabled ? "0.5" : "1"
   };
 }
 

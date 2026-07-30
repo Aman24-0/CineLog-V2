@@ -45,7 +45,7 @@ import {
   createEffect,
   Show,
   For,
-  type Component,
+  type Component
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -66,11 +66,11 @@ import { useNotifications } from "./hooks/useNotifications";
 import DateRangePicker, { type DateRange } from "./components/DateRangePicker";
 import ViewToggle, {
   loadUpcomingView,
-  saveUpcomingView,
+  saveUpcomingView
 } from "./components/ViewToggle";
 import SortDropdown, {
   loadUpcomingSort,
-  saveUpcomingSort,
+  saveUpcomingSort
 } from "./components/SortDropdown";
 import UpcomingCard from "./components/UpcomingCard";
 import CalendarView from "./components/CalendarView";
@@ -155,11 +155,14 @@ const UpcomingPage: Component = () => {
     genres: [],
     platforms: [],
     minRating: 0,
-    mediaType: "all",
+    mediaType: "all"
   });
 
-  const [filters, setFilters] = createSignal<UpcomingFilters>(buildDefaultFilters());
-  const [draftFilters, setDraftFilters] = createSignal<UpcomingFilters>(filters());
+  const [filters, setFilters] = createSignal<UpcomingFilters>(
+    buildDefaultFilters()
+  );
+  const [draftFilters, setDraftFilters] =
+    createSignal<UpcomingFilters>(filters());
   const [filterSheetOpen, setFilterSheetOpen] = createSignal(false);
   const [sort, setSort] = createSignal(loadUpcomingSort());
   const [view, setView] = createSignal(loadUpcomingView());
@@ -193,9 +196,9 @@ const UpcomingPage: Component = () => {
       endDate: () => filters().dateRange.end,
       genres: () => filters().genres,
       mediaType: () => filters().mediaType,
-      sortBy: sort,
+      sortBy: sort
     },
-    notif.reminders,
+    notif.reminders
   );
 
   // ── Vault membership ────────────────────────────────────────────
@@ -209,9 +212,10 @@ const UpcomingPage: Component = () => {
     }
   });
   const vaultIds = createMemo<Set<string>>(
-    () => new Set(watchlist().map((w) => String(w.id))),
+    () => new Set(watchlist().map((w) => String(w.id)))
   );
-  const inVault = (title: TMDBTitle): boolean => vaultIds().has(String(title.id));
+  const inVault = (title: TMDBTitle): boolean =>
+    vaultIds().has(String(title.id));
 
   // ── Handlers ────────────────────────────────────────────────────
   const handleOpen = (title: TMDBTitle) => {
@@ -226,7 +230,7 @@ const UpcomingPage: Component = () => {
       release_date: title.release_date,
       first_air_date: title.first_air_date,
       genresList: normalizeGenres(title.genres as unknown[]),
-      director: title.director,
+      director: title.director
     };
     openTitle(baseItem, watchlist());
   };
@@ -238,13 +242,13 @@ const UpcomingPage: Component = () => {
     try {
       // Fetch the trailer from TMDB via the server proxy.
       const res = await fetch(
-        `/api/media/${title.media_type}/${title.id}/videos?language=en-US`,
+        `/api/media/${title.media_type}/${title.id}/videos?language=en-US`
       );
       if (!res.ok) throw new Error("Failed to load trailer");
       const json = await res.json();
       const yt = (json.results ?? []).find(
         (v: { site?: string; type?: string; key?: string }) =>
-          v.site === "YouTube" && v.type === "Trailer" && v.key,
+          v.site === "YouTube" && v.type === "Trailer" && v.key
       );
       if (yt?.key) {
         setTrailerVideoId(yt.key);
@@ -274,7 +278,7 @@ const UpcomingPage: Component = () => {
         release_date: title.release_date,
         first_air_date: title.first_air_date,
         genresList: normalizeGenres(title.genres as unknown[]),
-        director: title.director,
+        director: title.director
       };
       await createVaultItemInSupabase(uid, item);
       cacheMetadataEntries([
@@ -282,8 +286,8 @@ const UpcomingPage: Component = () => {
           key: buildCacheKey(title.media_type, title.id),
           tmdb_id: title.id,
           media_type: title.media_type,
-          data: title,
-        },
+          data: title
+        }
       ]).catch(() => {});
       const name = title.title || title.name || "Title";
       toast.showToast(`Added "${name}" to your vault`, "success");
@@ -303,7 +307,8 @@ const UpcomingPage: Component = () => {
     if (data.isReminderSet(id)) {
       await notif.cancelReminder(id);
     } else {
-      const releaseDate = title.episodeAirDate || title.release_date || title.first_air_date;
+      const releaseDate =
+        title.episodeAirDate || title.release_date || title.first_air_date;
       if (!releaseDate) {
         toast.showToast("No release date available for this title.", "info");
         return;
@@ -313,12 +318,7 @@ const UpcomingPage: Component = () => {
       // TMDBTitle uses "movie" | "tv". Map here so the repo stays clean.
       const reminderType: "movie" | "series" =
         title.media_type === "tv" ? "series" : "movie";
-      await notif.scheduleReminder(
-        id,
-        reminderType,
-        releaseDate,
-        name,
-      );
+      await notif.scheduleReminder(id, reminderType, releaseDate, name);
     }
   };
 
@@ -333,7 +333,7 @@ const UpcomingPage: Component = () => {
     const shareData = {
       title: `CineLog — ${name}`,
       text: `Check out ${name} on CineLog.`,
-      url,
+      url
     };
     try {
       if (typeof navigator !== "undefined" && navigator.share) {
@@ -409,14 +409,20 @@ const UpcomingPage: Component = () => {
   });
 
   // ── Loading + empty state ──────────────────────────────────────
-  const isEmpty = createMemo(() => !data.loading() && data.titles().length === 0);
+  const isEmpty = createMemo(
+    () => !data.loading() && data.titles().length === 0
+  );
 
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
       <div class="sec-page sec-fade-in upcoming-page">
         {/* Header */}
         <div class="sec-header">
-          <a href="/profile" class="sec-back focus-ring" aria-label="Back to profile">
+          <a
+            href="/profile"
+            class="sec-back focus-ring"
+            aria-label="Back to profile"
+          >
             <span
               class="material-symbols-outlined"
               style={{ "font-size": "14px" }}
@@ -450,7 +456,9 @@ const UpcomingPage: Component = () => {
                 onClick={openFilterSheet}
                 aria-label="Open filters"
               >
-                <span class="material-symbols-outlined" aria-hidden="true">tune</span>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  tune
+                </span>
                 <Show when={activeFilterCount() > 0}>
                   <span class="upcoming-filter-badge" aria-hidden="true">
                     {activeFilterCount()}
@@ -495,10 +503,13 @@ const UpcomingPage: Component = () => {
                     <Show when={selectedDay()}>
                       <div class="upcoming-calendar-day-detail">
                         <h3 class="upcoming-calendar-day-title">
-                          {new Date(selectedDay()! + "T00:00:00").toLocaleDateString(
-                            undefined,
-                            { weekday: "long", month: "long", day: "numeric" },
-                          )}
+                          {new Date(
+                            selectedDay()! + "T00:00:00"
+                          ).toLocaleDateString(undefined, {
+                            weekday: "long",
+                            month: "long",
+                            day: "numeric"
+                          })}
                         </h3>
                         <Show
                           when={selectedDayTitles().length > 0}
@@ -513,7 +524,9 @@ const UpcomingPage: Component = () => {
                               {(t) => (
                                 <UpcomingCard
                                   title={t}
-                                  isReminderSet={data.isReminderSet(String(t.id))}
+                                  isReminderSet={data.isReminderSet(
+                                    String(t.id)
+                                  )}
                                   inVault={inVault(t)}
                                   onOpen={handleOpen}
                                   onTrailer={handleTrailer}
@@ -610,7 +623,13 @@ const UpcomingPage: Component = () => {
 
 // Skeleton loader for the list view — 4 fake cards.
 const UpcomingSkeleton: Component = () => (
-  <div class="upcoming-list-view">
+  <div
+    class="upcoming-list-view"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+    aria-label="Loading upcoming releases"
+  >
     <For each={Array.from({ length: 4 })}>
       {() => (
         <div class="upcoming-card upcoming-card-skeleton">

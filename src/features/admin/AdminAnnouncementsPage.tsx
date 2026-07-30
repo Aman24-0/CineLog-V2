@@ -14,7 +14,14 @@
 //   PATCH  /api/admin/announcements
 //   DELETE /api/admin/announcements?id=<uuid>
 
-import { createSignal, Show, For, onMount, type Component, type JSX } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  type Component,
+  type JSX
+} from "solid-js";
 
 interface Announcement {
   id: string;
@@ -60,17 +67,36 @@ const emptyForm: FormData = {
   is_active: false,
   starts_at: "",
   ends_at: "",
-  target_audience: "all",
+  target_audience: "all"
 };
 
-const SEVERITY_STYLES: Record<string, { bg: string; fg: string; icon: string }> = {
-  info: { bg: "rgba(59, 130, 246, 0.15)", fg: "rgb(147, 197, 253)", icon: "ℹ️" },
-  success: { bg: "rgba(34, 197, 94, 0.15)", fg: "rgb(134, 239, 172)", icon: "✅" },
-  warning: { bg: "rgba(245, 158, 11, 0.15)", fg: "rgb(252, 211, 77)", icon: "⚠️" },
-  error: { bg: "rgba(239, 68, 68, 0.15)", fg: "rgb(252, 165, 165)", icon: "🛑" },
+const SEVERITY_STYLES: Record<
+  string,
+  { bg: string; fg: string; icon: string }
+> = {
+  info: {
+    bg: "rgba(59, 130, 246, 0.15)",
+    fg: "rgb(147, 197, 253)",
+    icon: "ℹ️"
+  },
+  success: {
+    bg: "rgba(34, 197, 94, 0.15)",
+    fg: "rgb(134, 239, 172)",
+    icon: "✅"
+  },
+  warning: {
+    bg: "rgba(245, 158, 11, 0.15)",
+    fg: "rgb(252, 211, 77)",
+    icon: "⚠️"
+  },
+  error: { bg: "rgba(239, 68, 68, 0.15)", fg: "rgb(252, 165, 165)", icon: "🛑" }
 };
 
-const TYPE_ICONS: Record<string, string> = { banner: "📜", toast: "🍞", modal: "🔲" };
+const TYPE_ICONS: Record<string, string> = {
+  banner: "📜",
+  toast: "🍞",
+  modal: "🔲"
+};
 
 const AdminAnnouncementsPage: Component = () => {
   const [items, setItems] = createSignal<Announcement[]>([]);
@@ -80,7 +106,10 @@ const AdminAnnouncementsPage: Component = () => {
   const [modalOpen, setModalOpen] = createSignal(false);
   const [form, setForm] = createSignal<FormData>(emptyForm);
   const [saving, setSaving] = createSignal(false);
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
@@ -91,7 +120,7 @@ const AdminAnnouncementsPage: Component = () => {
     try {
       const resp = await fetch(
         `/api/admin/announcements?include_deleted=${showDeleted() ? "true" : "false"}`,
-        { credentials: "include" },
+        { credentials: "include" }
       );
       if (!resp.ok) {
         if (resp.status === 401) {
@@ -130,7 +159,7 @@ const AdminAnnouncementsPage: Component = () => {
       is_active: a.is_active,
       starts_at: a.starts_at ? a.starts_at.slice(0, 16) : "",
       ends_at: a.ends_at ? a.ends_at.slice(0, 16) : "",
-      target_audience: a.target_audience,
+      target_audience: a.target_audience
     });
     setModalOpen(true);
   };
@@ -152,9 +181,11 @@ const AdminAnnouncementsPage: Component = () => {
         cta_href: form().cta_href || null,
         is_dismissible: form().is_dismissible,
         is_active: form().is_active,
-        starts_at: form().starts_at ? new Date(form().starts_at).toISOString() : null,
+        starts_at: form().starts_at
+          ? new Date(form().starts_at).toISOString()
+          : null,
         ends_at: form().ends_at ? new Date(form().ends_at).toISOString() : null,
-        target_audience: form().target_audience,
+        target_audience: form().target_audience
       };
 
       const isEdit = !!form().id;
@@ -162,14 +193,17 @@ const AdminAnnouncementsPage: Component = () => {
         method: isEdit ? "PATCH" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
         showToast(body.error || "Failed to save", "error");
         return;
       }
-      showToast(isEdit ? "Announcement updated" : "Announcement created", "success");
+      showToast(
+        isEdit ? "Announcement updated" : "Announcement created",
+        "success"
+      );
       setModalOpen(false);
       await fetchList();
     } catch {
@@ -185,14 +219,16 @@ const AdminAnnouncementsPage: Component = () => {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: a.id, is_active: !a.is_active }),
+        body: JSON.stringify({ id: a.id, is_active: !a.is_active })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
         showToast(body.error || "Failed", "error");
         return;
       }
-      setItems((prev) => prev.map((x) => (x.id === a.id ? body.announcement : x)));
+      setItems((prev) =>
+        prev.map((x) => (x.id === a.id ? body.announcement : x))
+      );
     } catch {
       showToast("Network error", "error");
     }
@@ -203,7 +239,7 @@ const AdminAnnouncementsPage: Component = () => {
     try {
       const resp = await fetch(`/api/admin/announcements?id=${a.id}`, {
         method: "DELETE",
-        credentials: "include",
+        credentials: "include"
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -219,17 +255,48 @@ const AdminAnnouncementsPage: Component = () => {
 
   return (
     <div>
-      <div style={{ "margin-bottom": "var(--sp-6)", display: "flex", "justify-content": "space-between", "align-items": "flex-start", gap: "var(--sp-4)" }}>
+      <div
+        style={{
+          "margin-bottom": "var(--sp-6)",
+          display: "flex",
+          "justify-content": "space-between",
+          "align-items": "flex-start",
+          gap: "var(--sp-4)"
+        }}
+      >
         <div>
-          <h2 style={{ "font-size": "1.5rem", "font-weight": "700", margin: "0 0 var(--sp-1) 0", color: "var(--text)" }}>
+          <h2
+            style={{
+              "font-size": "1.5rem",
+              "font-weight": "700",
+              margin: "0 0 var(--sp-1) 0",
+              color: "var(--text)"
+            }}
+          >
             Announcements
           </h2>
-          <p style={{ "font-size": "0.875rem", color: "var(--text-muted)", margin: 0 }}>
-            Show banners, toasts, or modals to all users. Schedule with start/end times.
+          <p
+            style={{
+              "font-size": "0.875rem",
+              color: "var(--text-muted)",
+              margin: 0
+            }}
+          >
+            Show banners, toasts, or modals to all users. Schedule with
+            start/end times.
           </p>
         </div>
         <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-          <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text-muted)", cursor: "pointer" }}>
+          <label
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "var(--sp-2)",
+              "font-size": "0.875rem",
+              color: "var(--text-muted)",
+              cursor: "pointer"
+            }}
+          >
             <input
               type="checkbox"
               checked={showDeleted()}
@@ -237,30 +304,53 @@ const AdminAnnouncementsPage: Component = () => {
             />
             Show deleted
           </label>
-          <button onClick={openNew} style={btnPrimary}>+ New</button>
+          <button onClick={openNew} style={btnPrimary}>
+            + New
+          </button>
         </div>
       </div>
 
       <Show when={error()}>
-        <div role="alert" style={alertError}>Failed to load: {error()}</div>
+        <div role="alert" style={alertError}>
+          Failed to load: {error()}
+        </div>
       </Show>
 
       <Show when={loading()}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
-          {Array.from({ length: 3 }).map(() => (
-            <div style={{ ...skeletonCard, height: "80px" }} />
-          ))}
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-3)"
+          }}
+        >
+          <For each={Array.from({ length: 3 })}>
+            {() => <div style={{ ...skeletonCard, height: "80px" }} />}
+          </For>
         </div>
       </Show>
 
       <Show when={!loading() && items().length === 0}>
-        <div style={{ ...cardStyle, "justify-content": "center", color: "var(--text-muted)", "font-size": "0.9rem" }}>
+        <div
+          style={{
+            ...cardStyle,
+            "justify-content": "center",
+            color: "var(--text-muted)",
+            "font-size": "0.9rem"
+          }}
+        >
           No announcements yet. Click "+ New" to create one.
         </div>
       </Show>
 
       <Show when={!loading() && items().length > 0}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-2)"
+          }}
+        >
           <For each={items()}>
             {(a) => {
               const sev = SEVERITY_STYLES[a.severity];
@@ -269,10 +359,18 @@ const AdminAnnouncementsPage: Component = () => {
                   style={{
                     ...cardStyle,
                     opacity: a.deleted_at ? 0.45 : a.is_active ? 1 : 0.7,
-                    "border-color": a.is_active ? sev.fg : "var(--hairline)",
+                    "border-color": a.is_active ? sev.fg : "var(--hairline)"
                   }}
                 >
-                  <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)", flex: 1, "min-width": 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      "align-items": "center",
+                      gap: "var(--sp-3)",
+                      flex: 1,
+                      "min-width": 0
+                    }}
+                  >
                     <div
                       style={{
                         background: sev.bg,
@@ -284,39 +382,91 @@ const AdminAnnouncementsPage: Component = () => {
                         "align-items": "center",
                         "justify-content": "center",
                         "font-size": "1.25rem",
-                        "flex-shrink": 0,
+                        "flex-shrink": 0
                       }}
                     >
                       {sev.icon}
                     </div>
                     <div style={{ flex: 1, "min-width": 0 }}>
-                      <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)" }}>
-                        <span style={{ "font-weight": "600", color: "var(--text)", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          "align-items": "center",
+                          gap: "var(--sp-2)"
+                        }}
+                      >
+                        <span
+                          style={{
+                            "font-weight": "600",
+                            color: "var(--text)",
+                            overflow: "hidden",
+                            "text-overflow": "ellipsis",
+                            "white-space": "nowrap"
+                          }}
+                        >
                           {a.title}
                         </span>
-                        <span style={{ "font-size": "0.7rem", color: "var(--text-muted)", "flex-shrink": 0 }}>
+                        <span
+                          style={{
+                            "font-size": "0.7rem",
+                            color: "var(--text-muted)",
+                            "flex-shrink": 0
+                          }}
+                        >
                           {TYPE_ICONS[a.type]} {a.type}
                         </span>
                         <Show when={a.target_audience !== "all"}>
-                          <span style={{ "font-size": "0.7rem", color: "var(--text-muted)", "flex-shrink": 0 }}>
+                          <span
+                            style={{
+                              "font-size": "0.7rem",
+                              color: "var(--text-muted)",
+                              "flex-shrink": 0
+                            }}
+                          >
                             → {a.target_audience}
                           </span>
                         </Show>
                       </div>
-                      <div style={{ "font-size": "0.8rem", color: "var(--text-muted)", "margin-top": "2px", overflow: "hidden", "text-overflow": "ellipsis", "white-space": "nowrap" }}>
+                      <div
+                        style={{
+                          "font-size": "0.8rem",
+                          color: "var(--text-muted)",
+                          "margin-top": "2px",
+                          overflow: "hidden",
+                          "text-overflow": "ellipsis",
+                          "white-space": "nowrap"
+                        }}
+                      >
                         {a.body || <em style={{ opacity: 0.6 }}>No body</em>}
                       </div>
-                      <div style={{ "font-size": "0.7rem", color: "var(--text-muted)", "margin-top": "4px" }}>
+                      <div
+                        style={{
+                          "font-size": "0.7rem",
+                          color: "var(--text-muted)",
+                          "margin-top": "4px"
+                        }}
+                      >
                         Created {new Date(a.created_at).toLocaleString()}
                         <Show when={a.starts_at || a.ends_at}>
                           {" • "}
-                          {a.starts_at ? `from ${new Date(a.starts_at).toLocaleDateString()}` : ""}
-                          {a.ends_at ? ` until ${new Date(a.ends_at).toLocaleDateString()}` : ""}
+                          {a.starts_at
+                            ? `from ${new Date(a.starts_at).toLocaleDateString()}`
+                            : ""}
+                          {a.ends_at
+                            ? ` until ${new Date(a.ends_at).toLocaleDateString()}`
+                            : ""}
                         </Show>
                       </div>
                     </div>
                   </div>
-                  <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "flex-shrink": 0 }}>
+                  <div
+                    style={{
+                      display: "flex",
+                      "align-items": "center",
+                      gap: "var(--sp-2)",
+                      "flex-shrink": 0
+                    }}
+                  >
                     <Show when={!a.deleted_at}>
                       <button
                         onClick={() => toggleActive(a)}
@@ -324,12 +474,32 @@ const AdminAnnouncementsPage: Component = () => {
                       >
                         {a.is_active ? "ACTIVE" : "INACTIVE"}
                       </button>
-                      <button onClick={() => openEdit(a)} style={iconBtn} title="Edit" aria-label="Edit announcement">✏️</button>
-                      <button onClick={() => remove(a)} style={iconBtnDanger} title="Delete" aria-label="Delete announcement">🗑️</button>
+                      <button
+                        onClick={() => openEdit(a)}
+                        style={iconBtn}
+                        title="Edit"
+                        aria-label="Edit announcement"
+                      >
+                        ✏️
+                      </button>
+                      <button
+                        onClick={() => remove(a)}
+                        style={iconBtnDanger}
+                        title="Delete"
+                        aria-label="Delete announcement"
+                      >
+                        🗑️
+                      </button>
                     </Show>
                     <Show when={a.deleted_at}>
-                      <span style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
-                        Deleted {new Date(a.deleted_at ?? "").toLocaleDateString()}
+                      <span
+                        style={{
+                          "font-size": "0.75rem",
+                          color: "var(--text-muted)"
+                        }}
+                      >
+                        Deleted{" "}
+                        {new Date(a.deleted_at ?? "").toLocaleDateString()}
                       </span>
                     </Show>
                   </div>
@@ -352,7 +522,7 @@ const AdminAnnouncementsPage: Component = () => {
             "align-items": "center",
             "justify-content": "center",
             padding: "var(--sp-4)",
-            "backdrop-filter": "blur(4px)",
+            "backdrop-filter": "blur(4px)"
           }}
           onClick={() => !saving() && setModalOpen(false)}
         >
@@ -365,30 +535,55 @@ const AdminAnnouncementsPage: Component = () => {
               width: "100%",
               "max-height": "90vh",
               "overflow-y": "auto",
-              padding: "var(--sp-6)",
+              padding: "var(--sp-6)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 var(--sp-4) 0", "font-size": "1.25rem", color: "var(--text)" }}>
+            <h3
+              style={{
+                margin: "0 0 var(--sp-4) 0",
+                "font-size": "1.25rem",
+                color: "var(--text)"
+              }}
+            >
               {form().id ? "Edit Announcement" : "New Announcement"}
             </h3>
 
-            <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
+            <div
+              style={{
+                display: "flex",
+                "flex-direction": "column",
+                gap: "var(--sp-3)"
+              }}
+            >
               <Field label="Title *">
                 <input
                   style={inputStyle}
                   value={form().title}
-                  onInput={(e) => setForm({ ...form(), title: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setForm({ ...form(), title: e.currentTarget.value })
+                  }
                   placeholder="Maintenance window this Sunday"
                 />
               </Field>
 
-              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "var(--sp-3)" }}>
+              <div
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "1fr 1fr",
+                  gap: "var(--sp-3)"
+                }}
+              >
                 <Field label="Type">
                   <select
                     style={inputStyle}
                     value={form().type}
-                    onChange={(e) => setForm({ ...form(), type: e.currentTarget.value as FormData["type"] })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form(),
+                        type: e.currentTarget.value as FormData["type"]
+                      })
+                    }
                   >
                     <option value="banner">📜 Banner (top of page)</option>
                     <option value="toast">🍞 Toast (corner popup)</option>
@@ -399,7 +594,12 @@ const AdminAnnouncementsPage: Component = () => {
                   <select
                     style={inputStyle}
                     value={form().severity}
-                    onChange={(e) => setForm({ ...form(), severity: e.currentTarget.value as FormData["severity"] })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form(),
+                        severity: e.currentTarget.value as FormData["severity"]
+                      })
+                    }
                   >
                     <option value="info">ℹ️ Info</option>
                     <option value="success">✅ Success</option>
@@ -411,19 +611,33 @@ const AdminAnnouncementsPage: Component = () => {
 
               <Field label="Body">
                 <textarea
-                  style={{ ...inputStyle, "min-height": "80px", resize: "vertical" }}
+                  style={{
+                    ...inputStyle,
+                    "min-height": "80px",
+                    resize: "vertical"
+                  }}
                   value={form().body}
-                  onInput={(e) => setForm({ ...form(), body: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setForm({ ...form(), body: e.currentTarget.value })
+                  }
                   placeholder="Details about the announcement…"
                 />
               </Field>
 
-              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "var(--sp-3)" }}>
+              <div
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "1fr 1fr",
+                  gap: "var(--sp-3)"
+                }}
+              >
                 <Field label="CTA Label">
                   <input
                     style={inputStyle}
                     value={form().cta_label}
-                    onInput={(e) => setForm({ ...form(), cta_label: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), cta_label: e.currentTarget.value })
+                    }
                     placeholder="Read more"
                   />
                 </Field>
@@ -431,19 +645,29 @@ const AdminAnnouncementsPage: Component = () => {
                   <input
                     style={inputStyle}
                     value={form().cta_href}
-                    onInput={(e) => setForm({ ...form(), cta_href: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), cta_href: e.currentTarget.value })
+                    }
                     placeholder="/blog/maintenance"
                   />
                 </Field>
               </div>
 
-              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "var(--sp-3)" }}>
+              <div
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "1fr 1fr",
+                  gap: "var(--sp-3)"
+                }}
+              >
                 <Field label="Starts At (optional)">
                   <input
                     type="datetime-local"
                     style={inputStyle}
                     value={form().starts_at}
-                    onInput={(e) => setForm({ ...form(), starts_at: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), starts_at: e.currentTarget.value })
+                    }
                   />
                 </Field>
                 <Field label="Ends At (optional)">
@@ -451,7 +675,9 @@ const AdminAnnouncementsPage: Component = () => {
                     type="datetime-local"
                     style={inputStyle}
                     value={form().ends_at}
-                    onInput={(e) => setForm({ ...form(), ends_at: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), ends_at: e.currentTarget.value })
+                    }
                   />
                 </Field>
               </div>
@@ -460,36 +686,86 @@ const AdminAnnouncementsPage: Component = () => {
                 <select
                   style={inputStyle}
                   value={form().target_audience}
-                  onChange={(e) => setForm({ ...form(), target_audience: e.currentTarget.value as FormData["target_audience"] })}
+                  onChange={(e) =>
+                    setForm({
+                      ...form(),
+                      target_audience: e.currentTarget
+                        .value as FormData["target_audience"]
+                    })
+                  }
                 >
                   <option value="all">All users</option>
                   <option value="guests">Guests only (not signed in)</option>
-                  <option value="authenticated">Authenticated users only</option>
+                  <option value="authenticated">
+                    Authenticated users only
+                  </option>
                 </select>
               </Field>
 
-              <div style={{ display: "flex", gap: "var(--sp-4)", "margin-top": "var(--sp-1)" }}>
-                <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text)", cursor: "pointer" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--sp-4)",
+                  "margin-top": "var(--sp-1)"
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)",
+                    "font-size": "0.875rem",
+                    color: "var(--text)",
+                    cursor: "pointer"
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={form().is_active}
-                    onChange={(e) => setForm({ ...form(), is_active: e.currentTarget.checked })}
+                    onChange={(e) =>
+                      setForm({ ...form(), is_active: e.currentTarget.checked })
+                    }
                   />
                   Active
                 </label>
-                <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text)", cursor: "pointer" }}>
+                <label
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)",
+                    "font-size": "0.875rem",
+                    color: "var(--text)",
+                    cursor: "pointer"
+                  }}
+                >
                   <input
                     type="checkbox"
                     checked={form().is_dismissible}
-                    onChange={(e) => setForm({ ...form(), is_dismissible: e.currentTarget.checked })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form(),
+                        is_dismissible: e.currentTarget.checked
+                      })
+                    }
                   />
                   Dismissible
                 </label>
               </div>
             </div>
 
-            <div style={{ display: "flex", "justify-content": "flex-end", gap: "var(--sp-2)", "margin-top": "var(--sp-5)" }}>
-              <button onClick={() => setModalOpen(false)} style={btnSecondary} disabled={saving()}>
+            <div
+              style={{
+                display: "flex",
+                "justify-content": "flex-end",
+                gap: "var(--sp-2)",
+                "margin-top": "var(--sp-5)"
+              }}
+            >
+              <button
+                onClick={() => setModalOpen(false)}
+                style={btnSecondary}
+                disabled={saving()}
+              >
                 Cancel
               </button>
               <button onClick={save} style={btnPrimary} disabled={saving()}>
@@ -511,10 +787,18 @@ const AdminAnnouncementsPage: Component = () => {
 
 // ─── Sub-components ─────────────────────────────────────────────────
 
-function Field(props: { label: string; children: any }) {
+function Field(props: { label: string; children: JSX.Element }) {
   return (
     <div>
-      <label style={{ display: "block", "font-size": "0.8rem", color: "var(--text-muted)", "margin-bottom": "var(--sp-1)", "font-weight": "500" }}>
+      <label
+        style={{
+          display: "block",
+          "font-size": "0.8rem",
+          color: "var(--text-muted)",
+          "margin-bottom": "var(--sp-1)",
+          "font-weight": "500"
+        }}
+      >
         {props.label}
       </label>
       {props.children}
@@ -531,14 +815,14 @@ const cardStyle: JSX.CSSProperties = {
   padding: "var(--sp-3) var(--sp-4)",
   display: "flex",
   "align-items": "center",
-  gap: "var(--sp-3)",
+  gap: "var(--sp-3)"
 };
 
 const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
-  "animation": "pulse 1.5s ease-in-out infinite",
+  animation: "pulse 1.5s ease-in-out infinite"
 };
 
 const alertError: JSX.CSSProperties = {
@@ -548,7 +832,7 @@ const alertError: JSX.CSSProperties = {
   padding: "var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 };
 
 const inputStyle: JSX.CSSProperties = {
@@ -560,7 +844,7 @@ const inputStyle: JSX.CSSProperties = {
   color: "var(--text)",
   "font-size": "0.875rem",
   "font-family": "inherit",
-  "box-sizing": "border-box",
+  "box-sizing": "border-box"
 };
 
 const btnPrimary: JSX.CSSProperties = {
@@ -571,7 +855,7 @@ const btnPrimary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnSecondary: JSX.CSSProperties = {
@@ -582,7 +866,7 @@ const btnSecondary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const iconBtn: JSX.CSSProperties = {
@@ -595,12 +879,12 @@ const iconBtn: JSX.CSSProperties = {
   "font-size": "0.9rem",
   display: "flex",
   "align-items": "center",
-  "justify-content": "center",
+  "justify-content": "center"
 };
 
 const iconBtnDanger: JSX.CSSProperties = {
   ...iconBtn,
-  "border-color": "rgba(239, 68, 68, 0.3)",
+  "border-color": "rgba(239, 68, 68, 0.3)"
 };
 
 const toggleOn: JSX.CSSProperties = {
@@ -611,7 +895,7 @@ const toggleOn: JSX.CSSProperties = {
   "border-radius": "var(--radius-sm)",
   "font-weight": "700",
   "font-size": "0.7rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const toggleOff: JSX.CSSProperties = {
@@ -622,7 +906,7 @@ const toggleOff: JSX.CSSProperties = {
   "border-radius": "var(--radius-sm)",
   "font-weight": "700",
   "font-size": "0.7rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 function toastStyle(success: boolean): JSX.CSSProperties {
@@ -637,7 +921,7 @@ function toastStyle(success: boolean): JSX.CSSProperties {
     "border-radius": "var(--radius-md)",
     "font-size": "0.875rem",
     "font-weight": "600",
-    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)",
+    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
   };
 }
 

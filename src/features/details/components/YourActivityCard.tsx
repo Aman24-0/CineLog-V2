@@ -128,7 +128,9 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         }
       }
       if (candidates.length > 0) {
-        const latest = new Date(Math.max(...candidates.map((d) => d.getTime())));
+        const latest = new Date(
+          Math.max(...candidates.map((d) => d.getTime()))
+        );
         return formatDateShort(latest);
       }
       // Fall back to flat watchDate if no season dates set
@@ -139,7 +141,8 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       return null;
     }
     // Movie
-    const raw = props.vaultItem.watchDate || props.vaultItem.rewatchDates?.[0] || "";
+    const raw =
+      props.vaultItem.watchDate || props.vaultItem.rewatchDates?.[0] || "";
     if (!raw) return null;
     return formatDateShort(raw) ?? raw;
   };
@@ -159,7 +162,9 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
    *
    * Used for both the original watch and each re-watch pass.
    */
-  const formatSeasonRange = (entry: { start?: string; end?: string } | undefined): string | null => {
+  const formatSeasonRange = (
+    entry: { start?: string; end?: string } | undefined
+  ): string | null => {
     if (!entry) return null;
     const startStr = entry.start ? formatDateShort(entry.start) : null;
     const endStr = entry.end ? formatDateShort(entry.end) : null;
@@ -184,7 +189,10 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         out.push({ label: "No season dates set", date: null });
       } else {
         for (const s of seasonNumbers) {
-          out.push({ label: `Season ${s}`, date: formatSeasonRange(seasonDates[String(s)]) });
+          out.push({
+            label: `Season ${s}`,
+            date: formatSeasonRange(seasonDates[String(s)])
+          });
         }
       }
 
@@ -201,7 +209,10 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
           out.push({ label: "No season dates set", date: null });
         } else {
           for (const s of passSeasons) {
-            out.push({ label: `Season ${s}`, date: formatSeasonRange(pass[String(s)]) });
+            out.push({
+              label: `Season ${s}`,
+              date: formatSeasonRange(pass[String(s)])
+            });
           }
         }
       }
@@ -215,7 +226,7 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       const raw = dates[i];
       out.push({
         label: i === 0 ? "1st Watch" : `Re-watch ${i}`,
-        date: raw ? (formatDateShort(raw) ?? raw) : null,
+        date: raw ? (formatDateShort(raw) ?? raw) : null
       });
     }
     return out;
@@ -249,7 +260,10 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       {/* Header — accent bar + "Your Activity" label (no Edit button — that's in the ActionDock) */}
       <div class="your-activity-header">
         <div class="your-activity-label">
-          <span class="material-symbols-outlined your-activity-icon" aria-hidden="true">
+          <span
+            class="material-symbols-outlined your-activity-icon"
+            aria-hidden="true"
+          >
             bookmark
           </span>
           Your Activity
@@ -261,9 +275,10 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         {/* Watch Date — clickable when there's per-season or rewatch detail */}
         <div class="your-activity-cell">
           <span class="your-activity-cell-label">Watched</span>
-          <Show when={watchDate()} fallback={
-            <span class="your-activity-cell-empty">—</span>
-          }>
+          <Show
+            when={watchDate()}
+            fallback={<span class="your-activity-cell-empty">—</span>}
+          >
             <div class="your-activity-watch-date-wrap">
               <Show
                 when={canShowDialog()}
@@ -275,11 +290,22 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                   type="button"
                   class="your-activity-watch-date-btn focus-ring"
                   onClick={() => setShowRewatchDialog(true)}
-                  title={isSeries() ? "View per-season watch dates" : "View all viewing dates"}
-                  aria-label={isSeries() ? "View per-season watch dates" : "View all viewing dates"}
+                  title={
+                    isSeries()
+                      ? "View per-season watch dates"
+                      : "View all viewing dates"
+                  }
+                  aria-label={
+                    isSeries()
+                      ? "View per-season watch dates"
+                      : "View all viewing dates"
+                  }
                 >
                   <span class="your-activity-cell-value">{watchDate()}</span>
-                  <span class="material-symbols-outlined your-activity-watch-date-chevron" aria-hidden="true">
+                  <span
+                    class="material-symbols-outlined your-activity-watch-date-chevron"
+                    aria-hidden="true"
+                  >
                     expand_more
                   </span>
                 </button>
@@ -292,7 +318,11 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                   aria-label={`View all ${totalViewings()} viewing dates`}
                   title={`Watched ${totalViewings()} times — click to see all dates`}
                 >
-                  <span class="material-symbols-outlined" style={{"font-size":"11px"}} aria-hidden="true">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "11px" }}
+                    aria-hidden="true"
+                  >
                     replay
                   </span>
                   {effectiveRewatchCount()}×
@@ -305,11 +335,23 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         {/* Your Rating */}
         <div class="your-activity-cell">
           <span class="your-activity-cell-label">Your Rating</span>
-          <Show when={userRating()} fallback={
-            <span class="your-activity-cell-empty">Not rated</span>
-          }>
+          <Show
+            when={userRating()}
+            fallback={<span class="your-activity-cell-empty">Not rated</span>}
+          >
             <span class="your-activity-cell-value your-activity-rating">
-              <span class="material-symbols-outlined" style={{"font-size":"14px","color":"#f5c518","font-variation-settings":"'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"}} aria-hidden="true">star</span>
+              <span
+                class="material-symbols-outlined"
+                style={{
+                  "font-size": "14px",
+                  color: "#f5c518",
+                  "font-variation-settings":
+                    "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                }}
+                aria-hidden="true"
+              >
+                star
+              </span>
               {userRating()}
             </span>
           </Show>
@@ -319,7 +361,9 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
         <Show when={dateAdded()}>
           <div class="your-activity-cell your-activity-cell-wide">
             <span class="your-activity-cell-label">Added</span>
-            <span class="your-activity-cell-value your-activity-cell-muted">{dateAdded()}</span>
+            <span class="your-activity-cell-value your-activity-cell-muted">
+              {dateAdded()}
+            </span>
           </div>
         </Show>
       </div>
@@ -336,17 +380,22 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
       <Show when={showRewatchDialog()}>
         <Portal>
           <div
-            class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
+            class="animate-fade-in fixed inset-0 z-[999999] flex items-center justify-center p-4"
             onClick={() => setShowRewatchDialog(false)}
             role="dialog"
             aria-modal="true"
             aria-label="All viewing dates"
           >
-            <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.7)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }} aria-hidden="true" />
             <div
-              class="rewatch-dialog"
-              onClick={(e) => e.stopPropagation()}
-            >
+              class="absolute inset-0"
+              style={{
+                background: "rgba(0,0,0,0.7)",
+                "backdrop-filter": "blur(8px)",
+                "-webkit-backdrop-filter": "blur(8px)"
+              }}
+              aria-hidden="true"
+            />
+            <div class="rewatch-dialog" onClick={(e) => e.stopPropagation()}>
               <div class="rewatch-dialog-header">
                 <div>
                   <h3 class="rewatch-dialog-title">
@@ -366,7 +415,13 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                   onClick={() => setShowRewatchDialog(false)}
                   aria-label="Close"
                 >
-                  <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">close</span>
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "18px" }}
+                    aria-hidden="true"
+                  >
+                    close
+                  </span>
                 </button>
               </div>
               <div class="rewatch-dialog-list">
@@ -376,11 +431,20 @@ const YourActivityCard: Component<YourActivityCardProps> = (props) => {
                       when={entry.isHeader}
                       fallback={
                         <div class="rewatch-dialog-row">
-                          <span class="rewatch-dialog-row-label">{entry.label}</span>
-                          <Show when={entry.date} fallback={
-                            <span class="rewatch-dialog-row-date rewatch-dialog-row-date-empty">Not set</span>
-                          }>
-                            <span class="rewatch-dialog-row-date">{entry.date}</span>
+                          <span class="rewatch-dialog-row-label">
+                            {entry.label}
+                          </span>
+                          <Show
+                            when={entry.date}
+                            fallback={
+                              <span class="rewatch-dialog-row-date rewatch-dialog-row-date-empty">
+                                Not set
+                              </span>
+                            }
+                          >
+                            <span class="rewatch-dialog-row-date">
+                              {entry.date}
+                            </span>
                           </Show>
                         </div>
                       }

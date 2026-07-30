@@ -24,7 +24,13 @@ if (typeof process !== "undefined") {
     // Only log TMDB/API errors at warn level (they're expected during
     // SSR when the API key is missing or the API is rate-limited).
     // Other errors are logged at error level for visibility.
-    if (msg.includes("TMDB") || msg.includes("getTopRated") || msg.includes("discover") || msg.includes("401") || msg.includes("fetch")) {
+    if (
+      msg.includes("TMDB") ||
+      msg.includes("getTopRated") ||
+      msg.includes("discover") ||
+      msg.includes("401") ||
+      msg.includes("fetch")
+    ) {
       console.warn("[SSR] Suppressed API error (non-fatal):", msg);
     } else {
       console.error("[SSR] Unhandled rejection:", reason);
@@ -50,7 +56,10 @@ export default createHandler(() => (
           <meta name="theme-color" content="#7c3aed" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
-          <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+          <meta
+            name="apple-mobile-web-app-status-bar-style"
+            content="black-translucent"
+          />
           <meta name="apple-mobile-web-app-title" content="CineLog" />
           <link rel="icon" href="/favicon.ico" />
           <link rel="apple-touch-icon" href="/icon-192.png" />
@@ -95,9 +104,17 @@ export default createHandler(() => (
               first paint so the browser can start requesting the actual
               font files ASAP. */}
           <link rel="preconnect" href="https://fonts.googleapis.com" />
-          <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="anonymous" />
+          <link
+            rel="preconnect"
+            href="https://fonts.gstatic.com"
+            crossorigin="anonymous"
+          />
           {/* Preconnect to TMDB image CDN so poster fetches skip TLS handshake */}
-          <link rel="preconnect" href="https://image.tmdb.org" crossorigin="anonymous" />
+          <link
+            rel="preconnect"
+            href="https://image.tmdb.org"
+            crossorigin="anonymous"
+          />
           <link
             href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Outfit:wght@300;400;500;600;700;900&family=Azeret+Mono:wght@300;400;500;700&display=swap"
             rel="stylesheet"

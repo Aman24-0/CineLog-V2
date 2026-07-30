@@ -66,7 +66,10 @@ export async function getUniverseEntriesForMedia(
     .eq("media_type", identity.mediaType)
     .order("position", { ascending: true });
 
-  return { data: (data ?? []) as CuratedUniverseEntryRow[], error: toError(error) };
+  return {
+    data: (data ?? []) as CuratedUniverseEntryRow[],
+    error: toError(error)
+  };
 }
 
 /**
@@ -90,7 +93,9 @@ export async function getUniverseMembership(
   // 1. Join entries → universes.
   const { data: entries, error } = await supabase
     .from(UNIVERSE_ENTRIES_TABLE)
-    .select(`${UNIVERSE_ENTRY_DISCOVER_COLUMNS}, universe:${UNIVERSES_TABLE}!curated_universe_entries_universe_fk (${UNIVERSE_DISCOVER_COLUMNS})`)
+    .select(
+      `${UNIVERSE_ENTRY_DISCOVER_COLUMNS}, universe:${UNIVERSES_TABLE}!curated_universe_entries_universe_fk (${UNIVERSE_DISCOVER_COLUMNS})`
+    )
     .eq("tmdb_id", identity.tmdbId)
     .eq("media_type", identity.mediaType)
     .order("position", { ascending: true });
@@ -124,7 +129,11 @@ export async function getUniverseMembership(
 
   let subscriptions: UserUniverseSubscriptionRow[] = [];
   if (universeIds.length > 0) {
-    const subResult = await getSubscriptionsForUniverses(supabase, userId, universeIds);
+    const subResult = await getSubscriptionsForUniverses(
+      supabase,
+      userId,
+      universeIds
+    );
     if (subResult.error) return { data: [], error: subResult.error };
     subscriptions = subResult.data;
   }
@@ -181,10 +190,17 @@ export async function getRelatedUniverses(
 export async function getSubscribedUniverses(
   supabase: TypedSupabaseClient,
   userId: string
-): Promise<DiscoverListResult<{ subscription: UserUniverseSubscriptionRow; universe: CuratedUniverseRow }>> {
+): Promise<
+  DiscoverListResult<{
+    subscription: UserUniverseSubscriptionRow;
+    universe: CuratedUniverseRow;
+  }>
+> {
   const { data, error } = await supabase
     .from(SUBSCRIPTIONS_TABLE)
-    .select(`${SUBSCRIPTION_DISCOVER_COLUMNS}, universe:${UNIVERSES_TABLE}!user_universe_subscriptions_universe_fk (${UNIVERSE_DISCOVER_COLUMNS})`)
+    .select(
+      `${SUBSCRIPTION_DISCOVER_COLUMNS}, universe:${UNIVERSES_TABLE}!user_universe_subscriptions_universe_fk (${UNIVERSE_DISCOVER_COLUMNS})`
+    )
     .eq("user_id", userId)
     .order("created_at", { ascending: false });
 
@@ -295,7 +311,10 @@ export async function getCuratedUniverseEntries(
     .eq("universe_id", universeId)
     .order("position", { ascending: true });
 
-  return { data: (data ?? []) as CuratedUniverseEntryRow[], error: toError(error) };
+  return {
+    data: (data ?? []) as CuratedUniverseEntryRow[],
+    error: toError(error)
+  };
 }
 
 /**
@@ -313,5 +332,8 @@ export async function getSubscriptionsForUniverses(
     .eq("user_id", userId)
     .in("universe_id", universeIds);
 
-  return { data: (data ?? []) as UserUniverseSubscriptionRow[], error: toError(error) };
+  return {
+    data: (data ?? []) as UserUniverseSubscriptionRow[],
+    error: toError(error)
+  };
 }

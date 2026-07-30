@@ -13,12 +13,19 @@
 
 import { For, Show, createSignal, type Component } from "solid-js";
 import { Portal } from "solid-js/web";
-import { IMPORT_SOURCES, FUTURE_SOURCES, type ImportSource, type ImportResult } from "../import/ImportSource";
+import {
+  IMPORT_SOURCES,
+  FUTURE_SOURCES,
+  type ImportSource,
+  type ImportResult
+} from "../import/ImportSource";
 import { useToast } from "~/shared/hooks/useToast";
 
 const ImportHub: Component = () => {
   const { showToast } = useToast();
-  const [activeSource, setActiveSource] = createSignal<ImportSource | null>(null);
+  const [activeSource, setActiveSource] = createSignal<ImportSource | null>(
+    null
+  );
 
   const handleOpen = (source: ImportSource) => {
     setActiveSource(source);
@@ -44,14 +51,29 @@ const ImportHub: Component = () => {
             onClick={() => handleOpen(source)}
             aria-label={`Import from ${source.displayName}`}
           >
-            <div class="sync-import-card-icon" style={{ background: source.accentColor }} aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "24px", color: "var(--tier-1)" }} aria-hidden="true">{source.icon}</span>
+            <div
+              class="sync-import-card-icon"
+              style={{ background: source.accentColor }}
+              aria-hidden="true"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "24px", color: "var(--tier-1)" }}
+                aria-hidden="true"
+              >
+                {source.icon}
+              </span>
             </div>
             <div class="sync-import-card-text">
               <p class="sync-import-card-title">{source.displayName}</p>
               <p class="sync-import-card-desc">{source.description}</p>
             </div>
-            <span class="material-symbols-outlined sync-import-card-chevron" aria-hidden="true">arrow_forward</span>
+            <span
+              class="material-symbols-outlined sync-import-card-chevron"
+              aria-hidden="true"
+            >
+              arrow_forward
+            </span>
           </button>
         )}
       </For>
@@ -59,9 +81,21 @@ const ImportHub: Component = () => {
       {/* Future sources — "coming soon" */}
       <For each={FUTURE_SOURCES}>
         {(source) => (
-          <div class="sync-import-card sync-import-card-future" aria-disabled="true">
-            <div class="sync-import-card-icon sync-import-card-icon-future" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "24px", color: "var(--text-dim)" }} aria-hidden="true">{source.icon}</span>
+          <div
+            class="sync-import-card sync-import-card-future"
+            aria-disabled="true"
+          >
+            <div
+              class="sync-import-card-icon sync-import-card-icon-future"
+              aria-hidden="true"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "24px", color: "var(--text-dim)" }}
+                aria-hidden="true"
+              >
+                {source.icon}
+              </span>
             </div>
             <div class="sync-import-card-text">
               <p class="sync-import-card-title">{source.displayName}</p>
@@ -77,11 +111,11 @@ const ImportHub: Component = () => {
         {(source) => (
           <Portal>
             <div
-              class="modal-backdrop fixed inset-0 z-[999999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+              class="modal-backdrop fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
               style={{
                 background: "rgba(0,0,0,0.85)",
                 "backdrop-filter": "blur(8px)",
-                "-webkit-backdrop-filter": "blur(8px)",
+                "-webkit-backdrop-filter": "blur(8px)"
               }}
               onClick={handleClose}
               role="dialog"
@@ -99,12 +133,23 @@ const ImportHub: Component = () => {
                   class="sync-wizard-close focus-ring"
                   aria-label="Close import wizard"
                 >
-                  <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "16px" }}
+                    aria-hidden="true"
+                  >
+                    close
+                  </span>
                 </button>
                 {/* Render the source's wizard component */}
                 {(() => {
                   const Wizard = source().Wizard;
-                  return <Wizard onComplete={handleComplete} onCancel={handleClose} />;
+                  return (
+                    <Wizard
+                      onComplete={handleComplete}
+                      onCancel={handleClose}
+                    />
+                  );
                 })()}
               </div>
             </div>

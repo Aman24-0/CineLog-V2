@@ -126,7 +126,9 @@ export async function getCollectionMemberships(
   // query. PostgREST returns nested objects when the FK is detected.
   const { data, error } = await supabase
     .from(ENTRIES_TABLE)
-    .select(`${ENTRY_DISCOVER_COLUMNS}, collection:${COLLECTIONS_TABLE}!collection_entries_collection_fk (${COLLECTION_DISCOVER_COLUMNS})`)
+    .select(
+      `${ENTRY_DISCOVER_COLUMNS}, collection:${COLLECTIONS_TABLE}!collection_entries_collection_fk (${COLLECTION_DISCOVER_COLUMNS})`
+    )
     .eq("vault_id", vaultId)
     .order("position", { ascending: true });
 
@@ -143,7 +145,11 @@ export async function getCollectionMemberships(
     };
     if (!entry.collection) continue;
     // Exclude soft-deleted collections (Bible §04).
-    if ("deleted_at" in entry.collection && entry.collection.deleted_at !== null) continue;
+    if (
+      "deleted_at" in entry.collection &&
+      entry.collection.deleted_at !== null
+    )
+      continue;
     memberships.push({
       collection: entry.collection,
       // Cast through unknown — the row's shape comes from a join

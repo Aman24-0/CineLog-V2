@@ -20,28 +20,61 @@ interface SmartCollectionBuilderProps {
 // original implementation since they're already wired through
 // evaluateSmartRules).
 const FIELD_OPTIONS = [
-  { value: "genre",       label: "Genre" },
-  { value: "year",        label: "Year" },
-  { value: "rating",      label: "Rating" },
-  { value: "status",      label: "Status" },
+  { value: "genre", label: "Genre" },
+  { value: "year", label: "Year" },
+  { value: "rating", label: "Rating" },
+  { value: "status", label: "Status" },
   { value: "release_date", label: "Release Date" },
-  { value: "director",    label: "Director" },
-  { value: "franchise",   label: "Franchise" },
-  { value: "keyword",     label: "Keyword" },
+  { value: "director", label: "Director" },
+  { value: "franchise", label: "Franchise" },
+  { value: "keyword", label: "Keyword" }
 ] as const;
 
 const OPERATOR_OPTIONS: Record<string, { value: string; label: string }[]> = {
-  genre:        [{ value: "contains", label: "is" }, { value: "is_not", label: "is not" }],
-  year:         [{ value: "gte", label: "≥" }, { value: "lte", label: "≤" }, { value: "between", label: "between" }, { value: "is", label: "is" }, { value: "is_not", label: "is not" }],
-  rating:       [{ value: "gte", label: "≥" }, { value: "lte", label: "≤" }, { value: "between", label: "between" }],
-  status:       [{ value: "is", label: "is" }, { value: "is_not", label: "is not" }],
-  release_date: [{ value: "gte", label: "≥" }, { value: "lte", label: "≤" }, { value: "between", label: "between" }],
-  director:     [{ value: "contains", label: "contains" }, { value: "is", label: "is" }, { value: "is_not", label: "is not" }],
-  franchise:    [{ value: "is", label: "is" }, { value: "is_not", label: "is not" }],
-  keyword:      [{ value: "contains", label: "contains" }],
+  genre: [
+    { value: "contains", label: "is" },
+    { value: "is_not", label: "is not" }
+  ],
+  year: [
+    { value: "gte", label: "≥" },
+    { value: "lte", label: "≤" },
+    { value: "between", label: "between" },
+    { value: "is", label: "is" },
+    { value: "is_not", label: "is not" }
+  ],
+  rating: [
+    { value: "gte", label: "≥" },
+    { value: "lte", label: "≤" },
+    { value: "between", label: "between" }
+  ],
+  status: [
+    { value: "is", label: "is" },
+    { value: "is_not", label: "is not" }
+  ],
+  release_date: [
+    { value: "gte", label: "≥" },
+    { value: "lte", label: "≤" },
+    { value: "between", label: "between" }
+  ],
+  director: [
+    { value: "contains", label: "contains" },
+    { value: "is", label: "is" },
+    { value: "is_not", label: "is not" }
+  ],
+  franchise: [
+    { value: "is", label: "is" },
+    { value: "is_not", label: "is not" }
+  ],
+  keyword: [{ value: "contains", label: "contains" }]
 };
 
-const STATUS_OPTIONS = ["Planned", "Watching", "Completed", "On Hold", "Dropped"];
+const STATUS_OPTIONS = [
+  "Planned",
+  "Watching",
+  "Completed",
+  "On Hold",
+  "Dropped"
+];
 
 /**
  * SmartCollectionBuilder — create rule-based smart collections.
@@ -62,15 +95,21 @@ const STATUS_OPTIONS = ["Planned", "Watching", "Completed", "On Hold", "Dropped"
  * builder is opened again with the same rules. This is a documented
  * schema limitation, surfaced as a toast on create.
  */
-export default function SmartCollectionBuilder(props: SmartCollectionBuilderProps) {
+export default function SmartCollectionBuilder(
+  props: SmartCollectionBuilderProps
+) {
   const { createSmartCollection } = useCollections();
   const { watchlist } = useVault();
 
   const [name, setName] = createSignal(props.initial?.name ?? "");
   const [rules, setRules] = createSignal<SmartRule[]>(
-    props.initial?.rules ?? [{ field: "genre", operator: "contains", value: "" }]
+    props.initial?.rules ?? [
+      { field: "genre", operator: "contains", value: "" }
+    ]
   );
-  const [combinator, setCombinator] = createSignal<"and" | "or">(props.initial?.combinator ?? "and");
+  const [combinator, setCombinator] = createSignal<"and" | "or">(
+    props.initial?.combinator ?? "and"
+  );
 
   // Build autocomplete suggestions from the user's actual vault data.
   // Each field maps to a list of unique values that exist in the vault.
@@ -97,8 +136,9 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
       const f = (item as { franchise?: unknown }).franchise;
       if (typeof f === "string" && f.trim()) franchises.add(f.trim());
       // Year (from release_date / first_air_date)
-      const rd = (item as { release_date?: string; first_air_date?: string }).release_date
-        ?? (item as { first_air_date?: string }).first_air_date;
+      const rd =
+        (item as { release_date?: string; first_air_date?: string })
+          .release_date ?? (item as { first_air_date?: string }).first_air_date;
       if (rd) {
         years.add(rd.slice(0, 4));
         releaseDates.add(rd);
@@ -111,15 +151,17 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
       franchise: Array.from(franchises).sort(),
       year: Array.from(years).sort(),
       release_date: Array.from(releaseDates).sort(),
-      rating: [],  // rating is numeric — no autocomplete
+      rating: [], // rating is numeric — no autocomplete
       status: STATUS_OPTIONS,
-      keyword: [], // free-form
+      keyword: [] // free-form
     };
   });
 
   // Live preview — evaluate the rules against the vault.
   const validRules = createMemo(() =>
-    rules().filter((r) => r.value !== "" && r.value !== undefined && r.value !== null)
+    rules().filter(
+      (r) => r.value !== "" && r.value !== undefined && r.value !== null
+    )
   );
 
   const matchedItems = createMemo(() => {
@@ -148,7 +190,10 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
   const matchCount = () => matchedItems().length;
 
   const addRule = () => {
-    setRules((prev) => [...prev, { field: "genre", operator: "contains", value: "" }]);
+    setRules((prev) => [
+      ...prev,
+      { field: "genre", operator: "contains", value: "" }
+    ]);
   };
 
   const removeRule = (index: number) => {
@@ -156,7 +201,9 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
   };
 
   const updateRule = (index: number, partial: Partial<SmartRule>) => {
-    setRules((prev) => prev.map((r, i) => i === index ? { ...r, ...partial } : r));
+    setRules((prev) =>
+      prev.map((r, i) => (i === index ? { ...r, ...partial } : r))
+    );
   };
 
   const handleFieldChange = (index: number, newField: string) => {
@@ -164,7 +211,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
     updateRule(index, {
       field: newField as SmartRule["field"],
       operator: firstOp as SmartRule["operator"],
-      value: "",
+      value: ""
     });
   };
 
@@ -180,7 +227,9 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
   onMount(() => {
     const prev = document.body.style.overflow;
     document.body.style.overflow = "hidden";
-    return () => { document.body.style.overflow = prev; };
+    return () => {
+      document.body.style.overflow = prev;
+    };
   });
 
   const isEditing = () => !!props.initial;
@@ -188,12 +237,20 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
   return (
     <Portal>
       <div
-        class="fixed inset-0 z-[999997] flex items-end sm:items-center justify-center animate-fade-in"
-        onClick={props.onClose}
+        class="animate-fade-in fixed inset-0 z-[999997] flex items-end justify-center sm:items-center"
+        onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
       >
-        <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }} aria-hidden="true" />
+        <div
+          class="absolute inset-0"
+          style={{
+            background: "rgba(0,0,0,0.75)",
+            "backdrop-filter": "blur(8px)",
+            "-webkit-backdrop-filter": "blur(8px)"
+          }}
+          aria-hidden="true"
+        />
         <div
           class="smart-builder"
           onClick={(e) => e.stopPropagation()}
@@ -203,8 +260,19 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
             <h3 class="folder-editor-title">
               {isEditing() ? "Edit Smart Collection" : "Smart Collection"}
             </h3>
-            <button type="button" class="folder-editor-close" onClick={props.onClose} aria-label="Close">
-              <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">close</span>
+            <button
+              type="button"
+              class="folder-editor-close"
+              onClick={() => props.onClose()}
+              aria-label="Close"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
+                close
+              </span>
             </button>
           </div>
 
@@ -225,10 +293,16 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                 display: "flex",
                 "align-items": "center",
                 gap: "var(--sp-2)",
-                "margin-bottom": "var(--sp-3)",
+                "margin-bottom": "var(--sp-3)"
               }}
             >
-              <span style={{ "font-size": "0.6875rem", color: "var(--text-dim)", "font-family": "'Outfit', sans-serif" }}>
+              <span
+                style={{
+                  "font-size": "0.6875rem",
+                  color: "var(--text-dim)",
+                  "font-family": "'Outfit', sans-serif"
+                }}
+              >
                 Match
               </span>
               <div
@@ -239,7 +313,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                   background: "var(--tier-2)",
                   border: "1px solid var(--hairline)",
                   "border-radius": "999px",
-                  padding: "2px",
+                  padding: "2px"
                 }}
               >
                 <button
@@ -251,12 +325,13 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                     padding: "4px 12px",
                     "border-radius": "999px",
                     border: "none",
-                    background: combinator() === "and" ? "var(--p)" : "transparent",
+                    background:
+                      combinator() === "and" ? "var(--p)" : "transparent",
                     color: combinator() === "and" ? "#fff" : "var(--text-soft)",
                     "font-family": "'Outfit', sans-serif",
                     "font-size": "0.6875rem",
                     "font-weight": "600",
-                    cursor: "pointer",
+                    cursor: "pointer"
                   }}
                 >
                   ALL (AND)
@@ -270,18 +345,25 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                     padding: "4px 12px",
                     "border-radius": "999px",
                     border: "none",
-                    background: combinator() === "or" ? "var(--p)" : "transparent",
+                    background:
+                      combinator() === "or" ? "var(--p)" : "transparent",
                     color: combinator() === "or" ? "#fff" : "var(--text-soft)",
                     "font-family": "'Outfit', sans-serif",
                     "font-size": "0.6875rem",
                     "font-weight": "600",
-                    cursor: "pointer",
+                    cursor: "pointer"
                   }}
                 >
                   ANY (OR)
                 </button>
               </div>
-              <span style={{ "font-size": "0.6875rem", color: "var(--text-dim)", "font-family": "'Outfit', sans-serif" }}>
+              <span
+                style={{
+                  "font-size": "0.6875rem",
+                  color: "var(--text-dim)",
+                  "font-family": "'Outfit', sans-serif"
+                }}
+              >
                 of the following rules
               </span>
             </div>
@@ -295,7 +377,9 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                   <select
                     class="smart-rule-select"
                     value={rule.field}
-                    onChange={(e) => handleFieldChange(index(), e.currentTarget.value)}
+                    onChange={(e) =>
+                      handleFieldChange(index(), e.currentTarget.value)
+                    }
                   >
                     <For each={FIELD_OPTIONS}>
                       {(opt) => <option value={opt.value}>{opt.label}</option>}
@@ -305,36 +389,61 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                   <select
                     class="smart-rule-select smart-rule-operator"
                     value={rule.operator}
-                    onChange={(e) => updateRule(index(), { operator: e.currentTarget.value as SmartRule["operator"] })}
+                    onChange={(e) =>
+                      updateRule(index(), {
+                        operator: e.currentTarget.value as SmartRule["operator"]
+                      })
+                    }
                   >
                     <For each={OPERATOR_OPTIONS[rule.field] ?? []}>
                       {(opt) => <option value={opt.value}>{opt.label}</option>}
                     </For>
                   </select>
 
-                  <Show when={rule.field === "status"} fallback={
-                    <>
-                      <input
-                        type={rule.field === "year" || rule.field === "rating" ? "number" : "text"}
-                        class="smart-rule-input"
-                        value={String(rule.value)}
-                        onInput={(e) => updateRule(index(), { value: e.currentTarget.value })}
-                        placeholder={rule.field === "year" ? "2024" : rule.field === "rating" ? "8" : "Value…"}
-                        list={`smart-rule-suggestions-${rule.field}`}
-                      />
-                      <Show when={(suggestions()[rule.field] ?? []).length > 0}>
-                        <datalist id={`smart-rule-suggestions-${rule.field}`}>
-                          <For each={suggestions()[rule.field] ?? []}>
-                            {(s) => <option value={s} />}
-                          </For>
-                        </datalist>
-                      </Show>
-                    </>
-                  }>
+                  <Show
+                    when={rule.field === "status"}
+                    fallback={
+                      <>
+                        <input
+                          type={
+                            rule.field === "year" || rule.field === "rating"
+                              ? "number"
+                              : "text"
+                          }
+                          class="smart-rule-input"
+                          value={String(rule.value)}
+                          onInput={(e) =>
+                            updateRule(index(), {
+                              value: e.currentTarget.value
+                            })
+                          }
+                          placeholder={
+                            rule.field === "year"
+                              ? "2024"
+                              : rule.field === "rating"
+                                ? "8"
+                                : "Value…"
+                          }
+                          list={`smart-rule-suggestions-${rule.field}`}
+                        />
+                        <Show
+                          when={(suggestions()[rule.field] ?? []).length > 0}
+                        >
+                          <datalist id={`smart-rule-suggestions-${rule.field}`}>
+                            <For each={suggestions()[rule.field] ?? []}>
+                              {(s) => <option value={s} />}
+                            </For>
+                          </datalist>
+                        </Show>
+                      </>
+                    }
+                  >
                     <select
                       class="smart-rule-select"
                       value={String(rule.value)}
-                      onChange={(e) => updateRule(index(), { value: e.currentTarget.value })}
+                      onChange={(e) =>
+                        updateRule(index(), { value: e.currentTarget.value })
+                      }
                     >
                       <option value="">— Select —</option>
                       <For each={STATUS_OPTIONS}>
@@ -350,15 +459,31 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                     aria-label="Remove rule"
                     disabled={rules().length === 1}
                   >
-                    <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "16px" }}
+                      aria-hidden="true"
+                    >
+                      close
+                    </span>
                   </button>
                 </div>
               )}
             </For>
           </div>
 
-          <button type="button" class="smart-builder-add-rule" onClick={addRule}>
-            <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">add</span>
+          <button
+            type="button"
+            class="smart-builder-add-rule"
+            onClick={addRule}
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "16px" }}
+              aria-hidden="true"
+            >
+              add
+            </span>
             Add Rule
           </button>
 
@@ -376,7 +501,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                 "flex-wrap": "wrap",
                 "margin-top": "var(--sp-2)",
                 "max-height": "80px",
-                overflow: "hidden",
+                overflow: "hidden"
               }}
             >
               <For each={matchedItems().slice(0, 12)}>
@@ -389,13 +514,15 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                         height: "48px",
                         "border-radius": "3px",
                         "object-fit": "cover",
-                        border: "1px solid var(--hairline)",
+                        border: "1px solid var(--hairline)"
                       }}
                       loading="lazy"
                       decoding="async"
                       alt={item.title ?? item.name ?? ""}
                       title={item.title ?? item.name ?? ""}
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </Show>
                 )}
@@ -413,7 +540,7 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
                     "justify-content": "center",
                     color: "var(--text-dim)",
                     "font-size": "0.5625rem",
-                    "font-family": "'Azeret Mono', monospace",
+                    "font-family": "'Azeret Mono', monospace"
                   }}
                 >
                   +{matchedItems().length - 12}
@@ -430,7 +557,9 @@ export default function SmartCollectionBuilder(props: SmartCollectionBuilderProp
             onClick={handleCreate}
             disabled={!name().trim() || matchCount() === 0}
           >
-            {isEditing() ? "Update Smart Collection" : "Create Smart Collection"}
+            {isEditing()
+              ? "Update Smart Collection"
+              : "Create Smart Collection"}
           </button>
         </div>
       </div>

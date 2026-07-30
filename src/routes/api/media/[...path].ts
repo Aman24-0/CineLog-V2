@@ -51,12 +51,13 @@ const MAX_RETRIES = 2;
 // stale-while-revalidate=3600 — serve stale for up to 1 hour while
 //   revalidating in the background (reduces TMDB API calls)
 const CACHE_HEADERS_SUCCESS = {
-  "Cache-Control": "public, max-age=900, s-maxage=1800, stale-while-revalidate=3600",
+  "Cache-Control":
+    "public, max-age=900, s-maxage=1800, stale-while-revalidate=3600"
 };
 
 // Shorter cache for errors — don't poison the CDN with long-lived 4xx/5xx
 const CACHE_HEADERS_ERROR = {
-  "Cache-Control": "public, max-age=60, s-maxage=120",
+  "Cache-Control": "public, max-age=60, s-maxage=120"
 };
 
 // ─── Helper: get TMDB API key from server env ────────────────────────
@@ -80,7 +81,10 @@ function getTmdbApiKey(): string {
 
 // ─── Helper: retry fetch with exponential backoff ────────────────────
 
-async function fetchWithRetry(url: string, retries: number = MAX_RETRIES): Promise<Response> {
+async function fetchWithRetry(
+  url: string,
+  retries: number = MAX_RETRIES
+): Promise<Response> {
   let lastError: Error | null = null;
 
   for (let attempt = 0; attempt <= retries; attempt++) {
@@ -139,7 +143,10 @@ export async function GET(event: APIEvent): Promise<Response> {
       if (!pathname.startsWith(prefix)) {
         return new Response(JSON.stringify({ error: "Invalid proxy path" }), {
           status: 400,
-          headers: { "Content-Type": "application/json", ...CACHE_HEADERS_ERROR },
+          headers: {
+            "Content-Type": "application/json",
+            ...CACHE_HEADERS_ERROR
+          }
         });
       }
       tmdbPath = pathname.slice(prefix.length);
@@ -148,7 +155,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     if (!tmdbPath || tmdbPath.length === 0) {
       return new Response(JSON.stringify({ error: "Empty TMDB path" }), {
         status: 400,
-        headers: { "Content-Type": "application/json", ...CACHE_HEADERS_ERROR },
+        headers: { "Content-Type": "application/json", ...CACHE_HEADERS_ERROR }
       });
     }
 
@@ -170,7 +177,8 @@ export async function GET(event: APIEvent): Promise<Response> {
     const body = await upstreamRes.text();
 
     // Determine Content-Type from upstream (preserve TMDB's response format)
-    const contentType = upstreamRes.headers.get("Content-Type") ?? "application/json";
+    const contentType =
+      upstreamRes.headers.get("Content-Type") ?? "application/json";
 
     // Build response headers: preserve upstream Content-Type + add our cache headers
     const headers: Record<string, string> = {
@@ -178,7 +186,7 @@ export async function GET(event: APIEvent): Promise<Response> {
       // Add CORS headers so the browser can call /api/media/ directly
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      "Access-Control-Allow-Headers": "Content-Type"
     };
 
     // Add cache headers based on response status
@@ -192,7 +200,7 @@ export async function GET(event: APIEvent): Promise<Response> {
     return new Response(body, {
       status: upstreamRes.status,
       statusText: upstreamRes.statusText,
-      headers,
+      headers
     });
   } catch (err: unknown) {
     const errMsg = err instanceof Error ? err.message : String(err);
@@ -200,7 +208,7 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     return new Response(JSON.stringify({ error: errMsg }), {
       status: 502, // Bad Gateway — proxy couldn't reach upstream
-      headers: { "Content-Type": "application/json", ...CACHE_HEADERS_ERROR },
+      headers: { "Content-Type": "application/json", ...CACHE_HEADERS_ERROR }
     });
   }
 }
@@ -214,7 +222,7 @@ export async function OPTIONS(): Promise<Response> {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "GET, OPTIONS",
       "Access-Control-Allow-Headers": "Content-Type",
-      "Access-Control-Max-Age": "86400", // 24h — browsers cache preflight results
-    },
+      "Access-Control-Max-Age": "86400" // 24h — browsers cache preflight results
+    }
   });
 }

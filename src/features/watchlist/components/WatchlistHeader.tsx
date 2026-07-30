@@ -76,9 +76,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
   const totalCount = () => props.watchlist().length;
 
   return (
-    <div
-      class="sticky top-0 z-40 pt-4 pb-2 -mx-4 sm:-mx-5 px-4 sm:px-5 mb-3 watchlist-header-glass"
-    >
+    <div class="watchlist-header-glass sticky top-0 z-40 -mx-4 mb-3 px-4 pb-2 pt-4 sm:-mx-5 sm:px-5">
       {/* ───────────────────────────────────────────────────────────────
           MAIN ACTION BAR  OR  EXPANDED SEARCH
           The Main Action Bar uses `flex justify-between items-center w-full`
@@ -92,12 +90,12 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
         when={!isSearchExpanded()}
         fallback={
           /* ── EXPANDED: full-width Search Input with Back arrow + Clear ── */
-          <div class="w-full relative flex items-center mb-4">
+          <div class="relative mb-4 flex w-full items-center">
             {/* Back arrow (←) — left side, collapses the search */}
             <button
               type="button"
               onClick={collapseSearch}
-              class="absolute left-0 top-1/2 -translate-y-1/2 flex items-center justify-center z-10"
+              class="absolute left-0 top-1/2 z-10 flex -translate-y-1/2 items-center justify-center"
               style={{
                 width: "40px",
                 height: "40px",
@@ -105,11 +103,15 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 background: "transparent",
                 border: "none",
                 color: "var(--text-soft)",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
               aria-label="Close search"
             >
-              <Icon name="arrow_back" style={{ "font-size": "20px" }} aria-hidden="true" />
+              <Icon
+                name="arrow_back"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              />
             </button>
 
             {/* Search input — pl-10 (back arrow) + pr-12 (Clear button) so
@@ -142,7 +144,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 "font-size": "0.875rem",
                 "font-weight": 600,
                 color: "var(--text-strong)",
-                "border-radius": "var(--radius-pill)",
+                "border-radius": "var(--radius-pill)"
               }}
               aria-label="Search watchlist"
             />
@@ -153,7 +155,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
               <button
                 type="button"
                 onClick={() => props.onClearAll()}
-                class="absolute right-2 top-1/2 -translate-y-1/2 type-meta shrink-0 active:scale-95 transition-all focus-ring"
+                class="type-meta focus-ring absolute right-2 top-1/2 shrink-0 -translate-y-1/2 transition-all active:scale-95"
                 style={{
                   background: "rgba(255,45,85,0.12)",
                   border: "1px solid rgba(255,45,85,0.35)",
@@ -165,7 +167,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                   "letter-spacing": "0.12em",
                   "text-transform": "uppercase",
                   cursor: "pointer",
-                  "z-index": "1",
+                  "z-index": "1"
                 }}
                 aria-label="Clear search and filters"
               >
@@ -179,7 +181,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
             `flex justify-between items-center w-full` so the left group
             (View Toggle + stats) and the right group (Filter + Search)
             push to opposite edges of the header — no empty space. */}
-        <div class="flex justify-between items-center w-full mb-4">
+        <div class="mb-4 flex w-full items-center justify-between">
           {/* LEFT group: View Toggle (grid/timeline) + a subtle vault-count
               badge. The count gives the user a quick "you have N titles"
               readout without needing a separate stats bar. */}
@@ -195,7 +197,11 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 aria-label="Grid view"
                 aria-pressed={props.viewMode() === "grid"}
               >
-                <Icon name="grid_view" style={{ "font-size": "16px" }} aria-hidden="true" />
+                <Icon
+                  name="grid_view"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                />
               </button>
               <button
                 onClick={() => batch(() => props.setViewMode("timeline"))}
@@ -204,28 +210,36 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 aria-label="Timeline view"
                 aria-pressed={props.viewMode() === "timeline"}
               >
-                <Icon name="timeline" style={{ "font-size": "16px" }} aria-hidden="true" />
+                <Icon
+                  name="timeline"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                />
               </button>
             </div>
             {/* Vault count badge — only shown when there are items, so an
                 empty vault doesn't show a misleading "0". */}
             <Show when={totalCount() > 0}>
               <span
-                class="type-meta shrink-0 hidden sm:inline-flex items-center gap-1"
+                class="type-meta hidden shrink-0 items-center gap-1 sm:inline-flex"
                 style={{
                   "font-size": "0.5625rem",
                   "font-weight": 800,
                   "letter-spacing": "0.10em",
                   "text-transform": "uppercase",
                   color: "var(--text-muted)",
-                  "padding": "0.375rem 0.625rem",
+                  padding: "0.375rem 0.625rem",
                   "border-radius": "var(--radius-pill)",
                   background: "var(--tier-1)",
-                  border: "1px solid var(--hairline)",
+                  border: "1px solid var(--hairline)"
                 }}
                 aria-label={`${totalCount()} titles in your vault`}
               >
-                <Icon name="video_library" style={{"font-size":"12px"}} aria-hidden="true" />
+                <Icon
+                  name="video_library"
+                  style={{ "font-size": "12px" }}
+                  aria-hidden="true"
+                />
                 {totalCount()}
               </span>
             </Show>
@@ -239,25 +253,29 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
             <button
               type="button"
               onClick={() => props.onFilterClick()}
-              class="filter-button focus-ring flex items-center justify-center shrink-0"
+              class="filter-button focus-ring flex shrink-0 items-center justify-center"
               data-active={props.activeFilterCount() > 0}
               style={{
                 height: "40px",
-                "padding": "0 0.875rem",
+                padding: "0 0.875rem",
                 "border-radius": "var(--radius-pill)",
-                gap: "0.375rem",
+                gap: "0.375rem"
               }}
               aria-label={`Filter${props.activeFilterCount() > 0 ? ` — ${props.activeFilterCount()} active` : ""}`}
               aria-pressed={props.activeFilterCount() > 0}
             >
-              <Icon name="tune" style={{ "font-size": "16px" }} aria-hidden="true" />
+              <Icon
+                name="tune"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              />
               <span
                 class="type-meta"
                 style={{
                   "font-size": "0.5625rem",
                   "font-weight": 800,
                   "letter-spacing": "0.10em",
-                  "text-transform": "uppercase",
+                  "text-transform": "uppercase"
                 }}
               >
                 Filter
@@ -273,16 +291,20 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
             <button
               type="button"
               onClick={() => setIsSearchExpanded(true)}
-              class="filter-button focus-ring flex items-center justify-center shrink-0"
+              class="filter-button focus-ring flex shrink-0 items-center justify-center"
               style={{
                 width: "40px",
                 height: "40px",
-                "border-radius": "var(--radius-pill)",
+                "border-radius": "var(--radius-pill)"
               }}
               aria-label="Search watchlist"
               aria-expanded="false"
             >
-              <Icon name="search" style={{ "font-size": "18px" }} aria-hidden="true" />
+              <Icon
+                name="search"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              />
             </button>
           </div>
         </div>
@@ -333,7 +355,11 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                 aria-label={`Remove filter: ${chip.label}`}
               >
                 {chip.label}
-                <Icon name="close" style={{"font-size":"12px"}} aria-hidden="true" />
+                <Icon
+                  name="close"
+                  style={{ "font-size": "12px" }}
+                  aria-hidden="true"
+                />
               </button>
             )}
           </For>
@@ -342,4 +368,3 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
     </div>
   );
 }
-

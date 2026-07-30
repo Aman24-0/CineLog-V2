@@ -8,14 +8,14 @@ import {
   sortItems,
   computeChips,
   countActiveFilters,
-  hasAdvancedFiltersActive,
+  hasAdvancedFiltersActive
 } from "../vaultFilterUtils";
 import {
   makeMovie,
   makeTVSeries,
-  makeVaultFilters,
+  makeVaultFilters
 } from "~/__test-fixtures__/factories";
-import type {WatchlistItem} from "~/shared/types";
+import type { WatchlistItem } from "~/shared/types";
 
 describe("matchSearch", () => {
   it("matches by title (case-insensitive)", () => {
@@ -85,7 +85,7 @@ describe("filterByStatus", () => {
     makeMovie({ id: "1", status: "Watching" }),
     makeMovie({ id: "2", status: "Planned" }),
     makeMovie({ id: "3", status: "Completed" }),
-    makeMovie({ id: "4", status: "Plan to Watch" }),
+    makeMovie({ id: "4", status: "Plan to Watch" })
   ];
 
   it("returns all items for 'all'", () => {
@@ -96,7 +96,7 @@ describe("filterByStatus", () => {
     const droppedItems = [
       makeMovie({ id: "1", status: "Watching" }),
       makeMovie({ id: "2", status: "Dropped" }),
-      makeMovie({ id: "3", status: "Completed" }),
+      makeMovie({ id: "3", status: "Completed" })
     ];
     const result = filterByStatus(droppedItems, "Dropped");
     expect(result).toHaveLength(1);
@@ -124,8 +124,22 @@ describe("filterByStatus", () => {
 
 describe("filterByAdvanced", () => {
   const items = [
-    makeMovie({ id: "1", media_type: "movie", region: "Indian", genresList: ["Drama"], platformsList: ["Netflix"], tag: "fav" }),
-    makeTVSeries({ id: "2", media_type: "tv", region: "International", genresList: ["Sci-Fi"], platformsList: ["Prime"], tag: "watchlist" }),
+    makeMovie({
+      id: "1",
+      media_type: "movie",
+      region: "Indian",
+      genresList: ["Drama"],
+      platformsList: ["Netflix"],
+      tag: "fav"
+    }),
+    makeTVSeries({
+      id: "2",
+      media_type: "tv",
+      region: "International",
+      genresList: ["Sci-Fi"],
+      platformsList: ["Prime"],
+      tag: "watchlist"
+    })
   ];
 
   it("returns all when all filters are 'all'", () => {
@@ -140,25 +154,37 @@ describe("filterByAdvanced", () => {
   });
 
   it("filters by region", () => {
-    const result = filterByAdvanced(items, makeVaultFilters({ region: "Indian" }));
+    const result = filterByAdvanced(
+      items,
+      makeVaultFilters({ region: "Indian" })
+    );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
   });
 
   it("defaults missing region to 'International'", () => {
     const items2 = [makeMovie({ id: "3", region: undefined })];
-    const result = filterByAdvanced(items2, makeVaultFilters({ region: "International" }));
+    const result = filterByAdvanced(
+      items2,
+      makeVaultFilters({ region: "International" })
+    );
     expect(result).toHaveLength(1);
   });
 
   it("filters by genre", () => {
-    const result = filterByAdvanced(items, makeVaultFilters({ genre: "Sci-Fi" }));
+    const result = filterByAdvanced(
+      items,
+      makeVaultFilters({ genre: "Sci-Fi" })
+    );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("2");
   });
 
   it("filters by platform", () => {
-    const result = filterByAdvanced(items, makeVaultFilters({ platform: "Netflix" }));
+    const result = filterByAdvanced(
+      items,
+      makeVaultFilters({ platform: "Netflix" })
+    );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
   });
@@ -172,8 +198,20 @@ describe("filterByAdvanced", () => {
 
 describe("filterByRanges", () => {
   const items = [
-    makeMovie({ id: "1", imdbRating: "8.5", rtRating: "90%", release_date: "2023-06-15", runtime: 120 }),
-    makeMovie({ id: "2", imdbRating: "6.0", rtRating: "40%", release_date: "2010-01-01", runtime: 90 }),
+    makeMovie({
+      id: "1",
+      imdbRating: "8.5",
+      rtRating: "90%",
+      release_date: "2023-06-15",
+      runtime: 120
+    }),
+    makeMovie({
+      id: "2",
+      imdbRating: "6.0",
+      rtRating: "40%",
+      release_date: "2010-01-01",
+      runtime: 90
+    })
   ];
 
   it("returns all when no range filters set", () => {
@@ -211,13 +249,19 @@ describe("filterByRanges", () => {
   });
 
   it("filters by runtimeMin", () => {
-    const result = filterByRanges(items, makeVaultFilters({ runtimeMin: "100" }));
+    const result = filterByRanges(
+      items,
+      makeVaultFilters({ runtimeMin: "100" })
+    );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
   });
 
   it("filters by runtimeMax", () => {
-    const result = filterByRanges(items, makeVaultFilters({ runtimeMax: "100" }));
+    const result = filterByRanges(
+      items,
+      makeVaultFilters({ runtimeMax: "100" })
+    );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("2");
   });
@@ -225,7 +269,7 @@ describe("filterByRanges", () => {
   it("combines multiple range filters (AND logic)", () => {
     const result = filterByRanges(
       items,
-      makeVaultFilters({ imdbMin: "7.0", yearMin: "2020" }),
+      makeVaultFilters({ imdbMin: "7.0", yearMin: "2020" })
     );
     expect(result).toHaveLength(1);
     expect(result[0].id).toBe("1");
@@ -238,9 +282,33 @@ describe("sortItems", () => {
   // new rt/mt) and direction is a separate orthogonal control.
   // The default (added_date + desc) replaces the legacy "recent" mode.
   const items: WatchlistItem[] = [
-    makeMovie({ id: "1", title: "Zebra", release_date: "2023-01-01", rating: 5, imdbRating: "6.0", runtime: 120, addedAt: "2024-01-01T00:00:00Z" }),
-    makeMovie({ id: "2", title: "Alpha", release_date: "2020-01-01", rating: 9, imdbRating: "9.0", runtime: 90, addedAt: "2024-06-01T00:00:00Z" }),
-    makeMovie({ id: "3", title: "Mike", release_date: "2021-01-01", rating: 7, imdbRating: "7.5", runtime: 60, addedAt: "2024-03-01T00:00:00Z" }),
+    makeMovie({
+      id: "1",
+      title: "Zebra",
+      release_date: "2023-01-01",
+      rating: 5,
+      imdbRating: "6.0",
+      runtime: 120,
+      addedAt: "2024-01-01T00:00:00Z"
+    }),
+    makeMovie({
+      id: "2",
+      title: "Alpha",
+      release_date: "2020-01-01",
+      rating: 9,
+      imdbRating: "9.0",
+      runtime: 90,
+      addedAt: "2024-06-01T00:00:00Z"
+    }),
+    makeMovie({
+      id: "3",
+      title: "Mike",
+      release_date: "2021-01-01",
+      rating: 7,
+      imdbRating: "7.5",
+      runtime: 60,
+      addedAt: "2024-03-01T00:00:00Z"
+    })
   ];
 
   it("sorts by added_date desc (default — newest first)", () => {
@@ -295,7 +363,7 @@ describe("sortItems", () => {
     const items2 = [
       makeMovie({ id: "1", rtRating: "60%" }),
       makeMovie({ id: "2", rtRating: "95%" }),
-      makeMovie({ id: "3", rtRating: "75%" }),
+      makeMovie({ id: "3", rtRating: "75%" })
     ];
     const result = sortItems([...items2], "rt", "desc");
     expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
@@ -305,7 +373,7 @@ describe("sortItems", () => {
     const items2 = [
       makeMovie({ id: "1", mtRating: "55" }),
       makeMovie({ id: "2", mtRating: "92" }),
-      makeMovie({ id: "3", mtRating: "73" }),
+      makeMovie({ id: "3", mtRating: "73" })
     ];
     const result = sortItems([...items2], "mt", "desc");
     expect(result.map((m) => m.id)).toEqual(["2", "3", "1"]);
@@ -315,7 +383,7 @@ describe("sortItems", () => {
     const items2 = [
       makeMovie({ id: "1", mtRating: "55" }),
       makeMovie({ id: "2", mtRating: "92" }),
-      makeMovie({ id: "3", mtRating: "73" }),
+      makeMovie({ id: "3", mtRating: "73" })
     ];
     const result = sortItems([...items2], "mt", "asc");
     expect(result.map((m) => m.id)).toEqual(["1", "3", "2"]);
@@ -349,7 +417,7 @@ describe("sortItems", () => {
     const items2 = [
       makeMovie({ id: "1", watchDate: "2024-01-01" }),
       makeMovie({ id: "2", watchDate: "2024-06-01" }),
-      makeMovie({ id: "3" }), // no watch date
+      makeMovie({ id: "3" }) // no watch date
     ];
     const result = sortItems(items2, "watch_date", "desc");
     expect(result[0].id).toBe("2"); // most recent first
@@ -360,7 +428,7 @@ describe("sortItems", () => {
   it("sorts by watch_date asc (oldest watch first)", () => {
     const items2 = [
       makeMovie({ id: "1", watchDate: "2024-01-01" }),
-      makeMovie({ id: "2", watchDate: "2024-06-01" }),
+      makeMovie({ id: "2", watchDate: "2024-06-01" })
     ];
     const result = sortItems(items2, "watch_date", "asc");
     expect(result[0].id).toBe("1");
@@ -371,7 +439,7 @@ describe("sortItems", () => {
     const items2 = [
       makeMovie({ id: "1", imdbRating: "8.0" }),
       makeMovie({ id: "2" }), // missing imdbRating
-      makeMovie({ id: "3", imdbRating: "6.0" }),
+      makeMovie({ id: "3", imdbRating: "6.0" })
     ];
     const desc = sortItems([...items2], "imdb", "desc");
     // 8.0 → 6.0 → (no rating sinks)
@@ -453,7 +521,7 @@ describe("countActiveFilters", () => {
       type: "movie", // 1
       region: "Indian", // 2
       genre: "Drama", // 3
-      sortField: "release_date", // 4 (sortField !== added_date)
+      sortField: "release_date" // 4 (sortField !== added_date)
     });
     expect(countActiveFilters(filters)).toBe(4);
   });
@@ -461,7 +529,7 @@ describe("countActiveFilters", () => {
   it("counts non-default sortDirection as 1 active filter (even with default field)", () => {
     const filters = makeVaultFilters({
       sortField: "added_date", // default field
-      sortDirection: "asc", // non-default direction
+      sortDirection: "asc" // non-default direction
     });
     expect(countActiveFilters(filters)).toBe(1);
   });
@@ -469,7 +537,7 @@ describe("countActiveFilters", () => {
   it("counts sortField + sortDirection as 1 active filter (not 2) when both non-default", () => {
     const filters = makeVaultFilters({
       sortField: "imdb",
-      sortDirection: "asc",
+      sortDirection: "asc"
     });
     expect(countActiveFilters(filters)).toBe(1);
   });
@@ -501,19 +569,29 @@ describe("hasAdvancedFiltersActive", () => {
   });
 
   it("returns true when type is set", () => {
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ type: "movie" }))).toBe(true);
+    expect(hasAdvancedFiltersActive(makeVaultFilters({ type: "movie" }))).toBe(
+      true
+    );
   });
 
   it("returns true when sortField is not 'added_date'", () => {
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ sortField: "release_date" }))).toBe(true);
+    expect(
+      hasAdvancedFiltersActive(makeVaultFilters({ sortField: "release_date" }))
+    ).toBe(true);
   });
 
   it("returns true when sortDirection is not 'desc' (even with default field)", () => {
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ sortDirection: "asc" }))).toBe(true);
+    expect(
+      hasAdvancedFiltersActive(makeVaultFilters({ sortDirection: "asc" }))
+    ).toBe(true);
   });
 
   it("returns true when any range filter is set", () => {
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ imdbMin: "7.0" }))).toBe(true);
-    expect(hasAdvancedFiltersActive(makeVaultFilters({ yearMax: "2024" }))).toBe(true);
+    expect(hasAdvancedFiltersActive(makeVaultFilters({ imdbMin: "7.0" }))).toBe(
+      true
+    );
+    expect(
+      hasAdvancedFiltersActive(makeVaultFilters({ yearMax: "2024" }))
+    ).toBe(true);
   });
 });

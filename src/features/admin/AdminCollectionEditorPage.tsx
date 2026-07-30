@@ -36,7 +36,7 @@ import {
   onMount,
   createMemo,
   type Component,
-  type JSX,
+  type JSX
 } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 import TmdbSearchModal from "./collectionEditor/TmdbSearchModal";
@@ -45,7 +45,7 @@ import UniversePhasesPanel from "./collectionEditor/UniversePhasesPanel";
 import {
   type AdminUniverse,
   type AdminEntry,
-  type SortMode,
+  type SortMode
 } from "./collectionEditor/types";
 
 /**
@@ -59,9 +59,9 @@ import {
  *                                 incident_year)
  */
 const SORT_MODES: { id: SortMode; label: string }[] = [
-  { id: "story",     label: "Storyline" },
-  { id: "release",   label: "Release Year" },
-  { id: "franchise", label: "Franchise" },
+  { id: "story", label: "Storyline" },
+  { id: "release", label: "Release Year" },
+  { id: "franchise", label: "Franchise" }
 ];
 
 const AdminCollectionEditorPage: Component = () => {
@@ -70,12 +70,17 @@ const AdminCollectionEditorPage: Component = () => {
 
   const [universe, setUniverse] = createSignal<AdminUniverse | null>(null);
   const [entries, setEntries] = createSignal<AdminEntry[]>([]);
-  const [subscriberCount, setSubscriberCount] = createSignal<number | null>(null);
+  const [subscriberCount, setSubscriberCount] = createSignal<number | null>(
+    null
+  );
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [sortMode, setSortMode] = createSignal<SortMode>("story");
   const [searchOpen, setSearchOpen] = createSignal(false);
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
   const [showMetaPanel, setShowMetaPanel] = createSignal(false);
   const [savingMeta, setSavingMeta] = createSignal(false);
 
@@ -87,7 +92,7 @@ const AdminCollectionEditorPage: Component = () => {
     default_view: "timeline" as AdminUniverse["default_view"],
     color: "",
     cover_url: "",
-    banner_url: "",
+    banner_url: ""
   });
 
   const showToast = (msg: string, type: "success" | "error") => {
@@ -100,16 +105,26 @@ const AdminCollectionEditorPage: Component = () => {
   // expects a UUID. To support slug-based URLs we list all universes
   // first and find by slug. (Trade-off: one extra round-trip; cleaner
   // URLs in the admin address bar.)
-  const resolveUniverse = async (): Promise<{ universe: AdminUniverse | null; lookupError: string | null }> => {
+  const resolveUniverse = async (): Promise<{
+    universe: AdminUniverse | null;
+    lookupError: string | null;
+  }> => {
     const idOrSlug = params.id;
-    if (!idOrSlug) return { universe: null, lookupError: "No universe id in URL." };
+    if (!idOrSlug)
+      return { universe: null, lookupError: "No universe id in URL." };
 
     // Try UUID first (cheap path — single fetch).
-    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(idOrSlug);
+    const isUuid =
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
+        idOrSlug
+      );
     if (isUuid) {
-      const resp = await fetch(`/api/admin/collections?id=${encodeURIComponent(idOrSlug)}`, {
-        credentials: "include",
-      });
+      const resp = await fetch(
+        `/api/admin/collections?id=${encodeURIComponent(idOrSlug)}`,
+        {
+          credentials: "include"
+        }
+      );
       if (resp.ok) {
         const data = await resp.json();
         return { universe: data.universe as AdminUniverse, lookupError: null };
@@ -120,19 +135,25 @@ const AdminCollectionEditorPage: Component = () => {
     }
 
     // Fallback: list all and find by slug.
-    const listResp = await fetch("/api/admin/collections", { credentials: "include" });
-    if (!listResp.ok) return { universe: null, lookupError: `HTTP ${listResp.status}` };
+    const listResp = await fetch("/api/admin/collections", {
+      credentials: "include"
+    });
+    if (!listResp.ok)
+      return { universe: null, lookupError: `HTTP ${listResp.status}` };
     const listData = await listResp.json();
     const found = (listData.universes as AdminUniverse[]).find(
-      (u) => u.slug === idOrSlug || u.id === idOrSlug,
+      (u) => u.slug === idOrSlug || u.id === idOrSlug
     );
-    return { universe: found ?? null, lookupError: found ? null : "Universe not found." };
+    return {
+      universe: found ?? null,
+      lookupError: found ? null : "Universe not found."
+    };
   };
 
   const fetchEntries = async (universeId: string) => {
     const resp = await fetch(
       `/api/admin/collections/entries?universe_id=${encodeURIComponent(universeId)}`,
-      { credentials: "include" },
+      { credentials: "include" }
     );
     if (!resp.ok) {
       throw new Error(`Failed to load entries (HTTP ${resp.status})`);
@@ -145,11 +166,13 @@ const AdminCollectionEditorPage: Component = () => {
     try {
       const resp = await fetch(
         `/api/admin/collections?id=${encodeURIComponent(universeId)}&stats=1`,
-        { credentials: "include" },
+        { credentials: "include" }
       );
       if (!resp.ok) return null;
       const data = await resp.json();
-      return typeof data.subscriber_count === "number" ? data.subscriber_count : null;
+      return typeof data.subscriber_count === "number"
+        ? data.subscriber_count
+        : null;
     } catch {
       return null;
     }
@@ -172,7 +195,7 @@ const AdminCollectionEditorPage: Component = () => {
         default_view: u.default_view,
         color: u.color ?? "",
         cover_url: u.cover_url ?? "",
-        banner_url: u.banner_url ?? "",
+        banner_url: u.banner_url ?? ""
       });
       const ents = await fetchEntries(u.id);
       setEntries(ents);
@@ -258,8 +281,7 @@ const AdminCollectionEditorPage: Component = () => {
   // Returns null when not in franchise mode so the renderer can decide
   // whether to draw group headers or a flat list.
   const groupedByFranchise = createMemo<
-    { franchise: string; entries: AdminEntry[] }[]
-    | null
+    { franchise: string; entries: AdminEntry[] }[] | null
   >(() => {
     if (sortMode() !== "franchise") return null;
     const groups: { franchise: string; entries: AdminEntry[] }[] = [];
@@ -279,7 +301,10 @@ const AdminCollectionEditorPage: Component = () => {
   // - storyline → incident_year (or "—" if unset)
   // - release   → release year (or "—")
   // - franchise → 1-based index within the franchise group
-  const leftBadgeFor = (entry: AdminEntry, groupIndex: number | null): string => {
+  const leftBadgeFor = (
+    entry: AdminEntry,
+    groupIndex: number | null
+  ): string => {
     if (sortMode() === "story") {
       return entry.incident_year !== null ? String(entry.incident_year) : "—";
     }
@@ -310,8 +335,8 @@ const AdminCollectionEditorPage: Component = () => {
         body: JSON.stringify({
           universe_id: u.id,
           tmdb_id: result.tmdb_id,
-          media_type: result.media_type,
-        }),
+          media_type: result.media_type
+        })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -323,7 +348,7 @@ const AdminCollectionEditorPage: Component = () => {
         ...(body.entry as AdminEntry),
         title: result.title,
         poster_path: result.poster_path,
-        release_date: result.release_date,
+        release_date: result.release_date
       };
       setEntries((prev) => [...prev, newEntry]);
       showToast(`Added "${result.title}"`, "success");
@@ -336,12 +361,15 @@ const AdminCollectionEditorPage: Component = () => {
 
   // ─── Save entry edits ─────────────────────────────────────────────
 
-  const handleEntrySave = async (entry: AdminEntry, updates: Partial<AdminEntry>) => {
+  const handleEntrySave = async (
+    entry: AdminEntry,
+    updates: Partial<AdminEntry>
+  ) => {
     const resp = await fetch("/api/admin/collections/entries", {
       method: "PATCH",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entry.id, ...updates }),
+      body: JSON.stringify({ id: entry.id, ...updates })
     });
     const body = await resp.json().catch(() => ({}));
     if (!resp.ok || body.error) {
@@ -349,16 +377,19 @@ const AdminCollectionEditorPage: Component = () => {
       return;
     }
     setEntries((prev) =>
-      prev.map((e) => (e.id === entry.id ? { ...e, ...updates } : e)),
+      prev.map((e) => (e.id === entry.id ? { ...e, ...updates } : e))
     );
     showToast("Entry updated", "success");
   };
 
   const handleEntryDelete = async (entry: AdminEntry) => {
-    const resp = await fetch(`/api/admin/collections/entries?id=${encodeURIComponent(entry.id)}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
+    const resp = await fetch(
+      `/api/admin/collections/entries?id=${encodeURIComponent(entry.id)}`,
+      {
+        method: "DELETE",
+        credentials: "include"
+      }
+    );
     const body = await resp.json().catch(() => ({}));
     if (!resp.ok || body.error) {
       showToast(body.error || "Failed to delete entry", "error");
@@ -387,8 +418,8 @@ const AdminCollectionEditorPage: Component = () => {
           default_view: metaForm().default_view,
           color: metaForm().color || null,
           cover_url: metaForm().cover_url || null,
-          banner_url: metaForm().banner_url || null,
-        }),
+          banner_url: metaForm().banner_url || null
+        })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -404,7 +435,7 @@ const AdminCollectionEditorPage: Component = () => {
         default_view: metaForm().default_view,
         color: metaForm().color || null,
         cover_url: metaForm().cover_url || null,
-        banner_url: metaForm().banner_url || null,
+        banner_url: metaForm().banner_url || null
       };
       setUniverse(updated);
       setShowMetaPanel(false);
@@ -431,7 +462,7 @@ const AdminCollectionEditorPage: Component = () => {
           display: "flex",
           "align-items": "flex-start",
           gap: "var(--sp-3)",
-          "margin-bottom": "var(--sp-5)",
+          "margin-bottom": "var(--sp-5)"
         }}
       >
         <button
@@ -447,7 +478,7 @@ const AdminCollectionEditorPage: Component = () => {
             cursor: "pointer",
             "font-size": "1.1rem",
             "line-height": "1",
-            "flex-shrink": 0,
+            "flex-shrink": 0
           }}
           aria-label="Back to admin collections"
         >
@@ -463,16 +494,23 @@ const AdminCollectionEditorPage: Component = () => {
                 color: "var(--text)",
                 "white-space": "nowrap",
                 overflow: "hidden",
-                "text-overflow": "ellipsis",
+                "text-overflow": "ellipsis"
               }}
             >
               {universe()!.name}
             </h1>
-            <div style={{ "font-size": "0.8rem", color: "var(--text-muted)", "margin-top": "2px" }}>
+            <div
+              style={{
+                "font-size": "0.8rem",
+                color: "var(--text-muted)",
+                "margin-top": "2px"
+              }}
+            >
               /{universe()!.slug} · {entries().length} entries
               <Show when={subscriberCount() !== null}>
                 {" · "}
-                {subscriberCount()} subscriber{subscriberCount() === 1 ? "" : "s"}
+                {subscriberCount()} subscriber
+                {subscriberCount() === 1 ? "" : "s"}
               </Show>
             </div>
           </Show>
@@ -489,7 +527,7 @@ const AdminCollectionEditorPage: Component = () => {
                 "text-decoration": "none",
                 display: "inline-flex",
                 "align-items": "center",
-                gap: "var(--sp-1)",
+                gap: "var(--sp-1)"
               }}
             >
               👁️ Preview as user
@@ -507,7 +545,13 @@ const AdminCollectionEditorPage: Component = () => {
 
       {/* Error / loading */}
       <Show when={loading()}>
-        <div style={{ padding: "var(--sp-12)", "text-align": "center", color: "var(--text-muted)" }}>
+        <div
+          style={{
+            padding: "var(--sp-12)",
+            "text-align": "center",
+            color: "var(--text-muted)"
+          }}
+        >
           Loading universe…
         </div>
       </Show>
@@ -522,10 +566,16 @@ const AdminCollectionEditorPage: Component = () => {
             style={{
               ...cardStyle,
               "margin-bottom": "var(--sp-5)",
-              padding: "var(--sp-4) var(--sp-5)",
+              padding: "var(--sp-4) var(--sp-5)"
             }}
           >
-            <h3 style={{ margin: "0 0 var(--sp-4) 0", "font-size": "1rem", color: "var(--text)" }}>
+            <h3
+              style={{
+                margin: "0 0 var(--sp-4) 0",
+                "font-size": "1rem",
+                color: "var(--text)"
+              }}
+            >
               Universe Metadata
             </h3>
             <div
@@ -533,29 +583,42 @@ const AdminCollectionEditorPage: Component = () => {
                 display: "grid",
                 "grid-template-columns": "1fr 1fr",
                 gap: "var(--sp-3)",
-                "margin-bottom": "var(--sp-3)",
+                "margin-bottom": "var(--sp-3)"
               }}
             >
               <Field label="Name *">
                 <input
                   style={inputStyle}
                   value={metaForm().name}
-                  onInput={(e) => setMetaForm({ ...metaForm(), name: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setMetaForm({ ...metaForm(), name: e.currentTarget.value })
+                  }
                 />
               </Field>
               <Field label="Slug *">
                 <input
                   style={inputStyle}
                   value={metaForm().slug}
-                  onInput={(e) => setMetaForm({ ...metaForm(), slug: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setMetaForm({ ...metaForm(), slug: e.currentTarget.value })
+                  }
                 />
               </Field>
             </div>
             <Field label="Description">
               <textarea
-                style={{ ...inputStyle, "min-height": "70px", resize: "vertical" }}
+                style={{
+                  ...inputStyle,
+                  "min-height": "70px",
+                  resize: "vertical"
+                }}
                 value={metaForm().description}
-                onInput={(e) => setMetaForm({ ...metaForm(), description: e.currentTarget.value })}
+                onInput={(e) =>
+                  setMetaForm({
+                    ...metaForm(),
+                    description: e.currentTarget.value
+                  })
+                }
                 placeholder="A short summary users see on the universe card."
               />
             </Field>
@@ -564,7 +627,7 @@ const AdminCollectionEditorPage: Component = () => {
                 display: "grid",
                 "grid-template-columns": "1fr 1fr 1fr",
                 gap: "var(--sp-3)",
-                "margin-top": "var(--sp-3)",
+                "margin-top": "var(--sp-3)"
               }}
             >
               <Field label="Default View">
@@ -574,7 +637,8 @@ const AdminCollectionEditorPage: Component = () => {
                   onChange={(e) =>
                     setMetaForm({
                       ...metaForm(),
-                      default_view: e.currentTarget.value as AdminUniverse["default_view"],
+                      default_view: e.currentTarget
+                        .value as AdminUniverse["default_view"]
                     })
                   }
                 >
@@ -585,7 +649,9 @@ const AdminCollectionEditorPage: Component = () => {
                       existing DB rows. Maps to "story" (Storyline) in the
                       adapter. Hidden from new selections. */}
                   <Show when={metaForm().default_view === "timeline"}>
-                    <option value="timeline">Timeline (legacy — maps to Storyline)</option>
+                    <option value="timeline">
+                      Timeline (legacy — maps to Storyline)
+                    </option>
                   </Show>
                 </select>
               </Field>
@@ -593,7 +659,9 @@ const AdminCollectionEditorPage: Component = () => {
                 <input
                   style={inputStyle}
                   value={metaForm().color}
-                  onInput={(e) => setMetaForm({ ...metaForm(), color: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setMetaForm({ ...metaForm(), color: e.currentTarget.value })
+                  }
                   placeholder="#dc2626"
                 />
               </Field>
@@ -601,7 +669,12 @@ const AdminCollectionEditorPage: Component = () => {
                 <input
                   style={inputStyle}
                   value={metaForm().cover_url}
-                  onInput={(e) => setMetaForm({ ...metaForm(), cover_url: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setMetaForm({
+                      ...metaForm(),
+                      cover_url: e.currentTarget.value
+                    })
+                  }
                   placeholder="https://image.tmdb.org/t/p/original/…"
                 />
               </Field>
@@ -610,7 +683,12 @@ const AdminCollectionEditorPage: Component = () => {
               <input
                 style={inputStyle}
                 value={metaForm().banner_url}
-                onInput={(e) => setMetaForm({ ...metaForm(), banner_url: e.currentTarget.value })}
+                onInput={(e) =>
+                  setMetaForm({
+                    ...metaForm(),
+                    banner_url: e.currentTarget.value
+                  })
+                }
                 placeholder="https://…"
               />
             </Field>
@@ -619,7 +697,7 @@ const AdminCollectionEditorPage: Component = () => {
                 display: "flex",
                 "justify-content": "flex-end",
                 gap: "var(--sp-2)",
-                "margin-top": "var(--sp-4)",
+                "margin-top": "var(--sp-4)"
               }}
             >
               <button
@@ -650,10 +728,12 @@ const AdminCollectionEditorPage: Component = () => {
             "justify-content": "space-between",
             gap: "var(--sp-3)",
             "margin-bottom": "var(--sp-4)",
-            "flex-wrap": "wrap",
+            "flex-wrap": "wrap"
           }}
         >
-          <div style={{ display: "flex", gap: "var(--sp-1)", "flex-wrap": "wrap" }}>
+          <div
+            style={{ display: "flex", gap: "var(--sp-1)", "flex-wrap": "wrap" }}
+          >
             <For each={SORT_MODES}>
               {(m) => (
                 <button
@@ -700,17 +780,25 @@ const AdminCollectionEditorPage: Component = () => {
                 padding: "var(--sp-8)",
                 color: "var(--text-muted)",
                 "font-size": "0.9rem",
-                "text-align": "center",
+                "text-align": "center"
               }}
             >
-              No entries yet. Click "+ Add title from TMDB" to add the first one.
+              No entries yet. Click "+ Add title from TMDB" to add the first
+              one.
             </div>
           }
         >
           <Show
             when={groupedByFranchise()}
             fallback={
-              <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+              <div
+                role="list"
+                style={{
+                  display: "flex",
+                  "flex-direction": "column",
+                  gap: "var(--sp-2)"
+                }}
+              >
                 <For each={sortedEntries()}>
                   {(entry, i) => (
                     <EntryRow
@@ -731,8 +819,9 @@ const AdminCollectionEditorPage: Component = () => {
                 <div
                   style={{
                     "margin-bottom": "var(--sp-4)",
-                    "border-left": "2px solid color-mix(in srgb, var(--p, #7c3aed) 30%, transparent)",
-                    "padding-left": "var(--sp-3)",
+                    "border-left":
+                      "2px solid color-mix(in srgb, var(--p, #7c3aed) 30%, transparent)",
+                    "padding-left": "var(--sp-3)"
                   }}
                 >
                   <div
@@ -741,7 +830,7 @@ const AdminCollectionEditorPage: Component = () => {
                       "align-items": "baseline",
                       gap: "var(--sp-2)",
                       "margin-bottom": "var(--sp-2)",
-                      padding: "0 var(--sp-2)",
+                      padding: "0 var(--sp-2)"
                     }}
                   >
                     <span
@@ -749,7 +838,7 @@ const AdminCollectionEditorPage: Component = () => {
                         "font-size": "0.95rem",
                         "font-weight": "700",
                         color: "var(--text)",
-                        "letter-spacing": "0.01em",
+                        "letter-spacing": "0.01em"
                       }}
                     >
                       {group.franchise}
@@ -759,13 +848,21 @@ const AdminCollectionEditorPage: Component = () => {
                         "font-size": "0.7rem",
                         color: "var(--text-muted)",
                         "text-transform": "uppercase",
-                        "letter-spacing": "0.08em",
+                        "letter-spacing": "0.08em"
                       }}
                     >
-                      {group.entries.length} {group.entries.length === 1 ? "title" : "titles"}
+                      {group.entries.length}{" "}
+                      {group.entries.length === 1 ? "title" : "titles"}
                     </span>
                   </div>
-                  <div role="list" style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+                  <div
+                    role="list"
+                    style={{
+                      display: "flex",
+                      "flex-direction": "column",
+                      gap: "var(--sp-2)"
+                    }}
+                  >
                     <For each={group.entries}>
                       {(entry, i) => (
                         <EntryRow
@@ -794,19 +891,26 @@ const AdminCollectionEditorPage: Component = () => {
             border: "1px dashed var(--hairline)",
             "font-size": "0.8rem",
             color: "var(--text-muted)",
-            "line-height": "1.6",
+            "line-height": "1.6"
           }}
         >
-          <strong style={{ color: "var(--text-secondary)" }}>About sort modes</strong>
+          <strong style={{ color: "var(--text-secondary)" }}>
+            About sort modes
+          </strong>
           <br />
-          Three sort modes are exposed to the user on the consumer side: <em>Storyline</em> (in-universe
-          chronology, sorted by the per-entry <code>incident_year</code> you set via the pencil icon —
-          e.g. 1943 for Captain America: The First Avenger, 1995 for Captain Marvel), <em>Release Year</em>
-          (theatrical release date — automatic from TMDB metadata, no admin input needed), and
-          <em>Franchise</em> (groups entries by movie series — Iron Man films together, Thor films together,
-          etc. — derived automatically from the title; within each group entries are sorted by
-          <code>incident_year</code>). Use the sort-mode buttons above to preview each ordering. Click the
-          pencil icon on any entry to set its <code>incident_year</code> and an admin-only note.
+          Three sort modes are exposed to the user on the consumer side:{" "}
+          <em>Storyline</em> (in-universe chronology, sorted by the per-entry{" "}
+          <code>incident_year</code> you set via the pencil icon — e.g. 1943 for
+          Captain America: The First Avenger, 1995 for Captain Marvel),{" "}
+          <em>Release Year</em>
+          (theatrical release date — automatic from TMDB metadata, no admin
+          input needed), and
+          <em>Franchise</em> (groups entries by movie series — Iron Man films
+          together, Thor films together, etc. — derived automatically from the
+          title; within each group entries are sorted by
+          <code>incident_year</code>). Use the sort-mode buttons above to
+          preview each ordering. Click the pencil icon on any entry to set its{" "}
+          <code>incident_year</code> and an admin-only note.
         </div>
       </Show>
 
@@ -821,7 +925,9 @@ const AdminCollectionEditorPage: Component = () => {
 
       {/* Toast */}
       <Show when={toast()}>
-        <div style={toastStyle(toast()!.type === "success")}>{toast()!.msg}</div>
+        <div style={toastStyle(toast()!.type === "success")}>
+          {toast()!.msg}
+        </div>
       </Show>
     </div>
   );
@@ -829,7 +935,7 @@ const AdminCollectionEditorPage: Component = () => {
 
 // ─── Sub-components & styles ───────────────────────────────────────
 
-function Field(props: { label: string; children: any }) {
+function Field(props: { label: string; children: JSX.Element }) {
   return (
     <div>
       <label
@@ -838,7 +944,7 @@ function Field(props: { label: string; children: any }) {
           "font-size": "0.75rem",
           color: "var(--text-muted)",
           "margin-bottom": "var(--sp-1)",
-          "font-weight": "500",
+          "font-weight": "500"
         }}
       >
         {props.label}
@@ -854,7 +960,7 @@ const cardStyle: JSX.CSSProperties = {
   "border-radius": "var(--radius-lg)",
   display: "flex",
   "align-items": "center",
-  gap: "var(--sp-3)",
+  gap: "var(--sp-3)"
 };
 
 const alertErrorStyle: JSX.CSSProperties = {
@@ -864,7 +970,7 @@ const alertErrorStyle: JSX.CSSProperties = {
   padding: "var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 };
 
 const inputStyle: JSX.CSSProperties = {
@@ -876,7 +982,7 @@ const inputStyle: JSX.CSSProperties = {
   color: "var(--text)",
   "font-size": "0.875rem",
   "font-family": "inherit",
-  "box-sizing": "border-box",
+  "box-sizing": "border-box"
 };
 
 const btnPrimaryStyle: JSX.CSSProperties = {
@@ -887,7 +993,7 @@ const btnPrimaryStyle: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.8125rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnSecondaryStyle: JSX.CSSProperties = {
@@ -898,7 +1004,7 @@ const btnSecondaryStyle: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.8125rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const sortBtn: JSX.CSSProperties = {
@@ -909,7 +1015,7 @@ const sortBtn: JSX.CSSProperties = {
   "border-radius": "var(--radius-sm)",
   "font-size": "0.75rem",
   "font-weight": "500",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const sortBtnActive: JSX.CSSProperties = {
@@ -917,7 +1023,7 @@ const sortBtnActive: JSX.CSSProperties = {
   background: "var(--accent, #00d9a3)",
   color: "var(--void, #0a0e14)",
   "border-color": "transparent",
-  "font-weight": "600",
+  "font-weight": "600"
 };
 
 function toastStyle(success: boolean): JSX.CSSProperties {
@@ -932,7 +1038,7 @@ function toastStyle(success: boolean): JSX.CSSProperties {
     "border-radius": "var(--radius-md)",
     "font-size": "0.875rem",
     "font-weight": "600",
-    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)",
+    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
   };
 }
 

@@ -16,7 +16,13 @@ export function DiscoverSectionError(props: DiscoverSectionErrorProps) {
   return (
     <section class="discover-fold">
       <div class="discover-fold-label">
-        <span class="material-symbols-outlined" style={{ "font-size": "12px", color: "var(--text-dim)" }} aria-hidden="true">error</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "12px", color: "var(--text-dim)" }}
+          aria-hidden="true"
+        >
+          error
+        </span>
         {props.label}
       </div>
       <DiscoverEmptyState

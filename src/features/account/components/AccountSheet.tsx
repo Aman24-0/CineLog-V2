@@ -18,7 +18,15 @@
 // Consumers pass `title`, `icon`, optional `subtitle`, optional `danger`
 // flag (red header), and the body JSX.
 
-import { Show, onMount, onCleanup, on, createEffect, type Component, type JSX } from "solid-js";
+import {
+  Show,
+  onMount,
+  onCleanup,
+  on,
+  createEffect,
+  type Component,
+  type JSX
+} from "solid-js";
 import { Portal } from "solid-js/web";
 
 interface AccountSheetProps {
@@ -52,24 +60,26 @@ const AccountSheet: Component<AccountSheetProps> = (props) => {
   });
 
   // Lock body overflow whenever `open` changes.
-  createEffect(on(
-    () => props.open,
-    (isOpen) => {
-      if (isOpen) document.body.style.overflow = "hidden";
-      else document.body.style.overflow = "";
-    },
-  ));
+  createEffect(
+    on(
+      () => props.open,
+      (isOpen) => {
+        if (isOpen) document.body.style.overflow = "hidden";
+        else document.body.style.overflow = "";
+      }
+    )
+  );
 
   return (
     <Show when={props.open}>
       <Portal>
         <div
-          class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
           style={{
             background: "rgba(0,0,0,0.85)",
             "backdrop-filter": "blur(12px)",
             "-webkit-backdrop-filter": "blur(12px)",
-            "padding-bottom": "var(--nav-total-height)",
+            "padding-bottom": "var(--nav-total-height)"
           }}
           onClick={() => !props.busy && props.onClose()}
           role="dialog"
@@ -78,9 +88,10 @@ const AccountSheet: Component<AccountSheetProps> = (props) => {
         >
           <div
             ref={containerRef}
-            class={`w-full ${props.maxWidth ?? "max-w-md"} rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter relative`}
+            class={`w-full ${props.maxWidth ?? "max-w-md"} modal-sheet-enter relative flex flex-col rounded-t-[2rem] sm:rounded-[2rem]`}
             style={{
-              "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
+              "max-height":
+                "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
               "min-height": "0",
               background: "var(--glass-bg-strong)",
               "backdrop-filter": "blur(28px)",
@@ -88,13 +99,13 @@ const AccountSheet: Component<AccountSheetProps> = (props) => {
               border: props.danger
                 ? "1px solid rgba(248, 113, 113, 0.3)"
                 : "1px solid var(--hairline-2)",
-              "box-shadow": "var(--shadow-elevated)",
+              "box-shadow": "var(--shadow-elevated)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
             {/* Drag handle (mobile only) */}
             <div
-              class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
+              class="mx-auto mb-2 mt-4 h-1.5 w-12 flex-shrink-0 rounded-full sm:hidden"
               style={{ background: "var(--hairline-2)" }}
               aria-hidden="true"
             />
@@ -103,29 +114,36 @@ const AccountSheet: Component<AccountSheetProps> = (props) => {
             <Show when={!props.busy}>
               <button
                 onClick={() => props.onClose()}
-                class="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95 z-10"
+                class="absolute right-3 top-3 z-10 flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
                 style={{
                   background: "rgba(255,255,255,0.04)",
                   color: "var(--text-soft)",
-                  border: "1px solid var(--hairline)",
+                  border: "1px solid var(--hairline)"
                 }}
                 aria-label="Close"
               >
-                <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
                   close
                 </span>
               </button>
             </Show>
 
             {/* Header */}
-            <div class="px-6 pt-5 pb-3 flex-shrink-0" style={{ "border-bottom": "1px solid var(--hairline)" }}>
+            <div
+              class="flex-shrink-0 px-6 pb-3 pt-5"
+              style={{ "border-bottom": "1px solid var(--hairline)" }}
+            >
               <div class="flex items-center gap-2">
                 <Show when={props.icon}>
                   <span
                     class="material-symbols-outlined"
                     style={{
                       "font-size": "20px",
-                      color: props.danger ? "#f87171" : "var(--p)",
+                      color: props.danger ? "#f87171" : "var(--p)"
                     }}
                     aria-hidden="true"
                   >
@@ -137,21 +155,27 @@ const AccountSheet: Component<AccountSheetProps> = (props) => {
                   style={{
                     "font-size": "1.0625rem",
                     margin: 0,
-                    color: props.danger ? "#fca5a5" : "var(--text-strong)",
+                    color: props.danger ? "#fca5a5" : "var(--text-strong)"
                   }}
                 >
                   {props.title}
                 </h3>
               </div>
               <Show when={props.subtitle}>
-                <p class="type-body-soft" style={{ margin: "0.5rem 0 0", "font-size": "0.8125rem" }}>
+                <p
+                  class="type-body-soft"
+                  style={{ margin: "0.5rem 0 0", "font-size": "0.8125rem" }}
+                >
                   {props.subtitle}
                 </p>
               </Show>
             </div>
 
             {/* Body — scrollable */}
-            <div class="flex-1 overflow-y-auto px-6 pt-4 pb-5" style={{ "overscroll-behavior": "contain" }}>
+            <div
+              class="flex-1 overflow-y-auto px-6 pb-5 pt-4"
+              style={{ "overscroll-behavior": "contain" }}
+            >
               {props.children}
             </div>
           </div>

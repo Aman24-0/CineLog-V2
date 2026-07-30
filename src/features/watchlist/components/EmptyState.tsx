@@ -30,19 +30,17 @@ export default function EmptyState(props: EmptyStateProps) {
       fallback={
         <GlassSurface
           strength="strong"
-          class="rounded-[2rem] p-8 text-center flex flex-col items-center justify-center min-h-[300px]"
+          class="flex min-h-[300px] flex-col items-center justify-center rounded-[2rem] p-8 text-center"
           role="status"
           aria-live="polite"
         >
           <div class="mb-4 text-[var(--p)]">
-            <Icon
-              name="video_library"
-              fill
-              style={{ "font-size": "32px" }}
-            />
+            <Icon name="video_library" fill style={{ "font-size": "32px" }} />
           </div>
-          <h3 class="text-xl font-medium text-white mb-2">{props.title}</h3>
-          <p class="text-[var(--text-muted)] mb-6 max-w-[300px]">{props.message}</p>
+          <h3 class="mb-2 text-xl font-medium text-white">{props.title}</h3>
+          <p class="mb-6 max-w-[300px] text-[var(--text-muted)]">
+            {props.message}
+          </p>
           <GlassButton
             variant="primary"
             onClick={() => props.onAction()}

@@ -24,7 +24,12 @@
 
 import { isServer } from "solid-js/web";
 import { createAdminClient } from "./adminClient";
-import { getClientIP, getUserAgent, type AdminAPIEvent, type AdminUser } from "./adminGuard";
+import {
+  getClientIP,
+  getUserAgent,
+  type AdminAPIEvent,
+  type AdminUser
+} from "./adminGuard";
 
 /** Audit log entry to be inserted. */
 export interface AuditLogEntry {
@@ -48,7 +53,7 @@ export interface AuditLogEntry {
 export async function logAdminAction(
   event: AdminAPIEvent,
   admin: AdminUser,
-  entry: AuditLogEntry,
+  entry: AuditLogEntry
 ): Promise<void> {
   if (!isServer) return;
 
@@ -61,7 +66,7 @@ export async function logAdminAction(
       entity_id: entry.entity_id ?? null,
       payload: entry.payload ?? {},
       ip_address: getClientIP(event),
-      user_agent: getUserAgent(event),
+      user_agent: getUserAgent(event)
     });
 
     if (error) {

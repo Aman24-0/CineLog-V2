@@ -21,14 +21,18 @@ export interface ArchivedCollectionsSectionProps {
   onUnarchive: (collectionId: string) => void | Promise<void>;
 }
 
-const ArchivedCollectionsSection: Component<ArchivedCollectionsSectionProps> = (props) => {
+const ArchivedCollectionsSection: Component<ArchivedCollectionsSectionProps> = (
+  props
+) => {
   const navigate = useNavigate();
 
   return (
     <Show when={props.collections().length > 0}>
       <section class="archived-collections-section">
         <div class="archived-collections-label">
-          <span class="material-symbols-outlined" aria-hidden="true">archive</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            archive
+          </span>
           Archived · {props.collections().length}
         </div>
 
@@ -58,7 +62,12 @@ function ArchivedCard(props: ArchivedCardProps) {
   const poster = () => {
     const entries = props.col.entries ?? [];
     const withPoster = entries.find((e) => e.poster_path);
-    return withPoster?.poster_path ?? props.col.poster_path ?? props.col.backdrop_path ?? null;
+    return (
+      withPoster?.poster_path ??
+      props.col.poster_path ??
+      props.col.backdrop_path ??
+      null
+    );
   };
 
   return (
@@ -98,12 +107,16 @@ function ArchivedCard(props: ArchivedCardProps) {
             decoding="async"
             alt=""
             aria-hidden="true"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         </Show>
 
         <span class="collection-card-archived-badge">
-          <span class="material-symbols-outlined" aria-hidden="true">archive</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            archive
+          </span>
           Archived
         </span>
       </div>
@@ -112,7 +125,8 @@ function ArchivedCard(props: ArchivedCardProps) {
         <p class="collection-card-name">{props.col.name}</p>
         <div class="collection-card-stats">
           <span class="collection-card-stats-text">
-            {(props.col.entries ?? []).length} {(props.col.entries ?? []).length !== 1 ? "titles" : "title"}
+            {(props.col.entries ?? []).length}{" "}
+            {(props.col.entries ?? []).length !== 1 ? "titles" : "title"}
           </span>
         </div>
       </div>
@@ -126,7 +140,9 @@ function ArchivedCard(props: ArchivedCardProps) {
         }}
         aria-label={`Unarchive ${props.col.name}`}
       >
-        <span class="material-symbols-outlined" aria-hidden="true">unarchive</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          unarchive
+        </span>
         Unarchive
       </button>
     </div>

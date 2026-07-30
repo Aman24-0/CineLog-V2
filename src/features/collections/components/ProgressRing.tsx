@@ -22,8 +22,11 @@ export default function ProgressRing(props: ProgressRingProps) {
   const strokeWidth = () => strokeMap[props.size ?? "md"];
   const radius = createMemo(() => (svgSize() - strokeWidth()) / 2);
   const circumference = createMemo(() => 2 * Math.PI * radius());
-  const offset = createMemo(() => circumference() - (props.pct / 100) * circumference());
-  const fontSize = () => props.size === "sm" ? "10px" : props.size === "lg" ? "18px" : "14px";
+  const offset = createMemo(
+    () => circumference() - (props.pct / 100) * circumference()
+  );
+  const fontSize = () =>
+    props.size === "sm" ? "10px" : props.size === "lg" ? "18px" : "14px";
 
   return (
     <div

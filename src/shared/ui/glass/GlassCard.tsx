@@ -18,27 +18,27 @@ type CardBorder = "none" | "default";
 // ─── Token Maps ────────────────────────────────────────────────
 
 const variantClasses: Record<CardVariant, string> = {
-  "glass": "bg-glass backdrop-blur-xl",
+  glass: "bg-glass backdrop-blur-xl",
   "glass-strong": "bg-glass-strong backdrop-blur-2xl",
-  accent: "bg-glass backdrop-blur-xl shadow-glow",
+  accent: "bg-glass backdrop-blur-xl shadow-glow"
 };
 
 const sizeClasses: Record<CardSize, string> = {
   compact: "p-3 gap-2",
   default: "p-4 gap-3",
-  comfortable: "p-6 gap-4",
+  comfortable: "p-6 gap-4"
 };
 
 const paddingOverride: Record<CardPadding, string> = {
   none: "",
   compact: "p-3",
   default: "p-4",
-  comfortable: "p-6",
+  comfortable: "p-6"
 };
 
 const borderOverride: Record<CardBorder, string> = {
   none: "",
-  default: "border border-glass-border",
+  default: "border border-glass-border"
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -66,9 +66,19 @@ export interface GlassCardProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassCardProps,
-  "variant" | "size" | "interactive" | "selected" | "loading" | "disabled" | "hoverable" | "border"
->> & { padding?: CardPadding } = {
+const defaultProps: Required<
+  Pick<
+    GlassCardProps,
+    | "variant"
+    | "size"
+    | "interactive"
+    | "selected"
+    | "loading"
+    | "disabled"
+    | "hoverable"
+    | "border"
+  >
+> & { padding?: CardPadding } = {
   variant: "glass",
   size: "default",
   interactive: false,
@@ -77,7 +87,7 @@ const defaultProps: Required<Pick<GlassCardProps,
   disabled: false,
   hoverable: false,
   border: "default",
-  padding: undefined,
+  padding: undefined
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -88,8 +98,18 @@ const defaultProps: Required<Pick<GlassCardProps,
 const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "variant", "size", "interactive", "selected", "loading", "disabled",
-    "padding", "border", "hoverable", "class", "style", "children",
+    "variant",
+    "size",
+    "interactive",
+    "selected",
+    "loading",
+    "disabled",
+    "padding",
+    "border",
+    "hoverable",
+    "class",
+    "style",
+    "children"
   ]);
 
   /** Resolve all token-based class names. */
@@ -98,7 +118,7 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
       "relative",
       "rounded-lg",
       "overflow-hidden",
-      variantClasses[local.variant],
+      variantClasses[local.variant]
     ];
 
     // Padding: override takes precedence, else use size
@@ -139,7 +159,7 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
         "hover:scale-[1.01]",
         "hover:shadow-raised",
         "active:scale-[0.99]",
-        "active:duration-fast",
+        "active:duration-fast"
       );
     }
 
@@ -151,13 +171,17 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
         "ease-standard",
         "hover:bg-glass-strong",
         "hover:backdrop-blur-2xl",
-        "hover:shadow-raised",
+        "hover:shadow-raised"
       );
     }
 
     // Disabled state
     if (local.disabled) {
-      classes.push("opacity-disabled", "cursor-not-allowed", "pointer-events-none");
+      classes.push(
+        "opacity-disabled",
+        "cursor-not-allowed",
+        "pointer-events-none"
+      );
     }
 
     // Loading state
@@ -178,14 +202,14 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
     if (local.variant === "accent" && !local.selected) {
       return {
         "border-color": "var(--p)",
-        ...((local.style as Record<string, string>) || {}),
+        ...((local.style as Record<string, string>) || {})
       };
     }
     if (local.selected) {
       return {
         "border-color": "var(--p)",
-        "background": "var(--p-dim)",
-        ...((local.style as Record<string, string>) || {}),
+        background: "var(--p-dim)",
+        ...((local.style as Record<string, string>) || {})
       };
     }
     return (local.style as JSX.CSSProperties) || undefined;
@@ -203,15 +227,18 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
   /** Whether this interactive card has an accessible name.
    *  Prevents a11y violation: role="button" without accessible name. */
   const hasAccessibleName = (): boolean =>
-    local.interactive &&
-    (("aria-label" in rest) || ("aria-labelledby" in rest));
+    local.interactive && ("aria-label" in rest || "aria-labelledby" in rest);
 
   return (
     <div
       {...rest}
       class={cardClasses()}
       style={accentBorderStyle()}
-      role={local.interactive && !local.disabled && hasAccessibleName() ? "button" : undefined}
+      role={
+        local.interactive && !local.disabled && hasAccessibleName()
+          ? "button"
+          : undefined
+      }
       tabindex={local.interactive && !local.disabled ? 0 : undefined}
       aria-disabled={local.disabled || undefined}
       aria-busy={local.loading || undefined}
@@ -223,9 +250,10 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
         <div
           class="absolute inset-0 z-overlay"
           style={{
-            background: "linear-gradient(90deg, transparent, var(--tier-3), transparent)",
+            background:
+              "linear-gradient(90deg, transparent, var(--tier-3), transparent)",
             "background-size": "200% 100%",
-            animation: "shimmer 1.8s ease-in-out infinite",
+            animation: "shimmer 1.8s ease-in-out infinite"
           }}
           aria-hidden="true"
         />

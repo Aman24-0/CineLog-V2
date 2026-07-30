@@ -38,11 +38,15 @@ export class EpisodeProgressRepository {
 
   // ---- Reads ----
 
-  getEpisodeProgressForVaultItem(vaultId: string): Promise<EpisodeProgressListResult<EpisodeProgressRow>> {
+  getEpisodeProgressForVaultItem(
+    vaultId: string
+  ): Promise<EpisodeProgressListResult<EpisodeProgressRow>> {
     return getEpisodeProgressForVaultItem(this.supabase, vaultId);
   }
 
-  getLatestEpisodeProgress(vaultId: string): Promise<EpisodeProgressResult<EpisodeProgressRow>> {
+  getLatestEpisodeProgress(
+    vaultId: string
+  ): Promise<EpisodeProgressResult<EpisodeProgressRow>> {
     return getLatestEpisodeProgress(this.supabase, vaultId);
   }
 
@@ -52,13 +56,17 @@ export class EpisodeProgressRepository {
     return getLatestEpisodeProgressBatch(this.supabase, vaultIds);
   }
 
-  getCompletedEpisodeCount(vaultId: string): Promise<{ count: number; error: Error | null }> {
+  getCompletedEpisodeCount(
+    vaultId: string
+  ): Promise<{ count: number; error: Error | null }> {
     return getCompletedEpisodeCount(this.supabase, vaultId);
   }
 
   // ---- Writes ----
 
-  upsertEpisodeProgress(payload: UpsertEpisodeProgressPayload): Promise<EpisodeProgressResult<EpisodeProgressRow>> {
+  upsertEpisodeProgress(
+    payload: UpsertEpisodeProgressPayload
+  ): Promise<EpisodeProgressResult<EpisodeProgressRow>> {
     return upsertEpisodeProgress(this.supabase, payload);
   }
 
@@ -67,7 +75,12 @@ export class EpisodeProgressRepository {
     seasonNumber: number,
     episodeNumber: number
   ): Promise<EpisodeProgressWriteResult> {
-    return markEpisodeCompleted(this.supabase, vaultId, seasonNumber, episodeNumber);
+    return markEpisodeCompleted(
+      this.supabase,
+      vaultId,
+      seasonNumber,
+      episodeNumber
+    );
   }
 
   clearEpisodeProgress(vaultId: string): Promise<EpisodeProgressWriteResult> {
@@ -85,7 +98,12 @@ export class EpisodeProgressRepository {
     fromSeason: number,
     fromEpisode: number
   ): Promise<EpisodeProgressWriteResult> {
-    return deleteEpisodeProgressFrom(this.supabase, vaultId, fromSeason, fromEpisode);
+    return deleteEpisodeProgressFrom(
+      this.supabase,
+      vaultId,
+      fromSeason,
+      fromEpisode
+    );
   }
 }
 

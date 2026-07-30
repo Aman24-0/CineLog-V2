@@ -22,8 +22,10 @@
 
 import type { WatchlistItem } from "~/shared/types";
 import {
-  detectBackupFormat, extractRawItems, normalizeBatch,
-  type BackupFormat,
+  detectBackupFormat,
+  extractRawItems,
+  normalizeBatch,
+  type BackupFormat
 } from "./normalizeBackup";
 
 // ---------------------------------------------------------------------------
@@ -105,13 +107,41 @@ export interface BackupStrategy {
 //   IMPORT  → Import from JSON  +  Import from CSV
 //   EXPORT  → Export as JSON    +  Export as CSV
 export const BACKUP_STRATEGIES: BackupStrategy[] = [
-  { id: "export",  displayName: "Export as JSON",  description: "Download your full library as a .json backup file", icon: "download", available: true },
+  {
+    id: "export",
+    displayName: "Export as JSON",
+    description: "Download your full library as a .json backup file",
+    icon: "download",
+    available: true
+  }
 ];
 
 export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
-  { id: "scheduled", displayName: "Scheduled Backups",    description: "Automatic weekly backups to keep your library safe",            icon: "schedule",     available: false, comingSoonLabel: "Coming soon" },
-  { id: "encrypted", displayName: "Encrypted Backups",    description: "Password-protected backups for sensitive libraries",           icon: "lock",         available: false, comingSoonLabel: "Coming soon" },
-  { id: "cloud",     displayName: "Cloud Backup Storage", description: "Store backups in your own cloud drive (Drive, Dropbox, iCloud)", icon: "cloud_upload", available: false, comingSoonLabel: "Coming soon" },
+  {
+    id: "scheduled",
+    displayName: "Scheduled Backups",
+    description: "Automatic weekly backups to keep your library safe",
+    icon: "schedule",
+    available: false,
+    comingSoonLabel: "Coming soon"
+  },
+  {
+    id: "encrypted",
+    displayName: "Encrypted Backups",
+    description: "Password-protected backups for sensitive libraries",
+    icon: "lock",
+    available: false,
+    comingSoonLabel: "Coming soon"
+  },
+  {
+    id: "cloud",
+    displayName: "Cloud Backup Storage",
+    description:
+      "Store backups in your own cloud drive (Drive, Dropbox, iCloud)",
+    icon: "cloud_upload",
+    available: false,
+    comingSoonLabel: "Coming soon"
+  }
 ];
 
 // ---------------------------------------------------------------------------
@@ -120,22 +150,28 @@ export const FUTURE_BACKUP_STRATEGIES: BackupStrategy[] = [
 
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { upsertVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
-import { getVaultRepository, type CreateVaultItemPayload, type VaultStatus } from "~/lib/supabase/repositories";
+import {
+  getVaultRepository,
+  type CreateVaultItemPayload,
+  type VaultStatus
+} from "~/lib/supabase/repositories";
 import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 
 /**
  * Build a wrapped BackupDocument from the user's current watchlist.
  * Used by "Create Backup" and "Export Backup".
  */
-export function createBackupFromWatchlist(watchlist: WatchlistItem[]): BackupDocument {
+export function createBackupFromWatchlist(
+  watchlist: WatchlistItem[]
+): BackupDocument {
   return {
     version: 1,
     createdAt: new Date().toISOString(),
     appVersion: "2.0.0",
     library: {
       watchlist,
-      collections: [],
-    },
+      collections: []
+    }
   };
 }
 
@@ -148,7 +184,9 @@ export function createBackupFromWatchlist(watchlist: WatchlistItem[]): BackupDoc
 export function exportBackup(doc: BackupDocument): void {
   const filename = `Cinelog_Vault_Backup_${new Date().toISOString().slice(0, 10).replace(/-/g, "_")}.json`;
   const data = doc.library.watchlist;
-  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const blob = new Blob([JSON.stringify(data, null, 2)], {
+    type: "application/json"
+  });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
@@ -191,9 +229,11 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
   return new Promise((resolve, reject) => {
     // 0. Validate file size BEFORE reading (prevents memory exhaustion).
     if (file.size > MAX_BACKUP_FILE_SIZE) {
-      reject(new Error(
-        `Backup file is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed is ${MAX_BACKUP_FILE_SIZE / 1024 / 1024} MB.`,
-      ));
+      reject(
+        new Error(
+          `Backup file is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum allowed is ${MAX_BACKUP_FILE_SIZE / 1024 / 1024} MB.`
+        )
+      );
       return;
     }
 
@@ -206,7 +246,11 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
         // 1. Detect format.
         const format = detectBackupFormat(parsed);
         if (format === "unknown") {
-          reject(new Error("Unrecognized backup format. Expected a JSON array of titles or a CineLog backup document."));
+          reject(
+            new Error(
+              "Unrecognized backup format. Expected a JSON array of titles or a CineLog backup document."
+            )
+          );
           return;
         }
 
@@ -219,9 +263,11 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
 
         // 2b. Enforce item count limit (prevents mass-import DoS).
         if (rawItems.length > MAX_BACKUP_ITEMS) {
-          reject(new Error(
-            `Backup contains ${rawItems.length} titles — maximum allowed is ${MAX_BACKUP_ITEMS}. Please split your backup into smaller files.`,
-          ));
+          reject(
+            new Error(
+              `Backup contains ${rawItems.length} titles — maximum allowed is ${MAX_BACKUP_ITEMS}. Please split your backup into smaller files.`
+            )
+          );
           return;
         }
 
@@ -234,10 +280,15 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
           format,
           failures: batch.failures,
           repairedCount: batch.repairedCount,
-          document: format === "wrapped-v2" ? (parsed as BackupDocument) : undefined,
+          document:
+            format === "wrapped-v2" ? (parsed as BackupDocument) : undefined
         });
       } catch {
-        reject(new Error("Could not read backup file. Make sure it's a valid JSON file."));
+        reject(
+          new Error(
+            "Could not read backup file. Make sure it's a valid JSON file."
+          )
+        );
       }
     };
     reader.onerror = () => reject(new Error("Failed to read file."));
@@ -251,20 +302,26 @@ export function parseBackupFile(file: File): Promise<ParsedBackup> {
  *
  * Also detects duplicates against the user's existing watchlist.
  */
-export function previewBackup(parsed: ParsedBackup, existingWatchlist: WatchlistItem[]): BackupPreview {
+export function previewBackup(
+  parsed: ParsedBackup,
+  existingWatchlist: WatchlistItem[]
+): BackupPreview {
   const items = parsed.items;
   const existingByTmdb = new Set(existingWatchlist.map((w) => String(w.id)));
   const existingByTitle = new Set(
     existingWatchlist
       .map((w) => (w.title || w.name || "").toLowerCase().trim())
-      .filter(Boolean),
+      .filter(Boolean)
   );
 
   let duplicates = 0;
   for (const item of items) {
     const tmdbId = String(item.id);
     const titleKey = (item.title || item.name || "").toLowerCase().trim();
-    if (existingByTmdb.has(tmdbId) || (titleKey && existingByTitle.has(titleKey))) {
+    if (
+      existingByTmdb.has(tmdbId) ||
+      (titleKey && existingByTitle.has(titleKey))
+    ) {
       duplicates++;
     }
   }
@@ -277,19 +334,27 @@ export function previewBackup(parsed: ParsedBackup, existingWatchlist: Watchlist
     notes: items.filter((i) => i.notes && i.notes.trim().length > 0).length,
     completed: items.filter((i) => i.status === "Completed").length,
     watching: items.filter((i) => i.status === "Watching").length,
-    planned: items.filter((i) => i.status === "Planned" || i.status === "Plan to Watch").length,
+    planned: items.filter(
+      (i) => i.status === "Planned" || i.status === "Plan to Watch"
+    ).length,
     collections: parsed.document?.library?.collections?.length ?? 0,
     duplicates,
     // With upsert strategy, ALL items get written — duplicates are UPDATED,
     // not skipped. So willImport = total titles.
     willImport: items.length,
     repaired: parsed.repairedCount,
-    failed: parsed.failures.length,
+    failed: parsed.failures.length
   };
 }
 
 export interface RestoreCallbacks {
-  onProgress: (processed: number, total: number, imported: number, skipped: number, failed: number) => void;
+  onProgress: (
+    processed: number,
+    total: number,
+    imported: number,
+    skipped: number,
+    failed: number
+  ) => void;
   /** Optional: called when the user cancels — the loop stops after the current item. */
   shouldCancel?: () => boolean;
 }
@@ -473,7 +538,10 @@ function buildFailureReason(err: unknown): string {
  * Wraps upsertVaultItemInSupabase with exponential backoff so per-item
  * fallback during restore doesn't cascade into hundreds of 429 failures.
  */
-async function upsertVaultItemInSupabaseWithRetry(uid: string, item: WatchlistItem): Promise<void> {
+async function upsertVaultItemInSupabaseWithRetry(
+  uid: string,
+  item: WatchlistItem
+): Promise<void> {
   const delays = [0, 200, 500, 1500];
   let lastErr: unknown;
   for (let attempt = 0; attempt < delays.length; attempt++) {
@@ -517,7 +585,10 @@ async function upsertVaultItemInSupabaseWithRetry(uid: string, item: WatchlistIt
  * (previously ~25% of V1 imports failed with "violates check constraint
  * vault_movie_no_series_cols" / "vault_tv_no_movie_cols").
  */
-function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVaultItemPayload {
+function watchlistItemToBatchPayload(
+  uid: string,
+  item: WatchlistItem
+): CreateVaultItemPayload {
   const isMovie = item.media_type === "movie";
   const isTV = item.media_type === "tv";
   const isCompleted = item.status === "Completed";
@@ -528,9 +599,16 @@ function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVa
   // (Setting both sides for one media_type would violate the CHECK
   // constraints and the entire batch upsert would fail atomically.)
   const watchedOn = isMovie ? watchDate : undefined;
-  const progressMinutes = isMovie && typeof item.runtime === "number" && item.watchProgress && item.watchProgress.duration > 0
-    ? Math.min(item.watchProgress.currentTime || 0, item.watchProgress.duration)
-    : undefined;
+  const progressMinutes =
+    isMovie &&
+    typeof item.runtime === "number" &&
+    item.watchProgress &&
+    item.watchProgress.duration > 0
+      ? Math.min(
+          item.watchProgress.currentTime || 0,
+          item.watchProgress.duration
+        )
+      : undefined;
   const startedAt = isTV ? watchDate : undefined;
   const completedAt = isTV && isCompleted && watchDate ? watchDate : undefined;
 
@@ -538,7 +616,8 @@ function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVa
     userId: uid,
     tmdbId: Number(item.id),
     mediaType: item.media_type,
-    status: (STATUS_TO_DB[item.status ?? "Planned"] ?? "planned") as VaultStatus,
+    status: (STATUS_TO_DB[item.status ?? "Planned"] ??
+      "planned") as VaultStatus,
     rating: item.rating,
     notes: item.notes,
     watchedOn,
@@ -553,10 +632,14 @@ function watchlistItemToBatchPayload(uid: string, item: WatchlistItem): CreateVa
     createdAt:
       typeof item.addedAt === "string"
         ? item.addedAt
-        : item.addedAt && typeof item.addedAt === "object" && "seconds" in item.addedAt
+        : item.addedAt &&
+            typeof item.addedAt === "object" &&
+            "seconds" in item.addedAt
           ? new Date(item.addedAt.seconds * 1000).toISOString()
           : undefined,
-    lastActivityAt: item.updatedAt ?? (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    lastActivityAt:
+      item.updatedAt ??
+      (typeof item.addedAt === "string" ? item.addedAt : undefined)
   };
 }
 
@@ -572,7 +655,7 @@ function chunk<T>(arr: T[], size: number): T[][] {
 export async function restoreBackup(
   parsed: ParsedBackup,
   existingWatchlist: WatchlistItem[],
-  callbacks?: RestoreCallbacks,
+  callbacks?: RestoreCallbacks
 ): Promise<RestoreResult> {
   const uid = getCurrentUid();
   if (!uid) {
@@ -583,7 +666,7 @@ export async function restoreBackup(
   const existingByTitle = new Set(
     existingWatchlist
       .map((w) => (w.title || w.name || "").toLowerCase().trim())
-      .filter(Boolean),
+      .filter(Boolean)
   );
 
   let imported = 0;
@@ -605,7 +688,10 @@ export async function restoreBackup(
   const batches = chunk(parsed.items, BATCH_SIZE);
 
   // Track transient-failed batches for a second-pass retry at the end.
-  const transientFailedBatches: { items: WatchlistItem[]; batchStartIdx: number }[] = [];
+  const transientFailedBatches: {
+    items: WatchlistItem[];
+    batchStartIdx: number;
+  }[] = [];
 
   let processed = 0;
   for (let b = 0; b < batches.length; b++) {
@@ -621,7 +707,10 @@ export async function restoreBackup(
     for (const item of batchItems) {
       const tmdbId = String(item.id);
       const titleKey = (item.title || item.name || "").toLowerCase().trim();
-      if (existingByTmdb.has(tmdbId) || (!!titleKey && existingByTitle.has(titleKey))) {
+      if (
+        existingByTmdb.has(tmdbId) ||
+        (!!titleKey && existingByTitle.has(titleKey))
+      ) {
         batchDuplicates++;
       }
       // Track these ids so we don't re-count duplicates in a later batch
@@ -631,7 +720,9 @@ export async function restoreBackup(
     }
 
     // Build the batch payload.
-    const payloads = batchItems.map((item) => watchlistItemToBatchPayload(uid, item));
+    const payloads = batchItems.map((item) =>
+      watchlistItemToBatchPayload(uid, item)
+    );
 
     try {
       const repo = getVaultRepository();
@@ -648,7 +739,7 @@ export async function restoreBackup(
         // Save for second-pass retry at the end.
         transientFailedBatches.push({ items: batchItems, batchStartIdx });
         console.warn(
-          `[restoreBackup] Batch ${b + 1}/${batches.length} transient failure (${batchItems.length} items, will retry): ${detailedReason}`,
+          `[restoreBackup] Batch ${b + 1}/${batches.length} transient failure (${batchItems.length} items, will retry): ${detailedReason}`
         );
       } else {
         // Permanent failure — fall back to per-item upsert so we can salvage
@@ -656,7 +747,7 @@ export async function restoreBackup(
         // individually so the user can see exactly what failed.
         console.error(
           `[restoreBackup] Batch ${b + 1}/${batches.length} permanent failure — retrying items individually: ${detailedReason}`,
-          { err },
+          { err }
         );
         let itemIdx = 0;
         for (const item of batchItems) {
@@ -672,14 +763,20 @@ export async function restoreBackup(
             failed++;
             failureLog.push({
               reason: iReason,
-              title: item.title || item.name || undefined,
+              title: item.title || item.name || undefined
             });
           }
           // Report progress every 5 items so the UI updates frequently
           // during per-item fallback (otherwise a 100-item batch shows
           // no progress for ~5 seconds while it grinds through items).
           if (itemIdx % 5 === 0 && callbacks) {
-            callbacks.onProgress(processed + itemIdx, total, imported, skipped, failed);
+            callbacks.onProgress(
+              processed + itemIdx,
+              total,
+              imported,
+              skipped,
+              failed
+            );
           }
           // Small delay between per-item upserts to stay under Supabase's
           // free-tier rate limit (~2 req/sec sustained). Without this, 100
@@ -715,26 +812,29 @@ export async function restoreBackup(
   // systematic error that was misclassified as transient. Skip the
   // second-pass batch retry and go straight to per-item fallback so the
   // user sees actual failure reasons instead of a 5-minute hang.
-  const allBatchesTransient = transientFailedBatches.length > 0
-    && transientFailedBatches.length === batches.length;
+  const allBatchesTransient =
+    transientFailedBatches.length > 0 &&
+    transientFailedBatches.length === batches.length;
 
   if (allBatchesTransient) {
     console.warn(
       `[restoreBackup] ALL ${transientFailedBatches.length} batches failed transiently in first pass — ` +
-      `this is unusual; skipping batch retry and going straight to per-item fallback ` +
-      `(if errors are actually permanent, per-item retry will report them immediately).`,
+        `this is unusual; skipping batch retry and going straight to per-item fallback ` +
+        `(if errors are actually permanent, per-item retry will report them immediately).`
     );
   }
 
   if (transientFailedBatches.length > 0 && !allBatchesTransient) {
     if (import.meta.env?.DEV) {
       console.log(
-        `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`,
+        `[restoreBackup] Retrying ${transientFailedBatches.length} transient-failed batches...`
       );
     }
     for (const { items } of transientFailedBatches) {
       if (callbacks?.shouldCancel?.()) break;
-      const payloads = items.map((item) => watchlistItemToBatchPayload(uid, item));
+      const payloads = items.map((item) =>
+        watchlistItemToBatchPayload(uid, item)
+      );
       try {
         const repo = getVaultRepository();
         // Retry each batch with one retry — if it fails again, fall back to
@@ -750,7 +850,7 @@ export async function restoreBackup(
         // Batch retry failed — try per-item as a last resort.
         console.warn(
           `[restoreBackup] Batch retry failed — falling back to per-item upsert for ${items.length} items`,
-          err,
+          err
         );
         let itemIdx = 0;
         for (const item of items) {
@@ -766,7 +866,7 @@ export async function restoreBackup(
             failed++;
             failureLog.push({
               reason: iReason,
-              title: item.title || item.name || undefined,
+              title: item.title || item.name || undefined
             });
           }
           // Report progress every 5 items so the UI updates during the
@@ -789,7 +889,7 @@ export async function restoreBackup(
     // batch retry that produces no visible progress.
     if (import.meta.env?.DEV) {
       console.log(
-        `[restoreBackup] Skipping batch retry — going straight to per-item fallback for ${transientFailedBatches.reduce((n, b) => n + b.items.length, 0)} items.`,
+        `[restoreBackup] Skipping batch retry — going straight to per-item fallback for ${transientFailedBatches.reduce((n, b) => n + b.items.length, 0)} items.`
       );
     }
     for (const { items } of transientFailedBatches) {
@@ -806,7 +906,7 @@ export async function restoreBackup(
           failed++;
           failureLog.push({
             reason: iReason,
-            title: item.title || item.name || undefined,
+            title: item.title || item.name || undefined
           });
         }
         if (itemIdx % 5 === 0 && callbacks) {
@@ -836,6 +936,6 @@ export async function restoreBackup(
     repaired: parsed.repairedCount,
     duplicates,
     summary: parts.join(", "),
-    failureLog,
+    failureLog
   };
 }

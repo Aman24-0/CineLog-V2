@@ -32,12 +32,7 @@ import type { WatchlistItem } from "~/shared/types";
 // ---------------------------------------------------------------------------
 
 export type ActivityActionType =
-  | "added"
-  | "rated"
-  | "completed"
-  | "watching"
-  | "planned"
-  | "progress";
+  "added" | "rated" | "completed" | "watching" | "planned" | "progress";
 
 export interface ActivityFeedItem {
   /** The vault item this activity refers to. */
@@ -73,7 +68,7 @@ export interface UseActivityFeedOptions {
  */
 export function useActivityFeed(
   watchlist: Accessor<WatchlistItem[] | null | undefined>,
-  options: UseActivityFeedOptions = {},
+  options: UseActivityFeedOptions = {}
 ): {
   feed: Accessor<ActivityFeedItem[]>;
   loading: Accessor<boolean>;
@@ -102,7 +97,7 @@ export function useActivityFeed(
           actionType: statusAction.actionType,
           actionLabel: statusAction.actionLabel,
           icon: statusAction.icon,
-          timestamp: ts,
+          timestamp: ts
         });
       }
 
@@ -116,7 +111,7 @@ export function useActivityFeed(
           actionType: "rated",
           actionLabel: `Rated ★ ${item.rating}`,
           icon: "star",
-          timestamp: ts,
+          timestamp: ts
         });
       }
     }
@@ -148,11 +143,7 @@ export function useActivityFeed(
  * Returns epoch ms, or null if no date is parseable.
  */
 function pickTimestamp(item: WatchlistItem): number | null {
-  const candidates = [
-    item.watchDate,
-    item.updatedAt,
-    item.addedAt,
-  ];
+  const candidates = [item.watchDate, item.updatedAt, item.addedAt];
   for (const c of candidates) {
     if (!c) continue;
     const d = toDate(c);
@@ -176,11 +167,19 @@ function toDate(value: unknown): Date | null {
 }
 
 function statusToAction(
-  item: WatchlistItem,
-): { actionType: ActivityActionType; actionLabel: string; icon: string } | null {
+  item: WatchlistItem
+): {
+  actionType: ActivityActionType;
+  actionLabel: string;
+  icon: string;
+} | null {
   const status = (item.status ?? "").toLowerCase();
   if (status === "completed") {
-    return { actionType: "completed", actionLabel: "Completed", icon: "task_alt" };
+    return {
+      actionType: "completed",
+      actionLabel: "Completed",
+      icon: "task_alt"
+    };
   }
   if (status === "watching") {
     // For TV, surface episode progress in the label
@@ -188,17 +187,29 @@ function statusToAction(
       return {
         actionType: "progress",
         actionLabel: `Watching S${item.season} E${item.episode}`,
-        icon: "play_circle",
+        icon: "play_circle"
       };
     }
-    return { actionType: "watching", actionLabel: "Started watching", icon: "play_circle" };
+    return {
+      actionType: "watching",
+      actionLabel: "Started watching",
+      icon: "play_circle"
+    };
   }
   if (status === "planned" || status === "plan to watch") {
-    return { actionType: "planned", actionLabel: "Added to watchlist", icon: "bookmark_add" };
+    return {
+      actionType: "planned",
+      actionLabel: "Added to watchlist",
+      icon: "bookmark_add"
+    };
   }
   // Fall back to "added" for unknown statuses — every vault item was
   // added at some point, so this is a safe default.
-  return { actionType: "added", actionLabel: "Added to watchlist", icon: "bookmark_add" };
+  return {
+    actionType: "added",
+    actionLabel: "Added to watchlist",
+    icon: "bookmark_add"
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -230,6 +241,6 @@ export function formatRelativeTime(timestamp: number): string {
   // Older than 4 weeks — show absolute date
   return new Date(timestamp).toLocaleDateString("en-US", {
     month: "short",
-    day: "numeric",
+    day: "numeric"
   });
 }

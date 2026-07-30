@@ -1,9 +1,6 @@
 // src/core/preferences/__tests__/streamingProviders.test.ts
 import { describe, it, expect } from "vitest";
-import {
-  mergeAndSortProviders,
-  type TmdbProvider,
-} from "../streamingProviders";
+import { mergeAndSortProviders } from "../streamingProviders";
 
 /**
  * Raw row shape matching what getWatchProviderList / getWatchProviderListTv
@@ -20,12 +17,12 @@ const mkRow = (
   id: number,
   name: string,
   priority: number,
-  logo: string | null = `/logo${id}.png`,
+  logo: string | null = `/logo${id}.png`
 ): Row => ({
   providerId: id,
   providerName: name,
   logoPath: logo,
-  displayPriority: priority,
+  displayPriority: priority
 });
 
 describe("mergeAndSortProviders", () => {
@@ -36,7 +33,7 @@ describe("mergeAndSortProviders", () => {
   it("returns the movie list as-is when the TV list is empty", () => {
     const movies = [
       mkRow(8, "Netflix", 0),
-      mkRow(119, "Amazon Prime Video", 1),
+      mkRow(119, "Amazon Prime Video", 1)
     ];
     const result = mergeAndSortProviders(movies, []);
     expect(result).toHaveLength(2);
@@ -45,10 +42,7 @@ describe("mergeAndSortProviders", () => {
   });
 
   it("returns the TV list as-is when the movie list is empty", () => {
-    const tv = [
-      mkRow(8, "Netflix", 0),
-      mkRow(232, "Zee5", 5),
-    ];
+    const tv = [mkRow(8, "Netflix", 0), mkRow(232, "Zee5", 5)];
     const result = mergeAndSortProviders([], tv);
     expect(result).toHaveLength(2);
     expect(result.map((p) => p.id)).toEqual(["8", "232"]);
@@ -83,21 +77,18 @@ describe("mergeAndSortProviders", () => {
     const movies = [
       mkRow(232, "Zee5", 5),
       mkRow(8, "Netflix", 0),
-      mkRow(119, "Amazon Prime Video", 1),
+      mkRow(119, "Amazon Prime Video", 1)
     ];
     const result = mergeAndSortProviders(movies, []);
     expect(result.map((p) => p.id)).toEqual(["8", "119", "232"]);
   });
 
   it("sorts the merged movie+TV list by display_priority", () => {
-    const movies = [
-      mkRow(232, "Zee5", 5),
-      mkRow(8, "Netflix", 0),
-    ];
+    const movies = [mkRow(232, "Zee5", 5), mkRow(8, "Netflix", 0)];
     const tv = [
       mkRow(237, "Sony LIV", 6),
       mkRow(119, "Amazon Prime Video", 1),
-      mkRow(350, "Apple TV+", 3),
+      mkRow(350, "Apple TV+", 3)
     ];
     const result = mergeAndSortProviders(movies, tv);
     // Sorted: Netflix(0), Prime(1), Apple(3), Zee5(5), Sony(6)
@@ -121,10 +112,7 @@ describe("mergeAndSortProviders", () => {
     // JioCinema (122) and Hotstar (220) are separate TMDB providers.
     // They should NOT be merged into a single "JioStar" entry — each
     // appears as its own row in the result.
-    const movies = [
-      mkRow(122, "JioCinema", 2),
-      mkRow(220, "Hotstar", 3),
-    ];
+    const movies = [mkRow(122, "JioCinema", 2), mkRow(220, "Hotstar", 3)];
     const result = mergeAndSortProviders(movies, []);
     expect(result).toHaveLength(2);
     const ids = result.map((p) => p.id);
@@ -134,10 +122,10 @@ describe("mergeAndSortProviders", () => {
 
   it("handles large lists with many providers", () => {
     const movies = Array.from({ length: 50 }, (_, i) =>
-      mkRow(1000 + i, `Provider ${i}`, i),
+      mkRow(1000 + i, `Provider ${i}`, i)
     );
     const tv = Array.from({ length: 30 }, (_, i) =>
-      mkRow(2000 + i, `TV Provider ${i}`, i),
+      mkRow(2000 + i, `TV Provider ${i}`, i)
     );
     const result = mergeAndSortProviders(movies, tv);
     // 50 movie + 30 TV = 80 unique providers (no overlap).

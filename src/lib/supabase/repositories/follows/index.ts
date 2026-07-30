@@ -11,7 +11,7 @@ export {
   getFollowers,
   getFollowing,
   getFollowCounts,
-  isFollowing,
+  isFollowing
 } from "./follows.repository";
 
 export type {
@@ -19,5 +19,5 @@ export type {
   FollowCounts,
   FollowResult,
   FollowWriteResult,
-  TypedSupabaseClient,
+  TypedSupabaseClient
 } from "./follows.types";

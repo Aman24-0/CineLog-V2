@@ -18,7 +18,12 @@
 export { readStored, writeStored, applyDataAttr } from "./_storage";
 
 // Theme mode (dark / light / system)
-export { themeMode, setThemeMode, effectiveThemeMode, type ThemeMode } from "./themeMode";
+export {
+  themeMode,
+  setThemeMode,
+  effectiveThemeMode,
+  type ThemeMode
+} from "./themeMode";
 
 // Custom accent (overrides --p tokens)
 export { customAccent, setCustomAccent, contrastOn } from "./customAccent";
@@ -30,66 +35,119 @@ export { density, setDensity, type Density } from "./density";
 export { fontSize, setFontSize, type FontSize } from "./fontSize";
 
 // Poster quality (downgrades TMDB image sizes)
-export { posterQuality, setPosterQuality, applyPosterQuality, type PosterQuality } from "./posterQuality";
+export {
+  posterQuality,
+  setPosterQuality,
+  applyPosterQuality,
+  type PosterQuality
+} from "./posterQuality";
 
 // Hide spoilers
 export { hideSpoilers, setHideSpoilers } from "./hideSpoilers";
 
 // Date format
-export { dateFormat, setDateFormat, formatDateUser, type DateFormat } from "./dateFormat";
+export {
+  dateFormat,
+  setDateFormat,
+  formatDateUser,
+  type DateFormat
+} from "./dateFormat";
 
 // Reduced motion
-export { reducedMotion, setReducedMotion, effectiveReducedMotion, type ReducedMotionPref } from "./reducedMotion";
+export {
+  reducedMotion,
+  setReducedMotion,
+  effectiveReducedMotion,
+  type ReducedMotionPref
+} from "./reducedMotion";
 
 // High contrast
 export { highContrast, setHighContrast } from "./highContrast";
 
 // Language (UI + TMDB fallback)
 export {
-  language, setLanguage,
-  fallbackLanguage, setFallbackLanguage,
-  effectiveTMDBLanguage, pickOverview,
-  type LanguageCode,
+  language,
+  setLanguage,
+  fallbackLanguage,
+  setFallbackLanguage,
+  effectiveTMDBLanguage,
+  pickOverview,
+  type LanguageCode
 } from "./language";
 
 // Default vault status
-export { defaultVaultStatus, setDefaultVaultStatus, type VaultStatus } from "./vaultStatus";
+export {
+  defaultVaultStatus,
+  setDefaultVaultStatus,
+  type VaultStatus
+} from "./vaultStatus";
 
 // Adult content filter + certification cap
 export {
-  adultContentFilter, setAdultContentFilter,
-  contentRatingCap, setContentRatingCap,
-  tmdbIncludeAdult, filterAdultTitles,
+  adultContentFilter,
+  setAdultContentFilter,
+  contentRatingCap,
+  setContentRatingCap,
+  tmdbIncludeAdult,
+  filterAdultTitles
 } from "./contentFilters";
 
 // Streaming provider subscriptions
 export {
-  streamingProviders, setStreamingProviders,
-  toggleStreamingProvider, hasStreamingProvider,
+  streamingProviders,
+  setStreamingProviders,
+  toggleStreamingProvider,
+  hasStreamingProvider,
   mergeAndSortProviders,
-  type TmdbProvider,
+  type TmdbProvider
 } from "./streamingProviders";
 
 // Default discover tab
-export { defaultDiscoverTab, setDefaultDiscoverTab, type DiscoverTab } from "./discoverTab";
+export {
+  defaultDiscoverTab,
+  setDefaultDiscoverTab,
+  type DiscoverTab
+} from "./discoverTab";
 
 // Rating scale
-export { ratingScale, setRatingScale, formatRating, type RatingScale } from "./ratingScale";
+export {
+  ratingScale,
+  setRatingScale,
+  formatRating,
+  type RatingScale
+} from "./ratingScale";
 
 // Notification preferences
 export {
-  notifPrefs, setNotifPrefs, updateNotifPref, isInQuietHours,
-  type NotificationPrefs,
+  notifPrefs,
+  setNotifPrefs,
+  updateNotifPref,
+  isInQuietHours,
+  type NotificationPrefs
 } from "./notifications";
 
 // Calendar preferences
 export {
-  calPrefs, setCalPrefs, updateCalPref, formatTimeUser,
-  type CalendarPrefs, type FirstDayOfWeek, type TimeFormat, type CalendarView,
+  calPrefs,
+  setCalPrefs,
+  updateCalPref,
+  formatTimeUser,
+  type CalendarPrefs,
+  type FirstDayOfWeek,
+  type TimeFormat,
+  type CalendarView
 } from "./calendar";
 
 // Sync cadence
-export { syncCadence, setSyncCadence, shouldSyncNow, type SyncCadence } from "./syncCadence";
+export {
+  syncCadence,
+  setSyncCadence,
+  shouldSyncNow,
+  type SyncCadence
+} from "./syncCadence";
 
 // Hide ratings in screenshots
-export { hideRatingsInScreenshots, setHideRatingsInScreenshots } from "./hideRatingsScreenshots";
+export {
+  hideRatingsInScreenshots,
+  setHideRatingsInScreenshots
+} from "./hideRatingsScreenshots";

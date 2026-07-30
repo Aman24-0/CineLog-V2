@@ -61,7 +61,7 @@ export function useStatsData(): UseStatsDataResult {
   const loading = createMemo(
     () =>
       library.loading() ||
-      (isSignedIn() && safeWatchlist().length === 0 && !library.error()),
+      (isSignedIn() && safeWatchlist().length === 0 && !library.error())
   );
 
   const stats = createMemo<AllStats | null>(() => {
@@ -79,7 +79,7 @@ export function useStatsData(): UseStatsDataResult {
   });
 
   const isEmpty = createMemo(
-    () => !loading() && isSignedIn() && safeWatchlist().length === 0,
+    () => !loading() && isSignedIn() && safeWatchlist().length === 0
   );
 
   return { stats, loading, isEmpty, isGuest };

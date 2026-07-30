@@ -42,8 +42,9 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
     }
     case "genre": {
       const val = String(rule.value).toLowerCase();
-      const has = Array.isArray(item.genresList)
-        && item.genresList.some((g) => normalizeGenre(g).toLowerCase() === val);
+      const has =
+        Array.isArray(item.genresList) &&
+        item.genresList.some((g) => normalizeGenre(g).toLowerCase() === val);
       if (rule.operator === "contains") return has;
       if (rule.operator === "is") return has;
       if (rule.operator === "is_not") return !has;
@@ -58,7 +59,11 @@ function matchRule(item: WatchlistItem, rule: SmartRule): boolean {
       return false;
     }
     case "year": {
-      const itemYear = parseInt(String(item.release_date || item.first_air_date || "").split("-")[0] || "0", 10);
+      const itemYear = parseInt(
+        String(item.release_date || item.first_air_date || "").split("-")[0] ||
+          "0",
+        10
+      );
       if (!itemYear) return false;
       const v = Number(rule.value);
       if (rule.operator === "gte") return itemYear >= v;

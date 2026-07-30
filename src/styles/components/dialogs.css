@@ -4,9 +4,13 @@
    PHASE 4: Strengthened glass with golden tint + layered shadows. */
 
 /* Bottom-sheet enter (mobile) / pop-in (≥640px) */
-.modal-sheet-enter { animation: sheetUp var(--dur-modal) var(--ease-spring) both; }
+.modal-sheet-enter {
+  animation: sheetUp var(--dur-modal) var(--ease-spring) both;
+}
 @media (min-width: 640px) {
-  .modal-sheet-enter { animation: popInSpring var(--dur-modal) var(--ease-spring) both; }
+  .modal-sheet-enter {
+    animation: popInSpring var(--dur-modal) var(--ease-spring) both;
+  }
 }
 
 /* Backdrop fade — used by AuthModal, DetailsModal, CollectionModal.
@@ -26,7 +30,7 @@
   box-shadow:
     var(--shadow-glass-elevated),
     0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1),
     inset 0 -1px 0 rgba(0, 0, 0, 0.2);
   position: relative;
   z-index: 1;
@@ -92,9 +96,10 @@
   border-top-right-radius: var(--radius-2xl, 24px);
   border: 1px solid var(--glass-border-warm-strong);
   border-bottom: none;
-  box-shadow: var(--shadow-glass-elevated),
-              0 0 24px var(--p-glow),
-              inset 0 1px 0 rgba(232,183,74,0.10);
+  box-shadow:
+    var(--shadow-glass-elevated),
+    0 0 24px var(--p-glow),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
   overflow: hidden;
   /* Flex column layout: content area scrolls, action row stays pinned */
   display: flex;

@@ -4,7 +4,8 @@ import { Component, JSX, Show, For, splitProps, mergeProps } from "solid-js";
 // ─── Variant Types ─────────────────────────────────────────────
 
 /** Skeleton shape variant */
-type SkeletonVariant = "block" | "text" | "circle" | "card" | "avatar" | "poster";
+type SkeletonVariant =
+  "block" | "text" | "circle" | "card" | "avatar" | "poster";
 
 // ─── Token Maps ────────────────────────────────────────────────
 
@@ -12,7 +13,7 @@ const avatarSizeMap: Record<string, { w: string; h: string }> = {
   sm: { w: "w-8", h: "h-8" },
   md: { w: "w-12", h: "h-12" },
   lg: { w: "w-16", h: "h-16" },
-  xl: { w: "w-20", h: "h-20" },
+  xl: { w: "w-20", h: "h-20" }
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -39,7 +40,7 @@ const defaultProps: Required<
 > = {
   variant: "block",
   lines: 3,
-  animated: true,
+  animated: true
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -51,13 +52,25 @@ const defaultProps: Required<
 const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "variant", "width", "height", "radius", "lines", "animated", "class", "style",
+    "variant",
+    "width",
+    "height",
+    "radius",
+    "lines",
+    "animated",
+    "class",
+    "style"
   ]);
 
   /** Helper to determine if a value is a Tailwind class or custom CSS length */
   const isTailwindClass = (val?: string) => {
     if (!val) return false;
-    return /^[w|h]-/.test(val) || /^max-[w|h]-/.test(val) || val === "full" || val.includes("%");
+    return (
+      /^[w|h]-/.test(val) ||
+      /^max-[w|h]-/.test(val) ||
+      val === "full" ||
+      val.includes("%")
+    );
   };
 
   /** Helper to build width classes and inline styles */
@@ -70,7 +83,8 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
   /** Helper to build height classes and inline styles */
   const resolveHeight = (defaultClass: string) => {
     if (!local.height) return { class: defaultClass, style: {} };
-    if (isTailwindClass(local.height)) return { class: local.height, style: {} };
+    if (isTailwindClass(local.height))
+      return { class: local.height, style: {} };
     return { class: "", style: { height: local.height } };
   };
 
@@ -80,10 +94,10 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
   };
 
   /** Base classes shared by all skeleton shapes */
-  const baseClasses = () => [
-    "bg-tier-3",
-    local.animated ? "relative overflow-hidden" : "",
-  ].filter(Boolean).join(" ");
+  const baseClasses = () =>
+    ["bg-tier-3", local.animated ? "relative overflow-hidden" : ""]
+      .filter(Boolean)
+      .join(" ");
 
   /** Shimmer animation overlay */
   const Shimmer = () => (
@@ -91,9 +105,10 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
       <div
         class="absolute inset-0 z-overlay"
         style={{
-          background: "linear-gradient(90deg, transparent, var(--tier-4), transparent)",
+          background:
+            "linear-gradient(90deg, transparent, var(--tier-4), transparent)",
           "background-size": "200% 100%",
-          animation: "shimmer 1.8s ease-in-out infinite",
+          animation: "shimmer 1.8s ease-in-out infinite"
         }}
         aria-hidden="true"
       />
@@ -119,7 +134,11 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
                         <div
                           {...rest}
                           class={`${baseClasses()} ${resolveRadius("rounded-md")} ${resolveWidth("w-full").class} ${resolveHeight("h-32").class} ${local.class || ""}`}
-                          style={{ ...resolveWidth("w-full").style, ...resolveHeight("h-32").style, ...(local.style as Record<string, string>) }}
+                          style={{
+                            ...resolveWidth("w-full").style,
+                            ...resolveHeight("h-32").style,
+                            ...(local.style as Record<string, string>)
+                          }}
                           aria-hidden="true"
                         >
                           <Shimmer />
@@ -129,7 +148,11 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
                       <div
                         {...rest}
                         class={`${baseClasses()} rounded-full ${resolveWidth("w-12").class} ${resolveHeight("h-12").class} ${local.class || ""}`}
-                        style={{ ...resolveWidth("w-12").style, ...resolveHeight("h-12").style, ...(local.style as Record<string, string>) }}
+                        style={{
+                          ...resolveWidth("w-12").style,
+                          ...resolveHeight("h-12").style,
+                          ...(local.style as Record<string, string>)
+                        }}
                         aria-hidden="true"
                       >
                         <Shimmer />
@@ -140,7 +163,11 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
                   <div
                     {...rest}
                     class={`${baseClasses()} ${resolveRadius("rounded-lg")} ${resolveWidth("w-full").class} ${resolveHeight("h-48").class} ${local.class || ""}`}
-                    style={{ ...resolveWidth("w-full").style, ...resolveHeight("h-48").style, ...(local.style as Record<string, string>) }}
+                    style={{
+                      ...resolveWidth("w-full").style,
+                      ...resolveHeight("h-48").style,
+                      ...(local.style as Record<string, string>)
+                    }}
                     aria-hidden="true"
                   >
                     <Shimmer />
@@ -151,7 +178,11 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
               <div
                 {...rest}
                 class={`${baseClasses()} ${resolveRadius("rounded-md")} ${resolveWidth("w-full").class} ${local.height ? resolveHeight("").class : "aspect-[2/3]"} ${local.class || ""}`}
-                style={{ ...resolveWidth("w-full").style, ...(local.height ? resolveHeight("").style : {}), ...(local.style as Record<string, string>) }}
+                style={{
+                  ...resolveWidth("w-full").style,
+                  ...(local.height ? resolveHeight("").style : {}),
+                  ...(local.style as Record<string, string>)
+                }}
                 aria-hidden="true"
               >
                 <Shimmer />
@@ -170,7 +201,12 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
         </Show>
       }
     >
-      <div {...rest} class={`flex flex-col gap-2 ${local.class || ""}`} style={local.style} aria-hidden="true">
+      <div
+        {...rest}
+        class={`flex flex-col gap-2 ${local.class || ""}`}
+        style={local.style}
+        aria-hidden="true"
+      >
         <For each={Array.from({ length: local.lines })}>
           {(_, i) => {
             // `i` is an Accessor<number>; `local.lines` is a plain number.
@@ -179,7 +215,8 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
             // and which always evaluated to false — so every skeleton
             // line was rendered full-width instead of the last line
             // being shorter (w-2/3) like the design intends.
-            const w = i() === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
+            const w =
+              i() === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
             const wProps = resolveWidth(w);
             const hProps = resolveHeight("h-4");
             return (

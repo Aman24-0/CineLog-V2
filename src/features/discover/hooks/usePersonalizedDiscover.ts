@@ -15,7 +15,12 @@
 // and `excludedIds` is empty. The Discover page uses these nulls to fall
 // back to default popular / top-rated queries.
 
-import { createMemo, createSignal, createEffect, type Accessor } from "solid-js";
+import {
+  createMemo,
+  createSignal,
+  createEffect,
+  type Accessor
+} from "solid-js";
 import type { WatchlistItem } from "~/shared/types";
 import { genreIdFor, MOVIE_GENRES } from "~/core/tmdb/genres";
 import { normalizeGenre } from "~/shared/utils/genres";
@@ -139,7 +144,7 @@ export interface PersonalizedDiscover {
  */
 export function usePersonalizedDiscover(
   watchlist: Accessor<WatchlistItem[]>,
-  isGuest: Accessor<boolean>,
+  isGuest: Accessor<boolean>
 ): PersonalizedDiscover {
   // ── Daily date signal ──────────────────────────────────────────────
   // We re-read today's date whenever the vault changes (cheap) so that
@@ -179,10 +184,12 @@ export function usePersonalizedDiscover(
       // The user's tracked season number (1-indexed). We take the max
       // of `season` (current) and the last entry in `seasons` (cached
       // season structure) so the count is as accurate as possible.
-      const fromField = typeof w.season === "number" && w.season > 0 ? w.season : 0;
-      const fromCache = w.seasons && w.seasons.length > 0
-        ? w.seasons.reduce((max, s) => (s.number > max ? s.number : max), 0)
-        : 0;
+      const fromField =
+        typeof w.season === "number" && w.season > 0 ? w.season : 0;
+      const fromCache =
+        w.seasons && w.seasons.length > 0
+          ? w.seasons.reduce((max, s) => (s.number > max ? s.number : max), 0)
+          : 0;
       const tracked = Math.max(fromField, fromCache);
       map.set(String(w.id), tracked);
     }
@@ -204,7 +211,7 @@ export function usePersonalizedDiscover(
           m.media_type === "movie" &&
           m.status === "Completed" &&
           typeof m.rating === "number" &&
-          m.rating >= 7.5,
+          m.rating >= 7.5
       )
       .map((item) => ({ item, key: String(item.id) }));
   });
@@ -262,9 +269,7 @@ export function usePersonalizedDiscover(
     return id ?? null;
   });
 
-  const isColdStart = createMemo(
-    () => isGuest() || watchlist().length === 0,
-  );
+  const isColdStart = createMemo(() => isGuest() || watchlist().length === 0);
 
   return {
     seedTitle,
@@ -273,7 +278,7 @@ export function usePersonalizedDiscover(
     topGenreId,
     excludedKeys,
     trackedTvSeasons,
-    isColdStart,
+    isColdStart
   };
 }
 

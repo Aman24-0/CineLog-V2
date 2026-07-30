@@ -56,7 +56,7 @@ describe("STATUS_TO_DB", () => {
       "Watching",
       "Completed",
       "Plan to Watch",
-      "Dropped",
+      "Dropped"
     ];
     for (const s of statuses) {
       expect(STATUS_TO_DB[s]).toBeDefined();
@@ -137,17 +137,23 @@ describe("timeAgo", () => {
   });
 
   it("returns 'Xw ago' for weeks", () => {
-    const threeWeeksAgo = new Date(Date.now() - 21 * 24 * 60 * 60000).toISOString();
+    const threeWeeksAgo = new Date(
+      Date.now() - 21 * 24 * 60 * 60000
+    ).toISOString();
     expect(timeAgo(threeWeeksAgo)).toBe("3w ago");
   });
 
   it("returns 'Xmo ago' for months", () => {
-    const twoMonthsAgo = new Date(Date.now() - 60 * 24 * 60 * 60000).toISOString();
+    const twoMonthsAgo = new Date(
+      Date.now() - 60 * 24 * 60 * 60000
+    ).toISOString();
     expect(timeAgo(twoMonthsAgo)).toBe("2mo ago");
   });
 
   it("returns 'Xy ago' for years", () => {
-    const twoYearsAgo = new Date(Date.now() - 730 * 24 * 60 * 60000).toISOString();
+    const twoYearsAgo = new Date(
+      Date.now() - 730 * 24 * 60 * 60000
+    ).toISOString();
     expect(timeAgo(twoYearsAgo)).toBe("2y ago");
   });
 

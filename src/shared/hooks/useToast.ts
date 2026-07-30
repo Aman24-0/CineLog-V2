@@ -1,11 +1,7 @@
 import { createSignal } from "solid-js";
 import { hapticForToastType } from "~/shared/utils/haptic";
 
-export type ToastType =
-  | "success"
-  | "error"
-  | "info"
-  | "action";
+export type ToastType = "success" | "error" | "info" | "action";
 
 export interface Toast {
   id: number;
@@ -34,7 +30,7 @@ const DEFAULT_DURATION: Record<ToastType, number> = {
   success: 2000,
   info: 2800,
   error: 4000,
-  action: 5000,
+  action: 5000
 };
 
 const MAX_TOASTS = 3;
@@ -67,7 +63,7 @@ export function useToast() {
       msg,
       type,
       actionLabel: options?.actionLabel,
-      onAction: options?.onAction,
+      onAction: options?.onAction
     };
 
     setToasts((prev) => {
@@ -97,6 +93,6 @@ export function useToast() {
   return {
     toasts,
     showToast,
-    dismiss,
+    dismiss
   };
 }

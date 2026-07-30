@@ -1,14 +1,25 @@
 // src/features/details/components/WhereToWatch.tsx
-import { Show, For, createSignal, createMemo, onMount, type Component } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  createMemo,
+  onMount,
+  type Component
+} from "solid-js";
 import type { Accessor } from "solid-js";
 import { tmdbImage, fetchTitleWatchProviders } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { useFeatureFlags } from "~/lib/featureFlags";
 import {
   canonicalForTmdbId,
-  displayNameFor,
+  displayNameFor
 } from "~/features/discover/components/ottProviderRegistry";
-import type { WatchlistItem, TMDBDetails, TMDBWatchProvider } from "~/shared/types";
+import type {
+  WatchlistItem,
+  TMDBDetails,
+  TMDBWatchProvider
+} from "~/shared/types";
 import DetailSection from "~/features/details/components/DetailSection";
 
 interface WhereToWatchProps {
@@ -41,7 +52,9 @@ interface WhereToWatchProps {
 const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   const region = useDiscoverRegion();
   const featureFlags = useFeatureFlags();
-  const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(null);
+  const [providers, setProviders] = createSignal<TMDBWatchProvider[] | null>(
+    null
+  );
   const [loaded, setLoaded] = createSignal(false);
   // Deep link to the title's page on the platform (country-specific).
   // TMDB returns ONE link per country that points to JustWatch's page
@@ -94,7 +107,7 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
       ...(countryData.rent ?? []),
       ...(countryData.buy ?? []),
       ...(countryData.free ?? []),
-      ...(countryData.ads ?? []),
+      ...(countryData.ads ?? [])
     ];
     const seen = new Set<string>();
     const deduped: TMDBWatchProvider[] = [];
@@ -110,7 +123,9 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
     setLoaded(true);
   };
 
-  onMount(() => { void loadProviders(); });
+  onMount(() => {
+    void loadProviders();
+  });
 
   /** Display name — uses canonical name when known, falls back to TMDB name. */
   const displayName = (p: TMDBWatchProvider): string => {
@@ -132,9 +147,19 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
   });
 
   return (
-    <Show when={featureFlags.isEnabled("streaming_button") && loaded() && sortedProviders().length > 0}>
+    <Show
+      when={
+        featureFlags.isEnabled("streaming_button") &&
+        loaded() &&
+        sortedProviders().length > 0
+      }
+    >
       <DetailSection label="Where to Watch" icon="play_circle">
-        <div class="wheretowatch-grid" role="list" aria-label={`Available on ${sortedProviders().length} platforms in ${region()}`}>
+        <div
+          class="wheretowatch-grid"
+          role="list"
+          aria-label={`Available on ${sortedProviders().length} platforms in ${region()}`}
+        >
           <For each={sortedProviders()}>
             {(provider) => (
               <a
@@ -143,15 +168,28 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                 href={deepLink() ?? "#"}
                 target="_blank"
                 rel="noopener noreferrer"
-                title={deepLink() ? `Open ${displayName(provider)} on a new tab` : displayName(provider)}
+                title={
+                  deepLink()
+                    ? `Open ${displayName(provider)} on a new tab`
+                    : displayName(provider)
+                }
                 aria-label={`Open ${displayName(provider)} in a new tab`}
               >
                 <div class="wheretowatch-logo-wrap">
                   <Show
                     when={provider.logo_path}
                     fallback={
-                      <div class="wheretowatch-logo-fallback" aria-hidden="true">
-                        <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">live_tv</span>
+                      <div
+                        class="wheretowatch-logo-fallback"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "20px" }}
+                          aria-hidden="true"
+                        >
+                          live_tv
+                        </span>
                       </div>
                     }
                   >
@@ -165,12 +203,23 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                       onError={(e) => {
                         // Hide broken image, show fallback icon sibling
                         e.currentTarget.style.display = "none";
-                        const fallback = e.currentTarget.nextElementSibling as HTMLElement | null;
+                        const fallback = e.currentTarget
+                          .nextElementSibling as HTMLElement | null;
                         if (fallback) fallback.style.display = "flex";
                       }}
                     />
-                    <div class="wheretowatch-logo-fallback" style={{ display: "none" }} aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">live_tv</span>
+                    <div
+                      class="wheretowatch-logo-fallback"
+                      style={{ display: "none" }}
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "20px" }}
+                        aria-hidden="true"
+                      >
+                        live_tv
+                      </span>
                     </div>
                   </Show>
                 </div>

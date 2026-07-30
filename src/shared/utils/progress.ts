@@ -1,5 +1,9 @@
 // src/shared/utils/progress.ts
-import type { WatchlistItem, TMDBDetails, CachedSeasonInfo } from "~/shared/types";
+import type {
+  WatchlistItem,
+  TMDBDetails,
+  CachedSeasonInfo
+} from "~/shared/types";
 
 /**
  * CineLog V2 Progress Engine — the SINGLE source of truth for all progress.
@@ -58,14 +62,18 @@ export function isWatchable(m: WatchlistItem | null | undefined): boolean {
  * Filters by isWatchable (status === "Watching") and sorts by
  * watchProgress.updatedAt descending (most recently watched first).
  */
-export function getContinueWatchingList(list: WatchlistItem[]): WatchlistItem[] {
-  return list
-    .filter(isWatchable)
-    .sort((a, b) => {
-      const tA = a.watchProgress?.updatedAt ? new Date(a.watchProgress.updatedAt).getTime() : 0;
-      const tB = b.watchProgress?.updatedAt ? new Date(b.watchProgress.updatedAt).getTime() : 0;
-      return tB - tA;
-    });
+export function getContinueWatchingList(
+  list: WatchlistItem[]
+): WatchlistItem[] {
+  return list.filter(isWatchable).sort((a, b) => {
+    const tA = a.watchProgress?.updatedAt
+      ? new Date(a.watchProgress.updatedAt).getTime()
+      : 0;
+    const tB = b.watchProgress?.updatedAt
+      ? new Date(b.watchProgress.updatedAt).getTime()
+      : 0;
+    return tB - tA;
+  });
 }
 
 export interface EpisodeProgress {
@@ -201,9 +209,10 @@ export function getEpisodeProgress(
   }, 0);
 
   // SERIES-WIDE percentage — the ONE number every consumer uses
-  const pct = seriesTotalEps > 0
-    ? Math.min(100, Math.max(0, (seriesCompletedEps / seriesTotalEps) * 100))
-    : 0;
+  const pct =
+    seriesTotalEps > 0
+      ? Math.min(100, Math.max(0, (seriesCompletedEps / seriesTotalEps) * 100))
+      : 0;
 
   // "At end" = on the last episode of the last season
   const lastSeason = seasonList[seasonList.length - 1];
@@ -213,9 +222,10 @@ export function getEpisodeProgress(
     episode >= lastSeason.count;
 
   // Labels
-  const label = totalEps > 0
-    ? `S${season} E${episode} / ${totalEps}`
-    : `S${season} E${episode}`;
+  const label =
+    totalEps > 0
+      ? `S${season} E${episode} / ${totalEps}`
+      : `S${season} E${episode}`;
   const seriesLabel = `${seriesCompletedEps} / ${seriesTotalEps} eps`;
 
   return {

@@ -11,10 +11,14 @@ export default function CollectionSkeleton() {
     <div class="collection-modal">
       <div class="collection-skeleton-hero" />
       <div class="collection-skeleton-stats">
-        <For each={[1, 2, 3, 4]}>{() => <div class="collection-skeleton-stat" />}</For>
+        <For each={[1, 2, 3, 4]}>
+          {() => <div class="collection-skeleton-stat" />}
+        </For>
       </div>
       <div class="collection-skeleton-timeline">
-        <For each={[1, 2, 3, 4, 5]}>{() => <div class="collection-skeleton-item" />}</For>
+        <For each={[1, 2, 3, 4, 5]}>
+          {() => <div class="collection-skeleton-item" />}
+        </For>
       </div>
     </div>
   );

@@ -25,7 +25,7 @@ const ACTIONS: QuickAction[] = [
   { href: "/profile/stats", label: "Statistics", icon: "insights" },
   { href: "/profile/upcoming", label: "Upcoming", icon: "upcoming" },
   { href: "/settings", label: "Settings", icon: "settings" },
-  { href: "/profile/trash", label: "Trash", icon: "delete" },
+  { href: "/profile/trash", label: "Trash", icon: "delete" }
 ];
 
 const QuickActionRow: Component = () => {
@@ -41,10 +41,15 @@ const QuickActionRow: Component = () => {
             onClick={() => navigate(action.href)}
             aria-label={action.label}
           >
-            <span class="material-symbols-outlined profile-quick-action-row-v3-icon" aria-hidden="true">
+            <span
+              class="material-symbols-outlined profile-quick-action-row-v3-icon"
+              aria-hidden="true"
+            >
               {action.icon}
             </span>
-            <span class="profile-quick-action-row-v3-label">{action.label}</span>
+            <span class="profile-quick-action-row-v3-label">
+              {action.label}
+            </span>
           </button>
         )}
       </For>

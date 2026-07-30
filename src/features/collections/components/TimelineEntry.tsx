@@ -86,9 +86,18 @@ export default function TimelineEntry(props: TimelineEntryProps) {
     >
       {/* Select-mode checkbox (left side, replaces the numbered node) */}
       <Show when={props.selectMode}>
-        <div class={`universe-timeline-checkbox${props.selected ? " universe-timeline-checkbox-on" : ""}`} aria-hidden="true">
+        <div
+          class={`universe-timeline-checkbox${props.selected ? " universe-timeline-checkbox-on" : ""}`}
+          aria-hidden="true"
+        >
           <Show when={props.selected}>
-            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">check</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
+              check
+            </span>
           </Show>
         </div>
       </Show>
@@ -112,12 +121,20 @@ export default function TimelineEntry(props: TimelineEntryProps) {
           when={props.item.entry.poster_path}
           fallback={
             <div class="universe-timeline-poster-fallback" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{"font-size":"20px","color":"var(--text-dim)"}} aria-hidden="true">movie</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px", color: "var(--text-dim)" }}
+                aria-hidden="true"
+              >
+                movie
+              </span>
             </div>
           }
         >
           <img
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             src={tmdbImage(props.item.entry.poster_path, "w185")}
             class="universe-timeline-poster-img"
             loading="lazy"
@@ -127,12 +144,24 @@ export default function TimelineEntry(props: TimelineEntryProps) {
           />
         </Show>
         <Show when={props.item.status === "Completed"}>
-          <span class="universe-timeline-status universe-timeline-status-completed" aria-label="Completed">
-            <span class="material-symbols-outlined" style={{"font-size":"10px"}} aria-hidden="true">check</span>
+          <span
+            class="universe-timeline-status universe-timeline-status-completed"
+            aria-label="Completed"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "10px" }}
+              aria-hidden="true"
+            >
+              check
+            </span>
           </span>
         </Show>
         <Show when={props.item.status === "Watching"}>
-          <span class="universe-timeline-status universe-timeline-status-watching" aria-label="Watching" />
+          <span
+            class="universe-timeline-status universe-timeline-status-watching"
+            aria-label="Watching"
+          />
         </Show>
       </div>
 
@@ -140,21 +169,33 @@ export default function TimelineEntry(props: TimelineEntryProps) {
         <p class="universe-timeline-title">{props.titleOf(props.item.entry)}</p>
         <div class="universe-timeline-meta-row">
           <span class="universe-timeline-meta">
-            {props.yearOf(props.item.entry) ? `${props.yearOf(props.item.entry)} · ` : ""}
+            {props.yearOf(props.item.entry)
+              ? `${props.yearOf(props.item.entry)} · `
+              : ""}
             {props.item.entry.media_type === "tv" ? "Series" : "Movie"}
           </span>
           <Show when={props.item.entry.entryType}>
-            <span class="universe-timeline-entry-type">{props.item.entry.entryType}</span>
+            <span class="universe-timeline-entry-type">
+              {props.item.entry.entryType}
+            </span>
           </Show>
           <Show when={props.item.entry.isPinned}>
             <span class="universe-timeline-pinned-badge" aria-label="Pinned">
-              <span class="material-symbols-outlined" style={{"font-size":"12px","color":"var(--p)"}} aria-hidden="true">push_pin</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                push_pin
+              </span>
             </span>
           </Show>
         </div>
         <Show when={props.item.rating && props.item.rating > 0}>
           <p class="universe-timeline-user-rating">
-            <span style={{"color":"var(--p)"}}>★ Your {props.item.rating}</span>
+            <span style={{ color: "var(--p)" }}>
+              ★ Your {props.item.rating}
+            </span>
           </p>
         </Show>
         <Show when={props.item.entry.userNote}>
@@ -167,8 +208,17 @@ export default function TimelineEntry(props: TimelineEntryProps) {
           when={props.onAddToWatchlist}
           fallback={
             // No handler — render as a static informational badge.
-            <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
-              <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
+            <span
+              class="universe-timeline-missing-badge"
+              aria-label="Not in watchlist"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                add
+              </span>
             </span>
           }
         >
@@ -182,7 +232,13 @@ export default function TimelineEntry(props: TimelineEntryProps) {
             aria-label={`Add ${props.titleOf(props.item.entry)} to your watchlist`}
             title="Add to watchlist"
           >
-            <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">add</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
+              add
+            </span>
           </button>
         </Show>
       </Show>

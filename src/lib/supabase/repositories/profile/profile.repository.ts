@@ -38,7 +38,7 @@ import {
   updatePreferences,
   updateProfile,
   updateProfileMetadata,
-  toggleProfileVisibility,
+  toggleProfileVisibility
 } from "./profile.write";
 import {
   permanentlyDeleteProfile,
@@ -90,31 +90,44 @@ export class ProfileRepository {
   }
 
   /** Cheap existence check (excludes soft-deleted rows). */
-  profileExists(userId: string): Promise<{ exists: boolean; error: Error | null }> {
+  profileExists(
+    userId: string
+  ): Promise<{ exists: boolean; error: Error | null }> {
     return profileExists(this.supabase, userId);
   }
 
   // ---- Creates -------------------------------------------------------
 
   /** Create a new profile row (migrations / tests / trigger recovery). */
-  createProfile(payload: CreateProfilePayload): Promise<ProfileResult<ProfileRow>> {
+  createProfile(
+    payload: CreateProfilePayload
+  ): Promise<ProfileResult<ProfileRow>> {
     return createProfile(this.supabase, payload);
   }
 
   // ---- Updates -------------------------------------------------------
 
   /** Partially update a profile. */
-  updateProfile(userId: string, payload: UpdateProfilePayload): Promise<ProfileResult<ProfileRow>> {
+  updateProfile(
+    userId: string,
+    payload: UpdateProfilePayload
+  ): Promise<ProfileResult<ProfileRow>> {
     return updateProfile(this.supabase, userId, payload);
   }
 
   /** Update only the avatar URL. */
-  updateAvatar(userId: string, avatarUrl: string | null): Promise<ProfileResult<ProfileRow>> {
+  updateAvatar(
+    userId: string,
+    avatarUrl: string | null
+  ): Promise<ProfileResult<ProfileRow>> {
     return updateAvatar(this.supabase, userId, avatarUrl);
   }
 
   /** Update only the bio (validates 160-char limit). */
-  updateBio(userId: string, bio: string | null): Promise<ProfileResult<ProfileRow>> {
+  updateBio(
+    userId: string,
+    bio: string | null
+  ): Promise<ProfileResult<ProfileRow>> {
     return updateBio(this.supabase, userId, bio);
   }
 

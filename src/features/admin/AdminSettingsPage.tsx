@@ -17,7 +17,13 @@
 //   • The API validates each value; on success we re-fetch the full
 //     state so the UI reflects server-side clamping.
 
-import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
+import {
+  createSignal,
+  Show,
+  onMount,
+  type Component,
+  type JSX
+} from "solid-js";
 
 interface SiteSettings {
   site_name: string;
@@ -68,7 +74,9 @@ const AdminSettingsPage: Component = () => {
   const fetchSettings = async () => {
     setLoading(true);
     try {
-      const resp = await fetch("/api/admin/settings", { credentials: "include" });
+      const resp = await fetch("/api/admin/settings", {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -91,10 +99,21 @@ const AdminSettingsPage: Component = () => {
   // ─── Local mutation helpers ────────────────────────────────
   const updateSite = (patch: Partial<SiteSettings>) => {
     setSettings((s) =>
-      s ? { ...s, site_settings: { ...s.site_settings, value: { ...s.site_settings.value, ...patch } } } : s,
+      s
+        ? {
+            ...s,
+            site_settings: {
+              ...s.site_settings,
+              value: { ...s.site_settings.value, ...patch }
+            }
+          }
+        : s
     );
   };
-  const updateSocial = (key: keyof SiteSettings["social_links"], val: string) => {
+  const updateSocial = (
+    key: keyof SiteSettings["social_links"],
+    val: string
+  ) => {
     setSettings((s) =>
       s
         ? {
@@ -103,21 +122,40 @@ const AdminSettingsPage: Component = () => {
               ...s.site_settings,
               value: {
                 ...s.site_settings.value,
-                social_links: { ...s.site_settings.value.social_links, [key]: val },
-              },
-            },
+                social_links: {
+                  ...s.site_settings.value.social_links,
+                  [key]: val
+                }
+              }
+            }
           }
-        : s,
+        : s
     );
   };
   const updateRateLimits = (patch: Partial<RateLimits>) => {
     setSettings((s) =>
-      s ? { ...s, rate_limits: { ...s.rate_limits, value: { ...s.rate_limits.value, ...patch } } } : s,
+      s
+        ? {
+            ...s,
+            rate_limits: {
+              ...s.rate_limits,
+              value: { ...s.rate_limits.value, ...patch }
+            }
+          }
+        : s
     );
   };
   const updateTmdb = (patch: Partial<TmdbSettings>) => {
     setSettings((s) =>
-      s ? { ...s, tmdb_settings: { ...s.tmdb_settings, value: { ...s.tmdb_settings.value, ...patch } } } : s,
+      s
+        ? {
+            ...s,
+            tmdb_settings: {
+              ...s.tmdb_settings,
+              value: { ...s.tmdb_settings.value, ...patch }
+            }
+          }
+        : s
     );
   };
   const updateMaintenance = (patch: Partial<MaintenanceWindow>) => {
@@ -127,10 +165,10 @@ const AdminSettingsPage: Component = () => {
             ...s,
             maintenance_window: {
               ...s.maintenance_window,
-              value: { ...s.maintenance_window.value, ...patch },
-            },
+              value: { ...s.maintenance_window.value, ...patch }
+            }
           }
-        : s,
+        : s
     );
   };
   const updateRetention = (patch: Partial<RetentionPolicy>) => {
@@ -140,10 +178,10 @@ const AdminSettingsPage: Component = () => {
             ...s,
             retention_policy: {
               ...s.retention_policy,
-              value: { ...s.retention_policy.value, ...patch },
-            },
+              value: { ...s.retention_policy.value, ...patch }
+            }
           }
-        : s,
+        : s
     );
   };
 
@@ -165,13 +203,20 @@ const AdminSettingsPage: Component = () => {
             rate_limits: s.rate_limits.value,
             tmdb_settings: s.tmdb_settings.value,
             maintenance_window: s.maintenance_window.value,
-            retention_policy: s.retention_policy.value,
-          },
-        }),
+            retention_policy: s.retention_policy.value
+          }
+        })
       });
-      const json = (await resp.json()) as { ok: boolean; updated?: string[]; errors?: { key: string; error: string }[]; error?: string };
+      const json = (await resp.json()) as {
+        ok: boolean;
+        updated?: string[];
+        errors?: { key: string; error: string }[];
+        error?: string;
+      };
       if (!resp.ok || !json.ok) {
-        throw new Error(json.error ?? json.errors?.[0]?.error ?? `HTTP ${resp.status}`);
+        throw new Error(
+          json.error ?? json.errors?.[0]?.error ?? `HTTP ${resp.status}`
+        );
       }
       setSuccess(`Saved ${json.updated?.length ?? 0} settings.`);
       // Re-fetch to reflect server-side clamping
@@ -194,7 +239,10 @@ const AdminSettingsPage: Component = () => {
 
   // ─── Render ────────────────────────────────────────────────
   return (
-    <div class="admin-settings-page" style={{ padding: "var(--sp-6)", "max-width": "900px" }}>
+    <div
+      class="admin-settings-page"
+      style={{ padding: "var(--sp-6)", "max-width": "900px" }}
+    >
       {/* Header */}
       <div
         style={{
@@ -203,16 +251,31 @@ const AdminSettingsPage: Component = () => {
           "justify-content": "space-between",
           "margin-bottom": "var(--sp-6)",
           "flex-wrap": "wrap",
-          gap: "var(--sp-3)",
+          gap: "var(--sp-3)"
         }}
       >
         <div>
-          <h1 style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}>Settings</h1>
-          <p style={{ margin: "var(--sp-1) 0 0 0", color: "var(--text-muted)", "font-size": "0.875rem" }}>
+          <h1
+            style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}
+          >
+            Settings
+          </h1>
+          <p
+            style={{
+              margin: "var(--sp-1) 0 0 0",
+              color: "var(--text-muted)",
+              "font-size": "0.875rem"
+            }}
+          >
             Site-wide configuration. Changes are audit-logged.
           </p>
         </div>
-        <button type="button" onClick={save} disabled={saving() || !settings()} style={btnStyle(saving() || !settings())}>
+        <button
+          type="button"
+          onClick={save}
+          disabled={saving() || !settings()}
+          style={btnStyle(saving() || !settings())}
+        >
           {saving() ? "Saving…" : "💾 Save all"}
         </button>
       </div>
@@ -257,7 +320,9 @@ const AdminSettingsPage: Component = () => {
             <input
               type="email"
               value={settings()!.site_settings.value.contact_email}
-              onInput={(e) => updateSite({ contact_email: e.currentTarget.value })}
+              onInput={(e) =>
+                updateSite({ contact_email: e.currentTarget.value })
+              }
               style={inputStyle}
               maxlength={120}
             />
@@ -267,7 +332,9 @@ const AdminSettingsPage: Component = () => {
               <input
                 type="url"
                 value={settings()!.site_settings.value.support_url}
-                onInput={(e) => updateSite({ support_url: e.currentTarget.value })}
+                onInput={(e) =>
+                  updateSite({ support_url: e.currentTarget.value })
+                }
                 style={inputStyle}
                 placeholder="https://"
               />
@@ -276,7 +343,9 @@ const AdminSettingsPage: Component = () => {
               <input
                 type="url"
                 value={settings()!.site_settings.value.privacy_url}
-                onInput={(e) => updateSite({ privacy_url: e.currentTarget.value })}
+                onInput={(e) =>
+                  updateSite({ privacy_url: e.currentTarget.value })
+                }
                 style={inputStyle}
                 placeholder="https://"
               />
@@ -285,7 +354,9 @@ const AdminSettingsPage: Component = () => {
               <input
                 type="url"
                 value={settings()!.site_settings.value.terms_url}
-                onInput={(e) => updateSite({ terms_url: e.currentTarget.value })}
+                onInput={(e) =>
+                  updateSite({ terms_url: e.currentTarget.value })
+                }
                 style={inputStyle}
                 placeholder="https://"
               />
@@ -303,7 +374,9 @@ const AdminSettingsPage: Component = () => {
               <input
                 type="url"
                 value={settings()!.site_settings.value.social_links.instagram}
-                onInput={(e) => updateSocial("instagram", e.currentTarget.value)}
+                onInput={(e) =>
+                  updateSocial("instagram", e.currentTarget.value)
+                }
                 style={inputStyle}
                 placeholder="Instagram URL"
               />
@@ -331,7 +404,11 @@ const AdminSettingsPage: Component = () => {
                 min={5}
                 max={600}
                 value={settings()!.rate_limits.value.api_per_min}
-                onInput={(e) => updateRateLimits({ api_per_min: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRateLimits({
+                    api_per_min: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -341,7 +418,11 @@ const AdminSettingsPage: Component = () => {
                 min={3}
                 max={100}
                 value={settings()!.rate_limits.value.auth_attempts_per_hr}
-                onInput={(e) => updateRateLimits({ auth_attempts_per_hr: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRateLimits({
+                    auth_attempts_per_hr: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -351,7 +432,11 @@ const AdminSettingsPage: Component = () => {
                 min={1}
                 max={1000}
                 value={settings()!.rate_limits.value.upload_mb_per_day}
-                onInput={(e) => updateRateLimits({ upload_mb_per_day: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRateLimits({
+                    upload_mb_per_day: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -371,7 +456,9 @@ const AdminSettingsPage: Component = () => {
                 min={1}
                 max={365}
                 value={settings()!.tmdb_settings.value.cache_ttl_days}
-                onInput={(e) => updateTmdb({ cache_ttl_days: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateTmdb({ cache_ttl_days: Number(e.currentTarget.value) })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -379,18 +466,30 @@ const AdminSettingsPage: Component = () => {
               <input
                 type="text"
                 value={settings()!.tmdb_settings.value.fallback_language}
-                onInput={(e) => updateTmdb({ fallback_language: e.currentTarget.value })}
+                onInput={(e) =>
+                  updateTmdb({ fallback_language: e.currentTarget.value })
+                }
                 style={inputStyle}
                 maxlength={10}
                 placeholder="en"
               />
             </Field>
             <Field label="Include adult content">
-              <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text)" }}>
+              <label
+                style={{
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "var(--sp-2)",
+                  "font-size": "0.875rem",
+                  color: "var(--text)"
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={settings()!.tmdb_settings.value.include_adult}
-                  onChange={(e) => updateTmdb({ include_adult: e.currentTarget.checked })}
+                  onChange={(e) =>
+                    updateTmdb({ include_adult: e.currentTarget.checked })
+                  }
                 />
                 Allow adult titles in TMDB searches
               </label>
@@ -405,11 +504,21 @@ const AdminSettingsPage: Component = () => {
           updated={formatDate(settings()!.maintenance_window.updated_at)}
         >
           <Field label="Enabled">
-            <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text)" }}>
+            <label
+              style={{
+                display: "flex",
+                "align-items": "center",
+                gap: "var(--sp-2)",
+                "font-size": "0.875rem",
+                color: "var(--text)"
+              }}
+            >
               <input
                 type="checkbox"
                 checked={settings()!.maintenance_window.value.enabled}
-                onChange={(e) => updateMaintenance({ enabled: e.currentTarget.checked })}
+                onChange={(e) =>
+                  updateMaintenance({ enabled: e.currentTarget.checked })
+                }
               />
               Show maintenance banner to users
             </label>
@@ -419,12 +528,16 @@ const AdminSettingsPage: Component = () => {
               type="datetime-local"
               value={
                 settings()!.maintenance_window.value.scheduled_at
-                  ? new Date(settings()!.maintenance_window.value.scheduled_at!).toISOString().slice(0, 16)
+                  ? new Date(settings()!.maintenance_window.value.scheduled_at!)
+                      .toISOString()
+                      .slice(0, 16)
                   : ""
               }
               onInput={(e) =>
                 updateMaintenance({
-                  scheduled_at: e.currentTarget.value ? new Date(e.currentTarget.value).toISOString() : null,
+                  scheduled_at: e.currentTarget.value
+                    ? new Date(e.currentTarget.value).toISOString()
+                    : null
                 })
               }
               style={inputStyle}
@@ -433,8 +546,14 @@ const AdminSettingsPage: Component = () => {
           <Field label="Banner message">
             <textarea
               value={settings()!.maintenance_window.value.message}
-              onInput={(e) => updateMaintenance({ message: e.currentTarget.value })}
-              style={{ ...inputStyle, "min-height": "80px", "resize": "vertical" }}
+              onInput={(e) =>
+                updateMaintenance({ message: e.currentTarget.value })
+              }
+              style={{
+                ...inputStyle,
+                "min-height": "80px",
+                resize: "vertical"
+              }}
               maxlength={500}
               placeholder="We'll be performing scheduled maintenance. Some features may be unavailable."
             />
@@ -453,8 +572,14 @@ const AdminSettingsPage: Component = () => {
                 type="number"
                 min={1}
                 max={3650}
-                value={settings()!.retention_policy.value.soft_deleted_profiles_days}
-                onInput={(e) => updateRetention({ soft_deleted_profiles_days: Number(e.currentTarget.value) })}
+                value={
+                  settings()!.retention_policy.value.soft_deleted_profiles_days
+                }
+                onInput={(e) =>
+                  updateRetention({
+                    soft_deleted_profiles_days: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -464,7 +589,11 @@ const AdminSettingsPage: Component = () => {
                 min={7}
                 max={3650}
                 value={settings()!.retention_policy.value.activity_log_days}
-                onInput={(e) => updateRetention({ activity_log_days: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRetention({
+                    activity_log_days: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -474,7 +603,11 @@ const AdminSettingsPage: Component = () => {
                 min={1}
                 max={3650}
                 value={settings()!.retention_policy.value.tmdb_cache_days}
-                onInput={(e) => updateRetention({ tmdb_cache_days: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRetention({
+                    tmdb_cache_days: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -484,7 +617,11 @@ const AdminSettingsPage: Component = () => {
                 min={30}
                 max={36500}
                 value={settings()!.retention_policy.value.admin_actions_days}
-                onInput={(e) => updateRetention({ admin_actions_days: Number(e.currentTarget.value) })}
+                onInput={(e) =>
+                  updateRetention({
+                    admin_actions_days: Number(e.currentTarget.value)
+                  })
+                }
                 style={inputStyle}
               />
             </Field>
@@ -499,13 +636,23 @@ const AdminSettingsPage: Component = () => {
             "border-top": "1px solid var(--hairline)",
             display: "flex",
             "justify-content": "flex-end",
-            gap: "var(--sp-3)",
+            gap: "var(--sp-3)"
           }}
         >
-          <button type="button" onClick={fetchSettings} disabled={saving()} style={cancelBtnStyle}>
+          <button
+            type="button"
+            onClick={fetchSettings}
+            disabled={saving()}
+            style={cancelBtnStyle}
+          >
             Revert
           </button>
-          <button type="button" onClick={save} disabled={saving()} style={btnStyle(saving())}>
+          <button
+            type="button"
+            onClick={save}
+            disabled={saving()}
+            style={btnStyle(saving())}
+          >
             {saving() ? "Saving…" : "💾 Save all"}
           </button>
         </div>
@@ -516,36 +663,77 @@ const AdminSettingsPage: Component = () => {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-const Section: Component<{ title: string; subtitle?: string; updated?: string; children: any }> = (props) => (
+const Section: Component<{
+  title: string;
+  subtitle?: string;
+  updated?: string;
+  children: JSX.Element;
+}> = (props) => (
   <section
     style={{
       "margin-bottom": "var(--sp-8)",
-      "background": "var(--tier-1)",
+      background: "var(--tier-1)",
       border: "1px solid var(--hairline)",
       "border-radius": "var(--radius-md)",
-      padding: "var(--sp-6)",
+      padding: "var(--sp-6)"
     }}
   >
     <div style={{ "margin-bottom": "var(--sp-4)" }}>
-      <h2 style={{ margin: 0, "font-size": "1.125rem", color: "var(--text)" }}>{props.title}</h2>
+      <h2 style={{ margin: 0, "font-size": "1.125rem", color: "var(--text)" }}>
+        {props.title}
+      </h2>
       <Show when={props.subtitle}>
-        <p style={{ margin: "var(--sp-1) 0 0 0", "font-size": "0.8125rem", color: "var(--text-muted)" }}>
+        <p
+          style={{
+            margin: "var(--sp-1) 0 0 0",
+            "font-size": "0.8125rem",
+            color: "var(--text-muted)"
+          }}
+        >
           {props.subtitle}
         </p>
       </Show>
       <Show when={props.updated}>
-        <p style={{ margin: "var(--sp-1) 0 0 0", "font-size": "0.75rem", color: "var(--text-muted)" }}>
+        <p
+          style={{
+            margin: "var(--sp-1) 0 0 0",
+            "font-size": "0.75rem",
+            color: "var(--text-muted)"
+          }}
+        >
           Last updated: {props.updated}
         </p>
       </Show>
     </div>
-    <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-4)" }}>{props.children}</div>
+    <div
+      style={{
+        display: "flex",
+        "flex-direction": "column",
+        gap: "var(--sp-4)"
+      }}
+    >
+      {props.children}
+    </div>
   </section>
 );
 
-const Field: Component<{ label: string; children: any }> = (props) => (
-  <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)", flex: 1, "min-width": 0 }}>
-    <label style={{ "font-size": "0.8125rem", color: "var(--text-secondary)", "font-weight": "500" }}>
+const Field: Component<{ label: string; children: JSX.Element }> = (props) => (
+  <div
+    style={{
+      display: "flex",
+      "flex-direction": "column",
+      gap: "var(--sp-2)",
+      flex: 1,
+      "min-width": 0
+    }}
+  >
+    <label
+      style={{
+        "font-size": "0.8125rem",
+        color: "var(--text-secondary)",
+        "font-weight": "500"
+      }}
+    >
       {props.label}
     </label>
     {props.children}
@@ -557,70 +745,70 @@ const Field: Component<{ label: string; children: any }> = (props) => (
 const inputStyle = {
   width: "100%",
   padding: "var(--sp-2) var(--sp-3)",
-  "background": "var(--tier-2)",
+  background: "var(--tier-2)",
   border: "1px solid var(--hairline-2)",
   "border-radius": "var(--radius-md)",
   color: "var(--text)",
   "font-size": "0.875rem",
   "font-family": "inherit",
   outline: "none",
-  "box-sizing": "border-box" as const,
+  "box-sizing": "border-box" as const
 } as const;
 
 const fieldGridStyle = {
   display: "grid",
   "grid-template-columns": "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: "var(--sp-4)",
+  gap: "var(--sp-4)"
 } as const;
 
 const errorStyle = {
-  "background": "rgba(239, 68, 68, 0.1)",
+  background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-3) var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   color: "rgb(252, 165, 165)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const successStyle = {
-  "background": "rgba(74, 222, 128, 0.1)",
+  background: "rgba(74, 222, 128, 0.1)",
   border: "1px solid rgba(74, 222, 128, 0.3)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-3) var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   color: "rgb(187, 247, 208)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const loadingStyle = {
   padding: "var(--sp-8)",
   "text-align": "center",
   color: "var(--text-muted)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const cancelBtnStyle = {
   padding: "var(--sp-2) var(--sp-4)",
-  "background": "transparent",
+  background: "transparent",
   color: "var(--text-secondary)",
   border: "1px solid var(--hairline-2)",
   "border-radius": "var(--radius-md)",
   "font-size": "0.8125rem",
   "font-weight": "500",
-  cursor: "pointer",
+  cursor: "pointer"
 } as const;
 
 function btnStyle(disabled: boolean) {
   return {
     padding: "var(--sp-2) var(--sp-4)",
-    "background": disabled ? "var(--tier-3)" : "var(--p)",
+    background: disabled ? "var(--tier-3)" : "var(--p)",
     color: disabled ? "var(--text-muted)" : "var(--on-primary)",
     border: "none",
     "border-radius": "var(--radius-md)",
     "font-size": "0.8125rem",
     "font-weight": "600",
-    cursor: disabled ? "not-allowed" : "pointer",
+    cursor: disabled ? "not-allowed" : "pointer"
   } as const;
 }
 

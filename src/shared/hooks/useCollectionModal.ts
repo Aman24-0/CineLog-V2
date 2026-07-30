@@ -20,7 +20,8 @@ export interface CollectionSelectedItem {
   triggerTitleId?: string;
 }
 
-const [collectionSelectedItem, setCollectionSelectedItem] = createSignal<CollectionSelectedItem | null>(null);
+const [collectionSelectedItem, setCollectionSelectedItem] =
+  createSignal<CollectionSelectedItem | null>(null);
 
 /**
  * openCollection — the single entry point for opening the Collection modal.
@@ -28,7 +29,10 @@ const [collectionSelectedItem, setCollectionSelectedItem] = createSignal<Collect
  * The optional triggerTitleId is used to highlight the current title in the
  * timeline view.
  */
-export function openCollection(franchise: FranchiseDefinition, triggerTitleId?: string): void {
+export function openCollection(
+  franchise: FranchiseDefinition,
+  triggerTitleId?: string
+): void {
   setCollectionSelectedItem({ franchise, triggerTitleId });
 }
 

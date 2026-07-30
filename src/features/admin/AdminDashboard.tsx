@@ -20,7 +20,14 @@
 // All metrics are fetched from /api/admin/stats in a single request.
 // The page polls every 60 seconds to keep metrics fresh.
 
-import { createSignal, onMount, onCleanup, Show, type Component } from "solid-js";
+import {
+  createSignal,
+  onMount,
+  onCleanup,
+  Show,
+  type Component,
+  For
+} from "solid-js";
 
 interface AdminStats {
   total_users: number;
@@ -54,7 +61,7 @@ const AdminDashboard: Component = () => {
     try {
       const resp = await fetch("/api/admin/stats", {
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
       });
       if (!resp.ok) {
         if (resp.status === 401) {
@@ -98,40 +105,40 @@ const AdminDashboard: Component = () => {
         label: "Total Users",
         value: formatNumber(s.total_users),
         subtitle: "Registered accounts",
-        icon: "👥",
+        icon: "👥"
       },
       {
         label: "Active (24h)",
         value: formatNumber(s.active_users.h24),
         subtitle: "Users active in last 24 hours",
         icon: "⚡",
-        accent: "success",
+        accent: "success"
       },
       {
         label: "Active (7d)",
         value: formatNumber(s.active_users.d7),
         subtitle: "Users active in last 7 days",
-        icon: "📅",
+        icon: "📅"
       },
       {
         label: "Active (30d)",
         value: formatNumber(s.active_users.d30),
         subtitle: "Users active in last 30 days",
-        icon: "📆",
+        icon: "📆"
       },
       {
         label: "Watchlist Entries",
         value: formatNumber(s.total_watchlist_entries),
         subtitle: "Total items across all users",
-        icon: "🎬",
+        icon: "🎬"
       },
       {
         label: "Movies vs TV",
         value: `${formatNumber(s.movies_vs_tv.movies)} / ${formatNumber(s.movies_vs_tv.tv_shows)}`,
         subtitle: `${formatNumber(
-          s.movies_vs_tv.movies + s.movies_vs_tv.tv_shows,
+          s.movies_vs_tv.movies + s.movies_vs_tv.tv_shows
         )} total — split by media type`,
-        icon: "📺",
+        icon: "📺"
       },
       {
         label: "TMDB Cache",
@@ -141,27 +148,30 @@ const AdminDashboard: Component = () => {
             ? `~${s.tmdb_cache.size_mb} MB · ${s.tmdb_cache.expired} expired`
             : `${s.tmdb_cache.expired} expired entries`,
         icon: "🗄️",
-        accent: s.tmdb_cache.expired > 0 ? "warning" : "default",
+        accent: s.tmdb_cache.expired > 0 ? "warning" : "default"
       },
       {
         label: "Server Status",
         value: s.server_status === "online" ? "Online" : "Offline",
         subtitle: "Supabase API reachable",
         icon: "🟢",
-        accent: "success",
+        accent: "success"
       },
       {
         label: "API Requests",
         value: formatNumber(s.api_request_count),
         subtitle: "Total logged activities (all-time)",
-        icon: "📈",
+        icon: "📈"
       },
       {
         label: "Database Size",
         value: s.database_size_mb !== null ? `${s.database_size_mb} MB` : "—",
-        subtitle: s.database_size_mb !== null ? "Supabase Postgres" : "Requires access token",
-        icon: "💾",
-      },
+        subtitle:
+          s.database_size_mb !== null
+            ? "Supabase Postgres"
+            : "Requires access token",
+        icon: "💾"
+      }
     ];
   };
 
@@ -174,7 +184,7 @@ const AdminDashboard: Component = () => {
           "justify-content": "space-between",
           "margin-bottom": "var(--sp-6)",
           "flex-wrap": "wrap",
-          gap: "var(--sp-3)",
+          gap: "var(--sp-3)"
         }}
       >
         <div>
@@ -183,7 +193,7 @@ const AdminDashboard: Component = () => {
               "font-size": "1.5rem",
               "font-weight": "700",
               margin: "0 0 var(--sp-1) 0",
-              color: "var(--text)",
+              color: "var(--text)"
             }}
           >
             Dashboard
@@ -192,7 +202,7 @@ const AdminDashboard: Component = () => {
             style={{
               "font-size": "0.875rem",
               color: "var(--text-muted)",
-              margin: 0,
+              margin: 0
             }}
           >
             Real-time overview of CineLog V2 platform metrics
@@ -203,7 +213,7 @@ const AdminDashboard: Component = () => {
             style={{
               "font-size": "0.75rem",
               color: "var(--text-muted)",
-              "text-align": "right",
+              "text-align": "right"
             }}
           >
             Last updated: {lastUpdated()!.toLocaleTimeString()}
@@ -215,13 +225,13 @@ const AdminDashboard: Component = () => {
                 }}
                 style={{
                   "margin-left": "var(--sp-3)",
-                  "background": "transparent",
+                  background: "transparent",
                   border: "1px solid var(--hairline-2)",
                   "border-radius": "var(--radius-sm)",
                   padding: "2px 8px",
                   "font-size": "0.75rem",
                   color: "var(--text-secondary)",
-                  cursor: "pointer",
+                  cursor: "pointer"
                 }}
               >
                 ↻ Refresh
@@ -235,13 +245,13 @@ const AdminDashboard: Component = () => {
         <div
           role="alert"
           style={{
-            "background": "rgba(239, 68, 68, 0.1)",
+            background: "rgba(239, 68, 68, 0.1)",
             border: "1px solid rgba(239, 68, 68, 0.3)",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-4)",
             "margin-bottom": "var(--sp-4)",
             "font-size": "0.875rem",
-            color: "rgb(252, 165, 165)",
+            color: "rgb(252, 165, 165)"
           }}
         >
           Failed to load stats: {error()}
@@ -253,21 +263,23 @@ const AdminDashboard: Component = () => {
           style={{
             display: "grid",
             "grid-template-columns": "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: "var(--sp-4)",
+            gap: "var(--sp-4)"
           }}
         >
-          {Array.from({ length: 10 }).map(() => (
-            <div
-              style={{
-                "background": "var(--tier-1)",
-                border: "1px solid var(--hairline)",
-                "border-radius": "var(--radius-lg)",
-                padding: "var(--sp-5)",
-                height: "120px",
-                "animation": "pulse 1.5s ease-in-out infinite",
-              }}
-            />
-          ))}
+          <For each={Array.from({ length: 10 })}>
+            {() => (
+              <div
+                style={{
+                  background: "var(--tier-1)",
+                  border: "1px solid var(--hairline)",
+                  "border-radius": "var(--radius-lg)",
+                  padding: "var(--sp-5)",
+                  height: "120px",
+                  animation: "pulse 1.5s ease-in-out infinite"
+                }}
+              />
+            )}
+          </For>
         </div>
       </Show>
 
@@ -276,91 +288,95 @@ const AdminDashboard: Component = () => {
           style={{
             display: "grid",
             "grid-template-columns": "repeat(auto-fill, minmax(240px, 1fr))",
-            gap: "var(--sp-4)",
+            gap: "var(--sp-4)"
           }}
         >
-          {cards().map((card) => (
-            <div
-              style={{
-                "background": "var(--tier-1)",
-                border: "1px solid var(--hairline)",
-                "border-radius": "var(--radius-lg)",
-                padding: "var(--sp-5)",
-                "transition": "border-color 0.15s ease, transform 0.15s ease",
-                cursor: "default",
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.borderColor = "var(--p)";
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.borderColor = "var(--hairline)";
-              }}
-            >
+          <For each={cards()}>
+            {(card) => (
               <div
                 style={{
-                  display: "flex",
-                  "align-items": "center",
-                  "justify-content": "space-between",
-                  "margin-bottom": "var(--sp-3)",
+                  background: "var(--tier-1)",
+                  border: "1px solid var(--hairline)",
+                  "border-radius": "var(--radius-lg)",
+                  padding: "var(--sp-5)",
+                  transition: "border-color 0.15s ease, transform 0.15s ease",
+                  cursor: "default"
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.borderColor = "var(--p)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.borderColor = "var(--hairline)";
                 }}
               >
-                <span style={{ "font-size": "1.5rem", "line-height": 1 }}>{card.icon}</span>
-                <Show when={card.accent === "success"}>
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      "border-radius": "50%",
-                      "background": "rgb(34, 197, 94)",
-                      "box-shadow": "0 0 8px rgba(34, 197, 94, 0.6)",
-                    }}
-                  />
-                </Show>
-                <Show when={card.accent === "warning"}>
-                  <span
-                    style={{
-                      width: "8px",
-                      height: "8px",
-                      "border-radius": "50%",
-                      "background": "rgb(251, 191, 36)",
-                      "box-shadow": "0 0 8px rgba(251, 191, 36, 0.6)",
-                    }}
-                  />
-                </Show>
-              </div>
-              <div
-                style={{
-                  "font-size": "1.75rem",
-                  "font-weight": "700",
-                  color: "var(--text)",
-                  "line-height": 1.2,
-                  "margin-bottom": "var(--sp-1)",
-                }}
-              >
-                {card.value}
-              </div>
-              <div
-                style={{
-                  "font-size": "0.8125rem",
-                  "font-weight": "500",
-                  color: "var(--text-secondary)",
-                  "margin-bottom": "var(--sp-1)",
-                }}
-              >
-                {card.label}
-              </div>
-              <Show when={card.subtitle}>
                 <div
                   style={{
-                    "font-size": "0.75rem",
-                    color: "var(--text-muted)",
+                    display: "flex",
+                    "align-items": "center",
+                    "justify-content": "space-between",
+                    "margin-bottom": "var(--sp-3)"
                   }}
                 >
-                  {card.subtitle}
+                  <span style={{ "font-size": "1.5rem", "line-height": "1" }}>
+                    {card.icon}
+                  </span>
+                  <Show when={card.accent === "success"}>
+                    <span
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        "border-radius": "50%",
+                        background: "rgb(34, 197, 94)",
+                        "box-shadow": "0 0 8px rgba(34, 197, 94, 0.6)"
+                      }}
+                    />
+                  </Show>
+                  <Show when={card.accent === "warning"}>
+                    <span
+                      style={{
+                        width: "8px",
+                        height: "8px",
+                        "border-radius": "50%",
+                        background: "rgb(251, 191, 36)",
+                        "box-shadow": "0 0 8px rgba(251, 191, 36, 0.6)"
+                      }}
+                    />
+                  </Show>
                 </div>
-              </Show>
-            </div>
-          ))}
+                <div
+                  style={{
+                    "font-size": "1.75rem",
+                    "font-weight": "700",
+                    color: "var(--text)",
+                    "line-height": "1.2",
+                    "margin-bottom": "var(--sp-1)"
+                  }}
+                >
+                  {card.value}
+                </div>
+                <div
+                  style={{
+                    "font-size": "0.8125rem",
+                    "font-weight": "500",
+                    color: "var(--text-secondary)",
+                    "margin-bottom": "var(--sp-1)"
+                  }}
+                >
+                  {card.label}
+                </div>
+                <Show when={card.subtitle}>
+                  <div
+                    style={{
+                      "font-size": "0.75rem",
+                      color: "var(--text-muted)"
+                    }}
+                  >
+                    {card.subtitle}
+                  </div>
+                </Show>
+              </div>
+            )}
+          </For>
         </div>
       </Show>
     </div>

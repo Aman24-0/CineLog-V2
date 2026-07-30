@@ -12,9 +12,14 @@
 
 import { getCollectionRepository } from "~/lib/supabase/repositories";
 import type { CollectionRow } from "~/lib/supabase/repositories";
-import type {Collection} from "~/shared/types";
+import type { Collection } from "~/shared/types";
 import { collectionRowToCollection } from "./collectionMapper";
-import { fetchEntriesForCollection, addEntryToCollectionByTmdbId, removeEntryFromCollection, reorderEntriesInCollection } from "./collectionEntryAdapter";
+import {
+  fetchEntriesForCollection,
+  addEntryToCollectionByTmdbId,
+  removeEntryFromCollection,
+  reorderEntriesInCollection
+} from "./collectionEntryAdapter";
 
 // ---------------------------------------------------------------------------
 // READ: Fetch all collections for a user (with entries)
@@ -44,7 +49,7 @@ export async function fetchCollectionsFromSupabase(
     userId,
     sort: { field: "created_at", direction: "desc" },
     pagination: { limit: 200 },
-    includeArchived: options?.includeArchived ?? false,
+    includeArchived: options?.includeArchived ?? false
   });
 
   if (error) {
@@ -84,7 +89,9 @@ export async function fetchCollectionsFromSupabase(
  * be unarchived later. The Collections grid filters archived rows out
  * by default; the user toggles "Show Archived" to surface them.
  */
-export async function archiveCollectionInSupabase(collectionId: string): Promise<void> {
+export async function archiveCollectionInSupabase(
+  collectionId: string
+): Promise<void> {
   const repo = getCollectionRepository();
   const { error } = await repo.archiveCollection(collectionId);
   if (error) throw error;
@@ -94,7 +101,9 @@ export async function archiveCollectionInSupabase(collectionId: string): Promise
  * Unarchive a user collection. Clears `archived_at`. Brings the
  * collection back into the default Collections grid.
  */
-export async function unarchiveCollectionInSupabase(collectionId: string): Promise<void> {
+export async function unarchiveCollectionInSupabase(
+  collectionId: string
+): Promise<void> {
   const repo = getCollectionRepository();
   const { error } = await repo.unarchiveCollection(collectionId);
   if (error) throw error;
@@ -111,22 +120,27 @@ export async function unarchiveCollectionInSupabase(collectionId: string): Promi
 export async function createCollectionInSupabase(
   userId: string,
   name: string,
-  options?: { collectionType?: "user" | "curated" | "smart"; description?: string }
+  options?: {
+    collectionType?: "user" | "curated" | "smart";
+    description?: string;
+  }
 ): Promise<string | null> {
   const repo = getCollectionRepository();
   // Build payload directly — the mapper only handles app CollectionType
   // ("user" | "official" | "curated"), but Supabase also supports "smart".
   // For "smart", we pass it directly; for others, use the mapper.
   const dbType: "user" | "curated" | "smart" =
-    options?.collectionType === "smart" ? "smart"
-    : options?.collectionType === "curated" ? "curated"
-    : "user";
+    options?.collectionType === "smart"
+      ? "smart"
+      : options?.collectionType === "curated"
+        ? "curated"
+        : "user";
 
   const { data, error } = await repo.createCollection({
     userId,
     name,
     collectionType: dbType,
-    description: options?.description ?? null,
+    description: options?.description ?? null
   });
   if (error) {
     console.error("[collectionAdapter] Error creating collection:", error);
@@ -143,7 +157,9 @@ export async function renameCollectionInSupabase(
   newName: string
 ): Promise<void> {
   const repo = getCollectionRepository();
-  const { error } = await repo.updateCollection(collectionId, { name: newName });
+  const { error } = await repo.updateCollection(collectionId, {
+    name: newName
+  });
   if (error) throw error;
 }
 
@@ -173,7 +189,9 @@ export async function updateCollectionMetaInSupabase(
 /**
  * Soft-delete a collection (sets deleted_at).
  */
-export async function deleteCollectionInSupabase(collectionId: string): Promise<void> {
+export async function deleteCollectionInSupabase(
+  collectionId: string
+): Promise<void> {
   const repo = getCollectionRepository();
   const { error } = await repo.deleteCollection(collectionId);
   if (error) throw error;
@@ -182,7 +200,9 @@ export async function deleteCollectionInSupabase(collectionId: string): Promise<
 /**
  * Restore a soft-deleted collection.
  */
-export async function restoreCollectionInSupabase(collectionId: string): Promise<void> {
+export async function restoreCollectionInSupabase(
+  collectionId: string
+): Promise<void> {
   const repo = getCollectionRepository();
   const { error } = await repo.restoreCollection(collectionId);
   if (error) throw error;
@@ -198,8 +218,10 @@ export async function duplicateCollectionInSupabase(
 ): Promise<string | null> {
   // 1. Fetch the source collection + its entries
   const repo = getCollectionRepository();
-  const { data: source, error: fetchError } = await repo.getCollection(collectionId);
-  if (fetchError || !source) throw fetchError ?? new Error("Collection not found");
+  const { data: source, error: fetchError } =
+    await repo.getCollection(collectionId);
+  if (fetchError || !source)
+    throw fetchError ?? new Error("Collection not found");
 
   const entries = await fetchEntriesForCollection(collectionId);
 
@@ -207,9 +229,13 @@ export async function duplicateCollectionInSupabase(
   //    the clone is a true visual duplicate (cover, banner, accent
   //    color, description, collection_type, sort/view mode).
   const sourceRow = source as CollectionRow & { color?: string | null };
-  const newId = await createCollectionInSupabase(userId, `${source.name} (copy)`, {
-    description: source.description ?? undefined,
-  });
+  const newId = await createCollectionInSupabase(
+    userId,
+    `${source.name} (copy)`,
+    {
+      description: source.description ?? undefined
+    }
+  );
   if (!newId) throw new Error("Failed to create duplicate collection");
 
   // Apply the rest of the metadata via updateCollection so we can
@@ -222,17 +248,25 @@ export async function duplicateCollectionInSupabase(
       bannerUrl: source.banner_url,
       color: sourceRow.color ?? null,
       sortMode: source.sort_mode,
-      viewMode: source.view_mode,
+      viewMode: source.view_mode
     });
   } catch (err) {
     // Non-fatal — the duplicate still exists with name + description.
-    console.warn("[collectionAdapter] Failed to copy metadata on duplicate:", err);
+    console.warn(
+      "[collectionAdapter] Failed to copy metadata on duplicate:",
+      err
+    );
   }
 
   // 3. Copy entries — preserves the source order via the ordered
   //    add-loop (each addToCollection appends to the end).
   for (const entry of entries) {
-    await addEntryToCollectionByTmdbId(userId, newId, entry.id, entry.media_type);
+    await addEntryToCollectionByTmdbId(
+      userId,
+      newId,
+      entry.id,
+      entry.media_type
+    );
   }
 
   return newId;
@@ -293,7 +327,9 @@ let ensureFavoritesInFlight = false;
  *   is kept and the rest are soft-deleted. This self-heals existing
  *   databases without requiring a manual migration.
  */
-export async function ensureFavoritesExistsInSupabase(userId: string): Promise<void> {
+export async function ensureFavoritesExistsInSupabase(
+  userId: string
+): Promise<void> {
   // Mutex — if a previous call is in flight, wait for it to complete
   // by returning early. The next call will find the Favorites collection
   // created by the first call.
@@ -324,19 +360,23 @@ export async function ensureFavoritesExistsInSupabase(userId: string): Promise<v
       // DUPLICATE CLEANUP: Keep the oldest (first created), soft-delete
       // the rest. This self-heals databases that already have duplicates
       // from the previous race condition bug.
-      const sorted = [...favorites].sort((a, b) =>
-        new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+      const sorted = [...favorites].sort(
+        (a, b) =>
+          new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
       );
       const toDelete = sorted.slice(1); // all except the oldest
       console.warn(
         `[collectionAdapter] Found ${favorites.length} duplicate Favorites collections. ` +
-        `Keeping ${sorted[0].id}, deleting ${toDelete.map((c) => c.id).join(", ")}.`
+          `Keeping ${sorted[0].id}, deleting ${toDelete.map((c) => c.id).join(", ")}.`
       );
       for (const col of toDelete) {
         try {
           await deleteCollectionInSupabase(col.id);
         } catch (err) {
-          console.error(`[collectionAdapter] Failed to delete duplicate Favorites ${col.id}:`, err);
+          console.error(
+            `[collectionAdapter] Failed to delete duplicate Favorites ${col.id}:`,
+            err
+          );
         }
       }
     }

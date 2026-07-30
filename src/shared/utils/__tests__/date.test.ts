@@ -14,7 +14,7 @@ describe("resolveTimelineDate", () => {
   it("ignores empty/whitespace watchDate", () => {
     const item = makeWatchlistItem({
       watchDate: "  ",
-      addedAt: "2024-01-01T00:00:00Z",
+      addedAt: "2024-01-01T00:00:00Z"
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -26,8 +26,8 @@ describe("resolveTimelineDate", () => {
       watchDate: undefined,
       seasonDates: {
         "1": { start: "2024-01-01", end: "2024-03-01" },
-        "2": { start: "2024-05-01", end: "2024-07-01" },
-      },
+        "2": { start: "2024-05-01", end: "2024-07-01" }
+      }
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -39,8 +39,8 @@ describe("resolveTimelineDate", () => {
       watchDate: undefined,
       seasonDates: {
         "1": { start: "2024-01-01", end: "" },
-        "2": { start: "2024-05-01", end: "" },
-      },
+        "2": { start: "2024-05-01", end: "" }
+      }
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -51,7 +51,7 @@ describe("resolveTimelineDate", () => {
     const item = makeWatchlistItem({
       watchDate: undefined,
       seasonDates: undefined,
-      addedAt: "2024-06-01T12:00:00Z",
+      addedAt: "2024-06-01T12:00:00Z"
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -61,7 +61,7 @@ describe("resolveTimelineDate", () => {
   it("handles Firestore timestamp object { seconds, nanoseconds }", () => {
     const item = makeWatchlistItem({
       watchDate: undefined,
-      addedAt: { seconds: 1700000000, nanoseconds: 500000000 },
+      addedAt: { seconds: 1700000000, nanoseconds: 500000000 }
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -72,7 +72,7 @@ describe("resolveTimelineDate", () => {
     const date = new Date("2024-06-01T00:00:00Z");
     const item = makeWatchlistItem({
       watchDate: undefined,
-      addedAt: date,
+      addedAt: date
     });
     const result = resolveTimelineDate(item);
     expect(result).not.toBeNull();
@@ -83,7 +83,7 @@ describe("resolveTimelineDate", () => {
     const item = makeWatchlistItem({
       watchDate: undefined,
       seasonDates: undefined,
-      addedAt: undefined,
+      addedAt: undefined
     });
     expect(resolveTimelineDate(item)).toBeNull();
   });
@@ -92,7 +92,7 @@ describe("resolveTimelineDate", () => {
     const item = makeWatchlistItem({
       watchDate: "not-a-date",
       seasonDates: undefined,
-      addedAt: "also-not-a-date",
+      addedAt: "also-not-a-date"
     });
     expect(resolveTimelineDate(item)).toBeNull();
   });
@@ -101,7 +101,7 @@ describe("resolveTimelineDate", () => {
     const item = makeWatchlistItem({
       watchDate: "2024-06-15",
       seasonDates: { "1": { start: "2024-01-01", end: "2024-03-01" } },
-      addedAt: "2024-01-01T00:00:00Z",
+      addedAt: "2024-01-01T00:00:00Z"
     });
     const result = resolveTimelineDate(item);
     expect(result!.toISOString().startsWith("2024-06-15")).toBe(true);
@@ -111,7 +111,7 @@ describe("resolveTimelineDate", () => {
     const item = makeWatchlistItem({
       watchDate: undefined,
       seasonDates: undefined,
-      addedAt: new Date("invalid"),
+      addedAt: new Date("invalid")
     });
     expect(resolveTimelineDate(item)).toBeNull();
   });

@@ -29,14 +29,14 @@ const BUCKET_LABELS: Record<BucketKey, string> = {
   today: "Today",
   yesterday: "Yesterday",
   this_week: "This Week",
-  earlier: "Earlier",
+  earlier: "Earlier"
 };
 
 const TYPE_ICON: Record<NotificationRow["type"], string> = {
   reminder: "notifications_active",
   watchlist_added: "add_circle",
   season_available: "new_releases",
-  info: "info",
+  info: "info"
 };
 
 function bucketFor(iso: string): BucketKey {
@@ -66,12 +66,14 @@ function relativeTime(iso: string): string {
 const NotificationCenter: Component<NotificationCenterProps> = (props) => {
   const toast = useToast();
 
-  const grouped = createMemo<{ key: BucketKey; label: string; items: NotificationRow[] }[]>(() => {
+  const grouped = createMemo<
+    { key: BucketKey; label: string; items: NotificationRow[] }[]
+  >(() => {
     const buckets: Record<BucketKey, NotificationRow[]> = {
       today: [],
       yesterday: [],
       this_week: [],
-      earlier: [],
+      earlier: []
     };
     for (const n of props.notifications()) {
       buckets[bucketFor(n.created_at)].push(n);
@@ -81,7 +83,9 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
       .filter((g) => g.items.length > 0);
   });
 
-  const hasUnread = createMemo(() => props.notifications().some((n) => !n.is_read));
+  const hasUnread = createMemo(() =>
+    props.notifications().some((n) => !n.is_read)
+  );
 
   const handleClick = (n: NotificationRow) => {
     if (!n.is_read) props.onMarkRead(n.id);
@@ -133,7 +137,8 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
             </span>
             <p>No notifications yet.</p>
             <p class="upcoming-notif-empty-hint">
-              Tap the bell icon on any upcoming title to set a release-day reminder.
+              Tap the bell icon on any upcoming title to set a release-day
+              reminder.
             </p>
           </div>
         }
@@ -158,13 +163,18 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
                           {TYPE_ICON[n.type]}
                         </span>
                         <Show when={!n.is_read}>
-                          <span class="upcoming-notif-unread-dot" aria-hidden="true" />
+                          <span
+                            class="upcoming-notif-unread-dot"
+                            aria-hidden="true"
+                          />
                         </Show>
                       </span>
                       <span class="upcoming-notif-content">
                         <span class="upcoming-notif-title">{n.title}</span>
                         <Show when={n.message}>
-                          <span class="upcoming-notif-message">{n.message}</span>
+                          <span class="upcoming-notif-message">
+                            {n.message}
+                          </span>
                         </Show>
                         <span class="upcoming-notif-time">
                           {relativeTime(n.created_at)}

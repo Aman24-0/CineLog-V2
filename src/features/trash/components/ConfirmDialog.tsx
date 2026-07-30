@@ -114,7 +114,9 @@ const ConfirmDialog: Component<ConfirmDialogProps> = (props) => {
 
         <Show when={props.variant === "danger"}>
           <p class="trash-confirm-warning-row">
-            <span class="material-symbols-outlined" aria-hidden="true">block</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              block
+            </span>
             This action cannot be undone.
           </p>
         </Show>

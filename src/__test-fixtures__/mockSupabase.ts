@@ -58,9 +58,15 @@ export function createMockSupabase(options: MockSupabaseOptions = {}): {
   query: MockQueryBuilder;
   client: Record<string, unknown>;
 } {
-  const { listData = [], singleData = null, maybeSingleData, error = null } = options;
+  const {
+    listData = [],
+    singleData = null,
+    maybeSingleData,
+    error = null
+  } = options;
   // maybeSingleData defaults to singleData for backward compat
-  const maybeData = maybeSingleData !== undefined ? maybeSingleData : singleData;
+  const maybeData =
+    maybeSingleData !== undefined ? maybeSingleData : singleData;
 
   // The "result" that awaiting the query produces.
   const listResult = { data: listData, error };
@@ -76,10 +82,10 @@ export function createMockSupabase(options: MockSupabaseOptions = {}): {
   // the list result. This mirrors Supabase's PostgrestBuilder which is
   // a Promise-compatible object.
   builder.then = vi.fn((resolve: (v: unknown) => unknown) =>
-    Promise.resolve(listResult).then(resolve),
+    Promise.resolve(listResult).then(resolve)
   );
   builder.catch = vi.fn((_reject: (e: unknown) => unknown) =>
-    Promise.resolve(listResult),
+    Promise.resolve(listResult)
   );
 
   // Chain methods that return the builder
@@ -104,16 +110,16 @@ export function createMockSupabase(options: MockSupabaseOptions = {}): {
   builder.single = vi.fn(() => ({
     then: (resolve: (v: unknown) => unknown) =>
       Promise.resolve(singleResult).then(resolve),
-    catch: () => Promise.resolve(singleResult),
+    catch: () => Promise.resolve(singleResult)
   }));
   builder.maybeSingle = vi.fn(() => ({
     then: (resolve: (v: unknown) => unknown) =>
       Promise.resolve(maybeResult).then(resolve),
-    catch: () => Promise.resolve(maybeResult),
+    catch: () => Promise.resolve(maybeResult)
   }));
 
   const client = {
-    from: builder.from,
+    from: builder.from
   };
 
   return { query: builder as unknown as MockQueryBuilder, client };

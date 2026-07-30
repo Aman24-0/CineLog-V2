@@ -45,11 +45,14 @@ export function toError(error: unknown): Error | null {
 
   // Try to assemble a readable message.
   const msgRaw = e.message;
-  const msg = typeof msgRaw === "string" ? msgRaw : (msgRaw == null ? "" : String(msgRaw));
+  const msg =
+    typeof msgRaw === "string" ? msgRaw : msgRaw == null ? "" : String(msgRaw);
   const code = typeof e.code === "string" && e.code.length > 0 ? e.code : "";
-  const details = typeof e.details === "string" && e.details.length > 0 ? e.details : "";
+  const details =
+    typeof e.details === "string" && e.details.length > 0 ? e.details : "";
   const hint = typeof e.hint === "string" && e.hint.length > 0 ? e.hint : "";
-  const reason = typeof e.reason === "string" && e.reason.length > 0 ? e.reason : "";
+  const reason =
+    typeof e.reason === "string" && e.reason.length > 0 ? e.reason : "";
 
   // Prefer the assembled message; if every field is empty, fall back to
   // JSON.stringify so the caller at least sees the shape of the error
@@ -60,9 +63,10 @@ export function toError(error: unknown): Error | null {
   if (details) parts.push(`Details: ${details}`);
   if (hint) parts.push(`Hint: ${hint}`);
 
-  const assembled = parts.length > 0
-    ? parts.join(" | ")
-    : `Supabase error: ${JSON.stringify(error)}`;
+  const assembled =
+    parts.length > 0
+      ? parts.join(" | ")
+      : `Supabase error: ${JSON.stringify(error)}`;
 
   const err = new Error(code ? `[${code}] ${assembled}` : assembled);
 

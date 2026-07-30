@@ -1,6 +1,11 @@
 // src/shared/utils/__tests__/format.test.ts
 import { describe, it, expect } from "vitest";
-import { formatRuntime, formatDateShort, formatDateLong, formatVoteCount } from "../format";
+import {
+  formatRuntime,
+  formatDateShort,
+  formatDateLong,
+  formatVoteCount
+} from "../format";
 
 describe("formatRuntime", () => {
   it("returns null for undefined", () => {

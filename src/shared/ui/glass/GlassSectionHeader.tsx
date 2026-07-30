@@ -11,22 +11,25 @@ type SectionAccent = "none" | "bar" | "dot" | "glow";
 
 // ─── Token Maps ────────────────────────────────────────────────
 
-const variantClasses: Record<SectionVariant, { title: string; gap: string; padding: string }> = {
+const variantClasses: Record<
+  SectionVariant,
+  { title: string; gap: string; padding: string }
+> = {
   compact: {
     title: "text-sm font-heading",
     gap: "gap-1",
-    padding: "pb-2",
+    padding: "pb-2"
   },
   default: {
     title: "text-lg font-heading",
     gap: "gap-2",
-    padding: "pb-3",
+    padding: "pb-3"
   },
   large: {
     title: "text-2xl font-display",
     gap: "gap-3",
-    padding: "pb-4",
-  },
+    padding: "pb-4"
+  }
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -56,7 +59,7 @@ const defaultProps: Required<
   Pick<GlassSectionHeaderProps, "variant" | "accent">
 > = {
   variant: "default",
-  accent: "none",
+  accent: "none"
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -68,8 +71,16 @@ const defaultProps: Required<
 const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "title", "eyebrow", "icon", "actionLabel", "onAction",
-    "variant", "accent", "description", "class", "style",
+    "title",
+    "eyebrow",
+    "icon",
+    "actionLabel",
+    "onAction",
+    "variant",
+    "accent",
+    "description",
+    "class",
+    "style"
   ]);
 
   const hasAction = () => !!local.onAction;
@@ -84,10 +95,7 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
 
   const containerClass = (): string => {
     const v = variantClasses[local.variant];
-    const base = [
-      "flex items-start justify-between w-full",
-      v.padding,
-    ];
+    const base = ["flex items-start justify-between w-full", v.padding];
     if (local.class) base.push(local.class);
     return base.join(" ");
   };
@@ -110,16 +118,12 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
   };
 
   return (
-    <div
-      {...rest}
-      class={containerClass()}
-      style={local.style}
-    >
+    <div {...rest} class={containerClass()} style={local.style}>
       {/* Left side: content */}
       <div class={`flex flex-col ${variantClasses[local.variant].gap}`}>
         {/* Eyebrow */}
         <Show when={local.eyebrow}>
-          <span class="font-label text-2xs text-primary uppercase tracking-eyebrow leading-none">
+          <span class="font-label text-2xs uppercase leading-none tracking-eyebrow text-primary">
             {local.eyebrow}
           </span>
         </Show>
@@ -129,7 +133,7 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
           {/* Accent bar */}
           <Show when={local.accent === "bar"}>
             <span
-              class="w-1 h-5 rounded-full bg-primary flex-shrink-0"
+              class="h-5 w-1 flex-shrink-0 rounded-full bg-primary"
               aria-hidden="true"
             />
           </Show>
@@ -137,7 +141,7 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
           {/* Accent dot */}
           <Show when={local.accent === "dot"}>
             <span
-              class="w-2 h-2 rounded-full bg-primary flex-shrink-0"
+              class="h-2 w-2 flex-shrink-0 rounded-full bg-primary"
               aria-hidden="true"
             />
           </Show>
@@ -145,8 +149,11 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
           {/* Icon */}
           <Show when={local.icon}>
             <span
-              class="material-symbols-outlined text-primary text-sm"
-              style={{ "font-variation-settings": "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+              class="material-symbols-outlined text-sm text-primary"
+              style={{
+                "font-variation-settings":
+                  "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              }}
               aria-hidden="true"
             >
               {local.icon}
@@ -154,14 +161,16 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
           </Show>
 
           {/* Title */}
-          <h2 class={`${variantClasses[local.variant].title} font-bold text-text-strong leading-tight`}>
+          <h2
+            class={`${variantClasses[local.variant].title} font-bold leading-tight text-text-strong`}
+          >
             {local.title}
           </h2>
         </div>
 
         {/* Description */}
         <Show when={local.description}>
-          <p class="font-body text-2xs text-text-dim leading-normal">
+          <p class="font-body text-2xs leading-normal text-text-dim">
             {local.description}
           </p>
         </Show>
@@ -170,7 +179,7 @@ const GlassSectionHeader: Component<GlassSectionHeaderProps> = (rawProps) => {
       {/* Right side: Action */}
       <Show when={local.actionLabel && hasAction()}>
         <button
-          class="inline-flex items-center gap-1 font-label text-xs text-primary tracking-label hover:brightness-110 transition-all duration-fast ease-spring focus-ring rounded-md p-2 px-3 cursor-pointer flex-shrink-0 mt-auto"
+          class="focus-ring mt-auto inline-flex flex-shrink-0 cursor-pointer items-center gap-1 rounded-md p-2 px-3 font-label text-xs tracking-label text-primary transition-all duration-fast ease-spring hover:brightness-110"
           onClick={() => local.onAction?.()}
           onKeyDown={handleActionKeyDown}
           type="button"

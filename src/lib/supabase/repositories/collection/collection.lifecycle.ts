@@ -68,10 +68,15 @@ export async function reorderItems(
   orderedVaultIds: string[]
 ): Promise<CollectionWriteResult> {
   // 1. Fetch current entries to validate the input set.
-  const { data: current, error: fetchError } = await getItems(supabase, collectionId);
+  const { data: current, error: fetchError } = await getItems(
+    supabase,
+    collectionId
+  );
   if (fetchError) return { error: fetchError };
 
-  const currentSet = new Set(current.map((e: CollectionEntryRow) => e.vault_id));
+  const currentSet = new Set(
+    current.map((e: CollectionEntryRow) => e.vault_id)
+  );
   const inputSet = new Set(orderedVaultIds);
 
   if (currentSet.size !== inputSet.size) {
@@ -145,7 +150,10 @@ export async function moveItem(
   }
 
   // 2. Fetch the current ordering.
-  const { data: entries, error: fetchError } = await getItems(supabase, payload.collectionId);
+  const { data: entries, error: fetchError } = await getItems(
+    supabase,
+    payload.collectionId
+  );
   if (fetchError) return { error: fetchError };
 
   // 3. Remove the moving entry, clamp the target index, re-insert.
@@ -153,7 +161,10 @@ export async function moveItem(
     .filter((e: CollectionEntryRow) => e.vault_id !== payload.vaultId)
     .map((e: CollectionEntryRow) => e.vault_id);
 
-  const clampedIndex = Math.max(0, Math.min(payload.toPosition, withoutMoved.length));
+  const clampedIndex = Math.max(
+    0,
+    Math.min(payload.toPosition, withoutMoved.length)
+  );
   const reordered = [
     ...withoutMoved.slice(0, clampedIndex),
     payload.vaultId,

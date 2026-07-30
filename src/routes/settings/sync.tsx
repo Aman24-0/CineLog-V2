@@ -57,13 +57,25 @@ const SyncRoute: Component = () => {
         <div class="sec-page sec-fade-in">
           {/* Header */}
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                arrow_back
+              </span>
               Settings
             </a>
             <p class="sec-eyebrow">Data Center</p>
             <h1 class="sec-title">Sync &amp; Backup</h1>
-            <p class="sec-subtitle">Your library is safe, portable, and yours.</p>
+            <p class="sec-subtitle">
+              Your library is safe, portable, and yours.
+            </p>
           </div>
 
           <div class="sec-body">
@@ -72,11 +84,26 @@ const SyncRoute: Component = () => {
               fallback={
                 <div class="sync-guest" role="status" aria-live="polite">
                   <div class="sync-guest-icon" aria-hidden="true">
-                    <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">lock</span>
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "32px", color: "var(--p)" }}
+                      aria-hidden="true"
+                    >
+                      lock
+                    </span>
                   </div>
-                  <h3 class="sync-guest-title">Sign in to access your Data Center</h3>
-                  <p class="sync-guest-body">Cloud sync, backups, imports, and device management are available after you sign in.</p>
-                  <Button variant="primary" onClick={() => openAuthModal()} style={{ "margin-top": "var(--sp-2)" }}>
+                  <h3 class="sync-guest-title">
+                    Sign in to access your Data Center
+                  </h3>
+                  <p class="sync-guest-body">
+                    Cloud sync, backups, imports, and device management are
+                    available after you sign in.
+                  </p>
+                  <Button
+                    variant="primary"
+                    onClick={() => openAuthModal()}
+                    style={{ "margin-top": "var(--sp-2)" }}
+                  >
                     Sign In
                   </Button>
                 </div>
@@ -132,7 +159,9 @@ const SyncRoute: Component = () => {
 
               {/* 9. DANGER ZONE — at the very bottom */}
               <section class="sec-section">
-                <p class="sec-section-label sec-section-label-danger">Danger Zone</p>
+                <p class="sec-section-label sec-section-label-danger">
+                  Danger Zone
+                </p>
                 <DangerZoneCard />
               </section>
             </Show>

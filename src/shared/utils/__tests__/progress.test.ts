@@ -5,13 +5,13 @@ import {
   getContinueWatchingList,
   getEpisodeProgress,
   getInProgressCount,
-  resolveSeasons,
+  resolveSeasons
 } from "../progress";
 import {
   makeMovie,
   makeTVSeries,
   makeWatchlistItem,
-  makeSeasons,
+  makeSeasons
 } from "~/__test-fixtures__/factories";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
 
@@ -37,7 +37,9 @@ describe("isWatchable", () => {
   });
 
   it("returns false for status === 'Plan to Watch'", () => {
-    expect(isWatchable(makeWatchlistItem({ status: "Plan to Watch" }))).toBe(false);
+    expect(isWatchable(makeWatchlistItem({ status: "Plan to Watch" }))).toBe(
+      false
+    );
   });
 });
 
@@ -51,7 +53,7 @@ describe("getContinueWatchingList", () => {
       makeWatchlistItem({ id: "1", status: "Watching" }),
       makeWatchlistItem({ id: "2", status: "Planned" }),
       makeWatchlistItem({ id: "3", status: "Completed" }),
-      makeWatchlistItem({ id: "4", status: "Watching" }),
+      makeWatchlistItem({ id: "4", status: "Watching" })
     ];
     const result = getContinueWatchingList(list);
     expect(result).toHaveLength(2);
@@ -63,18 +65,24 @@ describe("getContinueWatchingList", () => {
       makeWatchlistItem({
         id: "old",
         status: "Watching",
-        watchProgress: { updatedAt: "2024-01-01T00:00:00Z" } as WatchlistItem["watchProgress"],
+        watchProgress: {
+          updatedAt: "2024-01-01T00:00:00Z"
+        } as WatchlistItem["watchProgress"]
       }),
       makeWatchlistItem({
         id: "new",
         status: "Watching",
-        watchProgress: { updatedAt: "2024-06-01T00:00:00Z" } as WatchlistItem["watchProgress"],
+        watchProgress: {
+          updatedAt: "2024-06-01T00:00:00Z"
+        } as WatchlistItem["watchProgress"]
       }),
       makeWatchlistItem({
         id: "mid",
         status: "Watching",
-        watchProgress: { updatedAt: "2024-03-01T00:00:00Z" } as WatchlistItem["watchProgress"],
-      }),
+        watchProgress: {
+          updatedAt: "2024-03-01T00:00:00Z"
+        } as WatchlistItem["watchProgress"]
+      })
     ];
     const result = getContinueWatchingList(list);
     expect(result.map((m) => m.id)).toEqual(["new", "mid", "old"]);
@@ -86,8 +94,10 @@ describe("getContinueWatchingList", () => {
       makeWatchlistItem({
         id: "with-progress",
         status: "Watching",
-        watchProgress: { updatedAt: "2024-06-01T00:00:00Z" } as WatchlistItem["watchProgress"],
-      }),
+        watchProgress: {
+          updatedAt: "2024-06-01T00:00:00Z"
+        } as WatchlistItem["watchProgress"]
+      })
     ];
     const result = getContinueWatchingList(list);
     expect(result[0].id).toBe("with-progress");
@@ -101,8 +111,8 @@ describe("resolveSeasons", () => {
       seasons: [
         { number: 0, count: 5 }, // specials — filtered out
         { number: 1, count: 10 },
-        { number: 2, count: 8 },
-      ],
+        { number: 2, count: 8 }
+      ]
     });
     const result = resolveSeasons(item);
     expect(result).toHaveLength(2);
@@ -115,8 +125,8 @@ describe("resolveSeasons", () => {
       seasons: [
         { number: 3, count: 8 },
         { number: 1, count: 10 },
-        { number: 2, count: 8 },
-      ],
+        { number: 2, count: 8 }
+      ]
     });
     const result = resolveSeasons(item);
     expect(result.map((s) => s.number)).toEqual([1, 2, 3]);
@@ -126,8 +136,8 @@ describe("resolveSeasons", () => {
     const item = makeTVSeries({
       seasons: [
         { number: 1, count: 10 },
-        { number: 2, count: 0 }, // filtered
-      ],
+        { number: 2, count: 0 } // filtered
+      ]
     });
     const result = resolveSeasons(item);
     expect(result).toHaveLength(1);
@@ -138,8 +148,8 @@ describe("resolveSeasons", () => {
     const details = {
       seasons: [
         { season_number: 1, episode_count: 10, id: 1, name: "S1" },
-        { season_number: 2, episode_count: 8, id: 2, name: "S2" },
-      ],
+        { season_number: 2, episode_count: 8, id: 2, name: "S2" }
+      ]
     } as unknown as TMDBDetails;
     const result = resolveSeasons(item, details);
     expect(result).toHaveLength(2);
@@ -156,7 +166,7 @@ describe("resolveSeasons", () => {
     const item = makeTVSeries({
       seasons: undefined,
       totalEps: 24,
-      season: 2,
+      season: 2
     });
     const result = resolveSeasons(item);
     expect(result).toEqual([]);
@@ -189,7 +199,7 @@ describe("getEpisodeProgress", () => {
       seasons: undefined,
       totalEps: undefined,
       season: 3,
-      episode: 5,
+      episode: 5
     });
     const result = getEpisodeProgress(item);
     expect(result).not.toBeNull();
@@ -205,10 +215,10 @@ describe("getEpisodeProgress", () => {
       seasons: makeSeasons([
         { number: 1, count: 10 },
         { number: 2, count: 8 },
-        { number: 3, count: 8 },
+        { number: 3, count: 8 }
       ]),
       season: 3,
-      episode: 1,
+      episode: 1
     });
     const result = getEpisodeProgress(item);
     expect(result).not.toBeNull();
@@ -224,10 +234,10 @@ describe("getEpisodeProgress", () => {
     const item = makeTVSeries({
       seasons: makeSeasons([
         { number: 1, count: 10 },
-        { number: 2, count: 8 },
+        { number: 2, count: 8 }
       ]),
       season: 2,
-      episode: 8,
+      episode: 8
     });
     const result = getEpisodeProgress(item);
     expect(result).not.toBeNull();
@@ -239,7 +249,7 @@ describe("getEpisodeProgress", () => {
     const item = makeTVSeries({
       seasons: makeSeasons([{ number: 1, count: 10 }]),
       season: 1,
-      episode: 15, // exceeds count
+      episode: 15 // exceeds count
     });
     const result = getEpisodeProgress(item);
     expect(result!.pct).toBe(100);
@@ -252,7 +262,7 @@ describe("getEpisodeProgress", () => {
     const item = makeTVSeries({
       seasons: makeSeasons([{ number: 1, count: 10 }]),
       season: 5, // not in list
-      episode: 1,
+      episode: 1
     });
     const result = getEpisodeProgress(item);
     expect(result!.totalEps).toBe(0); // current season (5) not in list
@@ -266,7 +276,7 @@ describe("getEpisodeProgress", () => {
     const item = makeTVSeries({
       seasons: makeSeasons([{ number: 1, count: 10 }]),
       season: undefined,
-      episode: undefined,
+      episode: undefined
     });
     const result = getEpisodeProgress(item);
     expect(result!.season).toBe(1);
@@ -285,7 +295,7 @@ describe("getInProgressCount", () => {
       makeWatchlistItem({ status: "Watching" }),
       makeWatchlistItem({ status: "Planned" }),
       makeWatchlistItem({ status: "Watching" }),
-      makeWatchlistItem({ status: "Completed" }),
+      makeWatchlistItem({ status: "Completed" })
     ];
     expect(getInProgressCount(list)).toBe(2);
   });

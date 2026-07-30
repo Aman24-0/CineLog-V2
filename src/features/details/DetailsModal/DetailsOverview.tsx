@@ -20,7 +20,7 @@ export default function DetailsOverview(props: DetailsOverviewProps) {
       <DetailSection label="Overview" icon="description">
         <p
           class="type-body"
-          style={{ color: "var(--text-soft)", "line-height": 1.65 }}
+          style={{ color: "var(--text-soft)", "line-height": "1.65" }}
         >
           {props.details()!.overview}
         </p>

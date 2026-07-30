@@ -12,7 +12,10 @@
  */
 
 import { getClient } from "../../client";
-import type { DashboardPagination, TypedSupabaseClient } from "./dashboard.types";
+import type {
+  DashboardPagination,
+  TypedSupabaseClient
+} from "./dashboard.types";
 
 // ---------------------------------------------------------------------------
 // Error normalisation
@@ -29,10 +32,9 @@ import type { DashboardPagination, TypedSupabaseClient } from "./dashboard.types
  *
  * Uses PostgREST's `.range(from, to)` which is inclusive on both ends.
  */
-export function applyPagination<TQuery extends { range: (from: number, to: number) => TQuery }>(
-  query: TQuery,
-  pagination: DashboardPagination | undefined
-): TQuery {
+export function applyPagination<
+  TQuery extends { range: (from: number, to: number) => TQuery }
+>(query: TQuery, pagination: DashboardPagination | undefined): TQuery {
   if (!pagination) return query;
   const from = pagination.offset ?? 0;
   const to = from + pagination.limit - 1;
@@ -62,7 +64,8 @@ export function applyPagination<TQuery extends { range: (from: number, to: numbe
  * so column predicates inside the OR must use dot syntax
  * (`watched_on.is.null`).
  */
-export const CONTINUE_WATCHING_OR_FILTER = "watched_on.is.null,completed_at.is.null" as const;
+export const CONTINUE_WATCHING_OR_FILTER =
+  "watched_on.is.null,completed_at.is.null" as const;
 
 // ---------------------------------------------------------------------------
 // Column-selection helpers — request only the columns the dashboard needs
@@ -117,7 +120,9 @@ export type { TypedSupabaseClient } from "./dashboard.types";
  * singleton on the browser. Mirrors the pattern used by the other
  * repositories.
  */
-export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
+export function resolveClient(
+  client?: TypedSupabaseClient
+): TypedSupabaseClient {
   return client ?? getClient();
 }
 

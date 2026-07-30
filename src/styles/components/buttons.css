@@ -18,20 +18,23 @@
   border: 1px solid var(--glass-border-warm-strong);
   color: var(--text-strong);
   cursor: pointer;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5),
-              0 0 0 1px rgba(232,183,74,0.08),
-              inset 0 1px 0 rgba(232,183,74,0.10);
-  transition: transform var(--dur-fast) var(--ease-spring),
-              background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(232, 183, 74, 0.08),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+  transition:
+    transform var(--dur-fast) var(--ease-spring),
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
 }
 .cinematic-close-btn:hover {
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
-  box-shadow: var(--active-glow),
-              0 4px 16px rgba(0,0,0,0.5);
+  box-shadow:
+    var(--active-glow),
+    0 4px 16px rgba(0, 0, 0, 0.5);
   transform: scale(1.06);
 }
 .cinematic-close-btn:active {

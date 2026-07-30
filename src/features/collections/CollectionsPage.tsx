@@ -1,5 +1,13 @@
 // src/features/collections/CollectionsPage.tsx
-import { Show, createSignal, createMemo, ErrorBoundary, lazy, Suspense, For } from "solid-js";
+import {
+  Show,
+  createSignal,
+  createMemo,
+  ErrorBoundary,
+  lazy,
+  Suspense,
+  For
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -40,7 +48,7 @@ export default function CollectionsPage() {
     loading,
     createCollection,
     unarchiveCollection,
-    fetchWithArchived,
+    fetchWithArchived
   } = useCollections();
   const { subscribedUniverses } = useCuratedUniverses();
 
@@ -57,14 +65,14 @@ export default function CollectionsPage() {
   // layer; this is a defensive client-side filter in case the
   // signal was populated by fetchWithArchived (which includes both).
   const activeCollections = createMemo(() =>
-    userCollections().filter((c) => !c.isArchived),
+    userCollections().filter((c) => !c.isArchived)
   );
 
   // Archived collections — only present in the signal after the user
   // toggles "Show Archived" (which calls fetchWithArchived). Before
   // the toggle, this is empty.
   const archivedCollections = createMemo(() =>
-    userCollections().filter((c) => c.isArchived),
+    userCollections().filter((c) => c.isArchived)
   );
 
   // Dynamic subtitle counts: "X Collections · Y Subscribed Universes".
@@ -72,7 +80,7 @@ export default function CollectionsPage() {
   // on create/delete/archive/subscribe/unsubscribe.
   const subtitleCounts = createMemo(() => ({
     collections: activeCollections().length,
-    universes: subscribedUniverses().length,
+    universes: subscribedUniverses().length
   }));
 
   const handleCreate = async () => {
@@ -114,18 +122,21 @@ export default function CollectionsPage() {
               class="page-enter"
               style={{ padding: "var(--sp-8)", "text-align": "center" }}
             >
-              <p class="type-body-soft">Something went wrong loading collections.</p>
+              <p class="type-body-soft">
+                Something went wrong loading collections.
+              </p>
               <p
                 style={{
                   "font-size": "0.75rem",
                   color: "var(--text-dim)",
-                  "margin-top": "var(--sp-2)",
+                  "margin-top": "var(--sp-2)"
                 }}
               >
                 {String(err)}
               </p>
               <button
                 class="btn-ghost focus-ring"
+                type="button"
                 style={{ "margin-top": "var(--sp-4)" }}
                 onClick={() => window.location.reload()}
               >
@@ -141,25 +152,36 @@ export default function CollectionsPage() {
             <p class="collections-eyebrow">Collections</p>
             <h1 class="collections-page-title">Your Cinematic Universe</h1>
             <p class="collections-page-subtitle">
-              Organize your titles into folders and subscribe to curated universes.
+              Organize your titles into folders and subscribe to curated
+              universes.
             </p>
             {/* Dynamic subtitle counts — X Collections · Y Subscribed Universes.
                 Computed via createMemo so it updates immediately on any
                 create/delete/archive/subscribe/unsubscribe. */}
             <p class="collections-page-subtitle-counts">
-              <span>{subtitleCounts().collections} {subtitleCounts().collections !== 1 ? "Collections" : "Collection"}</span>
-              <span class="collections-page-subtitle-counts-dot" aria-hidden="true" />
-              <span>{subtitleCounts().universes} {subtitleCounts().universes !== 1 ? "Subscribed Universes" : "Subscribed Universe"}</span>
+              <span>
+                {subtitleCounts().collections}{" "}
+                {subtitleCounts().collections !== 1
+                  ? "Collections"
+                  : "Collection"}
+              </span>
+              <span
+                class="collections-page-subtitle-counts-dot"
+                aria-hidden="true"
+              />
+              <span>
+                {subtitleCounts().universes}{" "}
+                {subtitleCounts().universes !== 1
+                  ? "Subscribed Universes"
+                  : "Subscribed Universe"}
+              </span>
             </p>
           </div>
 
           {/* === USER COLLECTIONS === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
-              <span
-                class="material-symbols-outlined"
-                aria-hidden="true"
-              >
+              <span class="material-symbols-outlined" aria-hidden="true">
                 folder
               </span>
               Your Collections
@@ -172,7 +194,7 @@ export default function CollectionsPage() {
               >
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
+                  style={{ "font-size": "14px" }}
                   aria-hidden="true"
                 >
                   auto_awesome
@@ -187,7 +209,7 @@ export default function CollectionsPage() {
               >
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
+                  style={{ "font-size": "14px" }}
                   aria-hidden="true"
                 >
                   add
@@ -202,7 +224,11 @@ export default function CollectionsPage() {
                 class={`collections-show-archived-toggle focus-ring${showArchived() ? " is-active" : ""}`}
                 onClick={handleToggleShowArchived}
                 aria-pressed={showArchived()}
-                aria-label={showArchived() ? "Hide archived collections" : "Show archived collections"}
+                aria-label={
+                  showArchived()
+                    ? "Hide archived collections"
+                    : "Show archived collections"
+                }
                 title={showArchived() ? "Hide archived" : "Show archived"}
               >
                 <span class="material-symbols-outlined" aria-hidden="true">
@@ -227,6 +253,7 @@ export default function CollectionsPage() {
                   aria-label="New collection name"
                 />
                 <button
+                  type="button"
                   class="btn-primary focus-ring"
                   onClick={handleCreate}
                   disabled={!newName().trim()}
@@ -235,6 +262,7 @@ export default function CollectionsPage() {
                   Create
                 </button>
                 <button
+                  type="button"
                   class="btn-ghost focus-ring"
                   onClick={() => setShowCreate(false)}
                   style={{ "font-size": "0.5625rem" }}
@@ -263,10 +291,7 @@ export default function CollectionsPage() {
           {/* === SUBSCRIBED UNIVERSES === */}
           <section class="collections-fold">
             <div class="collections-fold-label">
-              <span
-                class="material-symbols-outlined"
-                aria-hidden="true"
-              >
+              <span class="material-symbols-outlined" aria-hidden="true">
                 public
               </span>
               Subscribed Universes
@@ -278,7 +303,7 @@ export default function CollectionsPage() {
               >
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"14px"}}
+                  style={{ "font-size": "14px" }}
                   aria-hidden="true"
                 >
                   add
@@ -326,18 +351,30 @@ export default function CollectionsPage() {
                       {/* Collage area */}
                       <div class="collection-card-collage-area">
                         <Show
-                          when={uni.poster_path || uni.backdrop_path || (uni.entries ?? []).some((e) => e.poster_path)}
+                          when={
+                            uni.poster_path ||
+                            uni.backdrop_path ||
+                            (uni.entries ?? []).some((e) => e.poster_path)
+                          }
                           fallback={
-                            <div class="collection-card-empty-art" aria-hidden="true">
+                            <div
+                              class="collection-card-empty-art"
+                              aria-hidden="true"
+                            >
                               <span
                                 class="material-symbols-outlined"
-                                style={{ "font-size": "36px", color: "var(--text-dim)" }}
+                                style={{
+                                  "font-size": "36px",
+                                  color: "var(--text-dim)"
+                                }}
                                 aria-hidden="true"
                               >
                                 public
                               </span>
                               <Show when={(uni.entries ?? []).length === 0}>
-                                <span class="collection-card-empty-text">No titles yet</span>
+                                <span class="collection-card-empty-text">
+                                  No titles yet
+                                </span>
                               </Show>
                             </div>
                           }
@@ -348,31 +385,51 @@ export default function CollectionsPage() {
                               /* No universe-level cover/banner set — fall back
                                  to a 2x2 collage of the first 4 entry posters. */
                               <Show
-                                when={(uni.entries ?? []).filter((e) => e.poster_path).length >= 1}
+                                when={
+                                  (uni.entries ?? []).filter(
+                                    (e) => e.poster_path
+                                  ).length >= 1
+                                }
                                 fallback={
                                   <img
                                     src={tmdbImage(uni.backdrop_path, "w500")}
                                     class="collage-img"
-                                    style={{ width: "100%", height: "100%", "object-fit": "cover" }}
+                                    style={{
+                                      width: "100%",
+                                      height: "100%",
+                                      "object-fit": "cover"
+                                    }}
                                     loading="lazy"
                                     decoding="async"
                                     alt=""
                                     aria-hidden="true"
-                                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                    onError={(e) => {
+                                      e.currentTarget.style.display = "none";
+                                    }}
                                   />
                                 }
                               >
                                 <div class="collage-grid-4">
-                                  <For each={(uni.entries ?? []).filter((e) => e.poster_path).slice(0, 4)}>
+                                  <For
+                                    each={(uni.entries ?? [])
+                                      .filter((e) => e.poster_path)
+                                      .slice(0, 4)}
+                                  >
                                     {(entry) => (
                                       <img
-                                        src={tmdbImage(entry.poster_path, "w92")}
+                                        src={tmdbImage(
+                                          entry.poster_path,
+                                          "w92"
+                                        )}
                                         class="collage-img"
                                         loading="lazy"
                                         decoding="async"
                                         alt=""
                                         aria-hidden="true"
-                                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                        onError={(e) => {
+                                          e.currentTarget.style.display =
+                                            "none";
+                                        }}
                                       />
                                     )}
                                   </For>
@@ -387,20 +444,26 @@ export default function CollectionsPage() {
                             <img
                               src={
                                 uni.poster_path
-                                  ? (uni.poster_path.startsWith("http")
-                                      ? uni.poster_path
-                                      : tmdbImage(uni.poster_path, "w500"))
-                                  : (uni.backdrop_path!.startsWith("http")
-                                      ? uni.backdrop_path!
-                                      : tmdbImage(uni.backdrop_path, "w500"))
+                                  ? uni.poster_path.startsWith("http")
+                                    ? uni.poster_path
+                                    : tmdbImage(uni.poster_path, "w500")
+                                  : uni.backdrop_path!.startsWith("http")
+                                    ? uni.backdrop_path!
+                                    : tmdbImage(uni.backdrop_path, "w500")
                               }
                               class="collage-img"
-                              style={{ width: "100%", height: "100%", "object-fit": "cover" }}
+                              style={{
+                                width: "100%",
+                                height: "100%",
+                                "object-fit": "cover"
+                              }}
                               loading="lazy"
                               decoding="async"
                               alt=""
                               aria-hidden="true"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
                             />
                           </Show>
                         </Show>
@@ -414,14 +477,19 @@ export default function CollectionsPage() {
                           {/* title attr shows the full universe name on
                               hover since the CSS truncates with
                               line-clamp-1. */}
-                          <p class="collection-card-name" title={uni.name}>{uni.name}</p>
+                          <p class="collection-card-name" title={uni.name}>
+                            {uni.name}
+                          </p>
                         </div>
                         <Show when={uni.description}>
                           <p class="collection-card-desc">{uni.description}</p>
                         </Show>
                         <div class="collection-card-stats">
                           <span class="collection-card-stats-text">
-                            {(uni.entries ?? []).length} {(uni.entries ?? []).length !== 1 ? "titles" : "title"}
+                            {(uni.entries ?? []).length}{" "}
+                            {(uni.entries ?? []).length !== 1
+                              ? "titles"
+                              : "title"}
                           </span>
                           <span class="collection-card-updated">Universe</span>
                         </div>

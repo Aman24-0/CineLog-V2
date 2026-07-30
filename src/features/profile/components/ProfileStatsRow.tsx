@@ -40,44 +40,45 @@ const ProfileStatsRow: Component<ProfileStatsRowProps> = (props) => {
         { label: "Movies", value: "—", icon: "movie" },
         { label: "Series", value: "—", icon: "tv" },
         { label: "Hours", value: "—", icon: "schedule" },
-        { label: "Avg ★", value: "—", icon: "star" },
+        { label: "Avg ★", value: "—", icon: "star" }
       ];
     }
-    const completionPct = s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
+    const completionPct =
+      s.total > 0 ? Math.round((s.completed / s.total) * 100) : 0;
     return [
       {
         label: "Titles",
         value: String(s.total),
         icon: "video_library",
         sublabel: `${completionPct}% completed`,
-        progress: completionPct,
+        progress: completionPct
       },
       {
         label: "Movies",
         value: String(s.movieCount),
         icon: "movie",
         sublabel: `${s.moviePct}% of library`,
-        progress: s.moviePct,
+        progress: s.moviePct
       },
       {
         label: "Series",
         value: String(s.tvCount),
         icon: "tv",
         sublabel: `${s.tvPct}% of library`,
-        progress: s.tvPct,
+        progress: s.tvPct
       },
       {
         label: "Hours",
         value: String(s.totalRuntimeHours),
         icon: "schedule",
-        sublabel: "watched",
+        sublabel: "watched"
       },
       {
         label: "Avg ★",
         value: s.avgRating > 0 ? String(s.avgRating) : "—",
         icon: "star",
-        sublabel: s.avgRating > 0 ? "out of 10" : "not rated yet",
-      },
+        sublabel: s.avgRating > 0 ? "out of 10" : "not rated yet"
+      }
     ];
   };
 

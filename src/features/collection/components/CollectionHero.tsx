@@ -26,7 +26,9 @@ export default function CollectionHero(props: CollectionHeroProps) {
     <div class="collection-hero">
       <Show when={props.backdropUrl()}>
         <img
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
           src={props.backdropUrl()}
           class="collection-hero-backdrop"
           loading="eager"
@@ -38,7 +40,7 @@ export default function CollectionHero(props: CollectionHeroProps) {
       </Show>
       <div class="collection-hero-overlay" aria-hidden="true" />
       <button
-        onClick={props.onClose}
+        onClick={() => props.onClose()}
         class="cinematic-close-btn"
         aria-label="Close collection"
       >
@@ -65,7 +67,9 @@ export default function CollectionHero(props: CollectionHeroProps) {
               <span class="collection-progress-owned">
                 {props.stats()!.owned} of {props.stats()!.total}
               </span>
-              <span class="collection-progress-label">titles in your watchlist</span>
+              <span class="collection-progress-label">
+                titles in your watchlist
+              </span>
             </div>
           </div>
         </Show>

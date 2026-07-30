@@ -46,7 +46,11 @@ const EntryRow: Component<Props> = (props) => {
   const [fNote, setFNote] = createSignal("");
 
   const startEdit = () => {
-    setFIncidentYear(props.entry.incident_year !== null ? String(props.entry.incident_year) : "");
+    setFIncidentYear(
+      props.entry.incident_year !== null
+        ? String(props.entry.incident_year)
+        : ""
+    );
     setFNote(props.entry.note ?? "");
     setEditing(true);
   };
@@ -67,7 +71,7 @@ const EntryRow: Component<Props> = (props) => {
       }
       await props.onSave(props.entry, {
         incident_year: incidentYear,
-        note: fNote().trim() || null,
+        note: fNote().trim() || null
       });
       setEditing(false);
     } finally {
@@ -76,9 +80,12 @@ const EntryRow: Component<Props> = (props) => {
   };
 
   const remove = async () => {
-    if (!confirm(
-      `Remove "${props.entry.title ?? `TMDB ${props.entry.tmdb_id}`}" from this universe?`,
-    )) return;
+    if (
+      !confirm(
+        `Remove "${props.entry.title ?? `TMDB ${props.entry.tmdb_id}`}" from this universe?`
+      )
+    )
+      return;
     setDeleting(true);
     try {
       await props.onDelete(props.entry);
@@ -96,7 +103,7 @@ const EntryRow: Component<Props> = (props) => {
     color: "var(--text)",
     "font-size": "0.75rem",
     "text-align": "center",
-    "font-family": "monospace",
+    "font-family": "monospace"
   } as const;
 
   const labelStyle = {
@@ -104,7 +111,7 @@ const EntryRow: Component<Props> = (props) => {
     color: "var(--text-muted)",
     "text-transform": "uppercase",
     "letter-spacing": "0.05em",
-    "margin-bottom": "2px",
+    "margin-bottom": "2px"
   } as const;
 
   return (
@@ -118,7 +125,7 @@ const EntryRow: Component<Props> = (props) => {
         background: "var(--tier-2, rgba(255,255,255,0.02))",
         border: "1px solid var(--hairline)",
         "align-items": "flex-start",
-        transition: "background 0.1s ease, opacity 0.1s ease",
+        transition: "background 0.1s ease, opacity 0.1s ease"
       }}
     >
       {/* Left badge — incident_year (storyline), release year (release),
@@ -129,7 +136,7 @@ const EntryRow: Component<Props> = (props) => {
           "flex-shrink": 0,
           "min-width": "44px",
           "padding-top": "var(--sp-2)",
-          "text-align": "center",
+          "text-align": "center"
         }}
       >
         <div
@@ -138,7 +145,7 @@ const EntryRow: Component<Props> = (props) => {
             color: "var(--text-muted)",
             "text-transform": "uppercase",
             "letter-spacing": "0.05em",
-            "margin-bottom": "2px",
+            "margin-bottom": "2px"
           }}
         >
           {props.leftBadge === "—" ? "—" : ""}
@@ -148,7 +155,7 @@ const EntryRow: Component<Props> = (props) => {
             "font-family": "'Bebas Neue', cursive",
             "font-size": "1.05rem",
             color: "var(--text-strong)",
-            "line-height": "1",
+            "line-height": "1"
           }}
         >
           {props.leftBadge}
@@ -168,7 +175,7 @@ const EntryRow: Component<Props> = (props) => {
           "align-items": "center",
           "justify-content": "center",
           "font-size": "0.8rem",
-          color: "var(--text-muted)",
+          color: "var(--text-muted)"
         }}
       >
         <Show when={props.entry.poster_path} fallback="🎬">
@@ -190,24 +197,32 @@ const EntryRow: Component<Props> = (props) => {
             color: "var(--text)",
             "white-space": "nowrap",
             overflow: "hidden",
-            "text-overflow": "ellipsis",
+            "text-overflow": "ellipsis"
           }}
         >
           {props.entry.title ?? `TMDB #${props.entry.tmdb_id}`}
         </div>
-        <div style={{ "font-size": "0.7rem", color: "var(--text-muted)", "margin-top": "2px" }}>
+        <div
+          style={{
+            "font-size": "0.7rem",
+            color: "var(--text-muted)",
+            "margin-top": "2px"
+          }}
+        >
           <span
             style={{
               "text-transform": "uppercase",
               "letter-spacing": "0.05em",
               "font-weight": "600",
-              "margin-right": "var(--sp-2)",
+              "margin-right": "var(--sp-2)"
             }}
           >
             {props.entry.media_type}
           </span>
           <Show when={releaseYear(props.entry.release_date)}>
-            <span style={{ "margin-right": "var(--sp-2)" }}>{releaseYear(props.entry.release_date)}</span>
+            <span style={{ "margin-right": "var(--sp-2)" }}>
+              {releaseYear(props.entry.release_date)}
+            </span>
           </Show>
           <span style={{ opacity: 0.7 }}>TMDB {props.entry.tmdb_id}</span>
         </div>
@@ -224,13 +239,15 @@ const EntryRow: Component<Props> = (props) => {
                 "font-size": "0.7rem",
                 color: "var(--text-muted)",
                 "flex-wrap": "wrap",
-                "align-items": "center",
+                "align-items": "center"
               }}
             >
               <span>
                 Incident year:{" "}
                 <strong style={{ color: "var(--text)" }}>
-                  {props.entry.incident_year !== null ? props.entry.incident_year : "—"}
+                  {props.entry.incident_year !== null
+                    ? props.entry.incident_year
+                    : "—"}
                 </strong>
               </span>
               <Show when={props.entry.note}>
@@ -247,7 +264,7 @@ const EntryRow: Component<Props> = (props) => {
               gap: "var(--sp-3)",
               "margin-top": "var(--sp-2)",
               "align-items": "end",
-              "flex-wrap": "wrap",
+              "flex-wrap": "wrap"
             }}
           >
             <div>
@@ -275,21 +292,35 @@ const EntryRow: Component<Props> = (props) => {
                   "border-radius": "var(--radius-sm)",
                   color: "var(--text)",
                   "font-size": "0.75rem",
-                  "box-sizing": "border-box",
+                  "box-sizing": "border-box"
                 }}
               />
             </div>
           </div>
-          <p style={{ "font-size": "0.65rem", color: "var(--text-dim)", "margin-top": "var(--sp-2)" }}>
-            The incident year is the in-universe year the movie takes place (e.g. 1943 for Captain
-            America: The First Avenger, 1995 for Captain Marvel). It drives the Storyline sort —
-            lower years appear first. Leave empty if unknown.
+          <p
+            style={{
+              "font-size": "0.65rem",
+              color: "var(--text-dim)",
+              "margin-top": "var(--sp-2)"
+            }}
+          >
+            The incident year is the in-universe year the movie takes place
+            (e.g. 1943 for Captain America: The First Avenger, 1995 for Captain
+            Marvel). It drives the Storyline sort — lower years appear first.
+            Leave empty if unknown.
           </p>
         </Show>
       </div>
 
       {/* Action buttons */}
-      <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-1)", "flex-shrink": 0 }}>
+      <div
+        style={{
+          display: "flex",
+          "flex-direction": "column",
+          gap: "var(--sp-1)",
+          "flex-shrink": 0
+        }}
+      >
         <Show
           when={editing()}
           fallback={
@@ -349,19 +380,19 @@ const iconBtnStyle = {
   display: "flex",
   "align-items": "center",
   "justify-content": "center",
-  color: "var(--text)",
+  color: "var(--text)"
 } as const;
 
 const iconBtnSuccessStyle = {
   ...iconBtnStyle,
   "border-color": "rgba(34, 197, 94, 0.5)",
-  color: "rgb(34, 197, 94)",
+  color: "rgb(34, 197, 94)"
 } as const;
 
 const iconBtnDangerStyle = {
   ...iconBtnStyle,
   "border-color": "rgba(239, 68, 68, 0.4)",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 } as const;
 
 export default EntryRow;

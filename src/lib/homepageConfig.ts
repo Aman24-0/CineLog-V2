@@ -49,8 +49,8 @@ const DEFAULT_CONFIG: HomepageConfig = {
     top_rated_series: { enabled: true, order: 13 },
     new_on_ott: { enabled: true, order: 14 },
     new_seasons: { enabled: true, order: 15 },
-    coming_soon: { enabled: true, order: 16 },
-  },
+    coming_soon: { enabled: true, order: 16 }
+  }
 };
 
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
@@ -72,7 +72,10 @@ async function fetchConfig(): Promise<HomepageConfig> {
       if (!resp.ok) return cachedConfig ?? DEFAULT_CONFIG;
       const data = (await resp.json()) as { config: HomepageConfig };
       cachedConfig = {
-        sections: { ...DEFAULT_CONFIG.sections, ...(data.config.sections ?? {}) },
+        sections: {
+          ...DEFAULT_CONFIG.sections,
+          ...(data.config.sections ?? {})
+        }
       };
       cachedAt = Date.now();
       return cachedConfig;
@@ -86,7 +89,9 @@ async function fetchConfig(): Promise<HomepageConfig> {
 }
 
 export function useHomepageConfig() {
-  const [config, setConfig] = createSignal<HomepageConfig>(cachedConfig ?? DEFAULT_CONFIG);
+  const [config, setConfig] = createSignal<HomepageConfig>(
+    cachedConfig ?? DEFAULT_CONFIG
+  );
 
   onMount(async () => {
     const cfg = await fetchConfig();
@@ -102,7 +107,10 @@ export function useHomepageConfig() {
     const cfg = config();
     return Object.keys(cfg.sections)
       .filter((k) => cfg.sections[k].enabled)
-      .sort((a, b) => (cfg.sections[a]?.order ?? 999) - (cfg.sections[b]?.order ?? 999));
+      .sort(
+        (a, b) =>
+          (cfg.sections[a]?.order ?? 999) - (cfg.sections[b]?.order ?? 999)
+      );
   });
 
   // For debugging / admin UI testing: force-refresh

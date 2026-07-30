@@ -29,12 +29,16 @@ function readProviderSet(): string[] {
   }
 }
 
-export const [streamingProviders, setStreamingProviders] = createSignal<string[]>(readProviderSet());
+export const [streamingProviders, setStreamingProviders] =
+  createSignal<string[]>(readProviderSet());
 
 createEffect(() => {
   if (isServer) return;
   try {
-    localStorage.setItem(STREAMING_PROVIDERS_KEY, JSON.stringify(streamingProviders()));
+    localStorage.setItem(
+      STREAMING_PROVIDERS_KEY,
+      JSON.stringify(streamingProviders())
+    );
   } catch {
     // ignore quota errors
   }
@@ -107,7 +111,7 @@ interface TmdbProviderRow {
  */
 export function mergeAndSortProviders(
   movieRows: TmdbProviderRow[],
-  tvRows: TmdbProviderRow[],
+  tvRows: TmdbProviderRow[]
 ): TmdbProvider[] {
   const seen = new Set<string>();
   const merged: TmdbProvider[] = [];
@@ -120,7 +124,7 @@ export function mergeAndSortProviders(
       id,
       name: row.providerName,
       logoPath: row.logoPath,
-      displayPriority: row.displayPriority,
+      displayPriority: row.displayPriority
     });
   }
   // TV list — add any providers not already in the movie list.
@@ -133,7 +137,7 @@ export function mergeAndSortProviders(
       name: row.providerName,
       logoPath: row.logoPath,
       // TV-only providers keep their TV display_priority.
-      displayPriority: row.displayPriority,
+      displayPriority: row.displayPriority
     });
   }
   // Sort by display_priority ascending (most popular first).

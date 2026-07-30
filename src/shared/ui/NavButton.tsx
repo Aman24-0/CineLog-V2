@@ -31,15 +31,16 @@ const NavButton: Component<Props> = (props) => {
 
   return (
     <button
+      type="button"
       onClick={props.onClick}
       disabled={props.disabled}
-      class="flex flex-1 flex-col items-center justify-center gap-1 relative focus-ring"
+      class="focus-ring relative flex flex-1 flex-col items-center justify-center gap-1"
       style={{
         color: color(),
         height: "var(--nav-height)",
         opacity: props.disabled ? "0.4" : "1",
         cursor: props.disabled ? "not-allowed" : "pointer",
-        transition: "color var(--dur-base) var(--ease-out)",
+        transition: "color var(--dur-base) var(--ease-out)"
       }}
       aria-current={props.active ? "page" : undefined}
       aria-label={props.label}
@@ -48,13 +49,10 @@ const NavButton: Component<Props> = (props) => {
         style={{
           display: "inline-flex",
           transition: "transform var(--dur-base) var(--ease-spring)",
-          transform: props.active ? "scale(1.08)" : "scale(1)",
+          transform: props.active ? "scale(1.08)" : "scale(1)"
         }}
       >
-        <Icon
-          name={props.icon}
-          fill={props.active}
-        />
+        <Icon name={props.icon} fill={props.active} />
       </span>
 
       <span
@@ -64,7 +62,7 @@ const NavButton: Component<Props> = (props) => {
           "font-weight": 700,
           "letter-spacing": "0.08em",
           "text-transform": "uppercase",
-          transition: "color var(--dur-base) var(--ease-out)",
+          transition: "color var(--dur-base) var(--ease-out)"
         }}
       >
         {props.label}
@@ -85,7 +83,7 @@ const NavButton: Component<Props> = (props) => {
           "box-shadow": "0 0 8px var(--p-glow), 0 0 16px var(--p-glow)",
           transition:
             "width var(--dur-base) var(--ease-spring), height var(--dur-base) var(--ease-spring), opacity var(--dur-base) var(--ease-out)",
-          opacity: props.active ? "1" : "0",
+          opacity: props.active ? "1" : "0"
         }}
       />
     </button>

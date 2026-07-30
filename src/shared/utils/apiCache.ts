@@ -27,7 +27,7 @@ interface CacheEntry<T> {
 // TTL constants
 // ---------------------------------------------------------------------------
 
-export const TMDB_TTL = 10 * 60 * 1000;   // 10 minutes
+export const TMDB_TTL = 10 * 60 * 1000; // 10 minutes
 export const OMDb_TTL = 24 * 60 * 60 * 1000; // 24 hours
 
 // ---------------------------------------------------------------------------

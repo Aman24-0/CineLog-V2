@@ -6,7 +6,7 @@ import { findInVault } from "~/shared/utils/vaultMatch";
 import { updateStatusInSupabase } from "~/features/watchlist/vaultAdapter";
 import {
   updateSeasonEpisodeInSupabase,
-  unmarkEpisodeInSupabase,
+  unmarkEpisodeInSupabase
 } from "~/features/watchlist/episodeProgressAdapter";
 import type { WatchlistItem } from "~/shared/types";
 
@@ -32,7 +32,10 @@ export interface UseDetailsProgressArgs {
   baseItem: Accessor<WatchlistItem | null>;
   vaultItem: Accessor<WatchlistItem | null>;
   watchlist: Accessor<WatchlistItem[]>;
-  setSelectedItem: Setter<{ baseItem: WatchlistItem; vaultItem: WatchlistItem | null } | null>;
+  setSelectedItem: Setter<{
+    baseItem: WatchlistItem;
+    vaultItem: WatchlistItem | null;
+  } | null>;
   showToast: (msg: string, type: ToastType, duration?: number) => void;
 }
 
@@ -61,13 +64,15 @@ export interface UseDetailsProgressResult {
     unmarkSeason: number,
     unmarkEpisode: number,
     newTrackerSeason: number,
-    newTrackerEpisode: number,
+    newTrackerEpisode: number
   ) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
 }
 
-export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProgressResult {
+export function useDetailsProgress(
+  args: UseDetailsProgressArgs
+): UseDetailsProgressResult {
   // Status cycling: Planned → Watching → Completed → Planned (vault only)
   const handleStatusCycle = async () => {
     const uid = getCurrentUid();
@@ -86,11 +91,11 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
       await updateStatusInSupabase(uid, v.id, v.media_type, nextStatus);
       const updated: WatchlistItem = {
         ...v,
-        status: nextStatus as WatchlistItem["status"],
+        status: nextStatus as WatchlistItem["status"]
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated,
+        vaultItem: updated
       });
       args.showToast(`Status: ${nextStatus}`, "success", 1500);
     } catch {
@@ -114,15 +119,21 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
           ...v,
           status: "Watching",
           season: newSeason,
-          episode: newEpisode,
+          episode: newEpisode
         };
       } else {
         updated = { ...v, season: newSeason, episode: newEpisode };
       }
-      await updateSeasonEpisodeInSupabase(uid, v.id, v.media_type, newSeason, newEpisode);
+      await updateSeasonEpisodeInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        newSeason,
+        newEpisode
+      );
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated,
+        vaultItem: updated
       });
     } catch (err) {
       console.error("Failed to update episode:", err);
@@ -157,7 +168,7 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
     unmarkSeason: number,
     unmarkEpisode: number,
     newTrackerSeason: number,
-    newTrackerEpisode: number,
+    newTrackerEpisode: number
   ) => {
     const uid = getCurrentUid();
     const v = args.vaultItem();
@@ -169,7 +180,13 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
       // handleEpisodeChange-based rewind was missing — without it,
       // the next vault refresh would re-pick a later episode as
       // "latest watched" and silently undo the rewind.
-      await unmarkEpisodeInSupabase(uid, v.id, v.media_type, unmarkSeason, unmarkEpisode);
+      await unmarkEpisodeInSupabase(
+        uid,
+        v.id,
+        v.media_type,
+        unmarkSeason,
+        unmarkEpisode
+      );
 
       // Step 2: update the vault row's tracker position to the
       // rewound episode. We do NOT call updateSeasonEpisodeInSupabase
@@ -182,11 +199,11 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
       const updated: WatchlistItem = {
         ...v,
         season: newTrackerSeason,
-        episode: newTrackerEpisode,
+        episode: newTrackerEpisode
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated,
+        vaultItem: updated
       });
     } catch (err) {
       console.error("Failed to unmark episode:", err);
@@ -204,7 +221,7 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
       const updated: WatchlistItem = { ...v, status: "Completed" };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated,
+        vaultItem: updated
       });
       args.showToast("Marked as Completed!", "success");
     } catch {
@@ -241,7 +258,7 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
       const updated: WatchlistItem = { ...v, status: nextStatus };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updated },
-        vaultItem: updated,
+        vaultItem: updated
       });
       args.showToast(`Status: ${nextStatus}`, "success", 1500);
     } catch {
@@ -255,6 +272,6 @@ export function useDetailsProgress(args: UseDetailsProgressArgs): UseDetailsProg
     handleEpisodeChange,
     handleEpisodeUnmark,
     handleMarkCompleted,
-    handleSelectItem,
+    handleSelectItem
   };
 }

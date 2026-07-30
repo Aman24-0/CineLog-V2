@@ -6,7 +6,10 @@
 //
 // Returns the most recent admin_actions entries, with optional filters.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 interface APIEvent extends AdminAPIEvent {}
@@ -36,7 +39,7 @@ interface ListLogsResponse {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -54,7 +57,10 @@ export async function GET(event: APIEvent) {
     const from = url.searchParams.get("from");
     const to = url.searchParams.get("to");
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
-    const limit = Math.min(200, Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10)));
+    const limit = Math.min(
+      200,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "50", 10))
+    );
 
     const supabase = createAdminClient();
     const offset = (page - 1) * limit;
@@ -63,7 +69,7 @@ export async function GET(event: APIEvent) {
       .from("admin_actions")
       .select(
         "id, admin_id, action, entity_type, entity_id, payload, ip_address, user_agent, created_at",
-        { count: "exact" },
+        { count: "exact" }
       )
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -83,25 +89,34 @@ export async function GET(event: APIEvent) {
 
     // Fetch admin display info for the unique admin_ids in this batch
     const adminIds = [...new Set((logs ?? []).map((l) => l.admin_id))];
-    const adminInfo: Record<string, { username: string; display_name: string }> = {};
+    const adminInfo: Record<
+      string,
+      { username: string; display_name: string }
+    > = {};
     if (adminIds.length > 0) {
       const { data: admins } = await supabase
         .from("profiles")
         .select("id, username, display_name")
         .in("id", adminIds);
       for (const a of admins ?? []) {
-        adminInfo[a.id] = { username: a.username, display_name: a.display_name };
+        adminInfo[a.id] = {
+          username: a.username,
+          display_name: a.display_name
+        };
       }
     }
 
     const enrichedLogs: AuditLogRow[] = (logs ?? []).map((l) => {
-      const row = l as Omit<AuditLogRow, "admin_username" | "admin_display_name">;
+      const row = l as Omit<
+        AuditLogRow,
+        "admin_username" | "admin_display_name"
+      >;
       const info = adminInfo[row.admin_id];
       return {
         ...row,
         payload: (row.payload ?? {}) as Record<string, unknown>,
         admin_username: info?.username ?? null,
-        admin_display_name: info?.display_name ?? null,
+        admin_display_name: info?.display_name ?? null
       };
     });
 
@@ -109,7 +124,7 @@ export async function GET(event: APIEvent) {
       logs: enrichedLogs,
       total: count ?? 0,
       page,
-      limit,
+      limit
     };
 
     return jsonResponse(response);

@@ -11,7 +11,7 @@ export {
   verifyAdminToken,
   adminCookieName,
   adminTokenLifetime,
-  type AdminTokenPayload,
+  type AdminTokenPayload
 } from "./adminJwt";
 export {
   requireAdmin,
@@ -19,6 +19,6 @@ export {
   getUserAgent,
   type AdminUser,
   type AdminAPIEvent,
-  type RequireAdminResult,
+  type RequireAdminResult
 } from "./adminGuard";
 export { logAdminAction, type AuditLogEntry } from "./auditLog";

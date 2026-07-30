@@ -4,17 +4,20 @@ import { VaultRepository } from "../vault/vault.repository";
 import type {
   VaultRow,
   VaultIdentity,
-  CreateVaultItemPayload,
+  CreateVaultItemPayload
 } from "../vault/vault.types";
 import {
   validateRating,
   validateProgressMinutes,
   toVaultInsert,
   applySort,
-  applyPagination,
+  applyPagination
 } from "../vault/vault.utils";
 import { toError } from "../shared";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 
 // ─────────────────────────────────────────────────────────────────────
 // Test fixtures
@@ -37,13 +40,13 @@ const mockVaultRow: VaultRow = {
   last_activity_at: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as VaultRow;
 
 const identity: VaultIdentity = {
   userId: "user-1",
   tmdbId: 123,
-  mediaType: "movie",
+  mediaType: "movie"
 };
 
 // ─────────────────────────────────────────────────────────────────────
@@ -58,7 +61,7 @@ describe("VaultRepository", () => {
       const payload: CreateVaultItemPayload = {
         userId: "user-1",
         tmdbId: 123,
-        mediaType: "movie",
+        mediaType: "movie"
       };
       const result = await repo.createVaultItem(payload);
       expect(result.data).toEqual(mockVaultRow);
@@ -72,7 +75,7 @@ describe("VaultRepository", () => {
       const result = await repo.createVaultItem({
         userId: "user-1",
         tmdbId: 123,
-        mediaType: "movie",
+        mediaType: "movie"
       });
       expect(result.data).toBeNull();
       expect(result.error).toBe(err);
@@ -143,11 +146,13 @@ describe("VaultRepository", () => {
     });
 
     it("accepts sort + pagination options", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new VaultRepository(client as never);
       await repo.getVaultByStatus("user-1", "watching", {
         sort: { field: "rating", direction: "desc" },
-        pagination: { limit: 10, offset: 0 },
+        pagination: { limit: 10, offset: 0 }
       });
       expect(query.order).toHaveBeenCalledWith("rating", { ascending: false });
       expect(query.range).toHaveBeenCalledWith(0, 9);
@@ -174,20 +179,26 @@ describe("VaultRepository", () => {
 
   describe("getRecentlyUpdated", () => {
     it("returns list ordered by updated_at desc", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new VaultRepository(client as never);
       await repo.getRecentlyUpdated("user-1");
-      expect(query.order).toHaveBeenCalledWith("updated_at", { ascending: false });
+      expect(query.order).toHaveBeenCalledWith("updated_at", {
+        ascending: false
+      });
     });
   });
 
   describe("searchVault", () => {
     it("returns matching rows", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.searchVault({
         userId: "user-1",
-        searchTerm: "inception",
+        searchTerm: "inception"
       });
       expect(result.data).toHaveLength(1);
       expect(query.ilike).toHaveBeenCalledWith("notes", "%inception%");
@@ -196,7 +207,9 @@ describe("VaultRepository", () => {
 
   describe("updateVaultItem", () => {
     it("returns updated row on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, rating: 9 } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, rating: 9 }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.updateVaultItem(identity, { rating: 9 });
       expect(result.data?.rating).toBe(9);
@@ -213,7 +226,9 @@ describe("VaultRepository", () => {
 
   describe("updateStatus", () => {
     it("updates status and bumps last_activity_at", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, status: "watching" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, status: "watching" }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.updateStatus(identity, "watching");
       expect(result.data?.status).toBe("watching");
@@ -222,7 +237,9 @@ describe("VaultRepository", () => {
 
   describe("updateRating", () => {
     it("updates rating when valid (0.5–10)", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, rating: 8.5 } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, rating: 8.5 }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.updateRating(identity, 8.5);
       expect(result.data?.rating).toBe(8.5);
@@ -249,7 +266,9 @@ describe("VaultRepository", () => {
 
   describe("updateNotes", () => {
     it("updates notes", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, notes: "Great!" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, notes: "Great!" }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.updateNotes(identity, "Great!");
       expect(result.data?.notes).toBe("Great!");
@@ -258,7 +277,9 @@ describe("VaultRepository", () => {
 
   describe("updateProgress", () => {
     it("updates progress minutes when valid (>= 0)", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, progress_minutes: 45 } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, progress_minutes: 45 }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.updateProgress(identity, 45);
       expect(result.data?.progress_minutes).toBe(45);
@@ -291,7 +312,9 @@ describe("VaultRepository", () => {
 
   describe("restoreVaultItem", () => {
     it("restores by clearing deleted_at", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockVaultRow, deleted_at: null } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockVaultRow, deleted_at: null }
+      });
       const repo = new VaultRepository(client as never);
       const result = await repo.restoreVaultItem(identity);
       expect(result.data?.deleted_at).toBeNull();
@@ -353,7 +376,7 @@ describe("vault.utils", () => {
         watchedOn: "2024-01-01",
         startedAt: "2024-01-01",
         completedAt: "2024-02-01",
-        lastActivityAt: "2024-02-01",
+        lastActivityAt: "2024-02-01"
       });
       expect(result).toEqual({
         user_id: "u1",
@@ -369,7 +392,7 @@ describe("vault.utils", () => {
         watched_on: "2024-01-01",
         started_at: "2024-01-01",
         completed_at: "2024-02-01",
-        last_activity_at: "2024-02-01",
+        last_activity_at: "2024-02-01"
       });
     });
 
@@ -377,7 +400,7 @@ describe("vault.utils", () => {
       const result = toVaultInsert({
         userId: "u1",
         tmdbId: 1,
-        mediaType: "tv",
+        mediaType: "tv"
       });
       expect(result.user_id).toBe("u1");
       expect(result.tmdb_id).toBe(1);
@@ -409,7 +432,9 @@ describe("vault.utils", () => {
     it("defaults to ascending when direction is undefined", () => {
       const query = { order: vi.fn().mockReturnThis() };
       applySort(query, { field: "created_at" });
-      expect(query.order).toHaveBeenCalledWith("created_at", { ascending: true });
+      expect(query.order).toHaveBeenCalledWith("created_at", {
+        ascending: true
+      });
     });
   });
 
@@ -464,7 +489,7 @@ describe("shared.toError", () => {
       message: 'null value in column "user_id" violates not-null constraint',
       code: "23502",
       details: "Failing row contains (...)",
-      hint: "",
+      hint: ""
     };
     const result = toError(supabaseErr);
     expect(result).toBeInstanceOf(Error);

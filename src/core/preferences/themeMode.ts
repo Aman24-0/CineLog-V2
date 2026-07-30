@@ -11,8 +11,11 @@ export type ThemeMode = "dark" | "light" | "system";
 const THEME_MODE_KEY = "cinelog_theme_mode";
 
 function resolveSystemMode(): "dark" | "light" {
-  if (isServer || typeof window === "undefined" || !window.matchMedia) return "dark";
-  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+  if (isServer || typeof window === "undefined" || !window.matchMedia)
+    return "dark";
+  return window.matchMedia("(prefers-color-scheme: light)").matches
+    ? "light"
+    : "dark";
 }
 
 export function effectiveThemeMode(mode: ThemeMode): "dark" | "light" {

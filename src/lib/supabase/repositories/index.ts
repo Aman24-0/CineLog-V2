@@ -43,7 +43,12 @@ export type {
 
 // ---- ProfileRepository (Phase 4) ------------------------------------------
 // Modular: profile/ subfolder with types, utils, read, write, repository.
-export { ProfileRepository, getProfileRepository, ensureProfile, checkUsernameAvailability } from "./profile";
+export {
+  ProfileRepository,
+  getProfileRepository,
+  ensureProfile,
+  checkUsernameAvailability
+} from "./profile";
 
 export type {
   ProfileRow,
@@ -149,7 +154,10 @@ export type {
 // table (Database Bible §06) — per-episode TV/Anime progress tracking.
 // NOTE: EpisodeProgressRow is NOT re-exported here — it is already
 // exported from the dashboard barrel (same generated type).
-export { EpisodeProgressRepository, getEpisodeProgressRepository } from "./episodeProgress";
+export {
+  EpisodeProgressRepository,
+  getEpisodeProgressRepository
+} from "./episodeProgress";
 
 export type {
   EpisodeProgressInsert,
@@ -184,12 +192,12 @@ export {
   getFollowers,
   getFollowing,
   getFollowCounts,
-  isFollowing,
+  isFollowing
 } from "./follows";
 
 export type {
   FollowRow,
   FollowCounts,
   FollowResult,
-  FollowWriteResult,
+  FollowWriteResult
 } from "./follows";

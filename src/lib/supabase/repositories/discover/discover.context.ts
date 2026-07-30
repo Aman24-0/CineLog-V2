@@ -48,7 +48,10 @@ export async function getDiscoverMetadata(
   // 2. Collection memberships depend on the vaultId.
   let collections: CollectionMembership[] = [];
   if (vaultResult.data?.vault) {
-    const colResult = await getCollectionMemberships(supabase, vaultResult.data.vault.id);
+    const colResult = await getCollectionMemberships(
+      supabase,
+      vaultResult.data.vault.id
+    );
     if (colResult.error) return { data: null, error: colResult.error };
     collections = colResult.data;
   }
@@ -83,7 +86,10 @@ export async function getUserMediaContext(
   // 2. Collection memberships (only if the media is in the vault).
   let collections: CollectionMembership[] = [];
   if (vaultResult.data?.vault) {
-    const colResult = await getCollectionMemberships(supabase, vaultResult.data.vault.id);
+    const colResult = await getCollectionMemberships(
+      supabase,
+      vaultResult.data.vault.id
+    );
     if (colResult.error) return { data: null, error: colResult.error };
     collections = colResult.data;
   }

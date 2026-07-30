@@ -43,7 +43,7 @@ import {
   signAdminToken,
   adminCookieName,
   adminTokenLifetime,
-  getClientIP,
+  getClientIP
 } from "~/lib/supabase/admin";
 
 // ─── Types ────────────────────────────────────────────────────────
@@ -254,7 +254,7 @@ function parseAccessTokenFromSessionCookie(raw: string): string | null {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -286,16 +286,14 @@ interface IssueError {
   response: Response;
 }
 
-async function verifyProfileAndIssueAdmin(
-  args: {
-    userId: string;
-    email: string;
-    pin: string;
-    ip: string | null;
-    userAgent: string | null;
-    loginMethod: "password" | "session";
-  },
-): Promise<IssueResult | IssueError> {
+async function verifyProfileAndIssueAdmin(args: {
+  userId: string;
+  email: string;
+  pin: string;
+  ip: string | null;
+  userAgent: string | null;
+  loginMethod: "password" | "session";
+}): Promise<IssueResult | IssueError> {
   const { userId, email, pin, ip, userAgent, loginMethod } = args;
 
   // 1. Look up the profile (service role bypasses RLS)
@@ -305,12 +303,15 @@ async function verifyProfileAndIssueAdmin(
     console.error("[CineLog Admin] Missing Supabase env vars");
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Server misconfiguration" }, 500),
+      response: jsonResponse(
+        { ok: false, error: "Server misconfiguration" },
+        500
+      )
     };
   }
 
   const adminClient = createClient(supabaseUrl, serviceKey, {
-    auth: { autoRefreshToken: false, persistSession: false },
+    auth: { autoRefreshToken: false, persistSession: false }
   });
 
   const { data: profile, error: profileError } = await adminClient
@@ -324,7 +325,7 @@ async function verifyProfileAndIssueAdmin(
     recordFailure(ip);
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
     };
   }
 
@@ -332,7 +333,7 @@ async function verifyProfileAndIssueAdmin(
     recordFailure(ip);
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
     };
   }
 
@@ -340,7 +341,10 @@ async function verifyProfileAndIssueAdmin(
     recordFailure(ip);
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Admin account disabled" }, 403),
+      response: jsonResponse(
+        { ok: false, error: "Admin account disabled" },
+        403
+      )
     };
   }
 
@@ -350,7 +354,10 @@ async function verifyProfileAndIssueAdmin(
     console.error("[CineLog Admin] Missing ADMIN_PIN env var");
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Server misconfiguration" }, 500),
+      response: jsonResponse(
+        { ok: false, error: "Server misconfiguration" },
+        500
+      )
     };
   }
 
@@ -358,7 +365,7 @@ async function verifyProfileAndIssueAdmin(
     recordFailure(ip);
     return {
       ok: false,
-      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401),
+      response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
     };
   }
 
@@ -369,7 +376,7 @@ async function verifyProfileAndIssueAdmin(
   try {
     token = signAdminToken({
       admin_id: profile.id,
-      email,
+      email
     });
   } catch (signErr) {
     // signAdminToken throws if ADMIN_JWT_SECRET is missing or too short.
@@ -383,10 +390,10 @@ async function verifyProfileAndIssueAdmin(
           ok: false,
           error:
             "Server misconfiguration: ADMIN_JWT_SECRET is missing or too short. " +
-            "Generate a 32+ character random string and set it in the Vercel env vars.",
+            "Generate a 32+ character random string and set it in the Vercel env vars."
         },
-        500,
-      ),
+        500
+      )
     };
   }
 
@@ -399,7 +406,7 @@ async function verifyProfileAndIssueAdmin(
       entity_id: profile.id,
       payload: { email, ip, method: loginMethod },
       ip_address: ip,
-      user_agent: userAgent,
+      user_agent: userAgent
     });
   } catch (err) {
     console.error("[CineLog Admin] Failed to log login action:", err);
@@ -414,17 +421,17 @@ async function verifyProfileAndIssueAdmin(
           id: profile.id,
           email,
           username: profile.username,
-          display_name: profile.display_name,
-        },
+          display_name: profile.display_name
+        }
       }),
       {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Set-Cookie": setAdminCookie(token),
-        },
-      },
-    ),
+          "Set-Cookie": setAdminCookie(token)
+        }
+      }
+    )
   };
 }
 
@@ -438,18 +445,23 @@ export async function POST(event: APIEvent) {
     // 1. Rate limit check
     if (isRateLimited(ip)) {
       return jsonResponse(
-        { ok: false, error: "Too many failed attempts. Try again in 15 minutes." },
-        429,
+        {
+          ok: false,
+          error: "Too many failed attempts. Try again in 15 minutes."
+        },
+        429
       );
     }
 
     // 2. Parse body
     const body = (await event.request.json().catch(() => ({}))) as LoginBody;
-    const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
+    const email =
+      typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
     const pin = typeof body.pin === "string" ? body.pin.trim() : "";
     const explicitMode =
-      typeof body.mode === "string" && (body.mode === "password" || body.mode === "session")
+      typeof body.mode === "string" &&
+      (body.mode === "password" || body.mode === "session")
         ? body.mode
         : null;
     // The client may send the access_token explicitly (the common path —
@@ -485,33 +497,35 @@ export async function POST(event: APIEvent) {
     //      the client is ever switched to cookie-based storage.
     if (mode === "session") {
       const cookieHeader = event.request.headers.get("cookie") || "";
-      const accessToken = bodyAccessToken ?? getSupabaseAccessToken(cookieHeader);
+      const accessToken =
+        bodyAccessToken ?? getSupabaseAccessToken(cookieHeader);
 
       if (!accessToken) {
         return jsonResponse(
           {
             ok: false,
-            error: "No active CineLog session. Please sign in to CineLog first.",
+            error: "No active CineLog session. Please sign in to CineLog first."
           },
-          401,
+          401
         );
       }
 
       // Verify the access token by calling getUser()
       const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
-        auth: { autoRefreshToken: false, persistSession: false },
+        auth: { autoRefreshToken: false, persistSession: false }
       });
 
-      const { data: userData, error: userError } = await verifyClient.auth.getUser(accessToken);
+      const { data: userData, error: userError } =
+        await verifyClient.auth.getUser(accessToken);
 
       if (userError || !userData?.user) {
         recordFailure(ip);
         return jsonResponse(
           {
             ok: false,
-            error: "Your CineLog session has expired. Please sign in again.",
+            error: "Your CineLog session has expired. Please sign in again."
           },
-          401,
+          401
         );
       }
 
@@ -527,7 +541,7 @@ export async function POST(event: APIEvent) {
         pin,
         ip,
         userAgent,
-        loginMethod: "session",
+        loginMethod: "session"
       });
 
       return result.response;
@@ -537,18 +551,19 @@ export async function POST(event: APIEvent) {
     if (!email || !password) {
       return jsonResponse(
         { ok: false, error: "Email, password, and PIN are required." },
-        400,
+        400
       );
     }
 
     const authClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
-    const { data: authData, error: authError } = await authClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { data: authData, error: authError } =
+      await authClient.auth.signInWithPassword({
+        email,
+        password
+      });
 
     if (authError || !authData.session || !authData.user) {
       recordFailure(ip);
@@ -561,7 +576,7 @@ export async function POST(event: APIEvent) {
       pin,
       ip,
       userAgent,
-      loginMethod: "password",
+      loginMethod: "password"
     });
 
     return result.response;
@@ -573,7 +588,7 @@ export async function POST(event: APIEvent) {
     const detail = err instanceof Error ? err.message : String(err);
     return jsonResponse(
       { ok: false, error: "Server error", detail: detail.slice(0, 200) },
-      500,
+      500
     );
   }
 }
@@ -600,7 +615,8 @@ export async function DELETE(event: APIEvent) {
     const payload = verifyAdminToken(token);
     if (payload) {
       try {
-        const { createAdminClient } = await import("~/lib/supabase/admin/adminClient");
+        const { createAdminClient } =
+          await import("~/lib/supabase/admin/adminClient");
         const supabase = createAdminClient();
         await supabase.from("admin_actions").insert({
           admin_id: payload.admin_id,
@@ -609,7 +625,7 @@ export async function DELETE(event: APIEvent) {
           entity_id: payload.admin_id,
           payload: {},
           ip_address: getClientIP(event),
-          user_agent: event.request.headers.get("user-agent"),
+          user_agent: event.request.headers.get("user-agent")
         });
       } catch {
         // ignore
@@ -623,8 +639,8 @@ export async function DELETE(event: APIEvent) {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Set-Cookie": clearAdminCookie(),
-    },
+      "Set-Cookie": clearAdminCookie()
+    }
   });
 }
 

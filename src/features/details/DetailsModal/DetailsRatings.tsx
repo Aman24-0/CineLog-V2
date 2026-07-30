@@ -2,7 +2,10 @@
 import { Show, createMemo, type Accessor } from "solid-js";
 import DetailSection from "~/features/details/components/DetailSection";
 import RatingPanel from "~/features/details/components/RatingPanel";
-import { useMdbListRatings, type FrontendMediaType } from "~/features/details/useMdbListRatings";
+import {
+  useMdbListRatings,
+  type FrontendMediaType
+} from "~/features/details/useMdbListRatings";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
 
 /**

@@ -8,7 +8,7 @@ import {
   fetchPresetsFromSupabase,
   createPresetInSupabase,
   renamePresetInSupabase,
-  deletePresetFromSupabase,
+  deletePresetFromSupabase
 } from "./presetAdapter";
 import type { FilterPreset, VaultFilters } from "~/shared/types";
 
@@ -57,7 +57,7 @@ export function useVaultPresets(): UseVaultPresetsResult {
           } else {
             setPresets([]);
           }
-        },
+        }
       );
       unsubAuth = () => subscription.unsubscribe();
     } catch (err) {

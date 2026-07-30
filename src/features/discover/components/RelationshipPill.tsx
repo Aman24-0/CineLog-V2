@@ -34,8 +34,10 @@ const RelationshipPill: Component<RelationshipPillProps> = (props) => {
     const v = vaultItem();
     if (!v) return null;
 
-    if (v.status === "Watching") return { label: "Watching", cls: "v2-pill-success" };
-    if (v.status === "Completed") return { label: "Completed", cls: "v2-pill-info" };
+    if (v.status === "Watching")
+      return { label: "Watching", cls: "v2-pill-success" };
+    if (v.status === "Completed")
+      return { label: "Completed", cls: "v2-pill-info" };
     if (v.status === "Planned" || v.status === "Plan to Watch") {
       return { label: "Planned", cls: "v2-pill" };
     }
@@ -54,7 +56,11 @@ const RelationshipPill: Component<RelationshipPillProps> = (props) => {
           class={`relationship-pill-add${props.compact ? " relationship-pill-compact" : ""}`}
           aria-label="Not in your watchlist — tap to add"
         >
-          <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "10px" }}
+            aria-hidden="true"
+          >
             add
           </span>
           Add

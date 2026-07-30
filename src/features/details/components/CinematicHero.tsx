@@ -98,7 +98,9 @@ export default function CinematicHero(props: CinematicHeroProps) {
     const progress = Math.min(1, scrollTop / heroHeight);
     setScrolled(progress > 0.1);
 
-    const backdrop = heroRef.querySelector(".cinematic-backdrop") as HTMLElement;
+    const backdrop = heroRef.querySelector(
+      ".cinematic-backdrop"
+    ) as HTMLElement;
     if (backdrop) {
       const offset = scrollTop * 0.3;
       backdrop.style.transform = `scale(1.08) translateY(${-offset}px)`;
@@ -152,12 +154,14 @@ export default function CinematicHero(props: CinematicHeroProps) {
           gradient overlay (z-index: 3) so it stays visible against any
           backdrop. High-contrast white-on-black with backdrop blur so it
           pops against both bright and dark backdrop images. */}
-      <Show when={
-        props.hasTrailer &&
-        !props.trailerActive &&
-        !!backdropUrl() &&
-        !!props.onPlayTrailer
-      }>
+      <Show
+        when={
+          props.hasTrailer &&
+          !props.trailerActive &&
+          !!backdropUrl() &&
+          !!props.onPlayTrailer
+        }
+      >
         <button
           type="button"
           class="cinematic-hero-trailer-cta"
@@ -168,7 +172,8 @@ export default function CinematicHero(props: CinematicHeroProps) {
             class="material-symbols-outlined"
             style={{
               "font-size": "20px",
-              "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+              "font-variation-settings":
+                "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
             }}
             aria-hidden="true"
           >
@@ -191,22 +196,31 @@ export default function CinematicHero(props: CinematicHeroProps) {
           YouTube" link that opens the video directly on youtube.com. */}
       <Show when={props.trailerActive && props.trailerKey}>
         <div class="cinematic-trailer-player" aria-label="Trailer player">
-          <Show when={!iframeError()} fallback={
-            <div class="cinematic-trailer-fallback">
-              <span class="material-symbols-outlined" style={{ "font-size": "48px", color: "var(--text-soft)" }} aria-hidden="true">
-                play_circle
-              </span>
-              <p class="cinematic-trailer-fallback-text">Trailer embed unavailable</p>
-              <a
-                class="cinematic-trailer-fallback-link"
-                href={`https://www.youtube.com/watch?v=${props.trailerKey}`}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                Watch on YouTube
-              </a>
-            </div>
-          }>
+          <Show
+            when={!iframeError()}
+            fallback={
+              <div class="cinematic-trailer-fallback">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "48px", color: "var(--text-soft)" }}
+                  aria-hidden="true"
+                >
+                  play_circle
+                </span>
+                <p class="cinematic-trailer-fallback-text">
+                  Trailer embed unavailable
+                </p>
+                <a
+                  class="cinematic-trailer-fallback-link"
+                  href={`https://www.youtube.com/watch?v=${props.trailerKey}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Watch on YouTube
+                </a>
+              </div>
+            }
+          >
             <iframe
               class="cinematic-trailer-iframe"
               src={`https://www.youtube-nocookie.com/embed/${props.trailerKey}?autoplay=1&rel=0`}
@@ -225,12 +239,15 @@ export default function CinematicHero(props: CinematicHeroProps) {
           class="cinematic-trailer-close"
           aria-label="Close trailer"
         >
-          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "18px" }}
+            aria-hidden="true"
+          >
             close
           </span>
         </button>
       </Show>
-
     </div>
   );
 }

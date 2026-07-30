@@ -1,5 +1,13 @@
 // src/shared/ui/MovieCard.tsx
-import { Component, Show, createSignal, createEffect, batch } from "solid-js";
+import {
+  Component,
+  Show,
+  createSignal,
+  createEffect,
+  batch,
+  createMemo,
+  type JSX
+} from "solid-js";
 import Icon from "./Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useLazyImdbRating } from "~/shared/hooks/useLazyImdbRating";
@@ -11,6 +19,119 @@ import { useCollections } from "~/features/collections/hooks/useCollections";
 import { useToast } from "~/shared/hooks/useToast";
 import HighlightText from "./HighlightText";
 import { GlassCard } from "~/shared/ui/glass";
+
+// ─── Module-level style constants ────────────────────────────────────
+// Extracted from JSX so each MovieCard instance doesn't allocate its
+// own style-object literals on mount. With ~100 cards per page (Vault /
+// Discover / Collections), this saves ~1000 small object allocations
+// per page mount. Purely static — these styles never vary per card.
+const LOADING_SPINNER_STYLE: JSX.CSSProperties = {
+  position: "absolute",
+  top: "50%",
+  left: "50%",
+  transform: "translate(-50%, -50%)",
+  display: "flex",
+  "flex-direction": "column",
+  "align-items": "center",
+  gap: "8px",
+  opacity: "0.10"
+};
+const LOADING_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "28px",
+  color: "white",
+  "pointer-events": "none"
+};
+const FALLBACK_POSTER_STYLE: JSX.CSSProperties = {
+  background: "linear-gradient(145deg, var(--tier-3), var(--tier-2))",
+  "z-index": "1"
+};
+const FALLBACK_ICON_STYLE: JSX.CSSProperties = {
+  color: "var(--text-dim)",
+  "font-size": "36px"
+};
+const NO_POSTER_TEXT_STYLE: JSX.CSSProperties = {
+  color: "var(--text-dim)",
+  "font-size": "8px",
+  "font-weight": 700,
+  "letter-spacing": "0.1em",
+  "text-transform": "uppercase",
+  "font-family": "'Azeret Mono', monospace"
+};
+const STATUS_BADGE_STYLE: JSX.CSSProperties = {
+  "z-index": "3",
+  "max-width": "calc(100% - 60px)",
+  overflow: "hidden",
+  "text-overflow": "ellipsis",
+  "white-space": "nowrap"
+};
+const CHECK_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "20px",
+  color: "var(--on-primary, #0a0a0a)"
+};
+const NEW_SEASON_BADGE_STYLE: JSX.CSSProperties = {
+  "z-index": "3",
+  "white-space": "nowrap",
+  "max-width": "none",
+  "font-size": "7px",
+  padding: "3px 8px"
+};
+const EPISODE_PROGRESS_TRACK_STYLE: JSX.CSSProperties = {
+  background: "rgba(0,0,0,0.5)"
+};
+const EPISODE_PROGRESS_FILL_STYLE: JSX.CSSProperties = {
+  background: "var(--p, #e8b74a)",
+  transition: "width 400ms ease-out"
+};
+const TITLE_STYLE: JSX.CSSProperties = {
+  display: "-webkit-box",
+  "-webkit-line-clamp": "2",
+  "-webkit-box-orient": "vertical",
+  overflow: "hidden",
+  "line-height": "1.25",
+  "min-height": "1.7em"
+};
+const COMPACT_RATING_DOT_STYLE: JSX.CSSProperties = {
+  color: "var(--text-dim)"
+};
+const COMPACT_RATING_STAR_STYLE: JSX.CSSProperties = { color: "#f5c518" };
+const COMPACT_EPISODE_LABEL_STYLE: JSX.CSSProperties = {
+  color: "var(--p)",
+  "font-weight": 600
+};
+const COMPACT_EPISODE_DOT_STYLE: JSX.CSSProperties = {
+  color: "var(--text-dim)"
+};
+const COMPACT_EPISODE_FRACTION_STYLE: JSX.CSSProperties = {
+  color: "var(--text-muted)"
+};
+// Selection-mode button base style. The selected/unselected variants
+// differ only in `background` + `border`, so we keep the shared props
+// here and merge per-state.
+const SELECTION_BUTTON_BASE_STYLE: JSX.CSSProperties = {
+  width: "44px",
+  height: "44px",
+  "backdrop-filter": "blur(8px)",
+  "-webkit-backdrop-filter": "blur(8px)",
+  transition: "background 150ms ease-out, border-color 150ms ease-out"
+};
+const SELECTION_BUTTON_SELECTED_STYLE: JSX.CSSProperties = {
+  ...SELECTION_BUTTON_BASE_STYLE,
+  background: "var(--p)",
+  border: "none"
+};
+const SELECTION_BUTTON_UNSELECTED_STYLE: JSX.CSSProperties = {
+  ...SELECTION_BUTTON_BASE_STYLE,
+  background: "rgba(0,0,0,0.5)",
+  border: "2px solid rgba(255,255,255,0.3)"
+};
+const BOTTOM_INFO_COMPACT_PADDING: JSX.CSSProperties = {
+  "z-index": 3,
+  padding: "0.5rem"
+};
+const BOTTOM_INFO_DEFAULT_PADDING: JSX.CSSProperties = {
+  "z-index": 3,
+  padding: "0.625rem"
+};
 
 interface MovieCardProps {
   movie: WatchlistItem;
@@ -83,7 +204,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const isFavourite = () => {
     const id = favColId();
     if (!id) return false;
-    return collections.isInCollection(id, String(props.movie.id), props.movie.media_type);
+    return collections.isInCollection(
+      id,
+      String(props.movie.id),
+      props.movie.media_type
+    );
   };
 
   // ─── Localized favorite signal (INP optimization) ───────────────────
@@ -130,7 +255,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     e.preventDefault();
     const colId = favColId();
     if (!colId) {
-      showToast("Favorites collection not ready yet — try again in a moment.", "info", 2000);
+      showToast(
+        "Favorites collection not ready yet — try again in a moment.",
+        "info",
+        2000
+      );
       return;
     }
     const entry: CollectionEntry = {
@@ -142,7 +271,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
       backdrop_path: props.movie.backdrop_path ?? null,
       release_date: props.movie.release_date,
       first_air_date: props.movie.first_air_date,
-      runtime: props.movie.runtime,
+      runtime: props.movie.runtime
     };
     // Optimistic local update — flip the local signal IMMEDIATELY so
     // the user sees instant feedback. The collections signal updates
@@ -156,9 +285,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
     // separate reactive updates).
     batch(() => {
       if (!nextFav) {
-        void collections.removeFromCollection(colId, entry.id, entry.media_type).then(() => {
-          showToast("Removed from Favorites", "info", 1200);
-        });
+        void collections
+          .removeFromCollection(colId, entry.id, entry.media_type)
+          .then(() => {
+            showToast("Removed from Favorites", "info", 1200);
+          });
       } else {
         void collections.addToCollection(colId, entry).then(() => {
           showToast("Added to Favorites", "success", 1200);
@@ -191,12 +322,15 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const { rating: lazyImdbRating } = useLazyImdbRating(
     () => props.movie.id,
     () => props.movie.media_type,
-    () => cardRef,
+    () => cardRef
   );
   // The effective IMDb rating: MDBList score when available, then
   // OMDb imdbRating, then tmdbRating as last resort.
   const effectiveImdbRating = () =>
-    lazyImdbRating() ?? props.movie.imdbRating ?? props.movie.tmdbRating ?? null;
+    lazyImdbRating() ??
+    props.movie.imdbRating ??
+    props.movie.tmdbRating ??
+    null;
 
   // TV EPISODE PROGRESS — for TV shows with status "Watching", compute
   // the series-wide episode progress using the shared progress engine.
@@ -211,6 +345,22 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   };
   const hasEpisodeProgress = () => episodeProgress() !== null;
 
+  // ─── Memoized reactive styles ─────────────────────────────────────
+  // These objects depend on signals, so they need to re-create when
+  // their inputs change. Wrapping in createMemo ensures SolidJS only
+  // re-evaluates them when the deps actually change, AND it gives the
+  // resulting object a stable identity between unrelated reactive
+  // updates (e.g., a collections mutation won't re-allocate these).
+  const selectionButtonStyle = createMemo(() =>
+    props.isSelected
+      ? SELECTION_BUTTON_SELECTED_STYLE
+      : SELECTION_BUTTON_UNSELECTED_STYLE
+  );
+  const episodeProgressFillStyle = createMemo(() => ({
+    ...EPISODE_PROGRESS_FILL_STYLE,
+    width: `${episodeProgress()?.pct ?? 0}%`
+  }));
+
   return (
     <GlassCard
       ref={cardRef}
@@ -223,7 +373,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           props.onClick();
         }
       }}
-      onKeyDown={(e: any) => {
+      onKeyDown={(e: KeyboardEvent) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
           props.onClick();
@@ -246,27 +396,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         {/* Loading skeleton */}
         <Show when={!imgLoaded() && !imgError()}>
           <div class="poster-loading" aria-hidden="true">
-            <div
-              style={{
-                position: "absolute",
-                top: "50%",
-                left: "50%",
-                transform: "translate(-50%, -50%)",
-                display: "flex",
-                "flex-direction": "column",
-                "align-items": "center",
-                gap: "8px",
-                opacity: "0.10",
-              }}
-            >
-              <Icon
-                name="movie"
-                style={{
-                  "font-size": "28px",
-                  color: "white",
-                  "pointer-events": "none",
-                }}
-              />
+            <div style={LOADING_SPINNER_STYLE}>
+              <Icon name="movie" style={LOADING_ICON_STYLE} />
             </div>
           </div>
         </Show>
@@ -277,29 +408,11 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           fallback={
             <div
               class="absolute inset-0 flex flex-col items-center justify-center gap-2"
-              style={{
-                background:
-                  "linear-gradient(145deg, var(--tier-3), var(--tier-2))",
-                "z-index": "1",
-              }}
+              style={FALLBACK_POSTER_STYLE}
               aria-hidden="true"
             >
-              <Icon
-                name="movie"
-                style={{ color: "var(--text-dim)", "font-size": "36px" }}
-              />
-              <span
-                style={{
-                  color: "var(--text-dim)",
-                  "font-size": "8px",
-                  "font-weight": 700,
-                  "letter-spacing": "0.1em",
-                  "text-transform": "uppercase",
-                  "font-family": "'Azeret Mono', monospace",
-                }}
-              >
-                No Poster
-              </span>
+              <Icon name="movie" style={FALLBACK_ICON_STYLE} />
+              <span style={NO_POSTER_TEXT_STYLE}>No Poster</span>
             </div>
           }
         >
@@ -320,14 +433,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
         {/* Status badge (top-left) — status-aware color */}
         <div
-          class={`tag-chip absolute top-2 left-2 ${statusBadgeClass()}`}
-          style={{
-            "z-index": "3",
-            "max-width": "calc(100% - 60px)",
-            overflow: "hidden",
-            "text-overflow": "ellipsis",
-            "white-space": "nowrap",
-          }}
+          class={`tag-chip absolute left-2 top-2 ${statusBadgeClass()}`}
+          style={STATUS_BADGE_STYLE}
           aria-hidden="true"
         >
           {statusLabel()}
@@ -340,28 +447,22 @@ const MovieCard: Component<MovieCardProps> = (props) => {
         <Show when={props.isSelectionMode}>
           <button
             type="button"
-            class="absolute top-2 right-2 z-[4] flex items-center justify-center rounded-full focus-ring"
-            style={{
-              width: "44px",
-              height: "44px",
-              background: props.isSelected ? "var(--p)" : "rgba(0,0,0,0.5)",
-              border: props.isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
-              "backdrop-filter": "blur(8px)",
-              "-webkit-backdrop-filter": "blur(8px)",
-              transition: "background 150ms ease-out, border-color 150ms ease-out",
-            }}
+            class="focus-ring absolute right-2 top-2 z-[4] flex items-center justify-center rounded-full"
+            style={selectionButtonStyle()}
             onClick={(e) => {
               e.stopPropagation();
               e.preventDefault();
               props.onToggleSelect?.();
             }}
-            aria-label={props.isSelected ? `Deselect ${title()}` : `Select ${title()}`}
+            aria-label={
+              props.isSelected ? `Deselect ${title()}` : `Select ${title()}`
+            }
             aria-pressed={props.isSelected}
           >
             <Show when={props.isSelected}>
               <span
                 class="material-symbols-outlined"
-                style={{ "font-size": "20px", color: "var(--on-primary, #0a0a0a)" }}
+                style={CHECK_ICON_STYLE}
                 aria-hidden="true"
               >
                 check
@@ -382,7 +483,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             type="button"
             class={`vault-fav-btn focus-ring${localIsFav() ? " is-favourite" : ""}`}
             onClick={toggleFavourite}
-            aria-label={localIsFav() ? "Remove from Favorites" : "Add to Favorites"}
+            aria-label={
+              localIsFav() ? "Remove from Favorites" : "Add to Favorites"
+            }
             aria-pressed={localIsFav()}
           >
             <span class="material-symbols-outlined" aria-hidden="true">
@@ -395,14 +498,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             favourite button is showing so they don't overlap */}
         <Show when={!showFavButton() && props.movie.newSeasonAvailable}>
           <div
-            class="badge-glow absolute top-2 right-2"
-            style={{
-              "z-index": "3",
-              "white-space": "nowrap",
-              "max-width": "none",
-              "font-size": "7px",
-              padding: "3px 8px",
-            }}
+            class="badge-glow absolute right-2 top-2"
+            style={NEW_SEASON_BADGE_STYLE}
             aria-hidden="true"
           >
             New Season
@@ -417,41 +514,25 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             below the info cluster. */}
         <Show when={hasEpisodeProgress()}>
           <div
-            class="absolute bottom-0 left-0 w-full h-1.5 z-20"
-            style={{ background: "rgba(0,0,0,0.5)" }}
+            class="absolute bottom-0 left-0 z-20 h-1.5 w-full"
+            style={EPISODE_PROGRESS_TRACK_STYLE}
             aria-hidden="true"
           >
-            <div
-              class="h-full"
-              style={{
-                background: "var(--p, #e8b74a)",
-                width: `${episodeProgress()!.pct}%`,
-                transition: "width 400ms ease-out",
-              }}
-            />
+            <div class="h-full" style={episodeProgressFillStyle()} />
           </div>
         </Show>
 
         {/* Bottom info cluster — variant-aware density */}
         <div
           class="absolute bottom-0 left-0 w-full"
-          style={{
-            "z-index": 3,
-            padding: variant() === "compact" ? "0.5rem" : "0.625rem",
-          }}
+          style={
+            variant() === "compact"
+              ? BOTTOM_INFO_COMPACT_PADDING
+              : BOTTOM_INFO_DEFAULT_PADDING
+          }
         >
           {/* Title — 2-line clamp */}
-          <p
-            class="type-card-title mb-0.5"
-            style={{
-              display: "-webkit-box",
-              "-webkit-line-clamp": "2",
-              "-webkit-box-orient": "vertical",
-              overflow: "hidden",
-              "line-height": "1.25",
-              "min-height": "1.7em",
-            }}
-          >
+          <p class="type-card-title mb-0.5" style={TITLE_STYLE}>
             <HighlightText text={title()} search={props.search} />
           </p>
 
@@ -476,7 +557,10 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               Passes the lazy MDBList IMDb score as an override so the
               IMDb chip matches the Details modal. */}
           <Show when={variant() !== "compact"}>
-            <MovieCardRatings movie={props.movie} overrideImdbRating={lazyImdbRating()} />
+            <MovieCardRatings
+              movie={props.movie}
+              overrideImdbRating={lazyImdbRating()}
+            />
           </Show>
 
           {/* Compact variant: show year + IMDb rating inline OR episode
@@ -488,15 +572,15 @@ const MovieCard: Component<MovieCardProps> = (props) => {
               when={hasEpisodeProgress()}
               fallback={
                 <div
-                  class="flex items-center gap-1.5 type-subtitle"
+                  class="type-subtitle flex items-center gap-1.5"
                   aria-hidden="true"
                 >
                   <Show when={year()}>
                     <span>{year()}</span>
                   </Show>
                   <Show when={effectiveImdbRating()}>
-                    <span style={{ color: "var(--text-dim)" }}>·</span>
-                    <span style={{ color: "#f5c518" }}>
+                    <span style={COMPACT_RATING_DOT_STYLE}>·</span>
+                    <span style={COMPACT_RATING_STAR_STYLE}>
                       ★ {effectiveImdbRating()}
                     </span>
                   </Show>
@@ -508,16 +592,17 @@ const MovieCard: Component<MovieCardProps> = (props) => {
                   When totalEps is 0 (no season data cached), show ONLY
                   S{season} E{episode} (no fraction) to avoid "0/0 Eps". */}
               <div
-                class="flex items-center gap-1.5 type-subtitle"
+                class="type-subtitle flex items-center gap-1.5"
                 aria-hidden="true"
               >
-                <span style={{ color: "var(--p)", "font-weight": 600 }}>
+                <span style={COMPACT_EPISODE_LABEL_STYLE}>
                   S{episodeProgress()!.season} E{episodeProgress()!.episode}
                 </span>
                 <Show when={episodeProgress()!.seriesTotalEps > 0}>
-                  <span style={{ color: "var(--text-dim)" }}>·</span>
-                  <span style={{ color: "var(--text-muted)" }}>
-                    {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
+                  <span style={COMPACT_EPISODE_DOT_STYLE}>·</span>
+                  <span style={COMPACT_EPISODE_FRACTION_STYLE}>
+                    {episodeProgress()!.seriesCompletedEps}/
+                    {episodeProgress()!.seriesTotalEps} Eps
                   </span>
                 </Show>
               </div>

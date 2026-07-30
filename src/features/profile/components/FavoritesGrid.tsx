@@ -81,12 +81,16 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
       <Show when={collections.loading() && favoritesCollection() === null}>
         <div class="profile-favorites-grid-v3-skeleton">
           <For each={Array.from({ length: 4 })}>
-            {() => <GlassSkeleton class="profile-favorites-grid-v3-skeleton-card" />}
+            {() => (
+              <GlassSkeleton class="profile-favorites-grid-v3-skeleton-card" />
+            )}
           </For>
         </div>
       </Show>
 
-      <Show when={favoritesEntries().length === 0 && favoritesCollection() !== null}>
+      <Show
+        when={favoritesEntries().length === 0 && favoritesCollection() !== null}
+      >
         <GlassEmptyState
           icon="favorite_border"
           title="Your Favorites collection is empty"
@@ -112,8 +116,13 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
               <Show
                 when={entry.poster_path}
                 fallback={
-                  <div class="profile-favorites-grid-v3-poster-fallback" aria-hidden="true">
-                    <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+                  <div
+                    class="profile-favorites-grid-v3-poster-fallback"
+                    aria-hidden="true"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      movie
+                    </span>
                   </div>
                 }
               >
@@ -124,7 +133,9 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
                   decoding="async"
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               </Show>
               <div class="profile-favorites-grid-v3-meta">
@@ -133,11 +144,18 @@ const FavoritesGrid: Component<FavoritesGridProps> = (props) => {
                 </p>
                 <div class="profile-favorites-grid-v3-sub">
                   <Show when={yearOf(entry)}>
-                    <span class="profile-favorites-grid-v3-year">{yearOf(entry)}</span>
+                    <span class="profile-favorites-grid-v3-year">
+                      {yearOf(entry)}
+                    </span>
                   </Show>
                   <Show when={ratingOf(entry) != null}>
                     <span class="profile-favorites-grid-v3-rating">
-                      <span class="material-symbols-outlined" aria-hidden="true">star</span>
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
+                        star
+                      </span>
                       {ratingOf(entry)}
                     </span>
                   </Show>

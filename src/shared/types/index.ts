@@ -20,16 +20,16 @@ export interface WatchProgress {
  * Only `season_number > 0` entries are stored (specials / season 0 excluded).
  */
 export interface CachedSeasonInfo {
-  number: number;   // season_number (1-indexed, excludes 0 = specials)
-  count: number;    // episode_count for this season
+  number: number; // season_number (1-indexed, excludes 0 = specials)
+  count: number; // episode_count for this season
 }
 
 export interface WatchlistItem {
   id: string;
   title?: string;
   name?: string;
-  original_title?: string;     // original/native title (e.g. foreign-language films)
-  original_name?: string;      // original series title
+  original_title?: string; // original/native title (e.g. foreign-language films)
+  original_name?: string; // original series title
   media_type: "movie" | "tv";
   poster_path?: string | null;
   backdrop_path?: string | null;
@@ -79,7 +79,7 @@ export interface WatchlistItem {
   region?: string;
   season?: number;
   episode?: number;
-  totalEps?: number;           // legacy: per-season or per-series episode count (ambiguous — prefer `seasons`)
+  totalEps?: number; // legacy: per-season or per-series episode count (ambiguous — prefer `seasons`)
   /**
    * Cached season structure for TV series. Written by the Details modal
    * whenever TMDB details are fetched. Consumed by the shared progress
@@ -105,7 +105,7 @@ export interface WatchlistItem {
    *  for Indian titles (Hindi/Tamil/Telugu/etc. language codes). */
   spoken_languages?: TMDBSpokenLanguage[];
   castList?: string[];
-  director?: string;          // e.g. "Christopher Nolan" (searchable)
+  director?: string; // e.g. "Christopher Nolan" (searchable)
   /**
    * Full TMDB credits payload (cast + crew). Optional — populated when
    * the vault item is enriched with TMDB credits data. Searched by
@@ -367,7 +367,7 @@ export interface TMDBDetails {
   genres?: TMDBGenre[];
   seasons?: TMDBSeason[];
   media_type?: "movie" | "tv";
-  status?: string;                    // "Released" | "Ended" | "Returning Series" | etc.
+  status?: string; // "Released" | "Ended" | "Returning Series" | etc.
   // Movie-specific
   production_companies?: TMDBProductionCompany[];
   production_countries?: { iso_3166_1: string; name: string }[];
@@ -775,9 +775,7 @@ export interface Trajectory {
  * Empty surfaces are filtered out by the hook before they reach the UI.
  */
 export type TasteSurfaceKind =
-  | "because-you-loved"
-  | "continue-franchise"
-  | "directors-you-love";
+  "because-you-loved" | "continue-franchise" | "directors-you-love";
 
 export interface TasteSurface {
   kind: TasteSurfaceKind;
@@ -849,7 +847,8 @@ export type CollectionType = "official" | "curated" | "user";
  * Legacy values "chronological" | "saga" | "custom" are kept for backward
  * compat with existing preferences rows in the DB; the UI no longer exposes
  * them. They map onto "story" at the adapter layer. */
-export type ViewingOrder = "chronological" | "release" | "saga" | "story" | "franchise" | "custom";
+export type ViewingOrder =
+  "chronological" | "release" | "saga" | "story" | "franchise" | "custom";
 
 /** Timeline data provider */
 export type TimelineProvider = "official" | "cinelog" | "personal";
@@ -1074,7 +1073,15 @@ export interface UniversePreferences {
    ============================================================ */
 
 export interface SmartRule {
-  field: "director" | "genre" | "franchise" | "year" | "rating" | "status" | "keyword" | "release_date";
+  field:
+    | "director"
+    | "genre"
+    | "franchise"
+    | "year"
+    | "rating"
+    | "status"
+    | "keyword"
+    | "release_date";
   operator: "is" | "is_not" | "contains" | "gte" | "lte" | "between";
   value: string | number | [number, number];
 }

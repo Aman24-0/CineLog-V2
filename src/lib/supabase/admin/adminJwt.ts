@@ -68,7 +68,8 @@ function base64UrlEncode(buf: ArrayBuffer | Buffer): string {
  */
 function base64UrlDecode(str: string): Uint8Array {
   const padded = str.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+  const pad =
+    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
   const decoded = atob(padded + pad);
   const bytes = new Uint8Array(decoded.length);
   for (let i = 0; i < decoded.length; i++) bytes[i] = decoded.charCodeAt(i);
@@ -80,7 +81,9 @@ function base64UrlDecode(str: string): Uint8Array {
  */
 function getSecret(): string {
   if (!isServer) {
-    throw new Error("[CineLog Admin] adminJwt: server-only function called on browser");
+    throw new Error(
+      "[CineLog Admin] adminJwt: server-only function called on browser"
+    );
   }
   const secret = process.env.ADMIN_JWT_SECRET;
   if (!secret || secret.length < 16) {
@@ -95,7 +98,9 @@ function getSecret(): string {
 /**
  * Sign a payload with HS256. Returns "header.payload.signature".
  */
-export function signAdminToken(payload: Omit<AdminTokenPayload, "iat" | "exp">): string {
+export function signAdminToken(
+  payload: Omit<AdminTokenPayload, "iat" | "exp">
+): string {
   if (!isServer) {
     throw new Error("[CineLog Admin] signAdminToken: server-only");
   }
@@ -104,7 +109,7 @@ export function signAdminToken(payload: Omit<AdminTokenPayload, "iat" | "exp">):
   const fullPayload: AdminTokenPayload = {
     ...payload,
     iat: now,
-    exp: now + TOKEN_LIFETIME_SECONDS,
+    exp: now + TOKEN_LIFETIME_SECONDS
   };
 
   const header = { alg: "HS256", typ: "JWT" };
@@ -126,7 +131,9 @@ export function signAdminToken(payload: Omit<AdminTokenPayload, "iat" | "exp">):
  * NEVER throws — returns null on any failure so callers can simply
  * treat the user as unauthenticated.
  */
-export function verifyAdminToken(token: string | null | undefined): AdminTokenPayload | null {
+export function verifyAdminToken(
+  token: string | null | undefined
+): AdminTokenPayload | null {
   if (!isServer) return null;
   if (!token || typeof token !== "string") return null;
   if (token.split(".").length !== 3) return null;
@@ -136,7 +143,9 @@ export function verifyAdminToken(token: string | null | undefined): AdminTokenPa
 
   // Verify signature (constant-time comparison)
   const secret = getSecret();
-  const expectedSignature = createHmac("sha256", secret).update(signingInput).digest();
+  const expectedSignature = createHmac("sha256", secret)
+    .update(signingInput)
+    .digest();
   const expectedSignatureB64 = base64UrlEncode(expectedSignature);
 
   // Constant-time comparison to prevent timing attacks
@@ -150,7 +159,9 @@ export function verifyAdminToken(token: string | null | undefined): AdminTokenPa
   // Decode payload
   let payload: AdminTokenPayload;
   try {
-    const payloadJson = Buffer.from(base64UrlDecode(payloadB64)).toString("utf-8");
+    const payloadJson = Buffer.from(base64UrlDecode(payloadB64)).toString(
+      "utf-8"
+    );
     payload = JSON.parse(payloadJson) as AdminTokenPayload;
   } catch {
     return null;
@@ -161,7 +172,10 @@ export function verifyAdminToken(token: string | null | undefined): AdminTokenPa
   if (typeof payload.exp !== "number" || payload.exp < now) return null;
 
   // Sanity-check required fields
-  if (typeof payload.admin_id !== "string" || typeof payload.email !== "string") {
+  if (
+    typeof payload.admin_id !== "string" ||
+    typeof payload.email !== "string"
+  ) {
     return null;
   }
 

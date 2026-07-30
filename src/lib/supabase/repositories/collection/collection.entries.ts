@@ -81,7 +81,9 @@ export async function addItem(
     };
   }
 
-  const position = payload.position ?? (await computeNextPosition(supabase, payload.collectionId));
+  const position =
+    payload.position ??
+    (await computeNextPosition(supabase, payload.collectionId));
   const insert = {
     collection_id: payload.collectionId,
     vault_id: payload.vaultId,

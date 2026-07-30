@@ -1,7 +1,12 @@
 // src/features/watchlist/vaultFilterUtils.ts
 import { resolveTimelineDate } from "~/shared/utils/date";
 import { toMs } from "~/shared/utils/vaultStatus";
-import type { VaultFilters, WatchlistItem, SortField, SortDirection } from "~/shared/types";
+import type {
+  VaultFilters,
+  WatchlistItem,
+  SortField,
+  SortDirection
+} from "~/shared/types";
 import { resolvePlatformDisplayName } from "./platformDisplayNames";
 
 /**
@@ -44,22 +49,32 @@ import { resolvePlatformDisplayName } from "./platformDisplayNames";
  *   "title_asc"   → title, asc
  *   (anything else / missing) → added_date, desc
  */
-const LEGACY_SORT_MAP: Record<string, { field: SortField; direction: SortDirection }> = {
-  recent:      { field: "added_date",   direction: "desc" },
-  updated:     { field: "added_date",   direction: "desc" },
-  watch_desc:  { field: "watch_date",   direction: "desc" },
-  watch_asc:   { field: "watch_date",   direction: "asc"  },
-  year_desc:   { field: "release_date", direction: "desc" },
-  rating_desc: { field: "user_rating",  direction: "desc" },
-  imdb_desc:   { field: "imdb",         direction: "desc" },
-  imdb_asc:    { field: "imdb",         direction: "asc"  },
-  runtime_asc: { field: "runtime",      direction: "asc"  },
-  title_asc:   { field: "title",        direction: "asc"  },
+const LEGACY_SORT_MAP: Record<
+  string,
+  { field: SortField; direction: SortDirection }
+> = {
+  recent: { field: "added_date", direction: "desc" },
+  updated: { field: "added_date", direction: "desc" },
+  watch_desc: { field: "watch_date", direction: "desc" },
+  watch_asc: { field: "watch_date", direction: "asc" },
+  year_desc: { field: "release_date", direction: "desc" },
+  rating_desc: { field: "user_rating", direction: "desc" },
+  imdb_desc: { field: "imdb", direction: "desc" },
+  imdb_asc: { field: "imdb", direction: "asc" },
+  runtime_asc: { field: "runtime", direction: "asc" },
+  title_asc: { field: "title", direction: "asc" }
 };
 
 const VALID_SORT_FIELDS: ReadonlySet<SortField> = new Set<SortField>([
-  "title", "release_date", "user_rating", "imdb", "rt", "mt",
-  "runtime", "added_date", "watch_date",
+  "title",
+  "release_date",
+  "user_rating",
+  "imdb",
+  "rt",
+  "mt",
+  "runtime",
+  "added_date",
+  "watch_date"
 ]);
 
 export function normalizeVaultFilters(input: unknown): VaultFilters {
@@ -75,10 +90,14 @@ export function normalizeVaultFilters(input: unknown): VaultFilters {
     sortField: "added_date",
     sortDirection: "desc",
     tag: "all",
-    imdbMin: "", imdbMax: "",
-    rtMin: "", rtMax: "",
-    yearMin: "", yearMax: "",
-    runtimeMin: "", runtimeMax: "",
+    imdbMin: "",
+    imdbMax: "",
+    rtMin: "",
+    rtMax: "",
+    yearMin: "",
+    yearMax: "",
+    runtimeMin: "",
+    runtimeMax: ""
   };
   if (!input || typeof input !== "object") return out;
   const f = input as Record<string, unknown>;
@@ -93,7 +112,16 @@ export function normalizeVaultFilters(input: unknown): VaultFilters {
     if (typeof f[k] === "string") outMut[k] = f[k];
   }
   // Range fields — copy if present and string-typed.
-  for (const k of ["imdbMin", "imdbMax", "rtMin", "rtMax", "yearMin", "yearMax", "runtimeMin", "runtimeMax"]) {
+  for (const k of [
+    "imdbMin",
+    "imdbMax",
+    "rtMin",
+    "rtMax",
+    "yearMin",
+    "yearMax",
+    "runtimeMin",
+    "runtimeMax"
+  ]) {
     if (typeof f[k] === "string") outMut[k] = f[k];
   }
 
@@ -111,7 +139,8 @@ export function normalizeVaultFilters(input: unknown): VaultFilters {
   // pre-v2.6 (which only have `sort`, not `sortField`/`sortDirection`).
   if (
     (typeof sf !== "string" || !VALID_SORT_FIELDS.has(sf as SortField)) &&
-    (sd !== "asc" && sd !== "desc") &&
+    sd !== "asc" &&
+    sd !== "desc" &&
     typeof f.sort === "string"
   ) {
     const legacy = LEGACY_SORT_MAP[f.sort];
@@ -159,7 +188,8 @@ function getSearchText(m: WatchlistItem): string {
   if (m.genresList) {
     for (const g of m.genresList) {
       if (typeof g === "string") genresStr += " " + g;
-      else if (g && typeof g === "object" && "name" in g) genresStr += " " + String((g as { name: unknown }).name);
+      else if (g && typeof g === "object" && "name" in g)
+        genresStr += " " + String((g as { name: unknown }).name);
     }
   }
   // Build cast string without intermediate array.
@@ -197,16 +227,26 @@ function getSearchText(m: WatchlistItem): string {
   }
 
   const text = (
-    (m.title || "") + " " +
-    (m.original_title || "") + " " +
-    (m.name || "") + " " +
-    (m.original_name || "") + " " +
-    (m.tag || "") + " " +
-    (m.notes || "") + " " +
-    (m.director || "") + " " +
-    year + " " +
-    castStr + " " +
-    genresStr + " " +
+    (m.title || "") +
+    " " +
+    (m.original_title || "") +
+    " " +
+    (m.name || "") +
+    " " +
+    (m.original_name || "") +
+    " " +
+    (m.tag || "") +
+    " " +
+    (m.notes || "") +
+    " " +
+    (m.director || "") +
+    " " +
+    year +
+    " " +
+    castStr +
+    " " +
+    genresStr +
+    " " +
     platformsStr
   ).toLowerCase();
 
@@ -227,34 +267,39 @@ export function matchSearch(m: WatchlistItem, query: string): boolean {
 /** Apply the quick-filter status tab + advanced status filter. */
 export function filterByStatus(
   items: WatchlistItem[],
-  effectiveStatus: string,
+  effectiveStatus: string
 ): WatchlistItem[] {
   if (effectiveStatus === "all") return items;
   return items.filter(
     (m) =>
       m.status === effectiveStatus ||
-      (effectiveStatus === "Planned" && m.status === "Plan to Watch"),
+      (effectiveStatus === "Planned" && m.status === "Plan to Watch")
   );
 }
 
 /** Apply the advanced filters (type, region, genre, platform, tag). */
 export function filterByAdvanced(
   items: WatchlistItem[],
-  f: VaultFilters,
+  f: VaultFilters
 ): WatchlistItem[] {
   let out = items;
   if (f.type !== "all") out = out.filter((m) => m.media_type === f.type);
   if (f.region !== "all") out = out.filter((m) => matchesRegion(m, f.region));
-  if (f.genre !== "all") out = out.filter((m) => {
-    if (!m.genresList || !Array.isArray(m.genresList)) return false;
-    return m.genresList.some((g) => {
-      const name = typeof g === "string" ? g
-        : typeof g === "object" && g !== null && "name" in g ? String((g as { name: unknown }).name)
-        : String(g);
-      return name === f.genre;
+  if (f.genre !== "all")
+    out = out.filter((m) => {
+      if (!m.genresList || !Array.isArray(m.genresList)) return false;
+      return m.genresList.some((g) => {
+        const name =
+          typeof g === "string"
+            ? g
+            : typeof g === "object" && g !== null && "name" in g
+              ? String((g as { name: unknown }).name)
+              : String(g);
+        return name === f.genre;
+      });
     });
-  });
-  if (f.platform !== "all") out = out.filter((m) => matchesPlatform(m, f.platform));
+  if (f.platform !== "all")
+    out = out.filter((m) => matchesPlatform(m, f.platform));
   if (f.tag !== "all") out = out.filter((m) => m.tag === f.tag);
   return out;
 }
@@ -276,7 +321,18 @@ export function filterByAdvanced(
  * the filter is safe when the arrays are missing (older vault items).
  */
 const INDIAN_LANGUAGE_CODES = new Set([
-  "hi", "ta", "te", "kn", "ml", "bn", "mr", "gu", "pa", "ur", "or", "as",
+  "hi",
+  "ta",
+  "te",
+  "kn",
+  "ml",
+  "bn",
+  "mr",
+  "gu",
+  "pa",
+  "ur",
+  "or",
+  "as"
 ]);
 
 function matchesRegion(m: WatchlistItem, region: string): boolean {
@@ -284,12 +340,16 @@ function matchesRegion(m: WatchlistItem, region: string): boolean {
     // 1. Explicit region field
     if (m.region === "Indian") return true;
     // 2. TMDB origin_country includes IN
-    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN")) return true;
+    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN"))
+      return true;
     // 3. Spoken languages include an Indian language code
     if (Array.isArray(m.spoken_languages)) {
       for (const lang of m.spoken_languages) {
         if (!lang || typeof lang !== "object") continue;
-        const code = typeof lang.iso_639_1 === "string" ? lang.iso_639_1.toLowerCase() : "";
+        const code =
+          typeof lang.iso_639_1 === "string"
+            ? lang.iso_639_1.toLowerCase()
+            : "";
         if (code && INDIAN_LANGUAGE_CODES.has(code)) return true;
       }
     }
@@ -298,7 +358,8 @@ function matchesRegion(m: WatchlistItem, region: string): boolean {
   if (region === "International") {
     // NOT Indian — includes items with no region data (backwards compat).
     if (m.region === "Indian") return false;
-    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN")) return false;
+    if (Array.isArray(m.origin_country) && m.origin_country.includes("IN"))
+      return false;
     return true;
   }
   // Unknown region value — pass through (don't filter)
@@ -358,16 +419,22 @@ function matchesPlatform(m: WatchlistItem, platform: string): boolean {
 /** Apply the numeric range filters (IMDb / RT / year / runtime). */
 export function filterByRanges(
   items: WatchlistItem[],
-  f: VaultFilters,
+  f: VaultFilters
 ): WatchlistItem[] {
-  const inRange = (value: string | number | undefined, min: string, max: string) => {
+  const inRange = (
+    value: string | number | undefined,
+    min: string,
+    max: string
+  ) => {
     const n = Number(value);
     if (min !== "" && (isNaN(n) || n < Number(min))) return false;
     if (max !== "" && (isNaN(n) || n > Number(max))) return false;
     return true;
   };
   return items.filter((m) => {
-    const year = parseInt((m.release_date || m.first_air_date || "").substring(0, 4)) || NaN;
+    const year =
+      parseInt((m.release_date || m.first_air_date || "").substring(0, 4)) ||
+      NaN;
     const rt = Number((m.rtRating || "").replace("%", "")) || NaN;
     return (
       inRange(m.imdbRating, f.imdbMin, f.imdbMax) &&
@@ -400,7 +467,7 @@ export function filterByRanges(
 export function sortItems(
   items: WatchlistItem[],
   field: SortField,
-  direction: SortDirection,
+  direction: SortDirection
 ): WatchlistItem[] {
   // Pre-extract a sortable key for each item so the comparator is O(1)
   // per comparison instead of re-parsing strings on every sort step.
@@ -477,7 +544,12 @@ export function sortItems(
     if (field === "release_date") {
       // ISO date strings compare lexicographically = chronologically.
       // cmp = -1 when a < b (a is older), +1 when a > b (a is newer).
-      const cmp = (ka as string) < (kb as string) ? -1 : (ka as string) > (kb as string) ? 1 : 0;
+      const cmp =
+        (ka as string) < (kb as string)
+          ? -1
+          : (ka as string) > (kb as string)
+            ? 1
+            : 0;
       // desc (newest first): if a is newer (cmp=+1), want a first → return +1. So return cmp.
       // asc  (oldest first): if a is older (cmp=-1), want a first → return -1. So return -cmp... wait.
       // Actually: Array.sort treats negative as "a first", positive as "b first".
@@ -498,9 +570,12 @@ export function sortItems(
 }
 
 /** Compute the active filter chips for display in the header. */
-export function computeChips(f: VaultFilters): { label: string; key: string }[] {
+export function computeChips(
+  f: VaultFilters
+): { label: string; key: string }[] {
   const out: { label: string; key: string }[] = [];
-  if (f.type !== "all") out.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
+  if (f.type !== "all")
+    out.push({ label: f.type === "movie" ? "Movies" : "Series", key: "type" });
   if (f.region !== "all") out.push({ label: f.region, key: "region" });
   if (f.genre !== "all") out.push({ label: f.genre, key: "genre" });
   // Resolve platform to its display name so the chip shows "Netflix"
@@ -516,8 +591,10 @@ export function computeChips(f: VaultFilters): { label: string; key: string }[] 
   if (f.rtMax) out.push({ label: `RT < ${f.rtMax}`, key: "rtMax" });
   if (f.yearMin) out.push({ label: `Year > ${f.yearMin}`, key: "yearMin" });
   if (f.yearMax) out.push({ label: `Year < ${f.yearMax}`, key: "yearMax" });
-  if (f.runtimeMin) out.push({ label: `RT > ${f.runtimeMin}m`, key: "runtimeMin" });
-  if (f.runtimeMax) out.push({ label: `RT < ${f.runtimeMax}m`, key: "runtimeMax" });
+  if (f.runtimeMin)
+    out.push({ label: `RT > ${f.runtimeMin}m`, key: "runtimeMin" });
+  if (f.runtimeMax)
+    out.push({ label: `RT < ${f.runtimeMax}m`, key: "runtimeMax" });
   return out;
 }
 
@@ -544,10 +621,20 @@ export function countActiveFilters(f: VaultFilters): number {
 /** True when any advanced filter is set (ignoring status, which is owned by the quick tab). */
 export function hasAdvancedFiltersActive(f: VaultFilters): boolean {
   return (
-    f.type !== "all" || f.region !== "all" || f.genre !== "all" ||
-    f.platform !== "all" || f.tag !== "all" ||
-    f.sortField !== "added_date" || f.sortDirection !== "desc" ||
-    f.imdbMin !== "" || f.imdbMax !== "" || f.rtMin !== "" || f.rtMax !== "" ||
-    f.yearMin !== "" || f.yearMax !== "" || f.runtimeMin !== "" || f.runtimeMax !== ""
+    f.type !== "all" ||
+    f.region !== "all" ||
+    f.genre !== "all" ||
+    f.platform !== "all" ||
+    f.tag !== "all" ||
+    f.sortField !== "added_date" ||
+    f.sortDirection !== "desc" ||
+    f.imdbMin !== "" ||
+    f.imdbMax !== "" ||
+    f.rtMin !== "" ||
+    f.rtMax !== "" ||
+    f.yearMin !== "" ||
+    f.yearMax !== "" ||
+    f.runtimeMin !== "" ||
+    f.runtimeMax !== ""
   );
 }

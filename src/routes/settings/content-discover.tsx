@@ -21,10 +21,23 @@
 //   merging, no hidden services.
 
 import { Title } from "@solidjs/meta";
-import { For, Show, createMemo, createSignal, onMount, createEffect, type Component } from "solid-js";
+import {
+  For,
+  Show,
+  createMemo,
+  createSignal,
+  onMount,
+  createEffect,
+  type Component
+} from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { ControlRow, Segmented, ToggleRow, SelectRow } from "~/features/settings/sharedControls";
+import {
+  ControlRow,
+  Segmented,
+  ToggleRow,
+  SelectRow
+} from "~/features/settings/sharedControls";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   adultContentFilter,
@@ -42,22 +55,25 @@ import {
   mergeAndSortProviders,
   type TmdbProvider,
   type DiscoverTab,
-  type RatingScale,
+  type RatingScale
 } from "~/core/preferences";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
-import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
+import {
+  getWatchProviderList,
+  getWatchProviderListTv
+} from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 
 const DISCOVER_TAB_OPTIONS: { id: DiscoverTab; label: string }[] = [
-  { id: "all",   label: "All" },
+  { id: "all", label: "All" },
   { id: "movie", label: "Movies" },
-  { id: "tv",    label: "Series" },
+  { id: "tv", label: "Series" }
 ];
 
 const RATING_SCALE_OPTIONS: { id: RatingScale; label: string }[] = [
   { id: "10star", label: "10-star" },
-  { id: "5star",  label: "5-star" },
-  { id: "thumbs", label: "Thumbs" },
+  { id: "5star", label: "5-star" },
+  { id: "thumbs", label: "Thumbs" }
 ];
 
 /**
@@ -66,12 +82,12 @@ const RATING_SCALE_OPTIONS: { id: RatingScale; label: string }[] = [
  * applied client-side: titles with a higher rating are filtered out.
  */
 const RATING_CAP_OPTIONS = [
-  { value: "",        label: "No cap — show everything" },
-  { value: "G",       label: "G (US) / U (IN) — General" },
-  { value: "PG",      label: "PG (US) / U/A — Parental Guidance" },
-  { value: "PG-13",   label: "PG-13 (US) / U/A 13+ — Teens" },
-  { value: "UA-16",   label: "U/A 16+ (IN) — Older Teens" },
-  { value: "R",       label: "R (US) / A (IN) — Adult" },
+  { value: "", label: "No cap — show everything" },
+  { value: "G", label: "G (US) / U (IN) — General" },
+  { value: "PG", label: "PG (US) / U/A — Parental Guidance" },
+  { value: "PG-13", label: "PG-13 (US) / U/A 13+ — Teens" },
+  { value: "UA-16", label: "U/A 16+ (IN) — Older Teens" },
+  { value: "R", label: "R (US) / A (IN) — Adult" }
 ];
 
 const ContentDiscoverRoute: Component = () => {
@@ -96,7 +112,7 @@ const ContentDiscoverRoute: Component = () => {
     try {
       const [movieRes, tvRes] = await Promise.allSettled([
         getWatchProviderList(reg),
-        getWatchProviderListTv(reg),
+        getWatchProviderListTv(reg)
       ]);
       const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
       const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
@@ -110,7 +126,9 @@ const ContentDiscoverRoute: Component = () => {
     }
   };
 
-  onMount(() => { void loadProviders(region()); });
+  onMount(() => {
+    void loadProviders(region());
+  });
   // Refetch when the region changes (user switched country in settings).
   createEffect(() => {
     const r = region();
@@ -120,7 +138,11 @@ const ContentDiscoverRoute: Component = () => {
   const handleToggleProvider = (provider: TmdbProvider) => {
     toggleStreamingProvider(provider.id);
     const isActive = streamingProviders().includes(provider.id);
-    showToast(isActive ? "Provider added to your subscriptions" : "Provider removed", "info", 1200);
+    showToast(
+      isActive ? "Provider added to your subscriptions" : "Provider removed",
+      "info",
+      1200
+    );
   };
 
   const activeProviderCount = createMemo(() => streamingProviders().length);
@@ -132,14 +154,25 @@ const ContentDiscoverRoute: Component = () => {
         <ScrollToTop />
         <div class="sec-page sec-fade-in">
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                arrow_back
+              </span>
               Settings
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Content & Discover</h1>
             <p class="sec-subtitle">
-              Control what shows in Discover, which streaming providers you use, and how ratings are displayed.
+              Control what shows in Discover, which streaming providers you use,
+              and how ratings are displayed.
             </p>
           </div>
 
@@ -155,7 +188,11 @@ const ContentDiscoverRoute: Component = () => {
                   current={adultContentFilter}
                   onChange={(v) => {
                     setAdultContentFilter(v);
-                    showToast(v ? "Adult content hidden" : "Adult content visible", "info", 1200);
+                    showToast(
+                      v ? "Adult content hidden" : "Adult content visible",
+                      "info",
+                      1200
+                    );
                   }}
                 />
                 <SelectRow
@@ -165,15 +202,29 @@ const ContentDiscoverRoute: Component = () => {
                   value={contentRatingCap}
                   onChange={(v) => {
                     setContentRatingCap(v);
-                    showToast(v ? `Rating cap set to ${v}` : "Rating cap removed", "info", 1200);
+                    showToast(
+                      v ? `Rating cap set to ${v}` : "Rating cap removed",
+                      "info",
+                      1200
+                    );
                   }}
                   options={RATING_CAP_OPTIONS}
                 />
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>Real effect:</strong> When the adult filter is on, CineLog passes <code>include_adult=false</code> to TMDB API calls AND filters out any titles with <code>adult: true</code> client-side as a safety net. The rating cap filters by certification on the title's release_dates.
+                  <strong>Real effect:</strong> When the adult filter is on,
+                  CineLog passes <code>include_adult=false</code> to TMDB API
+                  calls AND filters out any titles with <code>adult: true</code>{" "}
+                  client-side as a safety net. The rating cap filters by
+                  certification on the title's release_dates.
                 </p>
               </div>
             </section>
@@ -197,20 +248,45 @@ const ContentDiscoverRoute: Component = () => {
               <p class="sec-section-label">
                 Streaming Providers
                 <Show when={activeProviderCount() > 0}>
-                  <span style={{ "margin-left": "var(--sp-2)", "font-size": "0.6875rem", color: "var(--p)", "font-weight": 700 }}>
+                  <span
+                    style={{
+                      "margin-left": "var(--sp-2)",
+                      "font-size": "0.6875rem",
+                      color: "var(--p)",
+                      "font-weight": 700
+                    }}
+                  >
                     {activeProviderCount()} active
                   </span>
                 </Show>
               </p>
-              <div class="setting-group" style={{ padding: "var(--sp-4) var(--sp-5)" }}>
-                <p style={{ "font-size": "0.8125rem", color: "var(--text-muted)", margin: 0, "margin-bottom": "var(--sp-2)" }}>
-                  Tap the providers you subscribe to. Discover will prioritize titles available on your services, and Where-to-watch will only show your providers.
+              <div
+                class="setting-group"
+                style={{ padding: "var(--sp-4) var(--sp-5)" }}
+              >
+                <p
+                  style={{
+                    "font-size": "0.8125rem",
+                    color: "var(--text-muted)",
+                    margin: 0,
+                    "margin-bottom": "var(--sp-2)"
+                  }}
+                >
+                  Tap the providers you subscribe to. Discover will prioritize
+                  titles available on your services, and Where-to-watch will
+                  only show your providers.
                 </p>
                 <div class="provider-chip-grid">
                   <For each={providers()}>
                     {(provider) => {
-                      const active = createMemo(() => streamingProviders().includes(provider.id));
-                      const logoUrl = createMemo(() => provider.logoPath ? tmdbImage(provider.logoPath, "w92") : "");
+                      const active = createMemo(() =>
+                        streamingProviders().includes(provider.id)
+                      );
+                      const logoUrl = createMemo(() =>
+                        provider.logoPath
+                          ? tmdbImage(provider.logoPath, "w92")
+                          : ""
+                      );
                       return (
                         <button
                           type="button"
@@ -221,9 +297,14 @@ const ContentDiscoverRoute: Component = () => {
                           aria-pressed={active()}
                         >
                           <div class="provider-chip-icon" aria-hidden="true">
-                            <Show when={logoUrl()} fallback={
-                              <span class="provider-chip-icon-letter">{provider.name.charAt(0)}</span>
-                            }>
+                            <Show
+                              when={logoUrl()}
+                              fallback={
+                                <span class="provider-chip-icon-letter">
+                                  {provider.name.charAt(0)}
+                                </span>
+                              }
+                            >
                               <img
                                 src={logoUrl()}
                                 class="provider-chip-logo"
@@ -237,8 +318,15 @@ const ContentDiscoverRoute: Component = () => {
                               />
                             </Show>
                           </div>
-                          <span class="provider-chip-name">{provider.name}</span>
-                          <span class="material-symbols-outlined provider-chip-check" aria-hidden="true">check_circle</span>
+                          <span class="provider-chip-name">
+                            {provider.name}
+                          </span>
+                          <span
+                            class="material-symbols-outlined provider-chip-check"
+                            aria-hidden="true"
+                          >
+                            check_circle
+                          </span>
                         </button>
                       );
                     }}
@@ -249,9 +337,19 @@ const ContentDiscoverRoute: Component = () => {
                 </div>
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>Real effect:</strong> The Discover "New on OTT" section and any Where-to-watch badges on Detail pages will only show providers you've selected. If no providers are selected, CineLog shows all available providers (default behavior).
+                  <strong>Real effect:</strong> The Discover "New on OTT"
+                  section and any Where-to-watch badges on Detail pages will
+                  only show providers you've selected. If no providers are
+                  selected, CineLog shows all available providers (default
+                  behavior).
                 </p>
               </div>
             </section>
@@ -293,15 +391,20 @@ const ContentDiscoverRoute: Component = () => {
                 </ControlRow>
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
                   <strong>Example:</strong> A 7.5/10 TMDB rating displays as:
                   <br />
                   • 10-star → "7.5/10"
                   <br />
                   • 5-star → "3.8★"
-                  <br />
-                  • Thumbs → "👍" (7.0+ thumbs up, 5.0+ okay, below 👎)
+                  <br />• Thumbs → "👍" (7.0+ thumbs up, 5.0+ okay, below 👎)
                 </p>
               </div>
             </section>

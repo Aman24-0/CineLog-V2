@@ -16,7 +16,15 @@
 //   addToCollection, removeFromCollection, createCollection,
 //   renameCollection, deleteCollection, duplicateCollection,
 //   reorderEntries, updateCollectionMeta
-import {createContext, useContext, createSignal, onMount, onCleanup, createEffect, ParentComponent} from "solid-js";
+import {
+  createContext,
+  useContext,
+  createSignal,
+  onMount,
+  onCleanup,
+  createEffect,
+  ParentComponent
+} from "solid-js";
 import { onSessionChange } from "~/lib/supabase/session";
 import type { Session } from "~/lib/supabase/session";
 import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
@@ -31,17 +39,21 @@ import {
   fetchCollectionsFromSupabase,
   renameCollectionInSupabase,
   unarchiveCollectionInSupabase,
-  updateCollectionMetaInSupabase,
+  updateCollectionMetaInSupabase
 } from "../collectionAdapter";
 import {
   addEntryToCollectionByTmdbId,
   removeEntryFromCollectionByTmdbId,
   removeVaultItemFromAllCollections,
-  reorderEntriesInCollection,
+  reorderEntriesInCollection
 } from "../collectionEntryAdapter";
 import { useUniversePrefsLogic } from "./useUniversePrefs";
 import { createCollectionQueries } from "./collectionQueries";
-import { COLLECTION_FEATURE_SUPPORT, UnsupportedFeatureError, detectUnsupportedMetaFields } from "../collectionErrors";
+import {
+  COLLECTION_FEATURE_SUPPORT,
+  UnsupportedFeatureError,
+  detectUnsupportedMetaFields
+} from "../collectionErrors";
 import type { CollectionMetaInput } from "../collectionErrors";
 import type { Collection, CollectionEntry, SmartRule } from "~/shared/types";
 
@@ -61,10 +73,13 @@ const makeTempId = (): string => `temp-${Date.now()}-${++_tempIdCounter}`;
  * collection (e.g., addToCollection) can await the real ID before sending
  * their own server writes.
  */
-const pendingTempIds = new Map<string, {
-  promise: Promise<string>;
-  resolve: (id: string) => void;
-}>();
+const pendingTempIds = new Map<
+  string,
+  {
+    promise: Promise<string>;
+    resolve: (id: string) => void;
+  }
+>();
 
 /**
  * Wait for a collection's real server-assigned ID. If the collectionId is
@@ -96,11 +111,12 @@ const sortCollectionsLocal = (cols: Collection[]): Collection[] => {
  */
 const applyMetaLocally = (
   col: Collection,
-  meta: CollectionMetaInput,
+  meta: CollectionMetaInput
 ): Collection => {
   const updated = { ...col };
   if (meta.name !== undefined) updated.name = meta.name;
-  if (meta.description !== undefined) updated.description = meta.description ?? undefined;
+  if (meta.description !== undefined)
+    updated.description = meta.description ?? undefined;
   if (meta.coverUrl !== undefined) {
     updated.coverImagePath = meta.coverUrl ?? undefined;
     updated.poster_path = meta.coverUrl ?? undefined;
@@ -112,7 +128,9 @@ const applyMetaLocally = (
   if (meta.emoji !== undefined) updated.emoji = meta.emoji;
   if (meta.isArchived !== undefined) {
     updated.isArchived = meta.isArchived;
-    updated.archivedAt = meta.isArchived ? (updated.archivedAt ?? new Date().toISOString()) : null;
+    updated.archivedAt = meta.isArchived
+      ? (updated.archivedAt ?? new Date().toISOString())
+      : null;
   }
   updated.updatedAt = new Date().toISOString();
   return updated;
@@ -176,17 +194,22 @@ const useCollectionsLogic = () => {
         try {
           await Promise.race([
             ensureFavoritesExistsInSupabase(supabaseUid),
-            new Promise<void>((_, reject) => setTimeout(() => reject(new Error("timeout")), 5000)),
+            new Promise<void>((_, reject) =>
+              setTimeout(() => reject(new Error("timeout")), 5000)
+            )
           ]);
         } catch (err) {
           // Non-fatal: collections still load even if Favorites creation fails/times out.
           if ((err as Error)?.message !== "timeout") {
-            console.error("[useCollections] ensureFavoritesExists failed:", err);
+            console.error(
+              "[useCollections] ensureFavoritesExists failed:",
+              err
+            );
           }
         }
         await Promise.all([
           refreshCollections(supabaseUid),
-          universePrefs.refreshUniversePrefs(supabaseUid),
+          universePrefs.refreshUniversePrefs(supabaseUid)
         ]);
       } catch (err) {
         // GUARANTEE: loading MUST become false even if refreshCollections or
@@ -206,10 +229,12 @@ const useCollectionsLogic = () => {
 
   onMount(() => {
     try {
-      const subscription = onSessionChange(async (_event, session: Session | null) => {
-        const supabaseUid = session?.user?.id ?? null;
-        await loadForUid(supabaseUid);
-      });
+      const subscription = onSessionChange(
+        async (_event, session: Session | null) => {
+          const supabaseUid = session?.user?.id ?? null;
+          await loadForUid(supabaseUid);
+        }
+      );
       unsubAuth = () => subscription.unsubscribe();
     } catch (err) {
       console.error("[useCollections] Auth subscription failed:", err);
@@ -242,10 +267,15 @@ const useCollectionsLogic = () => {
     }
   });
 
-  onCleanup(() => { if (unsubAuth) unsubAuth(); });
+  onCleanup(() => {
+    if (unsubAuth) unsubAuth();
+  });
 
   const curated = (): Collection[] => CURATED_COLLECTIONS;
-  const allCollections = (): Collection[] => [...userCollections(), ...curated()];
+  const allCollections = (): Collection[] => [
+    ...userCollections(),
+    ...curated()
+  ];
 
   // ─── Optimistic Collection CRUD ───────────────────────────
 
@@ -255,7 +285,10 @@ const useCollectionsLogic = () => {
    */
   const createCollection = async (name: string): Promise<void> => {
     const uid = getCurrentUid();
-    if (!uid) { showToast("Sign in to create collections.", "error"); return; }
+    if (!uid) {
+      showToast("Sign in to create collections.", "error");
+      return;
+    }
 
     const tempId = makeTempId();
     const now = new Date().toISOString();
@@ -263,25 +296,32 @@ const useCollectionsLogic = () => {
     // Register the pending ID so subsequent operations (e.g., addToCollection)
     // on this temp-ID'd collection can await the real server ID.
     let resolveRealId!: (id: string) => void;
-    const realIdPromise = new Promise<string>((resolve) => { resolveRealId = resolve; });
-    pendingTempIds.set(tempId, { promise: realIdPromise, resolve: resolveRealId });
+    const realIdPromise = new Promise<string>((resolve) => {
+      resolveRealId = resolve;
+    });
+    pendingTempIds.set(tempId, {
+      promise: realIdPromise,
+      resolve: resolveRealId
+    });
 
     const snapshot = userCollections();
     try {
       // Optimistic: add the new collection with temp ID
-      setUserCollections(sortCollectionsLocal([
-        ...snapshot,
-        {
-          id: tempId,
-          name,
-          type: "user" as const,
-          entries: [],
-          createdAt: now,
-          updatedAt: now,
-          isFavorites: false,
-          isSmart: false,
-        },
-      ]));
+      setUserCollections(
+        sortCollectionsLocal([
+          ...snapshot,
+          {
+            id: tempId,
+            name,
+            type: "user" as const,
+            entries: [],
+            createdAt: now,
+            updatedAt: now,
+            isFavorites: false,
+            isSmart: false
+          }
+        ])
+      );
 
       // Fire server write
       const serverId = await createCollectionInSupabase(uid, name);
@@ -289,7 +329,7 @@ const useCollectionsLogic = () => {
       if (serverId) {
         // Reconcile: replace temp ID with real ID in local state
         setUserCollections((prev) =>
-          prev.map((c) => c.id === tempId ? { ...c, id: serverId } : c)
+          prev.map((c) => (c.id === tempId ? { ...c, id: serverId } : c))
         );
         // Resolve the pending promise so any waiting operations can proceed
         resolveRealId(serverId);
@@ -316,9 +356,15 @@ const useCollectionsLogic = () => {
    * created (temp ID), waits for the real server ID before sending the
    * server write.
    */
-  const addToCollection = async (collectionId: string, entry: CollectionEntry): Promise<void> => {
+  const addToCollection = async (
+    collectionId: string,
+    entry: CollectionEntry
+  ): Promise<void> => {
     const uid = getCurrentUid();
-    if (!uid) { showToast("Sign in to save to collections.", "error"); return; }
+    if (!uid) {
+      showToast("Sign in to save to collections.", "error");
+      return;
+    }
 
     const snapshot = userCollections();
     try {
@@ -335,9 +381,16 @@ const useCollectionsLogic = () => {
 
       // Wait for real ID if this is a temp collection
       const realId = await waitForRealId(collectionId);
-      await addEntryToCollectionByTmdbId(uid, realId, entry.id, entry.media_type);
+      await addEntryToCollectionByTmdbId(
+        uid,
+        realId,
+        entry.id,
+        entry.media_type
+      );
 
-      const col = userCollections().find((c) => c.id === collectionId || c.id === realId);
+      const col = userCollections().find(
+        (c) => c.id === collectionId || c.id === realId
+      );
       showToast(`Added to ${col?.name ?? "collection"}`, "success", 1500);
     } catch (err) {
       setUserCollections(snapshot);
@@ -350,7 +403,11 @@ const useCollectionsLogic = () => {
    * Remove an entry from a collection. Optimistic: filters the entry out
    * of the collection's entries array immediately.
    */
-  const removeFromCollection = async (collectionId: string, entryId: string, mediaType: string): Promise<void> => {
+  const removeFromCollection = async (
+    collectionId: string,
+    entryId: string,
+    mediaType: string
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
 
@@ -364,13 +421,18 @@ const useCollectionsLogic = () => {
                 ...c,
                 entries: (c.entries ?? []).filter(
                   (e) => !(e.id === entryId && e.media_type === mediaType)
-                ),
+                )
               }
             : c
         )
       );
 
-      await removeEntryFromCollectionByTmdbId(uid, collectionId, entryId, mediaType as "movie" | "tv");
+      await removeEntryFromCollectionByTmdbId(
+        uid,
+        collectionId,
+        entryId,
+        mediaType as "movie" | "tv"
+      );
     } catch (err) {
       setUserCollections(snapshot);
       console.error("Failed to remove:", err);
@@ -383,13 +445,17 @@ const useCollectionsLogic = () => {
    * optimise locally (entries use TMDB IDs, but we only have the
    * vault UUID). Falls back to full refreshCollections.
    */
-  const removeVaultItemFromAllUserCollections = async (vaultId: string): Promise<void> => {
+  const removeVaultItemFromAllUserCollections = async (
+    vaultId: string
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
       await removeVaultItemFromAllCollections(uid, vaultId);
       await refreshCollections(uid);
-    } catch (err) { console.error("Failed to cascade-remove from collections:", err); }
+    } catch (err) {
+      console.error("Failed to cascade-remove from collections:", err);
+    }
   };
 
   /**
@@ -419,7 +485,10 @@ const useCollectionsLogic = () => {
    * Rename a collection. Optimistic: updates the name in local state
    * immediately.
    */
-  const renameCollection = async (collectionId: string, newName: string): Promise<void> => {
+  const renameCollection = async (
+    collectionId: string,
+    newName: string
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
 
@@ -448,7 +517,10 @@ const useCollectionsLogic = () => {
    * (including unsupported ones like emoji, isArchived) to local state
    * immediately so the UI reflects the change instantly.
    */
-  const updateCollectionMeta = async (collectionId: string, meta: CollectionMetaInput): Promise<void> => {
+  const updateCollectionMeta = async (
+    collectionId: string,
+    meta: CollectionMetaInput
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
 
@@ -461,16 +533,18 @@ const useCollectionsLogic = () => {
 
       // Optimistic: apply all meta fields locally
       setUserCollections((prev) =>
-        prev.map((c) =>
-          c.id === collectionId ? applyMetaLocally(c, meta) : c
-        )
+        prev.map((c) => (c.id === collectionId ? applyMetaLocally(c, meta) : c))
       );
 
       // Server write — only supported fields
       await updateCollectionMetaInSupabase(collectionId, supported);
 
       if (dropped) {
-        showToast(`Saved, but unsupported: ${dropped.droppedFields.join(", ")}`, "info", 3000);
+        showToast(
+          `Saved, but unsupported: ${dropped.droppedFields.join(", ")}`,
+          "info",
+          3000
+        );
       } else {
         showToast("Updated", "success", 1500);
       }
@@ -498,8 +572,13 @@ const useCollectionsLogic = () => {
 
     // Register the pending ID
     let resolveRealId!: (id: string) => void;
-    const realIdPromise = new Promise<string>((resolve) => { resolveRealId = resolve; });
-    pendingTempIds.set(tempId, { promise: realIdPromise, resolve: resolveRealId });
+    const realIdPromise = new Promise<string>((resolve) => {
+      resolveRealId = resolve;
+    });
+    pendingTempIds.set(tempId, {
+      promise: realIdPromise,
+      resolve: resolveRealId
+    });
 
     const snapshot = userCollections();
     try {
@@ -511,7 +590,7 @@ const useCollectionsLogic = () => {
         entries: [...(source.entries ?? [])],
         isFavorites: false,
         createdAt: now,
-        updatedAt: now,
+        updatedAt: now
       };
       setUserCollections(sortCollectionsLocal([...snapshot, clone]));
 
@@ -521,7 +600,7 @@ const useCollectionsLogic = () => {
       if (serverId) {
         // Reconcile: replace temp ID with real ID
         setUserCollections((prev) =>
-          prev.map((c) => c.id === tempId ? { ...c, id: serverId } : c)
+          prev.map((c) => (c.id === tempId ? { ...c, id: serverId } : c))
         );
         resolveRealId(serverId);
       } else {
@@ -543,7 +622,10 @@ const useCollectionsLogic = () => {
    * Reorder entries in a collection. Optimistic: replaces the entries
    * array with the new order immediately.
    */
-  const reorderEntries = async (collectionId: string, entries: CollectionEntry[]): Promise<void> => {
+  const reorderEntries = async (
+    collectionId: string,
+    entries: CollectionEntry[]
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
 
@@ -566,7 +648,10 @@ const useCollectionsLogic = () => {
       // Persist. `reorderEntriesInCollection` writes BOTH `position`
       // (legacy 1-based) AND `order_index` (0-based) in a single
       // transaction via collection.entries.updateEntryPosition.
-      await reorderEntriesInCollection(collectionId, entries.map((e) => e.id));
+      await reorderEntriesInCollection(
+        collectionId,
+        entries.map((e) => e.id)
+      );
     } catch (err) {
       setUserCollections(snapshot);
       console.error("Failed to reorder:", err);
@@ -613,7 +698,9 @@ const useCollectionsLogic = () => {
    * Unarchive a user collection — clears `archived_at`. Brings the
    * collection back into the default Collections grid.
    */
-  const unarchiveCollection = async (collectionId: string): Promise<boolean> => {
+  const unarchiveCollection = async (
+    collectionId: string
+  ): Promise<boolean> => {
     const uid = getCurrentUid();
     if (!uid) return false;
 
@@ -622,7 +709,12 @@ const useCollectionsLogic = () => {
       setUserCollections((prev) =>
         prev.map((c) =>
           c.id === collectionId
-            ? { ...c, archivedAt: null, isArchived: false, updatedAt: new Date().toISOString() }
+            ? {
+                ...c,
+                archivedAt: null,
+                isArchived: false,
+                updatedAt: new Date().toISOString()
+              }
             : c
         )
       );
@@ -647,49 +739,66 @@ const useCollectionsLogic = () => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
-      const items = await fetchCollectionsFromSupabase(uid, { includeArchived: true });
+      const items = await fetchCollectionsFromSupabase(uid, {
+        includeArchived: true
+      });
       setUserCollections(Array.isArray(items) ? items : []);
     } catch (err) {
       console.error("[useCollections] fetchWithArchived failed:", err);
     }
   };
 
-  const createSmartCollection = async (name: string, rules: SmartRule[]): Promise<void> => {
+  const createSmartCollection = async (
+    name: string,
+    rules: SmartRule[]
+  ): Promise<void> => {
     const uid = getCurrentUid();
-    if (!uid) { showToast("Sign in to create collections.", "error"); return; }
+    if (!uid) {
+      showToast("Sign in to create collections.", "error");
+      return;
+    }
 
     const tempId = makeTempId();
     const now = new Date().toISOString();
 
     // Register the pending ID
     let resolveRealId!: (id: string) => void;
-    const realIdPromise = new Promise<string>((resolve) => { resolveRealId = resolve; });
-    pendingTempIds.set(tempId, { promise: realIdPromise, resolve: resolveRealId });
+    const realIdPromise = new Promise<string>((resolve) => {
+      resolveRealId = resolve;
+    });
+    pendingTempIds.set(tempId, {
+      promise: realIdPromise,
+      resolve: resolveRealId
+    });
 
     const snapshot = userCollections();
     try {
       // Optimistic: add the new smart collection with temp ID
-      setUserCollections(sortCollectionsLocal([
-        ...snapshot,
-        {
-          id: tempId,
-          name,
-          type: "user" as const,
-          entries: [],
-          createdAt: now,
-          updatedAt: now,
-          isFavorites: false,
-          isSmart: true,
-          smartRules: rules,
-        },
-      ]));
+      setUserCollections(
+        sortCollectionsLocal([
+          ...snapshot,
+          {
+            id: tempId,
+            name,
+            type: "user" as const,
+            entries: [],
+            createdAt: now,
+            updatedAt: now,
+            isFavorites: false,
+            isSmart: true,
+            smartRules: rules
+          }
+        ])
+      );
 
       // Fire server write
-      const serverId = await createCollectionInSupabase(uid, name, { collectionType: "smart" });
+      const serverId = await createCollectionInSupabase(uid, name, {
+        collectionType: "smart"
+      });
 
       if (serverId) {
         setUserCollections((prev) =>
-          prev.map((c) => c.id === tempId ? { ...c, id: serverId } : c)
+          prev.map((c) => (c.id === tempId ? { ...c, id: serverId } : c))
         );
         resolveRealId(serverId);
       } else {
@@ -715,7 +824,10 @@ const useCollectionsLogic = () => {
     }
   };
 
-  const updateSmartRules = async (collectionId: string, rules: SmartRule[]): Promise<void> => {
+  const updateSmartRules = async (
+    collectionId: string,
+    rules: SmartRule[]
+  ): Promise<void> => {
     // Phase 8.1 — Smart collection rules CANNOT be persisted. The
     // collections table has no JSONB or rules column. Instead of
     // silently ignoring (the old behavior), we throw an explicit
@@ -728,7 +840,11 @@ const useCollectionsLogic = () => {
         "Smart collection rules cannot be saved — the database schema does not support persisting rules."
       );
       console.warn(err.message);
-      showToast("Rules are evaluated live and cannot be saved (schema limitation).", "info", 3000);
+      showToast(
+        "Rules are evaluated live and cannot be saved (schema limitation).",
+        "info",
+        3000
+      );
     }
   };
 
@@ -736,27 +852,45 @@ const useCollectionsLogic = () => {
   const queries = createCollectionQueries(userCollections);
 
   return {
-    userCollections, curatedCollections: curated, allCollections, loading,
+    userCollections,
+    curatedCollections: curated,
+    allCollections,
+    loading,
     ...universePrefs,
-    createCollection, addToCollection, removeFromCollection, deleteCollection,
-    renameCollection, updateCollectionMeta, duplicateCollection, reorderEntries,
-    createSmartCollection, updateSmartRules,
+    createCollection,
+    addToCollection,
+    removeFromCollection,
+    deleteCollection,
+    renameCollection,
+    updateCollectionMeta,
+    duplicateCollection,
+    reorderEntries,
+    createSmartCollection,
+    updateSmartRules,
     refreshCollections,
     removeVaultItemFromAllUserCollections,
-    archiveCollection, unarchiveCollection, fetchWithArchived,
-    ...queries,
+    archiveCollection,
+    unarchiveCollection,
+    fetchWithArchived,
+    ...queries
   };
 };
 
-const CollectionsContext = createContext<ReturnType<typeof useCollectionsLogic>>();
+const CollectionsContext =
+  createContext<ReturnType<typeof useCollectionsLogic>>();
 
 export const CollectionsProvider: ParentComponent = (props) => {
   const collections = useCollectionsLogic();
-  return <CollectionsContext.Provider value={collections}>{props.children}</CollectionsContext.Provider>;
+  return (
+    <CollectionsContext.Provider value={collections}>
+      {props.children}
+    </CollectionsContext.Provider>
+  );
 };
 
 export function useCollections() {
   const ctx = useContext(CollectionsContext);
-  if (!ctx) throw new Error("useCollections must be used within a CollectionsProvider");
+  if (!ctx)
+    throw new Error("useCollections must be used within a CollectionsProvider");
   return ctx;
 }

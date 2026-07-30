@@ -77,7 +77,7 @@ const STATUS_BUTTONS: ReadonlyArray<{
   { label: "Planned", value: "Planned", icon: "bookmark" },
   { label: "Watching", value: "Watching", icon: "play_circle" },
   { label: "Completed", value: "Completed", icon: "task_alt" },
-  { label: "Dropped", value: "Dropped", icon: "block" },
+  { label: "Dropped", value: "Dropped", icon: "block" }
 ];
 
 export default function ActionDock(props: ActionDockProps) {
@@ -129,13 +129,16 @@ export default function ActionDock(props: ActionDockProps) {
                 class="material-symbols-outlined"
                 style={{
                   "font-size": "16px",
-                  "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                  "font-variation-settings":
+                    "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
                 }}
                 aria-hidden="true"
               >
                 {props.isAdding ? "progress_activity" : "add"}
               </span>
-              <span id="action-add-label" class="hidden sm:inline">{props.isAdding ? "Adding…" : "Add to Watchlist"}</span>
+              <span id="action-add-label" class="hidden sm:inline">
+                {props.isAdding ? "Adding…" : "Add to Watchlist"}
+              </span>
             </button>
             <Show when={props.onShare}>
               <button
@@ -151,14 +154,20 @@ export default function ActionDock(props: ActionDockProps) {
                 >
                   share
                 </span>
-                <span id="action-share-label-nonvault" class="hidden sm:inline">Share</span>
+                <span id="action-share-label-nonvault" class="hidden sm:inline">
+                  Share
+                </span>
               </button>
             </Show>
           </div>
         }
       >
         {/* LINE 1 — status buttons */}
-        <div class="action-dock-row action-dock-status-row" role="group" aria-label="Set watch status">
+        <div
+          class="action-dock-row action-dock-status-row"
+          role="group"
+          aria-label="Set watch status"
+        >
           <For each={STATUS_BUTTONS}>
             {(btn) => (
               <button
@@ -172,7 +181,8 @@ export default function ActionDock(props: ActionDockProps) {
                   class="material-symbols-outlined"
                   style={{
                     "font-size": "15px",
-                    "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                    "font-variation-settings":
+                      "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
                   }}
                   aria-hidden="true"
                 >
@@ -186,7 +196,7 @@ export default function ActionDock(props: ActionDockProps) {
 
         {/* LINE 2 — action buttons.
             Trailer button removed — the hero backdrop now owns the
-            "Watch Trailer" overlay CTA (Netflix-style). */ }
+            "Watch Trailer" overlay CTA (Netflix-style). */}
         <div class="action-dock-row action-dock-actions-row">
           <Show when={props.onOpenFolders}>
             <button
@@ -202,7 +212,9 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 folder
               </span>
-              <span id="action-folder-label" class="hidden sm:inline">Folder</span>
+              <span id="action-folder-label" class="hidden sm:inline">
+                Folder
+              </span>
             </button>
           </Show>
 
@@ -220,7 +232,9 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 share
               </span>
-              <span id="action-share-label" class="hidden sm:inline">Share</span>
+              <span id="action-share-label" class="hidden sm:inline">
+                Share
+              </span>
             </button>
           </Show>
 
@@ -237,7 +251,9 @@ export default function ActionDock(props: ActionDockProps) {
             >
               edit
             </span>
-            <span id="action-edit-label" class="hidden sm:inline">Edit</span>
+            <span id="action-edit-label" class="hidden sm:inline">
+              Edit
+            </span>
           </button>
 
           <Show when={props.onRemove}>
@@ -259,7 +275,9 @@ export default function ActionDock(props: ActionDockProps) {
               >
                 delete
               </span>
-              <span id="action-delete-label" class="hidden sm:inline">Delete</span>
+              <span id="action-delete-label" class="hidden sm:inline">
+                Delete
+              </span>
             </button>
           </Show>
         </div>

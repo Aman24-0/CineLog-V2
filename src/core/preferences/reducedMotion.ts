@@ -15,12 +15,14 @@ function isReducedMotion(v: string | null): v is ReducedMotionPref {
 
 const storedRM = readStored<string>(REDUCED_MOTION_KEY, "system");
 
-export const [reducedMotion, setReducedMotion] = createSignal<ReducedMotionPref>(
-  isReducedMotion(storedRM) ? storedRM : "system"
-);
+export const [reducedMotion, setReducedMotion] =
+  createSignal<ReducedMotionPref>(
+    isReducedMotion(storedRM) ? storedRM : "system"
+  );
 
 function systemWantsReducedMotion(): boolean {
-  if (isServer || typeof window === "undefined" || !window.matchMedia) return false;
+  if (isServer || typeof window === "undefined" || !window.matchMedia)
+    return false;
   return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 }
 
@@ -44,7 +46,10 @@ if (!isServer && typeof window !== "undefined" && window.matchMedia) {
   const mql = window.matchMedia("(prefers-reduced-motion: reduce)");
   mql.addEventListener("change", () => {
     if (reducedMotion() === "system") {
-      applyDataAttr("data-reduced-motion-active", String(systemWantsReducedMotion()));
+      applyDataAttr(
+        "data-reduced-motion-active",
+        String(systemWantsReducedMotion())
+      );
     }
   });
 }

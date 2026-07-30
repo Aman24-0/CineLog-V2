@@ -56,38 +56,34 @@ export const COUNTRIES: CountryOption[] = [
       { code: "bn", label: "Bengali" },
       { code: "mr", label: "Marathi" },
       { code: "gu", label: "Gujarati" },
-      { code: "en", label: "English" },
-    ],
+      { code: "en", label: "English" }
+    ]
   },
   {
     code: "US",
     label: "United States",
     languages: [
       { code: "en", label: "English" },
-      { code: "es", label: "Spanish" },
-    ],
+      { code: "es", label: "Spanish" }
+    ]
   },
   {
     code: "GB",
     label: "United Kingdom",
-    languages: [
-      { code: "en", label: "English" },
-    ],
+    languages: [{ code: "en", label: "English" }]
   },
   {
     code: "CA",
     label: "Canada",
     languages: [
       { code: "en", label: "English" },
-      { code: "fr", label: "French" },
-    ],
+      { code: "fr", label: "French" }
+    ]
   },
   {
     code: "AU",
     label: "Australia",
-    languages: [
-      { code: "en", label: "English" },
-    ],
+    languages: [{ code: "en", label: "English" }]
   },
   {
     code: "DE",
@@ -95,38 +91,34 @@ export const COUNTRIES: CountryOption[] = [
     languages: [
       { code: "de", label: "German" },
       { code: "en", label: "English" },
-      { code: "tr", label: "Turkish" },
-    ],
+      { code: "tr", label: "Turkish" }
+    ]
   },
   {
     code: "FR",
     label: "France",
     languages: [
       { code: "fr", label: "French" },
-      { code: "en", label: "English" },
-    ],
+      { code: "en", label: "English" }
+    ]
   },
   {
     code: "JP",
     label: "Japan",
-    languages: [
-      { code: "ja", label: "Japanese" },
-    ],
+    languages: [{ code: "ja", label: "Japanese" }]
   },
   {
     code: "KR",
     label: "South Korea",
-    languages: [
-      { code: "ko", label: "Korean" },
-    ],
+    languages: [{ code: "ko", label: "Korean" }]
   },
   {
     code: "CN",
     label: "China",
     languages: [
       { code: "zh", label: "Mandarin" },
-      { code: "cn", label: "Cantonese" },
-    ],
+      { code: "cn", label: "Cantonese" }
+    ]
   },
   {
     code: "ES",
@@ -134,37 +126,31 @@ export const COUNTRIES: CountryOption[] = [
     languages: [
       { code: "es", label: "Spanish" },
       { code: "ca", label: "Catalan" },
-      { code: "eu", label: "Basque" },
-    ],
+      { code: "eu", label: "Basque" }
+    ]
   },
   {
     code: "IT",
     label: "Italy",
-    languages: [
-      { code: "it", label: "Italian" },
-    ],
+    languages: [{ code: "it", label: "Italian" }]
   },
   {
     code: "BR",
     label: "Brazil",
     languages: [
       { code: "pt", label: "Portuguese" },
-      { code: "es", label: "Spanish" },
-    ],
+      { code: "es", label: "Spanish" }
+    ]
   },
   {
     code: "MX",
     label: "Mexico",
-    languages: [
-      { code: "es", label: "Spanish" },
-    ],
+    languages: [{ code: "es", label: "Spanish" }]
   },
   {
     code: "RU",
     label: "Russia",
-    languages: [
-      { code: "ru", label: "Russian" },
-    ],
+    languages: [{ code: "ru", label: "Russian" }]
   },
   {
     code: "AE",
@@ -172,39 +158,35 @@ export const COUNTRIES: CountryOption[] = [
     languages: [
       { code: "ar", label: "Arabic" },
       { code: "en", label: "English" },
-      { code: "hi", label: "Hindi" },
-    ],
+      { code: "hi", label: "Hindi" }
+    ]
   },
   {
     code: "SA",
     label: "Saudi Arabia",
-    languages: [
-      { code: "ar", label: "Arabic" },
-    ],
+    languages: [{ code: "ar", label: "Arabic" }]
   },
   {
     code: "TR",
     label: "Turkey",
-    languages: [
-      { code: "tr", label: "Turkish" },
-    ],
+    languages: [{ code: "tr", label: "Turkish" }]
   },
   {
     code: "NL",
     label: "Netherlands",
     languages: [
       { code: "nl", label: "Dutch" },
-      { code: "en", label: "English" },
-    ],
+      { code: "en", label: "English" }
+    ]
   },
   {
     code: "SE",
     label: "Sweden",
     languages: [
       { code: "sv", label: "Swedish" },
-      { code: "en", label: "English" },
-    ],
-  },
+      { code: "en", label: "English" }
+    ]
+  }
 ];
 
 /**
@@ -234,21 +216,25 @@ export const INTERNATIONAL_LANGUAGES: LanguageOption[] = [
   { code: "id", label: "Indonesian" },
   { code: "sv", label: "Swedish" },
   { code: "nl", label: "Dutch" },
-  { code: "pl", label: "Polish" },
+  { code: "pl", label: "Polish" }
 ];
 
 /** Default country if the user has never set one. */
 export const DEFAULT_COUNTRY_CODE = "IN" as const;
 
 /** Lookup helper: find a country option by code. */
-export function findCountry(code: string | null | undefined): CountryOption | null {
+export function findCountry(
+  code: string | null | undefined
+): CountryOption | null {
   if (!code) return null;
   const upper = code.toUpperCase();
   return COUNTRIES.find((c) => c.code === upper) ?? null;
 }
 
 /** Lookup helper: get the language list for a country code. */
-export function languagesForCountry(code: string | null | undefined): LanguageOption[] {
+export function languagesForCountry(
+  code: string | null | undefined
+): LanguageOption[] {
   return findCountry(code)?.languages ?? [];
 }
 

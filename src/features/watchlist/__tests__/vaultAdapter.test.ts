@@ -4,14 +4,14 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // Mock the repository singletons BEFORE importing the adapters.
 vi.mock("~/lib/supabase/repositories", () => ({
   getVaultRepository: vi.fn(),
-  getEpisodeProgressRepository: vi.fn(),
+  getEpisodeProgressRepository: vi.fn()
 }));
 
 import {
   vaultRowToWatchlistItem,
   vaultIdentity,
   createVaultItemInSupabase,
-  fetchVaultFromSupabase,
+  fetchVaultFromSupabase
 } from "../vaultReadAdapter";
 import {
   updateStatusInSupabase,
@@ -23,11 +23,11 @@ import {
   togglePinnedInSupabase,
   deleteVaultItemInSupabase,
   restoreVaultItemInSupabase,
-  updateVaultItemInSupabase,
+  updateVaultItemInSupabase
 } from "../vaultAdapter";
 import { getVaultRepository } from "~/lib/supabase/repositories";
 import type { VaultRow } from "~/lib/supabase/repositories";
-import {makeMovie} from "~/__test-fixtures__/factories";
+import { makeMovie } from "~/__test-fixtures__/factories";
 
 const mockVaultRow = {
   id: "vault-uuid-1",
@@ -47,7 +47,7 @@ const mockVaultRow = {
   last_activity_at: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as VaultRow;
 
 describe("vaultReadAdapter", () => {
@@ -126,7 +126,7 @@ describe("vaultReadAdapter", () => {
       expect(result).toEqual({
         userId: "user-1",
         tmdbId: 123,
-        mediaType: "movie",
+        mediaType: "movie"
       });
     });
   });
@@ -138,7 +138,9 @@ describe("vaultReadAdapter", () => {
 
     it("creates vault item and returns merged WatchlistItem", async () => {
       const mockRepo = {
-        createVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        createVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -151,30 +153,32 @@ describe("vaultReadAdapter", () => {
         expect.objectContaining({
           userId: "user-1",
           tmdbId: 123,
-          mediaType: "movie",
-        }),
+          mediaType: "movie"
+        })
       );
     });
 
     it("throws on error", async () => {
       const mockRepo = {
-        createVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Insert failed") }),
+        createVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Insert failed") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        createVaultItemInSupabase("user-1", makeMovie({ id: "123" })),
+        createVaultItemInSupabase("user-1", makeMovie({ id: "123" }))
       ).rejects.toThrow("Insert failed");
     });
 
     it("throws when data is null without error", async () => {
       const mockRepo = {
-        createVaultItem: vi.fn().mockResolvedValue({ data: null, error: null }),
+        createVaultItem: vi.fn().mockResolvedValue({ data: null, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        createVaultItemInSupabase("user-1", makeMovie({ id: "123" })),
+        createVaultItemInSupabase("user-1", makeMovie({ id: "123" }))
       ).rejects.toThrow("no data");
     });
   });
@@ -186,16 +190,31 @@ describe("vaultReadAdapter", () => {
 
     it("fetches all statuses and merges results", async () => {
       // Each status returns a different row so we can verify merge + sort
-      const plannedRow = { ...mockVaultRow, tmdb_id: 1, created_at: "2024-01-01T00:00:00Z" };
-      const watchingRow = { ...mockVaultRow, tmdb_id: 2, created_at: "2024-06-01T00:00:00Z" };
-      const completedRow = { ...mockVaultRow, tmdb_id: 3, created_at: "2024-03-01T00:00:00Z" };
+      const plannedRow = {
+        ...mockVaultRow,
+        tmdb_id: 1,
+        created_at: "2024-01-01T00:00:00Z"
+      };
+      const watchingRow = {
+        ...mockVaultRow,
+        tmdb_id: 2,
+        created_at: "2024-06-01T00:00:00Z"
+      };
+      const completedRow = {
+        ...mockVaultRow,
+        tmdb_id: 3,
+        created_at: "2024-03-01T00:00:00Z"
+      };
       const mockRepo = {
         getVaultByStatus: vi.fn().mockImplementation((_userId, status) => {
-          if (status === "planned") return Promise.resolve({ data: [plannedRow], error: null });
-          if (status === "watching") return Promise.resolve({ data: [watchingRow], error: null });
-          if (status === "completed") return Promise.resolve({ data: [completedRow], error: null });
+          if (status === "planned")
+            return Promise.resolve({ data: [plannedRow], error: null });
+          if (status === "watching")
+            return Promise.resolve({ data: [watchingRow], error: null });
+          if (status === "completed")
+            return Promise.resolve({ data: [completedRow], error: null });
           return Promise.resolve({ data: [], error: null });
-        }),
+        })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -220,7 +239,7 @@ describe("vaultReadAdapter", () => {
             return Promise.resolve({ data: [mockVaultRow], error: null });
           }
           return Promise.resolve({ data: [], error: null });
-        }),
+        })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -231,7 +250,7 @@ describe("vaultReadAdapter", () => {
 
     it("returns empty array when all statuses return empty", async () => {
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null }),
+        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -246,12 +265,18 @@ describe("vaultAdapter (writes)", () => {
     vi.clearAllMocks();
   });
 
-  const identity = { userId: "user-1", tmdbId: 123, mediaType: "movie" as const };
+  const identity = {
+    userId: "user-1",
+    tmdbId: 123,
+    mediaType: "movie" as const
+  };
 
   describe("updateStatusInSupabase", () => {
     it("calls repo.updateStatus and throws on error", async () => {
       const mockRepo = {
-        updateStatus: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateStatus: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -261,12 +286,14 @@ describe("vaultAdapter (writes)", () => {
 
     it("throws on error", async () => {
       const mockRepo = {
-        updateStatus: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        updateStatus: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        updateStatusInSupabase("user-1", "123", "movie", "Watching"),
+        updateStatusInSupabase("user-1", "123", "movie", "Watching")
       ).rejects.toThrow("Fail");
     });
   });
@@ -274,7 +301,9 @@ describe("vaultAdapter (writes)", () => {
   describe("updateRatingInSupabase", () => {
     it("calls repo.updateRating", async () => {
       const mockRepo = {
-        updateRating: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateRating: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -286,31 +315,42 @@ describe("vaultAdapter (writes)", () => {
   describe("updateNotesInSupabase", () => {
     it("calls repo.updateNotes", async () => {
       const mockRepo = {
-        updateNotes: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateNotes: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await updateNotesInSupabase("user-1", "123", "movie", "Great movie!");
-      expect(mockRepo.updateNotes).toHaveBeenCalledWith(identity, "Great movie!");
+      expect(mockRepo.updateNotes).toHaveBeenCalledWith(
+        identity,
+        "Great movie!"
+      );
     });
   });
 
   describe("updateWatchDateInSupabase", () => {
     it("calls repo.updateVaultItem with { watched_on }", async () => {
       const mockRepo = {
-        updateVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await updateWatchDateInSupabase("user-1", "123", "movie", "2024-06-01");
-      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, { watched_on: "2024-06-01" });
+      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, {
+        watched_on: "2024-06-01"
+      });
     });
   });
 
   describe("updateProgressInSupabase", () => {
     it("calls repo.updateProgress", async () => {
       const mockRepo = {
-        updateProgress: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateProgress: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -322,42 +362,58 @@ describe("vaultAdapter (writes)", () => {
   describe("toggleFavoriteInSupabase", () => {
     it("calls repo.updateVaultItem with toggled is_favorite", async () => {
       const mockRepo = {
-        updateVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await toggleFavoriteInSupabase("user-1", "123", "movie", false);
-      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, { is_favorite: true });
+      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, {
+        is_favorite: true
+      });
     });
 
     it("toggles from true to false", async () => {
       const mockRepo = {
-        updateVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await toggleFavoriteInSupabase("user-1", "123", "movie", true);
-      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, { is_favorite: false });
+      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, {
+        is_favorite: false
+      });
     });
   });
 
   describe("togglePinnedInSupabase", () => {
     it("calls repo.updateVaultItem with toggled is_pinned", async () => {
       const mockRepo = {
-        updateVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await togglePinnedInSupabase("user-1", "123", "movie", false);
-      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, { is_pinned: true });
+      expect(mockRepo.updateVaultItem).toHaveBeenCalledWith(identity, {
+        is_pinned: true
+      });
     });
   });
 
   describe("deleteVaultItemInSupabase", () => {
     it("calls repo.deleteVaultItem", async () => {
       const mockRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
-        deleteVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
+        deleteVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -367,13 +423,17 @@ describe("vaultAdapter (writes)", () => {
 
     it("throws on error", async () => {
       const mockRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
-        deleteVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Delete failed") }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
+        deleteVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Delete failed") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        deleteVaultItemInSupabase("user-1", "123", "movie"),
+        deleteVaultItemInSupabase("user-1", "123", "movie")
       ).rejects.toThrow("Delete failed");
     });
   });
@@ -381,7 +441,9 @@ describe("vaultAdapter (writes)", () => {
   describe("restoreVaultItemInSupabase", () => {
     it("calls repo.restoreVaultItem", async () => {
       const mockRepo = {
-        restoreVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        restoreVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -393,7 +455,9 @@ describe("vaultAdapter (writes)", () => {
   describe("updateVaultItemInSupabase", () => {
     it("calls repo.updateVaultItem with arbitrary update", async () => {
       const mockRepo = {
-        updateVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        updateVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 

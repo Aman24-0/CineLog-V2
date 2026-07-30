@@ -36,7 +36,7 @@ export function presetRowToFilterPreset(row: PresetRow): FilterPreset {
     id: row.id,
     name: row.name,
     filters: normalizeVaultFilters(row.filters) as VaultFilters,
-    createdAt: row.created_at,
+    createdAt: row.created_at
   };
 }
 
@@ -50,7 +50,9 @@ export function presetRowToFilterPreset(row: PresetRow): FilterPreset {
  *
  * @returns An array of `FilterPreset` (empty if none or error).
  */
-export async function fetchPresetsFromSupabase(userId: string): Promise<FilterPreset[]> {
+export async function fetchPresetsFromSupabase(
+  userId: string
+): Promise<FilterPreset[]> {
   const repo = getPresetRepository();
   const { data, error } = await repo.listPresets(userId);
   if (error) {
@@ -106,7 +108,9 @@ export async function renamePresetInSupabase(
  *
  * @returns true on success, false on failure.
  */
-export async function deletePresetFromSupabase(presetId: string): Promise<boolean> {
+export async function deletePresetFromSupabase(
+  presetId: string
+): Promise<boolean> {
   const repo = getPresetRepository();
   const { error } = await repo.deletePreset(presetId);
   if (error) {

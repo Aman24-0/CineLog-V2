@@ -20,7 +20,10 @@
  * repositories.
  */
 
-export { DashboardRepository, getDashboardRepository } from "./dashboard.repository";
+export {
+  DashboardRepository,
+  getDashboardRepository
+} from "./dashboard.repository";
 
 export type {
   // Row aliases — EpisodeProgressRow is unique to this barrel.

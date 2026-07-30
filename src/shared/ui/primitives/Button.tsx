@@ -32,24 +32,36 @@ const sizePadding: Record<ButtonSize, string> = {
  */
 const Button: Component<ButtonProps> = (props) => {
   const [local, rest] = splitProps(props, [
-    "variant", "size", "icon", "iconFill", "fullWidth",
-    "class", "style", "children"
+    "variant",
+    "size",
+    "icon",
+    "iconFill",
+    "fullWidth",
+    "class",
+    "style",
+    "children",
+    "type"
   ]);
 
   const variant = () => local.variant ?? "primary";
   const size = () => local.size ?? "md";
-  const classBase = () => variant() === "primary" ? "btn-primary" : "btn-ghost";
+  const classBase = () =>
+    variant() === "primary" ? "btn-primary" : "btn-ghost";
 
   const resolvedStyle = (): JSX.CSSProperties => {
     const base: JSX.CSSProperties = { padding: sizePadding[size()] };
     if (local.fullWidth) base.width = "100%";
-    if (local.style && typeof local.style === "object") Object.assign(base, local.style);
+    if (local.style && typeof local.style === "object")
+      Object.assign(base, local.style);
     return base;
   };
 
   return (
     <button
       {...rest}
+      // Default to type="button" so the button never accidentally submits
+      // a parent <form>. Callers can still override by passing type="submit".
+      type={local.type ?? "button"}
       class={`${classBase()} focus-ring${local.class ? ` ${local.class}` : ""}`}
       style={resolvedStyle()}
     >

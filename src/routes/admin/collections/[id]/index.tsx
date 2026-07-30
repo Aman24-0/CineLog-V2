@@ -7,8 +7,10 @@
 // /collections/<id>/edit page.
 
 import { Title } from "@solidjs/meta";
-import { ErrorBoundary } from "solid-js";
-import AdminCollectionEditorPage from "~/features/admin/AdminCollectionEditorPage";
+import { lazy, ErrorBoundary } from "solid-js";
+const AdminCollectionEditorPage = lazy(
+  () => import("~/features/admin/AdminCollectionEditorPage")
+);
 
 export default function AdminCollectionEditorRoute() {
   return (
@@ -20,7 +22,12 @@ export default function AdminCollectionEditorRoute() {
             <h2 style={{ color: "#f87171", "margin-bottom": "var(--sp-2)" }}>
               Couldn't load collection editor
             </h2>
-            <p style={{ color: "var(--text-muted)", "margin-bottom": "var(--sp-4)" }}>
+            <p
+              style={{
+                color: "var(--text-muted)",
+                "margin-bottom": "var(--sp-4)"
+              }}
+            >
               {error.message || "Unknown error"}
             </p>
             <button
@@ -32,7 +39,7 @@ export default function AdminCollectionEditorRoute() {
                 border: "1px solid var(--hairline)",
                 padding: "var(--sp-2) var(--sp-4)",
                 "border-radius": "var(--radius-md)",
-                cursor: "pointer",
+                cursor: "pointer"
               }}
             >
               Retry

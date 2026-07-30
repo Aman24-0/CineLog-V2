@@ -65,8 +65,8 @@ async function fetchJSON(url: string, init?: RequestInit): Promise<unknown> {
     ...init,
     headers: {
       "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+      ...(init?.headers ?? {})
+    }
   });
   let body: unknown = null;
   try {
@@ -115,13 +115,17 @@ export function useAdminAuth() {
      *   • `login(email, password, pin)` — classic email+password path
      *     for users who have a password set on their account.
      */
-    async login(email: string, password: string, pin: string): Promise<LoginResult> {
+    async login(
+      email: string,
+      password: string,
+      pin: string
+    ): Promise<LoginResult> {
       setLoginLoading(true);
       setLoginError(null);
       try {
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ email, password, pin, mode: "password" }),
+          body: JSON.stringify({ email, password, pin, mode: "password" })
         })) as LoginResult;
 
         if (body?.ok && body.admin) {
@@ -162,28 +166,33 @@ export function useAdminAuth() {
         if (!isServer) {
           try {
             const supabase = getClient();
-            const { data, error: sessionError } = await supabase.auth.getSession();
+            const { data, error: sessionError } =
+              await supabase.auth.getSession();
             if (sessionError) {
               setLoginError(sessionError.message);
               return { ok: false, error: sessionError.message };
             }
             accessToken = data.session?.access_token ?? null;
           } catch (err) {
-            const errMsg = err instanceof Error ? err.message : "Failed to read CineLog session";
+            const errMsg =
+              err instanceof Error
+                ? err.message
+                : "Failed to read CineLog session";
             setLoginError(errMsg);
             return { ok: false, error: errMsg };
           }
         }
 
         if (!accessToken) {
-          const msg = "No active CineLog session. Please sign in to CineLog first.";
+          const msg =
+            "No active CineLog session. Please sign in to CineLog first.";
           setLoginError(msg);
           return { ok: false, error: msg };
         }
 
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ pin, mode: "session", accessToken }),
+          body: JSON.stringify({ pin, mode: "session", accessToken })
         })) as LoginResult;
 
         if (body?.ok && body.admin) {
@@ -215,7 +224,9 @@ export function useAdminAuth() {
     /** Re-check the session cookie. Useful after route changes. */
     async refresh(): Promise<void> {
       try {
-        const body = (await fetchJSON("/api/admin/auth", { method: "GET" })) as {
+        const body = (await fetchJSON("/api/admin/auth", {
+          method: "GET"
+        })) as {
           ok: boolean;
           admin?: AdminSession;
         };
@@ -229,7 +240,7 @@ export function useAdminAuth() {
       } finally {
         setAdminReady(true);
       }
-    },
+    }
   };
 }
 
@@ -247,7 +258,7 @@ if (!isServer) {
       const resp = (await fetch("/api/admin/auth", {
         method: "GET",
         credentials: "include",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json" }
       }).then((r) => r.json().catch(() => ({ ok: false })))) as {
         ok: boolean;
         admin?: AdminSession;

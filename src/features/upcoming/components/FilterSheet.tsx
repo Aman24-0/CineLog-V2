@@ -62,7 +62,7 @@ const POPULAR_GENRES: { id: number; label: string }[] = [
   { id: 9648, label: "Mystery" },
   { id: 10749, label: "Romance" },
   { id: 878, label: "Sci-Fi" },
-  { id: 53, label: "Thriller" },
+  { id: 53, label: "Thriller" }
 ];
 
 const REGIONS: { code: string; label: string }[] = [
@@ -81,14 +81,14 @@ const REGIONS: { code: string; label: string }[] = [
   { code: "ES", label: "Spain" },
   { code: "IT", label: "Italy" },
   { code: "NL", label: "Netherlands" },
-  { code: "SG", label: "Singapore" },
+  { code: "SG", label: "Singapore" }
 ];
 
 const FilterSheet: Component<FilterSheetProps> = (props) => {
   // Whether the currently-selected region matches the user's profile
   // country — used to show a "(your country)" hint in the dropdown.
   const isUserCountry = createMemo(
-    () => !!props.defaultRegion && props.value.region === props.defaultRegion,
+    () => !!props.defaultRegion && props.value.region === props.defaultRegion
   );
 
   const toggleGenre = (id: number) => {
@@ -126,15 +126,17 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
         <section class="upcoming-filter-section">
           <h4 class="upcoming-filter-section-title">Type</h4>
           <div class="upcoming-filter-chip-row">
-            {(["all", "movie", "tv"] as const).map((mt) => (
-              <button
-                type="button"
-                class={`upcoming-filter-chip ${props.value.mediaType === mt ? "is-active" : ""}`}
-                onClick={() => toggleMediaType(mt)}
-              >
-                {mt === "all" ? "All" : mt === "movie" ? "Movies" : "Series"}
-              </button>
-            ))}
+            <For each={["all", "movie", "tv"] as const}>
+              {(mt) => (
+                <button
+                  type="button"
+                  class={`upcoming-filter-chip ${props.value.mediaType === mt ? "is-active" : ""}`}
+                  onClick={() => toggleMediaType(mt)}
+                >
+                  {mt === "all" ? "All" : mt === "movie" ? "Movies" : "Series"}
+                </button>
+              )}
+            </For>
           </div>
         </section>
 
@@ -155,7 +157,10 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
               class="upcoming-filter-select"
               value={props.value.region}
               onChange={(e) =>
-                props.onChange({ ...props.value, region: e.currentTarget.value })
+                props.onChange({
+                  ...props.value,
+                  region: e.currentTarget.value
+                })
               }
               aria-label="Region"
             >
@@ -200,7 +205,8 @@ const FilterSheet: Component<FilterSheetProps> = (props) => {
                     props.value.genres.includes(g.id) ? "is-active" : ""
                   }`}
                   disabled={
-                    !props.value.genres.includes(g.id) && props.value.genres.length >= 3
+                    !props.value.genres.includes(g.id) &&
+                    props.value.genres.length >= 3
                   }
                   onClick={() => toggleGenre(g.id)}
                 >

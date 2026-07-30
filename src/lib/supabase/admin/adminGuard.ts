@@ -55,7 +55,15 @@ export interface AdminUser {
 /** Result of `requireAdmin` — discriminated union for ergonomic handling. */
 export type RequireAdminResult =
   | { ok: true; admin: AdminUser }
-  | { ok: false; reason: "no_cookie" | "invalid_token" | "not_admin" | "disabled" | "lookup_failed" };
+  | {
+      ok: false;
+      reason:
+        | "no_cookie"
+        | "invalid_token"
+        | "not_admin"
+        | "disabled"
+        | "lookup_failed";
+    };
 
 /**
  * Extract the admin session cookie from a Request's Cookie header.
@@ -78,7 +86,9 @@ function getAdminCookie(event: AdminAPIEvent): string | null {
  * Returns `{ ok: true, admin }` on success, or `{ ok: false, reason }` on failure.
  * NEVER throws — callers can simply check `if (!admin.ok) return 401`.
  */
-export async function requireAdmin(event: AdminAPIEvent): Promise<RequireAdminResult> {
+export async function requireAdmin(
+  event: AdminAPIEvent
+): Promise<RequireAdminResult> {
   if (!isServer) {
     return { ok: false, reason: "not_admin" };
   }
@@ -118,8 +128,8 @@ export async function requireAdmin(event: AdminAPIEvent): Promise<RequireAdminRe
         id: data.id,
         email: payload.email,
         username: data.username,
-        display_name: data.display_name,
-      },
+        display_name: data.display_name
+      }
     };
   } catch {
     return { ok: false, reason: "lookup_failed" };

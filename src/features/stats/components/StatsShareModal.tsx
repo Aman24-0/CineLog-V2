@@ -45,8 +45,11 @@ interface SummaryRow {
 const StatsShareModal: Component<StatsShareModalProps> = (props) => {
   const { showToast } = useToast();
   const { user } = useAuth();
-  const notify = (msg: string, type: "success" | "error" | "info", duration?: number) =>
-    showToast(msg, type, duration ?? (type === "error" ? 4000 : 2500));
+  const notify = (
+    msg: string,
+    type: "success" | "error" | "info",
+    duration?: number
+  ) => showToast(msg, type, duration ?? (type === "error" ? 4000 : 2500));
 
   // Ref to the shareable card so html2canvas can capture only that
   // element rather than the whole modal (which includes the action
@@ -66,10 +69,26 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
     return [
       { label: "Total Titles", value: String(s.overview.totalTitles) },
       { label: "Hours Watched", value: String(s.overview.totalHoursWatched) },
-      { label: "Average Rating", value: s.overview.averageRating > 0 ? `${s.overview.averageRating} / 10` : "—" },
-      { label: "Completed", value: `${s.overview.completedCount} (${s.overview.completedPercentage}%)` },
+      {
+        label: "Average Rating",
+        value:
+          s.overview.averageRating > 0
+            ? `${s.overview.averageRating} / 10`
+            : "—"
+      },
+      {
+        label: "Completed",
+        value: `${s.overview.completedCount} (${s.overview.completedPercentage}%)`
+      },
       { label: "Top Genre", value: s.genres[0]?.genre ?? "—" },
-      { label: "Favourite Decade", value: s.decades.length > 0 ? s.decades.reduce((max, d) => (d.count > max.count ? d : max)).decade : "—" },
+      {
+        label: "Favourite Decade",
+        value:
+          s.decades.length > 0
+            ? s.decades.reduce((max, d) => (d.count > max.count ? d : max))
+                .decade
+            : "—"
+      }
     ];
   };
 
@@ -89,12 +108,15 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
           ? window.location.href
           : "";
 
-    if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    if (
+      typeof navigator !== "undefined" &&
+      typeof navigator.share === "function"
+    ) {
       try {
         await navigator.share({
           title: "My CineLog Stats",
           text,
-          url: url || undefined,
+          url: url || undefined
         });
         notify("Shared!", "success");
       } catch (err) {
@@ -133,13 +155,31 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
       notify("No titles to export yet.", "error");
       return;
     }
-    const header = ["Title", "Type", "Status", "Rating", "Runtime (min)", "Genres", "Released", "Added"];
+    const header = [
+      "Title",
+      "Type",
+      "Status",
+      "Rating",
+      "Runtime (min)",
+      "Genres",
+      "Released",
+      "Added"
+    ];
     const rows = list.map((m) => {
       const title = (m.title ?? m.name ?? "").replace(/"/g, '""');
       const genres = (m.genresList ?? []).join("; ").replace(/"/g, '""');
       const year = (m.release_date ?? m.first_air_date ?? "").slice(0, 4);
       const added = typeof m.addedAt === "string" ? m.addedAt : "";
-      return [title, m.media_type, m.status, String(m.rating ?? ""), String(m.runtime ?? ""), genres, year, added];
+      return [
+        title,
+        m.media_type,
+        m.status,
+        String(m.rating ?? ""),
+        String(m.runtime ?? ""),
+        genres,
+        year,
+        added
+      ];
     });
     const csv = [header, ...rows]
       .map((r) => r.map((c) => `"${c}"`).join(","))
@@ -184,7 +224,7 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
         backgroundColor: "#0a0a0f",
         scale: 2, // 2x for retina quality
         useCORS: true,
-        logging: false,
+        logging: false
       });
       canvas.toBlob((blob) => {
         if (!blob) {
@@ -233,7 +273,10 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
                   <span class="stats-share-card-logo-cine">CINE</span>
                   <span class="stats-share-card-logo-log">LOG</span>
                 </span>
-                <span class="material-symbols-outlined stats-share-card-logo-icon" aria-hidden="true">
+                <span
+                  class="material-symbols-outlined stats-share-card-logo-icon"
+                  aria-hidden="true"
+                >
                   movie
                 </span>
               </div>
@@ -285,7 +328,11 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
         </div>
         <Show when={props.username}>
           <p class="stats-share-footnote">
-            Public profile: <span>{typeof window !== "undefined" ? window.location.origin : ""}/u/{props.username}</span>
+            Public profile:{" "}
+            <span>
+              {typeof window !== "undefined" ? window.location.origin : ""}/u/
+              {props.username}
+            </span>
           </p>
         </Show>
       </div>

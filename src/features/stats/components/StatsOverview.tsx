@@ -39,7 +39,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         iconClass: "stats-overview-icon-gold",
         label: "Titles",
         value: String(o.totalTitles),
-        sub: `${o.totalMovies} movies · ${o.totalSeries} series`,
+        sub: `${o.totalMovies} movies · ${o.totalSeries} series`
       },
       {
         key: "hours",
@@ -47,7 +47,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         iconClass: "stats-overview-icon-blue",
         label: "Hours Watched",
         value: String(o.totalHoursWatched),
-        sub: `${o.totalMinutesWatched.toLocaleString()} minutes`,
+        sub: `${o.totalMinutesWatched.toLocaleString()} minutes`
       },
       {
         key: "rating",
@@ -55,7 +55,7 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         iconClass: "stats-overview-icon-yellow",
         label: "Avg Rating",
         value: o.averageRating > 0 ? o.averageRating.toFixed(1) : "—",
-        sub: "out of 10",
+        sub: "out of 10"
       },
       {
         key: "completed",
@@ -64,8 +64,8 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
         label: "Completed",
         value: String(o.completedCount),
         sub: `${o.completedPercentage}% of library`,
-        progress: o.completedPercentage,
-      },
+        progress: o.completedPercentage
+      }
     ];
   };
 
@@ -76,8 +76,15 @@ const StatsOverview: Component<StatsOverviewProps> = (props) => {
           <GlassCard class="stats-overview-card" padding="default">
             <div class="stats-overview-card-row">
               <div class="stats-overview-card-text">
-                <div class={`stats-overview-icon ${card.iconClass}`} aria-hidden="true">
-                  <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">
+                <div
+                  class={`stats-overview-icon ${card.iconClass}`}
+                  aria-hidden="true"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "20px" }}
+                    aria-hidden="true"
+                  >
                     {card.icon}
                   </span>
                 </div>
@@ -136,7 +143,9 @@ const ProgressRing: Component<{ value: number }> = (props) => {
           stroke-dasharray={`${circumference}`}
           stroke-dashoffset={`${offset()}`}
           transform={`rotate(-90 ${center} ${center})`}
-          style={{ transition: "stroke-dashoffset 800ms var(--ease-smooth, ease)" }}
+          style={{
+            transition: "stroke-dashoffset 800ms var(--ease-smooth, ease)"
+          }}
         />
       </svg>
       <span class="stats-overview-ring-label">{props.value}%</span>

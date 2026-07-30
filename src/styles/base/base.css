@@ -36,7 +36,7 @@
     background-color: var(--void);
     color: var(--text);
     margin: 0;
-    font-family: 'Outfit', sans-serif;
+    font-family: "Outfit", sans-serif;
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
@@ -51,26 +51,39 @@
   }
 }
 
-
 /* Scrollbar — premium thin rail with warm gold tint on hover */
-::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar {
+  width: 4px;
+  height: 4px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
 ::-webkit-scrollbar-thumb {
-  background: rgba(232,183,74,0.08);
+  background: rgba(232, 183, 74, 0.08);
   border-radius: 4px;
   transition: background 160ms ease-out;
 }
-::-webkit-scrollbar-thumb:hover { background: rgba(232,183,74,0.18); }
-::-webkit-scrollbar-corner { background: transparent; }
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(232, 183, 74, 0.18);
+}
+::-webkit-scrollbar-corner {
+  background: transparent;
+}
 
 /* Firefox scrollbar */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(232,183,74,0.10) transparent;
+  scrollbar-color: rgba(232, 183, 74, 0.1) transparent;
 }
 
-.hide-scrollbar::-webkit-scrollbar { display: none; }
-.hide-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
 
 /* Text selection — warm gold highlight */
 ::selection {
@@ -84,7 +97,11 @@
 
 /* Material Symbols */
 .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   vertical-align: middle;
   user-select: none;
   pointer-events: none;
@@ -101,7 +118,13 @@
 .material-symbols-outlined.mat-syms-loaded {
   visibility: visible;
 }
-.filled { font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24; }
+.filled {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+}
 
 /* Global focus-visible baseline */
 :focus-visible {
@@ -115,8 +138,9 @@
   outline: none;
 }
 
-:focus:not(:focus-visible) { outline: none; }
-
+:focus:not(:focus-visible) {
+  outline: none;
+}
 
 /* Mobile safe-area + narrow viewport tuning */
 @supports (padding: env(safe-area-inset-left)) {
@@ -132,8 +156,10 @@
    black strip on notched devices. The base html/body { width:100% }
    rule (above) now handles viewport filling correctly. */
 @media (max-width: 412px) {
-  .movie-card, .movie-card-inner,
-  .vault-card-premium, .vault-card-inner {
+  .movie-card,
+  .movie-card-inner,
+  .vault-card-premium,
+  .vault-card-inner {
     max-width: 100%;
   }
   .px-5 {
@@ -142,27 +168,15 @@
   }
 }
 
-/* Reduced motion */
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 0.001ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.001ms !important;
-    scroll-behavior: auto !important;
-  }
-  .animate-fade-in,
-  .animate-fade-up,
-  .animate-slide-up,
-  .animate-pop-in,
-  .animate-scale-in,
-  .page-enter {
-    animation-duration: 120ms !important;
-  }
-}
+/* Reduced motion — see src/styles/base/accessibility.css for the
+   comprehensive prefers-reduced-motion block (universal + named
+   animation overrides). It lives there so all accessibility-related
+   base styles are discoverable in one file. */
 
 /* Dynamic viewport units */
 @supports (height: 100dvh) {
-  html, body { min-height: 100dvh; }
+  html,
+  body {
+    min-height: 100dvh;
+  }
 }

@@ -7,9 +7,21 @@ import { Component } from "solid-js";
  * No layout shift on load — the skeleton occupies the same vertical
  * space as the real content, so the page doesn't jump when data
  * arrives. Inherited from DashboardSkeleton / DetailsSkeleton.
+ *
+ * Accessibility:
+ *   - The wrapper exposes role="status" + aria-live="polite" +
+ *     aria-busy="true" + aria-label so screen readers announce that the
+ *     Discover feed is loading. The shimmer bars inside are decorative
+ *     and don't need to be announced individually.
  */
 const DiscoverSkeleton: Component = () => (
-  <div class="discover-skeleton" aria-hidden="true">
+  <div
+    class="discover-skeleton"
+    role="status"
+    aria-live="polite"
+    aria-busy="true"
+    aria-label="Loading discover feed"
+  >
     {/* Fold 0 — Spotlight skeleton */}
     <div class="discover-skeleton-spotlight">
       <div class="discover-skeleton-spotlight-backdrop" />

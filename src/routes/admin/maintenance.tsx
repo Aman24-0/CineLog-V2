@@ -7,7 +7,9 @@ import { Title } from "@solidjs/meta";
 import { lazy } from "solid-js";
 import AdminShell from "~/features/admin/AdminShell";
 
-const AdminMaintenancePage = lazy(() => import("~/features/admin/AdminMaintenancePage"));
+const AdminMaintenancePage = lazy(
+  () => import("~/features/admin/AdminMaintenancePage")
+);
 
 export default function AdminMaintenanceRoute() {
   return (

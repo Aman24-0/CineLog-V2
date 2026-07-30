@@ -2,7 +2,10 @@
 import { Show, createSignal, createEffect, type Component } from "solid-js";
 import { Portal } from "solid-js/web";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import { compressBannerImage, uploadBannerToSupabase } from "~/shared/utils/imageCompress";
+import {
+  compressBannerImage,
+  uploadBannerToSupabase
+} from "~/shared/utils/imageCompress";
 import type { ProfileData } from "../useProfileData";
 
 export type BannerType = "upload" | "url" | "favorite_movie" | "default";
@@ -40,7 +43,13 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
   // fresh each time — but the signal initializers above can't read props
   // at creation time, so we sync them here).
   createEffect(() => {
-    setTab(props.currentBannerType === "url" ? "url" : props.currentBannerType === "upload" ? "upload" : "auto");
+    setTab(
+      props.currentBannerType === "url"
+        ? "url"
+        : props.currentBannerType === "upload"
+          ? "upload"
+          : "auto"
+    );
     setUrlInput(props.currentBannerUrl ?? "");
   });
 
@@ -58,7 +67,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     const backdrop = movieBackdrop ?? seriesBackdrop;
     return {
       url: backdrop ? tmdbImage(backdrop, "w1280") : null,
-      type: "favorite_movie",
+      type: "favorite_movie"
     };
   };
 
@@ -137,7 +146,9 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
         // Let's try Storage first, fall back to data URL.
         try {
           // Re-read the file and compress
-          const fileInput = document.getElementById("banner-file-input") as HTMLInputElement;
+          const fileInput = document.getElementById(
+            "banner-file-input"
+          ) as HTMLInputElement;
           const file = fileInput?.files?.[0];
           if (file) {
             const blob = await compressBannerImage(file);
@@ -188,11 +199,11 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     <Show when={props.open}>
       <Portal>
         <div
-          class="modal-backdrop fixed inset-0 z-[999999] flex items-end sm:items-center justify-center p-0 sm:p-4"
+          class="modal-backdrop fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
           style={{
             background: "rgba(0,0,0,0.85)",
             "backdrop-filter": "blur(8px)",
-            "-webkit-backdrop-filter": "blur(8px)",
+            "-webkit-backdrop-filter": "blur(8px)"
           }}
           onClick={() => !saving() && props.onClose()}
           role="dialog"
@@ -200,14 +211,15 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           aria-label="Customize banner"
         >
           <div
-            class="modal-sheet-enter modal-surface w-full max-w-md relative z-10"
+            class="modal-sheet-enter modal-surface relative z-10 w-full max-w-md"
             style={{
               "border-radius": "var(--radius-xl)",
               padding: "var(--sp-4)",
-              "padding-bottom": "calc(var(--sp-5) + env(safe-area-inset-bottom, 0px))",
+              "padding-bottom":
+                "calc(var(--sp-5) + env(safe-area-inset-bottom, 0px))",
               "max-height": "90vh",
               display: "flex",
-              "flex-direction": "column",
+              "flex-direction": "column"
             }}
             onClick={(e) => e.stopPropagation()}
           >
@@ -218,40 +230,57 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
             <button
               type="button"
               onClick={() => !saving() && props.onClose()}
-              class="absolute top-3 right-3 w-9 h-9 rounded-full flex items-center justify-center focus-ring"
+              class="focus-ring absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full"
               style={{
                 background: "rgba(255,255,255,0.06)",
                 border: "1px solid var(--hairline)",
-                color: "var(--text-soft)",
+                color: "var(--text-soft)"
               }}
               aria-label="Close"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">close</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                close
+              </span>
             </button>
 
             {/* Header */}
             <div style={{ "margin-bottom": "var(--sp-4)" }}>
-              <p style={{
-                "font-family": "'Azeret Mono', monospace",
-                "font-size": "0.5625rem",
-                "font-weight": 700,
-                "letter-spacing": "0.14em",
-                "text-transform": "uppercase",
-                color: "var(--p)",
-                margin: "0 0 var(--sp-1)",
-              }}>Customize</p>
-              <h2 style={{
-                "font-family": "'Bebas Neue', sans-serif",
-                "font-size": "1.5rem",
-                "line-height": "1",
-                "letter-spacing": "0.03em",
-                color: "var(--text-strong)",
-                margin: "0",
-              }}>Profile Banner</h2>
+              <p
+                style={{
+                  "font-family": "'Azeret Mono', monospace",
+                  "font-size": "0.5625rem",
+                  "font-weight": 700,
+                  "letter-spacing": "0.14em",
+                  "text-transform": "uppercase",
+                  color: "var(--p)",
+                  margin: "0 0 var(--sp-1)"
+                }}
+              >
+                Customize
+              </p>
+              <h2
+                style={{
+                  "font-family": "'Bebas Neue', sans-serif",
+                  "font-size": "1.5rem",
+                  "line-height": "1",
+                  "letter-spacing": "0.03em",
+                  color: "var(--text-strong)",
+                  margin: "0"
+                }}
+              >
+                Profile Banner
+              </h2>
             </div>
 
             {/* Tabs */}
-            <div class="quick-filter-bar" style={{ "margin-bottom": "var(--sp-4)" }}>
+            <div
+              class="quick-filter-bar"
+              style={{ "margin-bottom": "var(--sp-4)" }}
+            >
               <button
                 type="button"
                 class={`quick-filter-tab focus-ring${tab() === "auto" ? "" : ""}`}
@@ -285,20 +314,23 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 "aspect-ratio": "16 / 5",
                 "border-radius": "var(--radius-lg)",
                 overflow: "hidden",
-                "border": "1px solid var(--hairline-2)",
+                border: "1px solid var(--hairline-2)",
                 "margin-bottom": "var(--sp-4)",
-                "background": "var(--tier-2)",
-                position: "relative",
+                background: "var(--tier-2)",
+                position: "relative"
               }}
             >
               <Show
                 when={currentPreview().url}
                 fallback={
-                  <div style={{
-                    position: "absolute",
-                    inset: "0",
-                    background: "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--tier-3), var(--tier-1))",
-                  }} />
+                  <div
+                    style={{
+                      position: "absolute",
+                      inset: "0",
+                      background:
+                        "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--tier-3), var(--tier-1))"
+                    }}
+                  />
                 }
               >
                 <img
@@ -306,33 +338,43 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   style={{
                     width: "100%",
                     height: "100%",
-                    "object-fit": "cover",
+                    "object-fit": "cover"
                   }}
                   alt="Banner preview"
                   loading="lazy"
                   decoding="async"
                   onError={(e) => {
-                    (e.currentTarget as HTMLImageElement).style.display = "none";
+                    (e.currentTarget as HTMLImageElement).style.display =
+                      "none";
                   }}
                 />
-                <div style={{
-                  position: "absolute",
-                  inset: "0",
-                  background: "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)",
-                  "pointer-events": "none",
-                }} />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "0",
+                    background:
+                      "linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 50%)",
+                    "pointer-events": "none"
+                  }}
+                />
               </Show>
               <Show when={uploading()}>
-                <div style={{
-                  position: "absolute",
-                  inset: "0",
-                  display: "flex",
-                  "align-items": "center",
-                  "justify-content": "center",
-                  background: "rgba(0,0,0,0.6)",
-                  "backdrop-filter": "blur(4px)",
-                }}>
-                  <span class="material-symbols-outlined animate-soft-pulse" style={{ "font-size": "24px", color: "var(--p)" }} aria-hidden="true">
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: "0",
+                    display: "flex",
+                    "align-items": "center",
+                    "justify-content": "center",
+                    background: "rgba(0,0,0,0.6)",
+                    "backdrop-filter": "blur(4px)"
+                  }}
+                >
+                  <span
+                    class="material-symbols-outlined animate-soft-pulse"
+                    style={{ "font-size": "24px", color: "var(--p)" }}
+                    aria-hidden="true"
+                  >
                     progress_activity
                   </span>
                 </div>
@@ -341,15 +383,18 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
 
             {/* Tab content */}
             <Show when={tab() === "auto"}>
-              <p style={{
-                "font-family": "'Outfit', sans-serif",
-                "font-size": "0.8125rem",
-                color: "var(--text-soft)",
-                margin: "0 0 var(--sp-3)",
-                "line-height": "1.5",
-              }}>
+              <p
+                style={{
+                  "font-family": "'Outfit', sans-serif",
+                  "font-size": "0.8125rem",
+                  color: "var(--text-soft)",
+                  margin: "0 0 var(--sp-3)",
+                  "line-height": "1.5"
+                }}
+              >
                 Your banner automatically uses your favorite movie's backdrop.
-                Set a favorite movie to customize it, or reset to the CineLog gradient.
+                Set a favorite movie to customize it, or reset to the CineLog
+                gradient.
               </p>
             </Show>
 
@@ -363,13 +408,15 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 style={{ "margin-bottom": "var(--sp-2)" }}
                 aria-label="Upload banner image"
               />
-              <p style={{
-                "font-family": "'Azeret Mono', monospace",
-                "font-size": "0.5rem",
-                color: "var(--text-muted)",
-                margin: "0",
-                "letter-spacing": "0.06em",
-              }}>
+              <p
+                style={{
+                  "font-family": "'Azeret Mono', monospace",
+                  "font-size": "0.5rem",
+                  color: "var(--text-muted)",
+                  margin: "0",
+                  "letter-spacing": "0.06em"
+                }}
+              >
                 JPG, PNG, or WebP · Max 10MB · Auto-cropped to 16:5
               </p>
             </Show>
@@ -386,13 +433,15 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 autocomplete="off"
                 spellcheck={false}
               />
-              <p style={{
-                "font-family": "'Azeret Mono', monospace",
-                "font-size": "0.5rem",
-                color: "var(--text-muted)",
-                margin: "0",
-                "letter-spacing": "0.06em",
-              }}>
+              <p
+                style={{
+                  "font-family": "'Azeret Mono', monospace",
+                  "font-size": "0.5rem",
+                  color: "var(--text-muted)",
+                  margin: "0",
+                  "letter-spacing": "0.06em"
+                }}
+              >
                 Paste a direct image URL (https://...)
               </p>
             </Show>
@@ -411,7 +460,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                   padding: "0.5rem 0.75rem",
                   "border-radius": "var(--radius-sm)",
                   background: "rgba(248,113,113,0.08)",
-                  border: "1px solid rgba(248,113,113,0.2)",
+                  border: "1px solid rgba(248,113,113,0.2)"
                 }}
               >
                 {error()}
@@ -419,7 +468,13 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
             </Show>
 
             {/* Actions */}
-            <div style={{ display: "flex", gap: "var(--sp-2)", "margin-top": "var(--sp-4)" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--sp-2)",
+                "margin-top": "var(--sp-4)"
+              }}
+            >
               <button
                 type="button"
                 class="btn-ghost focus-ring"
@@ -439,8 +494,18 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 <Show
                   when={!saving()}
                   fallback={
-                    <span style={{ display: "inline-flex", "align-items": "center", gap: "0.5rem" }}>
-                      <span class="material-symbols-outlined animate-soft-pulse" style={{ "font-size": "16px" }} aria-hidden="true">
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        "align-items": "center",
+                        gap: "0.5rem"
+                      }}
+                    >
+                      <span
+                        class="material-symbols-outlined animate-soft-pulse"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
                         progress_activity
                       </span>
                       Saving…

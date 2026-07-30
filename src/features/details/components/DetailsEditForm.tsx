@@ -119,8 +119,15 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
   };
 
   /** Write a per-season start/end date for the original series watch. */
-  const setSeasonDate = (season: number, field: "start" | "end", date: string) => {
-    props.setForm("seasonDates", JSON.stringify({ season: String(season), field, date }));
+  const setSeasonDate = (
+    season: number,
+    field: "start" | "end",
+    date: string
+  ) => {
+    props.setForm(
+      "seasonDates",
+      JSON.stringify({ season: String(season), field, date })
+    );
   };
 
   /** Write a per-season start/end date for a series re-watch pass. */
@@ -128,11 +135,11 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
     rewatchIndex: number,
     season: number,
     field: "start" | "end",
-    date: string,
+    date: string
   ) => {
     props.setForm(
       "seasonRewatchDates",
-      JSON.stringify({ rewatchIndex, season: String(season), field, date }),
+      JSON.stringify({ rewatchIndex, season: String(season), field, date })
     );
   };
 
@@ -142,8 +149,8 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
 
   return (
     <div
-      class="glass-surface p-5 rounded-2xl space-y-5 animate-fade-in border mt-4 shadow-xl"
-      style={{"border-color":"var(--border-active)"}}
+      class="glass-surface animate-fade-in mt-4 space-y-5 rounded-2xl border p-5 shadow-xl"
+      style={{ "border-color": "var(--border-active)" }}
       role="form"
       aria-label="Edit watchlist entry"
     >
@@ -160,8 +167,10 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           disagreed. Status can still be changed at any time via the
           ActionDock, which remains visible above the edit form. */}
       <div>
-        <div class="flex items-center justify-between mb-2">
-          <label class="type-label block" style={{"color":"var(--muted)"}}>My Rating</label>
+        <div class="mb-2 flex items-center justify-between">
+          <label class="type-label block" style={{ color: "var(--muted)" }}>
+            My Rating
+          </label>
           <Show when={ratingValue() > 0}>
             <button
               type="button"
@@ -203,7 +212,12 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       <Show when={!isSeries()}>
         {/* Re-watch stepper — minus button | count | plus button */}
         <div>
-          <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Re-watches</label>
+          <label
+            class="type-label mb-2 block"
+            style={{ color: "var(--muted)" }}
+          >
+            Re-watches
+          </label>
           <div class="flex items-center gap-3">
             <button
               type="button"
@@ -212,7 +226,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
               aria-label="Decrease re-watch count"
               class="rewatch-stepper-btn"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">remove</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
+                remove
+              </span>
             </button>
             <div class="rewatch-stepper-value" aria-live="polite">
               {rewatchCount()}
@@ -224,7 +244,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
               aria-label="Increase re-watch count"
               class="rewatch-stepper-btn rewatch-stepper-btn-plus"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">add</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
+                add
+              </span>
             </button>
             <span class="rewatch-stepper-hint">
               {rewatchCount() === 0
@@ -239,7 +265,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           when={rewatchCount() > 0}
           fallback={
             <div>
-              <label for="edit-watchdate" class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Date</label>
+              <label
+                for="edit-watchdate"
+                class="type-label mb-2 block"
+                style={{ color: "var(--muted)" }}
+              >
+                Watch Date
+              </label>
               <input
                 id="edit-watchdate"
                 type="date"
@@ -248,13 +280,18 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                   props.setForm("watchDate", e.currentTarget.value);
                   setRewatchDate(0, e.currentTarget.value);
                 }}
-                class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+                class="type-metadata w-full rounded-xl border border-white/10 bg-[var(--tier-1)] p-3 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
               />
             </div>
           }
         >
           <div>
-            <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Watch Dates</label>
+            <label
+              class="type-label mb-2 block"
+              style={{ color: "var(--muted)" }}
+            >
+              Watch Dates
+            </label>
             <div class="space-y-2.5">
               <For each={props.form().rewatchDates}>
                 {(date, index) => (
@@ -263,8 +300,10 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                     <input
                       type="date"
                       value={date}
-                      onInput={(e) => setRewatchDate(index(), e.currentTarget.value)}
-                      class="flex-1 bg-[var(--tier-1)] border border-white/10 p-2.5 rounded-lg type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all [color-scheme:dark]"
+                      onInput={(e) =>
+                        setRewatchDate(index(), e.currentTarget.value)
+                      }
+                      class="type-metadata flex-1 rounded-lg border border-white/10 bg-[var(--tier-1)] p-2.5 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
                       aria-label={dateLabel(index())}
                     />
                   </div>
@@ -278,16 +317,23 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
       {/* ── SERIES per-season watch dates (original watch) ── */}
       <Show when={isSeries()}>
         <div>
-          <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>
+          <label
+            class="type-label mb-2 block"
+            style={{ color: "var(--muted)" }}
+          >
             Season Watch Dates
           </label>
-          <p class="rewatch-stepper-hint" style={{"margin-bottom":"0.5rem"}}>
+          <p class="rewatch-stepper-hint" style={{ "margin-bottom": "0.5rem" }}>
             Set the start and end date for each season you watched.
           </p>
           <div class="space-y-3">
             <For each={seasons()}>
               {(seasonNum) => {
-                const entry = () => props.form().seasonDates[String(seasonNum)] ?? { start: "", end: "" };
+                const entry = () =>
+                  props.form().seasonDates[String(seasonNum)] ?? {
+                    start: "",
+                    end: ""
+                  };
                 return (
                   <div class="season-date-row">
                     <div class="season-date-label">Season {seasonNum}</div>
@@ -295,15 +341,25 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                       <input
                         type="date"
                         value={entry().start}
-                        onInput={(e) => setSeasonDate(seasonNum, "start", e.currentTarget.value)}
+                        onInput={(e) =>
+                          setSeasonDate(
+                            seasonNum,
+                            "start",
+                            e.currentTarget.value
+                          )
+                        }
                         class="season-date-input"
                         aria-label={`Season ${seasonNum} start date`}
                       />
-                      <span class="season-date-sep" aria-hidden="true">→</span>
+                      <span class="season-date-sep" aria-hidden="true">
+                        →
+                      </span>
                       <input
                         type="date"
                         value={entry().end}
-                        onInput={(e) => setSeasonDate(seasonNum, "end", e.currentTarget.value)}
+                        onInput={(e) =>
+                          setSeasonDate(seasonNum, "end", e.currentTarget.value)
+                        }
                         class="season-date-input"
                         aria-label={`Season ${seasonNum} end date`}
                       />
@@ -317,7 +373,12 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
 
         {/* Series re-watch stepper */}
         <div>
-          <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Series Re-watches</label>
+          <label
+            class="type-label mb-2 block"
+            style={{ color: "var(--muted)" }}
+          >
+            Series Re-watches
+          </label>
           <div class="flex items-center gap-3">
             <button
               type="button"
@@ -326,7 +387,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
               aria-label="Decrease series re-watch count"
               class="rewatch-stepper-btn"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">remove</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
+                remove
+              </span>
             </button>
             <div class="rewatch-stepper-value" aria-live="polite">
               {seasonRewatchCount()}
@@ -338,7 +405,13 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
               aria-label="Increase series re-watch count"
               class="rewatch-stepper-btn rewatch-stepper-btn-plus"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"20px"}} aria-hidden="true">add</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
+                add
+              </span>
             </button>
             <span class="rewatch-stepper-hint">
               {seasonRewatchCount() === 0
@@ -351,7 +424,12 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
         {/* Per-re-watch per-season date sets — one block per re-watch pass */}
         <Show when={seasonRewatchCount() > 0}>
           <div>
-            <label class="type-label block mb-2" style={{"color":"var(--muted)"}}>Re-watch Dates</label>
+            <label
+              class="type-label mb-2 block"
+              style={{ color: "var(--muted)" }}
+            >
+              Re-watch Dates
+            </label>
             <div class="space-y-4">
               <For each={props.form().seasonRewatchDates}>
                 {(_seasonMap, rewatchIndex) => (
@@ -365,24 +443,47 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                           const entry = () => {
                             const arr = props.form().seasonRewatchDates;
                             const m = arr[rewatchIndex()] ?? {};
-                            return m[String(seasonNum)] ?? { start: "", end: "" };
+                            return (
+                              m[String(seasonNum)] ?? { start: "", end: "" }
+                            );
                           };
                           return (
                             <div class="season-date-row season-date-row-compact">
-                              <div class="season-date-label season-date-label-compact">S{seasonNum}</div>
+                              <div class="season-date-label season-date-label-compact">
+                                S{seasonNum}
+                              </div>
                               <div class="season-date-inputs">
                                 <input
                                   type="date"
                                   value={entry().start}
-                                  onInput={(e) => setSeasonRewatchDate(rewatchIndex(), seasonNum, "start", e.currentTarget.value)}
+                                  onInput={(e) =>
+                                    setSeasonRewatchDate(
+                                      rewatchIndex(),
+                                      seasonNum,
+                                      "start",
+                                      e.currentTarget.value
+                                    )
+                                  }
                                   class="season-date-input"
                                   aria-label={`Re-watch ${rewatchIndex() + 1} season ${seasonNum} start`}
                                 />
-                                <span class="season-date-sep" aria-hidden="true">→</span>
+                                <span
+                                  class="season-date-sep"
+                                  aria-hidden="true"
+                                >
+                                  →
+                                </span>
                                 <input
                                   type="date"
                                   value={entry().end}
-                                  onInput={(e) => setSeasonRewatchDate(rewatchIndex(), seasonNum, "end", e.currentTarget.value)}
+                                  onInput={(e) =>
+                                    setSeasonRewatchDate(
+                                      rewatchIndex(),
+                                      seasonNum,
+                                      "end",
+                                      e.currentTarget.value
+                                    )
+                                  }
                                   class="season-date-input"
                                   aria-label={`Re-watch ${rewatchIndex() + 1} season ${seasonNum} end`}
                                 />
@@ -402,22 +503,28 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
 
       {/* Notes */}
       <div>
-        <label for="edit-notes" class="type-label block mb-2" style={{"color":"var(--muted)"}}>My Notes</label>
+        <label
+          for="edit-notes"
+          class="type-label mb-2 block"
+          style={{ color: "var(--muted)" }}
+        >
+          My Notes
+        </label>
         <textarea
           id="edit-notes"
           value={props.form().notes}
           onInput={(e) => props.setForm("notes", e.currentTarget.value)}
-          class="w-full bg-[var(--tier-1)] border border-white/10 p-3 rounded-xl type-metadata text-white outline-none focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)] transition-all resize-none"
+          class="type-metadata w-full resize-none rounded-xl border border-white/10 bg-[var(--tier-1)] p-3 text-white outline-none transition-all focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
           rows="3"
           placeholder="Write your thoughts, reactions, memorable quotes…"
-          style={{"resize":"vertical","min-height":"80px"}}
+          style={{ resize: "vertical", "min-height": "80px" }}
         />
       </div>
 
       <div class="flex gap-3 pt-2">
         <button
-          onClick={props.onCancel}
-          class="flex-1 type-button py-3 rounded-xl border transition-all active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => props.onCancel()}
+          class="type-button flex-1 rounded-xl border py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           style={{
             background: "var(--raised)",
             color: "rgba(232,234,240,0.85)",
@@ -428,8 +535,8 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           Cancel
         </button>
         <button
-          onClick={props.onSave}
-          class="flex-[2] type-button py-3 rounded-xl transition-all flex items-center justify-center gap-2 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+          onClick={() => props.onSave()}
+          class="type-button flex flex-[2] items-center justify-center gap-2 rounded-xl py-3 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-50"
           style={{
             background: "var(--p)",
             color: "var(--active-text)",
@@ -437,7 +544,10 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           }}
           disabled={!props.isDirty || props.isSaving}
         >
-          <Show when={!props.isSaving} fallback={<Icon name="progress_activity" class="animate-spin" />}>
+          <Show
+            when={!props.isSaving}
+            fallback={<Icon name="progress_activity" class="animate-spin" />}
+          >
             <Icon name="save" class="text-base" aria-hidden="true" />
           </Show>
           {props.isSaving ? "Saving..." : "Save Changes"}

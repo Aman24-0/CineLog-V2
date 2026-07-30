@@ -38,7 +38,10 @@ export async function compressBannerImage(file: File): Promise<Blob> {
 
   // Calculate the crop dimensions (center crop to 16:5)
   const sourceRatio = img.width / img.height;
-  let sx = 0, sy = 0, sw = img.width, sh = img.height;
+  let sx = 0,
+    sy = 0,
+    sw = img.width,
+    sh = img.height;
 
   if (sourceRatio > BANNER_ASPECT_RATIO) {
     // Source is wider than target — crop sides
@@ -59,7 +62,8 @@ export async function compressBannerImage(file: File): Promise<Blob> {
   canvas.width = outWidth;
   canvas.height = outHeight;
   const ctx = canvas.getContext("2d");
-  if (!ctx) throw new Error("Failed to get canvas context for image compression");
+  if (!ctx)
+    throw new Error("Failed to get canvas context for image compression");
 
   // Use high-quality image smoothing
   ctx.imageSmoothingEnabled = true;
@@ -73,10 +77,13 @@ export async function compressBannerImage(file: File): Promise<Blob> {
     canvas.toBlob(
       (blob) => {
         if (blob) resolve(blob);
-        else reject(new Error("Failed to compress image — canvas.toBlob returned null"));
+        else
+          reject(
+            new Error("Failed to compress image — canvas.toBlob returned null")
+          );
       },
       "image/jpeg",
-      JPEG_QUALITY,
+      JPEG_QUALITY
     );
   });
 }
@@ -109,7 +116,7 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  */
 export async function uploadBannerToSupabase(
   userId: string,
-  blob: Blob,
+  blob: Blob
 ): Promise<string> {
   const { getBrowserClient } = await import("~/lib/supabase/browser");
   const supabase = getBrowserClient();
@@ -123,14 +130,17 @@ export async function uploadBannerToSupabase(
     .from("banners")
     .upload(filePath, blob, {
       contentType: "image/jpeg",
-      upsert: true,
+      upsert: true
     });
 
   if (uploadError) {
     // If the bucket doesn't exist, fall back to a data URL.
     // This is not ideal (data URLs are large) but it's a graceful
     // degradation that doesn't require admin intervention.
-    console.warn("[uploadBanner] Storage upload failed, falling back to data URL:", uploadError);
+    console.warn(
+      "[uploadBanner] Storage upload failed, falling back to data URL:",
+      uploadError
+    );
     return blobToDataUrl(blob);
   }
 
@@ -150,7 +160,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to convert blob to data URL"));
+    reader.onerror = () =>
+      reject(new Error("Failed to convert blob to data URL"));
     reader.readAsDataURL(blob);
   });
 }

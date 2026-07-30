@@ -77,10 +77,7 @@ export {
   SessionRequiredError
 } from "./session";
 
-export type {
-  SessionChangeCallback,
-  SessionSubscription
-} from "./session";
+export type { SessionChangeCallback, SessionSubscription } from "./session";
 
 // ---- Repositories -------------------------------------------------------
 // Re-exported from the repositories barrel so the internal folder
@@ -102,7 +99,12 @@ export type {
   VaultSearchQuery
 } from "./repositories";
 
-export { ProfileRepository, getProfileRepository, ensureProfile, checkUsernameAvailability } from "./repositories";
+export {
+  ProfileRepository,
+  getProfileRepository,
+  ensureProfile,
+  checkUsernameAvailability
+} from "./repositories";
 
 export type {
   ProfileRow,

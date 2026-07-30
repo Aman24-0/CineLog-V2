@@ -11,7 +11,15 @@
 //
 // Designed for keyboard use: type → arrow keys → Enter to pick.
 
-import { For, Show, createSignal, createEffect, onCleanup, onMount, type Component } from "solid-js";
+import {
+  For,
+  Show,
+  createSignal,
+  createEffect,
+  onCleanup,
+  onMount,
+  type Component
+} from "solid-js";
 import { searchMulti } from "~/core/tmdb/discover";
 import { posterUrl, releaseYear } from "./types";
 import type { AdminEntry } from "./types";
@@ -56,9 +64,12 @@ const TmdbSearchModal: Component<Props> = (props) => {
   const existingKey = (r: TmdbResult): string => `${r.media_type}:${r.tmdb_id}`;
   const isDuplicate = (r: TmdbResult): boolean => {
     if (props.existingKeys?.has(existingKey(r))) return true;
-    if (props.existingEntries?.some(
-      (e) => e.media_type === r.media_type && e.tmdb_id === r.tmdb_id,
-    )) return true;
+    if (
+      props.existingEntries?.some(
+        (e) => e.media_type === r.media_type && e.tmdb_id === r.tmdb_id
+      )
+    )
+      return true;
     return false;
   };
 
@@ -110,14 +121,17 @@ const TmdbSearchModal: Component<Props> = (props) => {
         // Stale response — a newer search has started; ignore this one.
         if (myId !== requestId) return;
         const filtered: TmdbResult[] = items
-          .filter((it: any) => (it.media_type === "movie" || it.media_type === "tv") && it.id)
-          .map((it: any) => ({
+          .filter(
+            (it) =>
+              (it.media_type === "movie" || it.media_type === "tv") && it.id
+          )
+          .map((it) => ({
             tmdb_id: it.id,
             media_type: it.media_type,
             title: it.title || it.name || "Untitled",
             poster_path: it.poster_path ?? null,
             release_date: it.release_date ?? it.first_air_date ?? null,
-            overview: it.overview ?? null,
+            overview: it.overview ?? null
           }));
         setResults(filtered);
         setActiveIndex(0);
@@ -198,7 +212,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
         "justify-content": "center",
         padding: "var(--sp-6) var(--sp-4)",
         "backdrop-filter": "blur(4px)",
-        "overflow-y": "auto",
+        "overflow-y": "auto"
       }}
       onClick={() => props.onClose()}
     >
@@ -218,21 +232,28 @@ const TmdbSearchModal: Component<Props> = (props) => {
           "box-shadow": "var(--shadow-xl, 0 20px 60px rgba(0,0,0,0.5))",
           display: "flex",
           "flex-direction": "column",
-          overflow: "hidden",
+          overflow: "hidden"
         }}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Header + search input */}
-        <div style={{ padding: "var(--sp-4)", "border-bottom": "1px solid var(--hairline)" }}>
+        <div
+          style={{
+            padding: "var(--sp-4)",
+            "border-bottom": "1px solid var(--hairline)"
+          }}
+        >
           <div
             style={{
               display: "flex",
               "align-items": "center",
               "justify-content": "space-between",
-              "margin-bottom": "var(--sp-3)",
+              "margin-bottom": "var(--sp-3)"
             }}
           >
-            <h3 style={{ margin: 0, "font-size": "1.1rem", color: "var(--text)" }}>
+            <h3
+              style={{ margin: 0, "font-size": "1.1rem", color: "var(--text)" }}
+            >
               Search TMDB
             </h3>
             <button
@@ -245,7 +266,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                 cursor: "pointer",
                 "font-size": "1.25rem",
                 "line-height": "1",
-                padding: "0 var(--sp-1)",
+                padding: "0 var(--sp-1)"
               }}
               aria-label="Close"
             >
@@ -267,10 +288,16 @@ const TmdbSearchModal: Component<Props> = (props) => {
               color: "var(--text)",
               "font-size": "0.95rem",
               outline: "none",
-              "box-sizing": "border-box",
+              "box-sizing": "border-box"
             }}
           />
-          <div style={{ "margin-top": "var(--sp-2)", "font-size": "0.75rem", color: "var(--text-muted)" }}>
+          <div
+            style={{
+              "margin-top": "var(--sp-2)",
+              "font-size": "0.75rem",
+              color: "var(--text-muted)"
+            }}
+          >
             ↑↓ to navigate, Enter to add, Esc to close
           </div>
         </div>
@@ -281,7 +308,13 @@ const TmdbSearchModal: Component<Props> = (props) => {
           style={{ "overflow-y": "auto", flex: 1, padding: "var(--sp-2)" }}
         >
           <Show when={loading()}>
-            <div style={{ padding: "var(--sp-8)", "text-align": "center", color: "var(--text-muted)" }}>
+            <div
+              style={{
+                padding: "var(--sp-8)",
+                "text-align": "center",
+                color: "var(--text-muted)"
+              }}
+            >
               Searching…
             </div>
           </Show>
@@ -295,21 +328,40 @@ const TmdbSearchModal: Component<Props> = (props) => {
                 border: "1px solid rgba(239, 68, 68, 0.3)",
                 "border-radius": "var(--radius-md)",
                 color: "rgb(252, 165, 165)",
-                "font-size": "0.85rem",
+                "font-size": "0.85rem"
               }}
             >
               {error()}
             </div>
           </Show>
 
-          <Show when={!loading() && !error() && debouncedQuery() && results().length === 0}>
-            <div style={{ padding: "var(--sp-8)", "text-align": "center", color: "var(--text-muted)" }}>
+          <Show
+            when={
+              !loading() &&
+              !error() &&
+              debouncedQuery() &&
+              results().length === 0
+            }
+          >
+            <div
+              style={{
+                padding: "var(--sp-8)",
+                "text-align": "center",
+                color: "var(--text-muted)"
+              }}
+            >
               No results for "{debouncedQuery()}"
             </div>
           </Show>
 
           <Show when={!loading() && !debouncedQuery()}>
-            <div style={{ padding: "var(--sp-8)", "text-align": "center", color: "var(--text-muted)" }}>
+            <div
+              style={{
+                padding: "var(--sp-8)",
+                "text-align": "center",
+                color: "var(--text-muted)"
+              }}
+            >
               Type a movie or TV show title to search TMDB.
             </div>
           </Show>
@@ -331,11 +383,13 @@ const TmdbSearchModal: Component<Props> = (props) => {
                     padding: "var(--sp-2) var(--sp-3)",
                     "border-radius": "var(--radius-md)",
                     border: "1px solid transparent",
-                    background: isActive() ? "var(--tier-3, rgba(255,255,255,0.06))" : "transparent",
+                    background: isActive()
+                      ? "var(--tier-3, rgba(255,255,255,0.06))"
+                      : "transparent",
                     cursor: dup || isPicking() ? "not-allowed" : "pointer",
                     "text-align": "left",
                     "align-items": "center",
-                    opacity: dup ? 0.55 : 1,
+                    opacity: dup ? 0.55 : 1
                   }}
                   onMouseEnter={() => setActiveIndex(i())}
                 >
@@ -352,14 +406,18 @@ const TmdbSearchModal: Component<Props> = (props) => {
                       "align-items": "center",
                       "justify-content": "center",
                       "font-size": "0.7rem",
-                      color: "var(--text-muted)",
+                      color: "var(--text-muted)"
                     }}
                   >
                     <Show when={r.poster_path} fallback="🎬">
                       <img
                         src={posterUrl(r.poster_path, "w92")}
                         alt=""
-                        style={{ width: "100%", height: "100%", "object-fit": "cover" }}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          "object-fit": "cover"
+                        }}
                         loading="lazy"
                       />
                     </Show>
@@ -374,18 +432,24 @@ const TmdbSearchModal: Component<Props> = (props) => {
                         "font-size": "0.9rem",
                         "white-space": "nowrap",
                         overflow: "hidden",
-                        "text-overflow": "ellipsis",
+                        "text-overflow": "ellipsis"
                       }}
                     >
                       {r.title}
                     </div>
-                    <div style={{ "font-size": "0.75rem", color: "var(--text-muted)", "margin-top": "2px" }}>
+                    <div
+                      style={{
+                        "font-size": "0.75rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "2px"
+                      }}
+                    >
                       <span
                         style={{
                           "text-transform": "uppercase",
                           "letter-spacing": "0.05em",
                           "font-weight": "600",
-                          "margin-right": "var(--sp-2)",
+                          "margin-right": "var(--sp-2)"
                         }}
                       >
                         {r.media_type}
@@ -398,50 +462,57 @@ const TmdbSearchModal: Component<Props> = (props) => {
 
                   {/* Action badge */}
                   <div style={{ "flex-shrink": 0 }}>
-                    <Show when={isPicking()} fallback={
-                      <Show when={dup} fallback={
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            "align-items": "center",
-                            gap: "4px",
-                            padding: "6px 12px",
-                            "border-radius": "var(--radius-md)",
-                            background: "var(--accent, #7c3aed)",
-                            color: "#ffffff",
-                            "font-size": "0.8rem",
-                            "font-weight": "600",
-                            "letter-spacing": "0.01em",
-                            "line-height": "1",
-                            "white-space": "nowrap",
-                            "box-shadow": "0 1px 3px rgba(124, 58, 237, 0.4)",
-                            "user-select": "none",
-                          }}
+                    <Show
+                      when={isPicking()}
+                      fallback={
+                        <Show
+                          when={dup}
+                          fallback={
+                            <span
+                              style={{
+                                display: "inline-flex",
+                                "align-items": "center",
+                                gap: "4px",
+                                padding: "6px 12px",
+                                "border-radius": "var(--radius-md)",
+                                background: "var(--accent, #7c3aed)",
+                                color: "#ffffff",
+                                "font-size": "0.8rem",
+                                "font-weight": "600",
+                                "letter-spacing": "0.01em",
+                                "line-height": "1",
+                                "white-space": "nowrap",
+                                "box-shadow":
+                                  "0 1px 3px rgba(124, 58, 237, 0.4)",
+                                "user-select": "none"
+                              }}
+                            >
+                              + Add
+                            </span>
+                          }
                         >
-                          + Add
-                        </span>
-                      }>
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            "align-items": "center",
-                            gap: "4px",
-                            padding: "6px 12px",
-                            "border-radius": "var(--radius-md)",
-                            background: "rgba(34, 197, 94, 0.15)",
-                            color: "rgb(134, 239, 172)",
-                            "font-size": "0.8rem",
-                            "font-weight": "600",
-                            "line-height": "1",
-                            border: "1px solid rgba(34, 197, 94, 0.3)",
-                            "white-space": "nowrap",
-                            "user-select": "none",
-                          }}
-                        >
-                          ✓ Added
-                        </span>
-                      </Show>
-                    }>
+                          <span
+                            style={{
+                              display: "inline-flex",
+                              "align-items": "center",
+                              gap: "4px",
+                              padding: "6px 12px",
+                              "border-radius": "var(--radius-md)",
+                              background: "rgba(34, 197, 94, 0.15)",
+                              color: "rgb(134, 239, 172)",
+                              "font-size": "0.8rem",
+                              "font-weight": "600",
+                              "line-height": "1",
+                              border: "1px solid rgba(34, 197, 94, 0.3)",
+                              "white-space": "nowrap",
+                              "user-select": "none"
+                            }}
+                          >
+                            ✓ Added
+                          </span>
+                        </Show>
+                      }
+                    >
                       <span
                         style={{
                           display: "inline-flex",
@@ -455,7 +526,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                           "font-weight": "600",
                           "line-height": "1",
                           "white-space": "nowrap",
-                          "user-select": "none",
+                          "user-select": "none"
                         }}
                       >
                         <span
@@ -466,7 +537,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                             border: "2px solid currentColor",
                             "border-top-color": "transparent",
                             "border-radius": "50%",
-                            animation: "tmdb-spin 0.6s linear infinite",
+                            animation: "tmdb-spin 0.6s linear infinite"
                           }}
                         />
                         Adding…

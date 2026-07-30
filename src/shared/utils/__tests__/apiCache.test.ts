@@ -9,7 +9,7 @@ import {
   cachedFetch,
   clearCache,
   TMDB_TTL,
-  OMDb_TTL,
+  OMDb_TTL
 } from "../apiCache";
 
 describe("buildCacheKey", () => {
@@ -133,7 +133,7 @@ describe("cachedFetch", () => {
     // Fire two requests concurrently before either resolves
     const [a, b] = await Promise.all([
       cachedFetch("key1", TMDB_TTL, fetcher),
-      cachedFetch("key1", TMDB_TTL, fetcher),
+      cachedFetch("key1", TMDB_TTL, fetcher)
     ]);
     expect(a).toBe("fresh");
     expect(b).toBe("fresh");
@@ -158,7 +158,9 @@ describe("cachedFetch", () => {
     process.on("unhandledRejection", swallow);
 
     try {
-      await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow("fail");
+      await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow(
+        "fail"
+      );
       await new Promise((r) => setTimeout(r, 10));
       // Second call retries and succeeds
       const result = await cachedFetch("key1", TMDB_TTL, fetcher);

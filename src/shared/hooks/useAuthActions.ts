@@ -26,14 +26,14 @@ export interface AuthResult {
  */
 export async function signInWithEmail(
   email: string,
-  password: string,
+  password: string
 ): Promise<AuthResult> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
     const { error } = await supabase.auth.signInWithPassword({
       email: email.trim(),
-      password,
+      password
     });
     if (error) throw error;
     showToast("Signed in! 🎬", "success");
@@ -51,14 +51,14 @@ export async function signInWithEmail(
  */
 export async function signUpWithEmail(
   email: string,
-  password: string,
+  password: string
 ): Promise<AuthResult> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
     const { data, error } = await supabase.auth.signUp({
       email: email.trim(),
-      password,
+      password
     });
     if (error) throw error;
     if (data.session) {
@@ -125,8 +125,8 @@ export async function signInWithGoogle(returnPath?: string): Promise<void> {
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",
       options: {
-        redirectTo,
-      },
+        redirectTo
+      }
     });
     if (error) throw error;
     // The browser will redirect — no toast needed, the page will reload

@@ -19,7 +19,7 @@ const StorageStats: Component = () => {
       ratings: list.filter((m) => m.rating != null && m.rating > 0).length,
       notes: list.filter((m) => m.notes && m.notes.trim().length > 0).length,
       completed: list.filter((m) => m.status === "Completed").length,
-      watching: list.filter((m) => m.status === "Watching").length,
+      watching: list.filter((m) => m.status === "Watching").length
     };
   });
 
@@ -28,8 +28,12 @@ const StorageStats: Component = () => {
     { icon: "tv", label: "Series", value: () => stats().series },
     { icon: "star", label: "Ratings", value: () => stats().ratings },
     { icon: "sticky_note_2", label: "Notes", value: () => stats().notes },
-    { icon: "check_circle", label: "Completed", value: () => stats().completed },
-    { icon: "play_circle", label: "Watching", value: () => stats().watching },
+    {
+      icon: "check_circle",
+      label: "Completed",
+      value: () => stats().completed
+    },
+    { icon: "play_circle", label: "Watching", value: () => stats().watching }
   ];
 
   return (
@@ -38,7 +42,13 @@ const StorageStats: Component = () => {
         {(tile) => (
           <div class="sync-storage-tile">
             <div class="sync-storage-tile-icon" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "18px", color: "var(--p)" }} aria-hidden="true">{tile.icon}</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                {tile.icon}
+              </span>
             </div>
             <span class="sync-storage-tile-value">{tile.value()}</span>
             <span class="sync-storage-tile-label">{tile.label}</span>

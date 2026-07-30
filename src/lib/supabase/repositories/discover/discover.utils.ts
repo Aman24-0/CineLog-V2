@@ -80,7 +80,9 @@ export type { TypedSupabaseClient } from "./discover.types";
  * singleton on the browser. Mirrors the pattern used by the other
  * repositories.
  */
-export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
+export function resolveClient(
+  client?: TypedSupabaseClient
+): TypedSupabaseClient {
   return client ?? getClient();
 }
 

@@ -39,11 +39,39 @@ export const USERNAME_MAX_LENGTH = 24;
  * (e.g., /user/admin would be confusing).
  */
 export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
-  "admin", "support", "system", "official", "cinelog", "api",
-  "root", "owner", "staff", "discover", "watchlist", "collection",
-  "collections", "settings", "profile", "login", "signup", "auth",
-  "search", "movie", "series", "help", "about", "privacy", "terms",
-  "cinema", "film", "tv", "shows", "new", "user", "null", "undefined",
+  "admin",
+  "support",
+  "system",
+  "official",
+  "cinelog",
+  "api",
+  "root",
+  "owner",
+  "staff",
+  "discover",
+  "watchlist",
+  "collection",
+  "collections",
+  "settings",
+  "profile",
+  "login",
+  "signup",
+  "auth",
+  "search",
+  "movie",
+  "series",
+  "help",
+  "about",
+  "privacy",
+  "terms",
+  "cinema",
+  "film",
+  "tv",
+  "shows",
+  "new",
+  "user",
+  "null",
+  "undefined"
 ]);
 
 // ---------------------------------------------------------------------------
@@ -51,13 +79,13 @@ export const RESERVED_USERNAMES: ReadonlySet<string> = new Set([
 // ---------------------------------------------------------------------------
 
 export type UsernameValidationStatus =
-  | "valid"           // Username passes all format rules
-  | "too_short"       // Fewer than USERNAME_MIN_LENGTH characters
-  | "too_long"        // More than USERNAME_MAX_LENGTH characters
-  | "invalid_format"  // Contains disallowed characters or patterns
-  | "reserved"        // Is a reserved system username
+  | "valid" // Username passes all format rules
+  | "too_short" // Fewer than USERNAME_MIN_LENGTH characters
+  | "too_long" // More than USERNAME_MAX_LENGTH characters
+  | "invalid_format" // Contains disallowed characters or patterns
+  | "reserved" // Is a reserved system username
   | "starts_underscore" // Starts with _
-  | "ends_underscore"   // Ends with _
+  | "ends_underscore" // Ends with _
   | "double_underscore" // Contains __
   | "must_start_letter"; // Doesn't start with a letter
 
@@ -154,7 +182,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "invalid_format",
       valid: false,
       message: "Username must contain at least one letter.",
-      sanitized: "",
+      sanitized: ""
     };
   }
 
@@ -164,7 +192,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "too_short",
       valid: false,
       message: `Username must be at least ${USERNAME_MIN_LENGTH} characters.`,
-      sanitized,
+      sanitized
     };
   }
 
@@ -174,7 +202,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "too_long",
       valid: false,
       message: `Username must be at most ${USERNAME_MAX_LENGTH} characters.`,
-      sanitized: sanitized.slice(0, USERNAME_MAX_LENGTH),
+      sanitized: sanitized.slice(0, USERNAME_MAX_LENGTH)
     };
   }
 
@@ -184,7 +212,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "must_start_letter",
       valid: false,
       message: "Username must start with a letter.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -195,7 +223,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "invalid_format",
       valid: false,
       message: "Username can only contain letters, numbers, and underscores.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -205,7 +233,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "starts_underscore",
       valid: false,
       message: "Username cannot start with an underscore.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -215,7 +243,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "ends_underscore",
       valid: false,
       message: "Username cannot end with an underscore.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -225,7 +253,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "double_underscore",
       valid: false,
       message: "Username cannot contain consecutive underscores.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -235,7 +263,7 @@ export function validateUsername(username: string): UsernameValidationResult {
       status: "reserved",
       valid: false,
       message: "This username is reserved.",
-      sanitized,
+      sanitized
     };
   }
 
@@ -244,7 +272,7 @@ export function validateUsername(username: string): UsernameValidationResult {
     status: "valid",
     valid: true,
     message: "Username is valid.",
-    sanitized,
+    sanitized
   };
 }
 
@@ -261,9 +289,23 @@ export function validateUsername(username: string): UsernameValidationResult {
  * @param maxAttempts Maximum number of candidates to generate.
  * @returns Array of candidate usernames, most preferred first.
  */
-export function generateUsernameCandidates(base: string, maxAttempts = 10): string[] {
+export function generateUsernameCandidates(
+  base: string,
+  maxAttempts = 10
+): string[] {
   const candidates: string[] = [base];
-  const suffixes = ["24", "_24", "247", "_247", "2471", "_2471", "24715", "_24715", "247159", "_247159"];
+  const suffixes = [
+    "24",
+    "_24",
+    "247",
+    "_247",
+    "2471",
+    "_2471",
+    "24715",
+    "_24715",
+    "247159",
+    "_247159"
+  ];
 
   for (let i = 0; i < Math.min(suffixes.length, maxAttempts - 1); i++) {
     const candidate = `${base}${suffixes[i]}`.slice(0, USERNAME_MAX_LENGTH);
@@ -313,9 +355,10 @@ export function displayNameFromEmail(email: string): string {
  */
 export function displayNameFromMetadata(
   metadata: Record<string, unknown> | null | undefined,
-  email: string | null | undefined,
+  email: string | null | undefined
 ): string {
-  const fullName = metadata?.full_name ?? metadata?.name ?? metadata?.display_name;
+  const fullName =
+    metadata?.full_name ?? metadata?.name ?? metadata?.display_name;
   if (typeof fullName === "string" && fullName.trim().length > 0) {
     return fullName.trim();
   }

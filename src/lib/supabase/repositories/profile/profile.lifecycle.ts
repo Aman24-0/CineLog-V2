@@ -42,7 +42,7 @@ import {
   sanitizeUsername,
   validateUsername,
   generateUsernameCandidates,
-  displayNameFromMetadata,
+  displayNameFromMetadata
 } from "~/shared/utils/username";
 
 // ---------------------------------------------------------------------------
@@ -196,7 +196,7 @@ export async function ensureProfile(
   authUser: {
     email?: string | null;
     userMetadata?: Record<string, unknown> | null;
-  } | null,
+  } | null
 ): Promise<ProfileResult<ProfileRow>> {
   // 1. Check if the profile already exists.
   const { data: existing, error: fetchError } = await supabase
@@ -228,7 +228,9 @@ export async function ensureProfile(
     // flag to true. If it doesn't match a sentinel (user already set
     // a custom name), we just set the flag to true without changing
     // the name.
-    const initialized = (existing as ProfileRow & { display_name_initialized?: boolean }).display_name_initialized ?? false;
+    const initialized =
+      (existing as ProfileRow & { display_name_initialized?: boolean })
+        .display_name_initialized ?? false;
 
     if (!initialized) {
       // Check if the current display_name is a sentinel value that
@@ -267,7 +269,10 @@ export async function ensureProfile(
 
       if (isUsernameSentinel && email) {
         const baseUsername = sanitizeUsername(email);
-        const availableUsername = await findAvailableUsername(supabase, baseUsername);
+        const availableUsername = await findAvailableUsername(
+          supabase,
+          baseUsername
+        );
         if (availableUsername) {
           updates.username = availableUsername;
         }
@@ -295,7 +300,9 @@ export async function ensureProfile(
   const metadata = authUser?.userMetadata ?? null;
   const displayName = displayNameFromMetadata(metadata, email);
   const baseUsername = email ? sanitizeUsername(email) : "cinephile";
-  const username = email ? await findAvailableUsername(supabase, baseUsername) : baseUsername;
+  const username = email
+    ? await findAvailableUsername(supabase, baseUsername)
+    : baseUsername;
 
   const { data: created, error: createError } = await supabase
     .from(PROFILES_TABLE)
@@ -304,7 +311,7 @@ export async function ensureProfile(
       username: username ?? baseUsername,
       display_name: displayName,
       display_name_initialized: true, // Mark as initialized on creation
-      country: "US", // default — user can change later
+      country: "US" // default — user can change later
     })
     .select()
     .single();
@@ -332,7 +339,7 @@ export async function ensureProfile(
 export async function checkUsernameAvailability(
   supabase: TypedSupabaseClient,
   username: string,
-  excludeUserId?: string,
+  excludeUserId?: string
 ): Promise<{ available: boolean; error: Error | null }> {
   // Use the SECURITY DEFINER function `is_username_available` to bypass
   // RLS safely. The profiles table's RLS policy (profiles_select_own)
@@ -359,7 +366,7 @@ export async function checkUsernameAvailability(
     }
   }
   const { data, error } = await supabase.rpc("is_username_available", {
-    p_username: username,
+    p_username: username
   });
   if (error) return { available: false, error: toError(error) };
   return { available: data === true, error: null };
@@ -374,7 +381,7 @@ export async function checkUsernameAvailability(
  */
 async function findAvailableUsername(
   supabase: TypedSupabaseClient,
-  baseUsername: string,
+  baseUsername: string
 ): Promise<string | null> {
   const candidates = generateUsernameCandidates(baseUsername);
   for (const candidate of candidates) {
@@ -382,9 +389,15 @@ async function findAvailableUsername(
     const validation = validateUsername(candidate);
     if (!validation.valid) continue;
 
-    const { available, error } = await checkUsernameAvailability(supabase, candidate);
+    const { available, error } = await checkUsernameAvailability(
+      supabase,
+      candidate
+    );
     if (error) {
-      console.error("[ensureProfile] Username availability check failed:", error);
+      console.error(
+        "[ensureProfile] Username availability check failed:",
+        error
+      );
       continue;
     }
     if (available) return candidate;

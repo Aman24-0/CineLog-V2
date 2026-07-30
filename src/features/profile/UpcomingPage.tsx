@@ -72,7 +72,12 @@
 //                                                   → openTitle (modal)
 
 import {
-  Show, For, createSignal, createMemo, createEffect, type Component,
+  Show,
+  For,
+  createSignal,
+  createMemo,
+  createEffect,
+  type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -82,7 +87,7 @@ import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import {
   languagesForCountry,
-  countryLabel,
+  countryLabel
 } from "~/shared/data/countryLanguages";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -111,8 +116,8 @@ interface UpcomingItem extends TMDBTitle {
 }
 
 interface UpcomingGroup {
-  date: string;          // YYYY-MM-DD
-  label: string;         // "Today" / "Tomorrow" / "Fri, Jul 18"
+  date: string; // YYYY-MM-DD
+  label: string; // "Today" / "Tomorrow" / "Fri, Jul 18"
   items: UpcomingItem[]; // movies AND series mixed together (V1-style)
 }
 
@@ -151,13 +156,21 @@ function formatDateLabel(dateStr: string): string {
   tomorrow.setDate(today.getDate() + 1);
   if (d.getTime() === today.getTime()) return "Today";
   if (d.getTime() === tomorrow.getTime()) return "Tomorrow";
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 function formatDateShort(dateStr: string): string {
   const d = parseDate(dateStr);
   if (!d) return dateStr;
-  return d.toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", {
+    weekday: "short",
+    month: "short",
+    day: "numeric"
+  });
 }
 
 interface TMDBRawMovie {
@@ -191,11 +204,14 @@ interface TMDBEpisode {
 }
 
 interface TMDBWatchProvidersResponse {
-  results?: Record<string, {
-    flatrate?: Array<{ provider_name: string }>;
-    buy?: Array<{ provider_name: string }>;
-    rent?: Array<{ provider_name: string }>;
-  }>;
+  results?: Record<
+    string,
+    {
+      flatrate?: Array<{ provider_name: string }>;
+      buy?: Array<{ provider_name: string }>;
+      rent?: Array<{ provider_name: string }>;
+    }
+  >;
 }
 
 interface TMDBTvDetailsResponse {
@@ -232,7 +248,7 @@ async function fetchUpcomingMovies(
   startDate: string,
   endDate: string,
   region: string,
-  language: string | null,
+  language: string | null
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
     language: "en-US",
@@ -241,35 +257,42 @@ async function fetchUpcomingMovies(
     "release_date.lte": endDate,
     region, // context for release_date.gte/lte — filters by release date in this country
     with_release_country: region, // ONLY movies that have a release entry in this country
-    include_adult: "false",
+    include_adult: "false"
   });
   if (language) baseParams.set("with_original_language", language);
 
-  const cacheKey = buildCacheKey("tmdb:upcoming_movies_v23", { start: startDate, end: endDate, region, lang: language ?? "" });
+  const cacheKey = buildCacheKey("tmdb:upcoming_movies_v23", {
+    start: startDate,
+    end: endDate,
+    region,
+    lang: language ?? ""
+  });
 
-  const res = await cachedFetch<{ results: TMDBRawMovie[]; total_pages: number }>(
-    cacheKey,
-    TMDB_TTL,
-    async () => {
-      const allResults: TMDBRawMovie[] = [];
-      const maxPages = 5;
-      for (let page = 1; page <= maxPages; page++) {
-        const pageParams = new URLSearchParams(baseParams);
-        pageParams.set("page", String(page));
-        const r = await fetch(`${API}/discover/movie?${pageParams}`);
-        if (!r.ok) {
-          if (page === 1) throw new Error(`upcoming movies failed: ${r.status}`);
-          break; // stop paginating on error after page 1
-        }
-        const data = await r.json();
-        const results = data.results || [];
-        allResults.push(...results);
-        if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
+  const res = await cachedFetch<{
+    results: TMDBRawMovie[];
+    total_pages: number;
+  }>(cacheKey, TMDB_TTL, async () => {
+    const allResults: TMDBRawMovie[] = [];
+    const maxPages = 5;
+    for (let page = 1; page <= maxPages; page++) {
+      const pageParams = new URLSearchParams(baseParams);
+      pageParams.set("page", String(page));
+      const r = await fetch(`${API}/discover/movie?${pageParams}`);
+      if (!r.ok) {
+        if (page === 1) throw new Error(`upcoming movies failed: ${r.status}`);
+        break; // stop paginating on error after page 1
       }
-      return { results: allResults, total_pages: Math.min(maxPages, 5) };
-    },
-  );
-  return (res.results || []).map((t: TMDBRawMovie) => ({ ...t, media_type: "movie" as const }));
+      const data = await r.json();
+      const results = data.results || [];
+      allResults.push(...results);
+      if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
+    }
+    return { results: allResults, total_pages: Math.min(maxPages, 5) };
+  });
+  return (res.results || []).map((t: TMDBRawMovie) => ({
+    ...t,
+    media_type: "movie" as const
+  }));
 }
 
 /**
@@ -297,18 +320,22 @@ async function fetchUpcomingTv(
   startDate: string,
   endDate: string,
   _region: string,
-  language: string | null,
+  language: string | null
 ): Promise<TMDBTitle[]> {
   const baseParams = new URLSearchParams({
     language: "en-US",
     sort_by: "popularity.desc", // famous shows first
     "air_date.gte": startDate, // any series with an episode airing in this window
     "air_date.lte": endDate,
-    include_adult: "false",
+    include_adult: "false"
   });
   if (language) baseParams.set("with_original_language", language);
 
-  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v24", { start: startDate, end: endDate, lang: language ?? "" });
+  const cacheKey = buildCacheKey("tmdb:upcoming_tv_v24", {
+    start: startDate,
+    end: endDate,
+    lang: language ?? ""
+  });
 
   const res = await cachedFetch<{ results: TMDBRawTv[]; total_pages: number }>(
     cacheKey,
@@ -330,9 +357,12 @@ async function fetchUpcomingTv(
         if (results.length < 20 || page >= (data.total_pages ?? 1)) break;
       }
       return { results: allResults, total_pages: Math.min(maxPages, 3) };
-    },
+    }
   );
-  return (res.results || []).map((t: TMDBRawTv) => ({ ...t, media_type: "tv" as const }));
+  return (res.results || []).map((t: TMDBRawTv) => ({
+    ...t,
+    media_type: "tv" as const
+  }));
 }
 
 /**
@@ -345,7 +375,7 @@ async function fetchUpcomingTv(
 async function fetchWatchProvider(
   mediaType: "movie" | "tv",
   id: number,
-  region = "IN",
+  region = "IN"
 ): Promise<{ providerName: string | null; isTheatrical: boolean }> {
   try {
     const res = await cachedFetch<TMDBWatchProvidersResponse>(
@@ -355,13 +385,13 @@ async function fetchWatchProvider(
         const r = await fetch(`${API}/${mediaType}/${id}/watch/providers`);
         if (!r.ok) throw new Error(`watch providers failed: ${r.status}`);
         return r.json();
-      },
+      }
     );
     const regionData = res.results?.[region] ?? res.results?.["US"];
     const flatrate = regionData?.flatrate?.[0]?.provider_name ?? null;
     return {
       providerName: flatrate,
-      isTheatrical: mediaType === "movie" && !flatrate,
+      isTheatrical: mediaType === "movie" && !flatrate
     };
   } catch {
     return { providerName: null, isTheatrical: mediaType === "movie" };
@@ -393,7 +423,7 @@ async function fetchWatchProvider(
  */
 async function fetchTvDetails(
   id: number,
-  region: string,
+  region: string
 ): Promise<{
   network: string | null;
   nextEpisode: TMDBEpisode | null;
@@ -407,25 +437,27 @@ async function fetchTvDetails(
         // Append watch/providers to the same request so we get network,
         // next_episode_to_air, AND OTT providers in a single API call.
         const r = await fetch(
-          `${API}/tv/${id}?language=en-US&append_to_response=next_episode_to_air,watch/providers`,
+          `${API}/tv/${id}?language=en-US&append_to_response=next_episode_to_air,watch/providers`
         );
         if (!r.ok) throw new Error(`tv details failed: ${r.status}`);
         return r.json();
-      },
+      }
     );
 
     // Extract the flatrate OTT provider for the user's region.
     // watch/providers results are keyed by region code (e.g. "IN", "US").
     // Fall back to "US" if the user's region has no provider data (rare).
-    const providerResults = (res as unknown as { "watch/providers"?: TMDBWatchProvidersResponse })["watch/providers"];
-    const regionProviders = providerResults?.results?.[region]
-      ?? providerResults?.results?.["US"];
+    const providerResults = (
+      res as unknown as { "watch/providers"?: TMDBWatchProvidersResponse }
+    )["watch/providers"];
+    const regionProviders =
+      providerResults?.results?.[region] ?? providerResults?.results?.["US"];
     const flatrate = regionProviders?.flatrate?.[0]?.provider_name ?? null;
 
     return {
       network: res.networks?.[0]?.name ?? null,
       nextEpisode: res.next_episode_to_air ?? null,
-      ottProvider: flatrate,
+      ottProvider: flatrate
     };
   } catch {
     return { network: null, nextEpisode: null, ottProvider: null };
@@ -442,7 +474,9 @@ const UpcomingPage: Component = () => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   const [startDate, setStartDate] = createSignal<string>(ymd(today));
-  const [typeFilter, setTypeFilter] = createSignal<"all" | "movies" | "series">("all");
+  const [typeFilter, setTypeFilter] = createSignal<"all" | "movies" | "series">(
+    "all"
+  );
   const [language, setLanguage] = createSignal<string>("");
   // v2.2: Filter dialog now only contains the Language picker
   // (Nationality filter was removed — see module-level docs).
@@ -455,12 +489,23 @@ const UpcomingPage: Component = () => {
   const [error, setError] = createSignal<string | null>(null);
 
   // OTT / episode info caches (per item id)
-  const [movieOtt, setMovieOtt] = createSignal<Record<number, { providerName: string | null; isTheatrical: boolean }>>({});
+  const [movieOtt, setMovieOtt] = createSignal<
+    Record<number, { providerName: string | null; isTheatrical: boolean }>
+  >({});
   // v2.4: per-series network + next_episode_to_air + OTT provider info.
   // ottProvider is null when the series has NO flatrate OTT provider in
   // the user's region — those series are dropped from the list (filters
   // out TV-channel-only shows per user request).
-  const [seriesDetails, setSeriesDetails] = createSignal<Record<number, { network: string | null; nextEpisode: TMDBEpisode | null; ottProvider: string | null }>>({});
+  const [seriesDetails, setSeriesDetails] = createSignal<
+    Record<
+      number,
+      {
+        network: string | null;
+        nextEpisode: TMDBEpisode | null;
+        ottProvider: string | null;
+      }
+    >
+  >({});
 
   const endDate = createMemo(() => {
     const d = parseDate(startDate());
@@ -531,10 +576,15 @@ const UpcomingPage: Component = () => {
       movieList.map(async (m) => {
         const info = await fetchWatchProvider("movie", m.id, region());
         return [m.id, info] as const;
-      }),
+      })
     );
-    const movieMap: Record<number, { providerName: string | null; isTheatrical: boolean }> = {};
-    movieResults.forEach(([id, info]) => { movieMap[id as number] = info; });
+    const movieMap: Record<
+      number,
+      { providerName: string | null; isTheatrical: boolean }
+    > = {};
+    movieResults.forEach(([id, info]) => {
+      movieMap[id as number] = info;
+    });
     setMovieOtt(movieMap);
 
     // Series — fetch network + next_episode_to_air + OTT provider (v2.4).
@@ -548,10 +598,19 @@ const UpcomingPage: Component = () => {
       seriesList.map(async (s) => {
         const details = await fetchTvDetails(s.id, r);
         return [s.id, details] as const;
-      }),
+      })
     );
-    const seriesMap: Record<number, { network: string | null; nextEpisode: TMDBEpisode | null; ottProvider: string | null }> = {};
-    seriesResults.forEach(([id, details]) => { seriesMap[id as number] = details; });
+    const seriesMap: Record<
+      number,
+      {
+        network: string | null;
+        nextEpisode: TMDBEpisode | null;
+        ottProvider: string | null;
+      }
+    > = {};
+    seriesResults.forEach(([id, details]) => {
+      seriesMap[id as number] = details;
+    });
     setSeriesDetails(seriesMap);
   };
 
@@ -592,7 +651,7 @@ const UpcomingPage: Component = () => {
           originalLanguage: raw.original_language ?? null,
           originCountry: raw.origin_country ?? [],
           nextEpisodeSeason: null,
-          nextEpisodeNumber: null,
+          nextEpisodeNumber: null
         };
       });
   });
@@ -646,7 +705,7 @@ const UpcomingPage: Component = () => {
           originalLanguage: raw.original_language ?? null,
           originCountry: raw.origin_country ?? [],
           nextEpisodeSeason: ep?.season_number ?? null,
-          nextEpisodeNumber: ep?.episode_number ?? null,
+          nextEpisodeNumber: ep?.episode_number ?? null
         };
       });
   });
@@ -660,7 +719,11 @@ const UpcomingPage: Component = () => {
     for (const item of all) {
       if (!item.rawDate) continue;
       if (!map.has(item.rawDate)) {
-        map.set(item.rawDate, { date: item.rawDate, label: formatDateLabel(item.rawDate), items: [] });
+        map.set(item.rawDate, {
+          date: item.rawDate,
+          label: formatDateLabel(item.rawDate),
+          items: []
+        });
       }
       map.get(item.rawDate)!.items.push(item);
     }
@@ -669,13 +732,17 @@ const UpcomingPage: Component = () => {
     // popularity (vote_count as a proxy).
     for (const g of map.values()) {
       g.items.sort((a, b) => {
-        const aHasEp = a.media_type === "tv" && a.nextEpisodeNumber != null ? 1 : 0;
-        const bHasEp = b.media_type === "tv" && b.nextEpisodeNumber != null ? 1 : 0;
+        const aHasEp =
+          a.media_type === "tv" && a.nextEpisodeNumber != null ? 1 : 0;
+        const bHasEp =
+          b.media_type === "tv" && b.nextEpisodeNumber != null ? 1 : 0;
         if (aHasEp !== bHasEp) return bHasEp - aHasEp;
         return (b.vote_count ?? 0) - (a.vote_count ?? 0);
       });
     }
-    return Array.from(map.values()).sort((a, b) => a.date.localeCompare(b.date));
+    return Array.from(map.values()).sort((a, b) =>
+      a.date.localeCompare(b.date)
+    );
   });
 
   const handleClick = (item: UpcomingItem) => {
@@ -689,7 +756,7 @@ const UpcomingPage: Component = () => {
       backdrop_path: item.backdrop_path,
       release_date: item.release_date,
       first_air_date: item.first_air_date,
-      status: "Planned",
+      status: "Planned"
     } as WatchlistItem;
     openTitle(baseItem, library.watchlist());
   };
@@ -713,8 +780,16 @@ const UpcomingPage: Component = () => {
       <div class="sec-page sec-fade-in upcoming-page">
         {/* Header */}
         <div class="sec-header">
-          <a href="/profile" class="sec-back focus-ring" aria-label="Back to profile">
-            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+          <a
+            href="/profile"
+            class="sec-back focus-ring"
+            aria-label="Back to profile"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
               arrow_back
             </span>
             Profile
@@ -722,8 +797,8 @@ const UpcomingPage: Component = () => {
           <p class="sec-eyebrow">Upcoming</p>
           <h1 class="sec-title">What's coming next</h1>
           <p class="sec-subtitle">
-            Movies and series releasing in the next 30 days from your
-            selected date. Tap any title for full details.
+            Movies and series releasing in the next 30 days from your selected
+            date. Tap any title for full details.
           </p>
         </div>
 
@@ -737,7 +812,11 @@ const UpcomingPage: Component = () => {
             {/* Line 1: Date picker */}
             <div class="upcoming-date-row upcoming-date-row-v21">
               <label class="upcoming-date-label" for="upcoming-date-input">
-                <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
                   calendar_today
                 </span>
                 From
@@ -753,18 +832,26 @@ const UpcomingPage: Component = () => {
             </div>
 
             {/* Line 2: Type chips + Filter icon */}
-            <div class="upcoming-type-row upcoming-type-row-v21" role="group" aria-label="Filter by type and filters">
-              <For each={[
-                { id: "all", label: "All" },
-                { id: "movies", label: "Movies" },
-                { id: "series", label: "Series" },
-              ]}>
+            <div
+              class="upcoming-type-row upcoming-type-row-v21"
+              role="group"
+              aria-label="Filter by type and filters"
+            >
+              <For
+                each={[
+                  { id: "all", label: "All" },
+                  { id: "movies", label: "Movies" },
+                  { id: "series", label: "Series" }
+                ]}
+              >
                 {(chip) => (
                   <button
                     type="button"
                     class="upcoming-type-chip focus-ring"
                     classList={{ active: typeFilter() === chip.id }}
-                    onClick={() => setTypeFilter(chip.id as "all" | "movies" | "series")}
+                    onClick={() =>
+                      setTypeFilter(chip.id as "all" | "movies" | "series")
+                    }
                     aria-pressed={typeFilter() === chip.id}
                   >
                     {chip.label}
@@ -780,7 +867,11 @@ const UpcomingPage: Component = () => {
                 aria-label="Open language filter"
                 aria-haspopup="dialog"
               >
-                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "18px" }}
+                  aria-hidden="true"
+                >
                   tune
                 </span>
                 {/* Small dot indicator when a language filter is active */}
@@ -793,10 +884,13 @@ const UpcomingPage: Component = () => {
 
           {/* Window label */}
           <p class="upcoming-window-label">
-            Showing {formatDateShort(startDate())} → {formatDateShort(endDate())}
+            Showing {formatDateShort(startDate())} →{" "}
+            {formatDateShort(endDate())}
             {" · "}
             Releasing in {regionLabel()}
-            {language() ? ` · ${languageOptions().find((l) => l.code === language())?.label ?? language()}` : ""}
+            {language()
+              ? ` · ${languageOptions().find((l) => l.code === language())?.label ?? language()}`
+              : ""}
           </p>
 
           {/* Loading state */}
@@ -811,9 +905,15 @@ const UpcomingPage: Component = () => {
           {/* Error state */}
           <Show when={!loading() && error()}>
             <div class="glass-empty-state" role="alert">
-              <h3 class="glass-empty-state-title">Couldn't load upcoming titles</h3>
+              <h3 class="glass-empty-state-title">
+                Couldn't load upcoming titles
+              </h3>
               <p class="glass-empty-state-body">{error()}</p>
-              <button class="btn-primary focus-ring" onClick={() => void load()} style={{ "margin-top": "var(--sp-2)" }}>
+              <button
+                class="btn-primary focus-ring"
+                onClick={() => void load()}
+                style={{ "margin-top": "var(--sp-2)" }}
+              >
                 Retry
               </button>
             </div>
@@ -823,17 +923,22 @@ const UpcomingPage: Component = () => {
           <Show when={!loading() && !error() && groups().length === 0}>
             <div class="glass-empty-state" role="status">
               <div class="glass-empty-state-icon" aria-hidden="true">
-                <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "32px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
                   event_busy
                 </span>
               </div>
-              <h3 class="glass-empty-state-title">No upcoming titles in this window</h3>
+              <h3 class="glass-empty-state-title">
+                No upcoming titles in this window
+              </h3>
               <p class="glass-empty-state-body">
-                Try a different date or language filter. Movies are
-                scoped to titles releasing in {regionLabel()} between
-                the selected dates. Series are scoped to those with
-                upcoming episodes airing on OTT platforms in your
-                region (TV-channel-only shows are excluded).
+                Try a different date or language filter. Movies are scoped to
+                titles releasing in {regionLabel()} between the selected dates.
+                Series are scoped to those with upcoming episodes airing on OTT
+                platforms in your region (TV-channel-only shows are excluded).
               </p>
             </div>
           </Show>
@@ -846,22 +951,31 @@ const UpcomingPage: Component = () => {
                 {(group) => {
                   // Split month + day for the date badge (e.g. "Jul" + "17")
                   const d = parseDate(group.date);
-                  const monthShort = d ? d.toLocaleDateString("en-US", { month: "short" }).toUpperCase() : "";
+                  const monthShort = d
+                    ? d
+                        .toLocaleDateString("en-US", { month: "short" })
+                        .toUpperCase()
+                    : "";
                   const dayNum = d ? String(d.getDate()) : "";
                   return (
                     <div class="upcoming-day-row-v23">
                       {/* Left: date badge anchored to the vertical timeline */}
                       <div class="upcoming-date-badge-v23">
-                        <span class="upcoming-date-badge-month">{monthShort}</span>
+                        <span class="upcoming-date-badge-month">
+                          {monthShort}
+                        </span>
                         <span class="upcoming-date-badge-day">{dayNum}</span>
                       </div>
 
                       {/* Right: cards for this date (movies + series mixed) */}
                       <div class="upcoming-day-cards-v23">
                         <div class="upcoming-day-cards-header">
-                          <span class="upcoming-day-cards-label">{group.label}</span>
+                          <span class="upcoming-day-cards-label">
+                            {group.label}
+                          </span>
                           <span class="upcoming-day-cards-count">
-                            {group.items.length} {group.items.length === 1 ? "title" : "titles"}
+                            {group.items.length}{" "}
+                            {group.items.length === 1 ? "title" : "titles"}
                           </span>
                         </div>
                         <div class="upcoming-list">
@@ -870,7 +984,9 @@ const UpcomingPage: Component = () => {
                               <UpcomingCard
                                 item={item}
                                 onClick={() => handleClick(item)}
-                                type={item.media_type === "tv" ? "series" : "movie"}
+                                type={
+                                  item.media_type === "tv" ? "series" : "movie"
+                                }
                               />
                             )}
                           </For>
@@ -892,12 +1008,12 @@ const UpcomingPage: Component = () => {
       <Show when={showFilterDialog()}>
         <Portal>
           <div
-            class="fixed inset-0 z-[999999] flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+            class="animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
             style={{
               background: "rgba(0,0,0,0.75)",
               "backdrop-filter": "blur(12px)",
               "-webkit-backdrop-filter": "blur(12px)",
-              "padding-bottom": "var(--nav-total-height)",
+              "padding-bottom": "var(--nav-total-height)"
             }}
             onClick={() => setShowFilterDialog(false)}
             role="dialog"
@@ -905,26 +1021,26 @@ const UpcomingPage: Component = () => {
             aria-label="Language filter"
           >
             <div
-              class="w-full max-w-sm rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter"
+              class="modal-sheet-enter flex w-full max-w-sm flex-col rounded-t-[2rem] sm:rounded-[2rem]"
               style={{
                 background: "var(--glass-bg-strong)",
                 "backdrop-filter": "blur(28px)",
                 "-webkit-backdrop-filter": "blur(28px)",
                 border: "1px solid var(--hairline-2)",
-                "box-shadow": "var(--shadow-elevated)",
+                "box-shadow": "var(--shadow-elevated)"
               }}
               onClick={(e) => e.stopPropagation()}
             >
               {/* Drag handle */}
               <div
-                class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden"
+                class="mx-auto mb-2 mt-4 h-1.5 w-12 rounded-full sm:hidden"
                 style={{ background: "var(--hairline-2)" }}
                 aria-hidden="true"
               />
 
               {/* Header */}
               <div
-                class="flex justify-between items-center px-6 pt-4 pb-4"
+                class="flex items-center justify-between px-6 pb-4 pt-4"
                 style={{ "border-bottom": "1px solid var(--hairline)" }}
               >
                 <div class="flex items-center gap-2">
@@ -935,17 +1051,20 @@ const UpcomingPage: Component = () => {
                   >
                     tune
                   </span>
-                  <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
+                  <h3
+                    class="type-headline text-white"
+                    style={{ "font-size": "1rem", margin: 0 }}
+                  >
                     Filters
                   </h3>
                 </div>
                 <button
                   onClick={() => setShowFilterDialog(false)}
-                  class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
+                  class="flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
                   style={{
                     background: "rgba(255,255,255,0.04)",
                     color: "var(--text-soft)",
-                    border: "1px solid var(--hairline)",
+                    border: "1px solid var(--hairline)"
                   }}
                   aria-label="Close filters"
                 >
@@ -960,18 +1079,24 @@ const UpcomingPage: Component = () => {
               </div>
 
               {/* Filter options */}
-              <div class="px-6 py-5 space-y-5">
+              <div class="space-y-5 px-6 py-5">
                 {/* Country info banner — explains why there's no Nationality toggle */}
                 <div
-                  class="flex items-start gap-2 p-3 rounded-xl"
+                  class="flex items-start gap-2 rounded-xl p-3"
                   style={{
-                    background: "color-mix(in srgb, var(--p) 8%, var(--tier-2))",
-                    border: "1px solid color-mix(in srgb, var(--p) 25%, var(--hairline))",
+                    background:
+                      "color-mix(in srgb, var(--p) 8%, var(--tier-2))",
+                    border:
+                      "1px solid color-mix(in srgb, var(--p) 25%, var(--hairline))"
                   }}
                 >
                   <span
                     class="material-symbols-outlined"
-                    style={{ "font-size": "16px", color: "var(--p)", "margin-top": "2px" }}
+                    style={{
+                      "font-size": "16px",
+                      color: "var(--p)",
+                      "margin-top": "2px"
+                    }}
                     aria-hidden="true"
                   >
                     info
@@ -981,12 +1106,14 @@ const UpcomingPage: Component = () => {
                       "font-size": "0.75rem",
                       "line-height": "1.4",
                       color: "var(--text-soft)",
-                      margin: 0,
+                      margin: 0
                     }}
                   >
                     Showing only titles releasing in{" "}
-                    <strong style={{ color: "var(--text-strong)" }}>{regionLabel()}</strong>.
-                    Change your country from Account settings if needed.
+                    <strong style={{ color: "var(--text-strong)" }}>
+                      {regionLabel()}
+                    </strong>
+                    . Change your country from Account settings if needed.
                   </p>
                 </div>
 
@@ -1029,7 +1156,7 @@ const UpcomingPage: Component = () => {
 
               {/* Footer */}
               <div
-                class="px-6 pt-3 pb-5 flex gap-2"
+                class="flex gap-2 px-6 pb-5 pt-3"
                 style={{ "border-top": "1px solid var(--hairline)" }}
               >
                 <button
@@ -1094,8 +1221,10 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
     if (!d) return null;
     const now = new Date();
     now.setHours(0, 0, 0, 0);
-    const diff = Math.round((d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-    if (diff < 0) return null;          // already released
+    const diff = Math.round(
+      (d.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+    );
+    if (diff < 0) return null; // already released
     if (diff === 0) return "Today";
     if (diff === 1) return "1 DAY";
     return `${diff} DAYS`;
@@ -1137,7 +1266,9 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             decoding="async"
             alt=""
             aria-hidden="true"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
         </Show>
       </div>
@@ -1147,7 +1278,9 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
         <div class="upcoming-card-meta">
           <span class="upcoming-card-date">{props.item.formattedDate}</span>
           <Show when={year()}>
-            <span class="upcoming-card-sep" aria-hidden="true">·</span>
+            <span class="upcoming-card-sep" aria-hidden="true">
+              ·
+            </span>
             <span>{year()}</span>
           </Show>
         </div>
@@ -1155,7 +1288,11 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           {/* v2.3: V1-style "X DAYS" countdown chip (accent color) */}
           <Show when={daysUntil()}>
             <span class="upcoming-card-days">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "10px" }}
+                aria-hidden="true"
+              >
                 schedule
               </span>
               {daysUntil()}
@@ -1165,22 +1302,38 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           {/* v2.3: V1-style "S3 E5" episode chip for series */}
           <Show when={episodeLabel()}>
             <span class="upcoming-card-episode">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "10px" }}
+                aria-hidden="true"
+              >
                 tv
               </span>
               {episodeLabel()}
             </span>
           </Show>
 
-          <span class={`upcoming-card-ott ${props.item.isTheatrical ? "ott-theatrical" : "ott-streaming"}`}>
-            <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">
+          <span
+            class={`upcoming-card-ott ${props.item.isTheatrical ? "ott-theatrical" : "ott-streaming"}`}
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "10px" }}
+              aria-hidden="true"
+            >
               {props.item.isTheatrical ? "theaters" : "play_circle"}
             </span>
             {ottLabel()}
           </span>
           <Show when={props.item.vote_average && props.item.vote_average > 0}>
             <span class="upcoming-card-rating">
-              <span class="material-symbols-outlined" style={{ "font-size": "10px" }} aria-hidden="true">star</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "10px" }}
+                aria-hidden="true"
+              >
+                star
+              </span>
               {props.item.vote_average!.toFixed(1)}
             </span>
           </Show>

@@ -11,7 +11,10 @@
 //
 // All mutations require admin auth + audit log.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -34,7 +37,7 @@ interface AnnouncementInput {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -82,7 +85,9 @@ export async function POST(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as AnnouncementInput;
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as AnnouncementInput;
     if (!body.title || !body.title.trim()) {
       return jsonResponse({ error: "Title is required" }, 400);
     }
@@ -99,7 +104,7 @@ export async function POST(event: APIEvent) {
       starts_at: body.starts_at ?? null,
       ends_at: body.ends_at ?? null,
       target_audience: body.target_audience ?? "all",
-      created_by: adminResult.admin.id,
+      created_by: adminResult.admin.id
     };
 
     const supabase = createAdminClient();
@@ -115,7 +120,7 @@ export async function POST(event: APIEvent) {
       action: "announcement.create",
       entity_type: "announcement",
       entity_id: data.id,
-      payload: { title: data.title, type: data.type, severity: data.severity },
+      payload: { title: data.title, type: data.type, severity: data.severity }
     });
 
     return jsonResponse({ announcement: data }, 201);
@@ -132,7 +137,9 @@ export async function PATCH(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as AnnouncementInput & {
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as AnnouncementInput & {
       id?: string;
     };
     if (!body.id) return jsonResponse({ error: "id is required" }, 400);
@@ -149,7 +156,7 @@ export async function PATCH(event: APIEvent) {
       "is_active",
       "starts_at",
       "ends_at",
-      "target_audience",
+      "target_audience"
     ] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
@@ -163,13 +170,14 @@ export async function PATCH(event: APIEvent) {
       .select("*")
       .single();
 
-    if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
+    if (error || !data)
+      return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 
     await logAdminAction(event, adminResult.admin, {
       action: "announcement.update",
       entity_type: "announcement",
       entity_id: data.id,
-      payload: { changes: update },
+      payload: { changes: update }
     });
 
     return jsonResponse({ announcement: data });
@@ -199,13 +207,14 @@ export async function DELETE(event: APIEvent) {
       .select("id, title")
       .single();
 
-    if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
+    if (error || !data)
+      return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 
     await logAdminAction(event, adminResult.admin, {
       action: "announcement.delete",
       entity_type: "announcement",
       entity_id: id,
-      payload: { title: data.title },
+      payload: { title: data.title }
     });
 
     return jsonResponse({ ok: true });

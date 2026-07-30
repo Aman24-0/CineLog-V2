@@ -103,7 +103,7 @@ const PublicProfileRoute: Component = () => {
       language_code: "en",
       scheduled_deletion_at: null,
       timezone: "UTC",
-      updated_at: p.created_at,
+      updated_at: p.created_at
     } as ProfileRow;
   });
 
@@ -118,7 +118,7 @@ const PublicProfileRoute: Component = () => {
       profile: profileRow(),
       favoriteMovie: null,
       favoriteSeries: null,
-      favoriteDirector: null,
+      favoriteDirector: null
     };
   });
 
@@ -131,10 +131,15 @@ const PublicProfileRoute: Component = () => {
     const completed = list.filter((m) => m.status === "Completed").length;
     const movieCount = list.filter((m) => m.media_type === "movie").length;
     const tvCount = list.filter((m) => m.media_type === "tv").length;
-    const totalRuntimeMinutes = list.reduce((sum, m) => sum + (m.runtime ?? 0), 0);
+    const totalRuntimeMinutes = list.reduce(
+      (sum, m) => sum + (m.runtime ?? 0),
+      0
+    );
     const rated = list.filter((m) => m.rating && m.rating > 0);
     const avgRating =
-      rated.length > 0 ? rated.reduce((s, m) => s + (m.rating ?? 0), 0) / rated.length : 0;
+      rated.length > 0
+        ? rated.reduce((s, m) => s + (m.rating ?? 0), 0) / rated.length
+        : 0;
     const total = movieCount + tvCount;
     return {
       total: list.length,
@@ -156,7 +161,7 @@ const PublicProfileRoute: Component = () => {
       weekdayVsWeekend: { weekday: 0, weekend: 0 },
       avgRating: Math.round(avgRating * 10) / 10,
       topRated: null,
-      mostRewatched: null,
+      mostRewatched: null
     };
   });
 
@@ -169,8 +174,10 @@ const PublicProfileRoute: Component = () => {
   const handleShare = async () => {
     const p = publicProfile.profile();
     if (!p) return;
-    await shareProfileLink(p.username, p.display_name, (msg, kind, durationMs) =>
-      showToast(msg, kind, durationMs),
+    await shareProfileLink(
+      p.username,
+      p.display_name,
+      (msg, kind, durationMs) => showToast(msg, kind, durationMs)
     );
   };
 
@@ -178,7 +185,8 @@ const PublicProfileRoute: Component = () => {
   // title's route (no modal on the public profile page to keep the
   // surface minimal).
   const handleItemClick = (item: WatchlistItem) => {
-    const path = item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
+    const path =
+      item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
     if (typeof window !== "undefined") {
       window.location.href = path;
     }
@@ -195,13 +203,22 @@ const PublicProfileRoute: Component = () => {
       <ErrorBoundary
         fallback={(error, reset) => (
           <PageContainer>
-            <div class="profile-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+            <div
+              class="profile-page"
+              style={{ padding: "var(--sp-12) var(--sp-5)" }}
+            >
               <GlassEmptyState
                 icon="error"
                 title="Couldn't load profile"
-                message={error.message || "Something went wrong loading this profile."}
+                message={
+                  error.message || "Something went wrong loading this profile."
+                }
                 action={
-                  <GlassButton variant="primary" onClick={() => reset()} aria-label="Retry">
+                  <GlassButton
+                    variant="primary"
+                    onClick={() => reset()}
+                    aria-label="Retry"
+                  >
                     Retry
                   </GlassButton>
                 }
@@ -217,11 +234,11 @@ const PublicProfileRoute: Component = () => {
               <div class="profile-skeleton-v3">
                 <GlassSkeleton class="profile-skeleton-v3-banner h-44 w-full rounded-xl" />
                 <div class="profile-skeleton-v3-header">
-                  <GlassSkeleton class="w-20 h-20 rounded-full" />
+                  <GlassSkeleton class="h-20 w-20 rounded-full" />
                   <div class="profile-skeleton-v3-header-text">
                     <GlassSkeleton class="h-5 w-48 rounded" />
-                    <GlassSkeleton class="h-3 w-32 rounded mt-2" />
-                    <GlassSkeleton class="h-3 w-40 rounded mt-1" />
+                    <GlassSkeleton class="mt-2 h-3 w-32 rounded" />
+                    <GlassSkeleton class="mt-1 h-3 w-40 rounded" />
                   </div>
                 </div>
                 <div class="profile-skeleton-v3-stats">
@@ -234,7 +251,10 @@ const PublicProfileRoute: Component = () => {
 
             {/* ── NOT FOUND ─────────────────────────────────────────── */}
             <Show when={publicProfile.status() === "not_found"}>
-              <div class="profile-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
+              <div
+                class="profile-page"
+                style={{ padding: "var(--sp-12) var(--sp-5)" }}
+              >
                 <GlassEmptyState
                   icon="person_off"
                   title="User not found"
@@ -253,7 +273,10 @@ const PublicProfileRoute: Component = () => {
                 {/* The public lookup function returns no rows for private
                     profiles — we don't have the avatar/name to render a
                     personalized header. Show a clean generic lock screen. */}
-                <section class="profile-v3-banner-section" aria-label="Profile banner">
+                <section
+                  class="profile-v3-banner-section"
+                  aria-label="Profile banner"
+                >
                   <div class="profile-banner">
                     <div class="profile-banner-gradient" aria-hidden="true" />
                     <div class="profile-banner-overlay" aria-hidden="true" />
@@ -267,7 +290,10 @@ const PublicProfileRoute: Component = () => {
                         class="profile-header-v3-avatar profile-private-lock-avatar"
                         aria-hidden="true"
                       >
-                        <span class="material-symbols-outlined" style={{ "font-size": "32px" }}>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "32px" }}
+                        >
                           lock
                         </span>
                       </div>
@@ -276,12 +302,17 @@ const PublicProfileRoute: Component = () => {
                       <div class="profile-header-v3-name-row">
                         <h1 class="profile-header-v3-name">@{username()}</h1>
                       </div>
-                      <p class="profile-header-v3-member-since">This profile is private</p>
+                      <p class="profile-header-v3-member-since">
+                        This profile is private
+                      </p>
                     </div>
                   </div>
                 </div>
 
-                <div class="profile-page" style={{ padding: "var(--sp-8) var(--sp-5)" }}>
+                <div
+                  class="profile-page"
+                  style={{ padding: "var(--sp-8) var(--sp-5)" }}
+                >
                   <GlassEmptyState
                     icon="lock"
                     title="This profile is private"
@@ -292,10 +323,17 @@ const PublicProfileRoute: Component = () => {
             </Show>
 
             {/* ── READY (PUBLIC PROFILE) ────────────────────────────── */}
-            <Show when={publicProfile.status() === "ready" && publicProfile.profile()}>
+            <Show
+              when={
+                publicProfile.status() === "ready" && publicProfile.profile()
+              }
+            >
               <div class="profile-content-v3">
                 {/* 1. Banner — reuses ProfileBanner (no edit overlay). */}
-                <section class="profile-v3-banner-section" aria-label="Profile banner">
+                <section
+                  class="profile-v3-banner-section"
+                  aria-label="Profile banner"
+                >
                   <ProfileBanner data={profileData()} isEditing={false} />
                 </section>
 
@@ -316,7 +354,10 @@ const PublicProfileRoute: Component = () => {
                 <ProfileStatsRow stats={stats} />
 
                 {/* 4. Tabs + content */}
-                <ProfileTabs activeTab={activeTab()} onTabChange={setActiveTab} />
+                <ProfileTabs
+                  activeTab={activeTab()}
+                  onTabChange={setActiveTab}
+                />
 
                 <div class="profile-v3-tab-content">
                   <Show when={activeTab() === "activity"}>
@@ -326,10 +367,16 @@ const PublicProfileRoute: Component = () => {
                     />
                   </Show>
                   <Show when={activeTab() === "favorites"}>
-                    <PublicFavoritesGrid items={favorites} onItemClick={handleItemClick} />
+                    <PublicFavoritesGrid
+                      items={favorites}
+                      onItemClick={handleItemClick}
+                    />
                   </Show>
                   <Show when={activeTab() === "lists"}>
-                    <div class="profile-page" style={{ padding: "var(--sp-8) var(--sp-5)" }}>
+                    <div
+                      class="profile-page"
+                      style={{ padding: "var(--sp-8) var(--sp-5)" }}
+                    >
                       <GlassEmptyState
                         icon="video_library"
                         title="Lists aren't publicly visible"
@@ -394,8 +441,13 @@ const PublicFavoritesGrid: Component<PublicFavoritesGridProps> = (props) => {
               <Show
                 when={item.poster_path}
                 fallback={
-                  <div class="profile-favorites-grid-v3-poster-fallback" aria-hidden="true">
-                    <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+                  <div
+                    class="profile-favorites-grid-v3-poster-fallback"
+                    aria-hidden="true"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      movie
+                    </span>
                   </div>
                 }
               >
@@ -406,7 +458,9 @@ const PublicFavoritesGrid: Component<PublicFavoritesGridProps> = (props) => {
                   decoding="async"
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               </Show>
               <div class="profile-favorites-grid-v3-meta">
@@ -415,11 +469,18 @@ const PublicFavoritesGrid: Component<PublicFavoritesGridProps> = (props) => {
                 </p>
                 <div class="profile-favorites-grid-v3-sub">
                   <Show when={yearOf(item)}>
-                    <span class="profile-favorites-grid-v3-year">{yearOf(item)}</span>
+                    <span class="profile-favorites-grid-v3-year">
+                      {yearOf(item)}
+                    </span>
                   </Show>
                   <Show when={item.rating && item.rating > 0}>
                     <span class="profile-favorites-grid-v3-rating">
-                      <span class="material-symbols-outlined" aria-hidden="true">star</span>
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
+                        star
+                      </span>
                       {item.rating}
                     </span>
                   </Show>

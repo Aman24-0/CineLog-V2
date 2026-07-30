@@ -1,5 +1,12 @@
 // src/features/admin/collectionEditor/UniversePhasesPanel.tsx
-import { For, Show, createSignal, createMemo, onMount, type Component } from "solid-js";
+import {
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  type Component
+} from "solid-js";
 import type { AdminEntry } from "./types";
 
 /**
@@ -67,7 +74,9 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
     }
   };
 
-  onMount(() => { void fetchPhases(); });
+  onMount(() => {
+    void fetchPhases();
+  });
 
   const entryOptions = createMemo(() => {
     // Entries sorted by their position (admin's primary order). The
@@ -77,7 +86,7 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
       .sort((a, b) => (a.position ?? 0) - (b.position ?? 0))
       .map((e) => ({
         id: String(e.tmdb_id),
-        label: `${e.title || "Untitled"}${e.release_date ? ` (${e.release_date.slice(0, 4)})` : ""}`,
+        label: `${e.title || "Untitled"}${e.release_date ? ` (${e.release_date.slice(0, 4)})` : ""}`
       }));
   });
 
@@ -89,15 +98,16 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
     try {
       const { getClient } = await import("~/lib/supabase/client");
       const supabase = getClient();
-      const nextOrder = phases().length > 0
-        ? Math.max(...phases().map((p) => p.order_index)) + 1
-        : 0;
+      const nextOrder =
+        phases().length > 0
+          ? Math.max(...phases().map((p) => p.order_index)) + 1
+          : 0;
       const payload = {
         universe_id: props.universeId,
         label,
         description: newDescription().trim() || null,
         before_entry_id: newBeforeEntryId() || null,
-        order_index: nextOrder,
+        order_index: nextOrder
       };
       const { data, error: err } = await supabase
         .from("universe_phases")
@@ -149,18 +159,31 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
     <div
       style={{
         "margin-top": "var(--sp-6)",
-        "padding": "var(--sp-4)",
-        "background": "var(--tier-2, rgba(255,255,255,0.02))",
-        "border": "1px solid var(--hairline)",
-        "border-radius": "var(--radius-md)",
+        padding: "var(--sp-4)",
+        background: "var(--tier-2, rgba(255,255,255,0.02))",
+        border: "1px solid var(--hairline)",
+        "border-radius": "var(--radius-md)"
       }}
     >
       <div style={{ "margin-bottom": "var(--sp-3)" }}>
-        <h3 style={{ margin: "0 0 4px", "font-size": "0.95rem", color: "var(--text)" }}>
+        <h3
+          style={{
+            margin: "0 0 4px",
+            "font-size": "0.95rem",
+            color: "var(--text)"
+          }}
+        >
           Timeline Dividers
         </h3>
-        <p style={{ margin: "0", "font-size": "0.75rem", color: "var(--text-muted)" }}>
-          Section headers that appear between entries on the user's timeline. No hardcoded data — every divider is admin-configured here.
+        <p
+          style={{
+            margin: "0",
+            "font-size": "0.75rem",
+            color: "var(--text-muted)"
+          }}
+        >
+          Section headers that appear between entries on the user's timeline. No
+          hardcoded data — every divider is admin-configured here.
         </p>
       </div>
 
@@ -169,11 +192,11 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
           style={{
             padding: "8px 12px",
             "margin-bottom": "var(--sp-3)",
-            "background": "rgba(248,113,113,0.1)",
-            "border": "1px solid rgba(248,113,113,0.3)",
+            background: "rgba(248,113,113,0.1)",
+            border: "1px solid rgba(248,113,113,0.3)",
             "border-radius": "6px",
             color: "#f87171",
-            "font-size": "0.75rem",
+            "font-size": "0.75rem"
           }}
         >
           {error()}
@@ -181,9 +204,23 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
       </Show>
 
       {/* Existing phases list */}
-      <Show when={!loading()} fallback={<div style={{ color: "var(--text-muted)", "font-size": "0.8rem" }}>Loading…</div>}>
+      <Show
+        when={!loading()}
+        fallback={
+          <div style={{ color: "var(--text-muted)", "font-size": "0.8rem" }}>
+            Loading…
+          </div>
+        }
+      >
         <Show when={phases().length > 0}>
-          <div style={{ display: "flex", "flex-direction": "column", gap: "6px", "margin-bottom": "var(--sp-3)" }}>
+          <div
+            style={{
+              display: "flex",
+              "flex-direction": "column",
+              gap: "6px",
+              "margin-bottom": "var(--sp-3)"
+            }}
+          >
             <For each={phases()}>
               {(phase) => (
                 <div
@@ -192,22 +229,42 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
                     "align-items": "center",
                     gap: "8px",
                     padding: "8px 10px",
-                    "background": "var(--tier-3, rgba(255,255,255,0.03))",
-                    "border": "1px solid var(--hairline)",
-                    "border-radius": "6px",
+                    background: "var(--tier-3, rgba(255,255,255,0.03))",
+                    border: "1px solid var(--hairline)",
+                    "border-radius": "6px"
                   }}
                 >
                   <div style={{ flex: "1", "min-width": "0" }}>
-                    <div style={{ "font-size": "0.8125rem", color: "var(--text)", "font-weight": 600 }}>
+                    <div
+                      style={{
+                        "font-size": "0.8125rem",
+                        color: "var(--text)",
+                        "font-weight": 600
+                      }}
+                    >
                       {phase.label}
                     </div>
                     <Show when={phase.description}>
-                      <div style={{ "font-size": "0.6875rem", color: "var(--text-muted)" }}>
+                      <div
+                        style={{
+                          "font-size": "0.6875rem",
+                          color: "var(--text-muted)"
+                        }}
+                      >
                         {phase.description}
                       </div>
                     </Show>
-                    <div style={{ "font-size": "0.625rem", color: "var(--text-muted)", "margin-top": "2px" }}>
-                      Before: <span style={{ color: "var(--text-soft)" }}>{labelForEntryId(phase.before_entry_id)}</span>
+                    <div
+                      style={{
+                        "font-size": "0.625rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "2px"
+                      }}
+                    >
+                      Before:{" "}
+                      <span style={{ color: "var(--text-soft)" }}>
+                        {labelForEntryId(phase.before_entry_id)}
+                      </span>
                     </div>
                   </div>
                   <button
@@ -223,7 +280,7 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
                       "border-radius": "4px",
                       padding: "4px 8px",
                       cursor: saving() ? "not-allowed" : "pointer",
-                      "font-size": "0.6875rem",
+                      "font-size": "0.6875rem"
                     }}
                   >
                     Delete
@@ -241,7 +298,7 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
             "flex-direction": "column",
             gap: "8px",
             "padding-top": "var(--sp-2)",
-            "border-top": "1px dashed var(--hairline)",
+            "border-top": "1px dashed var(--hairline)"
           }}
         >
           <input
@@ -251,12 +308,12 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
             onInput={(e) => setNewLabel(e.currentTarget.value)}
             style={{
               padding: "8px 10px",
-              "background": "var(--tier-3, rgba(255,255,255,0.03))",
-              "border": "1px solid var(--hairline)",
+              background: "var(--tier-3, rgba(255,255,255,0.03))",
+              border: "1px solid var(--hairline)",
               "border-radius": "6px",
               color: "var(--text)",
               "font-size": "0.8125rem",
-              "font-family": "inherit",
+              "font-family": "inherit"
             }}
           />
           <input
@@ -266,12 +323,12 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
             onInput={(e) => setNewDescription(e.currentTarget.value)}
             style={{
               padding: "8px 10px",
-              "background": "var(--tier-3, rgba(255,255,255,0.03))",
-              "border": "1px solid var(--hairline)",
+              background: "var(--tier-3, rgba(255,255,255,0.03))",
+              border: "1px solid var(--hairline)",
               "border-radius": "6px",
               color: "var(--text)",
               "font-size": "0.8125rem",
-              "font-family": "inherit",
+              "font-family": "inherit"
             }}
           />
           <select
@@ -279,12 +336,12 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
             onChange={(e) => setNewBeforeEntryId(e.currentTarget.value)}
             style={{
               padding: "8px 10px",
-              "background": "var(--tier-3, rgba(255,255,255,0.03))",
-              "border": "1px solid var(--hairline)",
+              background: "var(--tier-3, rgba(255,255,255,0.03))",
+              border: "1px solid var(--hairline)",
               "border-radius": "6px",
               color: "var(--text)",
               "font-size": "0.8125rem",
-              "font-family": "inherit",
+              "font-family": "inherit"
             }}
           >
             <option value="">— Top of timeline (before all entries) —</option>
@@ -299,13 +356,18 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
             style={{
               "align-self": "flex-start",
               padding: "8px 14px",
-              "background": newLabel().trim() && !saving() ? "var(--p, #e62429)" : "var(--tier-3)",
-              color: newLabel().trim() && !saving() ? "#fff" : "var(--text-muted)",
-              "border": "none",
+              background:
+                newLabel().trim() && !saving()
+                  ? "var(--p, #e62429)"
+                  : "var(--tier-3)",
+              color:
+                newLabel().trim() && !saving() ? "#fff" : "var(--text-muted)",
+              border: "none",
               "border-radius": "6px",
-              cursor: newLabel().trim() && !saving() ? "pointer" : "not-allowed",
+              cursor:
+                newLabel().trim() && !saving() ? "pointer" : "not-allowed",
               "font-size": "0.75rem",
-              "font-weight": 600,
+              "font-weight": 600
             }}
           >
             {saving() ? "Saving…" : "+ Add Divider"}

@@ -20,9 +20,15 @@ import {
   pinUniverseSubscription,
   removeUniverseSubscription,
   setUniversePreferences,
-  unpinUniverseSubscription,
+  unpinUniverseSubscription
 } from "../universePreferencesAdapter";
-import type { Collection, CollectionEntry, UniversePreferences, ViewingOrder, TimelineProvider } from "~/shared/types";
+import type {
+  Collection,
+  CollectionEntry,
+  UniversePreferences,
+  ViewingOrder,
+  TimelineProvider
+} from "~/shared/types";
 
 /**
  * Internal hook that manages universe preferences state + operations.
@@ -31,47 +37,66 @@ import type { Collection, CollectionEntry, UniversePreferences, ViewingOrder, Ti
  */
 export function useUniversePrefsLogic() {
   const { showToast } = useToast();
-  const [universePrefs, setUniversePrefs] = createSignal<UniversePreferences[]>([]);
+  const [universePrefs, setUniversePrefs] = createSignal<UniversePreferences[]>(
+    []
+  );
 
   const refreshUniversePrefs = async (userId: string) => {
     try {
       const prefs = await fetchUniversePreferencesFromSupabase(userId);
       setUniversePrefs(prefs);
     } catch (err) {
-      console.warn("[useUniversePrefs] Failed to fetch universe preferences:", err);
+      console.warn(
+        "[useUniversePrefs] Failed to fetch universe preferences:",
+        err
+      );
     }
   };
 
   // ─── Computed ────────────────────────────────────────────────
   const addedUniverses = createMemo(() => {
     const prefs = universePrefs().filter((p) => p.isAdded && !p.isHidden);
-    return prefs.map((p) => {
-      const curated = CURATED_COLLECTIONS.find((c) => c.id === p.universeId);
-      if (curated) return curated;
-      const suggested = SUGGESTED_UNIVERSES.find((s) => s.id === p.universeId);
-      if (suggested) {
-        return {
-          id: suggested.id, name: suggested.name, type: "official" as const,
-          description: suggested.description, backdrop_path: suggested.backdrop_path,
-          tmdbCollectionId: suggested.tmdbCollectionId, entries: []
-        } satisfies Collection;
-      }
-      return null;
-    }).filter(Boolean) as Collection[];
+    return prefs
+      .map((p) => {
+        const curated = CURATED_COLLECTIONS.find((c) => c.id === p.universeId);
+        if (curated) return curated;
+        const suggested = SUGGESTED_UNIVERSES.find(
+          (s) => s.id === p.universeId
+        );
+        if (suggested) {
+          return {
+            id: suggested.id,
+            name: suggested.name,
+            type: "official" as const,
+            description: suggested.description,
+            backdrop_path: suggested.backdrop_path,
+            tmdbCollectionId: suggested.tmdbCollectionId,
+            entries: []
+          } satisfies Collection;
+        }
+        return null;
+      })
+      .filter(Boolean) as Collection[];
   });
 
   const pinnedUniverses = createMemo(() => {
-    const pinnedIds = universePrefs().filter((p) => p.isPinned && p.isAdded).map((p) => p.universeId);
+    const pinnedIds = universePrefs()
+      .filter((p) => p.isPinned && p.isAdded)
+      .map((p) => p.universeId);
     return addedUniverses().filter((u) => pinnedIds.includes(u.id));
   });
 
   const suggestedUniverses = createMemo(() => {
-    const addedOrHiddenIds = universePrefs().filter((p) => p.isAdded || p.isHidden).map((p) => p.universeId);
+    const addedOrHiddenIds = universePrefs()
+      .filter((p) => p.isAdded || p.isHidden)
+      .map((p) => p.universeId);
     return SUGGESTED_UNIVERSES.filter((s) => !addedOrHiddenIds.includes(s.id));
   });
 
   const hiddenUniverses = createMemo(() => {
-    const hiddenIds = universePrefs().filter((p) => p.isHidden).map((p) => p.universeId);
+    const hiddenIds = universePrefs()
+      .filter((p) => p.isHidden)
+      .map((p) => p.universeId);
     return SUGGESTED_UNIVERSES.filter((s) => hiddenIds.includes(s.id));
   });
 
@@ -81,12 +106,18 @@ export function useUniversePrefsLogic() {
   // ─── Operations ──────────────────────────────────────────────
   const addUniverseToPrefs = async (universeId: string): Promise<void> => {
     const uid = getCurrentUid();
-    if (!uid) { showToast("Sign in to add universes.", "error"); return; }
+    if (!uid) {
+      showToast("Sign in to add universes.", "error");
+      return;
+    }
     try {
       await addUniverseSubscription(uid, universeId);
       await refreshUniversePrefs(uid);
       showToast("Universe added", "success", 1500);
-    } catch (err) { console.error("Failed to add universe:", err); showToast("Failed to add universe.", "error"); }
+    } catch (err) {
+      console.error("Failed to add universe:", err);
+      showToast("Failed to add universe.", "error");
+    }
   };
 
   const removeUniverseFromPrefs = async (universeId: string): Promise<void> => {
@@ -96,7 +127,9 @@ export function useUniversePrefsLogic() {
       await removeUniverseSubscription(uid, universeId);
       await refreshUniversePrefs(uid);
       showToast("Universe removed", "success", 1500);
-    } catch (err) { console.error("Failed to remove universe:", err); }
+    } catch (err) {
+      console.error("Failed to remove universe:", err);
+    }
   };
 
   const hideUniverseFromPrefs = async (universeId: string): Promise<void> => {
@@ -115,7 +148,9 @@ export function useUniversePrefsLogic() {
     try {
       await pinUniverseSubscription(uid, universeId);
       await refreshUniversePrefs(uid);
-    } catch (err) { console.error("Failed to pin universe:", err); }
+    } catch (err) {
+      console.error("Failed to pin universe:", err);
+    }
   };
 
   const unpinUniverseInPrefs = async (universeId: string): Promise<void> => {
@@ -124,34 +159,55 @@ export function useUniversePrefsLogic() {
     try {
       await unpinUniverseSubscription(uid, universeId);
       await refreshUniversePrefs(uid);
-    } catch (err) { console.error("Failed to unpin universe:", err); }
+    } catch (err) {
+      console.error("Failed to unpin universe:", err);
+    }
   };
 
-  const setUniversePreferredOrder = async (universeId: string, order: ViewingOrder): Promise<void> => {
+  const setUniversePreferredOrder = async (
+    universeId: string,
+    order: ViewingOrder
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
       await setUniversePreferences(uid, universeId, { preferredOrder: order });
       await refreshUniversePrefs(uid);
-    } catch (err) { console.error("Failed to set preferred order:", err); }
+    } catch (err) {
+      console.error("Failed to set preferred order:", err);
+    }
   };
 
-  const setUniversePreferredProvider = async (universeId: string, provider: TimelineProvider): Promise<void> => {
+  const setUniversePreferredProvider = async (
+    universeId: string,
+    provider: TimelineProvider
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
-      await setUniversePreferences(uid, universeId, { preferredProvider: provider });
+      await setUniversePreferences(uid, universeId, {
+        preferredProvider: provider
+      });
       await refreshUniversePrefs(uid);
-    } catch (err) { console.error("Failed to set preferred provider:", err); }
+    } catch (err) {
+      console.error("Failed to set preferred provider:", err);
+    }
   };
 
-  const saveOverrides = async (universeId: string, overrides: Record<string, Partial<CollectionEntry>>): Promise<void> => {
+  const saveOverrides = async (
+    universeId: string,
+    overrides: Record<string, Partial<CollectionEntry>>
+  ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) return;
     try {
-      await setUniversePreferences(uid, universeId, { customOverrides: overrides });
+      await setUniversePreferences(uid, universeId, {
+        customOverrides: overrides
+      });
       await refreshUniversePrefs(uid);
-    } catch (err) { console.error("Failed to save overrides:", err); }
+    } catch (err) {
+      console.error("Failed to save overrides:", err);
+    }
   };
 
   return {
@@ -170,6 +226,6 @@ export function useUniversePrefsLogic() {
     unpinUniverseInPrefs,
     setUniversePreferredOrder,
     setUniversePreferredProvider,
-    saveOverrides,
+    saveOverrides
   };
 }

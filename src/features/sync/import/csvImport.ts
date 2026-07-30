@@ -145,7 +145,8 @@ function detectSource(headers: string[]): CsvImportRow["source"] {
   if (joined.includes("letterboxd uri")) return "letterboxd";
   if (joined.includes("watchedat") && joined.includes("type")) return "trakt";
   if (joined.includes("const") && joined.includes("title type")) return "imdb";
-  if (joined.includes("media_type") && joined.includes("status")) return "generic";
+  if (joined.includes("media_type") && joined.includes("status"))
+    return "generic";
   return "unknown";
 }
 
@@ -160,7 +161,8 @@ export function parseWatchlistCsv(text: string): {
 } {
   const cleaned = normalize(text);
   const lines = cleaned.split("\n").filter((l) => l.trim().length > 0);
-  if (lines.length === 0) return { source: "unknown", candidates: [], skipped: 0 };
+  if (lines.length === 0)
+    return { source: "unknown", candidates: [], skipped: 0 };
 
   const headers = parseCsvLine(lines[0]).map((h) => h.trim());
   const source = detectSource(headers);
@@ -190,7 +192,10 @@ export function parseWatchlistCsv(text: string): {
   return { source, candidates, skipped };
 }
 
-function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["source"]): ImportCandidate | null {
+function mapRowToCandidate(
+  row: Record<string, string>,
+  source: CsvImportRow["source"]
+): ImportCandidate | null {
   if (source === "letterboxd") {
     const name = row["Name"] || row["name"];
     if (!name) return null;
@@ -207,7 +212,7 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
       media_type: "movie",
       status: "Completed",
       rating: !isNaN(rating as number) ? rating : undefined,
-      watchDate: undefined,
+      watchDate: undefined
     };
   }
 
@@ -216,18 +221,21 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     if (!title) return null;
     const year = row["Year"] || row["year"] || undefined;
     const typeStr = (row["Type"] || row["type"] || "movie").toLowerCase();
-    const media_type: "movie" | "tv" = typeStr === "show" || typeStr === "tv" ? "tv" : "movie";
+    const media_type: "movie" | "tv" =
+      typeStr === "show" || typeStr === "tv" ? "tv" : "movie";
     const ratingStr = row["Rating"] || row["rating"];
     const rating = ratingStr ? Number(ratingStr) : undefined;
     const watchedAt = row["WatchedAt"] || row["watchedat"];
-    const statusStr = (row["Status"] || row["status"] || "Completed") as WatchlistItem["status"];
+    const statusStr = (row["Status"] ||
+      row["status"] ||
+      "Completed") as WatchlistItem["status"];
     return {
       title,
       year,
       media_type,
       status: statusStr,
       rating: !isNaN(rating as number) ? rating : undefined,
-      watchDate: watchedAt,
+      watchDate: watchedAt
     };
   }
 
@@ -235,8 +243,13 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     const title = row["Title"] || row["title"];
     if (!title) return null;
     const year = row["Year"] || row["year"] || undefined;
-    const titleType = (row["Title Type"] || row["title type"] || "").toLowerCase();
-    const media_type: "movie" | "tv" = titleType.includes("series") || titleType.includes("tv") ? "tv" : "movie";
+    const titleType = (
+      row["Title Type"] ||
+      row["title type"] ||
+      ""
+    ).toLowerCase();
+    const media_type: "movie" | "tv" =
+      titleType.includes("series") || titleType.includes("tv") ? "tv" : "movie";
     const ratingStr = row["IMDb Rating"] || row["imdb rating"];
     const rating = ratingStr ? Number(ratingStr) : undefined;
     const created = row["Created"] || row["created"];
@@ -248,7 +261,7 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
       status: "Completed",
       rating: !isNaN(rating as number) ? rating : undefined,
       watchDate: created,
-      notes: description,
+      notes: description
     };
   }
 
@@ -256,7 +269,8 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     const title = row["title"] || row["name"];
     if (!title) return null;
     const id = row["id"];
-    const media_type = (row["media_type"] === "tv" ? "tv" : "movie") as "movie" | "tv";
+    const media_type = (row["media_type"] === "tv" ? "tv" : "movie") as
+      "movie" | "tv";
     const status = (row["status"] || "Planned") as WatchlistItem["status"];
     const ratingStr = row["rating"];
     const rating = ratingStr ? Number(ratingStr) : undefined;
@@ -274,7 +288,9 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
     // so the import preview renders correctly and the UI doesn't show
     // "Untitled / NO POSTER" while waiting for TMDB enrichment.
     const runtime = row["runtime"] ? parseInt(row["runtime"], 10) : undefined;
-    const totalEps = row["total_eps"] ? parseInt(row["total_eps"], 10) : undefined;
+    const totalEps = row["total_eps"]
+      ? parseInt(row["total_eps"], 10)
+      : undefined;
     const season = row["season"] ? parseInt(row["season"], 10) : undefined;
     const episode = row["episode"] ? parseInt(row["episode"], 10) : undefined;
     const genresList = splitPipe(row["genres"]);
@@ -317,7 +333,7 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
       ...(tag && { tag }),
       ...(poster_path && { poster_path }),
       ...(backdrop_path && { backdrop_path }),
-      ...(release_date && { release_date }),
+      ...(release_date && { release_date })
     };
   }
 
@@ -327,7 +343,7 @@ function mapRowToCandidate(row: Record<string, string>, source: CsvImportRow["so
   return {
     title,
     media_type: "movie",
-    status: "Planned",
+    status: "Planned"
   };
 }
 

@@ -50,9 +50,13 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
       tooltipLabel: r.month,
       tooltipRows: [
         { name: "Cumulative", value: String(r.cumulative), color: "#f5c518" },
-        { name: "This month", value: String(r.completed), color: "rgba(255,255,255,0.5)" },
-      ],
-    })),
+        {
+          name: "This month",
+          value: String(r.completed),
+          color: "rgba(255,255,255,0.5)"
+        }
+      ]
+    }))
   );
 
   const paceBadges = createMemo(() => {
@@ -60,7 +64,11 @@ const TrendsChart: Component<TrendsChartProps> = (props) => {
     return [
       { label: "per day", value: p.daily.toFixed(2), icon: "today" },
       { label: "per week", value: p.weekly.toFixed(1), icon: "date_range" },
-      { label: "per month", value: p.monthly.toFixed(1), icon: "calendar_month" },
+      {
+        label: "per month",
+        value: p.monthly.toFixed(1),
+        icon: "calendar_month"
+      }
     ];
   });
 

@@ -13,7 +13,7 @@ export interface GlassInputProps extends JSX.InputHTMLAttributes<HTMLInputElemen
 }
 
 const defaultProps: Required<Pick<GlassInputProps, "size">> = {
-  size: "default",
+  size: "default"
 };
 
 /**
@@ -21,19 +21,25 @@ const defaultProps: Required<Pick<GlassInputProps, "size">> = {
  */
 const GlassInput: Component<GlassInputProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
-  const [local, rest] = splitProps(props, ["icon", "label", "rightContent", "size", "class"]);
+  const [local, rest] = splitProps(props, [
+    "icon",
+    "label",
+    "rightContent",
+    "size",
+    "class"
+  ]);
 
   return (
-    <div class={`flex flex-col gap-1.5 w-full ${local.class || ""}`}>
+    <div class={`flex w-full flex-col gap-1.5 ${local.class || ""}`}>
       <Show when={local.label}>
-        <label class="text-xs font-label font-semibold tracking-wide uppercase text-text-soft px-1">
+        <label class="px-1 font-label text-xs font-semibold uppercase tracking-wide text-text-soft">
           {local.label}
         </label>
       </Show>
-      <div class="relative w-full flex items-center group">
+      <div class="group relative flex w-full items-center">
         <Show when={local.icon}>
           <span
-            class="material-symbols-outlined absolute left-3 text-text-muted transition-colors duration-base group-focus-within:text-primary pointer-events-none"
+            class="material-symbols-outlined pointer-events-none absolute left-3 text-text-muted transition-colors duration-base group-focus-within:text-primary"
             aria-hidden="true"
             style={{ "font-size": local.size === "large" ? "24px" : "20px" }}
           >
@@ -43,19 +49,24 @@ const GlassInput: Component<GlassInputProps> = (rawProps) => {
         <input
           {...rest}
           class={[
-            "w-full bg-glass backdrop-blur-xl border border-glass-border rounded-lg text-text-strong",
+            "w-full rounded-lg border border-glass-border bg-glass text-text-strong backdrop-blur-xl",
             "transition-all duration-base ease-standard placeholder:text-text-muted",
-            "focus:outline-none focus:border-primary focus:bg-glass-strong focus:shadow-glow",
-            local.size === "large" ? "h-14 text-lg px-4" : "h-11 text-base px-3",
+            "focus:border-primary focus:bg-glass-strong focus:shadow-glow focus:outline-none",
+            local.size === "large"
+              ? "h-14 px-4 text-lg"
+              : "h-11 px-3 text-base",
             local.icon ? (local.size === "large" ? "pl-11" : "pl-10") : "",
             // Right padding: when rightContent is present, add extra padding
             // so typed text never slides underneath the absolute-positioned
             // clear/filter button. pr-10 is the base; pr-16 gives room for
             // wider buttons (e.g. the "Clear" pill in VaultSearch).
-            local.rightContent ? "pr-16" : "",
-          ].filter(Boolean).join(" ")}
+            local.rightContent ? "pr-16" : ""
+          ]
+            .filter(Boolean)
+            .join(" ")}
           style={{
-            "box-shadow": "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.04)",
+            "box-shadow":
+              "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.04)"
           }}
         />
         <Show when={local.rightContent}>

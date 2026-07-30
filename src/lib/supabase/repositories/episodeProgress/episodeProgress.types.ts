@@ -9,7 +9,12 @@
  * episode per vault item. Supports UPSERT (INSERT ... ON CONFLICT).
  */
 
-import type { Tables, TablesInsert, TablesUpdate, Database } from "../../database.types";
+import type {
+  Tables,
+  TablesInsert,
+  TablesUpdate,
+  Database
+} from "../../database.types";
 
 // ---------------------------------------------------------------------------
 // Row / Insert / Update aliases
@@ -58,4 +63,5 @@ export interface EpisodeProgressWriteResult {
 // Typed Supabase client
 // ---------------------------------------------------------------------------
 
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<Database>;

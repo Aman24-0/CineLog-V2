@@ -53,13 +53,14 @@
   background: transparent;
   border: none;
   color: var(--text-soft);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   font-weight: 500;
   cursor: pointer;
   border-radius: var(--radius-md);
-  transition: color var(--dur-fast) var(--ease-out),
-              background var(--dur-fast) var(--ease-out);
+  transition:
+    color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out);
 }
 .trash-back-btn .material-symbols-outlined {
   font-size: 18px;
@@ -111,7 +112,7 @@
 }
 
 .trash-group-label {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -120,7 +121,7 @@
 }
 
 .trash-group-count {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.625rem;
   font-weight: 700;
   color: var(--text-dim);
@@ -187,11 +188,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(
-    135deg,
-    var(--tier-3) 0%,
-    var(--tier-2) 100%
-  );
+  background: linear-gradient(135deg, var(--tier-3) 0%, var(--tier-2) 100%);
 }
 .trash-item-card-poster-fallback .material-symbols-outlined {
   font-size: 28px;
@@ -199,7 +196,7 @@
 }
 
 .trash-item-card-poster-initial {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 2rem;
   font-weight: 700;
   color: var(--text-soft);
@@ -216,7 +213,9 @@
     var(--tier-2) 100%
   );
 }
-.trash-item-card-poster-folder .trash-item-card-poster-fallback .material-symbols-outlined {
+.trash-item-card-poster-folder
+  .trash-item-card-poster-fallback
+  .material-symbols-outlined {
   color: var(--p);
   opacity: 0.7;
 }
@@ -238,7 +237,7 @@
 }
 
 .trash-item-card-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.9375rem;
   font-weight: 600;
   color: var(--text-strong);
@@ -252,7 +251,7 @@
 }
 
 .trash-item-card-year {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.75rem;
   font-weight: 600;
   color: var(--text-dim);
@@ -272,7 +271,7 @@
 }
 
 .trash-item-card-meta-text {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   color: var(--text-soft);
 }
@@ -281,7 +280,7 @@
   display: flex;
   align-items: center;
   gap: 4px;
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   color: var(--text-dim);
   margin: 0;
@@ -328,14 +327,14 @@
 }
 
 .trash-error-title {
-  font-family: 'Bebas Neue', sans-serif;
+  font-family: "Bebas Neue", sans-serif;
   font-size: 1.5rem;
   color: var(--text-strong);
   margin: 0;
 }
 
 .trash-error-desc {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   color: var(--text-soft);
   margin: 0;
@@ -440,7 +439,7 @@
 }
 
 .trash-confirm-message {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.875rem;
   color: var(--text-soft);
   line-height: 1.55;
@@ -453,7 +452,7 @@
   align-items: center;
   justify-content: center;
   gap: 6px;
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 600;
   text-transform: uppercase;

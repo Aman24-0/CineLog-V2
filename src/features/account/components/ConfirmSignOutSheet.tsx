@@ -45,15 +45,15 @@ const ConfirmSignOutSheet: Component<ConfirmSignOutSheetProps> = (props) => {
   // props.mode changes (e.g. user opens "Sign out" sheet, closes it,
   // then opens "Sign out everywhere" sheet on the same instance).
   const title = createMemo(() =>
-    props.mode === "global" ? "Sign out everywhere?" : "Sign out?",
+    props.mode === "global" ? "Sign out everywhere?" : "Sign out?"
   );
   const subtitle = createMemo(() =>
     props.mode === "global"
       ? "This revokes every session across all your devices. You'll need to sign in again on each one."
-      : "You'll be signed out of CineLog on this device. Your watchlist and data are saved.",
+      : "You'll be signed out of CineLog on this device. Your watchlist and data are saved."
   );
   const confirmLabel = createMemo(() =>
-    props.mode === "global" ? "Yes, sign out everywhere" : "Yes, sign out",
+    props.mode === "global" ? "Yes, sign out everywhere" : "Yes, sign out"
   );
 
   const handleConfirm = async () => {
@@ -88,7 +88,8 @@ const ConfirmSignOutSheet: Component<ConfirmSignOutSheetProps> = (props) => {
             style={{
               "font-size": "32px",
               color: "#f87171",
-              "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40",
+              "font-variation-settings":
+                "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40"
             }}
             aria-hidden="true"
           >
@@ -117,7 +118,10 @@ const ConfirmSignOutSheet: Component<ConfirmSignOutSheetProps> = (props) => {
             <Show when={busy()} fallback={confirmLabel()}>
               <span
                 class="material-symbols-outlined"
-                style={{ "font-size": "14px", animation: "spin 1s linear infinite" }}
+                style={{
+                  "font-size": "14px",
+                  animation: "spin 1s linear infinite"
+                }}
                 aria-hidden="true"
               >
                 progress_activity

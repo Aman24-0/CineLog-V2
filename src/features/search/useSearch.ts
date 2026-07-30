@@ -1,5 +1,12 @@
 // src/features/search/useSearch.ts
-import { createSignal, createMemo, createEffect, onMount, onCleanup, Accessor } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  onMount,
+  onCleanup,
+  Accessor
+} from "solid-js";
 import { searchMulti, getTrending, genreIdFor } from "~/core/tmdb/discover";
 import { buildVaultKeySet, vaultIdKey } from "~/shared/utils/vaultMatch";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
@@ -7,7 +14,7 @@ import { loadRecent, saveRecent, MAX_RECENT } from "./searchStorage";
 import {
   fetchGenrePage,
   emptyGenreBrowse,
-  type GenreBrowseState,
+  type GenreBrowseState
 } from "./genreBrowseUtils";
 
 export interface SearchResults {
@@ -21,7 +28,7 @@ const emptyResults = (): SearchResults => ({
   movies: [],
   series: [],
   people: [],
-  totalCount: 0,
+  totalCount: 0
 });
 
 // Re-export so existing consumers can keep importing from useSearch.
@@ -60,7 +67,8 @@ export function useSearch(args: UseSearchArgs) {
   const [recentSearches, setRecentSearches] = createSignal<string[]>([]);
   const [trending, setTrending] = createSignal<TMDBTitle[]>([]);
   const [trendingLoading, setTrendingLoading] = createSignal(false);
-  const [genreBrowse, setGenreBrowse] = createSignal<GenreBrowseState>(emptyGenreBrowse());
+  const [genreBrowse, setGenreBrowse] =
+    createSignal<GenreBrowseState>(emptyGenreBrowse());
 
   // Vault key set — composite "{media_type}/{id}" keys for O(1) membership
   // checks. Uses composite keys (not bare ids) because TMDB movie and TV
@@ -119,7 +127,7 @@ export function useSearch(args: UseSearchArgs) {
           movies,
           series,
           people: [],
-          totalCount: movies.length + series.length,
+          totalCount: movies.length + series.length
         });
       })
       .catch((err) => {
@@ -148,7 +156,7 @@ export function useSearch(args: UseSearchArgs) {
       items: [],
       loading: true,
       page: 1,
-      hasMore: true,
+      hasMore: true
     });
 
     fetchGenrePage(genreName, movieId, tvId, 1)
@@ -158,7 +166,7 @@ export function useSearch(args: UseSearchArgs) {
           items,
           loading: false,
           page: 1,
-          hasMore: items.length >= 20,
+          hasMore: items.length >= 20
         }));
       })
       .catch((err) => {
@@ -179,7 +187,7 @@ export function useSearch(args: UseSearchArgs) {
           items: [...prev.items, ...newItems],
           loading: false,
           page: nextPage,
-          hasMore: newItems.length >= 20,
+          hasMore: newItems.length >= 20
         }));
       })
       .catch((err) => {
@@ -196,7 +204,10 @@ export function useSearch(args: UseSearchArgs) {
     const trimmed = q.trim();
     if (!trimmed) return;
     setRecentSearches((prev) => {
-      const next = [trimmed, ...prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase())].slice(0, MAX_RECENT);
+      const next = [
+        trimmed,
+        ...prev.filter((s) => s.toLowerCase() !== trimmed.toLowerCase())
+      ].slice(0, MAX_RECENT);
       saveRecent(next);
       return next;
     });
@@ -241,6 +252,6 @@ export function useSearch(args: UseSearchArgs) {
     browseGenre,
     loadMoreGenre,
     clearGenre,
-    isGenreBrowse: createMemo(() => genreBrowse().genre !== null),
+    isGenreBrowse: createMemo(() => genreBrowse().genre !== null)
   };
 }

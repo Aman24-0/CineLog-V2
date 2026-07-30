@@ -29,7 +29,10 @@ export function useSocialStats(userId: Accessor<string | null | undefined>): {
   error: Accessor<Error | null>;
   refresh: () => Promise<void>;
 } {
-  const [stats, setStats] = createSignal<SocialStats>({ followers: 0, following: 0 });
+  const [stats, setStats] = createSignal<SocialStats>({
+    followers: 0,
+    following: 0
+  });
   const [loading, setLoading] = createSignal(false);
   const [error, setError] = createSignal<Error | null>(null);
 
@@ -73,6 +76,6 @@ export function useSocialStats(userId: Accessor<string | null | undefined>): {
     refresh: async () => {
       const id = userId();
       if (id) await fetchStats(id);
-    },
+    }
   };
 }

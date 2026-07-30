@@ -63,7 +63,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
     return d.toLocaleDateString("en-US", {
       month: "short",
       day: "numeric",
-      year: "numeric",
+      year: "numeric"
     });
   };
 
@@ -113,7 +113,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             <div class="episode-card-still-fallback" aria-hidden="true">
               <span
                 class="material-symbols-outlined"
-                style={{"font-size":"24px","color":"var(--text-dim)"}}
+                style={{ "font-size": "24px", color: "var(--text-dim)" }}
                 aria-hidden="true"
               >
                 movie
@@ -140,7 +140,9 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               <span>{formattedAirDate()}</span>
             </Show>
             <Show when={props.episode.vote_average > 0}>
-              <span style={{"color":"#f5c518"}}>★ {props.episode.vote_average.toFixed(1)}</span>
+              <span style={{ color: "#f5c518" }}>
+                ★ {props.episode.vote_average.toFixed(1)}
+              </span>
             </Show>
           </div>
         </div>
@@ -187,7 +189,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           >
             <span
               class="material-symbols-outlined"
-              style={{"font-size":"18px"}}
+              style={{ "font-size": "18px" }}
               aria-hidden="true"
             >
               add
@@ -208,7 +210,7 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
             fallback={
               <span
                 class="material-symbols-outlined"
-                style={{"font-size":"20px"}}
+                style={{ "font-size": "20px" }}
                 aria-hidden="true"
               >
                 radio_button_unchecked
@@ -219,7 +221,8 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
               class="material-symbols-outlined"
               style={{
                 "font-size": "20px",
-                "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+                "font-variation-settings":
+                  "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
               }}
               aria-hidden="true"
             >

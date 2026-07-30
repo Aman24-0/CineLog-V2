@@ -25,12 +25,12 @@ const UserListsPreview: Component = () => {
   // its own tab). Limit to 10 for the preview.
   const lists = createMemo(() => {
     const all = collections.userCollections();
-    return all
-      .filter((c) => !c.isFavorites)
-      .slice(0, 10);
+    return all.filter((c) => !c.isFavorites).slice(0, 10);
   });
 
-  const coverOf = (entries: { poster_path?: string | null }[] | undefined): string | null => {
+  const coverOf = (
+    entries: { poster_path?: string | null }[] | undefined
+  ): string | null => {
     if (!entries || entries.length === 0) return null;
     const first = entries.find((e) => e?.poster_path);
     return first?.poster_path ?? null;
@@ -41,7 +41,9 @@ const UserListsPreview: Component = () => {
       <Show when={collections.loading() && lists().length === 0}>
         <div class="profile-lists-preview-v3-skeleton">
           <For each={Array.from({ length: 3 })}>
-            {() => <GlassSkeleton class="profile-lists-preview-v3-skeleton-card" />}
+            {() => (
+              <GlassSkeleton class="profile-lists-preview-v3-skeleton-card" />
+            )}
           </For>
         </div>
       </Show>
@@ -72,8 +74,16 @@ const UserListsPreview: Component = () => {
                   <Show
                     when={cover}
                     fallback={
-                      <div class="profile-lists-preview-v3-cover-fallback" aria-hidden="true">
-                        <span class="material-symbols-outlined" aria-hidden="true">video_library</span>
+                      <div
+                        class="profile-lists-preview-v3-cover-fallback"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          aria-hidden="true"
+                        >
+                          video_library
+                        </span>
                       </div>
                     }
                   >
@@ -84,10 +94,15 @@ const UserListsPreview: Component = () => {
                       decoding="async"
                       alt=""
                       aria-hidden="true"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </Show>
-                  <div class="profile-lists-preview-v3-overlay" aria-hidden="true" />
+                  <div
+                    class="profile-lists-preview-v3-overlay"
+                    aria-hidden="true"
+                  />
                   <div class="profile-lists-preview-v3-meta">
                     <p class="profile-lists-preview-v3-name">{col.name}</p>
                     <p class="profile-lists-preview-v3-count">

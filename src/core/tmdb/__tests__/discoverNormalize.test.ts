@@ -1,6 +1,10 @@
 // src/core/tmdb/__tests__/discoverNormalize.test.ts
 import { describe, it, expect } from "vitest";
-import { normalize, normalizeList, type TMDBRawItem } from "../discoverNormalize";
+import {
+  normalize,
+  normalizeList,
+  type TMDBRawItem
+} from "../discoverNormalize";
 
 describe("normalize", () => {
   it("returns null for null input", () => {
@@ -24,7 +28,7 @@ describe("normalize", () => {
       release_date: "2010-07-16",
       vote_average: 8.8,
       vote_count: 30000,
-      genre_ids: [28, 878],
+      genre_ids: [28, 878]
     };
     const result = normalize(raw);
     expect(result).not.toBeNull();
@@ -39,7 +43,7 @@ describe("normalize", () => {
       id: 2,
       name: "Breaking Bad",
       media_type: "tv",
-      first_air_date: "2008-01-20",
+      first_air_date: "2008-01-20"
     };
     const result = normalize(raw);
     expect(result).not.toBeNull();
@@ -81,7 +85,7 @@ describe("normalize", () => {
     const raw: TMDBRawItem = {
       id: 8,
       media_type: "movie",
-      genre_ids: [28, 35, 99999], // last one unknown
+      genre_ids: [28, 35, 99999] // last one unknown
     };
     const result = normalize(raw);
     expect(result!.genres).toEqual(["Action", "Comedy"]);
@@ -98,7 +102,7 @@ describe("normalize", () => {
       release_date: "2023-01-01",
       vote_average: 7.5,
       vote_count: 500,
-      genre_ids: [28],
+      genre_ids: [28]
     };
     const result = normalize(raw);
     expect(result!.overview).toBe("An overview");
@@ -114,7 +118,9 @@ describe("normalizeList", () => {
   });
 
   it("returns empty array for non-array input", () => {
-    expect(normalizeList("not an array" as unknown as TMDBRawItem[])).toEqual([]);
+    expect(normalizeList("not an array" as unknown as TMDBRawItem[])).toEqual(
+      []
+    );
   });
 
   it("returns empty array for empty array", () => {
@@ -124,7 +130,7 @@ describe("normalizeList", () => {
   it("normalizes all valid items", () => {
     const raw: TMDBRawItem[] = [
       { id: 1, media_type: "movie", title: "A" },
-      { id: 2, media_type: "tv", name: "B" },
+      { id: 2, media_type: "tv", name: "B" }
     ];
     const result = normalizeList(raw);
     expect(result).toHaveLength(2);
@@ -136,7 +142,7 @@ describe("normalizeList", () => {
     const raw: TMDBRawItem[] = [
       { id: 1, media_type: "movie" },
       { title: "no id" } as TMDBRawItem,
-      { id: 3, media_type: "tv" },
+      { id: 3, media_type: "tv" }
     ];
     const result = normalizeList(raw);
     expect(result).toHaveLength(2);

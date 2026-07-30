@@ -26,7 +26,8 @@ interface SkeletonProps {
  */
 const Skeleton: Component<SkeletonProps> = (props) => {
   const variant = () => props.variant ?? "block";
-  const classBase = () => variant() === "text" ? "skeleton-text" : "skeleton-base";
+  const classBase = () =>
+    variant() === "text" ? "skeleton-text" : "skeleton-base";
 
   return (
     <div
@@ -34,7 +35,9 @@ const Skeleton: Component<SkeletonProps> = (props) => {
       style={{
         width: props.width ?? "100%",
         height: props.height ?? "1rem",
-        "border-radius": props.radius ?? (variant() === "text" ? "var(--radius-sm)" : "var(--radius-md)"),
+        "border-radius":
+          props.radius ??
+          (variant() === "text" ? "var(--radius-sm)" : "var(--radius-md)"),
         ...props.style
       }}
       aria-hidden="true"

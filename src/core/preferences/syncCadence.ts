@@ -30,7 +30,9 @@ export function shouldSyncNow(): boolean {
   if (c === "manual") return false;
   // wifi-only
   if (isServer) return false;
-  const nav = navigator as Navigator & { connection?: { effectiveType?: string; type?: string } };
+  const nav = navigator as Navigator & {
+    connection?: { effectiveType?: string; type?: string };
+  };
   const conn = nav.connection;
   if (!conn) return true; // can't tell — allow
   if (conn.type) return conn.type === "wifi";

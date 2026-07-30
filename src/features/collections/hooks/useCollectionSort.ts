@@ -15,14 +15,18 @@ import type { CollectionEntry, ViewingOrder } from "~/shared/types";
  * (story/release/franchise) and are NOT sorted via this hook — their
  * sort is locked to "Timeline Order" managed by the admin.
  */
-export type UserCollectionSortMode = "manual" | "release" | "added" | "title" | "rating";
+export type UserCollectionSortMode =
+  "manual" | "release" | "added" | "title" | "rating";
 
-export const USER_SORT_OPTIONS: { value: UserCollectionSortMode; label: string }[] = [
-  { value: "manual",  label: "Manual Order" },
+export const USER_SORT_OPTIONS: {
+  value: UserCollectionSortMode;
+  label: string;
+}[] = [
+  { value: "manual", label: "Manual Order" },
   { value: "release", label: "Release Date" },
-  { value: "added",   label: "Date Added" },
-  { value: "title",   label: "Title" },
-  { value: "rating",  label: "Rating" },
+  { value: "added", label: "Date Added" },
+  { value: "title", label: "Title" },
+  { value: "rating", label: "Rating" }
 ];
 
 export interface UseCollectionSortOptions {
@@ -41,7 +45,9 @@ export interface UseCollectionSortOptions {
  * only when the input or the mode changes.
  */
 export function useCollectionSort(options: UseCollectionSortOptions = {}) {
-  const [mode, setMode] = createSignal<UserCollectionSortMode>(options.initial ?? "manual");
+  const [mode, setMode] = createSignal<UserCollectionSortMode>(
+    options.initial ?? "manual"
+  );
 
   const sortEntries = (entries: CollectionEntry[]): CollectionEntry[] => {
     const m = mode();
@@ -53,7 +59,10 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
         // to legacy `order` (= `position`, 1-based) when orderIndex is
         // missing — both are monotonic so mixing them in the fallback
         // still produces a stable order.
-        return copy.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
+        return copy.sort(
+          (a, b) =>
+            (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0)
+        );
       case "release": {
         const dateOf = (e: CollectionEntry): number => {
           const s = e.release_date ?? e.first_air_date;
@@ -65,7 +74,10 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
       }
       case "added":
         // Date added — lower orderIndex/order = added earlier.
-        return copy.sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0));
+        return copy.sort(
+          (a, b) =>
+            (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0)
+        );
       case "title": {
         const titleOf = (e: CollectionEntry): string =>
           (e.title ?? e.name ?? "").toLowerCase().replace(/^the\s+/, "");
@@ -73,7 +85,8 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
       }
       case "rating": {
         const r = options.ratings?.() ?? {};
-        const ratingOf = (e: CollectionEntry): number => r[`${e.media_type}:${e.id}`] ?? -1;
+        const ratingOf = (e: CollectionEntry): number =>
+          r[`${e.media_type}:${e.id}`] ?? -1;
         return copy.sort((a, b) => ratingOf(b) - ratingOf(a));
       }
       default:
@@ -88,7 +101,7 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
     sort: (entries: Accessor<CollectionEntry[]>) =>
       createMemo(() => sortEntries(entries())),
     /** Direct sort (imperative; useful for one-offs). */
-    sortNow: (entries: CollectionEntry[]) => sortEntries(entries),
+    sortNow: (entries: CollectionEntry[]) => sortEntries(entries)
   };
 }
 
@@ -102,6 +115,8 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
  * Returns the ViewingOrder (for universes) or UserCollectionSortMode
  * (for user collections) — callers can branch on the union type.
  */
-export function resolveInitialSort(isUniverse: boolean): UserCollectionSortMode | ViewingOrder {
+export function resolveInitialSort(
+  isUniverse: boolean
+): UserCollectionSortMode | ViewingOrder {
   return isUniverse ? "story" : "manual";
 }

@@ -1,5 +1,5 @@
 // src/features/watchlist/components/VaultShelf.tsx
-import {For, Show, Component} from "solid-js";
+import { For, Show, Component } from "solid-js";
 import MovieCard from "~/shared/ui/MovieCard";
 import type { VaultSection } from "../useVaultSections";
 
@@ -65,7 +65,10 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
   };
 
   return (
-    <section class="vault-shelf animate-fade-up" aria-label={props.section.title}>
+    <section
+      class="vault-shelf animate-fade-up"
+      aria-label={props.section.title}
+    >
       {/* Shelf header */}
       <div class="vault-shelf-header">
         <div class="vault-shelf-title-cluster">
@@ -90,14 +93,27 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
             type="button"
             class="vault-shelf-action"
             onClick={handleSeeAll}
-            aria-label={isExpanded() && !props.onSeeAll ? `Collapse ${props.section.title}` : `See all ${props.section.title}`}
+            aria-label={
+              isExpanded() && !props.onSeeAll
+                ? `Collapse ${props.section.title}`
+                : `See all ${props.section.title}`
+            }
           >
             {/* When onSeeAll is provided, always show "See All" (navigates
                 to the filtered grid). Otherwise toggle between See All / Show Less. */}
-            {props.onSeeAll ? "See All" : isExpanded() ? "Show Less" : "See All"}
+            {props.onSeeAll
+              ? "See All"
+              : isExpanded()
+                ? "Show Less"
+                : "See All"}
             <span
               class="material-symbols-outlined"
-              style={{ "font-size": "10px", transition: "transform 200ms ease-out", transform: isExpanded() && !props.onSeeAll ? "rotate(180deg)" : "none" }}
+              style={{
+                "font-size": "10px",
+                transition: "transform 200ms ease-out",
+                transform:
+                  isExpanded() && !props.onSeeAll ? "rotate(180deg)" : "none"
+              }}
               aria-hidden="true"
             >
               expand_more
@@ -131,8 +147,7 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
         <div class="vault-shelf-rail" role="list">
           <For each={railItems()}>
             {(m) => (
-              <div class="vault-shelf-card" role="listitem"
-              >
+              <div class="vault-shelf-card" role="listitem">
                 <MovieCard
                   movie={m}
                   variant="compact"

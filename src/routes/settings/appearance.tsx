@@ -50,61 +50,82 @@ import {
   type FontSize,
   type PosterQuality,
   type DateFormat,
-  type ReducedMotionPref,
+  type ReducedMotionPref
 } from "~/core/preferences";
 
 // ────────────────────────────────────────────────────────────────────
 // Curated accent presets (matches src/styles/tokens/colors.css)
 // ────────────────────────────────────────────────────────────────────
-const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: string }[] = [
-  { id: "sage",         name: "Sage",          desc: "Soft green",      swatch: "#a8ff78" },
-  { id: "matrix",       name: "Neon Green",    desc: "CineLog default", swatch: "#39ff14" },
-  { id: "netflix",      name: "Crimson",       desc: "Netflix red",     swatch: "#ff2d55" },
-  { id: "interstellar", name: "Interstellar",  desc: "Deep blue",       swatch: "#00c2ff" },
-  { id: "neonhorizon",  name: "Neon Horizon",  desc: "Pink + cyan",     swatch: "#ff2af0" },
-  { id: "vibranium",    name: "Vibranium",     desc: "Purple",          swatch: "#9d4edd" },
-  { id: "cinematic",    name: "Cinematic",     desc: "Gold",            swatch: "#FFD700" },
-  { id: "pearl",        name: "Pearl",         desc: "Minimal white",   swatch: "#ffffff" },
-];
+const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: string }[] =
+  [
+    { id: "sage", name: "Sage", desc: "Soft green", swatch: "#a8ff78" },
+    {
+      id: "matrix",
+      name: "Neon Green",
+      desc: "CineLog default",
+      swatch: "#39ff14"
+    },
+    { id: "netflix", name: "Crimson", desc: "Netflix red", swatch: "#ff2d55" },
+    {
+      id: "interstellar",
+      name: "Interstellar",
+      desc: "Deep blue",
+      swatch: "#00c2ff"
+    },
+    {
+      id: "neonhorizon",
+      name: "Neon Horizon",
+      desc: "Pink + cyan",
+      swatch: "#ff2af0"
+    },
+    { id: "vibranium", name: "Vibranium", desc: "Purple", swatch: "#9d4edd" },
+    { id: "cinematic", name: "Cinematic", desc: "Gold", swatch: "#FFD700" },
+    { id: "pearl", name: "Pearl", desc: "Minimal white", swatch: "#ffffff" }
+  ];
 
 // ────────────────────────────────────────────────────────────────────
 // Segmented control option metadata
 // ────────────────────────────────────────────────────────────────────
 const THEME_MODE_OPTIONS: { id: ThemeMode; label: string }[] = [
-  { id: "dark",   label: "Dark" },
-  { id: "light",  label: "Light" },
-  { id: "system", label: "System" },
+  { id: "dark", label: "Dark" },
+  { id: "light", label: "Light" },
+  { id: "system", label: "System" }
 ];
 
 const DENSITY_OPTIONS: { id: Density; label: string }[] = [
-  { id: "compact",    label: "Compact" },
+  { id: "compact", label: "Compact" },
   { id: "comfortable", label: "Comfort" },
-  { id: "spacious",   label: "Spacious" },
+  { id: "spacious", label: "Spacious" }
 ];
 
 const FONT_SIZE_OPTIONS: { id: FontSize; label: string }[] = [
-  { id: "small",  label: "Small" },
+  { id: "small", label: "Small" },
   { id: "medium", label: "Medium" },
-  { id: "large",  label: "Large" },
+  { id: "large", label: "Large" }
 ];
 
 const POSTER_QUALITY_OPTIONS: { id: PosterQuality; label: string }[] = [
-  { id: "high",   label: "High" },
+  { id: "high", label: "High" },
   { id: "medium", label: "Med" },
-  { id: "low",    label: "Low" },
-  { id: "auto",   label: "Auto" },
+  { id: "low", label: "Low" },
+  { id: "auto", label: "Auto" }
 ];
 
-const DATE_FORMAT_OPTIONS: { id: DateFormat; label: string; short: string; example: string }[] = [
+const DATE_FORMAT_OPTIONS: {
+  id: DateFormat;
+  label: string;
+  short: string;
+  example: string;
+}[] = [
   { id: "dmy", label: "DD/MM/YYYY", short: "D/M/Y", example: "15/07/2026" },
   { id: "mdy", label: "MM/DD/YYYY", short: "M/D/Y", example: "07/15/2026" },
-  { id: "ymd", label: "YYYY-MM-DD", short: "Y-M-D", example: "2026-07-15" },
+  { id: "ymd", label: "YYYY-MM-DD", short: "Y-M-D", example: "2026-07-15" }
 ];
 
 const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] = [
-  { id: "off",    label: "Off" },
-  { id: "on",     label: "On" },
-  { id: "system", label: "System" },
+  { id: "off", label: "Off" },
+  { id: "on", label: "On" },
+  { id: "system", label: "System" }
 ];
 
 // ────────────────────────────────────────────────────────────────────
@@ -157,7 +178,7 @@ const AppearanceRoute: Component = () => {
     options: { id: T; label: string; short?: string }[],
     current: () => T,
     onChange: (id: T) => void,
-    name: string,
+    name: string
   ) => (
     <div class="segmented" role="radiogroup" aria-label={name}>
       <For each={options}>
@@ -171,7 +192,9 @@ const AppearanceRoute: Component = () => {
             onClick={() => onChange(opt.id)}
           >
             <span class="segmented-label-long">{opt.label}</span>
-            {opt.short && <span class="segmented-label-short">{opt.short}</span>}
+            {opt.short && (
+              <span class="segmented-label-short">{opt.short}</span>
+            )}
           </button>
         )}
       </For>
@@ -183,12 +206,18 @@ const AppearanceRoute: Component = () => {
     icon: string,
     label: string,
     desc: string,
-    control: () => unknown,
+    control: () => unknown
   ) => (
     <div class="setting-row-control">
       <div class="setting-row-control-header">
         <div class="setting-row-icon" aria-hidden="true">
-          <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">{icon}</span>
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "16px" }}
+            aria-hidden="true"
+          >
+            {icon}
+          </span>
         </div>
         <div class="setting-row-control-meta">
           <span class="setting-row-control-label">{label}</span>
@@ -200,7 +229,11 @@ const AppearanceRoute: Component = () => {
   );
 
   // ─── Toggle renderer ───
-  const renderToggle = (current: () => boolean, onChange: (v: boolean) => void, label: string) => (
+  const renderToggle = (
+    current: () => boolean,
+    onChange: (v: boolean) => void,
+    label: string
+  ) => (
     <div
       class="toggle"
       data-on={current()}
@@ -227,8 +260,16 @@ const AppearanceRoute: Component = () => {
         <div class="sec-page sec-fade-in">
           {/* Header */}
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
                 arrow_back
               </span>
               Settings
@@ -236,7 +277,8 @@ const AppearanceRoute: Component = () => {
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Appearance</h1>
             <p class="sec-subtitle">
-              Make CineLog yours. Accent, theme, density, type, and accessibility — all live.
+              Make CineLog yours. Accent, theme, density, type, and
+              accessibility — all live.
             </p>
           </div>
 
@@ -247,8 +289,9 @@ const AppearanceRoute: Component = () => {
               <div class="preview-card">
                 <p class="preview-card-title">CineLog</p>
                 <p class="preview-card-body">
-                  This card reflects every setting below — accent, density, font size,
-                  contrast. Tap the spoiler text to test hide-spoilers mode.
+                  This card reflects every setting below — accent, density, font
+                  size, contrast. Tap the spoiler text to test hide-spoilers
+                  mode.
                 </p>
                 <div
                   class="preview-spoiler-demo"
@@ -265,13 +308,29 @@ const AppearanceRoute: Component = () => {
                   role="button"
                   aria-label="Toggle spoiler reveal"
                 >
-                  <Show when={spoilerRevealed()} fallback="Tap to reveal spoiler — major plot twist ahead">
+                  <Show
+                    when={spoilerRevealed()}
+                    fallback="Tap to reveal spoiler — major plot twist ahead"
+                  >
                     The detective was the villain all along.
                   </Show>
                 </div>
-                <div style={{ display: "flex", gap: "var(--sp-2)", "margin-top": "var(--sp-3)" }}>
-                  <span class="btn-primary" style={{ "pointer-events": "none" }}>Primary Button</span>
-                  <span class="btn-ghost" style={{ "pointer-events": "none" }}>Ghost Button</span>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: "var(--sp-2)",
+                    "margin-top": "var(--sp-3)"
+                  }}
+                >
+                  <span
+                    class="btn-primary"
+                    style={{ "pointer-events": "none" }}
+                  >
+                    Primary Button
+                  </span>
+                  <span class="btn-ghost" style={{ "pointer-events": "none" }}>
+                    Ghost Button
+                  </span>
                 </div>
               </div>
             </section>
@@ -290,7 +349,11 @@ const AppearanceRoute: Component = () => {
                       aria-label={`Set accent to ${t.name}`}
                       aria-pressed={isPresetActive(t.id)}
                     >
-                      <div class="theme-swatch" style={{ background: t.swatch }} aria-hidden="true" />
+                      <div
+                        class="theme-swatch"
+                        style={{ background: t.swatch }}
+                        aria-hidden="true"
+                      />
                       <p class="theme-name">{t.name}</p>
                     </button>
                   )}
@@ -307,11 +370,20 @@ const AppearanceRoute: Component = () => {
                     style={{
                       background: isCustomActive()
                         ? customAccent()
-                        : "linear-gradient(135deg, var(--p) 0%, var(--p) 50%, var(--tier-3) 50%, var(--tier-3) 100%)",
+                        : "linear-gradient(135deg, var(--p) 0%, var(--p) 50%, var(--tier-3) 50%, var(--tier-3) 100%)"
                     }}
                     aria-hidden="true"
                   >
-                    <span class="material-symbols-outlined" style={{ "font-size": "16px", color: isCustomActive() ? contrastOn(customAccent()) : "var(--text-soft)" }} aria-hidden="true">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{
+                        "font-size": "16px",
+                        color: isCustomActive()
+                          ? contrastOn(customAccent())
+                          : "var(--text-soft)"
+                      }}
+                      aria-hidden="true"
+                    >
                       palette
                     </span>
                   </div>
@@ -362,7 +434,13 @@ const AppearanceRoute: Component = () => {
                   "dark_mode",
                   "Background theme",
                   "Dark is the cinematic default. Light is warm paper for daytime. System follows your OS.",
-                  () => renderSegmented(THEME_MODE_OPTIONS, themeMode, (id) => setThemeMode(id), "Theme mode"),
+                  () =>
+                    renderSegmented(
+                      THEME_MODE_OPTIONS,
+                      themeMode,
+                      (id) => setThemeMode(id),
+                      "Theme mode"
+                    )
                 )}
               </div>
             </section>
@@ -375,7 +453,13 @@ const AppearanceRoute: Component = () => {
                   "view_agenda",
                   "Spacing & padding",
                   "Compact fits more titles per screen (desktop). Spacious gives larger touch targets (phone).",
-                  () => renderSegmented(DENSITY_OPTIONS, density, (id) => setDensity(id), "Display density"),
+                  () =>
+                    renderSegmented(
+                      DENSITY_OPTIONS,
+                      density,
+                      (id) => setDensity(id),
+                      "Display density"
+                    )
                 )}
               </div>
             </section>
@@ -388,7 +472,13 @@ const AppearanceRoute: Component = () => {
                   "text_fields",
                   "Font size",
                   "Scales body text app-wide. Small fits more, Large improves readability.",
-                  () => renderSegmented(FONT_SIZE_OPTIONS, fontSize, (id) => setFontSize(id), "Font size"),
+                  () =>
+                    renderSegmented(
+                      FONT_SIZE_OPTIONS,
+                      fontSize,
+                      (id) => setFontSize(id),
+                      "Font size"
+                    )
                 )}
               </div>
             </section>
@@ -401,18 +491,39 @@ const AppearanceRoute: Component = () => {
                   "image",
                   "Poster quality",
                   "High uses original TMDB sizes. Low saves mobile data. Auto detects your connection.",
-                  () => renderSegmented(POSTER_QUALITY_OPTIONS, posterQuality, (id) => setPosterQuality(id), "Poster quality"),
+                  () =>
+                    renderSegmented(
+                      POSTER_QUALITY_OPTIONS,
+                      posterQuality,
+                      (id) => setPosterQuality(id),
+                      "Poster quality"
+                    )
                 )}
                 <div class="setting-row-control">
                   <div class="setting-row-control-header">
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">visibility_off</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        visibility_off
+                      </span>
                     </div>
                     <div class="setting-row-control-meta">
-                      <span class="setting-row-control-label">Hide spoilers</span>
-                      <span class="setting-row-control-desc">Blur synopses, season descriptions, and plot details until tapped.</span>
+                      <span class="setting-row-control-label">
+                        Hide spoilers
+                      </span>
+                      <span class="setting-row-control-desc">
+                        Blur synopses, season descriptions, and plot details
+                        until tapped.
+                      </span>
                     </div>
-                    {renderToggle(hideSpoilers, (v) => setHideSpoilers(v), "Hide spoilers")}
+                    {renderToggle(
+                      hideSpoilers,
+                      (v) => setHideSpoilers(v),
+                      "Hide spoilers"
+                    )}
                   </div>
                 </div>
               </div>
@@ -425,19 +536,35 @@ const AppearanceRoute: Component = () => {
                 <div class="setting-row-control">
                   <div class="setting-row-control-header">
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">calendar_month</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        calendar_month
+                      </span>
                     </div>
                     <div class="setting-row-control-meta">
                       <span class="setting-row-control-label">Date format</span>
                       <span class="setting-row-control-desc">
-                        Applied to dates across cards, lists, and detail pages. Today:{" "}
+                        Applied to dates across cards, lists, and detail pages.
+                        Today:{" "}
                         <strong style={{ color: "var(--p)" }}>
-                          {DATE_FORMAT_OPTIONS.find((o) => o.id === dateFormat())?.example}
+                          {
+                            DATE_FORMAT_OPTIONS.find(
+                              (o) => o.id === dateFormat()
+                            )?.example
+                          }
                         </strong>
                       </span>
                     </div>
                   </div>
-                  {renderSegmented(DATE_FORMAT_OPTIONS, dateFormat, (id) => setDateFormat(id), "Date format")}
+                  {renderSegmented(
+                    DATE_FORMAT_OPTIONS,
+                    dateFormat,
+                    (id) => setDateFormat(id),
+                    "Date format"
+                  )}
                 </div>
               </div>
             </section>
@@ -450,18 +577,39 @@ const AppearanceRoute: Component = () => {
                   "animation",
                   "Reduced motion",
                   "On disables all animations and transitions. System follows your OS preference.",
-                  () => renderSegmented(REDUCED_MOTION_OPTIONS, reducedMotion, (id) => setReducedMotion(id), "Reduced motion"),
+                  () =>
+                    renderSegmented(
+                      REDUCED_MOTION_OPTIONS,
+                      reducedMotion,
+                      (id) => setReducedMotion(id),
+                      "Reduced motion"
+                    )
                 )}
                 <div class="setting-row-control">
                   <div class="setting-row-control-header">
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">contrast</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        contrast
+                      </span>
                     </div>
                     <div class="setting-row-control-meta">
-                      <span class="setting-row-control-label">High contrast</span>
-                      <span class="setting-row-control-desc">Boosts text brightness and border opacity for better readability.</span>
+                      <span class="setting-row-control-label">
+                        High contrast
+                      </span>
+                      <span class="setting-row-control-desc">
+                        Boosts text brightness and border opacity for better
+                        readability.
+                      </span>
                     </div>
-                    {renderToggle(highContrast, (v) => setHighContrast(v), "High contrast")}
+                    {renderToggle(
+                      highContrast,
+                      (v) => setHighContrast(v),
+                      "High contrast"
+                    )}
                   </div>
                 </div>
               </div>

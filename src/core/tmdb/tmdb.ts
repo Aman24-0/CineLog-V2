@@ -8,12 +8,17 @@ import type {
   TMDBPersonCombinedCredits,
   TMDBVideo,
   TMDBWatchProviderResults,
-  TMDBWatchProviderResponse,
+  TMDBWatchProviderResponse
 } from "~/shared/types";
 import { cachedFetch, buildCacheKey, TMDB_TTL } from "~/shared/utils/apiCache";
-import { applyPosterQuality, effectiveTMDBLanguage, tmdbIncludeAdult } from "~/core/preferences";
+import {
+  applyPosterQuality,
+  effectiveTMDBLanguage,
+  tmdbIncludeAdult
+} from "~/core/preferences";
 import { isServer } from "solid-js/web";
 import { getBaseUrl } from "~/shared/utils/share";
+import { fetchWithRetry } from "./fetchHelpers";
 
 // TMDB_KEY is kept for backward compatibility with files that import it,
 // but it is no longer used in fetch calls — the server proxy injects
@@ -61,7 +66,15 @@ function apiBaseUrl(): string {
  */
 export const tmdbImage = (
   path: string | null | undefined,
-  size: "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original" = "w500"
+  size:
+    | "w92"
+    | "w154"
+    | "w185"
+    | "w342"
+    | "w500"
+    | "w780"
+    | "w1280"
+    | "original" = "w500"
 ): string => (path ? `${IMG_BASE}/${applyPosterQuality(size)}${path}` : "");
 
 /**
@@ -82,7 +95,10 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
   const userLang = effectiveTMDBLanguage();
   if (userLang && userLang !== "en") {
     // Convert "hi" → "hi-IN" style where appropriate; TMDB accepts both
-    finalEndpoint = finalEndpoint.replace(/language=en-US/g, `language=${userLang}`);
+    finalEndpoint = finalEndpoint.replace(
+      /language=en-US/g,
+      `language=${userLang}`
+    );
   }
 
   // Apply adult filter: if not already in the endpoint, append it.
@@ -96,23 +112,18 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
     buildCacheKey(`tmdb:${finalEndpoint}`),
     TMDB_TTL,
     async () => {
-      // 10-second timeout prevents the Details modal from hanging forever
-      // when the network is slow or TMDB is unreachable. Without this,
-      // fetch() hangs indefinitely and the Details modal shows only a
-      // circle spinner with no way to dismiss it (other than back button).
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 10000);
-      try {
-        // API key is injected by the server proxy — no need to include it here.
-        // On the server we need an absolute URL (see apiBaseUrl() doc).
-        const res = await fetch(`${apiBaseUrl()}${API}${finalEndpoint}`, {
-          signal: controller.signal,
-        });
-        if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
-        return res.json() as Promise<T>;
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      // fetchWithRetry provides a 10-second timeout (prevents the
+      // Details modal from hanging forever when the network is slow or
+      // TMDB is unreachable) AND a single retry on transient failures
+      // (5xx response or network TypeError). Timeouts (AbortError) and
+      // 4xx responses are NOT retried.
+      //
+      // API key is injected by the server proxy — no need to include
+      // it here. On the server we need an absolute URL (see apiBaseUrl()
+      // doc).
+      const res = await fetchWithRetry(`${apiBaseUrl()}${API}${finalEndpoint}`);
+      if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
+      return res.json() as Promise<T>;
     }
   );
 }
@@ -144,9 +155,8 @@ export const fetchTmdbDetails = async (
   // ALL seasons, with per-season/per-episode role detail. This is
   // the source of truth for TV series cast. Movies don't have
   // aggregate_credits, so we only append it for TV.
-  const appendParts = mediaType === "tv"
-    ? "videos,credits,aggregate_credits"
-    : "videos,credits";
+  const appendParts =
+    mediaType === "tv" ? "videos,credits,aggregate_credits" : "videos,credits";
   return tmdbFetch<TMDBDetails>(
     `/${mediaType}/${id}?language=en-US&append_to_response=${appendParts}&include_video_language=en,null`
   );
@@ -158,12 +168,10 @@ export const fetchTmdbDetails = async (
  * known_for_department, etc.
  */
 export async function fetchPersonDetails(
-  personId: number | string,
+  personId: number | string
 ): Promise<TMDBPerson | null> {
   try {
-    return await tmdbFetch<TMDBPerson>(
-      `/person/${personId}?language=en-US`,
-    );
+    return await tmdbFetch<TMDBPerson>(`/person/${personId}?language=en-US`);
   } catch (err) {
     console.warn(`[tmdb] Failed to fetch person/${personId}:`, err);
     return null;
@@ -176,14 +184,17 @@ export async function fetchPersonDetails(
  * `cast` array is acting roles, `crew` is behind-the-scenes work.
  */
 export async function fetchPersonCombinedCredits(
-  personId: number | string,
+  personId: number | string
 ): Promise<TMDBPersonCombinedCredits | null> {
   try {
     return await tmdbFetch<TMDBPersonCombinedCredits>(
-      `/person/${personId}/combined_credits?language=en-US`,
+      `/person/${personId}/combined_credits?language=en-US`
     );
   } catch (err) {
-    console.warn(`[tmdb] Failed to fetch person/${personId}/combined_credits:`, err);
+    console.warn(
+      `[tmdb] Failed to fetch person/${personId}/combined_credits:`,
+      err
+    );
     return null;
   }
 }
@@ -218,13 +229,13 @@ export async function fetchPersonCombinedCredits(
  */
 export async function fetchTmdbMetadata(
   mediaType: "movie" | "tv",
-  id: number | string,
+  id: number | string
 ): Promise<TMDBTitle | null> {
   try {
     // append_to_response=credits fetches cast + crew in the same request
     // so we can populate director + castList for vault search.
     const data = await tmdbFetch<TMDBTitle>(
-      `/${mediaType}/${id}?language=en-US&append_to_response=credits`,
+      `/${mediaType}/${id}?language=en-US&append_to_response=credits`
     );
 
     // ── Extract director + top 15 cast names from credits ──────────
@@ -267,7 +278,7 @@ export async function fetchTmdbMetadata(
       ...trimmed,
       media_type: mediaType,
       ...(director !== undefined && { director }),
-      ...(castList !== undefined && { castList }),
+      ...(castList !== undefined && { castList })
     };
   } catch (err) {
     console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);
@@ -286,7 +297,7 @@ export async function fetchTmdbMetadata(
  * @returns Map<"movie|tv/{id}", TMDBTitle>
  */
 export async function fetchTmdbMetadataBatch(
-  items: ReadonlyArray<{ mediaType: "movie" | "tv"; tmdbId: number | string }>,
+  items: ReadonlyArray<{ mediaType: "movie" | "tv"; tmdbId: number | string }>
 ): Promise<Map<string, TMDBTitle>> {
   const map = new Map<string, TMDBTitle>();
 
@@ -315,7 +326,7 @@ export async function fetchTmdbMetadataBatch(
   for (let i = 0; i < items.length; i += CHUNK_SIZE) {
     const chunk = items.slice(i, i + CHUNK_SIZE);
     const results = await Promise.allSettled(
-      chunk.map((item) => fetchTmdbMetadata(item.mediaType, item.tmdbId)),
+      chunk.map((item) => fetchTmdbMetadata(item.mediaType, item.tmdbId))
     );
     for (let j = 0; j < results.length; j++) {
       const result = results[j];
@@ -364,15 +375,18 @@ export const fetchCollectionDetails = async (
  */
 export async function fetchTitleWatchProviders(
   mediaType: "movie" | "tv",
-  id: number | string,
+  id: number | string
 ): Promise<TMDBWatchProviderResults | null> {
   try {
     const data = await tmdbFetch<TMDBWatchProviderResponse>(
-      `/${mediaType}/${id}/watch/providers?language=en-US`,
+      `/${mediaType}/${id}/watch/providers?language=en-US`
     );
     return data?.results ?? null;
   } catch (err) {
-    console.warn(`[tmdb] Failed to fetch watch/providers for ${mediaType}/${id}:`, err);
+    console.warn(
+      `[tmdb] Failed to fetch watch/providers for ${mediaType}/${id}:`,
+      err
+    );
     return null;
   }
 }
@@ -396,7 +410,9 @@ export async function fetchTitleWatchProviders(
  *
  * Returns null if NO playable video (any site) is available.
  */
-export const pickTrailer = (details: TMDBDetails | null): {
+export const pickTrailer = (
+  details: TMDBDetails | null
+): {
   key: string;
   name: string;
 } | null => {
@@ -415,7 +431,7 @@ export const pickTrailer = (details: TMDBDetails | null): {
     "Behind the Scenes",
     "Bloopers",
     "Recap",
-    "Opening Credits",
+    "Opening Credits"
   ]);
 
   const score = (v: (typeof pool)[number]): number => {
@@ -451,7 +467,7 @@ export const pickTrailer = (details: TMDBDetails | null): {
  */
 export async function fetchAnyVideoKey(
   mediaType: "movie" | "tv",
-  id: number | string,
+  id: number | string
 ): Promise<string | null> {
   try {
     const endpoint = `/${mediaType}/${id}/videos?language=en-US&include_video_language=en,null,hi,ja,ko,zh,es,fr,de,it,pt,ru,ta,te,mr,bn`;
@@ -468,7 +484,7 @@ export async function fetchAnyVideoKey(
       "Behind the Scenes",
       "Bloopers",
       "Recap",
-      "Opening Credits",
+      "Opening Credits"
     ]);
 
     const score = (v: (typeof youTube)[number]): number => {

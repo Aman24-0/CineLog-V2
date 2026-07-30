@@ -30,8 +30,26 @@ export const DEFAULT_DISCOVER_REGION = "IN" as const;
  * can validate without importing the full UI-facing country list.
  */
 export const SUPPORTED_DISCOVER_REGIONS = [
-  "IN", "US", "GB", "CA", "AU", "DE", "FR", "JP", "KR", "CN",
-  "ES", "IT", "BR", "MX", "RU", "AE", "SA", "TR", "NL", "SE",
+  "IN",
+  "US",
+  "GB",
+  "CA",
+  "AU",
+  "DE",
+  "FR",
+  "JP",
+  "KR",
+  "CN",
+  "ES",
+  "IT",
+  "BR",
+  "MX",
+  "RU",
+  "AE",
+  "SA",
+  "TR",
+  "NL",
+  "SE"
 ] as const;
 
 export type DiscoverRegionCode = (typeof SUPPORTED_DISCOVER_REGIONS)[number];
@@ -40,7 +58,9 @@ export type DiscoverRegionCode = (typeof SUPPORTED_DISCOVER_REGIONS)[number];
 // because we don't alias the getter as a top-level `export const`
 // (we export a function that returns the signal's value, which avoids
 // the TDZ error documented below).
-const [regionSignal, setRegionSignal] = createSignal<string>(DEFAULT_DISCOVER_REGION);
+const [regionSignal, setRegionSignal] = createSignal<string>(
+  DEFAULT_DISCOVER_REGION
+);
 
 /**
  * Read the current Discover region (non-reactive).
@@ -67,6 +87,8 @@ export function useDiscoverRegion(): () => string {
  */
 export function setDiscoverRegion(region: string): void {
   const upper = (region || "").toUpperCase();
-  const isValid = (SUPPORTED_DISCOVER_REGIONS as readonly string[]).includes(upper);
+  const isValid = (SUPPORTED_DISCOVER_REGIONS as readonly string[]).includes(
+    upper
+  );
   setRegionSignal(isValid ? upper : DEFAULT_DISCOVER_REGION);
 }

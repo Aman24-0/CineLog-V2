@@ -34,13 +34,13 @@ import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import {
   parseWatchlistCsv,
   readFileAsText,
-  type ImportCandidate,
+  type ImportCandidate
 } from "../import/csvImport";
 import { normalizeBatch } from "../backup/normalizeBackup";
 import {
   restoreBackup,
   type ParsedBackup,
-  type RestoreResult,
+  type RestoreResult
 } from "../backup/BackupService";
 
 const CsvImportCard: Component = () => {
@@ -51,7 +51,12 @@ const CsvImportCard: Component = () => {
   const [parsing, setParsing] = createSignal(false);
   const [importing, setImporting] = createSignal(false);
   const [cancelRequested, setCancelRequested] = createSignal(false);
-  const [progress, setProgress] = createSignal({ done: 0, total: 0, imported: 0, failed: 0 });
+  const [progress, setProgress] = createSignal({
+    done: 0,
+    total: 0,
+    imported: 0,
+    failed: 0
+  });
   const [result, setResult] = createSignal<RestoreResult | null>(null);
 
   const handleFile = async (file: File) => {
@@ -66,7 +71,7 @@ const CsvImportCard: Component = () => {
         showToast(
           `CSV file is too large (${(file.size / 1024 / 1024).toFixed(1)} MB). Maximum is ${MAX_CSV_SIZE / 1024 / 1024} MB.`,
           "error",
-          5000,
+          5000
         );
         setCandidates([]);
         return;
@@ -79,7 +84,7 @@ const CsvImportCard: Component = () => {
         showToast(
           `CSV contains ${result.candidates.length} titles — maximum is ${MAX_CSV_ITEMS}. Please split into smaller files.`,
           "error",
-          5000,
+          5000
         );
         setCandidates([]);
         return;
@@ -87,13 +92,24 @@ const CsvImportCard: Component = () => {
       setSource(result.source);
       setCandidates(result.candidates);
       if (result.candidates.length === 0) {
-        showToast(`No titles found in CSV (skipped ${result.skipped} malformed rows)`, "info", 2500);
+        showToast(
+          `No titles found in CSV (skipped ${result.skipped} malformed rows)`,
+          "info",
+          2500
+        );
       } else {
-        showToast(`Parsed ${result.candidates.length} titles from ${result.source} CSV`, "success", 2000);
+        showToast(
+          `Parsed ${result.candidates.length} titles from ${result.source} CSV`,
+          "success",
+          2000
+        );
       }
     } catch (e) {
       console.error("[csv-import] parse failed:", e);
-      showToast("Could not parse CSV file. Make sure it's a valid CSV.", "error");
+      showToast(
+        "Could not parse CSV file. Make sure it's a valid CSV.",
+        "error"
+      );
       setCandidates([]);
     } finally {
       setParsing(false);
@@ -171,7 +187,7 @@ const CsvImportCard: Component = () => {
         ...(c.tag && { tag: c.tag }),
         ...(c.poster_path && { poster_path: c.poster_path }),
         ...(c.backdrop_path && { backdrop_path: c.backdrop_path }),
-        ...(c.release_date && { release_date: c.release_date }),
+        ...(c.release_date && { release_date: c.release_date })
       };
       // Preserve year for Letterboxd/Trakt/IMDb candidates (used for
       // TMDB search disambiguation if we ever add that feature).
@@ -188,7 +204,10 @@ const CsvImportCard: Component = () => {
 
     if (batch.items.length === 0) {
       setImporting(false);
-      const reasons = batch.failures.slice(0, 3).map((f) => f.reason).join("; ");
+      const reasons = batch.failures
+        .slice(0, 3)
+        .map((f) => f.reason)
+        .join("; ");
       showToast(`No valid titles to import. ${reasons}`, "error", 5000);
       return;
     }
@@ -200,7 +219,7 @@ const CsvImportCard: Component = () => {
       items: batch.items,
       format: "flat-array",
       failures: batch.failures,
-      repairedCount: batch.repairedCount,
+      repairedCount: batch.repairedCount
     };
 
     try {
@@ -208,7 +227,7 @@ const CsvImportCard: Component = () => {
         onProgress: (processed, total, imported, _skipped, failed) => {
           setProgress({ done: processed, total, imported, failed });
         },
-        shouldCancel: () => cancelRequested(),
+        shouldCancel: () => cancelRequested()
       });
 
       const wasCancelled = cancelRequested();
@@ -219,13 +238,29 @@ const CsvImportCard: Component = () => {
       // setCandidates([]) happens when user dismisses the result.
 
       if (wasCancelled) {
-        showToast(`Import cancelled — ${res.imported} of ${items.length} titles imported`, "info", 4000);
+        showToast(
+          `Import cancelled — ${res.imported} of ${items.length} titles imported`,
+          "info",
+          4000
+        );
       } else if (res.failed > 0 && res.imported === 0) {
-        showToast(`Import failed — ${res.failed} of ${items.length} titles could not be imported. See details below.`, "error", 5000);
+        showToast(
+          `Import failed — ${res.failed} of ${items.length} titles could not be imported. See details below.`,
+          "error",
+          5000
+        );
       } else if (res.failed > 0) {
-        showToast(`Imported ${res.imported} of ${items.length} titles (${res.failed} failed — see details)`, "info", 4000);
+        showToast(
+          `Imported ${res.imported} of ${items.length} titles (${res.failed} failed — see details)`,
+          "info",
+          4000
+        );
       } else {
-        showToast(`Imported ${res.imported} of ${items.length} titles`, "success", 3000);
+        showToast(
+          `Imported ${res.imported} of ${items.length} titles`,
+          "success",
+          3000
+        );
       }
       void library.refresh();
     } catch (e) {
@@ -260,7 +295,12 @@ const CsvImportCard: Component = () => {
       .join("\n");
     navigator.clipboard?.writeText(text).then(
       () => showToast("Error details copied to clipboard", "success", 2000),
-      () => showToast("Could not copy — your browser blocked clipboard access", "error", 3000),
+      () =>
+        showToast(
+          "Could not copy — your browser blocked clipboard access",
+          "error",
+          3000
+        )
     );
   };
 
@@ -270,33 +310,81 @@ const CsvImportCard: Component = () => {
         when={candidates().length === 0}
         fallback={
           <div style={{ padding: "var(--sp-4) var(--sp-5)" }}>
-            <p style={{ "font-family": "'Outfit', sans-serif", "font-weight": 700, "font-size": "0.9375rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2) 0" }}>
+            <p
+              style={{
+                "font-family": "'Outfit', sans-serif",
+                "font-weight": 700,
+                "font-size": "0.9375rem",
+                color: "var(--text-strong)",
+                margin: "0 0 var(--sp-2) 0"
+              }}
+            >
               {candidates().length} titles ready to import ({source()})
             </p>
-            <p style={{ "font-size": "0.8125rem", color: "var(--text-muted)", margin: "0 0 var(--sp-3) 0" }}>
-              First few: {candidates().slice(0, 3).map((c) => c.title).join(", ")}
-              {candidates().length > 3 ? ` … +${candidates().length - 3} more` : ""}
+            <p
+              style={{
+                "font-size": "0.8125rem",
+                color: "var(--text-muted)",
+                margin: "0 0 var(--sp-3) 0"
+              }}
+            >
+              First few:{" "}
+              {candidates()
+                .slice(0, 3)
+                .map((c) => c.title)
+                .join(", ")}
+              {candidates().length > 3
+                ? ` … +${candidates().length - 3} more`
+                : ""}
             </p>
             <Show when={candidates().some((c) => !c.id)}>
-              <p style={{ "font-size": "0.75rem", color: "var(--text-muted)", margin: "0 0 var(--sp-3) 0" }}>
+              <p
+                style={{
+                  "font-size": "0.75rem",
+                  color: "var(--text-muted)",
+                  margin: "0 0 var(--sp-3) 0"
+                }}
+              >
                 Note: titles without a TMDB id will be skipped during import.
               </p>
             </Show>
             <Show when={importing()}>
               <div style={{ "margin-bottom": "var(--sp-3)" }}>
-                <div style={{ "font-size": "0.8125rem", color: "var(--p)", "margin-bottom": "var(--sp-1)" }}>
-                  Importing… {progress().done}/{progress().total} ({progress().imported} ok, {progress().failed} failed)
+                <div
+                  style={{
+                    "font-size": "0.8125rem",
+                    color: "var(--p)",
+                    "margin-bottom": "var(--sp-1)"
+                  }}
+                >
+                  Importing… {progress().done}/{progress().total} (
+                  {progress().imported} ok, {progress().failed} failed)
                   <Show when={cancelRequested()}>
-                    <span style={{ color: "var(--text-muted)", "margin-left": "var(--sp-2)" }}>— cancelling…</span>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        "margin-left": "var(--sp-2)"
+                      }}
+                    >
+                      — cancelling…
+                    </span>
                   </Show>
                 </div>
-                <div style={{ width: "100%", height: "4px", background: "var(--surface)", "border-radius": "2px", overflow: "hidden" }}>
+                <div
+                  style={{
+                    width: "100%",
+                    height: "4px",
+                    background: "var(--surface)",
+                    "border-radius": "2px",
+                    overflow: "hidden"
+                  }}
+                >
                   <div
                     style={{
                       width: `${progress().total > 0 ? (progress().done / progress().total) * 100 : 0}%`,
                       height: "100%",
                       background: "var(--p)",
-                      transition: "width 0.3s ease",
+                      transition: "width 0.3s ease"
                     }}
                   />
                 </div>
@@ -306,30 +394,60 @@ const CsvImportCard: Component = () => {
             {/* ── Result + Failure log ─────────────────────────────── */}
             <Show when={result() && !importing()}>
               <div class="csv-import-result">
-                <p style={{
-                  "font-size": "0.875rem",
-                  "font-weight": 600,
-                  color: result()!.failed > 0 ? "var(--text-strong)" : "var(--p)",
-                  margin: "0 0 var(--sp-2) 0",
-                }}>
+                <p
+                  style={{
+                    "font-size": "0.875rem",
+                    "font-weight": 600,
+                    color:
+                      result()!.failed > 0 ? "var(--text-strong)" : "var(--p)",
+                    margin: "0 0 var(--sp-2) 0"
+                  }}
+                >
                   {result()!.imported} imported
                   {result()!.failed > 0 ? ` · ${result()!.failed} failed` : ""}
-                  {" · "}{result()!.duplicates > 0 ? `${result()!.duplicates} updated ` : "of "}{candidates().length} titles
+                  {" · "}
+                  {result()!.duplicates > 0
+                    ? `${result()!.duplicates} updated `
+                    : "of "}
+                  {candidates().length} titles
                 </p>
 
                 {/* Failure log — visible only when there are failures */}
-                <Show when={result()!.failed > 0 && result()!.failureLog && result()!.failureLog.length > 0}>
+                <Show
+                  when={
+                    result()!.failed > 0 &&
+                    result()!.failureLog &&
+                    result()!.failureLog.length > 0
+                  }
+                >
                   <div class="csv-import-failure-log">
                     <div class="csv-import-failure-log-header">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px", color: "var(--text-muted)" }} aria-hidden="true">bug_report</span>
-                      <span class="csv-import-failure-log-title">Why {result()!.failed} items failed</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{
+                          "font-size": "16px",
+                          color: "var(--text-muted)"
+                        }}
+                        aria-hidden="true"
+                      >
+                        bug_report
+                      </span>
+                      <span class="csv-import-failure-log-title">
+                        Why {result()!.failed} items failed
+                      </span>
                       <button
                         type="button"
                         class="csv-import-copy-btn focus-ring"
                         onClick={handleCopyErrors}
                         aria-label="Copy error details"
                       >
-                        <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">content_copy</span>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "14px" }}
+                          aria-hidden="true"
+                        >
+                          content_copy
+                        </span>
                         Copy
                       </button>
                     </div>
@@ -337,14 +455,19 @@ const CsvImportCard: Component = () => {
                       <For each={result()!.failureLog.slice(0, 10)}>
                         {(f) => (
                           <div class="csv-import-failure-log-item">
-                            <span class="csv-import-failure-log-item-title">{f.title ?? "(no title)"}</span>
-                            <span class="csv-import-failure-log-item-reason">{f.reason}</span>
+                            <span class="csv-import-failure-log-item-title">
+                              {f.title ?? "(no title)"}
+                            </span>
+                            <span class="csv-import-failure-log-item-reason">
+                              {f.reason}
+                            </span>
                           </div>
                         )}
                       </For>
                       <Show when={result()!.failureLog.length > 10}>
                         <p class="csv-import-failure-log-more">
-                          + {result()!.failureLog.length - 10} more — tap "Copy" to see all.
+                          + {result()!.failureLog.length - 10} more — tap "Copy"
+                          to see all.
                         </p>
                       </Show>
                     </div>
@@ -353,18 +476,39 @@ const CsvImportCard: Component = () => {
               </div>
             </Show>
 
-            <div style={{ display: "flex", gap: "var(--sp-2)", "margin-top": "var(--sp-3)" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "var(--sp-2)",
+                "margin-top": "var(--sp-3)"
+              }}
+            >
               <button
                 type="button"
                 class="settings-link-btn focus-ring"
                 onClick={handleConfirmImport}
                 disabled={importing() && !cancelRequested()}
-                style={{ background: "var(--p-dim)", "border-color": "var(--p)", color: "var(--p)" }}
+                style={{
+                  background: "var(--p-dim)",
+                  "border-color": "var(--p)",
+                  color: "var(--p)"
+                }}
               >
-                <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">download_for_offline</span>
-                <Show when={!importing()} fallback={
-                  <Show when={!cancelRequested()} fallback="Cancelling…">Importing…</Show>
-                }>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "14px" }}
+                  aria-hidden="true"
+                >
+                  download_for_offline
+                </span>
+                <Show
+                  when={!importing()}
+                  fallback={
+                    <Show when={!cancelRequested()} fallback="Cancelling…">
+                      Importing…
+                    </Show>
+                  }
+                >
                   Import {candidates().length} titles
                 </Show>
               </button>
@@ -374,7 +518,12 @@ const CsvImportCard: Component = () => {
                 onClick={handleCancel}
                 disabled={cancelRequested()}
               >
-                <Show when={importing()} fallback={result() ? "Dismiss" : "Cancel"}>Cancel Import</Show>
+                <Show
+                  when={importing()}
+                  fallback={result() ? "Dismiss" : "Cancel"}
+                >
+                  Cancel Import
+                </Show>
               </button>
             </div>
           </div>
@@ -382,12 +531,20 @@ const CsvImportCard: Component = () => {
       >
         <label class="setting-row focus-ring" style={{ cursor: "pointer" }}>
           <div class="setting-row-icon" aria-hidden="true">
-            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">upload_file</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            >
+              upload_file
+            </span>
           </div>
           <div class="setting-row-text">
             <span class="setting-row-label">Import from CSV</span>
             <span class="setting-row-desc">
-              {parsing() ? "Parsing…" : "CineLog / Letterboxd / Trakt / IMDb — auto-detected"}
+              {parsing()
+                ? "Parsing…"
+                : "CineLog / Letterboxd / Trakt / IMDb — auto-detected"}
             </span>
           </div>
           <input
@@ -401,7 +558,12 @@ const CsvImportCard: Component = () => {
             }}
             aria-label="Choose CSV file"
           />
-          <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">upload</span>
+          <span
+            class="material-symbols-outlined setting-row-chevron"
+            aria-hidden="true"
+          >
+            upload
+          </span>
         </label>
       </Show>
     </div>

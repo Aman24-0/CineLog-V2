@@ -15,14 +15,14 @@
     /* ─── Surface Tiers (redesigned — warm cinema depth) ─── */
     --void: #0a0a0a;
     --deep: #0a0a0a;
-    --surface: #0F0F16;
+    --surface: #0f0f16;
     --raised: #181820;
-    --border: rgba(232,183,74,0.06);
-    --border-active: rgba(232,183,74,0.14);
-    --text: #F0ECE2;
+    --border: rgba(232, 183, 74, 0.06);
+    --border-active: rgba(232, 183, 74, 0.14);
+    --text: #f0ece2;
     /* Legacy muted/dim tokens — warm tinted for cinema feel */
-    --muted: rgba(240,236,226,0.62);
-    --dim: rgba(240,236,226,0.50);
+    --muted: rgba(240, 236, 226, 0.62);
+    --dim: rgba(240, 236, 226, 0.5);
 
     /* ─── Semantic Color: Primary ─── */
     --color-primary: var(--p);
@@ -58,48 +58,48 @@
 
     /* ─── Semantic Color: Success ─── */
     --color-success: #4ade80;
-    --color-success-bg: rgba(74,222,128,0.08);
-    --color-success-border: rgba(74,222,128,0.25);
+    --color-success-bg: rgba(74, 222, 128, 0.08);
+    --color-success-border: rgba(74, 222, 128, 0.25);
     --color-success-text: #4ade80;
 
     /* ─── Semantic Color: Warning ─── */
     --color-warning: #fbbf24;
-    --color-warning-bg: rgba(251,191,36,0.08);
-    --color-warning-border: rgba(251,191,36,0.25);
+    --color-warning-bg: rgba(251, 191, 36, 0.08);
+    --color-warning-border: rgba(251, 191, 36, 0.25);
     --color-warning-text: #fbbf24;
 
     /* ─── Semantic Color: Danger ─── */
     --color-danger: #f87171;
-    --color-danger-bg: rgba(248,113,113,0.12);
-    --color-danger-border: rgba(248,113,113,0.30);
+    --color-danger-bg: rgba(248, 113, 113, 0.12);
+    --color-danger-border: rgba(248, 113, 113, 0.3);
     --color-danger-text: #f87171;
 
     /* ─── Semantic Color: Info ─── */
     --color-info: #60a5fa;
-    --color-info-bg: rgba(96,165,250,0.08);
-    --color-info-border: rgba(96,165,250,0.25);
+    --color-info-bg: rgba(96, 165, 250, 0.08);
+    --color-info-border: rgba(96, 165, 250, 0.25);
     --color-info-text: #60a5fa;
 
     /* ─── Status Colors (Watch Status) ─── */
     --color-status-watching: #4ade80;
-    --color-status-watching-bg: rgba(74,222,128,0.08);
-    --color-status-watching-border: rgba(74,222,128,0.25);
+    --color-status-watching-bg: rgba(74, 222, 128, 0.08);
+    --color-status-watching-border: rgba(74, 222, 128, 0.25);
 
     --color-status-completed: #60a5fa;
-    --color-status-completed-bg: rgba(96,165,250,0.08);
-    --color-status-completed-border: rgba(96,165,250,0.25);
+    --color-status-completed-bg: rgba(96, 165, 250, 0.08);
+    --color-status-completed-border: rgba(96, 165, 250, 0.25);
 
     --color-status-planned: #c084fc;
-    --color-status-planned-bg: rgba(192,132,252,0.08);
-    --color-status-planned-border: rgba(192,132,252,0.25);
+    --color-status-planned-bg: rgba(192, 132, 252, 0.08);
+    --color-status-planned-border: rgba(192, 132, 252, 0.25);
 
     --color-status-paused: #fbbf24;
-    --color-status-paused-bg: rgba(251,191,36,0.08);
-    --color-status-paused-border: rgba(251,191,36,0.25);
+    --color-status-paused-bg: rgba(251, 191, 36, 0.08);
+    --color-status-paused-border: rgba(251, 191, 36, 0.25);
 
     --color-status-dropped: #f87171;
-    --color-status-dropped-bg: rgba(248,113,113,0.08);
-    --color-status-dropped-border: rgba(248,113,113,0.25);
+    --color-status-dropped-bg: rgba(248, 113, 113, 0.08);
+    --color-status-dropped-border: rgba(248, 113, 113, 0.25);
 
     /* ─── Rating Source Colors ─── */
     --color-rating-imdb: #f5c518;
@@ -109,28 +109,32 @@
 
     /* ─── Collection Colors ─── */
     --color-collection-favorites: #f5c518;
-    --color-collection-favorites-bg: rgba(245,197,24,0.08);
-    --color-collection-favorites-border: rgba(245,197,24,0.25);
+    --color-collection-favorites-bg: rgba(245, 197, 24, 0.08);
+    --color-collection-favorites-border: rgba(245, 197, 24, 0.25);
 
     --color-collection-universe: var(--p);
     --color-collection-universe-bg: var(--p-dim);
-    --color-collection-universe-border: color-mix(in srgb, var(--p) 30%, transparent);
+    --color-collection-universe-border: color-mix(
+      in srgb,
+      var(--p) 30%,
+      transparent
+    );
 
     --color-collection-recommendation: #c084fc;
-    --color-collection-recommendation-bg: rgba(192,132,252,0.08);
-    --color-collection-recommendation-border: rgba(192,132,252,0.25);
+    --color-collection-recommendation-bg: rgba(192, 132, 252, 0.08);
+    --color-collection-recommendation-border: rgba(192, 132, 252, 0.25);
 
     --color-collection-trending: #fb923c;
-    --color-collection-trending-bg: rgba(251,146,60,0.08);
-    --color-collection-trending-border: rgba(251,146,60,0.25);
+    --color-collection-trending-bg: rgba(251, 146, 60, 0.08);
+    --color-collection-trending-border: rgba(251, 146, 60, 0.25);
 
     --color-collection-theatre: #f472b6;
-    --color-collection-theatre-bg: rgba(244,114,182,0.08);
-    --color-collection-theatre-border: rgba(244,114,182,0.25);
+    --color-collection-theatre-bg: rgba(244, 114, 182, 0.08);
+    --color-collection-theatre-border: rgba(244, 114, 182, 0.25);
 
     --color-collection-ott: #38bdf8;
-    --color-collection-ott-bg: rgba(56,189,248,0.08);
-    --color-collection-ott-border: rgba(56,189,248,0.25);
+    --color-collection-ott-bg: rgba(56, 189, 248, 0.08);
+    --color-collection-ott-border: rgba(56, 189, 248, 0.25);
 
     /* --- New Tokens --- */
     --blur-sm: 8px;
@@ -152,22 +156,70 @@
 
     /* ─── Active-state tokens ─── */
     --active-bg: var(--p);
-    --active-text: #08080D;
+    --active-text: #08080d;
     --active-border: var(--p);
     --active-glow: 0 0 12px var(--p-glow);
   }
 }
 
 /* ─── Theme overrides ─── */
-.theme-pearl        { --p: #ffffff; --p2: #a0a0a0; --p-glow: rgba(255,255,255,0.15);  --p-dim: rgba(255,255,255,0.06);  --active-text: #08080D; }
-.theme-sage         { --p: #a8ff78; --p2: #ff78c4; --p-glow: rgba(168,255,120,0.22); --p-dim: rgba(168,255,120,0.08); --active-text: #08080D; }
-.theme-matrix       { --p: #39ff14; --p2: #00f5a0; --p-glow: rgba(57,255,20,0.22);   --p-dim: rgba(57,255,20,0.08);   --active-text: #08080D; }
-.theme-netflix      { --p: #ff2d55; --p2: #ff9500; --p-glow: rgba(255,45,85,0.22);   --p-dim: rgba(255,45,85,0.08);   --active-text: #ffffff; }
-.theme-interstellar { --p: #00c2ff; --p2: #f9a620; --p-glow: rgba(0,194,255,0.22);   --p-dim: rgba(0,194,255,0.08);   --active-text: #08080D; }
-.theme-neonhorizon  { --p: #ff2af0; --p2: #00ffe7; --p-glow: rgba(255,42,240,0.22);  --p-dim: rgba(255,42,240,0.08);  --active-text: #ffffff; }
-.theme-vibranium    { --p: #9d4edd; --p2: #06ffd4; --p-glow: rgba(157,78,221,0.22);  --p-dim: rgba(157,78,221,0.08);  --active-text: #ffffff; }
+.theme-pearl {
+  --p: #ffffff;
+  --p2: #a0a0a0;
+  --p-glow: rgba(255, 255, 255, 0.15);
+  --p-dim: rgba(255, 255, 255, 0.06);
+  --active-text: #08080d;
+}
+.theme-sage {
+  --p: #a8ff78;
+  --p2: #ff78c4;
+  --p-glow: rgba(168, 255, 120, 0.22);
+  --p-dim: rgba(168, 255, 120, 0.08);
+  --active-text: #08080d;
+}
+.theme-matrix {
+  --p: #39ff14;
+  --p2: #00f5a0;
+  --p-glow: rgba(57, 255, 20, 0.22);
+  --p-dim: rgba(57, 255, 20, 0.08);
+  --active-text: #08080d;
+}
+.theme-netflix {
+  --p: #ff2d55;
+  --p2: #ff9500;
+  --p-glow: rgba(255, 45, 85, 0.22);
+  --p-dim: rgba(255, 45, 85, 0.08);
+  --active-text: #ffffff;
+}
+.theme-interstellar {
+  --p: #00c2ff;
+  --p2: #f9a620;
+  --p-glow: rgba(0, 194, 255, 0.22);
+  --p-dim: rgba(0, 194, 255, 0.08);
+  --active-text: #08080d;
+}
+.theme-neonhorizon {
+  --p: #ff2af0;
+  --p2: #00ffe7;
+  --p-glow: rgba(255, 42, 240, 0.22);
+  --p-dim: rgba(255, 42, 240, 0.08);
+  --active-text: #ffffff;
+}
+.theme-vibranium {
+  --p: #9d4edd;
+  --p2: #06ffd4;
+  --p-glow: rgba(157, 78, 221, 0.22);
+  --p-dim: rgba(157, 78, 221, 0.08);
+  --active-text: #ffffff;
+}
 /* Cinematic — the new default identity: cinema gold accent */
-.theme-cinematic    { --p: #E8B74A; --p2: #FF6B35; --p-glow: rgba(232,183,74,0.35);  --p-dim: rgba(232,183,74,0.10);  --active-text: #08080D; }
+.theme-cinematic {
+  --p: #e8b74a;
+  --p2: #ff6b35;
+  --p-glow: rgba(232, 183, 74, 0.35);
+  --p-dim: rgba(232, 183, 74, 0.1);
+  --active-text: #08080d;
+}
 
 /* ============================================================
    PHASE 2.1 — DESIGN SYSTEM (Redesigned)
@@ -180,30 +232,30 @@
        Each tier steps warmer and slightly lighter, creating
        a layered cinema auditorium feel. */
     --tier-0: #0a0a0a;
-    --tier-1: #0D0D14;
-    --tier-2: #12121B;
-    --tier-3: #1A1A25;
-    --tier-4: #24243A;
+    --tier-1: #0d0d14;
+    --tier-2: #12121b;
+    --tier-3: #1a1a25;
+    --tier-4: #24243a;
 
     /* Hairline borders — warm gold tint for cinematic cohesion */
-    --hairline: rgba(232,183,74,0.05);
-    --hairline-2: rgba(232,183,74,0.09);
-    --hairline-3: rgba(232,183,74,0.15);
+    --hairline: rgba(232, 183, 74, 0.05);
+    --hairline-2: rgba(232, 183, 74, 0.09);
+    --hairline-3: rgba(232, 183, 74, 0.15);
 
     /* Text scale — warm cream tones for editorial cinema feel
        ── WCAG 2.1 AA CONTRAST COMPLIANCE ─────────────────────────────
        All values verified against #08080D (--void). Warm tint makes
        text feel premium without reducing contrast. */
-    --text-strong: #FFF8E8;
-    --text-body: #EDE8DA;
-    --text-soft: rgba(237,232,218,0.72);
-    --text-muted: rgba(237,232,218,0.58);
-    --text-dim: rgba(237,232,218,0.50);
+    --text-strong: #fff8e8;
+    --text-body: #ede8da;
+    --text-soft: rgba(237, 232, 218, 0.72);
+    --text-muted: rgba(237, 232, 218, 0.58);
+    --text-dim: rgba(237, 232, 218, 0.5);
 
     /* Glass tokens — warm cinema glass */
-    --glass-bg: rgba(13,13,20,0.78);
-    --glass-bg-strong: rgba(13,13,20,0.92);
-    --glass-border: rgba(232,183,74,0.06);
+    --glass-bg: rgba(13, 13, 20, 0.78);
+    --glass-bg-strong: rgba(13, 13, 20, 0.92);
+    --glass-border: rgba(232, 183, 74, 0.06);
     --glass-blur: 24px;
   }
 }

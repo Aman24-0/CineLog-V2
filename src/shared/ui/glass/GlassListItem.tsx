@@ -14,37 +14,37 @@ type ListItemSize = "compact" | "default" | "comfortable";
 const variantClasses: Record<ListItemVariant, string> = {
   glass: "bg-glass backdrop-blur-lg border border-glass-border rounded-md",
   subtle: "bg-transparent border-b border-hairline",
-  accent: "bg-primary-dim border border-primary rounded-md shadow-glow",
+  accent: "bg-primary-dim border border-primary rounded-md shadow-glow"
 };
 
 const sizeClasses: Record<ListItemSize, string> = {
   compact: "p-2 gap-1.5",
   default: "p-3 gap-2",
-  comfortable: "p-4 gap-3",
+  comfortable: "p-4 gap-3"
 };
 
 const imageSizeMap: Record<ListItemSize, string> = {
   compact: "w-8 h-8",
   default: "w-11 h-11",
-  comfortable: "w-14 h-14",
+  comfortable: "w-14 h-14"
 };
 
 const titleSizeMap: Record<ListItemSize, string> = {
   compact: "text-xs",
   default: "text-sm",
-  comfortable: "text-md",
+  comfortable: "text-md"
 };
 
 const subtitleSizeMap: Record<ListItemSize, string> = {
   compact: "text-2xs",
   default: "text-xs",
-  comfortable: "text-sm",
+  comfortable: "text-sm"
 };
 
 const iconSizeMap: Record<ListItemSize, string> = {
   compact: "text-md",
   default: "text-lg",
-  comfortable: "text-xl",
+  comfortable: "text-xl"
 };
 
 // ─── Props ────────────────────────────────────────────────────
@@ -80,15 +80,18 @@ export interface GlassListItemProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ─────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassListItemProps,
-  "iconFill" | "variant" | "size" | "interactive" | "selected" | "disabled"
->> = {
+const defaultProps: Required<
+  Pick<
+    GlassListItemProps,
+    "iconFill" | "variant" | "size" | "interactive" | "selected" | "disabled"
+  >
+> = {
   iconFill: false,
   variant: "glass",
   size: "default",
   interactive: false,
   selected: false,
-  disabled: false,
+  disabled: false
 };
 
 // ─── Component ────────────────────────────────────────────────
@@ -101,9 +104,21 @@ const defaultProps: Required<Pick<GlassListItemProps,
 const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "title", "subtitle", "icon", "iconFill", "imageUrl", "imageAlt",
-    "trailing", "variant", "size", "interactive", "selected", "disabled",
-    "onClick", "class", "style",
+    "title",
+    "subtitle",
+    "icon",
+    "iconFill",
+    "imageUrl",
+    "imageAlt",
+    "trailing",
+    "variant",
+    "size",
+    "interactive",
+    "selected",
+    "disabled",
+    "onClick",
+    "class",
+    "style"
   ]);
 
   const iconFontVariation = (): string =>
@@ -130,7 +145,7 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
     const classes = [
       "flex items-center",
       variantClasses[local.selected ? "accent" : local.variant],
-      sizeClasses[local.size],
+      sizeClasses[local.size]
     ];
 
     if (isInteractive() && !local.disabled) {
@@ -138,8 +153,10 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
         "cursor-pointer",
         "focus-ring",
         "transition-all duration-fast ease-standard",
-        local.variant === "glass" ? "hover:bg-glass-strong hover:backdrop-blur-2xl" : "hover:bg-tier-3",
-        "active:scale-[0.99]",
+        local.variant === "glass"
+          ? "hover:bg-glass-strong hover:backdrop-blur-2xl"
+          : "hover:bg-tier-3",
+        "active:scale-[0.99]"
       );
     }
 
@@ -166,36 +183,47 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
       onKeyDown={isInteractive() ? handleKeyDown : undefined}
     >
       {/* Image (takes precedence over icon) */}
-      <Show when={local.imageUrl} fallback={
-        <Show when={local.icon}>
-          <span
-            class={`material-symbols-outlined text-muted shrink-0 ${iconSizeMap[local.size]}`}
-            style={{ "font-variation-settings": iconFontVariation() }}
-            aria-hidden="true"
-          >
-            {local.icon}
-          </span>
-        </Show>
-      }>
+      <Show
+        when={local.imageUrl}
+        fallback={
+          <Show when={local.icon}>
+            <span
+              class={`material-symbols-outlined text-muted shrink-0 ${iconSizeMap[local.size]}`}
+              style={{ "font-variation-settings": iconFontVariation() }}
+              aria-hidden="true"
+            >
+              {local.icon}
+            </span>
+          </Show>
+        }
+      >
         <img
           src={local.imageUrl}
           alt={local.imageAlt ?? ""}
-          class={`${imageSizeMap[local.size]} rounded-sm object-cover shrink-0`}
+          class={`${imageSizeMap[local.size]} shrink-0 rounded-sm object-cover`}
           loading="lazy"
           decoding="async"
-          width={local.size === "compact" ? 32 : local.size === "default" ? 44 : 56}
-          height={local.size === "compact" ? 32 : local.size === "default" ? 44 : 56}
+          width={
+            local.size === "compact" ? 32 : local.size === "default" ? 44 : 56
+          }
+          height={
+            local.size === "compact" ? 32 : local.size === "default" ? 44 : 56
+          }
           draggable="false"
         />
       </Show>
 
       {/* Text content */}
-      <div class="flex-1 min-w-0">
-        <p class={`font-body font-medium text-strong truncate ${titleSizeMap[local.size]}`}>
+      <div class="min-w-0 flex-1">
+        <p
+          class={`text-strong truncate font-body font-medium ${titleSizeMap[local.size]}`}
+        >
           {local.title}
         </p>
         <Show when={local.subtitle}>
-          <p class={`font-body text-muted truncate ${subtitleSizeMap[local.size]}`}>
+          <p
+            class={`text-muted truncate font-body ${subtitleSizeMap[local.size]}`}
+          >
             {local.subtitle}
           </p>
         </Show>
@@ -203,9 +231,7 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
 
       {/* Trailing content */}
       <Show when={local.trailing}>
-        <div class="shrink-0 ml-auto">
-          {local.trailing}
-        </div>
+        <div class="ml-auto shrink-0">{local.trailing}</div>
       </Show>
     </div>
   );

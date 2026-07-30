@@ -14,8 +14,14 @@
 // Titles are truncated to one line via .truncate (CSS ellipsis) and
 // a native title attribute exposes the full string on long hover.
 
-import { For, Show, createSignal, onCleanup, type Component, type Accessor } from "solid-js";
-import { GlassCard } from "~/shared/ui/glass";
+import {
+  For,
+  Show,
+  createSignal,
+  onCleanup,
+  type Component,
+  type Accessor
+} from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { openTitle } from "~/shared/hooks/useModalState";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
@@ -85,14 +91,23 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
     <div class="stats-rated-section">
       <div class="stats-rated-header">
         <div class="stats-rated-header-left">
-          <div class="stats-chart-icon stats-rated-header-icon" aria-hidden="true">
-            <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+          <div
+            class="stats-chart-icon stats-rated-header-icon"
+            aria-hidden="true"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            >
               workspace_premium
             </span>
           </div>
           <div>
             <h3 class="stats-chart-title">Highest Rated</h3>
-            <p class="stats-chart-subtitle">Your top-scored titles — tap to open</p>
+            <p class="stats-chart-subtitle">
+              Your top-scored titles — tap to open
+            </p>
           </div>
         </div>
         <Show when={props.items().length > 2}>
@@ -104,7 +119,11 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
               disabled={!canScrollLeft()}
               onClick={() => scrollBy(-260)}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
                 chevron_left
               </span>
             </button>
@@ -115,7 +134,11 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
               disabled={!canScrollRight()}
               onClick={() => scrollBy(260)}
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
                 chevron_right
               </span>
             </button>
@@ -125,7 +148,9 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
       <Show
         when={props.items().length > 0}
         fallback={
-          <p class="stats-rated-empty">Rate some titles to see your favourites here.</p>
+          <p class="stats-rated-empty">
+            Rate some titles to see your favourites here.
+          </p>
         }
       >
         <div class="stats-rated-scroller-wrap">
@@ -150,7 +175,12 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
                       when={item.poster}
                       fallback={
                         <div class="stats-rated-poster-fallback">
-                          <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            movie
+                          </span>
                         </div>
                       }
                     >
@@ -163,12 +193,19 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
                       />
                     </Show>
                     <div class="stats-rated-rating">
-                      <span class="material-symbols-outlined" aria-hidden="true">star</span>
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
+                        star
+                      </span>
                       <span>{item.userRating}</span>
                     </div>
                   </div>
                   <div class="stats-rated-info">
-                    <p class="stats-rated-title stats-rated-title-truncate">{item.title}</p>
+                    <p class="stats-rated-title stats-rated-title-truncate">
+                      {item.title}
+                    </p>
                     <Show when={item.year}>
                       <p class="stats-rated-year">{item.year}</p>
                     </Show>
@@ -183,7 +220,10 @@ const HighestRatedCarousel: Component<HighestRatedCarouselProps> = (props) => {
           </Show>
           {/* Left-edge fade gradient — only visible when scrolled in from the left */}
           <Show when={canScrollLeft()}>
-            <div class="stats-rated-fade-edge stats-rated-fade-edge-left" aria-hidden="true" />
+            <div
+              class="stats-rated-fade-edge stats-rated-fade-edge-left"
+              aria-hidden="true"
+            />
           </Show>
         </div>
       </Show>

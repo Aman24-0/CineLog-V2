@@ -26,7 +26,7 @@
 
 import {
   canonicalForTmdbId,
-  displayNameFor,
+  displayNameFor
 } from "~/features/discover/components/ottProviderRegistry";
 
 /**
@@ -102,5 +102,5 @@ const KNOWN_DISPLAY_NAMES: readonly string[] = [
   "Max",
   "Paramount+",
   "Peacock",
-  "Discovery+",
+  "Discovery+"
 ] as const;

@@ -35,7 +35,10 @@ import { Component, Show, createMemo, createSignal, type JSX } from "solid-js";
 // (no For import needed — groups render children directly)
 import { GlassCard, GlassBadge, GlassButton } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { TrashedVaultItem, TrashedCollection } from "~/features/trash/trashAdapter";
+import type {
+  TrashedVaultItem,
+  TrashedCollection
+} from "~/features/trash/trashAdapter";
 
 // ── Shared helpers ─────────────────────────────────────────────
 
@@ -46,7 +49,7 @@ function formatDate(iso: string): string {
   return d.toLocaleDateString(undefined, {
     month: "short",
     day: "numeric",
-    year: "numeric",
+    year: "numeric"
   });
 }
 
@@ -68,19 +71,21 @@ export interface TrashVaultItemCardProps {
   onDeleteForever: (item: TrashedVaultItem) => void;
 }
 
-export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (props) => {
+export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (
+  props
+) => {
   const title = createMemo(
-    () => props.item.title || props.item.name || "Untitled",
+    () => props.item.title || props.item.name || "Untitled"
   );
   const year = createMemo(() => {
     const d = props.item.release_date || props.item.first_air_date || "";
     return d.slice(0, 4);
   });
   const mediaLabel = createMemo(() =>
-    props.item.media_type === "tv" ? "Series" : "Movie",
+    props.item.media_type === "tv" ? "Series" : "Movie"
   );
   const mediaIcon = createMemo(() =>
-    props.item.media_type === "tv" ? "tv" : "movie",
+    props.item.media_type === "tv" ? "tv" : "movie"
   );
   const placeholderInitial = createMemo(() => {
     const t = title();
@@ -92,16 +97,11 @@ export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (props) =>
   // there's no poster_path at all.
   const [posterBroken, setPosterBroken] = createSignal(false);
   const showPoster = createMemo(
-    () => !!props.item.poster_path && !posterBroken(),
+    () => !!props.item.poster_path && !posterBroken()
   );
 
   return (
-    <GlassCard
-      variant="glass"
-      size="default"
-      hoverable
-      class="trash-item-card"
-    >
+    <GlassCard variant="glass" size="default" hoverable class="trash-item-card">
       <div class="trash-item-card-row">
         {/* Poster thumbnail (or fallback) */}
         <div class="trash-item-card-poster" aria-hidden="true">
@@ -149,7 +149,9 @@ export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (props) =>
           </div>
 
           <p class="trash-item-card-expiry">
-            <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              schedule
+            </span>
             Auto-deletes in {daysRemaining(props.item.expiresAt)}
           </p>
         </div>
@@ -195,9 +197,13 @@ export interface TrashCollectionCardProps {
   onDeleteForever: (col: TrashedCollection) => void;
 }
 
-export const TrashCollectionCard: Component<TrashCollectionCardProps> = (props) => {
+export const TrashCollectionCard: Component<TrashCollectionCardProps> = (
+  props
+) => {
   const entryLabel = createMemo(() =>
-    props.collection.entryCount === 1 ? "1 title" : `${props.collection.entryCount} titles`,
+    props.collection.entryCount === 1
+      ? "1 title"
+      : `${props.collection.entryCount} titles`
   );
 
   return (
@@ -209,9 +215,14 @@ export const TrashCollectionCard: Component<TrashCollectionCardProps> = (props) 
     >
       <div class="trash-item-card-row">
         {/* Folder icon thumbnail */}
-        <div class="trash-item-card-poster trash-item-card-poster-folder" aria-hidden="true">
+        <div
+          class="trash-item-card-poster trash-item-card-poster-folder"
+          aria-hidden="true"
+        >
           <div class="trash-item-card-poster-fallback">
-            <span class="material-symbols-outlined" aria-hidden="true">folder</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              folder
+            </span>
           </div>
         </div>
 
@@ -237,7 +248,9 @@ export const TrashCollectionCard: Component<TrashCollectionCardProps> = (props) 
           </div>
 
           <p class="trash-item-card-expiry">
-            <span class="material-symbols-outlined" aria-hidden="true">schedule</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              schedule
+            </span>
             Auto-deletes in {daysRemaining(props.collection.expiresAt)}
           </p>
         </div>
@@ -303,7 +316,9 @@ export interface TrashGroupRendererProps {
   children: JSX.Element;
 }
 
-export const TrashGroupRenderer: Component<TrashGroupRendererProps> = (props) => {
+export const TrashGroupRenderer: Component<TrashGroupRendererProps> = (
+  props
+) => {
   return (
     <section class="trash-group">
       <div class="trash-group-header">

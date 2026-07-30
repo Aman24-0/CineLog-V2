@@ -2,7 +2,10 @@
  * CineLog V2 — Episode Progress Repository (Barrel)
  */
 
-export { EpisodeProgressRepository, getEpisodeProgressRepository } from "./episodeProgress.repository";
+export {
+  EpisodeProgressRepository,
+  getEpisodeProgressRepository
+} from "./episodeProgress.repository";
 
 export type {
   EpisodeProgressRow,

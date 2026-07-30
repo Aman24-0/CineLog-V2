@@ -13,7 +13,8 @@
 import { createSignal, onMount, type Component, type Accessor } from "solid-js";
 import { GlassTabs, type GlassTabItem } from "~/shared/ui/glass";
 
-export type StatsTab = "activity" | "genres" | "ratings" | "decades" | "people" | "trends";
+export type StatsTab =
+  "activity" | "genres" | "ratings" | "decades" | "people" | "trends";
 
 const STORAGE_KEY = "cinelog:stats:activeTab";
 
@@ -23,7 +24,7 @@ const TAB_ITEMS: GlassTabItem<StatsTab>[] = [
   { value: "ratings", label: "Ratings", icon: "star" },
   { value: "decades", label: "Decades", icon: "history" },
   { value: "people", label: "People", icon: "groups" },
-  { value: "trends", label: "Trends", icon: "trending_up" },
+  { value: "trends", label: "Trends", icon: "trending_up" }
 ];
 
 interface StatsTabsProps {
@@ -53,10 +54,9 @@ const StatsTabs: Component<StatsTabsProps> = (props) => {
 // the persistence logic.
 // ---------------------------------------------------------------------------
 
-export function usePersistentStatsTab(defaultTab: StatsTab = "activity"): [
-  Accessor<StatsTab>,
-  (tab: StatsTab) => void,
-] {
+export function usePersistentStatsTab(
+  defaultTab: StatsTab = "activity"
+): [Accessor<StatsTab>, (tab: StatsTab) => void] {
   const [tab, setTab] = createSignal<StatsTab>(defaultTab);
 
   onMount(() => {

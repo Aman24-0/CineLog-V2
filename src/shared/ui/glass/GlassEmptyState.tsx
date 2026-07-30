@@ -11,31 +11,31 @@ type EmptyStateVariant = "default" | "compact" | "large";
 const variantSpacing: Record<EmptyStateVariant, string> = {
   compact: "gap-3 p-4",
   default: "gap-5 p-8",
-  large: "gap-8 p-12",
+  large: "gap-8 p-12"
 };
 
 const iconContainerSize: Record<EmptyStateVariant, string> = {
   compact: "w-10 h-10",
   default: "w-16 h-16",
-  large: "w-24 h-24",
+  large: "w-24 h-24"
 };
 
 const iconFontSize: Record<EmptyStateVariant, string> = {
   compact: "text-xl",
   default: "text-3xl",
-  large: "text-5xl",
+  large: "text-5xl"
 };
 
 const titleSize: Record<EmptyStateVariant, string> = {
   compact: "text-sm",
   default: "text-lg",
-  large: "text-xl",
+  large: "text-xl"
 };
 
 const messageSize: Record<EmptyStateVariant, string> = {
   compact: "text-xs",
   default: "text-sm",
-  large: "text-base",
+  large: "text-base"
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -57,9 +57,11 @@ export interface GlassEmptyStateProps extends JSX.HTMLAttributes<HTMLDivElement>
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassEmptyStateProps, "variant" | "surface">> = {
+const defaultProps: Required<
+  Pick<GlassEmptyStateProps, "variant" | "surface">
+> = {
   variant: "default",
-  surface: false,
+  surface: false
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -71,17 +73,26 @@ const defaultProps: Required<Pick<GlassEmptyStateProps, "variant" | "surface">> 
 const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "icon", "title", "message", "variant", "action", "surface", "class", "style",
+    "icon",
+    "title",
+    "message",
+    "variant",
+    "action",
+    "surface",
+    "class",
+    "style"
   ]);
 
   const containerClasses = () => {
     const base = [
       "flex flex-col items-center justify-center text-center w-full",
-      variantSpacing[local.variant],
+      variantSpacing[local.variant]
     ];
 
     if (local.surface) {
-      base.push("bg-glass backdrop-blur-xl border border-glass-border rounded-lg shadow-glass-card");
+      base.push(
+        "bg-glass backdrop-blur-xl border border-glass-border rounded-lg shadow-glass-card"
+      );
     }
 
     if (local.class) base.push(local.class);
@@ -92,12 +103,18 @@ const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
     <div {...rest} class={containerClasses()} style={local.style}>
       {/* Icon Container — premium glass with golden tint */}
       <div
-        class={`flex items-center justify-center rounded-full bg-glass backdrop-blur-md text-primary border border-glass-border flex-shrink-0 ${iconContainerSize[local.variant]}`}
-        style={{ "box-shadow": "0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.10)" }}
+        class={`flex flex-shrink-0 items-center justify-center rounded-full border border-glass-border bg-glass text-primary backdrop-blur-md ${iconContainerSize[local.variant]}`}
+        style={{
+          "box-shadow":
+            "0 4px 16px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.10)"
+        }}
       >
         <span
           class={`material-symbols-outlined ${iconFontSize[local.variant]}`}
-          style={{ "font-variation-settings": "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48" }}
+          style={{
+            "font-variation-settings":
+              "'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48"
+          }}
           aria-hidden="true"
         >
           {local.icon}
@@ -105,12 +122,16 @@ const GlassEmptyState: Component<GlassEmptyStateProps> = (rawProps) => {
       </div>
 
       {/* Text Content */}
-      <div class="flex flex-col items-center justify-center gap-1.5 max-w-[400px]">
-        <h3 class={`font-heading font-bold text-text-strong leading-tight ${titleSize[local.variant]}`}>
+      <div class="flex max-w-[400px] flex-col items-center justify-center gap-1.5">
+        <h3
+          class={`font-heading font-bold leading-tight text-text-strong ${titleSize[local.variant]}`}
+        >
           {local.title}
         </h3>
         <Show when={local.message}>
-          <p class={`font-body text-text-soft leading-relaxed ${messageSize[local.variant]}`}>
+          <p
+            class={`font-body leading-relaxed text-text-soft ${messageSize[local.variant]}`}
+          >
             {local.message}
           </p>
         </Show>

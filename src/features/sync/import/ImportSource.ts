@@ -118,7 +118,7 @@ export interface ImportWizardProps {
 import { JsonImportSource } from "./sources/jsonImportSource";
 
 export const IMPORT_SOURCES: ImportSource[] = [
-  JsonImportSource,
+  JsonImportSource
   // Future sources — registered here when implemented:
   // LetterboxdImportSource,
   // TraktImportSource,
@@ -148,20 +148,20 @@ export const FUTURE_SOURCES: FutureSource[] = [
     displayName: "Letterboxd",
     description: "Import from your Letterboxd diary & watchlist",
     icon: "movie_filter",
-    accentColor: "#ff8000",
+    accentColor: "#ff8000"
   },
   {
     id: "trakt",
     displayName: "Trakt",
     description: "Import your Trakt history, ratings & watchlist",
     icon: "tv_gen",
-    accentColor: "#ed1c24",
+    accentColor: "#ed1c24"
   },
   {
     id: "imdb",
     displayName: "IMDb",
     description: "Import from an exported IMDb watchlist",
     icon: "movie_info",
-    accentColor: "#f5c518",
-  },
+    accentColor: "#f5c518"
+  }
 ];

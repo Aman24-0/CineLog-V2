@@ -21,5 +21,5 @@ export const JsonImportSource: ImportSource = {
   icon: "file_json",
   accentColor: "var(--p)",
   available: true,
-  Wizard: JsonImportWizard as Component<ImportWizardProps>,
+  Wizard: JsonImportWizard as Component<ImportWizardProps>
 };

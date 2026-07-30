@@ -26,12 +26,14 @@ const MovieSeriesPie: Component<MovieSeriesPieProps> = (props) => {
     const s = props.split();
     const list: DonutSlice[] = [
       { name: "Movies", value: s.movies, color: "#f5c518" },
-      { name: "Series", value: s.series, color: "#7c8cff" },
+      { name: "Series", value: s.series, color: "#7c8cff" }
     ];
     return list.filter((d) => d.value > 0);
   });
 
-  const total = createMemo((): number => props.split().movies + props.split().series);
+  const total = createMemo(
+    (): number => props.split().movies + props.split().series
+  );
 
   return (
     <ChartContainer
@@ -43,10 +45,15 @@ const MovieSeriesPie: Component<MovieSeriesPieProps> = (props) => {
         <div class="stats-pie-legend">
           <For each={slices()}>
             {(entry) => {
-              const pct = total() > 0 ? Math.round((entry.value / total()) * 100) : 0;
+              const pct =
+                total() > 0 ? Math.round((entry.value / total()) * 100) : 0;
               return (
                 <div class="stats-pie-legend-row">
-                  <span class="stats-pie-legend-dot" style={{ background: entry.color }} aria-hidden="true" />
+                  <span
+                    class="stats-pie-legend-dot"
+                    style={{ background: entry.color }}
+                    aria-hidden="true"
+                  />
                   <span class="stats-pie-legend-name">{entry.name}</span>
                   <span class="stats-pie-legend-count">
                     {entry.value} · {pct}%

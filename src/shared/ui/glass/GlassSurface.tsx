@@ -16,20 +16,20 @@ type GlassRadius = "none" | "sm" | "md" | "lg" | "xl";
 
 const strengthMap: Record<GlassStrength, { bg: string; blur: string }> = {
   default: {
-    bg: "bg-glass",          // --glass-bg (72% opacity)
-    blur: "backdrop-blur-xl", // stronger blur for premium feel
+    bg: "bg-glass", // --glass-bg (72% opacity)
+    blur: "backdrop-blur-xl" // stronger blur for premium feel
   },
   strong: {
-    bg: "bg-glass-strong",   // --glass-bg-strong (88% opacity)
-    blur: "backdrop-blur-2xl", // --blur-2xl (28px)
-  },
+    bg: "bg-glass-strong", // --glass-bg-strong (88% opacity)
+    blur: "backdrop-blur-2xl" // --blur-2xl (28px)
+  }
 };
 
 const paddingMap: Record<GlassPadding, string> = {
   none: "",
-  compact: "p-3",     // --space-3 = 12px
-  default: "p-4",      // --space-4 = 16px
-  comfortable: "p-6",  // --space-6 = 24px
+  compact: "p-3", // --space-3 = 12px
+  default: "p-4", // --space-4 = 16px
+  comfortable: "p-6" // --space-6 = 24px
 };
 
 const radiusMap: Record<GlassRadius, string> = {
@@ -37,7 +37,7 @@ const radiusMap: Record<GlassRadius, string> = {
   sm: "rounded-sm",
   md: "rounded-md",
   lg: "rounded-lg",
-  xl: "rounded-xl",
+  xl: "rounded-xl"
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -65,16 +65,25 @@ export interface GlassSurfaceProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassSurfaceProps,
-  "strength" | "border" | "padding" | "radius" | "loading" | "interactive" | "disabled"
->> = {
+const defaultProps: Required<
+  Pick<
+    GlassSurfaceProps,
+    | "strength"
+    | "border"
+    | "padding"
+    | "radius"
+    | "loading"
+    | "interactive"
+    | "disabled"
+  >
+> = {
   strength: "default",
   border: true,
   padding: "default",
   radius: "lg",
   loading: false,
   interactive: false,
-  disabled: false,
+  disabled: false
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -85,9 +94,18 @@ const defaultProps: Required<Pick<GlassSurfaceProps,
 const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "strength", "border", "padding", "radius", "loading", "interactive", "disabled",
-    "class", "style", "children",
-    "aria-label", "aria-describedby",
+    "strength",
+    "border",
+    "padding",
+    "radius",
+    "loading",
+    "interactive",
+    "disabled",
+    "class",
+    "style",
+    "children",
+    "aria-label",
+    "aria-describedby"
   ]);
 
   /** Resolve all token-based class names. */
@@ -98,7 +116,7 @@ const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
       blur,
       paddingMap[local.padding],
       radiusMap[local.radius],
-      "relative",
+      "relative"
     ];
 
     // Glass border
@@ -117,13 +135,17 @@ const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
         "hover:bg-glass-strong",
         "hover:backdrop-blur-2xl",
         "active:scale-[0.98]",
-        "active:duration-fast",
+        "active:duration-fast"
       );
     }
 
     // Disabled state
     if (local.interactive && local.disabled) {
-      classes.push("opacity-disabled", "cursor-not-allowed", "pointer-events-none");
+      classes.push(
+        "opacity-disabled",
+        "cursor-not-allowed",
+        "pointer-events-none"
+      );
     }
 
     // Loading state
@@ -163,11 +185,12 @@ const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
     >
       <Show when={local.loading}>
         <div
-          class="absolute inset-0 z-overlay rounded-inherit"
+          class="rounded-inherit absolute inset-0 z-overlay"
           style={{
-            background: "linear-gradient(90deg, transparent, var(--tier-3), transparent)",
+            background:
+              "linear-gradient(90deg, transparent, var(--tier-3), transparent)",
             "background-size": "200% 100%",
-            animation: "shimmer 1.8s ease-in-out infinite",
+            animation: "shimmer 1.8s ease-in-out infinite"
           }}
           aria-hidden="true"
         />

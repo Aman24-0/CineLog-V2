@@ -55,7 +55,10 @@ export interface StatsData {
 // Hook
 // ---------------------------------------------------------------------------
 
-export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Accessor<WatchlistItem[]> } {
+export function useStats(): {
+  stats: Accessor<StatsData | null>;
+  watchlist: Accessor<WatchlistItem[]>;
+} {
   const library = useUserLibrary();
 
   const stats = createMemo<StatsData | null>(() => {
@@ -94,7 +97,7 @@ export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Acce
       .map(([name, count]) => ({
         name,
         count,
-        pct: total > 0 ? Math.round((count / total) * 100) : 0,
+        pct: total > 0 ? Math.round((count / total) * 100) : 0
       }))
       .sort((a, b) => b.count - a.count)
       .slice(0, 6);
@@ -143,13 +146,17 @@ export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Acce
     const ratedItems = list.filter((m) => m.rating && m.rating > 0);
     const avgRating =
       ratedItems.length > 0
-        ? ratedItems.reduce((s, m) => s + (m.rating ?? 0), 0) / ratedItems.length
+        ? ratedItems.reduce((s, m) => s + (m.rating ?? 0), 0) /
+          ratedItems.length
         : 0;
 
     // Top rated
-    const topRated = ratedItems.length > 0
-      ? ratedItems.reduce((max, m) => ((m.rating ?? 0) > (max.rating ?? 0) ? m : max))
-      : null;
+    const topRated =
+      ratedItems.length > 0
+        ? ratedItems.reduce((max, m) =>
+            (m.rating ?? 0) > (max.rating ?? 0) ? m : max
+          )
+        : null;
 
     return {
       total: list.length,
@@ -171,7 +178,7 @@ export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Acce
       weekdayVsWeekend,
       avgRating: Math.round(avgRating * 10) / 10,
       topRated,
-      mostRewatched: null,
+      mostRewatched: null
     };
   });
 
@@ -182,13 +189,16 @@ export function useStats(): { stats: Accessor<StatsData | null>; watchlist: Acce
 // Helpers
 // ---------------------------------------------------------------------------
 
-function buildHeatmap(list: WatchlistItem[]): { date: string; level: 0 | 1 | 2 | 3 | 4 }[] {
+function buildHeatmap(
+  list: WatchlistItem[]
+): { date: string; level: 0 | 1 | 2 | 3 | 4 }[] {
   const days: { date: string; level: 0 | 1 | 2 | 3 | 4 }[] = [];
   const today = new Date();
   const countMap = new Map<string, number>();
 
   list.forEach((m) => {
-    const dateStr = m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
+    const dateStr =
+      m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
     if (!dateStr) return;
     try {
       const d = new Date(dateStr);
@@ -217,13 +227,16 @@ function buildHeatmap(list: WatchlistItem[]): { date: string; level: 0 | 1 | 2 |
   return days;
 }
 
-function buildMonthlyCounts(list: WatchlistItem[]): { month: string; count: number }[] {
+function buildMonthlyCounts(
+  list: WatchlistItem[]
+): { month: string; count: number }[] {
   const months: { month: string; count: number }[] = [];
   const now = new Date();
   const countMap = new Map<string, number>();
 
   list.forEach((m) => {
-    const dateStr = m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
+    const dateStr =
+      m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
     if (!dateStr) return;
     try {
       const d = new Date(dateStr);
@@ -245,11 +258,15 @@ function buildMonthlyCounts(list: WatchlistItem[]): { month: string; count: numb
   return months;
 }
 
-function buildWeekdayVsWeekend(list: WatchlistItem[]): { weekday: number; weekend: number } {
+function buildWeekdayVsWeekend(list: WatchlistItem[]): {
+  weekday: number;
+  weekend: number;
+} {
   let weekday = 0;
   let weekend = 0;
   list.forEach((m) => {
-    const dateStr = m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
+    const dateStr =
+      m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null);
     if (!dateStr) return;
     try {
       const d = new Date(dateStr);

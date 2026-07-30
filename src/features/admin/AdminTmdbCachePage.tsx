@@ -9,7 +9,15 @@
 //   - Per-row: delete
 //   - Bulk actions: invalidate expired, invalidate all
 
-import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  createMemo,
+  type Component,
+  type JSX
+} from "solid-js";
 
 interface CacheEntry {
   id: string;
@@ -44,8 +52,13 @@ const AdminTmdbCachePage: Component = () => {
   const [total, setTotal] = createSignal(0);
   const [search, setSearch] = createSignal("");
   const [mediaType, setMediaType] = createSignal<"all" | "movie" | "tv">("all");
-  const [sort, setSort] = createSignal<"updated_at" | "expires_at" | "media_type">("updated_at");
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [sort, setSort] = createSignal<
+    "updated_at" | "expires_at" | "media_type"
+  >("updated_at");
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
@@ -62,7 +75,9 @@ const AdminTmdbCachePage: Component = () => {
       if (mediaType() !== "all") params.set("media_type", mediaType());
       params.set("sort", sort());
 
-      const resp = await fetch(`/api/admin/tmdb-cache?${params}`, { credentials: "include" });
+      const resp = await fetch(`/api/admin/tmdb-cache?${params}`, {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -90,7 +105,9 @@ const AdminTmdbCachePage: Component = () => {
   const fetchStats = async () => {
     setStatsLoading(true);
     try {
-      const resp = await fetch("/api/admin/tmdb-cache/stats", { credentials: "include" });
+      const resp = await fetch("/api/admin/tmdb-cache/stats", {
+        credentials: "include"
+      });
       if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
       const data = (await resp.json()) as CacheStats;
       setStats(data);
@@ -117,11 +134,12 @@ const AdminTmdbCachePage: Component = () => {
   };
 
   const deleteEntry = async (e: CacheEntry) => {
-    if (!confirm(`Delete cache entry for ${e.media_type} #${e.tmdb_id}?`)) return;
+    if (!confirm(`Delete cache entry for ${e.media_type} #${e.tmdb_id}?`))
+      return;
     try {
       const resp = await fetch(`/api/admin/tmdb-cache?id=${e.id}`, {
         method: "DELETE",
-        credentials: "include",
+        credentials: "include"
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -136,12 +154,16 @@ const AdminTmdbCachePage: Component = () => {
   };
 
   const invalidateExpired = async () => {
-    if (!confirm("Delete ALL expired cache entries? This cannot be undone.")) return;
+    if (!confirm("Delete ALL expired cache entries? This cannot be undone."))
+      return;
     try {
-      const resp = await fetch("/api/admin/tmdb-cache?action=invalidate-expired", {
-        method: "POST",
-        credentials: "include",
-      });
+      const resp = await fetch(
+        "/api/admin/tmdb-cache?action=invalidate-expired",
+        {
+          method: "POST",
+          credentials: "include"
+        }
+      );
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
         showToast(body.error || "Failed", "error");
@@ -155,12 +177,22 @@ const AdminTmdbCachePage: Component = () => {
   };
 
   const invalidateAll = async () => {
-    if (!confirm("WARNING: This will DELETE ALL cache entries. The next user request for each title will hit TMDB. Continue?")) return;
-    if (!confirm("Are you absolutely sure? This can cause a temporary spike in TMDB API usage.")) return;
+    if (
+      !confirm(
+        "WARNING: This will DELETE ALL cache entries. The next user request for each title will hit TMDB. Continue?"
+      )
+    )
+      return;
+    if (
+      !confirm(
+        "Are you absolutely sure? This can cause a temporary spike in TMDB API usage."
+      )
+    )
+      return;
     try {
       const resp = await fetch("/api/admin/tmdb-cache?action=invalidate-all", {
         method: "POST",
-        credentials: "include",
+        credentials: "include"
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -195,24 +227,76 @@ const AdminTmdbCachePage: Component = () => {
     const s = stats();
     if (!s) return [];
     return [
-      { label: "Total Entries", value: s.total.toLocaleString(), icon: "📊", color: "var(--text)" },
-      { label: "Expired", value: s.expired.toLocaleString(), icon: "⏰", color: s.expired > 0 ? "rgb(252, 165, 165)" : "var(--text-muted)" },
-      { label: "Movies", value: s.by_media_type.movie.toLocaleString(), icon: "🎬", color: "var(--text)" },
-      { label: "TV Series", value: s.by_media_type.tv.toLocaleString(), icon: "📺", color: "var(--text)" },
-      { label: "Cache Size", value: formatBytes(s.size_bytes), icon: "💾", color: "var(--text)" },
-      { label: "Oldest Fetch", value: s.oldest_fetched_at ? formatDate(s.oldest_fetched_at) : "—", icon: "🕚", color: "var(--text-muted)" },
+      {
+        label: "Total Entries",
+        value: s.total.toLocaleString(),
+        icon: "📊",
+        color: "var(--text)"
+      },
+      {
+        label: "Expired",
+        value: s.expired.toLocaleString(),
+        icon: "⏰",
+        color: s.expired > 0 ? "rgb(252, 165, 165)" : "var(--text-muted)"
+      },
+      {
+        label: "Movies",
+        value: s.by_media_type.movie.toLocaleString(),
+        icon: "🎬",
+        color: "var(--text)"
+      },
+      {
+        label: "TV Series",
+        value: s.by_media_type.tv.toLocaleString(),
+        icon: "📺",
+        color: "var(--text)"
+      },
+      {
+        label: "Cache Size",
+        value: formatBytes(s.size_bytes),
+        icon: "💾",
+        color: "var(--text)"
+      },
+      {
+        label: "Oldest Fetch",
+        value: s.oldest_fetched_at ? formatDate(s.oldest_fetched_at) : "—",
+        icon: "🕚",
+        color: "var(--text-muted)"
+      }
     ];
   });
 
   return (
     <div>
-      <div style={{ "margin-bottom": "var(--sp-6)", display: "flex", "justify-content": "space-between", "align-items": "flex-start", gap: "var(--sp-4)" }}>
+      <div
+        style={{
+          "margin-bottom": "var(--sp-6)",
+          display: "flex",
+          "justify-content": "space-between",
+          "align-items": "flex-start",
+          gap: "var(--sp-4)"
+        }}
+      >
         <div>
-          <h2 style={{ "font-size": "1.5rem", "font-weight": "700", margin: "0 0 var(--sp-1) 0", color: "var(--text)" }}>
+          <h2
+            style={{
+              "font-size": "1.5rem",
+              "font-weight": "700",
+              margin: "0 0 var(--sp-1) 0",
+              color: "var(--text)"
+            }}
+          >
             TMDB Cache
           </h2>
-          <p style={{ "font-size": "0.875rem", color: "var(--text-muted)", margin: 0 }}>
-            Browse and invalidate cached TMDB metadata. Cached entries reduce TMDB API calls.
+          <p
+            style={{
+              "font-size": "0.875rem",
+              color: "var(--text-muted)",
+              margin: 0
+            }}
+          >
+            Browse and invalidate cached TMDB metadata. Cached entries reduce
+            TMDB API calls.
           </p>
         </div>
         <div style={{ display: "flex", gap: "var(--sp-2)" }}>
@@ -226,16 +310,44 @@ const AdminTmdbCachePage: Component = () => {
       </div>
 
       {/* Stats grid */}
-      <div style={{ display: "grid", "grid-template-columns": "repeat(auto-fit, minmax(160px, 1fr))", gap: "var(--sp-3)", "margin-bottom": "var(--sp-5)" }}>
+      <div
+        style={{
+          display: "grid",
+          "grid-template-columns": "repeat(auto-fit, minmax(160px, 1fr))",
+          gap: "var(--sp-3)",
+          "margin-bottom": "var(--sp-5)"
+        }}
+      >
         <Show when={!statsLoading()}>
           <For each={statCards()}>
             {(stat) => (
               <div style={statCardStyle}>
-                <div style={{ "font-size": "1.25rem", "margin-bottom": "var(--sp-1)" }}>{stat.icon}</div>
-                <div style={{ "font-size": "0.7rem", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.05em" }}>
+                <div
+                  style={{
+                    "font-size": "1.25rem",
+                    "margin-bottom": "var(--sp-1)"
+                  }}
+                >
+                  {stat.icon}
+                </div>
+                <div
+                  style={{
+                    "font-size": "0.7rem",
+                    color: "var(--text-muted)",
+                    "text-transform": "uppercase",
+                    "letter-spacing": "0.05em"
+                  }}
+                >
                   {stat.label}
                 </div>
-                <div style={{ "font-size": "1.1rem", "font-weight": "700", color: stat.color, "margin-top": "2px" }}>
+                <div
+                  style={{
+                    "font-size": "1.1rem",
+                    "font-weight": "700",
+                    color: stat.color,
+                    "margin-top": "2px"
+                  }}
+                >
                   {stat.value}
                 </div>
               </div>
@@ -250,7 +362,13 @@ const AdminTmdbCachePage: Component = () => {
       </div>
 
       {/* Filters */}
-      <div style={{ ...cardStyle, "margin-bottom": "var(--sp-4)", "flex-wrap": "wrap" }}>
+      <div
+        style={{
+          ...cardStyle,
+          "margin-bottom": "var(--sp-4)",
+          "flex-wrap": "wrap"
+        }}
+      >
         <input
           type="text"
           placeholder="Search by TMDB ID…"
@@ -275,7 +393,10 @@ const AdminTmdbCachePage: Component = () => {
         <select
           value={sort()}
           onChange={(e) => {
-            setSort(e.currentTarget.value as "updated_at" | "expires_at" | "media_type");
+            setSort(
+              e.currentTarget.value as
+                "updated_at" | "expires_at" | "media_type"
+            );
             setPage(1);
             setTimeout(fetchEntries, 0);
           }}
@@ -285,61 +406,130 @@ const AdminTmdbCachePage: Component = () => {
           <option value="expires_at">Sort: Expires soon</option>
           <option value="media_type">Sort: Media type</option>
         </select>
-        <button onClick={applyFilters} style={btnPrimary}>Apply</button>
-        <div style={{ "margin-left": "auto", "font-size": "0.8rem", color: "var(--text-muted)" }}>
+        <button onClick={applyFilters} style={btnPrimary}>
+          Apply
+        </button>
+        <div
+          style={{
+            "margin-left": "auto",
+            "font-size": "0.8rem",
+            color: "var(--text-muted)"
+          }}
+        >
           {total()} total entries
         </div>
       </div>
 
       <Show when={error()}>
-        <div role="alert" style={alertError}>Failed to load: {error()}</div>
+        <div role="alert" style={alertError}>
+          Failed to load: {error()}
+        </div>
       </Show>
 
       <Show when={loading()}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
-          {Array.from({ length: 8 }).map(() => (
-            <div style={{ ...skeletonCard, height: "50px" }} />
-          ))}
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-2)"
+          }}
+        >
+          <For each={Array.from({ length: 8 })}>
+            {() => <div style={{ ...skeletonCard, height: "50px" }} />}
+          </For>
         </div>
       </Show>
 
       <Show when={!loading() && entries().length === 0}>
-        <div style={{ ...cardStyle, "justify-content": "center", color: "var(--text-muted)", "font-size": "0.9rem" }}>
+        <div
+          style={{
+            ...cardStyle,
+            "justify-content": "center",
+            color: "var(--text-muted)",
+            "font-size": "0.9rem"
+          }}
+        >
           No cache entries match your filters.
         </div>
       </Show>
 
       <Show when={!loading() && entries().length > 0}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-1)" }}>
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-1)"
+          }}
+        >
           <For each={entries()}>
             {(e) => (
               <div
                 style={{
                   ...cardStyle,
                   padding: "var(--sp-2) var(--sp-3)",
-                  "border-color": e.expired ? "rgba(239, 68, 68, 0.3)" : "var(--hairline)",
+                  "border-color": e.expired
+                    ? "rgba(239, 68, 68, 0.3)"
+                    : "var(--hairline)"
                 }}
               >
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)", flex: 1, "min-width": 0 }}>
-                  <span style={{ "font-size": "1rem" }}>{e.media_type === "movie" ? "🎬" : "📺"}</span>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-3)",
+                    flex: 1,
+                    "min-width": 0
+                  }}
+                >
+                  <span style={{ "font-size": "1rem" }}>
+                    {e.media_type === "movie" ? "🎬" : "📺"}
+                  </span>
                   <div style={{ flex: 1, "min-width": 0 }}>
-                    <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)" }}>
-                      <span style={{ "font-weight": "600", color: "var(--text)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        "align-items": "center",
+                        gap: "var(--sp-2)"
+                      }}
+                    >
+                      <span
+                        style={{ "font-weight": "600", color: "var(--text)" }}
+                      >
                         TMDB #{e.tmdb_id}
                       </span>
                       <span style={badgeStyle}>{e.media_type}</span>
                       <Show when={e.expired}>
-                        <span style={{ ...badgeStyle, color: "rgb(252, 165, 165)", "border-color": "rgba(239, 68, 68, 0.3)" }}>
+                        <span
+                          style={{
+                            ...badgeStyle,
+                            color: "rgb(252, 165, 165)",
+                            "border-color": "rgba(239, 68, 68, 0.3)"
+                          }}
+                        >
                           EXPIRED
                         </span>
                       </Show>
                     </div>
-                    <div style={{ "font-size": "0.75rem", color: "var(--text-muted)", "margin-top": "2px" }}>
-                      Fetched: {formatDate(e.fetched_at)} • Expires: {formatDate(e.expires_at)}
+                    <div
+                      style={{
+                        "font-size": "0.75rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "2px"
+                      }}
+                    >
+                      Fetched: {formatDate(e.fetched_at)} • Expires:{" "}
+                      {formatDate(e.expires_at)}
                     </div>
                   </div>
                 </div>
-                <button onClick={() => deleteEntry(e)} style={iconBtnDanger} title="Delete" aria-label="Delete cache entry">🗑️</button>
+                <button
+                  onClick={() => deleteEntry(e)}
+                  style={iconBtnDanger}
+                  title="Delete"
+                  aria-label="Delete cache entry"
+                >
+                  🗑️
+                </button>
               </div>
             )}
           </For>
@@ -347,7 +537,15 @@ const AdminTmdbCachePage: Component = () => {
 
         {/* Pagination */}
         <Show when={totalPages() > 1}>
-          <div style={{ display: "flex", "justify-content": "center", "align-items": "center", gap: "var(--sp-3)", "margin-top": "var(--sp-5)" }}>
+          <div
+            style={{
+              display: "flex",
+              "justify-content": "center",
+              "align-items": "center",
+              gap: "var(--sp-3)",
+              "margin-top": "var(--sp-5)"
+            }}
+          >
             <button
               onClick={() => goToPage(Math.max(1, page() - 1))}
               disabled={page() === 1}
@@ -355,7 +553,9 @@ const AdminTmdbCachePage: Component = () => {
             >
               ← Prev
             </button>
-            <span style={{ "font-size": "0.875rem", color: "var(--text-muted)" }}>
+            <span
+              style={{ "font-size": "0.875rem", color: "var(--text-muted)" }}
+            >
               Page {page()} of {totalPages()}
             </span>
             <button
@@ -387,21 +587,21 @@ const cardStyle: JSX.CSSProperties = {
   padding: "var(--sp-3) var(--sp-4)",
   display: "flex",
   "align-items": "center",
-  gap: "var(--sp-3)",
+  gap: "var(--sp-3)"
 };
 
 const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
-  "animation": "pulse 1.5s ease-in-out infinite",
+  animation: "pulse 1.5s ease-in-out infinite"
 };
 
 const statCardStyle: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
-  padding: "var(--sp-3) var(--sp-4)",
+  padding: "var(--sp-3) var(--sp-4)"
 };
 
 const alertError: JSX.CSSProperties = {
@@ -411,7 +611,7 @@ const alertError: JSX.CSSProperties = {
   padding: "var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 };
 
 const badgeStyle: JSX.CSSProperties = {
@@ -422,7 +622,7 @@ const badgeStyle: JSX.CSSProperties = {
   padding: "1px 6px",
   "border-radius": "var(--radius-sm)",
   color: "var(--text-muted)",
-  "text-transform": "uppercase",
+  "text-transform": "uppercase"
 };
 
 const inputStyle: JSX.CSSProperties = {
@@ -432,7 +632,7 @@ const inputStyle: JSX.CSSProperties = {
   padding: "var(--sp-2) var(--sp-3)",
   color: "var(--text)",
   "font-size": "0.875rem",
-  "font-family": "inherit",
+  "font-family": "inherit"
 };
 
 const btnPrimary: JSX.CSSProperties = {
@@ -443,7 +643,7 @@ const btnPrimary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnSecondary: JSX.CSSProperties = {
@@ -454,7 +654,7 @@ const btnSecondary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnDanger: JSX.CSSProperties = {
@@ -465,7 +665,7 @@ const btnDanger: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnDisabled: JSX.CSSProperties = {
@@ -477,7 +677,7 @@ const btnDisabled: JSX.CSSProperties = {
   "font-weight": "500",
   "font-size": "0.875rem",
   cursor: "not-allowed",
-  opacity: 0.5,
+  opacity: 0.5
 };
 
 const iconBtnDanger: JSX.CSSProperties = {
@@ -491,7 +691,7 @@ const iconBtnDanger: JSX.CSSProperties = {
   display: "flex",
   "align-items": "center",
   "justify-content": "center",
-  "flex-shrink": 0,
+  "flex-shrink": 0
 };
 
 function toastStyle(success: boolean): JSX.CSSProperties {
@@ -506,7 +706,7 @@ function toastStyle(success: boolean): JSX.CSSProperties {
     "border-radius": "var(--radius-md)",
     "font-size": "0.875rem",
     "font-weight": "600",
-    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)",
+    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
   };
 }
 

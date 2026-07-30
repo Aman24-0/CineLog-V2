@@ -25,14 +25,18 @@ import {
   updateProgressInSupabase,
   updateRatingInSupabase,
   updateStatusInSupabase,
-  updateWatchDateInSupabase,
+  updateWatchDateInSupabase
 } from "./vaultAdapter";
 import {
   updateSeasonEpisodeInSupabase,
-  updateWatchProgressInSupabase,
+  updateWatchProgressInSupabase
 } from "./episodeProgressAdapter";
 import { useVaultPresets } from "./useVaultPresets";
-import type { WatchlistItem, WatchProgress, VaultFilters } from "~/shared/types";
+import type {
+  WatchlistItem,
+  WatchProgress,
+  VaultFilters
+} from "~/shared/types";
 
 export interface VaultStore extends UserLibrary {
   readonly presets: () => import("~/shared/types").FilterPreset[];
@@ -40,13 +44,26 @@ export interface VaultStore extends UserLibrary {
   readonly updateStatus: (itemId: string, status: string) => Promise<void>;
   readonly updateRating: (itemId: string, rating: number) => Promise<void>;
   readonly updateNotes: (itemId: string, notes: string) => Promise<void>;
-  readonly updateWatchDate: (itemId: string, watchDate: string) => Promise<void>;
-  readonly updateSeasonEpisode: (itemId: string, season: number, episode: number) => Promise<void>;
-  readonly updateWatchProgress: (itemId: string, progress: WatchProgress) => Promise<void>;
+  readonly updateWatchDate: (
+    itemId: string,
+    watchDate: string
+  ) => Promise<void>;
+  readonly updateSeasonEpisode: (
+    itemId: string,
+    season: number,
+    episode: number
+  ) => Promise<void>;
+  readonly updateWatchProgress: (
+    itemId: string,
+    progress: WatchProgress
+  ) => Promise<void>;
   readonly deleteWatchlistItem: (itemId: string) => Promise<void>;
   readonly toggleFavorite: (itemId: string) => Promise<void>;
   readonly togglePinned: (itemId: string) => Promise<void>;
-  readonly updateProgress: (itemId: string, progressMinutes: number) => Promise<void>;
+  readonly updateProgress: (
+    itemId: string,
+    progressMinutes: number
+  ) => Promise<void>;
   readonly savePreset: (name: string, filters: VaultFilters) => Promise<void>;
   readonly deletePreset: (presetId: string) => Promise<void>;
   readonly renamePreset: (presetId: string, name: string) => Promise<void>;
@@ -55,7 +72,15 @@ export interface VaultStore extends UserLibrary {
 
 const useVaultLogic = (): VaultStore => {
   const library = useUserLibrary();
-  const { watchlist, loading, isGuest, error, refresh, updateItem, removeItem } = library;
+  const {
+    watchlist,
+    loading,
+    isGuest,
+    error,
+    refresh,
+    updateItem,
+    removeItem
+  } = library;
   const { showToast } = useToast();
   const uid = () => getCurrentUid();
   const presetsMgr = useVaultPresets();
@@ -88,10 +113,14 @@ const useVaultLogic = (): VaultStore => {
    */
   const runWriteOptimistic = async (
     itemId: string,
-    op: (uid: string, itemId: string, mediaType: "movie" | "tv") => Promise<unknown>,
+    op: (
+      uid: string,
+      itemId: string,
+      mediaType: "movie" | "tv"
+    ) => Promise<unknown>,
     successMsg: string,
     errorMsg: string,
-    localUpdate?: Partial<WatchlistItem>,
+    localUpdate?: Partial<WatchlistItem>
   ) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
 
@@ -126,7 +155,10 @@ const useVaultLogic = (): VaultStore => {
       (u, id, mt) => updateStatusInSupabase(u, id, mt, status),
       "Status updated!",
       "Failed to update status.",
-      { status: status as WatchlistItem["status"], updatedAt: new Date().toISOString() },
+      {
+        status: status as WatchlistItem["status"],
+        updatedAt: new Date().toISOString()
+      }
     );
   const updateRating = (itemId: string, rating: number) =>
     runWriteOptimistic(
@@ -134,7 +166,7 @@ const useVaultLogic = (): VaultStore => {
       (u, id, mt) => updateRatingInSupabase(u, id, mt, rating),
       "Rating updated!",
       "Failed to update rating.",
-      { rating, updatedAt: new Date().toISOString() },
+      { rating, updatedAt: new Date().toISOString() }
     );
   const updateNotes = (itemId: string, notes: string) =>
     runWriteOptimistic(
@@ -142,7 +174,7 @@ const useVaultLogic = (): VaultStore => {
       (u, id, mt) => updateNotesInSupabase(u, id, mt, notes),
       "Notes saved!",
       "Failed to save notes.",
-      { notes, updatedAt: new Date().toISOString() },
+      { notes, updatedAt: new Date().toISOString() }
     );
   const updateWatchDate = (itemId: string, watchDate: string) =>
     runWriteOptimistic(
@@ -150,19 +182,31 @@ const useVaultLogic = (): VaultStore => {
       (u, id, mt) => updateWatchDateInSupabase(u, id, mt, watchDate),
       "Watch date updated!",
       "Failed to update watch date.",
-      { watchDate, updatedAt: new Date().toISOString() },
+      { watchDate, updatedAt: new Date().toISOString() }
     );
-  const updateSeasonEpisode = (itemId: string, season: number, episode: number) =>
+  const updateSeasonEpisode = (
+    itemId: string,
+    season: number,
+    episode: number
+  ) =>
     runWriteOptimistic(
       itemId,
       (u, id, mt) => updateSeasonEpisodeInSupabase(u, id, mt, season, episode),
       "Episode progress updated!",
       "Failed to update episode progress.",
-      { season, episode, watchProgress: { currentTime: 0, duration: 0, season, episode }, updatedAt: new Date().toISOString() },
+      {
+        season,
+        episode,
+        watchProgress: { currentTime: 0, duration: 0, season, episode },
+        updatedAt: new Date().toISOString()
+      }
     );
   const deleteWatchlistItem = (itemId: string): Promise<void> => {
     // Delete uses removeItem (removes from local array) instead of updateItem
-    if (!uid()) { showToast("Please sign in to make changes.", "error"); return Promise.resolve(); }
+    if (!uid()) {
+      showToast("Please sign in to make changes.", "error");
+      return Promise.resolve();
+    }
 
     // Capture media_type BEFORE removing from local array
     const item = findItem(itemId);
@@ -184,23 +228,27 @@ const useVaultLogic = (): VaultStore => {
     // from the Supabase vault row. Since WatchlistItem doesn't carry is_favorite,
     // we fetch it here via a direct lookup. If we can't resolve it, we default
     // to false (so the first toggle makes it a favorite, which is the expected UX).
-    const currentIsFavorite = (findItem(itemId) as WatchlistItem & { isFavorite?: boolean })?.isFavorite ?? false;
+    const currentIsFavorite =
+      (findItem(itemId) as WatchlistItem & { isFavorite?: boolean })
+        ?.isFavorite ?? false;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => toggleFavoriteInSupabase(u, id, mt, currentIsFavorite),
       "",
       "Failed to toggle favorite.",
-      { updatedAt: new Date().toISOString() },
+      { updatedAt: new Date().toISOString() }
     );
   };
   const togglePinned = (itemId: string) => {
-    const currentIsPinned = (findItem(itemId) as WatchlistItem & { isPinned?: boolean })?.isPinned ?? false;
+    const currentIsPinned =
+      (findItem(itemId) as WatchlistItem & { isPinned?: boolean })?.isPinned ??
+      false;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => togglePinnedInSupabase(u, id, mt, currentIsPinned),
       "",
       "Failed to toggle pin.",
-      { updatedAt: new Date().toISOString() },
+      { updatedAt: new Date().toISOString() }
     );
   };
   const updateProgress = (itemId: string, progressMinutes: number) =>
@@ -210,31 +258,47 @@ const useVaultLogic = (): VaultStore => {
       (u, id, mt) => updateProgressInSupabase(u, id, mt, progressMinutes),
       "",
       "Failed to update progress.",
-      { updatedAt: new Date().toISOString() },
+      { updatedAt: new Date().toISOString() }
     );
 
   // ---- Watch progress (special: auto-upgrades Planned → Watching) ----
-  const updateWatchProgress = async (itemId: string, progress: WatchProgress) => {
+  const updateWatchProgress = async (
+    itemId: string,
+    progress: WatchProgress
+  ) => {
     if (!uid()) return showToast("Please sign in to make changes.", "error");
     const item = watchlist().find((m) => m.id === itemId);
 
     // Optimistic local update
-    const statusUpgrade = item && (item.status === "Planned" || item.status === "Plan to Watch");
+    const statusUpgrade =
+      item && (item.status === "Planned" || item.status === "Plan to Watch");
     updateItem(itemId, {
       season: progress.season,
       episode: progress.episode,
       watchProgress: progress,
-      ...(statusUpgrade ? { status: "Watching" as WatchlistItem["status"] } : {}),
-      updatedAt: new Date().toISOString(),
+      ...(statusUpgrade
+        ? { status: "Watching" as WatchlistItem["status"] }
+        : {}),
+      updatedAt: new Date().toISOString()
     });
 
     // Persist to Supabase in the background
     try {
       if (statusUpgrade) {
-        await updateStatusInSupabase(uid()!, itemId, item.media_type, "Watching");
+        await updateStatusInSupabase(
+          uid()!,
+          itemId,
+          item.media_type,
+          "Watching"
+        );
       }
       if (item) {
-        await updateWatchProgressInSupabase(uid()!, itemId, item.media_type, progress);
+        await updateWatchProgressInSupabase(
+          uid()!,
+          itemId,
+          item.media_type,
+          progress
+        );
       }
     } catch (err) {
       // Revert on failure
@@ -245,17 +309,29 @@ const useVaultLogic = (): VaultStore => {
   };
 
   return {
-    watchlist, loading, isGuest, error,
-    updateItem, removeItem,
-    presets: presetsMgr.presets, uid,
-    updateStatus, updateRating, updateNotes, updateWatchDate,
-    updateSeasonEpisode, updateWatchProgress, deleteWatchlistItem,
-    toggleFavorite, togglePinned, updateProgress,
+    watchlist,
+    loading,
+    isGuest,
+    error,
+    updateItem,
+    removeItem,
+    presets: presetsMgr.presets,
+    uid,
+    updateStatus,
+    updateRating,
+    updateNotes,
+    updateWatchDate,
+    updateSeasonEpisode,
+    updateWatchProgress,
+    deleteWatchlistItem,
+    toggleFavorite,
+    togglePinned,
+    updateProgress,
     savePreset: presetsMgr.savePreset,
     deletePreset: presetsMgr.deletePreset,
     renamePreset: presetsMgr.renamePreset,
     refreshPresets: presetsMgr.refreshPresets,
-    refresh,
+    refresh
   };
 };
 
@@ -263,7 +339,11 @@ const VaultContext = createContext<VaultStore>();
 
 export const VaultProvider: ParentComponent = (props) => {
   const vault = useVaultLogic();
-  return <VaultContext.Provider value={vault}>{props.children}</VaultContext.Provider>;
+  return (
+    <VaultContext.Provider value={vault}>
+      {props.children}
+    </VaultContext.Provider>
+  );
 };
 
 /** @deprecated Use useUserLibrary() directly for read-only access. */

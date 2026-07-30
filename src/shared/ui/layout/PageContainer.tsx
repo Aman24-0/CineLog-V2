@@ -24,7 +24,7 @@ interface PageContainerProps {
 const sizeMap: Record<PageSize, string> = {
   narrow: "max-w-2xl",
   default: "max-w-4xl",
-  wide: "max-w-none",
+  wide: "max-w-none"
 };
 
 /**
@@ -65,7 +65,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
     "noBottomPadding",
     "class",
     "style",
-    "children",
+    "children"
   ]);
 
   // `animated` prop and `prefersReducedMotion` tracking were removed
@@ -76,8 +76,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
 
   const size = () => local.size ?? "default";
 
-  const resolvedPaddingTop = () =>
-    local.paddingTop ?? "var(--space-6)";
+  const resolvedPaddingTop = () => local.paddingTop ?? "var(--space-6)";
 
   const resolvedPaddingBottom = () => {
     if (local.noBottomPadding) return "0px";
@@ -92,7 +91,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
       sizeMap[size()],
       "mx-auto",
       "relative",
-      "z-base",
+      "z-base"
     ];
     // animate-fade-in was removed to prevent CLS (layout shift) on page
     // load. The animation's `both` fill-mode caused the page container
@@ -106,7 +105,7 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
   const resolvedStyle = (): JSX.CSSProperties => ({
     "padding-top": resolvedPaddingTop(),
     "padding-bottom": resolvedPaddingBottom(),
-    ...(local.style && typeof local.style === "object" ? local.style : {}),
+    ...(local.style && typeof local.style === "object" ? local.style : {})
   });
 
   return (

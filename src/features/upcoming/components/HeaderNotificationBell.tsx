@@ -15,7 +15,9 @@ interface HeaderNotificationBellProps {
   onClick: () => void;
 }
 
-const HeaderNotificationBell: Component<HeaderNotificationBellProps> = (props) => {
+const HeaderNotificationBell: Component<HeaderNotificationBellProps> = (
+  props
+) => {
   const { isSignedIn } = useAuth();
   const badge = createMemo(() => {
     const c = props.unreadCount();
@@ -28,7 +30,7 @@ const HeaderNotificationBell: Component<HeaderNotificationBellProps> = (props) =
       <button
         type="button"
         class="upcoming-bell focus-ring"
-        onClick={props.onClick}
+        onClick={() => props.onClick()}
         aria-label={
           badge()
             ? `Notifications — ${props.unreadCount()} unread`

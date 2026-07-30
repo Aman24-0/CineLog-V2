@@ -13,7 +13,13 @@
 // every Discover section should just consume the hook's default so
 // region switches propagate automatically.
 
-import { createSignal, onMount, on, createEffect, type Accessor } from "solid-js";
+import {
+  createSignal,
+  onMount,
+  on,
+  createEffect,
+  type Accessor
+} from "solid-js";
 import { isServer } from "solid-js/web";
 import type { TMDBTitle } from "~/shared/types";
 import {
@@ -23,7 +29,7 @@ import {
   getTopRatedMovies,
   getTopRatedTv,
   getOnTheAir,
-  discoverMovies,
+  discoverMovies
 } from "~/core/tmdb/discover";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
@@ -48,7 +54,7 @@ export interface DiscoverFeeds {
  *   changes made in Account settings → Country dropdown.
  */
 export function useDiscoverFeeds(
-  regionOverride?: Accessor<string>,
+  regionOverride?: Accessor<string>
 ): DiscoverFeeds {
   const defaultRegion = useDiscoverRegion();
   const region = regionOverride ?? defaultRegion;
@@ -74,34 +80,46 @@ export function useDiscoverFeeds(
     // affect other feeds. All use cachedFetch so repeated visits are instant.
     const feeds: Promise<unknown>[] = [
       getTrending("all", "week")
-        .then((v) => { setTrending(v); })
+        .then((v) => {
+          setTrending(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] trending:", e)),
 
       getNowPlaying(r)
-        .then((v) => { setNowPlaying(v); })
+        .then((v) => {
+          setNowPlaying(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] nowPlaying:", e)),
 
       getUpcoming(r)
-        .then((v) => { setUpcoming(v); })
+        .then((v) => {
+          setUpcoming(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] upcoming:", e)),
 
       getTopRatedMovies()
-        .then((v) => { setTopRatedMovies(v); })
+        .then((v) => {
+          setTopRatedMovies(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] topRatedMovies:", e)),
 
       getTopRatedTv()
-        .then((v) => { setTopRatedTv(v); })
+        .then((v) => {
+          setTopRatedTv(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] topRatedTv:", e)),
 
       getOnTheAir()
-        .then((v) => { setNewSeasons(v); })
+        .then((v) => {
+          setNewSeasons(v);
+        })
         .catch((e) => console.error("[useDiscoverFeeds] onTheAir:", e)),
 
       // Hidden gems: high rating, low popularity
       discoverMovies({
         sortBy: "vote_average.desc",
         voteCountGte: 200,
-        voteAverageGte: 7.5,
+        voteAverageGte: 7.5
       })
         .then((titles) => {
           // Sort by vote_count ascending (lowest count = most "hidden")
@@ -110,7 +128,7 @@ export function useDiscoverFeeds(
           );
           setHiddenGems(sorted.slice(0, 20));
         })
-        .catch((e) => console.error("[useDiscoverFeeds] hiddenGems:", e)),
+        .catch((e) => console.error("[useDiscoverFeeds] hiddenGems:", e))
     ];
 
     // Safety-net: force loading=false after 15 seconds regardless of
@@ -119,7 +137,9 @@ export function useDiscoverFeeds(
     // hangs (e.g. TMDB unreachable, network timeout, or a bug in
     // cachedFetch that prevents the promise from settling).
     const safetyTimeout = setTimeout(() => {
-      console.warn("[useDiscoverFeeds] Global timeout — forcing loading=false after 15s");
+      console.warn(
+        "[useDiscoverFeeds] Global timeout — forcing loading=false after 15s"
+      );
       setLoading(false);
     }, 15_000);
 
@@ -135,7 +155,15 @@ export function useDiscoverFeeds(
   // in Account settings. `defer: true` skips the very first run because
   // onMount already calls loadAll — we only want to react to subsequent
   // changes.
-  createEffect(on(region, () => { loadAll(); }, { defer: true }));
+  createEffect(
+    on(
+      region,
+      () => {
+        loadAll();
+      },
+      { defer: true }
+    )
+  );
 
   return {
     trending,
@@ -146,6 +174,6 @@ export function useDiscoverFeeds(
     newSeasons,
     hiddenGems,
     loading,
-    retry: loadAll,
+    retry: loadAll
   };
 }

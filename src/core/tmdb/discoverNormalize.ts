@@ -28,11 +28,12 @@ export interface TMDBRawItem {
 
 export function normalize(
   raw: TMDBRawItem,
-  fallbackMediaType?: "movie" | "tv",
+  fallbackMediaType?: "movie" | "tv"
 ): TMDBTitle | null {
   if (!raw || !raw.id) return null;
   // trending endpoints return media_type on every item; /discover/movie doesn't
-  const mediaType = (raw.media_type as "movie" | "tv") || fallbackMediaType || "movie";
+  const mediaType =
+    (raw.media_type as "movie" | "tv") || fallbackMediaType || "movie";
   if (mediaType !== "movie" && mediaType !== "tv") return null;
   return {
     id: raw.id,
@@ -47,13 +48,13 @@ export function normalize(
     vote_average: raw.vote_average,
     vote_count: raw.vote_count,
     genre_ids: raw.genre_ids,
-    genres: resolveGenres(raw.genre_ids, mediaType),
+    genres: resolveGenres(raw.genre_ids, mediaType)
   };
 }
 
 export function normalizeList(
   items: TMDBRawItem[] | undefined,
-  fallbackMediaType?: "movie" | "tv",
+  fallbackMediaType?: "movie" | "tv"
 ): TMDBTitle[] {
   if (!Array.isArray(items)) return [];
   return items

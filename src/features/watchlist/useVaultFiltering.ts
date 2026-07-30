@@ -1,5 +1,10 @@
 // src/features/watchlist/useVaultFiltering.ts
-import { createSignal, createMemo, createEffect, type Accessor } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  type Accessor
+} from "solid-js";
 import { useSearchParams } from "@solidjs/router";
 import type { VaultFilters, WatchlistItem } from "~/shared/types";
 import {
@@ -10,7 +15,7 @@ import {
   sortItems,
   computeChips,
   countActiveFilters,
-  hasAdvancedFiltersActive,
+  hasAdvancedFiltersActive
 } from "./vaultFilterUtils";
 import { resolvePlatformDisplayName } from "./platformDisplayNames";
 
@@ -50,7 +55,7 @@ export const defaultFilters: VaultFilters = {
   yearMin: "",
   yearMax: "",
   runtimeMin: "",
-  runtimeMax: "",
+  runtimeMax: ""
 };
 
 export interface UseVaultFilteringArgs {
@@ -80,7 +85,7 @@ export interface UseVaultFilteringResult {
 }
 
 export function useVaultFiltering(
-  args: UseVaultFilteringArgs,
+  args: UseVaultFilteringArgs
 ): UseVaultFilteringResult {
   const [searchParams] = useSearchParams();
   const [searchInput, setSearchInput] = createSignal("");
@@ -111,8 +116,15 @@ export function useVaultFiltering(
     const status = searchParams.status;
     if (typeof status === "string" && status) {
       const next = status === "all" ? "all" : status;
-      setFilters((prev) => (prev.status === next ? prev : { ...prev, status: next }));
-      if (status === "Watching" || status === "Planned" || status === "Completed" || status === "Dropped") {
+      setFilters((prev) =>
+        prev.status === next ? prev : { ...prev, status: next }
+      );
+      if (
+        status === "Watching" ||
+        status === "Planned" ||
+        status === "Completed" ||
+        status === "Dropped"
+      ) {
         setActiveStatusTab(status);
       }
     }
@@ -124,10 +136,20 @@ export function useVaultFiltering(
   createEffect(() => {
     const mode = args.viewMode();
     if (mode === "timeline" && prevViewMode !== "timeline") {
-      setFilters({ ...defaultFilters, status: "Completed", sortField: "watch_date", sortDirection: "desc" });
+      setFilters({
+        ...defaultFilters,
+        status: "Completed",
+        sortField: "watch_date",
+        sortDirection: "desc"
+      });
       setActiveStatusTab("Completed");
     } else if (mode === "grid" && prevViewMode === "timeline") {
-      setFilters({ ...defaultFilters, status: "all", sortField: "added_date", sortDirection: "desc" });
+      setFilters({
+        ...defaultFilters,
+        status: "all",
+        sortField: "added_date",
+        sortDirection: "desc"
+      });
       setActiveStatusTab("all");
     }
     prevViewMode = mode;
@@ -147,7 +169,8 @@ export function useVaultFiltering(
       for (let j = 0; j < gl.length; j++) {
         const g = gl[j];
         if (typeof g === "string") set.add(g);
-        else if (g && typeof g === "object" && "name" in g) set.add(String((g as { name: unknown }).name));
+        else if (g && typeof g === "object" && "name" in g)
+          set.add(String((g as { name: unknown }).name));
       }
     }
     return [...set].sort();
@@ -231,9 +254,12 @@ export function useVaultFiltering(
     return sortItems(f, filters().sortField, filters().sortDirection);
   });
 
-  const hasAdvancedFilters = createMemo(() => hasAdvancedFiltersActive(filters()));
+  const hasAdvancedFilters = createMemo(() =>
+    hasAdvancedFiltersActive(filters())
+  );
   const isFlatMode = createMemo(
-    () => search().length > 0 || hasAdvancedFilters() || activeStatusTab() !== "all",
+    () =>
+      search().length > 0 || hasAdvancedFilters() || activeStatusTab() !== "all"
   );
   const activeFilterCount = createMemo(() => countActiveFilters(filters()));
   const chips = createMemo(() => computeChips(filters()));
@@ -241,7 +267,13 @@ export function useVaultFiltering(
   const clearFilter = (key: string) => {
     setFilters((prev) => ({
       ...prev,
-      [key]: key.startsWith("imdb") || key.startsWith("rt") || key.startsWith("year") || key.startsWith("runtime") ? "" : "all",
+      [key]:
+        key.startsWith("imdb") ||
+        key.startsWith("rt") ||
+        key.startsWith("year") ||
+        key.startsWith("runtime")
+          ? ""
+          : "all"
     }));
   };
 
@@ -269,6 +301,6 @@ export function useVaultFiltering(
     clearFilters,
     uniqueGenres,
     uniquePlatforms,
-    uniqueTags,
+    uniqueTags
   };
 }

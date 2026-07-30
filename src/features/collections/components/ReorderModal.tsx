@@ -1,5 +1,13 @@
 // src/features/collections/components/ReorderModal.tsx
-import { Show, For, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  createMemo,
+  onMount,
+  onCleanup,
+  type Component
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import {
   DragDropProvider,
@@ -7,7 +15,7 @@ import {
   SortableProvider,
   closestCenter,
   createSortable,
-  useDragDropContext,
+  useDragDropContext
 } from "@thisbeyond/solid-dnd";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "../hooks/useCollections";
@@ -15,7 +23,11 @@ import { useCollectionSearch } from "../hooks/useCollectionSearch";
 import { useToast } from "~/shared/hooks/useToast";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { GlassEmptyState } from "~/shared/ui/glass";
-import type { Collection, CollectionEntry, WatchlistItem } from "~/shared/types";
+import type {
+  Collection,
+  CollectionEntry,
+  WatchlistItem
+} from "~/shared/types";
 
 /**
  * ReorderModal — replaces the full-page "Edit Timeline" page entirely.
@@ -72,8 +84,8 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
     // Sort by current orderIndex so the list opens in the user's
     // last-saved order.
     [...(props.collection.entries ?? [])].sort(
-      (a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0),
-    ),
+      (a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0)
+    )
   );
 
   // ── Selection (for bulk Move-to-position) ────────────────────
@@ -100,7 +112,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
   const search = useCollectionSearch({
     vault: watchlist,
     existingKeys,
-    limit: 30,
+    limit: 30
   });
 
   const [showAddPanel, setShowAddPanel] = createSignal(false);
@@ -136,7 +148,11 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
       const remaining = prev.filter((e) => !sel.has(`${e.media_type}:${e.id}`));
       // 1-based → 0-based, clamped to remaining length.
       const insertAt = Math.min(Math.max(pos - 1, 0), remaining.length);
-      return [...remaining.slice(0, insertAt), ...selected, ...remaining.slice(insertAt)];
+      return [
+        ...remaining.slice(0, insertAt),
+        ...selected,
+        ...remaining.slice(insertAt)
+      ];
     });
     setSelectedKeys(new Set<string>());
   };
@@ -145,7 +161,10 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
   // The SortableProvider already reordered the underlying array via
   // the `ids` prop — but to keep our `entries` signal as the single
   // source of truth, we apply the reorder ourselves on drag end.
-  const onDragEnd = (payload: { draggable: { id: string | number }; droppable?: { id: string | number } | null }) => {
+  const onDragEnd = (payload: {
+    draggable: { id: string | number };
+    droppable?: { id: string | number } | null;
+  }) => {
     const fromId = String(payload.draggable.id);
     const toId = payload.droppable ? String(payload.droppable.id) : null;
     if (!toId || fromId === toId) return;
@@ -170,7 +189,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
         backdrop_path: item.backdrop_path,
         release_date: item.release_date,
         first_air_date: item.first_air_date,
-        orderIndex: entries().length,
+        orderIndex: entries().length
       };
       // Optimistic local append (so the list grows immediately)
       setEntries((prev) => [...prev, entry]);
@@ -180,7 +199,9 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
       console.error("[ReorderModal] Failed to add from vault:", err);
       showToast("Failed to add title.", "error");
       // Rollback the optimistic append.
-      setEntries((prev) => prev.filter((e) => `${e.media_type}:${e.id}` !== key));
+      setEntries((prev) =>
+        prev.filter((e) => `${e.media_type}:${e.id}` !== key)
+      );
     } finally {
       setAddingKeys((prev) => {
         const next = new Set(prev);
@@ -223,37 +244,37 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
 
   // The sortable ids are the entry keys (stable across reorders).
   const sortableIds = createMemo(() =>
-    entries().map((e) => `${e.media_type}:${e.id}`),
+    entries().map((e) => `${e.media_type}:${e.id}`)
   );
 
   return (
     <Portal>
       <div
         class="reorder-modal-overlay"
-        onClick={props.onClose}
+        onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label={`Reorder list for ${props.collection.name}`}
       >
-        <div
-          class="reorder-modal-surface"
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div class="reorder-modal-surface" onClick={(e) => e.stopPropagation()}>
           {/* Header */}
           <div class="reorder-modal-header">
             <div class="reorder-modal-header-text">
               <h3 class="reorder-modal-title">Reorder List</h3>
               <p class="reorder-modal-subtitle">
-                Drag to reorder · {entries().length} {entries().length === 1 ? "title" : "titles"}
+                Drag to reorder · {entries().length}{" "}
+                {entries().length === 1 ? "title" : "titles"}
               </p>
             </div>
             <button
               type="button"
               class="reorder-modal-close focus-ring"
-              onClick={props.onClose}
+              onClick={() => props.onClose()}
               aria-label="Close without saving"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                close
+              </span>
             </button>
           </div>
 
@@ -264,13 +285,17 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                 {selectedKeys().size} selected
               </span>
               <div class="reorder-modal-bulk-controls">
-                <label class="reorder-modal-bulk-label">Move to position:</label>
+                <label class="reorder-modal-bulk-label">
+                  Move to position:
+                </label>
                 <input
                   type="number"
                   min="1"
                   max={entries().length}
                   value={targetPosition()}
-                  onInput={(e) => setTargetPosition(parseInt(e.currentTarget.value, 10) || 1)}
+                  onInput={(e) =>
+                    setTargetPosition(parseInt(e.currentTarget.value, 10) || 1)
+                  }
                   class="reorder-modal-bulk-input focus-ring"
                   aria-label="Target position"
                 />
@@ -309,7 +334,9 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
           <Show when={showAddPanel()}>
             <div class="reorder-modal-add-panel">
               <div class="reorder-modal-search">
-                <span class="material-symbols-outlined" aria-hidden="true">search</span>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  search
+                </span>
                 <input
                   type="text"
                   placeholder="Search your watchlist..."
@@ -319,21 +346,37 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                 />
               </div>
               <div class="reorder-modal-add-results">
-                <Show when={search.results().length > 0} fallback={
-                  <Show when={search.query().length > 0} fallback={
-                    <p class="reorder-modal-add-empty">Your watchlist is empty.</p>
-                  }>
-                    <p class="reorder-modal-add-empty">No matches.</p>
-                  </Show>
-                }>
+                <Show
+                  when={search.results().length > 0}
+                  fallback={
+                    <Show
+                      when={search.query().length > 0}
+                      fallback={
+                        <p class="reorder-modal-add-empty">
+                          Your watchlist is empty.
+                        </p>
+                      }
+                    >
+                      <p class="reorder-modal-add-empty">No matches.</p>
+                    </Show>
+                  }
+                >
                   <For each={search.results().slice(0, 12)}>
                     {(result) => (
                       <div class="reorder-modal-add-result">
-                        <Show when={result.item.poster_path} fallback={
-                          <div class="reorder-modal-add-result-poster-fallback" aria-hidden="true">
-                            <span class="material-symbols-outlined">movie</span>
-                          </div>
-                        }>
+                        <Show
+                          when={result.item.poster_path}
+                          fallback={
+                            <div
+                              class="reorder-modal-add-result-poster-fallback"
+                              aria-hidden="true"
+                            >
+                              <span class="material-symbols-outlined">
+                                movie
+                              </span>
+                            </div>
+                          }
+                        >
                           <img
                             src={tmdbImage(result.item.poster_path!, "w92")}
                             class="reorder-modal-add-result-poster"
@@ -341,17 +384,34 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                             decoding="async"
                             alt=""
                             aria-hidden="true"
-                            onError={(e) => { e.currentTarget.style.display = "none"; }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = "none";
+                            }}
                           />
                         </Show>
                         <div class="reorder-modal-add-result-info">
                           <p class="reorder-modal-add-result-title">
-                            {result.item.title || result.item.name || "Untitled"}
+                            {result.item.title ||
+                              result.item.name ||
+                              "Untitled"}
                           </p>
                           <p class="reorder-modal-add-result-meta">
-                            {result.item.media_type === "tv" ? "Series" : "Movie"}
-                            <Show when={(result.item.release_date || result.item.first_air_date || "").slice(0, 4)}>
-                              {" · "}{(result.item.release_date || result.item.first_air_date || "").slice(0, 4)}
+                            {result.item.media_type === "tv"
+                              ? "Series"
+                              : "Movie"}
+                            <Show
+                              when={(
+                                result.item.release_date ||
+                                result.item.first_air_date ||
+                                ""
+                              ).slice(0, 4)}
+                            >
+                              {" · "}
+                              {(
+                                result.item.release_date ||
+                                result.item.first_air_date ||
+                                ""
+                              ).slice(0, 4)}
                             </Show>
                           </p>
                         </div>
@@ -359,7 +419,9 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                           when={!result.alreadyInCollection}
                           fallback={
                             <span class="reorder-modal-add-result-added">
-                              <span class="material-symbols-outlined">check</span>
+                              <span class="material-symbols-outlined">
+                                check
+                              </span>
                               Added
                             </span>
                           }
@@ -367,12 +429,18 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                           <button
                             type="button"
                             class="reorder-modal-add-result-btn focus-ring"
-                            onClick={() => handleAddFromVault(result.key, result.item)}
+                            onClick={() =>
+                              handleAddFromVault(result.key, result.item)
+                            }
                             disabled={addingKeys().has(result.key)}
                           >
                             <Show
                               when={!addingKeys().has(result.key)}
-                              fallback={<span class="material-symbols-outlined">progress_activity</span>}
+                              fallback={
+                                <span class="material-symbols-outlined">
+                                  progress_activity
+                                </span>
+                              }
                             >
                               <span class="material-symbols-outlined">add</span>
                             </Show>
@@ -413,7 +481,9 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
                           entry={entry}
                           index={index()}
                           total={entries().length}
-                          selected={selectedKeys().has(`${entry.media_type}:${entry.id}`)}
+                          selected={selectedKeys().has(
+                            `${entry.media_type}:${entry.id}`
+                          )}
                           onToggleSelected={() => toggleSelected(entry)}
                           onMoveToTop={() => moveToTop(index())}
                           onMoveToBottom={() => moveToBottom(index())}
@@ -431,7 +501,7 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
             <button
               type="button"
               class="btn-ghost focus-ring"
-              onClick={props.onClose}
+              onClick={() => props.onClose()}
               disabled={saving()}
             >
               Cancel
@@ -471,7 +541,9 @@ interface ReorderRowProps {
 }
 
 function ReorderRow(props: ReorderRowProps) {
-  const sortable = createSortable(`${props.entry.media_type}:${props.entry.id}`);
+  const sortable = createSortable(
+    `${props.entry.media_type}:${props.entry.id}`
+  );
   // Read the active-draggable flag from the dnd context — unused for
   // now (visual feedback handled by the `isDragging` CSS class on
   // the sortable wrapper). Kept here to confirm the context is wired.
@@ -493,7 +565,7 @@ function ReorderRow(props: ReorderRowProps) {
         <input
           type="checkbox"
           checked={props.selected}
-          onChange={props.onToggleSelected}
+          onChange={() => props.onToggleSelected()}
         />
         <span class="reorder-row-check-box" aria-hidden="true">
           <Show when={props.selected}>
@@ -512,11 +584,15 @@ function ReorderRow(props: ReorderRowProps) {
         title="Drag to reorder"
         {...sortable.dragActivators}
       >
-        <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          drag_indicator
+        </span>
       </button>
 
       {/* Index badge — 1-based, matches the position labels */}
-      <span class="reorder-row-index" aria-hidden="true">{props.index + 1}</span>
+      <span class="reorder-row-index" aria-hidden="true">
+        {props.index + 1}
+      </span>
 
       {/* Poster thumbnail */}
       <Show
@@ -534,7 +610,9 @@ function ReorderRow(props: ReorderRowProps) {
           decoding="async"
           alt=""
           aria-hidden="true"
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
         />
       </Show>
 
@@ -551,22 +629,26 @@ function ReorderRow(props: ReorderRowProps) {
         <button
           type="button"
           class="reorder-row-action focus-ring"
-          onClick={props.onMoveToTop}
+          onClick={() => props.onMoveToTop()}
           disabled={props.index === 0}
           aria-label={`Move ${title()} to top`}
           title="Move to top"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">vertical_align_top</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            vertical_align_top
+          </span>
         </button>
         <button
           type="button"
           class="reorder-row-action focus-ring"
-          onClick={props.onMoveToBottom}
+          onClick={() => props.onMoveToBottom()}
           disabled={props.index === props.total - 1}
           aria-label={`Move ${title()} to bottom`}
           title="Move to bottom"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">vertical_align_bottom</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            vertical_align_bottom
+          </span>
         </button>
       </div>
     </div>

@@ -28,7 +28,7 @@ import type {
   FollowWriteResult,
   FollowRow,
   FollowCounts,
-  TypedSupabaseClient,
+  TypedSupabaseClient
 } from "./follows.types";
 import { toError } from "../shared";
 
@@ -58,13 +58,13 @@ const FOLLOWS_TABLE = "follows" as const;
 export async function followUser(
   supabase: TypedSupabaseClient,
   followerId: string,
-  followingId: string,
+  followingId: string
 ): Promise<FollowWriteResult> {
   if (followerId === followingId) {
     return {
       error: new Error(
-        "[FollowsRepository] Cannot follow yourself (self-follow is not allowed).",
-      ),
+        "[FollowsRepository] Cannot follow yourself (self-follow is not allowed)."
+      )
     };
   }
 
@@ -96,7 +96,7 @@ export async function followUser(
 export async function unfollowUser(
   supabase: TypedSupabaseClient,
   followerId: string,
-  followingId: string,
+  followingId: string
 ): Promise<FollowWriteResult> {
   const { error } = await supabase
     .from(FOLLOWS_TABLE)
@@ -123,7 +123,7 @@ export async function unfollowUser(
  */
 export async function getFollowers(
   supabase: TypedSupabaseClient,
-  userId: string,
+  userId: string
 ): Promise<FollowResult<FollowRow[]>> {
   const { data, error } = await supabase
     .from(FOLLOWS_TABLE)
@@ -145,7 +145,7 @@ export async function getFollowers(
  */
 export async function getFollowing(
   supabase: TypedSupabaseClient,
-  userId: string,
+  userId: string
 ): Promise<FollowResult<FollowRow[]>> {
   const { data, error } = await supabase
     .from(FOLLOWS_TABLE)
@@ -167,7 +167,7 @@ export async function getFollowing(
  */
 export async function getFollowCounts(
   supabase: TypedSupabaseClient,
-  userId: string,
+  userId: string
 ): Promise<FollowResult<FollowCounts>> {
   try {
     const [followersRes, followingRes] = await Promise.all([
@@ -178,7 +178,7 @@ export async function getFollowCounts(
       supabase
         .from(FOLLOWS_TABLE)
         .select("*", { count: "exact", head: true })
-        .eq("follower_id", userId),
+        .eq("follower_id", userId)
     ]);
 
     const err = followersRes.error ?? followingRes.error;
@@ -189,14 +189,14 @@ export async function getFollowCounts(
     return {
       data: {
         followers: followersRes.count ?? 0,
-        following: followingRes.count ?? 0,
+        following: followingRes.count ?? 0
       },
-      error: null,
+      error: null
     };
   } catch (err) {
     return {
       data: { followers: 0, following: 0 },
-      error: toError(err),
+      error: toError(err)
     };
   }
 }
@@ -211,7 +211,7 @@ export async function getFollowCounts(
 export async function isFollowing(
   supabase: TypedSupabaseClient,
   followerId: string,
-  followingId: string,
+  followingId: string
 ): Promise<FollowResult<boolean>> {
   const { data, error } = await supabase
     .from(FOLLOWS_TABLE)

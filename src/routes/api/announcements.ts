@@ -24,8 +24,9 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300",
-    },
+      "Cache-Control":
+        "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
+    }
   });
 }
 
@@ -44,14 +45,16 @@ export async function GET(event: APIEvent) {
     }
 
     const supabase = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
     const now = new Date().toISOString();
 
     let query = supabase
       .from("announcements")
-      .select("id, type, severity, title, body, cta_label, cta_href, is_dismissible, starts_at, ends_at, target_audience")
+      .select(
+        "id, type, severity, title, body, cta_label, cta_href, is_dismissible, starts_at, ends_at, target_audience"
+      )
       .eq("is_active", true)
       .is("deleted_at", null)
       .or(`starts_at.is.null,starts_at.lte.${now}`)

@@ -14,7 +14,6 @@ import DetailSection from "./DetailSection";
 
 import type { WatchlistItem, TMDBTitle } from "~/shared/types";
 
-
 interface SimilarTitlesProps {
   /** The currently-open title — used to fetch TMDB recommendations */
   currentItem: WatchlistItem;
@@ -77,8 +76,11 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
     return recs
       .filter((t) => {
         // Exclude the current title (by id AND media_type — TMDB ID namespace safety)
-        if (String(t.id) === String(props.currentItem.id) &&
-            t.media_type === props.currentItem.media_type) return false;
+        if (
+          String(t.id) === String(props.currentItem.id) &&
+          t.media_type === props.currentItem.media_type
+        )
+          return false;
         return true;
       })
       .slice(0, 12);
@@ -96,7 +98,7 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: normalizeGenres(title.genres as unknown[]),
+      genresList: normalizeGenres(title.genres as unknown[])
     };
     props.onSelect(item);
   };
@@ -110,7 +112,10 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
   return (
     <Show when={similar().length > 0}>
       <DetailSection label="You May Also Like" icon="recommend">
-        <div class="flex gap-3 overflow-x-auto hide-scrollbar pb-2 -mx-1 px-1" role="list">
+        <div
+          class="hide-scrollbar -mx-1 flex gap-3 overflow-x-auto px-1 pb-2"
+          role="list"
+        >
           <For each={similar()}>
             {(t) => (
               <div
@@ -128,18 +133,37 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
               >
                 <div class="similar-title-poster">
                   <SafeImage
-                    src={t.poster_path || t.backdrop_path ? tmdbImage(t.poster_path || t.backdrop_path, "w185") : ""}
+                    src={
+                      t.poster_path || t.backdrop_path
+                        ? tmdbImage(t.poster_path || t.backdrop_path, "w185")
+                        : ""
+                    }
                     alt=""
                     class="similar-title-poster-img"
                     fallback={
-                      <div class="similar-title-poster-fallback" aria-hidden="true">
-                        <span class="material-symbols-outlined" style={{"font-size":"28px","color":"var(--text-dim)"}} aria-hidden="true">movie</span>
+                      <div
+                        class="similar-title-poster-fallback"
+                        aria-hidden="true"
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          style={{
+                            "font-size": "28px",
+                            color: "var(--text-dim)"
+                          }}
+                          aria-hidden="true"
+                        >
+                          movie
+                        </span>
                       </div>
                     }
                   />
                   {/* Vault indicator dot — subtle accent if the title is already in the vault */}
                   <Show when={isInVault(props.watchlist, t)}>
-                    <span class="similar-title-vault-dot" aria-label="In your watchlist" />
+                    <span
+                      class="similar-title-vault-dot"
+                      aria-label="In your watchlist"
+                    />
                   </Show>
                 </div>
                 <p class="similar-title-name">{titleOf(t)}</p>
@@ -147,7 +171,8 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                   {yearOf(t) ? `${yearOf(t)} · ` : ""}
                   {t.media_type === "tv" ? "Series" : "Movie"}
                   <Show when={imdbOf(t)}>
-                    {" · "}<span style={{"color":"#f5c518"}}>★ {imdbOf(t)}</span>
+                    {" · "}
+                    <span style={{ color: "#f5c518" }}>★ {imdbOf(t)}</span>
                   </Show>
                 </p>
               </div>

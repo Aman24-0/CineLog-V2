@@ -114,7 +114,13 @@ function decadeLabel(year: number | null): string | null {
 }
 
 function itemTitle(item: WatchlistItem): string {
-  return item.title ?? item.name ?? item.original_title ?? item.original_name ?? "Untitled";
+  return (
+    item.title ??
+    item.name ??
+    item.original_title ??
+    item.original_name ??
+    "Untitled"
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -131,13 +137,15 @@ export function getOverviewStats(list: WatchlistItem[]): OverviewStats {
   const completed = list.filter((m) => m.status === "Completed").length;
   const watching = list.filter((m) => m.status === "Watching").length;
   const planned = list.filter(
-    (m) => m.status === "Planned" || m.status === "Plan to Watch",
+    (m) => m.status === "Planned" || m.status === "Plan to Watch"
   ).length;
 
   const totalMinutes = list.reduce((sum, m) => sum + (m.runtime ?? 0), 0);
   const totalHours = totalMinutes / 60;
 
-  const rated = list.filter((m) => typeof m.rating === "number" && (m.rating ?? 0) > 0);
+  const rated = list.filter(
+    (m) => typeof m.rating === "number" && (m.rating ?? 0) > 0
+  );
   const avgRating =
     rated.length > 0
       ? rated.reduce((s, m) => s + (m.rating ?? 0), 0) / rated.length
@@ -164,14 +172,17 @@ export function getOverviewStats(list: WatchlistItem[]): OverviewStats {
     averageRating: Math.round(avgRating * 10) / 10,
     uniqueGenresCount: genreSet.size,
     watchingCount: watching,
-    plannedCount: planned,
+    plannedCount: planned
   };
 }
 
 /**
  * Top genres by count (descending). Returns at most `limit` entries.
  */
-export function getGenreBreakdown(list: WatchlistItem[], limit = 10): GenreCount[] {
+export function getGenreBreakdown(
+  list: WatchlistItem[],
+  limit = 10
+): GenreCount[] {
   const map = new Map<string, number>();
   list.forEach((m) => {
     if (!Array.isArray(m.genresList)) return;
@@ -228,12 +239,16 @@ export function getRatingsDistribution(list: WatchlistItem[]): RatingBucket[] {
  * the watch date (preferred) or addedAt as a fallback, for completed
  * titles only.
  */
-export function getMonthlyActivity(list: WatchlistItem[], months = 12): MonthBucket[] {
+export function getMonthlyActivity(
+  list: WatchlistItem[],
+  months = 12
+): MonthBucket[] {
   const completed = list.filter((m) => m.status === "Completed");
   const map = new Map<string, number>();
 
   completed.forEach((m) => {
-    const dateStr = m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
+    const dateStr =
+      m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
     if (!dateStr) return;
     const d = new Date(dateStr);
     if (isNaN(d.getTime())) return;
@@ -278,7 +293,10 @@ export function getTopActors(list: WatchlistItem[], limit = 5): PersonCount[] {
  * single string (e.g. "Christopher Nolan") so we aggregate by exact
  * match after trim.
  */
-export function getTopDirectors(list: WatchlistItem[], limit = 5): PersonCount[] {
+export function getTopDirectors(
+  list: WatchlistItem[],
+  limit = 5
+): PersonCount[] {
   const map = new Map<string, number>();
   list.forEach((m) => {
     if (!m.director || typeof m.director !== "string") return;
@@ -295,7 +313,10 @@ export function getTopDirectors(list: WatchlistItem[], limit = 5): PersonCount[]
 /**
  * The user's top-rated titles (rating desc).
  */
-export function getHighestRated(list: WatchlistItem[], limit = 5): HighestRatedItem[] {
+export function getHighestRated(
+  list: WatchlistItem[],
+  limit = 5
+): HighestRatedItem[] {
   return list
     .filter((m) => typeof m.rating === "number" && (m.rating ?? 0) > 0)
     .map((m) => {
@@ -305,7 +326,7 @@ export function getHighestRated(list: WatchlistItem[], limit = 5): HighestRatedI
         year,
         poster: m.poster_path ?? null,
         userRating: m.rating as number,
-        item: m,
+        item: m
       };
     })
     .sort((a, b) => b.userRating - a.userRating)
@@ -323,7 +344,8 @@ export function getWatchPace(list: WatchlistItem[]): WatchPace {
   }
   const dates: Date[] = [];
   completed.forEach((m) => {
-    const dateStr = m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
+    const dateStr =
+      m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
     if (!dateStr) return;
     const d = new Date(dateStr);
     if (!isNaN(d.getTime())) dates.push(d);
@@ -340,7 +362,7 @@ export function getWatchPace(list: WatchlistItem[]): WatchPace {
   return {
     daily: Math.round((total / days) * 100) / 100,
     weekly: Math.round((total / (days / 7)) * 100) / 100,
-    monthly: Math.round((total / (days / 30)) * 100) / 100,
+    monthly: Math.round((total / (days / 30)) * 100) / 100
   };
 }
 
@@ -355,7 +377,7 @@ export function getMovieSeriesSplit(list: WatchlistItem[]): MovieSeriesSplit {
     movies,
     series,
     moviePercentage: total > 0 ? Math.round((movies / total) * 100) : 0,
-    seriesPercentage: total > 0 ? Math.round((series / total) * 100) : 0,
+    seriesPercentage: total > 0 ? Math.round((series / total) * 100) : 0
   };
 }
 
@@ -387,6 +409,6 @@ export function getStatsData(list: WatchlistItem[]): AllStats {
     directors: getTopDirectors(list),
     highestRated: getHighestRated(list),
     pace: getWatchPace(list),
-    split: getMovieSeriesSplit(list),
+    split: getMovieSeriesSplit(list)
   };
 }

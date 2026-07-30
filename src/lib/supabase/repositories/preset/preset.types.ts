@@ -9,7 +9,12 @@
  * Hard deletes only (no soft delete / deleted_at column).
  */
 
-import type { Database, Tables, TablesInsert, TablesUpdate } from "../../database.types";
+import type {
+  Database,
+  Tables,
+  TablesInsert,
+  TablesUpdate
+} from "../../database.types";
 import type { VaultFilters } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -55,4 +60,5 @@ export interface PresetWriteResult {
 // Typed Supabase client
 // ---------------------------------------------------------------------------
 
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<Database>;

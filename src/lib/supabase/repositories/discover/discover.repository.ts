@@ -87,7 +87,9 @@ export class DiscoverRepository {
   }
 
   /** Get the vault state for a media item (row + inVault flag). */
-  getVaultState(identity: UserMediaIdentity): Promise<DiscoverResult<VaultState>> {
+  getVaultState(
+    identity: UserMediaIdentity
+  ): Promise<DiscoverResult<VaultState>> {
     return getVaultState(this.supabase, identity);
   }
 
@@ -135,7 +137,12 @@ export class DiscoverRepository {
   /** Get all universes the user has subscribed to (subscription + universe pairs). */
   getSubscribedUniverses(
     userId: string
-  ): Promise<DiscoverListResult<{ subscription: UserUniverseSubscriptionRow; universe: CuratedUniverseRow }>> {
+  ): Promise<
+    DiscoverListResult<{
+      subscription: UserUniverseSubscriptionRow;
+      universe: CuratedUniverseRow;
+    }>
+  > {
     return getSubscribedUniverses(this.supabase, userId);
   }
 
@@ -145,17 +152,23 @@ export class DiscoverRepository {
   }
 
   /** Get a single curated universe by its slug (URL-safe identifier). */
-  getCuratedUniverseBySlug(slug: string): Promise<DiscoverResult<CuratedUniverseRow>> {
+  getCuratedUniverseBySlug(
+    slug: string
+  ): Promise<DiscoverResult<CuratedUniverseRow>> {
     return getCuratedUniverseBySlug(this.supabase, slug);
   }
 
   /** Get a single curated universe by its primary key (UUID). */
-  getCuratedUniverseById(id: string): Promise<DiscoverResult<CuratedUniverseRow>> {
+  getCuratedUniverseById(
+    id: string
+  ): Promise<DiscoverResult<CuratedUniverseRow>> {
     return getCuratedUniverseById(this.supabase, id);
   }
 
   /** Get all entries for a curated universe, ordered by position ascending. */
-  getCuratedUniverseEntries(universeId: string): Promise<DiscoverListResult<CuratedUniverseEntryRow>> {
+  getCuratedUniverseEntries(
+    universeId: string
+  ): Promise<DiscoverListResult<CuratedUniverseEntryRow>> {
     return getCuratedUniverseEntries(this.supabase, universeId);
   }
 

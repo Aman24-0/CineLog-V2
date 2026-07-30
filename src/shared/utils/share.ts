@@ -66,14 +66,16 @@ export interface ShareMdbRatings {
 export function getBaseUrl(): string {
   let fromEnv: string | undefined;
   try {
-    fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env?.VITE_APP_BASE_URL;
+    fromEnv = (import.meta as ImportMeta & { env?: Record<string, string> }).env
+      ?.VITE_APP_BASE_URL;
   } catch {
     // import.meta.env may be undefined in non-Vite contexts — fall back.
     fromEnv = undefined;
   }
-  const raw = (fromEnv && fromEnv.trim().length > 0)
-    ? fromEnv
-    : "https://cinelogv2.vercel.app";
+  const raw =
+    fromEnv && fromEnv.trim().length > 0
+      ? fromEnv
+      : "https://cinelogv2.vercel.app";
   return raw.replace(/\/+$/, "");
 }
 
@@ -86,7 +88,7 @@ export function getBaseUrl(): string {
  */
 export function buildShareUrl(
   mediaType: "movie" | "tv",
-  tmdbId: number | string,
+  tmdbId: number | string
 ): string {
   return `${getBaseUrl()}/${mediaType}/${tmdbId}`;
 }
@@ -96,7 +98,7 @@ export function buildShareUrl(
  * WatchlistItem. Falls back to "Untitled" if no title is present.
  */
 export function resolveTitle(
-  source: TMDBDetails | WatchlistItem | null | undefined,
+  source: TMDBDetails | WatchlistItem | null | undefined
 ): string {
   if (!source) return "Untitled";
   return (
@@ -113,7 +115,7 @@ export function resolveTitle(
  * WatchlistItem. Returns the raw YYYY-MM-DD string or "" if missing.
  */
 export function resolveReleaseDate(
-  source: TMDBDetails | WatchlistItem | null | undefined,
+  source: TMDBDetails | WatchlistItem | null | undefined
 ): string {
   if (!source) return "";
   return (
@@ -141,7 +143,7 @@ export function formatReleaseDate(iso: string): string {
   return d.toLocaleDateString("en-US", {
     year: "numeric",
     month: "short",
-    day: "numeric",
+    day: "numeric"
   });
 }
 
@@ -168,7 +170,9 @@ export function formatRating(voteAverage: number | undefined | null): string {
  * to pollute the share text with "NR" placeholders for services that
  * don't have a score for this title.
  */
-function formatMdbRating(rating: ShareServiceRating | null | undefined): string {
+function formatMdbRating(
+  rating: ShareServiceRating | null | undefined
+): string {
   if (!rating) return "";
   const score = (rating.score ?? "").trim();
   if (!score || score === "NR" || score === "0") return "";
@@ -189,7 +193,9 @@ function formatMdbRating(rating: ShareServiceRating | null | undefined): string 
  * Telegram, SMS, and email — no special characters that get mangled
  * by chat-app text formatting.
  */
-export function formatMdbRatingsLine(mdb: ShareMdbRatings | null | undefined): string {
+export function formatMdbRatingsLine(
+  mdb: ShareMdbRatings | null | undefined
+): string {
   if (!mdb) return "";
   const parts: string[] = [];
   const imdb = formatMdbRating(mdb.imdb);
@@ -250,7 +256,7 @@ export function buildShareText(
   details: TMDBDetails | WatchlistItem | null | undefined,
   mediaType: "movie" | "tv",
   tmdbId: number | string,
-  mdbRatings?: ShareMdbRatings | null,
+  mdbRatings?: ShareMdbRatings | null
 ): string {
   const body = buildShareTextBody(details, mediaType, mdbRatings);
   const url = buildShareUrl(mediaType, tmdbId);
@@ -283,15 +289,19 @@ export function buildShareText(
 export function buildShareTextBody(
   details: TMDBDetails | WatchlistItem | null | undefined,
   mediaType: "movie" | "tv",
-  mdbRatings?: ShareMdbRatings | null,
+  mdbRatings?: ShareMdbRatings | null
 ): string {
   const title = resolveTitle(details);
   const dateIso = resolveReleaseDate(details);
   const dateLabel = formatReleaseDate(dateIso);
   const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
   const mdbLine = formatMdbRatingsLine(mdbRatings ?? null);
-  const overview = truncateOverview((details as TMDBDetails)?.overview ?? "", 280);
-  const genres = (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
+  const overview = truncateOverview(
+    (details as TMDBDetails)?.overview ?? "",
+    280
+  );
+  const genres =
+    (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
 
   const lines: string[] = [];
   lines.push(`🎬 ${title}`);
@@ -316,8 +326,13 @@ export function buildShareTextBody(
     const d = details as TMDBDetails;
     if (typeof d?.number_of_seasons === "number" && d.number_of_seasons > 0) {
       const seasonWord = d.number_of_seasons === 1 ? "Season" : "Seasons";
-      if (typeof d?.number_of_episodes === "number" && d.number_of_episodes > 0) {
-        lines.push(`📺 ${d.number_of_seasons} ${seasonWord} · ${d.number_of_episodes} Episodes`);
+      if (
+        typeof d?.number_of_episodes === "number" &&
+        d.number_of_episodes > 0
+      ) {
+        lines.push(
+          `📺 ${d.number_of_seasons} ${seasonWord} · ${d.number_of_episodes} Episodes`
+        );
       } else {
         lines.push(`📺 ${d.number_of_seasons} ${seasonWord}`);
       }
@@ -361,7 +376,13 @@ export function canWebShare(): boolean {
  */
 export function canShareFiles(): boolean {
   if (typeof navigator === "undefined") return false;
-  return typeof (navigator as Navigator & { canShare?: (data: { files: File[] }) => boolean }).canShare === "function";
+  return (
+    typeof (
+      navigator as Navigator & {
+        canShare?: (data: { files: File[] }) => boolean;
+      }
+    ).canShare === "function"
+  );
 }
 
 /**
@@ -373,7 +394,7 @@ export function canShareFiles(): boolean {
  */
 export async function dataUrlToFile(
   dataUrl: string,
-  filename: string,
+  filename: string
 ): Promise<File> {
   const res = await fetch(dataUrl);
   const blob = await res.blob();
@@ -439,12 +460,14 @@ export function downloadDataUrl(dataUrl: string, filename: string): void {
  * Linux, collapses whitespace, and trims to a reasonable length.
  */
 export function sanitizeFilename(title: string): string {
-  return title
-    // eslint-disable-next-line no-control-regex
-    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "")
-    .replace(/\s+/g, " ")
-    .trim()
-    .slice(0, 60);
+  return (
+    title
+      // eslint-disable-next-line no-control-regex
+      .replace(/[<>:"/\\|?*\u0000-\u001F]/g, "")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 60)
+  );
 }
 
 /**
@@ -458,7 +481,10 @@ export function sanitizeFilename(title: string): string {
  */
 export async function copyToClipboard(text: string): Promise<boolean> {
   try {
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+    if (
+      navigator.clipboard &&
+      typeof navigator.clipboard.writeText === "function"
+    ) {
       await navigator.clipboard.writeText(text);
       return true;
     }

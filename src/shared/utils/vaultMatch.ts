@@ -42,12 +42,18 @@ import type { WatchlistItem } from "~/shared/types";
  */
 export function findInVault(
   vault: WatchlistItem[],
-  title: { id: string | number; media_type: "movie" | "tv" } | WatchlistItem | null | undefined
+  title:
+    | { id: string | number; media_type: "movie" | "tv" }
+    | WatchlistItem
+    | null
+    | undefined
 ): WatchlistItem | null {
   if (!title) return null;
   const id = String(title.id);
   const mediaType = title.media_type;
-  return vault.find((m) => String(m.id) === id && m.media_type === mediaType) ?? null;
+  return (
+    vault.find((m) => String(m.id) === id && m.media_type === mediaType) ?? null
+  );
 }
 
 /**
@@ -56,7 +62,11 @@ export function findInVault(
  */
 export function isInVault(
   vault: WatchlistItem[],
-  title: { id: string | number; media_type: "movie" | "tv" } | WatchlistItem | null | undefined
+  title:
+    | { id: string | number; media_type: "movie" | "tv" }
+    | WatchlistItem
+    | null
+    | undefined
 ): boolean {
   return findInVault(vault, title) !== null;
 }
@@ -72,7 +82,11 @@ export function isInVault(
  * across TMDB namespaces.
  */
 export function vaultIdKey(
-  title: { id: string | number; media_type: "movie" | "tv" } | WatchlistItem | null | undefined
+  title:
+    | { id: string | number; media_type: "movie" | "tv" }
+    | WatchlistItem
+    | null
+    | undefined
 ): string | null {
   if (!title) return null;
   return `${title.media_type}/${title.id}`;
@@ -83,5 +97,7 @@ export function vaultIdKey(
  * Every key is "{media_type}/{id}" — never just the id.
  */
 export function buildVaultKeySet(vault: WatchlistItem[]): Set<string> {
-  return new Set(vault.map((m) => vaultIdKey(m)).filter((k): k is string => k !== null));
+  return new Set(
+    vault.map((m) => vaultIdKey(m)).filter((k): k is string => k !== null)
+  );
 }

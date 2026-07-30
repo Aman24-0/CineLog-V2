@@ -25,7 +25,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "monsterverse",
     name: "MonsterVerse",
-    description: "Godzilla, King Kong, and the Titans clash in Legendary's MonsterVerse.",
+    description:
+      "Godzilla, King Kong, and the Titans clash in Legendary's MonsterVerse.",
     backdrop_path: "/sy6DvAuB89M2Sp5lOJPOpOdc7Q2.jpg",
     franchiseId: "horror",
     tmdbCollectionId: 578261,
@@ -35,7 +36,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "conjuring",
     name: "The Conjuring Universe",
-    description: "Ed and Lorraine Warren's terrifying investigations and the connected horror saga.",
+    description:
+      "Ed and Lorraine Warren's terrifying investigations and the connected horror saga.",
     backdrop_path: "/wVYREi6Mg0Zmh0gijMOg1kTchvQ.jpg",
     franchiseId: "horror",
     tmdbCollectionId: 313086,
@@ -45,7 +47,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "mission-impossible",
     name: "Mission: Impossible",
-    description: "Ethan Hunt's impossible missions across decades of action-packed espionage.",
+    description:
+      "Ethan Hunt's impossible missions across decades of action-packed espionage.",
     backdrop_path: "/h1mdalOmOWy8Ek0Zbm4e5bWrOn9.jpg",
     franchiseId: "spy-thriller",
     tmdbCollectionId: 537,
@@ -55,7 +58,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "dune",
     name: "Dune",
-    description: "Denis Villeneuve's epic adaptation of Frank Herbert's sci-fi masterwork.",
+    description:
+      "Denis Villeneuve's epic adaptation of Frank Herbert's sci-fi masterwork.",
     backdrop_path: "/jYEW5xZgZG2e3T5m6Y0Y0g0X0Y0.jpg",
     franchiseId: "sci-fi-saga",
     tmdbCollectionId: 886484,
@@ -85,7 +89,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "indiana-jones",
     name: "Indiana Jones",
-    description: "Harrison Ford's legendary archaeologist in five thrilling adventures.",
+    description:
+      "Harrison Ford's legendary archaeologist in five thrilling adventures.",
     backdrop_path: null,
     franchiseId: "adventure",
     tmdbCollectionId: 84,
@@ -95,7 +100,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "jurassic-park",
     name: "Jurassic Park",
-    description: "The complete Jurassic saga — from Spielberg's original to the World trilogy.",
+    description:
+      "The complete Jurassic saga — from Spielberg's original to the World trilogy.",
     backdrop_path: "/oQiKQsYUdV8sLpR2lR2k0W0X0Y0.jpg",
     franchiseId: "adventure",
     tmdbCollectionId: 328,
@@ -105,7 +111,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "fast-furious",
     name: "Fast & Furious",
-    description: "From street racing to international espionage — the family rides together.",
+    description:
+      "From street racing to international espionage — the family rides together.",
     backdrop_path: "/3X5XIh0jY0g0X0Y0Z0W0V0U0T0.jpg",
     franchiseId: "fast-saga",
     tmdbCollectionId: 948485,
@@ -115,7 +122,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "pirates-caribbean",
     name: "Pirates of the Caribbean",
-    description: "Captain Jack Sparrow's swashbuckling adventures across the high seas.",
+    description:
+      "Captain Jack Sparrow's swashbuckling adventures across the high seas.",
     backdrop_path: "/bOGOGOGO0X0Y0Z0W0V0U0T0S0R0.jpg",
     franchiseId: "adventure",
     tmdbCollectionId: 295,
@@ -125,7 +133,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "transformers",
     name: "Transformers",
-    description: "Autobots and Decepticons wage war on Earth in Michael Bay's explosive saga.",
+    description:
+      "Autobots and Decepticons wage war on Earth in Michael Bay's explosive saga.",
     backdrop_path: null,
     franchiseId: "adventure",
     tmdbCollectionId: 86038,
@@ -135,7 +144,8 @@ export const SUGGESTED_UNIVERSES: SuggestedUniverse[] = [
   {
     id: "planet-of-the-apes",
     name: "Planet of the Apes",
-    description: "The rebooted simian saga — from Rise to Kingdom of the Planet of the Apes.",
+    description:
+      "The rebooted simian saga — from Rise to Kingdom of the Planet of the Apes.",
     backdrop_path: null,
     franchiseId: "sci-fi-saga",
     tmdbCollectionId: 173855,

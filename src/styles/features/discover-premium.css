@@ -51,20 +51,24 @@
    viewport without exceeding it. */
 .discover-folds::before,
 .page-enter.discover-folds::before {
-  content: '';
+  content: "";
   position: fixed;
   top: -20vh;
   left: 0;
   width: 100vw;
   height: 70vh;
   background:
-    radial-gradient(ellipse 60% 50% at 50% 0%,
+    radial-gradient(
+      ellipse 60% 50% at 50% 0%,
       color-mix(in srgb, var(--p) 12%, transparent) 0%,
       color-mix(in srgb, var(--p) 4%, transparent) 40%,
-      transparent 70%),
-    radial-gradient(ellipse 40% 30% at 20% 10%,
-      color-mix(in srgb, var(--p2, #FF6B35) 8%, transparent) 0%,
-      transparent 60%);
+      transparent 70%
+    ),
+    radial-gradient(
+      ellipse 40% 30% at 20% 10%,
+      color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
+      transparent 60%
+    );
   pointer-events: none;
   z-index: 0;
   filter: blur(60px);
@@ -74,15 +78,17 @@
 /* Bottom vignette — keeps the rails section readable */
 .discover-folds::after,
 .page-enter.discover-folds::after {
-  content: '';
+  content: "";
   position: fixed;
   bottom: -10vh;
   left: 0;
   right: 0;
   height: 40vh;
-  background: radial-gradient(ellipse 80% 60% at 50% 100%,
-    rgba(8,8,13,0.45) 0%,
-    transparent 60%);
+  background: radial-gradient(
+    ellipse 80% 60% at 50% 100%,
+    rgba(8, 8, 13, 0.45) 0%,
+    transparent 60%
+  );
   pointer-events: none;
   z-index: 0;
 }
@@ -110,10 +116,14 @@
   overflow: hidden;
 }
 @media (min-width: 640px) {
-  .discover-folds .spotlight { height: 480px; }
+  .discover-folds .spotlight {
+    height: 480px;
+  }
 }
 @media (min-width: 1024px) {
-  .discover-folds .spotlight { height: 480px; }
+  .discover-folds .spotlight {
+    height: 480px;
+  }
 }
 
 /* Backdrop — slightly brighter for premium feel + slower zoom */
@@ -136,53 +146,71 @@
 .discover-folds .spotlight-overlay {
   background:
     /* Layer 1 — bottom fade (text legibility, lower 45% only on mobile) */
-    linear-gradient(to top,
+    linear-gradient(
+      to top,
       var(--tier-1) 0%,
-      rgba(8,8,13,0.92) 5%,
-      rgba(8,8,13,0.68) 18%,
-      rgba(8,8,13,0.28) 42%,
-      rgba(8,8,13,0.05) 65%,
-      transparent 80%),
+      rgba(8, 8, 13, 0.92) 5%,
+      rgba(8, 8, 13, 0.68) 18%,
+      rgba(8, 8, 13, 0.28) 42%,
+      rgba(8, 8, 13, 0.05) 65%,
+      transparent 80%
+    ),
     /* Layer 2 — top vignette (minimal, badge legibility only) */
-    linear-gradient(to bottom,
-      rgba(8,8,13,0.30) 0%,
-      rgba(8,8,13,0.08) 8%,
-      transparent 18%),
+    linear-gradient(
+        to bottom,
+        rgba(8, 8, 13, 0.3) 0%,
+        rgba(8, 8, 13, 0.08) 8%,
+        transparent 18%
+      ),
     /* Layer 4 — warm gold accent (bottom-left) */
-    radial-gradient(ellipse 55% 35% at 0% 100%,
-      color-mix(in srgb, var(--p) 20%, transparent) 0%,
-      transparent 55%),
+    radial-gradient(
+        ellipse 55% 35% at 0% 100%,
+        color-mix(in srgb, var(--p) 20%, transparent) 0%,
+        transparent 55%
+      ),
     /* Layer 5 — cool accent (top-right, subtle) */
-    radial-gradient(ellipse 40% 28% at 100% 0%,
-      color-mix(in srgb, var(--p2, #FF6B35) 8%, transparent) 0%,
-      transparent 50%);
+    radial-gradient(
+        ellipse 40% 28% at 100% 0%,
+        color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
+        transparent 50%
+      );
 }
 @media (min-width: 640px) {
   /* Desktop — restore the left fade for wide-screen text legibility */
   .discover-folds .spotlight-overlay {
     background:
-      linear-gradient(to top,
+      linear-gradient(
+        to top,
         var(--tier-1) 0%,
-        rgba(8,8,13,0.94) 4%,
-        rgba(8,8,13,0.72) 16%,
-        rgba(8,8,13,0.35) 38%,
-        rgba(8,8,13,0.08) 60%,
-        transparent 80%),
-      linear-gradient(to bottom,
-        rgba(8,8,13,0.42) 0%,
-        rgba(8,8,13,0.12) 10%,
-        transparent 22%),
+        rgba(8, 8, 13, 0.94) 4%,
+        rgba(8, 8, 13, 0.72) 16%,
+        rgba(8, 8, 13, 0.35) 38%,
+        rgba(8, 8, 13, 0.08) 60%,
+        transparent 80%
+      ),
+      linear-gradient(
+        to bottom,
+        rgba(8, 8, 13, 0.42) 0%,
+        rgba(8, 8, 13, 0.12) 10%,
+        transparent 22%
+      ),
       /* Layer 3 — left fade (text legibility on wide screens) */
-      linear-gradient(to right,
-        rgba(8,8,13,0.48) 0%,
-        rgba(8,8,13,0.14) 22%,
-        transparent 50%),
-      radial-gradient(ellipse 55% 35% at 0% 100%,
+        linear-gradient(
+          to right,
+          rgba(8, 8, 13, 0.48) 0%,
+          rgba(8, 8, 13, 0.14) 22%,
+          transparent 50%
+        ),
+      radial-gradient(
+        ellipse 55% 35% at 0% 100%,
         color-mix(in srgb, var(--p) 20%, transparent) 0%,
-        transparent 55%),
-      radial-gradient(ellipse 40% 28% at 100% 0%,
-        color-mix(in srgb, var(--p2, #FF6B35) 8%, transparent) 0%,
-        transparent 50%);
+        transparent 55%
+      ),
+      radial-gradient(
+        ellipse 40% 28% at 100% 0%,
+        color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
+        transparent 50%
+      );
   }
 }
 
@@ -201,21 +229,25 @@
   backdrop-filter: blur(24px) saturate(160%);
   -webkit-backdrop-filter: blur(24px) saturate(160%);
   border: 1px solid var(--glass-border-warm-strong);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 700;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--p);
   box-shadow:
-    0 4px 16px rgba(0,0,0,0.5),
-    0 0 0 1px rgba(232,183,74,0.10),
+    0 4px 16px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(232, 183, 74, 0.1),
     0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 .discover-folds .spotlight-badge .material-symbols-outlined {
   font-size: 14px;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   filter: drop-shadow(0 0 4px var(--p-glow));
 }
 
@@ -241,20 +273,22 @@
 
 /* "Because you…" eyebrow — premium Azeret Mono with gold + glow */
 .discover-folds .spotlight-reason {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--p);
   margin: 0;
-  text-shadow: 0 1px 8px rgba(0,0,0,1), 0 0 12px var(--p-glow);
+  text-shadow:
+    0 1px 8px rgba(0, 0, 0, 1),
+    0 0 12px var(--p-glow);
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
 }
 .discover-folds .spotlight-reason::before {
-  content: '';
+  content: "";
   width: 16px;
   height: 1px;
   background: var(--p);
@@ -265,26 +299,30 @@
 /* Title — Bebas Neue, scaled down to match the reduced hero height.
    Was 3.5rem mobile / 4.5rem / 5rem desktop; now 2.5rem / 3rem / 3.5rem. */
 .discover-folds .spotlight-title {
-  font-family: 'Bebas Neue', cursive;
+  font-family: "Bebas Neue", cursive;
   font-size: 2.5rem;
   line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--text-strong);
   margin: 0;
   text-shadow:
-    0 2px 32px rgba(0,0,0,0.95),
-    0 1px 6px rgba(0,0,0,1),
-    0 0 1px rgba(0,0,0,1);
+    0 2px 32px rgba(0, 0, 0, 0.95),
+    0 1px 6px rgba(0, 0, 0, 1),
+    0 0 1px rgba(0, 0, 0, 1);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
 @media (min-width: 640px) {
-  .discover-folds .spotlight-title { font-size: 3rem; }
+  .discover-folds .spotlight-title {
+    font-size: 3rem;
+  }
 }
 @media (min-width: 1024px) {
-  .discover-folds .spotlight-title { font-size: 3.5rem; }
+  .discover-folds .spotlight-title {
+    font-size: 3.5rem;
+  }
 }
 
 /* Meta pills — MOBILE: compact horizontal scroll row (no vertical stacking).
@@ -299,7 +337,9 @@
   gap: 0.375rem;
   margin-top: 0.25rem;
 }
-.discover-folds .spotlight-meta::-webkit-scrollbar { display: none; }
+.discover-folds .spotlight-meta::-webkit-scrollbar {
+  display: none;
+}
 .discover-folds .spotlight-meta .v2-pill {
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-pill);
@@ -307,7 +347,7 @@
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -316,8 +356,8 @@
   white-space: nowrap;
   flex-shrink: 0;
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.4),
-    inset 0 1px 0 rgba(232,183,74,0.08);
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.08);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-meta {
@@ -328,25 +368,25 @@
   .discover-folds .spotlight-meta .v2-pill {
     padding: 0.375rem 0.75rem;
     font-size: 0.625rem;
-    letter-spacing: 0.10em;
+    letter-spacing: 0.1em;
   }
 }
 .discover-folds .spotlight-meta .v2-pill[data-rating-display="true"] {
   color: #f5c518;
-  border-color: rgba(245,197,24,0.35);
+  border-color: rgba(245, 197, 24, 0.35);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.4),
-    0 0 8px rgba(245,197,24,0.20),
-    inset 0 1px 0 rgba(245,197,24,0.10);
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 8px rgba(245, 197, 24, 0.2),
+    inset 0 1px 0 rgba(245, 197, 24, 0.1);
 }
 .discover-folds .spotlight-meta .v2-pill-accent {
   color: var(--p);
   border-color: color-mix(in srgb, var(--p) 35%, transparent);
   background: color-mix(in srgb, var(--p) 12%, var(--glass-bg-strong));
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.4),
+    0 2px 8px rgba(0, 0, 0, 0.4),
     0 0 10px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 
 /* Actions — MOBILE RESTRUCTURE:
@@ -397,23 +437,23 @@
   align-items: center;
   padding: 0.25rem 0.625rem;
   border-radius: var(--radius-pill);
-  background: rgba(232,183,74,0.08);
+  background: rgba(232, 183, 74, 0.08);
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(232,183,74,0.18);
-  font-family: 'Azeret Mono', monospace;
+  border: 1px solid rgba(232, 183, 74, 0.18);
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--text-body);
-  box-shadow: inset 0 1px 0 rgba(232,183,74,0.06);
+  box-shadow: inset 0 1px 0 rgba(232, 183, 74, 0.06);
 }
 
 /* Premium overview excerpt — Outfit, clamped to fit the reduced hero.
    1 line on mobile, 2 lines on desktop. */
 .discover-folds .spotlight-overview {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   font-weight: 400;
   line-height: 1.45;
@@ -424,7 +464,7 @@
   -webkit-line-clamp: 1;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-overview {
@@ -435,41 +475,53 @@
 
 /* Premium "Add to Vault" CTA — frosted glass with white tint */
 .discover-folds .spotlight-actions .btn-primary[style*="rgba(255,255,255"],
-.discover-folds .spotlight-actions button[style*="background: rgba(255,255,255"] {
+.discover-folds
+  .spotlight-actions
+  button[style*="background: rgba(255,255,255"] {
   background: rgba(255, 255, 255, 0.14) !important;
-  color: #FFFFFF !important;
+  color: #ffffff !important;
   border: 1px solid rgba(255, 255, 255, 0.22) !important;
   box-shadow:
-    0 4px 16px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(255,255,255,0.18) !important;
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  transition: transform var(--dur-base) var(--ease-spring),
-              background var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out) !important;
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out) !important;
 }
-.discover-folds .spotlight-actions .btn-primary[style*="rgba(255,255,255"]:hover,
-.discover-folds .spotlight-actions button[style*="background: rgba(255,255,255"]:hover {
-  background: rgba(255, 255, 255, 0.20) !important;
+.discover-folds
+  .spotlight-actions
+  .btn-primary[style*="rgba(255,255,255"]:hover,
+.discover-folds
+  .spotlight-actions
+  button[style*="background: rgba(255,255,255"]:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
   transform: translateY(-2px) !important;
   box-shadow:
-    0 8px 24px rgba(0,0,0,0.55),
-    inset 0 1px 0 rgba(255,255,255,0.22) !important;
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
 }
 
 /* Premium primary Details button — gold glow on hover */
-.discover-folds .spotlight-actions .btn-primary:not([style*="rgba(255,255,255"]) {
-  transition: transform var(--dur-base) var(--ease-spring),
-              filter var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out);
+.discover-folds
+  .spotlight-actions
+  .btn-primary:not([style*="rgba(255,255,255"]) {
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    filter var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
-.discover-folds .spotlight-actions .btn-primary:not([style*="rgba(255,255,255"]):hover {
+.discover-folds
+  .spotlight-actions
+  .btn-primary:not([style*="rgba(255,255,255"]):hover {
   transform: translateY(-2px);
-  filter: brightness(1.10);
+  filter: brightness(1.1);
   box-shadow:
     0 0 0 1px var(--p),
     0 8px 24px var(--p-glow),
-    0 4px 12px rgba(8,8,13,0.5);
+    0 4px 12px rgba(8, 8, 13, 0.5);
 }
 
 /* "Not in the mood" reroll button — MOBILE: compact icon+text link
@@ -484,7 +536,7 @@
   background: transparent;
   border: none;
   color: var(--text-muted);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.02em;
@@ -512,12 +564,14 @@
     color: var(--text-soft);
     font-size: 0.75rem;
     font-weight: 600;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,255,255,0.05);
+    box-shadow:
+      0 2px 8px rgba(0, 0, 0, 0.4),
+      inset 0 1px 0 rgba(255, 255, 255, 0.05);
     align-self: auto;
   }
   .discover-folds .spotlight-reroll:hover {
     background: var(--glass-bg-strong);
-    border-color: rgba(232,183,74,0.30);
+    border-color: rgba(232, 183, 74, 0.3);
     color: var(--text-strong);
     transform: translateY(-1px);
   }
@@ -528,10 +582,12 @@
 .discover-folds .spotlight-skeleton-title,
 .discover-folds .spotlight-skeleton-meta,
 .discover-folds .spotlight-skeleton-actions {
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.04) 25%,
-    rgba(232,183,74,0.10) 50%,
-    rgba(232,183,74,0.04) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.04) 25%,
+    rgba(232, 183, 74, 0.1) 50%,
+    rgba(232, 183, 74, 0.04) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
   border-radius: var(--radius-sm);
@@ -552,24 +608,28 @@
   border: 1px solid var(--glass-border-warm-strong);
   background: var(--tier-3);
   box-shadow:
-    0 8px 24px rgba(0,0,0,0.55),
-    0 2px 8px rgba(0,0,0,0.40),
-    inset 0 1px 0 rgba(232,183,74,0.06);
-  transition: transform var(--dur-base) var(--ease-spring),
-              box-shadow var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out);
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out);
 }
 
 /* Premium hover — soft elevation + golden glow + scale */
 .discover-folds .search-rail-card:hover .search-rail-poster,
-.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster {
-  border-color: rgba(232,183,74,0.35);
+.discover-folds
+  .genre-explorer-panel
+  .search-rail-card:hover
+  .search-rail-poster {
+  border-color: rgba(232, 183, 74, 0.35);
   box-shadow:
-    0 16px 40px rgba(0,0,0,0.7),
-    0 4px 16px rgba(0,0,0,0.50),
+    0 16px 40px rgba(0, 0, 0, 0.7),
+    0 4px 16px rgba(0, 0, 0, 0.5),
     0 0 20px var(--p-glow),
     0 0 0 1px color-mix(in srgb, var(--p) 25%, transparent),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 
 /* Premium poster image — slightly brighter + smoother zoom.
@@ -588,7 +648,10 @@
   will-change: transform;
 }
 .discover-folds .search-rail-card:hover .search-rail-poster-img,
-.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster-img {
+.discover-folds
+  .genre-explorer-panel
+  .search-rail-card:hover
+  .search-rail-poster-img {
   transform: scale(1.06);
 }
 
@@ -598,19 +661,24 @@
    that makes the title text more readable when it appears below. */
 .discover-folds .search-rail-poster::after,
 .discover-folds .genre-explorer-panel .search-rail-poster::after {
-  content: '';
+  content: "";
   position: absolute;
   inset: 0;
   pointer-events: none;
-  background: linear-gradient(to top,
-    rgba(8,8,13,0.45) 0%,
-    rgba(8,8,13,0.18) 20%,
-    transparent 40%);
+  background: linear-gradient(
+    to top,
+    rgba(8, 8, 13, 0.45) 0%,
+    rgba(8, 8, 13, 0.18) 20%,
+    transparent 40%
+  );
   z-index: 1;
   transition: opacity var(--dur-base) var(--ease-out);
 }
 .discover-folds .search-rail-card:hover .search-rail-poster::after,
-.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-poster::after {
+.discover-folds
+  .genre-explorer-panel
+  .search-rail-card:hover
+  .search-rail-poster::after {
   opacity: 0.7;
 }
 
@@ -629,16 +697,16 @@
   background: var(--glass-bg-strong);
   backdrop-filter: blur(10px) saturate(150%);
   -webkit-backdrop-filter: blur(10px) saturate(150%);
-  border: 1px solid rgba(245,197,24,0.30);
-  font-family: 'Azeret Mono', monospace;
+  border: 1px solid rgba(245, 197, 24, 0.3);
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 800;
   letter-spacing: 0.04em;
   color: #f5c518;
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.5),
-    0 0 8px rgba(245,197,24,0.20),
-    inset 0 1px 0 rgba(245,197,24,0.10);
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    0 0 8px rgba(245, 197, 24, 0.2),
+    inset 0 1px 0 rgba(245, 197, 24, 0.1);
 }
 
 /* Premium status badge (top-left) — for vault titles in rails */
@@ -657,21 +725,21 @@
   backdrop-filter: blur(10px) saturate(150%);
   -webkit-backdrop-filter: blur(10px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5rem;
   font-weight: 800;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--text-body);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.5),
-    inset 0 1px 0 rgba(232,183,74,0.08);
+    0 2px 8px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(232, 183, 74, 0.08);
 }
 
 /* Premium card title — Outfit, refined weight + size */
 .discover-folds .search-rail-title,
 .discover-folds .genre-explorer-panel .search-rail-title {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   font-weight: 700;
   color: var(--text-strong);
@@ -685,14 +753,17 @@
   transition: color var(--dur-fast) var(--ease-out);
 }
 .discover-folds .search-rail-card:hover .search-rail-title,
-.discover-folds .genre-explorer-panel .search-rail-card:hover .search-rail-title {
+.discover-folds
+  .genre-explorer-panel
+  .search-rail-card:hover
+  .search-rail-title {
   color: var(--p);
 }
 
 /* Premium meta — Azeret Mono with gold rating */
 .discover-folds .search-rail-meta,
 .discover-folds .genre-explorer-panel .search-rail-meta {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -722,16 +793,20 @@
   -webkit-overflow-scrolling: touch;
   scroll-behavior: smooth;
   /* Mask the edges so cards fade in/out smoothly */
-  -webkit-mask-image: linear-gradient(to right,
+  -webkit-mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 8px,
     black calc(100% - 8px),
-    transparent 100%);
-  mask-image: linear-gradient(to right,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 8px,
     black calc(100% - 8px),
-    transparent 100%);
+    transparent 100%
+  );
 }
 .discover-folds .search-rail::-webkit-scrollbar,
 .discover-folds .genre-explorer-panel .search-rail::-webkit-scrollbar {
@@ -770,11 +845,15 @@
 }
 @media (min-width: 640px) {
   .discover-folds .search-rail-card,
-  .discover-folds .genre-explorer-panel .search-rail-card { width: 190px; }
+  .discover-folds .genre-explorer-panel .search-rail-card {
+    width: 190px;
+  }
 }
 @media (min-width: 1024px) {
   .discover-folds .search-rail-card,
-  .discover-folds .genre-explorer-panel .search-rail-card { width: 200px; }
+  .discover-folds .genre-explorer-panel .search-rail-card {
+    width: 200px;
+  }
 }
 .discover-folds .search-rail-card:hover,
 .discover-folds .genre-explorer-panel .search-rail-card:hover {
@@ -804,8 +883,9 @@
   backdrop-filter: blur(28px) saturate(170%);
   -webkit-backdrop-filter: blur(28px) saturate(170%);
   border-bottom: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 4px 20px rgba(0,0,0,0.35),
-              inset 0 -1px 0 rgba(232,183,74,0.04);
+  box-shadow:
+    0 4px 20px rgba(0, 0, 0, 0.35),
+    inset 0 -1px 0 rgba(232, 183, 74, 0.04);
   margin-bottom: var(--sp-6, 1.5rem);
   padding: var(--sp-3, 0.75rem) 1rem;
 }
@@ -829,12 +909,13 @@
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
-    0 2px 12px rgba(0,0,0,0.40),
-    inset 0 1px 0 rgba(232,183,74,0.06);
-  transition: border-color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              background var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+    0 2px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    background var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
 }
 
 /* Premium focus state — gold border + gold glow + slight scale */
@@ -844,8 +925,8 @@
   box-shadow:
     0 0 0 3px var(--p-dim),
     0 0 20px var(--p-glow),
-    0 4px 16px rgba(0,0,0,0.45),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
   transform: translateY(-1px);
 }
 
@@ -854,10 +935,13 @@
   font-size: 22px;
   color: var(--text-muted);
   flex-shrink: 0;
-  transition: color var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+  transition:
+    color var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
 }
-.search-bar-form.discover-search-bar-form .search-bar:focus-within .search-bar-icon {
+.search-bar-form.discover-search-bar-form
+  .search-bar:focus-within
+  .search-bar-icon {
   color: var(--p);
   transform: scale(1.08);
   filter: drop-shadow(0 0 6px var(--p-glow));
@@ -870,7 +954,7 @@
   background: transparent;
   border: none;
   outline: none;
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 1rem;
   font-weight: 500;
   color: var(--text-strong);
@@ -883,7 +967,9 @@
   letter-spacing: 0.01em;
   transition: color var(--dur-fast) var(--ease-out);
 }
-.search-bar-form.discover-search-bar-form .search-bar:focus-within .search-bar-input::placeholder {
+.search-bar-form.discover-search-bar-form
+  .search-bar:focus-within
+  .search-bar-input::placeholder {
   color: var(--text-dim);
 }
 
@@ -900,10 +986,11 @@
   cursor: pointer;
   color: var(--text-soft);
   flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .search-bar-form.discover-search-bar-form .search-bar-clear:hover {
   background: var(--p-dim);
@@ -931,16 +1018,20 @@
   -ms-overflow-style: none;
   padding: 4px 2px 8px;
   scroll-behavior: smooth;
-  -webkit-mask-image: linear-gradient(to right,
+  -webkit-mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
-  mask-image: linear-gradient(to right,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
+    transparent 100%
+  );
 }
 .discover-folds .genre-explorer-chips::-webkit-scrollbar,
 .discover-folds .genre-explorer .quick-filter-bar::-webkit-scrollbar {
@@ -961,25 +1052,26 @@
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
-    0 2px 8px rgba(0,0,0,0.30),
-    inset 0 1px 0 rgba(232,183,74,0.06);
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
   color: var(--text-soft);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out),
-              color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .discover-folds .genre-chip:hover,
 .discover-folds .genre-explorer .quick-filter-tab:hover {
-  background: rgba(232,183,74,0.10);
-  border-color: rgba(232,183,74,0.25);
+  background: rgba(232, 183, 74, 0.1);
+  border-color: rgba(232, 183, 74, 0.25);
   color: var(--text-strong);
   transform: translateY(-1px);
 }
@@ -992,15 +1084,22 @@
   color: var(--active-text);
   box-shadow:
     var(--active-glow),
-    0 4px 16px rgba(0,0,0,0.45),
+    0 4px 16px rgba(0, 0, 0, 0.45),
     0 0 20px var(--p-glow),
-    inset 0 1px 0 rgba(255,255,255,0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   font-weight: 700;
 }
 .discover-folds .genre-chip[data-active="true"] .material-symbols-outlined,
-.discover-folds .genre-explorer .quick-filter-tab[data-active="true"] .material-symbols-outlined {
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  filter: drop-shadow(0 0 4px rgba(0,0,0,0.3));
+.discover-folds
+  .genre-explorer
+  .quick-filter-tab[data-active="true"]
+  .material-symbols-outlined {
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
+  filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.3));
 }
 
 /* Premium genre chip icons — bigger + filled when active */
@@ -1008,7 +1107,11 @@
 .discover-folds .genre-explorer .quick-filter-tab .material-symbols-outlined {
   font-size: 14px;
   line-height: 1;
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   color: var(--p);
   filter: drop-shadow(0 0 4px var(--p-glow));
   transition: font-variation-settings var(--dur-base) var(--ease-out);
@@ -1033,7 +1136,7 @@
   border-radius: var(--radius-lg);
   box-shadow:
     var(--shadow-glass-card),
-    inset 0 1px 0 rgba(232,183,74,0.06);
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
   padding: var(--sp-4, 1rem);
   margin-top: var(--sp-3, 0.75rem);
 }
@@ -1052,16 +1155,20 @@
   -webkit-overflow-scrolling: touch;
   padding: var(--sp-2, 0.5rem) 2px var(--sp-4, 1rem);
   scroll-behavior: smooth;
-  -webkit-mask-image: linear-gradient(to right,
+  -webkit-mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
-  mask-image: linear-gradient(to right,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
+    transparent 100%
+  );
 }
 .discover-folds .discover-insight-strip::-webkit-scrollbar {
   display: none;
@@ -1080,21 +1187,22 @@
   border: 1px solid var(--glass-border-warm-strong);
   flex-shrink: 0;
   box-shadow:
-    0 4px 14px rgba(0,0,0,0.40),
-    0 0 0 1px rgba(232,183,74,0.06),
-    inset 0 1px 0 rgba(232,183,74,0.08);
-  transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+    0 4px 14px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(232, 183, 74, 0.06),
+    inset 0 1px 0 rgba(232, 183, 74, 0.08);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .discover-folds .discover-insight-card:hover {
   background: var(--glass-bg-strong);
-  border-color: rgba(232,183,74,0.30);
+  border-color: rgba(232, 183, 74, 0.3);
   box-shadow:
-    0 6px 18px rgba(0,0,0,0.50),
+    0 6px 18px rgba(0, 0, 0, 0.5),
     0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.12);
+    inset 0 1px 0 rgba(232, 183, 74, 0.12);
   transform: translateY(-2px);
 }
 
@@ -1102,14 +1210,18 @@
 .discover-folds .discover-insight-icon {
   font-size: 16px;
   color: var(--p);
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   filter: drop-shadow(0 0 6px var(--p-glow));
   flex-shrink: 0;
 }
 
 /* Premium insight label — Outfit, slightly larger, refined */
 .discover-folds .discover-insight-label {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -1137,23 +1249,24 @@
   scroll-snap-align: start;
   box-shadow:
     var(--shadow-glass-card),
-    inset 0 1px 0 rgba(232,183,74,0.06);
-  transition: border-color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-base) var(--ease-spring);
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  transition:
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-base) var(--ease-spring);
 }
 .discover-folds .discover-continue-card:hover {
-  border-color: rgba(232,183,74,0.30);
+  border-color: rgba(232, 183, 74, 0.3);
   box-shadow:
     var(--shadow-glass-elevated),
     0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
   transform: translateY(-3px);
 }
 
 /* Premium continue card name — bigger + bolder */
 .discover-folds .discover-continue-name {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.875rem;
   font-weight: 700;
   color: var(--text-strong);
@@ -1166,7 +1279,7 @@
 
 /* Premium continue card count — gold Azeret Mono */
 .discover-folds .discover-continue-count {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.08em;
@@ -1184,15 +1297,18 @@
   object-fit: cover;
   cursor: pointer;
   border: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4);
-  transition: transform var(--dur-fast) var(--ease-spring),
-              box-shadow var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  transition:
+    transform var(--dur-fast) var(--ease-spring),
+    box-shadow var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
 }
 .discover-folds .discover-continue-poster:hover {
   transform: scale(1.06);
   border-color: var(--p);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.5), 0 0 10px var(--p-glow);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 10px var(--p-glow);
 }
 
 /* Premium Surprise Me — cinematic poster-first hero with glass overlay
@@ -1209,7 +1325,7 @@
   box-shadow:
     var(--shadow-glass-elevated),
     0 0 24px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 
 /* Premium surprise backdrop — artwork-first, poster vivid and visible.
@@ -1234,21 +1350,27 @@
 .discover-folds .discover-surprise-overlay {
   background:
     /* Layer 1 — bottom fade (text legibility, lower 28% only) */
-    linear-gradient(to top,
-      rgba(8,8,13,0.68) 0%,
-      rgba(8,8,13,0.32) 10%,
-      rgba(8,8,13,0.08) 20%,
-      transparent 30%),
+    linear-gradient(
+      to top,
+      rgba(8, 8, 13, 0.68) 0%,
+      rgba(8, 8, 13, 0.32) 10%,
+      rgba(8, 8, 13, 0.08) 20%,
+      transparent 30%
+    ),
     /* Layer 2 — left fade (text contrast, narrow band) */
-    linear-gradient(to right,
-      rgba(8,8,13,0.42) 0%,
-      rgba(8,8,13,0.16) 12%,
-      rgba(8,8,13,0.03) 20%,
-      transparent 28%),
+    linear-gradient(
+        to right,
+        rgba(8, 8, 13, 0.42) 0%,
+        rgba(8, 8, 13, 0.16) 12%,
+        rgba(8, 8, 13, 0.03) 20%,
+        transparent 28%
+      ),
     /* Layer 3 — warm gold accent (bottom-left, subtle cinematic warmth) */
-    radial-gradient(ellipse 30% 20% at 0% 100%,
-      color-mix(in srgb, var(--p) 8%, transparent) 0%,
-      transparent 40%);
+    radial-gradient(
+        ellipse 30% 20% at 0% 100%,
+        color-mix(in srgb, var(--p) 8%, transparent) 0%,
+        transparent 40%
+      );
 }
 
 /* Premium surprise title — bold cinematic heading, capped at 2 lines.
@@ -1260,7 +1382,7 @@
    -webkit-line-clamp: 2 caps overflow. Never clips, never uses
    negative positioning. Title always starts inside the card. */
 .discover-folds .discover-surprise-title {
-  font-family: 'Bebas Neue', cursive;
+  font-family: "Bebas Neue", cursive;
   font-size: 1rem;
   line-height: 1.05;
   letter-spacing: 0.01em;
@@ -1273,18 +1395,24 @@
   overflow-wrap: break-word;
   word-break: break-word;
   text-shadow:
-    0 2px 32px rgba(0,0,0,0.95),
-    0 1px 6px rgba(0,0,0,1),
-    0 0 1px rgba(0,0,0,1);
+    0 2px 32px rgba(0, 0, 0, 0.95),
+    0 1px 6px rgba(0, 0, 0, 1),
+    0 0 1px rgba(0, 0, 0, 1);
 }
 @media (min-width: 480px) {
-  .discover-folds .discover-surprise-title { font-size: 1.5rem; }
+  .discover-folds .discover-surprise-title {
+    font-size: 1.5rem;
+  }
 }
 @media (min-width: 640px) {
-  .discover-folds .discover-surprise-title { font-size: 2.25rem; }
+  .discover-folds .discover-surprise-title {
+    font-size: 2.25rem;
+  }
 }
 @media (min-width: 1024px) {
-  .discover-folds .discover-surprise-title { font-size: 2.75rem; }
+  .discover-folds .discover-surprise-title {
+    font-size: 2.75rem;
+  }
 }
 
 /* Premium surprise meta — compact glass v2-pills, never shrinks */
@@ -1301,28 +1429,36 @@
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-body);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4), inset 0 1px 0 rgba(232,183,74,0.08);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.08);
 }
 .discover-folds .discover-surprise-meta .v2-pill[data-type-display="true"] {
   color: var(--p);
-  border-color: rgba(232,183,74,0.30);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 6px rgba(232,183,74,0.15), inset 0 1px 0 rgba(232,183,74,0.10);
+  border-color: rgba(232, 183, 74, 0.3);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 6px rgba(232, 183, 74, 0.15),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 .discover-folds .discover-surprise-meta .v2-pill[data-rating-display="true"] {
   color: #f5c518;
-  border-color: rgba(245,197,24,0.35);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.4), 0 0 8px rgba(245,197,24,0.20), inset 0 1px 0 rgba(245,197,24,0.10);
+  border-color: rgba(245, 197, 24, 0.35);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 8px rgba(245, 197, 24, 0.2),
+    inset 0 1px 0 rgba(245, 197, 24, 0.1);
 }
 
 /* Premium surprise overview — Outfit, 2-line clamp, compact */
 .discover-folds .discover-surprise-overview {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.7rem;
   font-weight: 400;
   line-height: 1.45;
@@ -1333,7 +1469,7 @@
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  text-shadow: 0 1px 6px rgba(0,0,0,0.9);
+  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
 }
 
 /* Premium surprise actions — compact row, pinned near bottom, never shrinks */
@@ -1347,32 +1483,45 @@
 
 /* Premium vault button — frosted glass, compact */
 .discover-folds .discover-surprise-vault-btn {
-  background: rgba(255,255,255,0.14) !important;
-  color: #FFFFFF !important;
-  border: 1px solid rgba(255,255,255,0.22) !important;
-  box-shadow: 0 4px 16px rgba(0,0,0,0.45), inset 0 1px 0 rgba(255,255,255,0.18) !important;
+  background: rgba(255, 255, 255, 0.14) !important;
+  color: #ffffff !important;
+  border: 1px solid rgba(255, 255, 255, 0.22) !important;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
   backdrop-filter: blur(16px) saturate(160%);
   -webkit-backdrop-filter: blur(16px) saturate(160%);
-  transition: transform var(--dur-base) var(--ease-spring),
-              background var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out) !important;
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out) !important;
 }
 .discover-folds .discover-surprise-vault-btn:hover {
-  background: rgba(255,255,255,0.20) !important;
+  background: rgba(255, 255, 255, 0.2) !important;
   transform: translateY(-2px) !important;
-  box-shadow: 0 8px 24px rgba(0,0,0,0.55), inset 0 1px 0 rgba(255,255,255,0.22) !important;
+  box-shadow:
+    0 8px 24px rgba(0, 0, 0, 0.55),
+    inset 0 1px 0 rgba(255, 255, 255, 0.22) !important;
 }
 
 /* Premium Details button — gold glow on hover */
-.discover-folds .discover-surprise-actions .btn-primary:not(.discover-surprise-vault-btn) {
-  transition: transform var(--dur-base) var(--ease-spring),
-              filter var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out);
+.discover-folds
+  .discover-surprise-actions
+  .btn-primary:not(.discover-surprise-vault-btn) {
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    filter var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
 }
-.discover-folds .discover-surprise-actions .btn-primary:not(.discover-surprise-vault-btn):hover {
+.discover-folds
+  .discover-surprise-actions
+  .btn-primary:not(.discover-surprise-vault-btn):hover {
   transform: translateY(-2px);
-  filter: brightness(1.10);
-  box-shadow: 0 0 0 1px var(--p), 0 8px 24px var(--p-glow), 0 4px 12px rgba(8,8,13,0.5);
+  filter: brightness(1.1);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 8px 24px var(--p-glow),
+    0 4px 12px rgba(8, 8, 13, 0.5);
 }
 
 /* Premium floating shuffle — gold glow ring, premium glass */
@@ -1383,23 +1532,27 @@
   border: 1px solid var(--glass-border-warm-strong);
   color: var(--text-soft);
   box-shadow:
-    0 4px 12px rgba(0,0,0,0.5),
-    0 0 0 1px rgba(232,183,74,0.06),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    0 4px 12px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(232, 183, 74, 0.06),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 .discover-folds .discover-surprise-shuffle:hover {
   background: var(--glass-bg-strong);
   color: var(--p);
-  border-color: rgba(232,183,74,0.40);
+  border-color: rgba(232, 183, 74, 0.4);
   transform: scale(1.12);
   box-shadow:
-    0 8px 24px rgba(0,0,0,0.65),
+    0 8px 24px rgba(0, 0, 0, 0.65),
     0 0 16px var(--p-glow),
-    0 0 0 1px rgba(232,183,74,0.12),
-    inset 0 1px 0 rgba(232,183,74,0.14);
+    0 0 0 1px rgba(232, 183, 74, 0.12),
+    inset 0 1px 0 rgba(232, 183, 74, 0.14);
 }
 .discover-folds .discover-surprise-shuffle .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 500, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 0,
+    "wght" 500,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 /* Premium surprise content — constrained within card with top safe area.
@@ -1424,7 +1577,9 @@
     gap: 2px;
     max-width: 55%;
   }
-  .discover-folds .discover-surprise-overview { display: none; }
+  .discover-folds .discover-surprise-overview {
+    display: none;
+  }
   .discover-folds .discover-surprise-meta .v2-pill {
     padding: 0.2rem 0.35rem;
     font-size: 0.5rem;
@@ -1446,7 +1601,7 @@
 
 /* Premium discover-fold-label — already styled, just refine spacing */
 .discover-folds .discover-fold-label {
-  font-family: 'Bebas Neue', cursive;
+  font-family: "Bebas Neue", cursive;
   font-size: 1.5rem;
   font-weight: 400;
   letter-spacing: 0.06em;
@@ -1455,32 +1610,42 @@
   display: inline-flex;
   align-items: center;
   gap: var(--sp-2, 0.5rem);
-  text-shadow: 0 1px 4px rgba(0,0,0,0.5);
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.5);
   margin: 0;
 }
 @media (min-width: 640px) {
-  .discover-folds .discover-fold-label { font-size: 1.75rem; }
+  .discover-folds .discover-fold-label {
+    font-size: 1.75rem;
+  }
 }
 
 /* Premium accent bar before the label — bigger + double glow */
 .discover-folds .discover-fold-label::before {
-  content: '';
+  content: "";
   width: 4px;
   height: 22px;
   background: var(--p);
   border-radius: 2px;
   flex-shrink: 0;
-  box-shadow: 0 0 8px var(--p-glow), 0 0 16px var(--p-glow);
+  box-shadow:
+    0 0 8px var(--p-glow),
+    0 0 16px var(--p-glow);
 }
 @media (min-width: 640px) {
-  .discover-folds .discover-fold-label::before { height: 24px; }
+  .discover-folds .discover-fold-label::before {
+    height: 24px;
+  }
 }
 
 /* Premium fold label icon — gold, filled, with glow */
 .discover-folds .discover-fold-label .material-symbols-outlined {
   color: var(--p);
   font-size: 20px;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
   filter: drop-shadow(0 0 6px var(--p-glow));
 }
 
@@ -1491,29 +1656,34 @@
   gap: 0.125rem;
   padding: 0.375rem 0.625rem 0.375rem 0.75rem;
   border-radius: var(--radius-pill);
-  background: rgba(232,183,74,0.08);
+  background: rgba(232, 183, 74, 0.08);
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
-  border: 1px solid rgba(232,183,74,0.20);
-  font-family: 'Outfit', sans-serif;
+  border: 1px solid rgba(232, 183, 74, 0.2);
+  font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.04em;
   color: var(--p);
   cursor: pointer;
   flex-shrink: 0;
-  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.06);
-  transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .discover-folds .discover-fold-action:hover {
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
-  box-shadow: var(--active-glow), 0 4px 12px rgba(0,0,0,0.45);
+  box-shadow:
+    var(--active-glow),
+    0 4px 12px rgba(0, 0, 0, 0.45);
   transform: translateY(-1px);
 }
 .discover-folds .discover-fold-action:active {
@@ -1521,7 +1691,11 @@
 }
 .discover-folds .discover-fold-action .material-symbols-outlined {
   font-size: 14px;
-  font-variation-settings: 'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 400,
+    "GRAD" 0,
+    "opsz" 24;
 }
 
 /* Premium "See All" / "Load more" button — glassy gold pill */
@@ -1536,18 +1710,23 @@
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.06);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
   cursor: pointer;
-  transition: background var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .discover-folds .search-load-more:hover {
-  background: rgba(232,183,74,0.10);
-  border-color: rgba(232,183,74,0.30);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.4), 0 0 16px var(--p-glow),
-              inset 0 1px 0 rgba(232,183,74,0.10);
+  background: rgba(232, 183, 74, 0.1);
+  border-color: rgba(232, 183, 74, 0.3);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    0 0 16px var(--p-glow),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
   transform: translateY(-2px);
 }
 .discover-folds .search-load-more:active {
@@ -1556,7 +1735,7 @@
 
 /* Premium "Load more" text — gold Outfit */
 .discover-folds .search-load-more-text {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1567,7 +1746,7 @@
 
 /* Premium end-of-results text — Azeret Mono, centered */
 .discover-folds .search-end-of-results {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
   letter-spacing: 0.14em;
@@ -1584,14 +1763,18 @@
 .discover-folds .skeleton-base,
 .discover-folds .search-rail-poster.skeleton-base,
 .discover-folds .genre-explorer-panel .search-rail-poster.skeleton-base {
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.03) 25%,
-    rgba(232,183,74,0.08) 50%,
-    rgba(232,183,74,0.03) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.03) 25%,
+    rgba(232, 183, 74, 0.08) 50%,
+    rgba(232, 183, 74, 0.03) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
   border: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.40), inset 0 1px 0 rgba(232,183,74,0.04);
+  box-shadow:
+    0 4px 12px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.04);
 }
 
 /* Premium Discover skeleton — match the new premium Spotlight height
@@ -1614,21 +1797,27 @@
   box-shadow:
     var(--shadow-glass-elevated),
     0 0 24px var(--p-glow),
-    inset 0 1px 0 rgba(232,183,74,0.10);
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 @media (min-width: 640px) {
-  .discover-skeleton-spotlight { height: 640px; }
+  .discover-skeleton-spotlight {
+    height: 640px;
+  }
 }
 @media (min-width: 1024px) {
-  .discover-skeleton-spotlight { height: 680px; }
+  .discover-skeleton-spotlight {
+    height: 680px;
+  }
 }
 .discover-skeleton-spotlight-backdrop {
   position: absolute;
   inset: 0;
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.04) 25%,
-    rgba(232,183,74,0.10) 50%,
-    rgba(232,183,74,0.04) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.04) 25%,
+    rgba(232, 183, 74, 0.1) 50%,
+    rgba(232, 183, 74, 0.04) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -1652,10 +1841,12 @@
   height: 0.75rem;
   width: 50%;
   border-radius: var(--radius-sm);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.06) 25%,
-    rgba(232,183,74,0.14) 50%,
-    rgba(232,183,74,0.06) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.06) 25%,
+    rgba(232, 183, 74, 0.14) 50%,
+    rgba(232, 183, 74, 0.06) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -1663,24 +1854,31 @@
   height: 3rem;
   width: 80%;
   border-radius: var(--radius-md);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.06) 25%,
-    rgba(232,183,74,0.14) 50%,
-    rgba(232,183,74,0.06) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.06) 25%,
+    rgba(232, 183, 74, 0.14) 50%,
+    rgba(232, 183, 74, 0.06) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
 @media (min-width: 640px) {
-  .discover-skeleton-title { height: 4rem; width: 70%; }
+  .discover-skeleton-title {
+    height: 4rem;
+    width: 70%;
+  }
 }
 .discover-skeleton-meta {
   height: 1.5rem;
   width: 50%;
   border-radius: var(--radius-pill);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.04) 25%,
-    rgba(232,183,74,0.10) 50%,
-    rgba(232,183,74,0.04) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.04) 25%,
+    rgba(232, 183, 74, 0.1) 50%,
+    rgba(232, 183, 74, 0.04) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -1688,10 +1886,12 @@
   height: 2.75rem;
   width: 70%;
   border-radius: var(--radius-pill);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.04) 25%,
-    rgba(232,183,74,0.10) 50%,
-    rgba(232,183,74,0.04) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.04) 25%,
+    rgba(232, 183, 74, 0.1) 50%,
+    rgba(232, 183, 74, 0.04) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
   margin-top: var(--sp-2, 0.5rem);
@@ -1705,10 +1905,12 @@
   height: 1.5rem;
   width: 30%;
   border-radius: var(--radius-sm);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.04) 25%,
-    rgba(232,183,74,0.10) 50%,
-    rgba(232,183,74,0.04) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.04) 25%,
+    rgba(232, 183, 74, 0.1) 50%,
+    rgba(232, 183, 74, 0.04) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
 }
@@ -1721,18 +1923,22 @@
   width: 140px;
   aspect-ratio: 2 / 3;
   border-radius: var(--radius-card, 14px);
-  background: linear-gradient(105deg,
-    rgba(232,183,74,0.03) 25%,
-    rgba(232,183,74,0.08) 50%,
-    rgba(232,183,74,0.03) 75%);
+  background: linear-gradient(
+    105deg,
+    rgba(232, 183, 74, 0.03) 25%,
+    rgba(232, 183, 74, 0.08) 50%,
+    rgba(232, 183, 74, 0.03) 75%
+  );
   background-size: 300% 100%;
   animation: shimmer 1.6s ease-in-out infinite;
   border: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 4px 12px rgba(0,0,0,0.40);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
   flex-shrink: 0;
 }
 @media (min-width: 640px) {
-  .discover-skeleton-card { width: 170px; }
+  .discover-skeleton-card {
+    width: 170px;
+  }
 }
 
 /* ============================================================
@@ -1753,19 +1959,25 @@
   -webkit-backdrop-filter: blur(16px) saturate(140%);
   border: 1px solid var(--glass-border-warm-strong);
   border-radius: var(--radius-lg);
-  box-shadow: 0 2px 12px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.04);
+  box-shadow:
+    0 2px 12px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.04);
 }
 
 .discover-folds .discover-empty-icon {
   font-size: 36px !important;
   color: var(--p);
   opacity: 0.7;
-  font-variation-settings: 'FILL' 1, 'wght' 300, 'GRAD' 0, 'opsz' 48;
+  font-variation-settings:
+    "FILL" 1,
+    "wght" 300,
+    "GRAD" 0,
+    "opsz" 48;
   filter: drop-shadow(0 0 12px var(--p-glow));
 }
 
 .discover-folds .discover-empty-message {
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.9375rem;
   font-weight: 500;
   color: var(--text-soft);
@@ -1775,10 +1987,10 @@
 }
 
 .discover-folds .discover-empty-hint {
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
   font-weight: 700;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--text-muted);
   margin: 0;
@@ -1788,13 +2000,13 @@
   margin-top: var(--sp-2, 0.5rem);
   padding: 0.5rem 1rem;
   font-size: 0.625rem;
-  letter-spacing: 0.10em;
+  letter-spacing: 0.1em;
   text-transform: uppercase;
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-weight: 700;
   color: var(--p);
   border-color: color-mix(in srgb, var(--p) 30%, transparent);
-  background: rgba(232,183,74,0.08);
+  background: rgba(232, 183, 74, 0.08);
   backdrop-filter: blur(8px) saturate(140%);
   -webkit-backdrop-filter: blur(8px) saturate(140%);
 }
@@ -1817,7 +2029,9 @@
   -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   border-radius: var(--radius-xl, 16px);
-  box-shadow: var(--shadow-glass-card), inset 0 1px 0 rgba(232,183,74,0.06);
+  box-shadow:
+    var(--shadow-glass-card),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
 }
 
 /* ============================================================
@@ -1849,23 +2063,26 @@
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  box-shadow: 0 2px 8px rgba(0,0,0,0.30), inset 0 1px 0 rgba(232,183,74,0.06);
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
   color: var(--text-soft);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
   white-space: nowrap;
-  transition: background var(--dur-base) var(--ease-out),
-              border-color var(--dur-base) var(--ease-out),
-              color var(--dur-base) var(--ease-out),
-              box-shadow var(--dur-base) var(--ease-out),
-              transform var(--dur-fast) var(--ease-spring);
+  transition:
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out),
+    transform var(--dur-fast) var(--ease-spring);
 }
 .discover-folds .discover-fold .quick-filter-tab:hover {
-  background: rgba(232,183,74,0.10);
-  border-color: rgba(232,183,74,0.25);
+  background: rgba(232, 183, 74, 0.1);
+  border-color: rgba(232, 183, 74, 0.25);
   color: var(--text-strong);
   transform: translateY(-1px);
 }
@@ -1875,9 +2092,9 @@
   color: var(--active-text);
   box-shadow:
     var(--active-glow),
-    0 4px 16px rgba(0,0,0,0.45),
+    0 4px 16px rgba(0, 0, 0, 0.45),
     0 0 20px var(--p-glow),
-    inset 0 1px 0 rgba(255,255,255,0.12);
+    inset 0 1px 0 rgba(255, 255, 255, 0.12);
   font-weight: 700;
 }
 
@@ -1894,16 +2111,20 @@
   -ms-overflow-style: none;
   padding: var(--sp-2, 0.5rem) 2px var(--sp-3, 0.75rem);
   scroll-behavior: smooth;
-  -webkit-mask-image: linear-gradient(to right,
+  -webkit-mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
-  mask-image: linear-gradient(to right,
+    transparent 100%
+  );
+  mask-image: linear-gradient(
+    to right,
     transparent 0,
     black 4px,
     black calc(100% - 4px),
-    transparent 100%);
+    transparent 100%
+  );
 }
 .discover-folds .ott-provider-bar::-webkit-scrollbar {
   display: none;

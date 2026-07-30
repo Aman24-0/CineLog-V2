@@ -24,13 +24,17 @@ import type {
   AuthError,
   Session,
   Subscription,
-  User,
+  User
 } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 import { getClient } from "./client";
 import { createServerClient } from "./server";
 import { getBrowserClient } from "./browser";
-import { SessionRequiredError, requireSession, requireUser } from "./sessionGuards";
+import {
+  SessionRequiredError,
+  requireSession,
+  requireUser
+} from "./sessionGuards";
 
 // Re-export the types callers commonly need alongside session helpers.
 export type { AuthChangeEvent, AuthError, Session, Subscription, User };
@@ -48,7 +52,7 @@ export { SessionRequiredError, requireSession, requireUser };
  */
 export type SessionChangeCallback = (
   event: AuthChangeEvent,
-  session: Session | null,
+  session: Session | null
 ) => void | Promise<void>;
 
 /**
@@ -66,7 +70,9 @@ export interface SessionSubscription {
  * `unsubscribe` is also a no-op), so callers do not need to wrap it
  * in `onMount` guards.
  */
-export function onSessionChange(callback: SessionChangeCallback): SessionSubscription {
+export function onSessionChange(
+  callback: SessionChangeCallback
+): SessionSubscription {
   if (isServer) {
     return { unsubscribe: () => {} };
   }
@@ -75,10 +81,10 @@ export function onSessionChange(callback: SessionChangeCallback): SessionSubscri
     (event, session) => {
       // Fire-and-forget; the SDK does not await the callback.
       void callback(event, session);
-    },
+    }
   );
   return {
-    unsubscribe: () => subscription.subscription.unsubscribe(),
+    unsubscribe: () => subscription.subscription.unsubscribe()
   };
 }
 
@@ -94,7 +100,7 @@ export async function getServerSession(): Promise<Session | null> {
   if (!isServer) {
     throw new Error(
       "[CineLog Supabase] getServerSession() was called on the browser. " +
-        'Use getBrowserSession() from "src/lib/supabase/session.ts" instead.',
+        'Use getBrowserSession() from "src/lib/supabase/session.ts" instead.'
     );
   }
   // No persisted session on the server without cookie forwarding.
@@ -114,7 +120,7 @@ export async function getBrowserSession(): Promise<Session | null> {
   if (isServer) {
     throw new Error(
       "[CineLog Supabase] getBrowserSession() was called on the server. " +
-        'Use getServerSession() from "src/lib/supabase/session.ts" instead.',
+        'Use getServerSession() from "src/lib/supabase/session.ts" instead.'
     );
   }
   const supabase = getBrowserClient();

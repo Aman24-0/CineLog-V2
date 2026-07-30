@@ -2,14 +2,14 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("~/lib/supabase/repositories", () => ({
-  getCollectionRepository: vi.fn(),
+  getCollectionRepository: vi.fn()
 }));
 
 vi.mock("../collectionEntryAdapter", () => ({
   fetchEntriesForCollection: vi.fn().mockResolvedValue([]),
   addEntryToCollection: vi.fn(),
   removeEntryFromCollection: vi.fn(),
-  reorderEntriesInCollection: vi.fn(),
+  reorderEntriesInCollection: vi.fn()
 }));
 
 import {
@@ -18,7 +18,7 @@ import {
   deleteCollectionInSupabase,
   restoreCollectionInSupabase,
   renameCollectionInSupabase,
-  ensureFavoritesExistsInSupabase,
+  ensureFavoritesExistsInSupabase
 } from "../collectionAdapter";
 import { getCollectionRepository } from "~/lib/supabase/repositories";
 import type { CollectionRow } from "~/lib/supabase/repositories";
@@ -35,7 +35,7 @@ const mockCollectionRow: CollectionRow = {
   view_mode: "grid",
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as CollectionRow;
 
 describe("collectionAdapter", () => {
@@ -46,7 +46,9 @@ describe("collectionAdapter", () => {
   describe("fetchCollectionsFromSupabase", () => {
     it("returns collections with entries on success", async () => {
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [mockCollectionRow], error: null }),
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [mockCollectionRow], error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
       vi.mocked(fetchEntriesForCollection).mockResolvedValue([]);
@@ -60,7 +62,9 @@ describe("collectionAdapter", () => {
 
     it("returns empty array on error", async () => {
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [], error: new Error("Fail") }),
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [], error: new Error("Fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -70,7 +74,7 @@ describe("collectionAdapter", () => {
 
     it("returns empty array when no collections", async () => {
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [], error: null }),
+        getCollections: vi.fn().mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -83,12 +87,14 @@ describe("collectionAdapter", () => {
         ...mockCollectionRow,
         id: "favorites",
         name: "Favorites",
-        collection_type: "user",
+        collection_type: "user"
       };
       // The isFavorites flag is derived from the name "Favorites" in the mapper
       const otherRow = { ...mockCollectionRow, id: "col-2", name: "Other" };
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [otherRow, favoritesRow], error: null }),
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [otherRow, favoritesRow], error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
       vi.mocked(fetchEntriesForCollection).mockResolvedValue([]);
@@ -102,23 +108,30 @@ describe("collectionAdapter", () => {
   describe("createCollectionInSupabase", () => {
     it("returns collection id on success", async () => {
       const mockRepo = {
-        createCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createCollectionInSupabase("user-1", "New Collection");
+      const result = await createCollectionInSupabase(
+        "user-1",
+        "New Collection"
+      );
       expect(result).toBe("col-1");
       expect(mockRepo.createCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: "user-1",
-          name: "New Collection",
-        }),
+          name: "New Collection"
+        })
       );
     });
 
     it("returns null on error", async () => {
       const mockRepo = {
-        createCollection: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -130,8 +143,8 @@ describe("collectionAdapter", () => {
       const mockRepo = {
         createCollection: vi.fn().mockResolvedValue({
           data: null,
-          error: new Error("name must be non-empty"),
-        }),
+          error: new Error("name must be non-empty")
+        })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -143,42 +156,58 @@ describe("collectionAdapter", () => {
   describe("deleteCollectionInSupabase", () => {
     it("completes without error on success", async () => {
       const mockRepo = {
-        deleteCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        deleteCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      await expect(deleteCollectionInSupabase("col-1")).resolves.toBeUndefined();
+      await expect(
+        deleteCollectionInSupabase("col-1")
+      ).resolves.toBeUndefined();
       expect(mockRepo.deleteCollection).toHaveBeenCalledWith("col-1");
     });
 
     it("throws on error", async () => {
       const mockRepo = {
-        deleteCollection: vi.fn().mockResolvedValue({ data: null, error: new Error("Delete fail") }),
+        deleteCollection: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Delete fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      await expect(deleteCollectionInSupabase("col-1")).rejects.toThrow("Delete fail");
+      await expect(deleteCollectionInSupabase("col-1")).rejects.toThrow(
+        "Delete fail"
+      );
     });
   });
 
   describe("restoreCollectionInSupabase", () => {
     it("completes without error on success", async () => {
       const mockRepo = {
-        restoreCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        restoreCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      await expect(restoreCollectionInSupabase("col-1")).resolves.toBeUndefined();
+      await expect(
+        restoreCollectionInSupabase("col-1")
+      ).resolves.toBeUndefined();
       expect(mockRepo.restoreCollection).toHaveBeenCalledWith("col-1");
     });
 
     it("throws on error", async () => {
       const mockRepo = {
-        restoreCollection: vi.fn().mockResolvedValue({ data: null, error: new Error("Restore fail") }),
+        restoreCollection: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Restore fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      await expect(restoreCollectionInSupabase("col-1")).rejects.toThrow("Restore fail");
+      await expect(restoreCollectionInSupabase("col-1")).rejects.toThrow(
+        "Restore fail"
+      );
     });
   });
 
@@ -187,20 +216,22 @@ describe("collectionAdapter", () => {
   describe("renameCollectionInSupabase", () => {
     it("calls updateCollection with the new name", async () => {
       const mockRepo = {
-        updateCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        updateCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
       await renameCollectionInSupabase("col-1", "Renamed");
       expect(mockRepo.updateCollection).toHaveBeenCalledWith("col-1", {
-        name: "Renamed",
+        name: "Renamed"
       });
     });
 
     it("throws when the repository returns an error", async () => {
       const err = new Error("Rename failed");
       const mockRepo = {
-        updateCollection: vi.fn().mockResolvedValue({ data: null, error: err }),
+        updateCollection: vi.fn().mockResolvedValue({ data: null, error: err })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -216,7 +247,7 @@ describe("collectionAdapter", () => {
         getCollections: vi.fn().mockResolvedValue({ data: [], error: null }),
         createCollection: vi
           .fn()
-          .mockResolvedValue({ data: mockCollectionRow, error: null }),
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -232,7 +263,7 @@ describe("collectionAdapter", () => {
         getCollections: vi
           .fn()
           .mockResolvedValue({ data: [favoritesRow], error: null }),
-        createCollection: vi.fn(),
+        createCollection: vi.fn()
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -244,9 +275,9 @@ describe("collectionAdapter", () => {
       const mockRepo = {
         getCollections: vi.fn().mockResolvedValue({
           data: [],
-          error: new Error("Fetch failed"),
+          error: new Error("Fetch failed")
         }),
-        createCollection: vi.fn(),
+        createCollection: vi.fn()
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -264,12 +295,16 @@ describe("collectionAdapter", () => {
       // being created (they're different names). But if "Favorites"
       // (exact) already exists, no duplicate is created.
       const favoritesRow = { ...mockCollectionRow, name: "Favorites" };
-      const otherRow = { ...mockCollectionRow, id: "col-2", name: "My Favorites" };
+      const otherRow = {
+        ...mockCollectionRow,
+        id: "col-2",
+        name: "My Favorites"
+      };
       const mockRepo = {
         getCollections: vi
           .fn()
           .mockResolvedValue({ data: [otherRow, favoritesRow], error: null }),
-        createCollection: vi.fn(),
+        createCollection: vi.fn()
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -283,12 +318,15 @@ describe("collectionAdapter", () => {
       const mockRepo = {
         createCollection: vi
           .fn()
-          .mockResolvedValue({ data: { ...mockCollectionRow, id: "smart-id" }, error: null }),
+          .mockResolvedValue({
+            data: { ...mockCollectionRow, id: "smart-id" },
+            error: null
+          })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
       await createCollectionInSupabase("user-1", "Smart", {
-        collectionType: "smart",
+        collectionType: "smart"
       });
       expect(mockRepo.createCollection).toHaveBeenCalledWith(
         expect.objectContaining({ collectionType: "smart" })
@@ -301,8 +339,8 @@ describe("collectionAdapter", () => {
       const mockRepo = {
         getCollections: vi.fn().mockResolvedValue({
           data: [mockCollectionRow, { ...mockCollectionRow, id: "col-2" }],
-          error: null,
-        }),
+          error: null
+        })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
       vi.mocked(fetchEntriesForCollection).mockResolvedValue([]);

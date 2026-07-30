@@ -1,11 +1,108 @@
 // src/features/watchlist/components/VaultCard.tsx
-import { Show } from "solid-js";
+import { Show, createMemo, type JSX } from "solid-js";
 import Icon from "~/shared/ui/Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import { getEpisodeProgress } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 import { GlassCard } from "~/shared/ui/glass";
+
+// ─── Module-level style constants ────────────────────────────────────
+// VaultCard is rendered for every row in the Timeline view (potentially
+// 100+ rows). Extracting these static styles keeps mount allocations
+// to a minimum.
+const POSTER_THUMB_STYLE: JSX.CSSProperties = {
+  background: "var(--tier-3)",
+  "box-shadow": "var(--shadow-premium)"
+};
+const POSTER_FALLBACK_ICON_STYLE: JSX.CSSProperties = {
+  color: "var(--text-dim)",
+  "font-size": "20px"
+};
+const PROGRESS_TRACK_STYLE: JSX.CSSProperties = {
+  background: "rgba(255,255,255,0.20)"
+};
+const PROGRESS_FILL_BASE_STYLE: JSX.CSSProperties = {
+  background: "var(--p, #e8b74a)",
+  transition: "width 400ms ease-out"
+};
+const SELECTION_BASE_STYLE: JSX.CSSProperties = {
+  width: "24px",
+  height: "24px"
+};
+const SELECTION_SELECTED_STYLE: JSX.CSSProperties = {
+  ...SELECTION_BASE_STYLE,
+  background: "var(--p)",
+  border: "none"
+};
+const SELECTION_UNSELECTED_STYLE: JSX.CSSProperties = {
+  ...SELECTION_BASE_STYLE,
+  background: "rgba(0,0,0,0.5)",
+  border: "2px solid rgba(255,255,255,0.3)"
+};
+const CHECK_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "14px",
+  color: "var(--on-primary, #0a0a0a)"
+};
+const TITLE_TEXT_STYLE: JSX.CSSProperties = {
+  "font-size": "0.875rem",
+  "font-weight": 700,
+  margin: 0
+};
+const MEDIA_TYPE_BADGE_STYLE: JSX.CSSProperties = {
+  background: "rgba(255,255,255,0.04)",
+  color: "var(--text-soft)",
+  padding: "2px 6px",
+  "border-radius": "4px",
+  "font-size": "0.5rem",
+  border: "1px solid var(--hairline)"
+};
+const YEAR_META_STYLE: JSX.CSSProperties = {
+  "font-size": "0.5rem",
+  color: "var(--text-muted)"
+};
+const RUNTIME_META_STYLE: JSX.CSSProperties = {
+  "font-size": "0.5rem",
+  color: "var(--text-muted)"
+};
+const IMDB_RATING_STYLE: JSX.CSSProperties = {
+  "font-size": "0.5625rem",
+  color: "#f5c518"
+};
+const IMDB_STAR_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "10px",
+  color: "#f5c518"
+};
+const USER_RATING_STYLE: JSX.CSSProperties = {
+  "font-size": "0.5625rem",
+  color: "var(--p)"
+};
+const USER_RATING_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "10px",
+  color: "var(--p)"
+};
+const COMPLETED_BADGE_STYLE: JSX.CSSProperties = {
+  "font-size": "0.5rem",
+  color: "#60a5fa",
+  background: "rgba(96,165,250,0.08)",
+  border: "1px solid rgba(96,165,250,0.25)",
+  padding: "2px 6px",
+  "border-radius": "var(--radius-pill)"
+};
+const COMPLETED_ICON_STYLE: JSX.CSSProperties = { "font-size": "10px" };
+const EPISODE_TEXT_STYLE: JSX.CSSProperties = { "font-size": "0.5625rem" };
+const EPISODE_LABEL_STYLE: JSX.CSSProperties = {
+  color: "var(--p)",
+  "font-weight": 600
+};
+const EPISODE_DOT_STYLE: JSX.CSSProperties = { color: "var(--text-dim)" };
+const EPISODE_FRACTION_STYLE: JSX.CSSProperties = {
+  color: "var(--text-muted)"
+};
+const CHEVRON_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "24px",
+  color: "var(--p)"
+};
 
 interface VaultCardProps {
   item: WatchlistItem;
@@ -37,7 +134,9 @@ interface VaultCardProps {
 export default function VaultCard(props: VaultCardProps) {
   const title = () => props.item.title || props.item.name || "Untitled";
   const year = () =>
-    (props.item.release_date || props.item.first_air_date || "").split("-")[0] || "";
+    (props.item.release_date || props.item.first_air_date || "").split(
+      "-"
+    )[0] || "";
 
   const statusLabel = () => {
     const s = props.item.status;
@@ -57,9 +156,20 @@ export default function VaultCard(props: VaultCardProps) {
     return getEpisodeProgress(props.item);
   };
 
+  // Memoized reactive styles — depend on signals so they need to
+  // re-create when their inputs change, but createMemo gives them a
+  // stable identity between unrelated reactive updates.
+  const progressFillStyle = createMemo(() => ({
+    ...PROGRESS_FILL_BASE_STYLE,
+    width: `${episodeProgress()?.pct ?? 0}%`
+  }));
+  const selectionStyle = createMemo(() =>
+    props.isSelected ? SELECTION_SELECTED_STYLE : SELECTION_UNSELECTED_STYLE
+  );
+
   return (
     <div
-      class="relative flex items-center group cursor-pointer pl-3 pr-3 animate-timeline-in"
+      class="animate-timeline-in group relative flex cursor-pointer items-center pl-3 pr-3"
       onClick={() => {
         if (props.isSelectionMode) {
           props.onToggleSelect?.();
@@ -88,7 +198,7 @@ export default function VaultCard(props: VaultCardProps) {
           date context). Hidden when there's no date (avoids empty pill). */}
       <Show when={props.date}>
         <div
-          class="timeline-day-pill shrink-0 flex flex-col items-center justify-center"
+          class="timeline-day-pill flex shrink-0 flex-col items-center justify-center"
           aria-hidden="true"
         >
           <span class="timeline-day-num">
@@ -101,25 +211,34 @@ export default function VaultCard(props: VaultCardProps) {
       </Show>
 
       {/* Timeline card body */}
-      <GlassCard variant="glass" class="timeline-card w-full p-3 rounded-[1.5rem] flex gap-3 items-center" interactive>
+      <GlassCard
+        variant="glass"
+        class="timeline-card flex w-full items-center gap-3 rounded-[1.5rem] p-3"
+        interactive
+      >
         {/* Poster thumbnail with progress bar */}
         <div
-          class="w-14 h-20 sm:w-16 sm:h-24 rounded-xl overflow-hidden relative shrink-0"
-          style={{ background: "var(--tier-3)", "box-shadow": "var(--shadow-premium)" }}
+          class="relative h-20 w-14 shrink-0 overflow-hidden rounded-xl sm:h-24 sm:w-16"
+          style={POSTER_THUMB_STYLE}
         >
           <Show
             when={posterUrl()}
             fallback={
-              <div class="absolute inset-0 flex items-center justify-center" aria-hidden="true">
-                <Icon name="movie" style={{"color":"var(--text-dim)","font-size":"20px"}} />
+              <div
+                class="absolute inset-0 flex items-center justify-center"
+                aria-hidden="true"
+              >
+                <Icon name="movie" style={POSTER_FALLBACK_ICON_STYLE} />
               </div>
             }
           >
             <div class="poster-loading" aria-hidden="true" />
             <img
-              onError={(e) => { e.currentTarget.style.display = "none"; }}
+              onError={(e) => {
+                e.currentTarget.style.display = "none";
+              }}
               src={posterUrl()}
-              class="poster-img absolute inset-0 w-full h-full object-cover"
+              class="poster-img absolute inset-0 h-full w-full object-cover"
               loading="lazy"
               decoding="async"
               onLoad={(e) => {
@@ -135,37 +254,25 @@ export default function VaultCard(props: VaultCardProps) {
               the poster thumbnail, ONLY for TV shows with status "Watching". */}
           <Show when={episodeProgress()}>
             <div
-              class="absolute bottom-0 left-0 w-full h-1"
-              style={{ background: "rgba(255,255,255,0.20)" }}
+              class="absolute bottom-0 left-0 h-1 w-full"
+              style={PROGRESS_TRACK_STYLE}
               aria-hidden="true"
             >
-              <div
-                class="h-full"
-                style={{
-                  background: "var(--p, #e8b74a)",
-                  width: `${episodeProgress()!.pct}%`,
-                  transition: "width 400ms ease-out",
-                }}
-              />
+              <div class="h-full" style={progressFillStyle()} />
             </div>
           </Show>
 
           {/* Selection mode checkbox overlay */}
           <Show when={props.isSelectionMode}>
             <div
-              class="absolute top-1 right-1 z-[4] flex items-center justify-center rounded-full"
-              style={{
-                width: "24px",
-                height: "24px",
-                background: props.isSelected ? "var(--p)" : "rgba(0,0,0,0.5)",
-                border: props.isSelected ? "none" : "2px solid rgba(255,255,255,0.3)",
-              }}
+              class="absolute right-1 top-1 z-[4] flex items-center justify-center rounded-full"
+              style={selectionStyle()}
               aria-hidden="true"
             >
               <Show when={props.isSelected}>
                 <span
                   class="material-symbols-outlined"
-                  style={{ "font-size": "14px", color: "var(--on-primary, #0a0a0a)" }}
+                  style={CHECK_ICON_STYLE}
                 >
                   check
                 </span>
@@ -175,35 +282,25 @@ export default function VaultCard(props: VaultCardProps) {
         </div>
 
         {/* Info cluster */}
-        <div class="flex-1 flex flex-col justify-center py-1 min-w-0 gap-1.5">
+        <div class="flex min-w-0 flex-1 flex-col justify-center gap-1.5 py-1">
           <p
-            class="type-headline text-white group-hover:text-white truncate"
-            style={{ "font-size": "0.875rem", "font-weight": 700, margin: 0 }}
+            class="type-headline truncate text-white group-hover:text-white"
+            style={TITLE_TEXT_STYLE}
           >
             {title()}
           </p>
 
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <span
-              class="type-meta shrink-0"
-              style={{
-                background: "rgba(255,255,255,0.04)",
-                color: "var(--text-soft)",
-                padding: "2px 6px",
-                "border-radius": "4px",
-                "font-size": "0.5rem",
-                border: "1px solid var(--hairline)"
-              }}
-            >
+          <div class="flex flex-wrap items-center gap-1.5">
+            <span class="type-meta shrink-0" style={MEDIA_TYPE_BADGE_STYLE}>
               {props.item.media_type === "tv" ? "Series" : "Movie"}
             </span>
             <Show when={year()}>
-              <span class="type-meta shrink-0" style={{ "font-size": "0.5rem", color: "var(--text-muted)" }}>
+              <span class="type-meta shrink-0" style={YEAR_META_STYLE}>
                 {year()}
               </span>
             </Show>
             <Show when={props.item.runtime && props.item.runtime > 0}>
-              <span class="type-meta shrink-0" style={{ "font-size": "0.5rem", color: "var(--text-muted)" }}>
+              <span class="type-meta shrink-0" style={RUNTIME_META_STYLE}>
                 · {formatRuntime(props.item.runtime)}
               </span>
             </Show>
@@ -213,32 +310,45 @@ export default function VaultCard(props: VaultCardProps) {
           <Show
             when={episodeProgress()}
             fallback={
-              <div class="flex items-center gap-2 flex-wrap">
+              <div class="flex flex-wrap items-center gap-2">
                 <Show when={props.item.imdbRating}>
-                  <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "#f5c518" }}>
-                    <Icon name="star" fill style={{"font-size":"10px","color":"#f5c518"}} aria-hidden="true" />
+                  <span
+                    class="type-meta inline-flex items-center gap-1"
+                    style={IMDB_RATING_STYLE}
+                  >
+                    <Icon
+                      name="star"
+                      fill
+                      style={IMDB_STAR_ICON_STYLE}
+                      aria-hidden="true"
+                    />
                     {props.item.imdbRating}
                   </span>
                 </Show>
                 <Show when={props.item.rating}>
-                  <span class="inline-flex items-center gap-1 type-meta" style={{ "font-size": "0.5625rem", color: "var(--p)" }}>
-                    <Icon name="person" fill style={{"font-size":"10px","color":"var(--p)"}} aria-hidden="true" />
+                  <span
+                    class="type-meta inline-flex items-center gap-1"
+                    style={USER_RATING_STYLE}
+                  >
+                    <Icon
+                      name="person"
+                      fill
+                      style={USER_RATING_ICON_STYLE}
+                      aria-hidden="true"
+                    />
                     {props.item.rating}/10
                   </span>
                 </Show>
                 <Show when={props.item.status === "Completed"}>
                   <span
-                    class="inline-flex items-center gap-1 type-meta shrink-0"
-                    style={{
-                      "font-size": "0.5rem",
-                      color: "#60a5fa",
-                      background: "rgba(96,165,250,0.08)",
-                      border: "1px solid rgba(96,165,250,0.25)",
-                      padding: "2px 6px",
-                      "border-radius": "var(--radius-pill)"
-                    }}
+                    class="type-meta inline-flex shrink-0 items-center gap-1"
+                    style={COMPLETED_BADGE_STYLE}
                   >
-                    <Icon name="task_alt" style={{"font-size":"10px"}} aria-hidden="true" />
+                    <Icon
+                      name="task_alt"
+                      style={COMPLETED_ICON_STYLE}
+                      aria-hidden="true"
+                    />
                     {statusLabel()}
                   </span>
                 </Show>
@@ -247,14 +357,18 @@ export default function VaultCard(props: VaultCardProps) {
           >
             {/* TV episode progress text: S{season} E{episode} • {watched}/{total} Eps
                 When totalEps is 0 (no season data), show ONLY S{season} E{episode}. */}
-            <div class="flex items-center gap-1.5 type-meta" style={{ "font-size": "0.5625rem" }}>
-              <span style={{ color: "var(--p)", "font-weight": 600 }}>
+            <div
+              class="type-meta flex items-center gap-1.5"
+              style={EPISODE_TEXT_STYLE}
+            >
+              <span style={EPISODE_LABEL_STYLE}>
                 S{episodeProgress()!.season} E{episodeProgress()!.episode}
               </span>
               <Show when={episodeProgress()!.seriesTotalEps > 0}>
-                <span style={{ color: "var(--text-dim)" }}>·</span>
-                <span style={{ color: "var(--text-muted)" }}>
-                  {episodeProgress()!.seriesCompletedEps}/{episodeProgress()!.seriesTotalEps} Eps
+                <span style={EPISODE_DOT_STYLE}>·</span>
+                <span style={EPISODE_FRACTION_STYLE}>
+                  {episodeProgress()!.seriesCompletedEps}/
+                  {episodeProgress()!.seriesTotalEps} Eps
                 </span>
               </Show>
             </div>
@@ -263,10 +377,10 @@ export default function VaultCard(props: VaultCardProps) {
 
         {/* Hover chevron */}
         <div
-          class="hidden sm:flex self-center pr-2 opacity-0 group-hover:opacity-100 transition-opacity duration-200 shrink-0"
+          class="hidden shrink-0 self-center pr-2 opacity-0 transition-opacity duration-200 group-hover:opacity-100 sm:flex"
           aria-hidden="true"
         >
-          <Icon name="chevron_right" style={{"font-size":"24px","color":"var(--p)"}} />
+          <Icon name="chevron_right" style={CHEVRON_ICON_STYLE} />
         </div>
       </GlassCard>
     </div>

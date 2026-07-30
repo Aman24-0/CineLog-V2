@@ -69,7 +69,7 @@ const CANONICAL_DISPLAY_NAME: Record<CanonicalProviderKey, string> = {
   paramount_plus: "Paramount+",
   peacock: "Peacock",
   discovery_plus: "Discovery+",
-  other: "Streaming",
+  other: "Streaming"
 };
 
 /** Contextual subtitle for each canonical provider. */
@@ -89,7 +89,7 @@ const CANONICAL_SUBTITLE: Record<CanonicalProviderKey, string> = {
   paramount_plus: "Originals & Movies",
   peacock: "Peacock Picks",
   discovery_plus: "Reality & Docs",
-  other: "Streaming now",
+  other: "Streaming now"
 };
 
 /**
@@ -111,10 +111,10 @@ const TMDB_ID_TO_CANONICAL: Record<number, CanonicalProviderKey> = {
   122: "jiohotstar",
 
   // Prime Video — TMDB lists multiple Amazon variants. Merge them all.
-  9: "prime_video",     // "Amazon Prime Video" (canonical)
-  119: "prime_video",   // "Amazon Prime Video" (alt ID in some regions)
-  10: "prime_video",    // "Amazon Video" (rental arm, same service)
-  35: "prime_video",    // "Amazon" (rare alias)
+  9: "prime_video", // "Amazon Prime Video" (canonical)
+  119: "prime_video", // "Amazon Prime Video" (alt ID in some regions)
+  10: "prime_video", // "Amazon Video" (rental arm, same service)
+  35: "prime_video", // "Amazon" (rare alias)
 
   // SonyLIV
   543: "sonyliv",
@@ -126,8 +126,8 @@ const TMDB_ID_TO_CANONICAL: Record<number, CanonicalProviderKey> = {
   283: "crunchyroll",
 
   // Apple TV+ — multiple aliases
-  350: "apple_tv",      // "Apple TV Plus"
-  2: "apple_tv",        // "Apple iTunes" (Apple's video store, merged for display)
+  350: "apple_tv", // "Apple TV Plus"
+  2: "apple_tv", // "Apple iTunes" (Apple's video store, merged for display)
 
   // Disney+
   337: "disney_plus",
@@ -143,7 +143,7 @@ const TMDB_ID_TO_CANONICAL: Record<number, CanonicalProviderKey> = {
 
   // Max (HBO Max)
   1899: "max",
-  384: "max",           // legacy "HBO Max" ID
+  384: "max", // legacy "HBO Max" ID
 
   // Paramount+
   531: "paramount_plus",
@@ -153,7 +153,7 @@ const TMDB_ID_TO_CANONICAL: Record<number, CanonicalProviderKey> = {
   444: "peacock",
 
   // Discovery+
-  335: "discovery_plus",
+  335: "discovery_plus"
 };
 
 /**
@@ -173,12 +173,12 @@ export interface PrimaryProviderDef {
 }
 
 export const PRIMARY_PROVIDER_ORDER: PrimaryProviderDef[] = [
-  { canonical: "netflix",      ids: [8] },
-  { canonical: "jiohotstar",   ids: [554, 122] },
-  { canonical: "prime_video",  ids: [9, 119, 10, 35] },
-  { canonical: "sonyliv",      ids: [543] },
-  { canonical: "zee5",         ids: [567] },
-  { canonical: "crunchyroll",  ids: [283] },
+  { canonical: "netflix", ids: [8] },
+  { canonical: "jiohotstar", ids: [554, 122] },
+  { canonical: "prime_video", ids: [9, 119, 10, 35] },
+  { canonical: "sonyliv", ids: [543] },
+  { canonical: "zee5", ids: [567] },
+  { canonical: "crunchyroll", ids: [283] }
 ];
 
 /** Resolve a TMDB provider ID to its canonical key. */
@@ -244,7 +244,7 @@ export function mergeProviders(rows: TmdbProviderRow[]): MergedProvider[] {
           allTmdbIds: [row.providerId],
           displayName: row.providerName,
           subtitle: subtitleFor("other"),
-          logoPath: row.logoPath,
+          logoPath: row.logoPath
         });
       }
       continue;
@@ -257,7 +257,7 @@ export function mergeProviders(rows: TmdbProviderRow[]): MergedProvider[] {
         allTmdbIds: [row.providerId],
         displayName: displayNameFor(canonical),
         subtitle: subtitleFor(canonical),
-        logoPath: row.logoPath,
+        logoPath: row.logoPath
       });
     } else {
       // Merge — keep the first non-null logo, append the ID.
@@ -280,23 +280,24 @@ export function mergeProviders(rows: TmdbProviderRow[]): MergedProvider[] {
  * the region's provider list.
  */
 export function buildPrimaryProviders(
-  availableTmdbIds: Set<number>,
+  availableTmdbIds: Set<number>
 ): MergedProvider[] {
-  return PRIMARY_PROVIDER_ORDER
-    .filter((def) => def.ids.some((id) => availableTmdbIds.has(id)))
-    .map((def) => {
-      // Use the FIRST available ID as the query ID (prefers the canonical
-      // order in def.ids, but falls back to any available alias).
-      const queryId = def.ids.find((id) => availableTmdbIds.has(id)) ?? def.ids[0];
-      return {
-        canonical: def.canonical,
-        primaryTmdbId: queryId,
-        allTmdbIds: def.ids,
-        displayName: displayNameFor(def.canonical),
-        subtitle: subtitleFor(def.canonical),
-        logoPath: null, // resolved by caller from the TMDB list
-      };
-    });
+  return PRIMARY_PROVIDER_ORDER.filter((def) =>
+    def.ids.some((id) => availableTmdbIds.has(id))
+  ).map((def) => {
+    // Use the FIRST available ID as the query ID (prefers the canonical
+    // order in def.ids, but falls back to any available alias).
+    const queryId =
+      def.ids.find((id) => availableTmdbIds.has(id)) ?? def.ids[0];
+    return {
+      canonical: def.canonical,
+      primaryTmdbId: queryId,
+      allTmdbIds: def.ids,
+      displayName: displayNameFor(def.canonical),
+      subtitle: subtitleFor(def.canonical),
+      logoPath: null // resolved by caller from the TMDB list
+    };
+  });
 }
 
 /**
@@ -308,7 +309,7 @@ export function buildPrimaryProviders(
  */
 export function buildMoreProviders(
   merged: MergedProvider[],
-  primaryCanonicals: Set<CanonicalProviderKey>,
+  primaryCanonicals: Set<CanonicalProviderKey>
 ): MergedProvider[] {
   return merged
     .filter((p) => !primaryCanonicals.has(p.canonical))

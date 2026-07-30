@@ -75,10 +75,7 @@ export async function clearEpisodeProgress(
   supabase: TypedSupabaseClient,
   vaultId: string
 ): Promise<EpisodeProgressWriteResult> {
-  const { error } = await supabase
-    .from(TABLE)
-    .delete()
-    .eq("vault_id", vaultId);
+  const { error } = await supabase.from(TABLE).delete().eq("vault_id", vaultId);
 
   return { error: toError(error) };
 }
@@ -116,9 +113,8 @@ export async function deleteEpisodeProgressFrom(
     .delete()
     .eq("vault_id", vaultId)
     .or(
-      `season_number.gt.${fromSeason},and(season_number.eq.${fromSeason},episode_number.gte.${fromEpisode})`,
+      `season_number.gt.${fromSeason},and(season_number.eq.${fromSeason},episode_number.gte.${fromEpisode})`
     );
 
   return { error: toError(error) };
 }
-

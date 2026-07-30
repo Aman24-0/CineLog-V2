@@ -74,9 +74,7 @@ export interface PublicVaultRow {
   updated_at: string;
   season_dates: Record<string, { start: string; end: string }> | null;
   season_rewatch_count: number;
-  season_rewatch_dates:
-    | Record<string, { start: string; end: string }>[]
-    | null;
+  season_rewatch_dates: Record<string, { start: string; end: string }>[] | null;
 }
 
 export type PublicProfileStatus = "loading" | "not_found" | "private" | "ready";
@@ -104,7 +102,9 @@ const VAULT_CAP = 50;
 // Hook
 // ---------------------------------------------------------------------------
 
-export function usePublicProfile(username: Accessor<string>): UsePublicProfileReturn {
+export function usePublicProfile(
+  username: Accessor<string>
+): UsePublicProfileReturn {
   const [status, setStatus] = createSignal<PublicProfileStatus>("loading");
   const [profile, setProfile] = createSignal<PublicProfile | null>(null);
   const [watchlist, setWatchlist] = createSignal<WatchlistItem[]>([]);
@@ -135,7 +135,7 @@ export function usePublicProfile(username: Accessor<string>): UsePublicProfileRe
       //    when the profile is private OR soft-deleted OR doesn't exist.
       const { data: profileRows, error: profileErr } = await supabase.rpc(
         "get_public_profile_by_username",
-        { p_username: uname },
+        { p_username: uname }
       );
 
       if (profileErr) throw profileErr;
@@ -149,9 +149,12 @@ export function usePublicProfile(username: Accessor<string>): UsePublicProfileRe
         // If it returns TRUE, the username doesn't exist at all.
         // Note: is_username_available is authenticated-only — for anon
         // viewers we just show a generic "not found" state.
-        const { data: available } = await supabase.rpc("is_username_available", {
-          p_username: uname,
-        });
+        const { data: available } = await supabase.rpc(
+          "is_username_available",
+          {
+            p_username: uname
+          }
+        );
         if (available === false) {
           setStatus("private");
         } else {
@@ -165,11 +168,14 @@ export function usePublicProfile(username: Accessor<string>): UsePublicProfileRe
       // 2. Fetch the user's public vault (capped at VAULT_CAP rows).
       const { data: vaultRows, error: vaultErr } = await supabase.rpc(
         "get_public_vault_by_user",
-        { p_user_id: profileRow.id },
+        { p_user_id: profileRow.id }
       );
 
       if (vaultErr) throw vaultErr;
-      const rows = ((vaultRows as PublicVaultRow[] | null) ?? []).slice(0, VAULT_CAP);
+      const rows = ((vaultRows as PublicVaultRow[] | null) ?? []).slice(
+        0,
+        VAULT_CAP
+      );
 
       // 3. Convert to WatchlistItem shape (minimal — no TMDB yet).
       const items = rows.map(publicVaultRowToWatchlistItem);
@@ -224,7 +230,7 @@ export function usePublicProfile(username: Accessor<string>): UsePublicProfileRe
     watchlist,
     favorites,
     refetch: () => void doFetch(),
-    error,
+    error
   };
 }
 
@@ -251,7 +257,7 @@ function publicVaultRowToWatchlistItem(row: PublicVaultRow): WatchlistItem {
     rewatchDates: [],
     seasonDates: row.season_dates ?? {},
     seasonRewatchCount: row.season_rewatch_count ?? 0,
-    seasonRewatchDates: row.season_rewatch_dates ?? [],
+    seasonRewatchDates: row.season_rewatch_dates ?? []
     // Title / poster / genres / runtime are filled in by the
     // background TMDB enrichment step (enrichWithTmdb below).
   };
@@ -261,12 +267,14 @@ function publicVaultRowToWatchlistItem(row: PublicVaultRow): WatchlistItem {
 // TMDB enrichment — fetch posters + titles + genres in a single batch
 // ---------------------------------------------------------------------------
 
-async function enrichWithTmdb(items: WatchlistItem[]): Promise<WatchlistItem[]> {
+async function enrichWithTmdb(
+  items: WatchlistItem[]
+): Promise<WatchlistItem[]> {
   if (items.length === 0) return items;
 
   const fetchArgs = items.map((it) => ({
     mediaType: it.media_type,
-    tmdbId: it.id,
+    tmdbId: it.id
   }));
 
   try {
@@ -285,7 +293,7 @@ async function enrichWithTmdb(items: WatchlistItem[]): Promise<WatchlistItem[]> 
         genresList: Array.isArray(tmdb.genres) ? tmdb.genres : undefined,
         runtime: tmdb.runtime ?? it.runtime,
         director: tmdb.director,
-        castList: Array.isArray(tmdb.castList) ? tmdb.castList : undefined,
+        castList: Array.isArray(tmdb.castList) ? tmdb.castList : undefined
       };
     });
   } catch (err) {

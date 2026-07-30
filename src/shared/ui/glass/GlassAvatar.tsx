@@ -1,5 +1,12 @@
 // src/shared/ui/glass/GlassAvatar.tsx
-import { Component, JSX, Show, splitProps, mergeProps, createSignal } from "solid-js";
+import {
+  Component,
+  JSX,
+  Show,
+  splitProps,
+  mergeProps,
+  createSignal
+} from "solid-js";
 
 // ─── Size Types ────────────────────────────────────────────────
 
@@ -10,7 +17,7 @@ const sizeClasses: Record<AvatarSize, string> = {
   md: "w-12 h-12 text-sm",
   lg: "w-16 h-16 text-lg",
   xl: "w-24 h-24 text-2xl",
-  hero: "w-32 h-32 text-4xl",
+  hero: "w-32 h-32 text-4xl"
 };
 
 // ─── Props ─────────────────────────────────────────────────────
@@ -30,10 +37,12 @@ export interface GlassAvatarProps extends JSX.HTMLAttributes<HTMLDivElement> {
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassAvatarProps, "size" | "interactive" | "loading">> = {
+const defaultProps: Required<
+  Pick<GlassAvatarProps, "size" | "interactive" | "loading">
+> = {
   size: "md",
   interactive: false,
-  loading: false,
+  loading: false
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -43,7 +52,15 @@ const defaultProps: Required<Pick<GlassAvatarProps, "size" | "interactive" | "lo
  */
 const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
-  const [local, rest] = splitProps(props, ["src", "name", "size", "interactive", "loading", "class", "style"]);
+  const [local, rest] = splitProps(props, [
+    "src",
+    "name",
+    "size",
+    "interactive",
+    "loading",
+    "class",
+    "style"
+  ]);
 
   const [imgError, setImgError] = createSignal(false);
 
@@ -56,11 +73,13 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
     const base = [
       "relative rounded-full flex-shrink-0 flex items-center justify-center overflow-hidden",
       "bg-glass backdrop-blur-md border border-glass-border shadow-md",
-      sizeClasses[local.size],
+      sizeClasses[local.size]
     ];
 
     if (local.interactive && !local.loading) {
-      base.push("cursor-pointer focus-ring transition-transform hover:scale-105 active:scale-95");
+      base.push(
+        "cursor-pointer focus-ring transition-transform hover:scale-105 active:scale-95"
+      );
     }
 
     if (local.loading) {
@@ -73,12 +92,17 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
   };
 
   return (
-    <div {...rest} class={containerClasses()} style={local.style} aria-label={local.name || "Avatar"}>
+    <div
+      {...rest}
+      class={containerClasses()}
+      style={local.style}
+      aria-label={local.name || "Avatar"}
+    >
       <Show when={!local.loading}>
         <Show
           when={local.src && !imgError()}
           fallback={
-            <span class="font-display font-bold text-text-strong select-none">
+            <span class="select-none font-display font-bold text-text-strong">
               {getInitials()}
             </span>
           }
@@ -86,7 +110,7 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
           <img
             src={local.src!}
             alt={local.name || "User avatar"}
-            class="w-full h-full object-cover"
+            class="h-full w-full object-cover"
             onError={() => setImgError(true)}
             loading="lazy"
           />

@@ -55,7 +55,7 @@ export function createAdminClient(): SupabaseClient {
   return createClient(url, serviceKey, {
     auth: {
       autoRefreshToken: false,
-      persistSession: false,
-    },
+      persistSession: false
+    }
   });
 }

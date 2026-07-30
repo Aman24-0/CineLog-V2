@@ -103,18 +103,26 @@ export function toProfileUpdate(
     update.display_name = payload.displayName;
     // When the user manually edits their display_name, mark it as
     // initialized so ensureProfile never overwrites it on future logins.
-    (update as ProfileUpdate & { display_name_initialized?: boolean }).display_name_initialized = true;
+    (
+      update as ProfileUpdate & { display_name_initialized?: boolean }
+    ).display_name_initialized = true;
   }
   if (payload.avatarUrl !== undefined) update.avatar_url = payload.avatarUrl;
   if (payload.bio !== undefined) update.bio = payload.bio;
   if (payload.country !== undefined) update.country = payload.country;
-  if (payload.languageCode !== undefined) update.language_code = payload.languageCode;
+  if (payload.languageCode !== undefined)
+    update.language_code = payload.languageCode;
   if (payload.timezone !== undefined) update.timezone = payload.timezone;
-  if (payload.favoriteMovieId !== undefined) update.favorite_movie_id = payload.favoriteMovieId;
-  if (payload.favoriteSeriesId !== undefined) update.favorite_series_id = payload.favoriteSeriesId;
-  if (payload.favoriteDirectorId !== undefined) update.favorite_director_id = payload.favoriteDirectorId;
-  if (payload.favoriteGenre !== undefined) update.favorite_genre = payload.favoriteGenre;
-  if (payload.bannerOverridePath !== undefined) update.banner_override_path = payload.bannerOverridePath;
+  if (payload.favoriteMovieId !== undefined)
+    update.favorite_movie_id = payload.favoriteMovieId;
+  if (payload.favoriteSeriesId !== undefined)
+    update.favorite_series_id = payload.favoriteSeriesId;
+  if (payload.favoriteDirectorId !== undefined)
+    update.favorite_director_id = payload.favoriteDirectorId;
+  if (payload.favoriteGenre !== undefined)
+    update.favorite_genre = payload.favoriteGenre;
+  if (payload.bannerOverridePath !== undefined)
+    update.banner_override_path = payload.bannerOverridePath;
   if (payload.bannerType !== undefined) update.banner_type = payload.bannerType;
   if (payload.bannerUrl !== undefined) update.banner_url = payload.bannerUrl;
   // Profile redesign fields — social_links (JSONB) + is_public (boolean).
@@ -136,18 +144,26 @@ export function toPreferencesUpdate(
 ): PreferencesUpdate {
   const update: PreferencesUpdate = {};
   if (payload.theme !== undefined) update.theme = payload.theme;
-  if (payload.accentColor !== undefined) update.accent_color = payload.accentColor;
+  if (payload.accentColor !== undefined)
+    update.accent_color = payload.accentColor;
   if (payload.density !== undefined) update.density = payload.density;
   if (payload.country !== undefined) update.country = payload.country;
-  if (payload.languageCode !== undefined) update.language_code = payload.languageCode;
+  if (payload.languageCode !== undefined)
+    update.language_code = payload.languageCode;
   if (payload.timezone !== undefined) update.timezone = payload.timezone;
-  if (payload.preferredContent !== undefined) update.preferred_content = payload.preferredContent;
+  if (payload.preferredContent !== undefined)
+    update.preferred_content = payload.preferredContent;
   if (payload.vaultView !== undefined) update.vault_view = payload.vaultView;
-  if (payload.discoverView !== undefined) update.discover_view = payload.discoverView;
-  if (payload.collectionView !== undefined) update.collection_view = payload.collectionView;
-  if (payload.defaultSort !== undefined) update.default_sort = payload.defaultSort;
-  if (payload.spoilerLevel !== undefined) update.spoiler_level = payload.spoilerLevel;
-  if (payload.adultContent !== undefined) update.adult_content = payload.adultContent;
+  if (payload.discoverView !== undefined)
+    update.discover_view = payload.discoverView;
+  if (payload.collectionView !== undefined)
+    update.collection_view = payload.collectionView;
+  if (payload.defaultSort !== undefined)
+    update.default_sort = payload.defaultSort;
+  if (payload.spoilerLevel !== undefined)
+    update.spoiler_level = payload.spoilerLevel;
+  if (payload.adultContent !== undefined)
+    update.adult_content = payload.adultContent;
   return update;
 }
 

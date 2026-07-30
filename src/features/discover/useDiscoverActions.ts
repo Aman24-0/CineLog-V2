@@ -18,7 +18,6 @@ import type { Accessor } from "solid-js";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 
-
 /**
  * useDiscoverActions — action handlers for the Discover page.
  *
@@ -40,7 +39,7 @@ export interface UseDiscoverActionsResult {
 }
 
 export function useDiscoverActions(
-  args: UseDiscoverActionsArgs,
+  args: UseDiscoverActionsArgs
 ): UseDiscoverActionsResult {
   const { showToast } = useToast();
   const { openTitle } = useModalState();
@@ -58,7 +57,7 @@ export function useDiscoverActions(
       release_date: title.release_date,
       first_air_date: title.first_air_date,
       genresList: normalizeGenres(title.genres as unknown[]),
-      director: title.director,
+      director: title.director
     };
     openTitle(baseItem, args.watchlist());
   };
@@ -82,16 +81,18 @@ export function useDiscoverActions(
         release_date: title.release_date,
         first_air_date: title.first_air_date,
         genresList: normalizeGenres(title.genres as unknown[]),
-        director: title.director,
+        director: title.director
       };
       await createVaultItemInSupabase(uid, item);
       // Cache TMDB metadata for this title so the watchlist loads faster
-      cacheMetadataEntries([{
-        key: buildCacheKey(title.media_type, title.id),
-        tmdb_id: title.id,
-        media_type: title.media_type,
-        data: title,
-      }]).catch(() => {});
+      cacheMetadataEntries([
+        {
+          key: buildCacheKey(title.media_type, title.id),
+          tmdb_id: title.id,
+          media_type: title.media_type,
+          data: title
+        }
+      ]).catch(() => {});
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {

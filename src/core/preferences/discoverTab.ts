@@ -14,9 +14,8 @@ function isDiscoverTab(v: string | null): v is DiscoverTab {
 
 const storedDT = readStored<string>(DEFAULT_DISCOVER_TAB_KEY, "all");
 
-export const [defaultDiscoverTab, setDefaultDiscoverTab] = createSignal<DiscoverTab>(
-  isDiscoverTab(storedDT) ? storedDT : "all"
-);
+export const [defaultDiscoverTab, setDefaultDiscoverTab] =
+  createSignal<DiscoverTab>(isDiscoverTab(storedDT) ? storedDT : "all");
 
 createEffect(() => {
   writeStored(DEFAULT_DISCOVER_TAB_KEY, defaultDiscoverTab());

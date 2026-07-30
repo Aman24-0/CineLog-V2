@@ -60,7 +60,9 @@ function persistDismissal(id: string) {
   }
 }
 
-async function fetchAnnouncements(audience: "all" | "guests" | "authenticated"): Promise<Announcement[]> {
+async function fetchAnnouncements(
+  audience: "all" | "guests" | "authenticated"
+): Promise<Announcement[]> {
   if (cachedAnnouncements && Date.now() - cachedAt < CACHE_TTL_MS) {
     return cachedAnnouncements;
   }
@@ -124,9 +126,15 @@ export function useAnnouncements(options?: {
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
   };
 
-  const visibleBanners = createMemo(() => announcements().filter((a) => a.type === "banner"));
-  const visibleToasts = createMemo(() => announcements().filter((a) => a.type === "toast"));
-  const visibleModals = createMemo(() => announcements().filter((a) => a.type === "modal"));
+  const visibleBanners = createMemo(() =>
+    announcements().filter((a) => a.type === "banner")
+  );
+  const visibleToasts = createMemo(() =>
+    announcements().filter((a) => a.type === "toast")
+  );
+  const visibleModals = createMemo(() =>
+    announcements().filter((a) => a.type === "modal")
+  );
 
   return {
     announcements,
@@ -134,6 +142,6 @@ export function useAnnouncements(options?: {
     visibleToasts,
     visibleModals,
     dismiss,
-    refresh: load,
+    refresh: load
   };
 }

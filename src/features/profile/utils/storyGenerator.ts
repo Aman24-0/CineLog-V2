@@ -88,7 +88,7 @@ export function generateYourStory(
       headline: "Your taste is moving.",
       body: `You spent the last two months exploring ${shift.recent}. This week you've returned to ${shift.previous}.`,
       accentPhrase: shift.previous,
-      icon: "auto_awesome",
+      icon: "auto_awesome"
     };
   }
 
@@ -99,7 +99,7 @@ export function generateYourStory(
       headline: "You keep returning.",
       body: `${dir.name} appears ${dir.count} times in your vault. There's something in their gaze you can't let go of.`,
       accentPhrase: dir.name,
-      icon: "person",
+      icon: "person"
     };
   }
 
@@ -109,7 +109,7 @@ export function generateYourStory(
       headline: "An era calls you back.",
       body: `The ${stats.favoriteDecade} keeps showing up in your life. Maybe it's the texture. Maybe it's the restraint. Maybe it's just you, finding your way home.`,
       accentPhrase: stats.favoriteDecade,
-      icon: "history",
+      icon: "history"
     };
   }
 
@@ -120,21 +120,24 @@ export function generateYourStory(
       headline: "You have a ritual.",
       body: `After finishing a long series, you almost always reach for a comfort film — something soft, something known. A breath between worlds.`,
       accentPhrase: "comfort film",
-      icon: "favorite",
+      icon: "favorite"
     };
   }
 
   // ── 5. Weekend ritual ──
   if (stats.weekdayVsWeekend) {
-    const total = stats.weekdayVsWeekend.weekday + stats.weekdayVsWeekend.weekend;
+    const total =
+      stats.weekdayVsWeekend.weekday + stats.weekdayVsWeekend.weekend;
     if (total >= 6) {
-      const weekendPct = Math.round((stats.weekdayVsWeekend.weekend / total) * 100);
+      const weekendPct = Math.round(
+        (stats.weekdayVsWeekend.weekend / total) * 100
+      );
       if (weekendPct >= 60) {
         return {
           headline: "Your weekends belong to cinema.",
           body: `${weekendPct}% of your watching happens on weekends. Saturday mornings, Sunday nights — these are the hours you give to stories.`,
           accentPhrase: "weekends",
-          icon: "weekend",
+          icon: "weekend"
         };
       }
     }
@@ -146,7 +149,7 @@ export function generateYourStory(
       headline: "You've been quietly building a library.",
       body: `${stats.total} titles, ${Math.round(stats.totalRuntimeHours)} hours of cinema. Not for show. Not for a streak. Just for you, and the versions of you that watched them.`,
       accentPhrase: `${stats.total} titles`,
-      icon: "menu_book",
+      icon: "menu_book"
     };
   }
 
@@ -155,7 +158,7 @@ export function generateYourStory(
     headline: "Your story is just beginning.",
     body: `Every title you add is a sentence. Every finish, a paragraph. Come back when you have a few more — there's something here worth telling.`,
     accentPhrase: "just beginning",
-    icon: "auto_awesome",
+    icon: "auto_awesome"
   };
 }
 
@@ -176,7 +179,10 @@ function detectGenreShift(list: WatchlistItem[]): GenreShift | null {
   const previous: WatchlistItem[] = [];
 
   for (const m of list) {
-    const dateStr = m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null) || m.updatedAt;
+    const dateStr =
+      m.watchDate ||
+      (typeof m.addedAt === "string" ? m.addedAt : null) ||
+      m.updatedAt;
     if (!dateStr) continue;
     const t = new Date(dateStr).getTime();
     if (isNaN(t)) continue;
@@ -193,7 +199,7 @@ function detectGenreShift(list: WatchlistItem[]): GenreShift | null {
 
   return {
     recent: lowerFirst(recentGenre),
-    previous: lowerFirst(previousGenre),
+    previous: lowerFirst(previousGenre)
   };
 }
 
@@ -232,7 +238,10 @@ function detectComfortPattern(list: WatchlistItem[]): boolean {
   // a short movie (runtime <= 110 min) added/watched.
   const sorted = [...list]
     .map((m) => {
-      const dateStr = m.watchDate || (typeof m.addedAt === "string" ? m.addedAt : null) || m.updatedAt;
+      const dateStr =
+        m.watchDate ||
+        (typeof m.addedAt === "string" ? m.addedAt : null) ||
+        m.updatedAt;
       return { m, t: dateStr ? new Date(dateStr).getTime() : 0 };
     })
     .filter((x) => !isNaN(x.t))
@@ -332,16 +341,19 @@ export function generateIdentityChips(
 
   // 4. Pace identity — avg runtime > 130min → "Slow Cinema"
   const itemsWithRuntime = watchlist.filter((m) => m.runtime && m.runtime > 0);
-  const avgRuntime = itemsWithRuntime.length > 0
-    ? itemsWithRuntime.reduce((s, m) => s + (m.runtime ?? 0), 0) / itemsWithRuntime.length
-    : 0;
+  const avgRuntime =
+    itemsWithRuntime.length > 0
+      ? itemsWithRuntime.reduce((s, m) => s + (m.runtime ?? 0), 0) /
+        itemsWithRuntime.length
+      : 0;
   if (avgRuntime >= 130 && itemsWithRuntime.length >= 4) {
     add("Slow Cinema", "🎬", true, "slow-cinema");
   }
 
   // 5. Origin identity — non-English titles present (Korean, Japanese, French)
   const originChip = detectOriginIdentity(watchlist);
-  if (originChip) add(originChip.label, originChip.icon, true, originChip.label);
+  if (originChip)
+    add(originChip.label, originChip.icon, true, originChip.label);
 
   // 6. Format identity — TV count >= 1.2x movie count → "Series Devotee"
   if (stats.tvCount >= 8 && stats.tvCount >= stats.movieCount * 1.2) {
@@ -367,12 +379,22 @@ function detectOriginIdentity(list: WatchlistItem[]): OriginIdentity | null {
     if (!t) continue;
     for (const ch of t) {
       const code = ch.codePointAt(0) ?? 0;
-      if (code >= 0xac00 && code <= 0xd7a3) { korean++; break; }
-      if (code >= 0x3040 && code <= 0x30ff) { japanese++; break; }
-      if (code >= 0x4e00 && code <= 0x9fff) { korean++; break; } // CJK (broad)
+      if (code >= 0xac00 && code <= 0xd7a3) {
+        korean++;
+        break;
+      }
+      if (code >= 0x3040 && code <= 0x30ff) {
+        japanese++;
+        break;
+      }
+      if (code >= 0x4e00 && code <= 0x9fff) {
+        korean++;
+        break;
+      } // CJK (broad)
     }
   }
-  if (korean >= 2 && korean >= japanese) return { label: "Korean Cinema", icon: "🇰🇷" };
+  if (korean >= 2 && korean >= japanese)
+    return { label: "Korean Cinema", icon: "🇰🇷" };
   if (japanese >= 2) return { label: "Japanese Cinema", icon: "🇯🇵" };
   return null;
 }
@@ -472,7 +494,7 @@ function generateDirectorReason(name: string): FavoriteReason {
     "A master of mood.",
     "Their lens, my life.",
     "Stories told the way I think.",
-    "A poet of the screen.",
+    "A poet of the screen."
   ];
   // Deterministic pick based on name length so it's stable per director.
   const idx = (name.length * 7) % reasons.length;
@@ -481,11 +503,13 @@ function generateDirectorReason(name: string): FavoriteReason {
 
 function generateGenreReason(genre: string): FavoriteReason {
   const g = genre.toLowerCase();
-  if (g.includes("sci") || g.includes("science")) return { reason: "Where I feel most at home." };
+  if (g.includes("sci") || g.includes("science"))
+    return { reason: "Where I feel most at home." };
   if (g.includes("horror")) return { reason: "The dark I keep returning to." };
   if (g.includes("drama")) return { reason: "Where I go to feel." };
   if (g.includes("romance")) return { reason: "Where I go to hope." };
-  if (g.includes("thriller")) return { reason: "Where I go to hold my breath." };
+  if (g.includes("thriller"))
+    return { reason: "Where I go to hold my breath." };
   if (g.includes("anim")) return { reason: "Where I go to dream." };
   if (g.includes("comedy")) return { reason: "Where I go to breathe." };
   if (g.includes("document")) return { reason: "Where I go to learn." };
@@ -526,7 +550,8 @@ export function generateActivityReaction(
     if (g.includes("romance")) return { text: "Wrecked in the best way." };
     if (g.includes("thriller")) return { text: "Gripped until the credits." };
     if (g.includes("drama")) return { text: "Sat with the silence after." };
-    if (g.includes("sci") || g.includes("science")) return { text: "Still thinking about it." };
+    if (g.includes("sci") || g.includes("science"))
+      return { text: "Still thinking about it." };
     return { text: "Credits rolled. Silence." };
   }
 
@@ -541,7 +566,9 @@ export function generateActivityReaction(
 // One-word reaction for Recently Finished (based on rating)
 // ---------------------------------------------------------------------------
 
-export function generateOneWordReaction(rating: number | undefined): OneWordReaction | null {
+export function generateOneWordReaction(
+  rating: number | undefined
+): OneWordReaction | null {
   if (!rating || rating <= 0) return null;
   if (rating >= 10) return { word: "Masterpiece" };
   if (rating >= 9) return { word: "Mind-blowing" };

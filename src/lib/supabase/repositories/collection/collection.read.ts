@@ -78,12 +78,12 @@ export async function getCollection(
  */
 export async function getCollections(
   supabase: TypedSupabaseClient,
-  filter?: CollectionListFilter & { sort?: CollectionSort; pagination?: CollectionPagination }
+  filter?: CollectionListFilter & {
+    sort?: CollectionSort;
+    pagination?: CollectionPagination;
+  }
 ): Promise<{ data: CollectionRow[]; error: Error | null }> {
-  let query = supabase
-    .from(COLLECTIONS_TABLE)
-    .select()
-    .is("deleted_at", null);
+  let query = supabase.from(COLLECTIONS_TABLE).select().is("deleted_at", null);
 
   // Default: exclude archived rows. The Collections grid only shows
   // active folders; archived ones live behind the "Show Archived"

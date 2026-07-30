@@ -11,9 +11,8 @@ const HIDE_RATINGS_KEY = "cinelog_hide_ratings_screenshots";
 
 const storedHR = readStored<string>(HIDE_RATINGS_KEY, "false");
 
-export const [hideRatingsInScreenshots, setHideRatingsInScreenshots] = createSignal<boolean>(
-  storedHR === "true"
-);
+export const [hideRatingsInScreenshots, setHideRatingsInScreenshots] =
+  createSignal<boolean>(storedHR === "true");
 
 createEffect(() => {
   const v = hideRatingsInScreenshots();

@@ -67,7 +67,9 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
                   ? "Sign in to start tracking movies and series."
                   : "No titles match your current filters. Try adjusting or clearing them."
               }
-              actionText={props.isGuest() ? "Sign In to Begin" : "Clear Filters"}
+              actionText={
+                props.isGuest() ? "Sign In to Begin" : "Clear Filters"
+              }
               onAction={props.isGuest() ? props.onLogin : props.onClearFilters}
             />
           }
@@ -120,28 +122,41 @@ export default function WatchlistGrid(props: WatchlistGridProps) {
                   // the DOM when `hideSeeAll === true`, eliminating the
                   // redundant navigation affordance entirely.
                   hideSeeAll={section.id === "all"}
-                  onSeeAll={section.id === "all" ? undefined : () => {
-                    const statusMap: Record<string, string> = {
-                      "in-progress": "Watching",
-                      "watching": "Watching",
-                      "planned": "Planned",
-                      "recently-completed": "Completed",
-                    };
-                    const targetStatus = statusMap[section.id] ?? "all";
-                    props.onSelectStatusTab(targetStatus);
-                  }}
+                  onSeeAll={
+                    section.id === "all"
+                      ? undefined
+                      : () => {
+                          const statusMap: Record<string, string> = {
+                            "in-progress": "Watching",
+                            watching: "Watching",
+                            planned: "Planned",
+                            "recently-completed": "Completed"
+                          };
+                          const targetStatus = statusMap[section.id] ?? "all";
+                          props.onSelectStatusTab(targetStatus);
+                        }
+                  }
                 />
               )}
             </For>
           </Show>
 
           {/* Infinite scroll indicator (flat mode only) */}
-          <Show when={props.isFlatMode() && props.filtered().length > props.displayLimit()}>
+          <Show
+            when={
+              props.isFlatMode() &&
+              props.filtered().length > props.displayLimit()
+            }
+          >
             <div
-              class="flex items-center justify-center gap-2 py-8 type-caption"
-              style={{"color":"var(--p)"}}
+              class="type-caption flex items-center justify-center gap-2 py-8"
+              style={{ color: "var(--p)" }}
             >
-              <Icon name="progress_activity" class="animate-spin text-sm" aria-hidden="true" />
+              <Icon
+                name="progress_activity"
+                class="animate-spin text-sm"
+                aria-hidden="true"
+              />
               <span>Loading more titles…</span>
             </div>
           </Show>
@@ -179,9 +194,11 @@ interface TimelineViewProps {
 
 function TimelineView(props: TimelineViewProps) {
   const timelineItems = () =>
-    props.filtered().filter(
-      (m) => m.status === "Completed" && resolveTimelineDate(m) !== null,
-    );
+    props
+      .filtered()
+      .filter(
+        (m) => m.status === "Completed" && resolveTimelineDate(m) !== null
+      );
 
   const groupedTimeline = () => {
     const list = timelineItems().slice(0, props.displayLimit());
@@ -216,7 +233,7 @@ function TimelineView(props: TimelineViewProps) {
       }
     >
       <div
-        class="relative space-y-6 animate-fade-in pb-10"
+        class="animate-fade-in relative space-y-6 pb-10"
         role="feed"
         aria-label="Watch history timeline"
       >
@@ -230,13 +247,13 @@ function TimelineView(props: TimelineViewProps) {
               <div class="timeline-month-pill">
                 <Icon
                   name="event"
-                  style={{"font-size":"14px","color":"var(--active-text)"}}
+                  style={{ "font-size": "14px", color: "var(--active-text)" }}
                   aria-hidden="true"
                 />
                 {group.label}
               </div>
               {/* Cards in a clean vertical flow — no per-card day bubble */}
-              <div class="space-y-3 timeline-stagger">
+              <div class="timeline-stagger space-y-3">
                 <For each={group.items}>
                   {(m) => (
                     <VaultCard

@@ -29,15 +29,15 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
       <Suspense
         fallback={
           <div
-            class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in"
+            class="animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
             style={{
               background: "rgba(0,0,0,0.75)",
               "backdrop-filter": "blur(8px)",
-              "padding-bottom": "var(--nav-total-height)",
+              "padding-bottom": "var(--nav-total-height)"
             }}
           >
-            <div class="w-full max-w-sm p-10 flex justify-center">
-              <div class="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-white" />
+            <div class="flex w-full max-w-sm justify-center p-10">
+              <div class="h-10 w-10 animate-spin rounded-full border-b-2 border-t-2 border-white" />
             </div>
           </div>
         }

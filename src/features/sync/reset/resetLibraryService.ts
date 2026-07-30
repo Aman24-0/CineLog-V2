@@ -102,7 +102,7 @@ const TABLE_NOT_FOUND_PATTERNS = [
   "42p01",
   "undefined_table",
   "bad request",
-  "schema cache miss",
+  "schema cache miss"
 ];
 
 /**
@@ -112,10 +112,15 @@ const TABLE_NOT_FOUND_PATTERNS = [
  *   - "table-not-found" → the table doesn't exist; skip it (optional only)
  *   - "real-error"      → a genuine database error; stop the reset
  */
-function classifyError(error: { message?: string; code?: string; details?: unknown }): "table-not-found" | "real-error" {
+function classifyError(error: {
+  message?: string;
+  code?: string;
+  details?: unknown;
+}): "table-not-found" | "real-error" {
   const msg = (error.message ?? "").toLowerCase();
   const code = (error.code ?? "").toLowerCase();
-  const details = typeof error.details === "string" ? error.details.toLowerCase() : "";
+  const details =
+    typeof error.details === "string" ? error.details.toLowerCase() : "";
   const haystack = `${msg} ${code} ${details}`;
   return TABLE_NOT_FOUND_PATTERNS.some((p) => haystack.includes(p))
     ? "table-not-found"
@@ -132,7 +137,10 @@ interface DeleteStep {
   /** Core tables MUST succeed. Optional tables can be skipped if missing. */
   core: boolean;
   /** Run the delete. Returns rows deleted, or throws on error. */
-  delete: (client: ReturnType<typeof getClient>, uid: string) => Promise<number>;
+  delete: (
+    client: ReturnType<typeof getClient>,
+    uid: string
+  ) => Promise<number>;
 }
 
 const RESET_STEPS: DeleteStep[] = [
@@ -155,7 +163,7 @@ const RESET_STEPS: DeleteStep[] = [
         .in("vault_id", vaultIds);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "collection_entries",
@@ -175,7 +183,7 @@ const RESET_STEPS: DeleteStep[] = [
         .in("collection_id", collectionIds);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "collections",
@@ -188,7 +196,7 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "user_universe_subscriptions",
@@ -201,7 +209,7 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "user_presets",
@@ -214,7 +222,7 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "activity_log",
@@ -227,7 +235,7 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "import_export_jobs",
@@ -240,7 +248,7 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
+    }
   },
   {
     key: "vault",
@@ -253,8 +261,8 @@ const RESET_STEPS: DeleteStep[] = [
         .eq("user_id", uid);
       if (error) throw error;
       return count ?? 0;
-    },
-  },
+    }
+  }
 ];
 
 // ---------------------------------------------------------------------------
@@ -275,7 +283,7 @@ const RESET_STEPS: DeleteStep[] = [
  */
 export async function resetUserLibrary(
   uid: string,
-  cb?: ResetLibraryCallbacks,
+  cb?: ResetLibraryCallbacks
 ): Promise<ResetLibraryResult> {
   if (!uid) {
     return {
@@ -285,7 +293,7 @@ export async function resetUserLibrary(
       deletedTables: [],
       skippedTables: [],
       failedTables: [],
-      totalRowsRemoved: 0,
+      totalRowsRemoved: 0
     };
   }
 
@@ -303,24 +311,36 @@ export async function resetUserLibrary(
 
     try {
       const rowsDeleted = await step.delete(client, uid);
-      tableResults.push({ table: step.key, status: "deleted", rowsDeleted, core: step.core });
+      tableResults.push({
+        table: step.key,
+        status: "deleted",
+        rowsDeleted,
+        core: step.core
+      });
       deletedTables.push(step.key);
       totalRowsRemoved += rowsDeleted;
     } catch (err) {
       // Extract the Supabase error object — it may be a PostgrestError
       // with .message/.code, or a plain Error.
-      const supaErr = err as { message?: string; code?: string; details?: unknown };
-      const errorMsg = supaErr.message ?? (err instanceof Error ? err.message : String(err));
+      const supaErr = err as {
+        message?: string;
+        code?: string;
+        details?: unknown;
+      };
+      const errorMsg =
+        supaErr.message ?? (err instanceof Error ? err.message : String(err));
       const errorClass = classifyError(supaErr);
 
       // Table-not-found on optional tables → skip, continue.
       if (errorClass === "table-not-found" && !step.core) {
-        console.warn(`[resetUserLibrary] Optional table "${step.key}" not found — skipping.`);
+        console.warn(
+          `[resetUserLibrary] Optional table "${step.key}" not found — skipping.`
+        );
         tableResults.push({
           table: step.key,
           status: "skipped",
           reason: "Table does not exist in the live schema",
-          core: step.core,
+          core: step.core
         });
         skippedTables.push(step.key);
         continue;
@@ -332,7 +352,7 @@ export async function resetUserLibrary(
         table: step.key,
         status: "failed",
         reason: errorMsg,
-        core: step.core,
+        core: step.core
       });
       failedTables.push(step.key);
 
@@ -344,13 +364,20 @@ export async function resetUserLibrary(
         deletedTables,
         skippedTables,
         failedTables,
-        totalRowsRemoved,
+        totalRowsRemoved
       };
     }
   }
 
   // Log the final report in development.
-  logResetReport({ success: true, tableResults, deletedTables, skippedTables, failedTables, totalRowsRemoved });
+  logResetReport({
+    success: true,
+    tableResults,
+    deletedTables,
+    skippedTables,
+    failedTables,
+    totalRowsRemoved
+  });
 
   return {
     success: true,
@@ -358,7 +385,7 @@ export async function resetUserLibrary(
     deletedTables,
     skippedTables,
     failedTables,
-    totalRowsRemoved,
+    totalRowsRemoved
   };
 }
 
@@ -371,7 +398,10 @@ function logResetReport(result: ResetLibraryResult): void {
   const isDev = import.meta.env?.DEV ?? false;
   if (!isDev) return;
 
-  console.group("%c[CineLog] Library Reset Report", "color: #6ee7b7; font-weight: bold;");
+  console.group(
+    "%c[CineLog] Library Reset Report",
+    "color: #6ee7b7; font-weight: bold;"
+  );
   console.log(`Success: ${result.success}`);
   console.log(`Total rows removed: ${result.totalRowsRemoved}`);
   console.log(`Deleted tables: ${result.deletedTables.join(", ") || "(none)"}`);

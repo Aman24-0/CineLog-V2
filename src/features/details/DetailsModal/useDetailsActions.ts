@@ -1,5 +1,11 @@
 // src/features/details/DetailsModal/useDetailsActions.ts
-import { createSignal, createMemo, createEffect, onCleanup, batch } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  onCleanup,
+  batch
+} from "solid-js";
 import type { Accessor, Setter } from "solid-js";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
@@ -14,7 +20,7 @@ import {
   updateRewatchInSupabase,
   updateSeasonDatesInSupabase,
   updateStatusInSupabase,
-  updateWatchDateInSupabase,
+  updateWatchDateInSupabase
 } from "~/features/watchlist/vaultAdapter";
 import { cacheMetadataEntries, buildCacheKey } from "~/shared/utils/tmdbCache";
 import type { WatchlistItem, TMDBDetails } from "~/shared/types";
@@ -40,7 +46,10 @@ export interface UseDetailsActionsArgs {
   watchlist: Accessor<WatchlistItem[]>;
   form: Accessor<DetailsFormState>;
   resetTo: (v: WatchlistItem | null) => void;
-  setSelectedItem: Setter<{ baseItem: WatchlistItem; vaultItem: WatchlistItem | null } | null>;
+  setSelectedItem: Setter<{
+    baseItem: WatchlistItem;
+    vaultItem: WatchlistItem | null;
+  } | null>;
   /** Called after a successful remove to close the modal. */
   onRemoved: () => void;
 }
@@ -67,14 +76,16 @@ export interface UseDetailsActionsResult {
     unmarkSeason: number,
     unmarkEpisode: number,
     newTrackerSeason: number,
-    newTrackerEpisode: number,
+    newTrackerEpisode: number
   ) => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
   handleRemoveFromVault: () => Promise<void>;
 }
 
-export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsActionsResult {
+export function useDetailsActions(
+  args: UseDetailsActionsArgs
+): UseDetailsActionsResult {
   const { showToast } = useToast();
   const { openAuthModal } = useAuthModal();
   const [isSaving, setIsSaving] = createSignal(false);
@@ -101,7 +112,9 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
   // The fallback key is cached in `fallbackTrailerKey` and cleared
   // whenever the open title changes (so we don't leak a previous title's
   // trailer into the next one).
-  const [fallbackTrailerKey, setFallbackTrailerKey] = createSignal<string | null>(null);
+  const [fallbackTrailerKey, setFallbackTrailerKey] = createSignal<
+    string | null
+  >(null);
 
   // Reset fallback whenever the open title changes (id or media_type).
   // The baseItem's TMDB id is a stable identifier for the open title.
@@ -128,17 +141,18 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     const id = item.id;
     if (!mediaType || !id) return;
     let disposed = false;
-    onCleanup(() => { disposed = true; });
-    void fetchAnyVideoKey(
-      mediaType === "movie" ? "movie" : "tv",
-      id,
-    ).then((key) => {
-      // Guard: skip if the effect was cleaned up (modal unmounted)
-      // OR if we've navigated to a different title since the fetch started.
-      if (!disposed && args.baseItem()?.id === id) {
-        setFallbackTrailerKey(key);
-      }
+    onCleanup(() => {
+      disposed = true;
     });
+    void fetchAnyVideoKey(mediaType === "movie" ? "movie" : "tv", id).then(
+      (key) => {
+        // Guard: skip if the effect was cleaned up (modal unmounted)
+        // OR if we've navigated to a different title since the fetch started.
+        if (!disposed && args.baseItem()?.id === id) {
+          setFallbackTrailerKey(key);
+        }
+      }
+    );
   });
 
   const hasTrailer = createMemo(() => {
@@ -191,14 +205,16 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         first_air_date: details?.first_air_date ?? b.first_air_date,
         vote_average: details?.vote_average,
         vote_count: details?.vote_count,
-        genres: details?.genres?.map((g) => g.name) ?? b.genresList,
+        genres: details?.genres?.map((g) => g.name) ?? b.genresList
       };
-      cacheMetadataEntries([{
-        key: buildCacheKey(b.media_type, b.id),
-        tmdb_id: Number(b.id),
-        media_type: b.media_type,
-        data: cacheData,
-      }]).catch(() => {});
+      cacheMetadataEntries([
+        {
+          key: buildCacheKey(b.media_type, b.id),
+          tmdb_id: Number(b.id),
+          media_type: b.media_type,
+          data: cacheData
+        }
+      ]).catch(() => {});
       const name = b.title || b.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {
@@ -225,16 +241,34 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     try {
       const updates: Promise<unknown>[] = [];
       if (args.form().status !== (v.status || "Planned")) {
-        updates.push(updateStatusInSupabase(uid, v.id, v.media_type, args.form().status));
+        updates.push(
+          updateStatusInSupabase(uid, v.id, v.media_type, args.form().status)
+        );
       }
       if (Number(args.form().rating) !== (v.rating || 0)) {
-        updates.push(updateRatingInSupabase(uid, v.id, v.media_type, Number(args.form().rating)));
+        updates.push(
+          updateRatingInSupabase(
+            uid,
+            v.id,
+            v.media_type,
+            Number(args.form().rating)
+          )
+        );
       }
       if (args.form().notes !== (v.notes || "")) {
-        updates.push(updateNotesInSupabase(uid, v.id, v.media_type, args.form().notes));
+        updates.push(
+          updateNotesInSupabase(uid, v.id, v.media_type, args.form().notes)
+        );
       }
       if (args.form().watchDate !== (v.watchDate || "")) {
-        updates.push(updateWatchDateInSupabase(uid, v.id, v.media_type, args.form().watchDate));
+        updates.push(
+          updateWatchDateInSupabase(
+            uid,
+            v.id,
+            v.media_type,
+            args.form().watchDate
+          )
+        );
       }
 
       // Re-watch tracking — persist if either the count or the dates
@@ -249,7 +283,7 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         newDates.some((d, i) => d !== (oldDates[i] ?? ""));
       if (newCount !== oldCount || datesChanged) {
         updates.push(
-          updateRewatchInSupabase(uid, v.id, v.media_type, newCount, newDates),
+          updateRewatchInSupabase(uid, v.id, v.media_type, newCount, newDates)
         );
       }
 
@@ -261,21 +295,30 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
       const oldSeasonRewatchCount = v.seasonRewatchCount ?? 0;
       const newSeasonRewatchDates = args.form().seasonRewatchDates;
       const oldSeasonRewatchDates = v.seasonRewatchDates ?? [];
-      const seasonDatesChanged = JSON.stringify(newSeasonDates) !== JSON.stringify(oldSeasonDates);
-      const seasonRewatchCountChanged = newSeasonRewatchCount !== oldSeasonRewatchCount;
+      const seasonDatesChanged =
+        JSON.stringify(newSeasonDates) !== JSON.stringify(oldSeasonDates);
+      const seasonRewatchCountChanged =
+        newSeasonRewatchCount !== oldSeasonRewatchCount;
       const seasonRewatchDatesChanged =
         newSeasonRewatchDates.length !== oldSeasonRewatchDates.length ||
-        newSeasonRewatchDates.some((m, i) =>
-          JSON.stringify(m) !== JSON.stringify(oldSeasonRewatchDates[i] ?? {})
+        newSeasonRewatchDates.some(
+          (m, i) =>
+            JSON.stringify(m) !== JSON.stringify(oldSeasonRewatchDates[i] ?? {})
         );
-      if (seasonDatesChanged || seasonRewatchCountChanged || seasonRewatchDatesChanged) {
+      if (
+        seasonDatesChanged ||
+        seasonRewatchCountChanged ||
+        seasonRewatchDatesChanged
+      ) {
         updates.push(
           updateSeasonDatesInSupabase(
-            uid, v.id, v.media_type,
+            uid,
+            v.id,
+            v.media_type,
             newSeasonDates,
             newSeasonRewatchCount,
-            newSeasonRewatchDates,
-          ),
+            newSeasonRewatchDates
+          )
         );
       }
 
@@ -290,7 +333,10 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
       }
       if (failed.length > 0) {
         // Partial failure — saved what we could
-        showToast("Partially saved — some fields may not have updated.", "info");
+        showToast(
+          "Partially saved — some fields may not have updated.",
+          "info"
+        );
       } else {
         showToast("Saved successfully!", "success");
       }
@@ -307,11 +353,11 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
         rewatchDates: [...newDates],
         seasonDates: { ...newSeasonDates },
         seasonRewatchCount: newSeasonRewatchCount,
-        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m })),
+        seasonRewatchDates: newSeasonRewatchDates.map((m) => ({ ...m }))
       };
       args.setSelectedItem({
         baseItem: { ...args.baseItem()!, ...updatedVault },
-        vaultItem: updatedVault,
+        vaultItem: updatedVault
       });
       // Exit edit mode (mirrors the original setIsEditing(false) at end of save)
       args.resetTo(updatedVault);
@@ -377,7 +423,7 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     vaultItem: args.vaultItem,
     watchlist: args.watchlist,
     setSelectedItem: args.setSelectedItem,
-    showToast,
+    showToast
   });
 
   return {
@@ -390,6 +436,6 @@ export function useDetailsActions(args: UseDetailsActionsArgs): UseDetailsAction
     handleSave,
     handleCancel,
     handleRemoveFromVault,
-    ...progress,
+    ...progress
   };
 }

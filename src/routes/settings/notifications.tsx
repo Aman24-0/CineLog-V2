@@ -17,13 +17,19 @@ import { Title } from "@solidjs/meta";
 import { Show, For, createSignal, onMount, type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { ToggleRow, TimeRow, SelectRow, ControlRow, Segmented } from "~/features/settings/sharedControls";
+import {
+  ToggleRow,
+  TimeRow,
+  SelectRow,
+  ControlRow,
+  Segmented
+} from "~/features/settings/sharedControls";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   notifPrefs,
   updateNotifPref,
   isInQuietHours,
-  type NotificationPrefs,
+  type NotificationPrefs
 } from "~/core/preferences";
 
 interface NotifCategoryDef {
@@ -34,11 +40,36 @@ interface NotifCategoryDef {
 }
 
 const NOTIF_CATEGORIES: NotifCategoryDef[] = [
-  { key: "newSeason",         label: "New Season Available",     desc: "When a series in your vault gets a new season.", icon: "new_releases" },
-  { key: "continueWatching",  label: "Continue Watching",        desc: "Gentle reminders to resume in-progress titles.", icon: "play_circle" },
-  { key: "weeklyRecap",       label: "Weekly Recap",             desc: "A summary of your watching activity each week.", icon: "insights" },
-  { key: "recommendations",   label: "Recommendations",          desc: "When Discover has new picks based on your taste.", icon: "auto_awesome" },
-  { key: "syncStatus",        label: "Sync Status",              desc: "When your data syncs or a sync error occurs.", icon: "sync" },
+  {
+    key: "newSeason",
+    label: "New Season Available",
+    desc: "When a series in your vault gets a new season.",
+    icon: "new_releases"
+  },
+  {
+    key: "continueWatching",
+    label: "Continue Watching",
+    desc: "Gentle reminders to resume in-progress titles.",
+    icon: "play_circle"
+  },
+  {
+    key: "weeklyRecap",
+    label: "Weekly Recap",
+    desc: "A summary of your watching activity each week.",
+    icon: "insights"
+  },
+  {
+    key: "recommendations",
+    label: "Recommendations",
+    desc: "When Discover has new picks based on your taste.",
+    icon: "auto_awesome"
+  },
+  {
+    key: "syncStatus",
+    label: "Sync Status",
+    desc: "When your data syncs or a sync error occurs.",
+    icon: "sync"
+  }
 ];
 
 const DAY_OF_WEEK_OPTIONS = [
@@ -48,21 +79,23 @@ const DAY_OF_WEEK_OPTIONS = [
   { value: "3", label: "Wednesday" },
   { value: "4", label: "Thursday" },
   { value: "5", label: "Friday" },
-  { value: "6", label: "Saturday" },
+  { value: "6", label: "Saturday" }
 ];
 
 const LEAD_TIME_OPTIONS = [
-  { id: 0,    label: "Never" },
-  { id: 5,    label: "5 min" },
-  { id: 15,   label: "15 min" },
-  { id: 30,   label: "30 min" },
-  { id: 60,   label: "1 hour" },
-  { id: 1440, label: "Day before" },
+  { id: 0, label: "Never" },
+  { id: 5, label: "5 min" },
+  { id: 15, label: "15 min" },
+  { id: 30, label: "30 min" },
+  { id: 60, label: "1 hour" },
+  { id: 1440, label: "Day before" }
 ];
 
 const NotificationsRoute: Component = () => {
   const { showToast } = useToast();
-  const [pushPermission, setPushPermission] = createSignal<NotificationPermission | "unsupported">("default");
+  const [pushPermission, setPushPermission] = createSignal<
+    NotificationPermission | "unsupported"
+  >("default");
 
   onMount(() => {
     if (typeof Notification === "undefined") {
@@ -74,7 +107,10 @@ const NotificationsRoute: Component = () => {
 
   const requestPushPermission = async () => {
     if (typeof Notification === "undefined") {
-      showToast("Browser push notifications are not supported in this browser.", "error");
+      showToast(
+        "Browser push notifications are not supported in this browser.",
+        "error"
+      );
       return;
     }
     try {
@@ -84,10 +120,13 @@ const NotificationsRoute: Component = () => {
         showToast("Push notifications enabled.", "success");
         // Fire a welcome notification
         new Notification("CineLog notifications enabled", {
-          body: "You'll now get reminders for new seasons, weekly recaps, and more.",
+          body: "You'll now get reminders for new seasons, weekly recaps, and more."
         });
       } else if (perm === "denied") {
-        showToast("Push notifications blocked. Update your browser settings to allow.", "error");
+        showToast(
+          "Push notifications blocked. Update your browser settings to allow.",
+          "error"
+        );
       } else {
         showToast("Push notification permission not granted.", "info");
       }
@@ -97,13 +136,22 @@ const NotificationsRoute: Component = () => {
     }
   };
 
-  const handleCategoryToggle = (key: NotifCategoryDef["key"], value: boolean) => {
+  const handleCategoryToggle = (
+    key: NotifCategoryDef["key"],
+    value: boolean
+  ) => {
     updateNotifPref(key, value);
     // If user is enabling any category for the first time, prompt for push permission
     if (value && pushPermission() === "default") {
       void requestPushPermission();
     }
-    showToast(value ? `${NOTIF_CATEGORIES.find(c => c.key === key)?.label} enabled` : "Notification disabled", "info", 1200);
+    showToast(
+      value
+        ? `${NOTIF_CATEGORIES.find((c) => c.key === key)?.label} enabled`
+        : "Notification disabled",
+      "info",
+      1200
+    );
   };
 
   const currentlyInQuietHours = () => isInQuietHours();
@@ -115,14 +163,25 @@ const NotificationsRoute: Component = () => {
         <ScrollToTop />
         <div class="sec-page sec-fade-in">
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                arrow_back
+              </span>
               Settings
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Notifications</h1>
             <p class="sec-subtitle">
-              Choose what CineLog tells you, and when. All preferences are saved and respected.
+              Choose what CineLog tells you, and when. All preferences are saved
+              and respected.
             </p>
           </div>
 
@@ -134,27 +193,62 @@ const NotificationsRoute: Component = () => {
                 <div class="setting-row-control">
                   <div class="setting-row-control-header">
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">notifications_active</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        notifications_active
+                      </span>
                     </div>
                     <div class="setting-row-control-meta">
-                      <span class="setting-row-control-label">Browser push notifications</span>
+                      <span class="setting-row-control-label">
+                        Browser push notifications
+                      </span>
                       <span class="setting-row-control-desc">
-                        <Show when={pushPermission() !== "unsupported"}
-                          fallback={<span style={{ color: "var(--text-muted)" }}>Not supported in this browser. In-app toasts will still work.</span>}>
-                          <Show when={pushPermission() === "granted"}
-                            fallback={<span style={{ color: "var(--text-muted)" }}>Required to send reminders when the app is in the background.</span>}>
-                            <span style={{ color: "#4ade80" }}>✓ Enabled — push notifications will fire</span>
+                        <Show
+                          when={pushPermission() !== "unsupported"}
+                          fallback={
+                            <span style={{ color: "var(--text-muted)" }}>
+                              Not supported in this browser. In-app toasts will
+                              still work.
+                            </span>
+                          }
+                        >
+                          <Show
+                            when={pushPermission() === "granted"}
+                            fallback={
+                              <span style={{ color: "var(--text-muted)" }}>
+                                Required to send reminders when the app is in
+                                the background.
+                              </span>
+                            }
+                          >
+                            <span style={{ color: "#4ade80" }}>
+                              ✓ Enabled — push notifications will fire
+                            </span>
                           </Show>
                         </Show>
                       </span>
                     </div>
                     <Show when={pushPermission() === "default"}>
-                      <button type="button" class="settings-link-btn focus-ring" onClick={requestPushPermission}>
+                      <button
+                        type="button"
+                        class="settings-link-btn focus-ring"
+                        onClick={requestPushPermission}
+                      >
                         Enable
                       </button>
                     </Show>
                     <Show when={pushPermission() === "denied"}>
-                      <span style={{ color: "var(--text-muted)", "font-size": "0.75rem" }}>Blocked</span>
+                      <span
+                        style={{
+                          color: "var(--text-muted)",
+                          "font-size": "0.75rem"
+                        }}
+                      >
+                        Blocked
+                      </span>
                     </Show>
                   </div>
                 </div>
@@ -206,10 +300,20 @@ const NotificationsRoute: Component = () => {
                     onChange={(v) => updateNotifPref("quietHoursEnd", v)}
                   />
                   <Show when={currentlyInQuietHours()}>
-                    <div class="info-callout" style={{ margin: "var(--sp-3) var(--sp-5)" }}>
-                      <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">nightlight</span>
+                    <div
+                      class="info-callout"
+                      style={{ margin: "var(--sp-3) var(--sp-5)" }}
+                    >
+                      <span
+                        class="material-symbols-outlined info-callout-icon"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        nightlight
+                      </span>
                       <p class="info-callout-body">
-                        <strong>You're currently in quiet hours.</strong> No notifications will fire until{" "}
+                        <strong>You're currently in quiet hours.</strong> No
+                        notifications will fire until{" "}
                         {notifPrefs().quietHoursEnd}.
                       </p>
                     </div>
@@ -227,7 +331,9 @@ const NotificationsRoute: Component = () => {
                   label="Day of week"
                   desc="Which day your weekly recap fires."
                   value={() => String(notifPrefs().weeklyDigestDay)}
-                  onChange={(v) => updateNotifPref("weeklyDigestDay", parseInt(v, 10))}
+                  onChange={(v) =>
+                    updateNotifPref("weeklyDigestDay", parseInt(v, 10))
+                  }
                   options={DAY_OF_WEEK_OPTIONS}
                 />
                 <TimeRow
@@ -239,9 +345,19 @@ const NotificationsRoute: Component = () => {
                 />
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>Real effect:</strong> CineLog schedules a check at this day+time each week. If you watched anything in the past 7 days, you get a recap toast (and a push notification if enabled). Quiet hours override this — the recap fires after quiet hours end.
+                  <strong>Real effect:</strong> CineLog schedules a check at
+                  this day+time each week. If you watched anything in the past 7
+                  days, you get a recap toast (and a push notification if
+                  enabled). Quiet hours override this — the recap fires after
+                  quiet hours end.
                 </p>
               </div>
             </section>
@@ -258,7 +374,9 @@ const NotificationsRoute: Component = () => {
                   <Segmented
                     options={LEAD_TIME_OPTIONS}
                     current={() => notifPrefs().episodeReminderLead}
-                    onChange={(id) => updateNotifPref("episodeReminderLead", id)}
+                    onChange={(id) =>
+                      updateNotifPref("episodeReminderLead", id)
+                    }
                     name="Episode reminder lead time"
                   />
                 </ControlRow>
@@ -268,9 +386,20 @@ const NotificationsRoute: Component = () => {
             {/* How notifications work */}
             <section class="sec-section">
               <div class="info-callout">
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>How notifications work:</strong> CineLog is a personal app — notifications are reminders for <strong>you</strong>, not social pings. They appear as in-app toasts while you're using CineLog, and as device notifications (if you enabled push) when the app is in the background. No emails, no spam, no followers.
+                  <strong>How notifications work:</strong> CineLog is a personal
+                  app — notifications are reminders for <strong>you</strong>,
+                  not social pings. They appear as in-app toasts while you're
+                  using CineLog, and as device notifications (if you enabled
+                  push) when the app is in the background. No emails, no spam,
+                  no followers.
                 </p>
               </div>
             </section>

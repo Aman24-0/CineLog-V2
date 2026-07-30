@@ -11,13 +11,16 @@
 // items by default; a "Show more" button reveals the next 25 (just
 // raises the visible count — the underlying memo already caps at 50).
 
-import { Show, For, createSignal, type Component, type Accessor } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  type Component,
+  type Accessor
+} from "solid-js";
 import { GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import {
-  useActivityFeed,
-  formatRelativeTime,
-} from "../hooks/useActivityFeed";
+import { useActivityFeed, formatRelativeTime } from "../hooks/useActivityFeed";
 import type { WatchlistItem } from "~/shared/types";
 
 export interface ActivityFeedProps {
@@ -29,22 +32,28 @@ export interface ActivityFeedProps {
 const PAGE_SIZE = 25;
 
 const ActivityFeed: Component<ActivityFeedProps> = (props) => {
-  const { feed, loading, empty } = useActivityFeed(props.watchlist, { limit: 50 });
+  const { feed, loading, empty } = useActivityFeed(props.watchlist, {
+    limit: 50
+  });
   const [visibleCount, setVisibleCount] = createSignal(PAGE_SIZE);
 
   const visibleItems = () => feed().slice(0, visibleCount());
   const hasMore = () => feed().length > visibleCount();
 
   return (
-    <div class="profile-activity-feed-v3" role="feed" aria-label="Recent activity">
+    <div
+      class="profile-activity-feed-v3"
+      role="feed"
+      aria-label="Recent activity"
+    >
       <Show when={loading()}>
         <For each={Array.from({ length: 5 })}>
-          {(_, i) => (
+          {(_, _i) => (
             <div class="profile-activity-feed-v3-skeleton">
               <GlassSkeleton class="profile-activity-feed-v3-skeleton-poster" />
               <div class="profile-activity-feed-v3-skeleton-text">
                 <GlassSkeleton class="h-3 w-3/4 rounded" />
-                <GlassSkeleton class="h-2 w-1/2 rounded mt-1" />
+                <GlassSkeleton class="mt-1 h-2 w-1/2 rounded" />
               </div>
             </div>
           )}
@@ -73,8 +82,13 @@ const ActivityFeed: Component<ActivityFeedProps> = (props) => {
               <Show
                 when={entry.item.poster_path}
                 fallback={
-                  <div class="profile-activity-feed-v3-poster-fallback" aria-hidden="true">
-                    <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+                  <div
+                    class="profile-activity-feed-v3-poster-fallback"
+                    aria-hidden="true"
+                  >
+                    <span class="material-symbols-outlined" aria-hidden="true">
+                      movie
+                    </span>
                   </div>
                 }
               >
@@ -85,7 +99,9 @@ const ActivityFeed: Component<ActivityFeedProps> = (props) => {
                   decoding="async"
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               </Show>
 

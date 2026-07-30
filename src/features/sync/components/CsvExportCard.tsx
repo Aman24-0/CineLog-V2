@@ -18,10 +18,30 @@ interface CsvFormat {
 }
 
 const FORMATS: CsvFormat[] = [
-  { id: "generic",    label: "CineLog (full)", desc: "All fields, .csv — best for re-import or Excel", icon: "data_object" },
-  { id: "letterboxd", label: "Letterboxd",     desc: "Movies only — imports into Letterboxd",          icon: "movie" },
-  { id: "trakt",      label: "Trakt",          desc: "Movies + shows — imports into Trakt",            icon: "tv" },
-  { id: "imdb",       label: "IMDb",           desc: "IMDb watchlist format",                          icon: "rate_review" },
+  {
+    id: "generic",
+    label: "CineLog (full)",
+    desc: "All fields, .csv — best for re-import or Excel",
+    icon: "data_object"
+  },
+  {
+    id: "letterboxd",
+    label: "Letterboxd",
+    desc: "Movies only — imports into Letterboxd",
+    icon: "movie"
+  },
+  {
+    id: "trakt",
+    label: "Trakt",
+    desc: "Movies + shows — imports into Trakt",
+    icon: "tv"
+  },
+  {
+    id: "imdb",
+    label: "IMDb",
+    desc: "IMDb watchlist format",
+    icon: "rate_review"
+  }
 ];
 
 const CsvExportCard: Component = () => {
@@ -38,7 +58,11 @@ const CsvExportCard: Component = () => {
     setExporting(format);
     try {
       exportWatchlistCsv(items, format);
-      showToast(`Exported ${items.length} titles as ${format} CSV`, "success", 2000);
+      showToast(
+        `Exported ${items.length} titles as ${format} CSV`,
+        "success",
+        2000
+      );
     } catch (e) {
       console.error("[csv-export] failed:", e);
       showToast("Export failed. Try again.", "error");
@@ -60,16 +84,36 @@ const CsvExportCard: Component = () => {
             aria-label={`Export as ${fmt.label} CSV`}
           >
             <div class="setting-row-icon" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">{fmt.icon}</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px" }}
+                aria-hidden="true"
+              >
+                {fmt.icon}
+              </span>
             </div>
             <div class="setting-row-text">
               <span class="setting-row-label">{fmt.label} CSV</span>
               <span class="setting-row-desc">{fmt.desc}</span>
             </div>
-            <Show when={exporting() === fmt.id}
-              fallback={<span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">download</span>}>
-              <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true"
-                style={{ animation: "spin 1s linear infinite" }}>progress_activity</span>
+            <Show
+              when={exporting() === fmt.id}
+              fallback={
+                <span
+                  class="material-symbols-outlined setting-row-chevron"
+                  aria-hidden="true"
+                >
+                  download
+                </span>
+              }
+            >
+              <span
+                class="material-symbols-outlined setting-row-chevron"
+                aria-hidden="true"
+                style={{ animation: "spin 1s linear infinite" }}
+              >
+                progress_activity
+              </span>
             </Show>
           </button>
         )}

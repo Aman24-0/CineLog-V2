@@ -14,7 +14,15 @@
 //
 // All data is fetched in a single GET /api/admin/analytics call.
 
-import { createSignal, Show, For, onMount, createMemo, type Component } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  createMemo,
+  type Component,
+  type JSX
+} from "solid-js";
 
 interface UserGrowthRow {
   day: string;
@@ -73,7 +81,9 @@ const AdminAnalyticsPage: Component = () => {
   const fetchAnalytics = async () => {
     setLoading(true);
     try {
-      const resp = await fetch("/api/admin/analytics", { credentials: "include" });
+      const resp = await fetch("/api/admin/analytics", {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -145,14 +155,22 @@ const AdminAnalyticsPage: Component = () => {
           "justify-content": "space-between",
           "margin-bottom": "var(--sp-6)",
           "flex-wrap": "wrap",
-          gap: "var(--sp-3)",
+          gap: "var(--sp-3)"
         }}
       >
         <div>
-          <h1 style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}>
+          <h1
+            style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}
+          >
             Analytics
           </h1>
-          <p style={{ margin: "var(--sp-1) 0 0 0", color: "var(--text-muted)", "font-size": "0.875rem" }}>
+          <p
+            style={{
+              margin: "var(--sp-1) 0 0 0",
+              color: "var(--text-muted)",
+              "font-size": "0.875rem"
+            }}
+          >
             Aggregated engagement metrics, refreshed hourly by pg_cron.
           </p>
         </div>
@@ -173,7 +191,8 @@ const AdminAnalyticsPage: Component = () => {
             <strong>Last refresh:</strong> {formatDate(data()!.last_refresh)}
           </span>
           <span>
-            <strong>Next refresh:</strong> ~{data()!.next_refresh_eta_minutes} min
+            <strong>Next refresh:</strong> ~{data()!.next_refresh_eta_minutes}{" "}
+            min
           </span>
           <span>
             <strong>Page fetched:</strong> {formatDate(data()!.fetched_at)}
@@ -192,7 +211,11 @@ const AdminAnalyticsPage: Component = () => {
       <Show when={data()}>
         {/* ─── Summary cards ─────────────────────────────── */}
         <div style={cardsGridStyle}>
-          <StatCard label="Total users" value={data()!.summary.total_users} hint="non-deleted profiles" />
+          <StatCard
+            label="Total users"
+            value={data()!.summary.total_users}
+            hint="non-deleted profiles"
+          />
           <StatCard
             label="New users (24h)"
             value={data()!.summary.new_users_24h}
@@ -203,9 +226,21 @@ const AdminAnalyticsPage: Component = () => {
             value={data()!.summary.new_users_30d}
             hint={`last 24h: ${data()!.summary.new_users_24h}`}
           />
-          <StatCard label="DAU today" value={data()!.summary.dau_today} hint="active users today" />
-          <StatCard label="WAU (7d)" value={data()!.summary.wau_this_week} hint="active in last 7 days" />
-          <StatCard label="MAU (30d)" value={data()!.summary.mau_this_month} hint="active in last 30 days" />
+          <StatCard
+            label="DAU today"
+            value={data()!.summary.dau_today}
+            hint="active users today"
+          />
+          <StatCard
+            label="WAU (7d)"
+            value={data()!.summary.wau_this_week}
+            hint="active in last 7 days"
+          />
+          <StatCard
+            label="MAU (30d)"
+            value={data()!.summary.mau_this_month}
+            hint="active in last 30 days"
+          />
           <StatCard
             label="Vault items"
             value={data()!.summary.total_vault_items}
@@ -224,7 +259,11 @@ const AdminAnalyticsPage: Component = () => {
             when={data()!.user_growth.length > 0}
             fallback={<EmptyState label="No data yet" />}
           >
-            <svg viewBox="0 0 100 30" preserveAspectRatio="none" style={sparklineStyle}>
+            <svg
+              viewBox="0 0 100 30"
+              preserveAspectRatio="none"
+              style={sparklineStyle}
+            >
               <polyline
                 points={growthSparkline()}
                 fill="none"
@@ -233,16 +272,26 @@ const AdminAnalyticsPage: Component = () => {
                 vector-effect="non-scaling-stroke"
               />
             </svg>
-            <div style={{ "margin-top": "var(--sp-3)", "font-size": "0.8125rem", color: "var(--text-muted)" }}>
+            <div
+              style={{
+                "margin-top": "var(--sp-3)",
+                "font-size": "0.8125rem",
+                color: "var(--text-muted)"
+              }}
+            >
               {data()!.user_growth.length} days tracked • peak day:{" "}
-              {Math.max(...data()!.user_growth.map((r) => r.new_users))} new users
+              {Math.max(...data()!.user_growth.map((r) => r.new_users))} new
+              users
             </div>
           </Show>
         </Section>
 
         {/* ─── Top titles ─────────────────────────────────── */}
         <Section title="Top titles (last 30 days)">
-          <Show when={data()!.top_titles.length > 0} fallback={<EmptyState label="No vault activity yet" />}>
+          <Show
+            when={data()!.top_titles.length > 0}
+            fallback={<EmptyState label="No vault activity yet" />}
+          >
             <div style={tableWrapStyle}>
               <table style={tableStyle}>
                 <thead>
@@ -268,19 +317,26 @@ const AdminAnalyticsPage: Component = () => {
                             href={`https://www.themoviedb.org/${row.media_type}/${row.tmdb_id}`}
                             target="_blank"
                             rel="noopener noreferrer"
-                            style={{ color: "var(--p)", "text-decoration": "none" }}
+                            style={{
+                              color: "var(--p)",
+                              "text-decoration": "none"
+                            }}
                           >
                             {row.tmdb_id}
                           </a>
                         </td>
-                        <td style={tdStyle}>{row.media_type === "tv" ? "TV" : "Movie"}</td>
+                        <td style={tdStyle}>
+                          {row.media_type === "tv" ? "TV" : "Movie"}
+                        </td>
                         <td style={tdStyle}>{row.vault_count}</td>
                         <td style={tdStyle}>{row.completed_count}</td>
                         <td style={tdStyle}>{row.watching_count}</td>
                         <td style={tdStyle}>{row.planned_count}</td>
                         <td style={tdStyle}>{row.unique_users}</td>
                         <td style={tdStyle}>
-                          {row.avg_rating !== null ? row.avg_rating.toFixed(1) : "—"}
+                          {row.avg_rating !== null
+                            ? row.avg_rating.toFixed(1)
+                            : "—"}
                         </td>
                       </tr>
                     )}
@@ -311,7 +367,9 @@ const AdminAnalyticsPage: Component = () => {
                     {(row) => (
                       <tr>
                         <td style={tdStyle}>
-                          <code style={codeStyle}>{actionLabel(row.action)}</code>
+                          <code style={codeStyle}>
+                            {actionLabel(row.action)}
+                          </code>
                         </td>
                         <td style={tdStyle}>{row.count.toLocaleString()}</td>
                         <td style={tdStyle}>{row.users.toLocaleString()}</td>
@@ -330,23 +388,49 @@ const AdminAnalyticsPage: Component = () => {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-const StatCard: Component<{ label: string; value: number; hint?: string }> = (props) => (
+const StatCard: Component<{ label: string; value: number; hint?: string }> = (
+  props
+) => (
   <div style={statCardStyle}>
-    <div style={{ "font-size": "0.75rem", color: "var(--text-muted)", "text-transform": "uppercase", "letter-spacing": "0.05em" }}>
+    <div
+      style={{
+        "font-size": "0.75rem",
+        color: "var(--text-muted)",
+        "text-transform": "uppercase",
+        "letter-spacing": "0.05em"
+      }}
+    >
       {props.label}
     </div>
-    <div style={{ "font-size": "1.75rem", "font-weight": "700", color: "var(--text)", margin: "var(--sp-1) 0" }}>
+    <div
+      style={{
+        "font-size": "1.75rem",
+        "font-weight": "700",
+        color: "var(--text)",
+        margin: "var(--sp-1) 0"
+      }}
+    >
       {props.value.toLocaleString()}
     </div>
     <Show when={props.hint}>
-      <div style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>{props.hint}</div>
+      <div style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
+        {props.hint}
+      </div>
     </Show>
   </div>
 );
 
-const Section: Component<{ title: string; children: any }> = (props) => (
+const Section: Component<{ title: string; children: JSX.Element }> = (
+  props
+) => (
   <section style={{ "margin-top": "var(--sp-8)" }}>
-    <h2 style={{ "font-size": "1.125rem", color: "var(--text)", margin: "0 0 var(--sp-4) 0" }}>
+    <h2
+      style={{
+        "font-size": "1.125rem",
+        color: "var(--text)",
+        margin: "0 0 var(--sp-4) 0"
+      }}
+    >
       {props.title}
     </h2>
     {props.children}
@@ -360,9 +444,9 @@ const EmptyState: Component<{ label: string }> = (props) => (
       "text-align": "center",
       color: "var(--text-muted)",
       "font-size": "0.875rem",
-      "background": "var(--tier-1)",
+      background: "var(--tier-1)",
       border: "1px dashed var(--hairline-2)",
-      "border-radius": "var(--radius-md)",
+      "border-radius": "var(--radius-md)"
     }}
   >
     {props.label}
@@ -375,14 +459,14 @@ const cardsGridStyle = {
   display: "grid",
   "grid-template-columns": "repeat(auto-fill, minmax(180px, 1fr))",
   gap: "var(--sp-3)",
-  "margin-bottom": "var(--sp-6)",
+  "margin-bottom": "var(--sp-6)"
 } as const;
 
 const statCardStyle = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
-  padding: "var(--sp-4)",
+  padding: "var(--sp-4)"
 } as const;
 
 const sparklineStyle = {
@@ -391,20 +475,20 @@ const sparklineStyle = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
-  padding: "var(--sp-3)",
+  padding: "var(--sp-3)"
 } as const;
 
 const tableWrapStyle = {
   "overflow-x": "auto",
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
-  "border-radius": "var(--radius-md)",
+  "border-radius": "var(--radius-md)"
 } as const;
 
 const tableStyle = {
   width: "100%",
   "border-collapse": "collapse",
-  "font-size": "0.8125rem",
+  "font-size": "0.8125rem"
 } as const;
 
 const thStyle = {
@@ -416,22 +500,22 @@ const thStyle = {
   "text-transform": "uppercase" as const,
   "letter-spacing": "0.05em",
   "font-size": "0.6875rem",
-  "white-space": "nowrap" as const,
+  "white-space": "nowrap" as const
 };
 
 const tdStyle = {
   padding: "var(--sp-3)",
   "border-bottom": "1px solid var(--hairline)",
   color: "var(--text)",
-  "white-space": "nowrap" as const,
+  "white-space": "nowrap" as const
 };
 
 const codeStyle = {
-  "background": "var(--tier-2)",
+  background: "var(--tier-2)",
   padding: "0.125rem 0.375rem",
   "border-radius": "var(--radius-sm)",
   "font-size": "0.75rem",
-  color: "var(--text-secondary)",
+  color: "var(--text-secondary)"
 } as const;
 
 const metaBarStyle = {
@@ -439,41 +523,41 @@ const metaBarStyle = {
   "flex-wrap": "wrap" as const,
   gap: "var(--sp-4)",
   padding: "var(--sp-3) var(--sp-4)",
-  "background": "var(--tier-1)",
+  background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   "margin-bottom": "var(--sp-6)",
   "font-size": "0.8125rem",
-  color: "var(--text-secondary)",
+  color: "var(--text-secondary)"
 } as const;
 
 const errorStyle = {
-  "background": "rgba(239, 68, 68, 0.1)",
+  background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-3) var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   color: "rgb(252, 165, 165)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const loadingStyle = {
   padding: "var(--sp-8)",
   "text-align": "center",
   color: "var(--text-muted)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 function btnStyle(disabled: boolean) {
   return {
     padding: "var(--sp-2) var(--sp-4)",
-    "background": disabled ? "var(--tier-3)" : "var(--p)",
+    background: disabled ? "var(--tier-3)" : "var(--p)",
     color: disabled ? "var(--text-muted)" : "var(--on-primary)",
     border: "none",
     "border-radius": "var(--radius-md)",
     "font-size": "0.8125rem",
     "font-weight": "600",
-    cursor: disabled ? "not-allowed" : "pointer",
+    cursor: disabled ? "not-allowed" : "pointer"
   } as const;
 }
 

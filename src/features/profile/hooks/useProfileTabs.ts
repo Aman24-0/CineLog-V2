@@ -7,7 +7,7 @@
 // persistence so a page refresh keeps the user on the tab they were
 // viewing. The hook is SSR-safe (localStorage is only read on the client).
 
-import { createSignal, createEffect, onMount, type Accessor } from "solid-js";
+import { createSignal, onMount, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
 
 export type ProfileTab = "activity" | "favorites" | "lists" | "achievements";
@@ -16,7 +16,7 @@ export const PROFILE_TABS: { id: ProfileTab; label: string; icon: string }[] = [
   { id: "activity", label: "Activity", icon: "timeline" },
   { id: "favorites", label: "Favorites", icon: "favorite" },
   { id: "lists", label: "Lists", icon: "video_library" },
-  { id: "achievements", label: "Achievements", icon: "military_tech" },
+  { id: "achievements", label: "Achievements", icon: "military_tech" }
 ];
 
 const STORAGE_KEY = "cinelog:profile:activeTab";
@@ -25,7 +25,12 @@ function readStoredTab(): ProfileTab | null {
   if (isServer) return null;
   try {
     const v = localStorage.getItem(STORAGE_KEY);
-    if (v === "activity" || v === "favorites" || v === "lists" || v === "achievements") {
+    if (
+      v === "activity" ||
+      v === "favorites" ||
+      v === "lists" ||
+      v === "achievements"
+    ) {
       return v;
     }
   } catch {

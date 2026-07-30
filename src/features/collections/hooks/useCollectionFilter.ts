@@ -1,7 +1,6 @@
 // src/features/collections/hooks/useCollectionFilter.ts
 import { createSignal, createMemo, type Accessor } from "solid-js";
 import type { CollectionEntry, WatchlistItem } from "~/shared/types";
-import { findInVault } from "~/shared/utils/vaultMatch";
 
 /**
  * Status filter pills available on the collection detail page.
@@ -23,16 +22,16 @@ import { findInVault } from "~/shared/utils/vaultMatch";
  * universe the user hasn't added to their vault yet.
  */
 export type CollectionStatusFilter =
-  | "all"
-  | "watching"
-  | "completed"
-  | "planned";
+  "all" | "watching" | "completed" | "planned";
 
-export const STATUS_FILTER_OPTIONS: { value: CollectionStatusFilter; label: string }[] = [
-  { value: "all",        label: "All" },
-  { value: "watching",   label: "Watching" },
-  { value: "completed",  label: "Completed" },
-  { value: "planned",    label: "Planned" },
+export const STATUS_FILTER_OPTIONS: {
+  value: CollectionStatusFilter;
+  label: string;
+}[] = [
+  { value: "all", label: "All" },
+  { value: "watching", label: "Watching" },
+  { value: "completed", label: "Completed" },
+  { value: "planned", label: "Planned" }
 ];
 
 export interface UseCollectionFilterOptions {
@@ -61,9 +60,13 @@ export interface UseCollectionFilterOptions {
  * matching vault row, only the title is searched.
  */
 export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
-  const [status, setStatus] = createSignal<CollectionStatusFilter>(options.initialStatus ?? "all");
+  const [status, setStatus] = createSignal<CollectionStatusFilter>(
+    options.initialStatus ?? "all"
+  );
   const [search, setSearch] = createSignal<string>(options.initialSearch ?? "");
-  const [debouncedSearch, setDebouncedSearch] = createSignal<string>(options.initialSearch ?? "");
+  const [debouncedSearch, setDebouncedSearch] = createSignal<string>(
+    options.initialSearch ?? ""
+  );
 
   // 200ms debounce — same as the watchlist search. Solid's onInput
   // fires per keystroke; debouncing avoids re-filtering a 200-entry
@@ -72,7 +75,10 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
   const onSearchInput = (value: string) => {
     setSearch(value);
     if (debounceTimer) clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => setDebouncedSearch(value.trim().toLowerCase()), 200);
+    debounceTimer = setTimeout(
+      () => setDebouncedSearch(value.trim().toLowerCase()),
+      200
+    );
   };
 
   // ── Status lookup ─────────────────────────────────────────────
@@ -96,7 +102,10 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
     return (v.status ?? "").toLowerCase();
   };
 
-  const matchesStatus = (entry: CollectionEntry, s: CollectionStatusFilter): boolean => {
+  const matchesStatus = (
+    entry: CollectionEntry,
+    s: CollectionStatusFilter
+  ): boolean => {
     if (s === "all") return true;
     const st = statusOf(entry);
     if (st == null) {
@@ -143,7 +152,12 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
         }
         if (Array.isArray(v.credits.crew)) {
           for (const m of v.credits.crew) {
-            if (m?.job === "Director" && m.name && m.name.toLowerCase().includes(q)) return true;
+            if (
+              m?.job === "Director" &&
+              m.name &&
+              m.name.toLowerCase().includes(q)
+            )
+              return true;
           }
         }
       }
@@ -163,9 +177,7 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
       const q = debouncedSearch();
       const list = entries();
       if (s === "all" && !q) return list;
-      return list.filter(
-        (e) => matchesStatus(e, s) && matchesSearch(e, q),
-      );
+      return list.filter((e) => matchesStatus(e, s) && matchesSearch(e, q));
     });
 
   return {
@@ -177,6 +189,6 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
     filter,
     /** Expose the vault map so callers can resolve per-entry status
      *  for the redesigned EntryListRow (status badge + rating). */
-    vaultMap,
+    vaultMap
   };
 }

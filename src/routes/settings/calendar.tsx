@@ -8,38 +8,42 @@ import { Title } from "@solidjs/meta";
 import { type Component } from "solid-js";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
-import { ControlRow, Segmented, SelectRow } from "~/features/settings/sharedControls";
+import {
+  ControlRow,
+  Segmented,
+  SelectRow
+} from "~/features/settings/sharedControls";
 import {
   calPrefs,
   updateCalPref,
   type FirstDayOfWeek,
   type TimeFormat,
   type CalendarView,
-  type CalendarPrefs,
+  type CalendarPrefs
 } from "~/core/preferences";
 
 const FIRST_DAY_OPTIONS: { id: FirstDayOfWeek; label: string }[] = [
   { id: 0, label: "Sun" },
   { id: 1, label: "Mon" },
-  { id: 6, label: "Sat" },
+  { id: 6, label: "Sat" }
 ];
 
 const TIME_FORMAT_OPTIONS: { id: TimeFormat; label: string }[] = [
   { id: "24h", label: "24h" },
-  { id: "12h", label: "12h" },
+  { id: "12h", label: "12h" }
 ];
 
 const DEFAULT_VIEW_OPTIONS: { id: CalendarView; label: string }[] = [
-  { id: "week",   label: "Week" },
-  { id: "month",  label: "Month" },
-  { id: "agenda", label: "Agenda" },
+  { id: "week", label: "Week" },
+  { id: "month", label: "Month" },
+  { id: "agenda", label: "Agenda" }
 ];
 
 const TZ_OPTIONS = [
-  { value: "local",       label: "My local time (auto)" },
-  { value: "us-east",     label: "US Eastern (ET) — Netflix/HBO default" },
-  { value: "us-pacific",  label: "US Pacific (PT) — Apple TV+ default" },
-  { value: "utc",         label: "UTC" },
+  { value: "local", label: "My local time (auto)" },
+  { value: "us-east", label: "US Eastern (ET) — Netflix/HBO default" },
+  { value: "us-pacific", label: "US Pacific (PT) — Apple TV+ default" },
+  { value: "utc", label: "UTC" }
 ];
 
 const CalendarRoute: Component = () => {
@@ -50,14 +54,25 @@ const CalendarRoute: Component = () => {
         <ScrollToTop />
         <div class="sec-page sec-fade-in">
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">arrow_back</span>
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
+                arrow_back
+              </span>
               Settings
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Calendar</h1>
             <p class="sec-subtitle">
-              How upcoming releases and air times are shown on the Upcoming page.
+              How upcoming releases and air times are shown on the Upcoming
+              page.
             </p>
           </div>
 
@@ -109,14 +124,29 @@ const CalendarRoute: Component = () => {
                   label="Air time timezone"
                   desc="Streaming platforms release new episodes at different times. Choose which timezone to display air times in."
                   value={() => calPrefs().releaseTimezone}
-                  onChange={(v) => updateCalPref("releaseTimezone", v as CalendarPrefs["releaseTimezone"])}
+                  onChange={(v) =>
+                    updateCalPref(
+                      "releaseTimezone",
+                      v as CalendarPrefs["releaseTimezone"]
+                    )
+                  }
                   options={TZ_OPTIONS}
                 />
               </div>
               <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span class="material-symbols-outlined info-callout-icon" style={{ "font-size": "16px" }} aria-hidden="true">info</span>
+                <span
+                  class="material-symbols-outlined info-callout-icon"
+                  style={{ "font-size": "16px" }}
+                  aria-hidden="true"
+                >
+                  info
+                </span>
                 <p class="info-callout-body">
-                  <strong>Why this matters:</strong> Netflix typically drops new episodes at midnight Pacific Time, HBO Max at 9 PM Eastern, Apple TV+ at midnight Pacific. If you're in India and want to know "when can I watch this", select "My local time" and CineLog converts the air time for you.
+                  <strong>Why this matters:</strong> Netflix typically drops new
+                  episodes at midnight Pacific Time, HBO Max at 9 PM Eastern,
+                  Apple TV+ at midnight Pacific. If you're in India and want to
+                  know "when can I watch this", select "My local time" and
+                  CineLog converts the air time for you.
                 </p>
               </div>
             </section>

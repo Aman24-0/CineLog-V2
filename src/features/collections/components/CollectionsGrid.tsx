@@ -81,8 +81,10 @@ interface CollectionCardProps {
 function CollectionCard(props: CollectionCardProps) {
   const entries = (): CollectionEntry[] => props.col.entries ?? [];
 
-  const movieCount = () => entries().filter((e) => e.media_type === "movie").length;
-  const seriesCount = () => entries().filter((e) => e.media_type === "tv").length;
+  const movieCount = () =>
+    entries().filter((e) => e.media_type === "movie").length;
+  const seriesCount = () =>
+    entries().filter((e) => e.media_type === "tv").length;
   const totalCount = () => entries().length;
 
   // Get up to 4 posters for the collage
@@ -90,7 +92,10 @@ function CollectionCard(props: CollectionCardProps) {
     return entries()
       .filter((e) => e.poster_path)
       .slice(0, 4)
-      .map((e) => ({ path: e.poster_path as string, title: e.title || e.name || "Untitled" }));
+      .map((e) => ({
+        path: e.poster_path as string,
+        title: e.title || e.name || "Untitled"
+      }));
   };
 
   // Resolve the folder's custom backdrop (if set).
@@ -132,9 +137,14 @@ function CollectionCard(props: CollectionCardProps) {
   // Stats text
   const statsText = (): string => {
     const parts: string[] = [];
-    if (movieCount() > 0) parts.push(`${movieCount()} ${movieCount() !== 1 ? "Movies" : "Movie"}`);
-    if (seriesCount() > 0) parts.push(`${seriesCount()} ${seriesCount() !== 1 ? "Series" : "Series"}`);
-    if (parts.length === 0 && totalCount() > 0) parts.push(`${totalCount()} Titles`);
+    if (movieCount() > 0)
+      parts.push(`${movieCount()} ${movieCount() !== 1 ? "Movies" : "Movie"}`);
+    if (seriesCount() > 0)
+      parts.push(
+        `${seriesCount()} ${seriesCount() !== 1 ? "Series" : "Series"}`
+      );
+    if (parts.length === 0 && totalCount() > 0)
+      parts.push(`${totalCount()} Titles`);
     return parts.join(" · ");
   };
 
@@ -144,7 +154,7 @@ function CollectionCard(props: CollectionCardProps) {
     if (!color) return {};
     return {
       "--card-accent": color,
-      "--card-accent-glow": `${color}33`,
+      "--card-accent-glow": `${color}33`
     };
   };
 
@@ -173,7 +183,9 @@ function CollectionCard(props: CollectionCardProps) {
             decoding="async"
             alt=""
             aria-hidden="true"
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
           />
           <div class="collection-card-backdrop-overlay" aria-hidden="true" />
         </Show>
@@ -197,7 +209,12 @@ function CollectionCard(props: CollectionCardProps) {
                 >
                   <span
                     class="material-symbols-outlined"
-                    style={{ "font-size": "36px", color: "#f5c518", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40" }}
+                    style={{
+                      "font-size": "36px",
+                      color: "#f5c518",
+                      "font-variation-settings":
+                        "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40"
+                    }}
                     aria-hidden="true"
                   >
                     favorite
@@ -223,7 +240,9 @@ function CollectionCard(props: CollectionCardProps) {
           {/* title attribute provides a hover tooltip showing the full
               name — the CSS truncates with line-clamp-1, so without
               this the user couldn't read a long folder name. */}
-          <p class="collection-card-name" title={props.col.name}>{props.col.name}</p>
+          <p class="collection-card-name" title={props.col.name}>
+            {props.col.name}
+          </p>
         </div>
 
         <Show when={props.col.description}>
@@ -251,12 +270,59 @@ function PosterCollage(props: { posters: { path: string; title: string }[] }) {
   const count = () => props.posters.length;
 
   return (
-    <Show when={count() === 1} fallback={
-      <Show when={count() === 2} fallback={
-        <Show when={count() === 3} fallback={
-          // 4+ posters → 2×2 grid
-          <div class="collage-grid-4">
-            <For each={props.posters.slice(0, 4)}>
+    <Show
+      when={count() === 1}
+      fallback={
+        <Show
+          when={count() === 2}
+          fallback={
+            <Show
+              when={count() === 3}
+              fallback={
+                // 4+ posters → 2×2 grid
+                <div class="collage-grid-4">
+                  <For each={props.posters.slice(0, 4)}>
+                    {(p) => (
+                      <img
+                        src={tmdbImage(p.path, "w92")}
+                        class="collage-img"
+                        loading="lazy"
+                        decoding="async"
+                        alt=""
+                        aria-hidden="true"
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
+                      />
+                    )}
+                  </For>
+                </div>
+              }
+            >
+              {/* 3 posters → fan layout */}
+              <div class="collage-fan-3">
+                <For each={props.posters.slice(0, 3)}>
+                  {(p) => (
+                    <img
+                      src={tmdbImage(p.path, "w92")}
+                      class="collage-img"
+                      loading="lazy"
+                      decoding="async"
+                      alt=""
+                      aria-hidden="true"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
+                    />
+                  )}
+                </For>
+              </div>
+            </Show>
+          }
+        >
+          {/* 2 posters → side-by-side */}
+          <div class="collage-grid-2">
+            <For each={props.posters.slice(0, 2)}>
               {(p) => (
                 <img
                   src={tmdbImage(p.path, "w92")}
@@ -265,48 +331,16 @@ function PosterCollage(props: { posters: { path: string; title: string }[] }) {
                   decoding="async"
                   alt=""
                   aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
-                />
-              )}
-            </For>
-          </div>
-        }>
-          {/* 3 posters → fan layout */}
-          <div class="collage-fan-3">
-            <For each={props.posters.slice(0, 3)}>
-              {(p) => (
-                <img
-                  src={tmdbImage(p.path, "w92")}
-                  class="collage-img"
-                  loading="lazy"
-                  decoding="async"
-                  alt=""
-                  aria-hidden="true"
-                  onError={(e) => { e.currentTarget.style.display = "none"; }}
+                  onError={(e) => {
+                    e.currentTarget.style.display = "none";
+                  }}
                 />
               )}
             </For>
           </div>
         </Show>
-      }>
-        {/* 2 posters → side-by-side */}
-        <div class="collage-grid-2">
-          <For each={props.posters.slice(0, 2)}>
-            {(p) => (
-              <img
-                src={tmdbImage(p.path, "w92")}
-                class="collage-img"
-                loading="lazy"
-                decoding="async"
-                alt=""
-                aria-hidden="true"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
-              />
-            )}
-          </For>
-        </div>
-      </Show>
-    }>
+      }
+    >
       {/* 1 poster → full display */}
       <div class="collage-single">
         <img
@@ -316,7 +350,9 @@ function PosterCollage(props: { posters: { path: string; title: string }[] }) {
           decoding="async"
           alt=""
           aria-hidden="true"
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
         />
       </div>
     </Show>

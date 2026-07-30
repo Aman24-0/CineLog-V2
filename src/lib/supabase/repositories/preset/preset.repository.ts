@@ -48,7 +48,10 @@ export class PresetRepository {
   }
 
   /** Rename a preset (validates name). */
-  renamePreset(presetId: string, name: string): Promise<PresetResult<PresetRow>> {
+  renamePreset(
+    presetId: string,
+    name: string
+  ): Promise<PresetResult<PresetRow>> {
     return renamePreset(this.supabase, presetId, name);
   }
 

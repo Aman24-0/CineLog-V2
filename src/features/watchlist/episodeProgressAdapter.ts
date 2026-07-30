@@ -91,7 +91,8 @@ export async function enrichWithEpisodeProgressAsync(
 
   // Batch-fetch the latest episode progress for all TV vault items
   const repo = getEpisodeProgressRepository();
-  const { data: progressMap, error } = await repo.getLatestEpisodeProgressBatch(tvVaultIds);
+  const { data: progressMap, error } =
+    await repo.getLatestEpisodeProgressBatch(tvVaultIds);
   if (error) {
     console.error("[episodeProgressAdapter] Batch fetch error:", error);
     return items; // return unenriched on error — partial data is better than none
@@ -146,7 +147,11 @@ async function resolveVaultId(
   mediaType: WatchlistItem["media_type"]
 ): Promise<string | null> {
   const repo = getVaultRepository();
-  const { data, error } = await repo.getVaultByTmdbId(userId, Number(tmdbId), mediaType);
+  const { data, error } = await repo.getVaultByTmdbId(
+    userId,
+    Number(tmdbId),
+    mediaType
+  );
   if (error || !data) return null;
   return data.id;
 }
@@ -174,7 +179,10 @@ export async function updateSeasonEpisodeInSupabase(
 ): Promise<boolean> {
   const vaultId = await resolveVaultId(userId, itemId, mediaType);
   if (!vaultId) {
-    console.error("[episodeProgressAdapter] Could not resolve vaultId for item:", itemId);
+    console.error(
+      "[episodeProgressAdapter] Could not resolve vaultId for item:",
+      itemId
+    );
     return false;
   }
 
@@ -214,7 +222,13 @@ export async function updateWatchProgressInSupabase(
 ): Promise<boolean> {
   const season = progress.season ?? 1;
   const episode = progress.episode ?? 1;
-  return updateSeasonEpisodeInSupabase(userId, itemId, mediaType, season, episode);
+  return updateSeasonEpisodeInSupabase(
+    userId,
+    itemId,
+    mediaType,
+    season,
+    episode
+  );
 }
 
 /**
@@ -276,14 +290,24 @@ export async function unmarkEpisodeInSupabase(
 ): Promise<boolean> {
   const vaultId = await resolveVaultId(userId, itemId, mediaType);
   if (!vaultId) {
-    console.error("[episodeProgressAdapter] Could not resolve vaultId for item:", itemId);
+    console.error(
+      "[episodeProgressAdapter] Could not resolve vaultId for item:",
+      itemId
+    );
     return false;
   }
 
   const repo = getEpisodeProgressRepository();
-  const { error } = await repo.deleteEpisodeProgressFrom(vaultId, fromSeason, fromEpisode);
+  const { error } = await repo.deleteEpisodeProgressFrom(
+    vaultId,
+    fromSeason,
+    fromEpisode
+  );
   if (error) {
-    console.error("[episodeProgressAdapter] deleteEpisodeProgressFrom error:", error);
+    console.error(
+      "[episodeProgressAdapter] deleteEpisodeProgressFrom error:",
+      error
+    );
     return false;
   }
   return true;

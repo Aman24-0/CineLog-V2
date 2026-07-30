@@ -51,12 +51,14 @@ import { useTrashData } from "./hooks/useTrashData";
 import TrashHeader from "./components/TrashHeader";
 import TrashActionBar from "./components/TrashActionBar";
 import TrashEmptyState from "./components/TrashEmptyState";
-import ConfirmDialog, { type ConfirmDialogVariant } from "./components/ConfirmDialog";
+import ConfirmDialog, {
+  type ConfirmDialogVariant
+} from "./components/ConfirmDialog";
 import {
   TrashVaultItemCard,
   TrashCollectionCard,
   TrashItemCardSkeleton,
-  TrashGroupRenderer,
+  TrashGroupRenderer
 } from "./components/TrashItemCard";
 import type { TrashedVaultItem, TrashedCollection } from "./trashAdapter";
 
@@ -229,7 +231,10 @@ const TrashPage: Component = () => {
         const total = counts.vault + counts.collections;
         if (total > 0) {
           await library.refresh();
-          showToast(`Restored ${total} item${total === 1 ? "" : "s"}`, "success");
+          showToast(
+            `Restored ${total} item${total === 1 ? "" : "s"}`,
+            "success"
+          );
         } else {
           showToast("Failed to restore. Try again.", "error");
         }
@@ -239,7 +244,10 @@ const TrashPage: Component = () => {
         const counts = await trash.clearAll();
         const total = counts.vault + counts.collections;
         if (total > 0) {
-          showToast(`Cleared ${total} item${total === 1 ? "" : "s"} from trash`, "success");
+          showToast(
+            `Cleared ${total} item${total === 1 ? "" : "s"} from trash`,
+            "success"
+          );
         } else {
           showToast("Failed to clear trash. Try again.", "error");
         }
@@ -288,7 +296,8 @@ const TrashPage: Component = () => {
               </span>
               <p class="trash-error-title">Couldn't load trash</p>
               <p class="trash-error-desc">
-                {trash.error()?.message || "Something went wrong. Please try again."}
+                {trash.error()?.message ||
+                  "Something went wrong. Please try again."}
               </p>
               <GlassButton
                 variant="primary"
@@ -311,12 +320,18 @@ const TrashPage: Component = () => {
           </Show>
 
           {/* Empty state */}
-          <Show when={!trash.loading() && !trash.error() && trash.totalCount() === 0}>
+          <Show
+            when={
+              !trash.loading() && !trash.error() && trash.totalCount() === 0
+            }
+          >
             <TrashEmptyState />
           </Show>
 
           {/* Grouped trash items */}
-          <Show when={!trash.loading() && !trash.error() && trash.totalCount() > 0}>
+          <Show
+            when={!trash.loading() && !trash.error() && trash.totalCount() > 0}
+          >
             <For each={trash.groupedItems()}>
               {(group) => (
                 <TrashGroupRenderer

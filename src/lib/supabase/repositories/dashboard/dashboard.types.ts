@@ -142,4 +142,7 @@ export interface DashboardListResult<T> {
  * Shared by all read functions so they get full type inference on
  * `.from("vault")`, `.eq("user_id", …)`, etc.
  */
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<import("../../database.types").Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<
+    import("../../database.types").Database
+  >;

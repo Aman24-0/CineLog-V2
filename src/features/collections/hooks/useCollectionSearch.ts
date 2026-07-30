@@ -61,7 +61,10 @@ export function useCollectionSearch(options: UseCollectionSearchOptions) {
   const onInput = (v: string) => {
     setQuery(v);
     if (timer) clearTimeout(timer);
-    timer = setTimeout(() => setDebouncedQuery(v.trim().toLowerCase()), debounceMs);
+    timer = setTimeout(
+      () => setDebouncedQuery(v.trim().toLowerCase()),
+      debounceMs
+    );
   };
 
   const reset = () => {
@@ -94,13 +97,20 @@ export function useCollectionSearch(options: UseCollectionSearchOptions) {
       }
     }
     const text = (
-      (m.title || "") + " " +
-      (m.original_title || "") + " " +
-      (m.name || "") + " " +
-      (m.original_name || "") + " " +
-      (m.director || "") + " " +
-      year + " " +
-      castStr + " " +
+      (m.title || "") +
+      " " +
+      (m.original_title || "") +
+      " " +
+      (m.name || "") +
+      " " +
+      (m.original_name || "") +
+      " " +
+      (m.director || "") +
+      " " +
+      year +
+      " " +
+      castStr +
+      " " +
       genresStr
     ).toLowerCase();
     index.set(m, text);
@@ -139,6 +149,6 @@ export function useCollectionSearch(options: UseCollectionSearchOptions) {
     setQuery: onInput,
     debouncedQuery,
     results,
-    reset,
+    reset
   };
 }

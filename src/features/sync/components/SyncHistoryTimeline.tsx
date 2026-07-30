@@ -17,12 +17,23 @@ const SyncHistoryTimeline: Component = () => {
 
   return (
     <div class="sync-history">
-      <Show when={total() > 0} fallback={
-        <div class="sync-history-empty">
-          <span class="material-symbols-outlined" style={{ "font-size": "28px", color: "var(--text-dim)" }} aria-hidden="true">history</span>
-          <p class="sync-history-empty-text">No activity yet. Add a title to see your sync history here.</p>
-        </div>
-      }>
+      <Show
+        when={total() > 0}
+        fallback={
+          <div class="sync-history-empty">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "28px", color: "var(--text-dim)" }}
+              aria-hidden="true"
+            >
+              history
+            </span>
+            <p class="sync-history-empty-text">
+              No activity yet. Add a title to see your sync history here.
+            </p>
+          </div>
+        }
+      >
         <For each={groups().slice(0, 5)}>
           {(group) => (
             <div class="sync-history-group">
@@ -32,9 +43,17 @@ const SyncHistoryTimeline: Component = () => {
                   {(entry) => (
                     <div class="sync-history-entry">
                       <div class="sync-history-entry-icon" aria-hidden="true">
-                        <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">{entry.icon}</span>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "14px", color: "var(--p)" }}
+                          aria-hidden="true"
+                        >
+                          {entry.icon}
+                        </span>
                       </div>
-                      <span class="sync-history-entry-label">{entry.label}</span>
+                      <span class="sync-history-entry-label">
+                        {entry.label}
+                      </span>
                     </div>
                   )}
                 </For>

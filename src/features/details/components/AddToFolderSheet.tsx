@@ -28,11 +28,23 @@
 // Architecture:
 //   DetailsModal → AddToFolderSheet → useCollections (toggle membership)
 
-import { For, Show, createSignal, createMemo, onMount, onCleanup, Component } from "solid-js";
+import {
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  onCleanup,
+  Component
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { WatchlistItem, CollectionEntry, Collection } from "~/shared/types";
+import type {
+  WatchlistItem,
+  CollectionEntry,
+  Collection
+} from "~/shared/types";
 
 interface AddToFolderSheetProps {
   item: WatchlistItem;
@@ -40,7 +52,13 @@ interface AddToFolderSheetProps {
 }
 
 const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
-  const { userCollections, isInCollection, addToCollection, removeFromCollection, createCollection } = useCollections();
+  const {
+    userCollections,
+    isInCollection,
+    addToCollection,
+    removeFromCollection,
+    createCollection
+  } = useCollections();
   const [showCreate, setShowCreate] = createSignal(false);
   const [newName, setNewName] = createSignal("");
 
@@ -100,56 +118,89 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
   return (
     <Portal>
       <div
-        class="fixed inset-0 flex items-end sm:items-center justify-center sm:p-4 z-[999999] animate-fade-in glass-sheet-backdrop"
+        class="animate-fade-in glass-sheet-backdrop fixed inset-0 z-[999999] flex items-end justify-center sm:items-center sm:p-4"
         onClick={() => props.onClose()}
         role="dialog"
         aria-modal="true"
         aria-label="Add to folder"
       >
         <div
-          class="folder-sheet w-full max-w-md rounded-t-[2rem] sm:rounded-[2rem] flex flex-col modal-sheet-enter glass-sheet-surface-premium"
+          class="folder-sheet modal-sheet-enter glass-sheet-surface-premium flex w-full max-w-md flex-col rounded-t-[2rem] sm:rounded-[2rem]"
           style={{
-            "max-height": "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
-            "min-height": "0",
+            "max-height":
+              "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
+            "min-height": "0"
           }}
           onClick={(e) => e.stopPropagation()}
         >
           {/* Drag handle */}
           <div
-            class="w-12 h-1.5 rounded-full mx-auto mt-4 mb-2 sm:hidden flex-shrink-0"
-            style={{"background":"var(--hairline-2)"}}
+            class="mx-auto mb-2 mt-4 h-1.5 w-12 flex-shrink-0 rounded-full sm:hidden"
+            style={{ background: "var(--hairline-2)" }}
             aria-hidden="true"
           />
 
           {/* Header */}
-          <div class="flex justify-between items-center px-6 pt-4 pb-4 flex-shrink-0" style={{"border-bottom":"1px solid var(--hairline)"}}>
+          <div
+            class="flex flex-shrink-0 items-center justify-between px-6 pb-4 pt-4"
+            style={{ "border-bottom": "1px solid var(--hairline)" }}
+          >
             <div class="flex items-center gap-2">
-              <span class="material-symbols-outlined" style={{"color":"var(--p)","font-size":"18px"}} aria-hidden="true">folder</span>
-              <h3 class="type-headline text-white" style={{ "font-size": "1rem", margin: 0 }}>
+              <span
+                class="material-symbols-outlined"
+                style={{ color: "var(--p)", "font-size": "18px" }}
+                aria-hidden="true"
+              >
+                folder
+              </span>
+              <h3
+                class="type-headline text-white"
+                style={{ "font-size": "1rem", margin: 0 }}
+              >
                 Add to Folder
               </h3>
             </div>
             <button
               onClick={() => props.onClose()}
-              class="w-9 h-9 rounded-full flex items-center justify-center transition-all active:scale-95"
-              style={{ background: "rgba(255,255,255,0.04)", color: "var(--text-soft)", border: "1px solid var(--hairline)" }}
+              class="flex h-9 w-9 items-center justify-center rounded-full transition-all active:scale-95"
+              style={{
+                background: "rgba(255,255,255,0.04)",
+                color: "var(--text-soft)",
+                border: "1px solid var(--hairline)"
+              }}
               aria-label="Close"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">close</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                close
+              </span>
             </button>
           </div>
 
           {/* Scrollable list of folder tiles */}
-          <div class="flex-1 overflow-y-auto hide-scrollbar px-4 py-4 space-y-2.5" style={{ "overscroll-behavior": "contain" }}>
-            <Show when={userCollections().length > 0} fallback={
-              <p class="type-body-soft" style={{ "text-align": "center", padding: "var(--sp-6)" }}>
-                No folders yet. Create one below.
-              </p>
-            }>
+          <div
+            class="hide-scrollbar flex-1 space-y-2.5 overflow-y-auto px-4 py-4"
+            style={{ "overscroll-behavior": "contain" }}
+          >
+            <Show
+              when={userCollections().length > 0}
+              fallback={
+                <p
+                  class="type-body-soft"
+                  style={{ "text-align": "center", padding: "var(--sp-6)" }}
+                >
+                  No folders yet. Create one below.
+                </p>
+              }
+            >
               <For each={userCollections()}>
                 {(col) => {
                   const e = entry();
-                  const checked = () => isInCollection(col.id, e.id, e.media_type);
+                  const checked = () =>
+                    isInCollection(col.id, e.id, e.media_type);
                   const backdrop = () => tileBackdrop(col);
                   const count = () => col.entries?.length ?? 0;
 
@@ -171,7 +222,12 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                       {/* Backdrop image (or gradient fallback) */}
                       <Show
                         when={backdrop()}
-                        fallback={<div class="folder-tile-bg folder-tile-bg-gradient" aria-hidden="true" />}
+                        fallback={
+                          <div
+                            class="folder-tile-bg folder-tile-bg-gradient"
+                            aria-hidden="true"
+                          />
+                        }
                       >
                         <img
                           src={backdrop() as string}
@@ -192,14 +248,27 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
 
                       {/* LEFT: folder icon */}
                       <div class="folder-tile-icon">
-                        <Show when={col.isFavorites} fallback={
-                          <span class="material-symbols-outlined" aria-hidden="true">folder</span>
-                        }>
+                        <Show
+                          when={col.isFavorites}
+                          fallback={
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                            >
+                              folder
+                            </span>
+                          }
+                        >
                           <span
                             class="material-symbols-outlined"
-                            style={{ "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24" }}
+                            style={{
+                              "font-variation-settings":
+                                "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 24"
+                            }}
                             aria-hidden="true"
-                          >favorite</span>
+                          >
+                            favorite
+                          </span>
                         </Show>
                       </div>
 
@@ -213,10 +282,19 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
 
                       {/* RIGHT: green tick if added, empty circle if not */}
                       <div class="folder-tile-tick">
-                        <Show when={checked()} fallback={
-                          <span class="folder-tile-tick-empty" aria-hidden="true" />
-                        }>
-                          <span class="material-symbols-outlined folder-tile-tick-on" aria-hidden="true">
+                        <Show
+                          when={checked()}
+                          fallback={
+                            <span
+                              class="folder-tile-tick-empty"
+                              aria-hidden="true"
+                            />
+                          }
+                        >
+                          <span
+                            class="material-symbols-outlined folder-tile-tick-on"
+                            aria-hidden="true"
+                          >
                             check_circle
                           </span>
                         </Show>
@@ -229,17 +307,29 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
           </div>
 
           {/* Create new collection */}
-          <div class="px-6 pt-3 pb-4 flex-shrink-0" style={{"border-top":"1px solid var(--hairline)"}}>
-            <Show when={showCreate()} fallback={
-              <button
-                type="button"
-                class="folder-sheet-create-btn"
-                onClick={() => setShowCreate(true)}
-              >
-                <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
-                Create New Collection
-              </button>
-            }>
+          <div
+            class="flex-shrink-0 px-6 pb-4 pt-3"
+            style={{ "border-top": "1px solid var(--hairline)" }}
+          >
+            <Show
+              when={showCreate()}
+              fallback={
+                <button
+                  type="button"
+                  class="folder-sheet-create-btn"
+                  onClick={() => setShowCreate(true)}
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "16px" }}
+                    aria-hidden="true"
+                  >
+                    add
+                  </span>
+                  Create New Collection
+                </button>
+              }
+            >
               <div class="flex gap-2">
                 <input
                   type="text"
@@ -248,10 +338,18 @@ const AddToFolderSheet: Component<AddToFolderSheetProps> = (props) => {
                   placeholder="Collection name…"
                   value={newName()}
                   onInput={(e) => setNewName(e.currentTarget.value)}
-                  onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); if (e.key === "Escape") setShowCreate(false); }}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") handleCreate();
+                    if (e.key === "Escape") setShowCreate(false);
+                  }}
                   aria-label="New collection name"
                 />
-                <button class="btn-primary" onClick={handleCreate} disabled={!newName().trim()} style={{ "font-size": "0.5625rem" }}>
+                <button
+                  class="btn-primary"
+                  onClick={handleCreate}
+                  disabled={!newName().trim()}
+                  style={{ "font-size": "0.5625rem" }}
+                >
                   Create
                 </button>
               </div>

@@ -1,5 +1,13 @@
 // src/shared/ui/glass/GlassModal.tsx
-import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps, createEffect } from "solid-js";
+import {
+  ParentComponent,
+  JSX,
+  Show,
+  onCleanup,
+  onMount,
+  mergeProps,
+  createEffect
+} from "solid-js";
 import { Portal } from "solid-js/web";
 
 // ─── Variant Types ─────────────────────────────────────────────
@@ -14,7 +22,7 @@ type ModalSize = "sm" | "md" | "lg" | "xl" | "full";
 
 const strengthSurface: Record<ModalStrength, string> = {
   default: "bg-glass backdrop-blur-2xl",
-  strong: "bg-glass-strong backdrop-blur-3xl",
+  strong: "bg-glass-strong backdrop-blur-3xl"
 };
 
 const sizeMaxWidth: Record<ModalSize, string> = {
@@ -22,8 +30,20 @@ const sizeMaxWidth: Record<ModalSize, string> = {
   md: "max-w-md",
   lg: "max-w-2xl",
   xl: "max-w-4xl",
-  full: "max-w-[calc(100vw-2rem)]",
+  full: "max-w-[calc(100vw-2rem)]"
 };
+
+// ─── Focus trap helpers ────────────────────────────────────────
+
+/**
+ * Selector for focusable elements inside the modal. Used by the focus
+ * trap to enumerate Tab targets in DOM order. Mirrors the standard
+ * WAI-ARIA focusable selector (button / link / input / select /
+ * textarea / [tabindex] >= 0), with `:not([disabled])` so disabled
+ * controls are skipped.
+ */
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // ─── Props ─────────────────────────────────────────────────────
 
@@ -57,13 +77,20 @@ export interface GlassModalProps {
 // ─── Defaults ──────────────────────────────────────────────────
 
 const defaultProps: Required<
-  Pick<GlassModalProps, "strength" | "size" | "showCloseButton" | "disableBackdropClose" | "zIndexBase">
+  Pick<
+    GlassModalProps,
+    | "strength"
+    | "size"
+    | "showCloseButton"
+    | "disableBackdropClose"
+    | "zIndexBase"
+  >
 > = {
   strength: "strong",
   size: "md",
   showCloseButton: true,
   disableBackdropClose: false,
-  zIndexBase: 999990,
+  zIndexBase: 999990
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -85,48 +112,127 @@ const defaultProps: Required<
  *  - Backdrop tap closes (unless disableBackdropClose)
  *  - Focus moves into the dialog when it opens (auto-focuses the
  *    close button, which is always present when showCloseButton=true)
+ *  - Tab key is TRAPPED so keyboard focus cycles within the modal
+ *    while it's open — focus never escapes to the page behind. This
+ *    implements the WAI-ARIA "Focus Trap" pattern for dialogs.
+ *  - When the modal closes, focus is restored to the element that
+ *    was focused just before the modal opened (typically the trigger
+ *    button), so keyboard users don't lose their place on the page.
  */
 const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
 
-  // Focus management: auto-focus the first focusable element
-  // inside the modal when it opens. This ensures keyboard users
-  // don't have to Tab through the background page to reach the
-  // dialog. We use a ref on the close button as the primary target,
-  // falling back to querying all focusable elements.
+  // Focus management:
+  //   - `modalSurfaceRef` — the inner surface div, used to query
+  //     focusable elements for auto-focus + Tab trap.
+  //   - `previouslyFocused` — the element that had focus before the
+  //     modal opened. Restored on close so keyboard users don't lose
+  //     their place on the page.
   let modalSurfaceRef: HTMLDivElement | undefined;
+  let previouslyFocused: HTMLElement | null = null;
+  // `prevOpen` tracks the previous `props.open` value so the
+  // createEffect below can detect open/close transitions and run
+  // its save/restore logic only on edges (not every render).
+  let prevOpen = false;
 
-  // ESC key handler
+  // ESC key + Tab trap handler.
+  //
+  // ESC: closes the modal (unless disableBackdropClose).
+  // Tab: traps focus inside the modal surface. When the user Tabs
+  //   past the last focusable element, focus wraps to the first.
+  //   Shift+Tab on the first wraps to the last. This implements the
+  //   WAI-ARIA focus-trap pattern for modal dialogs and prevents
+  //   keyboard users from accidentally interacting with the page
+  //   behind the modal.
   onMount(() => {
     if (typeof window === "undefined") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && props.open) {
+      if (!props.open) return;
+      if (e.key === "Escape") {
         if (!props.disableBackdropClose) props.onClose();
+        return;
+      }
+      if (e.key === "Tab" && modalSurfaceRef) {
+        const focusables = Array.from(
+          modalSurfaceRef.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+        ).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first || !modalSurfaceRef.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last || !modalSurfaceRef.contains(active)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
   });
 
-  // Auto-focus first focusable element when modal opens
+  // Auto-focus first focusable element when modal opens + restore
+  // focus to the trigger when it closes.
+  //
+  // Open edge (false → true):
+  //   1. Save the currently-focused element so we can restore it on
+  //      close.
+  //   2. After the Portal paints (requestAnimationFrame), focus the
+  //      close button if present (best UX target — predictable
+  //      location, always visible), else the first focusable element.
+  //
+  // Close edge (true → false):
+  //   1. If we saved a previously-focused element, restore focus to
+  //      it (deferred to next frame so the Show/Portal teardown has
+  //      finished).
   createEffect(() => {
-    if (props.open && modalSurfaceRef) {
-      // Delay to allow the Portal to render the DOM
-      requestAnimationFrame(() => {
-        if (!modalSurfaceRef) return;
-        // Find the close button first (best UX target), or any focusable element
-        const closeBtn = modalSurfaceRef.querySelector<HTMLButtonElement>("button.modal-glass-close");
-        if (closeBtn) {
-          closeBtn.focus();
-          return;
-        }
-        // Fallback: first focusable element
-        const focusable = modalSurfaceRef.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable) focusable.focus();
-      });
+    const isOpen = props.open;
+    if (isOpen && !prevOpen) {
+      // Opening — save previously focused element (the trigger).
+      if (typeof document !== "undefined") {
+        previouslyFocused =
+          (document.activeElement as HTMLElement | null) ?? null;
+      }
+      if (modalSurfaceRef) {
+        requestAnimationFrame(() => {
+          if (!modalSurfaceRef) return;
+          // Find the close button first (best UX target), or any focusable element.
+          const closeBtn = modalSurfaceRef.querySelector<HTMLButtonElement>(
+            "button.modal-glass-close"
+          );
+          if (closeBtn) {
+            closeBtn.focus();
+            return;
+          }
+          // Fallback: first focusable element.
+          const focusable =
+            modalSurfaceRef.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+          if (focusable) focusable.focus();
+        });
+      }
+    } else if (!isOpen && prevOpen) {
+      // Closing — restore focus to the trigger.
+      if (previouslyFocused) {
+        const toFocus = previouslyFocused;
+        previouslyFocused = null;
+        requestAnimationFrame(() => {
+          try {
+            toFocus?.focus();
+          } catch {
+            // Element may have been unmounted — ignore.
+          }
+        });
+      }
     }
+    prevOpen = isOpen;
   });
 
   return (
@@ -134,12 +240,12 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
       <Portal>
         {/* Backdrop */}
         <div
-          class="fixed inset-0 z-[999990] animate-fade-in flex items-center justify-center p-4"
+          class="animate-fade-in fixed inset-0 z-[999990] flex items-center justify-center p-4"
           style={{
             "z-index": props.zIndexBase,
             background: "rgba(0,0,0,0.70)",
             "backdrop-filter": "blur(20px) saturate(140%)",
-            "-webkit-backdrop-filter": "blur(20px) saturate(140%)",
+            "-webkit-backdrop-filter": "blur(20px) saturate(140%)"
           }}
           onClick={() => {
             if (!props.disableBackdropClose) props.onClose();
@@ -153,7 +259,7 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
           aria-labelledby={props.id ? `${props.id}-title` : undefined}
           class="modal-glass animate-pop-in"
           style={{
-            "z-index": props.zIndexBase + 1,
+            "z-index": props.zIndexBase + 1
           }}
         >
           <div
@@ -161,7 +267,14 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
             class={`modal-glass-surface ${strengthSurface[props.strength]} ${sizeMaxWidth[props.size]} ${props.class || ""}`}
             onClick={(e) => e.stopPropagation()}
           >
-            <Show when={props.title || props.icon || props.headerRight || props.showCloseButton}>
+            <Show
+              when={
+                props.title ||
+                props.icon ||
+                props.headerRight ||
+                props.showCloseButton
+              }
+            >
               <div class="modal-glass-header">
                 <div class="modal-glass-title-cluster">
                   <Show when={props.icon}>
@@ -182,14 +295,12 @@ const GlassModal: ParentComponent<GlassModalProps> = (rawProps) => {
                   </Show>
                 </div>
                 <div class="modal-glass-header-right">
-                  <Show when={props.headerRight}>
-                    {props.headerRight}
-                  </Show>
+                  <Show when={props.headerRight}>{props.headerRight}</Show>
                   <Show when={props.showCloseButton}>
                     <button
                       type="button"
                       class="modal-glass-close focus-ring"
-                      onClick={props.onClose}
+                      onClick={() => props.onClose()}
                       aria-label="Close modal"
                     >
                       <span

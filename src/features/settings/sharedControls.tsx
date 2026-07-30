@@ -35,7 +35,9 @@ export function Segmented<T extends string | number>(props: {
             onClick={() => props.onChange(opt.id)}
           >
             <span class="segmented-label-long">{opt.label}</span>
-            {opt.short && <span class="segmented-label-short">{opt.short}</span>}
+            {opt.short && (
+              <span class="segmented-label-short">{opt.short}</span>
+            )}
           </button>
         )}
       </For>
@@ -55,7 +57,13 @@ export const ControlRow: Component<{
   <div class="setting-row-control">
     <div class="setting-row-control-header">
       <div class="setting-row-icon" aria-hidden="true">
-        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">{props.icon}</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "16px" }}
+          aria-hidden="true"
+        >
+          {props.icon}
+        </span>
       </div>
       <div class="setting-row-control-meta">
         <span class="setting-row-control-label">{props.label}</span>
@@ -106,13 +114,23 @@ export const ToggleRow: Component<{
   <div class="setting-row-control">
     <div class="setting-row-control-header">
       <div class="setting-row-icon" aria-hidden="true">
-        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">{props.icon}</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "16px" }}
+          aria-hidden="true"
+        >
+          {props.icon}
+        </span>
       </div>
       <div class="setting-row-control-meta">
         <span class="setting-row-control-label">{props.label}</span>
         <span class="setting-row-control-desc">{props.desc}</span>
       </div>
-      <Toggle current={props.current} onChange={props.onChange} label={props.label} />
+      <Toggle
+        current={props.current}
+        onChange={props.onChange}
+        label={props.label}
+      />
     </div>
   </div>
 );
@@ -131,7 +149,13 @@ export const SelectRow: Component<{
   <div class="setting-row-control">
     <div class="setting-row-control-header">
       <div class="setting-row-icon" aria-hidden="true">
-        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">{props.icon}</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "16px" }}
+          aria-hidden="true"
+        >
+          {props.icon}
+        </span>
       </div>
       <div class="setting-row-control-meta">
         <span class="setting-row-control-label">{props.label}</span>
@@ -165,7 +189,13 @@ export const TimeRow: Component<{
   <div class="setting-row-control">
     <div class="setting-row-control-header">
       <div class="setting-row-icon" aria-hidden="true">
-        <span class="material-symbols-outlined" style={{ "font-size": "16px" }} aria-hidden="true">{props.icon}</span>
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "16px" }}
+          aria-hidden="true"
+        >
+          {props.icon}
+        </span>
       </div>
       <div class="setting-row-control-meta">
         <span class="setting-row-control-label">{props.label}</span>

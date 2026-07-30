@@ -25,12 +25,12 @@ export interface GlassPosterCardProps extends JSX.HTMLAttributes<HTMLDivElement>
 
 // ─── Defaults ──────────────────────────────────────────────────
 
-const defaultProps: Required<Pick<GlassPosterCardProps,
-  "loading" | "selected"
->> & { imageAlt?: string } = {
+const defaultProps: Required<
+  Pick<GlassPosterCardProps, "loading" | "selected">
+> & { imageAlt?: string } = {
   loading: false,
   selected: false,
-  imageAlt: "",
+  imageAlt: ""
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -55,7 +55,15 @@ const defaultProps: Required<Pick<GlassPosterCardProps,
 const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
   const [local, rest] = splitProps(props, [
-    "title", "meta", "imageUrl", "imageAlt", "loading", "selected", "overlay", "onClick", "class",
+    "title",
+    "meta",
+    "imageUrl",
+    "imageAlt",
+    "loading",
+    "selected",
+    "overlay",
+    "onClick",
+    "class"
   ]);
 
   return (
@@ -72,47 +80,51 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
       class={`flex flex-col ${local.class || ""}`}
     >
       {/* Poster Image Area (2:3 aspect ratio) */}
-      <div class="relative w-full aspect-[2/3] bg-tier-3 flex-shrink-0">
+      <div class="relative aspect-[2/3] w-full flex-shrink-0 bg-tier-3">
         <Show when={!local.loading && local.imageUrl}>
           <img
             src={local.imageUrl}
             alt={local.imageAlt || ""}
-            class="absolute inset-0 w-full h-full object-cover transition-transform duration-base ease-smooth group-hover:scale-[1.04]"
+            class="absolute inset-0 h-full w-full object-cover transition-transform duration-base ease-smooth group-hover:scale-[1.04]"
             loading="lazy"
             decoding="async"
           />
         </Show>
         <Show when={!local.loading && !local.imageUrl}>
           <div class="absolute inset-0 flex items-center justify-center">
-             <span class="material-symbols-outlined text-text-dim text-3xl" aria-hidden="true">
-               movie
-             </span>
+            <span
+              class="material-symbols-outlined text-3xl text-text-dim"
+              aria-hidden="true"
+            >
+              movie
+            </span>
           </div>
         </Show>
         {/* Top-Right Overlay */}
         <Show when={local.overlay && !local.loading}>
-          <div class="absolute top-2 right-2 z-badge">
-            {local.overlay}
-          </div>
+          <div class="absolute right-2 top-2 z-badge">{local.overlay}</div>
         </Show>
       </div>
 
       {/* Content Area */}
-      <div class="p-3 flex flex-col gap-1 flex-1 justify-center">
+      <div class="flex flex-1 flex-col justify-center gap-1 p-3">
         <Show
           when={!local.loading}
           fallback={
             <>
-              <div class="h-4 w-3/4 bg-tier-3 rounded-sm" aria-hidden="true" />
-              <div class="h-3 w-1/2 bg-tier-3 rounded-sm mt-1" aria-hidden="true" />
+              <div class="h-4 w-3/4 rounded-sm bg-tier-3" aria-hidden="true" />
+              <div
+                class="mt-1 h-3 w-1/2 rounded-sm bg-tier-3"
+                aria-hidden="true"
+              />
             </>
           }
         >
-          <h3 class="font-outfit font-bold text-sm text-text-strong line-clamp-2 leading-snug">
+          <h3 class="font-outfit line-clamp-2 text-sm font-bold leading-snug text-text-strong">
             {local.title}
           </h3>
           <Show when={local.meta}>
-            <p class="font-mono text-2xs font-semibold uppercase tracking-wider text-text-muted mt-auto">
+            <p class="mt-auto font-mono text-2xs font-semibold uppercase tracking-wider text-text-muted">
               {local.meta}
             </p>
           </Show>

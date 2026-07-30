@@ -6,13 +6,22 @@ import {
   createMemo,
   onMount,
   onCleanup,
-  type Component,
+  type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { tmdbImage, fetchPersonDetails, fetchPersonCombinedCredits } from "~/core/tmdb/tmdb";
+import {
+  tmdbImage,
+  fetchPersonDetails,
+  fetchPersonCombinedCredits
+} from "~/core/tmdb/tmdb";
 import { openTitle } from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
-import type { TMDBPerson, TMDBPersonCombinedCredits, TMDBPersonCredit, WatchlistItem } from "~/shared/types";
+import type {
+  TMDBPerson,
+  TMDBPersonCombinedCredits,
+  TMDBPersonCredit,
+  WatchlistItem
+} from "~/shared/types";
 
 interface PersonModalProps {
   personId: number;
@@ -55,7 +64,9 @@ const PersonModal: Component<PersonModalProps> = (props) => {
   const { watchlist } = useVault();
 
   const [person, setPerson] = createSignal<TMDBPerson | null>(null);
-  const [credits, setCredits] = createSignal<TMDBPersonCombinedCredits | null>(null);
+  const [credits, setCredits] = createSignal<TMDBPersonCombinedCredits | null>(
+    null
+  );
   const [loading, setLoading] = createSignal(true);
   const [filter, setFilter] = createSignal<FilterMode>("all");
   const [sort, setSort] = createSignal<SortMode>("new-to-old");
@@ -73,7 +84,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
     try {
       const [p, c] = await Promise.all([
         fetchPersonDetails(props.personId),
-        fetchPersonCombinedCredits(props.personId),
+        fetchPersonCombinedCredits(props.personId)
       ]);
       setPerson(p);
       setCredits(c);
@@ -94,7 +105,8 @@ const PersonModal: Component<PersonModalProps> = (props) => {
       if (seen.has(credit.id)) continue;
       // Skip titles with no poster and no release/air date — these are
       // usually upcoming, unreleased, or incomplete entries that add noise.
-      if (!credit.poster_path && !credit.release_date && !credit.first_air_date) continue;
+      if (!credit.poster_path && !credit.release_date && !credit.first_air_date)
+        continue;
       seen.add(credit.id);
       combined.push(credit);
     }
@@ -131,10 +143,27 @@ const PersonModal: Component<PersonModalProps> = (props) => {
     if (!bday) return "";
     try {
       const d = new Date(bday);
-      const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-      const years = Math.floor((Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25));
-      return `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}` +
-        (years > 0 && years < 120 ? ` (${years} years)` : "");
+      const months = [
+        "Jan",
+        "Feb",
+        "Mar",
+        "Apr",
+        "May",
+        "Jun",
+        "Jul",
+        "Aug",
+        "Sep",
+        "Oct",
+        "Nov",
+        "Dec"
+      ];
+      const years = Math.floor(
+        (Date.now() - d.getTime()) / (1000 * 60 * 60 * 24 * 365.25)
+      );
+      return (
+        `${d.getDate()} ${months[d.getMonth()]} ${d.getFullYear()}` +
+        (years > 0 && years < 120 ? ` (${years} years)` : "")
+      );
     } catch {
       return bday;
     }
@@ -152,7 +181,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
       backdrop_path: credit.backdrop_path,
       release_date: credit.release_date,
       first_air_date: credit.first_air_date,
-      status: "Planned",
+      status: "Planned"
     };
     openTitle(baseItem, watchlist());
   };
@@ -165,7 +194,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
   return (
     <Portal>
       <div
-        class="fixed inset-0 z-[9999999] flex items-end sm:items-center justify-center sm:p-4 animate-fade-in"
+        class="animate-fade-in fixed inset-0 z-[9999999] flex items-end justify-center sm:items-center sm:p-4"
         style={{ background: "rgba(0,0,0,0.85)" }}
         onClick={() => props.onClose()}
         role="dialog"
@@ -173,7 +202,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
         aria-label={`Person details: ${props.personName ?? person()?.name ?? ""}`}
       >
         <div
-          class="person-modal-shell w-full max-w-3xl h-full sm:h-[90vh] sm:max-h-[90vh] flex flex-col modal-sheet-enter"
+          class="person-modal-shell modal-sheet-enter flex h-full w-full max-w-3xl flex-col sm:h-[90vh] sm:max-h-[90vh]"
           style={{
             background: "var(--glass-bg-strong, rgba(12,14,20,0.95))",
             "backdrop-filter": "blur(28px)",
@@ -181,7 +210,7 @@ const PersonModal: Component<PersonModalProps> = (props) => {
             border: "1px solid var(--hairline-2)",
             "border-radius": "0",
             "box-shadow": "var(--shadow-elevated)",
-            overflow: "hidden",
+            overflow: "hidden"
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -193,59 +222,103 @@ const PersonModal: Component<PersonModalProps> = (props) => {
               onClick={() => props.onClose()}
               aria-label="Close person details"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "20px" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "20px" }}
+                aria-hidden="true"
+              >
                 close
               </span>
             </button>
 
-            <Show when={profileUrl()} fallback={
-              <div class="person-modal-avatar-fallback" aria-hidden="true">
-                <span
-                  class="material-symbols-outlined"
-                  style={{ "font-size": "48px", color: "var(--text-dim)" }}
-                  aria-hidden="true"
-                >
-                  person
-                </span>
-              </div>
-            }>
+            <Show
+              when={profileUrl()}
+              fallback={
+                <div class="person-modal-avatar-fallback" aria-hidden="true">
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "48px", color: "var(--text-dim)" }}
+                    aria-hidden="true"
+                  >
+                    person
+                  </span>
+                </div>
+              }
+            >
               <img
                 src={profileUrl()}
                 class="person-modal-avatar"
                 alt={person()?.name ?? props.personName ?? ""}
                 loading="lazy"
                 decoding="async"
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
               />
             </Show>
 
             <div class="person-modal-info">
-              <Show when={!loading()} fallback={
-                <div class="person-modal-skeleton" aria-hidden="true">
-                  <div class="skeleton-base" style={{ width: "60%", height: "1.5rem", "margin-bottom": "0.5rem" }} />
-                  <div class="skeleton-base" style={{ width: "40%", height: "0.875rem" }} />
-                </div>
-              }>
-                <h2 class="person-modal-name">{person()?.name ?? props.personName ?? ""}</h2>
+              <Show
+                when={!loading()}
+                fallback={
+                  <div class="person-modal-skeleton" aria-hidden="true">
+                    <div
+                      class="skeleton-base"
+                      style={{
+                        width: "60%",
+                        height: "1.5rem",
+                        "margin-bottom": "0.5rem"
+                      }}
+                    />
+                    <div
+                      class="skeleton-base"
+                      style={{ width: "40%", height: "0.875rem" }}
+                    />
+                  </div>
+                }
+              >
+                <h2 class="person-modal-name">
+                  {person()?.name ?? props.personName ?? ""}
+                </h2>
                 <Show when={person()?.known_for_department}>
-                  <p class="person-modal-known-for">{person()?.known_for_department}</p>
+                  <p class="person-modal-known-for">
+                    {person()?.known_for_department}
+                  </p>
                 </Show>
                 <div class="person-modal-meta-row">
                   <Show when={formatBirthday(person()?.birthday)}>
                     <span class="person-modal-meta-item">
-                      <span class="material-symbols-outlined" style={{ "font-size": "13px" }} aria-hidden="true">cake</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "13px" }}
+                        aria-hidden="true"
+                      >
+                        cake
+                      </span>
                       {formatBirthday(person()?.birthday)}
                     </span>
                   </Show>
                   <Show when={person()?.place_of_birth}>
                     <span class="person-modal-meta-item">
-                      <span class="material-symbols-outlined" style={{ "font-size": "13px" }} aria-hidden="true">place</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "13px" }}
+                        aria-hidden="true"
+                      >
+                        place
+                      </span>
                       {person()?.place_of_birth}
                     </span>
                   </Show>
                   <Show when={castCount() > 0}>
                     <span class="person-modal-meta-item">
-                      <span class="material-symbols-outlined" style={{ "font-size": "13px" }} aria-hidden="true">movie</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "13px" }}
+                        aria-hidden="true"
+                      >
+                        movie
+                      </span>
                       {castCount()} credits
                     </span>
                   </Show>
@@ -259,28 +332,38 @@ const PersonModal: Component<PersonModalProps> = (props) => {
 
           {/* Filter + sort row */}
           <div class="person-modal-controls">
-            <div class="person-modal-filter-group" role="group" aria-label="Filter by type">
+            <div
+              class="person-modal-filter-group"
+              role="group"
+              aria-label="Filter by type"
+            >
               <button
                 type="button"
                 class="person-modal-filter-btn focus-ring"
                 data-active={filter() === "all"}
                 onClick={() => setFilter("all")}
                 aria-pressed={filter() === "all"}
-              >All</button>
+              >
+                All
+              </button>
               <button
                 type="button"
                 class="person-modal-filter-btn focus-ring"
                 data-active={filter() === "movie"}
                 onClick={() => setFilter("movie")}
                 aria-pressed={filter() === "movie"}
-              >Movies</button>
+              >
+                Movies
+              </button>
               <button
                 type="button"
                 class="person-modal-filter-btn focus-ring"
                 data-active={filter() === "tv"}
                 onClick={() => setFilter("tv")}
                 aria-pressed={filter() === "tv"}
-              >Series</button>
+              >
+                Series
+              </button>
             </div>
             <div class="person-modal-sort-group">
               <button
@@ -289,48 +372,73 @@ const PersonModal: Component<PersonModalProps> = (props) => {
                 data-active={sort() === "new-to-old"}
                 onClick={() => setSort("new-to-old")}
                 aria-pressed={sort() === "new-to-old"}
-              >New to Old</button>
+              >
+                New to Old
+              </button>
               <button
                 type="button"
                 class="person-modal-sort-btn focus-ring"
                 data-active={sort() === "old-to-new"}
                 onClick={() => setSort("old-to-new")}
                 aria-pressed={sort() === "old-to-new"}
-              >Old to New</button>
+              >
+                Old to New
+              </button>
               <button
                 type="button"
                 class="person-modal-sort-btn focus-ring"
                 data-active={sort() === "popular"}
                 onClick={() => setSort("popular")}
                 aria-pressed={sort() === "popular"}
-              >Popular</button>
+              >
+                Popular
+              </button>
             </div>
           </div>
 
           {/* Filmography grid */}
           <div class="person-modal-grid-wrap">
-            <Show when={!loading()} fallback={
-              <div class="person-modal-grid">
-                <For each={Array.from({ length: 8 })}>{() => (
-                  <div class="skeleton-base" style={{ "aspect-ratio": "2/3", "border-radius": "8px" }} />
-                )}</For>
-              </div>
-            }>
-              <Show when={filmography().length > 0} fallback={
-                <div class="person-modal-empty">
-                  <p class="type-body-soft">No credits found.</p>
+            <Show
+              when={!loading()}
+              fallback={
+                <div class="person-modal-grid">
+                  <For each={Array.from({ length: 8 })}>
+                    {() => (
+                      <div
+                        class="skeleton-base"
+                        style={{
+                          "aspect-ratio": "2/3",
+                          "border-radius": "8px"
+                        }}
+                      />
+                    )}
+                  </For>
                 </div>
-              }>
+              }
+            >
+              <Show
+                when={filmography().length > 0}
+                fallback={
+                  <div class="person-modal-empty">
+                    <p class="type-body-soft">No credits found.</p>
+                  </div>
+                }
+              >
                 <div class="person-modal-grid">
                   <For each={filmography()}>
                     {(credit) => {
-                      const title = () => credit.title || credit.name || "Untitled";
+                      const title = () =>
+                        credit.title || credit.name || "Untitled";
                       const year = () => {
-                        const d = credit.release_date || credit.first_air_date || "";
+                        const d =
+                          credit.release_date || credit.first_air_date || "";
                         return d.substring(0, 4) || "";
                       };
                       const role = () => credit.character || credit.job || "";
-                      const posterUrl = () => credit.poster_path ? tmdbImage(credit.poster_path, "w185") : "";
+                      const posterUrl = () =>
+                        credit.poster_path
+                          ? tmdbImage(credit.poster_path, "w185")
+                          : "";
                       return (
                         <button
                           type="button"
@@ -339,31 +447,50 @@ const PersonModal: Component<PersonModalProps> = (props) => {
                           aria-label={`${title()}${year() ? `, ${year()}` : ""}${role() ? ` — ${role()}` : ""}`}
                         >
                           <div class="person-modal-credit-poster">
-                            <Show when={posterUrl()} fallback={
-                              <div class="person-modal-credit-poster-fallback" aria-hidden="true">
-                                <span
-                                  class="material-symbols-outlined"
-                                  style={{ "font-size": "24px", color: "var(--text-dim)" }}
+                            <Show
+                              when={posterUrl()}
+                              fallback={
+                                <div
+                                  class="person-modal-credit-poster-fallback"
                                   aria-hidden="true"
                                 >
-                                  {credit.media_type === "tv" ? "tv" : "movie"}
-                                </span>
-                              </div>
-                            }>
+                                  <span
+                                    class="material-symbols-outlined"
+                                    style={{
+                                      "font-size": "24px",
+                                      color: "var(--text-dim)"
+                                    }}
+                                    aria-hidden="true"
+                                  >
+                                    {credit.media_type === "tv"
+                                      ? "tv"
+                                      : "movie"}
+                                  </span>
+                                </div>
+                              }
+                            >
                               <img
                                 src={posterUrl()}
                                 alt=""
                                 loading="lazy"
                                 decoding="async"
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
                               />
                             </Show>
                           </div>
                           <p class="person-modal-credit-title">{title()}</p>
                           <p class="person-modal-credit-meta">
-                            <Show when={year()}><span>{year()}</span></Show>
-                            <Show when={year() && role()}><span> · </span></Show>
-                            <Show when={role()}><span>{role()}</span></Show>
+                            <Show when={year()}>
+                              <span>{year()}</span>
+                            </Show>
+                            <Show when={year() && role()}>
+                              <span> · </span>
+                            </Show>
+                            <Show when={role()}>
+                              <span>{role()}</span>
+                            </Show>
                           </p>
                         </button>
                       );

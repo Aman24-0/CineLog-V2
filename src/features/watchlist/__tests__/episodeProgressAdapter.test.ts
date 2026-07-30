@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("~/lib/supabase/repositories", () => ({
   getVaultRepository: vi.fn(),
-  getEpisodeProgressRepository: vi.fn(),
+  getEpisodeProgressRepository: vi.fn()
 }));
 
 import {
@@ -12,9 +12,12 @@ import {
   updateSeasonEpisodeInSupabase,
   updateWatchProgressInSupabase,
   markEpisodeCompletedInSupabase,
-  unmarkEpisodeInSupabase,
+  unmarkEpisodeInSupabase
 } from "../episodeProgressAdapter";
-import { getVaultRepository, getEpisodeProgressRepository } from "~/lib/supabase/repositories";
+import {
+  getVaultRepository,
+  getEpisodeProgressRepository
+} from "~/lib/supabase/repositories";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
 import { makeMovie, makeTVSeries } from "~/__test-fixtures__/factories";
 
@@ -25,7 +28,7 @@ const mockVaultRow = {
   media_type: "tv" as const,
   status: "watching" as const,
   created_at: "2024-01-01T00:00:00Z",
-  updated_at: "2024-01-01T00:00:00Z",
+  updated_at: "2024-01-01T00:00:00Z"
 } as unknown as VaultRow;
 
 const mockProgress: EpisodeProgressRow = {
@@ -36,7 +39,7 @@ const mockProgress: EpisodeProgressRow = {
   is_completed: false,
   progress_minutes: 30,
   watched_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
+  updated_at: "2024-06-01T00:00:00Z"
 } as unknown as EpisodeProgressRow;
 
 describe("episodeProgressAdapter", () => {
@@ -47,12 +50,18 @@ describe("episodeProgressAdapter", () => {
   describe("enrichWithEpisodeProgress (sync)", () => {
     it("returns items unchanged when no TV items", () => {
       const items = [makeMovie({ id: "1" })];
-      const rows = [{ ...mockVaultRow, media_type: "movie" as const, tmdb_id: 1 }];
+      const rows = [
+        { ...mockVaultRow, media_type: "movie" as const, tmdb_id: 1 }
+      ];
       // The sync version fetches progress via the batch repo method
       const mockProgRepo = {
-        getLatestEpisodeProgressBatch: vi.fn().mockResolvedValue({ data: new Map(), error: null }),
+        getLatestEpisodeProgressBatch: vi
+          .fn()
+          .mockResolvedValue({ data: new Map(), error: null })
       };
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       // enrichWithEpisodeProgress is sync but may return early if no TV items
       const result = enrichWithEpisodeProgress(items, rows);
@@ -70,20 +79,32 @@ describe("episodeProgressAdapter", () => {
     it("enriches TV items with episode progress", async () => {
       const items = [
         makeTVSeries({ id: "123", season: undefined, episode: undefined }),
-        makeMovie({ id: "456" }),
+        makeMovie({ id: "456" })
       ];
       const rows = [
-        { ...mockVaultRow, id: "vault-uuid-1", tmdb_id: 123, media_type: "tv" as const },
-        { ...mockVaultRow, id: "vault-uuid-2", tmdb_id: 456, media_type: "movie" as const },
+        {
+          ...mockVaultRow,
+          id: "vault-uuid-1",
+          tmdb_id: 123,
+          media_type: "tv" as const
+        },
+        {
+          ...mockVaultRow,
+          id: "vault-uuid-2",
+          tmdb_id: 456,
+          media_type: "movie" as const
+        }
       ];
 
       const mockProgRepo = {
         getLatestEpisodeProgressBatch: vi.fn().mockResolvedValue({
           data: new Map([["vault-uuid-1", mockProgress]]),
-          error: null,
-        }),
+          error: null
+        })
       };
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await enrichWithEpisodeProgressAsync(items, rows);
       // TV item enriched
@@ -96,12 +117,16 @@ describe("episodeProgressAdapter", () => {
 
     it("skips progress fetch when no TV items", async () => {
       const items = [makeMovie({ id: "1" })];
-      const rows = [{ ...mockVaultRow, media_type: "movie" as const, tmdb_id: 1 }];
+      const rows = [
+        { ...mockVaultRow, media_type: "movie" as const, tmdb_id: 1 }
+      ];
 
       const mockProgRepo = {
-        getLatestEpisodeProgressBatch: vi.fn(),
+        getLatestEpisodeProgressBatch: vi.fn()
       };
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       await enrichWithEpisodeProgressAsync(items, rows);
       expect(mockProgRepo.getLatestEpisodeProgressBatch).not.toHaveBeenCalled();
@@ -111,15 +136,19 @@ describe("episodeProgressAdapter", () => {
       // Use a TV item that already has season/episode from makeTVSeries defaults
       // but verify the enrichment doesn't override them with progress data
       const items = [makeTVSeries({ id: "123", season: 99, episode: 99 })];
-      const rows = [{ ...mockVaultRow, tmdb_id: 123, media_type: "tv" as const }];
+      const rows = [
+        { ...mockVaultRow, tmdb_id: 123, media_type: "tv" as const }
+      ];
 
       const mockProgRepo = {
         getLatestEpisodeProgressBatch: vi.fn().mockResolvedValue({
           data: new Map(),
-          error: new Error("Fail"),
-        }),
+          error: new Error("Fail")
+        })
       };
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await enrichWithEpisodeProgressAsync(items, rows);
       // When progress fetch fails, the original season/episode are preserved
@@ -131,47 +160,81 @@ describe("episodeProgressAdapter", () => {
   describe("updateSeasonEpisodeInSupabase", () => {
     it("resolves vault UUID and upserts episode progress", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        upsertEpisodeProgress: vi.fn().mockResolvedValue({ data: mockProgress, error: null }),
+        upsertEpisodeProgress: vi
+          .fn()
+          .mockResolvedValue({ data: mockProgress, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
-      const result = await updateSeasonEpisodeInSupabase("user-1", "123", "tv", 2, 5);
+      const result = await updateSeasonEpisodeInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5
+      );
       expect(result).toBe(true);
-      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith("user-1", 123, "tv");
+      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith(
+        "user-1",
+        123,
+        "tv"
+      );
       expect(mockProgRepo.upsertEpisodeProgress).toHaveBeenCalledWith(
         expect.objectContaining({
           vaultId: "vault-uuid-1",
           seasonNumber: 2,
-          episodeNumber: 5,
-        }),
+          episodeNumber: 5
+        })
       );
     });
 
     it("returns false when vault item not found", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null }),
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
 
-      const result = await updateSeasonEpisodeInSupabase("user-1", "123", "tv", 1, 1);
+      const result = await updateSeasonEpisodeInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        1,
+        1
+      );
       expect(result).toBe(false);
     });
 
     it("returns false on upsert error", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        upsertEpisodeProgress: vi.fn().mockResolvedValue({ data: null, error: new Error("Upsert fail") }),
+        upsertEpisodeProgress: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Upsert fail") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
-      const result = await updateSeasonEpisodeInSupabase("user-1", "123", "tv", 1, 1);
+      const result = await updateSeasonEpisodeInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        1,
+        1
+      );
       expect(result).toBe(false);
     });
   });
@@ -179,13 +242,19 @@ describe("episodeProgressAdapter", () => {
   describe("updateWatchProgressInSupabase", () => {
     it("resolves vault UUID and upserts watch progress", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        upsertEpisodeProgress: vi.fn().mockResolvedValue({ data: mockProgress, error: null }),
+        upsertEpisodeProgress: vi
+          .fn()
+          .mockResolvedValue({ data: mockProgress, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const watchProgress = {
         currentTime: 120,
@@ -193,7 +262,7 @@ describe("episodeProgressAdapter", () => {
         server: null,
         updatedAt: "2024-06-01T00:00:00Z",
         season: 1,
-        episode: 3,
+        episode: 3
       };
       await updateWatchProgressInSupabase("user-1", "123", "tv", watchProgress);
 
@@ -201,8 +270,8 @@ describe("episodeProgressAdapter", () => {
         expect.objectContaining({
           vaultId: "vault-uuid-1",
           seasonNumber: 1,
-          episodeNumber: 3,
-        }),
+          episodeNumber: 3
+        })
       );
     });
   });
@@ -210,40 +279,72 @@ describe("episodeProgressAdapter", () => {
   describe("markEpisodeCompletedInSupabase", () => {
     it("resolves vault UUID and marks episode completed", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        markEpisodeCompleted: vi.fn().mockResolvedValue({ error: null }),
+        markEpisodeCompleted: vi.fn().mockResolvedValue({ error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
-      const result = await markEpisodeCompletedInSupabase("user-1", "123", "tv", 2, 5);
+      const result = await markEpisodeCompletedInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5
+      );
       expect(result).toBe(true);
-      expect(mockProgRepo.markEpisodeCompleted).toHaveBeenCalledWith("vault-uuid-1", 2, 5);
+      expect(mockProgRepo.markEpisodeCompleted).toHaveBeenCalledWith(
+        "vault-uuid-1",
+        2,
+        5
+      );
     });
 
     it("returns false on mark error", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        markEpisodeCompleted: vi.fn().mockResolvedValue({ error: new Error("Mark fail") }),
+        markEpisodeCompleted: vi
+          .fn()
+          .mockResolvedValue({ error: new Error("Mark fail") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
-      const result = await markEpisodeCompletedInSupabase("user-1", "123", "tv", 2, 5);
+      const result = await markEpisodeCompletedInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5
+      );
       expect(result).toBe(false);
     });
 
     it("returns false when vault item not found", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null }),
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
 
-      const result = await markEpisodeCompletedInSupabase("user-1", "123", "tv", 2, 5);
+      const result = await markEpisodeCompletedInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5
+      );
       expect(result).toBe(false);
     });
   });
@@ -251,29 +352,37 @@ describe("episodeProgressAdapter", () => {
   describe("unmarkEpisodeInSupabase", () => {
     it("resolves vault UUID and deletes episode progress from the given position onward", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        deleteEpisodeProgressFrom: vi.fn().mockResolvedValue({ error: null }),
+        deleteEpisodeProgressFrom: vi.fn().mockResolvedValue({ error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 2, 5);
       expect(result).toBe(true);
       // Verify the vault UUID was resolved via the TMDB identity.
-      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith("user-1", 123, "tv");
+      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith(
+        "user-1",
+        123,
+        "tv"
+      );
       // Verify the delete was called with the correct vault + position.
       expect(mockProgRepo.deleteEpisodeProgressFrom).toHaveBeenCalledWith(
         "vault-uuid-1",
         2,
-        5,
+        5
       );
     });
 
     it("returns false when vault item not found", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null }),
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
 
@@ -283,13 +392,19 @@ describe("episodeProgressAdapter", () => {
 
     it("returns false on delete error", async () => {
       const mockVaultRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       const mockProgRepo = {
-        deleteEpisodeProgressFrom: vi.fn().mockResolvedValue({ error: new Error("Delete fail") }),
+        deleteEpisodeProgressFrom: vi
+          .fn()
+          .mockResolvedValue({ error: new Error("Delete fail") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 2, 5);
       expect(result).toBe(false);

@@ -18,14 +18,18 @@ import { toError } from "../shared";
 
 export function validateRating(rating: number): Error | null {
   if (rating < 0.5 || rating > 10) {
-    return new Error(`[VaultRepository] rating must be between 0.5 and 10 (received ${rating}).`);
+    return new Error(
+      `[VaultRepository] rating must be between 0.5 and 10 (received ${rating}).`
+    );
   }
   return null;
 }
 
 export function validateProgressMinutes(minutes: number): Error | null {
   if (minutes < 0) {
-    return new Error(`[VaultRepository] progressMinutes must be >= 0 (received ${minutes}).`);
+    return new Error(
+      `[VaultRepository] progressMinutes must be >= 0 (received ${minutes}).`
+    );
   }
   return null;
 }
@@ -48,7 +52,7 @@ export function validateProgressMinutes(minutes: number): Error | null {
  */
 export function toVaultInsert(
   payload: CreateVaultItemPayload,
-  options?: { includeExtendedFields?: boolean },
+  options?: { includeExtendedFields?: boolean }
 ): VaultInsert {
   const includeExtended = options?.includeExtendedFields ?? true;
   const insert: VaultInsert = {
@@ -65,7 +69,7 @@ export function toVaultInsert(
     watched_on: payload.watchedOn,
     started_at: payload.startedAt,
     completed_at: payload.completedAt,
-    last_activity_at: payload.lastActivityAt,
+    last_activity_at: payload.lastActivityAt
   };
 
   // Extended fields (v2.2 / v2.3) — only set when provided so we don't
@@ -75,13 +79,15 @@ export function toVaultInsert(
       insert.rewatch_dates = payload.rewatchDates;
     }
     if (payload.seasonDates !== undefined) {
-      insert.season_dates = payload.seasonDates as unknown as import("../../database.types").Json;
+      insert.season_dates =
+        payload.seasonDates as unknown as import("../../database.types").Json;
     }
     if (payload.seasonRewatchCount !== undefined) {
       insert.season_rewatch_count = payload.seasonRewatchCount;
     }
     if (payload.seasonRewatchDates !== undefined) {
-      insert.season_rewatch_dates = payload.seasonRewatchDates as unknown as import("../../database.types").Json;
+      insert.season_rewatch_dates =
+        payload.seasonRewatchDates as unknown as import("../../database.types").Json;
     }
   }
   if (payload.createdAt !== undefined) {
@@ -125,10 +131,15 @@ export function isMissingColumnError(err: unknown): boolean {
   // distinguishes "column X does not exist" (missing column) from
   // "relation X does not exist" (missing table).
   if (msg.includes("column") && msg.includes("does not exist")) return true;
-  if (details.includes("column") && details.includes("does not exist")) return true;
+  if (details.includes("column") && details.includes("does not exist"))
+    return true;
 
   // PostgREST "Could not find the column" message.
-  if (msg.includes("could not find the column") || details.includes("could not find the column")) return true;
+  if (
+    msg.includes("could not find the column") ||
+    details.includes("could not find the column")
+  )
+    return true;
 
   return false;
 }
@@ -137,18 +148,18 @@ export function isMissingColumnError(err: unknown): boolean {
 // Sort + pagination composition
 // ---------------------------------------------------------------------------
 
-export function applySort<TQuery extends { order: (column: string, opts?: { ascending?: boolean }) => TQuery }>(
-  query: TQuery,
-  sort: VaultSort | undefined
-): TQuery {
+export function applySort<
+  TQuery extends {
+    order: (column: string, opts?: { ascending?: boolean }) => TQuery;
+  }
+>(query: TQuery, sort: VaultSort | undefined): TQuery {
   if (!sort) return query;
   return query.order(sort.field, { ascending: sort.direction !== "desc" });
 }
 
-export function applyPagination<TQuery extends { range: (from: number, to: number) => TQuery }>(
-  query: TQuery,
-  pagination: VaultPagination | undefined
-): TQuery {
+export function applyPagination<
+  TQuery extends { range: (from: number, to: number) => TQuery }
+>(query: TQuery, pagination: VaultPagination | undefined): TQuery {
   if (!pagination) return query;
   const from = pagination.offset ?? 0;
   return query.range(from, from + pagination.limit - 1);

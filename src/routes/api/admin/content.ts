@@ -12,7 +12,10 @@
 //   DELETE /api/admin/content?id=<uuid>                — soft-delete
 //   POST   /api/admin/content/reorder                  — batch reorder slot positions
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -34,7 +37,7 @@ interface FeaturedContentInput {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -85,9 +88,14 @@ export async function POST(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as FeaturedContentInput;
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as FeaturedContentInput;
     if (!body.slot || !body.tmdb_id || !body.media_type) {
-      return jsonResponse({ error: "slot, tmdb_id, media_type are required" }, 400);
+      return jsonResponse(
+        { error: "slot, tmdb_id, media_type are required" },
+        400
+      );
     }
 
     const supabase = createAdminClient();
@@ -114,7 +122,7 @@ export async function POST(event: APIEvent) {
       is_active: body.is_active ?? true,
       starts_at: body.starts_at ?? null,
       ends_at: body.ends_at ?? null,
-      created_by: adminResult.admin.id,
+      created_by: adminResult.admin.id
     };
 
     const { data, error } = await supabase
@@ -126,8 +134,11 @@ export async function POST(event: APIEvent) {
     if (error) {
       if (error.code === "23505") {
         return jsonResponse(
-          { error: "This title is already in this slot. Edit the existing entry instead." },
-          409,
+          {
+            error:
+              "This title is already in this slot. Edit the existing entry instead."
+          },
+          409
         );
       }
       return jsonResponse({ error: error.message }, 500);
@@ -137,7 +148,11 @@ export async function POST(event: APIEvent) {
       action: "featured_content.create",
       entity_type: "featured_content",
       entity_id: data.id,
-      payload: { slot: data.slot, tmdb_id: data.tmdb_id, media_type: data.media_type },
+      payload: {
+        slot: data.slot,
+        tmdb_id: data.tmdb_id,
+        media_type: data.media_type
+      }
     });
 
     return jsonResponse({ content: data }, 201);
@@ -154,7 +169,9 @@ export async function PATCH(event: APIEvent) {
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
   try {
-    const body = (await event.request.json().catch(() => ({}))) as FeaturedContentInput & {
+    const body = (await event.request
+      .json()
+      .catch(() => ({}))) as FeaturedContentInput & {
       id?: string;
     };
     if (!body.id) return jsonResponse({ error: "id is required" }, 400);
@@ -170,7 +187,7 @@ export async function PATCH(event: APIEvent) {
       "position",
       "is_active",
       "starts_at",
-      "ends_at",
+      "ends_at"
     ] as const) {
       if (body[key] !== undefined) update[key] = body[key];
     }
@@ -184,13 +201,14 @@ export async function PATCH(event: APIEvent) {
       .select("*")
       .single();
 
-    if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
+    if (error || !data)
+      return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 
     await logAdminAction(event, adminResult.admin, {
       action: "featured_content.update",
       entity_type: "featured_content",
       entity_id: data.id,
-      payload: { changes: update },
+      payload: { changes: update }
     });
 
     return jsonResponse({ content: data });
@@ -220,13 +238,18 @@ export async function DELETE(event: APIEvent) {
       .select("id, slot, tmdb_id, media_type")
       .single();
 
-    if (error || !data) return jsonResponse({ error: error?.message ?? "Not found" }, 404);
+    if (error || !data)
+      return jsonResponse({ error: error?.message ?? "Not found" }, 404);
 
     await logAdminAction(event, adminResult.admin, {
       action: "featured_content.delete",
       entity_type: "featured_content",
       entity_id: id,
-      payload: { slot: data.slot, tmdb_id: data.tmdb_id, media_type: data.media_type },
+      payload: {
+        slot: data.slot,
+        tmdb_id: data.tmdb_id,
+        media_type: data.media_type
+      }
     });
 
     return jsonResponse({ ok: true });

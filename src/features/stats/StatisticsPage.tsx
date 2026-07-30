@@ -31,13 +31,12 @@
 // degrades gracefully when the user is signed out or has no titles.
 
 import { Show, Suspense, createMemo, type Component } from "solid-js";
-import { useAuth } from "~/shared/hooks/useAuth";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
 import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { useStatsData } from "./hooks/useStatsData";
 import StatsOverview from "./components/StatsOverview";
-import StatsTabs, { usePersistentStatsTab, type StatsTab } from "./components/StatsTabs";
+import StatsTabs, { usePersistentStatsTab } from "./components/StatsTabs";
 import ActivityChart from "./components/ActivityChart";
 import GenreChart from "./components/GenreChart";
 import RatingsHistogram from "./components/RatingsHistogram";
@@ -50,7 +49,6 @@ import StatsShareModal from "./components/StatsShareModal";
 import { createSignal } from "solid-js";
 
 const StatisticsPage: Component = () => {
-  const { isSignedIn } = useAuth();
   const library = useUserLibrary();
   const { stats, loading, isEmpty, isGuest } = useStatsData();
   const [activeTab, setActiveTab] = usePersistentStatsTab("activity");
@@ -133,8 +131,16 @@ const StatisticsPage: Component = () => {
       <div class="sec-page sec-fade-in stats-page">
         {/* Header */}
         <div class="sec-header">
-          <a href="/profile" class="sec-back focus-ring" aria-label="Back to profile">
-            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+          <a
+            href="/profile"
+            class="sec-back focus-ring"
+            aria-label="Back to profile"
+          >
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
               arrow_back
             </span>
             Profile
@@ -142,7 +148,8 @@ const StatisticsPage: Component = () => {
           <p class="sec-eyebrow">Statistics</p>
           <h1 class="sec-title">Your cinematic personality</h1>
           <p class="sec-subtitle">
-            Charts and insights from your watchlist — visualised, not just counted.
+            Charts and insights from your watchlist — visualised, not just
+            counted.
           </p>
         </div>
 
@@ -155,19 +162,32 @@ const StatisticsPage: Component = () => {
               message="Your cinematic dashboard comes alive once you're signed in and your watchlist is loaded."
               variant="default"
               surface
-              action={<a href="/profile" class="btn-primary focus-ring">Go to profile</a>}
+              action={
+                <a href="/profile" class="btn-primary focus-ring">
+                  Go to profile
+                </a>
+              }
             />
           </Show>
 
           {/* ── Loading state ── */}
           <Show when={!isGuest() && loading()}>
-            <div class="stats-skeleton-grid">
+            <div
+              class="stats-skeleton-grid"
+              role="status"
+              aria-live="polite"
+              aria-busy="true"
+              aria-label="Loading statistics"
+            >
               <GlassSkeleton class="h-28 rounded-lg" />
               <GlassSkeleton class="h-28 rounded-lg" />
               <GlassSkeleton class="h-28 rounded-lg" />
               <GlassSkeleton class="h-28 rounded-lg" />
             </div>
-            <div class="stats-skeleton-chart" style={{ "margin-top": "var(--sp-4)" }}>
+            <div
+              class="stats-skeleton-chart"
+              style={{ "margin-top": "var(--sp-4)" }}
+            >
               <GlassSkeleton class="h-72 rounded-lg" />
             </div>
           </Show>
@@ -180,7 +200,11 @@ const StatisticsPage: Component = () => {
               message="Add titles to your watchlist and your cinematic story will appear here as charts."
               variant="default"
               surface
-              action={<a href="/search" class="btn-primary focus-ring">Find titles to watch</a>}
+              action={
+                <a href="/search" class="btn-primary focus-ring">
+                  Find titles to watch
+                </a>
+              }
             />
           </Show>
 
@@ -197,7 +221,14 @@ const StatisticsPage: Component = () => {
               <StatsTabs active={activeTab} onChange={setActiveTab} />
               <div class="stats-tab-content">
                 <Suspense fallback={<GlassSkeleton class="h-72 rounded-lg" />}>
-                  {tabContent()}
+                  {/* Keyed Show on activeTab forces the inner wrapper to
+                      remount on every tab switch, which re-fires the
+                      fade-in animation. Without `keyed`, Solid would
+                      reconcile the wrapper div across tab changes and
+                      the animation would only fire on initial mount. */}
+                  <Show when={activeTab()} keyed>
+                    <div class="animate-fade-in h-full">{tabContent()}</div>
+                  </Show>
                 </Suspense>
               </div>
 

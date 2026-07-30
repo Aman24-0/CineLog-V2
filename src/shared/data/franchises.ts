@@ -54,35 +54,117 @@ export const FRANCHISES: FranchiseDefinition[] = [
   {
     name: "Marvel Cinematic Universe",
     keywords: [
-      "avengers", "iron man", "captain america", "thor", "black panther",
-      "doctor strange", "spider-man", "guardians of the galaxy", "black widow",
-      "hawkeye", "eternals", "shang-chi", "ant-man", "captain marvel",
-      "the marvels", "wakanda forever", "multiverse of madness", "no way home",
-      "far from home", "homecoming", "ragnarok", "love and thunder",
-      "winter soldier", "civil war", "endgame", "infinity war"
+      "avengers",
+      "iron man",
+      "captain america",
+      "thor",
+      "black panther",
+      "doctor strange",
+      "spider-man",
+      "guardians of the galaxy",
+      "black widow",
+      "hawkeye",
+      "eternals",
+      "shang-chi",
+      "ant-man",
+      "captain marvel",
+      "the marvels",
+      "wakanda forever",
+      "multiverse of madness",
+      "no way home",
+      "far from home",
+      "homecoming",
+      "ragnarok",
+      "love and thunder",
+      "winter soldier",
+      "civil war",
+      "endgame",
+      "infinity war"
     ],
     sagas: [
-      { name: "Phase 1", keywords: ["iron man", "incredible hulk", "thor", "captain america", "avengers"] },
-      { name: "Phase 2", keywords: ["iron man 3", "dark world", "winter soldier", "guardians", "age of ultron", "ant-man"] },
-      { name: "Phase 3", keywords: ["civil war", "doctor strange", "homecoming", "ragnarok", "black panther", "infinity war", "ant-man and the wasp", "captain marvel", "endgame", "far from home"] },
-      { name: "Phase 4", keywords: ["black widow", "shang-chi", "eternals", "no way home", "multiverse of madness", "love and thunder", "wakanda forever"] },
-      { name: "Phase 5", keywords: ["quantumania", "guardians of the galaxy vol", "the marvels"] }
+      {
+        name: "Phase 1",
+        keywords: [
+          "iron man",
+          "incredible hulk",
+          "thor",
+          "captain america",
+          "avengers"
+        ]
+      },
+      {
+        name: "Phase 2",
+        keywords: [
+          "iron man 3",
+          "dark world",
+          "winter soldier",
+          "guardians",
+          "age of ultron",
+          "ant-man"
+        ]
+      },
+      {
+        name: "Phase 3",
+        keywords: [
+          "civil war",
+          "doctor strange",
+          "homecoming",
+          "ragnarok",
+          "black panther",
+          "infinity war",
+          "ant-man and the wasp",
+          "captain marvel",
+          "endgame",
+          "far from home"
+        ]
+      },
+      {
+        name: "Phase 4",
+        keywords: [
+          "black widow",
+          "shang-chi",
+          "eternals",
+          "no way home",
+          "multiverse of madness",
+          "love and thunder",
+          "wakanda forever"
+        ]
+      },
+      {
+        name: "Phase 5",
+        keywords: ["quantumania", "guardians of the galaxy vol", "the marvels"]
+      }
     ]
   },
   {
     name: "DC Extended Universe",
     keywords: [
-      "batman", "superman", "wonder woman", "aquaman", "flash",
-      "justice league", "suicide squad", "man of steel", "black adam",
-      "shazam", "black canary", "peacemaker"
+      "batman",
+      "superman",
+      "wonder woman",
+      "aquaman",
+      "flash",
+      "justice league",
+      "suicide squad",
+      "man of steel",
+      "black adam",
+      "shazam",
+      "black canary",
+      "peacemaker"
     ]
   },
   {
     name: "Harry Potter",
     keywords: [
-      "harry potter", "deathly hallows", "philosopher's stone",
-      "chamber of secrets", "prisoner of azkaban", "goblet of fire",
-      "order of the phoenix", "half-blood prince", "fantastic beasts"
+      "harry potter",
+      "deathly hallows",
+      "philosopher's stone",
+      "chamber of secrets",
+      "prisoner of azkaban",
+      "goblet of fire",
+      "order of the phoenix",
+      "half-blood prince",
+      "fantastic beasts"
     ],
     tmdbCollectionId: 1241
   },
@@ -97,22 +179,41 @@ export const FRANCHISES: FranchiseDefinition[] = [
   },
   {
     name: "Fast & Furious",
-    keywords: ["fast and furious", "fast & furious", "furious", "tokyo drift", "fast x"],
+    keywords: [
+      "fast and furious",
+      "fast & furious",
+      "furious",
+      "tokyo drift",
+      "fast x"
+    ],
     tmdbCollectionId: 948485
   },
   {
     name: "Star Wars",
     keywords: [
-      "star wars", "empire strikes back", "return of the jedi",
-      "force awakens", "last jedi", "rise of skywalker",
-      "rogue one", "solo", "mandalorian", "andor", "ahsoka", "book of boba fett"
+      "star wars",
+      "empire strikes back",
+      "return of the jedi",
+      "force awakens",
+      "last jedi",
+      "rise of skywalker",
+      "rogue one",
+      "solo",
+      "mandalorian",
+      "andor",
+      "ahsoka",
+      "book of boba fett"
     ]
   },
   {
     name: "Lord of the Rings",
     keywords: [
-      "lord of the rings", "hobbit", "fellowship of the ring",
-      "two towers", "return of the king", "rings of power"
+      "lord of the rings",
+      "hobbit",
+      "fellowship of the ring",
+      "two towers",
+      "return of the king",
+      "rings of power"
     ],
     tmdbCollectionId: 119
   },
@@ -128,7 +229,15 @@ export const FRANCHISES: FranchiseDefinition[] = [
   },
   {
     name: "James Bond",
-    keywords: ["james bond", "007", "no time to die", "skyfall", "spectre", "casino royale", "quantum of solace"]
+    keywords: [
+      "james bond",
+      "007",
+      "no time to die",
+      "skyfall",
+      "spectre",
+      "casino royale",
+      "quantum of solace"
+    ]
   },
   {
     name: "Dune",
@@ -141,11 +250,21 @@ export const FRANCHISES: FranchiseDefinition[] = [
   },
   {
     name: "Planet of the Apes",
-    keywords: ["planet of the apes", "dawn of the planet", "war for the planet", "kingdom of the planet"]
+    keywords: [
+      "planet of the apes",
+      "dawn of the planet",
+      "war for the planet",
+      "kingdom of the planet"
+    ]
   },
   {
     name: "The Matrix",
-    keywords: ["the matrix", "matrix reloaded", "matrix revolutions", "matrix resurrections"],
+    keywords: [
+      "the matrix",
+      "matrix reloaded",
+      "matrix revolutions",
+      "matrix resurrections"
+    ],
     tmdbCollectionId: 2344
   },
   {
@@ -160,7 +279,13 @@ export const FRANCHISES: FranchiseDefinition[] = [
   },
   {
     name: "Indiana Jones",
-    keywords: ["indiana jones", "raiders of the lost ark", "temple of doom", "last crusade", "dial of destiny"],
+    keywords: [
+      "indiana jones",
+      "raiders of the lost ark",
+      "temple of doom",
+      "last crusade",
+      "dial of destiny"
+    ],
     tmdbCollectionId: 84
   }
 ];
@@ -205,10 +330,25 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     backdrop_path: "/9BBtojrJ1JyKr3t4mCMzYsBa9eT.jpg",
     accentColor: "#E62429",
     universes: [
-      { id: "mcu", name: "MCU", type: "curated", collectionId: "mcu-chronological" },
-      { id: "sony-spider-verse", name: "Sony Spider-Verse", type: "official", tmdbCollectionId: 531770 },
+      {
+        id: "mcu",
+        name: "MCU",
+        type: "curated",
+        collectionId: "mcu-chronological"
+      },
+      {
+        id: "sony-spider-verse",
+        name: "Sony Spider-Verse",
+        type: "official",
+        tmdbCollectionId: 531770
+      },
       { id: "x-men", name: "X-Men", type: "official", tmdbCollectionId: 748 },
-      { id: "fantastic-four", name: "Fantastic Four", type: "official", tmdbCollectionId: 1676 },
+      {
+        id: "fantastic-four",
+        name: "Fantastic Four",
+        type: "official",
+        tmdbCollectionId: 1676
+      },
       { id: "blade", name: "Blade", type: "official", tmdbCollectionId: 9771 }
     ]
   },
@@ -221,10 +361,30 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     universes: [
       { id: "dceu", name: "DCEU", type: "curated", collectionId: "dceu" },
       { id: "dcu", name: "DCU", type: "curated", collectionId: "dcu" },
-      { id: "batman-universe", name: "Batman Universe", type: "curated", collectionId: "batman-universe" },
-      { id: "dark-knight-trilogy", name: "Dark Knight Trilogy", type: "curated", collectionId: "dark-knight-trilogy" },
-      { id: "arrowverse", name: "Arrowverse", type: "curated", collectionId: "arrowverse" },
-      { id: "dc-animated", name: "DC Animated", type: "curated", collectionId: "dc-animated" }
+      {
+        id: "batman-universe",
+        name: "Batman Universe",
+        type: "curated",
+        collectionId: "batman-universe"
+      },
+      {
+        id: "dark-knight-trilogy",
+        name: "Dark Knight Trilogy",
+        type: "curated",
+        collectionId: "dark-knight-trilogy"
+      },
+      {
+        id: "arrowverse",
+        name: "Arrowverse",
+        type: "curated",
+        collectionId: "arrowverse"
+      },
+      {
+        id: "dc-animated",
+        name: "DC Animated",
+        type: "curated",
+        collectionId: "dc-animated"
+      }
     ]
   },
   {
@@ -234,9 +394,24 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     backdrop_path: "/d8duYyyC9J5T825Hg7grmaabfxQ.jpg",
     accentColor: "#FFE81F",
     universes: [
-      { id: "skywalker-saga", name: "Skywalker Saga", type: "curated", collectionId: "star-wars-timeline" },
-      { id: "mandoverse", name: "Mandoverse", type: "curated", collectionId: "mandoverse" },
-      { id: "star-wars-legends", name: "Legends", type: "curated", collectionId: "star-wars-legends" }
+      {
+        id: "skywalker-saga",
+        name: "Skywalker Saga",
+        type: "curated",
+        collectionId: "star-wars-timeline"
+      },
+      {
+        id: "mandoverse",
+        name: "Mandoverse",
+        type: "curated",
+        collectionId: "mandoverse"
+      },
+      {
+        id: "star-wars-legends",
+        name: "Legends",
+        type: "curated",
+        collectionId: "star-wars-legends"
+      }
     ]
   },
   {
@@ -246,8 +421,18 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     backdrop_path: "/9deGfFCcrun4q3OFCb4zOhmRJ6P.jpg",
     accentColor: "#8B6914",
     universes: [
-      { id: "lotr", name: "The Lord of the Rings", type: "curated", collectionId: "middle-earth" },
-      { id: "the-hobbit", name: "The Hobbit", type: "official", tmdbCollectionId: 121938 }
+      {
+        id: "lotr",
+        name: "The Lord of the Rings",
+        type: "curated",
+        collectionId: "middle-earth"
+      },
+      {
+        id: "the-hobbit",
+        name: "The Hobbit",
+        type: "official",
+        tmdbCollectionId: 121938
+      }
     ]
   },
   {
@@ -257,8 +442,18 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     backdrop_path: "/8NG2cq1Z7x2wbe2fNJxfgMgx9I7.jpg",
     accentColor: "#7B5EA7",
     universes: [
-      { id: "harry-potter", name: "Harry Potter", type: "curated", collectionId: "harry-potter" },
-      { id: "fantastic-beasts", name: "Fantastic Beasts", type: "official", tmdbCollectionId: 413639 }
+      {
+        id: "harry-potter",
+        name: "Harry Potter",
+        type: "curated",
+        collectionId: "harry-potter"
+      },
+      {
+        id: "fantastic-beasts",
+        name: "Fantastic Beasts",
+        type: "official",
+        tmdbCollectionId: 413639
+      }
     ]
   },
   {
@@ -267,10 +462,30 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     icon: "person",
     backdrop_path: null,
     universes: [
-      { id: "james-bond", name: "James Bond", type: "curated", collectionId: "james-bond" },
-      { id: "mission-impossible", name: "Mission: Impossible", type: "official", tmdbCollectionId: 537 },
-      { id: "bourne", name: "Bourne", type: "official", tmdbCollectionId: 2422 },
-      { id: "john-wick", name: "John Wick", type: "curated", collectionId: "john-wick" }
+      {
+        id: "james-bond",
+        name: "James Bond",
+        type: "curated",
+        collectionId: "james-bond"
+      },
+      {
+        id: "mission-impossible",
+        name: "Mission: Impossible",
+        type: "official",
+        tmdbCollectionId: 537
+      },
+      {
+        id: "bourne",
+        name: "Bourne",
+        type: "official",
+        tmdbCollectionId: 2422
+      },
+      {
+        id: "john-wick",
+        name: "John Wick",
+        type: "curated",
+        collectionId: "john-wick"
+      }
     ]
   },
   {
@@ -280,9 +495,24 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     backdrop_path: null,
     universes: [
       { id: "dune", name: "Dune", type: "official", tmdbCollectionId: 886484 },
-      { id: "the-matrix", name: "The Matrix", type: "official", tmdbCollectionId: 2344 },
-      { id: "avatar", name: "Avatar", type: "official", tmdbCollectionId: 858363 },
-      { id: "planet-of-the-apes", name: "Planet of the Apes", type: "official", tmdbCollectionId: 173855 },
+      {
+        id: "the-matrix",
+        name: "The Matrix",
+        type: "official",
+        tmdbCollectionId: 2344
+      },
+      {
+        id: "avatar",
+        name: "Avatar",
+        type: "official",
+        tmdbCollectionId: 858363
+      },
+      {
+        id: "planet-of-the-apes",
+        name: "Planet of the Apes",
+        type: "official",
+        tmdbCollectionId: 173855
+      },
       { id: "alien", name: "Alien", type: "official", tmdbCollectionId: 8091 }
     ]
   },
@@ -292,10 +522,30 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     icon: "explore",
     backdrop_path: null,
     universes: [
-      { id: "indiana-jones", name: "Indiana Jones", type: "official", tmdbCollectionId: 84 },
-      { id: "jurassic-park", name: "Jurassic Park", type: "official", tmdbCollectionId: 328 },
-      { id: "pirates-caribbean", name: "Pirates of the Caribbean", type: "official", tmdbCollectionId: 295 },
-      { id: "transformers", name: "Transformers", type: "official", tmdbCollectionId: 86038 }
+      {
+        id: "indiana-jones",
+        name: "Indiana Jones",
+        type: "official",
+        tmdbCollectionId: 84
+      },
+      {
+        id: "jurassic-park",
+        name: "Jurassic Park",
+        type: "official",
+        tmdbCollectionId: 328
+      },
+      {
+        id: "pirates-caribbean",
+        name: "Pirates of the Caribbean",
+        type: "official",
+        tmdbCollectionId: 295
+      },
+      {
+        id: "transformers",
+        name: "Transformers",
+        type: "official",
+        tmdbCollectionId: 86038
+      }
     ]
   },
   {
@@ -304,9 +554,24 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     icon: "horror",
     backdrop_path: null,
     universes: [
-      { id: "conjuring", name: "The Conjuring Universe", type: "official", tmdbCollectionId: 313086 },
-      { id: "monsterverse", name: "MonsterVerse", type: "official", tmdbCollectionId: 578261 },
-      { id: "alien-vs-predator", name: "Alien vs Predator", type: "official", tmdbCollectionId: 158140 }
+      {
+        id: "conjuring",
+        name: "The Conjuring Universe",
+        type: "official",
+        tmdbCollectionId: 313086
+      },
+      {
+        id: "monsterverse",
+        name: "MonsterVerse",
+        type: "official",
+        tmdbCollectionId: 578261
+      },
+      {
+        id: "alien-vs-predator",
+        name: "Alien vs Predator",
+        type: "official",
+        tmdbCollectionId: 158140
+      }
     ]
   },
   {
@@ -315,7 +580,12 @@ export const FRANCHISE_HIERARCHY: FranchiseHierarchy[] = [
     icon: "speed",
     backdrop_path: null,
     universes: [
-      { id: "fast-furious", name: "Fast & Furious", type: "official", tmdbCollectionId: 948485 }
+      {
+        id: "fast-furious",
+        name: "Fast & Furious",
+        type: "official",
+        tmdbCollectionId: 948485
+      }
     ]
   }
 ];

@@ -174,4 +174,5 @@ export interface ProfileWriteResult {
  * Shared by all read/write functions so they get full type inference
  * on `.from("profiles")`, `.eq("id", …)`, etc.
  */
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<Database>;

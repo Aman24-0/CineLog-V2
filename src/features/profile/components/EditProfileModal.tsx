@@ -25,14 +25,14 @@ import {
   createEffect,
   onMount,
   onCleanup,
-  type Component,
+  type Component
 } from "solid-js";
 import { GlassButton, GlassInput } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import { getClient } from "~/lib/supabase/client";
 import {
   compressBannerImage,
-  uploadBannerToSupabase,
+  uploadBannerToSupabase
 } from "~/shared/utils/imageCompress";
 import { updateProfileMetadata } from "~/lib/supabase/repositories/profile";
 import type { ProfileRow } from "~/lib/supabase/repositories";
@@ -63,9 +63,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   const [displayName, setDisplayName] = createSignal("");
   const [bio, setBio] = createSignal("");
   const [avatarUrl, setAvatarUrl] = createSignal<string | null>(null);
-  const [avatarSource, setAvatarSource] = createSignal<AvatarSource>("google");
+  const [_avatarSource, setAvatarSource] = createSignal<AvatarSource>("google");
   const [avatarUrlInput, setAvatarUrlInput] = createSignal("");
-  const [bannerType, setBannerType] = createSignal<BannerType>("favorite_movie");
+  const [bannerType, setBannerType] =
+    createSignal<BannerType>("favorite_movie");
   const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
   const [isPublic, setIsPublic] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
@@ -73,7 +74,6 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
 
   // ── ESC key + body scroll lock ───────────────────────────────────────
-  let scrollY = 0;
   const handleEsc = (e: KeyboardEvent) => {
     if (e.key === "Escape" && props.open) {
       props.onClose();
@@ -88,7 +88,6 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
 
   createEffect(() => {
     if (props.open) {
-      scrollY = window.scrollY;
       document.body.style.overflow = "hidden";
     } else {
       document.body.style.overflow = "";
@@ -170,7 +169,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
         displayName: name,
         bio: trimmedBio || null,
         avatarUrl: avatarUrl(),
-        bannerUrl: bannerUrl(),
+        bannerUrl: bannerUrl()
       });
       if (result.error) throw result.error;
 
@@ -189,7 +188,8 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       props.onClose();
     } catch (err) {
       console.error("[EditProfileModal] Save failed:", err);
-      const msg = err instanceof Error ? err.message : "Failed to save profile.";
+      const msg =
+        err instanceof Error ? err.message : "Failed to save profile.";
       showToast(msg, "error");
     } finally {
       setSaving(false);
@@ -197,7 +197,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   };
 
   // ── BannerEditor save handler ───────────────────────────────────────
-  const handleBannerSave = async (type: BannerType, url: string | null): Promise<boolean> => {
+  const handleBannerSave = async (
+    type: BannerType,
+    url: string | null
+  ): Promise<boolean> => {
     setBannerType(type);
     setBannerUrl(url);
     setBannerEditorOpen(false);
@@ -206,7 +209,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
 
   return (
     <Show when={props.open}>
-      <div class="edit-profile-modal-overlay" role="dialog" aria-modal="true" aria-label="Edit profile">
+      <div
+        class="edit-profile-modal-overlay"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Edit profile"
+      >
         <div class="edit-profile-modal-sheet">
           {/* Header */}
           <div class="edit-profile-modal-header">
@@ -217,7 +225,9 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
               onClick={() => props.onClose()}
               aria-label="Close edit profile"
             >
-              <span class="material-symbols-outlined" aria-hidden="true">close</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                close
+              </span>
             </button>
           </div>
 
@@ -266,7 +276,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                     when={avatarUrl() || props.oauthAvatarUrl}
                     fallback={
                       <div class="edit-profile-modal-avatar-placeholder">
-                        <span class="material-symbols-outlined" aria-hidden="true">person</span>
+                        <span
+                          class="material-symbols-outlined"
+                          aria-hidden="true"
+                        >
+                          person
+                        </span>
                       </div>
                     }
                   >
@@ -274,7 +289,11 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                       src={avatarUrl() ?? props.oauthAvatarUrl ?? ""}
                       alt="Avatar preview"
                       class="edit-profile-modal-avatar-img"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      loading="lazy"
+                      decoding="async"
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </Show>
                 </div>
@@ -312,12 +331,16 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                 </div>
               </div>
               <label class="edit-profile-modal-field">
-                <span class="edit-profile-modal-field-label">Or paste an image URL</span>
+                <span class="edit-profile-modal-field-label">
+                  Or paste an image URL
+                </span>
                 <div class="edit-profile-modal-url-row">
                   <GlassInput
                     value={avatarUrlInput()}
                     onInput={(e: Event) =>
-                      setAvatarUrlInput((e.currentTarget as HTMLInputElement).value)
+                      setAvatarUrlInput(
+                        (e.currentTarget as HTMLInputElement).value
+                      )
                     }
                     placeholder="https://..."
                     aria-label="Avatar image URL"
@@ -357,7 +380,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                   when={bannerUrl()}
                   fallback={
                     <div class="edit-profile-modal-banner-placeholder">
-                      <span class="material-symbols-outlined" aria-hidden="true">image</span>
+                      <span
+                        class="material-symbols-outlined"
+                        aria-hidden="true"
+                      >
+                        image
+                      </span>
                       <span>Default gradient</span>
                     </div>
                   }
@@ -366,7 +394,11 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                     src={bannerUrl()!}
                     alt="Banner preview"
                     class="edit-profile-modal-banner-img"
-                    onError={(e) => { e.currentTarget.style.display = "none"; }}
+                    loading="lazy"
+                    decoding="async"
+                    onError={(e) => {
+                      e.currentTarget.style.display = "none";
+                    }}
                   />
                 </Show>
               </div>
@@ -386,9 +418,12 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
               <h3 class="edit-profile-modal-section-title">Visibility</h3>
               <label class="edit-profile-modal-toggle-row">
                 <div class="edit-profile-modal-toggle-text">
-                  <span class="edit-profile-modal-toggle-label">Public profile</span>
+                  <span class="edit-profile-modal-toggle-label">
+                    Public profile
+                  </span>
                   <span class="edit-profile-modal-toggle-desc">
-                    When off, only you can see your profile. Followers / following counts are hidden.
+                    When off, only you can see your profile. Followers /
+                    following counts are hidden.
                   </span>
                 </div>
                 <button
@@ -399,7 +434,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
                   onClick={() => setIsPublic((v) => !v)}
                   aria-label="Toggle public profile"
                 >
-                  <span class="edit-profile-modal-toggle-knob" aria-hidden="true" />
+                  <span
+                    class="edit-profile-modal-toggle-knob"
+                    aria-hidden="true"
+                  />
                 </button>
               </label>
             </section>
@@ -472,14 +510,24 @@ async function compressAvatarImage(file: File): Promise<Blob> {
         const sourceSize = Math.min(img.width, img.height);
         const sx = (img.width - sourceSize) / 2;
         const sy = (img.height - sourceSize) / 2;
-        ctx.drawImage(img, sx, sy, sourceSize, sourceSize, 0, 0, AVATAR_SIZE, AVATAR_SIZE);
+        ctx.drawImage(
+          img,
+          sx,
+          sy,
+          sourceSize,
+          sourceSize,
+          0,
+          0,
+          AVATAR_SIZE,
+          AVATAR_SIZE
+        );
         canvas.toBlob(
           (blob) => {
             if (blob) resolve(blob);
             else reject(new Error("Canvas toBlob returned null"));
           },
           "image/jpeg",
-          AVATAR_QUALITY,
+          AVATAR_QUALITY
         );
       };
       img.onerror = () => reject(new Error("Failed to load image"));
@@ -490,7 +538,10 @@ async function compressAvatarImage(file: File): Promise<Blob> {
   });
 }
 
-async function uploadAvatarToSupabase(userId: string, blob: Blob): Promise<string> {
+async function uploadAvatarToSupabase(
+  userId: string,
+  blob: Blob
+): Promise<string> {
   const { getBrowserClient } = await import("~/lib/supabase/browser");
   const supabase = getBrowserClient();
   const filePath = `${userId}/avatar.jpg`;
@@ -502,7 +553,10 @@ async function uploadAvatarToSupabase(userId: string, blob: Blob): Promise<strin
   if (uploadError) {
     // Bucket missing or permission denied — fall back to data URL so
     // the user can still save their avatar (graceful degradation).
-    console.warn("[uploadAvatar] Storage upload failed, falling back to data URL:", uploadError);
+    console.warn(
+      "[uploadAvatar] Storage upload failed, falling back to data URL:",
+      uploadError
+    );
     return blobToDataUrl(blob);
   }
 
@@ -516,7 +570,8 @@ function blobToDataUrl(blob: Blob): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.onload = () => resolve(reader.result as string);
-    reader.onerror = () => reject(new Error("Failed to convert blob to data URL"));
+    reader.onerror = () =>
+      reject(new Error("Failed to convert blob to data URL"));
     reader.readAsDataURL(blob);
   });
 }

@@ -53,7 +53,7 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
       items.push({
         icon: "content_copy",
         label: "Duplicate",
-        action: () => props.onDuplicate?.(),
+        action: () => props.onDuplicate?.()
       });
     }
     if (props.collection.isArchived) {
@@ -61,14 +61,14 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
         items.push({
           icon: "unarchive",
           label: "Unarchive",
-          action: () => props.onUnarchive?.(),
+          action: () => props.onUnarchive?.()
         });
       }
     } else if (props.onArchive) {
       items.push({
         icon: "archive",
         label: "Archive",
-        action: () => props.onArchive?.(),
+        action: () => props.onArchive?.()
       });
     }
     if (props.onDelete) {
@@ -76,7 +76,7 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
         icon: "delete",
         label: "Delete",
         danger: true,
-        action: () => props.onDelete?.(),
+        action: () => props.onDelete?.()
       });
     }
     return items;
@@ -91,7 +91,9 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
           onClick={() => props.onAddTitles?.()}
           aria-label="Add titles from your watchlist"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">add</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            add
+          </span>
           <span class="collection-action-bar-btn-label">Add Titles</span>
         </button>
 
@@ -103,7 +105,9 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
             aria-label="Reorder list"
             title="Reorder list"
           >
-            <span class="material-symbols-outlined" aria-hidden="true">reorder</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              reorder
+            </span>
             <span class="collection-action-bar-btn-label">Reorder</span>
           </button>
         </Show>
@@ -116,7 +120,9 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
         onClick={() => props.onShare?.()}
         aria-label="Share collection"
       >
-        <span class="material-symbols-outlined" aria-hidden="true">share</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          share
+        </span>
         <span class="collection-action-bar-btn-label">Share</span>
       </button>
 
@@ -127,7 +133,9 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
           onClick={() => props.onUnsubscribe?.()}
           aria-label={`Unsubscribe from ${props.collection.name}`}
         >
-          <span class="material-symbols-outlined" aria-hidden="true">remove_circle</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            remove_circle
+          </span>
           <span class="collection-action-bar-btn-label">Unsubscribe</span>
         </button>
       </Show>
@@ -136,10 +144,7 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
       <div class="collection-action-bar-spacer" />
 
       <Show when={!isUniverse() && moreItems().length > 0}>
-        <ThreeDotMenu
-          items={moreItems()}
-          label="More collection actions"
-        />
+        <ThreeDotMenu items={moreItems()} label="More collection actions" />
       </Show>
     </div>
   );

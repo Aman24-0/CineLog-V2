@@ -13,7 +13,15 @@
 //   GET /api/admin/homepage     — fetch current config
 //   PUT /api/admin/homepage     — save updated config
 
-import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  createMemo,
+  type Component,
+  type JSX
+} from "solid-js";
 
 interface SectionConfig {
   enabled: boolean;
@@ -24,32 +32,122 @@ interface HomepageConfig {
   sections: Record<string, SectionConfig>;
 }
 
-const SECTION_META: { key: string; label: string; description: string; icon: string }[] = [
-  { key: "genre_explorer", label: "Genre Explorer", description: "Chips + continuous carousel for browsing by genre.", icon: "🎭" },
-  { key: "spotlight", label: "Spotlight", description: "Hero card with a single highlighted title.", icon: "🔦" },
-  { key: "continue_universes", label: "Continue Your Universes", description: "Resume curated universes the user has started.", icon: "📚" },
-  { key: "insight_strip", label: "Insight Strip", description: "Quick stat cards (watch time, top genres, etc.).", icon: "📊" },
-  { key: "trending", label: "Trending This Week", description: "TMDB trending movies & series.", icon: "🔥" },
-  { key: "theatres", label: "In Theatres Now", description: "Currently playing in theatres (region-aware).", icon: "🎬" },
-  { key: "because_you_love", label: "Because You Love…", description: "Personalized recommendations based on vault.", icon: "❤️" },
-  { key: "surprise_me", label: "Surprise Me", description: "Random title picker (gated by random_picker flag).", icon: "🎲" },
-  { key: "weekend_picks", label: "Weekend Picks", description: "Editorial picks for the weekend.", icon: "📅" },
-  { key: "step_outside", label: "Step Outside Your Taste", description: "Titles outside the user's usual genres.", icon: "🧭" },
-  { key: "hidden_gems", label: "Hidden Gems", description: "Low-vote high-rated titles.", icon: "💎" },
-  { key: "top_rated_movies", label: "Top Rated Movies", description: "All-time top-rated movies from TMDB.", icon: "⭐" },
-  { key: "top_rated_series", label: "Top Rated Series", description: "All-time top-rated TV series from TMDB.", icon: "📺" },
-  { key: "new_on_ott", label: "New on OTT", description: "Streaming provider releases (region-aware).", icon: "🎥" },
-  { key: "new_seasons", label: "New Seasons", description: "Recently-released new seasons.", icon: "🆕" },
-  { key: "coming_soon", label: "Coming Soon", description: "Upcoming releases (gated by upcoming flag).", icon: "🔜" },
+const SECTION_META: {
+  key: string;
+  label: string;
+  description: string;
+  icon: string;
+}[] = [
+  {
+    key: "genre_explorer",
+    label: "Genre Explorer",
+    description: "Chips + continuous carousel for browsing by genre.",
+    icon: "🎭"
+  },
+  {
+    key: "spotlight",
+    label: "Spotlight",
+    description: "Hero card with a single highlighted title.",
+    icon: "🔦"
+  },
+  {
+    key: "continue_universes",
+    label: "Continue Your Universes",
+    description: "Resume curated universes the user has started.",
+    icon: "📚"
+  },
+  {
+    key: "insight_strip",
+    label: "Insight Strip",
+    description: "Quick stat cards (watch time, top genres, etc.).",
+    icon: "📊"
+  },
+  {
+    key: "trending",
+    label: "Trending This Week",
+    description: "TMDB trending movies & series.",
+    icon: "🔥"
+  },
+  {
+    key: "theatres",
+    label: "In Theatres Now",
+    description: "Currently playing in theatres (region-aware).",
+    icon: "🎬"
+  },
+  {
+    key: "because_you_love",
+    label: "Because You Love…",
+    description: "Personalized recommendations based on vault.",
+    icon: "❤️"
+  },
+  {
+    key: "surprise_me",
+    label: "Surprise Me",
+    description: "Random title picker (gated by random_picker flag).",
+    icon: "🎲"
+  },
+  {
+    key: "weekend_picks",
+    label: "Weekend Picks",
+    description: "Editorial picks for the weekend.",
+    icon: "📅"
+  },
+  {
+    key: "step_outside",
+    label: "Step Outside Your Taste",
+    description: "Titles outside the user's usual genres.",
+    icon: "🧭"
+  },
+  {
+    key: "hidden_gems",
+    label: "Hidden Gems",
+    description: "Low-vote high-rated titles.",
+    icon: "💎"
+  },
+  {
+    key: "top_rated_movies",
+    label: "Top Rated Movies",
+    description: "All-time top-rated movies from TMDB.",
+    icon: "⭐"
+  },
+  {
+    key: "top_rated_series",
+    label: "Top Rated Series",
+    description: "All-time top-rated TV series from TMDB.",
+    icon: "📺"
+  },
+  {
+    key: "new_on_ott",
+    label: "New on OTT",
+    description: "Streaming provider releases (region-aware).",
+    icon: "🎥"
+  },
+  {
+    key: "new_seasons",
+    label: "New Seasons",
+    description: "Recently-released new seasons.",
+    icon: "🆕"
+  },
+  {
+    key: "coming_soon",
+    label: "Coming Soon",
+    description: "Upcoming releases (gated by upcoming flag).",
+    icon: "🔜"
+  }
 ];
 
 const AdminHomepagePage: Component = () => {
   const [config, setConfig] = createSignal<HomepageConfig>({ sections: {} });
-  const [originalConfig, setOriginalConfig] = createSignal<HomepageConfig>({ sections: {} });
+  const [originalConfig, setOriginalConfig] = createSignal<HomepageConfig>({
+    sections: {}
+  });
   const [loading, setLoading] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
@@ -58,7 +156,9 @@ const AdminHomepagePage: Component = () => {
 
   const fetchConfig = async () => {
     try {
-      const resp = await fetch("/api/admin/homepage", { credentials: "include" });
+      const resp = await fetch("/api/admin/homepage", {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -85,7 +185,7 @@ const AdminHomepagePage: Component = () => {
     return SECTION_META.map((meta) => ({
       ...meta,
       enabled: cfg.sections[meta.key]?.enabled ?? true,
-      order: cfg.sections[meta.key]?.order ?? 999,
+      order: cfg.sections[meta.key]?.order ?? 999
     })).sort((a, b) => a.order - b.order);
   });
 
@@ -99,7 +199,10 @@ const AdminHomepagePage: Component = () => {
     const cfg = config();
     const current = cfg.sections[key] ?? { enabled: true, order: 999 };
     setConfig({
-      sections: { ...cfg.sections, [key]: { ...current, enabled: !current.enabled } },
+      sections: {
+        ...cfg.sections,
+        [key]: { ...current, enabled: !current.enabled }
+      }
     });
   };
 
@@ -119,9 +222,15 @@ const AdminHomepagePage: Component = () => {
     setConfig({
       sections: {
         ...cfg.sections,
-        [a.key]: { ...(cfg.sections[a.key] ?? { enabled: true, order: aOrder }), order: bOrder },
-        [b.key]: { ...(cfg.sections[b.key] ?? { enabled: true, order: bOrder }), order: aOrder },
-      },
+        [a.key]: {
+          ...(cfg.sections[a.key] ?? { enabled: true, order: aOrder }),
+          order: bOrder
+        },
+        [b.key]: {
+          ...(cfg.sections[b.key] ?? { enabled: true, order: bOrder }),
+          order: aOrder
+        }
+      }
     });
   };
 
@@ -132,7 +241,7 @@ const AdminHomepagePage: Component = () => {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ sections: config().sections }),
+        body: JSON.stringify({ sections: config().sections })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -150,24 +259,47 @@ const AdminHomepagePage: Component = () => {
   };
 
   const resetToDefaults = () => {
-    if (!confirm("Reset all section orders and visibility to defaults?")) return;
+    if (!confirm("Reset all section orders and visibility to defaults?"))
+      return;
     const defaults: HomepageConfig = {
       sections: Object.fromEntries(
-        SECTION_META.map((m, i) => [m.key, { enabled: true, order: i + 1 }]),
-      ),
+        SECTION_META.map((m, i) => [m.key, { enabled: true, order: i + 1 }])
+      )
     };
     setConfig(defaults);
   };
 
   return (
     <div>
-      <div style={{ "margin-bottom": "var(--sp-6)", display: "flex", "justify-content": "space-between", "align-items": "flex-start", gap: "var(--sp-4)" }}>
+      <div
+        style={{
+          "margin-bottom": "var(--sp-6)",
+          display: "flex",
+          "justify-content": "space-between",
+          "align-items": "flex-start",
+          gap: "var(--sp-4)"
+        }}
+      >
         <div>
-          <h2 style={{ "font-size": "1.5rem", "font-weight": "700", margin: "0 0 var(--sp-1) 0", color: "var(--text)" }}>
+          <h2
+            style={{
+              "font-size": "1.5rem",
+              "font-weight": "700",
+              margin: "0 0 var(--sp-1) 0",
+              color: "var(--text)"
+            }}
+          >
             Homepage Sections
           </h2>
-          <p style={{ "font-size": "0.875rem", color: "var(--text-muted)", margin: 0 }}>
-            Toggle and reorder the 16 Discover sections. Changes apply to all users immediately.
+          <p
+            style={{
+              "font-size": "0.875rem",
+              color: "var(--text-muted)",
+              margin: 0
+            }}
+          >
+            Toggle and reorder the 16 Discover sections. Changes apply to all
+            users immediately.
           </p>
         </div>
         <div style={{ display: "flex", gap: "var(--sp-2)", "flex-shrink": 0 }}>
@@ -189,43 +321,97 @@ const AdminHomepagePage: Component = () => {
       </div>
 
       <Show when={error()}>
-        <div role="alert" style={alertError}>Failed to load: {error()}</div>
+        <div role="alert" style={alertError}>
+          Failed to load: {error()}
+        </div>
       </Show>
 
       <Show when={loading()}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
-          {Array.from({ length: 8 }).map(() => (
-            <div style={{ ...skeletonCard, height: "70px" }} />
-          ))}
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-3)"
+          }}
+        >
+          <For each={Array.from({ length: 8 })}>
+            {() => <div style={{ ...skeletonCard, height: "70px" }} />}
+          </For>
         </div>
       </Show>
 
       <Show when={!loading()}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-2)"
+          }}
+        >
           <For each={sortedSections()}>
             {(section, idx) => (
               <div
                 style={{
                   ...cardStyle,
                   opacity: section.enabled ? 1 : 0.55,
-                  "border-color": section.enabled ? "var(--hairline)" : "var(--hairline-strong)",
+                  "border-color": section.enabled
+                    ? "var(--hairline)"
+                    : "var(--hairline-strong)"
                 }}
               >
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)", flex: 1 }}>
-                  <span style={{ "font-size": "1.25rem", width: "28px", "text-align": "center" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-3)",
+                    flex: 1
+                  }}
+                >
+                  <span
+                    style={{
+                      "font-size": "1.25rem",
+                      width: "28px",
+                      "text-align": "center"
+                    }}
+                  >
                     {section.icon}
                   </span>
                   <div style={{ flex: 1, "min-width": 0 }}>
-                    <div style={{ "font-weight": "600", color: "var(--text)", "font-size": "0.95rem" }}>
+                    <div
+                      style={{
+                        "font-weight": "600",
+                        color: "var(--text)",
+                        "font-size": "0.95rem"
+                      }}
+                    >
                       {section.label}
                     </div>
-                    <div style={{ "font-size": "0.8rem", color: "var(--text-muted)", "margin-top": "2px" }}>
+                    <div
+                      style={{
+                        "font-size": "0.8rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "2px"
+                      }}
+                    >
                       {section.description}
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)" }}>
-                  <span style={{ "font-size": "0.75rem", color: "var(--text-muted)", "min-width": "20px", "text-align": "right" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)"
+                  }}
+                >
+                  <span
+                    style={{
+                      "font-size": "0.75rem",
+                      color: "var(--text-muted)",
+                      "min-width": "20px",
+                      "text-align": "right"
+                    }}
+                  >
                     #{section.order}
                   </span>
                   <button
@@ -240,7 +426,11 @@ const AdminHomepagePage: Component = () => {
                   <button
                     onClick={() => moveSection(section.key, 1)}
                     disabled={idx() === sortedSections().length - 1}
-                    style={idx() === sortedSections().length - 1 ? iconBtnDisabled : iconBtn}
+                    style={
+                      idx() === sortedSections().length - 1
+                        ? iconBtnDisabled
+                        : iconBtn
+                    }
                     aria-label={`Move ${section.label} down`}
                     title="Move down"
                   >
@@ -267,13 +457,16 @@ const AdminHomepagePage: Component = () => {
             bottom: "var(--sp-6)",
             right: "var(--sp-6)",
             "z-index": 100,
-            background: toast()?.type === "success" ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)",
+            background:
+              toast()?.type === "success"
+                ? "rgb(34, 197, 94)"
+                : "rgb(239, 68, 68)",
             color: "white",
             padding: "var(--sp-3) var(--sp-4)",
             "border-radius": "var(--radius-md)",
             "font-size": "0.875rem",
             "font-weight": "600",
-            "box-shadow": "0 10px 25px rgba(0,0,0,0.3)",
+            "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
           }}
         >
           {toast()?.msg}
@@ -293,14 +486,14 @@ const cardStyle: JSX.CSSProperties = {
   display: "flex",
   "align-items": "center",
   gap: "var(--sp-3)",
-  "transition": "opacity 0.15s, border-color 0.15s",
+  transition: "opacity 0.15s, border-color 0.15s"
 };
 
 const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
-  "animation": "pulse 1.5s ease-in-out infinite",
+  animation: "pulse 1.5s ease-in-out infinite"
 };
 
 const alertError: JSX.CSSProperties = {
@@ -310,7 +503,7 @@ const alertError: JSX.CSSProperties = {
   padding: "var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 };
 
 const btnPrimary: JSX.CSSProperties = {
@@ -321,7 +514,7 @@ const btnPrimary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnSecondary: JSX.CSSProperties = {
@@ -332,7 +525,7 @@ const btnSecondary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnDisabled: JSX.CSSProperties = {
@@ -344,7 +537,7 @@ const btnDisabled: JSX.CSSProperties = {
   "font-weight": "500",
   "font-size": "0.875rem",
   cursor: "not-allowed",
-  opacity: 0.5,
+  opacity: 0.5
 };
 
 const iconBtn: JSX.CSSProperties = {
@@ -358,13 +551,13 @@ const iconBtn: JSX.CSSProperties = {
   "font-size": "0.875rem",
   display: "flex",
   "align-items": "center",
-  "justify-content": "center",
+  "justify-content": "center"
 };
 
 const iconBtnDisabled: JSX.CSSProperties = {
   ...iconBtn,
   opacity: 0.3,
-  cursor: "not-allowed",
+  cursor: "not-allowed"
 };
 
 const toggleOn: JSX.CSSProperties = {
@@ -376,7 +569,7 @@ const toggleOn: JSX.CSSProperties = {
   "font-weight": "700",
   "font-size": "0.75rem",
   cursor: "pointer",
-  "min-width": "42px",
+  "min-width": "42px"
 };
 
 const toggleOff: JSX.CSSProperties = {
@@ -388,7 +581,7 @@ const toggleOff: JSX.CSSProperties = {
   "font-weight": "700",
   "font-size": "0.75rem",
   cursor: "pointer",
-  "min-width": "42px",
+  "min-width": "42px"
 };
 
 export default AdminHomepagePage;

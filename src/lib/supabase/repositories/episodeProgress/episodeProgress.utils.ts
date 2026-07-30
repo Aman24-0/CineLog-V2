@@ -16,7 +16,9 @@ import { getClient } from "../../client";
  * Map an `UpsertEpisodeProgressPayload` to the snake-case
  * `EpisodeProgressInsert` shape.
  */
-export function toInsert(payload: UpsertEpisodeProgressPayload): EpisodeProgressInsert {
+export function toInsert(
+  payload: UpsertEpisodeProgressPayload
+): EpisodeProgressInsert {
   return {
     vault_id: payload.vaultId,
     season_number: payload.seasonNumber,
@@ -45,7 +47,9 @@ export type { TypedSupabaseClient } from "./episodeProgress.types";
 /**
  * Convenience: resolve the environment-aware client.
  */
-export function resolveClient(client?: TypedSupabaseClient): TypedSupabaseClient {
+export function resolveClient(
+  client?: TypedSupabaseClient
+): TypedSupabaseClient {
   return client ?? getClient();
 }
 

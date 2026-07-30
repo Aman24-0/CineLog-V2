@@ -10,17 +10,35 @@
 import { getClient } from "../../client";
 import type { TypedSupabaseClient } from "./vault.types";
 import {
-  getVaultByStatus, getVaultByTmdbId, getVaultItem,
-  getFavorites, getPinned, getRecentlyUpdated, searchVault
+  getVaultByStatus,
+  getVaultByTmdbId,
+  getVaultItem,
+  getFavorites,
+  getPinned,
+  getRecentlyUpdated,
+  searchVault
 } from "./vault.read";
 import {
-  createVaultItem, upsertVaultItem, upsertVaultItemsBatch, deleteVaultItem, restoreVaultItem,
-  updateNotes, updateProgress, updateRating, updateStatus, updateVaultItem
+  createVaultItem,
+  upsertVaultItem,
+  upsertVaultItemsBatch,
+  deleteVaultItem,
+  restoreVaultItem,
+  updateNotes,
+  updateProgress,
+  updateRating,
+  updateStatus,
+  updateVaultItem
 } from "./vault.write";
 import type {
-  CreateVaultItemPayload, VaultIdentity, VaultItemResult,
-  VaultListResult, VaultPagination, VaultSearchQuery,
-  VaultSort, VaultStatus
+  CreateVaultItemPayload,
+  VaultIdentity,
+  VaultItemResult,
+  VaultListResult,
+  VaultPagination,
+  VaultSearchQuery,
+  VaultSort,
+  VaultStatus
 } from "./vault.types";
 
 export class VaultRepository {
@@ -37,22 +55,39 @@ export class VaultRepository {
   upsertVaultItem(payload: CreateVaultItemPayload): Promise<VaultItemResult> {
     return upsertVaultItem(this.supabase, payload);
   }
-  upsertVaultItemsBatch(payloads: CreateVaultItemPayload[]): Promise<{ count: number; error: Error | null }> {
+  upsertVaultItemsBatch(
+    payloads: CreateVaultItemPayload[]
+  ): Promise<{ count: number; error: Error | null }> {
     return upsertVaultItemsBatch(this.supabase, payloads);
   }
-  updateVaultItem(identity: VaultIdentity, update: import("./vault.types").VaultUpdate): Promise<VaultItemResult> {
+  updateVaultItem(
+    identity: VaultIdentity,
+    update: import("./vault.types").VaultUpdate
+  ): Promise<VaultItemResult> {
     return updateVaultItem(this.supabase, identity, update);
   }
-  updateStatus(identity: VaultIdentity, status: VaultStatus): Promise<VaultItemResult> {
+  updateStatus(
+    identity: VaultIdentity,
+    status: VaultStatus
+  ): Promise<VaultItemResult> {
     return updateStatus(this.supabase, identity, status);
   }
-  updateRating(identity: VaultIdentity, rating: number): Promise<VaultItemResult> {
+  updateRating(
+    identity: VaultIdentity,
+    rating: number
+  ): Promise<VaultItemResult> {
     return updateRating(this.supabase, identity, rating);
   }
-  updateNotes(identity: VaultIdentity, notes: string): Promise<VaultItemResult> {
+  updateNotes(
+    identity: VaultIdentity,
+    notes: string
+  ): Promise<VaultItemResult> {
     return updateNotes(this.supabase, identity, notes);
   }
-  updateProgress(identity: VaultIdentity, minutes: number): Promise<VaultItemResult> {
+  updateProgress(
+    identity: VaultIdentity,
+    minutes: number
+  ): Promise<VaultItemResult> {
     return updateProgress(this.supabase, identity, minutes);
   }
   deleteVaultItem(identity: VaultIdentity): Promise<VaultItemResult> {
@@ -66,19 +101,36 @@ export class VaultRepository {
   getVaultItem(identity: VaultIdentity): Promise<VaultItemResult> {
     return getVaultItem(this.supabase, identity);
   }
-  getVaultByTmdbId(userId: string, tmdbId: number, mediaType: import("./vault.types").MediaType): Promise<VaultItemResult> {
+  getVaultByTmdbId(
+    userId: string,
+    tmdbId: number,
+    mediaType: import("./vault.types").MediaType
+  ): Promise<VaultItemResult> {
     return getVaultByTmdbId(this.supabase, userId, tmdbId, mediaType);
   }
-  getVaultByStatus(userId: string, status: VaultStatus, options?: { sort?: VaultSort; pagination?: VaultPagination }): Promise<VaultListResult> {
+  getVaultByStatus(
+    userId: string,
+    status: VaultStatus,
+    options?: { sort?: VaultSort; pagination?: VaultPagination }
+  ): Promise<VaultListResult> {
     return getVaultByStatus(this.supabase, userId, status, options);
   }
-  getFavorites(userId: string, options?: { sort?: VaultSort; pagination?: VaultPagination }): Promise<VaultListResult> {
+  getFavorites(
+    userId: string,
+    options?: { sort?: VaultSort; pagination?: VaultPagination }
+  ): Promise<VaultListResult> {
     return getFavorites(this.supabase, userId, options);
   }
-  getPinned(userId: string, options?: { sort?: VaultSort; pagination?: VaultPagination }): Promise<VaultListResult> {
+  getPinned(
+    userId: string,
+    options?: { sort?: VaultSort; pagination?: VaultPagination }
+  ): Promise<VaultListResult> {
     return getPinned(this.supabase, userId, options);
   }
-  getRecentlyUpdated(userId: string, pagination?: VaultPagination): Promise<VaultListResult> {
+  getRecentlyUpdated(
+    userId: string,
+    pagination?: VaultPagination
+  ): Promise<VaultListResult> {
     return getRecentlyUpdated(this.supabase, userId, pagination);
   }
   searchVault(query: VaultSearchQuery): Promise<VaultListResult> {

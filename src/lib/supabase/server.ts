@@ -95,8 +95,8 @@ export function createServerClient(): SupabaseClient {
   if (!isServer) {
     throw new Error(
       "[CineLog Supabase] createServerClient() was called on the browser. " +
-        "Use getBrowserClient() from \"src/lib/supabase/browser.ts\" instead, " +
-        "or the environment-aware getClient() from \"src/lib/supabase/client.ts\"."
+        'Use getBrowserClient() from "src/lib/supabase/browser.ts" instead, ' +
+        'or the environment-aware getClient() from "src/lib/supabase/client.ts".'
     );
   }
 

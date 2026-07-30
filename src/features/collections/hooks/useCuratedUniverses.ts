@@ -17,7 +17,7 @@ import { onSessionChange } from "~/lib/supabase/session";
 import {
   fetchAllCuratedUniverses,
   fetchSubscribedUniverses,
-  fetchSubscribedUniverseIds,
+  fetchSubscribedUniverseIds
 } from "../curatedUniverseAdapter";
 import type { Collection } from "~/shared/types";
 
@@ -35,9 +35,15 @@ export interface UseCuratedUniversesReturn {
 
 export function useCuratedUniverses(): UseCuratedUniversesReturn {
   const { authReady } = useAuth();
-  const [allCuratedUniverses, setAllCuratedUniverses] = createSignal<Collection[]>([]);
-  const [subscribedUniverses, setSubscribedUniverses] = createSignal<Collection[]>([]);
-  const [subscribedIds, setSubscribedIds] = createSignal<Set<string>>(new Set());
+  const [allCuratedUniverses, setAllCuratedUniverses] = createSignal<
+    Collection[]
+  >([]);
+  const [subscribedUniverses, setSubscribedUniverses] = createSignal<
+    Collection[]
+  >([]);
+  const [subscribedIds, setSubscribedIds] = createSignal<Set<string>>(
+    new Set()
+  );
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
@@ -55,7 +61,9 @@ export function useCuratedUniverses(): UseCuratedUniversesReturn {
       // Always fetch the full catalog (for the Add Universe dialog).
       const [all, subscribed] = await Promise.all([
         fetchAllCuratedUniverses(),
-        uid ? fetchSubscribedUniverses(uid) : Promise.resolve([] as Collection[]),
+        uid
+          ? fetchSubscribedUniverses(uid)
+          : Promise.resolve([] as Collection[])
       ]);
       setAllCuratedUniverses(all);
       setSubscribedUniverses(subscribed);
@@ -125,6 +133,6 @@ export function useCuratedUniverses(): UseCuratedUniversesReturn {
     subscribedIds,
     loading,
     error,
-    refresh: refreshSubscribedIds,
+    refresh: refreshSubscribedIds
   };
 }

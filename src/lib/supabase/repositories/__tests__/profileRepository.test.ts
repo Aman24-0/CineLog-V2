@@ -10,10 +10,17 @@ import {
   toProfileInsert,
   toProfileUpdate,
   toPreferencesUpdate,
-  computeScheduledDeletionAt,
+  computeScheduledDeletionAt
 } from "../profile/profile.utils";
-import type { ProfileRow, CreateProfilePayload, UpdateProfilePayload } from "../profile/profile.types";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import type {
+  ProfileRow,
+  CreateProfilePayload,
+  UpdateProfilePayload
+} from "../profile/profile.types";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 
 const mockProfileRow: ProfileRow = {
   id: "user-1",
@@ -24,7 +31,7 @@ const mockProfileRow: ProfileRow = {
   preferences: {},
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as ProfileRow;
 
 describe("ProfileRepository", () => {
@@ -79,7 +86,7 @@ describe("ProfileRepository", () => {
         id: "user-1",
         username: "testuser",
         displayName: "Test User",
-        country: "US",
+        country: "US"
       };
       const result = await repo.createProfile(payload);
       expect(result.data).toEqual(mockProfileRow);
@@ -93,7 +100,7 @@ describe("ProfileRepository", () => {
         id: "user-1",
         username: "testuser",
         displayName: "Test User",
-        country: "US",
+        country: "US"
       });
       expect(result.error).toBe(err);
     });
@@ -101,16 +108,22 @@ describe("ProfileRepository", () => {
 
   describe("updateProfile", () => {
     it("updates profile on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, bio: "New bio" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockProfileRow, bio: "New bio" }
+      });
       const repo = new ProfileRepository(client as never);
-      const result = await repo.updateProfile("user-1", { bio: "New bio" } as UpdateProfilePayload);
+      const result = await repo.updateProfile("user-1", {
+        bio: "New bio"
+      } as UpdateProfilePayload);
       expect(result.data?.bio).toBe("New bio");
     });
   });
 
   describe("updateAvatar", () => {
     it("updates avatar URL", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, avatar_url: "https://..." } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockProfileRow, avatar_url: "https://..." }
+      });
       const repo = new ProfileRepository(client as never);
       const result = await repo.updateAvatar("user-1", "https://...");
       expect(result.data?.avatar_url).toBe("https://...");
@@ -119,7 +132,9 @@ describe("ProfileRepository", () => {
 
   describe("updateBio", () => {
     it("updates bio when valid", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, bio: "Short bio" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockProfileRow, bio: "Short bio" }
+      });
       const repo = new ProfileRepository(client as never);
       const result = await repo.updateBio("user-1", "Short bio");
       expect(result.data?.bio).toBe("Short bio");
@@ -137,7 +152,9 @@ describe("ProfileRepository", () => {
 
   describe("updatePreferences", () => {
     it("updates preferences on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, preferences: { theme: "dark" } } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockProfileRow, preferences: { theme: "dark" } }
+      });
       const repo = new ProfileRepository(client as never);
       const result = await repo.updatePreferences("user-1", { theme: "dark" });
       expect(result.error).toBeNull();
@@ -146,7 +163,12 @@ describe("ProfileRepository", () => {
 
   describe("scheduleDeletion", () => {
     it("returns the updated row with scheduled_deletion_at set", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, scheduled_deletion_at: "2024-06-08T00:00:00Z" } });
+      const { client } = createMockSupabase({
+        singleData: {
+          ...mockProfileRow,
+          scheduled_deletion_at: "2024-06-08T00:00:00Z"
+        }
+      });
       const repo = new ProfileRepository(client as never);
       const result = await repo.scheduleDeletion("user-1");
       expect(result.data).toBeDefined();
@@ -163,7 +185,9 @@ describe("ProfileRepository", () => {
 
   describe("restoreProfile", () => {
     it("returns the restored row", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockProfileRow, deleted_at: null } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockProfileRow, deleted_at: null }
+      });
       const repo = new ProfileRepository(client as never);
       const result = await repo.restoreProfile("user-1");
       expect(result.data?.deleted_at).toBeNull();
@@ -229,7 +253,7 @@ describe("profile.utils", () => {
         id: "u1",
         username: "testuser",
         displayName: "Test User",
-        country: "US",
+        country: "US"
       });
       expect(result.id).toBe("u1");
       expect(result.username).toBe("testuser");
@@ -250,7 +274,7 @@ describe("profile.utils", () => {
     it("maps camelCase preferences to snake_case update", () => {
       const result = toPreferencesUpdate({
         theme: "dark",
-        accentColor: "#a8ff78",
+        accentColor: "#a8ff78"
       } as never);
       expect(result.theme).toBe("dark");
       expect(result.accent_color).toBe("#a8ff78");
@@ -258,7 +282,7 @@ describe("profile.utils", () => {
 
     it("only includes defined fields", () => {
       const result = toPreferencesUpdate({
-        theme: "dark",
+        theme: "dark"
       } as never);
       expect(result.theme).toBe("dark");
       expect(result.accent_color).toBeUndefined();

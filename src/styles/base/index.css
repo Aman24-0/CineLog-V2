@@ -10,9 +10,19 @@
    1. reset.css — minimal reset (currently empty; Tailwind provides reset)
    2. base.css — body, scrollbar, material-symbols, safe-area
    3. typography.css — type-* classes, font-* classes
-   4. forms.css — form element defaults (currently empty) */
+   4. forms.css — form element defaults (currently empty)
+   5. accessibility.css — prefers-reduced-motion overrides. The universal
+      `*, *::before, *::after { animation-duration: 0.01ms !important; ... }`
+      rule wins against all non-`!important` component-level motion
+      declarations (regardless of source order, because `!important` in
+      any rule beats regular rules). The only exceptions are component-
+      level `!important` overrides inside their own `@media (prefers-reduced-
+      motion: reduce)` blocks (e.g. `.toast { animation-duration: 120ms
+      !important }` in toast.css) — those intentionally allow a tiny
+      120ms animation so the UI still communicates state changes. */
 
 @import "./reset.css";
 @import "./base.css";
 @import "./typography.css";
 @import "./forms.css";
+@import "./accessibility.css";

@@ -3,22 +3,29 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 vi.mock("~/lib/supabase/repositories", () => ({
   getDashboardRepository: vi.fn(),
-  getEpisodeProgressRepository: vi.fn(),
+  getEpisodeProgressRepository: vi.fn()
 }));
 
 vi.mock("~/shared/hooks/useAuth", () => ({
-  getCurrentUid: vi.fn(),
+  getCurrentUid: vi.fn()
 }));
 
 // Mock the TMDB batch fetch so tests don't make real network calls.
 // fetchTmdbMetadataBatch is called during fetchUserLibrary to enrich
 // vault items with title/poster metadata from TMDB.
 vi.mock("~/core/tmdb/tmdb", () => ({
-  fetchTmdbMetadataBatch: vi.fn().mockResolvedValue(new Map()),
+  fetchTmdbMetadataBatch: vi.fn().mockResolvedValue(new Map())
 }));
 
-import { vaultRowToWatchlistItem, fetchUserLibrary, getUserId } from "../userLibraryAdapter";
-import { getDashboardRepository, getEpisodeProgressRepository } from "~/lib/supabase/repositories";
+import {
+  vaultRowToWatchlistItem,
+  fetchUserLibrary,
+  getUserId
+} from "../userLibraryAdapter";
+import {
+  getDashboardRepository,
+  getEpisodeProgressRepository
+} from "~/lib/supabase/repositories";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 import type { VaultRow, EpisodeProgressRow } from "~/lib/supabase/repositories";
 
@@ -40,7 +47,7 @@ const mockVaultRow = {
   last_activity_at: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as VaultRow;
 
 const mockProgressRow: EpisodeProgressRow = {
@@ -51,7 +58,7 @@ const mockProgressRow: EpisodeProgressRow = {
   is_completed: false,
   progress_minutes: 30,
   watched_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
+  updated_at: "2024-06-01T00:00:00Z"
 } as unknown as EpisodeProgressRow;
 
 describe("userLibraryAdapter", () => {
@@ -70,7 +77,12 @@ describe("userLibraryAdapter", () => {
     });
 
     it("maps a TV VaultRow with episode progress", () => {
-      const tvRow = { ...mockVaultRow, id: "vault-tv-1", media_type: "tv" as const, status: "watching" as const };
+      const tvRow = {
+        ...mockVaultRow,
+        id: "vault-tv-1",
+        media_type: "tv" as const,
+        status: "watching" as const
+      };
       const result = vaultRowToWatchlistItem(tvRow, mockProgressRow);
       expect(result.media_type).toBe("tv");
       expect(result.status).toBe("Watching");
@@ -112,7 +124,10 @@ describe("userLibraryAdapter", () => {
 
     it("uses watched_at for progress.updatedAt when available", () => {
       const tvRow = { ...mockVaultRow, media_type: "tv" as const };
-      const progress = { ...mockProgressRow, watched_at: "2024-06-01T12:00:00Z" };
+      const progress = {
+        ...mockProgressRow,
+        watched_at: "2024-06-01T12:00:00Z"
+      };
       const result = vaultRowToWatchlistItem(tvRow, progress);
       expect(result.watchProgress!.updatedAt).toBe("2024-06-01T12:00:00Z");
     });
@@ -127,20 +142,35 @@ describe("userLibraryAdapter", () => {
 
   describe("fetchUserLibrary", () => {
     it("fetches vault items and enriches TV items with progress", async () => {
-      const movieRow = { ...mockVaultRow, id: "v1", tmdb_id: 1, media_type: "movie" as const };
-      const tvRow = { ...mockVaultRow, id: "v2", tmdb_id: 2, media_type: "tv", status: "watching" as const };
+      const movieRow = {
+        ...mockVaultRow,
+        id: "v1",
+        tmdb_id: 1,
+        media_type: "movie" as const
+      };
+      const tvRow = {
+        ...mockVaultRow,
+        id: "v2",
+        tmdb_id: 2,
+        media_type: "tv",
+        status: "watching" as const
+      };
 
       const mockDashRepo = {
-        getAllVaultItems: vi.fn().mockResolvedValue({ data: [movieRow, tvRow], error: null }),
+        getAllVaultItems: vi
+          .fn()
+          .mockResolvedValue({ data: [movieRow, tvRow], error: null })
       };
       const mockProgRepo = {
         getLatestEpisodeProgressBatch: vi.fn().mockResolvedValue({
           data: new Map([["v2", mockProgressRow]]),
-          error: null,
-        }),
+          error: null
+        })
       };
       vi.mocked(getDashboardRepository).mockReturnValue(mockDashRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await fetchUserLibrary("user-1");
       expect(result).toHaveLength(2);
@@ -155,7 +185,7 @@ describe("userLibraryAdapter", () => {
 
     it("returns empty array when vault is empty", async () => {
       const mockDashRepo = {
-        getAllVaultItems: vi.fn().mockResolvedValue({ data: [], error: null }),
+        getAllVaultItems: vi.fn().mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getDashboardRepository).mockReturnValue(mockDashRepo as never);
 
@@ -166,13 +196,17 @@ describe("userLibraryAdapter", () => {
     it("skips episode progress fetch when no TV items", async () => {
       const movieRow = { ...mockVaultRow, media_type: "movie" as const };
       const mockDashRepo = {
-        getAllVaultItems: vi.fn().mockResolvedValue({ data: [movieRow], error: null }),
+        getAllVaultItems: vi
+          .fn()
+          .mockResolvedValue({ data: [movieRow], error: null })
       };
       const mockProgRepo = {
-        getLatestEpisodeProgressBatch: vi.fn(),
+        getLatestEpisodeProgressBatch: vi.fn()
       };
       vi.mocked(getDashboardRepository).mockReturnValue(mockDashRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       await fetchUserLibrary("user-1");
       expect(mockProgRepo.getLatestEpisodeProgressBatch).not.toHaveBeenCalled();
@@ -181,16 +215,20 @@ describe("userLibraryAdapter", () => {
     it("returns items even when episode progress fetch fails", async () => {
       const tvRow = { ...mockVaultRow, id: "v1", media_type: "tv" as const };
       const mockDashRepo = {
-        getAllVaultItems: vi.fn().mockResolvedValue({ data: [tvRow], error: null }),
+        getAllVaultItems: vi
+          .fn()
+          .mockResolvedValue({ data: [tvRow], error: null })
       };
       const mockProgRepo = {
         getLatestEpisodeProgressBatch: vi.fn().mockResolvedValue({
           data: new Map(),
-          error: new Error("Progress fetch failed"),
-        }),
+          error: new Error("Progress fetch failed")
+        })
       };
       vi.mocked(getDashboardRepository).mockReturnValue(mockDashRepo as never);
-      vi.mocked(getEpisodeProgressRepository).mockReturnValue(mockProgRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
 
       const result = await fetchUserLibrary("user-1");
       expect(result).toHaveLength(1);
@@ -199,7 +237,9 @@ describe("userLibraryAdapter", () => {
 
     it("returns empty array when vault fetch fails", async () => {
       const mockDashRepo = {
-        getAllVaultItems: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        getAllVaultItems: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getDashboardRepository).mockReturnValue(mockDashRepo as never);
 

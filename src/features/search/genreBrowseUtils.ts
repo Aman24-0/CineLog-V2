@@ -35,7 +35,7 @@ export const emptyGenreBrowse = (): GenreBrowseState => ({
   items: [],
   loading: false,
   page: 1,
-  hasMore: true,
+  hasMore: true
 });
 
 /**
@@ -50,7 +50,7 @@ export async function fetchGenrePage(
   _genreName: string,
   movieGenreId: number | undefined,
   tvGenreId: number | undefined,
-  page: number,
+  page: number
 ): Promise<TMDBTitle[]> {
   const promises: Promise<TMDBTitle[]>[] = [];
   if (movieGenreId !== undefined) {
@@ -59,8 +59,8 @@ export async function fetchGenrePage(
         withGenres: [movieGenreId],
         sortBy: "popularity.desc",
         voteCountGte: 100,
-        page,
-      }),
+        page
+      })
     );
   }
   if (tvGenreId !== undefined) {
@@ -69,8 +69,8 @@ export async function fetchGenrePage(
         withGenres: [tvGenreId],
         sortBy: "popularity.desc",
         voteCountGte: 50,
-        page,
-      }),
+        page
+      })
     );
   }
   const results = await Promise.all(promises);

@@ -15,7 +15,15 @@
 //   PATCH  /api/admin/content
 //   DELETE /api/admin/content?id=<uuid>
 
-import { createSignal, Show, For, onMount, createMemo, type Component, type JSX } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  createMemo,
+  type Component,
+  type JSX
+} from "solid-js";
 
 type Slot = "hero" | "spotlight" | "rail" | "pinned" | "editor_pick";
 
@@ -48,12 +56,48 @@ interface FormData {
   ends_at: string;
 }
 
-const SLOTS: { id: Slot; label: string; icon: string; description: string; max?: number }[] = [
-  { id: "hero", label: "Hero", icon: "🌟", description: "Main hero card on Discover (1-3 titles, rotated)", max: 3 },
-  { id: "spotlight", label: "Spotlight", icon: "🔦", description: "Spotlight section (1-5 titles)", max: 5 },
-  { id: "rail", label: "Featured Rail", icon: "🛤️", description: "Featured titles rail (up to 20)", max: 20 },
-  { id: "pinned", label: "Pinned", icon: "📌", description: "Pinned to top of watchlist (1-3 titles)", max: 3 },
-  { id: "editor_pick", label: "Editor Picks", icon: "✍️", description: "Curated editor picks rail (up to 20)", max: 20 },
+const SLOTS: {
+  id: Slot;
+  label: string;
+  icon: string;
+  description: string;
+  max?: number;
+}[] = [
+  {
+    id: "hero",
+    label: "Hero",
+    icon: "🌟",
+    description: "Main hero card on Discover (1-3 titles, rotated)",
+    max: 3
+  },
+  {
+    id: "spotlight",
+    label: "Spotlight",
+    icon: "🔦",
+    description: "Spotlight section (1-5 titles)",
+    max: 5
+  },
+  {
+    id: "rail",
+    label: "Featured Rail",
+    icon: "🛤️",
+    description: "Featured titles rail (up to 20)",
+    max: 20
+  },
+  {
+    id: "pinned",
+    label: "Pinned",
+    icon: "📌",
+    description: "Pinned to top of watchlist (1-3 titles)",
+    max: 3
+  },
+  {
+    id: "editor_pick",
+    label: "Editor Picks",
+    icon: "✍️",
+    description: "Curated editor picks rail (up to 20)",
+    max: 20
+  }
 ];
 
 const emptyForm = (slot: Slot): FormData => ({
@@ -65,7 +109,7 @@ const emptyForm = (slot: Slot): FormData => ({
   note: "",
   is_active: true,
   starts_at: "",
-  ends_at: "",
+  ends_at: ""
 });
 
 const AdminContentPage: Component = () => {
@@ -76,7 +120,10 @@ const AdminContentPage: Component = () => {
   const [modalOpen, setModalOpen] = createSignal(false);
   const [form, setForm] = createSignal<FormData>(emptyForm("hero"));
   const [saving, setSaving] = createSignal(false);
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   const showToast = (msg: string, type: "success" | "error") => {
     setToast({ msg, type });
@@ -86,7 +133,9 @@ const AdminContentPage: Component = () => {
   const fetchEntries = async (slot: Slot) => {
     setLoading(true);
     try {
-      const resp = await fetch(`/api/admin/content?slot=${slot}`, { credentials: "include" });
+      const resp = await fetch(`/api/admin/content?slot=${slot}`, {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -127,7 +176,7 @@ const AdminContentPage: Component = () => {
       note: e.note ?? "",
       is_active: e.is_active,
       starts_at: e.starts_at ? e.starts_at.slice(0, 16) : "",
-      ends_at: e.ends_at ? e.ends_at.slice(0, 16) : "",
+      ends_at: e.ends_at ? e.ends_at.slice(0, 16) : ""
     });
     setModalOpen(true);
   };
@@ -149,8 +198,10 @@ const AdminContentPage: Component = () => {
         tagline: form().tagline || null,
         note: form().note || null,
         is_active: form().is_active,
-        starts_at: form().starts_at ? new Date(form().starts_at).toISOString() : null,
-        ends_at: form().ends_at ? new Date(form().ends_at).toISOString() : null,
+        starts_at: form().starts_at
+          ? new Date(form().starts_at).toISOString()
+          : null,
+        ends_at: form().ends_at ? new Date(form().ends_at).toISOString() : null
       };
 
       const isEdit = !!form().id;
@@ -158,7 +209,7 @@ const AdminContentPage: Component = () => {
         method: isEdit ? "PATCH" : "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
+        body: JSON.stringify(payload)
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -181,7 +232,7 @@ const AdminContentPage: Component = () => {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: e.id, is_active: !e.is_active }),
+        body: JSON.stringify({ id: e.id, is_active: !e.is_active })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -195,11 +246,14 @@ const AdminContentPage: Component = () => {
   };
 
   const remove = async (e: FeaturedEntry) => {
-    if (!confirm(`Remove TMDB ID ${e.tmdb_id} (${e.media_type}) from ${e.slot}?`)) return;
+    if (
+      !confirm(`Remove TMDB ID ${e.tmdb_id} (${e.media_type}) from ${e.slot}?`)
+    )
+      return;
     try {
       const resp = await fetch(`/api/admin/content?id=${e.id}`, {
         method: "DELETE",
-        credentials: "include",
+        credentials: "include"
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -213,21 +267,44 @@ const AdminContentPage: Component = () => {
     }
   };
 
-  const activeSlotMeta = createMemo(() => SLOTS.find((s) => s.id === activeSlot())!);
+  const activeSlotMeta = createMemo(() =>
+    SLOTS.find((s) => s.id === activeSlot())!
+  );
 
   return (
     <div>
       <div style={{ "margin-bottom": "var(--sp-6)" }}>
-        <h2 style={{ "font-size": "1.5rem", "font-weight": "700", margin: "0 0 var(--sp-1) 0", color: "var(--text)" }}>
+        <h2
+          style={{
+            "font-size": "1.5rem",
+            "font-weight": "700",
+            margin: "0 0 var(--sp-1) 0",
+            color: "var(--text)"
+          }}
+        >
           Featured Content
         </h2>
-        <p style={{ "font-size": "0.875rem", color: "var(--text-muted)", margin: 0 }}>
-          Curate which titles appear in hero/spotlight/rail/pinned/editor pick slots across the app.
+        <p
+          style={{
+            "font-size": "0.875rem",
+            color: "var(--text-muted)",
+            margin: 0
+          }}
+        >
+          Curate which titles appear in hero/spotlight/rail/pinned/editor pick
+          slots across the app.
         </p>
       </div>
 
       {/* Slot tabs */}
-      <div style={{ display: "flex", gap: "var(--sp-1)", "margin-bottom": "var(--sp-4)", "flex-wrap": "wrap" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--sp-1)",
+          "margin-bottom": "var(--sp-4)",
+          "flex-wrap": "wrap"
+        }}
+      >
         <For each={SLOTS}>
           {(slot) => (
             <button
@@ -236,7 +313,13 @@ const AdminContentPage: Component = () => {
             >
               <span style={{ "margin-right": "var(--sp-1)" }}>{slot.icon}</span>
               {slot.label}
-              <span style={{ "margin-left": "var(--sp-2)", "font-size": "0.7rem", opacity: 0.7 }}>
+              <span
+                style={{
+                  "margin-left": "var(--sp-2)",
+                  "font-size": "0.7rem",
+                  opacity: 0.7
+                }}
+              >
                 {slot.max && `max ${slot.max}`}
               </span>
             </button>
@@ -245,10 +328,24 @@ const AdminContentPage: Component = () => {
       </div>
 
       {/* Slot description */}
-      <div style={{ ...cardStyle, "margin-bottom": "var(--sp-4)", "background": "var(--tier-2)" }}>
-        <span style={{ "font-size": "1.5rem", "margin-right": "var(--sp-3)" }}>{activeSlotMeta().icon}</span>
+      <div
+        style={{
+          ...cardStyle,
+          "margin-bottom": "var(--sp-4)",
+          background: "var(--tier-2)"
+        }}
+      >
+        <span style={{ "font-size": "1.5rem", "margin-right": "var(--sp-3)" }}>
+          {activeSlotMeta().icon}
+        </span>
         <div>
-          <div style={{ "font-weight": "600", color: "var(--text)", "font-size": "0.95rem" }}>
+          <div
+            style={{
+              "font-weight": "600",
+              color: "var(--text)",
+              "font-size": "0.95rem"
+            }}
+          >
             {activeSlotMeta().label}
           </div>
           <div style={{ "font-size": "0.8rem", color: "var(--text-muted)" }}>
@@ -256,39 +353,70 @@ const AdminContentPage: Component = () => {
           </div>
         </div>
         <div style={{ "margin-left": "auto" }}>
-          <button onClick={openNew} style={btnPrimary}>+ Add Title</button>
+          <button onClick={openNew} style={btnPrimary}>
+            + Add Title
+          </button>
         </div>
       </div>
 
       <Show when={error()}>
-        <div role="alert" style={alertError}>Failed to load: {error()}</div>
+        <div role="alert" style={alertError}>
+          Failed to load: {error()}
+        </div>
       </Show>
 
       <Show when={loading()}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
-          {Array.from({ length: 3 }).map(() => (
-            <div style={{ ...skeletonCard, height: "70px" }} />
-          ))}
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-3)"
+          }}
+        >
+          <For each={Array.from({ length: 3 })}>
+            {() => <div style={{ ...skeletonCard, height: "70px" }} />}
+          </For>
         </div>
       </Show>
 
       <Show when={!loading() && entries().length === 0}>
-        <div style={{ ...cardStyle, "justify-content": "center", color: "var(--text-muted)", "font-size": "0.9rem" }}>
+        <div
+          style={{
+            ...cardStyle,
+            "justify-content": "center",
+            color: "var(--text-muted)",
+            "font-size": "0.9rem"
+          }}
+        >
           No entries in this slot. Click "+ Add Title" to feature a title.
         </div>
       </Show>
 
       <Show when={!loading() && entries().length > 0}>
-        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+        <div
+          style={{
+            display: "flex",
+            "flex-direction": "column",
+            gap: "var(--sp-2)"
+          }}
+        >
           <For each={entries()}>
             {(e, idx) => (
               <div
                 style={{
                   ...cardStyle,
-                  opacity: e.deleted_at ? 0.45 : e.is_active ? 1 : 0.65,
+                  opacity: e.deleted_at ? 0.45 : e.is_active ? 1 : 0.65
                 }}
               >
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)", flex: 1, "min-width": 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-3)",
+                    flex: 1,
+                    "min-width": 0
+                  }}
+                >
                   <div
                     style={{
                       background: "var(--tier-2)",
@@ -302,37 +430,74 @@ const AdminContentPage: Component = () => {
                       "font-size": "1rem",
                       "font-weight": "700",
                       color: "var(--text-muted)",
-                      "flex-shrink": 0,
+                      "flex-shrink": 0
                     }}
                   >
                     #{idx() + 1}
                   </div>
                   <div style={{ flex: 1, "min-width": 0 }}>
-                    <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)" }}>
-                      <span style={{ "font-weight": "600", color: "var(--text)" }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        "align-items": "center",
+                        gap: "var(--sp-2)"
+                      }}
+                    >
+                      <span
+                        style={{ "font-weight": "600", color: "var(--text)" }}
+                      >
                         {e.title_override || `TMDB #${e.tmdb_id}`}
                       </span>
                       <span style={badgeStyle}>{e.media_type}</span>
-                      <span style={{ "font-size": "0.7rem", color: "var(--text-muted)" }}>
+                      <span
+                        style={{
+                          "font-size": "0.7rem",
+                          color: "var(--text-muted)"
+                        }}
+                      >
                         TMDB ID: {e.tmdb_id}
                       </span>
                     </div>
                     <Show when={e.tagline}>
-                      <div style={{ "font-size": "0.8rem", color: "var(--text-muted)", "margin-top": "2px", "font-style": "italic" }}>
+                      <div
+                        style={{
+                          "font-size": "0.8rem",
+                          color: "var(--text-muted)",
+                          "margin-top": "2px",
+                          "font-style": "italic"
+                        }}
+                      >
                         "{e.tagline}"
                       </div>
                     </Show>
-                    <div style={{ "font-size": "0.7rem", color: "var(--text-muted)", "margin-top": "4px" }}>
+                    <div
+                      style={{
+                        "font-size": "0.7rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "4px"
+                      }}
+                    >
                       Position {e.position}
                       <Show when={e.starts_at || e.ends_at}>
                         {" • "}
-                        {e.starts_at ? `from ${new Date(e.starts_at).toLocaleDateString()}` : ""}
-                        {e.ends_at ? ` until ${new Date(e.ends_at).toLocaleDateString()}` : ""}
+                        {e.starts_at
+                          ? `from ${new Date(e.starts_at).toLocaleDateString()}`
+                          : ""}
+                        {e.ends_at
+                          ? ` until ${new Date(e.ends_at).toLocaleDateString()}`
+                          : ""}
                       </Show>
                     </div>
                   </div>
                 </div>
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "flex-shrink": 0 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)",
+                    "flex-shrink": 0
+                  }}
+                >
                   <Show when={!e.deleted_at}>
                     <button
                       onClick={() => toggleActive(e)}
@@ -340,8 +505,22 @@ const AdminContentPage: Component = () => {
                     >
                       {e.is_active ? "ACTIVE" : "INACTIVE"}
                     </button>
-                    <button onClick={() => openEdit(e)} style={iconBtn} title="Edit" aria-label="Edit content entry">✏️</button>
-                    <button onClick={() => remove(e)} style={iconBtnDanger} title="Remove" aria-label="Remove content entry">🗑️</button>
+                    <button
+                      onClick={() => openEdit(e)}
+                      style={iconBtn}
+                      title="Edit"
+                      aria-label="Edit content entry"
+                    >
+                      ✏️
+                    </button>
+                    <button
+                      onClick={() => remove(e)}
+                      style={iconBtnDanger}
+                      title="Remove"
+                      aria-label="Remove content entry"
+                    >
+                      🗑️
+                    </button>
                   </Show>
                 </div>
               </div>
@@ -362,7 +541,7 @@ const AdminContentPage: Component = () => {
             "align-items": "center",
             "justify-content": "center",
             padding: "var(--sp-4)",
-            "backdrop-filter": "blur(4px)",
+            "backdrop-filter": "blur(4px)"
           }}
           onClick={() => !saving() && setModalOpen(false)}
         >
@@ -375,22 +554,42 @@ const AdminContentPage: Component = () => {
               width: "100%",
               "max-height": "90vh",
               "overflow-y": "auto",
-              padding: "var(--sp-6)",
+              padding: "var(--sp-6)"
             }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: "0 0 var(--sp-4) 0", "font-size": "1.25rem", color: "var(--text)" }}>
+            <h3
+              style={{
+                margin: "0 0 var(--sp-4) 0",
+                "font-size": "1.25rem",
+                color: "var(--text)"
+              }}
+            >
               {form().id ? "Edit Featured Entry" : "Add Featured Entry"}
             </h3>
 
-            <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
-              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "var(--sp-3)" }}>
+            <div
+              style={{
+                display: "flex",
+                "flex-direction": "column",
+                gap: "var(--sp-3)"
+              }}
+            >
+              <div
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "1fr 1fr",
+                  gap: "var(--sp-3)"
+                }}
+              >
                 <Field label="TMDB ID *">
                   <input
                     type="number"
                     style={inputStyle}
                     value={form().tmdb_id}
-                    onInput={(e) => setForm({ ...form(), tmdb_id: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), tmdb_id: e.currentTarget.value })
+                    }
                     placeholder="550"
                   />
                 </Field>
@@ -398,7 +597,12 @@ const AdminContentPage: Component = () => {
                   <select
                     style={inputStyle}
                     value={form().media_type}
-                    onChange={(e) => setForm({ ...form(), media_type: e.currentTarget.value as "movie" | "tv" })}
+                    onChange={(e) =>
+                      setForm({
+                        ...form(),
+                        media_type: e.currentTarget.value as "movie" | "tv"
+                      })
+                    }
                   >
                     <option value="movie">🎬 Movie</option>
                     <option value="tv">📺 TV Series</option>
@@ -410,7 +614,12 @@ const AdminContentPage: Component = () => {
                 <input
                   style={inputStyle}
                   value={form().title_override}
-                  onInput={(e) => setForm({ ...form(), title_override: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setForm({
+                      ...form(),
+                      title_override: e.currentTarget.value
+                    })
+                  }
                   placeholder="Custom display title (leave blank to use TMDB title)"
                 />
               </Field>
@@ -419,27 +628,43 @@ const AdminContentPage: Component = () => {
                 <input
                   style={inputStyle}
                   value={form().tagline}
-                  onInput={(e) => setForm({ ...form(), tagline: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setForm({ ...form(), tagline: e.currentTarget.value })
+                  }
                   placeholder="A mind-bending thriller"
                 />
               </Field>
 
               <Field label="Internal Note (admin only, never shown to users)">
                 <textarea
-                  style={{ ...inputStyle, "min-height": "60px", resize: "vertical" }}
+                  style={{
+                    ...inputStyle,
+                    "min-height": "60px",
+                    resize: "vertical"
+                  }}
                   value={form().note}
-                  onInput={(e) => setForm({ ...form(), note: e.currentTarget.value })}
+                  onInput={(e) =>
+                    setForm({ ...form(), note: e.currentTarget.value })
+                  }
                   placeholder="Why is this featured?"
                 />
               </Field>
 
-              <div style={{ display: "grid", "grid-template-columns": "1fr 1fr", gap: "var(--sp-3)" }}>
+              <div
+                style={{
+                  display: "grid",
+                  "grid-template-columns": "1fr 1fr",
+                  gap: "var(--sp-3)"
+                }}
+              >
                 <Field label="Starts At (optional)">
                   <input
                     type="datetime-local"
                     style={inputStyle}
                     value={form().starts_at}
-                    onInput={(e) => setForm({ ...form(), starts_at: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), starts_at: e.currentTarget.value })
+                    }
                   />
                 </Field>
                 <Field label="Ends At (optional)">
@@ -447,23 +672,48 @@ const AdminContentPage: Component = () => {
                     type="datetime-local"
                     style={inputStyle}
                     value={form().ends_at}
-                    onInput={(e) => setForm({ ...form(), ends_at: e.currentTarget.value })}
+                    onInput={(e) =>
+                      setForm({ ...form(), ends_at: e.currentTarget.value })
+                    }
                   />
                 </Field>
               </div>
 
-              <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.875rem", color: "var(--text)", cursor: "pointer", "margin-top": "var(--sp-1)" }}>
+              <label
+                style={{
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "var(--sp-2)",
+                  "font-size": "0.875rem",
+                  color: "var(--text)",
+                  cursor: "pointer",
+                  "margin-top": "var(--sp-1)"
+                }}
+              >
                 <input
                   type="checkbox"
                   checked={form().is_active}
-                  onChange={(e) => setForm({ ...form(), is_active: e.currentTarget.checked })}
+                  onChange={(e) =>
+                    setForm({ ...form(), is_active: e.currentTarget.checked })
+                  }
                 />
                 Active
               </label>
             </div>
 
-            <div style={{ display: "flex", "justify-content": "flex-end", gap: "var(--sp-2)", "margin-top": "var(--sp-5)" }}>
-              <button onClick={() => setModalOpen(false)} style={btnSecondary} disabled={saving()}>
+            <div
+              style={{
+                display: "flex",
+                "justify-content": "flex-end",
+                gap: "var(--sp-2)",
+                "margin-top": "var(--sp-5)"
+              }}
+            >
+              <button
+                onClick={() => setModalOpen(false)}
+                style={btnSecondary}
+                disabled={saving()}
+              >
                 Cancel
               </button>
               <button onClick={save} style={btnPrimary} disabled={saving()}>
@@ -485,10 +735,18 @@ const AdminContentPage: Component = () => {
 
 // ─── Sub-components ─────────────────────────────────────────────────
 
-function Field(props: { label: string; children: any }) {
+function Field(props: { label: string; children: JSX.Element }) {
   return (
     <div>
-      <label style={{ display: "block", "font-size": "0.8rem", color: "var(--text-muted)", "margin-bottom": "var(--sp-1)", "font-weight": "500" }}>
+      <label
+        style={{
+          display: "block",
+          "font-size": "0.8rem",
+          color: "var(--text-muted)",
+          "margin-bottom": "var(--sp-1)",
+          "font-weight": "500"
+        }}
+      >
         {props.label}
       </label>
       {props.children}
@@ -505,14 +763,14 @@ const cardStyle: JSX.CSSProperties = {
   padding: "var(--sp-3) var(--sp-4)",
   display: "flex",
   "align-items": "center",
-  gap: "var(--sp-3)",
+  gap: "var(--sp-3)"
 };
 
 const skeletonCard: JSX.CSSProperties = {
   background: "var(--tier-1)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
-  "animation": "pulse 1.5s ease-in-out infinite",
+  animation: "pulse 1.5s ease-in-out infinite"
 };
 
 const alertError: JSX.CSSProperties = {
@@ -522,7 +780,7 @@ const alertError: JSX.CSSProperties = {
   padding: "var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)",
+  color: "rgb(252, 165, 165)"
 };
 
 const tabActive: JSX.CSSProperties = {
@@ -533,7 +791,7 @@ const tabActive: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const tabInactive: JSX.CSSProperties = {
@@ -544,7 +802,7 @@ const tabInactive: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const badgeStyle: JSX.CSSProperties = {
@@ -555,7 +813,7 @@ const badgeStyle: JSX.CSSProperties = {
   padding: "2px 6px",
   "border-radius": "var(--radius-sm)",
   color: "var(--text-muted)",
-  "text-transform": "uppercase",
+  "text-transform": "uppercase"
 };
 
 const inputStyle: JSX.CSSProperties = {
@@ -567,7 +825,7 @@ const inputStyle: JSX.CSSProperties = {
   color: "var(--text)",
   "font-size": "0.875rem",
   "font-family": "inherit",
-  "box-sizing": "border-box",
+  "box-sizing": "border-box"
 };
 
 const btnPrimary: JSX.CSSProperties = {
@@ -578,7 +836,7 @@ const btnPrimary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "600",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const btnSecondary: JSX.CSSProperties = {
@@ -589,7 +847,7 @@ const btnSecondary: JSX.CSSProperties = {
   "border-radius": "var(--radius-md)",
   "font-weight": "500",
   "font-size": "0.875rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const iconBtn: JSX.CSSProperties = {
@@ -602,12 +860,12 @@ const iconBtn: JSX.CSSProperties = {
   "font-size": "0.9rem",
   display: "flex",
   "align-items": "center",
-  "justify-content": "center",
+  "justify-content": "center"
 };
 
 const iconBtnDanger: JSX.CSSProperties = {
   ...iconBtn,
-  "border-color": "rgba(239, 68, 68, 0.3)",
+  "border-color": "rgba(239, 68, 68, 0.3)"
 };
 
 const toggleOn: JSX.CSSProperties = {
@@ -618,7 +876,7 @@ const toggleOn: JSX.CSSProperties = {
   "border-radius": "var(--radius-sm)",
   "font-weight": "700",
   "font-size": "0.7rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 const toggleOff: JSX.CSSProperties = {
@@ -629,7 +887,7 @@ const toggleOff: JSX.CSSProperties = {
   "border-radius": "var(--radius-sm)",
   "font-weight": "700",
   "font-size": "0.7rem",
-  cursor: "pointer",
+  cursor: "pointer"
 };
 
 function toastStyle(success: boolean): JSX.CSSProperties {
@@ -644,7 +902,7 @@ function toastStyle(success: boolean): JSX.CSSProperties {
     "border-radius": "var(--radius-md)",
     "font-size": "0.875rem",
     "font-weight": "600",
-    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)",
+    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
   };
 }
 

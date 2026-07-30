@@ -19,7 +19,9 @@ const CloudStatusCard: Component = () => {
   const library = useUserLibrary();
 
   const titlesProtected = createMemo(() => library.watchlist().length);
-  const isOnline = createMemo(() => typeof navigator !== "undefined" ? navigator.onLine : true);
+  const isOnline = createMemo(() =>
+    typeof navigator !== "undefined" ? navigator.onLine : true
+  );
   const lastSyncLabel = createMemo(() => "Just now");
 
   const statusMessage = createMemo(() => {
@@ -33,15 +35,30 @@ const CloudStatusCard: Component = () => {
       <div class="sync-cloud-card-content">
         <div class="sync-cloud-card-header">
           <div class="sync-cloud-card-icon" aria-hidden="true">
-            <span class="material-symbols-outlined" style={{ "font-size": "28px" }} aria-hidden="true">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "28px" }}
+              aria-hidden="true"
+            >
               {isOnline() ? "cloud_done" : "cloud_off"}
             </span>
           </div>
           <div class="sync-cloud-card-status">
             <p class="sync-cloud-card-title">Cloud Sync</p>
             <p class="sync-cloud-card-message">
-              <Show when={isOnline()} fallback={<span class="sync-cloud-card-message-warning">Offline</span>}>
-                <span class="material-symbols-outlined" style={{ "font-size": "14px", color: "var(--p)" }} aria-hidden="true">check_circle</span>
+              <Show
+                when={isOnline()}
+                fallback={
+                  <span class="sync-cloud-card-message-warning">Offline</span>
+                }
+              >
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "14px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
+                  check_circle
+                </span>
               </Show>
               {statusMessage()}
             </p>

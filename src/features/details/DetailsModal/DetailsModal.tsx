@@ -6,10 +6,13 @@ import {
   createSignal,
   createEffect,
   createMemo,
-  on,
+  on
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import { useModalState, setSelectedItem as setSelectedItemDirect } from "~/shared/hooks/useModalState";
+import {
+  useModalState,
+  setSelectedItem as setSelectedItemDirect
+} from "~/shared/hooks/useModalState";
 import { useVault } from "~/features/watchlist/useVault";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useDetails } from "~/features/details/useDetails";
@@ -102,7 +105,7 @@ export default function DetailsModal() {
     handleEpisodeChange,
     handleEpisodeUnmark,
     handleSelectItem,
-    handleRemoveFromVault,
+    handleRemoveFromVault
   } = useDetailsActions({
     baseItem,
     vaultItem,
@@ -116,7 +119,7 @@ export default function DetailsModal() {
       // swapping the content. Import setSelectedItem directly for this.
       setSelectedItemDirect(item);
     },
-    onRemoved: handleRemoved,
+    onRemoved: handleRemoved
   });
 
   // Reset trailer state whenever the open title changes.
@@ -130,7 +133,9 @@ export default function DetailsModal() {
     // Focus trap: keep keyboard focus inside the modal while it is open.
     // On open, move focus to the close button. On Tab/Shift+Tab at the
     // boundary, wrap around to the other end.
-    const modalEl = document.querySelector(".cinematic-modal") as HTMLElement | null;
+    const modalEl = document.querySelector(
+      ".cinematic-modal"
+    ) as HTMLElement | null;
     const getFocusable = (): HTMLElement[] => {
       if (!modalEl) return [];
       return Array.from(
@@ -141,7 +146,9 @@ export default function DetailsModal() {
     };
 
     // Move initial focus to close button
-    const closeBtn = document.querySelector(".cinematic-close-btn") as HTMLElement | null;
+    const closeBtn = document.querySelector(
+      ".cinematic-close-btn"
+    ) as HTMLElement | null;
     closeBtn?.focus();
 
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -185,7 +192,7 @@ export default function DetailsModal() {
     <Show when={selectedItem()}>
       <Portal>
         <div
-          class="fixed inset-0 z-[999999] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[999999] flex items-end justify-center p-0 sm:items-center sm:p-4"
           onClick={close}
           role="dialog"
           aria-modal="true"
@@ -194,7 +201,10 @@ export default function DetailsModal() {
           {/* Ambient backdrop continuation — blurred tint behind the modal.
               The <img> is decorative; if the TMDB URL fails we hide it so
               no broken-image glyph bleeds through the blur + tint overlay. */}
-          <div class="absolute inset-0 overflow-hidden pointer-events-none" aria-hidden="true">
+          <div
+            class="pointer-events-none absolute inset-0 overflow-hidden"
+            aria-hidden="true"
+          >
             <Show when={baseItem()?.backdrop_path}>
               <img
                 src={`https://image.tmdb.org/t/p/w500${baseItem()?.backdrop_path}`}
@@ -208,11 +218,14 @@ export default function DetailsModal() {
                 }}
               />
             </Show>
-            <div class="absolute inset-0" style={{ background: "rgba(0,0,0,0.75)" }} />
+            <div
+              class="absolute inset-0"
+              style={{ background: "rgba(0,0,0,0.75)" }}
+            />
           </div>
 
           <div
-            class="w-full max-w-xl lg:max-w-[800px] relative z-10"
+            class="relative z-10 w-full max-w-xl lg:max-w-[800px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button — rendered at the modal-container level (NOT inside
@@ -262,14 +275,20 @@ export default function DetailsModal() {
                       onClose={close}
                       onCloseTrailer={() => setShowTrailer(false)}
                     />
-                    <DetailsHeader baseItem={baseItem} details={tmdb} vaultItem={vaultItem} />
+                    <DetailsHeader
+                      baseItem={baseItem}
+                      details={tmdb}
+                      vaultItem={vaultItem}
+                    />
                     <DetailsActions
                       baseItem={baseItem}
                       vaultItem={vaultItem}
                       hasTrailer={hasTrailer}
                       isAdding={isAdding}
                       onPlayTrailer={() => setShowTrailer((v) => !v)}
-                      onEdit={() => (isEditing() ? handleCancel() : setIsEditing(true))}
+                      onEdit={() =>
+                        isEditing() ? handleCancel() : setIsEditing(true)
+                      }
                       onStatusCycle={handleStatusCycle}
                       onSetStatus={handleSetStatus}
                       onAddToVault={handleAddToVault}
@@ -340,7 +359,6 @@ export default function DetailsModal() {
                         onSelect={handleSelectItem}
                       />
                     </Show>
-
                   </div>
                 </div>
               </Show>
@@ -349,7 +367,10 @@ export default function DetailsModal() {
         </div>
 
         <Show when={showFolders() && vaultItem()}>
-          <AddToFolderSheet item={vaultItem()!} onClose={() => setShowFolders(false)} />
+          <AddToFolderSheet
+            item={vaultItem()!}
+            onClose={() => setShowFolders(false)}
+          />
         </Show>
 
         {/* Remove confirmation sheet — destructive action, requires explicit confirm */}
@@ -378,4 +399,3 @@ export default function DetailsModal() {
     </Show>
   );
 }
-

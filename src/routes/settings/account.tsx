@@ -31,7 +31,13 @@
 
 import { Title } from "@solidjs/meta";
 import {
-  Show, For, createMemo, createSignal, createEffect, onMount, type Component,
+  Show,
+  For,
+  createMemo,
+  createSignal,
+  createEffect,
+  onMount,
+  type Component
 } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
@@ -45,14 +51,14 @@ import {
   COUNTRIES,
   countryLabel,
   findCountry,
-  DEFAULT_COUNTRY_CODE,
+  DEFAULT_COUNTRY_CODE
 } from "~/shared/data/countryLanguages";
 import {
   linkProvider,
   unlinkProvider,
   getUserIdentities,
   signOutGlobal,
-  type AccountActionResult,
+  type AccountActionResult
 } from "~/features/account/accountActions";
 import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
 import ChangePasswordSheet from "~/features/account/components/ChangePasswordSheet";
@@ -73,9 +79,13 @@ import type { UserIdentity } from "@supabase/supabase-js";
  * the icon name "apple" renders the literal text "apple" and overflows
  * the icon box.
  */
-const OAUTH_PROVIDERS: { id: "google" | "apple"; label: string; icon: string }[] = [
+const OAUTH_PROVIDERS: {
+  id: "google" | "apple";
+  label: string;
+  icon: string;
+}[] = [
   { id: "google", label: "Google", icon: "login" },
-  { id: "apple", label: "Apple", icon: "apple" },
+  { id: "apple", label: "Apple", icon: "apple" }
 ];
 
 /**
@@ -97,7 +107,7 @@ function AppleIcon() {
       aria-hidden="true"
       style={{ display: "block" }}
     >
-      <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.427-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.83.06 4.297 2.14-.04.03-2.578 1.49-2.578 4.53 0 3.58 3.146 4.86 3.186 4.87z"/>
+      <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.427-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.83.06 4.297 2.14-.04.03-2.578 1.49-2.578 4.53 0 3.58 3.146 4.86 3.186 4.87z" />
     </svg>
   );
 }
@@ -118,21 +128,30 @@ const AccountRoute: Component = () => {
   const [savingName, setSavingName] = createSignal(false);
   const [nameInput, setNameInput] = createSignal("");
   const [identities, setIdentities] = createSignal<UserIdentity[] | null>(null);
-  const [linkingProvider, setLinkingProvider] = createSignal<string | null>(null);
-  const [unLinkingProvider, setUnlinkingProvider] = createSignal<string | null>(null);
+  const [linkingProvider, setLinkingProvider] = createSignal<string | null>(
+    null
+  );
+  const [unLinkingProvider, setUnlinkingProvider] = createSignal<string | null>(
+    null
+  );
   const [signingOutEverywhere, setSigningOutEverywhere] = createSignal(false);
 
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
   const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
-  const [showLinkEmailPasswordSheet, setShowLinkEmailPasswordSheet] = createSignal(false);
+  const [showLinkEmailPasswordSheet, setShowLinkEmailPasswordSheet] =
+    createSignal(false);
   const [showDeactivateSheet, setShowDeactivateSheet] = createSignal(false);
-  const [deactivateMode, setDeactivateMode] = createSignal<"deactivate" | "delete">("deactivate");
+  const [deactivateMode, setDeactivateMode] = createSignal<
+    "deactivate" | "delete"
+  >("deactivate");
   // Sign-out confirmation sheet — opens BEFORE the actual sign-out call
   // fires, so a misclick doesn't instantly log the user out. Two flavors:
   //   "local"  → just this device
   //   "global" → all sessions (Sign out everywhere)
-  const [signOutSheetMode, setSignOutSheetMode] = createSignal<"local" | "global">("local");
+  const [signOutSheetMode, setSignOutSheetMode] = createSignal<
+    "local" | "global"
+  >("local");
   const [showSignOutSheet, setShowSignOutSheet] = createSignal(false);
 
   // Load the profile row to get country + display name.
@@ -187,7 +206,9 @@ const AccountRoute: Component = () => {
     setCountry(newCountry);
     setSavingCountry(true);
     try {
-      const { error } = await profileRepo.updateProfile(uid, { country: newCountry });
+      const { error } = await profileRepo.updateProfile(uid, {
+        country: newCountry
+      });
       if (error) throw error;
       setDiscoverRegion(newCountry);
       showToast(`Country set to ${countryLabel(newCountry)}`, "success", 1800);
@@ -221,7 +242,9 @@ const AccountRoute: Component = () => {
     }
     setSavingName(true);
     try {
-      const { error } = await profileRepo.updateProfile(uid, { displayName: trimmed });
+      const { error } = await profileRepo.updateProfile(uid, {
+        displayName: trimmed
+      });
       if (error) throw error;
       setDisplayName(trimmed);
       setEditingName(false);
@@ -257,7 +280,10 @@ const AccountRoute: Component = () => {
   const handleUnlinkProvider = async (providerId: "google" | "apple") => {
     const identity = identityForProvider(providerId);
     if (!identity) {
-      showToast("Couldn't find that provider's identity. Refresh and try again.", "error");
+      showToast(
+        "Couldn't find that provider's identity. Refresh and try again.",
+        "error"
+      );
       return;
     }
     // Safety check: don't allow unlinking the LAST identity.
@@ -331,7 +357,7 @@ const AccountRoute: Component = () => {
       return new Date(created).toLocaleDateString("en-US", {
         year: "numeric",
         month: "long",
-        day: "numeric",
+        day: "numeric"
       });
     } catch {
       return "Unknown";
@@ -357,45 +383,75 @@ const AccountRoute: Component = () => {
         <div class="sec-page sec-fade-in">
           {/* Header */}
           <div class="sec-header">
-            <a href="/settings" class="sec-back focus-ring" aria-label="Back to settings">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+            <a
+              href="/settings"
+              class="sec-back focus-ring"
+              aria-label="Back to settings"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "14px" }}
+                aria-hidden="true"
+              >
                 arrow_back
               </span>
               Settings
             </a>
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Account</h1>
-            <p class="sec-subtitle">Your identity, country, security, and sessions.</p>
+            <p class="sec-subtitle">
+              Your identity, country, security, and sessions.
+            </p>
           </div>
 
           <div class="sec-body">
-            <Show when={isSignedIn()} fallback={
-              <div class="glass-empty-state" role="status">
-                <div class="glass-empty-state-icon" aria-hidden="true">
-                  <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "var(--p)" }} aria-hidden="true">
-                    account_circle
-                  </span>
+            <Show
+              when={isSignedIn()}
+              fallback={
+                <div class="glass-empty-state" role="status">
+                  <div class="glass-empty-state-icon" aria-hidden="true">
+                    <span
+                      class="material-symbols-outlined"
+                      style={{ "font-size": "32px", color: "var(--p)" }}
+                      aria-hidden="true"
+                    >
+                      account_circle
+                    </span>
+                  </div>
+                  <h3 class="glass-empty-state-title">Not signed in</h3>
+                  <p class="glass-empty-state-body">
+                    Sign in to manage your account.
+                  </p>
                 </div>
-                <h3 class="glass-empty-state-title">Not signed in</h3>
-                <p class="glass-empty-state-body">Sign in to manage your account.</p>
-              </div>
-            }>
+              }
+            >
               {/* =================================================== */}
               {/* 1. ACCOUNT DETAILS                                   */}
               {/* =================================================== */}
               <section class="sec-section" style={{ "margin-top": "0" }}>
                 <p class="sec-section-label">Account Details</p>
                 <div class="setting-group">
-
                   {/* A. Name — inline editable */}
                   <Show
                     when={!editingName()}
                     fallback={
-                      <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                      <div
+                        class="setting-row"
+                        style={{ cursor: "default", "align-items": "center" }}
+                      >
                         <div class="setting-row-icon" aria-hidden="true">
-                          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">person</span>
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "18px" }}
+                            aria-hidden="true"
+                          >
+                            person
+                          </span>
                         </div>
-                        <div class="setting-row-text" style={{ flex: 1, "min-width": 0 }}>
+                        <div
+                          class="setting-row-text"
+                          style={{ flex: 1, "min-width": 0 }}
+                        >
                           <span class="setting-row-label">Name</span>
                           <input
                             type="text"
@@ -429,7 +485,16 @@ const AccountRoute: Component = () => {
                             aria-label="Save name"
                           >
                             <Show when={savingName()} fallback="Save">
-                              <span class="material-symbols-outlined" style={{ "font-size": "13px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                              <span
+                                class="material-symbols-outlined"
+                                style={{
+                                  "font-size": "13px",
+                                  animation: "spin 1s linear infinite"
+                                }}
+                                aria-hidden="true"
+                              >
+                                progress_activity
+                              </span>
                             </Show>
                           </button>
                         </div>
@@ -443,13 +508,26 @@ const AccountRoute: Component = () => {
                       aria-label="Edit your name"
                     >
                       <div class="setting-row-icon" aria-hidden="true">
-                        <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">person</span>
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "18px" }}
+                          aria-hidden="true"
+                        >
+                          person
+                        </span>
                       </div>
                       <div class="setting-row-text">
                         <span class="setting-row-label">Name</span>
-                        <span class="setting-row-desc">{displayNameDisplay()}</span>
+                        <span class="setting-row-desc">
+                          {displayNameDisplay()}
+                        </span>
                       </div>
-                      <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">edit</span>
+                      <span
+                        class="material-symbols-outlined setting-row-chevron"
+                        aria-hidden="true"
+                      >
+                        edit
+                      </span>
                     </button>
                   </Show>
 
@@ -461,29 +539,57 @@ const AccountRoute: Component = () => {
                     aria-label="Update email address"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">mail</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        mail
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Email address</span>
                       <span class="setting-row-desc">{emailMasked()}</span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                    >
+                      chevron_right
+                    </span>
                   </button>
 
                   {/* C. Country setting — inline dropdown */}
-                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                  <div
+                    class="setting-row"
+                    style={{ cursor: "default", "align-items": "center" }}
+                  >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">public</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        public
+                      </span>
                     </div>
-                    <div class="setting-row-text" style={{ flex: 1, "min-width": 0 }}>
+                    <div
+                      class="setting-row-text"
+                      style={{ flex: 1, "min-width": 0 }}
+                    >
                       <span class="setting-row-label">Country</span>
                       <span class="setting-row-desc">
                         Drives regional content in Discover and Where-to-Watch.
                       </span>
-                      <div class="country-selector-row" style={{ "margin-top": "var(--sp-2)" }}>
+                      <div
+                        class="country-selector-row"
+                        style={{ "margin-top": "var(--sp-2)" }}
+                      >
                         <select
                           value={country()}
-                          onChange={(e) => handleSaveCountry(e.currentTarget.value)}
+                          onChange={(e) =>
+                            handleSaveCountry(e.currentTarget.value)
+                          }
                           disabled={savingCountry()}
                           aria-label="Select your country"
                         >
@@ -494,7 +600,11 @@ const AccountRoute: Component = () => {
                         <Show when={savingCountry()}>
                           <span
                             class="material-symbols-outlined"
-                            style={{ "font-size": "16px", color: "var(--p)", animation: "spin 1s linear infinite" }}
+                            style={{
+                              "font-size": "16px",
+                              color: "var(--p)",
+                              animation: "spin 1s linear infinite"
+                            }}
                             aria-hidden="true"
                           >
                             progress_activity
@@ -502,15 +612,25 @@ const AccountRoute: Component = () => {
                         </Show>
                       </div>
                     </div>
-                    <Show when={country() && country() !== DEFAULT_COUNTRY_CODE}>
-                      <span class="country-flag-chip" aria-hidden="true">{countryChip()}</span>
+                    <Show
+                      when={country() && country() !== DEFAULT_COUNTRY_CODE}
+                    >
+                      <span class="country-flag-chip" aria-hidden="true">
+                        {countryChip()}
+                      </span>
                     </Show>
                   </div>
 
                   {/* D. Joined — read-only */}
                   <div class="setting-row" style={{ cursor: "default" }}>
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">event</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        event
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Joined</span>
@@ -526,13 +646,26 @@ const AccountRoute: Component = () => {
                     aria-label="Deactivate account"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">block</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        block
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Deactivate account</span>
-                      <span class="setting-row-desc">Temporarily disable. Recovers within 7 days.</span>
+                      <span class="setting-row-desc">
+                        Temporarily disable. Recovers within 7 days.
+                      </span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                    >
+                      chevron_right
+                    </span>
                   </button>
 
                   <button
@@ -542,13 +675,28 @@ const AccountRoute: Component = () => {
                     aria-label="Permanently delete account"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">delete_forever</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        delete_forever
+                      </span>
                     </div>
                     <div class="setting-row-text">
-                      <span class="setting-row-label">Permanently delete account</span>
-                      <span class="setting-row-desc">Irreversible. Removes all your data.</span>
+                      <span class="setting-row-label">
+                        Permanently delete account
+                      </span>
+                      <span class="setting-row-desc">
+                        Irreversible. Removes all your data.
+                      </span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                    >
+                      chevron_right
+                    </span>
                   </button>
                 </div>
               </section>
@@ -559,42 +707,90 @@ const AccountRoute: Component = () => {
               <section class="sec-section">
                 <p class="sec-section-label">Security</p>
                 <div class="setting-group">
-
                   {/* A. Login methods — header row (non-interactive) */}
-                  <div class="setting-row setting-row-subheader" style={{ cursor: "default" }}>
+                  <div
+                    class="setting-row setting-row-subheader"
+                    style={{ cursor: "default" }}
+                  >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">key</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        key
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Login methods</span>
-                      <span class="setting-row-desc">Manage how you sign in.</span>
+                      <span class="setting-row-desc">
+                        Manage how you sign in.
+                      </span>
                     </div>
                   </div>
 
                   {/* A1. Email & Password — two action rows inside */}
-                  <div class="setting-row setting-row-nested" style={{ cursor: "default", "flex-direction": "column", "align-items": "stretch", gap: "0.5rem" }}>
-                    <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>
+                  <div
+                    class="setting-row setting-row-nested"
+                    style={{
+                      cursor: "default",
+                      "flex-direction": "column",
+                      "align-items": "stretch",
+                      gap: "0.5rem"
+                    }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        "align-items": "center",
+                        gap: "var(--sp-3)"
+                      }}
+                    >
                       <div class="setting-row-icon" aria-hidden="true">
-                        <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">mail</span>
-                      </div>
-                      <div class="setting-row-text">
-                        <span class="setting-row-label">Email &amp; Password</span>
-                        <span class="setting-row-desc">
-                          {emailIdentityLinked() ? "Connected" : "Not connected"}
+                        <span
+                          class="material-symbols-outlined"
+                          style={{ "font-size": "18px" }}
+                          aria-hidden="true"
+                        >
+                          mail
                         </span>
                       </div>
-                      <Show when={emailIdentityLinked()} fallback={
-                        <button
-                          type="button"
-                          class="account-connect-btn focus-ring"
-                          onClick={() => setShowLinkEmailPasswordSheet(true)}
-                          aria-label="Connect email and password"
+                      <div class="setting-row-text">
+                        <span class="setting-row-label">
+                          Email &amp; Password
+                        </span>
+                        <span class="setting-row-desc">
+                          {emailIdentityLinked()
+                            ? "Connected"
+                            : "Not connected"}
+                        </span>
+                      </div>
+                      <Show
+                        when={emailIdentityLinked()}
+                        fallback={
+                          <button
+                            type="button"
+                            class="account-connect-btn focus-ring"
+                            onClick={() => setShowLinkEmailPasswordSheet(true)}
+                            aria-label="Connect email and password"
+                          >
+                            <span
+                              class="material-symbols-outlined"
+                              style={{ "font-size": "14px" }}
+                              aria-hidden="true"
+                            >
+                              add
+                            </span>
+                            Connect
+                          </button>
+                        }
+                      >
+                        <span
+                          class="setting-row-value"
+                          style={{ color: "#4ade80" }}
                         >
-                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">add</span>
-                          Connect
-                        </button>
-                      }>
-                        <span class="setting-row-value" style={{ color: "#4ade80" }}>Connected</span>
+                          Connected
+                        </span>
                       </Show>
                     </div>
                     {/* Two sub-action buttons — only visible when already linked */}
@@ -605,7 +801,13 @@ const AccountRoute: Component = () => {
                           class="account-subaction-btn focus-ring"
                           onClick={() => setShowEmailSheet(true)}
                         >
-                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">alternate_email</span>
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "14px" }}
+                            aria-hidden="true"
+                          >
+                            alternate_email
+                          </span>
                           Update email
                         </button>
                         <button
@@ -613,7 +815,13 @@ const AccountRoute: Component = () => {
                           class="account-subaction-btn focus-ring"
                           onClick={() => setShowPasswordSheet(true)}
                         >
-                          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">lock</span>
+                          <span
+                            class="material-symbols-outlined"
+                            style={{ "font-size": "14px" }}
+                            aria-hidden="true"
+                          >
+                            lock
+                          </span>
                           Change password
                         </button>
                       </div>
@@ -625,21 +833,33 @@ const AccountRoute: Component = () => {
                     {(provider) => {
                       const linked = () => isProviderLinked(provider.id);
                       const isLinking = () => linkingProvider() === provider.id;
-                      const isUnlinking = () => unLinkingProvider() === provider.id;
+                      const isUnlinking = () =>
+                        unLinkingProvider() === provider.id;
                       return (
-                        <div class="setting-row setting-row-nested" style={{ cursor: "default", "align-items": "center" }}>
+                        <div
+                          class="setting-row setting-row-nested"
+                          style={{ cursor: "default", "align-items": "center" }}
+                        >
                           <div class="setting-row-icon" aria-hidden="true">
                             <Show
                               when={provider.id === "apple"}
                               fallback={
-                                <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">{provider.icon}</span>
+                                <span
+                                  class="material-symbols-outlined"
+                                  style={{ "font-size": "18px" }}
+                                  aria-hidden="true"
+                                >
+                                  {provider.icon}
+                                </span>
                               }
                             >
                               <AppleIcon />
                             </Show>
                           </div>
                           <div class="setting-row-text">
-                            <span class="setting-row-label">{provider.label}</span>
+                            <span class="setting-row-label">
+                              {provider.label}
+                            </span>
                             <span class="setting-row-desc">
                               {linked() ? "Connected" : "Not connected"}
                             </span>
@@ -650,17 +870,37 @@ const AccountRoute: Component = () => {
                               <button
                                 type="button"
                                 class="account-connect-btn focus-ring"
-                                onClick={() => void handleLinkProvider(provider.id)}
+                                onClick={() =>
+                                  void handleLinkProvider(provider.id)
+                                }
                                 disabled={isLinking()}
                                 aria-label={`Connect ${provider.label}`}
                               >
-                                <Show when={isLinking()} fallback={
-                                  <>
-                                    <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">add</span>
-                                    Connect
-                                  </>
-                                }>
-                                  <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                                <Show
+                                  when={isLinking()}
+                                  fallback={
+                                    <>
+                                      <span
+                                        class="material-symbols-outlined"
+                                        style={{ "font-size": "14px" }}
+                                        aria-hidden="true"
+                                      >
+                                        add
+                                      </span>
+                                      Connect
+                                    </>
+                                  }
+                                >
+                                  <span
+                                    class="material-symbols-outlined"
+                                    style={{
+                                      "font-size": "14px",
+                                      animation: "spin 1s linear infinite"
+                                    }}
+                                    aria-hidden="true"
+                                  >
+                                    progress_activity
+                                  </span>
                                   Connecting…
                                 </Show>
                               </button>
@@ -669,20 +909,45 @@ const AccountRoute: Component = () => {
                             <button
                               type="button"
                               class="account-disconnect-btn focus-ring"
-                              onClick={() => void handleUnlinkProvider(provider.id)}
-                              disabled={isUnlinking() || (user()?.providers ?? []).length <= 1}
+                              onClick={() =>
+                                void handleUnlinkProvider(provider.id)
+                              }
+                              disabled={
+                                isUnlinking() ||
+                                (user()?.providers ?? []).length <= 1
+                              }
                               aria-label={`Disconnect ${provider.label}`}
-                              title={(user()?.providers ?? []).length <= 1
-                                ? "You can't disconnect your last sign-in method."
-                                : `Disconnect ${provider.label}`}
+                              title={
+                                (user()?.providers ?? []).length <= 1
+                                  ? "You can't disconnect your last sign-in method."
+                                  : `Disconnect ${provider.label}`
+                              }
                             >
-                              <Show when={isUnlinking()} fallback={
-                                <>
-                                  <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">link_off</span>
-                                  Disconnect
-                                </>
-                              }>
-                                <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">progress_activity</span>
+                              <Show
+                                when={isUnlinking()}
+                                fallback={
+                                  <>
+                                    <span
+                                      class="material-symbols-outlined"
+                                      style={{ "font-size": "14px" }}
+                                      aria-hidden="true"
+                                    >
+                                      link_off
+                                    </span>
+                                    Disconnect
+                                  </>
+                                }
+                              >
+                                <span
+                                  class="material-symbols-outlined"
+                                  style={{
+                                    "font-size": "14px",
+                                    animation: "spin 1s linear infinite"
+                                  }}
+                                  aria-hidden="true"
+                                >
+                                  progress_activity
+                                </span>
                               </Show>
                             </button>
                           </Show>
@@ -692,13 +957,26 @@ const AccountRoute: Component = () => {
                   </For>
 
                   {/* B. 2FA — placeholder (not yet implemented) */}
-                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                  <div
+                    class="setting-row"
+                    style={{ cursor: "default", "align-items": "center" }}
+                  >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">phonelink_lock</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        phonelink_lock
+                      </span>
                     </div>
                     <div class="setting-row-text">
-                      <span class="setting-row-label">Two-factor authentication</span>
-                      <span class="setting-row-desc">Extra layer of security at sign-in.</span>
+                      <span class="setting-row-label">
+                        Two-factor authentication
+                      </span>
+                      <span class="setting-row-desc">
+                        Extra layer of security at sign-in.
+                      </span>
                     </div>
                     <span class="account-coming-soon-chip">Coming soon</span>
                   </div>
@@ -712,23 +990,47 @@ const AccountRoute: Component = () => {
                     aria-label="Sign out everywhere"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">devices</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        devices
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Sign out everywhere</span>
-                      <span class="setting-row-desc">Revoke all sessions across every device.</span>
+                      <span class="setting-row-desc">
+                        Revoke all sessions across every device.
+                      </span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                    >
+                      chevron_right
+                    </span>
                   </button>
 
                   {/* D. Login history — placeholder (not yet implemented) */}
-                  <div class="setting-row" style={{ cursor: "default", "align-items": "center" }}>
+                  <div
+                    class="setting-row"
+                    style={{ cursor: "default", "align-items": "center" }}
+                  >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">history</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        history
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Login history</span>
-                      <span class="setting-row-desc">Recent sign-ins and devices.</span>
+                      <span class="setting-row-desc">
+                        Recent sign-ins and devices.
+                      </span>
                     </div>
                     <span class="account-coming-soon-chip">Coming soon</span>
                   </div>
@@ -741,13 +1043,26 @@ const AccountRoute: Component = () => {
                     aria-label="Sign out of this device"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
-                      <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">logout</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                        aria-hidden="true"
+                      >
+                        logout
+                      </span>
                     </div>
                     <div class="setting-row-text">
                       <span class="setting-row-label">Sign out</span>
-                      <span class="setting-row-desc">End your session on this device.</span>
+                      <span class="setting-row-desc">
+                        End your session on this device.
+                      </span>
                     </div>
-                    <span class="material-symbols-outlined setting-row-chevron" aria-hidden="true">chevron_right</span>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                    >
+                      chevron_right
+                    </span>
                   </button>
                 </div>
               </section>
@@ -757,8 +1072,14 @@ const AccountRoute: Component = () => {
       </PageContainer>
 
       {/* Sheets */}
-      <UpdateEmailSheet open={showEmailSheet()} onClose={() => setShowEmailSheet(false)} />
-      <ChangePasswordSheet open={showPasswordSheet()} onClose={() => setShowPasswordSheet(false)} />
+      <UpdateEmailSheet
+        open={showEmailSheet()}
+        onClose={() => setShowEmailSheet(false)}
+      />
+      <ChangePasswordSheet
+        open={showPasswordSheet()}
+        onClose={() => setShowPasswordSheet(false)}
+      />
       <LinkEmailPasswordSheet
         open={showLinkEmailPasswordSheet()}
         onClose={() => setShowLinkEmailPasswordSheet(false)}

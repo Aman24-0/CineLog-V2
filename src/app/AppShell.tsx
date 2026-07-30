@@ -1,4 +1,11 @@
-import { ParentComponent, lazy, Suspense, Show, createMemo, createEffect } from "solid-js";
+import {
+  ParentComponent,
+  lazy,
+  Suspense,
+  Show,
+  createMemo,
+  createEffect
+} from "solid-js";
 import { Portal } from "solid-js/web";
 import { useLocation } from "@solidjs/router";
 import ToastContainer from "~/shared/ui/ToastContainer";
@@ -11,7 +18,9 @@ import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
-const CollectionModal = lazy(() => import("~/features/collection/CollectionModal"));
+const CollectionModal = lazy(
+  () => import("~/features/collection/CollectionModal")
+);
 
 /**
  * AppShell — the application's root layout.
@@ -77,8 +86,8 @@ const AppShell: ParentComponent = (props) => {
   // Any modal open — used for body scroll lock (set in each modal's onMount).
   // We do NOT use `inert` or `aria-hidden` on the background wrapper — see
   // the comment above for the full rationale.
-  const anyModalOpen = createMemo(() =>
-    !!selectedItem() || !!collectionSelectedItem() || !!authModalOpen(),
+  const anyModalOpen = createMemo(
+    () => !!selectedItem() || !!collectionSelectedItem() || !!authModalOpen()
   );
 
   // Lock body scroll when any modal is open so the background doesn't scroll
@@ -90,88 +99,100 @@ const AppShell: ParentComponent = (props) => {
 
   // Admin routes: render children bare — no consumer chrome, no padding.
   return (
-    <Show when={isAdminRoute()} fallback={
-      <div
-        class="min-h-screen w-full app-shell-bg"
-        style={{
-          "padding-bottom": "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
-          background: "var(--void)",
-          color: "var(--text)",
-        }}
-      >
-        <AppHeader />
+    <Show
+      when={isAdminRoute()}
+      fallback={
+        <div
+          class="app-shell-bg min-h-screen w-full"
+          style={{
+            "padding-bottom":
+              "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
+            background: "var(--void)",
+            color: "var(--text)"
+          }}
+        >
+          <AppHeader />
 
-        <AnnouncementsBanner />
+          <AnnouncementsBanner />
 
-        {/* SINGLE <main> landmark for the entire consumer app.
+          {/* SINGLE <main> landmark for the entire consumer app.
             Page routes render <div role="region"> (not <main>) inside
             this <main> so there is exactly one <main> per page. */}
-        <main id="main-content">
-          {props.children}
-        </main>
+          <main id="main-content">{props.children}</main>
 
-        <ToastContainer />
+          <ToastContainer />
 
-        <BottomNavigation />
+          <BottomNavigation />
 
-        {/* Auth modal — opened from any page when a guest tries to sign in.
+          {/* Auth modal — opened from any page when a guest tries to sign in.
             AuthModal takes no props; it reads open/close state directly from
             the useAuthModal() hook. Previously this passed `show` / `onClose`
             which were silently ignored and also produced a TS error. */}
-        <AuthModal />
+          <AuthModal />
 
-        {/* Details modal — opened from Vault, Discover, Search, or Collection.
+          {/* Details modal — opened from Vault, Discover, Search, or Collection.
             Shown when selectedItem() is truthy. The Suspense fallback is a
             lightweight centered spinner so the user sees immediate feedback
             that the modal is opening. Users can tap the backdrop or press
             ESC to cancel during slow TMDB loads. */}
-        <Show when={selectedItem()}>
-          <Suspense fallback={
-            <Portal>
-              <div
-                class="fixed inset-0 z-[999999] flex items-center justify-center"
-                style={{ background: "rgba(0,0,0,0.75)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
-                role="dialog"
-                aria-modal="true"
-                aria-label="Loading details"
-                onClick={() => {
-                  // Allow backdrop tap to cancel slow TMDB loads
-                  import("~/shared/hooks/useModalState").then(({ closeTitle }) => closeTitle());
-                }}
-                onKeyDown={(e: KeyboardEvent) => {
-                  if (e.key === "Escape") {
-                    import("~/shared/hooks/useModalState").then(({ closeTitle }) => closeTitle());
-                  }
-                }}
-              >
-                <span
-                  class="material-symbols-outlined"
-                  style={{
-                    "font-size": "32px",
-                    color: "var(--text-soft)",
-                    animation: "softPulse 1.2s ease-in-out infinite",
-                  }}
-                  aria-hidden="true"
-                >
-                  progress_activity
-                </span>
-              </div>
-            </Portal>
-          }>
-            <DetailsModal />
-          </Suspense>
-        </Show>
+          <Show when={selectedItem()}>
+            <Suspense
+              fallback={
+                <Portal>
+                  <div
+                    class="fixed inset-0 z-[999999] flex items-center justify-center"
+                    style={{
+                      background: "rgba(0,0,0,0.75)",
+                      "backdrop-filter": "blur(8px)",
+                      "-webkit-backdrop-filter": "blur(8px)"
+                    }}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Loading details"
+                    onClick={() => {
+                      // Allow backdrop tap to cancel slow TMDB loads
+                      import("~/shared/hooks/useModalState").then(
+                        ({ closeTitle }) => closeTitle()
+                      );
+                    }}
+                    onKeyDown={(e: KeyboardEvent) => {
+                      if (e.key === "Escape") {
+                        import("~/shared/hooks/useModalState").then(
+                          ({ closeTitle }) => closeTitle()
+                        );
+                      }
+                    }}
+                  >
+                    <span
+                      class="material-symbols-outlined"
+                      style={{
+                        "font-size": "32px",
+                        color: "var(--text-soft)",
+                        animation: "softPulse 1.2s ease-in-out infinite"
+                      }}
+                      aria-hidden="true"
+                    >
+                      progress_activity
+                    </span>
+                  </div>
+                </Portal>
+              }
+            >
+              <DetailsModal />
+            </Suspense>
+          </Show>
 
-        {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
+          {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
             Rendered at z-[999998] — below Details (z-[999999]) so if both are
             open, Details paints on top. In practice only one is open at a time. */}
-        <Show when={collectionSelectedItem()}>
-          <Suspense fallback={null}>
-            <CollectionModal />
-          </Suspense>
-        </Show>
-      </div>
-    }>
+          <Show when={collectionSelectedItem()}>
+            <Suspense fallback={null}>
+              <CollectionModal />
+            </Suspense>
+          </Show>
+        </div>
+      }
+    >
       {/* Admin route: bare render — AdminShell handles its own layout.
           Admin routes use <div role="region"> for content (not <main>)
           so there is still exactly one <main> per page — provided by

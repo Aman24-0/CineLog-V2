@@ -1,5 +1,12 @@
 // src/features/details/components/SeasonNavigator.tsx
-import { For, Show, createSignal, createMemo, onMount, Component } from "solid-js";
+import {
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  Component
+} from "solid-js";
 import { fetchSeasonDetails } from "~/core/tmdb/tmdb";
 import { getEpisodeProgress, resolveSeasons } from "~/shared/utils/progress";
 import type { WatchlistItem, TMDBDetails, TMDBEpisode } from "~/shared/types";
@@ -28,7 +35,7 @@ interface SeasonNavigatorProps {
     unmarkSeason: number,
     unmarkEpisode: number,
     newTrackerSeason: number,
-    newTrackerEpisode: number,
+    newTrackerEpisode: number
   ) => void;
   /** Called when the user taps "Add to Watchlist" on a non-watchlist title's episode */
   onAddToVault: () => void;
@@ -105,7 +112,8 @@ interface SeasonNavigatorProps {
  */
 const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
   const currentSeason = () => props.vaultItem?.season || props.item.season || 1;
-  const currentEpisode = () => props.vaultItem?.episode || props.item.episode || 1;
+  const currentEpisode = () =>
+    props.vaultItem?.episode || props.item.episode || 1;
 
   // v2.6: All seasons start COLLAPSED. Previously this was
   // `new Set([currentSeason()])` which auto-expanded the user's
@@ -113,7 +121,7 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
   // render even when the user was just browsing. Now the user must
   // explicitly click a season header to expand it.
   const [expandedSeasons, setExpandedSeasons] = createSignal<Set<number>>(
-    new Set(),
+    new Set()
   );
 
   // Cache of fetched season details: seasonNumber -> TMDBEpisode[].
@@ -121,16 +129,16 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
   // considered "fetched" — we won't re-fetch it. The empty-state
   // message ("No episode data available") only shows for seasons that
   // ARE in the cache but have zero episodes.
-  const [seasonCache, setSeasonCache] = createSignal<Map<number, TMDBEpisode[]>>(
-    new Map(),
-  );
+  const [seasonCache, setSeasonCache] = createSignal<
+    Map<number, TMDBEpisode[]>
+  >(new Map());
   // Set of season numbers currently being fetched. Using a Set (instead
   // of a single number) lets multiple seasons fetch concurrently —
   // previously expanding Season 2 while Season 1 was still loading
   // would silently skip the Season 2 fetch because `loadingSeason`
   // was non-null.
   const [loadingSeasons, setLoadingSeasons] = createSignal<Set<number>>(
-    new Set(),
+    new Set()
   );
 
   const seasonList = createMemo(() => {
@@ -234,8 +242,13 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
     const ce = currentEpisode();
     const seasonData = seasonList().find((s) => s.number === seasonNumber);
     if (!seasonData) return null;
-    if (seasonNumber < cs) return { watched: seasonData.count, total: seasonData.count };
-    if (seasonNumber === cs) return { watched: Math.min(ce, seasonData.count), total: seasonData.count };
+    if (seasonNumber < cs)
+      return { watched: seasonData.count, total: seasonData.count };
+    if (seasonNumber === cs)
+      return {
+        watched: Math.min(ce, seasonData.count),
+        total: seasonData.count
+      };
     return { watched: 0, total: seasonData.count };
   };
 
@@ -278,19 +291,21 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
         ep.season_number,
         ep.episode_number,
         ep.season_number,
-        ep.episode_number - 1,
+        ep.episode_number - 1
       );
       return;
     }
     // Episode 1 of season N → rewind to last episode of season N-1.
     if (ep.season_number > 1) {
-      const prevSeason = seasonList().find((s) => s.number === ep.season_number - 1);
+      const prevSeason = seasonList().find(
+        (s) => s.number === ep.season_number - 1
+      );
       const prevEpCount = prevSeason?.count ?? 1;
       props.onEpisodeUnmark(
         ep.season_number,
         ep.episode_number,
         ep.season_number - 1,
-        prevEpCount,
+        prevEpCount
       );
     }
     // Season 1, Episode 1: no-op (can't unwatch the very first episode).
@@ -302,13 +317,21 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
       <Show when={props.vaultItem && seriesProgress()}>
         <div class="season-navigator-summary">
           <div class="season-navigator-summary-text">
-            <span class="type-micro" style={{ color: "var(--text-muted)" }}>Series Progress</span>
-            <span class="type-headline-sm" style={{ color: "var(--text-strong)" }}>
+            <span class="type-micro" style={{ color: "var(--text-muted)" }}>
+              Series Progress
+            </span>
+            <span
+              class="type-headline-sm"
+              style={{ color: "var(--text-strong)" }}
+            >
               {seriesProgress()?.label}
             </span>
           </div>
           <div class="season-navigator-summary-pct">
-            <span class="type-headline-sm" style={{ color: "var(--p)", "font-weight": 800 }}>
+            <span
+              class="type-headline-sm"
+              style={{ color: "var(--p)", "font-weight": 800 }}
+            >
               {seriesProgress()?.pct ?? 0}%
             </span>
           </div>
@@ -319,8 +342,16 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
             style={{ width: `${seriesProgress()?.pct ?? 0}%` }}
           />
         </div>
-        <Show when={seriesProgress()?.seriesLabel && seriesProgress()!.seriesLabel !== "—"}>
-          <p class="type-micro" style={{ color: "var(--text-dim)", "margin-top": "0.375rem" }}>
+        <Show
+          when={
+            seriesProgress()?.seriesLabel &&
+            seriesProgress()!.seriesLabel !== "—"
+          }
+        >
+          <p
+            class="type-micro"
+            style={{ color: "var(--text-dim)", "margin-top": "0.375rem" }}
+          >
             {seriesProgress()!.seriesLabel}
           </p>
         </Show>
@@ -361,20 +392,26 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                   <div class="season-accordion-header-text">
                     <span class="season-accordion-title">
                       <Show when={isCurrent()}>
-                        <span class="season-accordion-current-dot" aria-hidden="true" />
+                        <span
+                          class="season-accordion-current-dot"
+                          aria-hidden="true"
+                        />
                       </Show>
                       Season {season.number}
                     </span>
                     <span class="season-accordion-meta">
                       {season.count} episode{season.count !== 1 ? "s" : ""}
                       <Show when={progress()}>
-                        {" · "}{progress()!.watched}/{progress()!.total} watched
+                        {" · "}
+                        {progress()!.watched}/{progress()!.total} watched
                       </Show>
                     </span>
                   </div>
                   <span
                     class="material-symbols-outlined season-accordion-chevron"
-                    style={{ transform: isExpanded() ? "rotate(180deg)" : "none" }}
+                    style={{
+                      transform: isExpanded() ? "rotate(180deg)" : "none"
+                    }}
                     aria-hidden="true"
                   >
                     expand_more
@@ -404,7 +441,10 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                           </p>
                         }
                       >
-                        <div class="season-accordion-loading" aria-hidden="true">
+                        <div
+                          class="season-accordion-loading"
+                          aria-hidden="true"
+                        >
                           <For each={[1, 2, 3]}>
                             {() => <div class="season-accordion-skeleton" />}
                           </For>

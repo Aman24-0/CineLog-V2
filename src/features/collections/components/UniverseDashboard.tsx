@@ -7,7 +7,12 @@ import { tmdbImage } from "~/core/tmdb/tmdb";
 import { findInVault } from "~/shared/utils/vaultMatch";
 import { formatRuntime } from "~/shared/utils/format";
 import ProgressRing from "./ProgressRing";
-import type { Collection, CollectionEntry, ViewingOrder, TimelineProvider } from "~/shared/types";
+import type {
+  Collection,
+  CollectionEntry,
+  ViewingOrder,
+  TimelineProvider
+} from "~/shared/types";
 
 interface UniverseDashboardProps {
   collection: Collection;
@@ -50,7 +55,9 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
   const { watchlist } = useVault();
   const { getCollectionProgress } = useCollections();
 
-  const progress = createMemo(() => getCollectionProgress(props.collection, watchlist()));
+  const progress = createMemo(() =>
+    getCollectionProgress(props.collection, watchlist())
+  );
 
   const backdropUrl = createMemo(() => {
     // Prefer the collection's own backdrop (banner_url in Supabase).
@@ -88,14 +95,18 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
   /** Find the next missing entry for the "Continue" card */
   const nextMissing = createMemo((): CollectionEntry | null => {
     if (!showContinueCard()) return null;
-    return (props.collection.entries ?? []).find(
-      (e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })
-    ) ?? null;
+    return (
+      (props.collection.entries ?? []).find(
+        (e) => !findInVault(watchlist(), { id: e.id, media_type: e.media_type })
+      ) ?? null
+    );
   });
 
   const titleOf = (e: CollectionEntry) => e.title || e.name || "Untitled";
 
-  const availableOrders = createMemo(() => props.collection.viewingOrders ?? []);
+  const availableOrders = createMemo(
+    () => props.collection.viewingOrders ?? []
+  );
 
   return (
     <div class="universe-dashboard" style={accentStyle()}>
@@ -103,7 +114,9 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
       <div class="universe-detail-hero">
         <Show when={backdropUrl()}>
           <img
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             onLoad={(e) => {
               // The CSS for .universe-detail-hero-backdrop starts at
               // opacity:0 + scale(1.08) and only becomes visible when
@@ -126,7 +139,9 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
         <Show when={props.collection.accentColor}>
           <div
             class="universe-dashboard-accent-bar"
-            style={{ background: `linear-gradient(180deg, transparent, ${props.collection.accentColor}40)` }}
+            style={{
+              background: `linear-gradient(180deg, transparent, ${props.collection.accentColor}40)`
+            }}
             aria-hidden="true"
           />
         </Show>
@@ -137,7 +152,13 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
           onClick={() => navigate("/collections")}
           aria-label="Back to Collections"
         >
-          <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "18px" }}
+            aria-hidden="true"
+          >
+            arrow_back
+          </span>
         </button>
 
         <div class="universe-detail-hero-content">
@@ -145,12 +166,17 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             {/* Universes are admin-curated — show "Curated by CineLog"
                 instead of a creator name. User collections get the
                 existing "Your Collection" eyebrow. */}
-            {props.collection.type === "curated" ? "Curated by CineLog" :
-             props.collection.type === "user" ? "Your Collection" : "Official Collection"}
+            {props.collection.type === "curated"
+              ? "Curated by CineLog"
+              : props.collection.type === "user"
+                ? "Your Collection"
+                : "Official Collection"}
           </p>
           <h1 class="universe-detail-hero-title">{props.collection.name}</h1>
           <Show when={props.collection.description}>
-            <p class="universe-detail-hero-description">{props.collection.description}</p>
+            <p class="universe-detail-hero-description">
+              {props.collection.description}
+            </p>
           </Show>
 
           {/* Progress ring + stats */}
@@ -158,30 +184,57 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             <ProgressRing pct={progress().pct} size="lg" />
             <div class="universe-detail-stat-strip">
               <div class="universe-detail-stat-cell">
-                <span class="universe-detail-stat-value">{progress().total}</span>
+                <span class="universe-detail-stat-value">
+                  {progress().total}
+                </span>
                 <span class="universe-detail-stat-label">Total</span>
               </div>
               <div class="universe-detail-stat-cell">
-                <span class="universe-detail-stat-value" style={{ color: "var(--p)" }}>{progress().owned}</span>
+                <span
+                  class="universe-detail-stat-value"
+                  style={{ color: "var(--p)" }}
+                >
+                  {progress().owned}
+                </span>
                 <span class="universe-detail-stat-label">Owned</span>
               </div>
               <div class="universe-detail-stat-cell">
-                <span class="universe-detail-stat-value" style={{ color: "#4ade80" }}>{progress().completed}</span>
+                <span
+                  class="universe-detail-stat-value"
+                  style={{ color: "#4ade80" }}
+                >
+                  {progress().completed}
+                </span>
                 <span class="universe-detail-stat-label">Completed</span>
               </div>
               <div class="universe-detail-stat-cell">
-                <span class="universe-detail-stat-value" style={{ color: "#60a5fa" }}>{progress().watching}</span>
+                <span
+                  class="universe-detail-stat-value"
+                  style={{ color: "#60a5fa" }}
+                >
+                  {progress().watching}
+                </span>
                 <span class="universe-detail-stat-label">Watching</span>
               </div>
               <Show when={progress().missing > 0}>
                 <div class="universe-detail-stat-cell">
-                  <span class="universe-detail-stat-value" style={{ color: "var(--text-soft)" }}>{progress().missing}</span>
+                  <span
+                    class="universe-detail-stat-value"
+                    style={{ color: "var(--text-soft)" }}
+                  >
+                    {progress().missing}
+                  </span>
                   <span class="universe-detail-stat-label">Missing</span>
                 </div>
               </Show>
               <Show when={progress().totalRuntime > 0}>
                 <div class="universe-detail-stat-cell">
-                  <span class="universe-detail-stat-value" style={{ color: "var(--text-soft)" }}>{formatRuntime(progress().totalRuntime)}</span>
+                  <span
+                    class="universe-detail-stat-value"
+                    style={{ color: "var(--text-soft)" }}
+                  >
+                    {formatRuntime(progress().totalRuntime)}
+                  </span>
                   <span class="universe-detail-stat-label">Runtime</span>
                 </div>
               </Show>
@@ -200,7 +253,9 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             aria-label={`Edit ${props.collection.name}`}
             title="Edit collection"
           >
-            <span class="material-symbols-outlined" aria-hidden="true">edit</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              edit
+            </span>
           </button>
         </Show>
       </div>
@@ -211,13 +266,21 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
       <Show when={showContinueCard() && nextMissing()}>
         <div class="universe-dashboard-continue animate-fade-up">
           <div class="universe-dashboard-continue-label">
-            <span class="material-symbols-outlined" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true">play_circle</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px", color: "var(--p)" }}
+              aria-hidden="true"
+            >
+              play_circle
+            </span>
             Continue this universe
           </div>
           <div class="universe-dashboard-continue-card">
             <Show when={nextMissing()!.poster_path}>
               <img
-                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
                 src={tmdbImage(nextMissing()!.poster_path, "w92")}
                 class="universe-dashboard-continue-poster"
                 loading="lazy"
@@ -227,16 +290,42 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
               />
             </Show>
             <div class="universe-dashboard-continue-info">
-              <p class="universe-dashboard-continue-title">{titleOf(nextMissing()!)}</p>
+              <p class="universe-dashboard-continue-title">
+                {titleOf(nextMissing()!)}
+              </p>
               <p class="universe-dashboard-continue-meta">
-                {nextMissing()!.entryType ?? (nextMissing()!.media_type === "tv" ? "Series" : "Movie")}
-                <Show when={nextMissing()!.release_date || nextMissing()!.first_air_date}>
-                  <span> · {(nextMissing()!.release_date || nextMissing()!.first_air_date || "").split("-")[0]}</span>
+                {nextMissing()!.entryType ??
+                  (nextMissing()!.media_type === "tv" ? "Series" : "Movie")}
+                <Show
+                  when={
+                    nextMissing()!.release_date || nextMissing()!.first_air_date
+                  }
+                >
+                  <span>
+                    {" "}
+                    ·{" "}
+                    {
+                      (
+                        nextMissing()!.release_date ||
+                        nextMissing()!.first_air_date ||
+                        ""
+                      ).split("-")[0]
+                    }
+                  </span>
                 </Show>
               </p>
             </div>
-            <span class="universe-timeline-missing-badge" aria-label="Not in watchlist">
-              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
+            <span
+              class="universe-timeline-missing-badge"
+              aria-label="Not in watchlist"
+            >
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                add
+              </span>
             </span>
           </div>
         </div>
@@ -280,7 +369,11 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
             aria-label={props.selectMode ? "Exit select mode" : "Select titles"}
             aria-pressed={props.selectMode ?? false}
           >
-            <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "16px" }}
+              aria-hidden="true"
+            >
               {props.selectMode ? "close" : "checklist"}
             </span>
             {props.selectMode ? "Cancel" : "Select"}
@@ -296,8 +389,17 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
               disabled={(props.selectedCount ?? 0) === 0}
               aria-label="Remove selected titles from this folder"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">delete</span>
-              Remove{(props.selectedCount ?? 0) > 0 ? ` (${props.selectedCount})` : ""}
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                delete
+              </span>
+              Remove
+              {(props.selectedCount ?? 0) > 0
+                ? ` (${props.selectedCount})`
+                : ""}
             </button>
             <button
               type="button"
@@ -306,8 +408,17 @@ export default function UniverseDashboard(props: UniverseDashboardProps) {
               disabled={(props.selectedCount ?? 0) === 0}
               aria-label="Move selected titles to another folder"
             >
-              <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">drive_file_move</span>
-              Move{(props.selectedCount ?? 0) > 0 ? ` (${props.selectedCount})` : ""}
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "16px" }}
+                aria-hidden="true"
+              >
+                drive_file_move
+              </span>
+              Move
+              {(props.selectedCount ?? 0) > 0
+                ? ` (${props.selectedCount})`
+                : ""}
             </button>
           </Show>
         </div>

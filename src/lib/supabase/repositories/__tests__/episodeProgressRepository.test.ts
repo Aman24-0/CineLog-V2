@@ -1,9 +1,18 @@
 // src/lib/supabase/repositories/__tests__/episodeProgressRepository.test.ts
-import {describe, it, expect} from "vitest";
+import { describe, it, expect } from "vitest";
 import { EpisodeProgressRepository } from "../episodeProgress/episodeProgress.repository";
-import { toInsert, toCompletedUpdate } from "../episodeProgress/episodeProgress.utils";
-import type { EpisodeProgressRow, UpsertEpisodeProgressPayload } from "../episodeProgress/episodeProgress.types";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import {
+  toInsert,
+  toCompletedUpdate
+} from "../episodeProgress/episodeProgress.utils";
+import type {
+  EpisodeProgressRow,
+  UpsertEpisodeProgressPayload
+} from "../episodeProgress/episodeProgress.types";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 
 const mockRow: EpisodeProgressRow = {
   id: "ep-1",
@@ -13,7 +22,7 @@ const mockRow: EpisodeProgressRow = {
   is_completed: false,
   progress_minutes: 30,
   watched_at: "2024-06-01T00:00:00Z",
-  updated_at: "2024-06-01T00:00:00Z",
+  updated_at: "2024-06-01T00:00:00Z"
 } as unknown as EpisodeProgressRow;
 
 describe("EpisodeProgressRepository", () => {
@@ -82,7 +91,12 @@ describe("EpisodeProgressRepository", () => {
     it("keeps only the first (latest) row per vault_id", async () => {
       // Input is ordered by watched_at desc, so first row per vault_id is latest
       const row1 = { ...mockRow, vault_id: "v1", watched_at: "2024-06-02" };
-      const row2 = { ...mockRow, vault_id: "v1", watched_at: "2024-06-01", id: "ep-2" };
+      const row2 = {
+        ...mockRow,
+        vault_id: "v1",
+        watched_at: "2024-06-01",
+        id: "ep-2"
+      };
       const { client } = createMockSupabase({ listData: [row1, row2] });
       const repo = new EpisodeProgressRepository(client as never);
       const result = await repo.getLatestEpisodeProgressBatch(["v1"]);
@@ -120,7 +134,7 @@ describe("EpisodeProgressRepository", () => {
       const payload: UpsertEpisodeProgressPayload = {
         vaultId: "vault-1",
         seasonNumber: 1,
-        episodeNumber: 5,
+        episodeNumber: 5
       };
       const result = await repo.upsertEpisodeProgress(payload);
       expect(result.data).toEqual(mockRow);
@@ -133,7 +147,7 @@ describe("EpisodeProgressRepository", () => {
       const result = await repo.upsertEpisodeProgress({
         vaultId: "vault-1",
         seasonNumber: 1,
-        episodeNumber: 5,
+        episodeNumber: 5
       });
       expect(result.error).toBe(err);
     });
@@ -144,12 +158,11 @@ describe("EpisodeProgressRepository", () => {
       await repo.upsertEpisodeProgress({
         vaultId: "vault-1",
         seasonNumber: 1,
-        episodeNumber: 5,
+        episodeNumber: 5
       });
-      expect(query.upsert).toHaveBeenCalledWith(
-        expect.any(Object),
-        { onConflict: "vault_id,season_number,episode_number" },
-      );
+      expect(query.upsert).toHaveBeenCalledWith(expect.any(Object), {
+        onConflict: "vault_id,season_number,episode_number"
+      });
     });
   });
 
@@ -194,7 +207,7 @@ describe("episodeProgress.utils", () => {
       const result = toInsert({
         vaultId: "v1",
         seasonNumber: 2,
-        episodeNumber: 3,
+        episodeNumber: 3
       });
       expect(result.vault_id).toBe("v1");
       expect(result.season_number).toBe(2);
@@ -211,7 +224,7 @@ describe("episodeProgress.utils", () => {
         episodeNumber: 1,
         isCompleted: true,
         progressMinutes: 45,
-        watchedAt: "2024-01-01T00:00:00Z",
+        watchedAt: "2024-01-01T00:00:00Z"
       });
       expect(result.is_completed).toBe(true);
       expect(result.progress_minutes).toBe(45);
@@ -223,7 +236,7 @@ describe("episodeProgress.utils", () => {
         vaultId: "v1",
         seasonNumber: 1,
         episodeNumber: 1,
-        watchedAt: null,
+        watchedAt: null
       });
       expect(result.watched_at).toBeDefined();
     });

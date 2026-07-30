@@ -43,15 +43,26 @@
 // SSR with `loading === true` (the initial signal value), then the
 // client takes over and resolves the pick once auth is ready.
 
-import { createSignal, createMemo, createEffect, onCleanup, Accessor } from "solid-js";
-import type { TasteProfile, SpotlightPick, WatchlistItem, TMDBTitle } from "~/shared/types";
+import {
+  createSignal,
+  createMemo,
+  createEffect,
+  onCleanup,
+  Accessor
+} from "solid-js";
+import type {
+  TasteProfile,
+  SpotlightPick,
+  WatchlistItem,
+  TMDBTitle
+} from "~/shared/types";
 import {
   discoverMovies,
   getRecommendations,
   getTopRatedMovies,
   getTrending,
   fetchTitleDirector,
-  genreIdFor,
+  genreIdFor
 } from "~/core/tmdb/discover";
 import {
   addSeenTitle,
@@ -59,7 +70,7 @@ import {
   getCachedSpotlight,
   setCachedSpotlight,
   clearCachedSpotlight,
-  todayKey,
+  todayKey
 } from "~/shared/utils/seenTitles";
 
 interface UseSpotlightArgs {
@@ -108,7 +119,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
 
   /** Set of "{mediaType}/{tmdbId}" keys for every title in the vault. */
   const vaultKeys = createMemo(
-    () => new Set(args.vault().map((m) => `${m.media_type}/${m.id}`)),
+    () => new Set(args.vault().map((m) => `${m.media_type}/${m.id}`))
   );
 
   /**
@@ -170,16 +181,19 @@ export function useSpotlight(args: UseSpotlightArgs) {
         try {
           const recs = await getRecommendations(
             taste.seedTitle.media_type,
-            taste.seedTitle.id,
+            taste.seedTitle.id
           );
           const eligible = filterEligible(recs);
           const chosen = pickRandom(eligible);
           if (chosen) {
-            const seedName = taste.seedTitle.title || taste.seedTitle.name || "what you watched";
+            const seedName =
+              taste.seedTitle.title ||
+              taste.seedTitle.name ||
+              "what you watched";
             return {
               title: chosen,
               reason: `Because you rated ${seedName} ${taste.seedTitle.rating ?? 9}/10`,
-              strategy: "because-you-watched",
+              strategy: "because-you-watched"
             };
           }
         } catch {
@@ -196,7 +210,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
               withGenres: [genreId],
               sortBy: "vote_average.desc",
               voteCountGte: 200,
-              voteAverageGte: 7.5,
+              voteAverageGte: 7.5
             });
             // Filter to vote_count < 3000 to find the "hidden" ones
             const hidden = gems.filter((t) => (t.vote_count ?? 0) < 3000);
@@ -207,7 +221,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
               return {
                 title: chosen,
                 reason: `A hidden gem in your favorite genre — ${taste.topGenres[0]}`,
-                strategy: "hidden-gems",
+                strategy: "hidden-gems"
               };
             }
           }
@@ -225,7 +239,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
               withGenres: [genreId],
               sortBy: "popularity.desc",
               voteCountGte: 500,
-              voteAverageGte: 7,
+              voteAverageGte: 7
             });
             const eligible = filterEligible(deep);
             const chosen = pickRandom(eligible);
@@ -233,7 +247,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
               return {
                 title: chosen,
                 reason: `A standout ${taste.topGenres[0]} film you haven't added`,
-                strategy: "genre-deep-dive",
+                strategy: "genre-deep-dive"
               };
             }
           }
@@ -253,7 +267,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
             reason: taste.isColdStart
               ? "A universally acclaimed film"
               : "A universally acclaimed film you haven't seen",
-            strategy: "acclaimed-fallback",
+            strategy: "acclaimed-fallback"
           };
         }
       } catch {
@@ -269,7 +283,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
           return {
             title: chosen,
             reason: "Trending this week",
-            strategy: "acclaimed-fallback",
+            strategy: "acclaimed-fallback"
           };
         }
       } catch {
@@ -341,7 +355,9 @@ export function useSpotlight(args: UseSpotlightArgs) {
       // Every strategy returned nothing — the user has either seen
       // every eligible title in the last 30 days, or every candidate
       // is in their vault. Show the empty-state retry message.
-      setError("We couldn't pick a Spotlight right now. Try again in a moment.");
+      setError(
+        "We couldn't pick a Spotlight right now. Try again in a moment."
+      );
     }
     setLoading(false);
   };
@@ -386,7 +402,9 @@ export function useSpotlight(args: UseSpotlightArgs) {
         // Re-cache the current pick since we cleared it above
         setCachedSpotlight(uid, current);
       }
-      setError("You've seen all our recent recommendations. Check back tomorrow!");
+      setError(
+        "You've seen all our recent recommendations. Check back tomorrow!"
+      );
     }
     setLoading(false);
   };
@@ -404,7 +422,9 @@ export function useSpotlight(args: UseSpotlightArgs) {
       setPick(fresh);
       persistPick(fresh);
     } else {
-      setError("We couldn't pick a Spotlight right now. Try again in a moment.");
+      setError(
+        "We couldn't pick a Spotlight right now. Try again in a moment."
+      );
     }
     setLoading(false);
   };
@@ -443,7 +463,10 @@ export function useSpotlight(args: UseSpotlightArgs) {
     if (didInit) return;
     if (args.authReady()) {
       didInit = true;
-      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+      if (safetyTimer) {
+        clearTimeout(safetyTimer);
+        safetyTimer = null;
+      }
       void loadInitial();
     }
   });
@@ -453,14 +476,19 @@ export function useSpotlight(args: UseSpotlightArgs) {
   // if the Supabase client fails to initialize.
   safetyTimer = setTimeout(() => {
     if (!didInit) {
-      console.warn("[useSpotlight] authReady did not resolve within 3s — forcing load with current userId");
+      console.warn(
+        "[useSpotlight] authReady did not resolve within 3s — forcing load with current userId"
+      );
       didInit = true;
       void loadInitial();
     }
   }, 3000);
 
   onCleanup(() => {
-    if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+    if (safetyTimer) {
+      clearTimeout(safetyTimer);
+      safetyTimer = null;
+    }
   });
 
   return {
@@ -470,6 +498,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
     shuffle,
     retry,
     /** Resolve a director name for a Spotlight pick (lazy, best-effort) */
-    resolveDirector: (title: TMDBTitle) => fetchTitleDirector(title.media_type, title.id),
+    resolveDirector: (title: TMDBTitle) =>
+      fetchTitleDirector(title.media_type, title.id)
   };
 }

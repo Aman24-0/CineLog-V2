@@ -1,7 +1,10 @@
 // src/features/discover/hooks/useDiscoverTaste.ts
 import { createMemo, Accessor } from "solid-js";
 import type { WatchlistItem, TasteProfile } from "~/shared/types";
-import { FRANCHISES, detectFranchise as detectFranchiseByName } from "~/shared/data/franchises";
+import {
+  FRANCHISES,
+  detectFranchise as detectFranchiseByName
+} from "~/shared/data/franchises";
 
 const detectFranchise = (m: WatchlistItem): string | null => {
   return detectFranchiseByName(m.title || m.name || "")?.name ?? null;
@@ -51,13 +54,17 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
     const strongSignalTitles = list.filter(
       (m) => m.status === "Completed" || (m.rating ?? 0) >= 8
     );
-    const signalSource = strongSignalTitles.length >= 3 ? strongSignalTitles : list;
+    const signalSource =
+      strongSignalTitles.length >= 3 ? strongSignalTitles : list;
     for (const m of signalSource) {
       if (!m.genresList || !Array.isArray(m.genresList)) continue;
       for (const g of m.genresList) {
-        const name = typeof g === "string" ? g
-          : typeof g === "object" && g !== null && "name" in g ? String((g as { name: unknown }).name)
-          : String(g);
+        const name =
+          typeof g === "string"
+            ? g
+            : typeof g === "object" && g !== null && "name" in g
+              ? String((g as { name: unknown }).name)
+              : String(g);
         if (name) genreCounts[name] = (genreCounts[name] || 0) + 1;
       }
     }
@@ -68,13 +75,17 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
 
     /* 2. Top directors — directors appearing in ≥ 2 titles rated 8+,
           with their average rating across those titles. */
-    const directorBuckets: Record<string, { count: number; ratingSum: number }> = {};
+    const directorBuckets: Record<
+      string,
+      { count: number; ratingSum: number }
+    > = {};
     for (const m of list) {
       if (!m.director) continue;
       if ((m.rating ?? 0) < 8 && m.status !== "Completed") continue;
       const dir = m.director.trim();
       if (!dir || dir === "Unknown" || dir.startsWith("N/A")) continue;
-      if (!directorBuckets[dir]) directorBuckets[dir] = { count: 0, ratingSum: 0 };
+      if (!directorBuckets[dir])
+        directorBuckets[dir] = { count: 0, ratingSum: 0 };
       directorBuckets[dir].count += 1;
       directorBuckets[dir].ratingSum += m.rating ?? 0;
     }
@@ -103,7 +114,9 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
         const franchise = FRANCHISES.find((f) => f.name === name);
         // Estimate "missing" from the keyword count — this is a rough
         // heuristic; TMDB doesn't expose franchise totals cleanly.
-        const estimatedTotal = franchise ? Math.min(franchise.keywords.length + 2, 12) : owned.size;
+        const estimatedTotal = franchise
+          ? Math.min(franchise.keywords.length + 2, 12)
+          : owned.size;
         return {
           name,
           owned: owned.size,
@@ -118,9 +131,10 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
     const imdbRatings = list
       .map((m) => parseFloat(m.imdbRating || "0"))
       .filter((r) => !isNaN(r) && r > 0);
-    const avgImdb = imdbRatings.length > 0
-      ? imdbRatings.reduce((a, b) => a + b, 0) / imdbRatings.length
-      : 0;
+    const avgImdb =
+      imdbRatings.length > 0
+        ? imdbRatings.reduce((a, b) => a + b, 0) / imdbRatings.length
+        : 0;
 
     /* 5. seedTitle — most recent 9+ rated completed title. This is the
           anchor for the "Because you watched X" trajectory. */

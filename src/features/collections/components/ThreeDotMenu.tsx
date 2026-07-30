@@ -1,5 +1,12 @@
 // src/features/collections/components/ThreeDotMenu.tsx
-import { Show, For, createSignal, onMount, onCleanup, type Component } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  onMount,
+  onCleanup,
+  type Component
+} from "solid-js";
 
 /**
  * ThreeDotMenu — the "More actions" dropdown for the CollectionActionBar.
@@ -71,11 +78,17 @@ const ThreeDotMenu: Component<ThreeDotMenuProps> = (props) => {
         aria-haspopup="menu"
         aria-expanded={open()}
       >
-        <span class="material-symbols-outlined" aria-hidden="true">more_vert</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          more_vert
+        </span>
       </button>
 
       <Show when={open()}>
-        <div class="three-dot-menu-dropdown" role="menu" aria-label={props.label ?? "More actions"}>
+        <div
+          class="three-dot-menu-dropdown"
+          role="menu"
+          aria-label={props.label ?? "More actions"}
+        >
           <For each={props.items}>
             {(item) => (
               <button
@@ -88,7 +101,9 @@ const ThreeDotMenu: Component<ThreeDotMenuProps> = (props) => {
                   item.action();
                 }}
               >
-                <span class="material-symbols-outlined" aria-hidden="true">{item.icon}</span>
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  {item.icon}
+                </span>
                 <span class="three-dot-menu-item-label">{item.label}</span>
               </button>
             )}

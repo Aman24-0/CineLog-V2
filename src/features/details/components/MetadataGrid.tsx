@@ -62,7 +62,7 @@ const COUNTRY_CURRENCY: Record<string, CurrencyInfo> = {
   AE: { code: "AED", symbol: "AED ", rate: 3.67 },
   SA: { code: "SAR", symbol: "SAR ", rate: 3.75 },
   TR: { code: "TRY", symbol: "₺", rate: 32 },
-  SE: { code: "SEK", symbol: "kr ", rate: 10.5 },
+  SE: { code: "SEK", symbol: "kr ", rate: 10.5 }
 };
 
 /**
@@ -97,10 +97,7 @@ function formatMoneyUSD(amount: number | undefined | null): string | null {
  * Returns null if the country has no known currency mapping (caller
  * should fall back to USD).
  */
-function formatMoneyLocal(
-  revenueUSD: number,
-  region: string,
-): string | null {
+function formatMoneyLocal(revenueUSD: number, region: string): string | null {
   const info = COUNTRY_CURRENCY[region];
   if (!info || info.code === "USD") return null;
 
@@ -217,13 +214,22 @@ export default function MetadataGrid(props: MetadataGridProps) {
     // TV-specific (continued)
     if (isTv) {
       if (d?.networks && d.networks.length > 0) {
-        list.push({ label: "Network", value: d.networks.map((n) => n.name).join(", ") });
+        list.push({
+          label: "Network",
+          value: d.networks.map((n) => n.name).join(", ")
+        });
       }
     }
 
     // Movie-specific
     if (!isTv && d?.production_companies && d.production_companies.length > 0) {
-      list.push({ label: "Studio", value: d.production_companies.slice(0, 2).map((p) => p.name).join(", ") });
+      list.push({
+        label: "Studio",
+        value: d.production_companies
+          .slice(0, 2)
+          .map((p) => p.name)
+          .join(", ")
+      });
     }
 
     // Budget (Movie only) — TMDB reports production budget in USD.
@@ -238,7 +244,7 @@ export default function MetadataGrid(props: MetadataGridProps) {
         const showLocal = showLocalCurrency() && localFormat !== null;
         list.push({
           label: "Budget",
-          value: showLocal ? localFormat! : budgetUSD,
+          value: showLocal ? localFormat! : budgetUSD
         });
       }
     }
@@ -254,7 +260,7 @@ export default function MetadataGrid(props: MetadataGridProps) {
         const showLocal = showLocalCurrency() && localFormat !== null;
         list.push({
           label: "Box Office",
-          value: showLocal ? localFormat! : boxOfficeUSD,
+          value: showLocal ? localFormat! : boxOfficeUSD
         });
       }
     }
@@ -266,14 +272,17 @@ export default function MetadataGrid(props: MetadataGridProps) {
 
     // Language
     if (d?.spoken_languages && d.spoken_languages.length > 0) {
-      const langs = d.spoken_languages.map((l) => l.english_name).filter(Boolean);
+      const langs = d.spoken_languages
+        .map((l) => l.english_name)
+        .filter(Boolean);
       if (langs.length > 0) {
         list.push({ label: "Language", value: langs.slice(0, 2).join(", ") });
       }
     }
 
     // Country
-    const countries = d?.origin_country || d?.production_countries?.map((c) => c.iso_3166_1);
+    const countries =
+      d?.origin_country || d?.production_countries?.map((c) => c.iso_3166_1);
     if (countries && countries.length > 0) {
       list.push({ label: "Country", value: countries.slice(0, 2).join(", ") });
     }

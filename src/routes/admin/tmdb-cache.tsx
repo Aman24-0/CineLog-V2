@@ -6,7 +6,9 @@ import { Title } from "@solidjs/meta";
 import { lazy } from "solid-js";
 import AdminShell from "~/features/admin/AdminShell";
 
-const AdminTmdbCachePage = lazy(() => import("~/features/admin/AdminTmdbCachePage"));
+const AdminTmdbCachePage = lazy(
+  () => import("~/features/admin/AdminTmdbCachePage")
+);
 
 export default function AdminTmdbCacheRoute() {
   return (

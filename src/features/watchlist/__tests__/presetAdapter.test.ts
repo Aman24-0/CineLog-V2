@@ -3,7 +3,7 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 
 // Mock the PresetRepository singleton BEFORE importing the adapter.
 vi.mock("~/lib/supabase/repositories", () => ({
-  getPresetRepository: vi.fn(),
+  getPresetRepository: vi.fn()
 }));
 
 import {
@@ -11,18 +11,20 @@ import {
   fetchPresetsFromSupabase,
   createPresetInSupabase,
   renamePresetInSupabase,
-  deletePresetFromSupabase,
+  deletePresetFromSupabase
 } from "../presetAdapter";
 import { getPresetRepository } from "~/lib/supabase/repositories";
-import {makeVaultFilters} from "~/__test-fixtures__/factories";
+import { makeVaultFilters } from "~/__test-fixtures__/factories";
 import type { PresetRow } from "~/lib/supabase/repositories";
 
 const mockPresetRow: PresetRow = {
   id: "preset-1",
   user_id: "user-1",
   name: "My Preset",
-  filters: makeVaultFilters({ type: "movie" }) as unknown as PresetRow["filters"],
-  created_at: "2024-01-01T00:00:00Z",
+  filters: makeVaultFilters({
+    type: "movie"
+  }) as unknown as PresetRow["filters"],
+  created_at: "2024-01-01T00:00:00Z"
 } as unknown as PresetRow;
 
 describe("presetAdapter", () => {
@@ -43,7 +45,9 @@ describe("presetAdapter", () => {
   describe("fetchPresetsFromSupabase", () => {
     it("returns mapped presets on success", async () => {
       const mockRepo = {
-        listPresets: vi.fn().mockResolvedValue({ data: [mockPresetRow], error: null }),
+        listPresets: vi
+          .fn()
+          .mockResolvedValue({ data: [mockPresetRow], error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -55,7 +59,9 @@ describe("presetAdapter", () => {
 
     it("returns empty array on error", async () => {
       const mockRepo = {
-        listPresets: vi.fn().mockResolvedValue({ data: [], error: new Error("Fail") }),
+        listPresets: vi
+          .fn()
+          .mockResolvedValue({ data: [], error: new Error("Fail") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -65,7 +71,7 @@ describe("presetAdapter", () => {
 
     it("returns empty array when no presets", async () => {
       const mockRepo = {
-        listPresets: vi.fn().mockResolvedValue({ data: [], error: null }),
+        listPresets: vi.fn().mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -77,36 +83,57 @@ describe("presetAdapter", () => {
   describe("createPresetInSupabase", () => {
     it("returns true on success", async () => {
       const mockRepo = {
-        createPreset: vi.fn().mockResolvedValue({ data: mockPresetRow, error: null }),
+        createPreset: vi
+          .fn()
+          .mockResolvedValue({ data: mockPresetRow, error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createPresetInSupabase("user-1", "New Preset", makeVaultFilters());
+      const result = await createPresetInSupabase(
+        "user-1",
+        "New Preset",
+        makeVaultFilters()
+      );
       expect(result).toBe(true);
       expect(mockRepo.createPreset).toHaveBeenCalledWith({
         userId: "user-1",
         name: "New Preset",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       });
     });
 
     it("returns false on error", async () => {
       const mockRepo = {
-        createPreset: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        createPreset: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createPresetInSupabase("user-1", "New", makeVaultFilters());
+      const result = await createPresetInSupabase(
+        "user-1",
+        "New",
+        makeVaultFilters()
+      );
       expect(result).toBe(false);
     });
 
     it("returns false when validation fails (empty name)", async () => {
       const mockRepo = {
-        createPreset: vi.fn().mockResolvedValue({ data: null, error: new Error("name must be non-empty") }),
+        createPreset: vi
+          .fn()
+          .mockResolvedValue({
+            data: null,
+            error: new Error("name must be non-empty")
+          })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createPresetInSupabase("user-1", "", makeVaultFilters());
+      const result = await createPresetInSupabase(
+        "user-1",
+        "",
+        makeVaultFilters()
+      );
       expect(result).toBe(false);
     });
   });
@@ -114,18 +141,25 @@ describe("presetAdapter", () => {
   describe("renamePresetInSupabase", () => {
     it("returns true on success", async () => {
       const mockRepo = {
-        renamePreset: vi.fn().mockResolvedValue({ data: mockPresetRow, error: null }),
+        renamePreset: vi
+          .fn()
+          .mockResolvedValue({ data: mockPresetRow, error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
       const result = await renamePresetInSupabase("preset-1", "New Name");
       expect(result).toBe(true);
-      expect(mockRepo.renamePreset).toHaveBeenCalledWith("preset-1", "New Name");
+      expect(mockRepo.renamePreset).toHaveBeenCalledWith(
+        "preset-1",
+        "New Name"
+      );
     });
 
     it("returns false on error", async () => {
       const mockRepo = {
-        renamePreset: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        renamePreset: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -137,7 +171,7 @@ describe("presetAdapter", () => {
   describe("deletePresetFromSupabase", () => {
     it("returns true on success", async () => {
       const mockRepo = {
-        deletePreset: vi.fn().mockResolvedValue({ error: null }),
+        deletePreset: vi.fn().mockResolvedValue({ error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -148,7 +182,7 @@ describe("presetAdapter", () => {
 
     it("returns false on error", async () => {
       const mockRepo = {
-        deletePreset: vi.fn().mockResolvedValue({ error: new Error("Fail") }),
+        deletePreset: vi.fn().mockResolvedValue({ error: new Error("Fail") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 

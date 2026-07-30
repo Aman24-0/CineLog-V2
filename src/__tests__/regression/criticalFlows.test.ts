@@ -27,11 +27,11 @@ vi.mock("~/lib/supabase/repositories", () => ({
   getCollectionRepository: vi.fn(),
   getPresetRepository: vi.fn(),
   getDashboardRepository: vi.fn(),
-  getEpisodeProgressRepository: vi.fn(),
+  getEpisodeProgressRepository: vi.fn()
 }));
 
 vi.mock("~/shared/hooks/useAuth", () => ({
-  getCurrentUid: vi.fn().mockReturnValue("user-1"),
+  getCurrentUid: vi.fn().mockReturnValue("user-1")
 }));
 
 // Mock the collection entry adapter so fetchCollectionsFromSupabase
@@ -40,20 +40,40 @@ vi.mock("~/features/collections/collectionEntryAdapter", () => ({
   fetchEntriesForCollection: vi.fn().mockResolvedValue([]),
   addEntryToCollection: vi.fn(),
   removeEntryFromCollection: vi.fn(),
-  reorderEntriesInCollection: vi.fn(),
+  reorderEntriesInCollection: vi.fn()
 }));
 
-import { getVaultRepository, getCollectionRepository, getPresetRepository } from "~/lib/supabase/repositories";
+import {
+  getVaultRepository,
+  getCollectionRepository,
+  getPresetRepository
+} from "~/lib/supabase/repositories";
 import { getCurrentUid } from "~/shared/hooks/useAuth";
 
 // Adapters
-import { createVaultItemInSupabase, deleteVaultItemInSupabase, fetchVaultFromSupabase } from "~/features/watchlist/vaultAdapter";
-import { createCollectionInSupabase, deleteCollectionInSupabase, fetchCollectionsFromSupabase } from "~/features/collections/collectionAdapter";
-import { createPresetInSupabase, deletePresetFromSupabase, fetchPresetsFromSupabase } from "~/features/watchlist/presetAdapter";
+import {
+  createVaultItemInSupabase,
+  deleteVaultItemInSupabase,
+  fetchVaultFromSupabase
+} from "~/features/watchlist/vaultAdapter";
+import {
+  createCollectionInSupabase,
+  deleteCollectionInSupabase,
+  fetchCollectionsFromSupabase
+} from "~/features/collections/collectionAdapter";
+import {
+  createPresetInSupabase,
+  deletePresetFromSupabase,
+  fetchPresetsFromSupabase
+} from "~/features/watchlist/presetAdapter";
 
 // Fixtures
 import { makeMovie, makeVaultFilters } from "~/__test-fixtures__/factories";
-import type { VaultRow, CollectionRow, PresetRow } from "~/lib/supabase/repositories";
+import type {
+  VaultRow,
+  CollectionRow,
+  PresetRow
+} from "~/lib/supabase/repositories";
 
 const mockVaultRow: VaultRow = {
   id: "vault-1",
@@ -73,7 +93,7 @@ const mockVaultRow: VaultRow = {
   last_activity_at: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as VaultRow;
 
 const mockCollectionRow: CollectionRow = {
@@ -87,7 +107,7 @@ const mockCollectionRow: CollectionRow = {
   view_mode: "grid",
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 } as unknown as CollectionRow;
 
 const mockPresetRow: PresetRow = {
@@ -95,7 +115,7 @@ const mockPresetRow: PresetRow = {
   user_id: "user-1",
   name: "My Preset",
   filters: makeVaultFilters() as unknown as PresetRow["filters"],
-  created_at: "2024-01-01T00:00:00Z",
+  created_at: "2024-01-01T00:00:00Z"
 } as unknown as PresetRow;
 
 describe("Critical Flow Regression Tests", () => {
@@ -110,7 +130,9 @@ describe("Critical Flow Regression Tests", () => {
   describe("Add to Watchlist flow", () => {
     it("creates a vault item via createVaultItemInSupabase", async () => {
       const mockRepo = {
-        createVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        createVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -124,19 +146,21 @@ describe("Critical Flow Regression Tests", () => {
           userId: "user-1",
           tmdbId: 123,
           mediaType: "movie",
-          status: "planned",
-        }),
+          status: "planned"
+        })
       );
     });
 
     it("propagates errors when creation fails", async () => {
       const mockRepo = {
-        createVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Duplicate") }),
+        createVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Duplicate") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        createVaultItemInSupabase("user-1", makeMovie({ id: "123" })),
+        createVaultItemInSupabase("user-1", makeMovie({ id: "123" }))
       ).rejects.toThrow("Duplicate");
     });
   });
@@ -147,8 +171,12 @@ describe("Critical Flow Regression Tests", () => {
   describe("Remove from Watchlist flow", () => {
     it("soft-deletes a vault item via deleteVaultItemInSupabase", async () => {
       const mockRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
-        deleteVaultItem: vi.fn().mockResolvedValue({ data: mockVaultRow, error: null }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
+        deleteVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -157,19 +185,23 @@ describe("Critical Flow Regression Tests", () => {
       expect(mockRepo.deleteVaultItem).toHaveBeenCalledWith({
         userId: "user-1",
         tmdbId: 123,
-        mediaType: "movie",
+        mediaType: "movie"
       });
     });
 
     it("throws on delete failure", async () => {
       const mockRepo = {
-        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
-        deleteVaultItem: vi.fn().mockResolvedValue({ data: null, error: new Error("Not found") }),
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: { id: "vault-uuid-1" }, error: null }),
+        deleteVaultItem: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Not found") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await expect(
-        deleteVaultItemInSupabase("user-1", "123", "movie"),
+        deleteVaultItemInSupabase("user-1", "123", "movie")
       ).rejects.toThrow("Not found");
     });
   });
@@ -180,27 +212,37 @@ describe("Critical Flow Regression Tests", () => {
   describe("Create Collection flow", () => {
     it("creates a collection and returns its id", async () => {
       const mockRepo = {
-        createCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createCollectionInSupabase("user-1", "My Collection");
+      const result = await createCollectionInSupabase(
+        "user-1",
+        "My Collection"
+      );
       expect(result).toBe("col-1");
       expect(mockRepo.createCollection).toHaveBeenCalledWith(
         expect.objectContaining({
           userId: "user-1",
-          name: "My Collection",
-        }),
+          name: "My Collection"
+        })
       );
     });
 
     it("returns null on failure", async () => {
       const mockRepo = {
-        createCollection: vi.fn().mockResolvedValue({ data: null, error: new Error("Fail") }),
+        createCollection: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createCollectionInSupabase("user-1", "My Collection");
+      const result = await createCollectionInSupabase(
+        "user-1",
+        "My Collection"
+      );
       expect(result).toBeNull();
     });
   });
@@ -211,7 +253,9 @@ describe("Critical Flow Regression Tests", () => {
   describe("Delete Collection flow", () => {
     it("soft-deletes a collection", async () => {
       const mockRepo = {
-        deleteCollection: vi.fn().mockResolvedValue({ data: mockCollectionRow, error: null }),
+        deleteCollection: vi
+          .fn()
+          .mockResolvedValue({ data: mockCollectionRow, error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -221,11 +265,15 @@ describe("Critical Flow Regression Tests", () => {
 
     it("throws on failure", async () => {
       const mockRepo = {
-        deleteCollection: vi.fn().mockResolvedValue({ data: null, error: new Error("Not found") }),
+        deleteCollection: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("Not found") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
-      await expect(deleteCollectionInSupabase("col-1")).rejects.toThrow("Not found");
+      await expect(deleteCollectionInSupabase("col-1")).rejects.toThrow(
+        "Not found"
+      );
     });
   });
 
@@ -235,26 +283,38 @@ describe("Critical Flow Regression Tests", () => {
   describe("Create Preset flow", () => {
     it("creates a preset and returns true", async () => {
       const mockRepo = {
-        createPreset: vi.fn().mockResolvedValue({ data: mockPresetRow, error: null }),
+        createPreset: vi
+          .fn()
+          .mockResolvedValue({ data: mockPresetRow, error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createPresetInSupabase("user-1", "My Preset", makeVaultFilters());
+      const result = await createPresetInSupabase(
+        "user-1",
+        "My Preset",
+        makeVaultFilters()
+      );
       expect(result).toBe(true);
       expect(mockRepo.createPreset).toHaveBeenCalledWith({
         userId: "user-1",
         name: "My Preset",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       });
     });
 
     it("returns false on validation error (empty name)", async () => {
       const mockRepo = {
-        createPreset: vi.fn().mockResolvedValue({ data: null, error: new Error("non-empty") }),
+        createPreset: vi
+          .fn()
+          .mockResolvedValue({ data: null, error: new Error("non-empty") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
-      const result = await createPresetInSupabase("user-1", "", makeVaultFilters());
+      const result = await createPresetInSupabase(
+        "user-1",
+        "",
+        makeVaultFilters()
+      );
       expect(result).toBe(false);
     });
   });
@@ -265,7 +325,7 @@ describe("Critical Flow Regression Tests", () => {
   describe("Delete Preset flow", () => {
     it("deletes a preset and returns true", async () => {
       const mockRepo = {
-        deletePreset: vi.fn().mockResolvedValue({ error: null }),
+        deletePreset: vi.fn().mockResolvedValue({ error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -276,7 +336,9 @@ describe("Critical Flow Regression Tests", () => {
 
     it("returns false on failure", async () => {
       const mockRepo = {
-        deletePreset: vi.fn().mockResolvedValue({ error: new Error("Not found") }),
+        deletePreset: vi
+          .fn()
+          .mockResolvedValue({ error: new Error("Not found") })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 
@@ -291,7 +353,7 @@ describe("Critical Flow Regression Tests", () => {
   describe("Watchlist fetch flow", () => {
     it("fetches vault items across all 5 statuses", async () => {
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null }),
+        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
@@ -313,7 +375,9 @@ describe("Critical Flow Regression Tests", () => {
   describe("Fetch collections flow", () => {
     it("fetches user collections with entries", async () => {
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [mockCollectionRow], error: null }),
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [mockCollectionRow], error: null })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -324,7 +388,9 @@ describe("Critical Flow Regression Tests", () => {
 
     it("returns empty array on error", async () => {
       const mockRepo = {
-        getCollections: vi.fn().mockResolvedValue({ data: [], error: new Error("Fail") }),
+        getCollections: vi
+          .fn()
+          .mockResolvedValue({ data: [], error: new Error("Fail") })
       };
       vi.mocked(getCollectionRepository).mockReturnValue(mockRepo as never);
 
@@ -339,7 +405,9 @@ describe("Critical Flow Regression Tests", () => {
   describe("Preset fetch flow", () => {
     it("fetches presets and maps them to FilterPreset", async () => {
       const mockRepo = {
-        listPresets: vi.fn().mockResolvedValue({ data: [mockPresetRow], error: null }),
+        listPresets: vi
+          .fn()
+          .mockResolvedValue({ data: [mockPresetRow], error: null })
       };
       vi.mocked(getPresetRepository).mockReturnValue(mockRepo as never);
 

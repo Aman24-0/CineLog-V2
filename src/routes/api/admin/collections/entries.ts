@@ -26,7 +26,10 @@
 // AUTH: requireAdmin() — admin cookie + DB lookup on every request.
 // AUDIT: every mutation is written to admin_actions.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -49,7 +52,7 @@ interface EntryInput {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -90,8 +93,11 @@ export async function POST(event: APIEvent) {
       .maybeSingle();
     if (existing) {
       return jsonResponse(
-        { error: "This title is already in the universe.", existing_id: existing.id },
-        409,
+        {
+          error: "This title is already in the universe.",
+          existing_id: existing.id
+        },
+        409
       );
     }
 
@@ -128,8 +134,11 @@ export async function POST(event: APIEvent) {
       release_position: toInt(body.release_position) ?? position,
       story_position: toInt(body.story_position) ?? position,
       timeline_position: toInt(body.timeline_position) ?? position,
-      incident_year: body.incident_year === undefined ? null : toInt(body.incident_year) ?? null,
-      note: body.note ?? null,
+      incident_year:
+        body.incident_year === undefined
+          ? null
+          : (toInt(body.incident_year) ?? null),
+      note: body.note ?? null
     };
 
     const { data, error } = await supabase
@@ -151,15 +160,18 @@ export async function POST(event: APIEvent) {
         universe_id: body.universe_id,
         tmdb_id: tmdbId,
         media_type: body.media_type,
-        position,
-      },
+        position
+      }
     });
 
     return jsonResponse({ entry: data }, 201);
   } catch (err) {
     console.error("[admin/collections/entries] POST error:", err);
     const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: "Server error", detail: detail.slice(0, 200) }, 500);
+    return jsonResponse(
+      { error: "Server error", detail: detail.slice(0, 200) },
+      500
+    );
   }
 }
 
@@ -228,14 +240,17 @@ export async function PATCH(event: APIEvent) {
       action: "curated_universe_entry.update",
       entity_type: "curated_universe_entry",
       entity_id: data.id,
-      payload: { changes: Object.keys(update) },
+      payload: { changes: Object.keys(update) }
     });
 
     return jsonResponse({ entry: data });
   } catch (err) {
     console.error("[admin/collections/entries] PATCH error:", err);
     const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: "Server error", detail: detail.slice(0, 200) }, 500);
+    return jsonResponse(
+      { error: "Server error", detail: detail.slice(0, 200) },
+      500
+    );
   }
 }
 
@@ -277,16 +292,19 @@ export async function DELETE(event: APIEvent) {
             universe_id: existing.universe_id,
             tmdb_id: existing.tmdb_id,
             media_type: existing.media_type,
-            position: existing.position,
+            position: existing.position
           }
-        : {},
+        : {}
     });
 
     return jsonResponse({ ok: true });
   } catch (err) {
     console.error("[admin/collections/entries] DELETE error:", err);
     const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: "Server error", detail: detail.slice(0, 200) }, 500);
+    return jsonResponse(
+      { error: "Server error", detail: detail.slice(0, 200) },
+      500
+    );
   }
 }
 
@@ -324,22 +342,29 @@ export async function GET(event: APIEvent) {
     const { fetchTmdbMetadataBatch } = await import("~/core/tmdb/tmdb");
     const items = (entries ?? []).map((e) => ({
       mediaType: e.media_type as "movie" | "tv",
-      tmdbId: e.tmdb_id,
+      tmdbId: e.tmdb_id
     }));
-    const tmdbMap = items.length > 0
-      ? await fetchTmdbMetadataBatch(items)
-      : new Map<string, unknown>();
+    const tmdbMap =
+      items.length > 0
+        ? await fetchTmdbMetadataBatch(items)
+        : new Map<string, unknown>();
 
     const enriched = (entries ?? []).map((e) => {
       const key = `${e.media_type}/${e.tmdb_id}`;
       const tmdb = tmdbMap.get(key) as
-        | { title?: string; name?: string; poster_path?: string; release_date?: string; first_air_date?: string }
+        | {
+            title?: string;
+            name?: string;
+            poster_path?: string;
+            release_date?: string;
+            first_air_date?: string;
+          }
         | undefined;
       return {
         ...e,
         title: tmdb?.title ?? tmdb?.name ?? null,
         poster_path: tmdb?.poster_path ?? null,
-        release_date: tmdb?.release_date ?? tmdb?.first_air_date ?? null,
+        release_date: tmdb?.release_date ?? tmdb?.first_air_date ?? null
       };
     });
 
@@ -347,6 +372,9 @@ export async function GET(event: APIEvent) {
   } catch (err) {
     console.error("[admin/collections/entries] GET error:", err);
     const detail = err instanceof Error ? err.message : String(err);
-    return jsonResponse({ error: "Server error", detail: detail.slice(0, 200) }, 500);
+    return jsonResponse(
+      { error: "Server error", detail: detail.slice(0, 200) },
+      500
+    );
   }
 }

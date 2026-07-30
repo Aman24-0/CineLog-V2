@@ -1,7 +1,12 @@
 // src/features/watchlist/components/VaultFiltersContent.tsx
 import { For, Show, createSignal, batch, type Accessor } from "solid-js";
 import Icon from "~/shared/ui/Icon";
-import { RangeFilter, FilterChips, SortControl, GlassSelect } from "./FilterControls";
+import {
+  RangeFilter,
+  FilterChips,
+  SortControl,
+  GlassSelect
+} from "./FilterControls";
 import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
 
@@ -54,8 +59,10 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
 
   return (
     <div
-      class="flex-1 overflow-y-auto hide-scrollbar px-6 py-4 space-y-4"
-      style={{ "overscroll-behavior": "contain", "-webkit-overscroll-behavior": "contain" }}
+      class="hide-scrollbar flex-1 space-y-4 overflow-y-auto px-6 py-4"
+      style={{
+        "overscroll-behavior": "contain"
+      }}
     >
       {/* CONTENT section — Status + Tags REMOVED. Type/Region are now chips. */}
       <div>
@@ -69,7 +76,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             opts={[
               { l: "All", v: "all" },
               { l: "Movies", v: "movie" },
-              { l: "Series", v: "tv" },
+              { l: "Series", v: "tv" }
             ]}
           />
           {/* Region — chip selector (was a dropdown) */}
@@ -80,7 +87,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             opts={[
               { l: "All", v: "all" },
               { l: "Indian", v: "Indian" },
-              { l: "International", v: "International" },
+              { l: "International", v: "International" }
             ]}
           />
           {/* Genre — custom dark-glass dropdown (was native <select>, which
@@ -92,7 +99,10 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="Genre"
             val={props.filters.genre}
             set={(v) => batchedSet({ genre: v })}
-            opts={[{ l: "All Genres", v: "all" }, ...props.uniqueGenres.map((g) => ({ l: g, v: g }))]}
+            opts={[
+              { l: "All Genres", v: "all" },
+              ...props.uniqueGenres.map((g) => ({ l: g, v: g }))
+            ]}
           />
           {/* Platform — custom dark-glass dropdown populated from the user's
               vault platformsList data (uniquePlatforms from useVaultFiltering).
@@ -101,7 +111,10 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
             label="Platform"
             val={props.filters.platform}
             set={(v) => batchedSet({ platform: v })}
-            opts={[{ l: "All Platforms", v: "all" }, ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))]}
+            opts={[
+              { l: "All Platforms", v: "all" },
+              ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))
+            ]}
           />
           {/* Status + Tag filters REMOVED — Status is handled by the
               header status chips; Tags feature is not currently supported. */}
@@ -169,7 +182,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
       {/* PRESETS section */}
       <div>
         <p class="filter-section-title">Presets</p>
-        <div class="flex gap-2 mb-3">
+        <div class="mb-3 flex gap-2">
           <input
             value={presetName()}
             onInput={(e) => setPresetName(e.currentTarget.value)}
@@ -183,19 +196,19 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
           <button
             onClick={handleSavePreset}
             disabled={!presetName().trim()}
-            class="px-3 py-2 rounded-xl type-meta active:scale-95 transition-all disabled:opacity-40 disabled:cursor-not-allowed"
+            class="type-meta rounded-xl px-3 py-2 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             style={{
               background: "var(--p)",
               color: "var(--active-text)",
               "font-size": "0.5625rem",
-              "font-weight": 800,
+              "font-weight": 800
             }}
           >
             Save
           </button>
         </div>
         <div
-          class="space-y-2 max-h-40 overflow-y-auto hide-scrollbar"
+          class="hide-scrollbar max-h-40 space-y-2 overflow-y-auto"
           style={{ "overscroll-behavior": "contain" }}
         >
           <Show
@@ -206,7 +219,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 style={{
                   "font-size": "0.75rem",
                   "text-align": "center",
-                  padding: "var(--sp-3)",
+                  padding: "var(--sp-3)"
                 }}
               >
                 No presets saved yet
@@ -217,21 +230,34 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               {(preset) => (
                 <div
                   class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
-                  style={{ background: "var(--tier-1)", border: "1px solid var(--hairline)" }}
+                  style={{
+                    background: "var(--tier-1)",
+                    border: "1px solid var(--hairline)"
+                  }}
                 >
                   <button
-                    class="flex-1 text-left text-sm text-white px-1 truncate hover:text-[var(--p)] transition-colors flex items-center gap-2"
-                    onClick={() => batch(() => props.setFilters(preset.filters))}
+                    class="flex flex-1 items-center gap-2 truncate px-1 text-left text-sm text-white transition-colors hover:text-[var(--p)]"
+                    onClick={() =>
+                      batch(() => props.setFilters(preset.filters))
+                    }
                   >
-                    <Icon name="bookmark" style={{"font-size":"14px","color":"var(--p)"}} aria-hidden="true" />
+                    <Icon
+                      name="bookmark"
+                      style={{ "font-size": "14px", color: "var(--p)" }}
+                      aria-hidden="true"
+                    />
                     <span class="truncate">{preset.name}</span>
                   </button>
                   <button
                     onClick={() => props.onDeletePreset(preset.id)}
-                    class="w-8 h-8 flex items-center justify-center text-red-400 hover:bg-red-500/10 rounded-lg transition-colors shrink-0"
+                    class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-red-400 transition-colors hover:bg-red-500/10"
                     aria-label={`Delete ${preset.name}`}
                   >
-                    <Icon name="delete" style={{"font-size":"14px"}} aria-hidden="true" />
+                    <Icon
+                      name="delete"
+                      style={{ "font-size": "14px" }}
+                      aria-hidden="true"
+                    />
                   </button>
                 </div>
               )}

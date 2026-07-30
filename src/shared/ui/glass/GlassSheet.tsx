@@ -1,5 +1,13 @@
 // src/shared/ui/glass/GlassSheet.tsx
-import { ParentComponent, JSX, Show, onCleanup, onMount, splitProps, mergeProps, createEffect } from "solid-js";
+import {
+  ParentComponent,
+  JSX,
+  Show,
+  onCleanup,
+  onMount,
+  mergeProps,
+  createEffect
+} from "solid-js";
 import { Portal } from "solid-js/web";
 
 // ─── Variant Types ─────────────────────────────────────────────
@@ -14,15 +22,27 @@ type SheetSnap = "compact" | "default" | "tall" | "full";
 
 const strengthBg: Record<SheetStrength, string> = {
   default: "bg-glass backdrop-blur-2xl",
-  strong: "bg-glass-strong backdrop-blur-3xl",
+  strong: "bg-glass-strong backdrop-blur-3xl"
 };
 
 const snapHeight: Record<SheetSnap, string> = {
   compact: "max-h-[40vh]",
   default: "max-h-[70vh]",
   tall: "max-h-[88vh]",
-  full: "h-[95vh]",
+  full: "h-[95vh]"
 };
+
+// ─── Focus trap helpers ────────────────────────────────────────
+
+/**
+ * Selector for focusable elements inside the sheet. Used by the focus
+ * trap to enumerate Tab targets in DOM order. Mirrors the standard
+ * WAI-ARIA focusable selector (button / link / input / select /
+ * textarea / [tabindex] >= 0), with `:not([disabled])` so disabled
+ * controls are skipped.
+ */
+const FOCUSABLE_SELECTOR =
+  'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
 // ─── Props ─────────────────────────────────────────────────────
 
@@ -56,13 +76,16 @@ export interface GlassSheetProps {
 // ─── Defaults ──────────────────────────────────────────────────
 
 const defaultProps: Required<
-  Pick<GlassSheetProps, "strength" | "snap" | "showHandle" | "disableBackdropClose" | "zIndexBase">
+  Pick<
+    GlassSheetProps,
+    "strength" | "snap" | "showHandle" | "disableBackdropClose" | "zIndexBase"
+  >
 > = {
   strength: "strong",
   snap: "default",
   showHandle: true,
   disableBackdropClose: false,
-  zIndexBase: 999990,
+  zIndexBase: 999990
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -84,37 +107,104 @@ const defaultProps: Required<
  *  - Backdrop tap closes (unless disableBackdropClose)
  *  - Focus moves into the sheet when it opens (auto-focuses
  *    the first focusable element, typically the close button)
+ *  - Tab key is TRAPPED so keyboard focus cycles within the sheet
+ *    while it's open — focus never escapes to the page behind.
+ *  - When the sheet closes, focus is restored to the element that
+ *    was focused just before the sheet opened (typically the trigger).
  */
 const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
 
-  // Focus management: auto-focus the first focusable element
-  // inside the sheet when it opens.
+  // Focus management:
+  //   - `sheetSurfaceRef` — the inner surface div, used to query
+  //     focusable elements for auto-focus + Tab trap.
+  //   - `previouslyFocused` — the element that had focus before the
+  //     sheet opened. Restored on close so keyboard users don't lose
+  //     their place on the page.
   let sheetSurfaceRef: HTMLDivElement | undefined;
+  let previouslyFocused: HTMLElement | null = null;
+  // `prevOpen` tracks the previous `props.open` value so the
+  // createEffect below can detect open/close transitions and run
+  // its save/restore logic only on edges (not every render).
+  let prevOpen = false;
 
-  // ESC key handler
+  // ESC key + Tab trap handler.
+  //
+  // ESC: closes the sheet (unless disableBackdropClose).
+  // Tab: traps focus inside the sheet surface. When the user Tabs
+  //   past the last focusable element, focus wraps to the first.
+  //   Shift+Tab on the first wraps to the last. This implements the
+  //   WAI-ARIA focus-trap pattern for modal dialogs and prevents
+  //   keyboard users from accidentally interacting with the page
+  //   behind the sheet.
   onMount(() => {
     if (typeof window === "undefined") return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && props.open) {
+      if (!props.open) return;
+      if (e.key === "Escape") {
         if (!props.disableBackdropClose) props.onClose();
+        return;
+      }
+      if (e.key === "Tab" && sheetSurfaceRef) {
+        const focusables = Array.from(
+          sheetSurfaceRef.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTOR)
+        ).filter(
+          (el) => el.offsetParent !== null || el === document.activeElement
+        );
+        if (focusables.length === 0) return;
+        const first = focusables[0];
+        const last = focusables[focusables.length - 1];
+        const active = document.activeElement as HTMLElement | null;
+        if (e.shiftKey) {
+          if (active === first || !sheetSurfaceRef.contains(active)) {
+            e.preventDefault();
+            last.focus();
+          }
+        } else {
+          if (active === last || !sheetSurfaceRef.contains(active)) {
+            e.preventDefault();
+            first.focus();
+          }
+        }
       }
     };
     window.addEventListener("keydown", onKey);
     onCleanup(() => window.removeEventListener("keydown", onKey));
   });
 
-  // Auto-focus first focusable element when sheet opens
+  // Auto-focus first focusable element when sheet opens + restore
+  // focus to the trigger when it closes.
   createEffect(() => {
-    if (props.open && sheetSurfaceRef) {
-      requestAnimationFrame(() => {
-        if (!sheetSurfaceRef) return;
-        const focusable = sheetSurfaceRef.querySelector<HTMLElement>(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])'
-        );
-        if (focusable) focusable.focus();
-      });
+    const isOpen = props.open;
+    if (isOpen && !prevOpen) {
+      // Opening — save previously focused element (the trigger).
+      if (typeof document !== "undefined") {
+        previouslyFocused =
+          (document.activeElement as HTMLElement | null) ?? null;
+      }
+      if (sheetSurfaceRef) {
+        requestAnimationFrame(() => {
+          if (!sheetSurfaceRef) return;
+          const focusable =
+            sheetSurfaceRef.querySelector<HTMLElement>(FOCUSABLE_SELECTOR);
+          if (focusable) focusable.focus();
+        });
+      }
+    } else if (!isOpen && prevOpen) {
+      // Closing — restore focus to the trigger.
+      if (previouslyFocused) {
+        const toFocus = previouslyFocused;
+        previouslyFocused = null;
+        requestAnimationFrame(() => {
+          try {
+            toFocus?.focus();
+          } catch {
+            // Element may have been unmounted — ignore.
+          }
+        });
+      }
     }
+    prevOpen = isOpen;
   });
 
   return (
@@ -122,12 +212,12 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
       <Portal>
         {/* Backdrop */}
         <div
-          class="fixed inset-0 z-[999990] animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[999990]"
           style={{
             "z-index": props.zIndexBase,
             background: "rgba(0,0,0,0.55)",
             "backdrop-filter": "blur(14px) saturate(120%)",
-            "-webkit-backdrop-filter": "blur(14px) saturate(120%)",
+            "-webkit-backdrop-filter": "blur(14px) saturate(120%)"
           }}
           onClick={() => {
             if (!props.disableBackdropClose) props.onClose();
@@ -143,8 +233,8 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
           style={{
             "z-index": props.zIndexBase + 1,
             ...({
-              "--sheet-snap": snapHeight[props.snap],
-            } as JSX.CSSProperties),
+              "--sheet-snap": snapHeight[props.snap]
+            } as JSX.CSSProperties)
           }}
         >
           <div
@@ -176,7 +266,9 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
                   </Show>
                 </div>
                 <Show when={props.headerRight}>
-                  <div class="sheet-glass-header-right">{props.headerRight}</div>
+                  <div class="sheet-glass-header-right">
+                    {props.headerRight}
+                  </div>
                 </Show>
               </div>
             </Show>

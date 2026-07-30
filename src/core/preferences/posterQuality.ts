@@ -35,7 +35,7 @@ type PosterTier = (typeof POSTER_TIERS)[number];
 const DOWNGRADE: Record<Exclude<PosterQuality, "auto">, number> = {
   high: 0,
   medium: 1,
-  low: 2,
+  low: 2
 };
 
 function effectivePosterQuality(): Exclude<PosterQuality, "auto"> {
@@ -43,7 +43,9 @@ function effectivePosterQuality(): Exclude<PosterQuality, "auto"> {
   if (q !== "auto") return q;
   // Auto: sniff connection
   if (isServer) return "medium";
-  const nav = navigator as Navigator & { connection?: { effectiveType?: string } };
+  const nav = navigator as Navigator & {
+    connection?: { effectiveType?: string };
+  };
   const et = nav.connection?.effectiveType;
   if (!et) return "high"; // desktop / unknown → high
   if (et === "slow-2g" || et === "2g") return "low";
@@ -56,7 +58,8 @@ function effectivePosterQuality(): Exclude<PosterQuality, "auto"> {
  * Called by tmdbImage() so every call site benefits without code changes.
  */
 export function applyPosterQuality(
-  size: "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original"
+  size:
+    "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original"
 ): "w92" | "w154" | "w185" | "w342" | "w500" | "w780" | "w1280" | "original" {
   // Never modify backdrops/large images ("w1280", "original") — those are
   // typically hero images where downgrading visibly hurts UX.

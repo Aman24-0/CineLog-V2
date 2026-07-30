@@ -6,9 +6,7 @@ export const formatRuntime = (
   const h = Math.floor(mins / 60);
   const m = mins % 60;
 
-  return h > 0
-    ? `${h}h${m > 0 ? ` ${m}m` : ""}`
-    : `${m}m`;
+  return h > 0 ? `${h}h${m > 0 ? ` ${m}m` : ""}` : `${m}m`;
 };
 
 /**
@@ -32,7 +30,7 @@ export const formatRuntime = (
  * @example formatVoteCount(1500000)  → "1.5M"
  */
 export function formatVoteCount(
-  votes: number | string | null | undefined,
+  votes: number | string | null | undefined
 ): string {
   if (votes == null) return "0";
   // MDBList sometimes returns vote counts as strings ("11500") — coerce.
@@ -76,7 +74,7 @@ export function formatVoteCount(
  * don't crash on bad data — matches the prior `try/catch` behavior).
  */
 export function formatDateShort(
-  input: string | number | Date | null | undefined,
+  input: string | number | Date | null | undefined
 ): string | null {
   if (input == null || input === "") return null;
   let d: Date;
@@ -91,7 +89,7 @@ export function formatDateShort(
   return d.toLocaleDateString("en-US", {
     month: "short",
     day: "numeric",
-    year: "numeric",
+    year: "numeric"
   });
 }
 
@@ -115,7 +113,7 @@ export function formatDateShort(
  * @example formatDateLong("not-a-date")            → "not-a-date"
  */
 export function formatDateLong(
-  input: string | number | Date | null | undefined,
+  input: string | number | Date | null | undefined
 ): string | null {
   if (input == null || input === "") return null;
   let d: Date;
@@ -130,6 +128,6 @@ export function formatDateLong(
   return d.toLocaleDateString("en-US", {
     month: "long",
     day: "numeric",
-    year: "numeric",
+    year: "numeric"
   });
 }

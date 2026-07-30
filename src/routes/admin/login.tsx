@@ -33,7 +33,13 @@
 //   • The page is server-rendered with no admin state (SSR-safe)
 
 import { Title } from "@solidjs/meta";
-import { createSignal, Show, onMount, createResource, type Component } from "solid-js";
+import {
+  createSignal,
+  Show,
+  onMount,
+  createResource,
+  type Component
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { useAdminAuth } from "~/features/admin/hooks/useAdminAuth";
 import { getClient } from "~/lib/supabase/client";
@@ -71,7 +77,7 @@ async function signInWithGoogle(redirectTo: string): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase.auth.signInWithOAuth({
     provider: "google",
-    options: { redirectTo },
+    options: { redirectTo }
   });
   if (error) throw error;
   // Browser will redirect — no further code runs
@@ -128,7 +134,11 @@ const AdminLoginPage: Component = () => {
     e.preventDefault();
     setError(null);
 
-    if (!pin().trim() || pin().trim().length !== 6 || !/^\d{6}$/.test(pin().trim())) {
+    if (
+      !pin().trim() ||
+      pin().trim().length !== 6 ||
+      !/^\d{6}$/.test(pin().trim())
+    ) {
       setError("PIN must be exactly 6 digits.");
       return;
     }
@@ -188,13 +198,13 @@ const AdminLoginPage: Component = () => {
   const inputStyle = {
     width: "100%",
     padding: "var(--sp-3) var(--sp-4)",
-    "background": "var(--tier-2)",
+    background: "var(--tier-2)",
     border: "1px solid var(--hairline-2)",
     "border-radius": "var(--radius-md)",
     color: "var(--text)",
     "font-size": "0.9375rem",
     outline: "none",
-    "transition": "border-color 0.15s ease",
+    transition: "border-color 0.15s ease"
   } as const;
 
   const labelStyle = {
@@ -202,7 +212,7 @@ const AdminLoginPage: Component = () => {
     "font-size": "0.8125rem",
     "font-weight": "500",
     "margin-bottom": "var(--sp-2)",
-    color: "var(--text-secondary)",
+    color: "var(--text-secondary)"
   } as const;
 
   return (
@@ -217,7 +227,7 @@ const AdminLoginPage: Component = () => {
           "justify-content": "center",
           padding: "var(--sp-4)",
           background: "var(--void)",
-          color: "var(--text)",
+          color: "var(--text)"
         }}
       >
         <div
@@ -229,12 +239,17 @@ const AdminLoginPage: Component = () => {
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-xl)",
             padding: "var(--sp-8)",
-            "box-shadow": "var(--shadow-xl)",
+            "box-shadow": "var(--shadow-xl)"
           }}
         >
           {/* Header */}
-          <div style={{ "text-align": "center", "margin-bottom": "var(--sp-6)" }}>
-            <div style={{ "font-size": "2.5rem", "margin-bottom": "var(--sp-2)" }} aria-hidden="true">
+          <div
+            style={{ "text-align": "center", "margin-bottom": "var(--sp-6)" }}
+          >
+            <div
+              style={{ "font-size": "2.5rem", "margin-bottom": "var(--sp-2)" }}
+              aria-hidden="true"
+            >
               🎬
             </div>
             <h1
@@ -242,18 +257,27 @@ const AdminLoginPage: Component = () => {
                 "font-size": "1.5rem",
                 "font-weight": "700",
                 margin: "0 0 var(--sp-1) 0",
-                color: "var(--text)",
+                color: "var(--text)"
               }}
             >
               CineLog Admin
             </h1>
-            <p style={{ "font-size": "0.875rem", color: "var(--text-muted)", margin: 0 }}>
+            <p
+              style={{
+                "font-size": "0.875rem",
+                color: "var(--text-muted)",
+                margin: 0
+              }}
+            >
               Restricted access — authorized administrators only
             </p>
           </div>
 
           {/* Loading state — checking for CineLog session */}
-          <Show when={!session.loading} fallback={<LoadingBlock label="Checking CineLog session…" />}>
+          <Show
+            when={!session.loading}
+            fallback={<LoadingBlock label="Checking CineLog session…" />}
+          >
             {/* ════════════════════════════════════════════════════════════
                 STATE A — visitor is signed into CineLog
                 Show only the PIN field. The server will read the
@@ -262,21 +286,26 @@ const AdminLoginPage: Component = () => {
             <Show when={session()?.email}>
               <div
                 style={{
-                  "background": "var(--tier-2)",
+                  background: "var(--tier-2)",
                   border: "1px solid var(--hairline-2)",
                   "border-radius": "var(--radius-md)",
                   padding: "var(--sp-3) var(--sp-4)",
                   "margin-bottom": "var(--sp-5)",
                   display: "flex",
                   "align-items": "center",
-                  gap: "var(--sp-3)",
+                  gap: "var(--sp-3)"
                 }}
               >
                 <span style={{ "font-size": "1.125rem" }} aria-hidden="true">
                   ✅
                 </span>
                 <div style={{ "min-width": "0", flex: 1 }}>
-                  <div style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
+                  <div
+                    style={{
+                      "font-size": "0.75rem",
+                      color: "var(--text-muted)"
+                    }}
+                  >
                     Signed in as
                   </div>
                   <div
@@ -286,7 +315,7 @@ const AdminLoginPage: Component = () => {
                       "font-weight": "500",
                       "white-space": "nowrap",
                       overflow: "hidden",
-                      "text-overflow": "ellipsis",
+                      "text-overflow": "ellipsis"
                     }}
                   >
                     {session()?.email}
@@ -308,7 +337,9 @@ const AdminLoginPage: Component = () => {
                     maxlength={6}
                     value={pin()}
                     onInput={(e) =>
-                      setPin(e.currentTarget.value.replace(/\D/g, "").slice(0, 6))
+                      setPin(
+                        e.currentTarget.value.replace(/\D/g, "").slice(0, 6)
+                      )
                     }
                     disabled={submitting()}
                     placeholder="••••••"
@@ -316,15 +347,15 @@ const AdminLoginPage: Component = () => {
                     style={{
                       ...inputStyle,
                       "letter-spacing": "0.5em",
-      "text-align": "center",
-      "font-family": "monospace",
+                      "text-align": "center",
+                      "font-family": "monospace"
                     }}
                   />
                   <p
                     style={{
                       "font-size": "0.75rem",
                       color: "var(--text-muted)",
-                      margin: "var(--sp-2) 0 0 0",
+                      margin: "var(--sp-2) 0 0 0"
                     }}
                   >
                     6-digit PIN set by the project owner
@@ -341,15 +372,17 @@ const AdminLoginPage: Component = () => {
                   style={{
                     width: "100%",
                     padding: "var(--sp-3) var(--sp-4)",
-                    "background": submitting() ? "var(--tier-3)" : "var(--p)",
-                    color: submitting() ? "var(--text-muted)" : "var(--on-primary)",
+                    background: submitting() ? "var(--tier-3)" : "var(--p)",
+                    color: submitting()
+                      ? "var(--text-muted)"
+                      : "var(--on-primary)",
                     border: "none",
                     "border-radius": "var(--radius-md)",
                     "font-size": "0.9375rem",
                     "font-weight": "600",
                     cursor: submitting() ? "not-allowed" : "pointer",
                     transition: "all 0.15s ease",
-                    "box-shadow": submitting() ? "none" : "var(--shadow-glow)",
+                    "box-shadow": submitting() ? "none" : "var(--shadow-glow)"
                   }}
                 >
                   <Show when={!submitting()} fallback="Verifying…">
@@ -373,7 +406,7 @@ const AdminLoginPage: Component = () => {
                 style={{
                   width: "100%",
                   padding: "var(--sp-3) var(--sp-4)",
-                  "background": "#fff",
+                  background: "#fff",
                   color: "#1f2937",
                   border: "1px solid #d1d5db",
                   "border-radius": "var(--radius-md)",
@@ -385,7 +418,7 @@ const AdminLoginPage: Component = () => {
                   "align-items": "center",
                   "justify-content": "center",
                   gap: "var(--sp-3)",
-                  "margin-bottom": "var(--sp-4)",
+                  "margin-bottom": "var(--sp-4)"
                 }}
               >
                 <Show when={!oauthLoading()} fallback="Redirecting to Google…">
@@ -400,14 +433,26 @@ const AdminLoginPage: Component = () => {
                   display: "flex",
                   "align-items": "center",
                   gap: "var(--sp-3)",
-                  "margin": "var(--sp-5) 0",
+                  margin: "var(--sp-5) 0",
                   color: "var(--text-muted)",
-                  "font-size": "0.75rem",
+                  "font-size": "0.75rem"
                 }}
               >
-                <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }} />
+                <div
+                  style={{
+                    flex: 1,
+                    height: "1px",
+                    background: "var(--hairline)"
+                  }}
+                />
                 <span>OR USE EMAIL + PASSWORD</span>
-                <div style={{ flex: 1, height: "1px", background: "var(--hairline)" }} />
+                <div
+                  style={{
+                    flex: 1,
+                    height: "1px",
+                    background: "var(--hairline)"
+                  }}
+                />
               </div>
 
               {/* Toggle: show/hide the email+password form */}
@@ -420,14 +465,14 @@ const AdminLoginPage: Component = () => {
                     style={{
                       width: "100%",
                       padding: "var(--sp-2) var(--sp-4)",
-                      "background": "transparent",
+                      background: "transparent",
                       color: "var(--text-secondary)",
                       border: "1px dashed var(--hairline-2)",
                       "border-radius": "var(--radius-md)",
                       "font-size": "0.8125rem",
                       "font-weight": "500",
                       cursor: "pointer",
-                      transition: "all 0.15s ease",
+                      transition: "all 0.15s ease"
                     }}
                   >
                     Show email + password form
@@ -485,7 +530,9 @@ const AdminLoginPage: Component = () => {
                       maxlength={6}
                       value={pin()}
                       onInput={(e) =>
-                        setPin(e.currentTarget.value.replace(/\D/g, "").slice(0, 6))
+                        setPin(
+                          e.currentTarget.value.replace(/\D/g, "").slice(0, 6)
+                        )
                       }
                       disabled={submitting()}
                       placeholder="••••••"
@@ -494,14 +541,14 @@ const AdminLoginPage: Component = () => {
                         ...inputStyle,
                         "letter-spacing": "0.5em",
                         "text-align": "center",
-                        "font-family": "monospace",
+                        "font-family": "monospace"
                       }}
                     />
                     <p
                       style={{
                         "font-size": "0.75rem",
                         color: "var(--text-muted)",
-                        margin: "var(--sp-2) 0 0 0",
+                        margin: "var(--sp-2) 0 0 0"
                       }}
                     >
                       6-digit PIN set by the project owner
@@ -518,15 +565,17 @@ const AdminLoginPage: Component = () => {
                     style={{
                       width: "100%",
                       padding: "var(--sp-3) var(--sp-4)",
-                      "background": submitting() ? "var(--tier-3)" : "var(--p)",
-                      color: submitting() ? "var(--text-muted)" : "var(--on-primary)",
+                      background: submitting() ? "var(--tier-3)" : "var(--p)",
+                      color: submitting()
+                        ? "var(--text-muted)"
+                        : "var(--on-primary)",
                       border: "none",
                       "border-radius": "var(--radius-md)",
                       "font-size": "0.9375rem",
                       "font-weight": "600",
                       cursor: submitting() ? "not-allowed" : "pointer",
                       transition: "all 0.15s ease",
-                      "box-shadow": submitting() ? "none" : "var(--shadow-glow)",
+                      "box-shadow": submitting() ? "none" : "var(--shadow-glow)"
                     }}
                   >
                     <Show when={!submitting()} fallback="Verifying…">
@@ -552,7 +601,7 @@ const AdminLoginPage: Component = () => {
               style={{
                 "font-size": "0.8125rem",
                 color: "var(--text-muted)",
-                "text-decoration": "none",
+                "text-decoration": "none"
               }}
             >
               ← Back to CineLog
@@ -573,10 +622,12 @@ function LoadingBlock(props: { label: string }) {
         padding: "var(--sp-8)",
         "text-align": "center",
         color: "var(--text-muted)",
-        "font-size": "0.875rem",
+        "font-size": "0.875rem"
       }}
     >
-      <div style={{ "font-size": "1.5rem", "margin-bottom": "var(--sp-3)" }}>⏳</div>
+      <div style={{ "font-size": "1.5rem", "margin-bottom": "var(--sp-3)" }}>
+        ⏳
+      </div>
       {props.label}
     </div>
   );
@@ -587,13 +638,13 @@ function ErrorBlock(props: { message: string }) {
     <div
       role="alert"
       style={{
-        "background": "rgba(239, 68, 68, 0.1)",
+        background: "rgba(239, 68, 68, 0.1)",
         border: "1px solid rgba(239, 68, 68, 0.3)",
         "border-radius": "var(--radius-md)",
         padding: "var(--sp-3)",
         "margin-bottom": "var(--sp-4)",
         "font-size": "0.8125rem",
-        color: "rgb(252, 165, 165)",
+        color: "rgb(252, 165, 165)"
       }}
     >
       {props.message}

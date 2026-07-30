@@ -44,15 +44,13 @@ const PhaseDivider: Component<PhaseDividerProps> = (props) => {
       class="phase-divider"
       style={{
         "--phase-accent": accent(),
-        "--phase-accent-glow": `${accent()}22`,
+        "--phase-accent-glow": `${accent()}22`
       }}
       role="separator"
       aria-label={props.phase.label}
     >
       <div class="phase-divider-marker" aria-hidden="true">
-        <span class="phase-divider-index">
-          {props.index ?? ""}
-        </span>
+        <span class="phase-divider-index">{props.index ?? ""}</span>
       </div>
       <div class="phase-divider-content">
         <p class="phase-divider-label">{props.phase.label}</p>

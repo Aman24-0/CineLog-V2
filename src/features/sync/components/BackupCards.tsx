@@ -22,7 +22,8 @@ import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   BACKUP_STRATEGIES,
-  createBackupFromWatchlist, exportBackup,
+  createBackupFromWatchlist,
+  exportBackup
 } from "../backup/BackupService";
 
 const BackupCards: Component = () => {
@@ -38,7 +39,10 @@ const BackupCards: Component = () => {
       }
       const doc = createBackupFromWatchlist(watchlist);
       exportBackup(doc);
-      showToast(`Backup downloaded — ${doc.library.watchlist.length} titles`, "success");
+      showToast(
+        `Backup downloaded — ${doc.library.watchlist.length} titles`,
+        "success"
+      );
       return;
     }
   };
@@ -55,13 +59,24 @@ const BackupCards: Component = () => {
             aria-label={strategy.displayName}
           >
             <div class="sync-backup-card-icon" aria-hidden="true">
-              <span class="material-symbols-outlined" style={{ "font-size": "22px", color: "var(--p)" }} aria-hidden="true">{strategy.icon}</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "22px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                {strategy.icon}
+              </span>
             </div>
             <div class="sync-backup-card-text">
               <p class="sync-backup-card-title">{strategy.displayName}</p>
               <p class="sync-backup-card-desc">{strategy.description}</p>
             </div>
-            <span class="material-symbols-outlined sync-backup-card-chevron" aria-hidden="true">arrow_forward</span>
+            <span
+              class="material-symbols-outlined sync-backup-card-chevron"
+              aria-hidden="true"
+            >
+              arrow_forward
+            </span>
           </button>
         )}
       </For>

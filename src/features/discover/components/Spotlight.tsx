@@ -80,8 +80,11 @@ const Spotlight: Component<SpotlightProps> = (props) => {
 
   const title = () => pick()?.title.title || pick()?.title.name || "Untitled";
   const year = () =>
-    (pick()?.title.release_date || pick()?.title.first_air_date || "").split("-")[0] || "";
-  const mediaLabel = () => (pick()?.title.media_type === "tv" ? "Series" : "Movie");
+    (pick()?.title.release_date || pick()?.title.first_air_date || "").split(
+      "-"
+    )[0] || "";
+  const mediaLabel = () =>
+    pick()?.title.media_type === "tv" ? "Series" : "Movie";
   const imdb = () =>
     pick()?.title.vote_average ? pick()!.title.vote_average!.toFixed(1) : null;
   const overview = () => pick()?.title.overview ?? "";
@@ -118,7 +121,8 @@ const Spotlight: Component<SpotlightProps> = (props) => {
   // UI. The error UI only appears when the fetcher genuinely fails.
 
   const errorMessage = () =>
-    props.error() ?? "We couldn't pick a Spotlight right now. Try again in a moment.";
+    props.error() ??
+    "We couldn't pick a Spotlight right now. Try again in a moment.";
 
   return (
     <Show
@@ -145,10 +149,18 @@ const Spotlight: Component<SpotlightProps> = (props) => {
               </div>
               <div class="spotlight-content">
                 <div class="spotlight-empty">
-                  <p class="type-body-soft" style={{ "text-align": "center", "max-width": "280px" }}>
+                  <p
+                    class="type-body-soft"
+                    style={{ "text-align": "center", "max-width": "280px" }}
+                  >
                     {errorMessage()}
                   </p>
-                  <Button variant="ghost" size="md" icon="refresh" onClick={props.onRetry}>
+                  <Button
+                    variant="ghost"
+                    size="md"
+                    icon="refresh"
+                    onClick={props.onRetry}
+                  >
                     Try Again
                   </Button>
                 </div>
@@ -167,9 +179,16 @@ const Spotlight: Component<SpotlightProps> = (props) => {
         aria-busy={props.loading}
       >
         {/* Backdrop */}
-        <Show when={backdropUrl()} fallback={<div class="spotlight-backdrop-fallback" aria-hidden="true" />}>
+        <Show
+          when={backdropUrl()}
+          fallback={
+            <div class="spotlight-backdrop-fallback" aria-hidden="true" />
+          }
+        >
           <img
-            onError={(e) => { e.currentTarget.style.display = "none"; }}
+            onError={(e) => {
+              e.currentTarget.style.display = "none";
+            }}
             src={backdropUrl()}
             class={`spotlight-backdrop${backdropLoaded() ? " img-loaded" : ""}`}
             loading="eager"
@@ -210,13 +229,33 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             <span class="v2-pill">{mediaLabel()}</span>
             <Show when={imdb()}>
               <span class="v2-pill" data-rating-display="true">
-                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                <span
+                  class="material-symbols-outlined"
+                  style={{
+                    "font-size": "10px",
+                    "font-variation-settings":
+                      "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+                  }}
+                  aria-hidden="true"
+                >
+                  star
+                </span>
                 {formatRating(pick()?.title.vote_average)}
               </span>
             </Show>
             <Show when={director()}>
               <span class="v2-pill">
-                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">person</span>
+                <span
+                  class="material-symbols-outlined"
+                  style={{
+                    "font-size": "10px",
+                    "font-variation-settings":
+                      "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+                  }}
+                  aria-hidden="true"
+                >
+                  person
+                </span>
                 {director()}
               </span>
             </Show>
@@ -225,9 +264,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             </Show>
             {/* Genre pills inline with the meta row on mobile (compact) */}
             <For each={genres().slice(0, 3)}>
-              {(genre) => (
-                <span class="spotlight-genre-pill">{genre}</span>
-              )}
+              {(genre) => <span class="spotlight-genre-pill">{genre}</span>}
             </For>
           </div>
 
@@ -285,7 +322,8 @@ const Spotlight: Component<SpotlightProps> = (props) => {
                        which would become dark ink in light mode and disappear. */
                     background: "rgba(255,255,255,0.12)",
                     color: "#FFFFFF",
-                    "box-shadow": "0 0 0 1px rgba(255,255,255,0.22), 0 2px 8px rgba(0,0,0,0.4)",
+                    "box-shadow":
+                      "0 0 0 1px rgba(255,255,255,0.22), 0 2px 8px rgba(0,0,0,0.4)",
                     "backdrop-filter": "blur(12px)"
                   }}
                 >
@@ -302,7 +340,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             <button
               type="button"
               class="spotlight-reroll focus-ring"
-              onClick={props.onShuffle}
+              onClick={() => props.onShuffle()}
               aria-label="Shuffle — show me a different Spotlight"
               disabled={props.loading}
             >

@@ -8,6 +8,7 @@
 
 import { describe, it, expect } from "vitest";
 import { render } from "solid-js/web";
+import type { JSX } from "solid-js";
 import CountdownBadge from "../CountdownBadge";
 
 function todayStr(): string {
@@ -19,7 +20,7 @@ function addDays(base: string, days: number): string {
   return d.toISOString().slice(0, 10);
 }
 
-function renderText(component: () => unknown): string {
+function renderText(component: () => JSX.Element): string {
   const div = document.createElement("div");
   document.body.appendChild(div);
   const dispose = render(component, div);
@@ -36,23 +37,32 @@ describe("CountdownBadge", () => {
   });
 
   it("shows TOMORROW for tomorrow's date", () => {
-    const text = renderText(() => <CountdownBadge date={addDays(todayStr(), 1)} />);
+    const text = renderText(() => (
+      <CountdownBadge date={addDays(todayStr(), 1)} />
+    ));
     expect(text).toBe("TOMORROW");
   });
 
   it("shows N DAYS for dates 2-7 days out", () => {
-    const text = renderText(() => <CountdownBadge date={addDays(todayStr(), 5)} />);
+    const text = renderText(() => (
+      <CountdownBadge date={addDays(todayStr(), 5)} />
+    ));
     expect(text).toBe("5 DAYS");
   });
 
   it("shows OUT NOW for past dates when no fallbackLabel is provided", () => {
-    const text = renderText(() => <CountdownBadge date={addDays(todayStr(), -10)} />);
+    const text = renderText(() => (
+      <CountdownBadge date={addDays(todayStr(), -10)} />
+    ));
     expect(text).toBe("OUT NOW");
   });
 
   it("shows fallbackLabel for past dates when provided", () => {
     const text = renderText(() => (
-      <CountdownBadge date={addDays(todayStr(), -10)} fallbackLabel="RETURNING" />
+      <CountdownBadge
+        date={addDays(todayStr(), -10)}
+        fallbackLabel="RETURNING"
+      />
     ));
     expect(text).toBe("RETURNING");
   });

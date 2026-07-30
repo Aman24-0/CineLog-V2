@@ -20,12 +20,7 @@
 //   • scheduleReminder(...)  — set a reminder + insert a notification row.
 //   • cancelReminder(...)    — remove a reminder.
 
-import {
-  createSignal,
-  createMemo,
-  onMount,
-  type Accessor,
-} from "solid-js";
+import { createSignal, createMemo, onMount, type Accessor } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import {
   getNotifications,
@@ -38,7 +33,7 @@ import {
   scheduleReminder as repoScheduleReminder,
   cancelReminder as repoCancelReminder,
   type NotificationRow,
-  type UserReminderRow,
+  type UserReminderRow
 } from "~/lib/supabase/repositories/upcoming";
 import { useToast } from "~/shared/hooks/useToast";
 
@@ -59,7 +54,7 @@ export function useNotifications() {
     try {
       const [notifs, rems] = await Promise.all([
         getNotifications(id, 50),
-        getUserReminders(id),
+        getUserReminders(id)
       ]);
       setNotifications(notifs);
       setReminders(rems);
@@ -85,7 +80,7 @@ export function useNotifications() {
         new Notification("CineLog — Release Day", {
           body: `Your tracked title is out today. Tap to open.`,
           icon: "/favicon.ico",
-          tag: `reminder-${r.id}`,
+          tag: `reminder-${r.id}`
         });
         await markReminderSent(r.id);
       } catch {
@@ -119,7 +114,7 @@ export function useNotifications() {
     tmdbId: string | number,
     titleType: "movie" | "series",
     releaseDate: string,
-    titleName: string,
+    titleName: string
   ): Promise<boolean> => {
     const id = uid();
     if (!id) return false;
@@ -128,7 +123,7 @@ export function useNotifications() {
       tmdbId,
       titleType,
       releaseDate,
-      titleName,
+      titleName
     );
     if (!ok) {
       toast.showToast("Couldn't set reminder — try again.", "error");
@@ -161,8 +156,8 @@ export function useNotifications() {
         prev.map((n) =>
           n.id === notificationId
             ? { ...n, is_read: true, read_at: new Date().toISOString() }
-            : n,
-        ),
+            : n
+        )
       );
     }
   };
@@ -176,8 +171,8 @@ export function useNotifications() {
         prev.map((n) => ({
           ...n,
           is_read: true,
-          read_at: n.read_at ?? new Date().toISOString(),
-        })),
+          read_at: n.read_at ?? new Date().toISOString()
+        }))
       );
     }
   };
@@ -191,7 +186,9 @@ export function useNotifications() {
     }
   };
 
-  const unreadCount = createMemo(() => notifications().filter((n) => !n.is_read).length);
+  const unreadCount = createMemo(
+    () => notifications().filter((n) => !n.is_read).length
+  );
 
   onMount(() => {
     if (isSignedIn()) {
@@ -210,6 +207,6 @@ export function useNotifications() {
     markRead,
     markAllRead,
     clearRead,
-    requestPermission,
+    requestPermission
   };
 }

@@ -36,11 +36,62 @@ interface ViewToggleProps {
 }
 
 const ViewToggle: Component<ViewToggleProps> = (props) => {
+  /**
+   * Arrow-key navigation for the roving-tabindex tabs pattern.
+   * Left/Right toggles between List and Calendar. Since there are
+   * only two tabs, arrow keys act as a simple toggle.
+   */
+  const onKeyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    if (!target || target.getAttribute("role") !== "tab") return;
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+      case "ArrowLeft":
+      case "ArrowUp":
+        e.preventDefault();
+        props.onChange(props.value() === "list" ? "calendar" : "list");
+        // Move focus to the now-active toggle so the roving tabindex
+        // tracks the selection.
+        requestAnimationFrame(() => {
+          const container = e.currentTarget as HTMLElement;
+          const activeTab = container.querySelector<HTMLButtonElement>(
+            'button[role="tab"][aria-selected="true"]'
+          );
+          activeTab?.focus();
+        });
+        break;
+      case "Home":
+        e.preventDefault();
+        props.onChange("list");
+        requestAnimationFrame(() => {
+          const container = e.currentTarget as HTMLElement;
+          const firstTab =
+            container.querySelector<HTMLButtonElement>('button[role="tab"]');
+          firstTab?.focus();
+        });
+        break;
+      case "End":
+        e.preventDefault();
+        props.onChange("calendar");
+        requestAnimationFrame(() => {
+          const container = e.currentTarget as HTMLElement;
+          const tabs =
+            container.querySelectorAll<HTMLButtonElement>('button[role="tab"]');
+          tabs[tabs.length - 1]?.focus();
+        });
+        break;
+      default:
+        return;
+    }
+  };
+
   return (
     <div
       class="upcoming-view-toggle"
       role="tablist"
       aria-label="Upcoming view"
+      onKeyDown={onKeyDown}
     >
       <button
         type="button"
@@ -48,10 +99,15 @@ const ViewToggle: Component<ViewToggleProps> = (props) => {
         aria-selected={props.value() === "list"}
         aria-label="List view"
         title="List view"
+        // Roving tabindex: only the active toggle button is in the tab
+        // order so a single Tab lands on the current view.
+        tabindex={props.value() === "list" ? 0 : -1}
         class={`upcoming-view-toggle-btn ${props.value() === "list" ? "is-active" : ""}`}
         onClick={() => props.onChange("list")}
       >
-        <span class="material-symbols-outlined" aria-hidden="true">list</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          list
+        </span>
         <span>List</span>
       </button>
       <button
@@ -60,10 +116,13 @@ const ViewToggle: Component<ViewToggleProps> = (props) => {
         aria-selected={props.value() === "calendar"}
         aria-label="Calendar view"
         title="Calendar view"
+        tabindex={props.value() === "calendar" ? 0 : -1}
         class={`upcoming-view-toggle-btn ${props.value() === "calendar" ? "is-active" : ""}`}
         onClick={() => props.onChange("calendar")}
       >
-        <span class="material-symbols-outlined" aria-hidden="true">calendar_month</span>
+        <span class="material-symbols-outlined" aria-hidden="true">
+          calendar_month
+        </span>
         <span>Calendar</span>
       </button>
     </div>

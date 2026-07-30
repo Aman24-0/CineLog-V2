@@ -12,7 +12,13 @@ import type { SuggestedUniverse } from "~/shared/data/suggestedUniverses";
  * from a separate "Hidden Universes" section.
  */
 export default function UniverseSuggestions() {
-  const { suggestedUniverses, hiddenUniverses, addUniverseToPrefs, hideUniverseFromPrefs, restoreUniverseToPrefs } = useCollections();
+  const {
+    suggestedUniverses,
+    hiddenUniverses,
+    addUniverseToPrefs,
+    hideUniverseFromPrefs,
+    restoreUniverseToPrefs
+  } = useCollections();
 
   const handleAdd = (uni: SuggestedUniverse) => {
     addUniverseToPrefs(uni.id);
@@ -27,7 +33,13 @@ export default function UniverseSuggestions() {
       <Show when={suggestedUniverses().length > 0}>
         <div class="collections-fold">
           <div class="collections-fold-label">
-            <span class="material-symbols-outlined" style={{"font-size":"12px","color":"var(--p)"}} aria-hidden="true">lightbulb</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "12px", color: "var(--p)" }}
+              aria-hidden="true"
+            >
+              lightbulb
+            </span>
             Suggested Universes
           </div>
           <div class="universe-suggestion-rail hide-scrollbar" role="list">
@@ -35,13 +47,27 @@ export default function UniverseSuggestions() {
               {(uni) => (
                 <div class="universe-suggestion-card" role="listitem">
                   <div class="universe-suggestion-poster">
-                    <Show when={uni.backdrop_path} fallback={
-                      <div class="universe-suggestion-poster-fallback">
-                        <span class="material-symbols-outlined" style={{"font-size":"24px","color":"var(--text-dim)"}} aria-hidden="true">movie</span>
-                      </div>
-                    }>
+                    <Show
+                      when={uni.backdrop_path}
+                      fallback={
+                        <div class="universe-suggestion-poster-fallback">
+                          <span
+                            class="material-symbols-outlined"
+                            style={{
+                              "font-size": "24px",
+                              color: "var(--text-dim)"
+                            }}
+                            aria-hidden="true"
+                          >
+                            movie
+                          </span>
+                        </div>
+                      }
+                    >
                       <img
-                        onError={(e) => { e.currentTarget.style.display = "none"; }}
+                        onError={(e) => {
+                          e.currentTarget.style.display = "none";
+                        }}
                         src={tmdbImage(uni.backdrop_path, "w500")}
                         class="universe-suggestion-img"
                         loading="lazy"
@@ -50,11 +76,16 @@ export default function UniverseSuggestions() {
                         aria-hidden="true"
                       />
                     </Show>
-                    <div class="universe-suggestion-overlay" aria-hidden="true" />
+                    <div
+                      class="universe-suggestion-overlay"
+                      aria-hidden="true"
+                    />
                   </div>
                   <div class="universe-suggestion-info">
                     <p class="universe-suggestion-name">{uni.name}</p>
-                    <p class="universe-suggestion-meta">{uni.entryCount} titles</p>
+                    <p class="universe-suggestion-meta">
+                      {uni.entryCount} titles
+                    </p>
                   </div>
                   <div class="universe-suggestion-actions">
                     <button
@@ -63,7 +94,13 @@ export default function UniverseSuggestions() {
                       onClick={() => handleAdd(uni)}
                       aria-label={`Add ${uni.name}`}
                     >
-                      <span class="material-symbols-outlined" style={{"font-size":"16px"}} aria-hidden="true">add</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "16px" }}
+                        aria-hidden="true"
+                      >
+                        add
+                      </span>
                       Add
                     </button>
                     <button
@@ -72,7 +109,13 @@ export default function UniverseSuggestions() {
                       onClick={() => handleHide(uni)}
                       aria-label={`Hide ${uni.name}`}
                     >
-                      <span class="material-symbols-outlined" style={{"font-size":"14px"}} aria-hidden="true">close</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "14px" }}
+                        aria-hidden="true"
+                      >
+                        close
+                      </span>
                     </button>
                   </div>
                 </div>
@@ -86,7 +129,13 @@ export default function UniverseSuggestions() {
       <Show when={hiddenUniverses().length > 0}>
         <div class="collections-fold">
           <div class="collections-fold-label">
-            <span class="material-symbols-outlined" style={{"font-size":"12px","color":"var(--text-soft)"}} aria-hidden="true">visibility_off</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "12px", color: "var(--text-soft)" }}
+              aria-hidden="true"
+            >
+              visibility_off
+            </span>
             Hidden
           </div>
           <div class="universe-hidden-list">

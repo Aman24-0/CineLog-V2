@@ -46,7 +46,12 @@ export function normalizeGenre(item: unknown): string {
   if (item == null) return "";
   if (typeof item === "string") return item.trim();
   if (typeof item === "number") return String(item);
-  if (typeof item === "object" && item !== null && "name" in item && typeof (item as { name: unknown }).name === "string") {
+  if (
+    typeof item === "object" &&
+    item !== null &&
+    "name" in item &&
+    typeof (item as { name: unknown }).name === "string"
+  ) {
     return (item as { name: string }).name.trim();
   }
   // Unknown format — stringify as fallback so we never throw
@@ -63,7 +68,9 @@ export function normalizeGenre(item: unknown): string {
  *   TypeScript types declare (objects vs strings).
  * @returns A clean string[] of genre names (e.g. ["Action", "Sci-Fi"]).
  */
-export function normalizeGenres(genres: unknown[] | null | undefined): string[] {
+export function normalizeGenres(
+  genres: unknown[] | null | undefined
+): string[] {
   if (!genres || !Array.isArray(genres)) return [];
   const seen = new Set<string>();
   const result: string[] = [];
@@ -92,7 +99,10 @@ export function normalizeGenres(genres: unknown[] | null | undefined): string[] 
  * @param substr The substring to search for (case-insensitive).
  * @returns true if any genre contains the substring.
  */
-export function hasGenre(item: { genresList?: unknown }, substr: string): boolean {
+export function hasGenre(
+  item: { genresList?: unknown },
+  substr: string
+): boolean {
   if (!item?.genresList || !Array.isArray(item.genresList)) return false;
   const lower = substr.toLowerCase();
   return (item.genresList as unknown[]).some((g) => {

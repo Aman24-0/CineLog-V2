@@ -51,8 +51,16 @@ const PeopleColumn: Component<PeopleColumnProps> = (props) => {
   return (
     <GlassCard padding="default" class="stats-people-column">
       <div class="stats-people-header">
-        <div class="stats-people-icon" style={{ background: `${props.accent}22`, color: props.accent }} aria-hidden="true">
-          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+        <div
+          class="stats-people-icon"
+          style={{ background: `${props.accent}22`, color: props.accent }}
+          aria-hidden="true"
+        >
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "18px" }}
+            aria-hidden="true"
+          >
             {props.icon}
           </span>
         </div>
@@ -81,12 +89,15 @@ const PeopleColumn: Component<PeopleColumnProps> = (props) => {
                       class="stats-people-bar-fill"
                       style={{
                         width: `${(person.count / max()) * 100}%`,
-                        background: props.accent,
+                        background: props.accent
                       }}
                     />
                   </div>
                 </div>
-                <span class="stats-people-count" style={{ color: props.accent }}>
+                <span
+                  class="stats-people-count"
+                  style={{ color: props.accent }}
+                >
                   {person.count}
                 </span>
               </li>

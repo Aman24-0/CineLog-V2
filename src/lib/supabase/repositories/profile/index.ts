@@ -18,7 +18,10 @@ export { ProfileRepository, getProfileRepository } from "./profile.repository";
 export { ensureProfile, checkUsernameAvailability } from "./profile.lifecycle";
 // Profile-redesign write helpers (convenience wrappers around updateProfile
 // for the social/privacy payload shape).
-export { updateProfileMetadata, toggleProfileVisibility } from "./profile.write";
+export {
+  updateProfileMetadata,
+  toggleProfileVisibility
+} from "./profile.write";
 
 export type {
   // Row / Insert / Update aliases

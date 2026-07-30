@@ -61,18 +61,25 @@ const AdminMaintenancePage: Component = () => {
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   // Per-operation state: { running: boolean, days: number, lastResult: RunResponse | null }
-  const [opState, setOpState] = createSignal<Record<string, {
-    running: boolean;
-    days: number;
-    lastResult: RunResponse | null;
-  }>>({});
+  const [opState, setOpState] = createSignal<
+    Record<
+      string,
+      {
+        running: boolean;
+        days: number;
+        lastResult: RunResponse | null;
+      }
+    >
+  >({});
   // Confirmation: which operation is awaiting "yes, run it" (for destructive ops)
   const [confirming, setConfirming] = createSignal<string | null>(null);
 
   const fetchAll = async () => {
     setLoading(true);
     try {
-      const resp = await fetch("/api/admin/maintenance", { credentials: "include" });
+      const resp = await fetch("/api/admin/maintenance", {
+        credentials: "include"
+      });
       if (!resp.ok) {
         if (resp.status === 401) {
           window.location.href = "/admin/login";
@@ -84,12 +91,15 @@ const AdminMaintenancePage: Component = () => {
       setOperations(data.operations);
       setRuns(data.recent_runs);
       // Initialize op state with defaults
-      const init: Record<string, { running: boolean; days: number; lastResult: RunResponse | null }> = {};
+      const init: Record<
+        string,
+        { running: boolean; days: number; lastResult: RunResponse | null }
+      > = {};
       for (const op of data.operations) {
         init[op.name] = {
           running: false,
           days: op.default_days ?? 0,
-          lastResult: null,
+          lastResult: null
         };
       }
       setOpState(init);
@@ -110,7 +120,7 @@ const AdminMaintenancePage: Component = () => {
     // Update state: running
     setOpState({
       ...opState(),
-      [op.name]: { ...state, running: true, lastResult: null },
+      [op.name]: { ...state, running: true, lastResult: null }
     });
     setConfirming(null);
 
@@ -123,12 +133,12 @@ const AdminMaintenancePage: Component = () => {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ operation: op.name, args }),
+        body: JSON.stringify({ operation: op.name, args })
       });
       const json = (await resp.json()) as RunResponse;
       setOpState({
         ...opState(),
-        [op.name]: { ...state, running: false, lastResult: json },
+        [op.name]: { ...state, running: false, lastResult: json }
       });
       // Refresh the runs list so the new run appears
       await fetchAll();
@@ -139,8 +149,8 @@ const AdminMaintenancePage: Component = () => {
         [op.name]: {
           ...state,
           running: false,
-          lastResult: { ok: false, error: msg },
-        },
+          lastResult: { ok: false, error: msg }
+        }
       });
     }
   };
@@ -195,16 +205,31 @@ const AdminMaintenancePage: Component = () => {
           "justify-content": "space-between",
           "margin-bottom": "var(--sp-6)",
           "flex-wrap": "wrap",
-          gap: "var(--sp-3)",
+          gap: "var(--sp-3)"
         }}
       >
         <div>
-          <h1 style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}>Maintenance</h1>
-          <p style={{ margin: "var(--sp-1) 0 0 0", color: "var(--text-muted)", "font-size": "0.875rem" }}>
+          <h1
+            style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}
+          >
+            Maintenance
+          </h1>
+          <p
+            style={{
+              margin: "var(--sp-1) 0 0 0",
+              color: "var(--text-muted)",
+              "font-size": "0.875rem"
+            }}
+          >
             Run database cleanup operations. All runs are audit-logged.
           </p>
         </div>
-        <button type="button" onClick={fetchAll} disabled={loading()} style={btnStyle(loading())}>
+        <button
+          type="button"
+          onClick={fetchAll}
+          disabled={loading()}
+          style={btnStyle(loading())}
+        >
           {loading() ? "Loading…" : "↻ Refresh"}
         </button>
       </div>
@@ -223,12 +248,17 @@ const AdminMaintenancePage: Component = () => {
           display: "grid",
           "grid-template-columns": "repeat(auto-fill, minmax(340px, 1fr))",
           gap: "var(--sp-4)",
-          "margin-bottom": "var(--sp-8)",
+          "margin-bottom": "var(--sp-8)"
         }}
       >
         <For each={operations()}>
           {(op) => {
-            const state = () => opState()[op.name] ?? { running: false, days: 0, lastResult: null };
+            const state = () =>
+              opState()[op.name] ?? {
+                running: false,
+                days: 0,
+                lastResult: null
+              };
             return (
               <div
                 style={{
@@ -238,11 +268,24 @@ const AdminMaintenancePage: Component = () => {
                   padding: "var(--sp-4)",
                   display: "flex",
                   "flex-direction": "column",
-                  gap: "var(--sp-3)",
+                  gap: "var(--sp-3)"
                 }}
               >
-                <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)" }}>
-                  <h3 style={{ margin: 0, "font-size": "1rem", color: "var(--text)", flex: 1 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)"
+                  }}
+                >
+                  <h3
+                    style={{
+                      margin: 0,
+                      "font-size": "1rem",
+                      color: "var(--text)",
+                      flex: 1
+                    }}
+                  >
                     {op.label}
                   </h3>
                   <Show when={op.destructive}>
@@ -255,21 +298,42 @@ const AdminMaintenancePage: Component = () => {
                         background: "rgba(239, 68, 68, 0.1)",
                         padding: "0.125rem 0.5rem",
                         "border-radius": "var(--radius-sm)",
-                        border: "1px solid rgba(239, 68, 68, 0.3)",
+                        border: "1px solid rgba(239, 68, 68, 0.3)"
                       }}
                     >
                       Destructive
                     </span>
                   </Show>
                 </div>
-                <p style={{ margin: 0, "font-size": "0.8125rem", color: "var(--text-muted)", "line-height": "1.5" }}>
+                <p
+                  style={{
+                    margin: 0,
+                    "font-size": "0.8125rem",
+                    color: "var(--text-muted)",
+                    "line-height": "1.5"
+                  }}
+                >
                   {op.description}
                 </p>
 
                 {/* Days input (if applicable) */}
                 <Show when={op.default_days !== undefined}>
-                  <label style={{ display: "flex", "align-items": "center", gap: "var(--sp-2)", "font-size": "0.8125rem" }}>
-                    <span style={{ color: "var(--text-secondary)", "min-width": "80px" }}>Days cutoff:</span>
+                  <label
+                    style={{
+                      display: "flex",
+                      "align-items": "center",
+                      gap: "var(--sp-2)",
+                      "font-size": "0.8125rem"
+                    }}
+                  >
+                    <span
+                      style={{
+                        color: "var(--text-secondary)",
+                        "min-width": "80px"
+                      }}
+                    >
+                      Days cutoff:
+                    </span>
                     <input
                       type="number"
                       min={op.min_days ?? 1}
@@ -278,7 +342,10 @@ const AdminMaintenancePage: Component = () => {
                       onInput={(e) =>
                         setOpState({
                           ...opState(),
-                          [op.name]: { ...state(), days: Number(e.currentTarget.value) },
+                          [op.name]: {
+                            ...state(),
+                            days: Number(e.currentTarget.value)
+                          }
                         })
                       }
                       style={{
@@ -288,10 +355,15 @@ const AdminMaintenancePage: Component = () => {
                         border: "1px solid var(--hairline-2)",
                         "border-radius": "var(--radius-sm)",
                         color: "var(--text)",
-                        "font-size": "0.8125rem",
+                        "font-size": "0.8125rem"
                       }}
                     />
-                    <span style={{ color: "var(--text-muted)", "font-size": "0.75rem" }}>
+                    <span
+                      style={{
+                        color: "var(--text-muted)",
+                        "font-size": "0.75rem"
+                      }}
+                    >
                       (min {op.min_days ?? 1})
                     </span>
                   </label>
@@ -304,7 +376,7 @@ const AdminMaintenancePage: Component = () => {
                       "font-size": "0.75rem",
                       padding: "var(--sp-2) var(--sp-3)",
                       "border-radius": "var(--radius-sm)",
-                      "background": state().lastResult!.ok
+                      background: state().lastResult!.ok
                         ? "rgba(74, 222, 128, 0.1)"
                         : "rgba(239, 68, 68, 0.1)",
                       border: `1px solid ${
@@ -314,14 +386,21 @@ const AdminMaintenancePage: Component = () => {
                       }`,
                       color: state().lastResult!.ok
                         ? "rgb(187, 247, 208)"
-                        : "rgb(252, 165, 165)",
+                        : "rgb(252, 165, 165)"
                     }}
                   >
-                    <Show when={state().lastResult!.ok} fallback={<span>{state().lastResult!.error}</span>}>
+                    <Show
+                      when={state().lastResult!.ok}
+                      fallback={<span>{state().lastResult!.error}</span>}
+                    >
                       <span>
-                        ✓ {state().lastResult!.rows_affected?.toLocaleString() ?? 0} rows affected
+                        ✓{" "}
+                        {state().lastResult!.rows_affected?.toLocaleString() ??
+                          0}{" "}
+                        rows affected
                         <Show when={state().lastResult!.details?.note}>
-                          {" "}— {String(state().lastResult!.details!.note)}
+                          {" "}
+                          — {String(state().lastResult!.details!.note)}
                         </Show>
                       </span>
                     </Show>
@@ -347,7 +426,7 @@ const AdminMaintenancePage: Component = () => {
                             "border-radius": "var(--radius-md)",
                             "font-size": "0.8125rem",
                             "font-weight": "600",
-                            cursor: state().running ? "not-allowed" : "pointer",
+                            cursor: state().running ? "not-allowed" : "pointer"
                           }}
                         >
                           {state().running ? "Running…" : "Yes, run it"}
@@ -381,11 +460,27 @@ const AdminMaintenancePage: Component = () => {
 
       {/* ─── Recent runs ─────────────────────────────────── */}
       <section>
-        <h2 style={{ "font-size": "1.125rem", color: "var(--text)", margin: "0 0 var(--sp-4) 0" }}>
+        <h2
+          style={{
+            "font-size": "1.125rem",
+            color: "var(--text)",
+            margin: "0 0 var(--sp-4) 0"
+          }}
+        >
           Recent runs
         </h2>
-        <Show when={runs().length > 0} fallback={<div style={emptyStyle}>No maintenance runs yet.</div>}>
-          <div style={{ "overflow-x": "auto", background: "var(--tier-1)", border: "1px solid var(--hairline)", "border-radius": "var(--radius-md)" }}>
+        <Show
+          when={runs().length > 0}
+          fallback={<div style={emptyStyle}>No maintenance runs yet.</div>}
+        >
+          <div
+            style={{
+              "overflow-x": "auto",
+              background: "var(--tier-1)",
+              border: "1px solid var(--hairline)",
+              "border-radius": "var(--radius-md)"
+            }}
+          >
             <table style={tableStyle}>
               <thead>
                 <tr>
@@ -411,16 +506,27 @@ const AdminMaintenancePage: Component = () => {
                             "font-weight": "600",
                             "text-transform": "uppercase",
                             "font-size": "0.6875rem",
-                            "letter-spacing": "0.05em",
+                            "letter-spacing": "0.05em"
                           }}
                         >
                           {run.status}
                         </span>
                       </td>
-                      <td style={tdStyle}>{run.rows_affected.toLocaleString()}</td>
+                      <td style={tdStyle}>
+                        {run.rows_affected.toLocaleString()}
+                      </td>
                       <td style={tdStyle}>{formatDate(run.started_at)}</td>
-                      <td style={tdStyle}>{formatDuration(run.started_at, run.finished_at)}</td>
-                      <td style={{ ...tdStyle, "max-width": "300px", overflow: "hidden", "text-overflow": "ellipsis" }}>
+                      <td style={tdStyle}>
+                        {formatDuration(run.started_at, run.finished_at)}
+                      </td>
+                      <td
+                        style={{
+                          ...tdStyle,
+                          "max-width": "300px",
+                          overflow: "hidden",
+                          "text-overflow": "ellipsis"
+                        }}
+                      >
                         {run.error ?? "—"}
                       </td>
                     </tr>
@@ -440,7 +546,7 @@ const AdminMaintenancePage: Component = () => {
 const tableStyle = {
   width: "100%",
   "border-collapse": "collapse",
-  "font-size": "0.8125rem",
+  "font-size": "0.8125rem"
 } as const;
 
 const thStyle = {
@@ -452,22 +558,22 @@ const thStyle = {
   "text-transform": "uppercase" as const,
   "letter-spacing": "0.05em",
   "font-size": "0.6875rem",
-  "white-space": "nowrap" as const,
+  "white-space": "nowrap" as const
 };
 
 const tdStyle = {
   padding: "var(--sp-3)",
   "border-bottom": "1px solid var(--hairline)",
   color: "var(--text)",
-  "white-space": "nowrap" as const,
+  "white-space": "nowrap" as const
 };
 
 const codeStyle = {
-  "background": "var(--tier-2)",
+  background: "var(--tier-2)",
   padding: "0.125rem 0.375rem",
   "border-radius": "var(--radius-sm)",
   "font-size": "0.75rem",
-  color: "var(--text-secondary)",
+  color: "var(--text-secondary)"
 } as const;
 
 const emptyStyle = {
@@ -475,49 +581,49 @@ const emptyStyle = {
   "text-align": "center",
   color: "var(--text-muted)",
   "font-size": "0.875rem",
-  "background": "var(--tier-1)",
+  background: "var(--tier-1)",
   border: "1px dashed var(--hairline-2)",
-  "border-radius": "var(--radius-md)",
+  "border-radius": "var(--radius-md)"
 } as const;
 
 const errorStyle = {
-  "background": "rgba(239, 68, 68, 0.1)",
+  background: "rgba(239, 68, 68, 0.1)",
   border: "1px solid rgba(239, 68, 68, 0.3)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-3) var(--sp-4)",
   "margin-bottom": "var(--sp-4)",
   color: "rgb(252, 165, 165)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const loadingStyle = {
   padding: "var(--sp-8)",
   "text-align": "center",
   color: "var(--text-muted)",
-  "font-size": "0.875rem",
+  "font-size": "0.875rem"
 } as const;
 
 const cancelBtnStyle = {
   padding: "var(--sp-2) var(--sp-4)",
-  "background": "transparent",
+  background: "transparent",
   color: "var(--text-secondary)",
   border: "1px solid var(--hairline-2)",
   "border-radius": "var(--radius-md)",
   "font-size": "0.8125rem",
   "font-weight": "500",
-  cursor: "pointer",
+  cursor: "pointer"
 } as const;
 
 function btnStyle(disabled: boolean) {
   return {
     padding: "var(--sp-2) var(--sp-4)",
-    "background": disabled ? "var(--tier-3)" : "var(--p)",
+    background: disabled ? "var(--tier-3)" : "var(--p)",
     color: disabled ? "var(--text-muted)" : "var(--on-primary)",
     border: "none",
     "border-radius": "var(--radius-md)",
     "font-size": "0.8125rem",
     "font-weight": "600",
-    cursor: disabled ? "not-allowed" : "pointer",
+    cursor: disabled ? "not-allowed" : "pointer"
   } as const;
 }
 

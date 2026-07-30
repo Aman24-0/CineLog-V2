@@ -50,17 +50,21 @@ export const fetchOmdbRatings = async (
       }
     );
     if (data.Response === "True") {
-      const rt = data.Ratings?.find((r) => r.Source === "Rotten Tomatoes")?.Value || "-";
+      const rt =
+        data.Ratings?.find((r) => r.Source === "Rotten Tomatoes")?.Value || "-";
       return {
-        imdb: data.imdbRating && data.imdbRating !== "N/A" ? data.imdbRating : "-",
+        imdb:
+          data.imdbRating && data.imdbRating !== "N/A" ? data.imdbRating : "-",
         rt,
-        director: data.Director && data.Director !== "N/A" ? data.Director : undefined,
+        director:
+          data.Director && data.Director !== "N/A" ? data.Director : undefined,
         actors: data.Actors && data.Actors !== "N/A" ? data.Actors : undefined,
         writer: data.Writer && data.Writer !== "N/A" ? data.Writer : undefined,
         plot: data.Plot && data.Plot !== "N/A" ? data.Plot : undefined,
         rated: data.Rated && data.Rated !== "N/A" ? data.Rated : undefined,
         year: data.Year && data.Year !== "N/A" ? data.Year : undefined,
-        runtime: data.Runtime && data.Runtime !== "N/A" ? data.Runtime : undefined
+        runtime:
+          data.Runtime && data.Runtime !== "N/A" ? data.Runtime : undefined
       };
     }
     return null;

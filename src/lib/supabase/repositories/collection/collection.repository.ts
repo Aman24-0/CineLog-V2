@@ -36,11 +36,7 @@ import {
   itemExists,
   searchCollections
 } from "./collection.read";
-import {
-  addItem,
-  clearCollection,
-  removeItem
-} from "./collection.entries";
+import { addItem, clearCollection, removeItem } from "./collection.entries";
 import {
   archiveCollection,
   createCollection,
@@ -90,13 +86,18 @@ export class CollectionRepository {
   // ---- Collection reads ------------------------------------------------
 
   /** Get a collection by id. Excludes soft-deleted rows. */
-  getCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+  getCollection(
+    collectionId: string
+  ): Promise<CollectionResult<CollectionRow>> {
     return getCollection(this.supabase, collectionId);
   }
 
   /** List collections with optional filter / sort / pagination. */
   getCollections(
-    filter?: CollectionListFilter & { sort?: CollectionSort; pagination?: CollectionPagination }
+    filter?: CollectionListFilter & {
+      sort?: CollectionSort;
+      pagination?: CollectionPagination;
+    }
   ): Promise<{ data: CollectionRow[]; error: Error | null }> {
     return getCollections(this.supabase, filter);
   }
@@ -111,7 +112,9 @@ export class CollectionRepository {
   // ---- Collection CRUD -------------------------------------------------
 
   /** Create a new collection. */
-  createCollection(payload: CreateCollectionPayload): Promise<CollectionResult<CollectionRow>> {
+  createCollection(
+    payload: CreateCollectionPayload
+  ): Promise<CollectionResult<CollectionRow>> {
     return createCollection(this.supabase, payload);
   }
 
@@ -124,29 +127,39 @@ export class CollectionRepository {
   }
 
   /** Soft-delete a collection (sets deleted_at). */
-  deleteCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+  deleteCollection(
+    collectionId: string
+  ): Promise<CollectionResult<CollectionRow>> {
     return deleteCollection(this.supabase, collectionId);
   }
 
   /** Restore a soft-deleted collection (clears deleted_at). */
-  restoreCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+  restoreCollection(
+    collectionId: string
+  ): Promise<CollectionResult<CollectionRow>> {
     return restoreCollection(this.supabase, collectionId);
   }
 
   /** Archive a collection (sets archived_at = NOW()). */
-  archiveCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+  archiveCollection(
+    collectionId: string
+  ): Promise<CollectionResult<CollectionRow>> {
     return archiveCollection(this.supabase, collectionId);
   }
 
   /** Unarchive a collection (clears archived_at). */
-  unarchiveCollection(collectionId: string): Promise<CollectionResult<CollectionRow>> {
+  unarchiveCollection(
+    collectionId: string
+  ): Promise<CollectionResult<CollectionRow>> {
     return unarchiveCollection(this.supabase, collectionId);
   }
 
   // ---- Entry reads -----------------------------------------------------
 
   /** Get all entries in a collection, ordered by position ascending. */
-  getItems(collectionId: string): Promise<{ data: CollectionEntryRow[]; error: Error | null }> {
+  getItems(
+    collectionId: string
+  ): Promise<{ data: CollectionEntryRow[]; error: Error | null }> {
     return getItems(this.supabase, collectionId);
   }
 
@@ -158,19 +171,25 @@ export class CollectionRepository {
   }
 
   /** Get a single entry by its composite key (collection_id, vault_id). */
-  getEntry(identity: CollectionEntryIdentity): Promise<CollectionResult<CollectionEntryRow>> {
+  getEntry(
+    identity: CollectionEntryIdentity
+  ): Promise<CollectionResult<CollectionEntryRow>> {
     return getEntry(this.supabase, identity);
   }
 
   // ---- Entry mutations -------------------------------------------------
 
   /** Add a vault item to a collection (respects UNIQUE constraint). */
-  addItem(payload: AddItemPayload): Promise<CollectionResult<CollectionEntryRow>> {
+  addItem(
+    payload: AddItemPayload
+  ): Promise<CollectionResult<CollectionEntryRow>> {
     return addItem(this.supabase, payload);
   }
 
   /** Remove a single entry from a collection (hard delete). */
-  removeItem(identity: CollectionEntryIdentity): Promise<CollectionWriteResult> {
+  removeItem(
+    identity: CollectionEntryIdentity
+  ): Promise<CollectionWriteResult> {
     return removeItem(this.supabase, identity);
   }
 

@@ -26,7 +26,6 @@ import CollectionTimeline from "./components/CollectionTimeline";
 
 import CollectionSkeleton from "./components/CollectionSkeleton";
 
-
 /**
  * CollectionModal — the cinematic collection viewer (orchestration only).
  *
@@ -45,7 +44,9 @@ export default function CollectionModal() {
   const { openTitle } = useModalState();
   const { watchlist } = useVault();
 
-  const franchise = createMemo(() => collectionSelectedItem()?.franchise ?? null);
+  const franchise = createMemo(
+    () => collectionSelectedItem()?.franchise ?? null
+  );
   const triggerId = createMemo(() => collectionSelectedItem()?.triggerTitleId);
 
   const [collectionData] = createResource(franchise, fetchFranchiseTitles);
@@ -61,7 +62,7 @@ export default function CollectionModal() {
         inVault: vaultItem !== null,
         status: vaultItem?.status ?? null,
         rating: vaultItem?.rating ?? null,
-        isTrigger: triggerId() ? String(t.id) === triggerId() : false,
+        isTrigger: triggerId() ? String(t.id) === triggerId() : false
       };
     });
   });
@@ -78,7 +79,10 @@ export default function CollectionModal() {
     const ratedItems = items.filter((i) => i.rating && i.rating > 0);
     const avgRating =
       ratedItems.length > 0
-        ? (ratedItems.reduce((sum, i) => sum + (i.rating || 0), 0) / ratedItems.length).toFixed(1)
+        ? (
+            ratedItems.reduce((sum, i) => sum + (i.rating || 0), 0) /
+            ratedItems.length
+          ).toFixed(1)
         : null;
     return { owned, completed, watching, total, pct, avgRating };
   });
@@ -105,7 +109,7 @@ export default function CollectionModal() {
       status: "Planned",
       release_date: title.release_date,
       first_air_date: title.first_air_date,
-      genresList: normalizeGenres(title.genres as unknown[]),
+      genresList: normalizeGenres(title.genres as unknown[])
     };
     openTitle(baseItem, watchlist());
   };
@@ -126,7 +130,7 @@ export default function CollectionModal() {
     <Show when={collectionSelectedItem()}>
       <Portal>
         <div
-          class="fixed inset-0 z-[999998] flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fade-in"
+          class="animate-fade-in fixed inset-0 z-[999998] flex items-end justify-center p-0 sm:items-center sm:p-4"
           onClick={closeCollection}
           role="dialog"
           aria-modal="true"
@@ -139,15 +143,21 @@ export default function CollectionModal() {
           />
 
           <div
-            class="collection-modal w-full max-w-xl lg:max-w-[800px] relative z-10"
+            class="collection-modal relative z-10 w-full max-w-xl lg:max-w-[800px]"
             onClick={(e) => e.stopPropagation()}
           >
-            <Show when={!collectionData.loading} fallback={<CollectionSkeleton />}>
+            <Show
+              when={!collectionData.loading}
+              fallback={<CollectionSkeleton />}
+            >
               <Show
                 when={collectionData()}
                 fallback={
                   <div class="collection-error">
-                    <p class="type-body-soft" style={{ "text-align": "center" }}>
+                    <p
+                      class="type-body-soft"
+                      style={{ "text-align": "center" }}
+                    >
                       Couldn't load this collection. Try again later.
                     </p>
                     <button class="btn-ghost" onClick={closeCollection}>

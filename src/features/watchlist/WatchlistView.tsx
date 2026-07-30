@@ -36,8 +36,12 @@ export default function WatchlistView() {
 
   const [showFilter, setShowFilter] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
-  const [viewMode, setViewModeInternal] = createSignal<"grid" | "timeline">("grid");
-  const [expandedShelves, setExpandedShelves] = createSignal<Set<string>>(new Set());
+  const [viewMode, setViewModeInternal] = createSignal<"grid" | "timeline">(
+    "grid"
+  );
+  const [expandedShelves, setExpandedShelves] = createSignal<Set<string>>(
+    new Set()
+  );
 
   // Deferred view-mode switch for INP optimization.
   const setViewMode = (mode: "grid" | "timeline") => {
@@ -62,12 +66,15 @@ export default function WatchlistView() {
     clearFilters,
     uniqueGenres,
     uniquePlatforms,
-    uniqueTags,
+    uniqueTags
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
   const handleScroll = () => {
-    if (window.innerHeight + window.scrollY >= document.body.offsetHeight - 500) {
+    if (
+      window.innerHeight + window.scrollY >=
+      document.body.offsetHeight - 500
+    ) {
       setDisplayLimit((prev) => prev + 20);
     }
   };
@@ -102,7 +109,7 @@ export default function WatchlistView() {
   // Sections hook — adaptive shelves with deduplication
   const { sections } = useVaultSections({
     watchlist: filtered,
-    flatMode: isFlatMode,
+    flatMode: isFlatMode
   });
 
   const handleSelectStatusTab = (status: string) => {
@@ -147,10 +154,7 @@ export default function WatchlistView() {
           The filtered count is still visible via the section subtitles
           (in dashboard mode) or the grid's natural rendering (in flat mode). */}
 
-      <Show
-        when={!loading()}
-        fallback={<LoadingSkeleton />}
-      >
+      <Show when={!loading()} fallback={<LoadingSkeleton />}>
         <Show
           when={!error()}
           fallback={

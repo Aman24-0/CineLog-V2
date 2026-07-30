@@ -58,7 +58,8 @@ const TrashHeader: Component<TrashHeaderProps> = (props) => {
         <p class="sec-eyebrow">Trash</p>
         <h1 class="sec-title">Recycle Bin</h1>
         <p class="sec-subtitle">
-          Deleted items are kept for 30 days. Restore them, or clear the trash to free up space.
+          Deleted items are kept for 30 days. Restore them, or clear the trash
+          to free up space.
         </p>
       </div>
     </header>

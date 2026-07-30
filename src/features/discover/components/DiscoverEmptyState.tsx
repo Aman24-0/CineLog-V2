@@ -49,7 +49,11 @@ const DiscoverEmptyState: Component<DiscoverEmptyStateProps> = (props) => {
           onClick={() => props.onRetry?.()}
           aria-label="Retry loading this section"
         >
-          <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "14px" }}
+            aria-hidden="true"
+          >
             refresh
           </span>
           Retry

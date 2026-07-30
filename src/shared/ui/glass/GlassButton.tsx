@@ -4,7 +4,8 @@ import { Component, JSX, Show, splitProps, mergeProps } from "solid-js";
 // ─── Variant & Size Types ──────────────────────────────────────
 
 /** Button visual variant */
-type ButtonVariant = "primary" | "secondary" | "glass" | "ghost" | "danger" | "success";
+type ButtonVariant =
+  "primary" | "secondary" | "glass" | "ghost" | "danger" | "success";
 
 /** Button size */
 type ButtonSize = "compact" | "default" | "large";
@@ -51,7 +52,7 @@ const variantClasses: Record<ButtonVariant, string> = {
   danger:
     "bg-danger text-on-primary hover:brightness-110 hover:-translate-y-0.5",
   success:
-    "bg-success text-on-primary hover:brightness-110 hover:-translate-y-0.5",
+    "bg-success text-on-primary hover:brightness-110 hover:-translate-y-0.5"
 };
 
 // ─── Size Class Maps ───────────────────────────────────────────
@@ -59,13 +60,13 @@ const variantClasses: Record<ButtonVariant, string> = {
 const sizeClasses: Record<ButtonSize, string> = {
   compact: "p-2 px-3 text-sm gap-1",
   default: "p-3 px-5 text-md gap-2",
-  large:   "p-4 px-6 text-lg gap-2",
+  large: "p-4 px-6 text-lg gap-2"
 };
 
 const iconSizeMap: Record<ButtonSize, string> = {
   compact: "text-sm",
-  default:  "text-md",
-  large:    "text-lg",
+  default: "text-md",
+  large: "text-lg"
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -85,15 +86,27 @@ const GlassButton: Component<GlassButtonProps> = (rawProps) => {
       iconPosition: "left" as IconPosition,
       iconFill: false,
       selected: false,
-      active: false,
+      active: false
     },
-    rawProps,
+    rawProps
   );
 
   const [local, rest] = splitProps(props, [
-    "variant", "size", "loading", "disabled", "fullWidth",
-    "icon", "iconPosition", "iconFill", "selected", "active",
-    "class", "style", "children", "onClick",
+    "variant",
+    "size",
+    "loading",
+    "disabled",
+    "fullWidth",
+    "icon",
+    "iconPosition",
+    "iconFill",
+    "selected",
+    "active",
+    "class",
+    "style",
+    "children",
+    "onClick",
+    "type"
   ]);
 
   const isDisabled = (): boolean => local.disabled || local.loading;
@@ -124,13 +137,14 @@ const GlassButton: Component<GlassButtonProps> = (rawProps) => {
       "focus-ring cursor-pointer select-none",
       "active:scale-[0.97]",
       variantClasses[local.variant],
-      sizeClasses[local.size],
+      sizeClasses[local.size]
     ];
 
     if (local.fullWidth) base.push("w-full");
     if (local.selected) base.push("border-2 border-primary bg-primary-dim");
     if (local.active) base.push("scale-[0.97] brightness-90");
-    if (isDisabled()) base.push("opacity-disabled pointer-events-none cursor-not-allowed");
+    if (isDisabled())
+      base.push("opacity-disabled pointer-events-none cursor-not-allowed");
     if (local.class) base.push(local.class);
 
     return base.join(" ");
@@ -139,6 +153,9 @@ const GlassButton: Component<GlassButtonProps> = (rawProps) => {
   return (
     <button
       {...rest}
+      // Default to type="button" so the button never accidentally submits
+      // a parent <form>. Callers can still override by passing type="submit".
+      type={local.type ?? "button"}
       class={computedClass()}
       style={local.style}
       disabled={isDisabled()}
@@ -151,18 +168,20 @@ const GlassButton: Component<GlassButtonProps> = (rawProps) => {
       {/* Loading spinner */}
       <Show when={local.loading}>
         <span
-          class="animate-spin inline-block rounded-full border-2 border-current border-t-transparent"
+          class="inline-block animate-spin rounded-full border-2 border-current border-t-transparent"
           style={{
             width: "var(--space-4)",
             height: "var(--space-4)",
-            "border-width": "2px",
+            "border-width": "2px"
           }}
           aria-hidden="true"
         />
       </Show>
 
       {/* Icon (left) */}
-      <Show when={local.icon && !local.loading && local.iconPosition === "left"}>
+      <Show
+        when={local.icon && !local.loading && local.iconPosition === "left"}
+      >
         <span
           class={`material-symbols-outlined ${iconSizeMap[local.size]}`}
           style={{ "font-variation-settings": iconFontVariation() }}
@@ -178,7 +197,9 @@ const GlassButton: Component<GlassButtonProps> = (rawProps) => {
       </Show>
 
       {/* Icon (right) */}
-      <Show when={local.icon && !local.loading && local.iconPosition === "right"}>
+      <Show
+        when={local.icon && !local.loading && local.iconPosition === "right"}
+      >
         <span
           class={`material-symbols-outlined ${iconSizeMap[local.size]}`}
           style={{ "font-variation-settings": iconFontVariation() }}

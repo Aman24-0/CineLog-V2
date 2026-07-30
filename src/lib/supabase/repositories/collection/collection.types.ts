@@ -210,4 +210,5 @@ export interface CollectionWriteResult {
  * Shared by all read/write functions so they get full type inference
  * on `.from("collections")`, `.eq("user_id", …)`, etc.
  */
-export type TypedSupabaseClient = import("@supabase/supabase-js").SupabaseClient<Database>;
+export type TypedSupabaseClient =
+  import("@supabase/supabase-js").SupabaseClient<Database>;

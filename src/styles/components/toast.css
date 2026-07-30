@@ -11,7 +11,10 @@
 .toast-stack {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + var(--sp-4) + env(safe-area-inset-bottom, 0px));
+  bottom: calc(
+    var(--nav-total-height) + var(--nav-float-margin, 1rem) + var(--sp-4) +
+      env(safe-area-inset-bottom, 0px)
+  );
   transform: translateX(-50%);
   z-index: 9999; /* below modals (999999+), above nav (40) */
   display: flex;
@@ -36,7 +39,7 @@
   border: 1px solid var(--hairline-2);
   box-shadow: var(--shadow-elevated);
   color: var(--text-strong);
-  font-family: 'Outfit', sans-serif;
+  font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   font-weight: 600;
   line-height: 1.4;
@@ -52,7 +55,7 @@
 
 /* Accent stripe (left edge) — type-aware color */
 .toast::before {
-  content: '';
+  content: "";
   position: absolute;
   left: 0;
   top: 0;
@@ -61,10 +64,22 @@
   background: var(--text-muted);
   flex-shrink: 0;
 }
-.toast.toast-success::before { background: #4ade80; box-shadow: 0 0 8px rgba(74,222,128,0.5); }
-.toast.toast-error::before   { background: #f87171; box-shadow: 0 0 8px rgba(248,113,113,0.5); }
-.toast.toast-info::before    { background: var(--p); box-shadow: 0 0 8px var(--p-glow); }
-.toast.toast-action::before  { background: var(--p2); box-shadow: 0 0 8px color-mix(in srgb, var(--p2) 50%, transparent); }
+.toast.toast-success::before {
+  background: #4ade80;
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
+.toast.toast-error::before {
+  background: #f87171;
+  box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+}
+.toast.toast-info::before {
+  background: var(--p);
+  box-shadow: 0 0 8px var(--p-glow);
+}
+.toast.toast-action::before {
+  background: var(--p2);
+  box-shadow: 0 0 8px color-mix(in srgb, var(--p2) 50%, transparent);
+}
 
 /* Icon — type-aware, sits inside a circular tint */
 .toast-icon {
@@ -77,10 +92,22 @@
   flex-shrink: 0;
   font-size: 16px;
 }
-.toast-success .toast-icon { background: rgba(74,222,128,0.12); color: #4ade80; }
-.toast-error   .toast-icon { background: rgba(248,113,113,0.12); color: #f87171; }
-.toast-info    .toast-icon { background: var(--p-dim);           color: var(--p); }
-.toast-action  .toast-icon { background: color-mix(in srgb, var(--p2) 12%, transparent); color: var(--p2); }
+.toast-success .toast-icon {
+  background: rgba(74, 222, 128, 0.12);
+  color: #4ade80;
+}
+.toast-error .toast-icon {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+}
+.toast-info .toast-icon {
+  background: var(--p-dim);
+  color: var(--p);
+}
+.toast-action .toast-icon {
+  background: color-mix(in srgb, var(--p2) 12%, transparent);
+  color: var(--p2);
+}
 
 /* Body text — wraps up to 2 lines */
 .toast-message {
@@ -98,7 +125,7 @@
   background: transparent;
   border: none;
   color: var(--p);
-  font-family: 'Azeret Mono', monospace;
+  font-family: "Azeret Mono", monospace;
   font-size: 0.6875rem;
   font-weight: 800;
   letter-spacing: 0.1em;
@@ -110,8 +137,12 @@
   transition: background var(--dur-fast) var(--ease-out);
   flex-shrink: 0;
 }
-.toast-action-btn:hover { background: var(--p-dim); }
-.toast-action-btn:active { transform: scale(0.96); }
+.toast-action-btn:hover {
+  background: var(--p-dim);
+}
+.toast-action-btn:active {
+  transform: scale(0.96);
+}
 
 /* Dismiss (X) button — appears on hover for desktop, always tappable on touch */
 .toast-close {
@@ -126,7 +157,9 @@
   color: var(--text-muted);
   cursor: pointer;
   flex-shrink: 0;
-  transition: background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out);
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
 }
 .toast-close:hover {
   background: var(--hairline-2);

@@ -16,7 +16,7 @@ import {
   createResource,
   Show,
   For,
-  type Component,
+  type Component
 } from "solid-js";
 import { untrack } from "solid-js";
 
@@ -54,9 +54,13 @@ const AdminUsersPage: Component = () => {
   const [search, setSearch] = createSignal("");
   const [page, setPage] = createSignal(1);
   const [refreshKey, setRefreshKey] = createSignal(0);
-  const [confirmDialog, setConfirmDialog] = createSignal<ConfirmDialogState | null>(null);
+  const [confirmDialog, setConfirmDialog] =
+    createSignal<ConfirmDialogState | null>(null);
   const [actionLoading, setActionLoading] = createSignal(false);
-  const [toast, setToast] = createSignal<{ msg: string; type: "success" | "error" } | null>(null);
+  const [toast, setToast] = createSignal<{
+    msg: string;
+    type: "success" | "error";
+  } | null>(null);
 
   // Debounced search
   let searchDebounce: ReturnType<typeof setTimeout> | undefined;
@@ -72,12 +76,12 @@ const AdminUsersPage: Component = () => {
   const fetchUsers = async (): Promise<ListUsersResponse> => {
     const params = new URLSearchParams({
       page: page().toString(),
-      limit: PAGE_SIZE.toString(),
+      limit: PAGE_SIZE.toString()
     });
     if (search()) params.set("search", search());
 
     const resp = await fetch(`/api/admin/users?${params}`, {
-      credentials: "include",
+      credentials: "include"
     });
     if (!resp.ok) {
       if (resp.status === 401) {
@@ -108,8 +112,8 @@ const AdminUsersPage: Component = () => {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           id: dialog.user.id,
-          action: dialog.action,
-        }),
+          action: dialog.action
+        })
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
@@ -119,7 +123,7 @@ const AdminUsersPage: Component = () => {
           disable: "User disabled",
           enable: "User enabled",
           delete: "User deleted",
-          reset_preferences: "Preferences reset",
+          reset_preferences: "Preferences reset"
         };
         showToast(actionLabels[dialog.action] || "Action complete", "success");
         setRefreshKey((k) => k + 1);
@@ -136,10 +140,14 @@ const AdminUsersPage: Component = () => {
   const formatDate = (iso: string | null): string => {
     if (!iso) return "—";
     const d = new Date(iso);
-    return d.toLocaleDateString() + " " + d.toLocaleTimeString([], {
-      hour: "2-digit",
-      minute: "2-digit",
-    });
+    return (
+      d.toLocaleDateString() +
+      " " +
+      d.toLocaleTimeString([], {
+        hour: "2-digit",
+        minute: "2-digit"
+      })
+    );
   };
 
   const totalPages = () => {
@@ -153,17 +161,20 @@ const AdminUsersPage: Component = () => {
       disable: "Disable Account",
       enable: "Enable Account",
       delete: "Delete Account",
-      reset_preferences: "Reset Preferences",
+      reset_preferences: "Reset Preferences"
     };
     return map[action] || action;
   };
 
   const actionDescription = (action: string): string => {
     const map: Record<string, string> = {
-      disable: "The user will be signed out and unable to log in until re-enabled.",
+      disable:
+        "The user will be signed out and unable to log in until re-enabled.",
       enable: "The user will be able to log in again.",
-      delete: "Soft-delete — the user's profile and data are retained but hidden.",
-      reset_preferences: "All user preferences (theme, language, etc.) will be reset to defaults.",
+      delete:
+        "Soft-delete — the user's profile and data are retained but hidden.",
+      reset_preferences:
+        "All user preferences (theme, language, etc.) will be reset to defaults."
     };
     return map[action] || "";
   };
@@ -176,7 +187,7 @@ const AdminUsersPage: Component = () => {
             "font-size": "1.5rem",
             "font-weight": "700",
             margin: "0 0 var(--sp-1) 0",
-            color: "var(--text)",
+            color: "var(--text)"
           }}
         >
           User Management
@@ -185,7 +196,7 @@ const AdminUsersPage: Component = () => {
           style={{
             "font-size": "0.875rem",
             color: "var(--text-muted)",
-            margin: 0,
+            margin: 0
           }}
         >
           Search, view, and manage user accounts
@@ -202,12 +213,12 @@ const AdminUsersPage: Component = () => {
             width: "100%",
             "max-width": "480px",
             padding: "var(--sp-3) var(--sp-4)",
-            "background": "var(--tier-2)",
+            background: "var(--tier-2)",
             border: "1px solid var(--hairline-2)",
             "border-radius": "var(--radius-md)",
             color: "var(--text)",
             "font-size": "0.9375rem",
-            outline: "none",
+            outline: "none"
           }}
         />
       </div>
@@ -215,10 +226,10 @@ const AdminUsersPage: Component = () => {
       {/* Table */}
       <div
         style={{
-          "background": "var(--tier-1)",
+          background: "var(--tier-1)",
           border: "1px solid var(--hairline)",
           "border-radius": "var(--radius-lg)",
-          overflow: "hidden",
+          overflow: "hidden"
         }}
       >
         <div style={{ "overflow-x": "auto" }}>
@@ -226,24 +237,81 @@ const AdminUsersPage: Component = () => {
             style={{
               width: "100%",
               "border-collapse": "collapse",
-              "font-size": "0.875rem",
+              "font-size": "0.875rem"
             }}
           >
             <thead>
               <tr
                 style={{
-                  "background": "var(--tier-2)",
+                  background: "var(--tier-2)",
                   "text-align": "left",
-                  "border-bottom": "1px solid var(--hairline)",
+                  "border-bottom": "1px solid var(--hairline)"
                 }}
               >
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>User</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>Email</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>Joined</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>Vault</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>Last Active</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)" }}>Status</th>
-                <th style={{ padding: "var(--sp-3) var(--sp-4)", "font-weight": "600", color: "var(--text-secondary)", "text-align": "right" }}>Actions</th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  User
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  Email
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  Joined
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  Vault
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  Last Active
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)"
+                  }}
+                >
+                  Status
+                </th>
+                <th
+                  style={{
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "font-weight": "600",
+                    color: "var(--text-secondary)",
+                    "text-align": "right"
+                  }}
+                >
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody>
@@ -254,7 +322,7 @@ const AdminUsersPage: Component = () => {
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
-                      color: "var(--text-muted)",
+                      color: "var(--text-muted)"
                     }}
                   >
                     Loading…
@@ -269,22 +337,27 @@ const AdminUsersPage: Component = () => {
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
-                      color: "rgb(252, 165, 165)",
+                      color: "rgb(252, 165, 165)"
                     }}
                   >
-                    Failed to load users: {String(users.error?.message ?? users.error)}
+                    Failed to load users:{" "}
+                    {String(users.error?.message ?? users.error)}
                   </td>
                 </tr>
               </Show>
 
-              <Show when={!users.loading && !users.error && users()?.users.length === 0}>
+              <Show
+                when={
+                  !users.loading && !users.error && users()?.users.length === 0
+                }
+              >
                 <tr>
                   <td
                     colspan={7}
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
-                      color: "var(--text-muted)",
+                      color: "var(--text-muted)"
                     }}
                   >
                     No users found
@@ -297,19 +370,29 @@ const AdminUsersPage: Component = () => {
                   <tr
                     style={{
                       "border-bottom": "1px solid var(--hairline)",
-                      transition: "background 0.15s ease",
+                      transition: "background 0.15s ease"
                     }}
-                    onMouseEnter={(e) => (e.currentTarget.style.background = "var(--tier-2)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                    onMouseEnter={(e) =>
+                      (e.currentTarget.style.background = "var(--tier-2)")
+                    }
+                    onMouseLeave={(e) =>
+                      (e.currentTarget.style.background = "transparent")
+                    }
                   >
                     <td style={{ padding: "var(--sp-3) var(--sp-4)" }}>
-                      <div style={{ display: "flex", "align-items": "center", gap: "var(--sp-3)" }}>
+                      <div
+                        style={{
+                          display: "flex",
+                          "align-items": "center",
+                          gap: "var(--sp-3)"
+                        }}
+                      >
                         <div
                           style={{
                             width: "32px",
                             height: "32px",
                             "border-radius": "50%",
-                            "background": user.avatar_url
+                            background: user.avatar_url
                               ? `url(${user.avatar_url}) center/cover`
                               : "var(--p)",
                             "flex-shrink": 0,
@@ -318,43 +401,78 @@ const AdminUsersPage: Component = () => {
                             "justify-content": "center",
                             color: "var(--on-primary)",
                             "font-weight": "600",
-                            "font-size": "0.75rem",
+                            "font-size": "0.75rem"
                           }}
                         >
-                          {!user.avatar_url && user.display_name.charAt(0).toUpperCase()}
+                          {!user.avatar_url &&
+                            user.display_name.charAt(0).toUpperCase()}
                         </div>
                         <div>
-                          <div style={{ "font-weight": "500", color: "var(--text)" }}>
+                          <div
+                            style={{
+                              "font-weight": "500",
+                              color: "var(--text)"
+                            }}
+                          >
                             {user.display_name}
                           </div>
-                          <div style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
+                          <div
+                            style={{
+                              "font-size": "0.75rem",
+                              color: "var(--text-muted)"
+                            }}
+                          >
                             @{user.username}
                           </div>
                         </div>
                       </div>
                     </td>
-                    <td style={{ padding: "var(--sp-3) var(--sp-4)", color: "var(--text-secondary)" }}>
-                      {user.email || <span style={{ color: "var(--text-muted)" }}>—</span>}
+                    <td
+                      style={{
+                        padding: "var(--sp-3) var(--sp-4)",
+                        color: "var(--text-secondary)"
+                      }}
+                    >
+                      {user.email || (
+                        <span style={{ color: "var(--text-muted)" }}>—</span>
+                      )}
                     </td>
-                    <td style={{ padding: "var(--sp-3) var(--sp-4)", color: "var(--text-secondary)", "white-space": "nowrap" }}>
+                    <td
+                      style={{
+                        padding: "var(--sp-3) var(--sp-4)",
+                        color: "var(--text-secondary)",
+                        "white-space": "nowrap"
+                      }}
+                    >
                       {formatDate(user.created_at)}
                     </td>
-                    <td style={{ padding: "var(--sp-3) var(--sp-4)", color: "var(--text-secondary)" }}>
+                    <td
+                      style={{
+                        padding: "var(--sp-3) var(--sp-4)",
+                        color: "var(--text-secondary)"
+                      }}
+                    >
                       {user.vault_count}
                     </td>
-                    <td style={{ padding: "var(--sp-3) var(--sp-4)", color: "var(--text-secondary)", "white-space": "nowrap" }}>
+                    <td
+                      style={{
+                        padding: "var(--sp-3) var(--sp-4)",
+                        color: "var(--text-secondary)",
+                        "white-space": "nowrap"
+                      }}
+                    >
                       {formatDate(user.last_activity)}
                     </td>
                     <td style={{ padding: "var(--sp-3) var(--sp-4)" }}>
                       <Show when={user.deleted_at}>
                         <span
                           style={{
-                            "background": "rgba(239, 68, 68, 0.15)",
+                            background: "rgba(239, 68, 68, 0.15)",
                             color: "rgb(252, 165, 165)",
                             "font-size": "0.75rem",
                             "font-weight": "600",
                             padding: "2px 8px",
-                            "border-radius": "var(--radius-sm)",
+                            "border-radius": "var(--radius-sm)"
                           }}
                         >
                           DELETED
@@ -363,51 +481,72 @@ const AdminUsersPage: Component = () => {
                       <Show when={!user.deleted_at && user.admin_disabled_at}>
                         <span
                           style={{
-                            "background": "rgba(251, 191, 36, 0.15)",
+                            background: "rgba(251, 191, 36, 0.15)",
                             color: "rgb(253, 224, 71)",
                             "font-size": "0.75rem",
                             "font-weight": "600",
                             padding: "2px 8px",
-                            "border-radius": "var(--radius-sm)",
+                            "border-radius": "var(--radius-sm)"
                           }}
                         >
                           DISABLED
                         </span>
                       </Show>
-                      <Show when={!user.deleted_at && !user.admin_disabled_at && user.is_admin}>
+                      <Show
+                        when={
+                          !user.deleted_at &&
+                          !user.admin_disabled_at &&
+                          user.is_admin
+                        }
+                      >
                         <span
                           style={{
-                            "background": "rgba(99, 102, 241, 0.15)",
+                            background: "rgba(99, 102, 241, 0.15)",
                             color: "rgb(165, 180, 252)",
                             "font-size": "0.75rem",
                             "font-weight": "600",
                             padding: "2px 8px",
-                            "border-radius": "var(--radius-sm)",
+                            "border-radius": "var(--radius-sm)"
                           }}
                         >
                           ADMIN
                         </span>
                       </Show>
-                      <Show when={!user.deleted_at && !user.admin_disabled_at && !user.is_admin}>
+                      <Show
+                        when={
+                          !user.deleted_at &&
+                          !user.admin_disabled_at &&
+                          !user.is_admin
+                        }
+                      >
                         <span
                           style={{
-                            "background": "rgba(34, 197, 94, 0.15)",
+                            background: "rgba(34, 197, 94, 0.15)",
                             color: "rgb(134, 239, 172)",
                             "font-size": "0.75rem",
                             "font-weight": "600",
                             padding: "2px 8px",
-                            "border-radius": "var(--radius-sm)",
+                            "border-radius": "var(--radius-sm)"
                           }}
                         >
                           ACTIVE
                         </span>
                       </Show>
                     </td>
-                    <td style={{ padding: "var(--sp-3) var(--sp-4)", "text-align": "right" }}>
+                    <td
+                      style={{
+                        padding: "var(--sp-3) var(--sp-4)",
+                        "text-align": "right"
+                      }}
+                    >
                       <Show when={!user.is_admin}>
-                        <Show when={!user.deleted_at && !user.admin_disabled_at}>
+                        <Show
+                          when={!user.deleted_at && !user.admin_disabled_at}
+                        >
                           <button
-                            onClick={() => setConfirmDialog({ user, action: "disable" })}
+                            onClick={() =>
+                              setConfirmDialog({ user, action: "disable" })
+                            }
                             style={actionBtnStyle("warning")}
                           >
                             Disable
@@ -415,7 +554,9 @@ const AdminUsersPage: Component = () => {
                         </Show>
                         <Show when={!user.deleted_at && user.admin_disabled_at}>
                           <button
-                            onClick={() => setConfirmDialog({ user, action: "enable" })}
+                            onClick={() =>
+                              setConfirmDialog({ user, action: "enable" })
+                            }
                             style={actionBtnStyle("default")}
                           >
                             Enable
@@ -423,7 +564,12 @@ const AdminUsersPage: Component = () => {
                         </Show>
                         <Show when={!user.deleted_at}>
                           <button
-                            onClick={() => setConfirmDialog({ user, action: "reset_preferences" })}
+                            onClick={() =>
+                              setConfirmDialog({
+                                user,
+                                action: "reset_preferences"
+                              })
+                            }
                             style={actionBtnStyle("default")}
                           >
                             Reset Prefs
@@ -431,7 +577,9 @@ const AdminUsersPage: Component = () => {
                         </Show>
                         <Show when={!user.deleted_at}>
                           <button
-                            onClick={() => setConfirmDialog({ user, action: "delete" })}
+                            onClick={() =>
+                              setConfirmDialog({ user, action: "delete" })
+                            }
                             style={actionBtnStyle("danger")}
                           >
                             Delete
@@ -456,12 +604,13 @@ const AdminUsersPage: Component = () => {
             "align-items": "center",
             "margin-top": "var(--sp-4)",
             "font-size": "0.8125rem",
-            color: "var(--text-muted)",
+            color: "var(--text-muted)"
           }}
         >
           <span>
             Showing {(page() - 1) * PAGE_SIZE + 1}–
-            {Math.min(page() * PAGE_SIZE, users()?.total ?? 0)} of {users()?.total ?? 0}
+            {Math.min(page() * PAGE_SIZE, users()?.total ?? 0)} of{" "}
+            {users()?.total ?? 0}
           </span>
           <div style={{ display: "flex", gap: "var(--sp-2)" }}>
             <button
@@ -498,26 +647,26 @@ const AdminUsersPage: Component = () => {
             style={{
               position: "fixed",
               inset: 0,
-              "background": "rgba(0,0,0,0.7)",
+              background: "rgba(0,0,0,0.7)",
               "backdrop-filter": "blur(4px)",
               "z-index": 1000,
               display: "flex",
               "align-items": "center",
               "justify-content": "center",
-              padding: "var(--sp-4)",
+              padding: "var(--sp-4)"
             }}
             onClick={() => !actionLoading() && setConfirmDialog(null)}
           >
             <div
               onClick={(e) => e.stopPropagation()}
               style={{
-                "background": "var(--tier-1)",
+                background: "var(--tier-1)",
                 border: "1px solid var(--hairline)",
                 "border-radius": "var(--radius-lg)",
                 padding: "var(--sp-6)",
                 "max-width": "440px",
                 width: "100%",
-                "box-shadow": "var(--shadow-xl)",
+                "box-shadow": "var(--shadow-xl)"
               }}
             >
               <h3
@@ -528,34 +677,52 @@ const AdminUsersPage: Component = () => {
                   color:
                     dialog().action === "delete"
                       ? "rgb(252, 165, 165)"
-                      : "var(--text)",
+                      : "var(--text)"
                 }}
               >
                 {actionLabel(dialog().action)}
               </h3>
-              <p style={{ "font-size": "0.875rem", color: "var(--text-secondary)", "margin-bottom": "var(--sp-4)" }}>
+              <p
+                style={{
+                  "font-size": "0.875rem",
+                  color: "var(--text-secondary)",
+                  "margin-bottom": "var(--sp-4)"
+                }}
+              >
                 You are about to perform this action on{" "}
                 <strong style={{ color: "var(--text)" }}>
                   {dialog().user.display_name} (@{dialog().user.username})
                 </strong>
                 .
               </p>
-              <p style={{ "font-size": "0.8125rem", color: "var(--text-muted)", "margin-bottom": "var(--sp-5)" }}>
+              <p
+                style={{
+                  "font-size": "0.8125rem",
+                  color: "var(--text-muted)",
+                  "margin-bottom": "var(--sp-5)"
+                }}
+              >
                 {actionDescription(dialog().action)}
               </p>
-              <div style={{ display: "flex", gap: "var(--sp-3)", "justify-content": "flex-end" }}>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--sp-3)",
+                  "justify-content": "flex-end"
+                }}
+              >
                 <button
                   onClick={() => setConfirmDialog(null)}
                   disabled={actionLoading()}
                   style={{
                     padding: "var(--sp-2) var(--sp-4)",
-                    "background": "transparent",
+                    background: "transparent",
                     border: "1px solid var(--hairline-2)",
                     "border-radius": "var(--radius-md)",
                     color: "var(--text-secondary)",
                     "font-size": "0.875rem",
                     "font-weight": "500",
-                    cursor: "pointer",
+                    cursor: "pointer"
                   }}
                 >
                   Cancel
@@ -565,7 +732,7 @@ const AdminUsersPage: Component = () => {
                   disabled={actionLoading()}
                   style={{
                     padding: "var(--sp-2) var(--sp-4)",
-                    "background":
+                    background:
                       dialog().action === "delete"
                         ? "rgb(239, 68, 68)"
                         : dialog().action === "disable"
@@ -576,7 +743,7 @@ const AdminUsersPage: Component = () => {
                     "border-radius": "var(--radius-md)",
                     "font-size": "0.875rem",
                     "font-weight": "600",
-                    cursor: "pointer",
+                    cursor: "pointer"
                   }}
                 >
                   {actionLoading() ? "Working…" : "Confirm"}
@@ -595,7 +762,10 @@ const AdminUsersPage: Component = () => {
               position: "fixed",
               bottom: "var(--sp-6)",
               right: "var(--sp-6)",
-              "background": t().type === "success" ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)",
+              background:
+                t().type === "success"
+                  ? "rgb(34, 197, 94)"
+                  : "rgb(239, 68, 68)",
               color: "white",
               padding: "var(--sp-3) var(--sp-5)",
               "border-radius": "var(--radius-md)",
@@ -603,7 +773,7 @@ const AdminUsersPage: Component = () => {
               "z-index": 1100,
               "font-size": "0.875rem",
               "font-weight": "500",
-              "animation": "fadeInUp 0.2s ease",
+              animation: "fadeInUp 0.2s ease"
             }}
           >
             {t().msg}
@@ -617,10 +787,10 @@ const AdminUsersPage: Component = () => {
 // ─── Style helpers ────────────────────────────────────────────────
 
 function actionBtnStyle(
-  variant: "default" | "warning" | "danger",
+  variant: "default" | "warning" | "danger"
 ): Record<string, string> {
   const base: Record<string, string> = {
-    "background": "transparent",
+    background: "transparent",
     border: "1px solid var(--hairline-2)",
     "border-radius": "var(--radius-sm)",
     padding: "4px 10px",
@@ -628,38 +798,38 @@ function actionBtnStyle(
     "font-weight": "500",
     cursor: "pointer",
     "margin-left": "var(--sp-1)",
-    transition: "all 0.15s ease",
+    transition: "all 0.15s ease"
   };
   if (variant === "warning") {
     return {
       ...base,
       color: "rgb(253, 224, 71)",
-      "border-color": "rgba(251, 191, 36, 0.4)",
+      "border-color": "rgba(251, 191, 36, 0.4)"
     };
   }
   if (variant === "danger") {
     return {
       ...base,
       color: "rgb(252, 165, 165)",
-      "border-color": "rgba(239, 68, 68, 0.4)",
+      "border-color": "rgba(239, 68, 68, 0.4)"
     };
   }
   return {
     ...base,
-    color: "var(--text-secondary)",
+    color: "var(--text-secondary)"
   };
 }
 
 function pageBtnStyle(disabled: boolean): Record<string, string> {
   return {
-    "background": "transparent",
+    background: "transparent",
     border: "1px solid var(--hairline-2)",
     "border-radius": "var(--radius-sm)",
     padding: "6px 12px",
     "font-size": "0.8125rem",
     color: disabled ? "var(--text-muted)" : "var(--text-secondary)",
     cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? "0.5" : "1",
+    opacity: disabled ? "0.5" : "1"
   };
 }
 

@@ -21,13 +21,34 @@
 //
 
 import {
-  For, Show, createSignal, createMemo, onMount, type Component,
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  type Component,
+  type JSX
 } from "solid-js";
 import { discoverMovies, discoverTv } from "~/core/tmdb/discover";
 import { MOVIE_GENRES } from "~/core/tmdb/genres";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
 import DiscoverEmptyState from "./DiscoverEmptyState";
+
+// ─── Module-level style constants ────────────────────────────────────
+// GenreExplorer renders up to ~40 cards per expanded genre carousel.
+// Extracting static styles to module level avoids re-allocating per
+// card on every carousel expansion.
+const POSTER_FALLBACK_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "28px",
+  color: "var(--text-dim)"
+};
+const RATING_STAR_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "10px",
+  "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+};
+const META_DOT_STYLE: JSX.CSSProperties = { color: "var(--text-dim)" };
+const SKELETON_CARD_STYLE: JSX.CSSProperties = { cursor: "default" };
 
 interface GenreExplorerProps {
   onSelect: (title: TMDBTitle) => void;
@@ -70,38 +91,48 @@ interface GenreDef {
 // users can browse chips here even when their stats haven't surfaced a
 // given genre yet.
 const GENRE_ICONS: Record<string, string> = {
-  "Action": "bolt",
-  "Adventure": "explore",
-  "Animation": "animation",
-  "Comedy": "sentiment_very_satisfied",
-  "Crime": "gavel",
-  "Documentary": "smart_display",
-  "Drama": "theater_comedy",
-  "Family": "family_restroom",
-  "Fantasy": "auto_fix_high",
-  "Horror": "bedtime",
-  "Music": "music_note",
-  "Mystery": "search",
-  "Romance": "favorite",
+  Action: "bolt",
+  Adventure: "explore",
+  Animation: "animation",
+  Comedy: "sentiment_very_satisfied",
+  Crime: "gavel",
+  Documentary: "smart_display",
+  Drama: "theater_comedy",
+  Family: "family_restroom",
+  Fantasy: "auto_fix_high",
+  Horror: "bedtime",
+  Music: "music_note",
+  Mystery: "search",
+  Romance: "favorite",
   "Sci-Fi": "rocket_launch",
-  "Thriller": "psychology",
+  Thriller: "psychology"
 };
 
 const GENRES: GenreDef[] = [
-  { name: "Action",      movieId: 28,   tvId: 10759,           icon: GENRE_ICONS["Action"] },
-  { name: "Comedy",      movieId: 35,   tvId: 35,              icon: GENRE_ICONS["Comedy"] },
-  { name: "Thriller",    movieId: 53,                         icon: GENRE_ICONS["Thriller"] },
-  { name: "Drama",       movieId: 18,   tvId: 18,              icon: GENRE_ICONS["Drama"] },
-  { name: "Sci-Fi",      movieId: 878,  tvId: 10765,           icon: GENRE_ICONS["Sci-Fi"] },
-  { name: "Animation",   movieId: 16,   tvId: 16,              icon: GENRE_ICONS["Animation"] },
-  { name: "Fantasy",     movieId: 14,   tvId: 10765,           icon: GENRE_ICONS["Fantasy"] },
-  { name: "Adventure",   movieId: 12,   tvId: 10759,           icon: GENRE_ICONS["Adventure"] },
-  { name: "Crime",       movieId: 80,   tvId: 80,              icon: GENRE_ICONS["Crime"] },
-  { name: "Mystery",     movieId: 9648, tvId: 9648,            icon: GENRE_ICONS["Mystery"] },
-  { name: "Horror",      movieId: 27,                          icon: GENRE_ICONS["Horror"] },
-  { name: "Romance",     movieId: 10749,                       icon: GENRE_ICONS["Romance"] },
-  { name: "Family",      movieId: 10751, tvId: 10751,          icon: GENRE_ICONS["Family"] },
-  { name: "Documentary", movieId: 99,   tvId: 99,              icon: GENRE_ICONS["Documentary"] },
+  { name: "Action", movieId: 28, tvId: 10759, icon: GENRE_ICONS["Action"] },
+  { name: "Comedy", movieId: 35, tvId: 35, icon: GENRE_ICONS["Comedy"] },
+  { name: "Thriller", movieId: 53, icon: GENRE_ICONS["Thriller"] },
+  { name: "Drama", movieId: 18, tvId: 18, icon: GENRE_ICONS["Drama"] },
+  { name: "Sci-Fi", movieId: 878, tvId: 10765, icon: GENRE_ICONS["Sci-Fi"] },
+  { name: "Animation", movieId: 16, tvId: 16, icon: GENRE_ICONS["Animation"] },
+  { name: "Fantasy", movieId: 14, tvId: 10765, icon: GENRE_ICONS["Fantasy"] },
+  {
+    name: "Adventure",
+    movieId: 12,
+    tvId: 10759,
+    icon: GENRE_ICONS["Adventure"]
+  },
+  { name: "Crime", movieId: 80, tvId: 80, icon: GENRE_ICONS["Crime"] },
+  { name: "Mystery", movieId: 9648, tvId: 9648, icon: GENRE_ICONS["Mystery"] },
+  { name: "Horror", movieId: 27, icon: GENRE_ICONS["Horror"] },
+  { name: "Romance", movieId: 10749, icon: GENRE_ICONS["Romance"] },
+  { name: "Family", movieId: 10751, tvId: 10751, icon: GENRE_ICONS["Family"] },
+  {
+    name: "Documentary",
+    movieId: 99,
+    tvId: 99,
+    icon: GENRE_ICONS["Documentary"]
+  }
 ];
 
 // Sanity check — the movie IDs above match the TMDB MOVIE_GENRES map.
@@ -118,9 +149,9 @@ void MOVIE_GENRES;
 const GENRE_ALIASES: Record<string, string> = {
   "sci-fi & fantasy": "Sci-Fi",
   "science fiction": "Sci-Fi",
-  "scifi": "Sci-Fi",
+  scifi: "Sci-Fi",
   "action & adventure": "Action",
-  "war & politics": "Crime",
+  "war & politics": "Crime"
 };
 
 /**
@@ -145,13 +176,13 @@ const GENRE_ALIASES: Record<string, string> = {
  */
 async function fetchGenrePage(
   genre: GenreDef,
-  page: number,
+  page: number
 ): Promise<TMDBTitle[]> {
   // For the first page, pick a random starting page (1-5) so the
   // carousel shows different titles each session. For subsequent
   // pages (load-more), use the sequential page number so the carousel
   // flows continuously from the first random page.
-  const fetchPage = page === 1 ? (1 + Math.floor(Math.random() * 5)) : page;
+  const fetchPage = page === 1 ? 1 + Math.floor(Math.random() * 5) : page;
 
   const promises: Promise<TMDBTitle[]>[] = [
     discoverMovies({
@@ -162,8 +193,8 @@ async function fetchGenrePage(
       // vote_count.gte=1500 ensures the results are well-known enough
       // to be "acclaimed" (not obscure 1-vote 10/10 entries).
       voteCountGte: 1500,
-      page: fetchPage,
-    }),
+      page: fetchPage
+    })
   ];
   if (genre.tvId !== undefined) {
     promises.push(
@@ -171,8 +202,8 @@ async function fetchGenrePage(
         withGenres: [genre.tvId],
         sortBy: "vote_average.desc",
         voteCountGte: 500,
-        page: fetchPage,
-      }),
+        page: fetchPage
+      })
     );
   }
   const results = await Promise.all(promises);
@@ -240,7 +271,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
   const fetchFirstPage = async (genre: GenreDef) => {
     setCache((prev) => ({
       ...prev,
-      [genre.name]: { items: [], page: 1, hasMore: true, loading: true },
+      [genre.name]: { items: [], page: 1, hasMore: true, loading: true }
     }));
     setErrorGenre(null);
     try {
@@ -258,15 +289,15 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
           // We merge two endpoints, so a full page is ~20-40 items.
           // Treat <10 returned items as "no more pages".
           hasMore: items.length >= 10,
-          loading: false,
-        },
+          loading: false
+        }
       }));
     } catch (err) {
       console.error("[GenreExplorer] Failed to fetch genre:", err);
       setErrorGenre(err instanceof Error ? err : new Error(String(err)));
       setCache((prev) => ({
         ...prev,
-        [genre.name]: { items: [], page: 1, hasMore: false, loading: false },
+        [genre.name]: { items: [], page: 1, hasMore: false, loading: false }
       }));
     }
   };
@@ -282,7 +313,7 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
     const nextPage = entry.page + 1;
     setCache((prev) => ({
       ...prev,
-      [genre.name]: { ...prev[genre.name], loading: true },
+      [genre.name]: { ...prev[genre.name], loading: true }
     }));
     try {
       const newItems = await fetchGenrePage(genre, nextPage);
@@ -295,15 +326,15 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
             page: nextPage,
             // If the API returned fewer than 10, we've hit the end.
             hasMore: newItems.length >= 10,
-            loading: false,
-          },
+            loading: false
+          }
         };
       });
     } catch (err) {
       console.error("[GenreExplorer] load more failed:", err);
       setCache((prev) => ({
         ...prev,
-        [genre.name]: { ...prev[genre.name], loading: false, hasMore: false },
+        [genre.name]: { ...prev[genre.name], loading: false, hasMore: false }
       }));
     }
   };
@@ -358,23 +389,81 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
     void fetchFirstPage(def);
   };
 
+  /**
+   * Arrow-key navigation for the genre chip tablist (roving tabindex
+   * pattern). Auto-activates the chip the user arrows to — same UX
+   * as clicking it (expands the carousel below).
+   */
+  const onChipKeyDown = (e: KeyboardEvent) => {
+    const target = e.target as HTMLElement | null;
+    const container = e.currentTarget as HTMLElement;
+    if (!target || target.getAttribute("role") !== "tab") return;
+    const chips = Array.from(
+      container.querySelectorAll<HTMLButtonElement>('button[role="tab"]')
+    );
+    if (chips.length === 0) return;
+    const currentIndex = chips.indexOf(target as HTMLButtonElement);
+
+    let nextIndex: number | null = null;
+    switch (e.key) {
+      case "ArrowRight":
+      case "ArrowDown":
+        nextIndex = currentIndex < chips.length - 1 ? currentIndex + 1 : 0;
+        break;
+      case "ArrowLeft":
+      case "ArrowUp":
+        nextIndex = currentIndex > 0 ? currentIndex - 1 : chips.length - 1;
+        break;
+      case "Home":
+        nextIndex = 0;
+        break;
+      case "End":
+        nextIndex = chips.length - 1;
+        break;
+      default:
+        return;
+    }
+    if (nextIndex === null) return;
+    e.preventDefault();
+    const nextChip = chips[nextIndex];
+    nextChip.focus();
+    const movieId = Number(nextChip.dataset.genreId);
+    const def = GENRES.find((g) => g.movieId === movieId);
+    if (def) toggleGenre(def);
+  };
+
   return (
     <div class="genre-explorer">
       {/* Genre chips — ALWAYS visible */}
-      <div class="quick-filter-bar genre-explorer-chips" role="tablist" aria-label="Browse by genre">
+      <div
+        class="quick-filter-bar genre-explorer-chips"
+        role="tablist"
+        aria-label="Browse by genre"
+        onKeyDown={onChipKeyDown}
+      >
         <For each={GENRES}>
           {(genre) => (
             <button
               type="button"
               class="quick-filter-tab focus-ring genre-chip"
               data-active={expandedGenre() === genre.movieId}
+              data-genre-id={genre.movieId}
               onClick={() => toggleGenre(genre)}
               role="tab"
               aria-selected={expandedGenre() === genre.movieId}
               aria-controls="genre-explorer-panel"
+              // Roving tabindex per WAI-ARIA Tabs pattern:
+              //   - The expanded chip is in the tab order (tabindex=0).
+              //   - Collapsed chips are removed from the tab order
+              //     (tabindex=-1) so a single Tab lands on the active
+              //     chip. Arrow keys navigate between chips.
+              tabindex={expandedGenre() === genre.movieId ? 0 : -1}
               aria-label={`Browse ${genre.name} movies and series`}
             >
-              <span class="material-symbols-outlined genre-chip-icon" aria-hidden="true">
+              <span
+                class="material-symbols-outlined genre-chip-icon"
+                aria-hidden="true"
+              >
                 {genre.icon}
               </span>
               {genre.name}
@@ -394,12 +483,15 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
         <Show when={expandedGenre() !== null}>
           <div class="genre-explorer-panel-inner">
             <Show
-              when={!currentEntry()?.loading || (currentEntry()?.items.length ?? 0) > 0}
+              when={
+                !currentEntry()?.loading ||
+                (currentEntry()?.items.length ?? 0) > 0
+              }
               fallback={
                 <div class="search-rail">
                   <For each={Array.from({ length: 6 })}>
                     {() => (
-                      <div class="search-rail-card" style={{ cursor: "default" }}>
+                      <div class="search-rail-card" style={SKELETON_CARD_STYLE}>
                         <div class="search-rail-poster skeleton-base" />
                       </div>
                     )}
@@ -433,9 +525,15 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                   <For each={visibleItems()}>
                     {(title) => {
                       const year = () =>
-                        (title.release_date || title.first_air_date || "").split("-")[0] || "";
+                        (
+                          title.release_date ||
+                          title.first_air_date ||
+                          ""
+                        ).split("-")[0] || "";
                       const rating = () =>
-                        title.vote_average ? title.vote_average.toFixed(1) : null;
+                        title.vote_average
+                          ? title.vote_average.toFixed(1)
+                          : null;
 
                       return (
                         <button
@@ -450,7 +548,11 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                               when={title.poster_path}
                               fallback={
                                 <div class="search-rail-poster-fallback">
-                                  <span class="material-symbols-outlined" style={{ "font-size": "28px", color: "var(--text-dim)" }} aria-hidden="true">
+                                  <span
+                                    class="material-symbols-outlined"
+                                    style={POSTER_FALLBACK_ICON_STYLE}
+                                    aria-hidden="true"
+                                  >
                                     movie
                                   </span>
                                 </div>
@@ -463,28 +565,43 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                                 decoding="async"
                                 alt=""
                                 aria-hidden="true"
-                                onError={(e) => { e.currentTarget.style.display = "none"; }}
+                                onError={(e) => {
+                                  e.currentTarget.style.display = "none";
+                                }}
                               />
                             </Show>
 
                             {/* Premium glass rating badge — top-right corner */}
                             <Show when={rating()}>
-                              <span class="search-rail-rating" aria-label={`Rated ${rating()}`}>
-                                <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                              <span
+                                class="search-rail-rating"
+                                aria-label={`Rated ${rating()}`}
+                              >
+                                <span
+                                  class="material-symbols-outlined"
+                                  style={RATING_STAR_ICON_STYLE}
+                                  aria-hidden="true"
+                                >
+                                  star
+                                </span>
                                 {rating()}
                               </span>
                             </Show>
                           </div>
-                          <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
+                          <p class="search-rail-title">
+                            {title.title || title.name || "Untitled"}
+                          </p>
                           <p class="search-rail-meta">
                             <Show when={year()}>
                               <span>{year()}</span>
                             </Show>
                             <Show when={year() && title.media_type}>
-                              <span style={{ color: "var(--text-dim)" }}>·</span>
+                              <span style={META_DOT_STYLE}>·</span>
                             </Show>
                             <Show when={title.media_type}>
-                              <span>{title.media_type === "tv" ? "Series" : "Movie"}</span>
+                              <span>
+                                {title.media_type === "tv" ? "Series" : "Movie"}
+                              </span>
                             </Show>
                           </p>
                         </button>
@@ -529,7 +646,12 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
                 </Show>
 
                 {/* End of results — quiet closer */}
-                <Show when={!currentEntry()?.hasMore && (currentEntry()?.items.length ?? 0) > 0}>
+                <Show
+                  when={
+                    !currentEntry()?.hasMore &&
+                    (currentEntry()?.items.length ?? 0) > 0
+                  }
+                >
                   <p class="search-end-of-results type-micro">
                     You've reached the end of {currentGenreDef()?.name}
                   </p>

@@ -65,7 +65,10 @@ function friendlyError(err: unknown): string {
   if (/identity already exists/i.test(msg)) {
     return "That provider is already linked to your account.";
   }
-  if (/cannot unlink the last identity/i.test(msg) || /last identity/i.test(msg)) {
+  if (
+    /cannot unlink the last identity/i.test(msg) ||
+    /last identity/i.test(msg)
+  ) {
     return "You can't unlink your last sign-in method. Add another method first.";
   }
   if (/email not confirmed/i.test(msg)) {
@@ -88,7 +91,9 @@ function friendlyError(err: unknown): string {
  * Until the link is clicked, the user's `email` field still shows
  * the OLD address — that's expected Supabase behavior, not a bug.
  */
-export async function updateEmail(newEmail: string): Promise<AccountActionResult> {
+export async function updateEmail(
+  newEmail: string
+): Promise<AccountActionResult> {
   const { showToast } = useToast();
   const trimmed = newEmail.trim().toLowerCase();
   if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
@@ -99,7 +104,11 @@ export async function updateEmail(newEmail: string): Promise<AccountActionResult
     const supabase = getClient();
     const { error } = await supabase.auth.updateUser({ email: trimmed });
     if (error) throw error;
-    showToast("Confirmation email sent — check your new inbox.", "success", 4000);
+    showToast(
+      "Confirmation email sent — check your new inbox.",
+      "success",
+      4000
+    );
     return { success: true };
   } catch (err) {
     const msg = friendlyError(err);
@@ -144,7 +153,7 @@ export interface LinkEmailPasswordResult extends AccountActionResult {
 
 export async function linkEmailPassword(
   email: string,
-  newPassword: string,
+  newPassword: string
 ): Promise<LinkEmailPasswordResult> {
   const { showToast } = useToast();
 
@@ -172,7 +181,7 @@ export async function linkEmailPassword(
 
     const { error } = await supabase.auth.updateUser({
       email: trimmedEmail,
-      password: newPassword,
+      password: newPassword
     });
     if (error) throw error;
 
@@ -185,10 +194,14 @@ export async function linkEmailPassword(
       showToast(
         "Password set. We also sent a confirmation link to your new email — click it to finish switching.",
         "success",
-        6000,
+        6000
       );
     } else {
-      showToast("Email + password linked. You can now sign in with either method.", "success", 4000);
+      showToast(
+        "Email + password linked. You can now sign in with either method.",
+        "success",
+        4000
+      );
     }
 
     return { success: true, emailChangePending: emailChanged };
@@ -215,7 +228,7 @@ export async function linkEmailPassword(
  */
 export async function changePassword(
   newPassword: string,
-  currentPassword?: string,
+  currentPassword?: string
 ): Promise<AccountActionResult> {
   const { showToast } = useToast();
   if (!newPassword || newPassword.length < 8) {
@@ -224,7 +237,9 @@ export async function changePassword(
   }
   try {
     const supabase = getClient();
-    const attrs: { password: string; current_password?: string } = { password: newPassword };
+    const attrs: { password: string; current_password?: string } = {
+      password: newPassword
+    };
     if (currentPassword) attrs.current_password = currentPassword;
     const { error } = await supabase.auth.updateUser(attrs);
     if (error) throw error;
@@ -241,7 +256,9 @@ export async function changePassword(
  * Send a password-reset email to the given address.
  * Used by the "Forgot password?" link on the change-password sheet.
  */
-export async function sendPasswordResetEmail(email: string): Promise<AccountActionResult> {
+export async function sendPasswordResetEmail(
+  email: string
+): Promise<AccountActionResult> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
@@ -250,7 +267,7 @@ export async function sendPasswordResetEmail(email: string): Promise<AccountActi
         ? `${window.location.origin}/settings/account`
         : undefined;
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
-      redirectTo,
+      redirectTo
     });
     if (error) throw error;
     showToast("Reset link sent — check your inbox.", "success", 4000);
@@ -299,7 +316,7 @@ export async function getUserIdentities(): Promise<UserIdentity[] | null> {
  * land back here and see the newly-linked provider.
  */
 export async function linkProvider(
-  provider: "google" | "apple",
+  provider: "google" | "apple"
 ): Promise<AccountActionResult> {
   const { showToast } = useToast();
   try {
@@ -310,7 +327,7 @@ export async function linkProvider(
         : undefined;
     const { error } = await supabase.auth.linkIdentity({
       provider,
-      options: { redirectTo },
+      options: { redirectTo }
     });
     if (error) throw error;
     // The browser will redirect — no toast, the page will reload.
@@ -336,7 +353,9 @@ export async function linkProvider(
  * After a successful unlink, we refresh the local user state so the
  * Account page instantly reflects the change.
  */
-export async function unlinkProvider(identity: UserIdentity): Promise<AccountActionResult> {
+export async function unlinkProvider(
+  identity: UserIdentity
+): Promise<AccountActionResult> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();

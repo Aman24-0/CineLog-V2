@@ -64,7 +64,9 @@ export interface TrashedCollection {
  *   poster (icon) and "Untitled" title (the TrashPage already handles
  *   those cases gracefully).
  */
-export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVaultItem[]> {
+export async function fetchTrashedVaultItems(
+  userId: string
+): Promise<TrashedVaultItem[]> {
   const supabase = getClient();
   const { data, error } = await supabase
     .from("vault")
@@ -85,7 +87,9 @@ export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVau
   const baseItems = rows.map((row) => {
     const base = vaultRowToWatchlistItem(row);
     const deletedAt = row.deleted_at ?? new Date().toISOString();
-    const expiresAt = new Date(new Date(deletedAt).getTime() + TRASH_RETENTION_MS).toISOString();
+    const expiresAt = new Date(
+      new Date(deletedAt).getTime() + TRASH_RETENTION_MS
+    ).toISOString();
     return { ...base, deletedAt, expiresAt };
   });
 
@@ -96,8 +100,8 @@ export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVau
     const tmdbMap = await fetchTmdbMetadataBatch(
       baseItems.map((it) => ({
         mediaType: it.media_type,
-        tmdbId: it.id,
-      })),
+        tmdbId: it.id
+      }))
     );
     // Merge display fields from TMDB into each trashed item.
     return baseItems.map((it) => {
@@ -108,11 +112,14 @@ export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVau
         title: tmdb.title ?? tmdb.name ?? it.title,
         name: tmdb.name ?? tmdb.title ?? it.name,
         poster_path: tmdb.poster_path ?? it.poster_path ?? null,
-        backdrop_path: tmdb.backdrop_path ?? it.backdrop_path ?? null,
+        backdrop_path: tmdb.backdrop_path ?? it.backdrop_path ?? null
       } as TrashedVaultItem;
     });
   } catch (err) {
-    console.warn("[trashAdapter] TMDB enrichment failed (returning unenriched items):", err);
+    console.warn(
+      "[trashAdapter] TMDB enrichment failed (returning unenriched items):",
+      err
+    );
     return baseItems;
   }
 }
@@ -121,7 +128,9 @@ export async function fetchTrashedVaultItems(userId: string): Promise<TrashedVau
  * Fetch all soft-deleted collections for a user.
  * Ordered by deleted_at desc. Includes entry count for each folder.
  */
-export async function fetchTrashedCollections(userId: string): Promise<TrashedCollection[]> {
+export async function fetchTrashedCollections(
+  userId: string
+): Promise<TrashedCollection[]> {
   const supabase = getClient();
   const { data, error } = await supabase
     .from("collections")
@@ -147,23 +156,28 @@ export async function fetchTrashedCollections(userId: string): Promise<TrashedCo
         .select("id", { count: "exact", head: true })
         .eq("collection_id", row.id);
       if (countErr) {
-        console.warn(`[trashAdapter] Failed to count entries for collection ${row.id}:`, countErr);
+        console.warn(
+          `[trashAdapter] Failed to count entries for collection ${row.id}:`,
+          countErr
+        );
         return 0;
       }
       return count ?? 0;
-    }),
+    })
   );
 
   return rows.map((row, i) => {
     const deletedAt = row.deleted_at ?? new Date().toISOString();
-    const expiresAt = new Date(new Date(deletedAt).getTime() + TRASH_RETENTION_MS).toISOString();
+    const expiresAt = new Date(
+      new Date(deletedAt).getTime() + TRASH_RETENTION_MS
+    ).toISOString();
     return {
       id: row.id,
       name: row.name,
       collectionType: row.collection_type,
       deletedAt,
       expiresAt,
-      entryCount: counts[i] ?? 0,
+      entryCount: counts[i] ?? 0
     };
   });
 }
@@ -175,7 +189,7 @@ export async function fetchTrashedCollections(userId: string): Promise<TrashedCo
 export async function hardDeleteVaultItem(
   userId: string,
   itemId: string,
-  mediaType: WatchlistItem["media_type"],
+  mediaType: WatchlistItem["media_type"]
 ): Promise<void> {
   const supabase = getClient();
   const { error } = await supabase
@@ -192,7 +206,9 @@ export async function hardDeleteVaultItem(
  * Permanently delete a soft-deleted collection (hard delete).
  * Cascades to collection_entries (hard-deleted explicitly).
  */
-export async function hardDeleteCollection(collectionId: string): Promise<void> {
+export async function hardDeleteCollection(
+  collectionId: string
+): Promise<void> {
   const supabase = getClient();
   // First hard-delete all entries in this collection
   const { error: entriesErr } = await supabase
@@ -200,7 +216,10 @@ export async function hardDeleteCollection(collectionId: string): Promise<void> 
     .delete()
     .eq("collection_id", collectionId);
   if (entriesErr) {
-    console.warn(`[trashAdapter] Failed to cascade-delete entries for collection ${collectionId}:`, entriesErr);
+    console.warn(
+      `[trashAdapter] Failed to cascade-delete entries for collection ${collectionId}:`,
+      entriesErr
+    );
   }
   // Then hard-delete the collection row itself
   const { error } = await supabase
@@ -215,7 +234,9 @@ export async function hardDeleteCollection(collectionId: string): Promise<void> 
  * Clear ALL trash — hard-delete every soft-deleted vault item and
  * collection for the user. Used by the "Clear Trash" button.
  */
-export async function clearAllTrash(userId: string): Promise<{ vault: number; collections: number }> {
+export async function clearAllTrash(
+  userId: string
+): Promise<{ vault: number; collections: number }> {
   const supabase = getClient();
 
   const { data: deletedVault, error: vaultErr } = await supabase
@@ -235,7 +256,10 @@ export async function clearAllTrash(userId: string): Promise<{ vault: number; co
     .eq("user_id", userId)
     .not("deleted_at", "is", null);
   if (colFetchErr) {
-    console.error("[trashAdapter] Error fetching trashed collections for clear:", colFetchErr);
+    console.error(
+      "[trashAdapter] Error fetching trashed collections for clear:",
+      colFetchErr
+    );
     throw colFetchErr;
   }
   const colIds = (trashedCols ?? []).map((r: { id: string }) => r.id);
@@ -245,7 +269,10 @@ export async function clearAllTrash(userId: string): Promise<{ vault: number; co
       .delete()
       .in("collection_id", colIds);
     if (entriesErr) {
-      console.warn("[trashAdapter] Failed to cascade-delete entries during clear:", entriesErr);
+      console.warn(
+        "[trashAdapter] Failed to cascade-delete entries during clear:",
+        entriesErr
+      );
     }
     const { error: colDelErr } = await supabase
       .from("collections")
@@ -256,7 +283,7 @@ export async function clearAllTrash(userId: string): Promise<{ vault: number; co
 
   return {
     vault: deletedVault?.length ?? 0,
-    collections: colIds.length,
+    collections: colIds.length
   };
 }
 
@@ -266,7 +293,9 @@ export async function clearAllTrash(userId: string): Promise<{ vault: number; co
  *
  * Called on Trash page mount. Silent cleanup (no user toast).
  */
-export async function autoPurgeExpired(userId: string): Promise<{ vault: number; collections: number }> {
+export async function autoPurgeExpired(
+  userId: string
+): Promise<{ vault: number; collections: number }> {
   const cutoff = new Date(Date.now() - TRASH_RETENTION_MS).toISOString();
   const supabase = getClient();
 
@@ -286,7 +315,10 @@ export async function autoPurgeExpired(userId: string): Promise<{ vault: number;
     .eq("user_id", userId)
     .lt("deleted_at", cutoff);
   if (colFetchErr) {
-    console.error("[trashAdapter] Error fetching expired collections:", colFetchErr);
+    console.error(
+      "[trashAdapter] Error fetching expired collections:",
+      colFetchErr
+    );
   }
   const colIds = (expiredCols ?? []).map((r: { id: string }) => r.id);
   if (colIds.length > 0) {
@@ -294,17 +326,25 @@ export async function autoPurgeExpired(userId: string): Promise<{ vault: number;
       .from("collection_entries")
       .delete()
       .in("collection_id", colIds);
-    if (entriesErr) console.warn("[trashAdapter] Failed to cascade-delete entries during purge:", entriesErr);
+    if (entriesErr)
+      console.warn(
+        "[trashAdapter] Failed to cascade-delete entries during purge:",
+        entriesErr
+      );
     const { error: colDelErr } = await supabase
       .from("collections")
       .delete()
       .in("id", colIds);
-    if (colDelErr) console.error("[trashAdapter] Error auto-purging collections:", colDelErr);
+    if (colDelErr)
+      console.error(
+        "[trashAdapter] Error auto-purging collections:",
+        colDelErr
+      );
   }
 
   return {
     vault: purgedVault?.length ?? 0,
-    collections: colIds.length,
+    collections: colIds.length
   };
 }
 

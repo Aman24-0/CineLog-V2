@@ -16,7 +16,9 @@ import type { FranchiseDefinition } from "~/shared/data/franchises";
  *   2. Keyword-based search — for franchises without a TMDB collection
  *      (MCU, Star Wars, John Wick — searches TMDB for each keyword)
  */
-export async function fetchFranchiseTitles(f: FranchiseDefinition): Promise<TMDBTitle[]> {
+export async function fetchFranchiseTitles(
+  f: FranchiseDefinition
+): Promise<TMDBTitle[]> {
   // Strategy 1: TMDB collection endpoint (movie franchises)
   if (f.tmdbCollectionId) {
     try {
@@ -30,10 +32,13 @@ export async function fetchFranchiseTitles(f: FranchiseDefinition): Promise<TMDB
         overview: p.overview,
         release_date: p.release_date,
         vote_average: p.vote_average,
-        vote_count: p.vote_count,
+        vote_count: p.vote_count
       }));
     } catch (err) {
-      console.warn("TMDB collection fetch failed, falling back to search:", err);
+      console.warn(
+        "TMDB collection fetch failed, falling back to search:",
+        err
+      );
     }
   }
 

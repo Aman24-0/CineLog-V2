@@ -1,5 +1,13 @@
 // src/features/watchlist/components/FilterControls.tsx
-import { For, Show, createSignal, createMemo, onMount, onCleanup, type Component } from "solid-js";
+import {
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  onCleanup,
+  type Component
+} from "solid-js";
 import type { SortField, SortDirection } from "~/shared/types";
 
 /**
@@ -157,11 +165,10 @@ export const GlassSelect: Component<{
           menuRef on this div covers both the trigger button and the
           menu for click-outside detection. */}
       <div class="relative w-full" ref={menuRef}>
-
         {/* TRIGGER — styled to match SortControl. NOT absolute. */}
         <button
           type="button"
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-[var(--tier-2)] text-[var(--text)]"
+          class="flex w-full items-center justify-between rounded-xl border bg-[var(--tier-2)] px-3 py-2.5 text-[var(--text)]"
           style={{ "border-color": "var(--hairline)" }}
           onClick={() => setIsOpen(!isOpen())}
           aria-haspopup="listbox"
@@ -180,7 +187,7 @@ export const GlassSelect: Component<{
         {/* MENU — opens DOWNWARDS. The ONLY absolutely-positioned element. */}
         <Show when={isOpen()}>
           <div
-            class="absolute top-full left-0 mt-2 w-full max-h-60 overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] backdrop-blur-xl z-[100] shadow-elevated"
+            class="absolute left-0 top-full z-[100] mt-2 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] shadow-elevated backdrop-blur-xl"
             style={{ "border-color": "var(--hairline)" }}
             role="listbox"
             aria-label={props.label}
@@ -189,14 +196,15 @@ export const GlassSelect: Component<{
               {(option) => (
                 <button
                   type="button"
-                  class="w-full text-left px-4 py-3 text-sm truncate hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  class="w-full truncate px-4 py-3 text-left text-sm transition-colors hover:bg-[rgba(255,255,255,0.05)]"
                   classList={{
                     "text-[var(--p)] font-bold": props.val === option.v,
-                    "text-[var(--text-body)] font-medium": props.val !== option.v,
+                    "text-[var(--text-body)] font-medium":
+                      props.val !== option.v
                   }}
                   style={{
                     background:
-                      props.val === option.v ? "var(--p-dim)" : "transparent",
+                      props.val === option.v ? "var(--p-dim)" : "transparent"
                   }}
                   onClick={() => {
                     props.set(option.v);
@@ -235,7 +243,11 @@ export const FilterChips: Component<{
       <span class="type-meta" style={{ "font-size": "0.5625rem" }}>
         {props.label}
       </span>
-      <div class="flex gap-2 overflow-x-auto hide-scrollbar" role="tablist" aria-label={props.label}>
+      <div
+        class="hide-scrollbar flex gap-2 overflow-x-auto"
+        role="tablist"
+        aria-label={props.label}
+      >
         <For each={props.opts}>
           {(opt) => (
             <button
@@ -345,21 +357,30 @@ const ALL_SORT_FIELDS: SortField[] = [
   "rt",
   "mt",
   "runtime",
-  "title",
+  "title"
 ];
 
 /** Human-readable label for each sort field, shown in the dropdown. */
 function fieldLabel(f: SortField): string {
   switch (f) {
-    case "added_date":   return "Date Added";
-    case "watch_date":   return "Watch Date";
-    case "release_date": return "Release Date";
-    case "user_rating":  return "User Rating";
-    case "imdb":         return "IMDb Rating";
-    case "rt":           return "Rotten Tomatoes";
-    case "mt":           return "Metacritic";
-    case "runtime":      return "Runtime";
-    case "title":        return "Title";
+    case "added_date":
+      return "Date Added";
+    case "watch_date":
+      return "Watch Date";
+    case "release_date":
+      return "Release Date";
+    case "user_rating":
+      return "User Rating";
+    case "imdb":
+      return "IMDb Rating";
+    case "rt":
+      return "Rotten Tomatoes";
+    case "mt":
+      return "Metacritic";
+    case "runtime":
+      return "Runtime";
+    case "title":
+      return "Title";
   }
 }
 
@@ -375,9 +396,15 @@ function fieldLabel(f: SortField): string {
  * This matches the pattern of the other dimensions (desc = larger first)
  * and keeps the arrow semantics consistent across all fields.
  */
-function directionLabelText(field: SortField, direction: SortDirection): string {
+function directionLabelText(
+  field: SortField,
+  direction: SortDirection
+): string {
   const isTitle = field === "title";
-  const isDate = field === "release_date" || field === "added_date" || field === "watch_date";
+  const isDate =
+    field === "release_date" ||
+    field === "added_date" ||
+    field === "watch_date";
   if (isTitle) {
     return direction === "desc" ? "↓ Z → A" : "↑ A → Z";
   }
@@ -390,10 +417,12 @@ function directionLabelText(field: SortField, direction: SortDirection): string 
 
 /** Static dropdown options array — derived once from ALL_SORT_FIELDS.
  *  Used by the <For each={SORT_OPTIONS}> render. */
-const SORT_OPTIONS: { value: SortField; label: string }[] = ALL_SORT_FIELDS.map((f) => ({
-  value: f,
-  label: fieldLabel(f),
-}));
+const SORT_OPTIONS: { value: SortField; label: string }[] = ALL_SORT_FIELDS.map(
+  (f) => ({
+    value: f,
+    label: fieldLabel(f)
+  })
+);
 
 export const SortControl: Component<{
   /** Current filter state. Accepts the parent's full VaultFilters object
@@ -404,7 +433,10 @@ export const SortControl: Component<{
   /** Called with the next sort-state slice whenever the user changes the
    *  sort field or direction. The caller merges it into their filter
    *  store (e.g. via `batchedSet(next)`). */
-  onChange: (next: { sortField: SortField; sortDirection: SortDirection }) => void;
+  onChange: (next: {
+    sortField: SortField;
+    sortDirection: SortDirection;
+  }) => void;
 }> = (props) => {
   // Dropdown open/close state. SolidJS signal — reactivity-safe.
   const [isOpen, setIsOpen] = createSignal(false);
@@ -416,12 +448,14 @@ export const SortControl: Component<{
 
   /** Label of the currently selected sort field. Recomputes on
    *  props.filters.sortField change. */
-  const currentFieldLabel = createMemo(() => fieldLabel(props.filters.sortField));
+  const currentFieldLabel = createMemo(() =>
+    fieldLabel(props.filters.sortField)
+  );
 
   /** Field-aware direction label for the aria-label (e.g. "Newest First",
    *  "High to Low", "Z → A"). Recomputes on field or direction change. */
   const directionLabel = createMemo(() =>
-    directionLabelText(props.filters.sortField, props.filters.sortDirection),
+    directionLabelText(props.filters.sortField, props.filters.sortDirection)
   );
 
   // ── Click-outside + resize listeners ──────────────────────────────────
@@ -461,8 +495,7 @@ export const SortControl: Component<{
   });
 
   return (
-    <div class="flex items-center gap-2 w-full">
-
+    <div class="flex w-full items-center gap-2">
       {/* LEFT SIDE: Field Selector & Dropdown Menu
           ────────────────────────────────────────────────────────────
           `relative` anchors the absolute menu; `flex-1 min-w-0` lets the
@@ -471,21 +504,22 @@ export const SortControl: Component<{
           drawer). `ref={menuRef}` is on THIS wrapper (not the menu div)
           so click-outside detection covers both the button and the menu
           with a single `contains()` check. */}
-      <div class="relative flex-1 min-w-0" ref={menuRef}>
-
+      <div class="relative min-w-0 flex-1" ref={menuRef}>
         {/* 1. Main Dropdown Trigger Button
             NOT absolute — participates in normal flow so the wrapper has
             a measurable height for the menu's `bottom-full` to anchor. */}
         <button
           type="button"
-          class="w-full flex items-center justify-between px-3 py-2.5 rounded-xl border bg-[var(--tier-2)] text-[var(--text)]"
+          class="flex w-full items-center justify-between rounded-xl border bg-[var(--tier-2)] px-3 py-2.5 text-[var(--text)]"
           style={{ "border-color": "var(--hairline)" }}
           onClick={() => setIsOpen(!isOpen())}
           aria-haspopup="listbox"
           aria-expanded={isOpen()}
           aria-label={`Sort by field — currently ${currentFieldLabel()}`}
         >
-          <span class="truncate text-sm font-medium">{currentFieldLabel()}</span>
+          <span class="truncate text-sm font-medium">
+            {currentFieldLabel()}
+          </span>
           <span
             class="material-symbols-outlined text-lg text-[var(--text-muted)]"
             aria-hidden="true"
@@ -504,7 +538,7 @@ export const SortControl: Component<{
             labels from forcing the menu wider than the trigger. */}
         <Show when={isOpen()}>
           <div
-            class="absolute bottom-full left-0 mb-2 w-full max-h-60 overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] backdrop-blur-xl z-[100] shadow-elevated"
+            class="absolute bottom-full left-0 z-[100] mb-2 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-xl border bg-[var(--glass-bg-strong)] shadow-elevated backdrop-blur-xl"
             style={{ "border-color": "var(--hairline)" }}
             role="listbox"
             aria-label="Sort field"
@@ -513,19 +547,23 @@ export const SortControl: Component<{
               {(option) => (
                 <button
                   type="button"
-                  class="w-full text-left px-4 py-3 text-sm truncate hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+                  class="w-full truncate px-4 py-3 text-left text-sm transition-colors hover:bg-[rgba(255,255,255,0.05)]"
                   classList={{
-                    "text-[var(--p)] font-bold": props.filters.sortField === option.value,
-                    "text-[var(--text-body)] font-medium": props.filters.sortField !== option.value,
+                    "text-[var(--p)] font-bold":
+                      props.filters.sortField === option.value,
+                    "text-[var(--text-body)] font-medium":
+                      props.filters.sortField !== option.value
                   }}
                   style={{
                     background:
-                      props.filters.sortField === option.value ? "var(--p-dim)" : "transparent",
+                      props.filters.sortField === option.value
+                        ? "var(--p-dim)"
+                        : "transparent"
                   }}
                   onClick={() => {
                     props.onChange({
                       ...props.filters,
-                      sortField: option.value,
+                      sortField: option.value
                     });
                     setIsOpen(false);
                   }}
@@ -546,21 +584,23 @@ export const SortControl: Component<{
           arrow_downward = desc, arrow_upward = asc. */}
       <button
         type="button"
-        class="w-11 h-11 flex-shrink-0 flex items-center justify-center rounded-xl border bg-[var(--tier-2)] text-[var(--text)] hover:bg-[rgba(255,255,255,0.05)] transition-colors"
+        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-[var(--tier-2)] text-[var(--text)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
         style={{ "border-color": "var(--hairline)" }}
         onClick={() =>
           props.onChange({
             ...props.filters,
-            sortDirection: props.filters.sortDirection === "asc" ? "desc" : "asc",
+            sortDirection:
+              props.filters.sortDirection === "asc" ? "desc" : "asc"
           })
         }
         aria-label={`Sort direction — currently ${directionLabel()}`}
       >
         <span class="material-symbols-outlined text-xl" aria-hidden="true">
-          {props.filters.sortDirection === "desc" ? "arrow_downward" : "arrow_upward"}
+          {props.filters.sortDirection === "desc"
+            ? "arrow_downward"
+            : "arrow_upward"}
         </span>
       </button>
-
     </div>
   );
 };

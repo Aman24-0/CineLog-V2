@@ -13,7 +13,13 @@
 // as "e is not a function" at runtime. We now use the pure-SolidJS
 // SvgChart primitives.
 
-import { createSignal, createMemo, Show, type Component, type Accessor } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  Show,
+  type Component,
+  type Accessor
+} from "solid-js";
 import ChartContainer from "./ChartContainer";
 import { BarChartV, type BarVItem, type TooltipRow } from "./SvgChart";
 import type { MonthBucket } from "~/lib/supabase/repositories/stats";
@@ -48,7 +54,7 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
         ...b,
         movies: 0,
         series: 0,
-        key: monthKey(idx),
+        key: monthKey(idx)
       }));
     }
     // Re-bucket the watchlist by completion month + media_type.
@@ -64,7 +70,8 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
     if (Array.isArray(wl)) {
       wl.forEach((m) => {
         if (m.status !== "Completed") return;
-        const dateStr = m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
+        const dateStr =
+          m.watchDate ?? (typeof m.addedAt === "string" ? m.addedAt : null);
         if (!dateStr) return;
         const d = new Date(dateStr);
         if (isNaN(d.getTime())) return;
@@ -77,7 +84,12 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
     }
     return base.map((b, idx) => {
       const entry = map.get(monthKey(idx)) ?? { movies: 0, series: 0 };
-      return { ...b, movies: entry.movies, series: entry.series, key: monthKey(idx) };
+      return {
+        ...b,
+        movies: entry.movies,
+        series: entry.series,
+        key: monthKey(idx)
+      };
     });
   });
 
@@ -87,7 +99,11 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
         ? [
             { name: "Movies", value: String(r.movies), color: "#f5c518" },
             { name: "Series", value: String(r.series), color: "#7c8cff" },
-            { name: "Total", value: String(r.count), color: "rgba(255,255,255,0.4)" },
+            {
+              name: "Total",
+              value: String(r.count),
+              color: "rgba(255,255,255,0.4)"
+            }
           ]
         : [{ name: "Completed", value: String(r.count), color: "#f5c518" }];
       return {
@@ -97,9 +113,9 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
         color: "#f5c518",
         secondaryColor: "#7c8cff",
         tooltipLabel: `${r.month} ${r.year}`,
-        tooltipRows,
+        tooltipRows
       };
-    }),
+    })
   );
 
   return (
@@ -118,7 +134,11 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
             aria-pressed={showSplit()}
             aria-label="Toggle movies vs series overlay"
           >
-            <span class="material-symbols-outlined" style={{ "font-size": "14px" }} aria-hidden="true">
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "14px" }}
+              aria-hidden="true"
+            >
               stacked_bar_chart
             </span>
             <span>Movies vs Series</span>
@@ -130,7 +150,12 @@ const ActivityChart: Component<ActivityChartProps> = (props) => {
         when={items().length > 0}
         fallback={<p class="stats-chart-empty">No activity yet.</p>}
       >
-        <BarChartV items={items()} split={showSplit()} height={260} rotateLabels />
+        <BarChartV
+          items={items()}
+          split={showSplit()}
+          height={260}
+          rotateLabels
+        />
       </Show>
     </ChartContainer>
   );

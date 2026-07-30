@@ -37,7 +37,9 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
 
   const isValid = createMemo(() => {
     const e = newEmail().trim().toLowerCase();
-    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e !== currentEmail().toLowerCase();
+    return (
+      /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) && e !== currentEmail().toLowerCase()
+    );
   });
 
   const canSubmit = () => isValid() && !busy();
@@ -71,24 +73,52 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
       <Show
         when={!done()}
         fallback={
-          <div class="flex flex-col items-center text-center py-6">
+          <div class="flex flex-col items-center py-6 text-center">
             <div
-              class="w-16 h-16 rounded-full flex items-center justify-center mb-4"
-              style={{ background: "rgba(72, 187, 120, 0.12)", border: "1px solid rgba(72, 187, 120, 0.3)" }}
+              class="mb-4 flex h-16 w-16 items-center justify-center rounded-full"
+              style={{
+                background: "rgba(72, 187, 120, 0.12)",
+                border: "1px solid rgba(72, 187, 120, 0.3)"
+              }}
               aria-hidden="true"
             >
-              <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#6ee7b7" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "32px", color: "#6ee7b7" }}
+                aria-hidden="true"
+              >
                 mark_email_read
               </span>
             </div>
-            <h4 class="type-headline" style={{ "font-size": "1rem", margin: "0 0 0.5rem", color: "var(--text-strong)" }}>
+            <h4
+              class="type-headline"
+              style={{
+                "font-size": "1rem",
+                margin: "0 0 0.5rem",
+                color: "var(--text-strong)"
+              }}
+            >
               Check your inbox
             </h4>
-            <p class="type-body-soft" style={{ margin: 0, "font-size": "0.8125rem", "max-width": "280px" }}>
-              We sent a confirmation link to <strong style={{ color: "var(--text-strong)" }}>{newEmail().trim()}</strong>.
-              Click it to finish updating your email.
+            <p
+              class="type-body-soft"
+              style={{
+                margin: 0,
+                "font-size": "0.8125rem",
+                "max-width": "280px"
+              }}
+            >
+              We sent a confirmation link to{" "}
+              <strong style={{ color: "var(--text-strong)" }}>
+                {newEmail().trim()}
+              </strong>
+              . Click it to finish updating your email.
             </p>
-            <button class="btn-primary focus-ring mt-5" onClick={handleClose} style={{ "min-width": "120px" }}>
+            <button
+              class="btn-primary focus-ring mt-5"
+              onClick={handleClose}
+              style={{ "min-width": "120px" }}
+            >
               Done
             </button>
           </div>
@@ -102,13 +132,17 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
 
         {/* New email */}
         <div style={{ "margin-bottom": "1.5rem" }}>
-          <label class="account-sheet-label" for="new-email-input">New email</label>
+          <label class="account-sheet-label" for="new-email-input">
+            New email
+          </label>
           <input
             id="new-email-input"
             type="email"
             value={newEmail()}
             onInput={(e) => setNewEmail(e.currentTarget.value)}
-            onKeyDown={(e) => { if (e.key === "Enter" && canSubmit()) void handleSubmit(); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" && canSubmit()) void handleSubmit();
+            }}
             placeholder="you@example.com"
             autocomplete="email"
             spellcheck={false}
@@ -117,7 +151,13 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
           />
           <Show when={newEmail() && !isValid()}>
             <p class="account-sheet-hint account-sheet-hint-warn">
-              <span class="material-symbols-outlined" style={{ "font-size": "12px" }} aria-hidden="true">info</span>
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "12px" }}
+                aria-hidden="true"
+              >
+                info
+              </span>
               Enter a valid email different from your current one.
             </p>
           </Show>
@@ -127,7 +167,7 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
         <div class="flex gap-2">
           <button
             type="button"
-            class="btn-ghost flex-1 focus-ring"
+            class="btn-ghost focus-ring flex-1"
             onClick={handleClose}
             disabled={busy()}
           >
@@ -135,12 +175,19 @@ const UpdateEmailSheet: Component<UpdateEmailSheetProps> = (props) => {
           </button>
           <button
             type="button"
-            class="btn-primary flex-1 focus-ring"
+            class="btn-primary focus-ring flex-1"
             onClick={() => void handleSubmit()}
             disabled={!canSubmit()}
           >
             <Show when={busy()} fallback="Send Confirmation">
-              <span class="material-symbols-outlined" style={{ "font-size": "14px", animation: "spin 1s linear infinite" }} aria-hidden="true">
+              <span
+                class="material-symbols-outlined"
+                style={{
+                  "font-size": "14px",
+                  animation: "spin 1s linear infinite"
+                }}
+                aria-hidden="true"
+              >
                 progress_activity
               </span>
               Sending…

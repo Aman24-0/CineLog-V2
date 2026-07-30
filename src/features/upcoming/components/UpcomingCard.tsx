@@ -61,7 +61,10 @@ interface UpcomingCardProps {
   onShare: (title: TMDBTitle) => void;
 }
 
-function relativeDate(dateStr: string, isTvWithMissingEpisode?: boolean): string {
+function relativeDate(
+  dateStr: string,
+  isTvWithMissingEpisode?: boolean
+): string {
   const d = new Date(dateStr + "T00:00:00");
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -84,7 +87,7 @@ function relativeDate(dateStr: string, isTvWithMissingEpisode?: boolean): string
   // which is less informative for upcoming releases.
   return d.toLocaleDateString(undefined, {
     month: "short",
-    day: "numeric",
+    day: "numeric"
   });
 }
 
@@ -97,17 +100,21 @@ function formatActualDate(dateStr: string): string {
   const d = new Date(dateStr + "T00:00:00");
   return d.toLocaleDateString(undefined, {
     month: "short",
-    day: "numeric",
+    day: "numeric"
   });
 }
 
 const UpcomingCard: Component<UpcomingCardProps> = (props) => {
   const title = () => props.title.title || props.title.name || "Untitled";
   const year = createMemo(() =>
-    (props.title.release_date || props.title.first_air_date || "").slice(0, 4),
+    (props.title.release_date || props.title.first_air_date || "").slice(0, 4)
   );
   const releaseDate = createMemo(
-    () => props.title.episodeAirDate || props.title.release_date || props.title.first_air_date || "",
+    () =>
+      props.title.episodeAirDate ||
+      props.title.release_date ||
+      props.title.first_air_date ||
+      ""
   );
   // True for TV series whose only available date is `first_air_date`
   // (in the past for ongoing series). Used to show "Series returning"
@@ -116,13 +123,13 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
     () =>
       props.title.media_type === "tv" &&
       !props.title.episodeAirDate &&
-      !!props.title.first_air_date,
+      !!props.title.first_air_date
   );
   const mediaLabel = createMemo(() =>
-    props.title.media_type === "tv" ? "Series" : "Movie",
+    props.title.media_type === "tv" ? "Series" : "Movie"
   );
   const rating = createMemo(() =>
-    props.title.vote_average ? props.title.vote_average.toFixed(1) : null,
+    props.title.vote_average ? props.title.vote_average.toFixed(1) : null
   );
   // "S2 E5" — only for TV series with a populated next episode.
   const episodeTag = createMemo(() => {
@@ -141,7 +148,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
   // in fallback mode when there's no poster_path at all.
   const [posterBroken, setPosterBroken] = createSignal(false);
   const showPoster = createMemo(
-    () => !!props.title.poster_path && !posterBroken(),
+    () => !!props.title.poster_path && !posterBroken()
   );
   // First letter for the placeholder (used when no poster).
   const placeholderInitial = createMemo(() => {
@@ -211,7 +218,10 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             <span class="upcoming-card-rating">
               <span
                 class="material-symbols-outlined"
-                style={{ "font-size": "12px", "font-variation-settings": "'FILL' 1" }}
+                style={{
+                  "font-size": "12px",
+                  "font-variation-settings": "'FILL' 1"
+                }}
                 aria-hidden="true"
               >
                 star
@@ -282,7 +292,11 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
 
       {/* Quick actions row — badge on the left (fills the empty
           space below the body on mobile), action buttons on the right. */}
-      <div class="upcoming-card-actions" role="toolbar" aria-label="Quick actions">
+      <div
+        class="upcoming-card-actions"
+        role="toolbar"
+        aria-label="Quick actions"
+      >
         {/* Countdown badge (TODAY / TOMORROW / N DAYS / OUT NOW / RETURNING).
             Moved here from the poster in v5 — fills the empty space
             on the left of the actions row, and is always visible
@@ -306,7 +320,9 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           aria-label="Watch trailer"
           title="Trailer"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">play_circle</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            play_circle
+          </span>
         </button>
         <button
           type="button"
@@ -331,7 +347,11 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           <span
             class="material-symbols-outlined"
             aria-hidden="true"
-            style={props.isReminderSet ? { "font-variation-settings": "'FILL' 1" } : undefined}
+            style={
+              props.isReminderSet
+                ? { "font-variation-settings": "'FILL' 1" }
+                : undefined
+            }
           >
             notifications
           </span>
@@ -343,7 +363,9 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
           aria-label="Share"
           title="Share"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">share</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            share
+          </span>
         </button>
       </div>
     </article>

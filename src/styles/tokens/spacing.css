@@ -25,17 +25,17 @@
        Follows the 4px base unit convention.
        space-N = N * 4px for values 1–6,
        then 32, 40, 48, 56, 64, 80px. */
-    --space-1: 4px;      /* = --sp-1  */
-    --space-2: 8px;      /* = --sp-2  */
-    --space-3: 12px;     /* = --sp-3  */
-    --space-4: 16px;     /* = --sp-4  */
-    --space-5: 20px;     /* = --sp-5  */
-    --space-6: 24px;     /* = --sp-6  */
-    --space-8: 32px;     /* = --sp-8  */
-    --space-10: 40px;    /* = --sp-10 */
-    --space-12: 48px;    /* = --sp-12 */
-    --space-14: 56px;    /* NEW — for large section gaps */
-    --space-16: 64px;    /* NEW — for page-level spacing */
-    --space-20: 80px;    /* NEW — for hero/landing sections */
+    --space-1: 4px; /* = --sp-1  */
+    --space-2: 8px; /* = --sp-2  */
+    --space-3: 12px; /* = --sp-3  */
+    --space-4: 16px; /* = --sp-4  */
+    --space-5: 20px; /* = --sp-5  */
+    --space-6: 24px; /* = --sp-6  */
+    --space-8: 32px; /* = --sp-8  */
+    --space-10: 40px; /* = --sp-10 */
+    --space-12: 48px; /* = --sp-12 */
+    --space-14: 56px; /* NEW — for large section gaps */
+    --space-16: 64px; /* NEW — for page-level spacing */
+    --space-20: 80px; /* NEW — for hero/landing sections */
   }
 }

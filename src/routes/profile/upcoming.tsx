@@ -1,7 +1,18 @@
 // src/routes/profile/upcoming.tsx
 import { Title } from "@solidjs/meta";
-import { ErrorBoundary } from "solid-js";
-import UpcomingPage from "~/features/upcoming/UpcomingPage";
+import { lazy, ErrorBoundary, Suspense } from "solid-js";
+import { GlassSkeleton } from "~/shared/ui/glass";
+const UpcomingPage = lazy(() => import("~/features/upcoming/UpcomingPage"));
+
+// Per-route Suspense fallback — keeps the AppHeader / BottomNavigation
+// mounted while the lazy Upcoming chunk loads.
+function UpcomingRouteFallback() {
+  return (
+    <div class="sec-page" aria-busy="true" aria-live="polite">
+      <GlassSkeleton class="h-72 rounded-lg" />
+    </div>
+  );
+}
 
 export default function UpcomingRoute() {
   return (
@@ -24,7 +35,9 @@ export default function UpcomingRoute() {
           </div>
         )}
       >
-        <UpcomingPage />
+        <Suspense fallback={<UpcomingRouteFallback />}>
+          <UpcomingPage />
+        </Suspense>
       </ErrorBoundary>
     </>
   );

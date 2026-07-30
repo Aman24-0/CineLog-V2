@@ -44,7 +44,7 @@ import { fetchTmdbMetadataBatch } from "~/core/tmdb/tmdb";
 import {
   fetchCachedMetadataBatch,
   cacheMetadataEntries,
-  buildCacheKey,
+  buildCacheKey
 } from "~/shared/utils/tmdbCache";
 import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
 
@@ -61,7 +61,7 @@ import type { TMDBTitle, WatchlistItem, WatchProgress } from "~/shared/types";
 export function vaultRowToWatchlistItem(
   row: VaultRow,
   progress?: EpisodeProgressRow | null,
-  tmdb?: TMDBTitle | null,
+  tmdb?: TMDBTitle | null
 ): WatchlistItem {
   // ── Media-type-aware watch date resolution ────────────────────────
   // See vaultReadAdapter.ts for the full rationale. Short version:
@@ -86,9 +86,15 @@ export function vaultRowToWatchlistItem(
     rewatchCount: row.rewatch_count ?? 0,
     rewatchDates: row.rewatch_dates ?? [],
     // ── Series per-season tracking (v2.3 columns) ───────────────────
-    seasonDates: (row.season_dates as Record<string, { start: string; end: string }>) ?? {},
+    seasonDates:
+      (row.season_dates as Record<string, { start: string; end: string }>) ??
+      {},
     seasonRewatchCount: row.season_rewatch_count ?? 0,
-    seasonRewatchDates: (row.season_rewatch_dates as Record<string, { start: string; end: string }>[]) ?? [],
+    seasonRewatchDates:
+      (row.season_rewatch_dates as Record<
+        string,
+        { start: string; end: string }
+      >[]) ?? [],
     // TMDB display metadata — may be undefined if the TMDB fetch failed,
     // in which case the UI falls back to "Untitled" / "NO POSTER".
     title: tmdb?.title,
@@ -98,7 +104,8 @@ export function vaultRowToWatchlistItem(
     release_date: tmdb?.release_date,
     first_air_date: tmdb?.first_air_date,
     // TMDB vote_average is a number; WatchlistItem stores ratings as strings.
-    tmdbRating: tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
+    tmdbRating:
+      tmdb?.vote_average != null ? String(tmdb.vote_average) : undefined,
     genresList: normalizeGenres(tmdb?.genres as unknown[] | undefined),
     // ── Region filter hydration (v3) ─────────────────────────────────
     // TMDB returns origin_country (e.g. ["IN", "US"]) and spoken_languages
@@ -111,8 +118,12 @@ export function vaultRowToWatchlistItem(
     // Region filter's matchesRegion() safely falls back to the explicit
     // `region` field, so legacy items still work (they just won't match
     // "Indian" unless `region === "Indian"` was explicitly set).
-    origin_country: Array.isArray(tmdb?.origin_country) ? tmdb.origin_country : undefined,
-    spoken_languages: Array.isArray(tmdb?.spoken_languages) ? tmdb.spoken_languages : undefined,
+    origin_country: Array.isArray(tmdb?.origin_country)
+      ? tmdb.origin_country
+      : undefined,
+    spoken_languages: Array.isArray(tmdb?.spoken_languages)
+      ? tmdb.spoken_languages
+      : undefined,
     // ── Runtime (minutes) — drives the "Hours Watched" stat ──────────
     // Movies: TMDB returns a single `runtime` (e.g. 120 min).
     // TV series: TMDB returns `episode_run_time` (array of typical
@@ -140,7 +151,7 @@ export function vaultRowToWatchlistItem(
     // cast/director for those items until the cache expires (24h
     // localStorage / 7d server) and the next fetch populates them.
     director: tmdb?.director,
-    castList: Array.isArray(tmdb?.castList) ? tmdb.castList : undefined,
+    castList: Array.isArray(tmdb?.castList) ? tmdb.castList : undefined
   };
 
   if (progress && row.media_type === "tv") {
@@ -191,7 +202,7 @@ export function vaultRowToWatchlistItem(
  */
 function computeRuntimeMinutes(
   mediaType: "movie" | "tv",
-  tmdb: TMDBTitle | null | undefined,
+  tmdb: TMDBTitle | null | undefined
 ): number | undefined {
   if (!tmdb) return undefined;
 
@@ -209,7 +220,10 @@ function computeRuntimeMinutes(
 
   const runtimes = tmdb.episode_run_time;
   const typicalEpisode =
-    Array.isArray(runtimes) && runtimes.length > 0 && typeof runtimes[0] === "number" && runtimes[0] > 0
+    Array.isArray(runtimes) &&
+    runtimes.length > 0 &&
+    typeof runtimes[0] === "number" &&
+    runtimes[0] > 0
       ? runtimes[0]
       : 40; // reasonable fallback for series with missing runtime data
 
@@ -236,13 +250,19 @@ function computeRuntimeMinutes(
  *
  * @returns Array of WatchlistItem (empty if no items or error).
  */
-export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]> {
+export async function fetchUserLibrary(
+  userId: string
+): Promise<WatchlistItem[]> {
   const repo = getDashboardRepository();
 
   // 1. Fetch all vault items (single query)
-  const { data: vaultRows, error: vaultError } = await repo.getAllVaultItems(userId);
+  const { data: vaultRows, error: vaultError } =
+    await repo.getAllVaultItems(userId);
   if (vaultError) {
-    console.error("[userLibraryAdapter] Error fetching vault items:", vaultError);
+    console.error(
+      "[userLibraryAdapter] Error fetching vault items:",
+      vaultError
+    );
   }
 
   const rows = vaultRows ?? [];
@@ -258,16 +278,22 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     // Episode progress for TV items
     tvVaultIds.length > 0
       ? getEpisodeProgressRepository().getLatestEpisodeProgressBatch(tvVaultIds)
-      : Promise.resolve({ data: new Map<string, EpisodeProgressRow>(), error: null }),
+      : Promise.resolve({
+          data: new Map<string, EpisodeProgressRow>(),
+          error: null
+        }),
     // Cached TMDB metadata (localStorage + server tmdb_cache table)
     cacheKeys.length > 0
       ? fetchCachedMetadataBatch(cacheKeys)
-      : Promise.resolve(new Map<string, TMDBTitle>()),
+      : Promise.resolve(new Map<string, TMDBTitle>())
   ]);
 
   let progressMap = new Map<string, EpisodeProgressRow>();
   if (progressResult.error) {
-    console.error("[userLibraryAdapter] Error fetching episode progress:", progressResult.error);
+    console.error(
+      "[userLibraryAdapter] Error fetching episode progress:",
+      progressResult.error
+    );
   } else {
     progressMap = progressResult.data;
   }
@@ -282,12 +308,8 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
   if (missingItems.length > 0) {
     const missingTmdbItems = missingItems.map((r) => ({
       mediaType: r.media_type,
-      tmdbId: r.tmdb_id,
+      tmdbId: r.tmdb_id
     }));
-
-    console.log(
-      `[userLibraryAdapter] Cache miss: ${missingItems.length}/${rows.length} items need TMDB API fetch`
-    );
 
     // Fetch missing items from TMDB API
     const freshTmdbMap = await fetchTmdbMetadataBatch(missingTmdbItems);
@@ -298,19 +320,19 @@ export async function fetchUserLibrary(userId: string): Promise<WatchlistItem[]>
     }
 
     // Cache the fresh results for future visits (fire-and-forget)
-    const cacheEntries = Array.from(freshTmdbMap.entries()).map(([key, data]) => {
-      const [mediaType, tmdbIdStr] = key.split("/");
-      return {
-        key,
-        tmdb_id: Number(tmdbIdStr),
-        media_type: mediaType as "movie" | "tv",
-        data,
-      };
-    });
+    const cacheEntries = Array.from(freshTmdbMap.entries()).map(
+      ([key, data]) => {
+        const [mediaType, tmdbIdStr] = key.split("/");
+        return {
+          key,
+          tmdb_id: Number(tmdbIdStr),
+          media_type: mediaType as "movie" | "tv",
+          data
+        };
+      }
+    );
     // Don't await — cache writes are best-effort and shouldn't block the UI
     cacheMetadataEntries(cacheEntries).catch(() => {});
-  } else {
-    console.log(`[userLibraryAdapter] Cache hit: all ${rows.length} items found in cache`);
   }
 
   // 4. Map to WatchlistItem with episode progress + TMDB metadata enrichment

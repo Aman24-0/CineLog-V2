@@ -26,11 +26,24 @@
 //     default "No titles available." message).
 //
 
-import { For, Show, createSignal, type Component } from "solid-js";
+import { For, Show, createSignal, type Component, type JSX } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useLazyImdbRating } from "~/shared/hooks/useLazyImdbRating";
 import type { TMDBTitle } from "~/shared/types";
 import DiscoverEmptyState from "./DiscoverEmptyState";
+
+// ─── Module-level style constants ────────────────────────────────────
+// DiscoverRail renders up to ~10–40 cards per rail × ~6 rails per
+// Discover page, so every avoided per-card allocation compounds.
+const RATING_STAR_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "10px",
+  "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+};
+const POSTER_FALLBACK_ICON_STYLE: JSX.CSSProperties = {
+  "font-size": "28px",
+  color: "var(--text-dim)"
+};
+const META_DOT_STYLE: JSX.CSSProperties = { color: "var(--text-dim)" };
 
 interface DiscoverRailProps {
   titles: TMDBTitle[];
@@ -75,7 +88,8 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
   };
 
   // Whether the "Show More" card should appear.
-  const hasMore = () => limit() > 0 && !expanded() && props.titles.length > limit();
+  const hasMore = () =>
+    limit() > 0 && !expanded() && props.titles.length > limit();
 
   return (
     <Show
@@ -93,12 +107,15 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
         <For each={visibleTitles()}>
           {(title) => {
             const year = () =>
-              (title.release_date || title.first_air_date || "").split("-")[0] || "";
+              (title.release_date || title.first_air_date || "").split(
+                "-"
+              )[0] || "";
             // TMDB fallback rating — used while the MDBList IMDb score
             // is loading or if MDBList returns null.
             const tmdbRating = () =>
               title.vote_average ? title.vote_average.toFixed(1) : null;
-            const isVault = () => !!(title as TMDBTitle & { _inVault?: boolean })._inVault;
+            const isVault = () =>
+              !!(title as TMDBTitle & { _inVault?: boolean })._inVault;
             // NEW SEASON OUT badge — shown when the parent passes a set
             // of TV ids that have an unviewed active season.
             const showNewSeasonBadge = () =>
@@ -113,7 +130,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
             const { rating: imdbRating } = useLazyImdbRating(
               () => title.id,
               () => title.media_type,
-              () => cardRef,
+              () => cardRef
             );
             // The effective rating shown on the badge: IMDb score when
             // available, TMDB vote_average as fallback.
@@ -133,7 +150,11 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                     when={title.poster_path}
                     fallback={
                       <div class="search-rail-poster-fallback">
-                        <span class="material-symbols-outlined" style={{ "font-size": "28px", color: "var(--text-dim)" }} aria-hidden="true">
+                        <span
+                          class="material-symbols-outlined"
+                          style={POSTER_FALLBACK_ICON_STYLE}
+                          aria-hidden="true"
+                        >
                           movie
                         </span>
                       </div>
@@ -146,7 +167,9 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                       decoding="async"
                       alt=""
                       aria-hidden="true"
-                      onError={(e) => { e.currentTarget.style.display = "none"; }}
+                      onError={(e) => {
+                        e.currentTarget.style.display = "none";
+                      }}
                     />
                   </Show>
 
@@ -155,15 +178,27 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                       the user has in their vault with an unviewed
                       active season. */}
                   <Show when={showNewSeasonBadge()}>
-                    <span class="new-season-out-badge" aria-label="New season out">
+                    <span
+                      class="new-season-out-badge"
+                      aria-label="New season out"
+                    >
                       NEW SEASON
                     </span>
                   </Show>
 
                   {/* Premium glass rating badge — top-right corner */}
                   <Show when={rating()}>
-                    <span class="search-rail-rating" aria-label={`Rated ${rating()}`}>
-                      <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">star</span>
+                    <span
+                      class="search-rail-rating"
+                      aria-label={`Rated ${rating()}`}
+                    >
+                      <span
+                        class="material-symbols-outlined"
+                        style={RATING_STAR_ICON_STYLE}
+                        aria-hidden="true"
+                      >
+                        star
+                      </span>
                       {rating()}
                     </span>
                   </Show>
@@ -171,21 +206,31 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                   {/* Premium glass vault status badge — top-left corner */}
                   <Show when={isVault()}>
                     <span class="search-rail-status" aria-label="In your vault">
-                      <span class="material-symbols-outlined" style={{ "font-size": "10px", "font-variation-settings": "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 20" }} aria-hidden="true">check_circle</span>
+                      <span
+                        class="material-symbols-outlined"
+                        style={RATING_STAR_ICON_STYLE}
+                        aria-hidden="true"
+                      >
+                        check_circle
+                      </span>
                       In Vault
                     </span>
                   </Show>
                 </div>
-                <p class="search-rail-title">{title.title || title.name || "Untitled"}</p>
+                <p class="search-rail-title">
+                  {title.title || title.name || "Untitled"}
+                </p>
                 <p class="search-rail-meta">
                   <Show when={year()}>
                     <span>{year()}</span>
                   </Show>
                   <Show when={year() && title.media_type}>
-                    <span style={{ color: "var(--text-dim)" }}>·</span>
+                    <span style={META_DOT_STYLE}>·</span>
                   </Show>
                   <Show when={title.media_type}>
-                    <span>{title.media_type === "tv" ? "Series" : "Movie"}</span>
+                    <span>
+                      {title.media_type === "tv" ? "Series" : "Movie"}
+                    </span>
                   </Show>
                 </p>
               </button>
@@ -205,8 +250,12 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
             role="listitem"
           >
             <div class="search-rail-show-more-inner">
-              <span class="material-symbols-outlined" aria-hidden="true">expand_more</span>
-              <span class="search-rail-show-more-count">+{props.titles.length - limit()}</span>
+              <span class="material-symbols-outlined" aria-hidden="true">
+                expand_more
+              </span>
+              <span class="search-rail-show-more-count">
+                +{props.titles.length - limit()}
+              </span>
               <span class="search-rail-show-more-label">Show More</span>
             </div>
           </button>

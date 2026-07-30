@@ -24,11 +24,19 @@
 // fetch; this component is purely presentational + selection state.
 
 import {
-  For, Show, createSignal, createMemo, onMount, createEffect,
-  type Component,
+  For,
+  Show,
+  createSignal,
+  createMemo,
+  onMount,
+  createEffect,
+  type Component
 } from "solid-js";
 import { streamingProviders, mergeAndSortProviders } from "~/core/preferences";
-import { getWatchProviderList, getWatchProviderListTv } from "~/core/tmdb/discover";
+import {
+  getWatchProviderList,
+  getWatchProviderListTv
+} from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 
 interface OttDropdownProps {
@@ -66,7 +74,9 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
   // The full merged + sorted provider list for the user's region.
   // Used to resolve display names + logos for the user's selected
   // provider IDs, and as the fallback when no providers are selected.
-  const [regionProviders, setRegionProviders] = createSignal<ProviderOption[]>([]);
+  const [regionProviders, setRegionProviders] = createSignal<ProviderOption[]>(
+    []
+  );
 
   /**
    * Fetch ALL providers for the region from TMDB (movie + TV merged,
@@ -78,7 +88,7 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     try {
       const [movieRes, tvRes] = await Promise.allSettled([
         getWatchProviderList(region),
-        getWatchProviderListTv(region),
+        getWatchProviderListTv(region)
       ]);
       const movieRows = movieRes.status === "fulfilled" ? movieRes.value : [];
       const tvRows = tvRes.status === "fulfilled" ? tvRes.value : [];
@@ -88,7 +98,7 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
       const merged = mergeAndSortProviders(movieRows, tvRows).map((p) => ({
         id: p.id,
         name: p.name,
-        logoPath: p.logoPath,
+        logoPath: p.logoPath
       }));
       setRegionProviders(merged);
     } catch (err) {
@@ -97,7 +107,9 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
     }
   };
 
-  onMount(() => { void loadRegionProviders(props.region); });
+  onMount(() => {
+    void loadRegionProviders(props.region);
+  });
   // Refetch when the region changes (user switched country in settings).
   createEffect(() => {
     const r = props.region;
@@ -181,6 +193,9 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
         onClick={() => setOpen((v) => !v)}
         aria-haspopup="listbox"
         aria-expanded={open()}
+        // aria-controls points at the listbox id so AT users can jump
+        // directly from the trigger to the open panel.
+        aria-controls="ott-dropdown-listbox"
         aria-label="Select streaming provider"
       >
         {/* Active provider logo — small rounded icon inside the trigger.
@@ -200,7 +215,10 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
         <span
           class="material-symbols-outlined ott-dropdown-chevron"
           aria-hidden="true"
-          style={{ transform: open() ? "rotate(180deg)" : "none", transition: "transform 150ms ease-out" }}
+          style={{
+            transform: open() ? "rotate(180deg)" : "none",
+            transition: "transform 150ms ease-out"
+          }}
         >
           expand_more
         </span>
@@ -213,7 +231,12 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
           onClick={() => setOpen(false)}
           aria-hidden="true"
         />
-        <div class="ott-dropdown-panel" role="listbox" aria-label="Streaming providers">
+        <div
+          class="ott-dropdown-panel"
+          id="ott-dropdown-listbox"
+          role="listbox"
+          aria-label="Streaming providers"
+        >
           <For each={options()}>
             {(opt) => (
               <button

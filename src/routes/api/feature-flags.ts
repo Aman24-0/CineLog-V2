@@ -29,7 +29,7 @@ const DEFAULT_FLAGS: FeatureFlags = {
   upcoming: true,
   random_picker: true,
   ai_recommendations: false,
-  experimental_features: false,
+  experimental_features: false
 };
 
 export async function GET(_event: APIEvent) {
@@ -41,13 +41,13 @@ export async function GET(_event: APIEvent) {
       return new Response(JSON.stringify({ flags: DEFAULT_FLAGS }), {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "public, max-age=60, s-maxage=300",
-        },
+          "Cache-Control": "public, max-age=60, s-maxage=300"
+        }
       });
     }
 
     const supabase = createClient(url, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
     const { data, error } = await supabase
@@ -60,8 +60,8 @@ export async function GET(_event: APIEvent) {
       return new Response(JSON.stringify({ flags: DEFAULT_FLAGS }), {
         headers: {
           "Content-Type": "application/json",
-          "Cache-Control": "public, max-age=60, s-maxage=300",
-        },
+          "Cache-Control": "public, max-age=60, s-maxage=300"
+        }
       });
     }
 
@@ -70,16 +70,16 @@ export async function GET(_event: APIEvent) {
     return new Response(JSON.stringify({ flags }), {
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60, s-maxage=300",
-      },
+        "Cache-Control": "public, max-age=60, s-maxage=300"
+      }
     });
   } catch (err) {
     console.error("[CineLog] Feature flags GET error:", err);
     return new Response(JSON.stringify({ flags: DEFAULT_FLAGS }), {
       headers: {
         "Content-Type": "application/json",
-        "Cache-Control": "public, max-age=60, s-maxage=300",
-      },
+        "Cache-Control": "public, max-age=60, s-maxage=300"
+      }
     });
   }
 }

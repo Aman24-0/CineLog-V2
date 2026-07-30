@@ -11,14 +11,11 @@
 const SEARCH_HISTORY_PATTERNS = [
   "cinelog_search_history",
   "cinelog_recent_searches",
-  "cinelog_search_",
+  "cinelog_search_"
 ];
 
 /** Keys / patterns that count as "TMDB cache". */
-const TMDB_CACHE_KEYS = [
-  "cinelog_tmdb_cache",
-  "cinelog_tmdb_meta",
-];
+const TMDB_CACHE_KEYS = ["cinelog_tmdb_cache", "cinelog_tmdb_meta"];
 
 /** All localStorage keys CineLog owns (used for nuclear reset). */
 export const ALL_CINELOG_PREFIXES = ["cinelog_"];

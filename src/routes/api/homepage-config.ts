@@ -29,8 +29,9 @@ function jsonResponse(body: unknown, status = 200): Response {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": "public, max-age=30, s-maxage=60, stale-while-revalidate=300",
-    },
+      "Cache-Control":
+        "public, max-age=30, s-maxage=60, stale-while-revalidate=300"
+    }
   });
 }
 
@@ -51,11 +52,11 @@ const DEFAULT_CONFIG = {
     top_rated_series: { enabled: true, order: 13 },
     new_on_ott: { enabled: true, order: 14 },
     new_seasons: { enabled: true, order: 15 },
-    coming_soon: { enabled: true, order: 16 },
-  },
+    coming_soon: { enabled: true, order: 16 }
+  }
 };
 
-export async function GET(event: APIEvent) {
+export async function GET(_event: APIEvent) {
   try {
     const supabaseUrl = process.env.VITE_SUPABASE_URL;
     const anonKey = process.env.VITE_SUPABASE_ANON_KEY;
@@ -64,7 +65,7 @@ export async function GET(event: APIEvent) {
     }
 
     const supabase = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
+      auth: { autoRefreshToken: false, persistSession: false }
     });
 
     const { data, error } = await supabase
@@ -78,11 +79,13 @@ export async function GET(event: APIEvent) {
       return jsonResponse({ config: DEFAULT_CONFIG });
     }
 
-    const config = data.value as { sections?: Record<string, { enabled: boolean; order: number }> };
+    const config = data.value as {
+      sections?: Record<string, { enabled: boolean; order: number }>;
+    };
 
     // Merge with defaults so newly-added sections appear even if DB row is old
     const merged = {
-      sections: { ...DEFAULT_CONFIG.sections, ...(config.sections ?? {}) },
+      sections: { ...DEFAULT_CONFIG.sections, ...(config.sections ?? {}) }
     };
 
     return jsonResponse({ config: merged });

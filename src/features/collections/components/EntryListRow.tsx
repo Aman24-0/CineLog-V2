@@ -121,7 +121,9 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
           // When `dragActivators` is undefined the handle is decorative.
           {...(props.dragActivators ?? {})}
         >
-          <span class="material-symbols-outlined" aria-hidden="true">drag_indicator</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            drag_indicator
+          </span>
         </button>
       </Show>
 
@@ -130,7 +132,9 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
         when={props.entry.poster_path}
         fallback={
           <div class="entry-list-row-poster-fallback" aria-hidden="true">
-            <span class="material-symbols-outlined" aria-hidden="true">movie</span>
+            <span class="material-symbols-outlined" aria-hidden="true">
+              movie
+            </span>
           </div>
         }
       >
@@ -141,12 +145,17 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
           decoding="async"
           alt=""
           aria-hidden="true"
-          onError={(e) => { e.currentTarget.style.display = "none"; }}
+          onError={(e) => {
+            e.currentTarget.style.display = "none";
+          }}
         />
       </Show>
 
       <div class="entry-list-row-main">
-        <p class="entry-list-row-title" title={`${title()}${year() ? ` (${year()})` : ""}`}>
+        <p
+          class="entry-list-row-title"
+          title={`${title()}${year() ? ` (${year()})` : ""}`}
+        >
           {title()}
         </p>
         <div class="entry-list-row-meta">
@@ -176,7 +185,9 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
           aria-label={`Your rating: ${ratingDisplay()} out of 10`}
           title="Your rating"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">star</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            star
+          </span>
           <span class="entry-list-row-rating-num">{ratingDisplay()}</span>
         </span>
       </Show>
@@ -196,7 +207,9 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
           aria-label="Remove from collection"
           title="Remove from collection"
         >
-          <span class="material-symbols-outlined" aria-hidden="true">delete</span>
+          <span class="material-symbols-outlined" aria-hidden="true">
+            delete
+          </span>
         </button>
       </Show>
     </div>

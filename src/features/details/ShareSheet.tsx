@@ -30,7 +30,7 @@ import {
   onCleanup,
   createMemo,
   type Accessor,
-  type Component,
+  type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import {
@@ -39,10 +39,13 @@ import {
   buildShareTextBody,
   canWebShare,
   copyToClipboard,
-  resolveTitle,
+  resolveTitle
 } from "~/shared/utils/share";
 import { useToast } from "~/shared/hooks/useToast";
-import { useMdbListRatings, type FrontendMediaType } from "~/features/details/useMdbListRatings";
+import {
+  useMdbListRatings,
+  type FrontendMediaType
+} from "~/features/details/useMdbListRatings";
 import type { TMDBDetails } from "~/shared/types";
 
 export interface ShareSheetProps {
@@ -59,7 +62,10 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
   // State
   const [isCopyingLink, setIsCopyingLink] = createSignal(false);
   const [isSharing, setIsSharing] = createSignal(false);
-  const [message, setMessage] = createSignal<{ kind: "success" | "error" | "info"; text: string } | null>(null);
+  const [message, setMessage] = createSignal<{
+    kind: "success" | "error" | "info";
+    text: string;
+  } | null>(null);
 
   // ── MDBList ratings (IMDb / RT / Metacritic) ──────────────────────
   //
@@ -81,17 +87,22 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
 
   // Derived values
   const shareUrl = createMemo(() =>
-    buildShareUrl(props.mediaType(), props.tmdbId()),
+    buildShareUrl(props.mediaType(), props.tmdbId())
   );
   // For navigator.share({ text }) — does NOT include the URL because
   // we pass `url` separately, otherwise the chat app renders it twice.
   // Passes the MDBList ratings so the share text shows IMDb / RT / MC.
   const shareTextBody = createMemo(() =>
-    buildShareTextBody(props.details(), props.mediaType(), mdbRatings()),
+    buildShareTextBody(props.details(), props.mediaType(), mdbRatings())
   );
   // For clipboard copy — DOES include the URL.
   const shareTextFull = createMemo(() =>
-    buildShareText(props.details(), props.mediaType(), props.tmdbId(), mdbRatings()),
+    buildShareText(
+      props.details(),
+      props.mediaType(),
+      props.tmdbId(),
+      mdbRatings()
+    )
   );
 
   const webShareAvailable = () => canWebShare();
@@ -125,7 +136,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       } else {
         setMessage({
           kind: "error",
-          text: "Couldn't copy automatically. Long-press the link to copy.",
+          text: "Couldn't copy automatically. Long-press the link to copy."
         });
       }
     } finally {
@@ -173,7 +184,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
         await navigator.share({
           title: resolveTitle(props.details()),
           text: shareTextBody(),
-          url: shareUrl(),
+          url: shareUrl()
         });
         shareOk = true;
         showToast("Shared!", "success", 1500);
@@ -185,7 +196,10 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           cancelled = true;
         } else {
           // Unexpected error — log and fall through to copy below.
-          console.warn("[ShareSheet] Web Share failed, falling back to copy:", err);
+          console.warn(
+            "[ShareSheet] Web Share failed, falling back to copy:",
+            err
+          );
         }
       } finally {
         // ALWAYS reset the sharing state — this is the fix for the
@@ -206,12 +220,15 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     try {
       const ok = await copyToClipboard(shareTextFull());
       if (ok) {
-        setMessage({ kind: "success", text: "Share text copied to clipboard!" });
+        setMessage({
+          kind: "success",
+          text: "Share text copied to clipboard!"
+        });
         showToast("Text copied", "success", 1500);
       } else {
         setMessage({
           kind: "error",
-          text: "Couldn't share or copy. Your browser may not support sharing.",
+          text: "Couldn't share or copy. Your browser may not support sharing."
         });
       }
     } finally {
@@ -229,10 +246,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
           aria-modal="true"
           aria-label="Share this title"
         >
-          <div
-            class="share-mini-box"
-            onClick={(e) => e.stopPropagation()}
-          >
+          <div class="share-mini-box" onClick={(e) => e.stopPropagation()}>
             {/* Close button (X) — top-right corner */}
             <button
               type="button"
@@ -247,12 +261,17 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
 
             {/* Header */}
             <div class="share-mini-header">
-              <span class="material-symbols-outlined share-mini-icon" aria-hidden="true">
+              <span
+                class="material-symbols-outlined share-mini-icon"
+                aria-hidden="true"
+              >
                 share
               </span>
               <h2 class="share-mini-title">Share</h2>
               <p class="share-mini-subtitle">
-                {props.details()?.title || props.details()?.name || "this title"}
+                {props.details()?.title ||
+                  props.details()?.name ||
+                  "this title"}
               </p>
             </div>
 
@@ -281,7 +300,11 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
                   </span>
                 </Show>
                 <span class="share-mini-btn-label">
-                  {isSharing() ? "Sharing…" : webShareAvailable() ? "Share via App" : "Copy Text"}
+                  {isSharing()
+                    ? "Sharing…"
+                    : webShareAvailable()
+                      ? "Share via App"
+                      : "Copy Text"}
                 </span>
               </button>
 
@@ -311,7 +334,9 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
             {/* Status message */}
             <Show when={message()}>
               {(m) => (
-                <div class={`share-sheet-message share-sheet-message-${m().kind}`}>
+                <div
+                  class={`share-sheet-message share-sheet-message-${m().kind}`}
+                >
                   {m().text}
                 </div>
               )}

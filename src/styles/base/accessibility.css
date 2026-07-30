@@ -1,0 +1,46 @@
+/* src/styles/base/accessibility.css — Accessibility-focused base styles.
+
+   This file consolidates ALL `prefers-reduced-motion` overrides in one
+   discoverable place. The universal block effectively disables every
+   animation and transition site-wide for users who have requested
+   reduced motion at the OS level (System Preferences → Accessibility →
+   Reduce Motion on macOS, Settings → Accessibility → Remove Animations
+   on Android, etc.). The `!important` is necessary to win specificity
+   against the many component-level `transition:` and `animation:`
+   declarations spread across the design system.
+
+   The named-animation override below the universal block re-enables a
+   very short (120ms) duration for the most common entrance animations
+   (fade-in, slide-up, pop-in, etc.) so the UI still feels responsive
+   without any disorienting motion. This matches the WCAG 2.3.3 spirit
+   (Animation from Interactions — minimized) while preserving the
+   "something happened" feedback loop. */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  /* Allow entrance animations to play at a heavily reduced duration so
+     the UI still communicates state changes without disorienting motion.
+     These are intentionally non-zero — a 120ms fade is short enough to
+     feel "instant" but long enough to register as a transition. */
+  .animate-fade-in,
+  .animate-fade-up,
+  .animate-slide-up,
+  .animate-slide-down,
+  .animate-slide-in-right,
+  .animate-pop-in,
+  .animate-pop-spring,
+  .animate-scale-in,
+  .animate-scale-fade,
+  .animate-timeline-in,
+  .page-enter {
+    animation-duration: 120ms !important;
+  }
+}

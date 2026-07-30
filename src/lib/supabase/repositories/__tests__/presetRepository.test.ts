@@ -1,22 +1,27 @@
 // src/lib/supabase/repositories/__tests__/presetRepository.test.ts
-import {describe, it, expect} from "vitest";
+import { describe, it, expect } from "vitest";
 import { PresetRepository } from "../preset/preset.repository";
 import {
   validateName,
   validateFilters,
   toInsert,
-  toRenameUpdate,
+  toRenameUpdate
 } from "../preset/preset.utils";
 import type { PresetRow, CreatePresetPayload } from "../preset/preset.types";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 import { makeVaultFilters } from "~/__test-fixtures__/factories";
 
 const mockPresetRow: PresetRow = {
   id: "preset-1",
   user_id: "user-1",
   name: "My Preset",
-  filters: makeVaultFilters({ type: "movie" }) as unknown as PresetRow["filters"],
-  created_at: "2024-01-01T00:00:00Z",
+  filters: makeVaultFilters({
+    type: "movie"
+  }) as unknown as PresetRow["filters"],
+  created_at: "2024-01-01T00:00:00Z"
 } as unknown as PresetRow;
 
 describe("PresetRepository", () => {
@@ -69,7 +74,7 @@ describe("PresetRepository", () => {
       const payload: CreatePresetPayload = {
         userId: "user-1",
         name: "My Preset",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       };
       const result = await repo.createPreset(payload);
       expect(result.data).toEqual(mockPresetRow);
@@ -81,7 +86,7 @@ describe("PresetRepository", () => {
       const result = await repo.createPreset({
         userId: "user-1",
         name: "",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       });
       expect(result.data).toBeNull();
       expect(result.error).toBeInstanceOf(Error);
@@ -94,7 +99,7 @@ describe("PresetRepository", () => {
       const result = await repo.createPreset({
         userId: "user-1",
         name: "   ",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       });
       expect(result.error).toBeInstanceOf(Error);
     });
@@ -105,7 +110,7 @@ describe("PresetRepository", () => {
       const result = await repo.createPreset({
         userId: "user-1",
         name: "Valid Name",
-        filters: null as unknown as import("~/shared/types").VaultFilters,
+        filters: null as unknown as import("~/shared/types").VaultFilters
       });
       expect(result.error).toBeInstanceOf(Error);
       expect(result.error!.message).toContain("non-null");
@@ -118,7 +123,7 @@ describe("PresetRepository", () => {
       const result = await repo.createPreset({
         userId: "user-1",
         name: "Valid",
-        filters: makeVaultFilters(),
+        filters: makeVaultFilters()
       });
       expect(result.error).toBe(err);
     });
@@ -126,7 +131,9 @@ describe("PresetRepository", () => {
 
   describe("renamePreset", () => {
     it("renames preset on success", async () => {
-      const { client } = createMockSupabase({ singleData: { ...mockPresetRow, name: "New Name" } });
+      const { client } = createMockSupabase({
+        singleData: { ...mockPresetRow, name: "New Name" }
+      });
       const repo = new PresetRepository(client as never);
       const result = await repo.renamePreset("preset-1", "New Name");
       expect(result.data?.name).toBe("New Name");
@@ -195,7 +202,7 @@ describe("preset.utils", () => {
       const result = toInsert({
         userId: "u1",
         name: "Test",
-        filters,
+        filters
       });
       expect(result.user_id).toBe("u1");
       expect(result.name).toBe("Test");

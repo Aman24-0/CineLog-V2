@@ -21,20 +21,14 @@
 
 import { getClient } from "~/lib/supabase/client";
 import type { TMDBTitle } from "~/shared/types";
-import {
-  normalizeList,
-  type TMDBRawItem,
-} from "~/core/tmdb/discoverNormalize";
+import { normalizeList, type TMDBRawItem } from "~/core/tmdb/discoverNormalize";
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-export type NotificationType =
-  | "reminder"
-  | "watchlist_added"
-  | "season_available"
-  | "info";
+type NotificationType =
+  "reminder" | "watchlist_added" | "season_available" | "info";
 
 export interface NotificationRow {
   id: string;
@@ -65,7 +59,7 @@ export interface UserReminderRow {
 export interface UpcomingQueryParams {
   region: string;
   startDate: string; // YYYY-MM-DD
-  endDate: string;   // YYYY-MM-DD
+  endDate: string; // YYYY-MM-DD
   genres?: number[]; // TMDB genre IDs
   /**
    * @deprecated Kept for backward-compat with callers that still pass
@@ -84,8 +78,10 @@ export interface UpcomingQueryParams {
 
 function isDebug(): boolean {
   try {
-    return typeof localStorage !== "undefined" &&
-      localStorage.getItem("cinelog:upcoming:debug") === "1";
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("cinelog:upcoming:debug") === "1"
+    );
   } catch {
     return false;
   }
@@ -116,100 +112,182 @@ function getMockUpcomingTitles(): TMDBTitle[] {
 
   return [
     {
-      id: 900001, title: "Echoes of Tomorrow", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900001,
+      title: "Echoes of Tomorrow",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(0), vote_average: 8.1, vote_count: 0,
-      genre_ids: [878], genres: ["Sci-Fi"],
+      release_date: shift(0),
+      vote_average: 8.1,
+      vote_count: 0,
+      genre_ids: [878],
+      genres: ["Sci-Fi"]
     },
     {
-      id: 900002, title: "The Last Cartographer", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900002,
+      title: "The Last Cartographer",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(1), vote_average: 7.4, vote_count: 0,
-      genre_ids: [18], genres: ["Drama"],
+      release_date: shift(1),
+      vote_average: 7.4,
+      vote_count: 0,
+      genre_ids: [18],
+      genres: ["Drama"]
     },
     {
-      id: 900003, name: "Quantum Drift", media_type: "tv",
-      poster_path: null, backdrop_path: null,
+      id: 900003,
+      name: "Quantum Drift",
+      media_type: "tv",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      first_air_date: shift(2), vote_average: 8.6, vote_count: 0,
-      genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
-      seasonNumber: 2, episodeNumber: 5, episodeAirDate: shift(2),
+      first_air_date: shift(2),
+      vote_average: 8.6,
+      vote_count: 0,
+      genre_ids: [10765],
+      genres: ["Sci-Fi & Fantasy"],
+      seasonNumber: 2,
+      episodeNumber: 5,
+      episodeAirDate: shift(2)
     },
     {
-      id: 900004, title: "Midnight Protocol", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900004,
+      title: "Midnight Protocol",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(4), vote_average: 6.9, vote_count: 0,
-      genre_ids: [28, 53], genres: ["Action", "Thriller"],
+      release_date: shift(4),
+      vote_average: 6.9,
+      vote_count: 0,
+      genre_ids: [28, 53],
+      genres: ["Action", "Thriller"]
     },
     {
-      id: 900005, name: "Harbor Light", media_type: "tv",
-      poster_path: null, backdrop_path: null,
+      id: 900005,
+      name: "Harbor Light",
+      media_type: "tv",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      first_air_date: shift(6), vote_average: 7.8, vote_count: 0,
-      genre_ids: [18], genres: ["Drama"],
-      seasonNumber: 1, episodeNumber: 3, episodeAirDate: shift(6),
+      first_air_date: shift(6),
+      vote_average: 7.8,
+      vote_count: 0,
+      genre_ids: [18],
+      genres: ["Drama"],
+      seasonNumber: 1,
+      episodeNumber: 3,
+      episodeAirDate: shift(6)
     },
     {
-      id: 900006, title: "Beneath the Glass Sea", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900006,
+      title: "Beneath the Glass Sea",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(9), vote_average: 8.3, vote_count: 0,
-      genre_ids: [878, 18], genres: ["Sci-Fi", "Drama"],
+      release_date: shift(9),
+      vote_average: 8.3,
+      vote_count: 0,
+      genre_ids: [878, 18],
+      genres: ["Sci-Fi", "Drama"]
     },
     {
-      id: 900007, title: "Painted Sun", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900007,
+      title: "Painted Sun",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(12), vote_average: 7.1, vote_count: 0,
-      genre_ids: [35], genres: ["Comedy"],
+      release_date: shift(12),
+      vote_average: 7.1,
+      vote_count: 0,
+      genre_ids: [35],
+      genres: ["Comedy"]
     },
     {
-      id: 900008, name: "The Veridian Heir", media_type: "tv",
-      poster_path: null, backdrop_path: null,
+      id: 900008,
+      name: "The Veridian Heir",
+      media_type: "tv",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      first_air_date: shift(15), vote_average: 8.0, vote_count: 0,
-      genre_ids: [10759, 18], genres: ["Action & Adventure", "Drama"],
-      seasonNumber: 3, episodeNumber: 1, episodeAirDate: shift(15),
+      first_air_date: shift(15),
+      vote_average: 8.0,
+      vote_count: 0,
+      genre_ids: [10759, 18],
+      genres: ["Action & Adventure", "Drama"],
+      seasonNumber: 3,
+      episodeNumber: 1,
+      episodeAirDate: shift(15)
     },
     {
-      id: 900009, title: "Concrete Garden", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900009,
+      title: "Concrete Garden",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(21), vote_average: 7.5, vote_count: 0,
-      genre_ids: [18], genres: ["Drama"],
+      release_date: shift(21),
+      vote_average: 7.5,
+      vote_count: 0,
+      genre_ids: [18],
+      genres: ["Drama"]
     },
     {
-      id: 900010, title: "Saltwater Empire", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900010,
+      title: "Saltwater Empire",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(27), vote_average: 8.4, vote_count: 0,
-      genre_ids: [12, 28], genres: ["Adventure", "Action"],
+      release_date: shift(27),
+      vote_average: 8.4,
+      vote_count: 0,
+      genre_ids: [12, 28],
+      genres: ["Adventure", "Action"]
     },
     {
-      id: 900011, name: "Aurora Station", media_type: "tv",
-      poster_path: null, backdrop_path: null,
+      id: 900011,
+      name: "Aurora Station",
+      media_type: "tv",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      first_air_date: shift(30), vote_average: 8.7, vote_count: 0,
-      genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
-      seasonNumber: 2, episodeNumber: 8, episodeAirDate: shift(30),
+      first_air_date: shift(30),
+      vote_average: 8.7,
+      vote_count: 0,
+      genre_ids: [10765],
+      genres: ["Sci-Fi & Fantasy"],
+      seasonNumber: 2,
+      episodeNumber: 8,
+      episodeAirDate: shift(30)
     },
     {
-      id: 900012, title: "The Quiet Architect", media_type: "movie",
-      poster_path: null, backdrop_path: null,
+      id: 900012,
+      title: "The Quiet Architect",
+      media_type: "movie",
+      poster_path: null,
+      backdrop_path: null,
       overview: "Mock title — for development only.",
-      release_date: shift(45), vote_average: 7.9, vote_count: 0,
-      genre_ids: [18, 9648], genres: ["Drama", "Mystery"],
-    },
+      release_date: shift(45),
+      vote_average: 7.9,
+      vote_count: 0,
+      genre_ids: [18, 9648],
+      genres: ["Drama", "Mystery"]
+    }
   ];
 }
 
 function isMockMode(): boolean {
   try {
-    return typeof localStorage !== "undefined" &&
-      localStorage.getItem("cinelog:upcoming:mock") === "1";
+    return (
+      typeof localStorage !== "undefined" &&
+      localStorage.getItem("cinelog:upcoming:mock") === "1"
+    );
   } catch {
     return false;
   }
@@ -222,7 +300,10 @@ function isMockMode(): boolean {
 const API = "/api/media";
 const TMDB_FETCH_TIMEOUT_MS = 10_000;
 
-async function fetchWithTimeout(url: string, timeoutMs = TMDB_FETCH_TIMEOUT_MS): Promise<Response> {
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = TMDB_FETCH_TIMEOUT_MS
+): Promise<Response> {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -243,7 +324,10 @@ async function fetchWithTimeout(url: string, timeoutMs = TMDB_FETCH_TIMEOUT_MS):
  *     to the in-region release date, not the worldwide first release.
  *   - `sort_by=release_date.asc` so the earliest releases come first.
  */
-function buildMovieParams(params: UpcomingQueryParams, page: number): URLSearchParams {
+function buildMovieParams(
+  params: UpcomingQueryParams,
+  page: number
+): URLSearchParams {
   const p = new URLSearchParams({
     language: "en-US",
     sort_by: "release_date.asc",
@@ -252,7 +336,7 @@ function buildMovieParams(params: UpcomingQueryParams, page: number): URLSearchP
     region: params.region,
     with_release_country: params.region,
     include_adult: "false",
-    page: String(page),
+    page: String(page)
   });
   if (params.genres?.length) p.set("with_genres", params.genres.join(","));
   return p;
@@ -285,14 +369,17 @@ function buildMovieParams(params: UpcomingQueryParams, page: number): URLSearchP
  *   2. The "available in your region" hint (when providers array is
  *      empty for a popular title, it's likely not yet licensed there).
  */
-function buildTvParams(params: UpcomingQueryParams, page: number): URLSearchParams {
+function buildTvParams(
+  params: UpcomingQueryParams,
+  page: number
+): URLSearchParams {
   const p = new URLSearchParams({
     language: "en-US",
     sort_by: "popularity.desc",
     "air_date.gte": params.startDate,
     "air_date.lte": params.endDate,
     include_adult: "false",
-    page: String(page),
+    page: String(page)
   });
   if (params.genres?.length) p.set("with_genres", params.genres.join(","));
   return p;
@@ -305,7 +392,7 @@ function buildTvParams(params: UpcomingQueryParams, page: number): URLSearchPara
  */
 async function discoverUpcomingMovies(
   params: UpcomingQueryParams,
-  maxPages = 3,
+  maxPages = 3
 ): Promise<TMDBTitle[]> {
   const out: TMDBTitle[] = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -316,13 +403,20 @@ async function discoverUpcomingMovies(
       res = await fetchWithTimeout(url);
     } catch (err) {
       debug(`[movie] page ${page} network error:`, err);
-      throw new Error(`discover/movie fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(
+        `discover/movie fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`
+      );
     }
     if (!res.ok) {
       debug(`[movie] page ${page} HTTP ${res.status}`);
-      throw new Error(`discover/movie failed (page ${page}): HTTP ${res.status}`);
+      throw new Error(
+        `discover/movie failed (page ${page}): HTTP ${res.status}`
+      );
     }
-    const data = await res.json() as { results?: TMDBRawItem[]; total_pages?: number };
+    const data = (await res.json()) as {
+      results?: TMDBRawItem[];
+      total_pages?: number;
+    };
     const results = normalizeList(data.results, "movie");
     out.push(...results);
     debug(`[movie] page ${page} returned ${results.length} result(s)`);
@@ -344,7 +438,7 @@ async function discoverUpcomingMovies(
  */
 async function discoverUpcomingTv(
   params: UpcomingQueryParams,
-  maxPages = 3,
+  maxPages = 3
 ): Promise<TMDBTitle[]> {
   const out: TMDBTitle[] = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -355,13 +449,18 @@ async function discoverUpcomingTv(
       res = await fetchWithTimeout(url);
     } catch (err) {
       debug(`[tv] page ${page} network error:`, err);
-      throw new Error(`discover/tv fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`);
+      throw new Error(
+        `discover/tv fetch failed (page ${page}): ${err instanceof Error ? err.message : String(err)}`
+      );
     }
     if (!res.ok) {
       debug(`[tv] page ${page} HTTP ${res.status}`);
       throw new Error(`discover/tv failed (page ${page}): HTTP ${res.status}`);
     }
-    const data = await res.json() as { results?: TMDBRawItem[]; total_pages?: number };
+    const data = (await res.json()) as {
+      results?: TMDBRawItem[];
+      total_pages?: number;
+    };
     const results = normalizeList(data.results, "tv");
     out.push(...results);
     debug(`[tv] page ${page} returned ${results.length} result(s)`);
@@ -401,15 +500,15 @@ interface NextEpisodeInfo {
  *   Primary: /tv/{id}/next_episode_to_air
  *   Fallback: /tv/{id} (extract `next_episode_to_air` field)
  */
-export async function getNextEpisode(
-  tvId: number | string,
+async function getNextEpisode(
+  tvId: number | string
 ): Promise<NextEpisodeInfo | null> {
   // ── Primary: dedicated next_episode_to_air endpoint ──────────
   try {
     const url = `${API}/tv/${tvId}/next_episode_to_air?language=en-US`;
     const res = await fetchWithTimeout(url);
     if (res.ok) {
-      const data = await res.json() as {
+      const data = (await res.json()) as {
         season_number?: number;
         episode_number?: number;
         air_date?: string | null;
@@ -418,11 +517,13 @@ export async function getNextEpisode(
         return {
           season: data.season_number,
           episode: data.episode_number,
-          air_date: data.air_date ?? null,
+          air_date: data.air_date ?? null
         };
       }
     } else {
-      debug(`[next-episode] tv/${tvId} primary HTTP ${res.status} — falling back to /tv/{id}`);
+      debug(
+        `[next-episode] tv/${tvId} primary HTTP ${res.status} — falling back to /tv/{id}`
+      );
     }
   } catch (err) {
     debug(`[next-episode] tv/${tvId} primary error:`, err);
@@ -439,7 +540,7 @@ export async function getNextEpisode(
       debug(`[next-episode] tv/${tvId} fallback HTTP ${res.status}`);
       return null;
     }
-    const data = await res.json() as {
+    const data = (await res.json()) as {
       next_episode_to_air?: {
         season_number?: number;
         episode_number?: number;
@@ -453,7 +554,7 @@ export async function getNextEpisode(
     return {
       season: ep.season_number,
       episode: ep.episode_number,
-      air_date: ep.air_date ?? null,
+      air_date: ep.air_date ?? null
     };
   } catch (err) {
     debug(`[next-episode] tv/${tvId} fallback error:`, err);
@@ -477,10 +578,10 @@ export async function getNextEpisode(
  * Endpoint: /{type}/{id}/watch/providers
  * Docs: https://developer.themoviedb.org/reference/movie-watch-providers
  */
-export async function getWatchProviders(
+async function getWatchProviders(
   id: number | string,
   type: "movie" | "tv",
-  region: string,
+  region: string
 ): Promise<string[]> {
   try {
     const url = `${API}/${type}/${id}/watch/providers?language=en-US`;
@@ -489,15 +590,18 @@ export async function getWatchProviders(
       debug(`[providers] ${type}/${id} HTTP ${res.status}`);
       return [];
     }
-    const data = await res.json() as {
-      results?: Record<string, {
-        link?: string;
-        flatrate?: Array<{ provider_name: string }>;
-        rent?: Array<{ provider_name: string }>;
-        buy?: Array<{ provider_name: string }>;
-        free?: Array<{ provider_name: string }>;
-        ads?: Array<{ provider_name: string }>;
-      }>;
+    const data = (await res.json()) as {
+      results?: Record<
+        string,
+        {
+          link?: string;
+          flatrate?: Array<{ provider_name: string }>;
+          rent?: Array<{ provider_name: string }>;
+          buy?: Array<{ provider_name: string }>;
+          free?: Array<{ provider_name: string }>;
+          ads?: Array<{ provider_name: string }>;
+        }
+      >;
     };
     const regionEntry = data.results?.[region];
     if (!regionEntry) return [];
@@ -567,7 +671,7 @@ export async function getWatchProviders(
  * which filtered out 99% of upcoming releases.
  */
 export async function getUpcomingTitles(
-  params: UpcomingQueryParams,
+  params: UpcomingQueryParams
 ): Promise<TMDBTitle[]> {
   // Development escape hatch — force mock data without hitting TMDB.
   if (isMockMode()) {
@@ -586,7 +690,7 @@ export async function getUpcomingTitles(
   const effectiveParams: UpcomingQueryParams = {
     ...params,
     region: params.region || "US",
-    mediaType: params.mediaType ?? "all",
+    mediaType: params.mediaType ?? "all"
   };
 
   const moviePromise =
@@ -606,9 +710,13 @@ export async function getUpcomingTitles(
 
   debug(
     `movies: ${movieList.length} result(s)` +
-      (movies.status === "rejected" ? ` (rejected: ${(movies as PromiseRejectedResult).reason?.message ?? "unknown"})` : "") +
+      (movies.status === "rejected"
+        ? ` (rejected: ${(movies as PromiseRejectedResult).reason?.message ?? "unknown"})`
+        : "") +
       `, tv: ${tvList.length} result(s)` +
-      (tv.status === "rejected" ? ` (rejected: ${(tv as PromiseRejectedResult).reason?.message ?? "unknown"})` : ""),
+      (tv.status === "rejected"
+        ? ` (rejected: ${(tv as PromiseRejectedResult).reason?.message ?? "unknown"})`
+        : "")
   );
 
   // Merge + dedupe by TMDB id.
@@ -652,7 +760,7 @@ export async function getUpcomingTitles(
     // ~250ms per call = ~48 req/s, just under the limit).
     const CONCURRENCY = 12;
     let cursor = 0;
-    async function enrichOne(): Promise<void> {
+    const enrichOne = async (): Promise<void> => {
       while (cursor < tvToEnrich.length) {
         const idx = cursor++;
         const t = tvToEnrich[idx];
@@ -663,8 +771,11 @@ export async function getUpcomingTitles(
           if (next.air_date) t.episodeAirDate = next.air_date;
         }
       }
-    }
-    const workers = Array.from({ length: Math.min(CONCURRENCY, tvToEnrich.length) }, enrichOne);
+    };
+    const workers = Array.from(
+      { length: Math.min(CONCURRENCY, tvToEnrich.length) },
+      enrichOne
+    );
     await Promise.all(workers);
   }
 
@@ -697,14 +808,20 @@ export async function getUpcomingTitles(
       // episode already aired today and whose next is months away.)
       const epDate = t.episodeAirDate;
       if (!epDate) return true; // trust discover/tv
-      return epDate >= effectiveParams.startDate && epDate <= effectiveParams.endDate;
+      return (
+        epDate >= effectiveParams.startDate && epDate <= effectiveParams.endDate
+      );
     }
     // Movies: strict range check on release_date.
     const d = t.release_date || t.first_air_date;
-    return !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate;
+    return (
+      !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate
+    );
   });
 
-  debug(`post-enrichment range filter: ${inRange.length} title(s) in [${effectiveParams.startDate}, ${effectiveParams.endDate}]`);
+  debug(
+    `post-enrichment range filter: ${inRange.length} title(s) in [${effectiveParams.startDate}, ${effectiveParams.endDate}]`
+  );
 
   // ── Watch-provider enrichment: top 30 titles (movie + TV) ──────
   // Provider calls are expensive (one per title), so we cap at 30
@@ -716,8 +833,12 @@ export async function getUpcomingTitles(
     await Promise.all(
       titlesForProviders.map(async (t) => {
         const type: "movie" | "tv" = t.media_type === "tv" ? "tv" : "movie";
-        t.providers = await getWatchProviders(t.id, type, effectiveParams.region);
-      }),
+        t.providers = await getWatchProviders(
+          t.id,
+          type,
+          effectiveParams.region
+        );
+      })
     );
   }
 
@@ -734,10 +855,14 @@ export async function getUpcomingTitles(
 
   // Last-resort fallback: if BOTH calls failed (rejected) AND we got
   // zero titles, return mock data so the page isn't blank.
-  if (inRange.length === 0 && movies.status === "rejected" && tv.status === "rejected") {
+  if (
+    inRange.length === 0 &&
+    movies.status === "rejected" &&
+    tv.status === "rejected"
+  ) {
     console.warn(
       "[upcoming] Both TMDB calls failed. Falling back to mock data for development. " +
-        "Set localStorage[\"cinelog:upcoming:debug\"] = \"1\" for URL/error details.",
+        'Set localStorage["cinelog:upcoming:debug"] = "1" for URL/error details.'
     );
     return getMockUpcomingTitles().filter((t) => {
       const d = t.release_date || t.first_air_date || "";
@@ -758,7 +883,7 @@ export async function getUpcomingTitles(
  */
 export async function getNotifications(
   userId: string,
-  limit = 50,
+  limit = 50
 ): Promise<NotificationRow[]> {
   try {
     const supabase = getClient();
@@ -780,9 +905,12 @@ export async function getNotifications(
  * release-day reminder fires, and by the watchlist "Add" action to
  * surface a confirmation in the feed.
  */
-export async function insertNotification(
-  row: Omit<NotificationRow, "id" | "created_at" | "is_read" | "read_at" | "sent_at"> &
-    Partial<Pick<NotificationRow, "is_read" | "read_at" | "sent_at">>,
+async function insertNotification(
+  row: Omit<
+    NotificationRow,
+    "id" | "created_at" | "is_read" | "read_at" | "sent_at"
+  > &
+    Partial<Pick<NotificationRow, "is_read" | "read_at" | "sent_at">>
 ): Promise<NotificationRow | null> {
   try {
     const supabase = getClient();
@@ -796,7 +924,7 @@ export async function insertNotification(
         related_title_id: row.related_title_id,
         related_title_type: row.related_title_type,
         scheduled_for: row.scheduled_for,
-        is_read: row.is_read ?? false,
+        is_read: row.is_read ?? false
       })
       .select()
       .single();
@@ -811,7 +939,7 @@ export async function insertNotification(
  * Mark a single notification as read (sets is_read + read_at).
  */
 export async function markNotificationRead(
-  notificationId: string,
+  notificationId: string
 ): Promise<boolean> {
   try {
     const supabase = getClient();
@@ -828,7 +956,9 @@ export async function markNotificationRead(
 /**
  * Mark all of the user's unread notifications as read.
  */
-export async function markAllNotificationsRead(userId: string): Promise<boolean> {
+export async function markAllNotificationsRead(
+  userId: string
+): Promise<boolean> {
   try {
     const supabase = getClient();
     const { error } = await supabase
@@ -875,7 +1005,7 @@ export async function scheduleReminder(
   tmdbId: string | number,
   titleType: "movie" | "series",
   releaseDate: string,
-  titleName: string,
+  titleName: string
 ): Promise<boolean> {
   try {
     const supabase = getClient();
@@ -892,9 +1022,9 @@ export async function scheduleReminder(
           title_type: titleType,
           release_date: releaseDate,
           is_scheduled: true,
-          notification_sent: false,
+          notification_sent: false
         },
-        { onConflict: "user_id,tmdb_id", ignoreDuplicates: true },
+        { onConflict: "user_id,tmdb_id", ignoreDuplicates: true }
       );
     if (reminderError) {
       // If the error is the unique-constraint violation, that's fine —
@@ -912,7 +1042,7 @@ export async function scheduleReminder(
       type: "reminder",
       related_title_id: idStr,
       related_title_type: titleType,
-      scheduled_for: new Date(releaseDate + "T09:00:00Z").toISOString(),
+      scheduled_for: new Date(releaseDate + "T09:00:00Z").toISOString()
     });
 
     return true;
@@ -928,7 +1058,7 @@ export async function scheduleReminder(
  */
 export async function cancelReminder(
   userId: string,
-  tmdbId: string | number,
+  tmdbId: string | number
 ): Promise<boolean> {
   try {
     const supabase = getClient();
@@ -948,7 +1078,7 @@ export async function cancelReminder(
  * active on cards whose title the user has already subscribed to.
  */
 export async function getUserReminders(
-  userId: string,
+  userId: string
 ): Promise<UserReminderRow[]> {
   try {
     const supabase = getClient();
@@ -969,7 +1099,7 @@ export async function getUserReminders(
  * useNotifications hook on page load to fire browser notifications.
  */
 export async function getDueReminders(
-  userId: string,
+  userId: string
 ): Promise<UserReminderRow[]> {
   try {
     const supabase = getClient();
@@ -1003,10 +1133,3 @@ export async function markReminderSent(reminderId: string): Promise<boolean> {
     return false;
   }
 }
-
-// Exposed for unit tests / dev tools.
-export const __testing__ = {
-  getMockUpcomingTitles,
-  buildMovieParams,
-  buildTvParams,
-};

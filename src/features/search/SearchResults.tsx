@@ -42,7 +42,7 @@ export default function SearchResults(props: SearchResultsProps) {
               <div class="search-section-label">
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"12px","color":"var(--p)"}}
+                  style={{ "font-size": "12px", color: "var(--p)" }}
                   aria-hidden="true"
                 >
                   movie
@@ -70,7 +70,7 @@ export default function SearchResults(props: SearchResultsProps) {
               <div class="search-section-label">
                 <span
                   class="material-symbols-outlined"
-                  style={{"font-size":"12px","color":"var(--p)"}}
+                  style={{ "font-size": "12px", color: "var(--p)" }}
                   aria-hidden="true"
                 >
                   tv

@@ -122,34 +122,34 @@
   /* Surface tiers — Cinema Cream warm paper scale.
      Never pure white flat — warm-tinted off-white throughout.
      Cards (#FFFFFF) sit on a warm paper bg (#FAF7F2) for hierarchy. */
-  --void: #FAF7F2;
-  --deep: #FAF7F2;
-  --surface: #FFFFFF;
-  --raised: #F0EDE5;
-  --tier-0: #FAF7F2;
-  --tier-1: #F4F0E8;
-  --tier-2: #FFFFFF;
-  --tier-3: #F0EDE5;
-  --tier-4: #E8E2D6;
+  --void: #faf7f2;
+  --deep: #faf7f2;
+  --surface: #ffffff;
+  --raised: #f0ede5;
+  --tier-0: #faf7f2;
+  --tier-1: #f4f0e8;
+  --tier-2: #ffffff;
+  --tier-3: #f0ede5;
+  --tier-4: #e8e2d6;
 
   /* Borders — warm earth tint, NOT pure black or pure white.
      Tinted borders are what separate "premium" from "boring white"
      (per movie tracker app research — Sofa, Letterboxd use #E8E2D8). */
-  --border: rgba(28, 24, 21, 0.10);
-  --border-active: rgba(28, 24, 21, 0.20);
+  --border: rgba(28, 24, 21, 0.1);
+  --border-active: rgba(28, 24, 21, 0.2);
   --hairline: rgba(28, 24, 21, 0.07);
   --hairline-2: rgba(28, 24, 21, 0.12);
-  --hairline-3: rgba(28, 24, 21, 0.20);
-  --glass-border: rgba(28, 24, 21, 0.10);
+  --hairline-3: rgba(28, 24, 21, 0.2);
+  --glass-border: rgba(28, 24, 21, 0.1);
 
   /* Text — warm ink palette, not pure black.
      Strong is dark for headlines; body/soft/muted step down via alpha.
      ── WCAG 2.1 AA: alphas tuned for 4.5:1 contrast on warm light bg.
      muted 0.55→0.68 (3.38:1→4.5:1), dim 0.32→0.62 (1.91:1→4.0:1 for
      decorative/icon use, large text only). */
-  --text: #2C2823;
-  --text-strong: #1A1714;
-  --text-body: #2C2823;
+  --text: #2c2823;
+  --text-strong: #1a1714;
+  --text-body: #2c2823;
   --text-soft: rgba(44, 40, 35, 0.72);
   --text-muted: rgba(44, 40, 35, 0.68);
   --text-dim: rgba(44, 40, 35, 0.62);
@@ -162,35 +162,37 @@
   --glass-bg-strong: rgba(255, 253, 248, 0.94);
 
   /* Semantic surface colors */
-  --color-surface-void: #FAF7F2;
-  --color-surface-base: #FFFFFF;
-  --color-surface-raised: #F0EDE5;
+  --color-surface-void: #faf7f2;
+  --color-surface-base: #ffffff;
+  --color-surface-raised: #f0ede5;
   --color-surface-overlay: rgba(255, 253, 248, 0.82);
   --color-surface-overlay-strong: rgba(255, 253, 248, 0.94);
-  --color-background: #FAF7F2;
-  --color-background-elevated: #FFFFFF;
+  --color-background: #faf7f2;
+  --color-background-elevated: #ffffff;
 
-  --color-border: rgba(28, 24, 21, 0.10);
+  --color-border: rgba(28, 24, 21, 0.1);
   --color-border-subtle: rgba(28, 24, 21, 0.07);
   --color-border-default: rgba(28, 24, 21, 0.12);
-  --color-border-strong: rgba(28, 24, 21, 0.20);
-  --color-border-active: rgba(28, 24, 21, 0.20);
+  --color-border-strong: rgba(28, 24, 21, 0.2);
+  --color-border-active: rgba(28, 24, 21, 0.2);
 
-  --color-text-strong: #1A1714;
-  --color-text-body: #2C2823;
+  --color-text-strong: #1a1714;
+  --color-text-body: #2c2823;
   --color-text-soft: rgba(44, 40, 35, 0.72);
   --color-text-muted: rgba(44, 40, 35, 0.68);
   --color-text-dim: rgba(44, 40, 35, 0.62);
 
   /* Light-mode shadows — soft warm brown tint, never pure black.
      Glass feel: subtle, layered, low opacity. */
-  --shadow-premium: 0 1px 2px rgba(60, 50, 30, 0.04), 0 4px 16px rgba(60, 50, 30, 0.06), 0 12px 32px rgba(60, 50, 30, 0.05);
+  --shadow-premium:
+    0 1px 2px rgba(60, 50, 30, 0.04), 0 4px 16px rgba(60, 50, 30, 0.06),
+    0 12px 32px rgba(60, 50, 30, 0.05);
 
   /* Shadow color used by box-shadow utilities — brown tint on light, black on dark */
   --shadow-color: rgba(60, 50, 30, 0.12);
 
   /* Scrollbar — warm brown tint, never pure white */
-  scrollbar-color: rgba(60, 50, 30, 0.20) transparent;
+  scrollbar-color: rgba(60, 50, 30, 0.2) transparent;
 }
 
 /* Dark-mode default shadow color (matches existing behavior) */
@@ -200,7 +202,7 @@
 
 /* Light-mode scrollbar */
 :root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb {
-  background: rgba(60, 50, 30, 0.20);
+  background: rgba(60, 50, 30, 0.2);
 }
 :root[data-theme-resolved="light"] ::-webkit-scrollbar-thumb:hover {
   background: rgba(60, 50, 30, 0.35);
@@ -227,7 +229,7 @@
   --text-soft: rgba(255, 255, 255, 0.88);
   --text-muted: rgba(255, 255, 255, 0.68);
   --hairline: rgba(255, 255, 255, 0.14);
-  --hairline-2: rgba(255, 255, 255, 0.20);
+  --hairline-2: rgba(255, 255, 255, 0.2);
   --hairline-3: rgba(255, 255, 255, 0.32);
   --border: rgba(255, 255, 255, 0.14);
   --border-active: rgba(255, 255, 255, 0.28);
@@ -236,7 +238,7 @@
 /* High contrast + light mode → darker text */
 :root[data-high-contrast="true"][data-theme-resolved="light"] {
   --text-strong: #000000;
-  --text-body: #0A0806;
+  --text-body: #0a0806;
   --text-soft: rgba(28, 24, 21, 0.92);
   --text-muted: rgba(28, 24, 21, 0.75);
   --hairline: rgba(28, 24, 21, 0.22);
@@ -279,16 +281,19 @@
      <p data-spoiler="true">{synopsisText}</p>
    Tap to reveal — JS toggles [data-spoiler-revealed="true"] on the element. */
 
-:root[data-hide-spoilers="true"] [data-spoiler="true"]:not([data-spoiler-revealed="true"]) {
+:root[data-hide-spoilers="true"]
+  [data-spoiler="true"]:not([data-spoiler-revealed="true"]) {
   filter: blur(6px);
   cursor: pointer;
   user-select: none;
   transition: filter var(--dur-base) var(--ease-out);
 }
-:root[data-hide-spoilers="true"] [data-spoiler="true"]:not([data-spoiler-revealed="true"]):hover {
+:root[data-hide-spoilers="true"]
+  [data-spoiler="true"]:not([data-spoiler-revealed="true"]):hover {
   filter: blur(4px);
 }
-:root[data-hide-spoilers="true"] [data-spoiler="true"][data-spoiler-revealed="true"] {
+:root[data-hide-spoilers="true"]
+  [data-spoiler="true"][data-spoiler-revealed="true"] {
   filter: none;
   cursor: default;
   user-select: text;
@@ -323,7 +328,7 @@
   --chip-solid-border: rgba(28, 24, 21, 0.12);
   --progress-track-bg: rgba(28, 24, 21, 0.08);
   --skeleton-base: rgba(28, 24, 21, 0.05);
-  --skeleton-shimmer: rgba(28, 24, 21, 0.10);
+  --skeleton-shimmer: rgba(28, 24, 21, 0.1);
 }
 
 /* ─── Buttons: ghost + primary shadows ─── */
@@ -338,10 +343,16 @@
 
 /* Primary button shadow uses warm tint, not pure black */
 :root[data-theme-resolved="light"] .btn-primary {
-  box-shadow: 0 0 0 1px var(--p), 0 4px 16px var(--p-glow), 0 2px 6px rgba(60, 50, 30, 0.10);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 4px 16px var(--p-glow),
+    0 2px 6px rgba(60, 50, 30, 0.1);
 }
 :root[data-theme-resolved="light"] .btn-primary:hover {
-  box-shadow: 0 0 0 1px var(--p), 0 6px 24px var(--p-glow), 0 4px 12px rgba(60, 50, 30, 0.14);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 6px 24px var(--p-glow),
+    0 4px 12px rgba(60, 50, 30, 0.14);
 }
 
 /* ─── Search bar — was rgba(5,6,10,0.92) (dark navy) ─── */
@@ -396,12 +407,24 @@
 :root[data-theme-resolved="light"] .skeleton-base,
 :root[data-theme-resolved="light"] .poster-loading {
   background:
-    linear-gradient(105deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%),
+    linear-gradient(
+      105deg,
+      var(--skeleton-base) 25%,
+      var(--skeleton-shimmer) 50%,
+      var(--skeleton-base) 75%
+    ),
     var(--tier-1);
-  background-size: 300% 100%, 100% 100%;
+  background-size:
+    300% 100%,
+    100% 100%;
 }
 :root[data-theme-resolved="light"] .skeleton-text {
-  background: linear-gradient(105deg, var(--skeleton-base) 25%, var(--skeleton-shimmer) 50%, var(--skeleton-base) 75%);
+  background: linear-gradient(
+    105deg,
+    var(--skeleton-base) 25%,
+    var(--skeleton-shimmer) 50%,
+    var(--skeleton-base) 75%
+  );
   background-size: 300% 100%;
 }
 
@@ -438,7 +461,9 @@
 :root[data-theme-resolved="light"] .hero-premium,
 :root[data-theme-resolved="light"] .continue-premium,
 :root[data-theme-resolved="light"] .upcoming-card {
-  box-shadow: var(--shadow-premium), inset 0 1px 0 rgba(255, 255, 255, 0.6);
+  box-shadow:
+    var(--shadow-premium),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
 }
 
 /* ─── Card hover shadow tint — was rgba(0,0,0,0.85) (pure black, harsh on light) ─── */
@@ -455,7 +480,9 @@
    light mode — no change needed. But the type-card-title shadow can
    be reduced slightly since light mode is less aggressive. */
 :root[data-theme-resolved="light"] .type-card-title {
-  text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9), 0 2px 12px rgba(0, 0, 0, 0.7);
+  text-shadow:
+    0 1px 6px rgba(0, 0, 0, 0.9),
+    0 2px 12px rgba(0, 0, 0, 0.7);
 }
 
 /* ─── Base scrollbar (already has light override above, this matches track) ─── */

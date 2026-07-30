@@ -3,7 +3,7 @@ import { findInVault } from "~/shared/utils/vaultMatch";
 import type {
   CollectionEntry,
   ViewingOrder,
-  WatchlistItem,
+  WatchlistItem
 } from "~/shared/types";
 
 /**
@@ -47,7 +47,7 @@ export interface TimelineItem {
 export function sortAndEnrich(
   entries: CollectionEntry[],
   vault: WatchlistItem[],
-  order: ViewingOrder,
+  order: ViewingOrder
 ): TimelineItem[] {
   const sorted = [...entries];
 
@@ -56,7 +56,8 @@ export function sortAndEnrich(
       sorted.sort((a, b) => {
         const dateA = a.release_date || a.first_air_date || "";
         const dateB = b.release_date || b.first_air_date || "";
-        if (dateA && dateB && dateA !== dateB) return dateA.localeCompare(dateB);
+        if (dateA && dateB && dateA !== dateB)
+          return dateA.localeCompare(dateB);
         // Tiebreaker: releaseOrder (DB release_position), then admin order.
         const ra = a.releaseOrder ?? a.order ?? 0;
         const rb = b.releaseOrder ?? b.order ?? 0;
@@ -119,19 +120,24 @@ export function sortAndEnrich(
         // Pinned items first
         if (a.isPinned && !b.isPinned) return -1;
         if (!a.isPinned && b.isPinned) return 1;
-        return (a.customOrder ?? a.order ?? 0) - (b.customOrder ?? b.order ?? 0);
+        return (
+          (a.customOrder ?? a.order ?? 0) - (b.customOrder ?? b.order ?? 0)
+        );
       });
       break;
   }
 
   return sorted.map((e) => {
-    const vaultItem = findInVault(vault, { id: e.id, media_type: e.media_type });
+    const vaultItem = findInVault(vault, {
+      id: e.id,
+      media_type: e.media_type
+    });
     return {
       entry: e,
       vaultItem,
       inVault: vaultItem !== null,
       status: vaultItem?.status ?? null,
-      rating: vaultItem?.rating ?? null,
+      rating: vaultItem?.rating ?? null
     };
   });
 }
@@ -140,7 +146,7 @@ export function sortAndEnrich(
  *  Returns null when order isn't "franchise". */
 export function groupByFranchise(
   items: TimelineItem[],
-  order: ViewingOrder,
+  order: ViewingOrder
 ): { franchise: string; items: TimelineItem[] }[] | null {
   if (order !== "franchise") return null;
   const groups: { franchise: string; items: TimelineItem[] }[] = [];
@@ -159,7 +165,7 @@ export function groupByFranchise(
 /** Group entries by phase (for saga mode). Returns null when order isn't "saga". */
 export function groupByPhase(
   items: TimelineItem[],
-  order: ViewingOrder,
+  order: ViewingOrder
 ): { phase: string; items: TimelineItem[] }[] | null {
   if (order !== "saga") return null;
   const groups: { phase: string; items: TimelineItem[] }[] = [];
@@ -178,7 +184,7 @@ export function groupByPhase(
 /** Group entries by story year (for story mode). Returns null when order isn't "story". */
 export function groupByStoryYear(
   items: TimelineItem[],
-  order: ViewingOrder,
+  order: ViewingOrder
 ): { yearLabel: string; items: TimelineItem[] }[] | null {
   if (order !== "story") return null;
   const groups: { yearLabel: string; items: TimelineItem[] }[] = [];

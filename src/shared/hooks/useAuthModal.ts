@@ -11,6 +11,6 @@ export function useAuthModal() {
   return {
     authModalOpen,
     openAuthModal: () => setAuthModalOpen(true),
-    closeAuthModal: () => setAuthModalOpen(false),
+    closeAuthModal: () => setAuthModalOpen(false)
   };
 }

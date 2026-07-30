@@ -59,7 +59,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
         padding: "var(--sp-6)",
         "text-align": "center",
         background: "var(--void)",
-        color: "var(--text-strong)",
+        color: "var(--text-strong)"
       }}
     >
       {/* Icon badge — same visual language as LoadingScreen */}
@@ -73,8 +73,9 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
           "border-radius": "1.5rem",
           background: "var(--tier-2)",
           border: "1px solid var(--hairline-2)",
-          "box-shadow": "var(--shadow-elevated), 0 0 24px rgba(248,113,113,0.18)",
-          "margin-bottom": "var(--sp-5)",
+          "box-shadow":
+            "var(--shadow-elevated), 0 0 24px rgba(248,113,113,0.18)",
+          "margin-bottom": "var(--sp-5)"
         }}
         aria-hidden="true"
       >
@@ -84,7 +85,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
             "font-size": "2.5rem",
             color: "#f87171",
             "font-variation-settings":
-              "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40",
+              "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 40"
           }}
         >
           error
@@ -98,7 +99,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
           "line-height": "1",
           "letter-spacing": "0.03em",
           margin: "0 0 var(--sp-2)",
-          color: "var(--text-strong)",
+          color: "var(--text-strong)"
         }}
       >
         Something went wrong
@@ -108,28 +109,41 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
         style={{
           "max-width": "360px",
           color: "var(--text-soft)",
-          "margin": "0 0 var(--sp-6)",
+          margin: "0 0 var(--sp-6)",
           "font-family": "'Outfit', sans-serif",
           "font-size": "0.9375rem",
-          "line-height": "1.55",
+          "line-height": "1.55"
         }}
       >
         An unexpected error occurred. Your data is safe — try again or return
         home.
       </p>
 
-      <div style={{ display: "flex", gap: "var(--sp-3)", "flex-wrap": "wrap", "justify-content": "center" }}>
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--sp-3)",
+          "flex-wrap": "wrap",
+          "justify-content": "center"
+        }}
+      >
         <button
           class="btn-primary focus-ring"
           onClick={handleRetry}
           disabled={retrying()}
-          style={{ display: "inline-flex", "align-items": "center", gap: "var(--sp-1)" }}
+          style={{
+            display: "inline-flex",
+            "align-items": "center",
+            gap: "var(--sp-1)"
+          }}
         >
           <span
             class="material-symbols-outlined"
             style={{
               "font-size": "16px",
-              animation: retrying() ? "softPulse 1s ease-in-out infinite" : "none",
+              animation: retrying()
+                ? "softPulse 1s ease-in-out infinite"
+                : "none"
             }}
             aria-hidden="true"
           >
@@ -140,7 +154,11 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
         <button
           class="btn-ghost focus-ring"
           onClick={handleHome}
-          style={{ display: "inline-flex", "align-items": "center", gap: "var(--sp-1)" }}
+          style={{
+            display: "inline-flex",
+            "align-items": "center",
+            gap: "var(--sp-1)"
+          }}
         >
           <span
             class="material-symbols-outlined"
@@ -167,7 +185,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
             background: "var(--tier-2)",
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-md)",
-            padding: "var(--sp-3)",
+            padding: "var(--sp-3)"
           }}
         >
           {props.error.message}
@@ -187,7 +205,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
             "font-family": "'Azeret Mono', monospace",
             "word-break": "break-word",
             opacity: "0.7",
-            "line-height": "1.5",
+            "line-height": "1.5"
           }}
         >
           {props.error.message}
@@ -201,7 +219,9 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
  * GlobalErrorBoundary — wraps the entire app. Any uncaught error
  * in any component displays the fallback UI instead of white-screening.
  */
-export function GlobalErrorBoundary(props: { children: JSX.Element }): JSX.Element {
+export function GlobalErrorBoundary(props: {
+  children: JSX.Element;
+}): JSX.Element {
   return (
     <ErrorBoundary
       fallback={(error, reset) => (

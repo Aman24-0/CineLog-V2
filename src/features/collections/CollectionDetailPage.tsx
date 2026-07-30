@@ -1,7 +1,13 @@
 // src/features/collections/CollectionDetailPage.tsx
-import { Show, createSignal, createEffect, createMemo, ErrorBoundary, For, type Component } from "solid-js";
+import {
+  Show,
+  createSignal,
+  createEffect,
+  createMemo,
+  ErrorBoundary,
+  For
+} from "solid-js";
 import { isServer } from "solid-js/web";
-import { Portal } from "solid-js/web";
 import { useParams, useNavigate } from "@solidjs/router";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
@@ -11,7 +17,11 @@ import { getCurrentUid } from "~/shared/hooks/useAuth";
 import { useCollections } from "./hooks/useCollections";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useToast } from "~/shared/hooks/useToast";
-import { fetchCuratedUniverseBySlug, fetchPhasesForUniverse, withPhases } from "./curatedUniverseAdapter";
+import {
+  fetchCuratedUniverseBySlug,
+  fetchPhasesForUniverse,
+  withPhases
+} from "./curatedUniverseAdapter";
 import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import UniverseDashboard from "./components/UniverseDashboard";
@@ -23,9 +33,19 @@ import ReorderModal from "./components/ReorderModal";
 import EntryListRow from "./components/EntryListRow";
 import FolderEditor from "./components/FolderEditor";
 import { useCollectionFilter } from "./hooks/useCollectionFilter";
-import { useCollectionSort, type UserCollectionSortMode } from "./hooks/useCollectionSort";
+import {
+  useCollectionSort,
+  type UserCollectionSortMode
+} from "./hooks/useCollectionSort";
 import { GlassEmptyState } from "~/shared/ui/glass";
-import type { Collection, CollectionEntry, UniversePhase, ViewingOrder, TimelineProvider, WatchlistItem } from "~/shared/types";
+import type {
+  Collection,
+  CollectionEntry,
+  UniversePhase,
+  ViewingOrder,
+  TimelineProvider,
+  WatchlistItem
+} from "~/shared/types";
 
 /**
  * CollectionDetailPage — renders a single collection or curated universe.
@@ -83,20 +103,20 @@ export default function CollectionDetailPage() {
     getUniversePrefs,
     removeFromCollection,
     addToCollection,
-    refreshCollections,
     archiveCollection,
     unarchiveCollection,
     deleteCollection,
-    duplicateCollection,
-    reorderEntries,
+    duplicateCollection
   } = useCollections();
   const { openTitle } = useModalState();
   const { showToast } = useToast();
   const { removeUniverseFromPrefs } = useUniversePrefsLogic();
   const { refresh: refreshUniverses } = useCuratedUniverses();
 
-  const [activeOrder, setActiveOrder] = createSignal<ViewingOrder>("chronological");
-  const [activeProvider, setActiveProvider] = createSignal<TimelineProvider>("cinelog");
+  const [activeOrder, setActiveOrder] =
+    createSignal<ViewingOrder>("chronological");
+  const [activeProvider, setActiveProvider] =
+    createSignal<TimelineProvider>("cinelog");
 
   // loading is ALWAYS true initially (including SSR) so the skeleton
   // renders. Never false until the client resolves the collection.
@@ -107,7 +127,9 @@ export default function CollectionDetailPage() {
   // Empty for user collections.
   const [phases, setPhases] = createSignal<UniversePhase[]>([]);
   // Folder editor modal — opened by the pencil icon on the hero.
-  const [editingFolder, setEditingFolder] = createSignal<Collection | null>(null);
+  const [editingFolder, setEditingFolder] = createSignal<Collection | null>(
+    null
+  );
   // Add Titles modal — opened by the Add Titles action.
   const [showAddTitles, setShowAddTitles] = createSignal(false);
   // Reorder modal — opened by the Reorder action.
@@ -115,13 +137,15 @@ export default function CollectionDetailPage() {
   // Delete confirmation dialog
   const [deleteTarget, setDeleteTarget] = createSignal<Collection | null>(null);
   // Unsubscribe confirmation dialog (universes only)
-  const [unsubscribeTarget, setUnsubscribeTarget] = createSignal<Collection | null>(null);
+  const [unsubscribeTarget, setUnsubscribeTarget] =
+    createSignal<Collection | null>(null);
 
   const isUniverse = createMemo(() => collection()?.type === "curated");
 
   // Sort mode — only used for USER collections. Universes use the
   // activeOrder signal (story/release/franchise) directly.
-  const [userSortMode, setUserSortMode] = createSignal<UserCollectionSortMode>("manual");
+  const [userSortMode, setUserSortMode] =
+    createSignal<UserCollectionSortMode>("manual");
 
   // Filter — search + status pills. Applies to BOTH user collections
   // and universes. The vault is passed so the filter can resolve each
@@ -132,7 +156,6 @@ export default function CollectionDetailPage() {
   // returns a sorted memo. Universes skip this (TimelineEngine does
   // its own sort via timelineSort.ts).
   const sortHook = useCollectionSort();
-  const sortMode = () => isUniverse() ? "manual" as UserCollectionSortMode : userSortMode();
 
   // ── Vault lookups for the EntryListRow (status, rating, episode progress) ──
   const vaultMap = createMemo<Map<string, WatchlistItem>>(() => {
@@ -205,7 +228,11 @@ export default function CollectionDetailPage() {
         //    rendered as section headers in the TimelineEngine.
         const universePhases = await fetchPhasesForUniverse(curated.id);
         if (myEpoch !== resolveEpoch) return;
-        setCollection(universePhases.length > 0 ? withPhases(curated, universePhases) : curated);
+        setCollection(
+          universePhases.length > 0
+            ? withPhases(curated, universePhases)
+            : curated
+        );
         setPhases(universePhases);
       } else {
         setNotFound(true);
@@ -225,13 +252,14 @@ export default function CollectionDetailPage() {
   const handleShare = () => {
     const col = collection();
     if (!col) return;
-    const url = typeof window !== "undefined"
-      ? `${window.location.origin}/collections/${col.id}`
-      : "";
+    const url =
+      typeof window !== "undefined"
+        ? `${window.location.origin}/collections/${col.id}`
+        : "";
     if (url && navigator.clipboard) {
       navigator.clipboard.writeText(url).then(
         () => showToast("Collection link copied", "success", 1500),
-        () => showToast("Copy failed", "error", 1500),
+        () => showToast("Copy failed", "error", 1500)
       );
     }
   };
@@ -299,16 +327,24 @@ export default function CollectionDetailPage() {
     const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
     const current = v?.status ?? null;
     // Planned → Watching → Completed → Planned (loop)
-    const next = current === "Planned" ? "Watching"
-              : current === "Watching" ? "Completed"
-              : current === "Completed" ? "Planned"
-              : "Planned";
+    const next =
+      current === "Planned"
+        ? "Watching"
+        : current === "Watching"
+          ? "Completed"
+          : current === "Completed"
+            ? "Planned"
+            : "Planned";
     // If not in vault, the cycle starts at Planned (which also adds
     // the title to the vault via updateStatus on a non-existent id —
     // for now we just no-op when not in vault; the user should add it
     // via the row's "+" button which opens the Details modal).
     if (!v) {
-      showToast("Open the title to add it to your watchlist first.", "info", 2000);
+      showToast(
+        "Open the title to add it to your watchlist first.",
+        "info",
+        2000
+      );
       return;
     }
     try {
@@ -327,14 +363,22 @@ export default function CollectionDetailPage() {
     }
     // Cycle: 0 → 5 → 6 → 7 → 8 → 9 → 10 → 0
     const current = v.rating ?? 0;
-    const next = current === 0 ? 5
-              : current === 5 ? 6
-              : current === 6 ? 7
-              : current === 7 ? 8
-              : current === 8 ? 9
-              : current === 9 ? 10
-              : current === 10 ? 0
-              : 5;
+    const next =
+      current === 0
+        ? 5
+        : current === 5
+          ? 6
+          : current === 6
+            ? 7
+            : current === 7
+              ? 8
+              : current === 8
+                ? 9
+                : current === 9
+                  ? 10
+                  : current === 10
+                    ? 0
+                    : 5;
     try {
       await updateRating(v.id, next);
     } catch (err) {
@@ -387,7 +431,7 @@ export default function CollectionDetailPage() {
         backdrop_path: entry.backdrop_path,
         status: "Planned",
         release_date: entry.release_date,
-        first_air_date: entry.first_air_date,
+        first_air_date: entry.first_air_date
       };
       await createVaultItemInSupabase(uid, item);
       await refreshVault();
@@ -413,7 +457,9 @@ export default function CollectionDetailPage() {
     const col = collection();
     if (!col) return;
     const prefs = getUniversePrefs(col.id);
-    setActiveOrder(prefs?.preferredOrder ?? col.defaultOrder ?? "chronological");
+    setActiveOrder(
+      prefs?.preferredOrder ?? col.defaultOrder ?? "chronological"
+    );
     setActiveProvider(prefs?.preferredProvider ?? "cinelog");
   });
 
@@ -468,7 +514,8 @@ export default function CollectionDetailPage() {
           }
           if (v.genresList) {
             for (const g of v.genresList) {
-              if (typeof g === "string" && g.toLowerCase().includes(q)) return true;
+              if (typeof g === "string" && g.toLowerCase().includes(q))
+                return true;
             }
           }
         }
@@ -526,17 +573,20 @@ export default function CollectionDetailPage() {
   //   - No active filter (search or status pill other than All) —
   //     dragging when the list is filtered would reorder the wrong
   //     subset, so we hide handles until filters are cleared.
-  const showDragHandles = createMemo(() =>
-    !isUniverse()
-    && userSortMode() === "manual"
-    && filter.status() === "all"
-    && !filter.debouncedSearch(),
+  const showDragHandles = createMemo(
+    () =>
+      !isUniverse() &&
+      userSortMode() === "manual" &&
+      filter.status() === "all" &&
+      !filter.debouncedSearch()
   );
 
   // Whether to show the Reorder button in the action bar — same
   // conditions as the drag handles, but the button is always useful
   // even with filters (since ReorderModal operates on the full list).
-  const showReorderButton = createMemo(() => !isUniverse() && userSortMode() === "manual");
+  const showReorderButton = createMemo(
+    () => !isUniverse() && userSortMode() === "manual"
+  );
 
   return (
     <PageContainer width="narrow" paddingBottom="var(--sp-12)">
@@ -548,9 +598,27 @@ export default function CollectionDetailPage() {
         <div class="page-enter" style={{ padding: "var(--sp-12) var(--sp-5)" }}>
           {/* Simple skeleton — the hero loads fast so we don't need
               a fancy multi-shape placeholder. */}
-          <div class="skeleton-base" style={{ width: "100%", "aspect-ratio": "16/9", "border-radius": "var(--radius-md)", "margin-bottom": "var(--sp-4)" }} />
-          <div class="skeleton-base" style={{ width: "60%", height: "1.5rem", "margin": "0 auto var(--sp-2)" }} />
-          <div class="skeleton-base" style={{ width: "40%", height: "1rem", "margin": "0 auto" }} />
+          <div
+            class="skeleton-base"
+            style={{
+              width: "100%",
+              "aspect-ratio": "16/9",
+              "border-radius": "var(--radius-md)",
+              "margin-bottom": "var(--sp-4)"
+            }}
+          />
+          <div
+            class="skeleton-base"
+            style={{
+              width: "60%",
+              height: "1.5rem",
+              margin: "0 auto var(--sp-2)"
+            }}
+          />
+          <div
+            class="skeleton-base"
+            style={{ width: "40%", height: "1rem", margin: "0 auto" }}
+          />
         </div>
       </Show>
 
@@ -563,11 +631,21 @@ export default function CollectionDetailPage() {
             onClick={() => navigate("/collections")}
             aria-label="Back to Collections"
           >
-            <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
+            <span
+              class="material-symbols-outlined"
+              style={{ "font-size": "18px" }}
+              aria-hidden="true"
+            >
+              arrow_back
+            </span>
           </button>
           <div class="collections-detail-empty">
-            <p class="type-body-soft" style={{ "text-align": "center" }}>Collection not found.</p>
-            <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+            <p class="type-body-soft" style={{ "text-align": "center" }}>
+              Collection not found.
+            </p>
+            <button class="btn-ghost" onClick={() => navigate("/collections")}>
+              Back to Collections
+            </button>
           </div>
         </div>
       </Show>
@@ -579,12 +657,30 @@ export default function CollectionDetailPage() {
             console.error("[CollectionDetailPage] Render error:", err);
             return (
               <div class="page-enter">
-                <button type="button" class="collections-back-btn" onClick={() => navigate("/collections")} aria-label="Back to Collections">
-                  <span class="material-symbols-outlined" style={{"font-size":"18px"}} aria-hidden="true">arrow_back</span>
+                <button
+                  type="button"
+                  class="collections-back-btn"
+                  onClick={() => navigate("/collections")}
+                  aria-label="Back to Collections"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    style={{ "font-size": "18px" }}
+                    aria-hidden="true"
+                  >
+                    arrow_back
+                  </span>
                 </button>
                 <div class="collections-detail-empty">
-                  <p class="type-body-soft" style={{ "text-align": "center" }}>Something went wrong loading this collection.</p>
-                  <button class="btn-ghost" onClick={() => navigate("/collections")}>Back to Collections</button>
+                  <p class="type-body-soft" style={{ "text-align": "center" }}>
+                    Something went wrong loading this collection.
+                  </p>
+                  <button
+                    class="btn-ghost"
+                    onClick={() => navigate("/collections")}
+                  >
+                    Back to Collections
+                  </button>
                 </div>
               </div>
             );
@@ -599,7 +695,11 @@ export default function CollectionDetailPage() {
               activeProvider={activeProvider()}
               onOrderChange={setActiveOrder}
               onProviderChange={setActiveProvider}
-              onEdit={!isUniverse() ? () => setEditingFolder(collection()!) : undefined}
+              onEdit={
+                !isUniverse()
+                  ? () => setEditingFolder(collection()!)
+                  : undefined
+              }
             />
 
             {/* Row 1: Action Bar */}
@@ -685,14 +785,18 @@ export default function CollectionDetailPage() {
                 <div class="collection-entry-list" role="list">
                   <For each={filteredUserEntries()}>
                     {(entry, i) => {
-                      const v = vaultMap().get(`${entry.media_type}:${entry.id}`);
+                      const v = vaultMap().get(
+                        `${entry.media_type}:${entry.id}`
+                      );
                       return (
                         <EntryListRow
                           entry={entry}
                           index={i()}
                           status={v?.status}
                           rating={v?.rating}
-                          episodeProgress={episodeProgressOf(entry) ?? undefined}
+                          episodeProgress={
+                            episodeProgressOf(entry) ?? undefined
+                          }
                           draggable={showDragHandles()}
                           showRemove
                           onOpen={() => handleOpenEntry(entry)}
@@ -736,8 +840,12 @@ export default function CollectionDetailPage() {
           <Show when={deleteTarget()}>
             {(target) => (
               <div
-                class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
-                style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+                class="animate-fade-in fixed inset-0 z-[999999] flex items-center justify-center p-4"
+                style={{
+                  background: "rgba(0,0,0,0.85)",
+                  "backdrop-filter": "blur(8px)",
+                  "-webkit-backdrop-filter": "blur(8px)"
+                }}
                 onClick={() => setDeleteTarget(null)}
                 role="dialog"
                 aria-modal="true"
@@ -748,17 +856,46 @@ export default function CollectionDetailPage() {
                   style={{ "border-radius": "var(--radius-xl)" }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
-                    <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
-                      <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                  <div
+                    style={{
+                      "text-align": "center",
+                      "margin-bottom": "var(--sp-5)"
+                    }}
+                  >
+                    <div
+                      class="glass-empty-state-icon"
+                      aria-hidden="true"
+                      style={{ margin: "0 auto var(--sp-3)" }}
+                    >
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "32px", color: "#f87171" }}
+                        aria-hidden="true"
+                      >
                         delete
                       </span>
                     </div>
-                    <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
+                    <h3
+                      style={{
+                        "font-family": "'Bebas Neue', sans-serif",
+                        "font-size": "1.5rem",
+                        color: "var(--text-strong)",
+                        margin: "0 0 var(--sp-2)"
+                      }}
+                    >
                       Delete "{target().name}"?
                     </h3>
-                    <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
-                      This will permanently remove the collection and all its entries. This cannot be undone.
+                    <p
+                      style={{
+                        "font-family": "'Outfit', sans-serif",
+                        "font-size": "0.8125rem",
+                        color: "var(--text-soft)",
+                        margin: "0",
+                        "line-height": "1.5"
+                      }}
+                    >
+                      This will permanently remove the collection and all its
+                      entries. This cannot be undone.
                     </p>
                   </div>
                   <div style={{ display: "flex", gap: "var(--sp-2)" }}>
@@ -774,7 +911,12 @@ export default function CollectionDetailPage() {
                       type="button"
                       class="btn-primary focus-ring setting-row-danger"
                       onClick={confirmDelete}
-                      style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
+                      style={{
+                        flex: "1",
+                        background: "#f87171",
+                        "box-shadow":
+                          "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)"
+                      }}
                     >
                       Delete
                     </button>
@@ -788,8 +930,12 @@ export default function CollectionDetailPage() {
           <Show when={unsubscribeTarget()}>
             {(target) => (
               <div
-                class="fixed inset-0 z-[999999] flex items-center justify-center p-4 animate-fade-in"
-                style={{ background: "rgba(0,0,0,0.85)", "backdrop-filter": "blur(8px)", "-webkit-backdrop-filter": "blur(8px)" }}
+                class="animate-fade-in fixed inset-0 z-[999999] flex items-center justify-center p-4"
+                style={{
+                  background: "rgba(0,0,0,0.85)",
+                  "backdrop-filter": "blur(8px)",
+                  "-webkit-backdrop-filter": "blur(8px)"
+                }}
                 onClick={() => setUnsubscribeTarget(null)}
                 role="dialog"
                 aria-modal="true"
@@ -800,17 +946,46 @@ export default function CollectionDetailPage() {
                   style={{ "border-radius": "var(--radius-xl)" }}
                   onClick={(e) => e.stopPropagation()}
                 >
-                  <div style={{ "text-align": "center", "margin-bottom": "var(--sp-5)" }}>
-                    <div class="glass-empty-state-icon" aria-hidden="true" style={{ margin: "0 auto var(--sp-3)" }}>
-                      <span class="material-symbols-outlined" style={{ "font-size": "32px", color: "#f87171" }} aria-hidden="true">
+                  <div
+                    style={{
+                      "text-align": "center",
+                      "margin-bottom": "var(--sp-5)"
+                    }}
+                  >
+                    <div
+                      class="glass-empty-state-icon"
+                      aria-hidden="true"
+                      style={{ margin: "0 auto var(--sp-3)" }}
+                    >
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "32px", color: "#f87171" }}
+                        aria-hidden="true"
+                      >
                         remove_circle
                       </span>
                     </div>
-                    <h3 style={{ "font-family": "'Bebas Neue', sans-serif", "font-size": "1.5rem", color: "var(--text-strong)", margin: "0 0 var(--sp-2)" }}>
+                    <h3
+                      style={{
+                        "font-family": "'Bebas Neue', sans-serif",
+                        "font-size": "1.5rem",
+                        color: "var(--text-strong)",
+                        margin: "0 0 var(--sp-2)"
+                      }}
+                    >
                       Unsubscribe from "{target().name}"?
                     </h3>
-                    <p style={{ "font-family": "'Outfit', sans-serif", "font-size": "0.8125rem", color: "var(--text-soft)", margin: "0", "line-height": "1.5" }}>
-                      You'll lose access to this universe's timeline. You can re-subscribe anytime from "Add Universe".
+                    <p
+                      style={{
+                        "font-family": "'Outfit', sans-serif",
+                        "font-size": "0.8125rem",
+                        color: "var(--text-soft)",
+                        margin: "0",
+                        "line-height": "1.5"
+                      }}
+                    >
+                      You'll lose access to this universe's timeline. You can
+                      re-subscribe anytime from "Add Universe".
                     </p>
                   </div>
                   <div style={{ display: "flex", gap: "var(--sp-2)" }}>
@@ -826,7 +1001,12 @@ export default function CollectionDetailPage() {
                       type="button"
                       class="btn-primary focus-ring setting-row-danger"
                       onClick={confirmUnsubscribe}
-                      style={{ flex: "1", background: "#f87171", "box-shadow": "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)" }}
+                      style={{
+                        flex: "1",
+                        background: "#f87171",
+                        "box-shadow":
+                          "0 0 0 1px #f87171, 0 4px 16px rgba(248,113,113,0.3)"
+                      }}
                     >
                       Unsubscribe
                     </button>

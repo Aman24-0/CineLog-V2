@@ -6,9 +6,12 @@ import {
   CONTINUE_WATCHING_OR_FILTER,
   VAULT_DASHBOARD_COLUMNS,
   COLLECTION_DASHBOARD_COLUMNS,
-  EPISODE_PROGRESS_DASHBOARD_COLUMNS,
+  EPISODE_PROGRESS_DASHBOARD_COLUMNS
 } from "../dashboard/dashboard.utils";
-import { createMockSupabase, createMockSupabaseError } from "~/__test-fixtures__/mockSupabase";
+import {
+  createMockSupabase,
+  createMockSupabaseError
+} from "~/__test-fixtures__/mockSupabase";
 
 // Mock vault row shape (matches Tables<"vault">)
 const mockVaultRow = {
@@ -29,7 +32,7 @@ const mockVaultRow = {
   last_activity_at: null,
   created_at: "2024-01-01T00:00:00Z",
   updated_at: "2024-01-01T00:00:00Z",
-  deleted_at: null,
+  deleted_at: null
 };
 
 describe("DashboardRepository", () => {
@@ -61,14 +64,21 @@ describe("DashboardRepository", () => {
 
   describe("getRecentlyAdded", () => {
     it("returns items ordered by created_at desc", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getRecentlyAdded("user-1");
-      expect(query.order).toHaveBeenCalledWith("created_at", expect.any(Object));
+      expect(query.order).toHaveBeenCalledWith(
+        "created_at",
+        expect.any(Object)
+      );
     });
 
     it("accepts pagination", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getRecentlyAdded("user-1", { limit: 5, offset: 10 });
       expect(query.range).toHaveBeenCalledWith(10, 14);
@@ -77,16 +87,23 @@ describe("DashboardRepository", () => {
 
   describe("getRecentlyUpdated", () => {
     it("returns items ordered by updated_at desc", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getRecentlyUpdated("user-1");
-      expect(query.order).toHaveBeenCalledWith("updated_at", expect.any(Object));
+      expect(query.order).toHaveBeenCalledWith(
+        "updated_at",
+        expect.any(Object)
+      );
     });
   });
 
   describe("getPinnedItems", () => {
     it("filters by is_pinned = true", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getPinnedItems("user-1");
       expect(query.eq).toHaveBeenCalledWith("is_pinned", true);
@@ -95,7 +112,9 @@ describe("DashboardRepository", () => {
 
   describe("getFavorites", () => {
     it("filters by is_favorite = true", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getFavorites("user-1");
       expect(query.eq).toHaveBeenCalledWith("is_favorite", true);
@@ -104,7 +123,9 @@ describe("DashboardRepository", () => {
 
   describe("getWatchingNow", () => {
     it("filters by status = watching", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getWatchingNow("user-1");
       expect(query.eq).toHaveBeenCalledWith("status", "watching");
@@ -113,7 +134,9 @@ describe("DashboardRepository", () => {
 
   describe("getCompletedRecently", () => {
     it("filters by status = completed", async () => {
-      const { client, query } = createMockSupabase({ listData: [mockVaultRow] });
+      const { client, query } = createMockSupabase({
+        listData: [mockVaultRow]
+      });
       const repo = new DashboardRepository(client as never);
       await repo.getCompletedRecently("user-1");
       expect(query.eq).toHaveBeenCalledWith("status", "completed");
@@ -122,7 +145,12 @@ describe("DashboardRepository", () => {
 
   describe("getContinueWatching", () => {
     it("returns enriched items with episode progress for TV", async () => {
-      const tvRow = { ...mockVaultRow, id: "v1", media_type: "tv", status: "watching" };
+      const tvRow = {
+        ...mockVaultRow,
+        id: "v1",
+        media_type: "tv",
+        status: "watching"
+      };
       const { client } = createMockSupabase({ listData: [tvRow] });
       const repo = new DashboardRepository(client as never);
       const result = await repo.getContinueWatching("user-1");
@@ -133,7 +161,11 @@ describe("DashboardRepository", () => {
     });
 
     it("returns movies with latestProgress = null (no progress lookup)", async () => {
-      const movieRow = { ...mockVaultRow, media_type: "movie", status: "watching" };
+      const movieRow = {
+        ...mockVaultRow,
+        media_type: "movie",
+        status: "watching"
+      };
       const { client } = createMockSupabase({ listData: [movieRow] });
       const repo = new DashboardRepository(client as never);
       const result = await repo.getContinueWatching("user-1");
@@ -184,7 +216,9 @@ describe("dashboard.utils", () => {
 
   describe("CONTINUE_WATCHING_OR_FILTER", () => {
     it("is the correct PostgREST OR expression", () => {
-      expect(CONTINUE_WATCHING_OR_FILTER).toBe("watched_on.is.null,completed_at.is.null");
+      expect(CONTINUE_WATCHING_OR_FILTER).toBe(
+        "watched_on.is.null,completed_at.is.null"
+      );
     });
   });
 

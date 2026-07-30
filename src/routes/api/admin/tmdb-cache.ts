@@ -13,7 +13,10 @@
 //   POST   /api/admin/tmdb-cache/invalidate-expired — bulk delete all expired
 //   POST   /api/admin/tmdb-cache/refresh?id=<uuid>  — re-fetch from TMDB (TODO)
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -22,7 +25,7 @@ interface APIEvent extends AdminAPIEvent {}
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -48,20 +51,26 @@ export async function GET(event: APIEvent) {
     if (id) {
       const { data, error } = await supabase
         .from("tmdb_cache")
-        .select("id, media_type, tmdb_id, data, expires_at, fetched_at, created_at, updated_at")
+        .select(
+          "id, media_type, tmdb_id, data, expires_at, fetched_at, created_at, updated_at"
+        )
         .eq("id", id)
         .single();
       if (error || !data) return jsonResponse({ error: "Not found" }, 404);
 
       // Pull title out of the cached JSON for convenience
       const cached = data.data as Record<string, unknown> | null;
-      const title = (cached?.title as string) || (cached?.name as string) || "Untitled";
+      const title =
+        (cached?.title as string) || (cached?.name as string) || "Untitled";
       return jsonResponse({ entry: { ...data, title } });
     }
 
     // List with pagination
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "25", 10)));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "25", 10))
+    );
     const search = url.searchParams.get("search")?.trim() || "";
     const mediaType = url.searchParams.get("media_type"); // movie | tv
     const sort = url.searchParams.get("sort") || "updated_at"; // updated_at | expires_at | media_type
@@ -71,9 +80,12 @@ export async function GET(event: APIEvent) {
 
     let query = supabase
       .from("tmdb_cache")
-      .select("id, media_type, tmdb_id, expires_at, fetched_at, created_at, updated_at", {
-        count: "exact",
-      });
+      .select(
+        "id, media_type, tmdb_id, expires_at, fetched_at, created_at, updated_at",
+        {
+          count: "exact"
+        }
+      );
 
     if (mediaType === "movie" || mediaType === "tv") {
       query = query.eq("media_type", mediaType);
@@ -90,7 +102,9 @@ export async function GET(event: APIEvent) {
     if (sort === "expires_at") {
       query = query.order("expires_at", { ascending: true });
     } else if (sort === "media_type") {
-      query = query.order("media_type", { ascending: true }).order("tmdb_id", { ascending: true });
+      query = query
+        .order("media_type", { ascending: true })
+        .order("tmdb_id", { ascending: true });
     } else {
       query = query.order("updated_at", { ascending: false });
     }
@@ -107,7 +121,7 @@ export async function GET(event: APIEvent) {
       // For list view we just expose metadata.
       return {
         ...row,
-        expired: row.expires_at ? new Date(row.expires_at) < now : false,
+        expired: row.expires_at ? new Date(row.expires_at) < now : false
       };
     });
 
@@ -116,7 +130,7 @@ export async function GET(event: APIEvent) {
       total: count ?? 0,
       page,
       limit,
-      total_pages: Math.ceil((count ?? 0) / limit),
+      total_pages: Math.ceil((count ?? 0) / limit)
     });
   } catch (err) {
     console.error("[admin/tmdb-cache] GET error:", err);
@@ -126,35 +140,44 @@ export async function GET(event: APIEvent) {
 
 // ─── Stats helper ──────────────────────────────────────────────────
 
-async function handleStats(event: APIEvent): Promise<Response> {
+async function handleStats(_event: APIEvent): Promise<Response> {
   const supabase = createAdminClient();
 
-  const [totalRes, expiredRes, movieRes, tvRes, oldestRes, newestRes] = await Promise.all([
-    supabase.from("tmdb_cache").select("id", { count: "exact", head: true }),
-    supabase
-      .from("tmdb_cache")
-      .select("id", { count: "exact", head: true })
-      .lt("expires_at", new Date().toISOString()),
-    supabase.from("tmdb_cache").select("id", { count: "exact", head: true }).eq("media_type", "movie"),
-    supabase.from("tmdb_cache").select("id", { count: "exact", head: true }).eq("media_type", "tv"),
-    supabase
-      .from("tmdb_cache")
-      .select("fetched_at")
-      .order("fetched_at", { ascending: true })
-      .limit(1)
-      .single(),
-    supabase
-      .from("tmdb_cache")
-      .select("fetched_at")
-      .order("fetched_at", { ascending: false })
-      .limit(1)
-      .single(),
-  ]);
+  const [totalRes, expiredRes, movieRes, tvRes, oldestRes, newestRes] =
+    await Promise.all([
+      supabase.from("tmdb_cache").select("id", { count: "exact", head: true }),
+      supabase
+        .from("tmdb_cache")
+        .select("id", { count: "exact", head: true })
+        .lt("expires_at", new Date().toISOString()),
+      supabase
+        .from("tmdb_cache")
+        .select("id", { count: "exact", head: true })
+        .eq("media_type", "movie"),
+      supabase
+        .from("tmdb_cache")
+        .select("id", { count: "exact", head: true })
+        .eq("media_type", "tv"),
+      supabase
+        .from("tmdb_cache")
+        .select("fetched_at")
+        .order("fetched_at", { ascending: true })
+        .limit(1)
+        .single(),
+      supabase
+        .from("tmdb_cache")
+        .select("fetched_at")
+        .order("fetched_at", { ascending: false })
+        .limit(1)
+        .single()
+    ]);
 
   // Total cache size — approximate via pg_total_relation_size
   let sizeBytes = 0;
   try {
-    const { data: sizeData } = await supabase.rpc("get_tmdb_cache_size" as never);
+    const { data: sizeData } = await supabase.rpc(
+      "get_tmdb_cache_size" as never
+    );
     if (typeof sizeData === "number") sizeBytes = sizeData;
   } catch {
     // RPC may not exist — silently ignore
@@ -165,11 +188,11 @@ async function handleStats(event: APIEvent): Promise<Response> {
     expired: expiredRes.count ?? 0,
     by_media_type: {
       movie: movieRes.count ?? 0,
-      tv: tvRes.count ?? 0,
+      tv: tvRes.count ?? 0
     },
     oldest_fetched_at: oldestRes.data?.fetched_at ?? null,
     newest_fetched_at: newestRes.data?.fetched_at ?? null,
-    size_bytes: sizeBytes,
+    size_bytes: sizeBytes
   });
 }
 
@@ -198,7 +221,7 @@ export async function DELETE(event: APIEvent) {
       action: "tmdb_cache.delete",
       entity_type: "tmdb_cache",
       entity_id: id,
-      payload: { media_type: existing?.media_type, tmdb_id: existing?.tmdb_id },
+      payload: { media_type: existing?.media_type, tmdb_id: existing?.tmdb_id }
     });
 
     return jsonResponse({ ok: true });
@@ -236,7 +259,7 @@ export async function POST(event: APIEvent) {
         action: "tmdb_cache.invalidate_expired",
         entity_type: "tmdb_cache",
         entity_id: "bulk",
-        payload: { deleted: count ?? 0 },
+        payload: { deleted: count ?? 0 }
       });
 
       return jsonResponse({ ok: true, deleted: count ?? 0 });
@@ -254,13 +277,19 @@ export async function POST(event: APIEvent) {
         action: "tmdb_cache.invalidate_all",
         entity_type: "tmdb_cache",
         entity_id: "bulk",
-        payload: { deleted: count ?? 0 },
+        payload: { deleted: count ?? 0 }
       });
 
       return jsonResponse({ ok: true, deleted: count ?? 0 });
     }
 
-    return jsonResponse({ error: "Unknown action. Use ?action=invalidate-expired or invalidate-all" }, 400);
+    return jsonResponse(
+      {
+        error:
+          "Unknown action. Use ?action=invalidate-expired or invalidate-all"
+      },
+      400
+    );
   } catch (err) {
     console.error("[admin/tmdb-cache] POST error:", err);
     return jsonResponse({ error: "Server error" }, 500);

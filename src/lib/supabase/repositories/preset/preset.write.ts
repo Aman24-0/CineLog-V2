@@ -15,7 +15,13 @@ import type {
   PresetWriteResult,
   TypedSupabaseClient
 } from "./preset.types";
-import { toError, toInsert, toRenameUpdate, validateFilters, validateName } from "./preset.utils";
+import {
+  toError,
+  toInsert,
+  toRenameUpdate,
+  validateFilters,
+  validateName
+} from "./preset.utils";
 
 const TABLE = "user_presets" as const;
 
@@ -83,10 +89,7 @@ export async function deletePreset(
   supabase: TypedSupabaseClient,
   presetId: string
 ): Promise<PresetWriteResult> {
-  const { error } = await supabase
-    .from(TABLE)
-    .delete()
-    .eq("id", presetId);
+  const { error } = await supabase.from(TABLE).delete().eq("id", presetId);
 
   return { error: toError(error) };
 }

@@ -38,10 +38,7 @@ export default function BottomNavigation() {
   };
 
   return (
-    <nav
-      class="fixed flex bottom-nav-glass"
-      aria-label="Primary navigation"
-    >
+    <nav class="bottom-nav-glass fixed flex" aria-label="Primary navigation">
       <NavButton
         icon="explore"
         label="Discover"

@@ -53,7 +53,9 @@ import { entryRowToCollectionEntry } from "./collectionMapper";
  *
  * @returns Hydrated CollectionEntry[] with TMDB metadata.
  */
-export async function fetchEntriesForCollection(collectionId: string): Promise<CollectionEntry[]> {
+export async function fetchEntriesForCollection(
+  collectionId: string
+): Promise<CollectionEntry[]> {
   const repo = getCollectionRepository();
   const { data: entryRows, error } = await repo.getItems(collectionId);
   if (error) {
@@ -74,17 +76,26 @@ export async function fetchEntriesForCollection(collectionId: string): Promise<C
     .is("deleted_at", null);
 
   if (vaultError) {
-    console.error("[collectionEntryAdapter] Error fetching vault rows:", vaultError);
+    console.error(
+      "[collectionEntryAdapter] Error fetching vault rows:",
+      vaultError
+    );
     // Fall back to mapping without TMDB metadata
     return entryRows.map((row) => entryRowToCollectionEntry(row));
   }
 
   // Build lookup: vault_id → { media_type, tmdb_id }
-  const vaultInfoByVaultId = new Map<string, { mediaType: "movie" | "tv"; tmdbId: number }>();
-  for (const vrow of (vaultRows ?? []) as Pick<VaultRow, "id" | "media_type" | "tmdb_id">[]) {
+  const vaultInfoByVaultId = new Map<
+    string,
+    { mediaType: "movie" | "tv"; tmdbId: number }
+  >();
+  for (const vrow of (vaultRows ?? []) as Pick<
+    VaultRow,
+    "id" | "media_type" | "tmdb_id"
+  >[]) {
     vaultInfoByVaultId.set(vrow.id, {
       mediaType: vrow.media_type,
-      tmdbId: vrow.tmdb_id,
+      tmdbId: vrow.tmdb_id
     });
   }
 
@@ -157,7 +168,11 @@ async function resolveVaultId(
   mediaType: "movie" | "tv"
 ): Promise<string | null> {
   const vaultRepo = getVaultRepository();
-  const { data, error } = await vaultRepo.getVaultByTmdbId(userId, Number(tmdbId), mediaType);
+  const { data, error } = await vaultRepo.getVaultByTmdbId(
+    userId,
+    Number(tmdbId),
+    mediaType
+  );
   if (error || !data) return null;
   return data.id;
 }
@@ -175,7 +190,10 @@ export async function addEntryToCollectionByTmdbId(
 ): Promise<boolean> {
   const vaultId = await resolveVaultId(userId, tmdbId, mediaType);
   if (!vaultId) {
-    console.error("[collectionEntryAdapter] Could not resolve vaultId for tmdbId:", tmdbId);
+    console.error(
+      "[collectionEntryAdapter] Could not resolve vaultId for tmdbId:",
+      tmdbId
+    );
     return false;
   }
 
@@ -274,12 +292,18 @@ export async function removeVaultItemFromAllCollections(
       .delete()
       .eq("vault_id", vaultId);
     if (error) {
-      console.error("[collectionEntryAdapter] Error cascading collection_entries delete:", error);
+      console.error(
+        "[collectionEntryAdapter] Error cascading collection_entries delete:",
+        error
+      );
       return false;
     }
     return true;
   } catch (err) {
-    console.error("[collectionEntryAdapter] Failed to cascade-delete collection entries:", err);
+    console.error(
+      "[collectionEntryAdapter] Failed to cascade-delete collection entries:",
+      err
+    );
     return false;
   }
 }
@@ -320,7 +344,9 @@ export async function moveEntryInCollection(
 /**
  * Clear all entries from a collection (hard delete).
  */
-export async function clearCollectionEntries(collectionId: string): Promise<boolean> {
+export async function clearCollectionEntries(
+  collectionId: string
+): Promise<boolean> {
   const repo = getCollectionRepository();
   const { error } = await repo.clearCollection(collectionId);
   if (error) {

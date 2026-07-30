@@ -33,7 +33,7 @@ const PALETTE = [
   "#9bd17e",
   "#e574bc",
   "#f4845f",
-  "#a4a4ff",
+  "#a4a4ff"
 ];
 
 const GenreChart: Component<GenreChartProps> = (props) => {
@@ -47,7 +47,7 @@ const GenreChart: Component<GenreChartProps> = (props) => {
       label: g.genre,
       value: g.count,
       color: PALETTE[idx % PALETTE.length],
-      tooltipLabel: g.genre,
+      tooltipLabel: g.genre
     }));
 
   const handleClick = (item: BarHItem) => {
@@ -67,7 +67,11 @@ const GenreChart: Component<GenreChartProps> = (props) => {
     >
       <Show
         when={data().length > 0}
-        fallback={<p class="stats-chart-empty">No genre data yet — TMDB enrichment will populate this.</p>}
+        fallback={
+          <p class="stats-chart-empty">
+            No genre data yet — TMDB enrichment will populate this.
+          </p>
+        }
       >
         <BarChartH
           items={items()}

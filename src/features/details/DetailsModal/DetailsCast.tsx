@@ -1,13 +1,29 @@
 // src/features/details/DetailsModal/DetailsCast.tsx
-import { Show, For, createSignal, createMemo, onCleanup, lazy, Suspense, type Accessor, type Component } from "solid-js";
+import {
+  Show,
+  For,
+  createSignal,
+  createMemo,
+  onCleanup,
+  lazy,
+  Suspense,
+  type Accessor,
+  type Component
+} from "solid-js";
 import DetailSection from "~/features/details/components/DetailSection";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import type { TMDBDetails, TMDBCastMember, TMDBAggregateCastMember } from "~/shared/types";
+import type {
+  TMDBDetails,
+  TMDBCastMember,
+  TMDBAggregateCastMember
+} from "~/shared/types";
 
 // Dynamic import — PersonModal is a heavy component (full-screen modal
 // with its own TMDB API calls). Lazy loading reduces initial bundle
 // size since it's only needed when a user clicks a cast/crew card.
-const PersonModal = lazy(() => import("~/features/details/components/PersonModal"));
+const PersonModal = lazy(
+  () => import("~/features/details/components/PersonModal")
+);
 
 /**
  * Build a person's initials from their name.
@@ -113,7 +129,11 @@ export interface DetailsCastProps {
 }
 
 const DetailsCast: Component<DetailsCastProps> = (props) => {
-  const [selectedPerson, setSelectedPerson] = createSignal<{ id: number; name: string; profilePath: string | null } | null>(null);
+  const [selectedPerson, setSelectedPerson] = createSignal<{
+    id: number;
+    name: string;
+    profilePath: string | null;
+  } | null>(null);
 
   onCleanup(() => setSelectedPerson(null));
 
@@ -155,12 +175,14 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
             new Set(
               (m.roles ?? [])
                 .map((r) => r.character)
-                .filter((c): c is string => !!c && c.trim().length > 0),
-            ),
+                .filter((c): c is string => !!c && c.trim().length > 0)
+            )
           );
-          const totalEpisodes = m.total_episode_count
-            ?? (m.roles ?? []).reduce((sum, r) => sum + (r.episode_count ?? 0), 0);
-          const characterStr = characters.length > 0 ? characters.join(", ") : undefined;
+          const totalEpisodes =
+            m.total_episode_count ??
+            (m.roles ?? []).reduce((sum, r) => sum + (r.episode_count ?? 0), 0);
+          const characterStr =
+            characters.length > 0 ? characters.join(", ") : undefined;
           return {
             id: m.id,
             name: m.name,
@@ -170,7 +192,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
             // sort below can use it. Cast to TMDBCastMember shape —
             // `episodes_count` is an existing optional field on that type.
             order: m.order ?? 0,
-            episodes_count: totalEpisodes,
+            episodes_count: totalEpisodes
           } as TMDBCastMember;
         })
         .sort((a, b) => {
@@ -186,9 +208,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
     // Regular credits (movies, or TV without aggregate_credits).
     const c = d.credits;
     if (!c?.cast) return [];
-    return [...c.cast]
-      .sort((a, b) => a.order - b.order)
-      .slice(0, 20);
+    return [...c.cast].sort((a, b) => a.order - b.order).slice(0, 20);
   });
 
   /**
@@ -216,7 +236,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
       "Producer",
       "Executive Producer",
       "Novel",
-      "Characters",
+      "Characters"
     ]);
 
     // Group by person id, preserving first-seen order so the rail
@@ -229,23 +249,31 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
         // Append this job — avoid duplicate job strings (e.g. two
         // "Director" entries for the same person in different units).
         if (!existing.jobs.includes(member.job)) {
-          existing.jobs = existing.jobs ? `${existing.jobs}, ${member.job}` : member.job;
+          existing.jobs = existing.jobs
+            ? `${existing.jobs}, ${member.job}`
+            : member.job;
         }
       } else {
         byId.set(member.id, {
           id: member.id,
           name: member.name,
           jobs: member.job,
-          profile_path: member.profile_path,
+          profile_path: member.profile_path
         });
       }
     }
     return Array.from(byId.values()).slice(0, 12);
   });
 
-  const hasAny = createMemo(() => cast().length > 0 || notableCrew().length > 0);
+  const hasAny = createMemo(
+    () => cast().length > 0 || notableCrew().length > 0
+  );
 
-  const handleOpenPerson = (person: { id: number; name: string; profilePath: string | null }) => {
+  const handleOpenPerson = (person: {
+    id: number;
+    name: string;
+    profilePath: string | null;
+  }) => {
     setSelectedPerson(person);
   };
 
@@ -267,31 +295,44 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
               <div class="cast-crew-rail" role="list">
                 <For each={cast()}>
                   {(member) => {
-                    const profileUrl = () => member.profile_path ? tmdbImage(member.profile_path, "w185") : "";
+                    const profileUrl = () =>
+                      member.profile_path
+                        ? tmdbImage(member.profile_path, "w185")
+                        : "";
                     return (
                       <button
                         type="button"
                         class="cast-crew-card focus-ring"
-                        onClick={() => handleOpenPerson({
-                          id: member.id,
-                          name: member.name,
-                          profilePath: member.profile_path,
-                        })}
+                        onClick={() =>
+                          handleOpenPerson({
+                            id: member.id,
+                            name: member.name,
+                            profilePath: member.profile_path
+                          })
+                        }
                         role="listitem"
                         aria-label={`${member.name}${member.character ? ` as ${member.character}` : ""} — open person details`}
                       >
                         <div class="cast-crew-card-image">
-                          <Show when={profileUrl()} fallback={
-                            <div class="cast-crew-card-image-fallback cast-crew-card-initials" aria-hidden="true">
-                              <span>{getInitials(member.name)}</span>
-                            </div>
-                          }>
+                          <Show
+                            when={profileUrl()}
+                            fallback={
+                              <div
+                                class="cast-crew-card-image-fallback cast-crew-card-initials"
+                                aria-hidden="true"
+                              >
+                                <span>{getInitials(member.name)}</span>
+                              </div>
+                            }
+                          >
                             <img
                               src={profileUrl()}
                               alt=""
                               loading="lazy"
                               decoding="async"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
                             />
                           </Show>
                         </div>
@@ -314,31 +355,44 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
               <div class="cast-crew-rail" role="list">
                 <For each={notableCrew()}>
                   {(member) => {
-                    const profileUrl = () => member.profile_path ? tmdbImage(member.profile_path, "w185") : "";
+                    const profileUrl = () =>
+                      member.profile_path
+                        ? tmdbImage(member.profile_path, "w185")
+                        : "";
                     return (
                       <button
                         type="button"
                         class="cast-crew-card focus-ring"
-                        onClick={() => handleOpenPerson({
-                          id: member.id,
-                          name: member.name,
-                          profilePath: member.profile_path,
-                        })}
+                        onClick={() =>
+                          handleOpenPerson({
+                            id: member.id,
+                            name: member.name,
+                            profilePath: member.profile_path
+                          })
+                        }
                         role="listitem"
                         aria-label={`${member.name} — ${member.jobs} — open person details`}
                       >
                         <div class="cast-crew-card-image">
-                          <Show when={profileUrl()} fallback={
-                            <div class="cast-crew-card-image-fallback cast-crew-card-initials" aria-hidden="true">
-                              <span>{getInitials(member.name)}</span>
-                            </div>
-                          }>
+                          <Show
+                            when={profileUrl()}
+                            fallback={
+                              <div
+                                class="cast-crew-card-image-fallback cast-crew-card-initials"
+                                aria-hidden="true"
+                              >
+                                <span>{getInitials(member.name)}</span>
+                              </div>
+                            }
+                          >
                             <img
                               src={profileUrl()}
                               alt=""
                               loading="lazy"
                               decoding="async"
-                              onError={(e) => { e.currentTarget.style.display = "none"; }}
+                              onError={(e) => {
+                                e.currentTarget.style.display = "none";
+                              }}
                             />
                           </Show>
                         </div>

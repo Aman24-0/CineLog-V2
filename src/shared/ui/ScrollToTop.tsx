@@ -1,5 +1,5 @@
 // src/shared/ui/ScrollToTop.tsx
-import {createSignal, onMount, onCleanup} from "solid-js";
+import { createSignal, onMount, onCleanup } from "solid-js";
 
 /**
  * ScrollToTop — floating button that appears after the user scrolls.
@@ -65,7 +65,8 @@ export default function ScrollToTop(props: ScrollToTopProps = {}) {
   });
 
   const scrollToTop = () => {
-    const prefersReduced = typeof window !== "undefined" &&
+    const prefersReduced =
+      typeof window !== "undefined" &&
       window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
     if (props.scrollContainer) {
       const el = document.querySelector(props.scrollContainer);
@@ -80,7 +81,18 @@ export default function ScrollToTop(props: ScrollToTopProps = {}) {
   return (
     <>
       {/* Sentinel — invisible element at the top of the page (or scroll container) */}
-      <div ref={sentinel} style={{ position: "absolute", top: "0", left: "0", height: "1px", width: "1px", "pointer-events": "none" }} aria-hidden="true" />
+      <div
+        ref={sentinel}
+        style={{
+          position: "absolute",
+          top: "0",
+          left: "0",
+          height: "1px",
+          width: "1px",
+          "pointer-events": "none"
+        }}
+        aria-hidden="true"
+      />
 
       <button
         type="button"

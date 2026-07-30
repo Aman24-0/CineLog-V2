@@ -10,15 +10,17 @@ export interface GlassLoadingStateProps extends JSX.HTMLAttributes<HTMLDivElemen
   fullHeight?: boolean;
 }
 
-const defaultProps: Required<Pick<GlassLoadingStateProps, "size" | "fullHeight">> = {
+const defaultProps: Required<
+  Pick<GlassLoadingStateProps, "size" | "fullHeight">
+> = {
   size: "default",
-  fullHeight: false,
+  fullHeight: false
 };
 
 const spinnerSizeMap = {
   small: { w: "w-5", h: "h-5", border: "border-2" },
   default: { w: "w-8", h: "h-8", border: "border-[3px]" },
-  large: { w: "w-12", h: "h-12", border: "border-4" },
+  large: { w: "w-12", h: "h-12", border: "border-4" }
 };
 
 /**
@@ -27,7 +29,12 @@ const spinnerSizeMap = {
  */
 const GlassLoadingState: Component<GlassLoadingStateProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
-  const [local, rest] = splitProps(props, ["message", "size", "fullHeight", "class"]);
+  const [local, rest] = splitProps(props, [
+    "message",
+    "size",
+    "fullHeight",
+    "class"
+  ]);
 
   const spinnerTokens = () => spinnerSizeMap[local.size];
 
@@ -35,24 +42,38 @@ const GlassLoadingState: Component<GlassLoadingStateProps> = (rawProps) => {
     <div
       {...rest}
       class={[
-        "flex flex-col items-center justify-center gap-4 w-full text-center",
+        "flex w-full flex-col items-center justify-center gap-4 text-center",
         local.fullHeight ? "min-h-[50vh] flex-1" : "py-12",
-        local.class || "",
-      ].filter(Boolean).join(" ")}
+        local.class || ""
+      ]
+        .filter(Boolean)
+        .join(" ")}
+      // Announce loading state to assistive technology:
+      //   - role="status" + aria-live="polite" → polite SR announcement
+      //   - aria-busy="true" → marks the region as currently loading
+      //   - aria-label → human-readable description (defaults to
+      //     "Loading" when no message prop is provided)
+      role="status"
+      aria-live="polite"
+      aria-busy="true"
+      aria-label={local.message || "Loading"}
     >
       <div class="relative flex items-center justify-center">
         {/* Ambient glow behind spinner */}
-        <div class={`absolute inset-0 bg-primary/20 rounded-full blur-xl scale-150 animate-pulse`} aria-hidden="true" />
+        <div
+          class={`bg-primary/20 absolute inset-0 scale-150 animate-pulse rounded-full blur-xl`}
+          aria-hidden="true"
+        />
 
         {/* Spinner ring */}
         <span
-          class={`relative animate-spin inline-block rounded-full border-current border-t-transparent text-primary ${spinnerTokens().w} ${spinnerTokens().h} ${spinnerTokens().border}`}
+          class={`relative inline-block animate-spin rounded-full border-current border-t-transparent text-primary ${spinnerTokens().w} ${spinnerTokens().h} ${spinnerTokens().border}`}
           aria-hidden="true"
         />
       </div>
 
       <Show when={local.message}>
-        <p class="font-label text-xs uppercase tracking-widest text-text-muted animate-pulse">
+        <p class="animate-pulse font-label text-xs uppercase tracking-widest text-text-muted">
           {local.message}
         </p>
       </Show>

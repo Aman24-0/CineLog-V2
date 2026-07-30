@@ -11,7 +11,10 @@
 // All endpoints require admin authentication via requireAdmin().
 // All mutations are audit-logged.
 
-import { requireAdmin, type AdminAPIEvent } from "~/lib/supabase/admin/adminGuard";
+import {
+  requireAdmin,
+  type AdminAPIEvent
+} from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 
@@ -43,7 +46,7 @@ interface ListUsersResponse {
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
-    headers: { "Content-Type": "application/json" },
+    headers: { "Content-Type": "application/json" }
   });
 }
 
@@ -65,7 +68,10 @@ export async function GET(event: APIEvent) {
     const url = new URL(event.request.url);
     const search = url.searchParams.get("search")?.trim() || "";
     const page = Math.max(1, parseInt(url.searchParams.get("page") || "1", 10));
-    const limit = Math.min(100, Math.max(1, parseInt(url.searchParams.get("limit") || "25", 10)));
+    const limit = Math.min(
+      100,
+      Math.max(1, parseInt(url.searchParams.get("limit") || "25", 10))
+    );
     const userId = url.searchParams.get("id");
 
     const supabase = createAdminClient();
@@ -75,7 +81,7 @@ export async function GET(event: APIEvent) {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, country, created_at, deleted_at, admin_disabled_at, scheduled_deletion_at, is_admin",
+          "id, username, display_name, avatar_url, country, created_at, deleted_at, admin_disabled_at, scheduled_deletion_at, is_admin"
         )
         .eq("id", userId)
         .single();
@@ -86,7 +92,7 @@ export async function GET(event: APIEvent) {
 
       // Get email from auth.users via admin API (need to use the auth admin)
       const {
-        data: { user },
+        data: { user }
       } = await supabase.auth.admin.getUserById(userId);
 
       // Get vault count
@@ -106,10 +112,13 @@ export async function GET(event: APIEvent) {
         .single();
 
       const userRow: UserRow = {
-        ...(profile as Omit<UserRow, "email" | "vault_count" | "last_activity">),
+        ...(profile as Omit<
+          UserRow,
+          "email" | "vault_count" | "last_activity"
+        >),
         email: user?.email ?? "",
         vault_count: vaultCount ?? 0,
-        last_activity: lastActivity?.created_at ?? null,
+        last_activity: lastActivity?.created_at ?? null
       };
 
       return jsonResponse({ user: userRow });
@@ -121,7 +130,7 @@ export async function GET(event: APIEvent) {
       .from("profiles")
       .select(
         "id, username, display_name, avatar_url, country, created_at, deleted_at, admin_disabled_at, scheduled_deletion_at, is_admin",
-        { count: "exact" },
+        { count: "exact" }
       )
       .order("created_at", { ascending: false })
       .range(offset, offset + limit - 1);
@@ -132,7 +141,9 @@ export async function GET(event: APIEvent) {
       // joining auth.users — which the service role can do via a custom query.
       // For now, we match username + display_name. Email search would require
       // a different approach (lookup auth.users first, then profiles).
-      query = query.or(`username.ilike.%${search}%,display_name.ilike.%${search}%`);
+      query = query.or(
+        `username.ilike.%${search}%,display_name.ilike.%${search}%`
+      );
     }
 
     const { data: profiles, error, count } = await query;
@@ -158,7 +169,7 @@ export async function GET(event: APIEvent) {
           .from("activity_log")
           .select("user_id, created_at")
           .in("user_id", userIds)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
       ]);
 
       // Aggregate vault counts
@@ -188,7 +199,7 @@ export async function GET(event: APIEvent) {
       // For Phase 1, this is acceptable — admin panel, low traffic.
       const { data: usersList } = await supabase.auth.admin.listUsers({
         page: 1,
-        perPage: 1000,
+        perPage: 1000
       });
       for (const u of usersList?.users ?? []) {
         if (u.email) emailsById[u.id] = u.email;
@@ -199,14 +210,14 @@ export async function GET(event: APIEvent) {
       ...(p as Omit<UserRow, "email" | "vault_count" | "last_activity">),
       email: emailsById[p.id] ?? "",
       vault_count: vaultCounts[p.id] ?? 0,
-      last_activity: lastActivities[p.id] ?? null,
+      last_activity: lastActivities[p.id] ?? null
     }));
 
     const response: ListUsersResponse = {
       users,
       total: count ?? 0,
       page,
-      limit,
+      limit
     };
 
     return jsonResponse(response);
@@ -244,7 +255,9 @@ export async function PATCH(event: APIEvent) {
       return jsonResponse({ error: "Missing id or action" }, 400);
     }
 
-    if (!["disable", "enable", "delete", "reset_preferences"].includes(action)) {
+    if (
+      !["disable", "enable", "delete", "reset_preferences"].includes(action)
+    ) {
       return jsonResponse({ error: "Invalid action" }, 400);
     }
 
@@ -254,7 +267,7 @@ export async function PATCH(event: APIEvent) {
     if (userId === adminResult.admin.id) {
       return jsonResponse(
         { error: "Cannot perform this action on your own account" },
-        400,
+        400
       );
     }
 
@@ -271,7 +284,7 @@ export async function PATCH(event: APIEvent) {
     if (target.is_admin) {
       return jsonResponse(
         { error: "Cannot perform this action on another admin" },
-        400,
+        400
       );
     }
 
@@ -329,8 +342,8 @@ export async function PATCH(event: APIEvent) {
       payload: {
         ...auditPayload,
         target_username: target.username,
-        target_display_name: target.display_name,
-      },
+        target_display_name: target.display_name
+      }
     });
 
     return jsonResponse({ ok: true });
