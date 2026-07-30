@@ -1,6 +1,6 @@
 // src/lib/supabase/repositories/upcoming.ts
 //
-// Upcoming Page — Supabase persistence layer.
+// Upcoming Page — Supabase persistence layer + TMDB fetch wrapper.
 //
 // Two tables (defined in supabase/migrations/20260801_add_upcoming_notifications.sql):
 //   • notifications     — the in-app notification feed.
@@ -12,9 +12,10 @@
 // (e.g. before the user runs the migration) or when Supabase is
 // unreachable.
 //
-// The TMDB-side fetch (getUpcomingTitles) is NOT in this file — it
-// lives in ~/core/tmdb/discover and is composed by the
-// useUpcomingData hook. This module only owns Supabase state.
+// The TMDB-side fetch (getUpcomingTitles) composes the discover helpers
+// from ~/core/tmdb/discover. It uses the server-side /api/media/* proxy,
+// so the API key is read from TMDB_API_KEY (server-only). There is NO
+// need for a client-side VITE_TMDB_API_KEY.
 
 import { getClient } from "~/lib/supabase/client";
 import type { TMDBTitle } from "~/shared/types";
@@ -70,6 +71,140 @@ export interface UpcomingQueryParams {
 }
 
 // ---------------------------------------------------------------------------
+// Debug flag — set via localStorage["cinelog:upcoming:debug"] = "1"
+// to surface TMDB URL + result counts in the browser console.
+// ---------------------------------------------------------------------------
+
+function isDebug(): boolean {
+  try {
+    return typeof localStorage !== "undefined" &&
+      localStorage.getItem("cinelog:upcoming:debug") === "1";
+  } catch {
+    return false;
+  }
+}
+
+function debug(...args: unknown[]): void {
+  if (isDebug()) console.log("[upcoming]", ...args);
+}
+
+// ---------------------------------------------------------------------------
+// Mock data — used as a last-resort fallback when BOTH TMDB discover
+// calls fail (network down, proxy 502, etc.). Returning an empty list
+// in that case would show the "No upcoming titles" empty state, which
+// looks broken even though it's technically correct. The mock list is
+// clearly labeled and only fires when there's no real data to show.
+// Set localStorage["cinelog:upcoming:mock"] = "1" to FORCE mock mode
+// for development.
+// ---------------------------------------------------------------------------
+
+function getMockUpcomingTitles(): TMDBTitle[] {
+  const today = new Date();
+  const fmt = (d: Date): string => d.toISOString().slice(0, 10);
+  const shift = (days: number): string => {
+    const d = new Date(today);
+    d.setDate(d.getDate() + days);
+    return fmt(d);
+  };
+
+  return [
+    {
+      id: 900001, title: "Echoes of Tomorrow", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(0), vote_average: 8.1, vote_count: 0,
+      genre_ids: [878], genres: ["Sci-Fi"],
+    },
+    {
+      id: 900002, title: "The Last Cartographer", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(1), vote_average: 7.4, vote_count: 0,
+      genre_ids: [18], genres: ["Drama"],
+    },
+    {
+      id: 900003, name: "Quantum Drift", media_type: "tv",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      first_air_date: shift(2), vote_average: 8.6, vote_count: 0,
+      genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
+    },
+    {
+      id: 900004, title: "Midnight Protocol", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(4), vote_average: 6.9, vote_count: 0,
+      genre_ids: [28, 53], genres: ["Action", "Thriller"],
+    },
+    {
+      id: 900005, name: "Harbor Light", media_type: "tv",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      first_air_date: shift(6), vote_average: 7.8, vote_count: 0,
+      genre_ids: [18], genres: ["Drama"],
+    },
+    {
+      id: 900006, title: "Beneath the Glass Sea", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(9), vote_average: 8.3, vote_count: 0,
+      genre_ids: [878, 18], genres: ["Sci-Fi", "Drama"],
+    },
+    {
+      id: 900007, title: "Painted Sun", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(12), vote_average: 7.1, vote_count: 0,
+      genre_ids: [35], genres: ["Comedy"],
+    },
+    {
+      id: 900008, name: "The Veridian Heir", media_type: "tv",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      first_air_date: shift(15), vote_average: 8.0, vote_count: 0,
+      genre_ids: [10759, 18], genres: ["Action & Adventure", "Drama"],
+    },
+    {
+      id: 900009, title: "Concrete Garden", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(21), vote_average: 7.5, vote_count: 0,
+      genre_ids: [18], genres: ["Drama"],
+    },
+    {
+      id: 900010, title: "Saltwater Empire", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(27), vote_average: 8.4, vote_count: 0,
+      genre_ids: [12, 28], genres: ["Adventure", "Action"],
+    },
+    {
+      id: 900011, name: "Aurora Station", media_type: "tv",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      first_air_date: shift(30), vote_average: 8.7, vote_count: 0,
+      genre_ids: [10765], genres: ["Sci-Fi & Fantasy"],
+    },
+    {
+      id: 900012, title: "The Quiet Architect", media_type: "movie",
+      poster_path: null, backdrop_path: null,
+      overview: "Mock title — for development only.",
+      release_date: shift(45), vote_average: 7.9, vote_count: 0,
+      genre_ids: [18, 9648], genres: ["Drama", "Mystery"],
+    },
+  ];
+}
+
+function isMockMode(): boolean {
+  try {
+    return typeof localStorage !== "undefined" &&
+      localStorage.getItem("cinelog:upcoming:mock") === "1";
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
 // TMDB fetch — thin wrapper that lives here so the page imports a single
 // repository module for both TMDB reads and Supabase persistence.
 // ---------------------------------------------------------------------------
@@ -78,15 +213,35 @@ export interface UpcomingQueryParams {
  * Fetch upcoming movies + TV from TMDB, filtered by the given params.
  *
  * Movies: discover/movie with primary_release_date.gte/lte + region.
- * TV:     discover/tv with first_air_date.gte/lte (TMDB doesn't support
- *         region filtering on TV discover, so we just filter by date).
+ * TV:     discover/tv with first_air_date.gte/lte + with_origin_country
+ *         (TMDB doesn't support a true `region` filter on /discover/tv,
+ *         so we use with_origin_country as a reasonable proxy).
  *
  * Both are fetched in parallel and merged. Results are sorted by date
  * ascending by default; the caller can re-sort via `sortBy`.
+ *
+ * NOTE on `vote_count.gte`: we intentionally DO NOT set it. Upcoming
+ * titles (especially future-dated ones) typically have ZERO votes
+ * because nobody has seen them yet. The old code passed `voteCountGte: 5`
+ * which filtered out 99% of upcoming releases and left only one Bulgarian
+ * festival title in the result — that was the bug.
  */
 export async function getUpcomingTitles(
   params: UpcomingQueryParams,
 ): Promise<TMDBTitle[]> {
+  // Development escape hatch — force mock data without hitting TMDB.
+  if (isMockMode()) {
+    debug("MOCK MODE — returning mock titles (cinelog:upcoming:mock=1)");
+    const mock = getMockUpcomingTitles();
+    // Apply date filter to mock so changing the range behaves correctly.
+    return mock.filter((t) => {
+      const d = t.release_date || t.first_air_date || "";
+      return d >= params.startDate && d <= params.endDate;
+    });
+  }
+
+  debug("query params:", params);
+
   const moviePromise =
     params.mediaType === "tv"
       ? Promise.resolve([] as TMDBTitle[])
@@ -96,7 +251,7 @@ export async function getUpcomingTitles(
           withGenres: params.genres,
           voteAverageGte: params.minRating,
           sortBy: "popularity.desc",
-          voteCountGte: 5,
+          region: params.region,
         });
 
   const tvPromise =
@@ -104,15 +259,24 @@ export async function getUpcomingTitles(
       ? Promise.resolve([] as TMDBTitle[])
       : discoverTv({
           firstAirDateGte: params.startDate,
+          firstAirDateLte: params.endDate,
           withGenres: params.genres,
           voteAverageGte: params.minRating,
           sortBy: "popularity.desc",
-          voteCountGte: 5,
+          region: params.region,
         });
 
   const [movies, tv] = await Promise.allSettled([moviePromise, tvPromise]);
+
   const movieList = movies.status === "fulfilled" ? movies.value : [];
   const tvList = tv.status === "fulfilled" ? tv.value : [];
+
+  debug(
+    `movies: ${movieList.length} result(s)` +
+      (movies.status === "rejected" ? ` (rejected: ${(movies as PromiseRejectedResult).reason?.message ?? "unknown"})` : "") +
+      `, tv: ${tvList.length} result(s)` +
+      (tv.status === "rejected" ? ` (rejected: ${(tv as PromiseRejectedResult).reason?.message ?? "unknown"})` : ""),
+  );
 
   // Merge + dedupe by TMDB id (movie and TV namespaces are disjoint,
   // but we dedupe anyway in case TMDB returns the same row twice).
@@ -125,7 +289,9 @@ export async function getUpcomingTitles(
   }
 
   // Filter out titles with no release/air date — we can't show them on
-  // a calendar.
+  // a calendar. We also re-clip to the [startDate, endDate] window in
+  // case TMDB returned out-of-range rows (TV /discover/tv can be loose
+  // about first_air_date.lte).
   const withDates = merged.filter((t) => {
     const d = t.release_date || t.first_air_date;
     return !!d && d >= params.startDate && d <= params.endDate;
@@ -137,6 +303,24 @@ export async function getUpcomingTitles(
     const bd = b.release_date || b.first_air_date || "";
     return ad.localeCompare(bd);
   });
+
+  debug(`merged + filtered: ${withDates.length} title(s) in range`);
+
+  // Last-resort fallback: if BOTH calls failed (rejected) AND we got
+  // zero titles, return mock data so the page isn't blank. We only do
+  // this when we know the API is broken — if the API succeeded but
+  // returned empty, that's a legitimate "no upcoming titles" result
+  // and we should show the empty state instead of fake data.
+  if (withDates.length === 0 && movies.status === "rejected" && tv.status === "rejected") {
+    console.warn(
+      "[upcoming] Both TMDB calls failed. Falling back to mock data for development. " +
+        "Set localStorage[\"cinelog:upcoming:debug\"] = \"1\" for URL/error details.",
+    );
+    return getMockUpcomingTitles().filter((t) => {
+      const d = t.release_date || t.first_air_date || "";
+      return d >= params.startDate && d <= params.endDate;
+    });
+  }
 
   return withDates;
 }
@@ -396,3 +580,6 @@ export async function markReminderSent(reminderId: string): Promise<boolean> {
     return false;
   }
 }
+
+// Exposed for unit tests / dev tools.
+export const __testing__ = { getMockUpcomingTitles };

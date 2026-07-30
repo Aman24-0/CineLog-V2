@@ -57,8 +57,11 @@ export function useUpcomingData(
   reminders: Accessor<UserReminderRow[]>,
 ) {
   // Build the query params memo. The createResource reads this.
+  // Region defaults to "US" when the caller passes an empty string —
+  // TMDB requires a 2-letter ISO 3166-1 code, and an empty region
+  // makes the proxy return 422.
   const params = createMemo<UpcomingQueryParams>(() => ({
-    region: filters.region(),
+    region: filters.region() || "US",
     startDate: filters.startDate(),
     endDate: filters.endDate(),
     genres: filters.genres().length ? filters.genres() : undefined,
@@ -67,7 +70,11 @@ export function useUpcomingData(
     sortBy: filters.sortBy(),
   }));
 
-  // Refetch whenever the params memo changes.
+  // Refetch whenever the params memo changes. The source function is
+  // defensive: it returns [] on network error and never throws, so
+  // `titlesResource.error` stays null in practice — but we still wire
+  // the error accessor for the (unlikely) case where the underlying
+  // fetcher throws.
   const [titlesResource] = createResource(params, (p) => getUpcomingTitles(p));
 
   // Sorted titles — apply the user's chosen sort on top of the date-sorted

@@ -67,7 +67,12 @@ import FilterSheet, { type UpcomingFilters } from "./components/FilterSheet";
 import NotificationCenter from "./components/NotificationCenter";
 import TrailerModal from "./components/TrailerModal";
 
-const DEFAULT_REGION = "IN";
+// Default region for the Upcoming page when the user has no profile
+// country set. "US" is used because TMDB's US release calendar is the
+// most densely populated — it gives users in unlisted regions a
+// reasonable default. Users with a profile country get that country
+// via the FilterSheet's Region picker (which writes to `filters.region`).
+const DEFAULT_REGION = "US";
 
 function todayStr(): string {
   return new Date().toISOString().slice(0, 10);

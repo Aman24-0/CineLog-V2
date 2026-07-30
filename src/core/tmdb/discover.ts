@@ -71,14 +71,28 @@ export async function discoverMovies(opts: {
   withRuntimeGte?: number;
   withRuntimeLte?: number;
   withKeywords?: number;
+  /**
+   * Region filter (ISO 3166-1 code, e.g. "US", "IN"). When set, TMDB
+   * only returns movies that have a theatrical release date in that
+   * region. Critical for the Upcoming page — without it, the global
+   * release pool dilutes regionally-relevant titles.
+   */
+  region?: string;
 }): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
-    "vote_count.gte": String(opts.voteCountGte ?? 100),
     page: String(opts.page ?? 1),
     include_adult: "false"
   });
+  // vote_count.gte — ONLY set if explicitly provided.
+  // The historical default of 100 is correct for "popular" Discover
+  // surfaces (where you want established titles), but it BREAKS the
+  // Upcoming page because future releases have 0 votes. Upcoming callers
+  // pass `voteCountGte: 0` (or omit it) to get every scheduled release.
+  if (opts.voteCountGte != null) {
+    params.set("vote_count.gte", String(opts.voteCountGte));
+  }
   if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
   if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
   if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
@@ -88,6 +102,7 @@ export async function discoverMovies(opts: {
   if (opts.withRuntimeGte != null) params.set("with_runtime.gte", String(opts.withRuntimeGte));
   if (opts.withRuntimeLte != null) params.set("with_runtime.lte", String(opts.withRuntimeLte));
   if (opts.withKeywords != null) params.set("with_keywords", String(opts.withKeywords));
+  if (opts.region) params.set("region", opts.region);
 
   const res = await cachedFetch(
     buildCacheKey("tmdb:discover/movie", { q: params.toString() }),
@@ -109,18 +124,35 @@ export async function discoverTv(opts: {
   voteCountGte?: number;
   voteAverageGte?: number;
   firstAirDateGte?: string;
+  firstAirDateLte?: string;
   page?: number;
+  /**
+   * Region filter (ISO 3166-1 code, e.g. "US", "IN"). TMDB /discover/tv
+   * does not officially support a `region` param (only `with_origin_country`
+   * and `with_watch_providers`+`watch_region`), but we accept the field
+   * here for symmetry with discoverMovies and translate it to
+   * `with_origin_country` when set. This gives the Upcoming page a
+   * reasonable region-scoped TV result without requiring callers to know
+   * the API quirk.
+   */
+  region?: string;
 }): Promise<TMDBTitle[]> {
   const params = new URLSearchParams({
     language: "en-US",
     sort_by: opts.sortBy || "popularity.desc",
-    "vote_count.gte": String(opts.voteCountGte ?? 50),
     page: String(opts.page ?? 1)
   });
+  // vote_count.gte — only set if explicitly provided (same reasoning as
+  // discoverMovies: upcoming series typically have 0 votes pre-air).
+  if (opts.voteCountGte != null) {
+    params.set("vote_count.gte", String(opts.voteCountGte));
+  }
   if (opts.withGenres?.length) params.set("with_genres", opts.withGenres.join(","));
   if (opts.withoutGenres?.length) params.set("without_genres", opts.withoutGenres.join(","));
   if (opts.voteAverageGte != null) params.set("vote_average.gte", String(opts.voteAverageGte));
   if (opts.firstAirDateGte) params.set("first_air_date.gte", opts.firstAirDateGte);
+  if (opts.firstAirDateLte) params.set("first_air_date.lte", opts.firstAirDateLte);
+  if (opts.region) params.set("with_origin_country", opts.region);
 
   const res = await cachedFetch(
     buildCacheKey("tmdb:discover/tv", { q: params.toString() }),
