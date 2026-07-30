@@ -41,6 +41,12 @@
   align-items: center;
   gap: var(--sp-2, 0.5rem);
   flex-shrink: 0;
+  /* v4: allow children to wrap on narrow viewports so the sort +
+     filter + view-toggle cluster never overflows the toolbar. Each
+     child keeps `flex-shrink: 0` so its internal layout doesn't
+     compress — they just drop to a new line as a unit. */
+  flex-wrap: wrap;
+  justify-content: flex-end;
 }
 
 /* ─── Date range picker ──────────────────────────────────────────── */
@@ -230,10 +236,12 @@
   background: rgba(255, 255, 255, 0.04);
   border: 1px solid rgba(255, 255, 255, 0.08);
   border-radius: var(--radius-pill, 9999px);
-  /* `overflow: hidden` is OK here — the toggle itself is rounded
-     and the buttons sit inside. The buttons get `flex-shrink: 0`
-     so they don't compress, they wrap to the next line instead. */
-  overflow: hidden;
+  /* v4: removed `overflow: hidden`. With `flex-wrap: wrap` + overflow
+     hidden, the second row of buttons got clipped at the container's
+     bottom border. We keep the pill shape via `border-radius` — the
+     buttons inside have their own pill radius so visually nothing
+     changes when they fit on one line. When they wrap, the container
+     becomes a rounded rectangle (still looks intentional). */
   max-width: 100%;
 }
 
@@ -267,6 +275,23 @@
 .upcoming-view-toggle-btn.is-active {
   background: var(--p-dim, rgba(245, 197, 24, 0.18));
   color: var(--p, #f5c518);
+}
+
+/* v4: on very narrow viewports (≤ 360px), hide the text labels and
+   show only icons. The toggle then becomes a compact 2-icon pill
+   that always fits. The title attribute on the buttons still
+   provides accessible names. */
+@media (max-width: 360px) {
+  .upcoming-view-toggle-btn > span:last-child {
+    /* Target the label span (the icon span comes first in DOM). */
+    display: none;
+  }
+  .upcoming-view-toggle-btn {
+    padding: 0.375rem 0.5rem;
+  }
+  .upcoming-view-toggle-btn .material-symbols-outlined {
+    font-size: 18px;
+  }
 }
 
 /* ─── Countdown badge ────────────────────────────────────────────── */
@@ -1189,4 +1214,103 @@
   flex-direction: column;
   gap: 6px;
   padding-top: 4px;
+}
+
+/* ─── Mobile responsive tweaks (≤ 480px) ───────────────────────────
+ * These rules layer on top of the base styles to make the Upcoming
+ * page comfortable on phones. They target the most common mobile
+ * breakpoints: 480px (large phones), 380px (small phones), 360px
+ * (very small phones like iPhone SE 1st gen).
+ *
+ * Design goals:
+ *   1. No horizontal overflow — every interactive element must fit
+ *      within the viewport, wrapping or shrinking as needed.
+ *   2. Adequate tap targets — buttons ≥ 32×32px (Apple HIG) or
+ *      ≥ 40×40px (Material) where space allows.
+ *   3. The filter sheet must be fully usable without scrolling the
+ *      page behind it — the sheet's body scrolls internally.
+ */
+
+@media (max-width: 480px) {
+  /* Toolbar — reduce horizontal padding so children have more room. */
+  .upcoming-toolbar {
+    padding: var(--sp-2, 0.5rem) var(--sp-2, 0.5rem);
+    gap: var(--sp-2, 0.5rem);
+  }
+  .upcoming-toolbar-left {
+    flex: 1 1 100%;
+    min-width: 0;
+  }
+  .upcoming-toolbar-right {
+    flex: 1 1 100%;
+    justify-content: flex-start;
+  }
+
+  /* Date presets — slightly smaller padding on mobile so all 4
+     presets can fit on one row (or wrap to 2x2 cleanly). */
+  .upcoming-date-preset {
+    padding: 0.3125rem 0.625rem;
+    font-size: 0.6875rem;
+  }
+
+  /* Filter sheet body — cap height + scroll internally so the sheet
+     never grows taller than the viewport. GlassModal already caps
+     the surface at calc(100vh - 2rem); this ensures the body
+     inside scrolls rather than the entire surface overflowing. */
+  .upcoming-filter-sheet {
+    max-height: calc(90vh - 8rem);
+    overflow-y: auto;
+    /* Smooth scrolling on iOS */
+    -webkit-overflow-scrolling: touch;
+    /* Pad right so the scrollbar doesn't overlap content */
+    padding-right: 0.25rem;
+  }
+
+  /* Filter chips — slightly larger tap target on mobile. */
+  .upcoming-filter-chip {
+    padding: 0.5rem 0.875rem;
+    font-size: 0.8125rem;
+  }
+
+  /* Filter select — full width on mobile so the chevron sits inside. */
+  .upcoming-filter-select-wrap {
+    display: flex;
+    width: 100%;
+  }
+  .upcoming-filter-select {
+    width: 100%;
+    flex: 1 1 auto;
+  }
+
+  /* Card actions — ensure 40x40 tap targets on mobile (was 32x32). */
+  .upcoming-card-action {
+    width: 36px;
+    height: 36px;
+  }
+  .upcoming-card-action .material-symbols-outlined {
+    font-size: 20px;
+  }
+
+  /* Calendar cells — slightly larger text + touch area on mobile. */
+  .upcoming-calendar-cell {
+    font-size: 0.8125rem;
+  }
+}
+
+@media (max-width: 380px) {
+  /* Date presets wrap to 2x2 on very narrow screens — tighten the
+     gap so they don't waste vertical space. */
+  .upcoming-date-presets {
+    gap: 4px;
+  }
+  .upcoming-date-preset {
+    flex: 1 1 calc(50% - 4px);
+    text-align: center;
+  }
+
+  /* Sort dropdown — hide the label text, show only the icon.
+     The select element stays interactive via its native UI. */
+  .upcoming-sort-dropdown {
+    padding: 0.375rem 0.5rem;
+  }
 }

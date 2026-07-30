@@ -262,17 +262,28 @@ function buildMovieParams(params: UpcomingQueryParams, page: number): URLSearchP
  * Build a URLSearchParams for /discover/tv that returns series with at
  * least one episode airing in the date window.
  *
- * v3 fix:
+ * v4 fix (this commit):
  *   - Uses `air_date.gte/lte` (NOT `first_air_date.gte/lte`) so we
  *     capture both brand-new premieres AND new episodes of running
  *     series (House of the Dragon S3 E5, etc.).
- *   - `with_watch_providers` + `watch_region` would be the strict
- *     region filter, but TMDB's watch-provider filter excludes any
- *     series that hasn't been licensed for streaming in that region
- *     yet — which would drop most upcoming/network shows. We rely on
- *     `with_origin_country` as a soft filter instead (the same
- *     approach TMDB uses for its own "On TV" sections).
+ *   - **Dropped `with_origin_country`.** That filter is too restrictive
+ *     — it filters by the series' production country, which excludes
+ *     many popular shows whose TMDB metadata lists a non-US origin
+ *     country (e.g. shows filmed in the UK/Canada but distributed
+ *     worldwide). The result was that high-profile series like
+ *     "House of the Dragon" — which the user expected to see — were
+ *     silently dropped.
+ *   - **Dropped `with_watch_providers` + `watch_region`** as a discover
+ *     filter — most upcoming series haven't been licensed for streaming
+ *     in every region yet, so the filter would drop them. We surface
+ *     the user's region providers via the post-fetch `getWatchProviders`
+ *     enrichment instead (top 30 titles).
  *   - `sort_by=popularity.desc` so famous shows come first.
+ *
+ * The user's region still affects what they see:
+ *   1. The card's OTT badges (via `getWatchProviders` enrichment).
+ *   2. The "available in your region" hint (when providers array is
+ *      empty for a popular title, it's likely not yet licensed there).
  */
 function buildTvParams(params: UpcomingQueryParams, page: number): URLSearchParams {
   const p = new URLSearchParams({
@@ -280,7 +291,6 @@ function buildTvParams(params: UpcomingQueryParams, page: number): URLSearchPara
     sort_by: "popularity.desc",
     "air_date.gte": params.startDate,
     "air_date.lte": params.endDate,
-    with_origin_country: params.region,
     include_adult: "false",
     page: String(page),
   });
@@ -323,11 +333,14 @@ async function discoverUpcomingMovies(
 }
 
 /**
- * Discover TV series (paginated). Same pagination strategy as movies.
+ * Discover TV series (paginated). Same pagination strategy as movies,
+ * but defaults to 5 pages (up to 100 series) because TV series with
+ * upcoming episodes tend to be far more numerous than movies in a
+ * given window — multiple series air new episodes weekly.
  */
 async function discoverUpcomingTv(
   params: UpcomingQueryParams,
-  maxPages = 3,
+  maxPages = 5,
 ): Promise<TMDBTitle[]> {
   const out: TMDBTitle[] = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -480,15 +493,29 @@ export async function getWatchProviders(
  *         `with_release_country`. Returns ONLY movies that have a
  *         release entry in the user's country within the date window.
  *
- * TV:     discover/tv with `air_date.gte/lte` + `with_origin_country`.
- *         Returns ANY series with at least one episode airing in the
- *         window — captures both new premieres and ongoing series.
+ * TV:     discover/tv with `air_date.gte/lte` (no region filter —
+ *         see buildTvParams for why `with_origin_country` and
+ *         `with_watch_providers` were dropped). Returns ANY series
+ *         with at least one episode airing in the window — captures
+ *         both new premieres and ongoing series.
  *
  * Both are fetched in parallel and merged. For TV series, we also
  * fetch next-episode details (season/episode number) for the top N
  * results so the card can display "S2 E5". For all titles, we batch
  * fetch watch providers for the top N results so the card can show
  * OTT platform badges.
+ *
+ * v4 pipeline:
+ *   1. Fetch movies + TV (parallel, paginated).
+ *   2. Merge + dedupe by TMDB id.
+ *   3. PRE-filter: drop titles with NO usable date at all.
+ *   4. Enrich: fetch next-episode for top 30 TV series.
+ *   5. POST-filter: range-check using `episodeAirDate || release_date
+ *      || first_air_date` (so ongoing series whose `first_air_date`
+ *      is in the past but whose next episode is in the window are
+ *      kept — this is the fix for "House of the Dragon missing").
+ *   6. Enrich: fetch watch providers for top 30 titles.
+ *   7. Sort by effective date ascending.
  *
  * NOTE on `vote_count.gte`: we intentionally DO NOT set it. Upcoming
  * titles (especially future-dated ones) typically have ZERO votes
@@ -549,22 +576,25 @@ export async function getUpcomingTitles(
     merged.push(t);
   }
 
-  // Client-side date clip — TMDB /discover/tv's `air_date.lte` is
-  // occasionally loose, and `with_origin_country` does not strictly
-  // enforce a release-date-in-region. We drop anything without a
-  // usable date OR with a date outside the window.
+  // ── PRE-enrichment filter: drop titles with NO usable date at all ──
+  // We do NOT range-check here, because for TV series the date that
+  // matters is `episodeAirDate` (populated by the next-episode
+  // enrichment below), not `first_air_date`. Range-checking before
+  // enrichment would drop ongoing series whose `first_air_date` is in
+  // the past but whose next episode is in the window.
   const withDates = merged.filter((t) => {
     const d = t.release_date || t.first_air_date;
-    return !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate;
+    return !!d;
   });
 
-  debug(`merged + filtered: ${withDates.length} title(s) in range`);
+  debug(`merged + pre-filter (date present): ${withDates.length} title(s)`);
 
   // ── TV enrichment: next episode (season/episode) ───────────────
-  // We only enrich the first 20 TV results to avoid hammering TMDB
-  // (each series is one extra HTTP call). Beyond 20, the card just
-  // shows the first_air_date as fallback.
-  const tvToEnrich = withDates.filter((t) => t.media_type === "tv").slice(0, 20);
+  // We enrich the first 30 TV results to avoid hammering TMDB (each
+  // series is one extra HTTP call). Beyond 30, the card just shows
+  // the first_air_date as fallback. Cap was 20 in v3 — bumped to 30
+  // in v4 so more series get accurate "S2 E5" labels.
+  const tvToEnrich = withDates.filter((t) => t.media_type === "tv").slice(0, 30);
   if (tvToEnrich.length > 0) {
     debug(`enriching next-episode for ${tvToEnrich.length} TV series`);
     await Promise.all(
@@ -579,10 +609,29 @@ export async function getUpcomingTitles(
     );
   }
 
-  // ── Watch-provider enrichment: top 20 titles (movie + TV) ──────
-  // Provider calls are expensive (one per title), so we cap at 20.
-  // The rest get an empty `providers` array (the card shows nothing).
-  const titlesForProviders = withDates.slice(0, 20);
+  // ── POST-enrichment range filter ──────────────────────────────
+  // Now that `episodeAirDate` is populated for top TV series, we can
+  // range-check using the most accurate available date. The effective
+  // date is `episodeAirDate || release_date || first_air_date`.
+  //
+  // Why post-enrichment? Consider "House of the Dragon" S3 E5 airing
+  // in 33 days:
+  //   - `first_air_date` = "2022-08-21" (S1 premiere — OUT of range)
+  //   - `episodeAirDate` = "<33 days from now>" (IN range)
+  // Pre-enrichment filtering on `first_air_date` would drop it.
+  // Post-enrichment filtering on `episodeAirDate` keeps it.
+  const inRange = withDates.filter((t) => {
+    const d = t.episodeAirDate || t.release_date || t.first_air_date;
+    return !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate;
+  });
+
+  debug(`post-enrichment range filter: ${inRange.length} title(s) in [${effectiveParams.startDate}, ${effectiveParams.endDate}]`);
+
+  // ── Watch-provider enrichment: top 30 titles (movie + TV) ──────
+  // Provider calls are expensive (one per title), so we cap at 30
+  // (was 20 in v3). The rest get an empty `providers` array (the
+  // card shows nothing).
+  const titlesForProviders = inRange.slice(0, 30);
   if (titlesForProviders.length > 0) {
     debug(`enriching watch-providers for ${titlesForProviders.length} titles`);
     await Promise.all(
@@ -593,18 +642,20 @@ export async function getUpcomingTitles(
     );
   }
 
-  // Default sort: date ascending. Caller can re-sort via sortBy.
-  withDates.sort((a, b) => {
-    const ad = a.release_date || a.first_air_date || "";
-    const bd = b.release_date || b.first_air_date || "";
+  // Default sort: date ascending using the effective date (episode
+  // air date for TV with next-episode info, otherwise release/first
+  // air date). Caller can re-sort via sortBy.
+  inRange.sort((a, b) => {
+    const ad = a.episodeAirDate || a.release_date || a.first_air_date || "";
+    const bd = b.episodeAirDate || b.release_date || b.first_air_date || "";
     return ad.localeCompare(bd);
   });
 
-  debug(`final result: ${withDates.length} title(s)`);
+  debug(`final result: ${inRange.length} title(s)`);
 
   // Last-resort fallback: if BOTH calls failed (rejected) AND we got
   // zero titles, return mock data so the page isn't blank.
-  if (withDates.length === 0 && movies.status === "rejected" && tv.status === "rejected") {
+  if (inRange.length === 0 && movies.status === "rejected" && tv.status === "rejected") {
     console.warn(
       "[upcoming] Both TMDB calls failed. Falling back to mock data for development. " +
         "Set localStorage[\"cinelog:upcoming:debug\"] = \"1\" for URL/error details.",
@@ -615,7 +666,7 @@ export async function getUpcomingTitles(
     });
   }
 
-  return withDates;
+  return inRange;
 }
 
 // ---------------------------------------------------------------------------

@@ -46,6 +46,8 @@ const ViewToggle: Component<ViewToggleProps> = (props) => {
         type="button"
         role="tab"
         aria-selected={props.value() === "list"}
+        aria-label="List view"
+        title="List view"
         class={`upcoming-view-toggle-btn ${props.value() === "list" ? "is-active" : ""}`}
         onClick={() => props.onChange("list")}
       >
@@ -56,6 +58,8 @@ const ViewToggle: Component<ViewToggleProps> = (props) => {
         type="button"
         role="tab"
         aria-selected={props.value() === "calendar"}
+        aria-label="Calendar view"
+        title="Calendar view"
         class={`upcoming-view-toggle-btn ${props.value() === "calendar" ? "is-active" : ""}`}
         onClick={() => props.onChange("calendar")}
       >

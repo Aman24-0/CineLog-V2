@@ -144,9 +144,14 @@ const UpcomingPage: Component = () => {
   // NOTE: `minRating` was removed from the UI in v3. The field is
   // kept on UpcomingFilters for backward-compat (older persisted
   // localStorage state may still include it) but it's never read.
+  //
+  // v4: default date range is now 90 days (was 30). The wider default
+  // surfaces more upcoming series — many prestige shows (e.g. HotD)
+  // have episodes airing 30-60 days out, and the 30-day default was
+  // hiding them. Users can still narrow via the date presets.
   const buildDefaultFilters = (): UpcomingFilters => ({
     region: effectiveRegion(),
-    dateRange: { start: todayStr(), end: addDays(todayStr(), 30) },
+    dateRange: { start: todayStr(), end: addDays(todayStr(), 90) },
     genres: [],
     platforms: [],
     minRating: 0,
