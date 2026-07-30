@@ -37,11 +37,13 @@
 //
 // SSR safety: all reads/writes to localStorage go through the
 // `seenTitles` utility which is SSR-safe (returns safe defaults on
-// the server). `onMount` only runs on the client, so the initial
-// fetch never fires during SSR. The skeleton renders on SSR with
-// `loading === true` (the initial signal value).
+// the server). The initial load is gated on `authReady()` via a
+// `createEffect` (not `onMount`), so on the server the effect never
+// fires (authReady stays false during SSR). The skeleton renders on
+// SSR with `loading === true` (the initial signal value), then the
+// client takes over and resolves the pick once auth is ready.
 
-import { createSignal, createMemo, onMount, Accessor } from "solid-js";
+import { createSignal, createMemo, createEffect, onCleanup, Accessor } from "solid-js";
 import type { TasteProfile, SpotlightPick, WatchlistItem, TMDBTitle } from "~/shared/types";
 import {
   discoverMovies,
@@ -65,6 +67,18 @@ interface UseSpotlightArgs {
   vault: Accessor<WatchlistItem[]>;
   /** Current user's uid, or null for guests. Drives per-user localStorage keys. */
   userId: Accessor<string | null>;
+  /**
+   * True once the initial auth session check has completed (either a
+   * session was found OR we confirmed there is none). We must NOT run
+   * `loadInitial()` before this flips to true, otherwise `userId()`
+   * returns `null` even for signed-in users and the daily cache gets
+   * written under the `guest` bucket — which then races with the
+   * `onAuthStateChange` callback that may fire later and rewrite the
+   * cache under the real uid. The result of that race is exactly the
+   * bug the user reported: "every refresh shows a different title"
+   * because the cache lookup hits a different bucket each time.
+   */
+  authReady: Accessor<boolean>;
 }
 
 /**
@@ -395,11 +409,58 @@ export function useSpotlight(args: UseSpotlightArgs) {
     setLoading(false);
   };
 
-  // Mount: kick off the initial load. onMount only runs on the client,
-  // so this never fires during SSR. The skeleton renders on SSR with
-  // loading=true, then the client takes over and resolves the pick.
-  onMount(() => {
-    void loadInitial();
+  // ── Initial load trigger ────────────────────────────────────────────
+  //
+  // CRITICAL: we wait for `authReady()` to flip true before running
+  // `loadInitial()`. If we run it on `onMount` (which fires synchronously
+  // after hydration), `user()` is still `null` because the Supabase
+  // session check is async — so the cache gets written under the `guest`
+  // bucket even for signed-in users. Then on the next refresh, depending
+  // on whether Supabase's `onAuthStateChange` fires synchronously or
+  // asynchronously, the cache lookup may hit the `guest` bucket OR the
+  // real-uid bucket — and that race is exactly what caused the
+  // "every refresh shows a different title" bug.
+  //
+  // By gating on `authReady()`, we guarantee `userId()` is the real uid
+  // (or genuinely `null` for guests) when the cache is read + written.
+  // The cache key is therefore stable across refreshes for the same
+  // user, so the daily rotation actually works.
+  //
+  // Safety net: if `authReady()` never flips true within 3 seconds
+  // (e.g., Supabase is unreachable on a flaky network, or the auth
+  // listener failed to register), we fall back to loading with whatever
+  // `userId()` we have at that point. Better to show a fresh pick than
+  // to leave the skeleton up forever.
+  //
+  // `createEffect` is used (instead of `onMount`) so we can reactively
+  // wait for `authReady()`. The `didInit` guard ensures we only fire
+  // once — even if `authReady` toggles later (e.g., after a sign-out),
+  // we don't re-fetch.
+  let didInit = false;
+  let safetyTimer: ReturnType<typeof setTimeout> | null = null;
+
+  createEffect(() => {
+    if (didInit) return;
+    if (args.authReady()) {
+      didInit = true;
+      if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
+      void loadInitial();
+    }
+  });
+
+  // Safety-net: force-load after 3s even if authReady hasn't resolved.
+  // This prevents the Spotlight from being stuck on the skeleton forever
+  // if the Supabase client fails to initialize.
+  safetyTimer = setTimeout(() => {
+    if (!didInit) {
+      console.warn("[useSpotlight] authReady did not resolve within 3s — forcing load with current userId");
+      didInit = true;
+      void loadInitial();
+    }
+  }, 3000);
+
+  onCleanup(() => {
+    if (safetyTimer) { clearTimeout(safetyTimer); safetyTimer = null; }
   });
 
   return {

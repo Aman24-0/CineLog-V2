@@ -122,7 +122,7 @@ import SearchResults from "~/features/search/SearchResults";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
-  const { user } = useAuth();
+  const { user, authReady } = useAuth();
   const { profile: taste } = useDiscoverTaste({ watchlist, isGuest });
 
   // Read URL search params so deep links like `/discover?genre=Sci-Fi`
@@ -190,7 +190,7 @@ export default function DiscoverPage() {
     error: spotlightError,
     shuffle: shuffleSpotlight,
     retry: retrySpotlight,
-  } = useSpotlight({ taste, vault: watchlist, userId });
+  } = useSpotlight({ taste, vault: watchlist, userId, authReady });
 
   const feeds = useDiscoverFeeds(region);
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({ watchlist, isGuest });
