@@ -56,22 +56,33 @@ interface GenreDef {
 }
 
 // Curated, ordered genre list (rather than iterating the full MOVIE_GENRES
-// map, which would include Documentary, Western, etc.). Each entry carries
+// map, which would include TV Movie, Western, etc.). Each entry carries
 // its TMDB movie + TV genre IDs so we can fetch both in parallel.
 //
 // TV genre IDs differ from movie IDs for some genres — e.g. "Sci-Fi" is
 // 878 for movies but doesn't exist as a standalone TV genre (it's rolled
 // into "Sci-Fi & Fantasy" 10765). When a TV id is omitted, the carousel
 // for that genre shows movies only.
+//
+// The list is ordered by popularity / likelihood of appearing in a
+// user's top-8 stats, so the most-clicked chips sit at the front of the
+// row. The set is intentionally broader than "just the stats genres" —
+// users can browse chips here even when their stats haven't surfaced a
+// given genre yet.
 const GENRE_ICONS: Record<string, string> = {
   "Action": "bolt",
   "Adventure": "explore",
   "Animation": "animation",
   "Comedy": "sentiment_very_satisfied",
   "Crime": "gavel",
+  "Documentary": "featured_movie",
   "Drama": "theater_comedy",
+  "Family": "family_restroom",
   "Fantasy": "auto_fix_high",
+  "Horror": "bedtime",
+  "Music": "music_note",
   "Mystery": "search",
+  "Romance": "favorite",
   "Sci-Fi": "rocket_launch",
   "Thriller": "psychology",
 };
@@ -87,11 +98,30 @@ const GENRES: GenreDef[] = [
   { name: "Adventure",   movieId: 12,   tvId: 10759,           icon: GENRE_ICONS["Adventure"] },
   { name: "Crime",       movieId: 80,   tvId: 80,              icon: GENRE_ICONS["Crime"] },
   { name: "Mystery",     movieId: 9648, tvId: 9648,            icon: GENRE_ICONS["Mystery"] },
+  { name: "Horror",      movieId: 27,                          icon: GENRE_ICONS["Horror"] },
+  { name: "Romance",     movieId: 10749,                       icon: GENRE_ICONS["Romance"] },
+  { name: "Family",      movieId: 10751, tvId: 10751,          icon: GENRE_ICONS["Family"] },
+  { name: "Documentary", movieId: 99,   tvId: 99,              icon: GENRE_ICONS["Documentary"] },
 ];
 
 // Sanity check — the movie IDs above match the TMDB MOVIE_GENRES map.
 // (Defensive: if MOVIE_GENRES ever changes its IDs, this catches it.)
 void MOVIE_GENRES;
+
+/**
+ * Aliases for TV composite genre names that don't exist as standalone
+ * movie genres. When the user clicks a stats bar labeled "Sci-Fi &
+ * Fantasy" or "Action & Adventure" (which are TMDB TV genre names),
+ * we fall back to one of the standalone chips instead of leaving the
+ * explorer collapsed. Lowercased keys for case-insensitive lookup.
+ */
+const GENRE_ALIASES: Record<string, string> = {
+  "sci-fi & fantasy": "Sci-Fi",
+  "science fiction": "Sci-Fi",
+  "scifi": "Sci-Fi",
+  "action & adventure": "Action",
+  "war & politics": "Crime",
+};
 
 /**
  * Fetch one page of genre results.
@@ -182,14 +212,24 @@ const GenreExplorer: Component<GenreExplorerProps> = (props) => {
 
   // Auto-expand the genre named in `props.initialGenre` on mount. Used
   // when the user clicks a genre bar on the Statistics page and lands
-  // on /discover?genre=<Name>. Case-insensitive match against the
-  // GENRES list; if no match, the explorer stays in its default
-  // collapsed state (no error, no jarring scroll).
+  // on /discover?genre=<Name>. The match is case-insensitive against
+  // the GENRES list. If the literal name doesn't match (e.g. the user
+  // clicked a TV composite like "Sci-Fi & Fantasy"), we fall back to
+  // the GENRE_ALIASES map before giving up and leaving the explorer
+  // collapsed.
   onMount(() => {
     const wanted = props.initialGenre?.trim();
     if (!wanted) return;
     const needle = wanted.toLowerCase();
-    const match = GENRES.find((g) => g.name.toLowerCase() === needle);
+    // 1. Direct case-insensitive match against the chip names.
+    let match = GENRES.find((g) => g.name.toLowerCase() === needle);
+    // 2. Alias fallback (e.g. "Sci-Fi & Fantasy" → "Sci-Fi").
+    if (!match) {
+      const aliased = GENRE_ALIASES[needle];
+      if (aliased) {
+        match = GENRES.find((g) => g.name === aliased);
+      }
+    }
     if (!match) return;
     setExpandedGenre(match.movieId);
     if (!cache()[match.name]) {
