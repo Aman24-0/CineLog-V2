@@ -75,7 +75,7 @@ const GENRE_ICONS: Record<string, string> = {
   "Animation": "animation",
   "Comedy": "sentiment_very_satisfied",
   "Crime": "gavel",
-  "Documentary": "featured_movie",
+  "Documentary": "smart_display",
   "Drama": "theater_comedy",
   "Family": "family_restroom",
   "Fantasy": "auto_fix_high",

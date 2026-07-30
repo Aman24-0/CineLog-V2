@@ -1007,10 +1007,21 @@
 .discover-folds .genre-chip .material-symbols-outlined,
 .discover-folds .genre-explorer .quick-filter-tab .material-symbols-outlined {
   font-size: 14px;
+  line-height: 1;
   font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
   color: var(--p);
   filter: drop-shadow(0 0 4px var(--p-glow));
   transition: font-variation-settings var(--dur-base) var(--ease-out);
+  /* Defensive: if a ligature name is ever invalid the font would render
+     the literal text (e.g. "featured_movie"), which would otherwise
+     wrap onto multiple lines and overflow the pill. Force a single
+     line + clip so unknown glyphs never break the chip's geometry. */
+  white-space: nowrap;
+  overflow: hidden;
+  max-width: 1.25em;
+  max-height: 1.25em;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 /* Premium genre explorer panel — full glass when expanded */
