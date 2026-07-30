@@ -334,13 +334,17 @@ async function discoverUpcomingMovies(
 
 /**
  * Discover TV series (paginated). Same pagination strategy as movies,
- * but defaults to 5 pages (up to 100 series) because TV series with
- * upcoming episodes tend to be far more numerous than movies in a
- * given window — multiple series air new episodes weekly.
+ * but defaults to 3 pages (up to 60 series) — kept narrower than v4's
+ * 5 pages because v5 enriches EVERY returned series with
+ * `getNextEpisode` (one extra HTTP call per series). 60 series × 1
+ * enrichment call each, processed 12-concurrent, finishes in ~1.3s.
+ * Going wider would push the page load past 2s for marginal gain —
+ * the most popular series (the ones users actually care about) are
+ * already on page 1-2 thanks to `sort_by=popularity.desc`.
  */
 async function discoverUpcomingTv(
   params: UpcomingQueryParams,
-  maxPages = 5,
+  maxPages = 3,
 ): Promise<TMDBTitle[]> {
   const out: TMDBTitle[] = [];
   for (let page = 1; page <= maxPages; page++) {
@@ -590,27 +594,42 @@ export async function getUpcomingTitles(
   debug(`merged + pre-filter (date present): ${withDates.length} title(s)`);
 
   // ── TV enrichment: next episode (season/episode) ───────────────
-  // We enrich the first 30 TV results to avoid hammering TMDB (each
-  // series is one extra HTTP call). Beyond 30, the card just shows
-  // the first_air_date as fallback. Cap was 20 in v3 — bumped to 30
-  // in v4 so more series get accurate "S2 E5" labels.
-  const tvToEnrich = withDates.filter((t) => t.media_type === "tv").slice(0, 30);
+  // v5 fix: We now enrich ALL TV series returned by discover/tv
+  // (was capped at 30 in v4). The cap was causing series 31..N to
+  // be dropped by the post-enrichment range filter because their
+  // `first_air_date` is in the past (the date that matters is the
+  // next-episode air date, which we never fetched). Enriching all
+  // series costs one extra HTTP call per series — for a typical
+  // 60-series result set that's ~1.2s at TMDB's 50 req/s rate limit,
+  // which is acceptable for a page that already takes 1-2s to load.
+  // We process them in a bounded-concurrency pool (12 at a time) to
+  // stay safely under TMDB's rate limit while finishing quickly.
+  const tvToEnrich = withDates.filter((t) => t.media_type === "tv");
   if (tvToEnrich.length > 0) {
     debug(`enriching next-episode for ${tvToEnrich.length} TV series`);
-    await Promise.all(
-      tvToEnrich.map(async (t) => {
+    // Bounded concurrency: 12 in-flight at a time. This balances
+    // speed against TMDB's ~50 req/s rate limit (12 concurrent ×
+    // ~250ms per call = ~48 req/s, just under the limit).
+    const CONCURRENCY = 12;
+    let cursor = 0;
+    async function enrichOne(): Promise<void> {
+      while (cursor < tvToEnrich.length) {
+        const idx = cursor++;
+        const t = tvToEnrich[idx];
         const next = await getNextEpisode(t.id);
         if (next) {
           t.seasonNumber = next.season;
           t.episodeNumber = next.episode;
           if (next.air_date) t.episodeAirDate = next.air_date;
         }
-      }),
-    );
+      }
+    }
+    const workers = Array.from({ length: Math.min(CONCURRENCY, tvToEnrich.length) }, enrichOne);
+    await Promise.all(workers);
   }
 
   // ── POST-enrichment range filter ──────────────────────────────
-  // Now that `episodeAirDate` is populated for top TV series, we can
+  // Now that `episodeAirDate` is populated for every TV series, we
   // range-check using the most accurate available date. The effective
   // date is `episodeAirDate || release_date || first_air_date`.
   //
@@ -620,8 +639,28 @@ export async function getUpcomingTitles(
   //   - `episodeAirDate` = "<33 days from now>" (IN range)
   // Pre-enrichment filtering on `first_air_date` would drop it.
   // Post-enrichment filtering on `episodeAirDate` keeps it.
+  //
+  // v5 trust-the-discover-filter for TV: if a TV series was returned
+  // by /discover/tv with `air_date.gte/lte`, TMDB guarantees it has
+  // at least one episode airing in the window — even if our
+  // next-episode fetch returned null (e.g. TMDB returned {} because
+  // the next episode is the one in the window, not the "next" one).
+  // We keep such series instead of dropping them; the card falls
+  // back to `first_air_date` for display.
   const inRange = withDates.filter((t) => {
-    const d = t.episodeAirDate || t.release_date || t.first_air_date;
+    if (t.media_type === "tv") {
+      // Trust discover/tv: if it returned the series, it has an
+      // episode in the window. Keep it.
+      // (We still range-check episodeAirDate when present, to drop
+      // any edge-case where next_episode_to_air returned an episode
+      // beyond the window — e.g. a series whose only in-window
+      // episode already aired today and whose next is months away.)
+      const epDate = t.episodeAirDate;
+      if (!epDate) return true; // trust discover/tv
+      return epDate >= effectiveParams.startDate && epDate <= effectiveParams.endDate;
+    }
+    // Movies: strict range check on release_date.
+    const d = t.release_date || t.first_air_date;
     return !!d && d >= effectiveParams.startDate && d <= effectiveParams.endDate;
   });
 

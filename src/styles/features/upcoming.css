@@ -417,9 +417,14 @@
     gap: var(--sp-2, 0.5rem);
     padding: var(--sp-2, 0.5rem);
   }
+  /* v5: on mobile, the actions row spans the full card width (below
+     the poster + body). The badge sits on the left, action buttons
+     on the right — filling the empty space that used to exist below
+     the body content. The border-top separates the row from the body
+     above it. */
   .upcoming-card .upcoming-card-actions {
     grid-column: 1 / -1;
-    justify-content: flex-end;
+    justify-content: space-between;
     border-top: 1px solid rgba(255, 255, 255, 0.06);
     padding-top: var(--sp-2, 0.5rem);
   }
@@ -460,6 +465,11 @@
   background: rgba(255, 255, 255, 0.04);
 }
 
+/* v5: CountdownBadge moved from poster overlay to the actions row.
+   The `.upcoming-card-countdown` class is kept for backward-compat
+   (calendar view + detail modal still position the badge absolutely
+   over posters), but on the list-view card it's no longer rendered
+   inside the poster. */
 .upcoming-card-countdown {
   position: absolute;
   bottom: 4px;
@@ -603,6 +613,22 @@
   align-items: center;
   gap: 2px;
   align-self: flex-start;
+  /* v5: badge on the left, action buttons on the right. The badge
+     fills the empty space that used to exist below the body content
+     on mobile (where actions wrap to a full-width row). */
+  justify-content: flex-end;
+}
+
+/* v5: CountdownBadge container inside the actions row. Sits on the
+   left, separated from the action buttons by a flexible spacer that
+   pushes the buttons to the right edge. */
+.upcoming-card-actions-badge {
+  display: inline-flex;
+  align-items: center;
+  margin-right: auto;
+  /* Small right padding so the badge doesn't visually merge with the
+     first action button when the row is narrow. */
+  padding-right: var(--sp-2, 0.5rem);
 }
 
 .upcoming-card-action {

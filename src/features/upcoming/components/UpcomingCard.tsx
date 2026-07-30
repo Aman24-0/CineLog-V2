@@ -5,13 +5,20 @@
 // Layout (horizontal):
 //   ┌─────────────────────────────────────────────────────────────┐
 //   │ ┌──────┐                                                     │
-//   │ │      │  Title (bold)                              [TODAY]  │
+//   │ │      │  Title (bold)                                       │
 //   │ │ POST │  2026 · Movie · ★ 7.8 · S2 E5                       │
 //   │ │  ER  │  Releases Fri, Jul 31                                │
 //   │ │      │  [Netflix] [Amazon]                                  │
 //   │ └──────┘                                                     │
-//   │  ▶  Trailer   ＋ Watchlist   🔔 Remind   📤 Share            │
+//   │  [TODAY]              ▶  Trailer   ＋ Watchlist   🔔   📤    │
 //   └─────────────────────────────────────────────────────────────┘
+//
+// v5: the CountdownBadge (TODAY / TOMORROW / N DAYS / OUT NOW) was
+// moved from the poster (bottom-left overlay) to the action bar row
+// (left side). This fills the empty space on the left of the actions
+// row on mobile, and ensures the badge is ALWAYS visible — even for
+// series whose `first_air_date` is in the past (the badge shows
+// "OUT NOW" instead of being hidden).
 //
 // Quick actions:
 //   • Trailer    → opens YouTube trailer modal (parent passes onTrailer)
@@ -54,7 +61,7 @@ interface UpcomingCardProps {
   onShare: (title: TMDBTitle) => void;
 }
 
-function relativeDate(dateStr: string): string {
+function relativeDate(dateStr: string, isTvWithMissingEpisode?: boolean): string {
   const d = new Date(dateStr + "T00:00:00");
   const now = new Date();
   now.setHours(0, 0, 0, 0);
@@ -62,7 +69,16 @@ function relativeDate(dateStr: string): string {
   if (diff === 0) return "Today";
   if (diff === 1) return "Tomorrow";
   if (diff > 1 && diff < 7) return `In ${diff} days`;
-  if (diff < 0) return "Out now";
+  if (diff < 0) {
+    // For TV series where we only have first_air_date (premiere date in
+    // the past) and we couldn't fetch the next-episode air date, the
+    // series was returned by /discover/tv with air_date.gte/lte —
+    // meaning it HAS an episode airing in the window. We just don't
+    // know the exact date. Show "Series returning" instead of the
+    // misleading "Out now".
+    if (isTvWithMissingEpisode) return "Series returning";
+    return "Out now";
+  }
   return d.toLocaleDateString(undefined, {
     weekday: "short",
     month: "short",
@@ -77,6 +93,15 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
   );
   const releaseDate = createMemo(
     () => props.title.episodeAirDate || props.title.release_date || props.title.first_air_date || "",
+  );
+  // True for TV series whose only available date is `first_air_date`
+  // (in the past for ongoing series). Used to show "Series returning"
+  // instead of the misleading "Out now" in the date row.
+  const isTvWithMissingEpisode = createMemo(
+    () =>
+      props.title.media_type === "tv" &&
+      !props.title.episodeAirDate &&
+      !!props.title.first_air_date,
   );
   const mediaLabel = createMemo(() =>
     props.title.media_type === "tv" ? "Series" : "Movie",
@@ -150,11 +175,6 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             onError={() => setPosterBroken(true)}
           />
         </Show>
-        <Show when={releaseDate()}>
-          <div class="upcoming-card-countdown">
-            <CountdownBadge date={releaseDate()} />
-          </div>
-        </Show>
       </button>
 
       {/* Body — clickable */}
@@ -198,7 +218,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             event
           </span>
           <Show when={releaseDate()} fallback="Date TBD">
-            {relativeDate(releaseDate())}
+            {relativeDate(releaseDate(), isTvWithMissingEpisode())}
           </Show>
         </p>
         <Show when={props.inVault}>
@@ -229,8 +249,25 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
         </Show>
       </button>
 
-      {/* Quick actions */}
+      {/* Quick actions row — badge on the left (fills the empty
+          space below the body on mobile), action buttons on the right. */}
       <div class="upcoming-card-actions" role="toolbar" aria-label="Quick actions">
+        {/* Countdown badge (TODAY / TOMORROW / N DAYS / OUT NOW / RETURNING).
+            Moved here from the poster in v5 — fills the empty space
+            on the left of the actions row, and is always visible
+            regardless of poster size/state. For TV series whose only
+            available date is the past `first_air_date`, the badge
+            shows "RETURNING" instead of "OUT NOW" (the series has an
+            episode in the window per /discover/tv, we just don't know
+            the exact date). */}
+        <Show when={releaseDate()}>
+          <div class="upcoming-card-actions-badge">
+            <CountdownBadge
+              date={releaseDate()}
+              fallbackLabel={isTvWithMissingEpisode() ? "RETURNING" : undefined}
+            />
+          </div>
+        </Show>
         <button
           type="button"
           class="upcoming-card-action focus-ring"
