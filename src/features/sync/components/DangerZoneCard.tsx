@@ -32,8 +32,7 @@ const DangerZoneCard: Component = () => {
           <div class="sync-danger-text">
             <p class="sync-danger-title">Danger Zone</p>
             <p class="sync-danger-body">
-              These actions permanently remove your CineLog library. This cannot
-              be undone.
+              This action cannot be undone. All your data will be permanently removed.
             </p>
           </div>
         </div>
@@ -42,8 +41,7 @@ const DangerZoneCard: Component = () => {
           <div class="sync-danger-action-text">
             <p class="sync-danger-action-title">Reset Library</p>
             <p class="sync-danger-action-desc">
-              Delete every movie, series, collection and watch history while
-              keeping your account.
+              Delete every movie, series, collection and watch history while keeping your account.
             </p>
           </div>
           <button

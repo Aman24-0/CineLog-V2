@@ -10,15 +10,6 @@
 //   • Rating scale (5-star / 10-star / thumbs)
 //
 // All preferences are persisted via src/core/preferences.
-//
-// OTT PROVIDER SELECTOR (v3 — fully dynamic):
-//   NO hardcoded provider lists. The page fetches ALL official streaming
-//   providers for the user's country directly from TMDB's
-//   /watch/providers/{movie,tv}?watch_region={country} endpoints,
-//   merges them, deduplicates by provider_id, and sorts by TMDB's
-//   display_priority ascending (so Netflix/Prime appear at the top).
-//   Every provider TMDB returns is shown — no curation, no alias
-//   merging, no hidden services.
 
 import { Title } from "@solidjs/meta";
 import {
@@ -78,8 +69,7 @@ const RATING_SCALE_OPTIONS: { id: RatingScale; label: string }[] = [
 
 /**
  * Content rating options — depends on country. We show a union of US + India
- * ratings since those are the two most-used regions for CineLog. The cap is
- * applied client-side: titles with a higher rating are filtered out.
+ * ratings since those are the two most-used regions for CineLog.
  */
 const RATING_CAP_OPTIONS = [
   { value: "", label: "No cap — show everything" },
@@ -94,18 +84,14 @@ const ContentDiscoverRoute: Component = () => {
   const { showToast } = useToast();
   const region = useDiscoverRegion();
 
-  // Dynamic provider list — fetched from TMDB on mount + when the
-  // region changes. Contains EVERY official provider for the user's
-  // country, sorted by display_priority.
+  // Dynamic provider list — fetched on mount + when the region changes.
   const [providers, setProviders] = createSignal<TmdbProvider[]>([]);
   const [providersLoading, setProvidersLoading] = createSignal(true);
 
   /**
-   * Fetch ALL streaming providers for the given region from TMDB.
+   * Fetch all streaming providers for the given region.
    * Merges the movie + TV lists, deduplicates by provider_id, and
-   * sorts by display_priority ascending. The result is the complete
-   * set of official providers for the user's country — no hardcoded
-   * filtering, no alias merging.
+   * sorts by display priority.
    */
   const loadProviders = async (reg: string) => {
     setProvidersLoading(true);
@@ -184,7 +170,7 @@ const ContentDiscoverRoute: Component = () => {
                 <ToggleRow
                   icon="no_adult_content"
                   label="Adult content filter"
-                  desc="Hide titles marked as adult by TMDB. Recommended for family-friendly browsing."
+                  desc="Hide adult titles from Discover and search."
                   current={adultContentFilter}
                   onChange={(v) => {
                     setAdultContentFilter(v);
@@ -198,7 +184,7 @@ const ContentDiscoverRoute: Component = () => {
                 <SelectRow
                   icon="family_restroom"
                   label="Rating cap"
-                  desc="Hide titles rated above this. Applied on top of the adult filter for fine-grained control."
+                  desc="Hide titles rated above this."
                   value={contentRatingCap}
                   onChange={(v) => {
                     setContentRatingCap(v);
@@ -211,22 +197,6 @@ const ContentDiscoverRoute: Component = () => {
                   options={RATING_CAP_OPTIONS}
                 />
               </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Real effect:</strong> When the adult filter is on,
-                  CineLog passes <code>include_adult=false</code> to TMDB API
-                  calls AND filters out any titles with <code>adult: true</code>{" "}
-                  client-side as a safety net. The rating cap filters by
-                  certification on the title's release_dates.
-                </p>
-              </div>
             </section>
 
             {/* Hide spoilers */}
@@ -236,14 +206,14 @@ const ContentDiscoverRoute: Component = () => {
                 <ToggleRow
                   icon="visibility_off"
                   label="Hide spoilers"
-                  desc="Blur synopses, season descriptions, and plot details until you tap to reveal."
+                  desc="Blur plot details until you tap to reveal."
                   current={hideSpoilers}
                   onChange={setHideSpoilers}
                 />
               </div>
             </section>
 
-            {/* Streaming providers — fully dynamic from TMDB, with official logos */}
+            {/* Streaming providers */}
             <section class="sec-section">
               <p class="sec-section-label">
                 Streaming Providers
@@ -272,9 +242,7 @@ const ContentDiscoverRoute: Component = () => {
                     "margin-bottom": "var(--sp-2)"
                   }}
                 >
-                  Tap the providers you subscribe to. Discover will prioritize
-                  titles available on your services, and Where-to-watch will
-                  only show your providers.
+                  Tap the providers you subscribe to.
                 </p>
                 <div class="provider-chip-grid">
                   <For each={providers()}>
@@ -312,7 +280,6 @@ const ContentDiscoverRoute: Component = () => {
                                 loading="lazy"
                                 decoding="async"
                                 onError={(e) => {
-                                  // Hide the broken image so the letter fallback shows.
                                   e.currentTarget.style.display = "none";
                                 }}
                               />
@@ -336,22 +303,6 @@ const ContentDiscoverRoute: Component = () => {
                   </Show>
                 </div>
               </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Real effect:</strong> The Discover "New on OTT"
-                  section and any Where-to-watch badges on Detail pages will
-                  only show providers you've selected. If no providers are
-                  selected, CineLog shows all available providers (default
-                  behavior).
-                </p>
-              </div>
             </section>
 
             {/* Default Discover tab */}
@@ -361,7 +312,7 @@ const ContentDiscoverRoute: Component = () => {
                 <ControlRow
                   icon="tab"
                   label="Which tab Discover opens to"
-                  desc="Choose whether Discover starts on All, Movies, or Series when you open the app."
+                  desc="Choose whether Discover starts on All, Movies, or Series."
                 >
                   <Segmented
                     options={DISCOVER_TAB_OPTIONS}
@@ -380,7 +331,7 @@ const ContentDiscoverRoute: Component = () => {
                 <ControlRow
                   icon="grade"
                   label="How ratings are displayed"
-                  desc="TMDB returns ratings on a 0-10 scale. Choose how CineLog shows them to you."
+                  desc="Choose how ratings appear across the app."
                 >
                   <Segmented
                     options={RATING_SCALE_OPTIONS}
@@ -389,23 +340,6 @@ const ContentDiscoverRoute: Component = () => {
                     name="Rating scale"
                   />
                 </ControlRow>
-              </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Example:</strong> A 7.5/10 TMDB rating displays as:
-                  <br />
-                  • 10-star → "7.5/10"
-                  <br />
-                  • 5-star → "3.8★"
-                  <br />• Thumbs → "👍" (7.0+ thumbs up, 5.0+ okay, below 👎)
-                </p>
               </div>
             </section>
           </div>

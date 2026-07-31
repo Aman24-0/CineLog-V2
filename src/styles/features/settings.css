@@ -892,3 +892,152 @@
 .account-coming-soon-chip {
   display: none;
 }
+
+/* ─── Search highlight (mark inside settings) ───────────────────── */
+.settings-search-mark {
+  background: var(--p-dim);
+  color: var(--p);
+  padding: 0 2px;
+  border-radius: 2px;
+  font-weight: 700;
+}
+
+/* ─── Mobile responsiveness ─────────────────────────────────────── */
+/* On phones (≤640px):
+ *   - Segmented controls wrap to full-width buttons that stack
+ *     vertically when there isn't room. This makes targets ≥44px
+ *     tall and easy to tap.
+ *   - Sidebar already collapses to an accordion (handled by the
+ *     layout grid in .settings-layout above).
+ *   - Setting rows get extra vertical padding for touch.
+ *   - 2FA actions stack vertically.
+ */
+
+@media (max-width: 640px) {
+  /* Segmented controls — wrap to full-width on mobile so each button
+     is at least 44px tall. */
+  .segmented {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+    width: 100%;
+  }
+
+  .segmented-btn {
+    flex: 1 1 auto;
+    min-height: 44px;
+    min-width: 80px;
+    padding: var(--sp-2) var(--sp-3);
+    font-size: 0.875rem;
+  }
+
+  /* For long segmented controls (3+ options, like rating scale or
+     vault status), stack vertically. */
+  .segmented-btn[role="radio"]:nth-last-child(n + 3),
+  .segmented-btn[role="radio"]:nth-last-child(n + 3) ~ .segmented-btn {
+    flex-basis: 100%;
+  }
+
+  /* Setting row controls that include a Segmented should let the
+     segmented wrap below the label on narrow viewports. */
+  .setting-row-control {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+
+  .setting-row-control-header {
+    width: 100%;
+  }
+
+  /* Touch targets for setting rows themselves — minimum 44px. */
+  .setting-row,
+  .settings-accordion-header,
+  .settings-sidebar-link {
+    min-height: 44px;
+  }
+
+  /* 2FA action buttons stack vertically on mobile. */
+  .settings-2fa-actions {
+    flex-direction: column;
+    width: 100%;
+  }
+
+  .settings-2fa-actions .btn-primary,
+  .settings-2fa-actions .btn-ghost {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* Account subaction buttons stack and go full-width. */
+  .account-subactions {
+    flex-direction: column;
+    gap: var(--sp-2);
+  }
+
+  .account-subaction-btn {
+    width: 100%;
+    min-height: 44px;
+    justify-content: center;
+  }
+
+  /* Account connect/disconnect buttons — ensure 44px tap target. */
+  .account-connect-btn,
+  .account-disconnect-btn {
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  /* Settings link button — ensure 44px tap target. */
+  .settings-link-btn {
+    min-height: 44px;
+    padding: var(--sp-2) var(--sp-3);
+  }
+
+  /* Search input — bigger tap target on mobile. */
+  .settings-search-input {
+    font-size: 1rem; /* iOS Safari requires ≥16px to prevent zoom */
+    padding: var(--sp-2) 0;
+  }
+
+  /* Accordion panels — slightly more padding on mobile. */
+  .settings-accordion-panel {
+    padding: 0 var(--sp-3) var(--sp-3) var(--sp-3);
+  }
+
+  /* Expandable panels (2FA / Sessions / Login History inside Account). */
+  .settings-expandable-panel {
+    padding: var(--sp-3) var(--sp-3) var(--sp-4) var(--sp-3);
+  }
+
+  /* Session list danger button — full width on mobile. */
+  .settings-sessions-danger .btn-ghost {
+    width: 100%;
+    min-height: 44px;
+  }
+
+  /* 2FA code input — center it on mobile. */
+  .settings-2fa-code-input {
+    max-width: 100%;
+    min-height: 56px;
+    font-size: 1.5rem;
+  }
+
+  /* 2FA QR code — keep size but center on mobile. */
+  .settings-2fa-qr {
+    margin: 0 auto;
+  }
+
+  /* 2FA factor row — stack info above button on very narrow screens. */
+  .settings-2fa-factor {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+
+  .settings-2fa-factor .btn-ghost {
+    width: 100%;
+    min-height: 44px;
+  }
+}
+

@@ -277,8 +277,7 @@ const AppearanceRoute: Component = () => {
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">Appearance</h1>
             <p class="sec-subtitle">
-              Make CineLog yours. Accent, theme, density, type, and
-              accessibility — all live.
+              Accent, theme, density, type, and accessibility.
             </p>
           </div>
 
@@ -289,9 +288,7 @@ const AppearanceRoute: Component = () => {
               <div class="preview-card">
                 <p class="preview-card-title">CineLog</p>
                 <p class="preview-card-body">
-                  This card reflects every setting below — accent, density, font
-                  size, contrast. Tap the spoiler text to test hide-spoilers
-                  mode.
+                  This card reflects every setting below. Tap the spoiler text to test hide-spoilers mode.
                 </p>
                 <div
                   class="preview-spoiler-demo"
@@ -433,7 +430,7 @@ const AppearanceRoute: Component = () => {
                 {renderControlRow(
                   "dark_mode",
                   "Background theme",
-                  "Dark is the cinematic default. Light is warm paper for daytime. System follows your OS.",
+                  "Dark, light, or follow your system.",
                   () =>
                     renderSegmented(
                       THEME_MODE_OPTIONS,
@@ -452,7 +449,7 @@ const AppearanceRoute: Component = () => {
                 {renderControlRow(
                   "view_agenda",
                   "Spacing & padding",
-                  "Compact fits more titles per screen (desktop). Spacious gives larger touch targets (phone).",
+                  "Compact fits more per screen. Spacious gives larger touch targets.",
                   () =>
                     renderSegmented(
                       DENSITY_OPTIONS,
@@ -471,7 +468,7 @@ const AppearanceRoute: Component = () => {
                 {renderControlRow(
                   "text_fields",
                   "Font size",
-                  "Scales body text app-wide. Small fits more, Large improves readability.",
+                  "Scales body text app-wide.",
                   () =>
                     renderSegmented(
                       FONT_SIZE_OPTIONS,
@@ -490,7 +487,7 @@ const AppearanceRoute: Component = () => {
                 {renderControlRow(
                   "image",
                   "Poster quality",
-                  "High uses original TMDB sizes. Low saves mobile data. Auto detects your connection.",
+                  "High uses original sizes. Low saves mobile data.",
                   () =>
                     renderSegmented(
                       POSTER_QUALITY_OPTIONS,
@@ -515,8 +512,7 @@ const AppearanceRoute: Component = () => {
                         Hide spoilers
                       </span>
                       <span class="setting-row-control-desc">
-                        Blur synopses, season descriptions, and plot details
-                        until tapped.
+                        Blur plot details until tapped.
                       </span>
                     </div>
                     {renderToggle(
@@ -576,7 +572,7 @@ const AppearanceRoute: Component = () => {
                 {renderControlRow(
                   "animation",
                   "Reduced motion",
-                  "On disables all animations and transitions. System follows your OS preference.",
+                  "On disables animations. System follows your OS.",
                   () =>
                     renderSegmented(
                       REDUCED_MOTION_OPTIONS,
@@ -601,8 +597,7 @@ const AppearanceRoute: Component = () => {
                         High contrast
                       </span>
                       <span class="setting-row-control-desc">
-                        Boosts text brightness and border opacity for better
-                        readability.
+                        Boosts text brightness and border opacity.
                       </span>
                     </div>
                     {renderToggle(

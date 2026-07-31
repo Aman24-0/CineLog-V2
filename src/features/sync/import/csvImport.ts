@@ -187,12 +187,63 @@ export function parseWatchlistCsv(text: string): {
   const candidates: ImportCandidate[] = [];
   let skipped = 0;
 
+  // For TV Time: each row is one watched episode, but we want only one
+  // candidate per show. Track which shows we've already emitted + the
+  // latest season/episode + earliest watchDate seen.
+  const tvTimeSeen = new Map<
+    string,
+    { watchDate?: string; season?: number; episode?: number; count: number }
+  >();
+
   for (let i = 1; i < lines.length; i++) {
     const fields = parseCsvLine(lines[i]);
     const row: Record<string, string> = {};
     headers.forEach((h, idx) => {
       row[h] = (fields[idx] ?? "").trim();
     });
+
+    // TV Time needs special handling — accumulate rows per show.
+    if (source === "tvtime") {
+      const showName =
+        row["show_name"] || row["Show Name"] || row["name"];
+      if (!showName) {
+        skipped++;
+        continue;
+      }
+      const seasonStr = row["season"] || row["Season"];
+      const episodeStr = row["number"] || row["Number"] || row["episode"];
+      const seenAt = row["seen_at"] || row["Seen At"] || row["watched_at"];
+      const season = seasonStr ? parseInt(seasonStr, 10) || undefined : undefined;
+      const episode = episodeStr
+        ? parseInt(episodeStr, 10) || undefined
+        : undefined;
+      const existing = tvTimeSeen.get(showName);
+      if (!existing) {
+        tvTimeSeen.set(showName, {
+          watchDate: seenAt || undefined,
+          season,
+          episode,
+          count: 1
+        });
+      } else {
+        // Update: keep earliest watchDate, latest season/episode.
+        if (seenAt && (!existing.watchDate || seenAt < existing.watchDate)) {
+          existing.watchDate = seenAt;
+        }
+        if (season && (!existing.season || season > existing.season)) {
+          existing.season = season;
+          existing.episode = episode;
+        } else if (
+          season === existing.season &&
+          episode &&
+          (!existing.episode || episode > existing.episode)
+        ) {
+          existing.episode = episode;
+        }
+        existing.count++;
+      }
+      continue;
+    }
 
     try {
       const candidate = mapRowToCandidate(row, source);
@@ -203,6 +254,21 @@ export function parseWatchlistCsv(text: string): {
       }
     } catch {
       skipped++;
+    }
+  }
+
+  // Emit one candidate per TV Time show. Mark as "Completed" if many
+  // episodes were watched (heuristic: ≥5), else "Watching".
+  if (source === "tvtime") {
+    for (const [showName, info] of tvTimeSeen) {
+      candidates.push({
+        title: showName,
+        media_type: "tv",
+        status: info.count >= 5 ? "Completed" : "Watching",
+        watchDate: info.watchDate,
+        ...(info.season != null && { season: info.season }),
+        ...(info.episode != null && { episode: info.episode })
+      });
     }
   }
 
@@ -282,28 +348,9 @@ function mapRowToCandidate(
     };
   }
 
-  if (source === "tvtime") {
-    // TV Time episode-level export. Columns (lowercased):
-    //   show_name, season, number, seen_at
-    // Each row = one watched episode. We collapse to a single "tv"
-    // candidate per unique show_name (the first row we see for that
-    // show), with status=Completed and watchDate = the earliest
-    // seen_at. Subsequent rows for the same show are skipped here and
-    // de-duplicated later by the vault's unique constraint.
-    const showName = row["show_name"] || row["Show Name"] || row["name"];
-    if (!showName) return null;
-    const seasonStr = row["season"] || row["Season"];
-    const episodeStr = row["number"] || row["Number"] || row["episode"];
-    const seenAt = row["seen_at"] || row["Seen At"] || row["watched_at"];
-    return {
-      title: showName,
-      media_type: "tv",
-      status: "Completed",
-      watchDate: seenAt || undefined,
-      ...(seasonStr && { season: parseInt(seasonStr, 10) || undefined }),
-      ...(episodeStr && { episode: parseInt(episodeStr, 10) || undefined })
-    };
-  }
+  // tvtime is handled inline in parseWatchlistCsv() above (it needs to
+  // accumulate episode rows per show). This function never receives a
+  // "tvtime" source.
 
   if (source === "generic") {
     const title = row["title"] || row["name"];

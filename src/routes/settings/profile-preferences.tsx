@@ -226,7 +226,7 @@ const ProfilePreferencesRoute: Component = () => {
                     <div class="setting-row-control-meta">
                       <span class="setting-row-control-label">Your name</span>
                       <span class="setting-row-control-desc">
-                        Used for greetings and your profile initials.
+                        Shown on your profile.
                       </span>
                     </div>
                   </div>
@@ -323,7 +323,7 @@ const ProfilePreferencesRoute: Component = () => {
                 <SelectRow
                   icon="public"
                   label="Country"
-                  desc="Drives Discover, Upcoming releases, and Where-to-watch providers."
+                  desc="Affects Discover, Upcoming releases, and Where-to-watch."
                   value={country}
                   onChange={handleSaveCountry}
                   options={countryOptions()}
@@ -349,7 +349,7 @@ const ProfilePreferencesRoute: Component = () => {
                 <SelectRow
                   icon="translate"
                   label="Primary language"
-                  desc="Used for TMDB metadata (overviews, posters with text). UI stays English for now."
+                  desc="Used for movie/TV metadata (overviews, posters with text)."
                   value={language}
                   onChange={(v) => setLanguage(v)}
                   options={languageOptions()}
@@ -357,27 +357,11 @@ const ProfilePreferencesRoute: Component = () => {
                 <SelectRow
                   icon="swap_horiz"
                   label="Fallback language"
-                  desc="When a title has no overview in your primary language, CineLog tries this."
+                  desc="Used when a title has no content in your primary language."
                   value={fallbackLanguage}
                   onChange={(v) => setFallbackLanguage(v)}
                   options={fallbackOptions()}
                 />
-              </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>How it works:</strong> CineLog asks TMDB for titles in
-                  your primary language. If TMDB has no overview in that
-                  language, it fetches again with your fallback language and
-                  uses that. The full UI translation to your primary language is
-                  on the roadmap.
-                </p>
               </div>
             </section>
 
@@ -388,7 +372,7 @@ const ProfilePreferencesRoute: Component = () => {
                 <ControlRow
                   icon="bookmark_add"
                   label="When you add a title to your vault"
-                  desc="The status that gets assigned automatically when you tap 'Add to Vault' from Discover or Details."
+                  desc="Status assigned to new titles automatically."
                 >
                   <Segmented
                     options={VAULT_STATUS_OPTIONS}
@@ -397,20 +381,6 @@ const ProfilePreferencesRoute: Component = () => {
                     name="Default vault status"
                   />
                 </ControlRow>
-              </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Example:</strong> If you set this to "Watching", every
-                  new title you add to your vault starts in the Watching state.
-                  You can always change it later from the title's Details page.
-                </p>
               </div>
             </section>
           </div>

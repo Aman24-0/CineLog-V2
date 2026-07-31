@@ -2,10 +2,8 @@
 //
 // DevicesCard — shows the current device + last active time.
 //
-// FUTURE: multiple devices, recent sessions, device rename, remote
-// sign-out. The architecture supports these but they're not implemented
-// yet — the card renders the current device only and a "coming soon"
-// hint for multi-device features.
+// We don't render a "coming soon" badge for multi-device features —
+// if a feature isn't shipped, we hide it entirely.
 
 import { createMemo, type Component } from "solid-js";
 
@@ -40,19 +38,6 @@ const DevicesCard: Component = () => {
           <p class="sync-devices-meta">Last active {lastActive()}</p>
         </div>
         <span class="sync-devices-badge">This device</span>
-      </div>
-      <div class="sync-devices-future">
-        <span
-          class="material-symbols-outlined"
-          style={{ "font-size": "14px", color: "var(--text-dim)" }}
-          aria-hidden="true"
-        >
-          lock_clock
-        </span>
-        <span>
-          Multi-device management, remote sign-out, and session history are
-          coming soon.
-        </span>
       </div>
     </div>
   );

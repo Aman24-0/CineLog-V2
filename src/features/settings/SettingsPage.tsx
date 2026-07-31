@@ -95,25 +95,25 @@ const SettingsPage: Component = () => {
     {
       id: "account",
       title: "Account",
-      desc: "Email, password, OAuth, 2FA, sessions, login history",
+      desc: "Email, password, 2FA, sessions",
       icon: "manage_accounts",
       href: "/settings/account",
       rows: [
         {
           label: "Account details",
-          desc: "Name, email, country, joined date, deactivate",
+          desc: "Name, email, country, joined date",
           icon: "person",
           href: "/settings/account"
         },
         {
           label: "Security & 2FA",
-          desc: "Password, OAuth providers, two-factor auth, sessions",
+          desc: "Password, OAuth, two-factor auth, sessions",
           icon: "shield_lock",
           href: "/settings/account"
         },
         {
           label: "Login history",
-          desc: "Recent sign-ins to your account",
+          desc: "Recent sign-ins",
           icon: "history",
           href: "/settings/account"
         }
@@ -122,25 +122,25 @@ const SettingsPage: Component = () => {
     {
       id: "profile",
       title: "Profile & Preferences",
-      desc: "Display name, country, language, default vault status",
+      desc: "Name, country, language, default vault status",
       icon: "person",
       href: "/settings/profile-preferences",
       rows: [
         {
           label: "Display name",
-          desc: "Name shown on your profile and comments",
+          desc: "Shown on your profile.",
           icon: "badge",
           href: "/settings/profile-preferences"
         },
         {
           label: "Country & Language",
-          desc: "Affects Discover region and UI language",
+          desc: "Affects Discover and metadata language.",
           icon: "language",
           href: "/settings/profile-preferences"
         },
         {
           label: "Default vault status",
-          desc: "Status applied when adding new titles",
+          desc: "Status applied when adding new titles.",
           icon: "bookmark_add",
           href: "/settings/profile-preferences"
         }
@@ -188,7 +188,7 @@ const SettingsPage: Component = () => {
     {
       id: "content",
       title: "Content & Discover",
-      desc: "Adult filter, rating cap, streaming providers, default tab",
+      desc: "Adult filter, rating cap, streaming providers",
       icon: "tune",
       href: "/settings/content-discover",
       rows: [
@@ -200,7 +200,7 @@ const SettingsPage: Component = () => {
         },
         {
           label: "Streaming providers",
-          desc: "Filter Discover by your subscribed services",
+          desc: "Filter Discover by your services",
           icon: "live_tv",
           href: "/settings/content-discover"
         },
@@ -215,7 +215,7 @@ const SettingsPage: Component = () => {
     {
       id: "notifications",
       title: "Notifications",
-      desc: "Per-category, quiet hours, weekly digest, reminder lead time",
+      desc: "Per-category, quiet hours, weekly recap",
       icon: "notifications",
       href: "/settings/notifications",
       rows: [
@@ -242,7 +242,7 @@ const SettingsPage: Component = () => {
     {
       id: "calendar",
       title: "Calendar",
-      desc: "First day of week, time format, release timezone, default view",
+      desc: "First day of week, time format, timezone",
       icon: "calendar_month",
       href: "/settings/calendar",
       rows: [
@@ -269,19 +269,19 @@ const SettingsPage: Component = () => {
     {
       id: "sync",
       title: "Sync & Backup",
-      desc: "Cloud status, sync cadence, import (CSV/JSON), export, devices",
+      desc: "Cloud sync, import, export, devices",
       icon: "sync",
       href: "/settings/sync",
       rows: [
         {
           label: "Import from CSV",
-          desc: "Letterboxd, Trakt, IMDb, TV Time, generic",
+          desc: "Letterboxd, Trakt, IMDb, TV Time",
           icon: "file_upload",
           href: "/settings/sync"
         },
         {
           label: "Export library",
-          desc: "JSON backup, CSV (Letterboxd/Trakt/IMDb/CineLog)",
+          desc: "JSON backup, CSV",
           icon: "file_download",
           href: "/settings/sync"
         },
@@ -296,13 +296,13 @@ const SettingsPage: Component = () => {
     {
       id: "privacy",
       title: "Privacy",
-      desc: "Visibility, screenshot privacy, clear search history, clear cache",
+      desc: "Visibility, screenshot privacy, search history",
       icon: "lock",
       href: "/settings/privacy",
       rows: [
         {
           label: "Profile visibility",
-          desc: "Public / Private",
+          desc: "Always private",
           icon: "visibility",
           href: "/settings/privacy"
         },
@@ -323,7 +323,7 @@ const SettingsPage: Component = () => {
     {
       id: "about",
       title: "About & Help",
-      desc: "Version, changelog, terms, privacy, licenses, contact, FAQ",
+      desc: "Version, changelog, terms, privacy, FAQ",
       icon: "info",
       href: "/settings/about",
       rows: [
@@ -431,7 +431,41 @@ const SettingsPage: Component = () => {
     setTimeout(() => scrollToSection(id), 50);
   }
 
+  // Highlight matched text in section titles/descriptions.
+  const highlightText = (text: string): JSX.Element => {
+    const q = query().trim();
+    if (!q) return <>{text}</>;
+    const lower = text.toLowerCase();
+    const ql = q.toLowerCase();
+    const idx = lower.indexOf(ql);
+    if (idx === -1) return <>{text}</>;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <mark class="settings-search-mark">{text.slice(idx, idx + q.length)}</mark>
+        {text.slice(idx + q.length)}
+      </>
+    );
+  };
+
   const renderRow = (row: SettingRow): JSX.Element => {
+    // Highlight matching text in search results.
+    const q = query().trim();
+    const highlight = (text: string): JSX.Element => {
+      if (!q) return <>{text}</>;
+      const lower = text.toLowerCase();
+      const ql = q.toLowerCase();
+      const idx = lower.indexOf(ql);
+      if (idx === -1) return <>{text}</>;
+      return (
+        <>
+          {text.slice(0, idx)}
+          <mark class="settings-search-mark">{text.slice(idx, idx + q.length)}</mark>
+          {text.slice(idx + q.length)}
+        </>
+      );
+    };
+
     const content = (
       <>
         <div class="setting-row-icon" aria-hidden="true">
@@ -444,8 +478,8 @@ const SettingsPage: Component = () => {
           </span>
         </div>
         <div class="setting-row-text">
-          <span class="setting-row-label">{row.label}</span>
-          <span class="setting-row-desc">{row.desc}</span>
+          <span class="setting-row-label">{highlight(row.label)}</span>
+          <span class="setting-row-desc">{highlight(row.desc)}</span>
         </div>
         <span
           class="material-symbols-outlined setting-row-chevron"
@@ -612,8 +646,8 @@ const SettingsPage: Component = () => {
                         {s.icon}
                       </span>
                       <div class="settings-accordion-meta">
-                        <span class="settings-accordion-title">{s.title}</span>
-                        <span class="settings-accordion-desc">{s.desc}</span>
+                        <span class="settings-accordion-title">{highlightText(s.title)}</span>
+                        <span class="settings-accordion-desc">{highlightText(s.desc)}</span>
                       </div>
                       <span
                         class="material-symbols-outlined settings-accordion-chevron"

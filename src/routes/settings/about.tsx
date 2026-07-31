@@ -1,6 +1,6 @@
 // src/routes/settings/about.tsx
 //
-// About & Help — combines version info, legal, contact, FAQ, and developer tools.
+// About & Help — combines version info, legal, contact, and FAQ.
 //
 // Sections:
 //   1. App version + build info + changelog
@@ -8,7 +8,6 @@
 //   3. Open-source licenses
 //   4. Contact / report a bug (mailto link)
 //   5. FAQ
-//   6. Developer tools (collapsed by default — moved from /settings/developer)
 
 import { Title } from "@solidjs/meta";
 import { Show, createSignal, For, type Component } from "solid-js";
@@ -42,7 +41,7 @@ const FAQ_ITEMS: { q: string; a: string }[] = [
   },
   {
     q: "Where is my data stored?",
-    a: "Your watchlist, profile, and collections are stored in Supabase (PostgreSQL, hosted in Mumbai ap-south-1). Theme preferences and search history are stored locally on your device. Movie/TV metadata is fetched read-only from TMDB."
+    a: "Your watchlist, profile, and collections are stored securely in the cloud. Theme preferences and search history are stored locally on your device."
   },
   {
     q: "Can I import my data from Letterboxd, Trakt, or IMDb?",
@@ -111,7 +110,7 @@ const AboutRoute: Component = () => {
             <p class="sec-eyebrow">Settings</p>
             <h1 class="sec-title">About & Help</h1>
             <p class="sec-subtitle">
-              Version, legal, contact, FAQ, and developer tools.
+              Version, legal, contact, and FAQ.
             </p>
           </div>
 
@@ -466,41 +465,6 @@ const AboutRoute: Component = () => {
               </div>
             </section>
 
-            {/* Developer tools — moved to /admin/developer */}
-            <section class="sec-section">
-              <p class="sec-section-label">Developer</p>
-              <div class="setting-group">
-                <a
-                  href="/admin/developer"
-                  class="setting-row focus-ring"
-                  aria-label="Developer tools"
-                >
-                  <div class="setting-row-icon" aria-hidden="true">
-                    <span
-                      class="material-symbols-outlined"
-                      style={{ "font-size": "18px" }}
-                      aria-hidden="true"
-                    >
-                      terminal
-                    </span>
-                  </div>
-                  <div class="setting-row-text">
-                    <span class="setting-row-label">Developer tools</span>
-                    <span class="setting-row-desc">
-                      Diagnostics, environment, feature flags — now in the
-                      admin panel
-                    </span>
-                  </div>
-                  <span
-                    class="material-symbols-outlined setting-row-chevron"
-                    aria-hidden="true"
-                  >
-                    chevron_right
-                  </span>
-                </a>
-              </div>
-            </section>
-
             {/* Footer */}
             <section class="sec-section">
               <p
@@ -512,7 +476,7 @@ const AboutRoute: Component = () => {
                   margin: 0
                 }}
               >
-                CineLog v{APP_VERSION} · Made with SolidJS + Supabase + TMDB
+                CineLog v{APP_VERSION}
                 <br />© 2026 CineLog. All rights reserved.
               </p>
             </section>

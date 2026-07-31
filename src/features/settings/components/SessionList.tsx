@@ -1,8 +1,8 @@
 // src/features/settings/components/SessionList.tsx
 //
-// SessionList — shows the user's active MFA factors (a proxy for
-// "devices that have 2FA set up") plus the current device info,
-// with a "Sign out everywhere" button.
+// SessionList — shows the current device info and a "Sign out of all
+// devices" button. The authenticator-app list lives in the 2FA section
+// (TwoFactorSetup.tsx); this component does NOT duplicate it.
 //
 // Supabase does NOT expose a "list all my sessions" endpoint to the
 // client — the auth.sessions table is server-side only. What we CAN
@@ -10,8 +10,6 @@
 //   • The current device (parsed from navigator.userAgent).
 //   • The current session's AAL (aal1 = no 2FA this session,
 //     aal2 = 2FA verified this session).
-//   • All enrolled MFA factors (each represents an authenticator
-//     app that can produce a 2FA code).
 //
 // The "Sign out everywhere" button calls
 // supabase.auth.signOut({ scope: "global" }) which invalidates ALL
@@ -21,7 +19,6 @@ import {
   createSignal,
   onMount,
   Show,
-  For,
   type Component
 } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
@@ -30,7 +27,6 @@ import { useNavigate } from "@solidjs/router";
 import {
   getSessionsOverview,
   revokeAllSessions,
-  revokeMfaFactor,
   type SessionsOverview
 } from "~/lib/supabase/repositories/sessions";
 
@@ -85,17 +81,6 @@ const SessionList: Component = () => {
     navigate("/discover");
   }
 
-  async function handleRemoveFactor(factorId: string) {
-    if (!confirm("Remove this authenticator?")) return;
-    const res = await revokeMfaFactor(factorId);
-    if (res.error) {
-      showToast(`Failed: ${res.error.message}`, "error");
-      return;
-    }
-    showToast("Authenticator removed", "success");
-    void load();
-  }
-
   return (
     <div class="settings-sessions">
       <Show when={error()}>
@@ -140,54 +125,6 @@ const SessionList: Component = () => {
               </div>
             </div>
 
-            {/* MFA factors */}
-            <div class="settings-sessions-section">
-              <h4 class="settings-sessions-subtitle">
-                Authenticator apps ({ov().mfaFactors.length})
-              </h4>
-              <Show
-                when={ov().mfaFactors.length > 0}
-                fallback={
-                  <p class="settings-sessions-empty">
-                    No authenticator apps enrolled. Enable 2FA above to add one.
-                  </p>
-                }
-              >
-                <For each={ov().mfaFactors}>
-                  {(f) => (
-                    <div class="settings-session-card">
-                      <div class="settings-session-icon">
-                        <span
-                          class="material-symbols-outlined"
-                          aria-hidden="true"
-                          style={{ "font-size": "24px" }}
-                        >
-                          smartphone
-                        </span>
-                      </div>
-                      <div class="settings-session-info">
-                        <span class="settings-session-name">
-                          {f.friendlyName ?? "Authenticator app"}
-                        </span>
-                        <span class="settings-session-meta">
-                          {f.status === "verified"
-                            ? `Verified · added ${new Date(f.createdAt).toLocaleDateString()}`
-                            : "Not verified"}
-                        </span>
-                      </div>
-                      <button
-                        type="button"
-                        class="btn-ghost settings-session-remove focus-ring"
-                        onClick={() => handleRemoveFactor(f.id)}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  )}
-                </For>
-              </Show>
-            </div>
-
             {/* Sign out everywhere */}
             <div class="settings-sessions-danger">
               <button
@@ -201,8 +138,7 @@ const SessionList: Component = () => {
                 </Show>
               </button>
               <p class="settings-sessions-danger-desc">
-                Invalidates your session on every device, including this one.
-                Use this if you think your account was compromised.
+                Signs you out on every device, including this one. Use this if you think your account was compromised.
               </p>
             </div>
           </>

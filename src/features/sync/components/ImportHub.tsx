@@ -2,20 +2,21 @@
 //
 // ImportHub — the import section of the Sync page.
 //
-// Renders a card per registered ImportSource (CineLog V1 today; future
-// providers render as "Coming soon"). Tapping an available source opens
-// its wizard in a bottom-sheet modal.
+// Renders a card per registered ImportSource. Tapping an available
+// source opens its wizard in a bottom-sheet modal.
 //
 // ARCHITECTURE:
-//   This component reads IMPORT_SOURCES + FUTURE_SOURCES from the
-//   registry. To add a new provider, register it in ImportSource.ts —
-//   this component picks it up automatically with no code changes here.
+//   This component reads IMPORT_SOURCES from the registry. To add a
+//   new provider, register it in ImportSource.ts — this component
+//   picks it up automatically with no code changes here.
+//
+// We deliberately don't render "Coming soon" cards for unimplemented
+// sources — features that aren't shipped are hidden entirely.
 
 import { For, Show, createSignal, type Component } from "solid-js";
 import { Portal } from "solid-js/web";
 import {
   IMPORT_SOURCES,
-  FUTURE_SOURCES,
   type ImportSource,
   type ImportResult
 } from "../import/ImportSource";
@@ -75,34 +76,6 @@ const ImportHub: Component = () => {
               arrow_forward
             </span>
           </button>
-        )}
-      </For>
-
-      {/* Future sources — "coming soon" */}
-      <For each={FUTURE_SOURCES}>
-        {(source) => (
-          <div
-            class="sync-import-card sync-import-card-future"
-            aria-disabled="true"
-          >
-            <div
-              class="sync-import-card-icon sync-import-card-icon-future"
-              aria-hidden="true"
-            >
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "24px", color: "var(--text-dim)" }}
-                aria-hidden="true"
-              >
-                {source.icon}
-              </span>
-            </div>
-            <div class="sync-import-card-text">
-              <p class="sync-import-card-title">{source.displayName}</p>
-              <p class="sync-import-card-desc">{source.description}</p>
-            </div>
-            <span class="sync-import-card-badge">Coming soon</span>
-          </div>
         )}
       </For>
 

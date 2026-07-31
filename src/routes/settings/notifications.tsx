@@ -210,8 +210,7 @@ const NotificationsRoute: Component = () => {
                           when={pushPermission() !== "unsupported"}
                           fallback={
                             <span style={{ color: "var(--text-muted)" }}>
-                              Not supported in this browser. In-app toasts will
-                              still work.
+                              Not supported in this browser.
                             </span>
                           }
                         >
@@ -219,13 +218,12 @@ const NotificationsRoute: Component = () => {
                             when={pushPermission() === "granted"}
                             fallback={
                               <span style={{ color: "var(--text-muted)" }}>
-                                Required to send reminders when the app is in
-                                the background.
+                                Required for reminders when the app is in the background.
                               </span>
                             }
                           >
                             <span style={{ color: "#4ade80" }}>
-                              ✓ Enabled — push notifications will fire
+                              ✓ Enabled
                             </span>
                           </Show>
                         </Show>
@@ -280,7 +278,7 @@ const NotificationsRoute: Component = () => {
                 <ToggleRow
                   icon="do_not_disturb_on"
                   label="Enable quiet hours"
-                  desc="Silence all notifications during this time window. They'll queue and fire when the window ends."
+                  desc="Silence all notifications during this time window."
                   current={() => notifPrefs().quietHoursEnabled}
                   onChange={(v) => updateNotifPref("quietHoursEnabled", v)}
                 />
@@ -288,14 +286,14 @@ const NotificationsRoute: Component = () => {
                   <TimeRow
                     icon="bedtime"
                     label="Quiet hours start"
-                    desc="When the silent window begins (e.g. 22:00 = 10 PM)."
+                    desc="When the silent window begins."
                     value={() => notifPrefs().quietHoursStart}
                     onChange={(v) => updateNotifPref("quietHoursStart", v)}
                   />
                   <TimeRow
                     icon="wb_sunny"
                     label="Quiet hours end"
-                    desc="When the silent window ends (e.g. 07:00 = 7 AM)."
+                    desc="When the silent window ends."
                     value={() => notifPrefs().quietHoursEnd}
                     onChange={(v) => updateNotifPref("quietHoursEnd", v)}
                   />
@@ -344,22 +342,6 @@ const NotificationsRoute: Component = () => {
                   onChange={(v) => updateNotifPref("weeklyDigestTime", v)}
                 />
               </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Real effect:</strong> CineLog schedules a check at
-                  this day+time each week. If you watched anything in the past 7
-                  days, you get a recap toast (and a push notification if
-                  enabled). Quiet hours override this — the recap fires after
-                  quiet hours end.
-                </p>
-              </div>
             </section>
 
             {/* Episode reminder lead time */}
@@ -369,7 +351,7 @@ const NotificationsRoute: Component = () => {
                 <ControlRow
                   icon="alarm"
                   label="Reminder lead time"
-                  desc="How long before an episode airs you want to be reminded. Applies to series in your vault."
+                  desc="How long before an episode airs to be reminded."
                 >
                   <Segmented
                     options={LEAD_TIME_OPTIONS}
@@ -380,27 +362,6 @@ const NotificationsRoute: Component = () => {
                     name="Episode reminder lead time"
                   />
                 </ControlRow>
-              </div>
-            </section>
-
-            {/* How notifications work */}
-            <section class="sec-section">
-              <div class="info-callout">
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>How notifications work:</strong> CineLog is a personal
-                  app — notifications are reminders for <strong>you</strong>,
-                  not social pings. They appear as in-app toasts while you're
-                  using CineLog, and as device notifications (if you enabled
-                  push) when the app is in the background. No emails, no spam,
-                  no followers.
-                </p>
               </div>
             </section>
           </div>

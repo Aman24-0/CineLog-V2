@@ -84,7 +84,7 @@ const CalendarRoute: Component = () => {
                 <ControlRow
                   icon="view_week"
                   label="First day of week"
-                  desc="Affects the Upcoming page's week view — week rows start on this day."
+                  desc="Week rows start on this day."
                 >
                   <Segmented
                     options={FIRST_DAY_OPTIONS}
@@ -103,7 +103,7 @@ const CalendarRoute: Component = () => {
                 <ControlRow
                   icon="schedule"
                   label="12-hour or 24-hour"
-                  desc="How air times are displayed across the app (e.g. 9:00 PM vs 21:00)."
+                  desc="How air times are displayed."
                 >
                   <Segmented
                     options={TIME_FORMAT_OPTIONS}
@@ -122,7 +122,7 @@ const CalendarRoute: Component = () => {
                 <SelectRow
                   icon="schedule_send"
                   label="Air time timezone"
-                  desc="Streaming platforms release new episodes at different times. Choose which timezone to display air times in."
+                  desc="Shows air times in your local timezone."
                   value={() => calPrefs().releaseTimezone}
                   onChange={(v) =>
                     updateCalPref(
@@ -133,22 +133,6 @@ const CalendarRoute: Component = () => {
                   options={TZ_OPTIONS}
                 />
               </div>
-              <div class="info-callout" style={{ "margin-top": "var(--sp-3)" }}>
-                <span
-                  class="material-symbols-outlined info-callout-icon"
-                  style={{ "font-size": "16px" }}
-                  aria-hidden="true"
-                >
-                  info
-                </span>
-                <p class="info-callout-body">
-                  <strong>Why this matters:</strong> Netflix typically drops new
-                  episodes at midnight Pacific Time, HBO Max at 9 PM Eastern,
-                  Apple TV+ at midnight Pacific. If you're in India and want to
-                  know "when can I watch this", select "My local time" and
-                  CineLog converts the air time for you.
-                </p>
-              </div>
             </section>
 
             {/* Default view */}
@@ -158,7 +142,7 @@ const CalendarRoute: Component = () => {
                 <ControlRow
                   icon="calendar_view_week"
                   label="Default calendar view"
-                  desc="Which view the Upcoming page opens to: Week, Month, or Agenda (list of upcoming episodes)."
+                  desc="Which view the Upcoming page opens to."
                 >
                   <Segmented
                     options={DEFAULT_VIEW_OPTIONS}

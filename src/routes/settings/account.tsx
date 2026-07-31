@@ -19,9 +19,9 @@
 //   │        • Change password                          │
 //   │     2. Google — connect / disconnect              │
 //   │     3. Apple — connect / disconnect               │
-//   │  B. Two-factor authentication (coming soon)       │
+//   │  B. Two-factor authentication                       │
 //   │  C. Session management (sign out everywhere)      │
-//   │  D. Login history (coming soon)                   │
+//   │  D. Login history                                  │
 //   └────────────────────────────────────────────────────┘
 //
 // Each row is a button — tapping it opens the relevant sheet or
@@ -67,6 +67,7 @@ import LinkEmailPasswordSheet from "~/features/account/components/LinkEmailPassw
 import TwoFactorSetup from "~/features/settings/components/TwoFactorSetup";
 import SessionList from "~/features/settings/components/SessionList";
 import LoginHistoryList from "~/features/settings/components/LoginHistoryList";
+import { getClient as getSupabaseClient } from "~/lib/supabase/client";
 import type { UserIdentity } from "@supabase/supabase-js";
 
 /**
@@ -137,6 +138,21 @@ const AccountRoute: Component = () => {
     null
   );
 
+  // ── Email/password linkage state ─────────────────────────────────
+  // The `user().providers` array tells us which providers are linked
+  // (google, email, apple, etc.). It includes "email" when the user
+  // signed up with email OR later linked a password. To be more
+  // accurate and reactive (the cached providers list can lag behind
+  // a fresh link), we also call supabase.auth.getUser() on mount and
+  // after the LinkEmailPasswordSheet closes.
+  const [hasPassword, setHasPassword] = createSignal<boolean>(
+    isProviderLinkedInitial()
+  );
+
+  function isProviderLinkedInitial(): boolean {
+    return (user()?.providers ?? []).includes("email");
+  }
+
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
   const [showPasswordSheet, setShowPasswordSheet] = createSignal(false);
@@ -178,7 +194,34 @@ const AccountRoute: Component = () => {
   // need the identity_id from the getUserIdentities() call.
   onMount(() => {
     void refreshIdentities();
+    void refreshHasPassword();
   });
+
+  /**
+   * Refresh whether the user has a password set on their account.
+   *
+   * `user().providers` is cached in app_metadata and can lag behind a
+   * fresh password-link. Calling supabase.auth.getUser() forces a fresh
+   * fetch and lets us check the providers list AND whether the user has
+   * a password set (via user.user_metadata + the providers list).
+   *
+   * Supabase adds "email" to app_metadata.providers as soon as a
+   * password is linked, so we just check the fresh providers list.
+   */
+  async function refreshHasPassword() {
+    try {
+      const client = getSupabaseClient();
+      const { data, error } = await client.auth.getUser();
+      if (error) {
+        // Don't update state on error — keep the cached value.
+        return;
+      }
+      const providers: string[] = data?.user?.app_metadata?.providers ?? [];
+      setHasPassword(providers.includes("email"));
+    } catch (e) {
+      console.warn("[account] refreshHasPassword failed:", e);
+    }
+  }
 
   const refreshIdentities = async () => {
     const ids = await getUserIdentities();
@@ -357,7 +400,7 @@ const AccountRoute: Component = () => {
     return c ? c.label : country();
   });
 
-  const emailIdentityLinked = () => isProviderLinked("email");
+
 
   return (
     <>
@@ -744,13 +787,13 @@ const AccountRoute: Component = () => {
                           Email &amp; Password
                         </span>
                         <span class="setting-row-desc">
-                          {emailIdentityLinked()
+                          {hasPassword()
                             ? "Connected"
                             : "Not connected"}
                         </span>
                       </div>
                       <Show
-                        when={emailIdentityLinked()}
+                        when={hasPassword()}
                         fallback={
                           <button
                             type="button"
@@ -778,7 +821,7 @@ const AccountRoute: Component = () => {
                       </Show>
                     </div>
                     {/* Two sub-action buttons — only visible when already linked */}
-                    <Show when={emailIdentityLinked()}>
+                    <Show when={hasPassword()}>
                       <div class="account-subactions">
                         <button
                           type="button"
@@ -962,7 +1005,7 @@ const AccountRoute: Component = () => {
                         Two-factor authentication
                       </span>
                       <span class="setting-row-desc">
-                        Extra layer of security at sign-in.
+                        Extra security at sign-in.
                       </span>
                     </div>
                     <span
@@ -1002,7 +1045,7 @@ const AccountRoute: Component = () => {
                     <div class="setting-row-text">
                       <span class="setting-row-label">Sessions & devices</span>
                       <span class="setting-row-desc">
-                        Manage active sessions, sign out everywhere.
+                        Manage active sessions and sign out everywhere.
                       </span>
                     </div>
                     <span
@@ -1044,7 +1087,7 @@ const AccountRoute: Component = () => {
                     <div class="setting-row-text">
                       <span class="setting-row-label">Login history</span>
                       <span class="setting-row-desc">
-                        Recent sign-ins and devices.
+                        Recent sign-ins.
                       </span>
                     </div>
                     <span
@@ -1113,7 +1156,12 @@ const AccountRoute: Component = () => {
       />
       <LinkEmailPasswordSheet
         open={showLinkEmailPasswordSheet()}
-        onClose={() => setShowLinkEmailPasswordSheet(false)}
+        onClose={() => {
+          setShowLinkEmailPasswordSheet(false);
+          // Refresh password state — the cached providers list may not
+          // reflect the new link until the next page load.
+          void refreshHasPassword();
+        }}
       />
       <DeactivateAccountSheet
         open={showDeactivateSheet()}
