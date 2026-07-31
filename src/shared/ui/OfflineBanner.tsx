@@ -18,27 +18,26 @@
  * Behaviour:
  *   • SSR-safe: the initial signal value is `false` on the server (no
  *     `navigator` access), so SSR HTML never contains the banner.
- *   • On hydration, `onMount` re-syncs the signal with the live
- *     `navigator.onLine` value, registers `online` / `offline` event
- *     listeners, and kicks off an initial health check if the browser
- *     reports offline.
- *   • Debounce (300ms): rapid online→offline→online transitions (e.g.,
- *     switching from Wi-Fi to cellular) don't cause the banner to
- *     flash on screen.
- *   • Health check: when the browser reports offline, the banner
- *     fetches `/favicon.ico` to confirm. If the fetch succeeds, the
- *     banner is hidden (false positive avoided).
- *   • Periodic re-check (every 8s): while the banner is visible, we
- *     keep running the health check on an interval. This catches the
- *     case where the `online` event doesn't fire reliably (iOS Safari
- *     is known to miss it).
- *   • Retry button: user can manually re-run the health check.
- *   • Dismiss button: user can manually hide the banner — but only if
- *     a fresh health check confirms they're actually online. If the
- *     check fails, dismiss is a no-op and the banner stays as a
- *     safety net.
+ *   • Initial load: if `navigator.onLine` is false, run a health check
+ *     FIRST. Only show the banner if the check confirms offline. This
+ *     prevents the "banner flashes on load" false positive that mobile
+ *     users were seeing.
+ *   • Runtime offline event: show banner after 300ms debounce (immediate
+ *     feedback for real offline events).
+ *   • Runtime online event: hide banner immediately, reset dismissed.
+ *   • Retry button: always clickable (never disabled). Re-runs health
+ *     check. Shows "Checking…" label while in flight.
+ *   • Dismiss (×) button: ALWAYS works, no health check required. Hides
+ *     the banner immediately. Resets when the `online` event fires so
+ *     the next genuine offline event re-shows the banner.
+ *   • No continuous polling — it caused the buttons to be disabled
+ *     most of the time (5s out of every 8s) and provided little value
+ *     over event-driven checks.
  *   • Smooth show/hide transition via `transition-all` + the existing
  *     `animate-slide-down` keyframe (defined in motion.css).
+ *   • Mobile-friendly: 36px min touch targets, `touch-action:
+ *     manipulation` to remove the 300ms tap delay, `-webkit-tap-
+ *     highlight-color: transparent` for clean taps.
  *
  * Placement: rendered once at the root layout (src/app.tsx), as a
  * sibling of <AppShell> so it sits above the app header. It uses
@@ -59,13 +58,11 @@ import {
  * enough to feel responsive when the user really does go offline. */
 const DEBOUNCE_MS = 300;
 
-/** 8s — interval between automatic health checks while the banner is
- * shown. Catches the case where the `online` event doesn't fire. */
-const HEALTH_CHECK_INTERVAL_MS = 8000;
-
-/** 5s — abort the health-check fetch after this long. Treats a
- * hung request as offline. */
-const HEALTH_CHECK_TIMEOUT_MS = 5000;
+/** 3s — abort the health-check fetch after this long. Treats a hung
+ * request as offline. Kept short so the initial-load check resolves
+ * quickly and the banner either shows or stays hidden without a long
+ * wait. */
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
 
 /** Endpoint used for the health check. favicon.ico is small, always
  * present (in /public), and cache-busted with a timestamp query param
@@ -75,27 +72,33 @@ const HEALTH_CHECK_URL = "/favicon.ico";
 export function OfflineBanner(): JSX.Element {
   // SSR-safe: typeof navigator !== "undefined" guard means the server
   // renders `false` (no banner in SSR HTML). On the client, the signal
-  // initialiser reads the real `navigator.onLine` value.
-  const [offline, setOffline] = createSignal<boolean>(
-    typeof navigator !== "undefined" ? !navigator.onLine : false
-  );
+  // initialiser reads the real `navigator.onLine` value — but note
+  // that on initial load we DON'T immediately set offline=true. The
+  // onMount runs a health check first and only sets offline=true if
+  // the check confirms offline. This prevents the "banner shows from
+  // start" false positive that mobile users were seeing.
+  const [offline, setOffline] = createSignal<boolean>(false);
 
-  // True while a health check is in flight. Used to show a "Checking…"
-  // label on the Retry button and to disable both buttons.
+  // True while a health check is in flight. Used ONLY for the Retry
+  // button label ("Checking…") — buttons are NEVER disabled, so the
+  // user can always dismiss or re-check.
   const [checking, setChecking] = createSignal<boolean>(false);
 
-  // True if the user has manually dismissed the banner. Only allowed
-  // when a health check confirms they're actually online; otherwise
-  // the dismiss is a no-op. Reset to false whenever `offline()` flips
-  // back to true so a new offline event re-shows the banner.
+  // True if the user has manually dismissed the banner. Dismiss ALWAYS
+  // works — no health check required. Reset to false whenever the
+  // `online` event fires so the next genuine offline event re-shows
+  // the banner.
   const [dismissed, setDismissed] = createSignal<boolean>(false);
 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
-  let healthCheckTimer: ReturnType<typeof setInterval> | null = null;
 
   /**
    * Run a fetch-based health check against /favicon.ico. Returns true
    * if the network is reachable.
+   *
+   * Uses GET (not HEAD) — some static hosts and CDNs don't support
+   * HEAD on static files and return 405, which would incorrectly look
+   * like an error. GET is universally supported.
    *
    * Uses `cache: 'no-store'` + a cache-bust query param to make sure
    * we actually hit the network and don't get a cached response.
@@ -116,14 +119,15 @@ export function OfflineBanner(): JSX.Element {
       );
       const url = `${HEALTH_CHECK_URL}?_=${Date.now()}`;
       const res = await fetch(url, {
-        method: "HEAD",
+        method: "GET",
         cache: "no-store",
         signal: controller.signal
       });
       clearTimeout(timeout);
-      // 2xx or 3xx (e.g., 304) means we got a response from the
-      // server — the network is up. 4xx is also fine (favicon might
-      // be missing). Only 5xx or a network error means offline.
+      // 2xx, 3xx, or 4xx all mean we got a response from the server —
+      // the network is up. Only 5xx or a network error means offline.
+      // (favicon.ico might 404 on some setups, but that still proves
+      // the network is reachable.)
       return res.status < 500;
     } catch {
       return false;
@@ -132,84 +136,61 @@ export function OfflineBanner(): JSX.Element {
     }
   }
 
-  /** Clear the periodic health-check interval, if any. */
-  function stopHealthCheckPolling() {
-    if (healthCheckTimer) {
-      clearInterval(healthCheckTimer);
-      healthCheckTimer = null;
-    }
-  }
-
   /**
-   * Apply a debounced change to the offline state.
-   *
-   * If `nextOffline` is false (browser says we're back online): apply
-   * immediately, clear all timers, and reset `dismissed` so the next
-   * offline event re-shows the banner.
-   *
-   * If `nextOffline` is true (browser says we're offline): wait
-   * DEBOUNCE_MS, then show the banner and kick off a health check.
-   * If the health check succeeds (user is actually online), hide the
-   * banner again — this is the false-positive fix.
+   * Handle a runtime `offline` event. Show the banner after a short
+   * debounce (to absorb brief blips). Unlike the initial-load path,
+   * we DON'T run a health check here — the user just got an offline
+   * event, so we trust it and show immediate feedback. The user can
+   * tap Retry to run a health check if they believe it's a false
+   * positive.
    */
-  function applyOfflineState(nextOffline: boolean) {
+  function handleOffline() {
     if (debounceTimer) {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-
-    if (!nextOffline) {
-      // Browser says we're back online — apply immediately.
-      setOffline(false);
-      setDismissed(false);
-      stopHealthCheckPolling();
-      return;
-    }
-
-    // Browser says we're offline — debounce then show.
-    debounceTimer = setTimeout(async () => {
+    debounceTimer = setTimeout(() => {
       setOffline(true);
-      setDismissed(false);
-
-      // Start periodic health checks while the banner is shown. If
-      // any check succeeds, hide the banner (it was a false positive
-      // OR the user has come back online without an `online` event).
-      stopHealthCheckPolling();
-      healthCheckTimer = setInterval(async () => {
-        const reachable = await runHealthCheck();
-        if (reachable) {
-          setOffline(false);
-          setDismissed(false);
-          stopHealthCheckPolling();
-        }
-      }, HEALTH_CHECK_INTERVAL_MS);
-
-      // Also run one immediately — if the user is actually online,
-      // we hide the banner within ~5s instead of waiting 8s for the
-      // first interval tick.
-      const reachable = await runHealthCheck();
-      if (reachable) {
-        setOffline(false);
-        setDismissed(false);
-        stopHealthCheckPolling();
-      }
+      // Don't reset dismissed here — if the user previously dismissed,
+      // respect that until the next online event.
     }, DEBOUNCE_MS);
   }
 
-  const handleOnline = () => applyOfflineState(false);
-  const handleOffline = () => applyOfflineState(true);
+  /**
+   * Handle a runtime `online` event. Hide the banner immediately and
+   * reset dismissed so the next offline event re-shows the banner.
+   */
+  function handleOnline() {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+      debounceTimer = null;
+    }
+    setOffline(false);
+    setDismissed(false);
+  }
 
   onMount(() => {
     if (typeof navigator === "undefined" || typeof window === "undefined") {
       return;
     }
 
-    // Re-sync in case the initial createSignal read ran before the
-    // browser fired its first online/offline event (rare, but possible
-    // during fast navigations or service-worker takeovers). Also kicks
-    // off the initial health check via applyOfflineState if the
-    // browser reports offline.
-    applyOfflineState(!navigator.onLine);
+    // INITIAL LOAD — the critical fix for "banner shows from start".
+    // If the browser reports offline on mount, run a health check FIRST
+    // and only show the banner if the check confirms offline. This
+    // filters out the common mobile false positive where
+    // navigator.onLine is wrong but the network is actually up.
+    //
+    // We intentionally do NOT set offline=true here before the check
+    // completes — the previous version did, which is why the banner
+    // flashed on every load.
+    if (!navigator.onLine) {
+      void (async () => {
+        const reachable = await runHealthCheck();
+        if (!reachable) {
+          setOffline(true);
+        }
+      })();
+    }
 
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
@@ -220,7 +201,6 @@ export function OfflineBanner(): JSX.Element {
       clearTimeout(debounceTimer);
       debounceTimer = null;
     }
-    stopHealthCheckPolling();
     if (typeof window !== "undefined") {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
@@ -229,38 +209,33 @@ export function OfflineBanner(): JSX.Element {
 
   /**
    * Manual retry — re-run the health check and hide the banner if it
-   * succeeds. If it fails, the banner stays visible (and we briefly
-   * show the "Checking…" state on the button so the user gets
-   * feedback that something happened).
+   * succeeds. The button is NEVER disabled; if a check is already in
+   * flight, we ignore the click (the in-flight check will resolve on
+   * its own). This keeps the button always tappable on mobile.
    */
   async function handleRetry() {
+    if (checking()) return; // ignore rapid double-taps
     const reachable = await runHealthCheck();
     if (reachable) {
       setOffline(false);
       setDismissed(false);
-      stopHealthCheckPolling();
-    } else {
-      // Health check failed — make sure the banner is visible even
-      // if the user previously dismissed it.
-      setDismissed(false);
     }
+    // If not reachable, banner stays. The "Checking…" label provides
+    // feedback that the check ran.
   }
 
   /**
-   * Manual dismiss — only allowed when the user is actually online
-   * (per a fresh health check). If the check fails, the dismiss is a
-   * no-op so the banner stays as a safety net. This prevents the
-   * user from dismissing the banner and then being stuck with no
-   * indication that they're offline.
+   * Manual dismiss — ALWAYS works, no health check required. Hides the
+   * banner immediately. This is the escape hatch for false positives:
+   * if the user is online but the banner won't go away (e.g., health
+   * check is failing for some reason), they can dismiss it manually.
+   *
+   * The banner will reappear when the `online` event fires (which
+   * resets dismissed) followed by another `offline` event — so a
+   * genuine offline transition will still be announced.
    */
-  async function handleDismiss() {
-    const reachable = await runHealthCheck();
-    if (reachable) {
-      setDismissed(true);
-      setOffline(false);
-      stopHealthCheckPolling();
-    }
-    // If not reachable, do nothing — banner stays.
+  function handleDismiss() {
+    setDismissed(true);
   }
 
   // Whether the banner should actually be rendered. Hidden if offline
@@ -289,27 +264,33 @@ export function OfflineBanner(): JSX.Element {
           "font-family": "'Outfit', sans-serif",
           "line-height": "1.4",
           "border-bottom": "1px solid rgba(0,0,0,0.06)",
-          transition: "all 200ms ease-in-out"
+          transition: "all 200ms ease-in-out",
+          "-webkit-tap-highlight-color": "transparent"
         }}
       >
         <span>You're offline. Some features may be unavailable.</span>
         <button
           type="button"
           onClick={handleRetry}
-          disabled={checking()}
           aria-label="Retry connection check"
           style={{
             background: "transparent",
             border: "1px solid currentColor",
             "border-radius": "999px",
-            padding: "2px 10px",
-            "font-size": "11px",
+            // Bigger touch target — 36px min height (mobile HIG is 44px
+            // but the banner is compact, so 36px is a reasonable
+            // compromise that's still easily tappable).
+            padding: "6px 14px",
+            "min-height": "36px",
+            "font-size": "12px",
             "font-family": "inherit",
+            "font-weight": 600,
             color: "inherit",
-            cursor: checking() ? "wait" : "pointer",
-            opacity: checking() ? 0.6 : 1,
+            cursor: "pointer",
             "line-height": "1.4",
-            "white-space": "nowrap"
+            "white-space": "nowrap",
+            "touch-action": "manipulation",
+            "-webkit-tap-highlight-color": "transparent"
           }}
         >
           {checking() ? "Checking…" : "Retry"}
@@ -317,17 +298,23 @@ export function OfflineBanner(): JSX.Element {
         <button
           type="button"
           onClick={handleDismiss}
-          disabled={checking()}
           aria-label="Dismiss offline banner"
           style={{
             background: "transparent",
             border: "none",
             color: "inherit",
             cursor: "pointer",
-            padding: "2px 6px",
-            "font-size": "16px",
+            // Bigger touch target — 36x36px square centered on the ×.
+            padding: "0",
+            "min-width": "36px",
+            "min-height": "36px",
+            display: "flex",
+            "align-items": "center",
+            "justify-content": "center",
+            "font-size": "22px",
             "line-height": "1",
-            opacity: checking() ? 0.6 : 1
+            "touch-action": "manipulation",
+            "-webkit-tap-highlight-color": "transparent"
           }}
         >
           ×
