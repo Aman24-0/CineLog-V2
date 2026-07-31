@@ -902,6 +902,269 @@
   font-weight: 700;
 }
 
+/* ─── Subsections (inline grouping inside accordion panels) ────── */
+.setting-subsection {
+  margin-top: var(--sp-3);
+}
+
+.setting-subsection:first-child {
+  margin-top: 0;
+}
+
+.setting-subsection-label {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-2) 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.setting-subsection-hint {
+  font-size: 0.8125rem;
+  color: var(--text-muted);
+  margin: 0 0 var(--sp-2) 0;
+}
+
+/* ─── Empty section (signed-out state inside an accordion) ─────── */
+.settings-empty-section {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-5);
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.settings-empty-section p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+/* ─── Danger Zone section styling ──────────────────────────────── */
+.settings-accordion-section-danger {
+  border-color: rgba(248, 113, 113, 0.3) !important;
+}
+
+.settings-accordion-section-danger:hover {
+  border-color: rgba(248, 113, 113, 0.5) !important;
+}
+
+.danger-subsection {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid rgba(248, 113, 113, 0.2);
+}
+
+.danger-subsection .setting-subsection-label {
+  color: #f87171;
+}
+
+/* ─── Theme Card v2 (visual theme picker) ──────────────────────── */
+.theme-card-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.theme-card-v2 {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  padding: var(--sp-2);
+  background: var(--tier-2);
+  border: 2px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  text-align: left;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    background var(--dur-fast) var(--ease-out),
+    transform var(--dur-fast) var(--ease-out);
+  min-height: 44px;
+}
+
+.theme-card-v2:hover {
+  border-color: var(--hairline-3);
+  transform: translateY(-1px);
+}
+
+.theme-card-v2[data-active="true"] {
+  border-color: var(--p);
+  background: var(--p-dim);
+}
+
+.theme-card-v2-check {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 22px;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--p);
+  color: var(--bg);
+  border-radius: 50%;
+  font-weight: 700;
+  z-index: 1;
+}
+
+.theme-card-v2-preview {
+  width: 100%;
+  height: 56px;
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  border: 1px solid var(--hairline);
+}
+
+.theme-card-v2-preview-surface {
+  width: 70%;
+  height: 70%;
+  border-radius: 4px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px;
+  border: 1px solid currentColor;
+}
+
+.theme-card-v2-preview-text {
+  width: 60%;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.theme-card-v2-preview-accent {
+  width: 30%;
+  height: 4px;
+  border-radius: 2px;
+}
+
+.theme-card-v2-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: center;
+  text-align: center;
+}
+
+.theme-card-v2-label {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.theme-card-v2-desc {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  line-height: 1.2;
+}
+
+/* ─── Accent Swatch ────────────────────────────────────────────── */
+.accent-swatch-row {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+  gap: var(--sp-2);
+  width: 100%;
+}
+
+.accent-swatch {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-1);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  min-height: 44px;
+  transition: transform var(--dur-fast) var(--ease-out);
+}
+
+.accent-swatch:hover {
+  transform: translateY(-1px);
+}
+
+.accent-swatch-circle {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  border: 2px solid var(--hairline-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.accent-swatch[data-active="true"] .accent-swatch-circle {
+  border-color: var(--text-strong);
+  box-shadow: 0 0 0 3px var(--bg), 0 0 0 5px var(--p);
+}
+
+.accent-swatch-auto-icon {
+  font-size: 18px !important;
+  color: white;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.accent-swatch-check {
+  font-size: 16px !important;
+  color: white;
+  text-shadow: 0 0 4px rgba(0, 0, 0, 0.5);
+}
+
+.accent-swatch-label {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-body);
+  text-align: center;
+  line-height: 1.2;
+  word-break: break-word;
+}
+
+.accent-dynamic-info {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: var(--sp-2) 0 0 0;
+}
+
+.accent-dynamic-info code {
+  font-family: "Söhne Mono", "Courier New", monospace;
+  color: var(--p);
+  font-weight: 600;
+}
+
+/* ─── Sidebar danger link styling ──────────────────────────────── */
+.settings-sidebar-link[data-danger="true"] .settings-sidebar-icon,
+.settings-sidebar-link[data-danger="true"] .settings-sidebar-label {
+  color: #f87171;
+}
+
+.settings-sidebar-link[data-danger="true"]:hover {
+  background: rgba(248, 113, 113, 0.08);
+}
+
+.settings-sidebar-link[data-danger="true"]:hover .settings-sidebar-icon,
+.settings-sidebar-link[data-danger="true"]:hover .settings-sidebar-label {
+  color: #fca5a5;
+}
+
 /* ─── Mobile responsiveness ─────────────────────────────────────── */
 /* On phones (≤640px):
  *   - Segmented controls wrap to full-width buttons that stack
@@ -1038,6 +1301,42 @@
   .settings-2fa-factor .btn-ghost {
     width: 100%;
     min-height: 44px;
+  }
+
+  /* Theme cards — keep 3-column grid on mobile, slightly smaller preview. */
+  .theme-card-v2-preview {
+    height: 44px;
+  }
+
+  /* Accent swatches — 4 per row on mobile. */
+  .accent-swatch-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: var(--sp-1);
+  }
+
+  .accent-swatch-circle {
+    width: 32px;
+    height: 32px;
+  }
+
+  /* Setting subsections — reduce vertical spacing on mobile. */
+  .setting-subsection {
+    margin-top: var(--sp-2);
+  }
+
+  /* iOS Safari: prevent zoom on focus by ensuring ≥16px font size. */
+  input[type="search"],
+  input[type="text"],
+  input[type="email"],
+  input[type="time"],
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  /* Search input — keep the visual size but ensure no iOS zoom. */
+  .settings-search-input {
+    font-size: 16px !important;
   }
 }
 

@@ -65,7 +65,6 @@ const LICENSES = [
   { name: "SolidJS", version: "1.9.x", license: "MIT" },
   { name: "@solidjs/router", version: "0.14.x", license: "MIT" },
   { name: "@solidjs/start", version: "1.0.x", license: "MIT" },
-  { name: "@supabase/supabase-js", version: "2.110.x", license: "MIT" },
   { name: "Material Symbols", version: "—", license: "Apache 2.0" },
   { name: "Bebas Neue (font)", version: "—", license: "OFL" },
   { name: "Outfit (font)", version: "—", license: "OFL" },
@@ -225,9 +224,7 @@ const AboutRoute: Component = () => {
               <p class="sec-section-label">Legal</p>
               <div class="setting-group">
                 <a
-                  href="https://www.themoviedb.org/terms-of-use"
-                  target="_blank"
-                  rel="noopener noreferrer"
+                  href="/settings/privacy"
                   class="setting-row focus-ring"
                   aria-label="Terms of Service"
                 >
@@ -250,7 +247,7 @@ const AboutRoute: Component = () => {
                     class="material-symbols-outlined setting-row-chevron"
                     aria-hidden="true"
                   >
-                    open_in_new
+                    chevron_right
                   </span>
                 </a>
                 <a
