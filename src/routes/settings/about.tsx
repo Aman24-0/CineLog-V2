@@ -76,25 +76,8 @@ const LICENSES = [
 const AboutRoute: Component = () => {
   const [showChangelog, setShowChangelog] = createSignal(false);
   const [showLicenses, setShowLicenses] = createSignal(false);
-  const [showDeveloper, setShowDeveloper] = createSignal(false);
 
   const env = import.meta.env;
-
-  const diagRows = [
-    { key: "App Version", value: APP_VERSION },
-    { key: "Build Date", value: BUILD_DATE },
-    { key: "Environment", value: env.DEV ? "development" : "production" },
-    { key: "SolidJS", value: "1.9.x" },
-    { key: "Supabase Region", value: "ap-south-1" },
-    {
-      key: "TMDB API",
-      value: env.VITE_TMDB_API_KEY ? "configured (proxy)" : "missing"
-    },
-    {
-      key: "Supabase URL",
-      value: env.VITE_SUPABASE_URL ? "configured" : "missing"
-    }
-  ];
 
   const reportBug = () => {
     const subject = encodeURIComponent(`CineLog bug report (v${APP_VERSION})`);
@@ -483,15 +466,14 @@ const AboutRoute: Component = () => {
               </div>
             </section>
 
-            {/* Developer tools (collapsed) */}
+            {/* Developer tools — moved to /admin/developer */}
             <section class="sec-section">
               <p class="sec-section-label">Developer</p>
               <div class="setting-group">
-                <button
-                  type="button"
+                <a
+                  href="/admin/developer"
                   class="setting-row focus-ring"
-                  onClick={() => setShowDeveloper((v) => !v)}
-                  aria-expanded={showDeveloper()}
+                  aria-label="Developer tools"
                 >
                   <div class="setting-row-icon" aria-hidden="true">
                     <span
@@ -505,159 +487,17 @@ const AboutRoute: Component = () => {
                   <div class="setting-row-text">
                     <span class="setting-row-label">Developer tools</span>
                     <span class="setting-row-desc">
-                      Diagnostics, environment, feature flags
+                      Diagnostics, environment, feature flags — now in the
+                      admin panel
                     </span>
                   </div>
                   <span
                     class="material-symbols-outlined setting-row-chevron"
                     aria-hidden="true"
-                    style={{
-                      transform: showDeveloper() ? "rotate(90deg)" : "none",
-                      transition: "transform var(--dur-fast) var(--ease-out)"
-                    }}
                   >
                     chevron_right
                   </span>
-                </button>
-                <Show when={showDeveloper()}>
-                  <div
-                    style={{
-                      padding: "var(--sp-3) var(--sp-5)",
-                      background: "var(--tier-1)",
-                      "border-bottom": "1px solid var(--hairline)"
-                    }}
-                  >
-                    <p
-                      style={{
-                        "font-family": "'Outfit', sans-serif",
-                        "font-weight": 700,
-                        "font-size": "0.75rem",
-                        color: "var(--text-muted)",
-                        "letter-spacing": "0.08em",
-                        "text-transform": "uppercase",
-                        margin: "0 0 var(--sp-2) 0"
-                      }}
-                    >
-                      Environment
-                    </p>
-                    <For each={diagRows}>
-                      {(row) => (
-                        <div
-                          class="stat-line"
-                          style={{
-                            "border-bottom": "1px solid var(--hairline)"
-                          }}
-                        >
-                          <span class="stat-line-key">{row.key}</span>
-                          <span class="stat-line-value">{row.value}</span>
-                        </div>
-                      )}
-                    </For>
-                    <p
-                      style={{
-                        "font-family": "'Outfit', sans-serif",
-                        "font-weight": 700,
-                        "font-size": "0.75rem",
-                        color: "var(--text-muted)",
-                        "letter-spacing": "0.08em",
-                        "text-transform": "uppercase",
-                        margin: "var(--sp-3) 0 var(--sp-2) 0"
-                      }}
-                    >
-                      Diagnostic actions
-                    </p>
-                    <div
-                      style={{
-                        display: "flex",
-                        gap: "var(--sp-2)",
-                        "flex-wrap": "wrap"
-                      }}
-                    >
-                      <button
-                        type="button"
-                        class="settings-link-btn focus-ring"
-                        onClick={() => {
-                          // Real cache clear via the same util as Privacy page
-                          import("~/shared/utils/clearStorage").then(
-                            ({ clearTmdbCache }) => {
-                              clearTmdbCache().then((n) => {
-                                alert(`Cleared ${n} cache entries`);
-                              });
-                            }
-                          );
-                        }}
-                      >
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-size": "14px" }}
-                          aria-hidden="true"
-                        >
-                          cached
-                        </span>
-                        Clear TMDB cache
-                      </button>
-                      <button
-                        type="button"
-                        class="settings-link-btn focus-ring"
-                        onClick={() => {
-                          // Test Supabase connectivity by reading the user's own profile
-                          import("~/lib/supabase/client").then(async (mod) => {
-                            try {
-                              const client = mod.getClient();
-                              const { data, error } = await client
-                                .from("profiles")
-                                .select("id")
-                                .limit(1);
-                              if (error) throw error;
-                              alert(`Supabase OK — ${data?.length ?? 0} rows`);
-                            } catch (e) {
-                              alert(`Supabase error: ${(e as Error).message}`);
-                            }
-                          });
-                        }}
-                      >
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-size": "14px" }}
-                          aria-hidden="true"
-                        >
-                          network_check
-                        </span>
-                        Test Supabase
-                      </button>
-                      <button
-                        type="button"
-                        class="settings-link-btn focus-ring"
-                        onClick={() => {
-                          if (typeof console !== "undefined") {
-                            console.log("[CineLog dev] localStorage dump:");
-                            for (let i = 0; i < localStorage.length; i++) {
-                              const k = localStorage.key(i);
-                              if (k)
-                                console.log(
-                                  k,
-                                  "=",
-                                  localStorage.getItem(k)?.slice(0, 100)
-                                );
-                            }
-                            alert(
-                              "Console log written — open dev tools to view"
-                            );
-                          }
-                        }}
-                      >
-                        <span
-                          class="material-symbols-outlined"
-                          style={{ "font-size": "14px" }}
-                          aria-hidden="true"
-                        >
-                          bug_report
-                        </span>
-                        Dump localStorage
-                      </button>
-                    </div>
-                  </div>
-                </Show>
+                </a>
               </div>
             </section>
 

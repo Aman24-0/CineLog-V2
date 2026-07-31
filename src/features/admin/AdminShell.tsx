@@ -115,6 +115,12 @@ const NAV_ITEMS: NavItem[] = [
     label: "Audit Logs",
     icon: "📝",
     description: "Admin action history"
+  },
+  {
+    href: "/admin/developer",
+    label: "Developer",
+    icon: "🛠️",
+    description: "Env vars, diagnostics, cache tools"
   }
 ];
 

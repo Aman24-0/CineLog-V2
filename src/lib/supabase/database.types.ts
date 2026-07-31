@@ -567,6 +567,38 @@ export type Database = {
         };
         Relationships: [];
       };
+      login_history: {
+        Row: {
+          id: string;
+          user_id: string;
+          ip_address: string | null;
+          user_agent: string | null;
+          login_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          login_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          login_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "login_history_user_fk";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       user_preferences: {
         Row: {
           accent_color: string;
@@ -579,6 +611,7 @@ export type Database = {
           discover_view: Database["public"]["Enums"]["discover_view_type"];
           id: string;
           language_code: string;
+          prefs_json: Json | null;
           preferred_content: Database["public"]["Enums"]["preferred_content_type"];
           spoiler_level: Database["public"]["Enums"]["spoiler_level_type"];
           theme: Database["public"]["Enums"]["theme_type"];
@@ -598,6 +631,7 @@ export type Database = {
           discover_view?: Database["public"]["Enums"]["discover_view_type"];
           id?: string;
           language_code?: string;
+          prefs_json?: Json | null;
           preferred_content?: Database["public"]["Enums"]["preferred_content_type"];
           spoiler_level?: Database["public"]["Enums"]["spoiler_level_type"];
           theme?: Database["public"]["Enums"]["theme_type"];
@@ -617,6 +651,7 @@ export type Database = {
           discover_view?: Database["public"]["Enums"]["discover_view_type"];
           id?: string;
           language_code?: string;
+          prefs_json?: Json | null;
           preferred_content?: Database["public"]["Enums"]["preferred_content_type"];
           spoiler_level?: Database["public"]["Enums"]["spoiler_level_type"];
           theme?: Database["public"]["Enums"]["theme_type"];

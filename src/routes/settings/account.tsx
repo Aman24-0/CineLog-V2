@@ -57,7 +57,6 @@ import {
   linkProvider,
   unlinkProvider,
   getUserIdentities,
-  signOutGlobal,
   type AccountActionResult
 } from "~/features/account/accountActions";
 import UpdateEmailSheet from "~/features/account/components/UpdateEmailSheet";
@@ -65,6 +64,9 @@ import ChangePasswordSheet from "~/features/account/components/ChangePasswordShe
 import DeactivateAccountSheet from "~/features/account/components/DeactivateAccountSheet";
 import ConfirmSignOutSheet from "~/features/account/components/ConfirmSignOutSheet";
 import LinkEmailPasswordSheet from "~/features/account/components/LinkEmailPasswordSheet";
+import TwoFactorSetup from "~/features/settings/components/TwoFactorSetup";
+import SessionList from "~/features/settings/components/SessionList";
+import LoginHistoryList from "~/features/settings/components/LoginHistoryList";
 import type { UserIdentity } from "@supabase/supabase-js";
 
 /**
@@ -134,7 +136,6 @@ const AccountRoute: Component = () => {
   const [unLinkingProvider, setUnlinkingProvider] = createSignal<string | null>(
     null
   );
-  const [signingOutEverywhere, setSigningOutEverywhere] = createSignal(false);
 
   // ── Sheet open state ────────────────────────────────────────────
   const [showEmailSheet, setShowEmailSheet] = createSignal(false);
@@ -146,13 +147,15 @@ const AccountRoute: Component = () => {
     "deactivate" | "delete"
   >("deactivate");
   // Sign-out confirmation sheet — opens BEFORE the actual sign-out call
-  // fires, so a misclick doesn't instantly log the user out. Two flavors:
-  //   "local"  → just this device
-  //   "global" → all sessions (Sign out everywhere)
-  const [signOutSheetMode, setSignOutSheetMode] = createSignal<
-    "local" | "global"
-  >("local");
+  // fires, so a misclick doesn't instantly log the user out.
+  // (Global sign-out is handled by SessionList via revokeAllSessions.)
   const [showSignOutSheet, setShowSignOutSheet] = createSignal(false);
+
+  // Expandable panels for 2FA, Sessions, and Login History.
+  // Each can be toggled open/closed inline on the Account page.
+  const [show2FAPanel, setShow2FAPanel] = createSignal(false);
+  const [showSessionsPanel, setShowSessionsPanel] = createSignal(false);
+  const [showLoginHistoryPanel, setShowLoginHistoryPanel] = createSignal(false);
 
   // Load the profile row to get country + display name.
   createEffect(() => {
@@ -306,37 +309,18 @@ const AccountRoute: Component = () => {
    * the sheet. Prevents accidental sign-out from a misclick.
    */
   const handleSignOut = () => {
-    setSignOutSheetMode("local");
-    setShowSignOutSheet(true);
-  };
-
-  /**
-   * Open the "Sign out everywhere?" confirmation sheet (global — all
-   * sessions across every device). The actual signOutGlobal() call
-   * fires only after the user taps "Yes" in the sheet.
-   */
-  const handleSignOutEverywhere = () => {
-    setSignOutSheetMode("global");
     setShowSignOutSheet(true);
   };
 
   /**
    * Called by ConfirmSignOutSheet when the user taps the confirm
-   * button. Runs the actual sign-out (local or global) and navigates
-   * to /discover on success.
+   * button. Runs the actual sign-out (local only — global sign-out
+   * is now handled by the SessionList component via revokeAllSessions).
+   * Navigates to /discover on success.
    */
   const handleConfirmSignOut = async () => {
-    if (signOutSheetMode() === "global") {
-      setSigningOutEverywhere(true);
-      const result = await signOutGlobal();
-      setSigningOutEverywhere(false);
-      if (result.success) {
-        navigate("/discover");
-      }
-    } else {
-      await signOut();
-      navigate("/discover");
-    }
+    await signOut();
+    navigate("/discover");
   };
 
   const handleDeactivate = () => {
@@ -956,10 +940,13 @@ const AccountRoute: Component = () => {
                     }}
                   </For>
 
-                  {/* B. 2FA — placeholder (not yet implemented) */}
-                  <div
-                    class="setting-row"
-                    style={{ cursor: "default", "align-items": "center" }}
+                  {/* B. 2FA — functional, expandable panel */}
+                  <button
+                    type="button"
+                    class="setting-row focus-ring"
+                    onClick={() => setShow2FAPanel(!show2FAPanel())}
+                    aria-expanded={show2FAPanel()}
+                    aria-label="Two-factor authentication"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
                       <span
@@ -978,16 +965,30 @@ const AccountRoute: Component = () => {
                         Extra layer of security at sign-in.
                       </span>
                     </div>
-                    <span class="account-coming-soon-chip">Coming soon</span>
-                  </div>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                      style={{
+                        transform: show2FAPanel() ? "rotate(180deg)" : "none",
+                        transition: "transform 200ms ease"
+                      }}
+                    >
+                      expand_more
+                    </span>
+                  </button>
+                  <Show when={show2FAPanel()}>
+                    <div class="settings-expandable-panel">
+                      <TwoFactorSetup />
+                    </div>
+                  </Show>
 
-                  {/* C. Session management — sign out everywhere */}
+                  {/* C. Session management — expandable panel */}
                   <button
                     type="button"
                     class="setting-row focus-ring"
-                    onClick={handleSignOutEverywhere}
-                    disabled={signingOutEverywhere()}
-                    aria-label="Sign out everywhere"
+                    onClick={() => setShowSessionsPanel(!showSessionsPanel())}
+                    aria-expanded={showSessionsPanel()}
+                    aria-label="Session management"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
                       <span
@@ -999,23 +1000,37 @@ const AccountRoute: Component = () => {
                       </span>
                     </div>
                     <div class="setting-row-text">
-                      <span class="setting-row-label">Sign out everywhere</span>
+                      <span class="setting-row-label">Sessions & devices</span>
                       <span class="setting-row-desc">
-                        Revoke all sessions across every device.
+                        Manage active sessions, sign out everywhere.
                       </span>
                     </div>
                     <span
                       class="material-symbols-outlined setting-row-chevron"
                       aria-hidden="true"
+                      style={{
+                        transform: showSessionsPanel() ? "rotate(180deg)" : "none",
+                        transition: "transform 200ms ease"
+                      }}
                     >
-                      chevron_right
+                      expand_more
                     </span>
                   </button>
+                  <Show when={showSessionsPanel()}>
+                    <div class="settings-expandable-panel">
+                      <SessionList />
+                    </div>
+                  </Show>
 
-                  {/* D. Login history — placeholder (not yet implemented) */}
-                  <div
-                    class="setting-row"
-                    style={{ cursor: "default", "align-items": "center" }}
+                  {/* D. Login history — functional, expandable panel */}
+                  <button
+                    type="button"
+                    class="setting-row focus-ring"
+                    onClick={() =>
+                      setShowLoginHistoryPanel(!showLoginHistoryPanel())
+                    }
+                    aria-expanded={showLoginHistoryPanel()}
+                    aria-label="Login history"
                   >
                     <div class="setting-row-icon" aria-hidden="true">
                       <span
@@ -1032,8 +1047,24 @@ const AccountRoute: Component = () => {
                         Recent sign-ins and devices.
                       </span>
                     </div>
-                    <span class="account-coming-soon-chip">Coming soon</span>
-                  </div>
+                    <span
+                      class="material-symbols-outlined setting-row-chevron"
+                      aria-hidden="true"
+                      style={{
+                        transform: showLoginHistoryPanel()
+                          ? "rotate(180deg)"
+                          : "none",
+                        transition: "transform 200ms ease"
+                      }}
+                    >
+                      expand_more
+                    </span>
+                  </button>
+                  <Show when={showLoginHistoryPanel()}>
+                    <div class="settings-expandable-panel">
+                      <LoginHistoryList />
+                    </div>
+                  </Show>
 
                   {/* Sign out (this device only) — last in security */}
                   <button
@@ -1091,7 +1122,7 @@ const AccountRoute: Component = () => {
       />
       <ConfirmSignOutSheet
         open={showSignOutSheet()}
-        mode={signOutSheetMode()}
+        mode="local"
         onConfirm={handleConfirmSignOut}
         onClose={() => setShowSignOutSheet(false)}
       />

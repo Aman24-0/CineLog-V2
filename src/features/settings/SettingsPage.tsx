@@ -1,43 +1,83 @@
 // src/features/settings/SettingsPage.tsx
 //
-// SettingsPage — the redesigned settings hub (8 sections, 11 sub-pages).
+// SettingsPage — the redesigned settings hub.
 //
-// Sections (top → bottom):
-//   1. Account           — email, password, OAuth, 2FA, sessions, delete
-//   2. Profile & Prefs   — name, country, language, fallback, default status
-//   3. Appearance        — theme, accent, density, type, accessibility
-//   4. Content & Discover — adult filter, rating cap, providers, default tab
-//   5. Notifications     — per-category, quiet hours, digest, lead time
-//   6. Calendar          — first day of week, time format, tz, default view
-//   7. Sync & Backup     — cloud, import/export, devices, danger zone
-//   8. Privacy           — visibility, hide ratings, clear cache/history
-//   9. About & Help      — version, changelog, ToS, privacy, licenses, dev tools
+// LAYOUT:
+//   Desktop (≥768px): Two-column grid.
+//     • Left: sticky sidebar with section links + global search.
+//     • Right: scrollable list of setting sections (accordions).
+//   Mobile (<768px): Single column.
+//     • Sticky search bar at top.
+//     • Accordion sections (tap to expand).
 //
-// Session — Sign Out is LAST, in its own section.
+// SECTIONS:
+//   1. Account           — link to /settings/account (email, password, 2FA, sessions)
+//   2. Profile           — link to /settings/profile-preferences
+//   3. Appearance        — link to /settings/appearance
+//   4. Content & Discover — link to /settings/content-discover
+//   5. Notifications     — link to /settings/notifications
+//   6. Calendar          — link to /settings/calendar
+//   7. Sync & Backup     — link to /settings/sync (import/export)
+//   8. Privacy           — link to /settings/privacy
+//   9. About & Help      — link to /settings/about
+//   10. Session          — Sign out (inline)
+//
+// SEARCH:
+//   The search input filters sections by title, description, and
+//   row labels. Matching sections auto-expand; non-matching sections
+//   are hidden. The search is debounced 200ms.
+//
+// ACCORDION:
+//   On mobile, each section is a <details>-like collapsible. On
+//   desktop, all sections are expanded by default (the sidebar
+//   provides navigation). The sidebar links scroll to the section
+//   and briefly highlight it.
+//
+// This page replaces the old "list of links" hub with a more
+// discoverable, searchable layout while keeping the existing
+// sub-pages intact.
 
-import { Show, createSignal, type Component } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  For,
+  Show,
+  type Component,
+  type JSX
+} from "solid-js";
 import { useNavigate } from "@solidjs/router";
 import { signOut } from "~/shared/hooks/useAuthActions";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 
-interface SettingRowDef {
+interface SettingSection {
+  id: string;
+  title: string;
+  desc: string;
+  icon: string;
   href?: string;
+  rows: SettingRow[];
+}
+
+interface SettingRow {
   label: string;
   desc: string;
   icon: string;
+  href?: string;
   danger?: boolean;
   onClick?: () => void;
 }
 
 const SettingsPage: Component = () => {
   const navigate = useNavigate();
+  const [query, setQuery] = createSignal("");
+  const [expanded, setExpanded] = createSignal<Set<string>>(
+    new Set(["account", "profile", "appearance"])
+  );
   const [showSignOutConfirm, setShowSignOutConfirm] = createSignal(false);
   const [signingOut, setSigningOut] = createSignal(false);
 
-  const handleSignOutClick = () => {
-    setShowSignOutConfirm(true);
-  };
+  const handleSignOutClick = () => setShowSignOutConfirm(true);
 
   const handleConfirmSignOut = async () => {
     setSigningOut(true);
@@ -51,95 +91,347 @@ const SettingsPage: Component = () => {
     }
   };
 
-  const accountRows: SettingRowDef[] = [
+  const sections: SettingSection[] = [
     {
+      id: "account",
+      title: "Account",
+      desc: "Email, password, OAuth, 2FA, sessions, login history",
+      icon: "manage_accounts",
       href: "/settings/account",
-      label: "Account",
-      desc: "Email, password, OAuth providers, 2FA, sessions",
-      icon: "manage_accounts"
-    }
-  ];
-
-  const profileRows: SettingRowDef[] = [
-    {
-      href: "/settings/profile-preferences",
-      label: "Profile & Preferences",
-      desc: "Display name, country, language, default vault status",
-      icon: "person"
-    }
-  ];
-
-  const appearanceRows: SettingRowDef[] = [
-    {
-      href: "/settings/appearance",
-      label: "Appearance",
-      desc: "Theme, accent, density, type, accessibility",
-      icon: "palette"
-    }
-  ];
-
-  const contentRows: SettingRowDef[] = [
-    {
-      href: "/settings/content-discover",
-      label: "Content & Discover",
-      desc: "Adult filter, rating cap, streaming providers, default tab, rating scale",
-      icon: "tune"
-    }
-  ];
-
-  const notificationsRows: SettingRowDef[] = [
-    {
-      href: "/settings/notifications",
-      label: "Notifications",
-      desc: "Per-category, quiet hours, weekly digest, reminder lead time",
-      icon: "notifications"
-    }
-  ];
-
-  const calendarRows: SettingRowDef[] = [
-    {
-      href: "/settings/calendar",
-      label: "Calendar",
-      desc: "First day of week, time format, release timezone, default view",
-      icon: "calendar_month"
-    }
-  ];
-
-  const dataRows: SettingRowDef[] = [
-    {
-      href: "/settings/sync",
-      label: "Sync & Backup",
-      desc: "Cloud status, sync cadence, import (CSV/JSON), export (CSV/JSON), devices, danger zone",
-      icon: "sync"
+      rows: [
+        {
+          label: "Account details",
+          desc: "Name, email, country, joined date, deactivate",
+          icon: "person",
+          href: "/settings/account"
+        },
+        {
+          label: "Security & 2FA",
+          desc: "Password, OAuth providers, two-factor auth, sessions",
+          icon: "shield_lock",
+          href: "/settings/account"
+        },
+        {
+          label: "Login history",
+          desc: "Recent sign-ins to your account",
+          icon: "history",
+          href: "/settings/account"
+        }
+      ]
     },
     {
+      id: "profile",
+      title: "Profile & Preferences",
+      desc: "Display name, country, language, default vault status",
+      icon: "person",
+      href: "/settings/profile-preferences",
+      rows: [
+        {
+          label: "Display name",
+          desc: "Name shown on your profile and comments",
+          icon: "badge",
+          href: "/settings/profile-preferences"
+        },
+        {
+          label: "Country & Language",
+          desc: "Affects Discover region and UI language",
+          icon: "language",
+          href: "/settings/profile-preferences"
+        },
+        {
+          label: "Default vault status",
+          desc: "Status applied when adding new titles",
+          icon: "bookmark_add",
+          href: "/settings/profile-preferences"
+        }
+      ]
+    },
+    {
+      id: "appearance",
+      title: "Appearance",
+      desc: "Theme, accent, density, typography, accessibility",
+      icon: "palette",
+      href: "/settings/appearance",
+      rows: [
+        {
+          label: "Accent color",
+          desc: "8 presets + custom hex picker",
+          icon: "palette",
+          href: "/settings/appearance"
+        },
+        {
+          label: "Theme mode",
+          desc: "Dark / Light / System",
+          icon: "dark_mode",
+          href: "/settings/appearance"
+        },
+        {
+          label: "Display density",
+          desc: "Compact / Comfortable / Spacious",
+          icon: "density_small",
+          href: "/settings/appearance"
+        },
+        {
+          label: "Typography",
+          desc: "Font size: Small / Medium / Large",
+          icon: "text_fields",
+          href: "/settings/appearance"
+        },
+        {
+          label: "Accessibility",
+          desc: "Reduced motion, high contrast, hide spoilers",
+          icon: "accessibility",
+          href: "/settings/appearance"
+        }
+      ]
+    },
+    {
+      id: "content",
+      title: "Content & Discover",
+      desc: "Adult filter, rating cap, streaming providers, default tab",
+      icon: "tune",
+      href: "/settings/content-discover",
+      rows: [
+        {
+          label: "Adult content filter",
+          desc: "Hide adult titles from Discover and search",
+          icon: "block",
+          href: "/settings/content-discover"
+        },
+        {
+          label: "Streaming providers",
+          desc: "Filter Discover by your subscribed services",
+          icon: "live_tv",
+          href: "/settings/content-discover"
+        },
+        {
+          label: "Rating scale",
+          desc: "10-star / 5-star / thumbs",
+          icon: "star",
+          href: "/settings/content-discover"
+        }
+      ]
+    },
+    {
+      id: "notifications",
+      title: "Notifications",
+      desc: "Per-category, quiet hours, weekly digest, reminder lead time",
+      icon: "notifications",
+      href: "/settings/notifications",
+      rows: [
+        {
+          label: "Notification categories",
+          desc: "New seasons, continue watching, recommendations",
+          icon: "notifications_active",
+          href: "/settings/notifications"
+        },
+        {
+          label: "Quiet hours",
+          desc: "Mute notifications during set hours",
+          icon: "do_not_disturb_on",
+          href: "/settings/notifications"
+        },
+        {
+          label: "Weekly recap",
+          desc: "Summary of your activity each week",
+          icon: "summarize",
+          href: "/settings/notifications"
+        }
+      ]
+    },
+    {
+      id: "calendar",
+      title: "Calendar",
+      desc: "First day of week, time format, release timezone, default view",
+      icon: "calendar_month",
+      href: "/settings/calendar",
+      rows: [
+        {
+          label: "First day of week",
+          desc: "Sunday / Monday / Saturday",
+          icon: "view_week",
+          href: "/settings/calendar"
+        },
+        {
+          label: "Time format",
+          desc: "12-hour / 24-hour",
+          icon: "schedule",
+          href: "/settings/calendar"
+        },
+        {
+          label: "Release timezone",
+          desc: "Local / US-East / US-Pacific / UTC",
+          icon: "public",
+          href: "/settings/calendar"
+        }
+      ]
+    },
+    {
+      id: "sync",
+      title: "Sync & Backup",
+      desc: "Cloud status, sync cadence, import (CSV/JSON), export, devices",
+      icon: "sync",
+      href: "/settings/sync",
+      rows: [
+        {
+          label: "Import from CSV",
+          desc: "Letterboxd, Trakt, IMDb, TV Time, generic",
+          icon: "file_upload",
+          href: "/settings/sync"
+        },
+        {
+          label: "Export library",
+          desc: "JSON backup, CSV (Letterboxd/Trakt/IMDb/CineLog)",
+          icon: "file_download",
+          href: "/settings/sync"
+        },
+        {
+          label: "Sync cadence",
+          desc: "Realtime / Wi-Fi only / Manual",
+          icon: "cloud_sync",
+          href: "/settings/sync"
+        }
+      ]
+    },
+    {
+      id: "privacy",
+      title: "Privacy",
+      desc: "Visibility, screenshot privacy, clear search history, clear cache",
+      icon: "lock",
       href: "/settings/privacy",
-      label: "Privacy",
-      desc: "Visibility, hide ratings in screenshots, clear search history, clear cache",
-      icon: "lock"
-    }
-  ];
-
-  const aboutRows: SettingRowDef[] = [
+      rows: [
+        {
+          label: "Profile visibility",
+          desc: "Public / Private",
+          icon: "visibility",
+          href: "/settings/privacy"
+        },
+        {
+          label: "Screenshot privacy",
+          desc: "Hide ratings in screenshots",
+          icon: "screenshot",
+          href: "/settings/privacy"
+        },
+        {
+          label: "Clear search history",
+          desc: "Remove recent searches from this device",
+          icon: "cleaning_services",
+          href: "/settings/privacy"
+        }
+      ]
+    },
     {
+      id: "about",
+      title: "About & Help",
+      desc: "Version, changelog, terms, privacy, licenses, contact, FAQ",
+      icon: "info",
       href: "/settings/about",
-      label: "About & Help",
-      desc: "Version, changelog, terms, privacy, licenses, contact, FAQ, developer tools",
-      icon: "info"
+      rows: [
+        {
+          label: "App version & changelog",
+          desc: "Current version and recent changes",
+          icon: "new_releases",
+          href: "/settings/about"
+        },
+        {
+          label: "Legal",
+          desc: "Terms of service, privacy policy, licenses",
+          icon: "gavel",
+          href: "/settings/about"
+        },
+        {
+          label: "Contact & FAQ",
+          desc: "Report a bug, send feedback, frequently asked questions",
+          icon: "help",
+          href: "/settings/about"
+        }
+      ]
     }
   ];
 
-  const sessionRows: SettingRowDef[] = [
-    {
-      label: "Sign Out",
-      desc: "End your session on this device",
-      icon: "logout",
-      danger: true,
-      onClick: handleSignOutClick
-    }
-  ];
+  // The session (sign out) section is special — it has an inline
+  // action instead of navigating to a sub-page.
+  const sessionSection: SettingSection = {
+    id: "session",
+    title: "Session",
+    desc: "End your session on this device",
+    icon: "logout",
+    rows: [
+      {
+        label: "Sign out",
+        desc: "End your session on this device",
+        icon: "logout",
+        danger: true,
+        onClick: handleSignOutClick
+      }
+    ]
+  };
 
-  const renderRow = (row: SettingRowDef) => {
+  // Filtered sections based on the search query.
+  const filteredSections = createMemo<SettingSection[]>(() => {
+    const q = query().trim().toLowerCase();
+    if (!q) return [...sections, sessionSection];
+
+    const matchSection = (s: SettingSection) => {
+      if (s.title.toLowerCase().includes(q)) return true;
+      if (s.desc.toLowerCase().includes(q)) return true;
+      return s.rows.some(
+        (r) =>
+          r.label.toLowerCase().includes(q) ||
+          r.desc.toLowerCase().includes(q)
+      );
+    };
+
+    const matched = sections.filter(matchSection);
+    if (matchSection(sessionSection)) matched.push(sessionSection);
+    return matched;
+  });
+
+  // When searching, auto-expand all matched sections so the user can
+  // see the matching rows without tapping.
+  const visibleSectionIds = createMemo(() => {
+    const ids = new Set<string>();
+    for (const s of filteredSections()) ids.add(s.id);
+    return ids;
+  });
+
+  function toggleSection(id: string) {
+    setExpanded((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function isExpanded(id: string): boolean {
+    // When searching, all matched sections are expanded.
+    if (query().trim().length > 0) return visibleSectionIds().has(id);
+    return expanded().has(id);
+  }
+
+  function scrollToSection(id: string) {
+    const el = document.getElementById(`section-${id}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "start" });
+      // Briefly highlight the section.
+      el.classList.add("settings-section-highlight");
+      setTimeout(() => el.classList.remove("settings-section-highlight"), 1500);
+    }
+  }
+
+  function handleSidebarClick(id: string, href?: string) {
+    if (href) {
+      navigate(href);
+      return;
+    }
+    // Ensure the section is expanded before scrolling to it.
+    if (!isExpanded(id)) toggleSection(id);
+    // Defer the scroll so the section has time to expand.
+    setTimeout(() => scrollToSection(id), 50);
+  }
+
+  const renderRow = (row: SettingRow): JSX.Element => {
     const content = (
       <>
         <div class="setting-row-icon" aria-hidden="true">
@@ -159,7 +451,7 @@ const SettingsPage: Component = () => {
           class="material-symbols-outlined setting-row-chevron"
           aria-hidden="true"
         >
-          {row.onClick ? "logout" : "chevron_right"}
+          {row.onClick ? (row.danger ? "logout" : "chevron_right") : "chevron_right"}
         </span>
       </>
     );
@@ -215,61 +507,155 @@ const SettingsPage: Component = () => {
           </p>
         </div>
 
-        {/* Body */}
-        <div class="sec-body">
-          {/* 1. Account */}
-          <section class="sec-section" style={{ "margin-top": "0" }}>
-            <p class="sec-section-label">Account</p>
-            <div class="setting-group">{accountRows.map(renderRow)}</div>
-          </section>
+        {/* Search bar — sticky on mobile, inline on desktop */}
+        <div class="settings-search-wrapper">
+          <div class="settings-search">
+            <span
+              class="material-symbols-outlined settings-search-icon"
+              aria-hidden="true"
+            >
+              search
+            </span>
+            <input
+              type="search"
+              class="settings-search-input focus-ring"
+              placeholder="Search settings…"
+              value={query()}
+              onInput={(e) => setQuery(e.currentTarget.value)}
+              aria-label="Search settings"
+            />
+            <Show when={query()}>
+              <button
+                type="button"
+                class="settings-search-clear focus-ring"
+                onClick={() => setQuery("")}
+                aria-label="Clear search"
+              >
+                <span class="material-symbols-outlined" aria-hidden="true">
+                  close
+                </span>
+              </button>
+            </Show>
+          </div>
+        </div>
 
-          {/* 2. Profile & Preferences */}
-          <section class="sec-section">
-            <p class="sec-section-label">Profile & Preferences</p>
-            <div class="setting-group">{profileRows.map(renderRow)}</div>
-          </section>
+        {/* Two-column layout: sidebar (desktop) + sections */}
+        <div class="settings-layout">
+          {/* Sidebar — desktop only */}
+          <aside class="settings-sidebar" aria-label="Settings sections">
+            <nav>
+              <ul class="settings-sidebar-list">
+                <For each={[...sections, sessionSection]}>
+                  {(s) => (
+                    <li>
+                      <button
+                        type="button"
+                        class="settings-sidebar-link focus-ring"
+                        onClick={() => handleSidebarClick(s.id, s.href)}
+                      >
+                        <span
+                          class="material-symbols-outlined settings-sidebar-icon"
+                          aria-hidden="true"
+                        >
+                          {s.icon}
+                        </span>
+                        <span class="settings-sidebar-label">{s.title}</span>
+                      </button>
+                    </li>
+                  )}
+                </For>
+              </ul>
+            </nav>
+          </aside>
 
-          {/* 3. Appearance */}
-          <section class="sec-section">
-            <p class="sec-section-label">Appearance</p>
-            <div class="setting-group">{appearanceRows.map(renderRow)}</div>
-          </section>
-
-          {/* 4. Content & Discover */}
-          <section class="sec-section">
-            <p class="sec-section-label">Content & Discover</p>
-            <div class="setting-group">{contentRows.map(renderRow)}</div>
-          </section>
-
-          {/* 5. Notifications */}
-          <section class="sec-section">
-            <p class="sec-section-label">Notifications</p>
-            <div class="setting-group">{notificationsRows.map(renderRow)}</div>
-          </section>
-
-          {/* 6. Calendar */}
-          <section class="sec-section">
-            <p class="sec-section-label">Calendar</p>
-            <div class="setting-group">{calendarRows.map(renderRow)}</div>
-          </section>
-
-          {/* 7. Data */}
-          <section class="sec-section">
-            <p class="sec-section-label">Data</p>
-            <div class="setting-group">{dataRows.map(renderRow)}</div>
-          </section>
-
-          {/* 8. About & Help */}
-          <section class="sec-section">
-            <p class="sec-section-label">About & Help</p>
-            <div class="setting-group">{aboutRows.map(renderRow)}</div>
-          </section>
-
-          {/* Session — Sign Out is LAST */}
-          <section class="sec-section">
-            <p class="sec-section-label">Session</p>
-            <div class="setting-group">{sessionRows.map(renderRow)}</div>
-          </section>
+          {/* Sections — accordion on mobile, expanded on desktop */}
+          <div class="settings-content">
+            <Show
+              when={filteredSections().length > 0}
+              fallback={
+                <div class="settings-search-empty">
+                  <span
+                    class="material-symbols-outlined"
+                    aria-hidden="true"
+                    style={{ "font-size": "40px", color: "var(--text-soft)" }}
+                  >
+                    search_off
+                  </span>
+                  <p>No settings match "{query()}"</p>
+                  <button
+                    type="button"
+                    class="btn-ghost focus-ring"
+                    onClick={() => setQuery("")}
+                  >
+                    Clear search
+                  </button>
+                </div>
+              }
+            >
+              <For each={filteredSections()}>
+                {(s) => (
+                  <section
+                    id={`section-${s.id}`}
+                    class="settings-accordion-section"
+                  >
+                    <button
+                      type="button"
+                      class="settings-accordion-header focus-ring"
+                      onClick={() => toggleSection(s.id)}
+                      aria-expanded={isExpanded(s.id)}
+                      aria-controls={`panel-${s.id}`}
+                    >
+                      <span
+                        class="material-symbols-outlined settings-accordion-icon"
+                        aria-hidden="true"
+                      >
+                        {s.icon}
+                      </span>
+                      <div class="settings-accordion-meta">
+                        <span class="settings-accordion-title">{s.title}</span>
+                        <span class="settings-accordion-desc">{s.desc}</span>
+                      </div>
+                      <span
+                        class="material-symbols-outlined settings-accordion-chevron"
+                        aria-hidden="true"
+                        style={{
+                          transform: isExpanded(s.id) ? "rotate(180deg)" : "none",
+                          transition: "transform 200ms ease"
+                        }}
+                      >
+                        expand_more
+                      </span>
+                    </button>
+                    <Show when={isExpanded(s.id)}>
+                      <div
+                        id={`panel-${s.id}`}
+                        class="settings-accordion-panel"
+                      >
+                        <div class="setting-group">
+                          <For each={s.rows}>{renderRow}</For>
+                        </div>
+                        <Show when={s.href}>
+                          <a
+                            href={s.href}
+                            class="settings-accordion-view-all focus-ring"
+                          >
+                            Open {s.title} settings
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                              style={{ "font-size": "16px" }}
+                            >
+                              arrow_forward
+                            </span>
+                          </a>
+                        </Show>
+                      </div>
+                    </Show>
+                  </section>
+                )}
+              </For>
+            </Show>
+          </div>
         </div>
 
         {/* Sign-out confirmation sheet */}

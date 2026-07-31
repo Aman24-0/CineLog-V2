@@ -1,6 +1,894 @@
 /* src/styles/features/settings.css — Settings page
-   Clean, calm, premium. Matches the Profile page's editorial tone.
+   ============================================================
+   Styles for the redesigned Settings hub (sidebar + accordion + search)
+   and the new 2FA / Sessions / Login History panels.
 
-   NOTE: All `settings-*` classes that previously lived here were dead —
-   the SettingsPage.tsx component uses `setting-*` (no 's') classes that
-   are defined in secondary.css. Rules removed after audit. */
+   The legacy `setting-*` classes (rows, groups, segmented controls,
+   toggles, etc.) still live in secondary.css — this file adds the
+   new layout + component styles on top.
+
+   LAYOUT:
+     .settings-layout
+       ├── .settings-sidebar        (desktop only, sticky)
+       └── .settings-content        (accordion sections)
+
+     .settings-search-wrapper > .settings-search
+
+     .settings-accordion-section
+       ├── .settings-accordion-header
+       └── .settings-accordion-panel
+
+   COMPONENTS:
+     .settings-2fa, .settings-sessions, .settings-login-history
+     .settings-expandable-panel
+     .settings-error
+     .admin-developer, .admin-developer-*
+
+   ============================================================ */
+
+/* ─── Search bar ────────────────────────────────────────────────── */
+.settings-search-wrapper {
+  margin: var(--sp-3) 0 var(--sp-5) 0;
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  background: var(--bg);
+  padding: var(--sp-2) 0;
+}
+
+.settings-search {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  transition: border-color var(--dur-fast) var(--ease-out);
+}
+
+.settings-search:focus-within {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+
+.settings-search-icon {
+  font-size: 18px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.settings-search-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  color: var(--text);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+.settings-search-input::placeholder {
+  color: var(--text-muted);
+}
+
+.settings-search-input::-webkit-search-cancel-button {
+  display: none;
+}
+
+.settings-search-clear {
+  background: transparent;
+  border: none;
+  color: var(--text-soft);
+  cursor: pointer;
+  padding: 2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.settings-search-clear:hover {
+  background: var(--tier-2);
+  color: var(--text);
+}
+
+/* ─── Two-column layout (desktop) ──────────────────────────────── */
+.settings-layout {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+}
+
+@media (min-width: 768px) {
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: var(--sp-6);
+    align-items: start;
+  }
+}
+
+/* ─── Sidebar (desktop only) ───────────────────────────────────── */
+.settings-sidebar {
+  display: none;
+  position: sticky;
+  top: var(--sp-4);
+}
+
+@media (min-width: 768px) {
+  .settings-sidebar {
+    display: block;
+  }
+}
+
+.settings-sidebar-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  width: 100%;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text-body);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+}
+
+.settings-sidebar-link:hover {
+  background: var(--tier-1);
+  color: var(--text-strong);
+}
+
+.settings-sidebar-icon {
+  font-size: 18px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.settings-sidebar-link:hover .settings-sidebar-icon {
+  color: var(--p);
+}
+
+.settings-sidebar-label {
+  flex: 1;
+}
+
+/* ─── Accordion sections ───────────────────────────────────────── */
+.settings-content {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.settings-accordion-section {
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  transition: border-color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+}
+
+.settings-accordion-section:hover {
+  border-color: var(--hairline-3);
+}
+
+.settings-section-highlight {
+  border-color: var(--p) !important;
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+
+.settings-accordion-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  width: 100%;
+  background: transparent;
+  border: none;
+  padding: var(--sp-3) var(--sp-4);
+  color: var(--text);
+  font-family: "Outfit", sans-serif;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.settings-accordion-header:hover {
+  background: var(--tier-2);
+}
+
+.settings-accordion-icon {
+  font-size: 20px;
+  color: var(--p);
+  flex-shrink: 0;
+}
+
+.settings-accordion-meta {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-accordion-title {
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--text-strong);
+}
+
+.settings-accordion-desc {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.settings-accordion-chevron {
+  font-size: 20px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.settings-accordion-panel {
+  padding: 0 var(--sp-4) var(--sp-3) var(--sp-4);
+  border-top: 1px solid var(--hairline);
+  animation: settingsPanelSlide 200ms var(--ease-out);
+}
+
+@keyframes settingsPanelSlide {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.settings-accordion-panel .setting-group {
+  margin-top: var(--sp-2);
+}
+
+.settings-accordion-view-all {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+  padding: var(--sp-2);
+  background: transparent;
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  color: var(--p);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: background var(--dur-fast) var(--ease-out),
+    border-color var(--dur-fast) var(--ease-out);
+}
+
+.settings-accordion-view-all:hover {
+  background: var(--p-dim);
+  border-color: var(--p);
+}
+
+/* ─── Search empty state ───────────────────────────────────────── */
+.settings-search-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-8) var(--sp-4);
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.settings-search-empty p {
+  margin: 0;
+  font-size: 0.9375rem;
+  font-weight: 500;
+}
+
+/* ─── Expandable panel (Account page 2FA/Sessions/Login History) ─ */
+.settings-expandable-panel {
+  padding: var(--sp-3) var(--sp-4) var(--sp-4) calc(var(--sp-4) + 28px);
+  background: var(--tier-1);
+  border-top: 1px solid var(--hairline);
+  border-bottom: 1px solid var(--hairline);
+  animation: settingsPanelSlide 200ms var(--ease-out);
+}
+
+/* ─── Shared error / loading states ────────────────────────────── */
+.settings-error {
+  background: rgba(255, 45, 85, 0.08);
+  border: 1px solid rgba(255, 45, 85, 0.3);
+  border-radius: var(--radius-sm);
+  padding: var(--sp-2) var(--sp-3);
+  color: #ff2d55;
+  font-size: 0.8125rem;
+  font-family: "Outfit", sans-serif;
+  font-weight: 500;
+  margin-bottom: var(--sp-3);
+}
+
+/* ─── 2FA Setup ─────────────────────────────────────────────────── */
+.settings-2fa {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.settings-2fa-loading,
+.settings-sessions-loading,
+.settings-login-history-loading {
+  padding: var(--sp-3) 0;
+  color: var(--text-soft);
+  font-size: 0.875rem;
+}
+
+.settings-2fa-status {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  color: var(--text-body);
+}
+
+.settings-2fa-status-on {
+  color: var(--success, #34c759);
+}
+
+.settings-2fa-desc {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+  margin: 0;
+}
+
+.settings-2fa-qr {
+  display: flex;
+  justify-content: center;
+  padding: var(--sp-3);
+  background: #fff;
+  border-radius: var(--radius-md);
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.settings-2fa-qr img {
+  display: block;
+  border-radius: var(--radius-sm);
+}
+
+.settings-2fa-secret {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border-radius: var(--radius-sm);
+  font-family: "Söhne Mono", "Courier New", monospace;
+}
+
+.settings-2fa-secret-label {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  font-family: "Outfit", sans-serif;
+}
+
+.settings-2fa-secret-value {
+  font-size: 0.8125rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.settings-2fa-step-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.settings-2fa-code-input {
+  width: 100%;
+  max-width: 200px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: "Söhne Mono", "Courier New", monospace;
+  font-size: 1.25rem;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: 0.3em;
+  outline: none;
+}
+
+.settings-2fa-code-input:focus {
+  border-color: var(--p);
+  box-shadow: 0 0 0 3px var(--p-dim);
+}
+
+.settings-2fa-actions {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.settings-2fa-factors {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin: var(--sp-2) 0;
+}
+
+.settings-2fa-factor {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+}
+
+.settings-2fa-factor-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-2fa-factor-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-2fa-factor-date {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.settings-2fa-remove {
+  font-size: 0.75rem !important;
+  padding: var(--sp-1) var(--sp-2) !important;
+  color: #ff2d55 !important;
+}
+
+/* ─── Sessions ──────────────────────────────────────────────────── */
+.settings-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.settings-sessions-section {
+  margin-top: var(--sp-3);
+}
+
+.settings-sessions-subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: var(--text-muted);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  margin: 0 0 var(--sp-2) 0;
+}
+
+.settings-sessions-empty {
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.settings-session-card {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  margin-bottom: var(--sp-2);
+}
+
+.settings-session-current {
+  border-color: var(--p);
+  background: var(--p-dim);
+}
+
+.settings-session-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  background: var(--tier-1);
+  border-radius: 50%;
+  color: var(--p);
+  flex-shrink: 0;
+}
+
+.settings-session-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-session-name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text);
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+}
+
+.settings-session-badge {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 6px;
+  background: var(--p);
+  color: var(--bg);
+  border-radius: 999px;
+}
+
+.settings-session-meta {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.settings-session-aal {
+  font-size: 0.6875rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+.settings-session-remove {
+  font-size: 0.75rem !important;
+  padding: var(--sp-1) var(--sp-2) !important;
+  color: #ff2d55 !important;
+}
+
+.settings-sessions-danger {
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-3);
+  border-top: 1px solid var(--hairline);
+}
+
+.settings-danger-btn {
+  color: #ff2d55 !important;
+  border: 1px solid rgba(255, 45, 85, 0.3) !important;
+}
+
+.settings-sessions-danger-desc {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+  margin: var(--sp-2) 0 0 0;
+  line-height: 1.4;
+}
+
+/* ─── Login History ─────────────────────────────────────────────── */
+.settings-login-history {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.settings-login-history-header {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.settings-login-history-refresh {
+  font-size: 0.75rem !important;
+  padding: var(--sp-1) var(--sp-2) !important;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.settings-login-history-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2);
+  padding: var(--sp-6);
+  text-align: center;
+  color: var(--text-soft);
+}
+
+.settings-login-history-empty p {
+  margin: 0;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.settings-login-history-empty-sub {
+  font-size: 0.75rem !important;
+  color: var(--text-muted) !important;
+}
+
+.settings-login-history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.settings-login-history-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border-radius: var(--radius-sm);
+}
+
+.settings-login-history-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  background: var(--tier-1);
+  border-radius: 50%;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+.settings-login-history-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.settings-login-history-device {
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.settings-login-history-date {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.settings-login-history-ip {
+  font-size: 0.6875rem;
+  font-family: "Söhne Mono", "Courier New", monospace;
+  color: var(--text-muted);
+  padding: 2px 6px;
+  background: var(--tier-1);
+  border-radius: var(--radius-xs);
+}
+
+/* ─── Admin Developer Page ──────────────────────────────────────── */
+.admin-developer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  padding: var(--sp-4) 0;
+}
+
+.admin-developer-header h1 {
+  font-family: "Outfit", sans-serif;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.admin-developer-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  margin: var(--sp-1) 0 0 0;
+}
+
+.admin-developer-section {
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  padding: var(--sp-4);
+}
+
+.admin-developer-section h2 {
+  font-family: "Outfit", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 var(--sp-3) 0;
+}
+
+.admin-developer-section-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--sp-3);
+}
+
+.admin-developer-section-header h2 {
+  margin: 0;
+}
+
+.admin-developer-env-list {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.admin-developer-env-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border-radius: var(--radius-sm);
+}
+
+.admin-developer-env-key {
+  font-family: "Söhne Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p);
+  min-width: 200px;
+}
+
+.admin-developer-env-value {
+  flex: 1;
+  font-family: "Söhne Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.admin-developer-copy {
+  padding: 4px !important;
+  min-width: 32px !important;
+  min-height: 32px !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.admin-developer-diag-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1px;
+}
+
+@media (max-width: 640px) {
+  .admin-developer-diag-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-developer-diag-row {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  border-radius: var(--radius-sm);
+}
+
+.admin-developer-diag-row-wide {
+  grid-column: 1 / -1;
+}
+
+.admin-developer-diag-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.admin-developer-diag-value {
+  font-size: 0.8125rem;
+  color: var(--text);
+  word-break: break-all;
+}
+
+.admin-developer-diag-mono {
+  font-family: "Söhne Mono", "Courier New", monospace;
+  font-size: 0.75rem;
+}
+
+.admin-developer-links {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.admin-developer-link {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-3);
+  background: var(--tier-2);
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text);
+  font-family: "Outfit", sans-serif;
+  cursor: pointer;
+  text-align: left;
+  transition: background var(--dur-fast) var(--ease-out);
+}
+
+.admin-developer-link:hover {
+  background: var(--tier-3);
+}
+
+.admin-developer-link > .material-symbols-outlined:first-child {
+  font-size: 24px;
+  color: var(--p);
+  flex-shrink: 0;
+}
+
+.admin-developer-link > div {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-developer-link-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-strong);
+}
+
+.admin-developer-link-desc {
+  font-size: 0.75rem;
+  color: var(--text-soft);
+}
+
+.admin-developer-link > .material-symbols-outlined:last-child {
+  font-size: 18px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+}
+
+/* ─── "Coming soon" chip (legacy — kept for backwards compat) ──── */
+.account-coming-soon-chip {
+  display: none;
+}

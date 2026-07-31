@@ -139,29 +139,11 @@ export interface FutureSource {
   accentColor: string;
 }
 
-// NOTE: "CSV File" was removed from FUTURE_SOURCES because CSV import is
-// already available as CsvImportCard (rendered directly on the sync page
-// below ImportHub). Showing it as "Coming soon" was confusing duplication.
-export const FUTURE_SOURCES: FutureSource[] = [
-  {
-    id: "letterboxd",
-    displayName: "Letterboxd",
-    description: "Import from your Letterboxd diary & watchlist",
-    icon: "movie_filter",
-    accentColor: "#ff8000"
-  },
-  {
-    id: "trakt",
-    displayName: "Trakt",
-    description: "Import your Trakt history, ratings & watchlist",
-    icon: "tv_gen",
-    accentColor: "#ed1c24"
-  },
-  {
-    id: "imdb",
-    displayName: "IMDb",
-    description: "Import from an exported IMDb watchlist",
-    icon: "movie_info",
-    accentColor: "#f5c518"
-  }
-];
+// NOTE: CSV import (Letterboxd, Trakt, IMDb, TV Time) is fully
+// supported via CsvImportCard on the sync page — it auto-detects the
+// format from the header row. We no longer list these as "coming
+// soon" because that was misleading users into thinking the feature
+// didn't exist. The FUTURE_SOURCES array is kept for genuinely
+// future API-based imports (e.g. direct Letterboxd OAuth, Trakt OAuth)
+// that don't require a manual CSV export.
+export const FUTURE_SOURCES: FutureSource[] = [];

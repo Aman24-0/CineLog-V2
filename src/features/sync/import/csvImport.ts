@@ -6,6 +6,9 @@
 //   - Letterboxd (Position, Name, Year, Letterboxd URI, Rating10)
 //   - Trakt (Title, Year, Type, Rating, WatchedAt, Status)
 //   - IMDb (Position, Const, Created, Modified, Description, Title, URL, ...)
+//   - TV Time (show_name, season, number, seen_at) — episode-level
+//     tracking exported as CSV. We map each row to a "tv" candidate
+//     with status=Completed and a watchDate derived from seen_at.
 //   - Generic CineLog export
 //
 // Returns a list of "import candidates" — partial WatchlistItem objects
@@ -17,7 +20,13 @@ import type { WatchlistItem } from "~/shared/types";
 
 /** A row parsed from CSV, before being mapped to a WatchlistItem. */
 export interface CsvImportRow {
-  source: "letterboxd" | "trakt" | "imdb" | "generic" | "unknown";
+  source:
+    | "letterboxd"
+    | "trakt"
+    | "imdb"
+    | "tvtime"
+    | "generic"
+    | "unknown";
   raw: Record<string, string>;
 }
 
@@ -145,6 +154,14 @@ function detectSource(headers: string[]): CsvImportRow["source"] {
   if (joined.includes("letterboxd uri")) return "letterboxd";
   if (joined.includes("watchedat") && joined.includes("type")) return "trakt";
   if (joined.includes("const") && joined.includes("title type")) return "imdb";
+  // TV Time CSV exports episode-level rows with columns like
+  // "show_name", "season", "number", "seen_at". We detect on the
+  // combination of show_name + seen_at (number/season are too generic).
+  if (
+    joined.includes("show_name") &&
+    joined.includes("seen_at")
+  )
+    return "tvtime";
   if (joined.includes("media_type") && joined.includes("status"))
     return "generic";
   return "unknown";
@@ -262,6 +279,29 @@ function mapRowToCandidate(
       rating: !isNaN(rating as number) ? rating : undefined,
       watchDate: created,
       notes: description
+    };
+  }
+
+  if (source === "tvtime") {
+    // TV Time episode-level export. Columns (lowercased):
+    //   show_name, season, number, seen_at
+    // Each row = one watched episode. We collapse to a single "tv"
+    // candidate per unique show_name (the first row we see for that
+    // show), with status=Completed and watchDate = the earliest
+    // seen_at. Subsequent rows for the same show are skipped here and
+    // de-duplicated later by the vault's unique constraint.
+    const showName = row["show_name"] || row["Show Name"] || row["name"];
+    if (!showName) return null;
+    const seasonStr = row["season"] || row["Season"];
+    const episodeStr = row["number"] || row["Number"] || row["episode"];
+    const seenAt = row["seen_at"] || row["Seen At"] || row["watched_at"];
+    return {
+      title: showName,
+      media_type: "tv",
+      status: "Completed",
+      watchDate: seenAt || undefined,
+      ...(seasonStr && { season: parseInt(seasonStr, 10) || undefined }),
+      ...(episodeStr && { episode: parseInt(episodeStr, 10) || undefined })
     };
   }
 

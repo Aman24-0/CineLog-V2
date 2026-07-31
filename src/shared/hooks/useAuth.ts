@@ -133,13 +133,26 @@ export function useAuth() {
     // sign-in / sign-out events).
     if (!unsub) {
       try {
-        const subscription = onSessionChange((_event, session) => {
+        const subscription = onSessionChange((event, session) => {
           setUser(mapSupabaseUser(session));
           setAuthReady(true);
           // Auto-populate display_name + username on sign-in.
           // This runs in the background — the UI doesn't wait for it.
           if (session?.user) {
             void ensureProfileForUser(session.user);
+            // Log the sign-in to login_history for the audit trail
+            // shown in Settings → Account → Login History. Only logs
+            // actual sign-in events (not token refreshes or sign-outs).
+            // Best-effort — failures are swallowed.
+            if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
+              // TOKEN_REFRESHED only logs if we don't already have a
+              // recent entry for this session (avoid spamming on every
+              // hourly refresh). We use a simple localStorage rate-limiter.
+              if (event === "TOKEN_REFRESHED" && !shouldLogRefresh()) {
+                return;
+              }
+              void logLoginForUser(session.user.id);
+            }
           }
         });
         unsub = () => subscription.unsubscribe();
@@ -198,6 +211,14 @@ async function checkInitialSession() {
     // Auto-populate display_name + username on initial session detection.
     if (session?.user) {
       void ensureProfileForUser(session.user);
+      // Log the sign-in to login_history. On a fresh page load this
+      // is the first chance we get to log — the SIGNED_IN event may
+      // have fired before our listener was registered (e.g. after an
+      // OAuth redirect). We rate-limit via shouldLogRefresh so we
+      // don't double-log on every reload.
+      if (shouldLogRefresh()) {
+        void logLoginForUser(session.user.id);
+      }
     }
   } catch (err) {
     console.error("[useAuth] Initial session check failed:", err);
@@ -235,6 +256,59 @@ async function ensureProfileForUser(supabaseUser: {
     // Non-fatal — the profile might already exist from the Supabase trigger.
     // Log but don't crash the auth flow.
     console.error("[useAuth] ensureProfile failed:", err);
+  }
+}
+
+/**
+ * Rate-limiter for TOKEN_REFRESHED events. We don't want to log every
+ * hourly token refresh to login_history (it would spam the audit log).
+ * This returns true only if the last log was more than 6 hours ago.
+ *
+ * Uses localStorage so the rate-limit persists across reloads. Key
+ * is per-user so switching accounts doesn't cross-contaminate.
+ */
+function shouldLogRefresh(): boolean {
+  try {
+    const uid = user()?.uid;
+    if (!uid) return false;
+    const key = `cinelog:last_login_log:${uid}`;
+    const last = localStorage.getItem(key);
+    const now = Date.now();
+    // 6 hours in ms — Supabase refreshes ~hourly, so this allows at
+    // most ~4 refresh-logs per day, which is reasonable.
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+    if (last && now - parseInt(last, 10) < SIX_HOURS) {
+      return false;
+    }
+    localStorage.setItem(key, String(now));
+    return true;
+  } catch {
+    // localStorage might be unavailable (private mode, etc.) —
+    // be permissive and log.
+    return true;
+  }
+}
+
+/**
+ * Insert a row into login_history for the given user. Best-effort —
+ * any error is swallowed because login-history is an audit trail,
+ * not a critical path. Uses dynamic import to avoid pulling the
+ * supabase client into the initial bundle.
+ *
+ * The IP address is not available client-side, so we pass null. The
+ * user-agent is read from navigator.userAgent.
+ */
+async function logLoginForUser(uid: string): Promise<void> {
+  try {
+    const { logLogin } = await import(
+      "~/lib/supabase/repositories/loginHistory"
+    );
+    const userAgent =
+      typeof navigator !== "undefined" ? navigator.userAgent : null;
+    await logLogin(uid, null, userAgent);
+  } catch (err) {
+    // Non-fatal — login history is best-effort.
+    console.warn("[useAuth] logLogin failed:", err);
   }
 }
 
