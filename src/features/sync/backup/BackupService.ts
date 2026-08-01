@@ -39,8 +39,67 @@ export interface BackupDocument {
   appVersion: string;
   library: {
     watchlist: WatchlistItem[];
-    collections?: unknown[];
+    /**
+     * Collections + their entries. Phase 1 audit fix — previously
+     * hardcoded to `[]`, so exports lost all collection data.
+     */
+    collections?: BackupCollection[];
+    /**
+     * Saved vault-filter presets. Phase 1 audit fix.
+     */
+    presets?: BackupPreset[];
+    /**
+     * Episode-level watch progress for TV items. Phase 1 audit fix.
+     * Keyed by vault_id so the restore can match progress to the
+     * re-imported vault row.
+     */
+    episodeProgress?: BackupEpisodeProgress[];
   };
+}
+
+/**
+ * A collection + its entries, exported as part of a backup.
+ *
+ * We snapshot entries by their tmdb_id + media_type (not vault_id)
+ * because vault_id will be different on the restore side (the
+ * restored vault row gets a fresh UUID). The restore flow matches
+ * entries to the new vault row by (tmdb_id, media_type).
+ */
+export interface BackupCollection {
+  name: string;
+  description: string | null;
+  collection_type: string;
+  poster_url: string | null;
+  is_public: boolean;
+  archived_at: string | null;
+  // Entries — each references a watchlist item by tmdb_id + media_type
+  entries: BackupCollectionEntry[];
+}
+
+export interface BackupCollectionEntry {
+  tmdb_id: string;
+  media_type: "movie" | "tv";
+  position: number;
+  note: string | null;
+  added_at: string;
+}
+
+export interface BackupPreset {
+  name: string;
+  filters: unknown;
+}
+
+export interface BackupEpisodeProgress {
+  // The vault_id of the original item — used to look up the matching
+  // tmdb_id + media_type in the watchlist, then re-attached to the
+  // restored vault row.
+  vault_id: string;
+  season: number | null;
+  episode: number | null;
+  is_completed: boolean;
+  progress_minutes: number | null;
+  watched_at: string | null;
+  notes: string | null;
 }
 
 /** A parsed backup — normalized to a flat watchlist regardless of input format. */
@@ -158,33 +217,239 @@ import {
 import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 
 /**
- * Build a wrapped BackupDocument from the user's current watchlist.
+ * Build a wrapped BackupDocument from the user's current watchlist +
+ * collections + presets + episode progress.
+ *
+ * Phase 1 audit fix: previously this only exported `watchlist` with
+ * `collections: []` hardcoded to empty. Now it fetches the user's
+ * full library from Supabase so the backup is a complete snapshot.
+ *
  * Used by "Create Backup" and "Export Backup".
+ *
+ * @param watchlist  The current in-memory watchlist (already loaded
+ *                   by useUserLibrary — no extra fetch needed).
+ * @param userId     The current user's ID. Required for fetching
+ *                   collections + presets + episode progress from
+ *                   Supabase. If null, only the watchlist is
+ *                   exported (degraded mode for signed-out users).
  */
-export function createBackupFromWatchlist(
-  watchlist: WatchlistItem[]
-): BackupDocument {
-  return {
+export async function createBackupFromWatchlist(
+  watchlist: WatchlistItem[],
+  userId: string | null
+): Promise<BackupDocument> {
+  // Default document — watchlist only. We'll enrich it with
+  // collections + presets + episode progress if the user is signed in.
+  const doc: BackupDocument = {
     version: 1,
     createdAt: new Date().toISOString(),
     appVersion: "2.0.0",
     library: {
       watchlist,
-      collections: []
+      collections: [],
+      presets: [],
+      episodeProgress: []
     }
   };
+
+  if (!userId) {
+    // Signed-out user — can't fetch from Supabase. The watchlist is
+    // still useful (it might have been built up from localStorage).
+    return doc;
+  }
+
+  try {
+    // Fetch all four data sources in parallel.
+    const [collectionsData, presetsData, progressData] = await Promise.all([
+      fetchCollectionsForBackup(userId),
+      fetchPresetsForBackup(userId),
+      fetchEpisodeProgressForBackup(userId, watchlist)
+    ]);
+
+    doc.library.collections = collectionsData;
+    doc.library.presets = presetsData;
+    doc.library.episodeProgress = progressData;
+  } catch (err) {
+    // Don't fail the whole backup if one fetch fails — the watchlist
+    // is still the most important data.
+    console.error("[backup] Failed to fetch full library:", err);
+  }
+
+  return doc;
+}
+
+/**
+ * Fetch the user's collections + their entries, formatted for backup.
+ *
+ * For each collection, we fetch its entries and resolve each entry's
+ * vault_id → (tmdb_id, media_type) by joining against the vault table.
+ * The vault_id itself is NOT preserved in the backup — it will be
+ * different on the restore side.
+ */
+async function fetchCollectionsForBackup(
+  _userId: string // eslint-disable-line @typescript-eslint/no-unused-vars -- RLS auto-filters by auth.uid(); userId is kept in the signature for symmetry with fetchPresetsForBackup.
+): Promise<BackupCollection[]> {
+  const { getCollectionRepository } = await import(
+    "~/lib/supabase/repositories/collection"
+  );
+  const { getClient } = await import("~/lib/supabase/repositories/shared");
+
+  // getCollectionRepository() picks up the singleton browser client
+  // internally — no need to pass one.
+  const repo = getCollectionRepository();
+  const { data: collections, error } = await repo.getCollections({
+    includeArchived: true // include archived collections too — full backup
+  });
+
+  if (error || !collections || collections.length === 0) return [];
+
+  // Fetch entries for each collection in parallel.
+  const result = await Promise.all(
+    collections.map(async (col): Promise<BackupCollection> => {
+      const { data: entries, error: entriesError } = await repo.getItems(
+        col.id
+      );
+
+      const backupEntries: BackupCollectionEntry[] = [];
+      if (!entriesError && entries) {
+        for (const entry of entries) {
+          // Resolve vault_id → (tmdb_id, media_type) by fetching the
+          // vault row. This is N+1 but acceptable for a backup operation
+          // (users typically have <500 entries total).
+          const { data: vaultRow } = await getClient()
+            .from("vault")
+            .select("tmdb_id, media_type")
+            .eq("id", entry.vault_id)
+            .maybeSingle();
+
+          if (vaultRow) {
+            backupEntries.push({
+              tmdb_id: String(vaultRow.tmdb_id),
+              media_type: vaultRow.media_type as "movie" | "tv",
+              position: entry.position ?? entry.order_index ?? 0,
+              note: null, // collection_entries has no note column
+              added_at: entry.created_at ?? new Date().toISOString()
+            });
+          }
+        }
+      }
+
+      return {
+        name: col.name,
+        description: col.description ?? null,
+        collection_type: col.collection_type ?? "user",
+        // collections has cover_url + banner_url, no poster_url — use cover_url
+        poster_url: col.cover_url ?? col.banner_url ?? null,
+        is_public: false, // collections are owner-only by RLS, no is_public column
+        archived_at: col.archived_at ?? null,
+        entries: backupEntries
+      };
+    })
+  );
+
+  return result;
+}
+
+/**
+ * Fetch the user's saved vault-filter presets.
+ */
+async function fetchPresetsForBackup(
+  userId: string
+): Promise<BackupPreset[]> {
+  const { listPresets } = await import(
+    "~/lib/supabase/repositories/preset/preset.read"
+  );
+  const { getClient } = await import("~/lib/supabase/repositories/shared");
+
+  const { data, error } = await listPresets(getClient(), userId);
+  if (error || !data) return [];
+
+  return data.map((p) => ({
+    name: p.name,
+    filters: p.filters
+  }));
+}
+
+/**
+ * Fetch episode-level watch progress for all TV items in the watchlist.
+ *
+ * We use the vault_id from the watchlist to query episode_progress.
+ * The vault_id is preserved in the backup so the restore can match
+ * progress to the re-imported vault row (the restore looks up the
+ * new vault row by tmdb_id, then attaches the progress to it).
+ */
+async function fetchEpisodeProgressForBackup(
+  userId: string,
+  watchlist: WatchlistItem[]
+): Promise<BackupEpisodeProgress[]> {
+  // Only TV items have episode progress.
+  const tvItems = watchlist.filter((w) => w.media_type === "tv");
+  if (tvItems.length === 0) return [];
+
+  const { getEpisodeProgressForVaultItem } = await import(
+    "~/lib/supabase/repositories/episodeProgress/episodeProgress.read"
+  );
+  const { getClient } = await import("~/lib/supabase/repositories/shared");
+
+  // We need the vault_id for each TV item. The watchlist item doesn't
+  // carry it directly, so we look it up by (user_id, tmdb_id, media_type).
+  const supabase = getClient();
+  const { data: vaultRows, error: vaultErr } = await supabase
+    .from("vault")
+    .select("id, tmdb_id")
+    .eq("user_id", userId)
+    .eq("media_type", "tv");
+
+  if (vaultErr || !vaultRows) return [];
+
+  // Build a map tmdb_id → vault_id for quick lookup.
+  const vaultIdByTmdb = new Map(
+    vaultRows.map((v) => [String(v.tmdb_id), v.id as string])
+  );
+
+  // Fetch episode progress for each TV item in parallel.
+  const results = await Promise.all(
+    tvItems.map(async (item) => {
+      const vaultId = vaultIdByTmdb.get(String(item.id));
+      if (!vaultId) return [];
+
+      const { data: progress, error } = await getEpisodeProgressForVaultItem(
+        supabase,
+        vaultId
+      );
+      if (error || !progress) return [];
+
+      return progress.map(
+        (p): BackupEpisodeProgress => ({
+          vault_id: vaultId,
+          season: p.season_number ?? null,
+          episode: p.episode_number ?? null,
+          is_completed: p.is_completed ?? false,
+          progress_minutes: p.progress_minutes ?? null,
+          watched_at: p.watched_at ?? null,
+          notes: null // episode_progress has no notes column
+        })
+      );
+    })
+  );
+
+  // Flatten the array-of-arrays.
+  return results.flat();
 }
 
 /**
  * Trigger a browser download of the backup as a JSON file.
  *
- * Exports in the flat array format (the V1-compatible format) so the
- * file can be re-imported by both V1 and V2, and is human-readable.
+ * Phase 1 audit fix: previously this exported only the flat watchlist
+ * array (V1-compatible). Now it exports the full wrapped document
+ * (version, library with watchlist + collections + presets + episode
+ * progress) so nothing is lost.
+ *
+ * The wrapped format is backward-compatible with the parser in
+ * normalizeBackup.ts (detectBackupFormat recognizes "wrapped-v2").
  */
 export function exportBackup(doc: BackupDocument): void {
   const filename = `Cinelog_Vault_Backup_${new Date().toISOString().slice(0, 10).replace(/-/g, "_")}.json`;
-  const data = doc.library.watchlist;
-  const blob = new Blob([JSON.stringify(data, null, 2)], {
+  const blob = new Blob([JSON.stringify(doc, null, 2)], {
     type: "application/json"
   });
   const url = URL.createObjectURL(blob);

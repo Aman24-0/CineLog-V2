@@ -12,15 +12,14 @@
 //      clears the flag).
 //
 //   2. PERMANENT DELETE (hard delete, NOT recoverable)
-//      Requires typing the username/email to confirm. Calls
-//      `profileRepo.permanentlyDeleteProfile(uid)` — which uses the
-//      service-role client to bypass RLS (RLS blocks DELETE for anon
-//      keys). ⚠️ This is a real delete — vault, collections, profile,
-//      favorites — all gone. The auth.users row is NOT deleted by
-//      this call (would need `supabase.auth.admin.deleteUser(uid)`
-//      which is admin-only); for now we keep the auth identity so
-//      the user can re-create a fresh CineLog account later if they
-//      want.
+//      Requires typing the email to confirm. Calls the
+//      `/api/account/delete` server route, which uses the
+//      service-role client to bypass RLS (RLS blocks DELETE for
+//      anon keys) AND calls `supabase.auth.admin.deleteUser(uid)`
+//      to remove the auth identity. ⚠️ This is a real delete —
+//      vault, collections, profile, favorites, auth identity —
+//      all gone. The user can sign up again with the same email
+//      to start fresh.
 //
 // The sheet has 3 phases per action:
 //   • confirm  — user reviews what gets removed + types confirmation
@@ -47,6 +46,7 @@ import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useVault } from "~/features/watchlist/useVault";
 import { useCollections } from "~/features/collections/hooks/useCollections";
 import { clearCache as clearApiCache } from "~/shared/utils/apiCache";
+import { getBrowserSession } from "~/lib/supabase/session";
 
 type Mode = "deactivate" | "delete";
 type Phase = "confirm" | "working" | "done";
@@ -111,10 +111,36 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (
         const { error } = await profileRepo.scheduleDeletion(uid);
         if (error) throw error;
       } else {
-        // Hard delete — purges everything (vault, collections, profile).
-        // The auth.users row stays (RLS + admin-only operation).
-        const { error } = await profileRepo.permanentlyDeleteProfile(uid);
-        if (error) throw error;
+        // Hard delete — calls /api/account/delete, which uses the
+        // service-role client to bypass RLS and also removes the
+        // auth.users row via supabase.auth.admin.deleteUser.
+        //
+        // We need to send the access_token in the body because the
+        // browser client stores sessions in localStorage (not
+        // cookies), so the server can't read it from the Cookie
+        // header. The server re-verifies the token via getUser().
+        const session = await getBrowserSession();
+        const accessToken = session?.access_token ?? "";
+
+        const res = await fetch("/api/account/delete", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            confirmation: confirmText().trim(),
+            accessToken
+          })
+        });
+
+        if (!res.ok) {
+          let msg = "Failed to delete account.";
+          try {
+            const body = (await res.json()) as { error?: string };
+            if (body?.error) msg = body.error;
+          } catch {
+            // Ignore — response body wasn't JSON.
+          }
+          throw new Error(msg);
+        }
 
         // Clear all local caches/stores so the next sign-in is fresh.
         await Promise.allSettled([
@@ -292,8 +318,9 @@ const DeactivateAccountSheet: Component<DeactivateAccountSheetProps> = (
                       margin: "0 0 var(--sp-3)"
                     }}
                   >
-                    Your Supabase auth identity is kept so you can sign in again
-                    later — you'll start with a fresh, empty CineLog account.
+                    Your auth identity is also deleted. You can sign up again
+                    with the same email to start with a fresh, empty CineLog
+                    account.
                   </p>
                 </Show>
 

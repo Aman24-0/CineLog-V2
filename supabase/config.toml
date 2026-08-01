@@ -299,9 +299,18 @@ auth_token = "env(SUPABASE_AUTH_SMS_TWILIO_AUTH_TOKEN)"
 max_enrolled_factors = 10
 
 # Control MFA via App Authenticator (TOTP)
+#
+# Enabled as part of Phase 0/1 audit fix — the TwoFactorSetup UI in
+# src/features/settings/components/TwoFactorSetup.tsx was already
+# built and shipped, but the Supabase backend had TOTP disabled, so
+# every enroll() / challengeAndVerify() call would fail. Enabling
+# here makes the UI functional.
+#
+# Requires Supabase Pro plan for production use. Local dev works on
+# the free tier.
 [auth.mfa.totp]
-enroll_enabled = false
-verify_enabled = false
+enroll_enabled = true
+verify_enabled = true
 
 # Configure MFA via Phone Messaging
 [auth.mfa.phone]

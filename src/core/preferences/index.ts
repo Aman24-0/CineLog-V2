@@ -151,3 +151,15 @@ export {
   hideRatingsInScreenshots,
   setHideRatingsInScreenshots
 } from "./hideRatingsScreenshots";
+
+// Cross-device preference sync (Phase 1 audit fix)
+// Wires the localStorage-backed signals above to the
+// user_preferences.prefs_json Supabase column.
+export {
+  syncPreferencesFromSupabase,
+  pushPreferencesToSupabase,
+  startPreferenceSync,
+  stopPreferenceSync,
+  syncPreferencesNow,
+  type PreferencesSnapshot
+} from "./preferencesSync";

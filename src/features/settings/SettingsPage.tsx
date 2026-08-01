@@ -2014,71 +2014,12 @@ const SettingsPage: Component = () => {
                                     </Show>
                                   </div>
 
-                                  {/* Apple */}
-                                  <div class="setting-row" style={{ cursor: "default" }}>
-                                    <div
-                                      class="setting-row-icon"
-                                      aria-hidden="true"
-                                    >
-                                      <span
-                                        class="material-symbols-outlined"
-                                        style={{ "font-size": "18px" }}
-                                        aria-hidden="true"
-                                      >
-                                        login
-                                      </span>
-                                    </div>
-                                    <div class="setting-row-text">
-                                      <span class="setting-row-label">
-                                        Apple
-                                      </span>
-                                      <span class="setting-row-desc">
-                                        {linkedProviders().has("apple")
-                                          ? "Connected — sign in with Apple."
-                                          : "Not connected."}
-                                      </span>
-                                    </div>
-                                    <Show
-                                      when={linkedProviders().has("apple")}
-                                      fallback={
-                                        <button
-                                          type="button"
-                                          class="settings-link-btn focus-ring"
-                                          onClick={() =>
-                                            void handleLinkProvider("apple")
-                                          }
-                                          disabled={linkingProvider() !== null}
-                                        >
-                                          <Show
-                                            when={linkingProvider() === "apple"}
-                                            fallback="+ Connect"
-                                          >
-                                            Connecting…
-                                          </Show>
-                                        </button>
-                                      }
-                                    >
-                                      <button
-                                        type="button"
-                                        class="settings-link-btn settings-link-btn-danger focus-ring"
-                                        onClick={() =>
-                                          void handleUnlinkProvider("apple")
-                                        }
-                                        disabled={
-                                          unlinkingProvider() !== null
-                                        }
-                                      >
-                                        <Show
-                                          when={
-                                            unlinkingProvider() === "apple"
-                                          }
-                                          fallback="Disconnect"
-                                        >
-                                          Removing…
-                                        </Show>
-                                      </button>
-                                    </Show>
-                                  </div>
+                                  {/* Apple OAuth provider removed in Phase 0/1
+                                      audit fix — [auth.external.apple] is
+                                      disabled in supabase/config.toml (no
+                                      Apple Developer credentials). Re-add
+                                      this block when credentials are
+                                      configured. */}
                                 </div>
                               </div>
                             </Show>

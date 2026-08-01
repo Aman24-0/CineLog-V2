@@ -36,7 +36,7 @@
     "eslint": "^8.57.0",
     "eslint-plugin-solid": "^0.14.5",
     "jsdom": "^29.1.1",
-    "postcss": "^8.4.38",
+    "postcss": "^8.5.18",
     "prettier": "^3.2.5",
     "prettier-plugin-tailwindcss": "^0.5.14",
     "supabase": "^2.109.1",
@@ -44,5 +44,10 @@
     "typescript": "^5.4.5",
     "vinxi": "^0.5.7",
     "vitest": "^4.1.10"
+  },
+  "overrides": {
+    "h3": "^1.15.11",
+    "tar": "^7.5.21",
+    "brace-expansion": "^2.1.3"
   }
 }

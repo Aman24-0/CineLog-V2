@@ -83,37 +83,23 @@ import type { UserIdentity } from "@supabase/supabase-js";
  * the icon box.
  */
 const OAUTH_PROVIDERS: {
-  id: "google" | "apple";
+  id: "google";
   label: string;
   icon: string;
 }[] = [
-  { id: "google", label: "Google", icon: "login" },
-  { id: "apple", label: "Apple", icon: "apple" }
+  { id: "google", label: "Google", icon: "login" }
+  // Apple was removed in the Phase 0/1 audit fix — the Supabase project
+  // has [auth.external.apple] enabled = false and no Apple Developer
+  // credentials are configured, so every "Connect Apple" click would
+  // fail with a provider-not-enabled error. Re-add the entry here and
+  // enable the provider in supabase/config.toml when credentials are
+  // available.
 ];
 
-/**
- * Inline Apple logo SVG — used in place of a Material Symbols icon
- * because the Material Symbols font has no Apple glyph. Sized to fit
- * the 36x36 .setting-row-icon container at the same visual weight as
- * the other Material Symbols icons.
- *
- * Wrapped in a function so each render gets a fresh DOM node (SolidJS
- * template cloning requires a function call, not a shared JSX value).
- */
-function AppleIcon() {
-  return (
-    <svg
-      width="18"
-      height="18"
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      aria-hidden="true"
-      style={{ display: "block" }}
-    >
-      <path d="M16.365 1.43c0 1.14-.493 2.27-1.177 3.08-.744.9-1.99 1.57-2.987 1.57-.12 0-.23-.02-.3-.03-.01-.06-.04-.22-.04-.39 0-1.15.572-2.27 1.206-2.98.804-.94 2.142-1.64 3.248-1.68.03.13.05.28.05.43zm4.565 15.71c-.03.07-.463 1.58-1.518 3.12-.945 1.34-1.94 2.71-3.43 2.71-1.517 0-1.9-.88-3.63-.88-1.698 0-2.302.91-3.67.91-1.377 0-2.332-1.26-3.427-2.8-1.287-1.82-2.323-4.63-2.323-7.28 0-4.28 2.797-6.55 5.552-6.55 1.448 0 2.675.95 3.6.95.865 0 2.222-1.01 3.902-1.01.613 0 2.83.06 4.297 2.14-.04.03-2.578 1.49-2.578 4.53 0 3.58 3.146 4.86 3.186 4.87z" />
-    </svg>
-  );
-}
+// AppleIcon removed — Apple OAuth provider is disabled in
+// supabase/config.toml (no Apple Developer credentials configured).
+// When re-enabling Apple OAuth, restore both the OAUTH_PROVIDERS entry
+// and the AppleIcon component above.
 
 const AccountRoute: Component = () => {
   const { user, isSignedIn } = useAuth();
@@ -868,20 +854,13 @@ const AccountRoute: Component = () => {
                           style={{ cursor: "default", "align-items": "center" }}
                         >
                           <div class="setting-row-icon" aria-hidden="true">
-                            <Show
-                              when={provider.id === "apple"}
-                              fallback={
-                                <span
-                                  class="material-symbols-outlined"
-                                  style={{ "font-size": "18px" }}
-                                  aria-hidden="true"
-                                >
-                                  {provider.icon}
-                                </span>
-                              }
+                            <span
+                              class="material-symbols-outlined"
+                              style={{ "font-size": "18px" }}
+                              aria-hidden="true"
                             >
-                              <AppleIcon />
-                            </Show>
+                              {provider.icon}
+                            </span>
                           </div>
                           <div class="setting-row-text">
                             <span class="setting-row-label">

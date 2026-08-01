@@ -1,0 +1,355 @@
+// src/core/preferences/preferencesSync.ts
+//
+// CineLog V2 — Preference Cross-Device Sync (Phase 1 audit fix)
+// ---------------------------------------------------------------------
+// Wires the localStorage-backed preference signals to the
+// `user_preferences.prefs_json` Supabase column so prefs travel with
+// the user across devices.
+//
+// PROBLEM (from the audit report):
+//   Preferences were localStorage-only. The `user_preferences` table
+//   existed (with a `prefs_json` JSONB column for extended prefs) and
+//   the repository layer (settings.ts) had `getUserSettings` /
+//   `saveUserSettings` / `saveExtendedPreference` — but no code ever
+//   called them. A user who set "dark theme + reduced motion" on
+//   their laptop would see "light theme + default motion" on their
+//   phone.
+//
+// DESIGN:
+//   localStorage remains the PRIMARY store (instant UI, offline-capable,
+//   SSR-friendly). Supabase is a SECONDARY store that mirrors the
+//   localStorage state for cross-device sync.
+//
+//   On sign-in:
+//     1. Fetch prefs_json from user_preferences.
+//     2. If the server's `updated_at` is newer than the local
+//        `cinelog_prefs_synced_at` timestamp, the server wins — apply
+//        each known pref to localStorage + the corresponding signal.
+//     3. Otherwise (local is newer), push local → server.
+//
+//   On pref change (debounced 1.5s):
+//     1. Collect all current pref values.
+//     2. Upsert into prefs_json.
+//     3. Update `cinelog_prefs_synced_at`.
+//
+//   On sign-out:
+//     1. Stop the debounced pusher (no point writing to a user row
+//        we no longer own).
+//     2. Leave localStorage intact so the next sign-in (same or
+//        different user) sees the last-known prefs.
+//
+// CONFLICT RESOLUTION:
+//   "Server wins on tie" is the safe default. If both local and
+//   server have unsaved changes, the server version is authoritative
+//   because it was the last explicitly-saved state. The user can
+//   re-apply their local changes by simply toggling the pref again.
+//
+// BEST-EFFORT:
+//   All Supabase writes are fire-and-forget. If they fail (offline,
+//   RLS error, etc.), the error is logged to stderr but not surfaced
+//   to the user — prefs are a UX concern, not a data-integrity one.
+
+import { createEffect } from "solid-js";
+import { isServer } from "solid-js/web";
+import {
+  getUserSettings,
+  saveUserSettings
+} from "~/lib/supabase/repositories/settings";
+import {
+  themeMode,
+  setThemeMode,
+  type ThemeMode
+} from "./themeMode";
+import { density, setDensity, type Density } from "./density";
+import { fontSize, setFontSize, type FontSize } from "./fontSize";
+import {
+  posterQuality,
+  setPosterQuality,
+  type PosterQuality
+} from "./posterQuality";
+import { hideSpoilers, setHideSpoilers } from "./hideSpoilers";
+import {
+  dateFormat,
+  setDateFormat,
+  type DateFormat
+} from "./dateFormat";
+import {
+  reducedMotion,
+  setReducedMotion,
+  type ReducedMotionPref
+} from "./reducedMotion";
+import { highContrast, setHighContrast } from "./highContrast";
+import {
+  language,
+  setLanguage,
+  type LanguageCode
+} from "./language";
+import {
+  defaultVaultStatus,
+  setDefaultVaultStatus,
+  type VaultStatus
+} from "./vaultStatus";
+import {
+  adultContentFilter,
+  setAdultContentFilter
+} from "./contentFilters";
+import {
+  defaultDiscoverTab,
+  setDefaultDiscoverTab,
+  type DiscoverTab
+} from "./discoverTab";
+import {
+  ratingScale,
+  setRatingScale,
+  type RatingScale
+} from "./ratingScale";
+import { notifPrefs, setNotifPrefs, type NotificationPrefs } from "./notifications";
+import {
+  calPrefs,
+  setCalPrefs,
+  type CalendarPrefs
+} from "./calendar";
+import {
+  syncCadence,
+  setSyncCadence,
+  type SyncCadence
+} from "./syncCadence";
+import { hideRatingsInScreenshots, setHideRatingsInScreenshots } from "./hideRatingsScreenshots";
+
+// ─── Types ────────────────────────────────────────────────────────
+
+/**
+ * A flat snapshot of all syncable preferences, packed into a single
+ * JSONB object. The keys are stable identifiers (not the signal names)
+ * so we can rename signals without breaking old snapshots.
+ */
+export interface PreferencesSnapshot {
+  themeMode?: ThemeMode;
+  density?: Density;
+  fontSize?: FontSize;
+  posterQuality?: PosterQuality;
+  hideSpoilers?: boolean;
+  dateFormat?: DateFormat;
+  reducedMotion?: ReducedMotionPref;
+  highContrast?: boolean;
+  language?: LanguageCode;
+  defaultVaultStatus?: VaultStatus;
+  adultContentFilter?: boolean;
+  defaultDiscoverTab?: DiscoverTab;
+  ratingScale?: RatingScale;
+  hideRatingsInScreenshots?: boolean;
+  notifPrefs?: NotificationPrefs;
+  calPrefs?: CalendarPrefs;
+  syncCadence?: SyncCadence;
+}
+
+// ─── Helpers ──────────────────────────────────────────────────────
+
+const SYNCED_AT_KEY = "cinelog_prefs_synced_at";
+
+function readSyncedAt(): number {
+  if (isServer) return 0;
+  const raw = localStorage.getItem(SYNCED_AT_KEY);
+  const n = raw ? Number(raw) : 0;
+  return Number.isFinite(n) ? n : 0;
+}
+
+function writeSyncedAt(ts: number): void {
+  if (isServer) return;
+  localStorage.setItem(SYNCED_AT_KEY, String(ts));
+}
+
+/**
+ * Read all current preference values into a flat snapshot. The signals
+ * are read inside a tracked scope (createEffect) so this snapshot
+ * reflects the live state at call time.
+ */
+function readSnapshot(): PreferencesSnapshot {
+  return {
+    themeMode: themeMode(),
+    density: density(),
+    fontSize: fontSize(),
+    posterQuality: posterQuality(),
+    hideSpoilers: hideSpoilers(),
+    dateFormat: dateFormat(),
+    reducedMotion: reducedMotion(),
+    highContrast: highContrast(),
+    language: language(),
+    defaultVaultStatus: defaultVaultStatus(),
+    adultContentFilter: adultContentFilter(),
+    defaultDiscoverTab: defaultDiscoverTab(),
+    ratingScale: ratingScale(),
+    hideRatingsInScreenshots: hideRatingsInScreenshots(),
+    notifPrefs: notifPrefs(),
+    calPrefs: calPrefs(),
+    syncCadence: syncCadence()
+  };
+}
+
+/**
+ * Apply a snapshot from the server to the local signals + localStorage.
+ * Only keys that are present in the snapshot are applied — missing
+ * keys preserve the current local value (graceful upgrade when the
+ * server has an older snapshot from before a new pref was added).
+ */
+function applySnapshot(snap: PreferencesSnapshot): void {
+  if (snap.themeMode) setThemeMode(snap.themeMode);
+  if (snap.density) setDensity(snap.density);
+  if (snap.fontSize) setFontSize(snap.fontSize);
+  if (snap.posterQuality) setPosterQuality(snap.posterQuality);
+  if (typeof snap.hideSpoilers === "boolean") setHideSpoilers(snap.hideSpoilers);
+  if (snap.dateFormat) setDateFormat(snap.dateFormat);
+  if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
+  if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
+  if (snap.language) setLanguage(snap.language);
+  if (snap.defaultVaultStatus) setDefaultVaultStatus(snap.defaultVaultStatus);
+  if (typeof snap.adultContentFilter === "boolean") {
+    setAdultContentFilter(snap.adultContentFilter);
+  }
+  if (snap.defaultDiscoverTab) setDefaultDiscoverTab(snap.defaultDiscoverTab);
+  if (snap.ratingScale) setRatingScale(snap.ratingScale);
+  if (typeof snap.hideRatingsInScreenshots === "boolean") {
+    setHideRatingsInScreenshots(snap.hideRatingsInScreenshots);
+  }
+  if (snap.notifPrefs) setNotifPrefs(snap.notifPrefs);
+  if (snap.calPrefs) setCalPrefs(snap.calPrefs);
+  if (snap.syncCadence) setSyncCadence(snap.syncCadence);
+}
+
+// ─── Public API ───────────────────────────────────────────────────
+
+/**
+ * Fetch preferences from Supabase and apply them locally if the server
+ * is newer than the last sync. Called on sign-in.
+ *
+ * Returns true if a server snapshot was applied, false otherwise
+ * (no row, older server, or fetch error).
+ */
+export async function syncPreferencesFromSupabase(
+  userId: string
+): Promise<boolean> {
+  if (isServer) return false;
+
+  const { data, error } = await getUserSettings(userId);
+  if (error || !data) {
+    // No saved prefs or fetch failed — push local → server so the
+    // next device sees them.
+    await pushPreferencesToSupabase(userId);
+    return false;
+  }
+
+  const serverUpdatedAt = data.updated_at
+    ? Date.parse(data.updated_at)
+    : 0;
+  const localSyncedAt = readSyncedAt();
+
+  if (serverUpdatedAt > localSyncedAt) {
+    // Server is newer — apply server → local.
+    const snap = (data.prefs_json as unknown as PreferencesSnapshot) ?? {};
+    applySnapshot(snap);
+    writeSyncedAt(serverUpdatedAt);
+    // Re-push so any local prefs NOT in the server snapshot get
+    // backfilled to the server.
+    await pushPreferencesToSupabase(userId);
+    return true;
+  }
+
+  // Local is newer (or equal) — push local → server.
+  await pushPreferencesToSupabase(userId);
+  return false;
+}
+
+/**
+ * Push the current local preferences snapshot to Supabase. Best-effort:
+ * errors are logged but not surfaced.
+ *
+ * Also updates `cinelog_prefs_synced_at` so the next sync knows the
+ * local state was just persisted.
+ */
+export async function pushPreferencesToSupabase(
+  userId: string
+): Promise<void> {
+  if (isServer) return;
+
+  const snapshot = readSnapshot();
+  const now = Date.now();
+
+  // Cast through `unknown` to the Json type the DB expects. The
+  // snapshot is a plain object with primitive / JSON-serializable
+  // values, so it satisfies the Json structural type — TypeScript
+  // just can't verify that automatically because PreferencesSnapshot
+  // has optional fields with union types.
+  const { error } = await saveUserSettings(userId, {
+    prefs_json: snapshot as unknown as Parameters<typeof saveUserSettings>[1]["prefs_json"]
+  });
+
+  if (error) {
+    // Don't update synced_at — we'll retry on the next change.
+    console.error(
+      "[preferencesSync] pushPreferencesToSupabase failed:",
+      error.message
+    );
+    return;
+  }
+
+  writeSyncedAt(now);
+}
+
+// ─── Auto-push on change (debounced) ──────────────────────────────
+
+let activeUserId: string | null = null;
+let pushTimer: ReturnType<typeof setTimeout> | null = null;
+const PUSH_DEBOUNCE_MS = 1500;
+
+/**
+ * Start watching preference signals and pushing changes to Supabase
+ * (debounced 1.5s). Call this on sign-in. Call stopPreferenceSync()
+ * on sign-out to release the listener.
+ *
+ * The effect tracks every preference signal, so any change triggers
+ * a debounced push. Without debouncing, rapid toggles (e.g. dragging
+ * a slider) would fire dozens of writes per second.
+ */
+export function startPreferenceSync(userId: string): void {
+  if (isServer) return;
+  activeUserId = userId;
+
+  // Track all preference signals in a single effect. When any one
+  // changes, schedule a debounced push.
+  createEffect(() => {
+    // Read every signal so the effect tracks them all.
+    readSnapshot();
+
+    // Schedule a push. Clear any pending one so we coalesce rapid
+    // changes into a single write.
+    if (pushTimer) clearTimeout(pushTimer);
+    pushTimer = setTimeout(() => {
+      if (activeUserId) {
+        void pushPreferencesToSupabase(activeUserId);
+      }
+      pushTimer = null;
+    }, PUSH_DEBOUNCE_MS);
+  });
+}
+
+/**
+ * Stop the auto-pusher. Call on sign-out.
+ *
+ * Flushes any pending push synchronously (fire-and-forget) so the
+ * last change before sign-out isn't lost.
+ */
+export function stopPreferenceSync(): void {
+  if (pushTimer) {
+    clearTimeout(pushTimer);
+    pushTimer = null;
+  }
+  // Fire-and-forget the final push so sign-out isn't blocked.
+  if (activeUserId) {
+    const uid = activeUserId;
+    activeUserId = null;
+    void pushPreferencesToSupabase(uid);
+  }
+}
+
+// Convenience re-export for the manual "Sync Preferences" button.
+export { pushPreferencesToSupabase as syncPreferencesNow };

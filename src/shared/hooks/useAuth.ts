@@ -140,6 +140,12 @@ export function useAuth() {
           // This runs in the background — the UI doesn't wait for it.
           if (session?.user) {
             void ensureProfileForUser(session.user);
+            // Sync preferences (theme, density, notifications, etc.)
+            // between localStorage and the user_preferences table on
+            // the server. Also starts the debounced auto-pusher so
+            // subsequent pref changes propagate automatically.
+            // Phase 1 audit fix — prefs were previously localStorage-only.
+            void syncPrefsForUser(session.user.id);
             // Log the sign-in to login_history for the audit trail
             // shown in Settings → Account → Login History.
             //
@@ -166,6 +172,10 @@ export function useAuth() {
                 void logLoginForUser(session.user.id);
               }
             }
+          } else if (event === "SIGNED_OUT") {
+            // Stop the debounced preference auto-pusher so we don't
+            // keep writing to a user_preferences row we no longer own.
+            void stopPrefsSync();
           }
         });
         unsub = () => subscription.unsubscribe();
@@ -224,6 +234,10 @@ async function checkInitialSession() {
     // Auto-populate display_name + username on initial session detection.
     if (session?.user) {
       void ensureProfileForUser(session.user);
+      // Sync prefs from server → local (or push local → server) and
+      // start the auto-pusher. This covers the page-reload case where
+      // SIGNED_IN doesn't fire but we still have a valid session.
+      void syncPrefsForUser(session.user.id);
       // Only log a sign-in on initial session check if it's actually
       // fresh (session created within the last 60 seconds). Without
       // this guard, every page reload would insert a new login_history
@@ -273,6 +287,50 @@ async function ensureProfileForUser(supabaseUser: {
     // Non-fatal — the profile might already exist from the Supabase trigger.
     // Log but don't crash the auth flow.
     console.error("[useAuth] ensureProfile failed:", err);
+  }
+}
+
+/**
+ * Sync the user's preferences between localStorage and the
+ * user_preferences.prefs_json column on the server.
+ *
+ * Called on sign-in / initial session detection. The function:
+ *   1. Reads the server's prefs_json + updated_at.
+ *   2. If the server is newer than the last local sync, applies
+ *      the server snapshot to the local preference signals.
+ *   3. Otherwise (local is newer or equal), pushes local → server.
+ *
+ * This is best-effort — failures are logged but don't break the auth
+ * flow. The user always has their localStorage prefs regardless.
+ *
+ * Also starts the debounced auto-pusher so subsequent pref changes
+ * propagate to the server without requiring a manual "sync" button.
+ */
+async function syncPrefsForUser(uid: string): Promise<void> {
+  try {
+    const { syncPreferencesFromSupabase, startPreferenceSync } =
+      await import("~/core/preferences/preferencesSync");
+    await syncPreferencesFromSupabase(uid);
+    startPreferenceSync(uid);
+  } catch (err) {
+    // Non-fatal — preferences sync is a nice-to-have, not a critical
+    // auth step. The user's localStorage prefs still work.
+    console.error("[useAuth] syncPrefsForUser failed:", err);
+  }
+}
+
+/**
+ * Stop the preference auto-pusher. Called on sign-out so we don't
+ * keep writing to a user row we no longer own.
+ */
+async function stopPrefsSync(): Promise<void> {
+  try {
+    const { stopPreferenceSync } = await import(
+      "~/core/preferences/preferencesSync"
+    );
+    stopPreferenceSync();
+  } catch {
+    // Module not loaded yet — nothing to stop.
   }
 }
 

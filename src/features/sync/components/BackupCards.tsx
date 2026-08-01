@@ -17,8 +17,9 @@
 //   IMPORT  → Import from JSON  +  Import from CSV
 //   EXPORT  → Export as JSON    +  Export as CSV
 
-import { For, type Component } from "solid-js";
+import { For, createSignal, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
+import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import {
   BACKUP_STRATEGIES,
@@ -28,7 +29,9 @@ import {
 
 const BackupCards: Component = () => {
   const library = useUserLibrary();
+  const { user } = useAuth();
   const { showToast } = useToast();
+  const [isExporting, setIsExporting] = createSignal(false);
 
   const handleAction = async (strategyId: string) => {
     if (strategyId === "export") {
@@ -37,12 +40,34 @@ const BackupCards: Component = () => {
         showToast("Your vault is empty — nothing to export.", "info");
         return;
       }
-      const doc = createBackupFromWatchlist(watchlist);
-      exportBackup(doc);
-      showToast(
-        `Backup downloaded — ${doc.library.watchlist.length} titles`,
-        "success"
-      );
+
+      setIsExporting(true);
+      try {
+        // createBackupFromWatchlist is now async — it fetches
+        // collections + presets + episode progress from Supabase
+        // in addition to the in-memory watchlist.
+        const doc = await createBackupFromWatchlist(
+          watchlist,
+          user()?.uid ?? null
+        );
+        exportBackup(doc);
+
+        const collectionCount = doc.library.collections?.length ?? 0;
+        const presetCount = doc.library.presets?.length ?? 0;
+        const progressCount = doc.library.episodeProgress?.length ?? 0;
+        showToast(
+          `Backup downloaded — ${doc.library.watchlist.length} titles` +
+            (collectionCount > 0 ? `, ${collectionCount} collections` : "") +
+            (presetCount > 0 ? `, ${presetCount} presets` : "") +
+            (progressCount > 0 ? `, ${progressCount} episode records` : ""),
+          "success"
+        );
+      } catch (err) {
+        console.error("[BackupCards] Export failed:", err);
+        showToast("Couldn't create backup — please try again.", "error");
+      } finally {
+        setIsExporting(false);
+      }
       return;
     }
   };
@@ -56,7 +81,9 @@ const BackupCards: Component = () => {
             type="button"
             class="sync-backup-card focus-ring"
             onClick={() => handleAction(strategy.id)}
+            disabled={isExporting()}
             aria-label={strategy.displayName}
+            aria-busy={isExporting()}
           >
             <div class="sync-backup-card-icon" aria-hidden="true">
               <span
@@ -68,8 +95,14 @@ const BackupCards: Component = () => {
               </span>
             </div>
             <div class="sync-backup-card-text">
-              <p class="sync-backup-card-title">{strategy.displayName}</p>
-              <p class="sync-backup-card-desc">{strategy.description}</p>
+              <p class="sync-backup-card-title">
+                {isExporting() ? "Exporting…" : strategy.displayName}
+              </p>
+              <p class="sync-backup-card-desc">
+                {isExporting()
+                  ? "Fetching collections + presets + episode progress…"
+                  : strategy.description}
+              </p>
             </div>
             <span
               class="material-symbols-outlined sync-backup-card-chevron"
