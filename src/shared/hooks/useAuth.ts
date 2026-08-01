@@ -141,17 +141,30 @@ export function useAuth() {
           if (session?.user) {
             void ensureProfileForUser(session.user);
             // Log the sign-in to login_history for the audit trail
-            // shown in Settings → Account → Login History. Only logs
-            // actual sign-in events (not token refreshes or sign-outs).
-            // Best-effort — failures are swallowed.
-            if (event === "SIGNED_IN" || event === "TOKEN_REFRESHED") {
-              // TOKEN_REFRESHED only logs if we don't already have a
-              // recent entry for this session (avoid spamming on every
-              // hourly refresh). We use a simple localStorage rate-limiter.
-              if (event === "TOKEN_REFRESHED" && !shouldLogRefresh()) {
-                return;
+            // shown in Settings → Account → Login History.
+            //
+            // Dedup strategy (fixes the "login history duplicates on
+            // every refresh" bug):
+            //   - SIGNED_IN: only log if this is a fresh sign-in. We
+            //     detect "fresh" by checking the session's created_at —
+            //     if it was created within the last 60 seconds, this is
+            //     a real sign-in (not a page reload that re-fires
+            //     SIGNED_IN from the Supabase client detecting a stored
+            //     session). Otherwise skip.
+            //   - TOKEN_REFRESHED: rate-limited via shouldLogRefresh()
+            //     (6-hour window) so we don't log every hourly refresh.
+            //   - INITIAL_SESSION: handled by checkInitialSession() with
+            //     its own rate-limit.
+            //   - All other events (SIGNED_OUT, USER_UPDATED, etc.) are
+            //     ignored — they're not sign-ins.
+            if (event === "SIGNED_IN") {
+              if (isFreshSignIn(session)) {
+                void logLoginForUser(session.user.id);
               }
-              void logLoginForUser(session.user.id);
+            } else if (event === "TOKEN_REFRESHED") {
+              if (shouldLogRefresh()) {
+                void logLoginForUser(session.user.id);
+              }
             }
           }
         });
@@ -211,12 +224,16 @@ async function checkInitialSession() {
     // Auto-populate display_name + username on initial session detection.
     if (session?.user) {
       void ensureProfileForUser(session.user);
-      // Log the sign-in to login_history. On a fresh page load this
-      // is the first chance we get to log — the SIGNED_IN event may
-      // have fired before our listener was registered (e.g. after an
-      // OAuth redirect). We rate-limit via shouldLogRefresh so we
-      // don't double-log on every reload.
-      if (shouldLogRefresh()) {
+      // Only log a sign-in on initial session check if it's actually
+      // fresh (session created within the last 60 seconds). Without
+      // this guard, every page reload would insert a new login_history
+      // row, polluting the audit trail with "user opened the app" rows
+      // instead of "user signed in" rows.
+      //
+      // The shouldLogRefresh() rate-limiter (6h window) provides a
+      // backstop: even if the fresh-sign-in check is wrong, we never
+      // log more than once per 6 hours from this code path.
+      if (isFreshSignIn(session) && shouldLogRefresh()) {
         void logLoginForUser(session.user.id);
       }
     }
@@ -257,6 +274,43 @@ async function ensureProfileForUser(supabaseUser: {
     // Log but don't crash the auth flow.
     console.error("[useAuth] ensureProfile failed:", err);
   }
+}
+
+/**
+ * Determine if a session represents a "fresh" sign-in (i.e. the user
+ * actually just signed in within the last 60 seconds), as opposed to
+ * a page reload that re-detects an existing stored session.
+ *
+ * Supabase's `onAuthStateChange` fires a SIGNED_IN event in BOTH cases,
+ * which caused the login_history table to gain a new row on every page
+ * reload. This helper distinguishes the two by inspecting the session's
+ * `created_at` timestamp:
+ *
+ *   - If created_at is within the last 60 seconds → fresh sign-in → log it.
+ *   - If created_at is older than 60 seconds → page reload → skip.
+ *
+ * The 60-second window is generous enough to absorb clock skew and the
+ * time it takes for the onAuthStateChange event to actually fire after
+ * the redirect, but tight enough that a reload 2 minutes after sign-in
+ * won't trigger a duplicate log.
+ *
+ * Edge case: if the session or its created_at is missing (shouldn't
+ * happen in practice, but Supabase's types allow it), we return false
+ * — better to under-log than to spam the audit trail.
+ */
+function isFreshSignIn(session: Session | null): boolean {
+  if (!session) return false;
+  // The Supabase Session type has a `created_at` field (Unix seconds).
+  // Older SDK versions may not have it; fall back to false to avoid
+  // spamming logs if the field is absent.
+  const createdAt: number | undefined = (session as {
+    created_at?: number;
+  }).created_at;
+  if (typeof createdAt !== "number") return false;
+  const nowSec = Math.floor(Date.now() / 1000);
+  const ageSec = nowSec - createdAt;
+  // 60-second freshness window.
+  return ageSec >= 0 && ageSec <= 60;
 }
 
 /**

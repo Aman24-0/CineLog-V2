@@ -343,7 +343,8 @@ const SECTIONS: SectionMeta[] = [
     keywords: [
       "name", "email", "password", "oauth", "google", "apple",
       "2fa", "two-factor", "authenticator", "session", "device", "sign out",
-      "login history", "security"
+      "login history", "security", "login methods", "connect", "unlink",
+      "country", "region"
     ]
   },
   {
@@ -431,7 +432,32 @@ const SettingsPage: Component = () => {
 
   // ── Account state ────────────────────────────────────────────────
   const [hasPassword, setHasPassword] = createSignal<boolean>(false);
-  const [country, setCountry] = createSignal<string>("US");
+  // Country: initialise from localStorage so the picker doesn't flash
+  // the default "US" while we wait for `loadProfile()` to fetch the
+  // canonical value from the profiles table. The DB is the source of
+  // truth — localStorage just provides an instant first-paint value
+  // and survives reloads even if the network is slow.
+  //
+  // NOTE: SolidJS's `createSignal` does NOT support a lazy initializer
+  // function (unlike React's `useState`). We compute the initial value
+  // synchronously here. localStorage access is safe at module-eval time
+  // on the client; on the server, the `typeof localStorage` guard
+  // returns "US".
+  const initialCountry = (() => {
+    try {
+      const stored =
+        typeof localStorage !== "undefined"
+          ? localStorage.getItem("cinelog_country")
+          : null;
+      if (stored && /^[A-Za-z]{2}$/.test(stored)) {
+        return stored.toUpperCase();
+      }
+    } catch {
+      // localStorage unavailable (SSR / privacy mode) — fall through.
+    }
+    return "US";
+  })();
+  const [country, setCountry] = createSignal<string>(initialCountry);
   const [displayName, setDisplayName] = createSignal<string>("");
   const [bio, setBio] = createSignal<string>("");
   const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
@@ -451,6 +477,22 @@ const SettingsPage: Component = () => {
   const [show2FAPanel, setShow2FAPanel] = createSignal(false);
   const [showSessionsPanel, setShowSessionsPanel] = createSignal(false);
   const [showLoginHistoryPanel, setShowLoginHistoryPanel] = createSignal(false);
+  const [showLoginMethodsPanel, setShowLoginMethodsPanel] =
+    createSignal<boolean>(false);
+  /**
+   * Set of OAuth provider IDs currently linked to the user's account.
+   * Populated by `refreshHasPassword()` (which calls `auth.getUser()`)
+   * and refreshed after every link/unlink action.
+   */
+  const [linkedProviders, setLinkedProviders] = createSignal<Set<string>>(
+    new Set()
+  );
+  const [linkingProvider, setLinkingProvider] = createSignal<string | null>(
+    null
+  );
+  const [unlinkingProvider, setUnlinkingProvider] = createSignal<
+    string | null
+  >(null);
 
   // ── Appearance state ─────────────────────────────────────────────
   const [dynamicAccentColor, setDynamicAccentColor] = createSignal<string>("");
@@ -489,21 +531,52 @@ const SettingsPage: Component = () => {
   /**
    * Refresh whether the user has a password set on their account.
    *
-   * `user().providers` is cached in app_metadata and can lag behind a
-   * fresh password-link. Calling supabase.auth.getUser() forces a fresh
-   * fetch and lets us check the providers list AND whether the user has
-   * a password set.
+   * FIX: Previously this only checked `app_metadata.providers` for the
+   * string "email", but Supabase doesn't always add "email" to that
+   * array for users who signed up via OAuth and later linked a password.
+   * The more reliable check is to look at `user.identities` — if any
+   * entry has `provider === "email"`, the user has an email/password
+   * identity (regardless of how they originally signed up).
    *
-   * Supabase adds "email" to app_metadata.providers as soon as a
-   * password is linked, so we just check the fresh providers list.
+   * We check BOTH sources to be defensive against future SDK changes:
+   *   1. `app_metadata.providers` includes "email" (older SDK behavior)
+   *   2. `user.identities` has an entry with `provider === "email"`
+   *
+   * If either is true, the user has a password set.
+   *
+   * We also fetch the user's OAuth identities at the same time so the
+   * "Login methods" panel can show connected/disconnected state for
+   * Google and Apple without an extra round-trip.
    */
   async function refreshHasPassword() {
     try {
       const client = getSupabaseClient();
       const { data, error } = await client.auth.getUser();
       if (error) return; // keep cached value on error
-      const providers: string[] = data?.user?.app_metadata?.providers ?? [];
-      setHasPassword(providers.includes("email"));
+      const u = data?.user;
+      if (!u) return;
+
+      // Method 1: app_metadata.providers (legacy / older SDK)
+      const providers: string[] = u.app_metadata?.providers ?? [];
+      const hasEmailInProviders = providers.includes("email");
+
+      // Method 2: user.identities array — more reliable across SDK
+      // versions and account types (OAuth+password, password-only, etc.).
+      // The "email" entry has provider === "email" and may have a null
+      // identity_id (it's the canonical identity, not an OAuth link).
+      const identities = u.identities ?? [];
+      const hasEmailIdentity = identities.some(
+        (id) => id.provider === "email"
+      );
+
+      setHasPassword(hasEmailInProviders || hasEmailIdentity);
+
+      // Cache the linked OAuth providers in the same call so the Login
+      // Methods panel renders without an extra request.
+      const oauthProviders = identities
+        .map((id) => id.provider)
+        .filter((p) => p === "google" || p === "apple");
+      setLinkedProviders(new Set(oauthProviders));
     } catch (e) {
       console.warn("[settings] refreshHasPassword failed:", e);
     }
@@ -515,9 +588,18 @@ const SettingsPage: Component = () => {
     try {
       const res = await profileRepo.getProfile(uid);
       if (res.data) {
+        // Country: write to localStorage AND the signal so the next
+        // reload starts with the correct value (no "US" flash). The DB
+        // is the source of truth; localStorage just provides an instant
+        // first-paint value.
         if (res.data.country) {
           setCountry(res.data.country);
           setDiscoverRegion(res.data.country);
+          try {
+            localStorage.setItem("cinelog_country", res.data.country);
+          } catch {
+            // localStorage may be unavailable (private mode) — non-fatal.
+          }
         }
         if (res.data.display_name) setDisplayName(res.data.display_name);
         if (res.data.bio) setBio(res.data.bio);
@@ -553,6 +635,13 @@ const SettingsPage: Component = () => {
       return;
     }
     setCountry(newCountry);
+    // Persist to localStorage immediately so the next reload starts
+    // with the right value, even if the network round-trip is slow.
+    try {
+      localStorage.setItem("cinelog_country", newCountry);
+    } catch {
+      // localStorage may be unavailable (private mode) — non-fatal.
+    }
     try {
       const { error } = await profileRepo.updateProfile(uid, {
         country: newCountry
@@ -625,6 +714,99 @@ const SettingsPage: Component = () => {
     setShowDeactivateSheet(true);
   };
 
+  // ── OAuth linking (Google / Apple) ──────────────────────────────
+
+  /**
+   * Link a new OAuth provider to the signed-in user's account.
+   *
+   * `supabase.auth.linkIdentity()` redirects the browser to the
+   * provider's consent screen. After the user authenticates, the
+   * provider redirects back to the redirectTo URL (this same page),
+   * Supabase's `detectSessionInUrl` parses the result, and on next
+   * mount `refreshHasPassword()` picks up the newly-linked provider
+   * from `user.identities`.
+   *
+   * Note: this only works if the user has at least one existing
+   * identity (i.e. they're signed in). Supabase refuses to link a
+   * provider to a logged-out user.
+   */
+  const handleLinkProvider = async (provider: "google" | "apple") => {
+    setLinkingProvider(provider);
+    try {
+      const client = getSupabaseClient();
+      const redirectTo = `${window.location.origin}/settings`;
+      const { error } = await client.auth.linkIdentity({
+        provider,
+        options: { redirectTo }
+      });
+      if (error) throw error;
+      // The browser will redirect to the provider's consent screen.
+      // No toast — the redirect itself is the success indicator.
+    } catch (err) {
+      console.error(`[settings] linkIdentity(${provider}) failed:`, err);
+      const msg = err instanceof Error ? err.message : "Failed to link provider.";
+      showToast(msg, "error");
+      setLinkingProvider(null);
+    }
+  };
+
+  /**
+   * Unlink an OAuth provider from the signed-in user's account.
+   *
+   * Supabase's `unlinkIdentity()` requires the full `UserIdentity`
+   * object (not just the provider name). We fetch the identities list,
+   * find the matching one, and pass it through.
+   *
+   * Supabase refuses to unlink the LAST identity on an account (the
+   * user would be locked out). We surface that error as a friendly
+   * toast. We also refuse to unlink if the user has no password set
+   * and only one OAuth provider linked — same reason.
+   */
+  const handleUnlinkProvider = async (provider: "google" | "apple") => {
+    setUnlinkingProvider(provider);
+    try {
+      const client = getSupabaseClient();
+      const { data: identitiesData, error: identitiesErr } =
+        await client.auth.getUserIdentities();
+      if (identitiesErr) throw identitiesErr;
+      const identities = identitiesData?.identities ?? [];
+      const identity = identities.find((id) => id.provider === provider);
+      if (!identity) {
+        showToast(`${provider} is not linked to your account.`, "info");
+        return;
+      }
+      // Safety: refuse to unlink if this would leave the user with no
+      // remaining sign-in method (no password AND no other OAuth).
+      const otherIdentities = identities.filter(
+        (id) => id.provider !== provider
+      );
+      const hasPassword = hasPasswordSignal();
+      if (otherIdentities.length === 0 && !hasPassword) {
+        showToast(
+          "You can't unlink your last sign-in method. Add a password or another provider first.",
+          "error",
+          4000
+        );
+        return;
+      }
+      const { error } = await client.auth.unlinkIdentity(identity);
+      if (error) throw error;
+      showToast(`${provider} unlinked.`, "success");
+      // Refresh both the linked providers set and the password state
+      // (linking/unlinking can change which identities are present).
+      await refreshHasPassword();
+    } catch (err) {
+      console.error(`[settings] unlinkIdentity(${provider}) failed:`, err);
+      const msg = err instanceof Error ? err.message : "Failed to unlink provider.";
+      showToast(msg, "error");
+    } finally {
+      setUnlinkingProvider(null);
+    }
+  };
+
+  /** Local alias so the unlink guard doesn't shadow the signal. */
+  const hasPasswordSignal = () => hasPassword();
+
   // ── Appearance: accent + dynamic ────────────────────────────────
 
   const isPresetActive = (presetId: Theme): boolean =>
@@ -686,6 +868,31 @@ const SettingsPage: Component = () => {
       showToast(`Dynamic accent set: ${color}`, "success", 1800);
     } catch (e) {
       console.error("[settings] Dynamic accent extraction failed:", e);
+      showToast("Couldn't extract banner color. Try another image.", "error");
+    } finally {
+      setExtractingColor(false);
+    }
+  };
+
+  /**
+   * Force a fresh re-extraction of the banner color, discarding any
+   * previously cached value. Use this after the user changes their
+   * banner image so the dynamic accent reflects the new image.
+   */
+  const handleReextractDynamic = async () => {
+    const url = bannerUrl();
+    if (!url) {
+      showToast("Set a banner image first to extract a color.", "info", 2200);
+      return;
+    }
+    setExtractingColor(true);
+    try {
+      const color = await extractDominantColor(url);
+      setDynamicAccentColor(color);
+      setCustomAccent(color);
+      showToast(`Re-extracted accent: ${color}`, "success", 1800);
+    } catch (e) {
+      console.error("[settings] Re-extract failed:", e);
       showToast("Couldn't extract banner color. Try another image.", "error");
     } finally {
       setExtractingColor(false);
@@ -1318,6 +1525,189 @@ const SettingsPage: Component = () => {
                               </div>
                             </Show>
 
+                            {/* Login methods — OAuth linking (Google, Apple) */}
+                            <button
+                              type="button"
+                              class="setting-row focus-ring"
+                              onClick={() =>
+                                setShowLoginMethodsPanel(
+                                  !showLoginMethodsPanel()
+                                )
+                              }
+                              aria-expanded={showLoginMethodsPanel()}
+                              aria-label="Login methods"
+                            >
+                              <div
+                                class="setting-row-icon"
+                                aria-hidden="true"
+                              >
+                                <span
+                                  class="material-symbols-outlined"
+                                  style={{ "font-size": "18px" }}
+                                  aria-hidden="true"
+                                >
+                                  manage_accounts
+                                </span>
+                              </div>
+                              <div class="setting-row-text">
+                                <span class="setting-row-label">
+                                  Login methods
+                                </span>
+                                <span class="setting-row-desc">
+                                  Connect Google or Apple for one-tap sign-in.
+                                </span>
+                              </div>
+                              <span
+                                class="material-symbols-outlined setting-row-chevron"
+                                aria-hidden="true"
+                                style={{
+                                  transform: showLoginMethodsPanel()
+                                    ? "rotate(180deg)"
+                                    : "none",
+                                  transition: "transform 200ms ease"
+                                }}
+                              >
+                                expand_more
+                              </span>
+                            </button>
+                            <Show when={showLoginMethodsPanel()}>
+                              <div class="settings-expandable-panel">
+                                <div class="setting-group">
+                                  {/* Google */}
+                                  <div class="setting-row" style={{ cursor: "default" }}>
+                                    <div
+                                      class="setting-row-icon"
+                                      aria-hidden="true"
+                                    >
+                                      <span
+                                        class="material-symbols-outlined"
+                                        style={{ "font-size": "18px" }}
+                                        aria-hidden="true"
+                                      >
+                                        login
+                                      </span>
+                                    </div>
+                                    <div class="setting-row-text">
+                                      <span class="setting-row-label">
+                                        Google
+                                      </span>
+                                      <span class="setting-row-desc">
+                                        {linkedProviders().has("google")
+                                          ? "Connected — sign in with Google."
+                                          : "Not connected."}
+                                      </span>
+                                    </div>
+                                    <Show
+                                      when={linkedProviders().has("google")}
+                                      fallback={
+                                        <button
+                                          type="button"
+                                          class="settings-link-btn focus-ring"
+                                          onClick={() =>
+                                            void handleLinkProvider("google")
+                                          }
+                                          disabled={linkingProvider() !== null}
+                                        >
+                                          <Show
+                                            when={linkingProvider() === "google"}
+                                            fallback="+ Connect"
+                                          >
+                                            Connecting…
+                                          </Show>
+                                        </button>
+                                      }
+                                    >
+                                      <button
+                                        type="button"
+                                        class="settings-link-btn settings-link-btn-danger focus-ring"
+                                        onClick={() =>
+                                          void handleUnlinkProvider("google")
+                                        }
+                                        disabled={
+                                          unlinkingProvider() !== null
+                                        }
+                                      >
+                                        <Show
+                                          when={
+                                            unlinkingProvider() === "google"
+                                          }
+                                          fallback="Disconnect"
+                                        >
+                                          Removing…
+                                        </Show>
+                                      </button>
+                                    </Show>
+                                  </div>
+
+                                  {/* Apple */}
+                                  <div class="setting-row" style={{ cursor: "default" }}>
+                                    <div
+                                      class="setting-row-icon"
+                                      aria-hidden="true"
+                                    >
+                                      <span
+                                        class="material-symbols-outlined"
+                                        style={{ "font-size": "18px" }}
+                                        aria-hidden="true"
+                                      >
+                                        login
+                                      </span>
+                                    </div>
+                                    <div class="setting-row-text">
+                                      <span class="setting-row-label">
+                                        Apple
+                                      </span>
+                                      <span class="setting-row-desc">
+                                        {linkedProviders().has("apple")
+                                          ? "Connected — sign in with Apple."
+                                          : "Not connected."}
+                                      </span>
+                                    </div>
+                                    <Show
+                                      when={linkedProviders().has("apple")}
+                                      fallback={
+                                        <button
+                                          type="button"
+                                          class="settings-link-btn focus-ring"
+                                          onClick={() =>
+                                            void handleLinkProvider("apple")
+                                          }
+                                          disabled={linkingProvider() !== null}
+                                        >
+                                          <Show
+                                            when={linkingProvider() === "apple"}
+                                            fallback="+ Connect"
+                                          >
+                                            Connecting…
+                                          </Show>
+                                        </button>
+                                      }
+                                    >
+                                      <button
+                                        type="button"
+                                        class="settings-link-btn settings-link-btn-danger focus-ring"
+                                        onClick={() =>
+                                          void handleUnlinkProvider("apple")
+                                        }
+                                        disabled={
+                                          unlinkingProvider() !== null
+                                        }
+                                      >
+                                        <Show
+                                          when={
+                                            unlinkingProvider() === "apple"
+                                          }
+                                          fallback="Disconnect"
+                                        >
+                                          Removing…
+                                        </Show>
+                                      </button>
+                                    </Show>
+                                  </div>
+                                </div>
+                              </div>
+                            </Show>
+
                             {/* Sessions & devices */}
                             <button
                               type="button"
@@ -1578,9 +1968,62 @@ const SettingsPage: Component = () => {
                             />
                           </div>
                           <Show when={isDynamicActive() && dynamicAccentColor()}>
-                            <p class="accent-dynamic-info">
-                              Extracted from your banner:{" "}
-                              <code>{dynamicAccentColor()}</code>
+                            <div class="accent-dynamic-info">
+                              <span>
+                                Extracted from your banner:{" "}
+                                <code>{dynamicAccentColor()}</code>
+                              </span>
+                              <button
+                                type="button"
+                                class="settings-link-btn focus-ring accent-dynamic-refresh"
+                                onClick={() => void handleReextractDynamic()}
+                                disabled={extractingColor() || !bannerUrl()}
+                                aria-label="Re-extract banner color"
+                                title={
+                                  bannerUrl()
+                                    ? "Re-extract color from your banner"
+                                    : "Set a banner first to extract a color"
+                                }
+                              >
+                                <Show
+                                  when={!extractingColor()}
+                                  fallback="Extracting…"
+                                >
+                                  <span
+                                    class="material-symbols-outlined"
+                                    style={{ "font-size": "14px" }}
+                                    aria-hidden="true"
+                                  >
+                                    refresh
+                                  </span>
+                                  Re-extract
+                                </Show>
+                              </button>
+                            </div>
+                          </Show>
+                          <Show
+                            when={
+                              !isDynamicActive() &&
+                              dynamicAccentColor() &&
+                              bannerUrl()
+                            }
+                          >
+                            <p class="accent-dynamic-info accent-dynamic-info-muted">
+                              Last extracted:{" "}
+                              <code>{dynamicAccentColor()}</code>{" "}
+                              <button
+                                type="button"
+                                class="settings-link-btn focus-ring accent-dynamic-refresh"
+                                onClick={() => void handleReextractDynamic()}
+                                disabled={extractingColor()}
+                              >
+                                <Show
+                                  when={!extractingColor()}
+                                  fallback="Extracting…"
+                                >
+                                  Re-extract
+                                </Show>
+                              </button>
                             </p>
                           </Show>
                         </div>
@@ -2604,7 +3047,14 @@ const SettingsPage: Component = () => {
       />
       <ChangePasswordSheet
         open={showPasswordSheet()}
-        onClose={() => setShowPasswordSheet(false)}
+        onClose={() => {
+          setShowPasswordSheet(false);
+          // Re-check whether a password is set — covers the edge case
+          // where the user just set their first password via this sheet
+          // (an OAuth-only user who lands on "Change password" instead
+          // of "Set password").
+          void refreshHasPassword();
+        }}
       />
       <LinkEmailPasswordSheet
         open={showLinkEmailPasswordSheet()}

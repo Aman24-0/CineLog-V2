@@ -1142,12 +1142,35 @@
   font-size: 0.75rem;
   color: var(--text-muted);
   margin: var(--sp-2) 0 0 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
 }
 
 .accent-dynamic-info code {
   font-family: "Söhne Mono", "Courier New", monospace;
   color: var(--p);
   font-weight: 600;
+}
+
+.accent-dynamic-info-muted {
+  opacity: 0.7;
+}
+
+.accent-dynamic-refresh {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem var(--sp-2);
+  font-size: 0.6875rem;
+  min-height: 28px;
+}
+
+.accent-dynamic-refresh:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 /* ─── Sidebar danger link styling ──────────────────────────────── */

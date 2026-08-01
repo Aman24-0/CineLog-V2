@@ -3136,6 +3136,24 @@
   color: var(--p);
 }
 
+/* Danger variant of the link button — used for "Disconnect" OAuth,
+   "Remove" factor, etc. Red border + red text on hover. */
+.settings-link-btn-danger {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.35);
+}
+
+.settings-link-btn-danger:hover {
+  background: rgba(248, 113, 113, 0.08);
+  border-color: #f87171;
+  color: #f87171;
+}
+
+.settings-link-btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Hide ratings in screenshots — applied via [data-ss-hidden="true"] on <html> */
 
 html[data-ss-hidden="true"] .v2-pill,
