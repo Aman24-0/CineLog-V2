@@ -41,6 +41,10 @@ import {
   notifPrefs
 } from "~/core/preferences/notifications";
 import { getBrowserSession } from "~/lib/supabase/session";
+import {
+  renderEmailTemplate,
+  type NotificationType
+} from "~/lib/email/renderer";
 
 /**
  * Subtract `leadMinutes` from a `YYYY-MM-DD` release-date string and
@@ -155,6 +159,111 @@ async function sendPushNotification(
   };
 }
 
+/**
+ * Send an email notification as a FALLBACK when push delivery fails
+ * (or push is unavailable). Phase 2 — Task 15.
+ *
+ * The email is sent via /api/email/send, which:
+ *   • Re-checks the user's email prefs server-side (so a malicious
+ *     client can't bypass the gate by editing localStorage).
+ *   • Rate-limits per user (max 10 emails/day).
+ *   • Falls back to console-logging if RESEND_API_KEY is missing
+ *     (mock mode — lets the flow work end-to-end in dev).
+ *
+ * The caller passes a `NotificationType` (typed enum from the
+ * renderer) and a context object. The renderer produces the HTML;
+ * this function just packages it into the API request.
+ *
+ * Returns true if the email was sent (or mocked), false if it was
+ * suppressed by preference or failed. The caller uses this to
+ * decide whether to log "email sent" or "email suppressed".
+ *
+ * NOTE: This function is intentionally NOT exported from the module
+ * because the only legitimate caller is `fireDueBrowserNotifications`
+ * in this same file. The weekly-recap cron has its own email-sending
+ * path (it renders the email server-side and POSTs to Resend
+ * directly, bypassing the user-session auth path).
+ */
+async function sendEmailNotification(
+  userId: string,
+  recipientEmail: string,
+  title: string,
+  message: string,
+  notificationType: NotificationType,
+  context?: Record<string, unknown>
+): Promise<boolean> {
+  if (!recipientEmail) {
+    console.warn("[notifications] Email fallback skipped — no email on file.");
+    return false;
+  }
+
+  try {
+    const html = renderEmailTemplate(notificationType, {
+      title,
+      message,
+      ...context,
+    });
+
+    const session = await getBrowserSession();
+    const accessToken = session?.access_token ?? "";
+
+    const response = await fetch("/api/email/send", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        to: recipientEmail,
+        subject: title,
+        html,
+        text: message,
+        userId,
+        notificationType,
+        accessToken,
+      }),
+    });
+
+    const result = (await response.json().catch(() => ({}))) as {
+      success?: boolean;
+      mock?: boolean;
+      suppressed?: boolean;
+      reason?: string;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      console.warn(
+        "[notifications] Email fallback failed:",
+        result.error ?? `HTTP ${response.status}`
+      );
+      return false;
+    }
+
+    if (result.suppressed) {
+      // User has email notifications disabled for this category —
+      // not an error, just a no-op. Don't log this as a warning
+      // because it's the expected behavior when the user has opted
+      // out of email notifications.
+      return false;
+    }
+
+    if (result.mock) {
+      // Mock mode — the email was logged to the server console
+      // instead of actually being sent. Don't treat this as a
+      // failure (the user is in dev and the flow is working).
+      return true;
+    }
+
+    return Boolean(result.success);
+  } catch (err) {
+    // Network error, JSON parse error, etc. — non-fatal. The
+    // in-app notification feed still has the row.
+    console.warn(
+      "[notifications] Email fallback threw:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return false;
+  }
+}
+
 export function useNotifications() {
   const { user, isSignedIn } = useAuth();
   const toast = useToast();
@@ -231,12 +340,30 @@ export function useNotifications() {
     const canShowToast =
       "Notification" in window && Notification.permission === "granted";
 
+    // ─── Email fallback gate (Phase 2 — Task 15) ─────────────────
+    // The email fallback fires when push delivery fails OR the user
+    // has no push subscription. We read the email prefs here to
+    // decide whether to ATTEMPT the email — the server re-checks
+    // the prefs too, so this client-side check is just an optimization
+    // to avoid an unnecessary network round-trip.
+    //
+    // The reminder email maps to the "reminder" NotificationType,
+    // which doesn't have a per-category email pref (see the renderer
+    // docs). It only respects the master emailEnabled toggle.
+    const prefs = notifPrefs();
+    const emailFallbackEnabled = prefs.emailEnabled;
+    const recipientEmail = user()?.email ?? "";
+
     for (const r of due) {
+      const notifTitle = "CineLog — Release Day";
+      const notifBody = `Your tracked title is out today. Tap to open.`;
+      let pushSucceeded = false;
+
       // ─── 1. In-browser toast (visible only if the tab is open) ──
       if (canShowToast && !inQuiet) {
         try {
-          new Notification("CineLog — Release Day", {
-            body: `Your tracked title is out today. Tap to open.`,
+          new Notification(notifTitle, {
+            body: notifBody,
             icon: "/favicon.ico",
             tag: `reminder-${r.id}`
           });
@@ -248,27 +375,81 @@ export function useNotifications() {
       }
 
       // ─── 2. Web Push (visible even if the tab is closed) ───────
-      // Fire-and-forget — we don't block the loop on the network
-      // round-trip. The server endpoint handles quiet hours, rate
-      // limits, and dead-endpoint cleanup.
+      // We now AWAIT the push result instead of fire-and-forget,
+      // because we need to know whether to trigger the email
+      // fallback. If push succeeds (sent > 0), no email. If push
+      // fails OR sends 0 (no subscriptions), we try email.
       //
-      // We only send push for reminders (not for test notifications
-      // — those are sent directly by the PushToggle component).
-      void sendPushNotification(
-        id,
-        "CineLog — Release Day",
-        `Your tracked title is out today. Tap to open.`,
-        `/upcoming`,
-        `reminder-${r.id}`
-      ).catch((err) => {
+      // The server endpoint handles quiet hours, rate limits, and
+      // dead-endpoint cleanup. We only send push for reminders (not
+      // for test notifications — those are sent directly by the
+      // PushToggle component).
+      try {
+        const pushResult = await sendPushNotification(
+          id,
+          notifTitle,
+          notifBody,
+          `/upcoming`,
+          `reminder-${r.id}`
+        );
+        pushSucceeded = pushResult.sent > 0;
+      } catch (err) {
         // Non-fatal — push delivery is best-effort. The in-app
-        // notification feed still has the row.
+        // notification feed still has the row. We'll try the email
+        // fallback below.
         console.warn("[notifications] Push send failed for reminder:", err);
-      });
+      }
 
-      // ─── 3. Mark the reminder as sent ─────────────────────────
-      // Always mark as sent, even if the toast or push failed —
-      // otherwise we'd retry on every page load and spam the user.
+      // ─── 3. Email fallback (Phase 2 — Task 15) ────────────────
+      // Fire when:
+      //   • push didn't deliver (pushSucceeded=false — either failed
+      //     or there were no subscriptions)
+      //   • AND email fallback is enabled in user prefs
+      //   • AND we have the user's email address
+      //   • AND we're not in quiet hours
+      //
+      // We skip the email if push succeeded — the user already got
+      // the notification via push, no need to double-deliver.
+      //
+      // We skip the email if we're in quiet hours — the user has
+      // asked not to be bothered during this window. (The server-side
+      // preference check on /api/email/send would actually allow
+      // the email through since quiet hours is only enforced on
+      // /api/push/send, so we explicitly skip here.)
+      //
+      // The notification is a "reminder" — release-day nudge. We
+      // render it with the reminder template, which shows the title
+      // + a CTA to open /upcoming.
+      if (!pushSucceeded && emailFallbackEnabled && recipientEmail && !inQuiet) {
+        void sendEmailNotification(
+          id,
+          recipientEmail,
+          notifTitle,
+          notifBody,
+          "reminder",
+          {
+            // Pass the reminder's release date so the email can
+            // display "Released today". The reminder row has
+            // release_date as a YYYY-MM-DD string — we render it
+            // as a localized date in the email template.
+            releaseDate: r.release_date
+              ? new Date(r.release_date + "T00:00:00").toLocaleDateString(
+                  undefined,
+                  { year: "numeric", month: "long", day: "numeric" }
+                )
+              : "Today",
+          }
+        ).catch(() => {
+          // Email send is fire-and-forget — we don't need to wait
+          // for it. The .catch() is just to prevent an unhandled
+          // promise rejection if the email route is unreachable.
+        });
+      }
+
+      // ─── 4. Mark the reminder as sent ─────────────────────────
+      // Always mark as sent, even if the toast, push, or email
+      // failed — otherwise we'd retry on every page load and spam
+      // the user.
       try {
         await markReminderSent(r.id);
       } catch {

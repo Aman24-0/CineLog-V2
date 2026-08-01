@@ -6,6 +6,7 @@ import { createSignal, createEffect } from "solid-js";
 import { isServer } from "solid-js/web";
 
 export interface NotificationPrefs {
+  // ── Push notification category toggles ─────────────────────────
   newSeason: boolean;
   continueWatching: boolean;
   weeklyRecap: boolean;
@@ -17,6 +18,24 @@ export interface NotificationPrefs {
   weeklyDigestTime: string; // "09:00" HH:MM — when the weekly digest fires
   weeklyDigestDay: number; // 0=Sun, 1=Mon, ..., 6=Sat
   episodeReminderLead: number; // minutes before air time (0, 5, 15, 30, 60, 1440=day before)
+
+  // ── Email notification preferences (Phase 2 — Task 15) ─────────
+  // Email is the FALLBACK delivery channel: when push delivery fails
+  // (no subscription, push service unreachable) OR when the user has
+  // push disabled but email enabled, the system sends an email
+  // instead. Each category mirrors its push counterpart — e.g.
+  // `emailNewSeason` controls whether a "new season" event sends an
+  // email when push is unavailable.
+  //
+  // `emailEnabled` is the master toggle. When false, NO emails are
+  // sent regardless of the per-category flags. When true, each
+  // category is independently controllable.
+  emailEnabled: boolean;
+  emailNewSeason: boolean;
+  emailContinueWatching: boolean;
+  emailWeeklyRecap: boolean;
+  emailRecommendations: boolean;
+  emailSyncStatus: boolean;
 }
 
 const NOTIF_PREFS_KEY = "cinelog_notification_prefs";
@@ -32,7 +51,24 @@ const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
   quietHoursEnd: "07:00",
   weeklyDigestTime: "09:00",
   weeklyDigestDay: 1, // Monday
-  episodeReminderLead: 60 // 1 hour before
+  episodeReminderLead: 60, // 1 hour before
+
+  // Email defaults — opt-in by default, with per-category flags
+  // mirroring their push equivalents. This means a brand-new user
+  // will receive email fallbacks for every notification type they
+  // have push enabled for, which is the safest default (better to
+  // over-deliver and let the user opt out than to silently drop
+  // notifications they expected).
+  //
+  // The exception is `emailRecommendations` — recommendations are
+  // low-urgency and high-frequency, so we default them OFF for email
+  // (matching the push default) to avoid spamming the user's inbox.
+  emailEnabled: true,
+  emailNewSeason: true,
+  emailContinueWatching: false,
+  emailWeeklyRecap: true,
+  emailRecommendations: false,
+  emailSyncStatus: true
 };
 
 function readNotifPrefs(): NotificationPrefs {

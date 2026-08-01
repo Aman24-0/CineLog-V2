@@ -47,6 +47,7 @@
 import { isServer } from "solid-js/web";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
+import { renderEmailTemplate } from "~/lib/email/renderer";
 
 interface APIEvent {
   request: Request;
@@ -94,6 +95,8 @@ interface RecapResult {
   message: string;
   pushSent: number;
   pushFailed: number;
+  emailSent: boolean;
+  emailSuppressed: boolean;
   error: string | null;
 }
 
@@ -337,6 +340,126 @@ async function sendRecapPush(
   }
 }
 
+/**
+ * Send the weekly recap email as a FALLBACK when push delivery failed
+ * (or the user has no push subscription). Phase 2 — Task 15.
+ *
+ * We call /api/email/send as an internal HTTP request (same pattern
+ * as sendRecapPush) so the endpoint's preference check + rate-limit
+ * + Resend integration is reused. The cron authenticates via
+ * CRON_SECRET, which lets /api/email/send bypass the user-session
+ * auth requirement and the per-user rate limit (the cron only sends
+ * one email per week per user, so the rate limit doesn't apply).
+ *
+ * We need the user's email address to send the email. We look it up
+ * from auth.users via the admin client (the cron has no user session,
+ * so we can't read it from the request).
+ *
+ * Returns { sent, suppressed }:
+ *   - sent: true if the email was sent (or mocked — RESEND_API_KEY missing)
+ *   - suppressed: true if the user has email notifications disabled
+ *
+ * Both fields are non-fatal — the in-app notification row was already
+ * inserted by insertRecapNotification, so the user will see the recap
+ * in their feed regardless of whether the email was sent.
+ */
+async function sendRecapEmail(
+  request: Request,
+  cronSecret: string,
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+  activity: UserActivity,
+  title: string,
+  message: string
+): Promise<{ sent: boolean; suppressed: boolean }> {
+  // Look up the user's email from auth.users. The admin client can
+  // read auth.users via the auth.admin API.
+  let userEmail: string | null = null;
+  try {
+    const { data: userRecord, error: userErr } =
+      await adminClient.auth.admin.getUserById(userId);
+    if (userErr || !userRecord?.user?.email) {
+      // No email on file — can't send the email. Not an error.
+      return { sent: false, suppressed: false };
+    }
+    userEmail = userRecord.user.email;
+  } catch (err) {
+    console.warn(
+      `[api/cron/weekly-recap] Failed to fetch email for user ${userId}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return { sent: false, suppressed: false };
+  }
+
+  // Render the email HTML. We map the cron's UserActivity shape to
+  // the renderer's WeeklyRecapActivity shape (they're structurally
+  // identical, but the cron's highestRated has extra fields the
+  // email template doesn't need).
+  const html = renderEmailTemplate("weekly_recap", {
+    activity: {
+      completed: activity.completed,
+      rated: activity.rated,
+      added: activity.added,
+      highestRated: activity.highestRated
+        ? {
+            title: activity.highestRated.title,
+            rating: activity.highestRated.rating,
+          }
+        : null,
+    },
+  });
+
+  // Build the URL to /api/email/send on the same host.
+  const url = new URL("/api/email/send", request.url).toString();
+
+  try {
+    const response = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "X-Cron-Secret": cronSecret,
+      },
+      body: JSON.stringify({
+        to: userEmail,
+        subject: title,
+        html,
+        text: message,
+        userId,
+        notificationType: "weekly_recap",
+        // Bypass the per-user rate limit — the cron only sends one
+        // email per week per user, so the rate limit doesn't apply.
+        bypassRateLimit: true,
+      }),
+    });
+
+    const result = (await response.json().catch(() => ({}))) as {
+      success?: boolean;
+      mock?: boolean;
+      suppressed?: boolean;
+      error?: string;
+    };
+
+    if (!response.ok) {
+      console.warn(
+        `[api/cron/weekly-recap] Email send failed for user ${userId}:`,
+        result.error ?? `HTTP ${response.status}`
+      );
+      return { sent: false, suppressed: false };
+    }
+
+    return {
+      sent: Boolean(result.success),
+      suppressed: Boolean(result.suppressed),
+    };
+  } catch (err) {
+    console.warn(
+      `[api/cron/weekly-recap] Email send threw for user ${userId}:`,
+      err instanceof Error ? err.message : String(err)
+    );
+    return { sent: false, suppressed: false };
+  }
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────
 
 export async function POST(event: APIEvent): Promise<Response> {
@@ -475,6 +598,40 @@ export async function POST(event: APIEvent): Promise<Response> {
         );
       }
 
+      // ─── Email fallback (Phase 2 — Task 15) ──────────────────────
+      // If push delivered 0 notifications (user has no subscriptions,
+      // or all subscriptions were dead endpoints), try sending an
+      // email instead. The email endpoint re-checks the user's email
+      // prefs (emailEnabled + emailWeeklyRecap) server-side, so a
+      // user who has disabled email won't receive one.
+      //
+      // We don't trigger the email if push succeeded — the user
+      // already got the recap via push, no need to double-deliver.
+      let emailSent = false;
+      let emailSuppressed = false;
+      if (pushSent === 0) {
+        try {
+          const emailResult = await sendRecapEmail(
+            event.request,
+            cronSecret,
+            adminClient,
+            user.user_id,
+            activity,
+            title,
+            message
+          );
+          emailSent = emailResult.sent;
+          emailSuppressed = emailResult.suppressed;
+        } catch (emailErr) {
+          // Email failure is non-fatal — the in-app notification row
+          // was already inserted. Log and continue.
+          console.warn(
+            `[api/cron/weekly-recap] Email fallback failed for user ${user.user_id}:`,
+            emailErr instanceof Error ? emailErr.message : String(emailErr)
+          );
+        }
+      }
+
       // Mark as sent (prevents duplicate recaps for 6 days).
       const { error: markError } = (await adminClient.rpc(
         "mark_weekly_recap_sent",
@@ -495,6 +652,8 @@ export async function POST(event: APIEvent): Promise<Response> {
         message,
         pushSent,
         pushFailed,
+        emailSent,
+        emailSuppressed,
         error: null,
       });
     } catch (err) {
@@ -528,6 +687,8 @@ export async function POST(event: APIEvent): Promise<Response> {
       added: r.activity.added,
       pushSent: r.pushSent,
       pushFailed: r.pushFailed,
+      emailSent: r.emailSent,
+      emailSuppressed: r.emailSuppressed,
     })),
   });
 }

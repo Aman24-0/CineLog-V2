@@ -37,6 +37,7 @@ import {
 // Static option lists — single source of truth.
 import {
   NOTIF_CATEGORIES,
+  EMAIL_NOTIF_CATEGORIES,
   LEAD_TIME_OPTIONS,
   WEEKLY_DIGEST_DAY_OPTIONS,
   WEEKLY_DIGEST_TIME_OPTIONS
@@ -219,6 +220,49 @@ export function NotificationSection(props: { state: SettingsState }) {
                     />
                   )}
                 </For>
+              </div>
+            </div>
+
+            {/* Email Notifications — Phase 2 Task 15.
+                Email is the FALLBACK delivery channel: when push
+                delivery fails (no subscription, push service
+                unreachable) OR the user has push disabled but email
+                enabled, the system sends an email instead. The
+                master toggle (emailEnabled) gates all email sends;
+                the per-category toggles below mirror their push
+                counterparts so the user can opt out of specific
+                email types without disabling email entirely. */}
+            <div class="setting-subsection">
+              <p class="setting-subsection-label">
+                Email notifications
+              </p>
+              <div class="setting-group">
+                <ToggleRow
+                  icon="mail"
+                  label="Enable email notifications"
+                  desc="Receive notifications via email as a backup when push is unavailable."
+                  current={() => notifPrefs().emailEnabled}
+                  onChange={(v) =>
+                    updateNotifPref("emailEnabled", v)
+                  }
+                />
+                <Show when={notifPrefs().emailEnabled}>
+                  <For each={EMAIL_NOTIF_CATEGORIES}>
+                    {(cat) => (
+                      <ToggleRow
+                        icon={cat.icon}
+                        label={cat.label}
+                        desc={cat.desc}
+                        current={() =>
+                          notifPrefs()[cat.key] as boolean
+                        }
+                        onChange={(v) =>
+                          updateNotifPref(cat.key, v)
+                        }
+                      />
+                    )}
+                  </For>
+                </Show>
               </div>
             </div>
 

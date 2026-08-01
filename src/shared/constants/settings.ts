@@ -224,6 +224,51 @@ export const NOTIF_CATEGORIES: NotifCategoryDef[] = [
   }
 ];
 
+// ────────────────────────────────────────────────────────────────────
+// Email notification categories (Phase 2 — Task 15)
+// ────────────────────────────────────────────────────────────────────
+//
+// Mirrors NOTIF_CATEGORIES but with `email`-prefixed keys so each
+// category's email toggle maps directly to its NotificationPrefs field.
+// Used by the "Email Notifications" subsection of NotificationSection.
+// The labels + descriptions are identical to the push equivalents so
+// the UI reads naturally — the subsection header makes the channel
+// clear ("Email Notifications"), so per-row descriptors don't need
+// to repeat "via email".
+
+export const EMAIL_NOTIF_CATEGORIES: NotifCategoryDef[] = [
+  {
+    key: "emailNewSeason",
+    label: "New Season Available",
+    desc: "Emailed when a series in your vault gets a new season.",
+    icon: "new_releases"
+  },
+  {
+    key: "emailContinueWatching",
+    label: "Continue Watching",
+    desc: "Emailed reminders to resume in-progress titles.",
+    icon: "play_circle"
+  },
+  {
+    key: "emailWeeklyRecap",
+    label: "Weekly Recap",
+    desc: "Emailed summary of your watching activity each week.",
+    icon: "insights"
+  },
+  {
+    key: "emailRecommendations",
+    label: "Recommendations",
+    desc: "Emailed when Discover has new picks based on your taste.",
+    icon: "auto_awesome"
+  },
+  {
+    key: "emailSyncStatus",
+    label: "Sync Status",
+    desc: "Emailed when your data syncs or a sync error occurs.",
+    icon: "sync"
+  }
+];
+
 export const LEAD_TIME_OPTIONS = [
   { id: 0, label: "Never" },
   { id: 5, label: "5 min" },
