@@ -39,6 +39,9 @@ import {
   LEAD_TIME_OPTIONS
 } from "~/shared/constants/settings";
 
+// Phase 2 — Task 13: Background Web Push notifications toggle.
+import { PushToggle } from "~/features/notifications/components/PushToggle";
+
 export function NotificationSection(props: { state: SettingsState }) {
   // eslint-disable-next-line solid/reactivity -- props.state is a stable object reference (bag of accessors), not a reactive value; destructuring it once at the top is safe.
   const s = props.state;
@@ -170,6 +173,14 @@ export function NotificationSection(props: { state: SettingsState }) {
                     </Show>
                   </div>
                 </div>
+
+                {/* Phase 2 — Task 13: Background Web Push subscription.
+                    This is the actual push subscription that lets the
+                    server send notifications to this device even when
+                    the app is closed. The "Device permission" row above
+                    only controls Notification.permission; this row
+                    controls the PushManager subscription. */}
+                <PushToggle showToast={s.showToast} />
               </div>
             </div>
 

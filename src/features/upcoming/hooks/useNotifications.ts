@@ -94,6 +94,58 @@ export function applyLeadTime(releaseDate: string, leadMinutes: number): string 
   return `${yyyy}-${mm}-${dd}`;
 }
 
+/**
+ * Send a Web Push notification to the user's devices via the
+ * /api/push/send server endpoint.
+ *
+ * Phase 2 — Task 13. This is the client-side companion to the server
+ * push send route. It's a thin fetch() wrapper that POSTs the
+ * notification payload to the server, which then uses the `web-push`
+ * library to deliver it to every browser the user has subscribed.
+ *
+ * The server enforces:
+ *   • Auth (caller can only send to their own userId).
+ *   • Quiet hours (suppresses non-test notifications during the window).
+ *   • Rate limit (max 30 sends per minute per user).
+ *   • Dead-endpoint cleanup (deletes 404/410 subscriptions).
+ *
+ * Returns the parsed JSON response, or throws on network error.
+ *
+ * NOTE: This function is intentionally NOT exported from the module
+ * because the only legitimate caller is `fireDueBrowserNotifications`
+ * in this same file. The PushToggle component calls /api/push/send
+ * directly via its own fetch() (see usePushSubscription.sendTest).
+ */
+async function sendPushNotification(
+  userId: string,
+  title: string,
+  body: string,
+  url?: string,
+  tag?: string
+): Promise<{ sent: number; failed: number; suppressed?: boolean }> {
+  const response = await fetch("/api/push/send", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ userId, title, body, url, tag }),
+  });
+
+  if (!response.ok) {
+    // The server returns a JSON error body — extract the message.
+    const errBody = (await response.json().catch(() => ({}))) as {
+      error?: string;
+    };
+    throw new Error(
+      errBody?.error ?? `Push send failed (HTTP ${response.status})`
+    );
+  }
+
+  return (await response.json()) as {
+    sent: number;
+    failed: number;
+    suppressed?: boolean;
+  };
+}
+
 export function useNotifications() {
   const { user, isSignedIn } = useAuth();
   const toast = useToast();
@@ -136,36 +188,82 @@ export function useNotifications() {
   //   worker alarm). That's a future enhancement — for now we simply
   //   suppress delivery during the quiet window, which matches user
   //   intent ("don't bother me at night").
+  //
+  // PHASE 2 — Task 13 (Web Push):
+  //   In addition to the in-browser Notification toast, we now also
+  //   fire a Web Push notification via /api/push/send. The push
+  //   notification is delivered by the service worker and can wake the
+  //   app even if the tab is closed. The server endpoint re-checks
+  //   quiet hours, so we don't need to duplicate that logic here —
+  //   but we DO check quiet hours before firing the in-browser toast
+  //   (which is not server-mediated and would otherwise fire during
+  //   the quiet window).
   const fireDueBrowserNotifications = async () => {
     const id = uid();
     if (!id) return;
     if (typeof window === "undefined") return;
-    if (!("Notification" in window)) return;
-    if (Notification.permission !== "granted") return;
 
-    // ─── Quiet hours gate ─────────────────────────────────────────
-    // Even if reminders are due, don't fire a desktop notification
-    // during the user's configured quiet window. The notification row
-    // still appears in the in-app feed (it was inserted at schedule
-    // time) — this only suppresses the OS-level toast.
-    if (isInQuietHours()) {
-      return;
-    }
-
+    // Fetch due reminders ONCE — both the in-browser toast and the
+    // push send use the same list.
     const due = await getDueReminders(id);
+    if (due.length === 0) return;
+
+    // ─── Quiet hours gate (in-browser toast only) ────────────────
+    // The push endpoint re-checks quiet hours server-side, but the
+    // in-browser Notification toast is fired directly from JS so it
+    // needs the client-side gate. If we're in quiet hours, skip the
+    // toast but STILL fire the push — the server will hold it during
+    // the quiet window and the user won't see it until quiet hours
+    // end. (Actually the server returns sent=0 suppressed=true, so
+    // the push is effectively also suppressed — but we still mark the
+    // reminder as sent so we don't retry every page load. The user
+    // will see the in-app feed entry regardless.)
+    const inQuiet = isInQuietHours();
+    const canShowToast =
+      "Notification" in window && Notification.permission === "granted";
+
     for (const r of due) {
+      // ─── 1. In-browser toast (visible only if the tab is open) ──
+      if (canShowToast && !inQuiet) {
+        try {
+          new Notification("CineLog — Release Day", {
+            body: `Your tracked title is out today. Tap to open.`,
+            icon: "/favicon.ico",
+            tag: `reminder-${r.id}`
+          });
+        } catch {
+          // Notification construction can throw on some platforms
+          // (e.g. service worker scope issues). Don't abort the whole
+          // loop — the push send may still succeed.
+        }
+      }
+
+      // ─── 2. Web Push (visible even if the tab is closed) ───────
+      // Fire-and-forget — we don't block the loop on the network
+      // round-trip. The server endpoint handles quiet hours, rate
+      // limits, and dead-endpoint cleanup.
+      //
+      // We only send push for reminders (not for test notifications
+      // — those are sent directly by the PushToggle component).
+      void sendPushNotification(
+        id,
+        "CineLog — Release Day",
+        `Your tracked title is out today. Tap to open.`,
+        `/upcoming`,
+        `reminder-${r.id}`
+      ).catch((err) => {
+        // Non-fatal — push delivery is best-effort. The in-app
+        // notification feed still has the row.
+        console.warn("[notifications] Push send failed for reminder:", err);
+      });
+
+      // ─── 3. Mark the reminder as sent ─────────────────────────
+      // Always mark as sent, even if the toast or push failed —
+      // otherwise we'd retry on every page load and spam the user.
       try {
-        new Notification("CineLog — Release Day", {
-          body: `Your tracked title is out today. Tap to open.`,
-          icon: "/favicon.ico",
-          tag: `reminder-${r.id}`
-        });
         await markReminderSent(r.id);
       } catch {
-        // Notification construction can throw on some platforms (e.g.
-        // service worker scope issues). Mark as sent so we don't retry
-        // in a tight loop.
-        await markReminderSent(r.id);
+        // ignore — will retry on next page load
       }
     }
   };
