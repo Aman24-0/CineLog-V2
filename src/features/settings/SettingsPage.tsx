@@ -35,6 +35,7 @@ import {
   createMemo,
   createEffect,
   onMount,
+  onCleanup,
   For,
   Show,
   type Component,
@@ -155,7 +156,7 @@ import {
   getWatchProviderListTv
 } from "~/core/tmdb/discover";
 import { mergeAndSortProviders, type TmdbProvider } from "~/core/preferences";
-import { tmdbImage } from "~/core/tmdb/tmdb";
+import { tmdbImage, fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import { extractDominantColor } from "~/shared/utils/colorExtractor";
 
 // ────────────────────────────────────────────────────────────────────
@@ -460,7 +461,9 @@ const SettingsPage: Component = () => {
   const [country, setCountry] = createSignal<string>(initialCountry);
   const [displayName, setDisplayName] = createSignal<string>("");
   const [bio, setBio] = createSignal<string>("");
-  const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
+  // NOTE: bannerUrl + bannerType are declared in the "Banner state"
+  // block below (next to the dynamic accent extractor, which is the
+  // only consumer that needs to know the banner TYPE, not just the URL).
   const [editingProfile, setEditingProfile] = createSignal(false);
   const [savingProfile, setSavingProfile] = createSignal(false);
   const [nameInput, setNameInput] = createSignal("");
@@ -498,6 +501,24 @@ const SettingsPage: Component = () => {
   const [dynamicAccentColor, setDynamicAccentColor] = createSignal<string>("");
   const [extractingColor, setExtractingColor] = createSignal(false);
 
+  // ── Banner state ────────────────────────────────────────────────
+  // CineLog's banner system supports four source types (see
+  // src/features/profile/components/ProfileBanner.tsx):
+  //   • 'upload'         → banner_url is a Supabase Storage URL
+  //   • 'url'            → banner_url is an external image URL
+  //   • 'favorite_movie' → banner_url is null; the visible banner is
+  //                        the user's favorite movie/series backdrop
+  //                        (resolved via favorite_movie_id → TMDB path)
+  //   • 'default'        → no image at all (CineLog gradient)
+  //
+  // Legacy users (null banner_type) default to 'favorite_movie'.
+  //
+  // The Dynamic accent extractor needs the ACTUAL image URL — so for
+  // 'favorite_movie' banners we have to fetch the favorite movie's
+  // backdrop_path from TMDB and resolve it via tmdbImage().
+  const [bannerType, setBannerType] = createSignal<string>("favorite_movie");
+  const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
+
   // ── Content state ────────────────────────────────────────────────
   const [providers, setProviders] = createSignal<TmdbProvider[]>([]);
   const [providersLoading, setProvidersLoading] = createSignal(true);
@@ -531,16 +552,18 @@ const SettingsPage: Component = () => {
   /**
    * Refresh whether the user has a password set on their account.
    *
-   * FIX: Previously this only checked `app_metadata.providers` for the
-   * string "email", but Supabase doesn't always add "email" to that
-   * array for users who signed up via OAuth and later linked a password.
-   * The more reliable check is to look at `user.identities` — if any
-   * entry has `provider === "email"`, the user has an email/password
-   * identity (regardless of how they originally signed up).
+   * FIX (this commit): Previously this only checked
+   * `app_metadata.providers` for the string "email", but Supabase
+   * doesn't always add "email" to that array for users who signed up
+   * via OAuth and later linked a password.
    *
-   * We check BOTH sources to be defensive against future SDK changes:
-   *   1. `app_metadata.providers` includes "email" (older SDK behavior)
+   * The reliable check combines BOTH sources:
+   *   1. `app_metadata.providers` includes "email" (legacy / older SDK)
    *   2. `user.identities` has an entry with `provider === "email"`
+   *      AND `identity_data.email` is set (the canonical email identity
+   *      for the account). The `identity_data.email` sanity check
+   *      filters out partial / corrupt identity rows that Supabase
+   *      occasionally returns during a link-in-progress.
    *
    * If either is true, the user has a password set.
    *
@@ -562,11 +585,17 @@ const SettingsPage: Component = () => {
 
       // Method 2: user.identities array — more reliable across SDK
       // versions and account types (OAuth+password, password-only, etc.).
-      // The "email" entry has provider === "email" and may have a null
-      // identity_id (it's the canonical identity, not an OAuth link).
+      // The "email" entry has provider === "email" and identity_data.email
+      // set to the user's primary email address. We require BOTH fields
+      // to avoid counting partial / in-flight link rows.
       const identities = u.identities ?? [];
       const hasEmailIdentity = identities.some(
-        (id) => id.provider === "email"
+        (id) =>
+          id.provider === "email" &&
+          // identity_data may be missing in edge cases — fall back to
+          // any email identity if the data block is absent entirely
+          // (better to over-report "Connected" than miss a real link).
+          (!id.identity_data || id.identity_data.email)
       );
 
       setHasPassword(hasEmailInProviders || hasEmailIdentity);
@@ -581,6 +610,47 @@ const SettingsPage: Component = () => {
       console.warn("[settings] refreshHasPassword failed:", e);
     }
   }
+
+  /**
+   * Auth state listener — refreshes password + linked-provider state
+   * whenever Supabase emits a relevant auth event.
+   *
+   * WHY: When a user links a password (via LinkEmailPasswordSheet) or
+   * links an OAuth provider (via linkIdentity redirect), Supabase fires
+   * `SIGNED_IN` or `USER_UPDATED` events. Without this listener, the
+   * Settings page's cached `hasPassword` signal can lag behind the
+   * actual auth state — the user sees "Not set" until they manually
+   * reload the page.
+   *
+   * Events we react to:
+   *   • SIGNED_IN       — fresh sign-in or token refresh after a link
+   *   • USER_UPDATED    — user_metadata / app_metadata changed (e.g.,
+   *                       right after `linkIdentity` resolves)
+   *   • PASSWORD_RECOVERY — password was just reset
+   *
+   * We deliberately do NOT refresh on TOKEN_REFRESHED alone — that
+   * event fires every 60s and would cause a getUser() request storm.
+   * SIGNED_IN covers the "token refreshed after a link" case because
+   * Supabase promotes the refresh to a SIGNED_IN event when the user's
+   * identities array changes.
+   */
+  onMount(() => {
+    const client = getSupabaseClient();
+    const { data: listener } = client.auth.onAuthStateChange((event) => {
+      if (
+        event === "SIGNED_IN" ||
+        event === "USER_UPDATED" ||
+        event === "PASSWORD_RECOVERY"
+      ) {
+        void refreshHasPassword();
+      }
+    });
+    // Clean up the listener when the SettingsPage unmounts to prevent
+    // a memory leak and double-firing across route changes.
+    onCleanup(() => {
+      listener?.subscription.unsubscribe();
+    });
+  });
 
   async function loadProfile() {
     const uid = user()?.uid;
@@ -603,10 +673,90 @@ const SettingsPage: Component = () => {
         }
         if (res.data.display_name) setDisplayName(res.data.display_name);
         if (res.data.bio) setBio(res.data.bio);
-        if (res.data.banner_url) setBannerUrl(res.data.banner_url);
+
+        // ── Banner URL resolution ──────────────────────────────────
+        // CineLog's banner system has FOUR source types (see
+        // ProfileBanner.tsx). The Dynamic accent extractor needs the
+        // actual image URL — so for 'favorite_movie' banners we must
+        // fetch the favorite movie/series TMDB metadata to get the
+        // backdrop_path, then resolve it via tmdbImage().
+        //
+        // Legacy users (null banner_type) default to 'favorite_movie'.
+        await resolveBannerUrl(res.data);
       }
     } catch (e) {
       console.warn("[settings] loadProfile failed:", e);
+    }
+  }
+
+  /**
+   * Resolve the actual image URL behind the user's banner, based on
+   * their `banner_type` preference.
+   *
+   * Cases:
+   *   • 'upload' / 'url' — banner_url is already a fully-qualified URL
+   *     (Supabase Storage object URL or external URL). Use as-is.
+   *
+   *   • 'favorite_movie' — banner_url is null; the visible banner is
+   *     the user's favorite movie or series backdrop (resolved from
+   *     `favorite_movie_id` / `favorite_series_id` via TMDB). We fetch
+   *     the TMDB metadata to get `backdrop_path`, then resolve via
+   *     `tmdbImage(path, "w780")` (w780 is plenty of resolution for
+   *     color sampling — the canvas downscales to 96×96 anyway).
+   *
+   *   • 'default' — no image; banner is a CSS gradient. The signal
+   *     stays null and the Dynamic swatch shows "No banner set".
+   *
+   *   • null / undefined (legacy users) — treated as 'favorite_movie'
+   *     for backward compat with profiles created before the
+   *     banner_type column existed.
+   *
+   * Side effects: writes to `bannerType` and `bannerUrl` signals.
+   */
+  async function resolveBannerUrl(profile: {
+    banner_type?: string | null;
+    banner_url?: string | null;
+    favorite_movie_id?: string | null;
+    favorite_series_id?: string | null;
+  }) {
+    const type = profile.banner_type ?? "favorite_movie";
+    setBannerType(type);
+
+    // Type 'upload' or 'url' — direct image URL.
+    if (type === "upload" || type === "url") {
+      setBannerUrl(profile.banner_url ?? null);
+      return;
+    }
+
+    // Type 'default' — no image.
+    if (type === "default") {
+      setBannerUrl(null);
+      return;
+    }
+
+    // Type 'favorite_movie' (or legacy null) — fetch the favorite
+    // movie or series backdrop from TMDB. Try movie first, then series.
+    try {
+      let backdropPath: string | null | undefined = null;
+
+      if (profile.favorite_movie_id) {
+        const movie = await fetchTmdbMetadata("movie", profile.favorite_movie_id);
+        backdropPath = movie?.backdrop_path ?? null;
+      }
+      if (!backdropPath && profile.favorite_series_id) {
+        const series = await fetchTmdbMetadata("tv", profile.favorite_series_id);
+        backdropPath = series?.backdrop_path ?? null;
+      }
+
+      if (backdropPath) {
+        setBannerUrl(tmdbImage(backdropPath, "w780"));
+      } else {
+        // No favorite set, or TMDB fetch failed — no banner available.
+        setBannerUrl(null);
+      }
+    } catch (e) {
+      console.warn("[settings] resolveBannerUrl: TMDB fetch failed:", e);
+      setBannerUrl(null);
     }
   }
 
@@ -836,6 +986,15 @@ const SettingsPage: Component = () => {
    * If we already have a dynamicAccentColor cached and it's the active
    * accent, do nothing (already active). Otherwise extract from the
    * banner (or fall back to Gold if no banner).
+   *
+   * FIX (this commit): Previously this only checked `bannerUrl()` —
+   * which was set directly from `profile.banner_url`. That missed
+   * users whose `banner_type === 'favorite_movie'` (the default!)
+   * and had a null `banner_url` — even though they DO see a banner
+   * on their profile page (their favorite movie's backdrop). The
+   * `loadProfile()` function now resolves the actual image URL
+   * (including TMDB fetch for favorite_movie type) before storing
+   * it in the `bannerUrl()` signal, so this check is now reliable.
    */
   const handleDynamicClick = async () => {
     if (isDynamicActive()) {
@@ -845,7 +1004,7 @@ const SettingsPage: Component = () => {
 
     // If we have a cached dynamic color from a previous extraction,
     // re-apply it without re-extracting.
-    if (dynamicAccentColor()) {
+    if (dynamicAccentColor() && bannerUrl()) {
       setCustomAccent(dynamicAccentColor());
       return;
     }
@@ -858,17 +1017,42 @@ const SettingsPage: Component = () => {
         const fallback = "#FFD700";
         setDynamicAccentColor(fallback);
         setCustomAccent(fallback);
-        showToast("No banner set — using Gold accent.", "info", 1800);
+        showToast(
+          "No banner set — using Gold accent. Set a banner in Profile to extract a color.",
+          "info",
+          2800
+        );
         return;
       }
 
       const color = await extractDominantColor(url);
-      setDynamicAccentColor(color);
-      setCustomAccent(color);
-      showToast(`Dynamic accent set: ${color}`, "success", 1800);
+      // extractDominantColor returns the fallback (#FFD700) on failure
+      // rather than throwing — detect that and show a helpful toast.
+      if (color === "#FFD700") {
+        setDynamicAccentColor(color);
+        setCustomAccent(color);
+        showToast(
+          "Could not extract color from banner. Using Gold accent.",
+          "info",
+          2800
+        );
+      } else {
+        setDynamicAccentColor(color);
+        setCustomAccent(color);
+        showToast(`Dynamic accent set: ${color}`, "success", 1800);
+      }
     } catch (e) {
       console.error("[settings] Dynamic accent extraction failed:", e);
-      showToast("Couldn't extract banner color. Try another image.", "error");
+      // On hard failure, fall back to Gold so the user still gets an
+      // accent applied (better than leaving them with no accent).
+      const fallback = "#FFD700";
+      setDynamicAccentColor(fallback);
+      setCustomAccent(fallback);
+      showToast(
+        "Could not extract color from banner. Using Gold accent.",
+        "error",
+        2800
+      );
     } finally {
       setExtractingColor(false);
     }
@@ -876,24 +1060,55 @@ const SettingsPage: Component = () => {
 
   /**
    * Force a fresh re-extraction of the banner color, discarding any
-   * previously cached value. Use this after the user changes their
-   * banner image so the dynamic accent reflects the new image.
+   * previously cached value.
+   *
+   * Use this after the user changes their banner image so the dynamic
+   * accent reflects the new image. We re-fetch the profile first to
+   * pick up any banner_url / banner_type changes (e.g., if the user
+   * just uploaded a new banner via the Edit Profile modal).
    */
   const handleReextractDynamic = async () => {
-    const url = bannerUrl();
-    if (!url) {
-      showToast("Set a banner image first to extract a color.", "info", 2200);
-      return;
-    }
     setExtractingColor(true);
     try {
+      // Re-fetch the profile so the banner URL is fresh — covers the
+      // case where the user just changed their banner via Edit Profile
+      // but the cached bannerUrl() signal hasn't been updated yet.
+      const uid = user()?.uid;
+      if (uid) {
+        const res = await profileRepo.getProfile(uid);
+        if (res.data) {
+          await resolveBannerUrl(res.data);
+        }
+      }
+
+      const url = bannerUrl();
+      if (!url) {
+        showToast(
+          "Set a banner image first to extract a color.",
+          "info",
+          2200
+        );
+        return;
+      }
+
       const color = await extractDominantColor(url);
       setDynamicAccentColor(color);
       setCustomAccent(color);
-      showToast(`Re-extracted accent: ${color}`, "success", 1800);
+      if (color === "#FFD700") {
+        showToast(
+          "Could not extract color from banner. Using Gold accent.",
+          "info",
+          2800
+        );
+      } else {
+        showToast(`Re-extracted accent: ${color}`, "success", 1800);
+      }
     } catch (e) {
       console.error("[settings] Re-extract failed:", e);
-      showToast("Couldn't extract banner color. Try another image.", "error");
+      showToast(
+        "Could not extract color from banner. Try another image.",
+        "error"
+      );
     } finally {
       setExtractingColor(false);
     }
@@ -1967,63 +2182,105 @@ const SettingsPage: Component = () => {
                               onSelect={() => void handleDynamicClick()}
                             />
                           </div>
-                          <Show when={isDynamicActive() && dynamicAccentColor()}>
-                            <div class="accent-dynamic-info">
-                              <span>
-                                Extracted from your banner:{" "}
-                                <code>{dynamicAccentColor()}</code>
-                              </span>
-                              <button
-                                type="button"
-                                class="settings-link-btn focus-ring accent-dynamic-refresh"
-                                onClick={() => void handleReextractDynamic()}
-                                disabled={extractingColor() || !bannerUrl()}
-                                aria-label="Re-extract banner color"
-                                title={
-                                  bannerUrl()
-                                    ? "Re-extract color from your banner"
-                                    : "Set a banner first to extract a color"
+
+                          {/* ─── Dynamic accent status line ──────────────
+                              Three states (per spec):
+                                1. No banner set: "No banner set — using Gold accent"
+                                2. Banner set, extracting: "Extracting color from banner…"
+                                3. Banner set, extracted: "Banner accent: #XXXXXX"
+                              Plus a Re-extract button (always shown when a
+                              banner is present so the user can refresh after
+                              changing their banner image).
+                          */}
+                          <Show
+                            when={extractingColor()}
+                            fallback={
+                              <Show
+                                when={bannerUrl()}
+                                fallback={
+                                  /* State 1: No banner set */
+                                  <p class="accent-dynamic-info accent-dynamic-info-muted">
+                                    No banner set — using Gold accent.{" "}
+                                    <a
+                                      href="/profile"
+                                      class="settings-link-btn focus-ring"
+                                      aria-label="Set a banner on your profile"
+                                    >
+                                      Set a banner →
+                                    </a>
+                                  </p>
                                 }
                               >
                                 <Show
-                                  when={!extractingColor()}
-                                  fallback="Extracting…"
+                                  when={isDynamicActive() && dynamicAccentColor()}
+                                  fallback={
+                                    /* State with banner but not active */
+                                    <Show
+                                      when={dynamicAccentColor()}
+                                      fallback={
+                                        /* Banner set, never extracted */
+                                        <p class="accent-dynamic-info accent-dynamic-info-muted">
+                                          Banner detected. Tap "Dynamic" to
+                                          extract an accent color from it.
+                                        </p>
+                                      }
+                                    >
+                                      {/* Previously extracted, not currently active */}
+                                      <p class="accent-dynamic-info accent-dynamic-info-muted">
+                                        Last extracted:{" "}
+                                        <code>{dynamicAccentColor()}</code>
+                                        <button
+                                          type="button"
+                                          class="settings-link-btn focus-ring accent-dynamic-refresh"
+                                          onClick={() => void handleReextractDynamic()}
+                                          aria-label="Re-extract banner color"
+                                        >
+                                          Re-extract
+                                        </button>
+                                      </p>
+                                    </Show>
+                                  }
                                 >
-                                  <span
-                                    class="material-symbols-outlined"
-                                    style={{ "font-size": "14px" }}
-                                    aria-hidden="true"
-                                  >
-                                    refresh
-                                  </span>
-                                  Re-extract
+                                  {/* State 3: Active and extracted */}
+                                  <div class="accent-dynamic-info">
+                                    <span>
+                                      Banner accent:{" "}
+                                      <code>{dynamicAccentColor()}</code>
+                                    </span>
+                                    <button
+                                      type="button"
+                                      class="settings-link-btn focus-ring accent-dynamic-refresh"
+                                      onClick={() => void handleReextractDynamic()}
+                                      aria-label="Re-extract banner color"
+                                      title="Re-extract color from your banner"
+                                    >
+                                      <span
+                                        class="material-symbols-outlined"
+                                        style={{ "font-size": "14px" }}
+                                        aria-hidden="true"
+                                      >
+                                        refresh
+                                      </span>
+                                      Re-extract
+                                    </button>
+                                  </div>
                                 </Show>
-                              </button>
-                            </div>
-                          </Show>
-                          <Show
-                            when={
-                              !isDynamicActive() &&
-                              dynamicAccentColor() &&
-                              bannerUrl()
+                              </Show>
                             }
                           >
-                            <p class="accent-dynamic-info accent-dynamic-info-muted">
-                              Last extracted:{" "}
-                              <code>{dynamicAccentColor()}</code>{" "}
-                              <button
-                                type="button"
-                                class="settings-link-btn focus-ring accent-dynamic-refresh"
-                                onClick={() => void handleReextractDynamic()}
-                                disabled={extractingColor()}
+                            {/* State 2: Extracting */}
+                            <p class="accent-dynamic-info">
+                              <span
+                                class="material-symbols-outlined"
+                                style={{
+                                  "font-size": "14px",
+                                  animation: "spin 1s linear infinite"
+                                }}
+                                aria-hidden="true"
                               >
-                                <Show
-                                  when={!extractingColor()}
-                                  fallback="Extracting…"
-                                >
-                                  Re-extract
-                                </Show>
-                              </button>
+                                progress_activity
+                              </span>
+                              Extracting color from banner…
                             </p>
                           </Show>
                         </div>

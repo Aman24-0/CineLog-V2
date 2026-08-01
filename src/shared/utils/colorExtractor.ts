@@ -24,6 +24,22 @@
 //      theme" range: saturation ≥ 0.5, lightness between 0.45 and 0.7.
 //   8. Return as hex string.
 //
+// ROBUSTNESS FEATURES (this commit):
+//   • Image load timeout (10s) — prevents the extractor from hanging
+//     forever on slow / unreachable URLs (e.g., expired S3 links).
+//   • CORS handling: crossOrigin="anonymous" is set BEFORE src, so
+//     the browser makes a CORS preflight request. If the server
+//     doesn't return Access-Control-Allow-Origin, the image fails
+//     to load and we fall back to Gold.
+//   • Canvas-tainted guard: if the image loads but the canvas is
+//     tainted (which happens when CORS failed silently on a redirect),
+//     getImageData() throws a SecurityError — we catch it and fall
+//     back to Gold with a clear console warning.
+//   • Empty-image guard: if the image is 0×0 (rare but happens with
+//     broken SVGs), we skip pixel sampling and fall back to Gold.
+//   • All edge cases return FALLBACK_COLOR (#FFD700) and log a
+//     warning so the issue is debuggable in production.
+//
 // WHY NOT USE colorthief / node-vibrant?
 //   - They add 5-15KB of bundle weight for a feature used in one place.
 //   - Canvas pixel sampling is ~120 lines of code, works in every
@@ -40,6 +56,12 @@
 
 const FALLBACK_COLOR = "#FFD700";
 
+// 10-second timeout for image loading. The Supabase Storage CDN is
+// normally fast (<500ms); if we exceed 10s the URL is almost certainly
+// broken or unreachable, and we should fall back rather than hang the
+// UI's "Extracting…" spinner forever.
+const IMAGE_LOAD_TIMEOUT_MS = 10_000;
+
 /**
  * Extract a vibrant accent color from an image URL.
  *
@@ -48,8 +70,11 @@ const FALLBACK_COLOR = "#FFD700";
  *
  * Returns FALLBACK_COLOR (#FFD700) if:
  *   - We're in an SSR environment (no document/canvas)
- *   - The image fails to load (CORS, 404, etc.)
- *   - The image is too small to sample
+ *   - The image URL is empty / null / whitespace
+ *   - The image fails to load (CORS, 404, network error, timeout)
+ *   - The image is too small to sample (0×0)
+ *   - The canvas is tainted (CORS failed silently on a redirect)
+ *   - No valid pixels are found (all-transparent, all-black, all-white)
  */
 export async function extractDominantColor(imageUrl: string): Promise<string> {
   // SSR guard — bail out if we're not in a browser.
@@ -63,10 +88,21 @@ export async function extractDominantColor(imageUrl: string): Promise<string> {
   }
 
   try {
-    // Load the image with CORS enabled so we can read pixel data.
-    // If the server doesn't send Access-Control-Allow-Origin, the image
-    // will fail to load and we fall back to the default color.
+    // Load the image with CORS enabled + a 10s timeout. If the server
+    // doesn't send Access-Control-Allow-Origin, the image will fail
+    // to load and we fall back to the default color.
     const img = await loadImageWithCORS(imageUrl);
+
+    // Empty-image guard — some SVGs / broken PNGs decode to 0×0.
+    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+      console.warn(
+        "[colorExtractor] Image has zero dimensions, falling back to",
+        FALLBACK_COLOR,
+        "— URL:",
+        imageUrl
+      );
+      return FALLBACK_COLOR;
+    }
 
     // 96×96 sample grid — enough resolution for accurate color
     // discrimination while keeping pixel count low (~9K) for speed.
@@ -81,34 +117,82 @@ export async function extractDominantColor(imageUrl: string): Promise<string> {
     ctx.drawImage(img, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
 
     // Read all pixels at once — much faster than per-pixel reads.
-    const imageData = ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+    // This can throw a SecurityError if the canvas is tainted (which
+    // happens when CORS failed silently on a redirect). We catch it
+    // and fall back to Gold with a clear warning.
+    let imageData: ImageData;
+    try {
+      imageData = ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+    } catch (securityErr) {
+      console.warn(
+        "[colorExtractor] Canvas is tainted (CORS failure on image),",
+        "falling back to",
+        FALLBACK_COLOR,
+        "— URL:",
+        imageUrl,
+        "— error:",
+        securityErr
+      );
+      return FALLBACK_COLOR;
+    }
+
     return findVibrantColor(imageData.data);
   } catch (err) {
     console.warn(
       "[colorExtractor] Failed to extract dominant color:",
       err,
       "— falling back to",
-      FALLBACK_COLOR
+      FALLBACK_COLOR,
+      "— URL:",
+      imageUrl
     );
     return FALLBACK_COLOR;
   }
 }
 
 /**
- * Load an image with CORS enabled.
+ * Load an image with CORS enabled and a timeout.
  *
  * Sets `crossOrigin = "anonymous"` BEFORE setting `src` so the browser
  * knows to make a CORS request. If the server doesn't support CORS, the
  * image will fail to load (which we catch upstream).
+ *
+ * The timeout prevents the extractor from hanging forever on slow or
+ * unreachable URLs — we resolve with an error after
+ * IMAGE_LOAD_TIMEOUT_MS so the caller can fall back gracefully.
  */
 function loadImageWithCORS(url: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "anonymous";
 
-    img.onload = () => resolve(img);
-    img.onerror = () =>
+    let settled = false;
+
+    const timeoutId = setTimeout(() => {
+      if (settled) return;
+      settled = true;
+      // Set src to empty string to abort the in-flight request.
+      img.src = "";
+      reject(
+        new Error(
+          `Image load timed out after ${IMAGE_LOAD_TIMEOUT_MS}ms: ${url}`
+        )
+      );
+    }, IMAGE_LOAD_TIMEOUT_MS);
+
+    img.onload = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
+      resolve(img);
+    };
+
+    img.onerror = () => {
+      if (settled) return;
+      settled = true;
+      clearTimeout(timeoutId);
       reject(new Error(`Image failed to load (CORS or 404): ${url}`));
+    };
 
     // Set src LAST so the crossOrigin attribute is in place when the
     // request fires.
