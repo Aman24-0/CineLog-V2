@@ -40,6 +40,7 @@ import {
   isInQuietHours,
   notifPrefs
 } from "~/core/preferences/notifications";
+import { getBrowserSession } from "~/lib/supabase/session";
 
 /**
  * Subtract `leadMinutes` from a `YYYY-MM-DD` release-date string and
@@ -123,10 +124,18 @@ async function sendPushNotification(
   url?: string,
   tag?: string
 ): Promise<{ sent: number; failed: number; suppressed?: boolean }> {
+  // The browser stores Supabase sessions in localStorage (not cookies),
+  // so the server can't read the access_token from the Cookie header.
+  // We must pass it explicitly in the body — same pattern as
+  // /api/account/delete (see DeactivateAccountSheet.tsx). Without this,
+  // the server returns 401 "No active session" even for signed-in users.
+  const session = await getBrowserSession();
+  const accessToken = session?.access_token ?? "";
+
   const response = await fetch("/api/push/send", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ userId, title, body, url, tag }),
+    body: JSON.stringify({ userId, title, body, url, tag, accessToken }),
   });
 
   if (!response.ok) {

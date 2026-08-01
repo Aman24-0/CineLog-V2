@@ -49,6 +49,7 @@
 
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { getClient } from "~/lib/supabase/client";
+import { getBrowserSession } from "~/lib/supabase/session";
 import { useAuth } from "~/shared/hooks/useAuth";
 
 /**
@@ -456,6 +457,13 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
 
     setIsLoading(true);
     try {
+      // The browser stores Supabase sessions in localStorage (not cookies),
+      // so the server can't read the access_token from the Cookie header.
+      // We must pass it explicitly in the body — same pattern as
+      // /api/account/delete (see DeactivateAccountSheet.tsx).
+      const session = await getBrowserSession();
+      const accessToken = session?.access_token ?? "";
+
       const response = await fetch("/api/push/send", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -465,6 +473,7 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
           body: "If you can see this, push notifications are working correctly.",
           tag: "test",
           url: "/upcoming",
+          accessToken,
         }),
       });
 
