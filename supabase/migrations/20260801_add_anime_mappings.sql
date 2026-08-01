@@ -1,7 +1,6 @@
 -- 20260801_add_anime_mappings.sql
--- ---------------------------------------------------------------------
 -- AniList Integration — Phase 0
---
+-- ---------------------------------------------------------------------
 -- Creates the `anime_mappings` table that links TMDB ids to AniList
 -- ids. This is the "join table" that lets CineLog know which AniList
 -- record to query for anime enrichment (characters, voice actors,
@@ -31,11 +30,12 @@
 --                                     upsert path is race-safe.
 --   anime_mappings_anilist_id_idx  — non-unique on (anilist_id) for
 --                                     reverse lookup (recommendations).
+--   anime_mappings_tmdb_type_idx   — for filtering by type.
 --
 -- RLS:
 --   Public read — mappings are world-readable metadata (not user data).
---   Writes restricted to service role (admin routes / server-side
---   automap). The browser client never writes here directly.
+--   Authenticated users can insert/update (auto‑mapping).
+--   Service role bypasses RLS for admin operations.
 -- ---------------------------------------------------------------------
 
 CREATE TABLE IF NOT EXISTS anime_mappings (
@@ -88,8 +88,10 @@ CREATE TRIGGER anime_mappings_touch_updated_at
 -- ─── Row Level Security ────────────────────────────────────────────
 -- Mappings are global metadata (like tmdb_cache), not user-owned data.
 -- Public read access is required so anonymous users can see AniList
--- enrichment on the Details page. Writes are restricted to the
--- service role (server-side automap + admin panel).
+-- enrichment on the Details page.
+-- Authenticated users can insert/update so that auto‑mapping works
+-- from the browser (the app writes new mappings after discovering them).
+-- Service role bypasses RLS completely (admin panel + server-side tasks).
 
 ALTER TABLE anime_mappings ENABLE ROW LEVEL SECURITY;
 
@@ -98,10 +100,13 @@ DROP POLICY IF EXISTS anime_mappings_read_all ON anime_mappings;
 CREATE POLICY anime_mappings_read_all ON anime_mappings
   FOR SELECT USING (true);
 
--- Writes: service role only. The browser client never writes here.
--- (Service role bypasses RLS entirely, so we don't need an explicit
--- INSERT/UPDATE/DELETE policy — those are denied by default to anon
--- and authenticated users, which is what we want.)
+-- Authenticated users can write (insert/update) to enable auto‑mapping.
+DROP POLICY IF EXISTS anime_mappings_write_all ON anime_mappings;
+CREATE POLICY anime_mappings_write_all ON anime_mappings
+  FOR ALL
+  TO authenticated
+  USING (true)
+  WITH CHECK (true);
 
 -- ─── App config entry for anime admin settings ────────────────────
 -- Insert a default anime_settings JSONB blob into the existing
