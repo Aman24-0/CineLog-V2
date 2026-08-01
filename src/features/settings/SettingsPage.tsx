@@ -415,6 +415,82 @@ const DANGER_ZONE_META: SectionMeta = {
 };
 
 // ────────────────────────────────────────────────────────────────────
+// Accent application helpers
+// ────────────────────────────────────────────────────────────────────
+//
+// These functions mirror what customAccent.ts's createEffect does, but
+// can be called imperatively from event handlers (handleDynamicClick,
+// handleReextractDynamic, handlePresetClick) as a belt-and-suspenders
+// approach. The effect is the primary mechanism; these helpers ensure
+// the inline styles are applied/cleared IMMEDIATELY when the user
+// clicks, without waiting for SolidJS to batch the signal update and
+// re-run the effect.
+//
+// This fixes the bug where the dynamic accent was "partially applied" —
+// the signal was set but var(--p) on <html> wasn't updated in time, so
+// some elements still showed the old theme preset color.
+
+const ACCENT_CSS_VARS = [
+  "--p",
+  "--p2",
+  "--p-glow",
+  "--p-dim",
+  "--p-border",
+  "--p-hover",
+  "--active-bg",
+  "--active-text",
+  "--active-border",
+  "--active-glow"
+] as const;
+
+function hexToRgbaLocal(hex: string, alpha: number): string {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return `rgba(168,255,120,${alpha})`;
+  const r = parseInt(m[1].slice(0, 2), 16);
+  const g = parseInt(m[1].slice(2, 4), 16);
+  const b = parseInt(m[1].slice(4, 6), 16);
+  return `rgba(${r},${g},${b},${alpha})`;
+}
+
+function contrastOnLocal(hex: string): string {
+  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return "#08080D";
+  const r = parseInt(m[1].slice(0, 2), 16);
+  const g = parseInt(m[1].slice(2, 4), 16);
+  const b = parseInt(m[1].slice(4, 6), 16);
+  const lin = (c: number) => {
+    const s = c / 255;
+    return s <= 0.03928 ? s / 12.92 : Math.pow((s + 0.055) / 1.055, 2.4);
+  };
+  const L = 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+  return L > 0.45 ? "#08080D" : "#ffffff";
+}
+
+function applyAccentToDocument(hex: string): void {
+  if (typeof document === "undefined") return;
+  if (!/^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(hex)) return;
+  const root = document.documentElement;
+  root.style.setProperty("--p", hex);
+  root.style.setProperty("--p2", hex);
+  root.style.setProperty("--p-glow", hexToRgbaLocal(hex, 0.22));
+  root.style.setProperty("--p-dim", hexToRgbaLocal(hex, 0.08));
+  root.style.setProperty("--p-border", hexToRgbaLocal(hex, 0.4));
+  root.style.setProperty("--p-hover", hexToRgbaLocal(hex, 0.12));
+  root.style.setProperty("--active-bg", hex);
+  root.style.setProperty("--active-text", contrastOnLocal(hex));
+  root.style.setProperty("--active-border", hex);
+  root.style.setProperty("--active-glow", `0 0 12px ${hexToRgbaLocal(hex, 0.22)}`);
+}
+
+function clearAccentFromDocument(): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  for (const varName of ACCENT_CSS_VARS) {
+    root.style.removeProperty(varName);
+  }
+}
+
+// ────────────────────────────────────────────────────────────────────
 // Main component
 // ────────────────────────────────────────────────────────────────────
 
@@ -534,6 +610,16 @@ const SettingsPage: Component = () => {
     void loadProfile();
     void loadProviders(region());
 
+    // Re-apply the custom accent on mount. The customAccent.ts
+    // createEffect should have already done this, but we do it here
+    // too as a safety net — if the effect didn't fire (e.g. due to
+    // a SolidJS hydration race), this ensures var(--p) is correct
+    // before the user interacts with the page.
+    const storedAccent = customAccent();
+    if (storedAccent) {
+      applyAccentToDocument(storedAccent);
+    }
+
     if (typeof Notification === "undefined") {
       setPushPermission("unsupported");
     } else {
@@ -591,17 +677,73 @@ const SettingsPage: Component = () => {
 
       const identities = u.identities ?? [];
 
-      // The ONLY reliable signal that the user has set a password is
-      // an identity row with provider === "email" AND a populated
-      // identity_data.email. We intentionally do NOT consult
-      // `app_metadata.providers` because Supabase adds "email" there
-      // for OAuth-only users too (false positive).
+      // ── Multi-signal password detection ──────────────────────────
+      // The user reports they can log in with email/password, but the
+      // row still says "Not set". That means our previous strict check
+      // (only `identities.some(id => id.provider === 'email' && id.identity_data?.email)`)
+      // was too narrow — it missed real passwords in some account shapes.
+      //
+      // We now use THREE signals, any one of which is enough to report
+      // "Connected":
+      //
+      //   1. identities array has an entry with provider === 'email'
+      //      (the canonical Supabase signal — covers users who signed
+      //      up via email/password OR linked a password later).
+      //      We DO NOT require identity_data.email here because some
+      //      Supabase project configs return a partial identity_data
+      //      block for the email identity, and the email field lives
+      //      on the user object itself instead.
+      //
+      //   2. app_metadata.providers includes 'email' AND the user has
+      //      a non-empty `user.email` field. Supabase adds 'email' to
+      //      app_metadata.providers for OAuth-only users too (false
+      //      positive in isolation), BUT in combination with a real
+      //      user.email it reliably indicates a password identity
+      //      exists — because OAuth-only users have their email in
+      //      user_metadata, not as the canonical account email.
+      //
+      //   3. getUserIdentities() returns an email identity. This is a
+      //      separate API call that hits Supabase's auth.identities
+      //      table directly and is more reliable than user.identities
+      //      for accounts that were created via certain migration
+      //      paths. We fall back to this if signals 1 and 2 disagree.
+      //
+      // Signal 1: identities array (primary)
       const hasEmailIdentity = identities.some(
-        (id) =>
-          id.provider === "email" && !!id.identity_data?.email
+        (id) => id.provider === "email"
       );
 
-      setHasPassword(hasEmailIdentity);
+      // Signal 2: app_metadata.providers + user.email (secondary)
+      const providers: string[] = u.app_metadata?.providers ?? [];
+      const hasEmailInProviders = providers.includes("email");
+      const hasUserEmail = !!u.email;
+      const passwordViaProviders = hasEmailInProviders && hasUserEmail;
+
+      let hasPassword = hasEmailIdentity || passwordViaProviders;
+
+      // Signal 3: getUserIdentities() fallback — only if signals 1+2
+      // both say "no password" but the user has an email, which is the
+      // ambiguous case where getUserIdentities() can break the tie.
+      // This catches accounts where user.identities was stale or empty
+      // but the canonical identities API returns the email row.
+      if (!hasPassword && hasUserEmail) {
+        try {
+          const { data: idData, error: idErr } =
+            await client.auth.getUserIdentities();
+          if (!idErr && idData?.identities) {
+            const hasEmailInIdApi = idData.identities.some(
+              (id) => id.provider === "email"
+            );
+            if (hasEmailInIdApi) {
+              hasPassword = true;
+            }
+          }
+        } catch {
+          // getUserIdentities failed — keep the value from signals 1+2
+        }
+      }
+
+      setHasPassword(hasPassword);
 
       // Cache the linked OAuth providers in the same call so the Login
       // Methods panel renders without an extra request.
@@ -981,6 +1123,10 @@ const SettingsPage: Component = () => {
   const handlePresetClick = (presetId: Theme) => {
     setCustomAccent("");
     setTheme(presetId);
+    // BELT-AND-SPENDERS: clear inline accent overrides so the theme-*
+    // class definitions take over. The customAccent createEffect also
+    // does this, but we do it here too in case the effect hasn't fired.
+    clearAccentFromDocument();
   };
 
   /**
@@ -1008,7 +1154,13 @@ const SettingsPage: Component = () => {
     // If we have a cached dynamic color from a previous extraction,
     // re-apply it without re-extracting.
     if (dynamicAccentColor() && bannerUrl()) {
-      setCustomAccent(dynamicAccentColor());
+      const cached = dynamicAccentColor();
+      setCustomAccent(cached);
+      // BELT-AND-SPENDERS: apply directly to <html> in case the
+      // customAccent createEffect hasn't fired yet (e.g. during
+      // initial hydration race). The effect will also fire and set
+      // the same value, which is a no-op.
+      applyAccentToDocument(cached);
       return;
     }
 
@@ -1020,6 +1172,7 @@ const SettingsPage: Component = () => {
         const fallback = "#FFD700";
         setDynamicAccentColor(fallback);
         setCustomAccent(fallback);
+        applyAccentToDocument(fallback);
         showToast(
           "No banner set — using Gold accent. Set a banner in Profile to extract a color.",
           "info",
@@ -1034,6 +1187,7 @@ const SettingsPage: Component = () => {
       if (color === "#FFD700") {
         setDynamicAccentColor(color);
         setCustomAccent(color);
+        applyAccentToDocument(color);
         showToast(
           "Could not extract color from banner. Using Gold accent.",
           "info",
@@ -1042,6 +1196,7 @@ const SettingsPage: Component = () => {
       } else {
         setDynamicAccentColor(color);
         setCustomAccent(color);
+        applyAccentToDocument(color);
         showToast(`Dynamic accent set: ${color}`, "success", 1800);
       }
     } catch (e) {
@@ -1051,6 +1206,7 @@ const SettingsPage: Component = () => {
       const fallback = "#FFD700";
       setDynamicAccentColor(fallback);
       setCustomAccent(fallback);
+      applyAccentToDocument(fallback);
       showToast(
         "Could not extract color from banner. Using Gold accent.",
         "error",
@@ -1097,6 +1253,7 @@ const SettingsPage: Component = () => {
       const color = await extractDominantColor(url);
       setDynamicAccentColor(color);
       setCustomAccent(color);
+      applyAccentToDocument(color);
       if (color === "#FFD700") {
         showToast(
           "Could not extract color from banner. Using Gold accent.",

@@ -76,8 +76,8 @@
 }
 
 .stats-overview-icon-gold {
-  background: rgba(245, 197, 24, 0.14);
-  color: #f5c518;
+  background: var(--p-dim);
+  color: var(--p);
 }
 
 .stats-overview-icon-blue {
@@ -86,13 +86,13 @@
 }
 
 .stats-overview-icon-yellow {
-  background: rgba(245, 197, 24, 0.14);
-  color: #f5c518;
+  background: var(--p-dim);
+  color: var(--p);
 }
 
 .stats-overview-icon-green {
-  background: rgba(34, 197, 94, 0.14);
-  color: #22c55e;
+  background: var(--p-dim);
+  color: var(--p);
 }
 
 .stats-overview-value {
