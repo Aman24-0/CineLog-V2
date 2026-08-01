@@ -33,3 +33,85 @@
     linear-gradient(to right, rgba(8, 9, 11, 0.6) 0%, transparent 45%);
   pointer-events: none;
 }
+
+/* ─── Accent utility classes ────────────────────────────────────
+   These give components a stable, theme-aware way to apply the
+   active accent color without hardcoding `rgba(232, 183, 74, ...)`
+   or relying on Tailwind's `text-primary` (which only covers --p).
+
+   Each utility pulls from the CSS variable that customAccent.ts
+   keeps in sync with the user's chosen accent (preset OR dynamic).
+
+   Usage:
+     <button class="btn-accent">…</button>
+     <span class="text-accent">…</span>
+     <div class="border-accent">…</div>
+     <div class="bg-accent">…</div>
+*/
+.text-accent {
+  color: var(--p);
+}
+.border-accent {
+  border-color: var(--p);
+}
+.bg-accent {
+  background-color: var(--p);
+  color: var(--active-text);
+}
+.bg-accent-soft {
+  background-color: var(--p-dim);
+  color: var(--p);
+}
+.border-accent-soft {
+  border-color: var(--p-border);
+}
+.hover-accent:hover {
+  background-color: var(--p-hover);
+  border-color: var(--p-border);
+}
+
+/* .btn-accent — a button that uses the accent as its background.
+   Equivalent to .btn-primary but expressed via the accent tokens
+   directly, so it works even in contexts where .btn-primary's
+   box-shadow is overridden by feature CSS. */
+.btn-accent {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--p);
+  color: var(--active-text);
+  border: 1px solid var(--p);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 4px 16px var(--p-glow),
+    0 2px 8px rgba(8, 8, 13, 0.4);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+}
+.btn-accent:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 6px 24px var(--p-glow),
+    0 4px 12px rgba(8, 8, 13, 0.5);
+}
+.btn-accent:active {
+  transform: scale(0.96);
+  transition-duration: var(--dur-fast);
+}
+.btn-accent:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}

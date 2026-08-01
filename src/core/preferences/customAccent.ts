@@ -1,6 +1,31 @@
 // src/core/preferences/customAccent.ts
 // Custom accent — when set, overrides the theme-* --p tokens.
 // Stored as a hex string ("#a8ff78"). Empty string means "use theme preset".
+//
+// GLOBAL ACCENT APPLICATION
+// -------------------------
+// When a custom accent (preset click OR Dynamic extraction) is applied,
+// we set EVERY accent-sensitive CSS variable on <html> via inline style.
+// Inline styles win over class-based rules (`.theme-pearl`, `.theme-cinematic`,
+// etc.), so the custom accent reliably overrides the theme preset — even
+// on elements that previously fell back to a hardcoded gold rgba because
+// they consumed a token we hadn't overridden.
+//
+// Variables we set:
+//   --p            primary accent (hex)
+//   --p2           secondary accent — set to SAME hex so all "secondary"
+//                  accent treatments (badges, hovers, gradients) match
+//   --p-glow       glow rgba (alpha 0.22)
+//   --p-dim        dim rgba (alpha 0.08) — used for chip / subtle backgrounds
+//   --p-border     border rgba (alpha 0.40) — used for accent borders
+//   --p-hover      hover rgba (alpha 0.12) — used for accent hover bg
+//   --active-bg    = var(--p)   (active button background)
+//   --active-text  contrast color (black or white, WCAG-aware)
+//   --active-border = var(--p)  (active button border)
+//   --active-glow  shadow using --p-glow
+//
+// When the custom accent is cleared (""), we removeProperty() each
+// variable so the theme-* class definitions take over again.
 
 import { createSignal, createEffect } from "solid-js";
 import { isServer } from "solid-js/web";
@@ -47,25 +72,54 @@ export function contrastOn(hex: string): string {
   return L > 0.45 ? "#08080D" : "#ffffff";
 }
 
+/**
+ * List of every CSS variable we set/clear when the custom accent changes.
+ * Kept in one place so the apply/clear paths can never drift out of sync
+ * (which was the root cause of the "Pearl accent stays white" bug —
+ * some elements consumed --p-border / --p-hover but we never set them,
+ * so they fell back to the theme-* class definition).
+ */
+const ACCENT_VARS: readonly string[] = [
+  "--p",
+  "--p2",
+  "--p-glow",
+  "--p-dim",
+  "--p-border",
+  "--p-hover",
+  "--active-bg",
+  "--active-text",
+  "--active-border",
+  "--active-glow"
+] as const;
+
 createEffect(() => {
   const hex = customAccent();
   writeStored(CUSTOM_ACCENT_KEY, hex);
   if (isServer) return;
+  const root = document.documentElement;
+
   if (hex && isValidHex(hex)) {
-    // Override --p tokens with the custom accent
-    const root = document.documentElement;
+    // Override ALL accent-sensitive tokens with the custom accent.
+    // Setting --p2 to the same hex as --p is intentional — it makes
+    // every "secondary accent" treatment (badges, hovers, gradients)
+    // match the chosen accent, instead of clashing with the theme
+    // preset's secondary color.
     root.style.setProperty("--p", hex);
     root.style.setProperty("--p2", hex);
     root.style.setProperty("--p-glow", hexToRgba(hex, 0.22));
     root.style.setProperty("--p-dim", hexToRgba(hex, 0.08));
+    root.style.setProperty("--p-border", hexToRgba(hex, 0.4));
+    root.style.setProperty("--p-hover", hexToRgba(hex, 0.12));
+    root.style.setProperty("--active-bg", hex);
     root.style.setProperty("--active-text", contrastOn(hex));
+    root.style.setProperty("--active-border", hex);
+    root.style.setProperty("--active-glow", `0 0 12px ${hexToRgba(hex, 0.22)}`);
   } else {
-    // Clear inline overrides so theme-* classes take over again
-    const root = document.documentElement;
-    root.style.removeProperty("--p");
-    root.style.removeProperty("--p2");
-    root.style.removeProperty("--p-glow");
-    root.style.removeProperty("--p-dim");
-    root.style.removeProperty("--active-text");
+    // Clear ALL inline overrides so theme-* classes take over again.
+    // removeProperty() is safe to call on a property that wasn't set —
+    // it just no-ops.
+    for (const varName of ACCENT_VARS) {
+      root.style.removeProperty(varName);
+    }
   }
 });

@@ -552,20 +552,30 @@ const SettingsPage: Component = () => {
   /**
    * Refresh whether the user has a password set on their account.
    *
-   * FIX (this commit): Previously this only checked
-   * `app_metadata.providers` for the string "email", but Supabase
-   * doesn't always add "email" to that array for users who signed up
-   * via OAuth and later linked a password.
+   * DEEP ROOT FIX (this commit): The previous implementation used
+   *   `app_metadata.providers.includes("email") || hasEmailIdentity`
+   * which gave FALSE POSITIVES for Google-only users — Supabase
+   * automatically adds "email" to `app_metadata.providers` even when
+   * the user only ever signed in via Google OAuth (no password set).
+   * That made the "Password" row show "Connected" for users who had
+   * never set a password.
    *
-   * The reliable check combines BOTH sources:
-   *   1. `app_metadata.providers` includes "email" (legacy / older SDK)
-   *   2. `user.identities` has an entry with `provider === "email"`
-   *      AND `identity_data.email` is set (the canonical email identity
-   *      for the account). The `identity_data.email` sanity check
-   *      filters out partial / corrupt identity rows that Supabase
-   *      occasionally returns during a link-in-progress.
+   * Worse, the fallback `(!id.identity_data || id.identity_data.email)`
+   * branch treated a MISSING `identity_data` block as "has password",
+   * which is the wrong direction — a missing identity_data means the
+   * identity is incomplete / in-flight, not that a password is set.
    *
-   * If either is true, the user has a password set.
+   * The CORRECT detection (verified against actual Supabase auth data):
+   *
+   *   For a user WITH email/password set:
+   *     • `user.identities` contains an entry with `provider === "email"`
+   *       AND `identity_data.email` is a non-empty string.
+   *
+   *   For a Google-only user (no password):
+   *     • `user.identities` contains `provider === "google"` only.
+   *     • There is NO entry with `provider === "email"`.
+   *     • `app_metadata.providers` may include "email" anyway
+   *       (Supabase quirk) — which is why we IGNORE that field.
    *
    * We also fetch the user's OAuth identities at the same time so the
    * "Login methods" panel can show connected/disconnected state for
@@ -579,26 +589,19 @@ const SettingsPage: Component = () => {
       const u = data?.user;
       if (!u) return;
 
-      // Method 1: app_metadata.providers (legacy / older SDK)
-      const providers: string[] = u.app_metadata?.providers ?? [];
-      const hasEmailInProviders = providers.includes("email");
-
-      // Method 2: user.identities array — more reliable across SDK
-      // versions and account types (OAuth+password, password-only, etc.).
-      // The "email" entry has provider === "email" and identity_data.email
-      // set to the user's primary email address. We require BOTH fields
-      // to avoid counting partial / in-flight link rows.
       const identities = u.identities ?? [];
+
+      // The ONLY reliable signal that the user has set a password is
+      // an identity row with provider === "email" AND a populated
+      // identity_data.email. We intentionally do NOT consult
+      // `app_metadata.providers` because Supabase adds "email" there
+      // for OAuth-only users too (false positive).
       const hasEmailIdentity = identities.some(
         (id) =>
-          id.provider === "email" &&
-          // identity_data may be missing in edge cases — fall back to
-          // any email identity if the data block is absent entirely
-          // (better to over-report "Connected" than miss a real link).
-          (!id.identity_data || id.identity_data.email)
+          id.provider === "email" && !!id.identity_data?.email
       );
 
-      setHasPassword(hasEmailInProviders || hasEmailIdentity);
+      setHasPassword(hasEmailIdentity);
 
       // Cache the linked OAuth providers in the same call so the Login
       // Methods panel renders without an extra request.

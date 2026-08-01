@@ -91,7 +91,7 @@
   text-transform: uppercase;
   padding: 0.75rem 1.5rem;
   border-radius: var(--radius-pill);
-  background: rgba(232, 183, 74, 0.06);
+  background: var(--p-dim);
   color: var(--text-body);
   border: 1px solid var(--hairline-2);
   cursor: pointer;
@@ -108,8 +108,8 @@
     color var(--dur-base) var(--ease-out);
 }
 .btn-ghost:hover {
-  background: rgba(232, 183, 74, 0.1);
-  border-color: var(--hairline-3);
+  background: var(--p-hover);
+  border-color: var(--p-border);
   color: var(--text-strong);
 }
 .btn-ghost:active {

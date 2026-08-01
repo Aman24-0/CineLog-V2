@@ -159,15 +159,28 @@
     --active-text: #08080d;
     --active-border: var(--p);
     --active-glow: 0 0 12px var(--p-glow);
+
+    /* ─── Accent variant tokens ───
+       These provide stable handles for components that want a
+       specific alpha of the accent (border, hover background) without
+       having to call color-mix() or rgba() themselves. They are
+       overridden by `customAccent.ts` when a custom accent is set. */
+    --p-border: color-mix(in srgb, var(--p) 40%, transparent);
+    --p-hover: color-mix(in srgb, var(--p) 12%, transparent);
   }
 }
 
-/* ─── Theme overrides ─── */
+/* ─── Theme overrides ───
+   Each theme defines --p, --p2, --p-glow, --p-dim, --p-border,
+   --p-hover, and --active-text. The --p-border and --p-hover variants
+   are derived from --p so they automatically match the theme accent. */
 .theme-pearl {
   --p: #ffffff;
   --p2: #a0a0a0;
   --p-glow: rgba(255, 255, 255, 0.15);
   --p-dim: rgba(255, 255, 255, 0.06);
+  --p-border: rgba(255, 255, 255, 0.4);
+  --p-hover: rgba(255, 255, 255, 0.12);
   --active-text: #08080d;
 }
 .theme-sage {
@@ -175,6 +188,8 @@
   --p2: #ff78c4;
   --p-glow: rgba(168, 255, 120, 0.22);
   --p-dim: rgba(168, 255, 120, 0.08);
+  --p-border: rgba(168, 255, 120, 0.4);
+  --p-hover: rgba(168, 255, 120, 0.12);
   --active-text: #08080d;
 }
 .theme-matrix {
@@ -182,6 +197,8 @@
   --p2: #00f5a0;
   --p-glow: rgba(57, 255, 20, 0.22);
   --p-dim: rgba(57, 255, 20, 0.08);
+  --p-border: rgba(57, 255, 20, 0.4);
+  --p-hover: rgba(57, 255, 20, 0.12);
   --active-text: #08080d;
 }
 .theme-netflix {
@@ -189,6 +206,8 @@
   --p2: #ff9500;
   --p-glow: rgba(255, 45, 85, 0.22);
   --p-dim: rgba(255, 45, 85, 0.08);
+  --p-border: rgba(255, 45, 85, 0.4);
+  --p-hover: rgba(255, 45, 85, 0.12);
   --active-text: #ffffff;
 }
 .theme-interstellar {
@@ -196,6 +215,8 @@
   --p2: #f9a620;
   --p-glow: rgba(0, 194, 255, 0.22);
   --p-dim: rgba(0, 194, 255, 0.08);
+  --p-border: rgba(0, 194, 255, 0.4);
+  --p-hover: rgba(0, 194, 255, 0.12);
   --active-text: #08080d;
 }
 .theme-neonhorizon {
@@ -203,6 +224,8 @@
   --p2: #00ffe7;
   --p-glow: rgba(255, 42, 240, 0.22);
   --p-dim: rgba(255, 42, 240, 0.08);
+  --p-border: rgba(255, 42, 240, 0.4);
+  --p-hover: rgba(255, 42, 240, 0.12);
   --active-text: #ffffff;
 }
 .theme-vibranium {
@@ -210,6 +233,8 @@
   --p2: #06ffd4;
   --p-glow: rgba(157, 78, 221, 0.22);
   --p-dim: rgba(157, 78, 221, 0.08);
+  --p-border: rgba(157, 78, 221, 0.4);
+  --p-hover: rgba(157, 78, 221, 0.12);
   --active-text: #ffffff;
 }
 /* Cinematic — the new default identity: cinema gold accent */
@@ -218,6 +243,8 @@
   --p2: #ff6b35;
   --p-glow: rgba(232, 183, 74, 0.35);
   --p-dim: rgba(232, 183, 74, 0.1);
+  --p-border: rgba(232, 183, 74, 0.4);
+  --p-hover: rgba(232, 183, 74, 0.12);
   --active-text: #08080d;
 }
 
