@@ -88,11 +88,26 @@ export function getInFlight<T>(key: string): Promise<T> | undefined {
 
 /**
  * Register an in-flight Promise for a key.
+ *
+ * IMPORTANT: do NOT use `promise.finally(...)` here. `.finally()` returns
+ * a derived promise that RE-REJECTS with the original error when the
+ * upstream promise rejects. Since nobody awaits that derived promise,
+ * the rejection becomes "Uncaught (in promise) <error>" and floods the
+ * browser console with red noise on every expected 404 (e.g. stale
+ * AniList↔TMDB mappings in fetchTmdbMetadataBatch).
+ *
+ * Using `.then(onFulfilled, onRejected)` instead — both handlers return
+ * undefined, so the derived promise RESOLVES (never rejects) and no
+ * unhandled rejection is created. The original promise is still rejected
+ * and the caller (`cachedFetch`) still sees the rejection via its own
+ * `await` + try/catch.
  */
 export function setInFlight<T>(key: string, promise: Promise<T>): void {
   inFlight.set(key, promise);
-  // Clean up after resolution/rejection
-  promise.finally(() => inFlight.delete(key));
+  promise.then(
+    () => inFlight.delete(key),
+    () => inFlight.delete(key)
+  );
 }
 
 /**
@@ -141,7 +156,8 @@ export async function cachedFetch<T>(
  * Clear all cached entries (useful for testing or manual refresh).
  * NOTE: we intentionally do NOT clear inFlight here — callers already
  * awaiting an in-flight promise would hang silently if we dropped the
- * reference. In-flight entries clean themselves up via promise.finally().
+ * reference. In-flight entries clean themselves up via the
+ * `.then(onFulfilled, onRejected)` handler attached in `setInFlight`.
  */
 export function clearCache(): void {
   cache.clear();

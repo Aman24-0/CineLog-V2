@@ -92,13 +92,72 @@ describe("getInFlight / setInFlight", () => {
   });
 
   it("cleans up in-flight entry after rejection", async () => {
-    // The .finally() in setInFlight creates a derived promise. We catch
-    // the original AND wait a tick for the finally to run.
-    const p = Promise.reject(new Error("fail")).catch(() => "handled");
+    // The original `promise.finally()` in setInFlight created a derived
+    // promise that re-rejected with the original error (causing
+    // "Uncaught (in promise)" in the browser console). The fix uses
+    // `.then(onFulfilled, onRejected)` instead — both handlers return
+    // undefined so the derived promise resolves cleanly.
+    //
+    // We attach our own rejection handler BEFORE setInFlight so the
+    // original promise is "handled" from the start; this lets us
+    // verify the cleanup happens without relying on Node's
+    // unhandledRejection suppression.
+    const p = Promise.reject(new Error("fail"));
+    const handled = p.catch(() => "handled");
     setInFlight("key1", p as Promise<unknown>);
-    await p;
+    await handled;
     await new Promise((r) => setTimeout(r, 0));
     expect(getInFlight("key1")).toBeUndefined();
+  });
+
+  it("does NOT create an uncaught derived promise on rejection (regression)", async () => {
+    // Regression test for the "Uncaught (in promise) TMDBError: 404"
+    // console flood. The bug was: `promise.finally(() => cleanup())`
+    // returns a derived promise that RE-REJECTS with the original
+    // error, and nobody awaits it → "Uncaught (in promise)".
+    //
+    // The fix uses `.then(onFulfilled, onRejected)` — the onRejected
+    // handler returns undefined, so the derived promise RESOLVES.
+    //
+    // We verify by attaching a handler to the derived promise returned
+    // from `.then(...)` and asserting it resolves (not rejects).
+    // We do NOT attach any handler to the original promise — that
+    // mirrors the production scenario where setInFlight is the only
+    // place that touches the promise's settlement.
+    let unhandledRejection: unknown = null;
+    const onUnhandled = (err: unknown) => {
+      unhandledRejection = err;
+    };
+    process.on("unhandledRejection", onUnhandled);
+
+    try {
+      // Suppress the original promise's rejection so Node doesn't kill
+      // the test process — but do this AFTER setInFlight so we test
+      // the actual production code path.
+      const p: Promise<unknown> = new Promise((_, reject) => {
+        // Defer rejection to a microtask so setInFlight runs first.
+        queueMicrotask(() => reject(new Error("simulated 404")));
+      });
+      setInFlight("regression-key", p);
+
+      // Swallow the original rejection so it doesn't surface as an
+      // unhandled rejection itself (we only care about the DERIVED
+      // promise from .then()/.finally() inside setInFlight).
+      p.catch(() => {});
+
+      // Wait for microtasks + a macrotask to flush.
+      await new Promise((r) => setTimeout(r, 10));
+
+      // No unhandled rejection should have been emitted. If the bug
+      // were still present, the .finally() derived promise would have
+      // fired unhandledRejection with "simulated 404".
+      expect(unhandledRejection).toBeNull();
+
+      // Cleanup also happened.
+      expect(getInFlight("regression-key")).toBeUndefined();
+    } finally {
+      process.off("unhandledRejection", onUnhandled);
+    }
   });
 });
 
@@ -148,27 +207,19 @@ describe("cachedFetch", () => {
       return "success";
     });
 
-    // First call fails. We use process.on('unhandledRejection') to swallow
-    // the floating .finally() rejection from setInFlight (source-code issue,
-    // not a test bug — the .finally() creates an uncought derived promise).
-    const swallow = (err: unknown) => {
-      if (err instanceof Error && err.message === "fail") return;
-      throw err;
-    };
-    process.on("unhandledRejection", swallow);
-
-    try {
-      await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow(
-        "fail"
-      );
-      await new Promise((r) => setTimeout(r, 10));
-      // Second call retries and succeeds
-      const result = await cachedFetch("key1", TMDB_TTL, fetcher);
-      expect(result).toBe("success");
-      expect(fetcher).toHaveBeenCalledTimes(2);
-    } finally {
-      process.off("unhandledRejection", swallow);
-    }
+    // First call fails — cachedFetch re-throws after cleaning up the
+    // in-flight entry. The setInFlight fix (`.then(onFulfilled,
+    // onRejected)` instead of `.finally()`) means no unhandled rejection
+    // is emitted, so we don't need a process.on("unhandledRejection")
+    // swallower here anymore.
+    await expect(cachedFetch("key1", TMDB_TTL, fetcher)).rejects.toThrow(
+      "fail"
+    );
+    await new Promise((r) => setTimeout(r, 10));
+    // Second call retries and succeeds
+    const result = await cachedFetch("key1", TMDB_TTL, fetcher);
+    expect(result).toBe("success");
+    expect(fetcher).toHaveBeenCalledTimes(2);
   });
 
   it("returns cached value on subsequent calls (no re-fetch)", async () => {

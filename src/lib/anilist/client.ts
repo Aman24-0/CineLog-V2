@@ -282,8 +282,24 @@ export async function anilistRequest<T = unknown>(
         }
 
         // ── Non-retryable HTTP errors (4xx except 429) ───────────────
+        // Include the response body in the error message so 400s from
+        // malformed GraphQL queries (e.g. removed schema fields) are
+        // debuggable from the console — AniList's statusText is often
+        // empty, so without the body the error reads "AniList HTTP 400:"
+        // with no clue what went wrong.
         if (!res.ok) {
-          throw new Error(`AniList HTTP ${res.status}: ${res.statusText}`);
+          let bodySnippet = "";
+          try {
+            const text = await res.text();
+            // AniList returns JSON like { "errors": [{ "message": "..." }] }
+            // Truncate to 300 chars so the error stays readable in console.
+            bodySnippet = text ? ` ${text.slice(0, 300)}` : "";
+          } catch {
+            // Ignore — body read failure shouldn't mask the original error.
+          }
+          throw new Error(
+            `AniList HTTP ${res.status}: ${res.statusText || "error"}${bodySnippet}`
+          );
         }
 
         // ── Parse JSON response ──────────────────────────────────────
@@ -328,8 +344,25 @@ export async function anilistRequest<T = unknown>(
   })();
 
   // Register dedup so concurrent callers share this promise.
+  //
+  // IMPORTANT: do NOT use `promise.finally(...)` here. `.finally()`
+  // returns a derived promise that RE-REJECTS with the original error
+  // when the upstream promise rejects (e.g. AniList HTTP 400 from a
+  // malformed query). Since nobody awaits that derived promise, the
+  // rejection becomes "Uncaught (in promise) Error: AniList HTTP 400:"
+  // in the browser console — even though `useAnimeEnrichment`'s own
+  // try/catch properly handled the original rejection.
+  //
+  // Using `.then(onFulfilled, onRejected)` instead — both handlers
+  // return undefined, so the derived promise RESOLVES (never rejects)
+  // and no unhandled rejection is created. The original promise is
+  // still rejected and the caller still sees the rejection via its
+  // own `await`.
   inFlight.set(ckey, promise);
-  promise.finally(() => inFlight.delete(ckey));
+  promise.then(
+    () => inFlight.delete(ckey),
+    () => inFlight.delete(ckey)
+  );
 
   return promise;
 }
