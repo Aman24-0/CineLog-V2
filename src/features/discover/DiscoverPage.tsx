@@ -367,9 +367,18 @@ export default function DiscoverPage() {
   // provider and merge them so providers with TV-only content still
   // show titles.
   //
-  // Initial selection: if the user has providers selected, default to
-  // the first one. Otherwise default to null (the dropdown will show
-  // the top region providers as fallback, and the user can pick one).
+  // INITIAL SELECTION (the "All Providers" bug fix):
+  //   1. If the user has providers selected in their preferences →
+  //      default to the first one.
+  //   2. Otherwise, when the OttDropdown finishes loading the region's
+  //      provider list (fired via `onProvidersLoaded`), auto-select
+  //      the FIRST provider in that list.
+  //   3. The user can still switch providers via the dropdown.
+  //
+  // Without step 2, the OTT row would stay in the "Nothing streaming on
+  // this provider" empty state forever on first visit (fresh cache, no
+  // preference) — because `ottSelected` stays null and no fetch is
+  // triggered for a null selection.
   const [ottSelected, setOttSelected] = createSignal<string | null>(null);
   // Auto-pick the first user-selected provider on mount / when the
   // preference changes from empty → non-empty AND nothing is selected.
@@ -381,6 +390,18 @@ export default function DiscoverPage() {
       setOttSelected(userPicks[0]);
     }
   });
+  // Auto-pick the first region provider when the dropdown finishes
+  // loading the region list AND the user has no preference AND nothing
+  // is selected. This is the "first visit" path — without it, the OTT
+  // row shows the empty state because `ottSelected` stays null.
+  const handleOttProvidersLoaded = (
+    providers: Array<{ id: string; name: string; logoPath: string | null }>
+  ) => {
+    if (ottSelected() !== null) return; // user already picked one
+    if (streamingProviders().length > 0) return; // user has a preference
+    if (providers.length === 0) return; // no providers available
+    setOttSelected(providers[0].id);
+  };
   const row3Key = createMemo(() => {
     const providerId = ottSelected();
     if (providerId === null) return null;
@@ -653,11 +674,13 @@ export default function DiscoverPage() {
                           region={region()}
                           selected={ottSelected}
                           onSelect={setOttSelected}
+                          onProvidersLoaded={handleOttProvidersLoaded}
                         />
                       </div>
                       <Show
                         when={
-                          !row3.loading() || row3Filtered().titles.length > 0
+                          ottSelected() !== null &&
+                          (!row3.loading() || row3Filtered().titles.length > 0)
                         }
                         fallback={<RowSkeletonRail />}
                       >
@@ -851,6 +874,48 @@ export default function DiscoverPage() {
                       onSelect={handleOpenTitle}
                       emptyText="No top-rated anime available."
                       emptyIcon="star"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.popular().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Popular Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Popular Anime"
+                    icon="trending_up"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.popular()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No popular anime available."
+                      emptyIcon="trending_up"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.hiddenGems().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Hidden Gems Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Hidden Gems Anime"
+                    icon="diamond"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.hiddenGems()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No hidden gems anime available."
+                      emptyIcon="diamond"
                     />
                   </DiscoverSectionWrapper>
                 </ErrorBoundary>

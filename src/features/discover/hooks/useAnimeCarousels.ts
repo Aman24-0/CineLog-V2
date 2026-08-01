@@ -6,9 +6,14 @@
 // Used by DiscoverPage to render the "Anime" section. Each carousel
 // is independent — if one fails, the others still load.
 //
-// All carousels are gated by the `anime_enabled` feature flag (Phase 8).
-// When the flag is off, the hook returns empty arrays and never fires
-// any AniList requests.
+// All carousels are gated by the `enabled` master flag (admin-controlled).
+// Each carousel ALSO has its own per-carousel flag (e.g. `trendingCarousel`,
+// `seasonalCarousel`, etc.) — all default to `true` so the carousels
+// appear on first deploy without any admin configuration.
+//
+// When the master flag is off, the hook returns empty arrays and never
+// fires any AniList requests. When a per-carousel flag is off, only that
+// carousel is skipped.
 
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
@@ -49,19 +54,40 @@ export function useAnimeCarousels(): AnimeCarousels {
 
   const loadAll = () => {
     if (isServer) return;
-    if (!settings.enabled()) return; // Master toggle off — skip everything
+    // Master toggle — if anime features are globally disabled, skip
+    // everything. The hook returns empty arrays for all carousels.
+    if (!settings.enabled()) return;
     setLoading(true);
 
-    // Fetch all carousels in parallel. Each is independent — failures
-    // don't affect others. All use cachedFetch so repeat visits are instant.
+    // Fetch all enabled carousels in parallel. Each carousel has its
+    // own per-carousel flag (defaults to true) so the admin can hide
+    // individual rails without disabling the whole integration.
+    //
+    // Failures in one carousel don't affect others (Promise.allSettled).
+    // All carousels use cachedFetch internally so repeat visits are
+    // instant and the AniList API is only hit on cache miss.
     Promise.allSettled([
-      settings.seasonalCarousel() ? getTrendingAnimeCarousel(12).then(setTrending) : Promise.resolve(),
-      settings.seasonalCarousel() ? getSeasonalAnimeCarousel(12).then(setSeasonal) : Promise.resolve(),
-      getUpcomingAnimeCarousel(12).then(setUpcoming),
-      getTopRatedAnimeCarousel(12).then(setTopRated),
-      getPopularAnimeCarousel(12).then(setPopular),
-      getHiddenGemsAnimeCarousel(12).then(setHiddenGems),
-      getAnimeMoviesCarousel(12).then(setMovies)
+      settings.trendingCarousel()
+        ? getTrendingAnimeCarousel(12).then(setTrending)
+        : Promise.resolve(),
+      settings.seasonalCarousel()
+        ? getSeasonalAnimeCarousel(12).then(setSeasonal)
+        : Promise.resolve(),
+      settings.upcomingCarousel()
+        ? getUpcomingAnimeCarousel(12).then(setUpcoming)
+        : Promise.resolve(),
+      settings.topRatedCarousel()
+        ? getTopRatedAnimeCarousel(12).then(setTopRated)
+        : Promise.resolve(),
+      settings.popularCarousel()
+        ? getPopularAnimeCarousel(12).then(setPopular)
+        : Promise.resolve(),
+      settings.hiddenGemsCarousel()
+        ? getHiddenGemsAnimeCarousel(12).then(setHiddenGems)
+        : Promise.resolve(),
+      settings.animeMoviesCarousel()
+        ? getAnimeMoviesCarousel(12).then(setMovies)
+        : Promise.resolve()
     ]).finally(() => setLoading(false));
   };
 

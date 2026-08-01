@@ -49,6 +49,25 @@ interface OttDropdownProps {
   selected: () => string | null;
   /** Called when the user picks a provider from the dropdown. */
   onSelect: (providerId: string) => void;
+  /**
+   * Called when the region provider list finishes loading (or refetches
+   * after a region change). Receives the FULL merged+sorted list of
+   * providers available for the current region.
+   *
+   * The parent uses this to AUTO-SELECT a default provider when the user
+   * hasn't picked one (i.e. `selected()` is null) AND has no
+   * `streamingProviders` preference. Without this callback, the OTT row
+   * would stay in the "Nothing streaming on this provider" empty state
+   * forever on first visit — because the dropdown defaults to "All
+   * Providers" (null) and no fetch is triggered for a null selection.
+   *
+   * The parent's auto-select logic (in DiscoverPage):
+   *   if (selected() === null && streamingProviders().length === 0) {
+   *     // No user preference + no selection → pick the first region provider
+   *     if (providers.length > 0) onSelect(providers[0].id);
+   *   }
+   */
+  onProvidersLoaded?: (providers: Array<{ id: string; name: string; logoPath: string | null }>) => void;
 }
 
 interface ProviderOption {
@@ -83,6 +102,9 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
    * deduplicated by provider_id, sorted by display_priority). This is
    * the single source of truth for provider names + logos — no
    * hardcoded fallback table.
+   *
+   * After loading, fires `props.onProvidersLoaded` so the parent can
+   * auto-select a default provider when the user has no preference.
    */
   const loadRegionProviders = async (region: string) => {
     try {
@@ -101,9 +123,15 @@ const OttDropdown: Component<OttDropdownProps> = (props) => {
         logoPath: p.logoPath
       }));
       setRegionProviders(merged);
+      // Notify the parent so it can auto-select a default provider
+      // when the user has no preference and no selection.
+      props.onProvidersLoaded?.(merged);
     } catch (err) {
       console.warn("[OttDropdown] Failed to load region providers:", err);
       setRegionProviders([]);
+      // Still fire the callback with an empty array so the parent knows
+      // the load completed (and doesn't hang waiting for providers).
+      props.onProvidersLoaded?.([]);
     }
   };
 

@@ -25,6 +25,12 @@ interface APIEvent extends AdminAPIEvent {}
 interface AnimeSettings {
   enabled: boolean;
   seasonal_carousel: boolean;
+  trending_carousel: boolean;
+  upcoming_carousel: boolean;
+  top_rated_carousel: boolean;
+  hidden_gems_carousel: boolean;
+  popular_carousel: boolean;
+  anime_movies_carousel: boolean;
   characters_staff: boolean;
   relations: boolean;
   airing_schedule: boolean;
@@ -41,6 +47,12 @@ interface AnimeSettings {
 const DEFAULTS: AnimeSettings = {
   enabled: true,
   seasonal_carousel: true,
+  trending_carousel: true,
+  upcoming_carousel: true,
+  top_rated_carousel: true,
+  hidden_gems_carousel: true,
+  popular_carousel: true,
+  anime_movies_carousel: true,
   characters_staff: true,
   relations: true,
   airing_schedule: true,
@@ -78,6 +90,12 @@ function validateAnimeSettings(input: unknown): AnimeSettings {
   return {
     enabled: bool("enabled"),
     seasonal_carousel: bool("seasonal_carousel"),
+    trending_carousel: bool("trending_carousel"),
+    upcoming_carousel: bool("upcoming_carousel"),
+    top_rated_carousel: bool("top_rated_carousel"),
+    hidden_gems_carousel: bool("hidden_gems_carousel"),
+    popular_carousel: bool("popular_carousel"),
+    anime_movies_carousel: bool("anime_movies_carousel"),
     characters_staff: bool("characters_staff"),
     relations: bool("relations"),
     airing_schedule: bool("airing_schedule"),

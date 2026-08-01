@@ -19,6 +19,12 @@ interface APIEvent {
 const DEFAULT_SETTINGS = {
   enabled: true,
   seasonal_carousel: true,
+  trending_carousel: true,
+  upcoming_carousel: true,
+  top_rated_carousel: true,
+  hidden_gems_carousel: true,
+  popular_carousel: true,
+  anime_movies_carousel: true,
   characters_staff: true,
   relations: true,
   airing_schedule: true,

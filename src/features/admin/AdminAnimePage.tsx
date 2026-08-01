@@ -32,6 +32,12 @@ import { createSignal, Show, onMount, type Component, type JSX } from "solid-js"
 interface AnimeSettings {
   enabled: boolean;
   seasonal_carousel: boolean;
+  trending_carousel: boolean;
+  upcoming_carousel: boolean;
+  top_rated_carousel: boolean;
+  hidden_gems_carousel: boolean;
+  popular_carousel: boolean;
+  anime_movies_carousel: boolean;
   characters_staff: boolean;
   relations: boolean;
   airing_schedule: boolean;
@@ -48,6 +54,12 @@ interface AnimeSettings {
 const DEFAULTS: AnimeSettings = {
   enabled: true,
   seasonal_carousel: true,
+  trending_carousel: true,
+  upcoming_carousel: true,
+  top_rated_carousel: true,
+  hidden_gems_carousel: true,
+  popular_carousel: true,
+  anime_movies_carousel: true,
   characters_staff: true,
   relations: true,
   airing_schedule: true,
@@ -68,10 +80,46 @@ const TOGGLE_META: Array<{
   icon: string;
 }> = [
   {
+    key: "trending_carousel",
+    label: "Trending Anime Carousel",
+    description: "Show the \"Trending Anime\" rail on the Discover page.",
+    icon: "whatshot"
+  },
+  {
     key: "seasonal_carousel",
-    label: "Seasonal Carousel",
+    label: "Seasonal Anime Carousel",
     description: "Show \"This Season's Anime\" rail on the Discover page.",
     icon: "event"
+  },
+  {
+    key: "upcoming_carousel",
+    label: "Upcoming Anime Carousel",
+    description: "Show the \"Upcoming Anime\" rail on the Discover page.",
+    icon: "upcoming"
+  },
+  {
+    key: "top_rated_carousel",
+    label: "Top Rated Anime Carousel",
+    description: "Show the \"Top Rated Anime\" rail on the Discover page.",
+    icon: "star"
+  },
+  {
+    key: "popular_carousel",
+    label: "Popular Anime Carousel",
+    description: "Show the \"Popular Anime\" rail on the Discover page.",
+    icon: "trending_up"
+  },
+  {
+    key: "hidden_gems_carousel",
+    label: "Hidden Gems Anime Carousel",
+    description: "Show the \"Hidden Gems Anime\" rail on the Discover page.",
+    icon: "diamond"
+  },
+  {
+    key: "anime_movies_carousel",
+    label: "Anime Films Carousel",
+    description: "Show the \"Anime Films\" rail on the Discover page.",
+    icon: "movie"
   },
   {
     key: "characters_staff",

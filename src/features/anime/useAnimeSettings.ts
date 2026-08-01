@@ -7,6 +7,12 @@
 //   {
 //     enabled: true,
 //     seasonal_carousel: true,
+//     trending_carousel: true,
+//     upcoming_carousel: true,
+//     top_rated_carousel: true,
+//     hidden_gems_carousel: true,
+//     popular_carousel: true,
+//     anime_movies_carousel: true,
 //     characters_staff: true,
 //     relations: true,
 //     airing_schedule: true,
@@ -33,6 +39,12 @@ import { createSignal, onMount } from "solid-js";
 export interface AnimeSettings {
   enabled: boolean;
   seasonalCarousel: boolean;
+  trendingCarousel: boolean;
+  upcomingCarousel: boolean;
+  topRatedCarousel: boolean;
+  hiddenGemsCarousel: boolean;
+  popularCarousel: boolean;
+  animeMoviesCarousel: boolean;
   charactersStaff: boolean;
   relations: boolean;
   airingSchedule: boolean;
@@ -49,6 +61,12 @@ export interface AnimeSettings {
 export const DEFAULT_ANIME_SETTINGS: AnimeSettings = {
   enabled: true,
   seasonalCarousel: true,
+  trendingCarousel: true,
+  upcomingCarousel: true,
+  topRatedCarousel: true,
+  hiddenGemsCarousel: true,
+  popularCarousel: true,
+  animeMoviesCarousel: true,
   charactersStaff: true,
   relations: true,
   airingSchedule: true,
@@ -71,6 +89,12 @@ let inflight: Promise<AnimeSettings> | null = null;
 interface RawServerShape {
   enabled?: boolean;
   seasonal_carousel?: boolean;
+  trending_carousel?: boolean;
+  upcoming_carousel?: boolean;
+  top_rated_carousel?: boolean;
+  hidden_gems_carousel?: boolean;
+  popular_carousel?: boolean;
+  anime_movies_carousel?: boolean;
   characters_staff?: boolean;
   relations?: boolean;
   airing_schedule?: boolean;
@@ -89,6 +113,12 @@ function normalize(raw: RawServerShape | null | undefined): AnimeSettings {
   return {
     enabled: raw.enabled ?? DEFAULT_ANIME_SETTINGS.enabled,
     seasonalCarousel: raw.seasonal_carousel ?? DEFAULT_ANIME_SETTINGS.seasonalCarousel,
+    trendingCarousel: raw.trending_carousel ?? DEFAULT_ANIME_SETTINGS.trendingCarousel,
+    upcomingCarousel: raw.upcoming_carousel ?? DEFAULT_ANIME_SETTINGS.upcomingCarousel,
+    topRatedCarousel: raw.top_rated_carousel ?? DEFAULT_ANIME_SETTINGS.topRatedCarousel,
+    hiddenGemsCarousel: raw.hidden_gems_carousel ?? DEFAULT_ANIME_SETTINGS.hiddenGemsCarousel,
+    popularCarousel: raw.popular_carousel ?? DEFAULT_ANIME_SETTINGS.popularCarousel,
+    animeMoviesCarousel: raw.anime_movies_carousel ?? DEFAULT_ANIME_SETTINGS.animeMoviesCarousel,
     charactersStaff: raw.characters_staff ?? DEFAULT_ANIME_SETTINGS.charactersStaff,
     relations: raw.relations ?? DEFAULT_ANIME_SETTINGS.relations,
     airingSchedule: raw.airing_schedule ?? DEFAULT_ANIME_SETTINGS.airingSchedule,
@@ -137,6 +167,12 @@ export function useAnimeSettings() {
   return {
     enabled: () => settings().enabled,
     seasonalCarousel: () => settings().seasonalCarousel,
+    trendingCarousel: () => settings().trendingCarousel,
+    upcomingCarousel: () => settings().upcomingCarousel,
+    topRatedCarousel: () => settings().topRatedCarousel,
+    hiddenGemsCarousel: () => settings().hiddenGemsCarousel,
+    popularCarousel: () => settings().popularCarousel,
+    animeMoviesCarousel: () => settings().animeMoviesCarousel,
     charactersStaff: () => settings().charactersStaff,
     relations: () => settings().relations,
     airingSchedule: () => settings().airingSchedule,

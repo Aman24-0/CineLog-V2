@@ -107,12 +107,22 @@ CREATE POLICY anime_mappings_read_all ON anime_mappings
 -- Insert a default anime_settings JSONB blob into the existing
 -- app_config table (created by admin Phase 3 migration). The Admin
 -- Panel will read/write this via /api/admin/settings.
+--
+-- All flags default to TRUE so the anime carousels appear on first
+-- deploy without any admin configuration. The admin can disable
+-- individual carousels via /admin/anime.
 INSERT INTO app_config (key, value)
 VALUES (
   'anime_settings',
   '{
     "enabled": true,
     "seasonal_carousel": true,
+    "trending_carousel": true,
+    "upcoming_carousel": true,
+    "top_rated_carousel": true,
+    "hidden_gems_carousel": true,
+    "popular_carousel": true,
+    "anime_movies_carousel": true,
     "characters_staff": true,
     "relations": true,
     "airing_schedule": true,

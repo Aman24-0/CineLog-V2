@@ -128,13 +128,29 @@ export function useSpotlight(args: UseSpotlightArgs) {
    *   1. Has a poster OR backdrop (no faceless cards in the hero).
    *   2. NOT already in the user's vault.
    *   3. NOT seen in the Spotlight in the last 30 days.
+   *   4. NOT the current pick (defensive — see note below).
    *
    * The seen-titles check reads from localStorage, so it persists
    * across sessions and is per-user.
+   *
+   * DEFENSIVE EXCLUSION OF CURRENT PICK:
+   *   Even if the seen-titles list fails to persist (localStorage
+   *   quota exceeded, private mode, SSR environment without storage,
+   *   etc.), the current pick is ALWAYS excluded from the next fetch.
+   *   This prevents the "Spotlight shows the same title repeatedly"
+   *   bug when the seen list is corrupted — the most common cause of
+   *   which is the 3-second safety timer firing before auth resolves
+   *   (writing the seen list under the "guest" key) and then auth
+   *   resolving later (reading the seen list under the real-uid key,
+   *   which is empty).
    */
   const filterEligible = (list: TMDBTitle[]): TMDBTitle[] => {
     const inVault = vaultKeys();
     const uid = args.userId();
+    const currentPick = pick();
+    const currentKey = currentPick
+      ? `${currentPick.title.media_type}/${currentPick.title.id}`
+      : null;
     return list.filter((t) => {
       // 1. Must have artwork
       if (!t.poster_path && !t.backdrop_path) return false;
@@ -142,6 +158,10 @@ export function useSpotlight(args: UseSpotlightArgs) {
       if (inVault.has(`${t.media_type}/${t.id}`)) return false;
       // 3. Exclude if seen in the last 30 days
       if (isTitleSeen(uid, t.media_type, t.id)) return false;
+      // 4. Defensive: exclude the current pick even if the seen list
+      //    failed to persist. This guarantees the Spotlight never
+      //    shows the same title twice in a row.
+      if (currentKey === `${t.media_type}/${t.id}`) return false;
       return true;
     });
   };
@@ -452,21 +472,51 @@ export function useSpotlight(args: UseSpotlightArgs) {
   // `userId()` we have at that point. Better to show a fresh pick than
   // to leave the skeleton up forever.
   //
+  // RACE CONDITION FIX:
+  //   If the safety timer fires BEFORE auth resolves, `loadInitial`
+  //   runs with uid=null (guest). The cache + seen list get written
+  //   under the "guest" key. Then when auth resolves with the real uid,
+  //   we need to RE-RUN `loadInitial` with the correct uid — otherwise
+  //   the seen list is empty for the real user, and the same title can
+  //   be picked again the next day.
+  //
+  //   We track `lastUid` (the uid that `loadInitial` last ran with).
+  //   When `userId()` changes from null to a real uid (or vice versa),
+  //   we re-run `loadInitial` with the new uid. This handles:
+  //     1. Safety timer fires with uid=null → auth resolves → re-run
+  //     2. User signs in mid-session → re-run for the new user
+  //     3. User signs out mid-session → re-run for guest
+  //
   // `createEffect` is used (instead of `onMount`) so we can reactively
-  // wait for `authReady()`. The `didInit` guard ensures we only fire
-  // once — even if `authReady` toggles later (e.g., after a sign-out),
-  // we don't re-fetch.
+  // wait for `authReady()` AND react to `userId()` changes.
   let didInit = false;
+  let lastUid: string | null | undefined = undefined;
   let safetyTimer: ReturnType<typeof setTimeout> | null = null;
 
   createEffect(() => {
-    if (didInit) return;
-    if (args.authReady()) {
+    // Wait for auth to be ready before doing anything.
+    if (!args.authReady()) return;
+    const currentUid = args.userId();
+
+    if (lastUid === undefined) {
+      // First load — auth just resolved (or safety timer already fired).
+      // Run loadInitial with the current uid.
+      lastUid = currentUid;
       didInit = true;
       if (safetyTimer) {
         clearTimeout(safetyTimer);
         safetyTimer = null;
       }
+      void loadInitial();
+    } else if (currentUid !== lastUid) {
+      // userId changed after the initial load. This happens when:
+      //   1. The safety timer fired with uid=null (auth was slow), and
+      //      then auth resolved with a real uid.
+      //   2. The user signed in/out mid-session.
+      // Re-run loadInitial so the cache + seen list use the correct key.
+      // Without this, the seen list for the real user would be empty,
+      // and the same title could be picked again the next day.
+      lastUid = currentUid;
       void loadInitial();
     }
   });
@@ -480,6 +530,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
         "[useSpotlight] authReady did not resolve within 3s — forcing load with current userId"
       );
       didInit = true;
+      lastUid = args.userId(); // capture current uid (likely null)
       void loadInitial();
     }
   }, 3000);
