@@ -247,9 +247,29 @@ function configureVapid(): void {
 
   // The "mailto:" contact is required by the Web Push spec — it gives
   // the push service a way to contact the sender if there's a problem.
-  // We use a placeholder; admins can override via env if needed.
-  const contact =
-    process.env.VAPID_CONTACT_EMAIL ?? "mailto:admin@cinelog.app";
+  // The value MUST be a valid URL: either a mailto: URL or an https URL.
+  // If the admin set VAPID_CONTACT_EMAIL to a bare email (e.g.
+  // "admin@example.com" without the "mailto:" prefix), normalize it by
+  // prepending "mailto:" — otherwise webPush.setVapidDetails() throws
+  // "Vapid subject is not a valid URL".
+  const rawContact =
+    process.env.VAPID_CONTACT_EMAIL ?? "admin@cinelog.app";
+  let contact: string;
+  if (
+    rawContact.startsWith("mailto:") ||
+    rawContact.startsWith("https://") ||
+    rawContact.startsWith("http://")
+  ) {
+    contact = rawContact;
+  } else if (rawContact.includes("@")) {
+    // Bare email — prepend mailto:
+    contact = `mailto:${rawContact}`;
+  } else {
+    // Not an email and not a URL — use the default. The admin probably
+    // set the env var to something invalid; the default is safer than
+    // letting setVapidDetails() throw.
+    contact = "mailto:admin@cinelog.app";
+  }
 
   try {
     webPush.setVapidDetails(contact, publicKey, privateKey);
