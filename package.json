@@ -2,6 +2,9 @@
   "name": "cinelog-v2",
   "version": "0.0.0",
   "type": "module",
+  "engines": {
+    "node": "20.x || 22.x"
+  },
   "scripts": {
     "dev": "vinxi dev",
     "build": "vinxi build",
