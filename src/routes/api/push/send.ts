@@ -217,8 +217,25 @@ let vapidConfigError: string | null = null;
 function configureVapid(): void {
   if (vapidConfigured) return;
 
-  const publicKey = process.env.VAPID_PUBLIC_KEY;
-  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  // Trim whitespace and strip surrounding quotes — Vercel's dashboard
+  // sometimes preserves surrounding quotes if the user pastes them,
+  // which would cause setVapidDetails() to throw "Invalid key size".
+  const rawPublic = process.env.VAPID_PUBLIC_KEY;
+  const rawPrivate = process.env.VAPID_PRIVATE_KEY;
+  let publicKey = rawPublic ? rawPublic.trim() : "";
+  let privateKey = rawPrivate ? rawPrivate.trim() : "";
+  if (
+    (publicKey.startsWith('"') && publicKey.endsWith('"')) ||
+    (publicKey.startsWith("'") && publicKey.endsWith("'"))
+  ) {
+    publicKey = publicKey.slice(1, -1).trim();
+  }
+  if (
+    (privateKey.startsWith('"') && privateKey.endsWith('"')) ||
+    (privateKey.startsWith("'") && privateKey.endsWith("'"))
+  ) {
+    privateKey = privateKey.slice(1, -1).trim();
+  }
 
   if (!publicKey || !privateKey) {
     vapidConfigError =
