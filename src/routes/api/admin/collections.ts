@@ -151,7 +151,49 @@ export async function GET(event: APIEvent) {
       .order("created_at", { ascending: false });
 
     if (error) return jsonResponse({ error: error.message }, 500);
-    return jsonResponse({ universes: data ?? [] });
+
+    // ─── Batch-fetch entry counts ────────────────────────────────
+    // v2 (Phase 4 Task 23): previously the admin UI fetched each
+    // universe's entries individually (one GET per universe) to count
+    // them client-side — classic N+1. Now we issue a single group-by
+    // query against curated_universe_entries and attach the counts
+    // server-side. This drops the admin collections page from N+1
+    // network round-trips to exactly 2 (list + counts), regardless
+    // of how many universes exist.
+    const universes = (data ?? []) as Array<{
+      id: string;
+      slug: string;
+      name: string;
+      description: string | null;
+      default_view: "timeline" | "release" | "story" | "franchise";
+      color: string | null;
+      cover_url: string | null;
+      banner_url: string | null;
+      created_at: string;
+      updated_at: string;
+    }>;
+
+    const countsById: Record<string, number> = {};
+    if (universes.length > 0) {
+      const ids = universes.map((u) => u.id);
+      const { data: countRows, error: countErr } = await supabase
+        .from("curated_universe_entries")
+        .select("universe_id")
+        .in("universe_id", ids);
+      if (!countErr && countRows) {
+        for (const row of countRows as Array<{ universe_id: string }>) {
+          countsById[row.universe_id] =
+            (countsById[row.universe_id] ?? 0) + 1;
+        }
+      }
+    }
+
+    const universesWithCounts = universes.map((u) => ({
+      ...u,
+      entry_count: countsById[u.id] ?? 0
+    }));
+
+    return jsonResponse({ universes: universesWithCounts });
   } catch (err) {
     console.error("[admin/collections] GET error:", err);
     return jsonResponse({ error: "Server error" }, 500);

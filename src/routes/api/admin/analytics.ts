@@ -66,6 +66,20 @@ interface AnalyticsResponse {
     total_vault_items: number;
     total_collections: number;
     dau_today: number;
+    /**
+     * ISO date (yyyy-mm-dd) of the row in mv_admin_active_users that
+     * `dau_today` was taken from. Equal to "today" (UTC) when the MV
+     * has been refreshed today; otherwise equal to the most recent
+     * available day — and `dau_today_is_fallback` will be true.
+     */
+    dau_today_date: string | null;
+    /**
+     * True when `dau_today_date` is NOT today's UTC date — i.e. the
+     * MV hasn't been refreshed yet today. The UI uses this to render
+     * an "as of <date>" hint instead of implying the number is from
+     * today.
+     */
+    dau_today_is_fallback: boolean;
     wau_this_week: number;
     mau_this_month: number;
     new_users_30d: number;
@@ -177,17 +191,64 @@ export async function GET(event: APIEvent) {
       (r) => new Date(r.created_at) >= cutoff30d
     ).length;
 
-    // DAU/WAU/MAU from the most recent row of mv_admin_active_users
+    // DAU/WAU/MAU from mv_admin_active_users.
+    //
+    // v2 (Phase 4 Task 22) fix: previously we took the LAST row of the
+    // MV and labeled its `dau` as "today". If the MV hadn't been
+    // refreshed yet today (pg_cron runs at minute 5 of each hour, but
+    // the admin may open the page before that), the "today" number
+    // was actually yesterday's DAU — silently wrong.
+    //
+    // Now: we look for a row whose `day` equals today's UTC date. If
+    // found, that's `dau_today` and `dau_today_is_fallback` is false.
+    // If NOT found, we fall back to the most recent available day,
+    // set `dau_today_is_fallback` = true, and surface `dau_today_date`
+    // so the UI can render "as of <date>" instead of misleadingly
+    // labeling yesterday's (or older) DAU as "today".
+    //
+    // WAU and MAU are 7-day / 30-day rolling windows, so the date
+    // attached to the row matters less — we still use the latest row
+    // (or today's row when present) so the numbers are as fresh as
+    // possible.
     const activeUsersRows = (activeUsersResp.data ?? []) as {
       day: string;
       dau: number;
       wau: number;
       mau: number;
     }[];
-    const latestActive = activeUsersRows[activeUsersRows.length - 1];
-    const dauToday = latestActive?.dau ?? 0;
-    const wauThisWeek = latestActive?.wau ?? 0;
-    const mauThisMonth = latestActive?.mau ?? 0;
+
+    // Use UTC date for the "today" comparison — mv_admin_active_users
+    // stores `day` as a DATE column populated from
+    // `date_trunc('day', created_at)` which is server-local. The
+    // server runs in UTC on Supabase, so this matches.
+    const todayUtc = now.toISOString().slice(0, 10);
+
+    const todaysRow = activeUsersRows.find((r) => r.day === todayUtc);
+    let dauToday = 0;
+    let dauTodayDate: string | null = null;
+    let dauTodayIsFallback = false;
+    let wauThisWeek = 0;
+    let mauThisMonth = 0;
+
+    if (todaysRow) {
+      // MV has been refreshed today — use today's numbers directly.
+      dauToday = todaysRow.dau ?? 0;
+      dauTodayDate = todaysRow.day;
+      dauTodayIsFallback = false;
+      wauThisWeek = todaysRow.wau ?? 0;
+      mauThisMonth = todaysRow.mau ?? 0;
+    } else if (activeUsersRows.length > 0) {
+      // MV hasn't been refreshed today — fall back to the most recent
+      // available day and flag it so the UI can show "as of <date>".
+      // The rows are ordered ascending by `day` (see query above), so
+      // the last element is the most recent.
+      const latest = activeUsersRows[activeUsersRows.length - 1];
+      dauToday = latest.dau ?? 0;
+      dauTodayDate = latest.day;
+      dauTodayIsFallback = true;
+      wauThisWeek = latest.wau ?? 0;
+      mauThisMonth = latest.mau ?? 0;
+    }
 
     // ─── Refresh metadata ──────────────────────────────────────
     const lastRefreshRaw =
@@ -213,6 +274,8 @@ export async function GET(event: APIEvent) {
         total_vault_items: summaryVaultResp.count ?? 0,
         total_collections: summaryCollectionsResp.count ?? 0,
         dau_today: dauToday,
+        dau_today_date: dauTodayDate,
+        dau_today_is_fallback: dauTodayIsFallback,
         wau_this_week: wauThisWeek,
         mau_this_month: mauThisMonth,
         new_users_30d: newUsers30d,

@@ -8,12 +8,15 @@
 //   GET  /api/admin/maintenance/runs      — alias for run history (paginated)
 //
 // Operations exposed (each maps to a SQL function defined in the
-// Phase 3 migration):
+// Phase 3 migration, plus purge_soft_deleted_vault from Phase 4):
 //
 //   purge_soft_deleted_profiles   — args: { days?: number = 90 }
 //   purge_old_activity_log        — args: { days?: number = 180 }
 //   purge_expired_tmdb_cache      — args: { days?: number = 30 }
 //   purge_orphaned_collection_entries — no args
+//   purge_soft_deleted_vault      — args: { days?: number = 30 }
+//                                   (Phase 4 Task 24 — cascades to
+//                                    episode_progress + collection_entries)
 //   cleanup_old_admin_actions     — args: { days?: number = 365 }
 //   refresh_admin_analytics       — no args
 //   vacuum_analyze_hint           — no args (returns hint text)
@@ -41,6 +44,7 @@ type OperationName =
   | "purge_old_activity_log"
   | "purge_expired_tmdb_cache"
   | "purge_orphaned_collection_entries"
+  | "purge_soft_deleted_vault"
   | "cleanup_old_admin_actions"
   | "refresh_admin_analytics"
   | "vacuum_analyze_hint";
@@ -88,6 +92,15 @@ const OPERATIONS: OperationDef[] = [
     description:
       "Delete collection_entries whose vault_id no longer exists. Defensive cleanup — should normally be a no-op.",
     destructive: true
+  },
+  {
+    name: "purge_soft_deleted_vault",
+    label: "Purge expired vault items",
+    description:
+      "Permanently remove vault items that have been in trash longer than N days. Also cascades to episode_progress and collection_entries tied to the purged vault rows. Does NOT remove the underlying TMDB metadata or other users' vault entries for the same title.",
+    destructive: true,
+    default_days: 30,
+    min_days: 7
   },
   {
     name: "cleanup_old_admin_actions",

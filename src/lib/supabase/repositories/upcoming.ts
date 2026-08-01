@@ -69,6 +69,19 @@ export interface UpcomingQueryParams {
   minRating?: number;
   mediaType?: "all" | "movie" | "tv";
   sortBy?: "date" | "rating" | "popularity" | "title";
+  /**
+   * BCP-47 language tag (e.g. "en", "hi", "es") used as the TMDB
+   * `language` query param on all discover + next-episode + watch
+   * provider calls. Defaults to "en-US" when omitted (preserves
+   * pre-Phase-4 behavior) so existing callers don't break.
+   *
+   * Phase 4 Task 25: previously this was hardcoded to "en-US",
+   * ignoring the user's preferred UI/content language. Now the
+   * useUpcomingData hook threads `effectiveTMDBLanguage()` through
+   * here so TMDB returns localized overviews, titles, and episode
+   * names matching the user's setting.
+   */
+  language?: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -328,8 +341,12 @@ function buildMovieParams(
   params: UpcomingQueryParams,
   page: number
 ): URLSearchParams {
+  // Phase 4 Task 25: use the user's preferred language instead of
+  // hardcoding "en-US". Falls back to "en-US" when the caller didn't
+  // pass one (preserves pre-Phase-4 behavior).
+  const lang = params.language || "en-US";
   const p = new URLSearchParams({
-    language: "en-US",
+    language: lang,
     sort_by: "release_date.asc",
     "release_date.gte": params.startDate,
     "release_date.lte": params.endDate,
@@ -373,8 +390,11 @@ function buildTvParams(
   params: UpcomingQueryParams,
   page: number
 ): URLSearchParams {
+  // Phase 4 Task 25: use the user's preferred language instead of
+  // hardcoding "en-US".
+  const lang = params.language || "en-US";
   const p = new URLSearchParams({
-    language: "en-US",
+    language: lang,
     sort_by: "popularity.desc",
     "air_date.gte": params.startDate,
     "air_date.lte": params.endDate,
@@ -501,11 +521,14 @@ interface NextEpisodeInfo {
  *   Fallback: /tv/{id} (extract `next_episode_to_air` field)
  */
 async function getNextEpisode(
-  tvId: number | string
+  tvId: number | string,
+  language: string = "en-US"
 ): Promise<NextEpisodeInfo | null> {
   // ── Primary: dedicated next_episode_to_air endpoint ──────────
+  // Phase 4 Task 25: pass through the user's preferred language so
+  // episode names (if we ever surface them) come back localized.
   try {
-    const url = `${API}/tv/${tvId}/next_episode_to_air?language=en-US`;
+    const url = `${API}/tv/${tvId}/next_episode_to_air?language=${encodeURIComponent(language)}`;
     const res = await fetchWithTimeout(url);
     if (res.ok) {
       const data = (await res.json()) as {
@@ -534,7 +557,7 @@ async function getNextEpisode(
   // next episode exists. The /tv/{id} response always includes the
   // `next_episode_to_air` field (null when no next episode is scheduled).
   try {
-    const url = `${API}/tv/${tvId}?language=en-US`;
+    const url = `${API}/tv/${tvId}?language=${encodeURIComponent(language)}`;
     const res = await fetchWithTimeout(url);
     if (!res.ok) {
       debug(`[next-episode] tv/${tvId} fallback HTTP ${res.status}`);
@@ -581,10 +604,12 @@ async function getNextEpisode(
 async function getWatchProviders(
   id: number | string,
   type: "movie" | "tv",
-  region: string
+  region: string,
+  language: string = "en-US"
 ): Promise<string[]> {
   try {
-    const url = `${API}/${type}/${id}/watch/providers?language=en-US`;
+    // Phase 4 Task 25: pass through the user's preferred language.
+    const url = `${API}/${type}/${id}/watch/providers?language=${encodeURIComponent(language)}`;
     const res = await fetchWithTimeout(url);
     if (!res.ok) {
       debug(`[providers] ${type}/${id} HTTP ${res.status}`);
@@ -686,12 +711,21 @@ export async function getUpcomingTitles(
   debug("query params:", params);
 
   // Defaults: mediaType "all" if not specified. Region defaults to
-  // "US" — empty string would cause TMDB to 422.
+  // "US" — empty string would cause TMDB to 422. Language defaults
+  // to "en-US" when the caller didn't pass one (pre-Phase-4
+  // behavior), but the useUpcomingData hook always threads
+  // `effectiveTMDBLanguage()` through.
   const effectiveParams: UpcomingQueryParams = {
     ...params,
     region: params.region || "US",
-    mediaType: params.mediaType ?? "all"
+    mediaType: params.mediaType ?? "all",
+    language: params.language || "en-US"
   };
+
+  // Hoist the resolved language into a local so the enrichment
+  // closures (getNextEpisode, getWatchProviders) can read it
+  // without re-dereferencing the params object on every call.
+  const effectiveLang = effectiveParams.language!;
 
   const moviePromise =
     effectiveParams.mediaType === "tv"
@@ -764,7 +798,7 @@ export async function getUpcomingTitles(
       while (cursor < tvToEnrich.length) {
         const idx = cursor++;
         const t = tvToEnrich[idx];
-        const next = await getNextEpisode(t.id);
+        const next = await getNextEpisode(t.id, effectiveLang);
         if (next) {
           t.seasonNumber = next.season;
           t.episodeNumber = next.episode;
@@ -836,7 +870,8 @@ export async function getUpcomingTitles(
         t.providers = await getWatchProviders(
           t.id,
           type,
-          effectiveParams.region
+          effectiveParams.region,
+          effectiveLang
         );
       })
     );

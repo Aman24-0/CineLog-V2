@@ -95,24 +95,20 @@ const AdminCollectionsPage: Component = () => {
       }
       const data = (await resp.json()) as { universes: Universe[] };
 
-      // For each universe, fetch entry count (parallel)
-      const counts = await Promise.all(
-        data.universes.map(async (u) => {
-          try {
-            const r = await fetch(`/api/admin/collections?id=${u.id}`, {
-              credentials: "include"
-            });
-            if (!r.ok) return 0;
-            const d = (await r.json()) as { entries?: unknown[] };
-            return d.entries?.length ?? 0;
-          } catch {
-            return 0;
-          }
-        })
-      );
-
+      // v2 (Phase 4 Task 23): the API now returns entry_count for each
+      // universe in the same response (single batched group-by query
+      // server-side). We no longer need to fetch each universe's
+      // entries individually — that was an N+1 pattern that scaled
+      // poorly (one round-trip per universe, plus the per-universe
+      // payload scaled with entry count, not 1 row).
+      //
+      // Defensive: if a future API regression drops entry_count, we
+      // fall back to 0 rather than crashing the page.
       setUniverses(
-        data.universes.map((u, i) => ({ ...u, entry_count: counts[i] }))
+        data.universes.map((u) => ({
+          ...u,
+          entry_count: u.entry_count ?? 0
+        }))
       );
       setError(null);
     } catch (err) {

@@ -188,21 +188,61 @@ export async function GET(event: APIEvent) {
       }
     }
 
-    // Get emails from auth.users (batch via admin API)
+    // Get emails from auth.users via the get_user_email RPC.
+    //
+    // v2 (Phase 4 Task 26): previously we called
+    // `supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })`
+    // and filtered client-side — wasteful (fetches up to 1000 user
+    // records when we only need 25 emails) AND it returns the full
+    // user objects (including sensitive fields like
+    // encrypted_password, email_change, etc.) to the server-side
+    // caller, which is more surface area than necessary.
+    //
+    // Now: we call the `get_user_email(user_id UUID) RETURNS TEXT`
+    // RPC once per visible user (Promise.all, 25 parallel calls).
+    // Each call:
+    //   • Returns ONLY the email (no other auth.users fields).
+    //   • Is SECURITY DEFINER with an admin check inside — even
+    //     if the EXECUTE grant leaked to a non-admin client, the
+    //     function returns NULL instead of the email.
+    //   • Returns NULL for non-existent user_ids (defensive).
+    //
+    // 25 parallel RPC calls is more requests than the old 1
+    // listUsers call, but each one is much smaller (single text
+    // value vs. full user object), and the function's tight
+    // admin check makes the security posture strictly better.
+    // For pages with 100 users (max page size), this still
+    // completes in well under a second because Supabase pools
+    // the connections.
     const emailsById: Record<string, string> = {};
     if (userIds.length > 0) {
-      // Use the auth admin API to list users — but it's paginated and
-      // may not support arbitrary ID filtering. For now, we fetch a
-      // large page (up to 1000) and filter.
-      // NOTE: This is inefficient for large user bases. A better approach
-      // would be a SQL function that joins profiles + auth.users.
-      // For Phase 1, this is acceptable — admin panel, low traffic.
-      const { data: usersList } = await supabase.auth.admin.listUsers({
-        page: 1,
-        perPage: 1000
-      });
-      for (const u of usersList?.users ?? []) {
-        if (u.email) emailsById[u.id] = u.email;
+      const emailResults = await Promise.all(
+        userIds.map(async (uid) => {
+          try {
+            const { data, error } = await supabase.rpc("get_user_email", {
+              user_id: uid
+            });
+            if (error) {
+              console.warn(
+                `[CineLog Admin] get_user_email(${uid}) error:`,
+                error.message
+              );
+              return { uid, email: "" };
+            }
+            // RPC returns TEXT — null when user_id doesn't exist
+            // or caller isn't an admin (defense in depth).
+            return { uid, email: typeof data === "string" ? data : "" };
+          } catch (err) {
+            console.warn(
+              `[CineLog Admin] get_user_email(${uid}) exception:`,
+              err
+            );
+            return { uid, email: "" };
+          }
+        })
+      );
+      for (const { uid, email } of emailResults) {
+        if (email) emailsById[uid] = email;
       }
     }
 

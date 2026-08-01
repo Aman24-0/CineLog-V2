@@ -56,6 +56,19 @@ interface Summary {
   total_vault_items: number;
   total_collections: number;
   dau_today: number;
+  /**
+   * ISO date (yyyy-mm-dd) of the row in mv_admin_active_users that
+   * `dau_today` was taken from. Used to render "as of <date>" when
+   * the MV hasn't been refreshed yet today.
+   */
+  dau_today_date: string | null;
+  /**
+   * True when `dau_today_date` is NOT today's UTC date — i.e. the
+   * MV hasn't been refreshed yet today. The UI shows an
+   * "as of <date>" hint instead of misleadingly labeling the value
+   * as "today".
+   */
+  dau_today_is_fallback: boolean;
   wau_this_week: number;
   mau_this_month: number;
   new_users_30d: number;
@@ -137,6 +150,25 @@ const AdminAnalyticsPage: Component = () => {
     if (!iso) return "—";
     try {
       return new Date(iso).toLocaleString();
+    } catch {
+      return iso;
+    }
+  };
+
+  /**
+   * Format an ISO date (yyyy-mm-dd) as a short, locale-friendly date
+   * for the "as of <date>" hint on the DAU card. Returns "—" for null.
+   */
+  const formatShortDate = (iso: string | null) => {
+    if (!iso) return "—";
+    try {
+      // Parse as a UTC midnight to avoid timezone shifting the day.
+      const d = new Date(`${iso}T00:00:00Z`);
+      return d.toLocaleDateString(undefined, {
+        month: "short",
+        day: "numeric",
+        timeZone: "UTC"
+      });
     } catch {
       return iso;
     }
@@ -229,7 +261,12 @@ const AdminAnalyticsPage: Component = () => {
           <StatCard
             label="DAU today"
             value={data()!.summary.dau_today}
-            hint="active users today"
+            hint={
+              data()!.summary.dau_today_is_fallback
+                ? `as of ${formatShortDate(data()!.summary.dau_today_date)} (MV pending refresh)`
+                : "active users today"
+            }
+            warning={data()!.summary.dau_today_is_fallback}
           />
           <StatCard
             label="WAU (7d)"
@@ -388,14 +425,33 @@ const AdminAnalyticsPage: Component = () => {
 
 // ─── Sub-components ───────────────────────────────────────────────
 
-const StatCard: Component<{ label: string; value: number; hint?: string }> = (
-  props
-) => (
-  <div style={statCardStyle}>
+const StatCard: Component<{
+  label: string;
+  value: number;
+  hint?: string;
+  /**
+   * When true, renders the card with a subtle amber border + label
+   * tint to flag that the value is stale / from a fallback source
+   * (e.g. the DAU MV hasn't been refreshed yet today).
+   */
+  warning?: boolean;
+}> = (props) => (
+  <div
+    style={{
+      ...statCardStyle,
+      ...(props.warning
+        ? {
+            "border-color": "rgba(251, 191, 36, 0.45)",
+            background:
+              "linear-gradient(180deg, rgba(251, 191, 36, 0.06) 0%, var(--tier-1) 100%)"
+          }
+        : {})
+    }}
+  >
     <div
       style={{
         "font-size": "0.75rem",
-        color: "var(--text-muted)",
+        color: props.warning ? "rgb(253, 224, 71)" : "var(--text-muted)",
         "text-transform": "uppercase",
         "letter-spacing": "0.05em"
       }}
@@ -413,7 +469,12 @@ const StatCard: Component<{ label: string; value: number; hint?: string }> = (
       {props.value.toLocaleString()}
     </div>
     <Show when={props.hint}>
-      <div style={{ "font-size": "0.75rem", color: "var(--text-muted)" }}>
+      <div
+        style={{
+          "font-size": "0.75rem",
+          color: props.warning ? "rgb(253, 224, 71)" : "var(--text-muted)"
+        }}
+      >
         {props.hint}
       </div>
     </Show>

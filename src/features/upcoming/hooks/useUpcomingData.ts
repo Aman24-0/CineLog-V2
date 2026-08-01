@@ -14,6 +14,16 @@
 // straight into the repository's `UpcomingQueryParams.region` so a
 // region change (user picks a different country in the FilterSheet, or
 // the profile loads after the page mounts) triggers a fresh fetch.
+//
+// Language reactivity (Phase 4 Task 25): the hook reads
+// `effectiveTMDBLanguage()` (a SolidJS signal backed by the
+// `cinelog_language` localStorage key) and threads it through to the
+// repository. When the user changes their UI language in Settings, the
+// upcoming page refetches with localized TMDB metadata (overviews,
+// episode names, watch-provider display names). The hook does NOT
+// accept a `language` accessor in `UpcomingDataFilters` because the
+// language preference is a global signal — every consumer wants the
+// same value, so plumbing it through the page would just add coupling.
 
 import { createResource, createMemo, type Accessor } from "solid-js";
 import {
@@ -22,6 +32,7 @@ import {
   type UserReminderRow
 } from "~/lib/supabase/repositories/upcoming";
 import type { TMDBTitle } from "~/shared/types";
+import { effectiveTMDBLanguage } from "~/core/preferences/language";
 
 export type UpcomingView = "list" | "calendar";
 export type UpcomingSort = "date" | "rating" | "popularity" | "title";
@@ -65,13 +76,19 @@ export function useUpcomingData(
   // Region defaults to "US" when the caller passes an empty string —
   // TMDB requires a 2-letter ISO 3166-1 code, and an empty region
   // makes the proxy return 422.
+  //
+  // Phase 4 Task 25: thread the user's preferred language through so
+  // TMDB returns localized metadata. `effectiveTMDBLanguage()` is a
+  // SolidJS signal — including it in the memo makes the resource
+  // refetch automatically when the user changes their UI language.
   const params = createMemo<UpcomingQueryParams>(() => ({
     region: filters.region() || "US",
     startDate: filters.startDate(),
     endDate: filters.endDate(),
     genres: filters.genres().length ? filters.genres() : undefined,
     mediaType: filters.mediaType(),
-    sortBy: filters.sortBy()
+    sortBy: filters.sortBy(),
+    language: effectiveTMDBLanguage() || "en-US"
   }));
 
   // Refetch whenever the params memo changes. The source function is
