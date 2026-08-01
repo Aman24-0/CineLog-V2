@@ -18,10 +18,11 @@
 //       - Quiet hours (enable toggle + start/end time inputs)
 //       - Reminder lead time segmented control
 
-import { Show, For } from "solid-js";
+import { Show, For, createMemo } from "solid-js";
 import type { SettingsState } from "./types";
 import {
   ToggleRow,
+  SelectRow,
   TimeRow,
   ControlRow,
   Segmented
@@ -36,7 +37,9 @@ import {
 // Static option lists — single source of truth.
 import {
   NOTIF_CATEGORIES,
-  LEAD_TIME_OPTIONS
+  LEAD_TIME_OPTIONS,
+  WEEKLY_DIGEST_DAY_OPTIONS,
+  WEEKLY_DIGEST_TIME_OPTIONS
 } from "~/shared/constants/settings";
 
 // Phase 2 — Task 13: Background Web Push notifications toggle.
@@ -45,6 +48,19 @@ import { PushToggle } from "~/features/notifications/components/PushToggle";
 export function NotificationSection(props: { state: SettingsState }) {
   // eslint-disable-next-line solid/reactivity -- props.state is a stable object reference (bag of accessors), not a reactive value; destructuring it once at the top is safe.
   const s = props.state;
+
+  // Weekly Recap — the day preference is stored as a number (0=Sun..6=Sat)
+  // in notifPrefs.weeklyDigestDay, but SelectRow works with strings. We
+  // convert in both directions.
+  const weeklyDigestDayStr = createMemo(() =>
+    String(notifPrefs().weeklyDigestDay)
+  );
+  const handleDayChange = (v: string): void => {
+    const n = Number(v);
+    if (Number.isInteger(n) && n >= 0 && n <= 6) {
+      updateNotifPref("weeklyDigestDay", n);
+    }
+  };
 
   return (
     <Show
@@ -241,6 +257,37 @@ export function NotificationSection(props: { state: SettingsState }) {
                 </Show>
               </div>
             </div>
+
+            {/* Weekly Recap — Phase 2 Task 14.
+                The "Weekly Recap" category toggle in the Categories
+                section above controls notifPrefs.weeklyRecap (boolean).
+                This subsection controls the day & time preferences, which
+                only matter when weeklyRecap is enabled. */}
+            <Show when={notifPrefs().weeklyRecap}>
+              <div class="setting-subsection">
+                <p class="setting-subsection-label">Weekly recap schedule</p>
+                <div class="setting-group">
+                  <SelectRow
+                    icon="event"
+                    label="Day"
+                    desc="Which day of the week to receive your recap."
+                    value={weeklyDigestDayStr}
+                    onChange={handleDayChange}
+                    options={WEEKLY_DIGEST_DAY_OPTIONS}
+                  />
+                  <SelectRow
+                    icon="schedule"
+                    label="Time"
+                    desc="Approximate delivery time (server runs at 09:00 UTC)."
+                    value={() => notifPrefs().weeklyDigestTime}
+                    onChange={(v) =>
+                      updateNotifPref("weeklyDigestTime", v)
+                    }
+                    options={WEEKLY_DIGEST_TIME_OPTIONS}
+                  />
+                </div>
+              </div>
+            </Show>
 
             {/* Reminder lead time */}
             <div class="setting-subsection">

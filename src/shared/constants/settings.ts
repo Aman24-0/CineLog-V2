@@ -234,6 +234,42 @@ export const LEAD_TIME_OPTIONS = [
 ];
 
 // ────────────────────────────────────────────────────────────────────
+// Weekly Recap — day & time options
+// ────────────────────────────────────────────────────────────────────
+//
+// Used by the Weekly Recap subsection of NotificationSection.
+// The day value is an integer 0-6 (0=Sunday, 6=Saturday) matching
+// the weeklyDigestDay field in NotificationPrefs.
+// The time value is an "HH:MM" string matching weeklyDigestTime.
+//
+// NOTE: The actual delivery time depends on the pg_cron schedule
+// (runs at 09:00 UTC every Monday by default). The per-user time
+// preference is stored but currently informational — implementing
+// per-user-time delivery would require running the cron hourly and
+// filtering by time string, which adds complexity for little benefit
+// on a weekly digest. The day-of-week preference IS respected.
+
+export const WEEKLY_DIGEST_DAY_OPTIONS = [
+  { value: "0", label: "Sunday" },
+  { value: "1", label: "Monday" },
+  { value: "2", label: "Tuesday" },
+  { value: "3", label: "Wednesday" },
+  { value: "4", label: "Thursday" },
+  { value: "5", label: "Friday" },
+  { value: "6", label: "Saturday" }
+];
+
+export const WEEKLY_DIGEST_TIME_OPTIONS = [
+  { value: "08:00", label: "08:00" },
+  { value: "09:00", label: "09:00" },
+  { value: "10:00", label: "10:00" },
+  { value: "12:00", label: "12:00" },
+  { value: "18:00", label: "18:00" },
+  { value: "19:00", label: "19:00" },
+  { value: "20:00", label: "20:00" }
+];
+
+// ────────────────────────────────────────────────────────────────────
 // Calendar
 // ────────────────────────────────────────────────────────────────────
 
