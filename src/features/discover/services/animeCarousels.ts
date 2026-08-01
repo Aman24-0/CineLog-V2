@@ -207,8 +207,11 @@ async function anilistMediaToTmdbTitles(
       if (searchMatch) {
         // Fire-and-forget save so the next carousel load skips the search.
         // We don't await this — the carousel doesn't need to wait for the
-        // mapping to be persisted. If it fails (RLS, network), the next
-        // load will just search again.
+        // mapping to be persisted. saveMapping() routes browser writes
+        // through the /api/anime-mappings endpoint (service role), so
+        // the RLS 42501 errors that previously flooded Supabase logs
+        // are gone. If the API call fails (network, 5xx), the next
+        // load will just search again — non-fatal.
         void saveMapping({
           tmdbId: searchMatch.tmdbId,
           tmdbType: searchMatch.mediaType,
@@ -218,8 +221,9 @@ async function anilistMediaToTmdbTitles(
           matchConfidence: "medium",
           createdBy: "system"
         }).catch(() => {
-          // Silent — RLS blocks anon writes, which is expected.
-          // The mapping just won't persist; next load will search again.
+          // Silent — non-fatal. The in-memory cache is still populated
+          // by saveMapping(), so the current session works. Next load
+          // will retry the persistence.
         });
         return {
           tmdbId: searchMatch.tmdbId,

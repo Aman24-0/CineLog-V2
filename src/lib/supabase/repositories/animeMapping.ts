@@ -7,10 +7,16 @@
 // READ PATH:
 //   getAnilistId(tmdbId)   → number | null  (cached in-memory 30 days)
 //   getTmdbId(anilistId)   → number | null  (cached in-memory 30 days)
+//   Reads go directly to Supabase via the anon client — the table
+//   has a public SELECT policy.
 //
-// WRITE PATHS (server-side only — RLS blocks anon writes):
+// WRITE PATH:
 //   saveMapping(...)       → upsert a single mapping
 //   autoMap(tmdbId, ...)   → try to map by title+year using AniList search
+//   Writes are routed based on environment:
+//     • Browser → POST /api/anime-mappings (server uses service role
+//       to bypass RLS — direct anon writes fail with 42501).
+//     • Server  → direct upsert via the service-role admin client.
 //
 // IN-MEMORY CACHE:
 //   A simple Map<TmdbId, AnilistId>. Entries NEVER expire within a
@@ -278,14 +284,39 @@ export async function getTmdbId(anilistId: number): Promise<number | null> {
   }
 }
 
-// ─── Public: write (server-side only — RLS blocks anon writes) ──────
+// ─── Public: write ──────────────────────────────────────────────────
+
+/**
+ * Resolve the API endpoint URL for browser-side mapping writes.
+ *
+ * On the browser, this is just "/api/anime-mappings" (relative URL,
+ * resolved against the current origin).
+ *
+ * On the server (SSR), fetch() needs an absolute URL — we prepend
+ * the configured base URL (mirrors the pattern in
+ * `src/lib/anilist/client.ts:getBaseUrl`).
+ */
+function getWriteEndpoint(): string {
+  if (!isServer) return "/api/anime-mappings";
+  const base =
+    (typeof process !== "undefined" && process.env.VITE_APP_BASE_URL) ||
+    "https://cinelog.vercel.app";
+  return `${base}/api/anime-mappings`;
+}
 
 /**
  * Save a mapping. Used by the auto-mapper and the admin panel.
  *
- * On the browser this will silently fail (RLS blocks anon writes),
- * which is the desired behavior — mappings should only be written
- * by the server (automap) or admin (service-role).
+ * WRITE PATH:
+ *   • On the BROWSER: POST to /api/anime-mappings, which uses the
+ *     service-role Supabase client server-side to bypass RLS. Direct
+ *     browser writes to the `anime_mappings` table fail with code
+ *     42501 ("row violates row-level security policy") because the
+ *     migration that created the table only grants SELECT to anon /
+ *     authenticated users. The API endpoint is the only path that
+ *     works for browser-initiated writes.
+ *   • On the SERVER: upsert directly via the service-role admin
+ *     client (server-side code is already authorized to use it).
  *
  * @returns true on success, false on failure.
  */
@@ -298,8 +329,54 @@ export async function saveMapping(input: {
   matchConfidence?: MappingConfidence;
   createdBy?: string;
 }): Promise<boolean> {
+  // Browser path — go through the public API endpoint that uses
+  // the service role server-side. This avoids the RLS 42501 errors
+  // that pollute Supabase logs when the browser tries to write
+  // directly.
+  if (!isServer) {
+    try {
+      const resp = await fetch(getWriteEndpoint(), {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          tmdbId: input.tmdbId,
+          tmdbType: input.tmdbType ?? "tv",
+          anilistId: input.anilistId,
+          anilistType: input.anilistType ?? "ANIME",
+          title: input.title ?? null,
+          matchConfidence: input.matchConfidence ?? "medium",
+          createdBy: input.createdBy ?? "system"
+        })
+      });
+      if (!resp.ok) {
+        // 4xx/5xx — non-fatal. The mapping just won't persist this
+        // time; the next load will re-discover and re-try.
+        // Common causes: validation error (shouldn't happen given
+        // our caller), 500 (DB issue), 429 (rate limit).
+        console.warn(
+          `[animeMapping] browser saveMapping returned ${resp.status} for tmdb_id=${input.tmdbId}`
+        );
+        // Still populate the in-memory cache so the current session
+        // benefits even if persistence failed.
+        cacheMappingInMemory(input);
+        return false;
+      }
+      cacheMappingInMemory(input);
+      return true;
+    } catch (err) {
+      console.warn(`[animeMapping] browser saveMapping threw for tmdb_id=${input.tmdbId}:`, err);
+      cacheMappingInMemory(input);
+      return false;
+    }
+  }
+
+  // Server path — direct upsert via service-role admin client.
   try {
-    const supabase = getClient();
+    // Lazy import to avoid pulling the admin client into the browser
+    // bundle (it throws if instantiated on the browser, but the
+    // import itself is fine — only the call errors).
+    const { createAdminClient } = await import("~/lib/supabase/admin/adminClient");
+    const supabase = createAdminClient();
     const { error } = await supabase
       .from("anime_mappings")
       .upsert(
@@ -315,26 +392,46 @@ export async function saveMapping(input: {
         { onConflict: "tmdb_id" }
       );
     if (error) {
-      console.warn(`[animeMapping] save error for tmdb_id=${input.tmdbId}:`, error.message);
+      console.warn(`[animeMapping] server save error for tmdb_id=${input.tmdbId}:`, error.message);
       return false;
     }
-    // Update in-memory caches so subsequent reads are instant.
-    const mapping: AnimeMapping = {
-      tmdbId: input.tmdbId,
-      tmdbType: input.tmdbType ?? "tv",
-      anilistId: input.anilistId,
-      anilistType: input.anilistType ?? "ANIME",
-      title: input.title ?? null,
-      matchConfidence: input.matchConfidence ?? "medium"
-    };
-    if (!isServer) {
-      tmdbToAnilist.set(input.tmdbId, mapping);
-      anilistToTmdb.set(input.anilistId, mapping);
-    }
+    cacheMappingInMemory(input);
     return true;
   } catch (err) {
-    console.warn(`[animeMapping] save threw for tmdb_id=${input.tmdbId}:`, err);
+    console.warn(`[animeMapping] server save threw for tmdb_id=${input.tmdbId}:`, err);
     return false;
+  }
+}
+
+/**
+ * Update the in-memory caches after a successful (or even failed-
+ * but-client-side) save. This way subsequent reads in the same
+ * session are instant — no extra round-trip to Supabase or the API.
+ *
+ * Called from both the browser and server paths of saveMapping.
+ */
+function cacheMappingInMemory(input: {
+  tmdbId: number;
+  tmdbType?: "movie" | "tv";
+  anilistId: number;
+  anilistType?: "ANIME" | "MANGA";
+  title?: string | null;
+  matchConfidence?: MappingConfidence;
+}): void {
+  const mapping: AnimeMapping = {
+    tmdbId: input.tmdbId,
+    tmdbType: input.tmdbType ?? "tv",
+    anilistId: input.anilistId,
+    anilistType: input.anilistType ?? "ANIME",
+    title: input.title ?? null,
+    matchConfidence: input.matchConfidence ?? "medium"
+  };
+  // Only populate the browser-side cache; the server is stateless
+  // per-request so caching there is unnecessary (and would leak
+  // state across users).
+  if (!isServer) {
+    tmdbToAnilist.set(input.tmdbId, mapping);
+    anilistToTmdb.set(input.anilistId, mapping);
   }
 }
 

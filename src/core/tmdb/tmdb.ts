@@ -18,7 +18,7 @@ import {
 } from "~/core/preferences";
 import { isServer } from "solid-js/web";
 import { getBaseUrl } from "~/shared/utils/share";
-import { fetchWithRetry } from "./fetchHelpers";
+import { fetchWithRetry, TMDBError } from "./fetchHelpers";
 
 // TMDB_KEY is kept for backward compatibility with files that import it,
 // but it is no longer used in fetch calls — the server proxy injects
@@ -122,7 +122,7 @@ async function tmdbFetch<T>(endpoint: string): Promise<T> {
       // it here. On the server we need an absolute URL (see apiBaseUrl()
       // doc).
       const res = await fetchWithRetry(`${apiBaseUrl()}${API}${finalEndpoint}`);
-      if (!res.ok) throw new Error(`TMDB request failed: ${res.status}`);
+      if (!res.ok) throw new TMDBError(res.status, finalEndpoint);
       return res.json() as Promise<T>;
     }
   );
@@ -281,6 +281,16 @@ export async function fetchTmdbMetadata(
       ...(castList !== undefined && { castList })
     };
   } catch (err) {
+    // 404s are expected when batch-fetching auto-mapped AniList↔TMDB
+    // IDs (the auto-mapper sometimes matches to deleted/stale TMDB
+    // entries). Silently return null for these — the caller (typically
+    // fetchTmdbMetadataBatch) already filters nulls out of the result.
+    //
+    // Other errors (5xx, network, timeout) are real failures and
+    // should be logged so we can debug them.
+    if (err instanceof TMDBError && err.status === 404) {
+      return null;
+    }
     console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);
     return null;
   }
@@ -292,6 +302,16 @@ export async function fetchTmdbMetadata(
  * Fires all requests in parallel (Promise.allSettled) so one slow/failing
  * request doesn't block the others. Returns a Map keyed by "{media_type}/{id}"
  * for O(1) lookup during vault enrichment.
+ *
+ * 404 HANDLING:
+ *   When called from the anime carousels path, some IDs will 404 because
+ *   the auto-mapper matched an AniList anime to a stale / deleted TMDB
+ *   entry. These are EXPECTED failures — the batch simply skips them.
+ *   We detect 404s via the TMDBError class and skip them silently
+ *   (no console.warn) so the console doesn't fill up with noise on
+ *   every Discover page load.
+ *
+ *   Other errors (5xx, network, etc.) ARE logged so we can debug them.
  *
  * @param items Array of { mediaType, tmdbId } pairs.
  * @returns Map<"movie|tv/{id}", TMDBTitle>
@@ -334,6 +354,9 @@ export async function fetchTmdbMetadataBatch(
         const item = chunk[j];
         map.set(`${item.mediaType}/${item.tmdbId}`, result.value);
       }
+      // Rejected promises are already logged inside fetchTmdbMetadata
+      // (with 404s silenced via TMDBError detection). No need to log
+      // again here.
     }
   }
   return map;

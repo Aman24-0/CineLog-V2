@@ -86,10 +86,14 @@ fragment RelationFragment on Media {
 /**
  * Full details fragment — pulls every field the Details page needs.
  *
- * Note: openings/endings are top-level fields on Media (not nested
- * connections), so we read them directly. AniList's theme data is
- * community-moderated and may be missing for less-popular titles;
- * callers should always treat these arrays as possibly empty.
+ * NOTE: AniList's `openings` and `endings` fields were REMOVED from
+ * the GraphQL schema — querying them returns HTTP 400
+ * ("Cannot query field \"openings\" on type \"Media\""). The theme-
+ * song UI section in AnimeSections.tsx gracefully renders nothing
+ * when the arrays are empty, so we simply omit these fields. If
+ * AniList re-introduces theme data later (e.g. via MediaExternalLinks
+ * with a new type), we can re-add the field here. See types.ts for
+ * the legacy AniListThemeEntry shape (kept for backwards-compat).
  */
 export const MEDIA_DETAILS_FRAGMENT = `
 fragment MediaDetails on Media {
@@ -161,8 +165,6 @@ fragment MediaDetails on Media {
       }
     }
   }
-  openings { text group episodes }
-  endings { text group episodes }
   externalLinks { id url site type icon color }
   rankings { id rank type allTime season year }
 }

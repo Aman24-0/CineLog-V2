@@ -16,6 +16,13 @@
  *     timeouts would just hang again, and 4xx is a permanent client
  *     error that retrying can't fix.
  *
+ *   • TMDBError — custom Error subclass that carries the HTTP status
+ *     code, so callers can distinguish "404 not found" (expected when
+ *     batch-fetching auto-mapped AniList↔TMDB IDs that may be stale)
+ *     from real failures (5xx, network). This lets `fetchTmdbMetadata`
+ *     silently swallow 404s when called from a batch context while
+ *     still logging real errors.
+ *
  * Both helpers are pure fetch() wrappers — they don't touch the cache.
  * Cache + in-flight dedup are handled by `cachedFetch` in
  * `~/shared/utils/apiCache`, which wraps these helpers at each call
@@ -24,6 +31,30 @@
 
 /** Default timeout for TMDB API calls (10 seconds). */
 export const TMDB_FETCH_TIMEOUT_MS = 10_000;
+
+/**
+ * Custom Error subclass for TMDB HTTP failures.
+ *
+ * The `status` field lets callers distinguish between:
+ *   • 404 — common when batch-fetching auto-mapped AniList→TMDB IDs
+ *     (some matches are stale / point to deleted entries). These are
+ *     expected and should NOT pollute the console.
+ *   • 4xx (other) — usually a bug in our code (bad endpoint). Should
+ *     be logged but not retried.
+ *   • 5xx — transient upstream failure. Should be retried once and
+ *     logged if the retry also fails.
+ */
+export class TMDBError extends Error {
+  readonly status: number;
+  readonly endpoint: string;
+
+  constructor(status: number, endpoint: string) {
+    super(`TMDB request failed: ${status} (${endpoint})`);
+    this.name = "TMDBError";
+    this.status = status;
+    this.endpoint = endpoint;
+  }
+}
 
 /**
  * fetch with AbortController timeout.

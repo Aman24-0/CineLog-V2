@@ -1,7 +1,17 @@
 // src/lib/supabase/repositories/__tests__/animeMapping.test.ts
 //
-// Tests the in-memory cache + the (mocked) Supabase read/write paths.
-// The actual AniList search is mocked so we don't hit the network.
+// Tests the in-memory cache + the (mocked) Supabase read paths +
+// the (mocked) /api/anime-mappings write path.
+//
+// READ PATH (getAnilistId, getTmdbId):
+//   Mocked via `~/lib/supabase/client` → getClient().from().select().
+//
+// WRITE PATH (saveMapping, autoMap):
+//   On the browser (jsdom), saveMapping POSTs to /api/anime-mappings
+//   which uses the service role server-side to bypass RLS. We mock
+//   global `fetch` and assert the request body.
+//
+// The actual AniList search is mocked so autoMap doesn't hit the network.
 
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
@@ -12,14 +22,9 @@ import {
   clearMappingCache
 } from "../animeMapping";
 
-// ─── Mock the Supabase client ───────────────────────────────────────
-// We mock the entire `~/lib/supabase/client` module so the repository
-// uses our fake client instead of the real one. Each test configures
-// the fake's behavior via `mockSupabaseSelect` / `mockSupabaseUpsert`.
+// ─── Mock the Supabase client (READ path only) ─────────────────────
 
-const mockData = new Map<string, unknown>();
 const mockSelectImpl = vi.fn();
-const mockUpsertImpl = vi.fn();
 
 vi.mock("~/lib/supabase/client", () => ({
   getClient: () => ({
@@ -31,13 +36,32 @@ vi.mock("~/lib/supabase/client", () => ({
             return result;
           }
         })
-      }),
-      upsert: async (row: unknown, opts?: unknown) => {
-        return mockUpsertImpl(table, row, opts);
-      }
+      })
+      // No `upsert` here — writes go through the /api/anime-mappings
+      // endpoint on the browser, not via getClient().from().upsert().
+      // The test asserts the fetch() call instead.
     })
   })
 }));
+
+// ─── Mock fetch (WRITE path — /api/anime-mappings) ──────────────────
+//
+// saveMapping on the browser POSTs to /api/anime-mappings. We mock
+// global fetch to capture the request and return a controlled
+// response. Each test can override the response via mockFetch.mockResolvedValueOnce.
+
+const mockFetch = vi.fn();
+
+beforeEach(() => {
+  mockFetch.mockReset();
+  // Default: 200 OK with { ok: true }
+  mockFetch.mockResolvedValue({
+    ok: true,
+    status: 200,
+    json: async () => ({ ok: true })
+  });
+  vi.stubGlobal("fetch", mockFetch);
+});
 
 // Mock the AniList search so autoMap doesn't hit the network.
 vi.mock("~/lib/anilist", () => ({
@@ -63,9 +87,7 @@ vi.mock("~/lib/anilist", () => ({
 }));
 
 beforeEach(() => {
-  mockData.clear();
   mockSelectImpl.mockReset();
-  mockUpsertImpl.mockReset();
   clearMappingCache();
 });
 
@@ -144,9 +166,8 @@ describe("getTmdbId (reverse lookup)", () => {
   });
 });
 
-describe("saveMapping", () => {
-  it("calls supabase upsert with the correct row", async () => {
-    mockUpsertImpl.mockResolvedValue({ error: null });
+describe("saveMapping (browser path → /api/anime-mappings)", () => {
+  it("POSTs to /api/anime-mappings with the correct body", async () => {
     const ok = await saveMapping({
       tmdbId: 1428,
       tmdbType: "tv",
@@ -157,27 +178,62 @@ describe("saveMapping", () => {
       createdBy: "admin"
     });
     expect(ok).toBe(true);
-    expect(mockUpsertImpl).toHaveBeenCalledTimes(1);
-    const [table, row] = mockUpsertImpl.mock.calls[0];
-    expect(table).toBe("anime_mappings");
-    expect(row).toMatchObject({
-      tmdb_id: 1428,
-      anilist_id: 5681,
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+
+    const [url, init] = mockFetch.mock.calls[0];
+    expect(url).toBe("/api/anime-mappings");
+    expect(init.method).toBe("POST");
+    expect(init.headers["Content-Type"]).toBe("application/json");
+
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({
+      tmdbId: 1428,
+      tmdbType: "tv",
+      anilistId: 5681,
+      anilistType: "ANIME",
       title: "Death Note",
-      match_confidence: "manual",
-      created_by: "admin"
+      matchConfidence: "manual",
+      createdBy: "admin"
     });
   });
 
-  it("returns false when upsert errors", async () => {
-    mockUpsertImpl.mockResolvedValue({
-      error: { message: "RLS blocked write" }
+  it("returns false when the API returns a non-OK status", async () => {
+    mockFetch.mockResolvedValueOnce({
+      ok: false,
+      status: 500,
+      json: async () => ({ error: "DB down" })
     });
     const ok = await saveMapping({
       tmdbId: 1,
       anilistId: 2
     });
     expect(ok).toBe(false);
+  });
+
+  it("returns false when fetch throws (network error)", async () => {
+    mockFetch.mockRejectedValueOnce(new Error("Network error"));
+    const ok = await saveMapping({
+      tmdbId: 1,
+      anilistId: 2
+    });
+    expect(ok).toBe(false);
+  });
+
+  it("populates the in-memory cache after a successful save", async () => {
+    // Before saving: getAnilistId would query Supabase (mocked to return null).
+    mockSelectImpl.mockResolvedValue({ data: null, error: null });
+
+    await saveMapping({
+      tmdbId: 1428,
+      anilistId: 5681
+    });
+
+    // After saving: getAnilistId should hit the in-memory cache and NOT
+    // call Supabase again.
+    mockSelectImpl.mockClear();
+    const result = await getAnilistId(1428);
+    expect(result).toBe(5681);
+    expect(mockSelectImpl).not.toHaveBeenCalled();
   });
 });
 
@@ -205,18 +261,7 @@ describe("autoMap", () => {
 
   it("searches AniList when no mapping exists and saves the best match", async () => {
     // First call: no mapping in DB.
-    // Then saveMapping will be called — we accept it.
-    let callCount = 0;
-    mockSelectImpl.mockImplementation(async () => {
-      callCount++;
-      if (callCount === 1) {
-        return { data: null, error: null };
-      }
-      // Subsequent calls (from cache) shouldn't happen because the
-      // mapping should be cached in memory after saveMapping.
-      return { data: null, error: null };
-    });
-    mockUpsertImpl.mockResolvedValue({ error: null });
+    mockSelectImpl.mockResolvedValue({ data: null, error: null });
 
     const result = await autoMap({
       tmdbId: 99999,
@@ -226,7 +271,14 @@ describe("autoMap", () => {
     });
 
     expect(result).toBe(101); // The mocked search returned id=101 with title "Death Note"
-    expect(mockUpsertImpl).toHaveBeenCalledTimes(1);
+    // autoMap calls saveMapping, which POSTs to /api/anime-mappings.
+    expect(mockFetch).toHaveBeenCalledTimes(1);
+    const [, init] = mockFetch.mock.calls[0];
+    const body = JSON.parse(init.body as string);
+    expect(body).toMatchObject({
+      tmdbId: 99999,
+      anilistId: 101
+    });
   });
 
   it("returns null when AniList search returns no candidates", async () => {
