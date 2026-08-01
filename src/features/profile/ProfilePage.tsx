@@ -22,6 +22,7 @@
 // AchievementsPreview "View all" button.
 
 import { Component, createSignal, createEffect, Show, onMount } from "solid-js";
+import { useNavigate } from "@solidjs/router";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
@@ -55,6 +56,7 @@ const ProfilePage: Component = () => {
   const isGuest = () => !isSignedIn();
   const { openAuthModal } = useAuthModal();
   const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const uid = () => user()?.uid;
   const oauthAvatarUrl = () => user()?.photoURL ?? null;
@@ -102,15 +104,16 @@ const ProfilePage: Component = () => {
     }
   };
 
-  // Open the title detail modal — minimal implementation that delegates
-  // to the global openTitle function (used by Discover / Watchlist).
-  // For now we just navigate to the title's route as a graceful fallback.
+  // Navigate to the title's detail page via client-side routing.
+  // Previously this used `window.location.href = path` which triggered a
+  // full page reload — losing SolidJS state (vault cache, scroll position,
+  // open modals). Switching to useNavigate() keeps navigation inside the
+  // SPA, so the profile page's state survives the round-trip when the
+  // user presses Back.
   const handleItemClick = (item: WatchlistItem) => {
     const path =
       item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
-    if (typeof window !== "undefined") {
-      window.location.href = path;
-    }
+    navigate(path);
   };
 
   return (

@@ -26,7 +26,13 @@ export {
 } from "./themeMode";
 
 // Custom accent (overrides --p tokens)
-export { customAccent, setCustomAccent, contrastOn } from "./customAccent";
+export {
+  customAccent,
+  setCustomAccent,
+  contrastOn,
+  applyAccentToDocument,
+  clearAccentFromDocument
+} from "./customAccent";
 
 // Display density
 export { density, setDensity, type Density } from "./density";

@@ -243,7 +243,7 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
       aria-disabled={local.disabled || undefined}
       aria-busy={local.loading || undefined}
       aria-pressed={local.selected || undefined}
-      onKeyDown={local.interactive ? handleKeyDown : undefined}
+      onKeyDown={handleKeyDown}
     >
       {/* Shimmer loading overlay */}
       <Show when={local.loading}>

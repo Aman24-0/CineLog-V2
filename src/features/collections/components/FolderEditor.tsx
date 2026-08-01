@@ -77,10 +77,17 @@ export default function FolderEditor(props: FolderEditorProps) {
     deleteCollection
   } = useCollections();
 
+  // ESLint: these signals are intentionally seeded once from the prop at
+  // mount. FolderEditor is a modal sheet — the collection prop is stable
+  // for the sheet's lifetime (parent unmounts the editor on close), so a
+  // reactive derive would be wasted work. The user edits the local
+  // signals (setName, setDescription, setPreviewBackdrop, setPreviewAccent);
+  // we never want these to clobber the user's in-flight edits if the
+  // parent re-renders.
+  // eslint-disable-next-line solid/reactivity
   const [name, setName] = createSignal(props.collection.name);
-  const [description, setDescription] = createSignal(
-    props.collection.description ?? ""
-  );
+  // eslint-disable-next-line solid/reactivity
+  const [description, setDescription] = createSignal(props.collection.description ?? "");
   const [showEmojiPicker, setShowEmojiPicker] = createSignal(false);
   const [showColorPicker, setShowColorPicker] = createSignal(false);
   const [showBackdropPicker, setShowBackdropPicker] = createSignal(false);
@@ -89,12 +96,10 @@ export default function FolderEditor(props: FolderEditorProps) {
   // the user types/picks. Persisted on blur/change via the existing
   // handlers. The preview reads from these signals (not the prop)
   // so it reflects pending edits before they hit Supabase.
-  const [previewBackdrop, setPreviewBackdrop] = createSignal<string | null>(
-    props.collection.backdrop_path ?? null
-  );
-  const [previewAccent, setPreviewAccent] = createSignal<string | null>(
-    props.collection.accentColor ?? null
-  );
+  // eslint-disable-next-line solid/reactivity
+  const [previewBackdrop, setPreviewBackdrop] = createSignal<string | null>(props.collection.backdrop_path ?? null);
+  // eslint-disable-next-line solid/reactivity
+  const [previewAccent, setPreviewAccent] = createSignal<string | null>(props.collection.accentColor ?? null);
 
   // Build a list of backdrop candidates from the folder's entries.
   // Dedupe by path, limit to 12 so the picker stays scrollable.

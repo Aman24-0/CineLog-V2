@@ -32,7 +32,7 @@ const NavButton: Component<Props> = (props) => {
   return (
     <button
       type="button"
-      onClick={props.onClick}
+      onClick={(e) => props.onClick?.(e)}
       disabled={props.disabled}
       class="focus-ring relative flex flex-1 flex-col items-center justify-center gap-1"
       style={{

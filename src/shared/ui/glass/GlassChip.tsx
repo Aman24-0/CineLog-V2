@@ -100,7 +100,7 @@ const GlassChip: Component<GlassChipProps> = (rawProps) => {
       class={chipClasses()}
       role={isInteractive() ? "button" : undefined}
       tabindex={isInteractive() ? 0 : undefined}
-      onClick={local.onClick}
+      onClick={(e) => local.onClick?.(e)}
       onKeyDown={handleKeyDown}
       aria-pressed={local.selected || undefined}
     >

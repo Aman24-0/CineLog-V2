@@ -172,7 +172,7 @@ export async function POST(event: APIEvent): Promise<Response> {
 
 // Reject GET / other methods so crawlers don't accidentally trigger
 // expensive GraphQL queries.
-export async function GET(event: APIEvent): Promise<Response> {
+export async function GET(_event: APIEvent): Promise<Response> {
   return jsonResponse(
     { error: "GET not supported. Use POST with a GraphQL query body." },
     405,

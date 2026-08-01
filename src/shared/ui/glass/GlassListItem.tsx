@@ -129,7 +129,7 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
   const isInteractive = () => local.interactive;
 
   const handleClick = (e: MouseEvent) => {
-    if (local.disabled) return;
+    if (local.disabled || !isInteractive()) return;
     local.onClick?.(e);
   };
 
@@ -179,8 +179,8 @@ const GlassListItem: Component<GlassListItemProps> = (rawProps) => {
       aria-disabled={local.disabled || undefined}
       aria-selected={local.selected || undefined}
       aria-label={isInteractive() ? local.title : undefined}
-      onClick={isInteractive() ? handleClick : undefined}
-      onKeyDown={isInteractive() ? handleKeyDown : undefined}
+      onClick={handleClick}
+      onKeyDown={handleKeyDown}
     >
       {/* Image (takes precedence over icon) */}
       <Show

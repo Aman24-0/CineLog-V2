@@ -28,50 +28,13 @@ import { useToast } from "~/shared/hooks/useToast";
 import {
   notifPrefs,
   updateNotifPref,
-  isInQuietHours,
-  type NotificationPrefs
+  isInQuietHours
 } from "~/core/preferences";
-
-interface NotifCategoryDef {
-  key: keyof NotificationPrefs;
-  label: string;
-  desc: string;
-  icon: string;
-}
-
-const NOTIF_CATEGORIES: NotifCategoryDef[] = [
-  {
-    key: "newSeason",
-    label: "New Season Available",
-    desc: "When a series in your vault gets a new season.",
-    icon: "new_releases"
-  },
-  {
-    key: "continueWatching",
-    label: "Continue Watching",
-    desc: "Gentle reminders to resume in-progress titles.",
-    icon: "play_circle"
-  },
-  {
-    key: "weeklyRecap",
-    label: "Weekly Recap",
-    desc: "A summary of your watching activity each week.",
-    icon: "insights"
-  },
-  {
-    key: "recommendations",
-    label: "Recommendations",
-    desc: "When Discover has new picks based on your taste.",
-    icon: "auto_awesome"
-  },
-  {
-    key: "syncStatus",
-    label: "Sync Status",
-    desc: "When your data syncs or a sync error occurs.",
-    icon: "sync"
-  }
-];
-
+import {
+  NOTIF_CATEGORIES,
+  LEAD_TIME_OPTIONS,
+  type NotifCategoryDef
+} from "~/shared/constants/settings";
 const DAY_OF_WEEK_OPTIONS = [
   { value: "0", label: "Sunday" },
   { value: "1", label: "Monday" },
@@ -80,15 +43,6 @@ const DAY_OF_WEEK_OPTIONS = [
   { value: "4", label: "Thursday" },
   { value: "5", label: "Friday" },
   { value: "6", label: "Saturday" }
-];
-
-const LEAD_TIME_OPTIONS = [
-  { id: 0, label: "Never" },
-  { id: 5, label: "5 min" },
-  { id: 15, label: "15 min" },
-  { id: 30, label: "30 min" },
-  { id: 60, label: "1 hour" },
-  { id: 1440, label: "Day before" }
 ];
 
 const NotificationsRoute: Component = () => {

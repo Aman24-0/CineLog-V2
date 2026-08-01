@@ -96,30 +96,59 @@ createEffect(() => {
   const hex = customAccent();
   writeStored(CUSTOM_ACCENT_KEY, hex);
   if (isServer) return;
-  const root = document.documentElement;
-
   if (hex && isValidHex(hex)) {
-    // Override ALL accent-sensitive tokens with the custom accent.
-    // Setting --p2 to the same hex as --p is intentional — it makes
-    // every "secondary accent" treatment (badges, hovers, gradients)
-    // match the chosen accent, instead of clashing with the theme
-    // preset's secondary color.
-    root.style.setProperty("--p", hex);
-    root.style.setProperty("--p2", hex);
-    root.style.setProperty("--p-glow", hexToRgba(hex, 0.22));
-    root.style.setProperty("--p-dim", hexToRgba(hex, 0.08));
-    root.style.setProperty("--p-border", hexToRgba(hex, 0.4));
-    root.style.setProperty("--p-hover", hexToRgba(hex, 0.12));
-    root.style.setProperty("--active-bg", hex);
-    root.style.setProperty("--active-text", contrastOn(hex));
-    root.style.setProperty("--active-border", hex);
-    root.style.setProperty("--active-glow", `0 0 12px ${hexToRgba(hex, 0.22)}`);
+    applyAccentToDocument(hex);
   } else {
-    // Clear ALL inline overrides so theme-* classes take over again.
-    // removeProperty() is safe to call on a property that wasn't set —
-    // it just no-ops.
-    for (const varName of ACCENT_VARS) {
-      root.style.removeProperty(varName);
-    }
+    clearAccentFromDocument();
   }
 });
+
+/**
+ * Imperatively apply a custom accent hex to <html> inline styles.
+ *
+ * This mirrors what the `createEffect` above does, but can be called
+ * directly from event handlers (e.g. clicking a preset swatch or the
+ * "Re-extract" button) as a belt-and-suspenders approach: the effect
+ * is the primary mechanism, but calling this helper ensures the inline
+ * styles are applied IMMEDIATELY when the user clicks, without waiting
+ * for SolidJS to batch the signal update and re-run the effect.
+ *
+ * This fixes the bug where the dynamic accent was "partially applied" —
+ * the signal was set but var(--p) on <html> wasn't updated in time, so
+ * some elements still showed the old theme preset color.
+ */
+export function applyAccentToDocument(hex: string): void {
+  if (isServer) return;
+  if (!isValidHex(hex)) return;
+  const root = document.documentElement;
+  // Override ALL accent-sensitive tokens with the custom accent.
+  // Setting --p2 to the same hex as --p is intentional — it makes
+  // every "secondary accent" treatment (badges, hovers, gradients)
+  // match the chosen accent, instead of clashing with the theme
+  // preset's secondary color.
+  root.style.setProperty("--p", hex);
+  root.style.setProperty("--p2", hex);
+  root.style.setProperty("--p-glow", hexToRgba(hex, 0.22));
+  root.style.setProperty("--p-dim", hexToRgba(hex, 0.08));
+  root.style.setProperty("--p-border", hexToRgba(hex, 0.4));
+  root.style.setProperty("--p-hover", hexToRgba(hex, 0.12));
+  root.style.setProperty("--active-bg", hex);
+  root.style.setProperty("--active-text", contrastOn(hex));
+  root.style.setProperty("--active-border", hex);
+  root.style.setProperty("--active-glow", `0 0 12px ${hexToRgba(hex, 0.22)}`);
+}
+
+/**
+ * Imperatively clear ALL accent overrides from <html> inline styles,
+ * so theme-* class definitions take over again.
+ *
+ * Safe to call on the server (no-op) and safe to call when no accent
+ * was previously applied (removeProperty() no-ops on unset properties).
+ */
+export function clearAccentFromDocument(): void {
+  if (isServer) return;
+  const root = document.documentElement;
+  for (const varName of ACCENT_VARS) {
+    root.style.removeProperty(varName);
+  }
+}

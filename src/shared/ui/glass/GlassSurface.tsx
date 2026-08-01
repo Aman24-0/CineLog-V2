@@ -181,7 +181,7 @@ const GlassSurface: ParentComponent<GlassSurfaceProps> = (rawProps) => {
       aria-label={local["aria-label"]}
       aria-describedby={local["aria-describedby"]}
       aria-busy={local.loading || undefined}
-      onKeyDown={local.interactive ? handleKeyDown : undefined}
+      onKeyDown={handleKeyDown}
     >
       <Show when={local.loading}>
         <div

@@ -36,6 +36,12 @@ export const FilterSel: Component<{
   set: (v: string) => void;
   opts: FilterOption[] | string[];
 }> = (props) => {
+  // ESLint: `id` is a stable DOM id derived from props.label once at mount.
+  // The label prop is set by the parent filter drawer and never changes
+  // during the FilterSel's lifetime — making it reactive would just
+  // churn the DOM id (and break <label for=...> association) for no
+  // benefit. Computed once, used as a constant.
+  // eslint-disable-next-line solid/reactivity
   const id = `filter-${props.label.toLowerCase().replace(/\s/g, "-")}`;
   return (
     <div class="flex flex-col gap-1.5">

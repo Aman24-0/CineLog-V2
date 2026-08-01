@@ -552,6 +552,10 @@ export default function CollectionDetailPage() {
   // Note: `filter` here is the useCollectionFilter hook's RETURN OBJECT
   // (status/search/setStatus signals + a `filter` factory method). We
   // call `filter.filter(...)` to invoke the factory.
+  // ESLint: universeEntries is an Accessor passed by reference to the
+  // filter factory, which wraps it in a createMemo (tracked scope). The
+  // lint rule can't see through the factory's call boundary.
+  // eslint-disable-next-line solid/reactivity
   const filteredUniverseEntries = filter.filter(universeEntries);
 
   // Build a derived Collection with the filtered entries for TimelineEngine.

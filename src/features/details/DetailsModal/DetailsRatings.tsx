@@ -68,6 +68,10 @@ export default function DetailsRatings(props: DetailsRatingsProps) {
     return mt;
   });
 
+  // ESLint: tmdbId and mediaType are Accessors passed by reference to
+  // useMdbListRatings, which tracks them inside its own createEffect /
+  // resource fetcher. The lint rule can't see through the hook boundary.
+  // eslint-disable-next-line solid/reactivity
   const { ratings, loading } = useMdbListRatings(tmdbId, mediaType);
 
   return (

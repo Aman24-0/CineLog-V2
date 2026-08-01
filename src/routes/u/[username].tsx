@@ -29,7 +29,7 @@
 //                   viewer-only surfaces.
 
 import { Title } from "@solidjs/meta";
-import { useParams } from "@solidjs/router";
+import { useParams, useNavigate } from "@solidjs/router";
 import { ErrorBoundary, Show, createMemo, For, type Component } from "solid-js";
 
 import { PageContainer } from "~/shared/ui/layout";
@@ -57,9 +57,14 @@ import type { ProfileRow } from "~/lib/supabase/repositories";
 
 const PublicProfileRoute: Component = () => {
   const params = useParams();
+  const navigate = useNavigate();
   const username = createMemo(() => params.username ?? "");
   const { showToast } = useToast();
 
+  // ESLint: username is an Accessor passed by reference to usePublicProfile,
+  // which tracks it inside its own createResource / createEffect. The lint
+  // rule can't see through the hook boundary.
+  // eslint-disable-next-line solid/reactivity
   const publicProfile = usePublicProfile(username);
   const { activeTab, setActiveTab } = useProfileTabs();
 
@@ -182,14 +187,15 @@ const PublicProfileRoute: Component = () => {
   };
 
   // Click handler for activity/favorites items — navigates to the
-  // title's route (no modal on the public profile page to keep the
-  // surface minimal).
+  // title's route via client-side routing (no full page reload, so the
+  // public profile's loaded data + scroll position survives Back).
+  // Previously this used `window.location.href = path` which forced a
+  // full reload — losing the publicProfile hook's cached data and the
+  // tab the viewer had selected.
   const handleItemClick = (item: WatchlistItem) => {
     const path =
       item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
-    if (typeof window !== "undefined") {
-      window.location.href = path;
-    }
+    navigate(path);
   };
 
   const titleText = () => {

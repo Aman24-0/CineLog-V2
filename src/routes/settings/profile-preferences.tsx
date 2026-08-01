@@ -37,46 +37,9 @@ import {
   fallbackLanguage,
   setFallbackLanguage,
   defaultVaultStatus,
-  setDefaultVaultStatus,
-  type VaultStatus,
-  type LanguageCode
+  setDefaultVaultStatus
 } from "~/core/preferences";
-
-const VAULT_STATUS_OPTIONS: { id: VaultStatus; label: string }[] = [
-  { id: "Planned", label: "Planned" },
-  { id: "Plan to Watch", label: "Plan to Watch" },
-  { id: "Watching", label: "Watching" },
-  { id: "Completed", label: "Completed" },
-  { id: "Dropped", label: "Dropped" }
-];
-
-/**
- * Curated UI-language list — these are languages CineLog's UI is translated to
- * (or will be). For any other language, the UI stays English but TMDB metadata
- * is fetched in the chosen language.
- */
-const UI_LANGUAGES: { code: LanguageCode; label: string; native: string }[] = [
-  { code: "en", label: "English", native: "English" },
-  { code: "hi", label: "Hindi", native: "हिन्दी" },
-  { code: "es", label: "Spanish", native: "Español" },
-  { code: "fr", label: "French", native: "Français" },
-  { code: "de", label: "German", native: "Deutsch" },
-  { code: "ja", label: "Japanese", native: "日本語" },
-  { code: "ko", label: "Korean", native: "한국어" },
-  { code: "pt", label: "Portuguese", native: "Português" },
-  { code: "it", label: "Italian", native: "Italiano" },
-  { code: "ru", label: "Russian", native: "Русский" },
-  { code: "zh", label: "Chinese", native: "中文" },
-  { code: "ar", label: "Arabic", native: "العربية" },
-  { code: "ta", label: "Tamil", native: "தமிழ்" },
-  { code: "te", label: "Telugu", native: "తెలుగు" },
-  { code: "kn", label: "Kannada", native: "ಕನ್ನಡ" },
-  { code: "ml", label: "Malayalam", native: "മലയാളം" },
-  { code: "bn", label: "Bengali", native: "বাংলা" },
-  { code: "mr", label: "Marathi", native: "मराठी" },
-  { code: "pa", label: "Punjabi", native: "ਪੰਜਾਬੀ" },
-  { code: "gu", label: "Gujarati", native: "ગુજરાતી" }
-];
+import { UI_LANGUAGES, VAULT_STATUS_OPTIONS } from "~/shared/constants/settings";
 
 const ProfilePreferencesRoute: Component = () => {
   const { user } = useAuth();

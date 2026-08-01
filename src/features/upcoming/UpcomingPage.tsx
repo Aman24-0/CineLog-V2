@@ -161,8 +161,13 @@ const UpcomingPage: Component = () => {
   const [filters, setFilters] = createSignal<UpcomingFilters>(
     buildDefaultFilters()
   );
-  const [draftFilters, setDraftFilters] =
-    createSignal<UpcomingFilters>(filters());
+  // ESLint: draftFilters is intentionally seeded once from the initial
+  // `filters()` value at mount. The draft is the working copy the user
+  // edits in the FilterSheet; it must NOT track `filters` reactively
+  // (otherwise user edits would be clobbered when the
+  // effectiveRegion-sync createEffect updates `filters`).
+  // eslint-disable-next-line solid/reactivity
+  const [draftFilters, setDraftFilters] = createSignal<UpcomingFilters>(filters());
   const [filterSheetOpen, setFilterSheetOpen] = createSignal(false);
   const [sort, setSort] = createSignal(loadUpcomingSort());
   const [view, setView] = createSignal(loadUpcomingView());

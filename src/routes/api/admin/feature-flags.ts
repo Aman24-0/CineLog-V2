@@ -17,6 +17,10 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import {
+  FEATURE_FLAG_DEFAULTS,
+  KNOWN_FLAG_NAMES
+} from "~/core/feature-flags/defaults";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -48,16 +52,11 @@ export async function GET(event: APIEvent) {
       .single();
 
     if (error || !data) {
-      // No row yet — return defaults
+      // No row yet — return defaults from the shared registry.
+      // (Previously these were inlined here, which drifted from the UI's
+      // FLAG_METADATA defaults. Now both sides import from the same module.)
       return jsonResponse({
-        flags: {
-          imdb_integration: true,
-          streaming_button: true,
-          upcoming: true,
-          random_picker: true,
-          ai_recommendations: false,
-          experimental_features: false
-        } satisfies FeatureFlags
+        flags: { ...FEATURE_FLAG_DEFAULTS } satisfies FeatureFlags
       });
     }
 
@@ -102,6 +101,17 @@ export async function PUT(event: APIEvent) {
         return jsonResponse(
           {
             error: `Flag name '${key}' must be snake_case (lowercase letters, digits, underscore)`
+          },
+          400
+        );
+      }
+      // Reject unknown flag names — prevents clients from setting flags
+      // that have no effect (the UI only renders flags from
+      // FEATURE_FLAG_METADATA, so an unknown key would silently be a no-op).
+      if (!KNOWN_FLAG_NAMES.has(key)) {
+        return jsonResponse(
+          {
+            error: `Unknown feature flag '${key}'. Known flags: ${Array.from(KNOWN_FLAG_NAMES).join(", ")}`
           },
           400
         );

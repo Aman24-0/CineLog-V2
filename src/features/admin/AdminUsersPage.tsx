@@ -93,6 +93,12 @@ const AdminUsersPage: Component = () => {
     return (await resp.json()) as ListUsersResponse;
   };
 
+  // ESLint: fetchUsers is a stable closure defined once per component
+  // instance. createResource accepts it as a fetcher and only calls it
+  // when refreshKey changes — passing it by reference is the documented
+  // pattern. The lint rule flags it because it's defined in component
+  // scope, but the reference never changes for the resource's lifetime.
+  // eslint-disable-next-line solid/reactivity
   const [users] = createResource(refreshKey, fetchUsers);
 
   const showToast = (msg: string, type: "success" | "error") => {

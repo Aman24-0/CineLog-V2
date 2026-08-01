@@ -14,6 +14,7 @@
 import { Show, For, createMemo, createSignal, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { useModalState } from "~/shared/hooks/useModalState";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import PageContainer from "~/shared/ui/PageContainer";
 import type { WatchlistItem } from "~/shared/types";
@@ -27,10 +28,40 @@ interface HistoryGroup {
 const HistoryPage: Component = () => {
   const library = useUserLibrary();
   const { isSignedIn, authReady } = useAuth();
+  const modalState = useModalState();
   const [search, setSearch] = createSignal("");
   const [statusFilter, setStatusFilter] = createSignal<
     "all" | "completed" | "watching" | "planned"
   >("all");
+
+  /**
+   * Open the Details modal for a history item.
+   *
+   * The item IS in the user's vault (history is built from the vault),
+   * so `openTitle` will resolve it via findInVault and the modal will
+   * render with full user-owned UI (status, rating, episode progress).
+   *
+   * For TV items, the Details modal opens at the series level — the
+   * user can then navigate seasons via the SeasonNavigator inside the
+   * modal. We deliberately don't try to deep-link to a specific season
+   * here because (a) the history item's `season` field reflects the
+   * user's LAST-WATCHED episode, which is a per-series concept that
+   * the modal already surfaces via the episode tracker, and (b) the
+   * Details modal URL is `/movie/{id}` or `/tv/{id}` (no season query
+   * param exists today).
+   */
+  const handleItemClick = (item: WatchlistItem) => {
+    modalState.openTitle(item, library.watchlist());
+  };
+
+  const handleItemKeyDown = (e: KeyboardEvent, item: WatchlistItem) => {
+    // Activate on Enter or Space — matches the ARIA button pattern.
+    // Space scrolls by default, so preventDefault is required.
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      handleItemClick(item);
+    }
+  };
 
   const loading = createMemo(
     () => !authReady() || (isSignedIn() && library.loading())
@@ -299,15 +330,8 @@ const HistoryPage: Component = () => {
                               class="history-item focus-ring"
                               role="button"
                               tabindex={0}
-                              onClick={() => {
-                                // Open details via the modal state — but for now
-                                // we don't have access to that here. Just navigate.
-                              }}
-                              onKeyDown={(e) => {
-                                if (e.key === "Enter" || e.key === " ") {
-                                  e.preventDefault();
-                                }
-                              }}
+                              onClick={() => handleItemClick(item)}
+                              onKeyDown={(e) => handleItemKeyDown(e, item)}
                               aria-label={`${item.title || item.name} — ${item.status}`}
                             >
                               <div class="history-poster">

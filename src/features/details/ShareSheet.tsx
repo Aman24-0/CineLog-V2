@@ -83,6 +83,10 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     const mt = props.mediaType();
     return mt === "movie" || mt === "tv" ? mt : null;
   });
+  // ESLint: mdbTmdbId and mdbMediaType are Accessors passed by reference
+  // to useMdbListRatings, which tracks them inside its own createEffect /
+  // resource fetcher. The lint rule can't see through the hook boundary.
+  // eslint-disable-next-line solid/reactivity
   const { ratings: mdbRatings } = useMdbListRatings(mdbTmdbId, mdbMediaType);
 
   // Derived values

@@ -255,6 +255,12 @@ export function useSearch(args: UseSearchArgs) {
     return key !== null && vaultKeys().has(key);
   };
 
+  // Derived flags — captured as variables so the linter can analyze the
+  // createMemo return values (also a tiny perf win: declared once per
+  // hook call instead of inline in the returned object literal).
+  const hasQuery = createMemo(() => debouncedQuery().trim().length >= 2);
+  const isGenreBrowse = createMemo(() => genreBrowse().genre !== null);
+
   return {
     query,
     setQuery,
@@ -269,13 +275,13 @@ export function useSearch(args: UseSearchArgs) {
     removeRecent,
     clearRecent,
     isInVault,
-    hasQuery: createMemo(() => debouncedQuery().trim().length >= 2),
+    hasQuery,
     // Genre browse
     genreBrowse,
     browseGenre,
     loadMoreGenre,
     clearGenre,
-    isGenreBrowse: createMemo(() => genreBrowse().genre !== null),
+    isGenreBrowse,
     // Anime fallback (Phase 5) — populated only when TMDB returns 0
     // results AND the query looks anime-related. Rendered as a separate
     // section in SearchResults so the user can distinguish them.

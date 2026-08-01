@@ -98,8 +98,10 @@ export function useCollectionSort(options: UseCollectionSortOptions = {}) {
     mode,
     setMode,
     /** Wrap an entries accessor to get a sorted version. */
-    sort: (entries: Accessor<CollectionEntry[]>) =>
-      createMemo(() => sortEntries(entries())),
+    sort: (entries: Accessor<CollectionEntry[]>) => {
+      const sorted = createMemo(() => sortEntries(entries()));
+      return sorted;
+    },
     /** Direct sort (imperative; useful for one-offs). */
     sortNow: (entries: CollectionEntry[]) => sortEntries(entries)
   };

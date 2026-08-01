@@ -403,6 +403,9 @@ const AdminAnimePage: Component = () => {
             Turn individual anime features on or off. Each toggle takes
             effect immediately for all users.
           </p>
+          {/* TOGGLE_META is a module-level static array (not a signal) —
+              Array#map is correct here; <For> would just add overhead. */}
+          {/* eslint-disable-next-line solid/prefer-for */}
           {TOGGLE_META.map((meta) => (
             <div style={cardStyle}>
               <div style={{ display: "flex", gap: "var(--sp-3)", "align-items": "flex-start", flex: "1" }}>
@@ -447,6 +450,9 @@ const AdminAnimePage: Component = () => {
             reduce AniList API load but mean slower updates when AniList
             data changes.
           </p>
+          {/* NUMERIC_META is a module-level static array (not a signal) —
+              Array#map is correct here; <For> would just add overhead. */}
+          {/* eslint-disable-next-line solid/prefer-for */}
           {NUMERIC_META.map((meta) => (
             <div style={numericRowStyle}>
               <div style={{ flex: "1" }}>

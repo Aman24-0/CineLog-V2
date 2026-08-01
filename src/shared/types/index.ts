@@ -140,6 +140,25 @@ export interface WatchlistItem {
   first_air_date?: string;
   newSeasonAvailable?: boolean;
   directPlayUrl?: string;
+  /**
+   * Whether the user has favorited this vault item. Mirrors the
+   * `is_favorite` column on the `vault` table. Optional because older
+   * items loaded before this field was mapped may not have it set —
+   * callers should treat `undefined` as `false`.
+   *
+   * Toggled by `useVault.toggleFavorite()` and persisted via
+   * `vault.write.ts.updateVaultItem()`.
+   */
+  isFavorite?: boolean;
+  /**
+   * Whether the user has pinned this vault item (e.g. to the top of
+   * the watchlist). Mirrors the `is_pinned` column on the `vault`
+   * table. Optional — same caveat as `isFavorite`.
+   *
+   * Toggled by `useVault.togglePinned()` and persisted via
+   * `vault.write.ts.updateVaultItem()`.
+   */
+  isPinned?: boolean;
 }
 
 export interface User {

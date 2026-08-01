@@ -319,6 +319,10 @@ export default function DiscoverPage() {
     if (!seed) return null;
     return { seedId: String(seed.id), day: personalizedDayKey() };
   });
+  // ESLint: row1Key is an Accessor passed by reference to useDiscoverRow,
+  // which calls it inside a createEffect (tracked scope) at line 54 of
+  // useDiscoverRow.ts. The lint rule can't see through the hook boundary.
+  // eslint-disable-next-line solid/reactivity
   const row1 = useDiscoverRow(row1Key, async (key) => {
     const recs = await getRecommendations("movie", key.seedId);
     return recs;
@@ -338,6 +342,9 @@ export default function DiscoverPage() {
     const genreId = personalized.topGenreId();
     return { genreId, day: personalizedDayKey() }; // genreId may be null
   });
+  // ESLint: row2Key is an Accessor passed by reference to useDiscoverRow
+  // (see row1 comment above).
+  // eslint-disable-next-line solid/reactivity
   const row2 = useDiscoverRow(row2Key, async (key) => {
     if (key.genreId == null) {
       // Cold-start fallback — popular movies.
@@ -407,6 +414,9 @@ export default function DiscoverPage() {
     if (providerId === null) return null;
     return { providerId, region: region(), day: personalizedDayKey() };
   });
+  // ESLint: row3Key is an Accessor passed by reference to useDiscoverRow
+  // (see row1 comment above).
+  // eslint-disable-next-line solid/reactivity
   const row3 = useDiscoverRow(row3Key, async (key) => {
     // Fetch movie + TV in parallel and merge so providers with TV-only
     // content still show titles. Mirrors the existing OttSection logic.
@@ -449,6 +459,9 @@ export default function DiscoverPage() {
   // older films with moderate vote counts) instead of the same 2026
   // movies that appear in every other row.
   const row4Key = createMemo(() => ({ day: personalizedDayKey() }));
+  // ESLint: row4Key is an Accessor passed by reference to useDiscoverRow
+  // (see row1 comment above).
+  // eslint-disable-next-line solid/reactivity
   const row4 = useDiscoverRow(row4Key, async () => {
     return discoverMovies({
       voteAverageGte: 7.0,
@@ -469,6 +482,9 @@ export default function DiscoverPage() {
 
   // ── ROW 5: "Global Pulse" (/trending/all/day) ────────────────────
   const row5Key = createMemo(() => ({ day: personalizedDayKey() }));
+  // ESLint: row5Key is an Accessor passed by reference to useDiscoverRow
+  // (see row1 comment above).
+  // eslint-disable-next-line solid/reactivity
   const row5 = useDiscoverRow(row5Key, async () => {
     return getTrending("all", "day");
   });

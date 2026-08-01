@@ -32,6 +32,12 @@ export interface ActivityFeedProps {
 const PAGE_SIZE = 25;
 
 const ActivityFeed: Component<ActivityFeedProps> = (props) => {
+  // ESLint: props.watchlist is an Accessor<WatchlistItem[] | null | undefined>
+  // (typed in ActivityFeedProps). Passing it by reference to the hook is the
+  // idiomatic SolidJS pattern — the hook tracks it inside its own memos /
+  // createEffects. The lint rule can't see through the hook boundary, so we
+  // suppress it here.
+  // eslint-disable-next-line solid/reactivity
   const { feed, loading, empty } = useActivityFeed(props.watchlist, {
     limit: 50
   });

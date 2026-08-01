@@ -44,41 +44,19 @@ import {
   ratingScale,
   setRatingScale,
   mergeAndSortProviders,
-  type TmdbProvider,
-  type DiscoverTab,
-  type RatingScale
+  type TmdbProvider
 } from "~/core/preferences";
+import {
+  DISCOVER_TAB_OPTIONS,
+  RATING_SCALE_OPTIONS,
+  RATING_CAP_OPTIONS
+} from "~/shared/constants/settings";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import {
   getWatchProviderList,
   getWatchProviderListTv
 } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-
-const DISCOVER_TAB_OPTIONS: { id: DiscoverTab; label: string }[] = [
-  { id: "all", label: "All" },
-  { id: "movie", label: "Movies" },
-  { id: "tv", label: "Series" }
-];
-
-const RATING_SCALE_OPTIONS: { id: RatingScale; label: string }[] = [
-  { id: "10star", label: "10-star" },
-  { id: "5star", label: "5-star" },
-  { id: "thumbs", label: "Thumbs" }
-];
-
-/**
- * Content rating options — depends on country. We show a union of US + India
- * ratings since those are the two most-used regions for CineLog.
- */
-const RATING_CAP_OPTIONS = [
-  { value: "", label: "No cap — show everything" },
-  { value: "G", label: "G (US) / U (IN) — General" },
-  { value: "PG", label: "PG (US) / U/A — Parental Guidance" },
-  { value: "PG-13", label: "PG-13 (US) / U/A 13+ — Teens" },
-  { value: "UA-16", label: "U/A 16+ (IN) — Older Teens" },
-  { value: "R", label: "R (US) / A (IN) — Adult" }
-];
 
 const ContentDiscoverRoute: Component = () => {
   const { showToast } = useToast();

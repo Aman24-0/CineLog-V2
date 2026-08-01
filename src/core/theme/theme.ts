@@ -39,11 +39,18 @@ export const [theme, setTheme] = createSignal<Theme>(
 // We also keep the class on <body> for backwards-compat with any rules
 // that specifically select `body.theme-*`.
 if (!isServer) {
+  // ESLint: these class additions run once at module load to apply the
+  // initial theme class before the createEffect below kicks in (avoids a
+  // one-frame flash of the default theme). The `theme()` read here is
+  // intentionally non-reactive — the createEffect below handles ongoing
+  // updates.
+  // eslint-disable-next-line solid/reactivity
   document.documentElement.classList.add(`theme-${theme()}`);
   // Guard body access — during early hydration document.body may not
   // be available yet if this module is imported before the body element
   // is fully parsed.
   if (document.body) {
+    // eslint-disable-next-line solid/reactivity
     document.body.classList.add(`theme-${theme()}`);
   }
 }

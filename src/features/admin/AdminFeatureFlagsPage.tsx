@@ -9,69 +9,17 @@
 //   - Optimistic UI (toggle immediately, revert on error)
 //
 // FLAG METADATA (descriptions):
-//   Defined locally. To add a new flag, add it here AND in the
-//   migration seed.
+//   Imported from src/core/feature-flags/defaults.ts — the single source
+//   of truth shared with the admin API. To add a new flag, add it there
+//   AND in the migration seed.
 
 import { createSignal, Show, For, onMount, type Component } from "solid-js";
+import {
+  FEATURE_FLAG_METADATA,
+  type FlagMeta
+} from "~/core/feature-flags/defaults";
 
-interface FlagMeta {
-  name: string;
-  description: string;
-  icon: string;
-  /** Where this flag is enforced in the consumer app. */
-  enforced_in: string;
-  default_value: boolean;
-}
-
-const FLAG_METADATA: FlagMeta[] = [
-  {
-    name: "imdb_integration",
-    description:
-      "Show IMDb ratings alongside TMDB ratings on movie/TV detail pages.",
-    icon: "🎭",
-    enforced_in: "Details modal (DetailsRatings), MovieCardRatings",
-    default_value: true
-  },
-  {
-    name: "streaming_button",
-    description:
-      "Show 'Where to Watch' streaming provider buttons on detail pages.",
-    icon: "📺",
-    enforced_in: "Details modal (WhereToWatch component)",
-    default_value: true
-  },
-  {
-    name: "upcoming",
-    description:
-      "Show the 'Upcoming' section in Discover and the upcoming releases page in Profile.",
-    icon: "📅",
-    enforced_in: "DiscoverPage, /profile/upcoming",
-    default_value: true
-  },
-  {
-    name: "random_picker",
-    description: "Show the 'Surprise Me' random-picker card on Discover.",
-    icon: "🎲",
-    enforced_in: "DiscoverPage (Surprise Me section)",
-    default_value: true
-  },
-  {
-    name: "ai_recommendations",
-    description:
-      "Enable AI-powered personalized recommendations. Requires backend integration.",
-    icon: "🤖",
-    enforced_in: "DiscoverPage (Because You Love... section)",
-    default_value: false
-  },
-  {
-    name: "experimental_features",
-    description:
-      "Enable experimental features that may be unstable or incomplete.",
-    icon: "🧪",
-    enforced_in: "Various — used as a gate for in-development features",
-    default_value: false
-  }
-];
+const FLAG_METADATA: readonly FlagMeta[] = FEATURE_FLAG_METADATA;
 
 const AdminFeatureFlagsPage: Component = () => {
   const [flags, setFlags] = createSignal<Record<string, boolean>>({});

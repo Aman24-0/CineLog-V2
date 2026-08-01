@@ -45,10 +45,6 @@ import type { AniListResponse } from "./types";
 
 // ─── Configuration ──────────────────────────────────────────────────
 
-const ANILIST_API_URL =
-  (isServer ? process.env.ANILIST_API_URL : import.meta.env.VITE_ANILIST_API_URL) ||
-  "https://graphql.anilist.co";
-
 /**
  * Server-side proxy route that forwards the request to AniList and
  * optionally injects ANILIST_ACCESS_TOKEN. Used by both server-side
@@ -56,25 +52,6 @@ const ANILIST_API_URL =
  * fetches (so the browser never holds the token).
  */
 const PROXY_URL = "/api/anilist";
-
-/**
- * Whether to use the proxy or hit AniList directly.
- *
- * On the SERVER, we ALWAYS use the proxy path because fetch() needs
- * an absolute URL on Node, and the proxy route runs in the same
- * serverless instance so there's no extra hop.
- *
- * On the CLIENT, we use the proxy too — this keeps rate-limit state
- * centralized per-server (a single user's requests don't poison the
- * bucket for other users on the same IP) and lets us rotate tokens
- * without redeploying the client.
- */
-function resolveEndpoint(): string {
-  // Always use the proxy. The proxy handles forwarding + token injection.
-  // isServer is true → /api/anilist resolves against the server's own origin
-  // via getBaseUrl() (see tmdb.ts for the same pattern).
-  return PROXY_URL;
-}
 
 // ─── In-memory response cache (5-minute TTL) ────────────────────────
 
@@ -102,7 +79,6 @@ function cacheSet<T>(key: string, value: T): void {
 
 // ─── Request deduplication ──────────────────────────────────────────
 
-const DEDUP_WINDOW_MS = 5_000;
 const inFlight = new Map<string, Promise<unknown>>();
 
 function dedupKey(query: string, variables: unknown): string {

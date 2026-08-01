@@ -230,8 +230,14 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
 
         {/* Bars */}
         <For each={props.items}>
-          {(item, idx) => {
-            const cx = xForBar(idx());
+          {(item, _idx) => {
+            // ESLint: _idx is the Accessor<number> from <For>. The render
+            // function of <For> IS reactive (re-runs when the array
+            // changes), but the lint rule doesn't recognize it as a
+            // tracked scope. The index is stable per render — we read it
+            // once into locals below for clarity. Suppress per-line.
+            // eslint-disable-next-line solid/reactivity
+            const cx = xForBar(_idx());
             const top = yForValue(item.value);
             const h = padding.top + innerH() - top;
             const color = item.color ?? props.color ?? "#f5c518";
@@ -240,7 +246,8 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
             const secondaryH = padding.top + innerH() - secondaryTop;
             const secondaryColor = item.secondaryColor ?? "#7c8cff";
             const halfW = props.split ? secondaryBarW() / 2 : barW() / 2;
-            const isHover = hoverIdx() === idx();
+            // eslint-disable-next-line solid/reactivity
+            const isHover = hoverIdx() === _idx();
             const hoverOpacity =
               props.hoverScale === false
                 ? 1
@@ -277,8 +284,8 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                       ry={4}
                       fill={color}
                       opacity={item.value > 0 ? 1 : 0.18}
-                      onMouseEnter={(e) => handleEnter(item, idx(), e)}
-                      onMouseMove={(e) => handleEnter(item, idx(), e)}
+                      onMouseEnter={(e) => handleEnter(item, _idx(), e)}
+                      onMouseMove={(e) => handleEnter(item, _idx(), e)}
                       onMouseLeave={handleLeave}
                       style={{ cursor: "pointer" }}
                     />
@@ -293,8 +300,8 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                     ry={3}
                     fill={color}
                     opacity={item.value > 0 ? 1 : 0.18}
-                    onMouseEnter={(e) => handleEnter(item, idx(), e)}
-                    onMouseMove={(e) => handleEnter(item, idx(), e)}
+                    onMouseEnter={(e) => handleEnter(item, _idx(), e)}
+                    onMouseMove={(e) => handleEnter(item, _idx(), e)}
                     onMouseLeave={handleLeave}
                     style={{ cursor: "pointer" }}
                   />
@@ -307,8 +314,8 @@ export const BarChartV: Component<BarChartVProps> = (props) => {
                     ry={3}
                     fill={secondaryColor}
                     opacity={secondary > 0 ? 1 : 0.18}
-                    onMouseEnter={(e) => handleEnter(item, idx(), e)}
-                    onMouseMove={(e) => handleEnter(item, idx(), e)}
+                    onMouseEnter={(e) => handleEnter(item, _idx(), e)}
+                    onMouseMove={(e) => handleEnter(item, _idx(), e)}
                     onMouseLeave={handleLeave}
                     style={{ cursor: "pointer" }}
                   />
@@ -414,13 +421,16 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
         preserveAspectRatio="xMidYMid meet"
       >
         <For each={props.items}>
-          {(item, idx) => {
-            const y = padding.top + idx() * rowH();
+          {(item, _idx) => {
+            // ESLint: see Bars <For> above — _idx is the <For> Accessor.
+            // eslint-disable-next-line solid/reactivity
+            const y = padding.top + _idx() * rowH();
             const barH = Math.max(14, rowH() - 8);
             const barY = y + (rowH() - barH) / 2;
             const w = (item.value / max()) * innerW();
             const color = item.color ?? "#f5c518";
-            const isHover = hoverIdx() === idx();
+            // eslint-disable-next-line solid/reactivity
+            const isHover = hoverIdx() === _idx();
             const dimmed = hoverIdx() !== null && !isHover;
             return (
               <g
@@ -464,10 +474,10 @@ export const BarChartH: Component<BarChartHProps> = (props) => {
                   rx={4}
                   ry={4}
                   fill={color}
-                  onMouseEnter={(e) => handleEnter(item, idx(), e)}
-                  onMouseMove={(e) => handleEnter(item, idx(), e)}
+                  onMouseEnter={(e) => handleEnter(item, _idx(), e)}
+                  onMouseMove={(e) => handleEnter(item, _idx(), e)}
                   onMouseLeave={handleLeave}
-                  onClick={() => props.onBarClick?.(item, idx())}
+                  onClick={() => props.onBarClick?.(item, _idx())}
                   style={{
                     cursor: props.onBarClick ? "pointer" : "default",
                     transition:
@@ -848,10 +858,13 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
 
         {/* X-axis labels + dots */}
         <For each={props.points}>
-          {(point, idx) => {
-            const x = xForIdx(idx());
+          {(point, _idx) => {
+            // ESLint: see Bars <For> above — _idx is the <For> Accessor.
+            // eslint-disable-next-line solid/reactivity
+            const x = xForIdx(_idx());
             const y = yForValue(point.value);
-            const isHover = hoverIdx() === idx();
+            // eslint-disable-next-line solid/reactivity
+            const isHover = hoverIdx() === _idx();
             return (
               <g>
                 <circle
@@ -861,8 +874,8 @@ export const AreaChartV: Component<AreaChartVProps> = (props) => {
                   fill={color()}
                   stroke="var(--bg, #0a0a0f)"
                   stroke-width={isHover ? 2 : 0}
-                  onMouseEnter={(e) => handleEnter(point, idx(), e)}
-                  onMouseMove={(e) => handleEnter(point, idx(), e)}
+                  onMouseEnter={(e) => handleEnter(point, _idx(), e)}
+                  onMouseMove={(e) => handleEnter(point, _idx(), e)}
                   onMouseLeave={() => {
                     clearHover();
                     setHoverIdx(null);

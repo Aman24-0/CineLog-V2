@@ -171,14 +171,16 @@ export function useCollectionFilter(options: UseCollectionFilterOptions = {}) {
     return false;
   };
 
-  const filter = (entries: Accessor<CollectionEntry[]>) =>
-    createMemo(() => {
+  const filter = (entries: Accessor<CollectionEntry[]>) => {
+    const filtered = createMemo(() => {
       const s = status();
       const q = debouncedSearch();
       const list = entries();
       if (s === "all" && !q) return list;
       return list.filter((e) => matchesStatus(e, s) && matchesSearch(e, q));
     });
+    return filtered;
+  };
 
   return {
     status,

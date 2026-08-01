@@ -16,35 +16,14 @@ import {
 import {
   calPrefs,
   updateCalPref,
-  type FirstDayOfWeek,
-  type TimeFormat,
-  type CalendarView,
   type CalendarPrefs
 } from "~/core/preferences";
-
-const FIRST_DAY_OPTIONS: { id: FirstDayOfWeek; label: string }[] = [
-  { id: 0, label: "Sun" },
-  { id: 1, label: "Mon" },
-  { id: 6, label: "Sat" }
-];
-
-const TIME_FORMAT_OPTIONS: { id: TimeFormat; label: string }[] = [
-  { id: "24h", label: "24h" },
-  { id: "12h", label: "12h" }
-];
-
-const DEFAULT_VIEW_OPTIONS: { id: CalendarView; label: string }[] = [
-  { id: "week", label: "Week" },
-  { id: "month", label: "Month" },
-  { id: "agenda", label: "Agenda" }
-];
-
-const TZ_OPTIONS = [
-  { value: "local", label: "My local time (auto)" },
-  { value: "us-east", label: "US Eastern (ET) — Netflix/HBO default" },
-  { value: "us-pacific", label: "US Pacific (PT) — Apple TV+ default" },
-  { value: "utc", label: "UTC" }
-];
+import {
+  FIRST_DAY_OPTIONS,
+  TIME_FORMAT_OPTIONS,
+  DEFAULT_VIEW_OPTIONS,
+  TZ_OPTIONS
+} from "~/shared/constants/settings";
 
 const CalendarRoute: Component = () => {
   return (

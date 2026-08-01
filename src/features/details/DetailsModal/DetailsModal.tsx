@@ -89,6 +89,10 @@ export default function DetailsModal() {
   });
 
   const { form, setForm, isDirty, resetTo, isEditing, setIsEditing } =
+    // ESLint: vaultItem is an Accessor passed by reference to useDetailsForm,
+    // which tracks it inside its own memos / createEffects. The lint rule
+    // can't see through the hook boundary.
+    // eslint-disable-next-line solid/reactivity
     useDetailsForm(vaultItem);
 
   /**

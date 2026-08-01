@@ -208,15 +208,19 @@ const GlassSkeleton: Component<GlassSkeletonProps> = (rawProps) => {
         aria-hidden="true"
       >
         <For each={Array.from({ length: local.lines })}>
-          {(_, i) => {
-            // `i` is an Accessor<number>; `local.lines` is a plain number.
+          {(_, _i) => {
+            // `_i` is an Accessor<number>; `local.lines` is a plain number.
             // The previous comparison `i === local.lines - 1` compared an
             // Accessor to a number, which TS flagged as "unintentional"
             // and which always evaluated to false — so every skeleton
             // line was rendered full-width instead of the last line
             // being shorter (w-2/3) like the design intends.
-            const w =
-              i() === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
+            //
+            // ESLint: _i is the <For> Accessor. The render function of
+            // <For> IS reactive (re-runs when local.lines changes), but
+            // the lint rule doesn't recognize it as a tracked scope.
+            // eslint-disable-next-line solid/reactivity
+            const w = _i() === local.lines - 1 && local.lines > 1 ? "w-2/3" : "w-full";
             const wProps = resolveWidth(w);
             const hProps = resolveHeight("h-4");
             return (

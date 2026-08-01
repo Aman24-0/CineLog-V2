@@ -93,7 +93,11 @@ export function useAnnouncements(options?: {
   // We don't actually need a dismissed signal — `load()` re-reads localStorage
   // every time it runs (via getDismissedIds). Keep a no-op setter for API
   // compatibility, but the source of truth is localStorage itself.
-  const [, setDismissedSignal] = createSignal<Set<string>>(getDismissedIds());
+  // The first tuple element is intentionally unused; prefix with `_` so the
+  // lint rule knows it's deliberate.
+  const [_dismissedSignal, setDismissedSignal] = createSignal<Set<string>>(
+    getDismissedIds()
+  );
 
   const load = async () => {
     const all = await fetchAnnouncements(audience);

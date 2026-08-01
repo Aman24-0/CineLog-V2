@@ -224,31 +224,41 @@ const useVaultLogic = (): VaultStore => {
     });
   };
   const toggleFavorite = (itemId: string) => {
-    // is_favorite is NOT in WatchlistItem — we must resolve the current value
-    // from the Supabase vault row. Since WatchlistItem doesn't carry is_favorite,
-    // we fetch it here via a direct lookup. If we can't resolve it, we default
-    // to false (so the first toggle makes it a favorite, which is the expected UX).
-    const currentIsFavorite =
-      (findItem(itemId) as WatchlistItem & { isFavorite?: boolean })
-        ?.isFavorite ?? false;
+    // Read the current isFavorite state from the in-memory WatchlistItem.
+    // The vault read adapters (vaultReadAdapter.ts + userLibraryAdapter.ts)
+    // hydrate this field from the `is_favorite` column on the vault table,
+    // defaulting to false when the column is null (handles pre-migration rows).
+    //
+    // Previously this cast `findItem(itemId)` to `WatchlistItem & { isFavorite?: boolean }`
+    // because the field didn't exist on the type — so the cast always read
+    // `undefined` → `false`, meaning toggleFavorite ALWAYS set is_favorite=true
+    // and the user could never un-favorite an item. Now that the field is on
+    // the type and is properly hydrated, the cast is unnecessary and the
+    // toggle correctly flips the current value.
+    const currentIsFavorite = findItem(itemId)?.isFavorite ?? false;
+    const newIsFavorite = !currentIsFavorite;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => toggleFavoriteInSupabase(u, id, mt, currentIsFavorite),
       "",
       "Failed to toggle favorite.",
-      { updatedAt: new Date().toISOString() }
+      // Optimistic update: flip the local isFavorite flag immediately so
+      // the star/heart icon updates without waiting for the round-trip.
+      { isFavorite: newIsFavorite, updatedAt: new Date().toISOString() }
     );
   };
   const togglePinned = (itemId: string) => {
-    const currentIsPinned =
-      (findItem(itemId) as WatchlistItem & { isPinned?: boolean })?.isPinned ??
-      false;
+    // Same pattern as toggleFavorite — read current isPinned from the
+    // hydrated WatchlistItem (no more cast-to-optional-field hack).
+    const currentIsPinned = findItem(itemId)?.isPinned ?? false;
+    const newIsPinned = !currentIsPinned;
     return runWriteOptimistic(
       itemId,
       (u, id, mt) => togglePinnedInSupabase(u, id, mt, currentIsPinned),
       "",
       "Failed to toggle pin.",
-      { updatedAt: new Date().toISOString() }
+      // Optimistic update: flip the local isPinned flag immediately.
+      { isPinned: newIsPinned, updatedAt: new Date().toISOString() }
     );
   };
   const updateProgress = (itemId: string, progressMinutes: number) =>

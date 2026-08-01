@@ -80,13 +80,13 @@ const ReorderModal: Component<ReorderModalProps> = (props) => {
 
   // Local copy of the entries — we mutate this freely during the
   // drag-and-drop session. Only committed to the DB on Save.
-  const [entries, setEntries] = createSignal<CollectionEntry[]>(
-    // Sort by current orderIndex so the list opens in the user's
-    // last-saved order.
-    [...(props.collection.entries ?? [])].sort(
-      (a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0)
-    )
-  );
+  // ESLint: intentionally seeded once from the prop. The ReorderModal is
+  // a modal sheet — the parent passes a stable collection for the sheet's
+  // lifetime, and we want the local `entries` signal to own the working
+  // copy (drag reorder, add-from-vault) without being clobbered by
+  // parent re-renders.
+  // eslint-disable-next-line solid/reactivity
+  const [entries, setEntries] = createSignal<CollectionEntry[]>((props.collection.entries ?? []).slice().sort((a, b) => (a.orderIndex ?? a.order ?? 0) - (b.orderIndex ?? b.order ?? 0)));
 
   // ── Selection (for bulk Move-to-position) ────────────────────
   const [selectedKeys, setSelectedKeys] = createSignal<Set<string>>(new Set());
@@ -541,9 +541,12 @@ interface ReorderRowProps {
 }
 
 function ReorderRow(props: ReorderRowProps) {
-  const sortable = createSortable(
-    `${props.entry.media_type}:${props.entry.id}`
-  );
+  // ESLint: createSortable is called once per row mount with the entry's
+  // stable id. The id is derived from props.entry (which is stable for the
+  // row's lifetime — <For> reuses rows by key) and we want a single
+  // sortable registration per row, not one per prop change.
+  // eslint-disable-next-line solid/reactivity
+  const sortable = createSortable(`${props.entry.media_type}:${props.entry.id}`);
   // Read the active-draggable flag from the dnd context — unused for
   // now (visual feedback handled by the `isDragging` CSS class on
   // the sortable wrapper). Kept here to confirm the context is wired.

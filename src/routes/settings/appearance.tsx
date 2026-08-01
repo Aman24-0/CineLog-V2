@@ -44,89 +44,17 @@ import {
   setReducedMotion,
   highContrast,
   setHighContrast,
-  contrastOn,
-  type ThemeMode,
-  type Density,
-  type FontSize,
-  type PosterQuality,
-  type DateFormat,
-  type ReducedMotionPref
+  contrastOn
 } from "~/core/preferences";
-
-// ────────────────────────────────────────────────────────────────────
-// Curated accent presets (matches src/styles/tokens/colors.css)
-// ────────────────────────────────────────────────────────────────────
-const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: string }[] =
-  [
-    { id: "sage", name: "Sage", desc: "Soft green", swatch: "#a8ff78" },
-    {
-      id: "matrix",
-      name: "Neon Green",
-      desc: "CineLog default",
-      swatch: "#39ff14"
-    },
-    { id: "netflix", name: "Crimson", desc: "Netflix red", swatch: "#ff2d55" },
-    {
-      id: "interstellar",
-      name: "Interstellar",
-      desc: "Deep blue",
-      swatch: "#00c2ff"
-    },
-    {
-      id: "neonhorizon",
-      name: "Neon Horizon",
-      desc: "Pink + cyan",
-      swatch: "#ff2af0"
-    },
-    { id: "vibranium", name: "Vibranium", desc: "Purple", swatch: "#9d4edd" },
-    { id: "cinematic", name: "Cinematic", desc: "Gold", swatch: "#FFD700" },
-    { id: "pearl", name: "Pearl", desc: "Minimal white", swatch: "#ffffff" }
-  ];
-
-// ────────────────────────────────────────────────────────────────────
-// Segmented control option metadata
-// ────────────────────────────────────────────────────────────────────
-const THEME_MODE_OPTIONS: { id: ThemeMode; label: string }[] = [
-  { id: "dark", label: "Dark" },
-  { id: "light", label: "Light" },
-  { id: "system", label: "System" }
-];
-
-const DENSITY_OPTIONS: { id: Density; label: string }[] = [
-  { id: "compact", label: "Compact" },
-  { id: "comfortable", label: "Comfort" },
-  { id: "spacious", label: "Spacious" }
-];
-
-const FONT_SIZE_OPTIONS: { id: FontSize; label: string }[] = [
-  { id: "small", label: "Small" },
-  { id: "medium", label: "Medium" },
-  { id: "large", label: "Large" }
-];
-
-const POSTER_QUALITY_OPTIONS: { id: PosterQuality; label: string }[] = [
-  { id: "high", label: "High" },
-  { id: "medium", label: "Med" },
-  { id: "low", label: "Low" },
-  { id: "auto", label: "Auto" }
-];
-
-const DATE_FORMAT_OPTIONS: {
-  id: DateFormat;
-  label: string;
-  short: string;
-  example: string;
-}[] = [
-  { id: "dmy", label: "DD/MM/YYYY", short: "D/M/Y", example: "15/07/2026" },
-  { id: "mdy", label: "MM/DD/YYYY", short: "M/D/Y", example: "07/15/2026" },
-  { id: "ymd", label: "YYYY-MM-DD", short: "Y-M-D", example: "2026-07-15" }
-];
-
-const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] = [
-  { id: "off", label: "Off" },
-  { id: "on", label: "On" },
-  { id: "system", label: "System" }
-];
+import {
+  THEMES_LIST,
+  THEME_MODE_OPTIONS,
+  DENSITY_OPTIONS,
+  FONT_SIZE_OPTIONS,
+  POSTER_QUALITY_OPTIONS,
+  DATE_FORMAT_OPTIONS,
+  REDUCED_MOTION_OPTIONS
+} from "~/shared/constants/settings";
 
 // ────────────────────────────────────────────────────────────────────
 // Local UI state

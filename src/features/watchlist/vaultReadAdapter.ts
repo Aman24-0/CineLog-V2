@@ -81,7 +81,12 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
       (row.season_rewatch_dates as Record<
         string,
         { start: string; end: string }
-      >[]) ?? []
+      >[]) ?? [],
+    // is_favorite / is_pinned default to false when null (handles rows
+    // created before these columns existed, and the contract that the
+    // WatchlistItem type marks them optional but treats undefined as false).
+    isFavorite: row.is_favorite ?? false,
+    isPinned: row.is_pinned ?? false
   };
 }
 

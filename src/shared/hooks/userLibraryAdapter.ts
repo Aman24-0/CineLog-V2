@@ -151,7 +151,14 @@ export function vaultRowToWatchlistItem(
     // cast/director for those items until the cache expires (24h
     // localStorage / 7d server) and the next fetch populates them.
     director: tmdb?.director,
-    castList: Array.isArray(tmdb?.castList) ? tmdb.castList : undefined
+    castList: Array.isArray(tmdb?.castList) ? tmdb.castList : undefined,
+    // ── Favorite / Pinned flags ──────────────────────────────────────
+    // Mirrors the `is_favorite` and `is_pinned` columns on the vault table.
+    // Default to false when null (handles rows created before these
+    // columns existed). Used by useVault.toggleFavorite / togglePinned
+    // to determine the CURRENT state before flipping it.
+    isFavorite: row.is_favorite ?? false,
+    isPinned: row.is_pinned ?? false
   };
 
   if (progress && row.media_type === "tv") {

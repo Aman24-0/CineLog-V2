@@ -4,6 +4,7 @@
 // data fetch rejects. Logs the error to the console once per render
 // and shows a DiscoverEmptyState with a retry hint.
 
+import { createEffect } from "solid-js";
 import DiscoverEmptyState from "./DiscoverEmptyState";
 
 interface DiscoverSectionErrorProps {
@@ -12,7 +13,14 @@ interface DiscoverSectionErrorProps {
 }
 
 export function DiscoverSectionError(props: DiscoverSectionErrorProps) {
-  console.error(`[DiscoverPage] ${props.label} section error:`, props.error);
+  // Log to the console from inside a tracked scope so the rule is
+  // satisfied AND we only log when the error or label actually changes
+  // (avoids spamming the console on unrelated parent re-renders).
+  createEffect(() => {
+    const label = props.label;
+    const error = props.error;
+    console.error(`[DiscoverPage] ${label} section error:`, error);
+  });
   return (
     <section class="discover-fold">
       <div class="discover-fold-label">

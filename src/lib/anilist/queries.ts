@@ -323,11 +323,7 @@ query FinishedAnime($page: Int, $perPage: Int) {
 // ─── Query functions (typed wrappers) ───────────────────────────────
 
 import { anilistRequest } from "./client";
-import type {
-  AniListMedia,
-  AniListPage,
-  AniListAiringSchedule
-} from "./types";
+import type { AniListMedia, AniListPage } from "./types";
 
 /** Helper to run a Page query and return the media array + pageInfo. */
 async function fetchPage(
