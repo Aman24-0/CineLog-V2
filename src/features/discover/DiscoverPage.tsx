@@ -129,6 +129,10 @@ import type { TMDBTitle } from "~/shared/types";
 // SearchResults component so the search UX is identical to before.
 import { useSearch } from "~/features/search/useSearch";
 import SearchResults from "~/features/search/SearchResults";
+// AniList anime carousels — Phase 3 integration. Renders ONLY when
+// the anime_settings.enabled flag is on (admin-controlled). Each
+// carousel is independent and uses cached AniList → TMDB mapping.
+import { useAnimeCarousels } from "./hooks/useAnimeCarousels";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
@@ -148,6 +152,10 @@ export default function DiscoverPage() {
   // Feature flags + homepage config (admin-controlled per-section visibility).
   const featureFlags = useFeatureFlags();
   const homepageConfig = useHomepageConfig();
+  // Anime carousels (Phase 3) — gated internally by anime_settings.enabled.
+  // Each carousel returns [] when the flag is off, so the <Show> below
+  // just renders nothing. We always call the hook (SolidJS rules-of-hooks).
+  const animeCarousels = useAnimeCarousels();
 
   // Region — single source of truth, reactive. Reads the live signal
   // from `useDiscoverRegion()`, so when the user changes their country
@@ -164,7 +172,9 @@ export default function DiscoverPage() {
     error: searchError,
     commitSearch,
     isInVault,
-    hasQuery
+    hasQuery,
+    animeResults,
+    animeLoading
   } = useSearch({ vault: watchlist });
 
   const handleSearchSubmit = (e: Event) => {
@@ -757,7 +767,117 @@ export default function DiscoverPage() {
                 </ErrorBoundary>
               </Show>
 
-              {/* 9. GUEST SIGN-IN CTA */}
+              {/* 9. ANIME CAROUSELS (Phase 3 — AniList integration).
+                  Renders ONLY when animeCarousels has any titles. Each
+                  rail is gated on its own signal so empty rails are
+                  hidden (no "No titles available." empty states for
+                  anime the user doesn't care about). */}
+              <Show when={animeCarousels.trending().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Trending Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Trending Anime"
+                    icon="whatshot"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.trending()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No trending anime right now."
+                      emptyIcon="whatshot"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.seasonal().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="This Season's Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="This Season's Anime"
+                    icon="event"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.seasonal()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No seasonal anime available."
+                      emptyIcon="event"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.upcoming().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Upcoming Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Upcoming Anime"
+                    icon="upcoming"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.upcoming()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No upcoming anime announced yet."
+                      emptyIcon="upcoming"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.topRated().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Top Rated Anime" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Top Rated Anime"
+                    icon="star"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.topRated()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No top-rated anime available."
+                      emptyIcon="star"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              <Show when={animeCarousels.movies().length > 0}>
+                <ErrorBoundary
+                  fallback={(e) => (
+                    <DiscoverSectionError label="Anime Films" error={e} />
+                  )}
+                >
+                  <DiscoverSectionWrapper
+                    label="Anime Films"
+                    icon="movie"
+                    loading={false}
+                  >
+                    <DiscoverRail
+                      titles={animeCarousels.movies()}
+                      onSelect={handleOpenTitle}
+                      emptyText="No anime films available."
+                      emptyIcon="movie"
+                    />
+                  </DiscoverSectionWrapper>
+                </ErrorBoundary>
+              </Show>
+
+              {/* 10. GUEST SIGN-IN CTA */}
               <Show when={isGuest()}>
                 <div class="discover-guest-nudge">
                   <p
@@ -796,6 +916,8 @@ export default function DiscoverPage() {
               isInVault={isInVault}
               onOpenTitle={handleOpenTitle}
               onAddToVault={addToVault}
+              animeResults={animeResults}
+              animeLoading={animeLoading}
             />
           </div>
         </Show>

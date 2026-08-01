@@ -762,6 +762,70 @@ export type Database = {
           }
         ];
       };
+      // ─── AniList Integration (Phase 0) ─────────────────────────────
+      // Maps TMDB ids to AniList ids so the app can enrich anime
+      // titles with characters, voice actors, relations, airing
+      // schedule, etc. Public read, service-role-only writes.
+      anime_mappings: {
+        Row: {
+          id: string;
+          tmdb_id: number;
+          tmdb_type: "movie" | "tv";
+          anilist_id: number;
+          anilist_type: "ANIME" | "MANGA";
+          title: string | null;
+          match_confidence: "high" | "medium" | "low" | "manual";
+          created_by: string;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tmdb_id: number;
+          tmdb_type?: "movie" | "tv";
+          anilist_id: number;
+          anilist_type?: "ANIME" | "MANGA";
+          title?: string | null;
+          match_confidence?: "high" | "medium" | "low" | "manual";
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tmdb_id?: number;
+          tmdb_type?: "movie" | "tv";
+          anilist_id?: number;
+          anilist_type?: "ANIME" | "MANGA";
+          title?: string | null;
+          match_confidence?: "high" | "medium" | "low" | "manual";
+          created_by?: string;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      // ─── App Config (admin Phase 3) ────────────────────────────────
+      // Generic key/value table used for site-wide settings, feature
+      // flags, homepage config, anime settings, etc.
+      app_config: {
+        Row: {
+          key: string;
+          value: Json;
+          updated_at: string;
+        };
+        Insert: {
+          key: string;
+          value: Json;
+          updated_at?: string;
+        };
+        Update: {
+          key?: string;
+          value?: Json;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
       vault: {
         Row: {
           completed_at: string | null;

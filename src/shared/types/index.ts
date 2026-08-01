@@ -384,6 +384,11 @@ export interface TMDBDetails {
   origin_country?: string[];
   original_name?: string;
   original_title?: string;
+  /** Original language code (e.g. "ja", "en", "hi"). TMDB returns this on
+   *  both /movie/{id} and /tv/{id}. Used by the anime detector (signal 2)
+   *  to identify Japanese animation. Optional because older cached
+   *  TMDBDetails payloads may predate this field being captured. */
+  original_language?: string;
   in_production?: boolean;
   last_air_date?: string;
   // Populated when fetchTmdbDetails requests append=response=videos

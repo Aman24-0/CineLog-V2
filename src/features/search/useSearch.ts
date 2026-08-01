@@ -12,6 +12,10 @@ import { buildVaultKeySet, vaultIdKey } from "~/shared/utils/vaultMatch";
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 import { loadRecent, saveRecent, MAX_RECENT } from "./searchStorage";
 import {
+  searchAnimeFallback,
+  looksLikeAnimeQuery
+} from "./animeSearchFallback";
+import {
   fetchGenrePage,
   emptyGenreBrowse,
   type GenreBrowseState
@@ -70,6 +74,13 @@ export function useSearch(args: UseSearchArgs) {
   const [genreBrowse, setGenreBrowse] =
     createSignal<GenreBrowseState>(emptyGenreBrowse());
 
+  // Anime fallback results (Phase 5). When TMDB search returns no
+  // results AND the query looks anime-related, we fire an AniList
+  // search and map results back to TMDB. The UI renders these as a
+  // separate "Anime Results" section so the user can distinguish them.
+  const [animeResults, setAnimeResults] = createSignal<TMDBTitle[]>([]);
+  const [animeLoading, setAnimeLoading] = createSignal(false);
+
   // Vault key set — composite "{media_type}/{id}" keys for O(1) membership
   // checks. Uses composite keys (not bare ids) because TMDB movie and TV
   // IDs are separate namespaces and can collide.
@@ -115,20 +126,32 @@ export function useSearch(args: UseSearchArgs) {
       setResults(emptyResults());
       setLoading(false);
       setError(null);
+      setAnimeResults([]);
+      setAnimeLoading(false);
       return;
     }
     setLoading(true);
     setError(null);
+    // Reset anime fallback state — will be re-populated if TMDB returns 0.
+    setAnimeResults([]);
+    setAnimeLoading(false);
     searchMulti(q)
       .then((items) => {
         const movies = items.filter((t) => t.media_type === "movie");
         const series = items.filter((t) => t.media_type === "tv");
-        setResults({
-          movies,
-          series,
-          people: [],
-          totalCount: movies.length + series.length
-        });
+        const totalCount = movies.length + series.length;
+        setResults({ movies, series, people: [], totalCount });
+
+        // Phase 5 — AniList fallback. Only fire if TMDB returned zero
+        // results AND the query looks anime-related. This avoids spamming
+        // AniList for every English movie search.
+        if (totalCount === 0 && looksLikeAnimeQuery(q)) {
+          setAnimeLoading(true);
+          searchAnimeFallback(q, 10)
+            .then((titles) => setAnimeResults(titles))
+            .catch(() => setAnimeResults([]))
+            .finally(() => setAnimeLoading(false));
+        }
       })
       .catch((err) => {
         console.error("Search failed:", err);
@@ -252,6 +275,11 @@ export function useSearch(args: UseSearchArgs) {
     browseGenre,
     loadMoreGenre,
     clearGenre,
-    isGenreBrowse: createMemo(() => genreBrowse().genre !== null)
+    isGenreBrowse: createMemo(() => genreBrowse().genre !== null),
+    // Anime fallback (Phase 5) — populated only when TMDB returns 0
+    // results AND the query looks anime-related. Rendered as a separate
+    // section in SearchResults so the user can distinguish them.
+    animeResults,
+    animeLoading
   };
 }

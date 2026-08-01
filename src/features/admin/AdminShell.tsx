@@ -111,6 +111,12 @@ const NAV_ITEMS: NavItem[] = [
     description: "Site-wide configuration"
   },
   {
+    href: "/admin/anime",
+    label: "Anime",
+    icon: "🌸",
+    description: "AniList integration settings"
+  },
+  {
     href: "/admin/logs",
     label: "Audit Logs",
     icon: "📝",

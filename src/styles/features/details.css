@@ -2569,3 +2569,283 @@
   border-top: none;
   margin-top: 0;
 }
+
+/* ──────────────────────────────────────────────────────────────────
+   ANIME ENRICHMENT (Phase 4 — AniList integration)
+   ──────────────────────────────────────────────────────────────────
+   Styles for the AniList-sourced sections in the Details modal.
+   Uses the existing Glass design system + accent variables so the
+   anime sections look native to the rest of the Details page. */
+
+/* Stats strip — small grid of AniList score / popularity / favourites / etc. */
+.anime-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.anime-stat-card {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-2) var(--space-3);
+  text-align: center;
+}
+.anime-stat-value {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--p);
+  line-height: 1.2;
+}
+.anime-stat-label {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-top: 2px;
+}
+.anime-rank-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: var(--space-2);
+  padding: 4px 8px;
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
+  border-radius: var(--radius-sm);
+  color: var(--p);
+  font-size: 0.7rem;
+  font-weight: 600;
+}
+
+/* Studios */
+.anime-studios {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.anime-studio-chip {
+  padding: 4px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+/* Characters & Voice Actors */
+.anime-characters-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.anime-character-card {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.anime-character-image,
+.anime-character-image-placeholder {
+  width: 100%;
+  aspect-ratio: 3/4;
+  object-fit: cover;
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.anime-character-image-placeholder .material-symbols-outlined {
+  font-size: 32px;
+  color: var(--text-dim);
+}
+.anime-character-info {
+  padding: var(--space-2);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.anime-character-name {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  /* 2-line clamp */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.anime-character-role {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--p);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.anime-character-va {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+.anime-va-image {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  object-fit: cover;
+}
+
+/* Relations */
+.anime-relations-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+}
+.anime-relation-card {
+  background: var(--surface-2);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.anime-relation-image,
+.anime-relation-image-placeholder {
+  width: 100%;
+  aspect-ratio: 2/3;
+  object-fit: cover;
+  background: var(--surface-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.anime-relation-image-placeholder .material-symbols-outlined {
+  font-size: 24px;
+  color: var(--text-dim);
+}
+.anime-relation-info {
+  padding: var(--space-2);
+}
+.anime-relation-type {
+  font-size: 0.625rem;
+  font-weight: 600;
+  color: var(--p);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 2px;
+}
+.anime-relation-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.2;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Source Material */
+.anime-source {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-top: var(--space-1);
+  flex-wrap: wrap;
+}
+.anime-source-chip {
+  padding: 4px 10px;
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p);
+}
+.anime-source-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  text-decoration: none;
+}
+.anime-source-link:hover {
+  color: var(--p);
+}
+
+/* Theme songs */
+.anime-themes-group {
+  margin-top: var(--space-1);
+}
+.anime-themes-group-label {
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--p);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  margin-bottom: 4px;
+}
+.anime-theme-entry {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: var(--space-1) 0;
+  border-bottom: 1px solid var(--hairline-1);
+  gap: var(--space-2);
+}
+.anime-theme-entry:last-child {
+  border-bottom: none;
+}
+.anime-theme-text {
+  font-size: 0.8rem;
+  color: var(--text);
+  flex: 1;
+  /* 2-line clamp */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.anime-theme-episodes {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  white-space: nowrap;
+}
+
+/* Airing schedule */
+.anime-airing-card {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-3);
+  background: var(--surface-2);
+  border: 1px solid var(--p-border);
+  border-radius: var(--radius-md);
+}
+.anime-airing-episode {
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--p);
+}
+.anime-airing-date {
+  font-size: 0.8rem;
+  color: var(--text);
+}
+.anime-airing-countdown {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--text-dim);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}

@@ -36,6 +36,13 @@ import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
 import WhereToWatch from "~/features/details/components/WhereToWatch";
 import UserCollectionInfo from "~/features/details/components/UserCollectionInfo";
+// AniList enrichment (Phase 4) — renders characters, studios, relations,
+// airing schedule, OP/ED themes ONLY for anime titles. Self-gating:
+// the hook returns null for non-anime, and AnimeSections renders
+// nothing when anilist is null.
+import AnimeSections from "./AnimeSections";
+import AnimeRecommendations from "./AnimeRecommendations";
+import { useAnimeEnrichment } from "~/features/details/useAnimeEnrichment";
 
 import { useDetailsForm } from "./useDetailsForm";
 import { useDetailsActions } from "./useDetailsActions";
@@ -57,6 +64,10 @@ export default function DetailsModal() {
   const { watchlist } = useVault();
   const library = useUserLibrary();
   const { tmdb, omdb, loading, error, retry } = useDetails(selectedItem);
+  // AniList enrichment (Phase 4). The hook is self-gating — it returns
+  // null for non-anime titles and respects the admin anime_settings
+  // toggles. AnimeSections renders nothing when anilist is null.
+  const animeEnrichment = useAnimeEnrichment(selectedItem, tmdb);
 
   const [showTrailer, setShowTrailer] = createSignal(false);
   const [showFolders, setShowFolders] = createSignal(false);
@@ -357,6 +368,28 @@ export default function DetailsModal() {
                         baseItem={baseItem}
                         watchlist={watchlist}
                         onSelect={handleSelectItem}
+                      />
+                      {/* AniList recommendations (Phase 6) — shown ONLY for
+                          anime titles with a known AniList id. Uses AniList's
+                          recommendation graph (community-rated "if you liked
+                          X, try Y") instead of TMDB's. */}
+                      <AnimeRecommendations
+                        anilistId={animeEnrichment.anilistId}
+                        currentTmdbId={() => baseItem()?.id}
+                        watchlist={watchlist}
+                        onSelect={handleSelectItem}
+                      />
+                      {/* AniList enrichment (Phase 4) — renders ONLY for anime
+                          titles. Sections: studios, characters & VAs, relations,
+                          source material, OP/ED themes, airing schedule. */}
+                      <AnimeSections
+                        anilist={animeEnrichment.anilist}
+                        settings={() => ({
+                          charactersStaff: animeEnrichment.settings.charactersStaff(),
+                          relations: animeEnrichment.settings.relations(),
+                          airingSchedule: animeEnrichment.settings.airingSchedule(),
+                          openingEndingThemes: animeEnrichment.settings.openingEndingThemes()
+                        })}
                       />
                     </Show>
                   </div>
