@@ -171,24 +171,12 @@ export async function updateProfileMetadata(
     bio?: string | null;
     avatarUrl?: string | null;
     bannerUrl?: string | null;
-    socialLinks?: Record<string, string> | null;
   }
 ): Promise<ProfileResult<ProfileRow>> {
   return updateProfile(supabase, userId, payload);
 }
 
-/**
- * Toggle profile visibility (public / private).
- *
- * @returns The updated profile row, or `null` + `error`.
- */
-export async function toggleProfileVisibility(
-  supabase: TypedSupabaseClient,
-  userId: string,
-  isPublic: boolean
-): Promise<ProfileResult<ProfileRow>> {
-  return updateProfile(supabase, userId, { isPublic });
-}
+// toggleProfileVisibility removed — social module removed (is_public no longer used)
 
 // ---------------------------------------------------------------------------
 // Preferences — upsert on the 1:1 user_preferences table

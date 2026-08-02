@@ -183,21 +183,6 @@ export type {
   PresetWriteResult
 } from "./preset";
 
-// ---- FollowsRepository (Profile Redesign) ---------------------------------
-// Modular: follows/ subfolder. Manages the `follows` table — the social
-// graph for follower / following relationships.
-export {
-  followUser,
-  unfollowUser,
-  getFollowers,
-  getFollowing,
-  getFollowCounts,
-  isFollowing
-} from "./follows";
-
-export type {
-  FollowRow,
-  FollowCounts,
-  FollowResult,
-  FollowWriteResult
-} from "./follows";
+// ---- FollowsRepository — REMOVED (Social module) ---------------------------
+// The follows/ subfolder has been deleted. CineLog is now a personal
+// Movie / TV / Anime tracker — all social features have been removed.

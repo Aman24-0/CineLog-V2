@@ -100,9 +100,8 @@ export interface CreateProfilePayload {
  *   • bannerType        — 'upload' | 'url' | 'favorite_movie' | 'default'
  *   • bannerUrl         — image URL for upload/url types, null otherwise
  *
- * Profile redesign (social + privacy):
- *   • socialLinks — JSONB map of platform → URL/handle, or null to clear
- *   • isPublic    — boolean profile visibility (true = public, false = private)
+ * Social fields removed — socialLinks and isPublic are no longer used
+ * in the application (social module removed).
  */
 export interface UpdateProfilePayload {
   readonly username?: string;
@@ -119,10 +118,7 @@ export interface UpdateProfilePayload {
   readonly bannerOverridePath?: string | null;
   readonly bannerType?: "upload" | "url" | "favorite_movie" | "default";
   readonly bannerUrl?: string | null;
-  /** JSONB map of platform → URL/handle (e.g. { twitter: "@user" }). */
-  readonly socialLinks?: Record<string, string> | null;
-  /** Profile visibility toggle — true = public, false = private. */
-  readonly isPublic?: boolean;
+  // socialLinks and isPublic removed — social module removed
 }
 
 /**

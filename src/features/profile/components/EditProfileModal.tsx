@@ -7,7 +7,7 @@
 //   • Avatar:       Current preview + "Upload" / "Use URL" / "Use Google Avatar" buttons
 //   • Banner:       Reuses the existing BannerEditor (which already handles
 //                   upload + URL + favorite-movie modes). Embedded inline.
-//   • Visibility:   is_public toggle (Public / Private)
+//   • (Visibility removed — social features removed, profile is personal-only)
 //
 // On save, calls `updateProfileMetadata` (from the profile repository)
 // with the changed fields, then calls `onClose`. The parent refetches
@@ -69,7 +69,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
   const [bannerType, setBannerType] =
     createSignal<BannerType>("favorite_movie");
   const [bannerUrl, setBannerUrl] = createSignal<string | null>(null);
-  const [isPublic, setIsPublic] = createSignal(true);
+  // isPublic signal removed — social features removed
   const [saving, setSaving] = createSignal(false);
   const [uploadingAvatar, setUploadingAvatar] = createSignal(false);
   const [bannerEditorOpen, setBannerEditorOpen] = createSignal(false);
@@ -106,7 +106,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       setAvatarSource(p.avatar_url ? "url" : "google");
       setBannerType((p.banner_type as BannerType) ?? "favorite_movie");
       setBannerUrl(p.banner_url ?? null);
-      setIsPublic(p.is_public ?? true);
+      // is_public removed — social features removed
     }
   });
 
@@ -174,15 +174,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
       });
       if (result.error) throw result.error;
 
-      // is_public is a separate update (it goes through the same
-      // updateProfile path but we keep it separate for clarity).
-      if (props.profile?.is_public !== isPublic()) {
-        const visResult = await supabase
-          .from("profiles")
-          .update({ is_public: isPublic() })
-          .eq("id", props.userId);
-        if (visResult.error) throw visResult.error;
-      }
+      // is_public update removed — social features removed
 
       showToast("Profile saved.", "success", 1500);
       props.onSaved?.();
@@ -419,34 +411,7 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
               </GlassButton>
             </section>
 
-            {/* ── Visibility ───────────────────────────────────────── */}
-            <section class="edit-profile-modal-section">
-              <h3 class="edit-profile-modal-section-title">Visibility</h3>
-              <label class="edit-profile-modal-toggle-row">
-                <div class="edit-profile-modal-toggle-text">
-                  <span class="edit-profile-modal-toggle-label">
-                    Public profile
-                  </span>
-                  <span class="edit-profile-modal-toggle-desc">
-                    When off, only you can see your profile. Followers /
-                    following counts are hidden.
-                  </span>
-                </div>
-                <button
-                  type="button"
-                  role="switch"
-                  aria-checked={isPublic()}
-                  class={`edit-profile-modal-toggle focus-ring ${isPublic() ? "is-on" : "is-off"}`}
-                  onClick={() => setIsPublic((v) => !v)}
-                  aria-label="Toggle public profile"
-                >
-                  <span
-                    class="edit-profile-modal-toggle-knob"
-                    aria-hidden="true"
-                  />
-                </button>
-              </label>
-            </section>
+            {/* Visibility section removed — social features removed */}
           </div>
 
           {/* Footer — Save / Cancel */}

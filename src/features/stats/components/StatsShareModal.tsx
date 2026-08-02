@@ -103,7 +103,7 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
     const text = shareText();
     const url =
       props.username && props.username.length > 0
-        ? `${typeof window !== "undefined" ? window.location.origin : ""}/u/${props.username}`
+        ? `${typeof window !== "undefined" ? window.location.origin : ""}/profile`
         : typeof window !== "undefined"
           ? window.location.href
           : "";
@@ -328,10 +328,9 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
         </div>
         <Show when={props.username}>
           <p class="stats-share-footnote">
-            Public profile:{" "}
+            Profile:{" "}
             <span>
-              {typeof window !== "undefined" ? window.location.origin : ""}/u/
-              {props.username}
+              {typeof window !== "undefined" ? window.location.origin : ""}/profile
             </span>
           </p>
         </Show>

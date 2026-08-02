@@ -11,23 +11,16 @@ import NavButton from "./NavButton";
  *   the "intentional vs serendipitous" split into a single primary
  *   surface — the user no longer has to switch tabs to do both.
  *
- * Phase 5 — Social:
- *   Added "Feed" as the 4th tab. The feed is the social activity
- *   stream of users the viewer follows (see /api/feed + useFeed).
- *   Placing it last keeps the three library-first tabs (Discover,
- *   Watchlist, Collections) in their familiar positions so existing
- *   muscle memory isn't broken.
- *
- * Bottom nav is now exactly four destinations, in this order:
- *   1. Discover    — serendipitous browsing + intentional search + genre
- *                    exploration, all in one place
- *   2. Watchlist   — the user's library (formerly "Vault")
- *   3. Collections — user folders + subscribed universes (promoted
- *      from a Watchlist sub-page to a primary destination)
- *   4. Feed        — social activity stream of followed users
- *
- * Profile is NOT in the bottom nav — it's accessed from the AppHeader
- * avatar, which navigates to /profile.
+ * Social module removed — "Feed" tab replaced with "Profile":
+ *   The social feed, people search, followers/following, and public
+ *   profile features have been removed. CineLog is now a premium
+ *   personal Movie / TV / Anime tracker. The bottom nav is exactly
+ *   four destinations:
+ *     1. Discover    — serendipitous browsing + intentional search + genre
+ *                      exploration, all in one place
+ *     2. Watchlist   — the user's library (formerly "Vault")
+ *     3. Collections — user folders + subscribed universes
+ *     4. Profile     — personal dashboard (stats, history, achievements)
  *
  * The bar is opaque (not glass) so content scrolling underneath never
  * bleeds through — this matches Letterboxd / Trakt / TV Time, which all
@@ -69,10 +62,10 @@ export default function BottomNavigation() {
       />
 
       <NavButton
-        icon="groups"
-        label="Feed"
-        active={path() === "/feed" || path() === "/people"}
-        onClick={() => go("/feed")}
+        icon="person"
+        label="Profile"
+        active={path() === "/profile" || path().startsWith("/profile/")}
+        onClick={() => go("/profile")}
       />
     </nav>
   );

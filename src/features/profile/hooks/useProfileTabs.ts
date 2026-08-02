@@ -2,7 +2,7 @@
 //
 // useProfileTabs — tiny state hook for the Profile page's tab strip.
 //
-// The Profile page has four tabs: Activity, Favorites, Lists, Achievements.
+// The Profile page has three tabs: Favorites, Lists, Achievements.
 // This hook centralises the active-tab signal + optional localStorage
 // persistence so a page refresh keeps the user on the tab they were
 // viewing. The hook is SSR-safe (localStorage is only read on the client).
@@ -10,10 +10,9 @@
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
 
-export type ProfileTab = "activity" | "favorites" | "lists" | "achievements";
+export type ProfileTab = "favorites" | "lists" | "achievements";
 
 export const PROFILE_TABS: { id: ProfileTab; label: string; icon: string }[] = [
-  { id: "activity", label: "Activity", icon: "timeline" },
   { id: "favorites", label: "Favorites", icon: "favorite" },
   { id: "lists", label: "Lists", icon: "video_library" },
   { id: "achievements", label: "Achievements", icon: "military_tech" }
@@ -26,7 +25,6 @@ function readStoredTab(): ProfileTab | null {
   try {
     const v = localStorage.getItem(STORAGE_KEY);
     if (
-      v === "activity" ||
       v === "favorites" ||
       v === "lists" ||
       v === "achievements"
@@ -56,13 +54,13 @@ function writeStoredTab(tab: ProfileTab) {
  *   • setActiveTab(tab) — switch tabs (also persists to localStorage)
  *
  * On mount, restores the last-used tab from localStorage (default
- * "activity" if no preference is stored).
+ * "favorites" if no preference is stored).
  */
 export function useProfileTabs(): {
   activeTab: Accessor<ProfileTab>;
   setActiveTab: (tab: ProfileTab) => void;
 } {
-  const [activeTab, setActiveTabSignal] = createSignal<ProfileTab>("activity");
+  const [activeTab, setActiveTabSignal] = createSignal<ProfileTab>("favorites");
 
   // Restore last-used tab on mount (client only).
   onMount(() => {

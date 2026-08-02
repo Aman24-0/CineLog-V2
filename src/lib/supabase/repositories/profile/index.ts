@@ -16,11 +16,10 @@
 
 export { ProfileRepository, getProfileRepository } from "./profile.repository";
 export { ensureProfile, checkUsernameAvailability } from "./profile.lifecycle";
-// Profile-redesign write helpers (convenience wrappers around updateProfile
-// for the social/privacy payload shape).
+// Profile write helpers (convenience wrappers around updateProfile).
+// toggleProfileVisibility removed — social module removed.
 export {
-  updateProfileMetadata,
-  toggleProfileVisibility
+  updateProfileMetadata
 } from "./profile.write";
 
 export type {

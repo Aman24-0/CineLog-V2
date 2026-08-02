@@ -125,13 +125,7 @@ export function toProfileUpdate(
     update.banner_override_path = payload.bannerOverridePath;
   if (payload.bannerType !== undefined) update.banner_type = payload.bannerType;
   if (payload.bannerUrl !== undefined) update.banner_url = payload.bannerUrl;
-  // Profile redesign fields — social_links (JSONB) + is_public (boolean).
-  // socialLinks undefined = don't touch; null = clear to empty object;
-  // object = set to that JSONB value.
-  if (payload.socialLinks !== undefined) {
-    update.social_links = payload.socialLinks ?? {};
-  }
-  if (payload.isPublic !== undefined) update.is_public = payload.isPublic;
+  // socialLinks and isPublic removed — social module removed
   return update;
 }
 

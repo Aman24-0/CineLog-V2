@@ -1,13 +1,17 @@
 // src/features/profile/ProfilePage.tsx
 //
-// ProfilePage V3 — modern social dashboard layout.
+// ProfilePage V3 — personal dashboard layout.
 //
-// Structure (per spec):
-//   +-- Banner          (existing ProfileBanner component)
-//   +-- Header          (ProfileHeader — avatar, name, bio, social stats, actions)
+// CineLog is now a premium PERSONAL Movie / TV / Anime tracker.
+// All social features (feed, followers, following, public profile,
+// activity feed for social purposes) have been removed.
+//
+// Structure:
+//   +-- Banner          (ProfileBanner component)
+//   +-- Header          (ProfileHeader — avatar, name, bio, actions)
 //   +-- Stats Row       (ProfileStatsRow — 5 GlassCards: titles, movies, series, hours, avg rating)
-//   +-- Tabs            (ProfileTabs — Activity / Favorites / Lists / Achievements)
-//   |   +-- Tab Content (ActivityFeed / FavoritesGrid / UserListsPreview / AchievementsPreview)
+//   +-- Tabs            (ProfileTabs — Favorites / Lists / Achievements)
+//   |   +-- Tab Content (FavoritesGrid / UserListsPreview / AchievementsPreview)
 //   +-- Quick Action Row (QuickActionRow — Stats / Upcoming / Settings / Trash)
 //
 // State management:
@@ -15,11 +19,6 @@
 //   • editModalOpen — local signal
 //   • profile data — from useProfileData (existing hook)
 //   • stats — from useStats (existing hook, derived from watchlist)
-//   • social stats — from useSocialStats (new hook, fetches follows table)
-//
-// Existing sub-pages (Achievements, Upcoming, Stats, Settings, Trash) are
-// NOT touched — they're navigated to via QuickActionRow and the
-// AchievementsPreview "View all" button.
 
 import { Component, createSignal, createEffect, Show, onMount } from "solid-js";
 import { useNavigate } from "@solidjs/router";
@@ -33,16 +32,13 @@ import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 
 import { useProfileData } from "./useProfileData";
 import { useStats } from "./useStats";
-import { useSocialStats } from "./hooks/useSocialStats";
 import { useProfileTabs } from "./hooks/useProfileTabs";
-import { shareProfileLink } from "./utils/share";
 
-// Sub-components (new V3 layout)
+// Sub-components
 import ProfileBanner from "./components/ProfileBanner";
 import ProfileHeader from "./components/ProfileHeader";
 import ProfileStatsRow from "./components/ProfileStatsRow";
 import ProfileTabs from "./components/ProfileTabs";
-import ActivityFeed from "./components/ActivityFeed";
 import FavoritesGrid from "./components/FavoritesGrid";
 import UserListsPreview from "./components/UserListsPreview";
 import AchievementsPreview from "./components/AchievementsPreview";
@@ -64,7 +60,6 @@ const ProfilePage: Component = () => {
   const { data, loading, error, refetch, watchlist } = useProfileData();
   const { stats } = useStats();
   const { activeTab, setActiveTab } = useProfileTabs();
-  const socialStats = useSocialStats(uid);
 
   const [editModalOpen, setEditModalOpen] = createSignal(false);
 
@@ -76,21 +71,32 @@ const ProfilePage: Component = () => {
     if (uid()) refetch();
   });
 
-  // Share profile link — uses the shared shareProfileLink helper which
-  // tries navigator.share (native sheet) first, then falls back to
-  // clipboard. The URL is built from VITE_APP_URL || window.location.origin
-  // and points to /u/{username} (the public profile route).
+  // Share profile link — copy the profile URL to clipboard.
   const handleShare = async () => {
     const username = data()?.profile?.username;
-    if (!username) {
-      showToast("Set a username before sharing your profile.", "info");
-      return;
-    }
     const name =
       data()?.profile?.display_name ?? user()?.displayName ?? "Cinephile";
-    await shareProfileLink(username, name, (msg, kind, durationMs) =>
-      showToast(msg, kind, durationMs)
-    );
+    try {
+      const origin =
+        (typeof import.meta !== "undefined" &&
+          typeof (import.meta as { env?: { VITE_APP_URL?: string } }).env !==
+            "undefined" &&
+          (import.meta as { env?: { VITE_APP_URL?: string } }).env
+            ?.VITE_APP_URL) ||
+        (typeof window !== "undefined" ? window.location.origin : "");
+      const url = username
+        ? `${origin}/profile`
+        : `${origin}/profile`;
+      if (typeof navigator !== "undefined" && navigator.share) {
+        await navigator.share({ title: `${name} — CineLog`, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        showToast("Profile link copied!", "success");
+      }
+    } catch (err: unknown) {
+      if (err instanceof Error && err.name === "AbortError") return;
+      showToast("Could not share profile link.", "error");
+    }
   };
 
   const handleSignOut = async () => {
@@ -105,11 +111,6 @@ const ProfilePage: Component = () => {
   };
 
   // Navigate to the title's detail page via client-side routing.
-  // Previously this used `window.location.href = path` which triggered a
-  // full page reload — losing SolidJS state (vault cache, scroll position,
-  // open modals). Switching to useNavigate() keeps navigation inside the
-  // SPA, so the profile page's state survives the round-trip when the
-  // user presses Back.
   const handleItemClick = (item: WatchlistItem) => {
     const path =
       item.media_type === "tv" ? `/tv/${item.id}` : `/movie/${item.id}`;
@@ -186,9 +187,7 @@ const ProfilePage: Component = () => {
         {/* ── SIGNED IN — FULL PROFILE (V3 LAYOUT) ── */}
         <Show when={!loading() && isSignedIn() && data()}>
           <div class="profile-content-v3">
-            {/* 1. Banner — reuses the existing ProfileBanner component.
-                 The pencil icon at bottom-right opens the EditProfileModal
-                 (which embeds BannerEditor as a sub-modal). */}
+            {/* 1. Banner */}
             <section
               class="profile-v3-banner-section"
               aria-label="Profile banner"
@@ -200,34 +199,13 @@ const ProfilePage: Component = () => {
               />
             </section>
 
-            {/* 2. Header — avatar, name, @username, member since, bio,
-                   action row (Edit Profile / Share), social stats.
-                   The follower/following counts are clickable →
-                   /u/<username>/followers and /u/<username>/following. */}
+            {/* 2. Header — avatar, name, @username, member since, bio, actions. */}
             <ProfileHeader
               profile={() => data()?.profile ?? null}
               user={user}
               isOwnProfile={() => true}
-              followers={() => socialStats.stats().followers}
-              following={() => socialStats.stats().following}
               onEdit={() => setEditModalOpen(true)}
               onShare={handleShare}
-              onShowFollowers={() => {
-                const uname = data()?.profile?.username;
-                if (uname) {
-                  navigate(`/u/${encodeURIComponent(uname)}/followers`);
-                } else {
-                  showToast("Set a username first to view your followers.", "info");
-                }
-              }}
-              onShowFollowing={() => {
-                const uname = data()?.profile?.username;
-                if (uname) {
-                  navigate(`/u/${encodeURIComponent(uname)}/following`);
-                } else {
-                  showToast("Set a username first to view your following.", "info");
-                }
-              }}
             />
 
             {/* 3. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}
@@ -243,19 +221,6 @@ const ProfilePage: Component = () => {
               aria-labelledby={`profile-tab-${activeTab()}`}
               tabindex={0}
             >
-              {/* Each tab's content is wrapped in a keyed-by-Show
-                  <div class="animate-fade-in"> so the fade-in animation
-                  re-fires every time the user switches tabs (the Show
-                  unmounts its children when its `when` becomes false,
-                  then remounts them — fresh mount = fresh animation). */}
-              <Show when={activeTab() === "activity"}>
-                <div class="animate-fade-in">
-                  <ActivityFeed
-                    watchlist={watchlist}
-                    onItemClick={handleItemClick}
-                  />
-                </div>
-              </Show>
               <Show when={activeTab() === "favorites"}>
                 <div class="animate-fade-in">
                   <FavoritesGrid
@@ -279,9 +244,7 @@ const ProfilePage: Component = () => {
             {/* 5. Quick action row — Stats / Upcoming / Settings / Trash */}
             <QuickActionRow />
 
-            {/* 6. Sign out — quiet, full-width, below the quick actions.
-                   Carries a red danger accent so users can spot the
-                   destructive action at a glance (V3.1 fix). */}
+            {/* 6. Sign out */}
             <button
               type="button"
               class="profile-v3-sign-out profile-v3-sign-out-danger focus-ring"
@@ -296,10 +259,7 @@ const ProfilePage: Component = () => {
         </Show>
       </div>
 
-      {/* Edit Profile modal — embeds the BannerEditor as a sub-modal
-          for banner customization. The top-level bannerEditorOpen
-          signal is retained for future direct-mount use but currently
-          the editor is always reached via the Edit Profile modal. */}
+      {/* Edit Profile modal */}
       <EditProfileModal
         open={editModalOpen()}
         onClose={() => setEditModalOpen(false)}
@@ -312,9 +272,7 @@ const ProfilePage: Component = () => {
   );
 };
 
-// Tiny inline helper to render 5 skeleton stat cards without
-// polluting the imports — kept here because it's only used in the
-// loading state above.
+// Tiny inline helper to render 5 skeleton stat cards.
 function For5() {
   return (
     <>

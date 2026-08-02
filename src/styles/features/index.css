@@ -3,7 +3,9 @@
 
    Each file contains the CSS for a feature area. The order preserves
    cascade priority. Dashboard CSS removed — the Dashboard page was
-   deleted and its responsibilities moved to Watchlist + Profile. */
+   deleted and its responsibilities moved to Watchlist + Profile.
+   Social module CSS (feed.css, share.css) removed — the social
+   features have been removed from CineLog. */
 
 @import "./discover.css";
 @import "./discover-premium.css";
@@ -14,8 +16,6 @@
 @import "./profile.css";
 @import "./settings.css";
 @import "./secondary.css";
-@import "./share.css";
 @import "./stats.css";
 @import "./upcoming.css";
 @import "./trash.css";
-@import "./feed.css";
