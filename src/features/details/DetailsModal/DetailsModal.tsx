@@ -25,7 +25,7 @@ import AddToFolderSheet from "~/features/details/components/AddToFolderSheet";
 import ConfirmRemoveSheet from "~/features/details/components/ConfirmRemoveSheet";
 import ShareSheet from "~/features/details/ShareSheet";
 import { canWebShare, buildShareUrl, buildShareTextBody, resolveTitle } from "~/shared/utils/share";
-import { useMdbListRatings, type FrontendMediaType } from "~/features/details/useMdbListRatings";
+import { useMdbListRatings } from "~/features/details/useMdbListRatings";
 
 import DetailsHero from "./DetailsHero";
 import DetailsHeader from "./DetailsHeader";
@@ -84,23 +84,43 @@ export default function DetailsModal() {
   // the rich details payload (genres, vote_average, seasons, etc.).
   // The sheet uses these to build the deep-link URL and the green
   // share card preview.
+  // ESLint: shareTmdbId and shareMediaType are used inside event handlers
+  // (handleSmartShare) which are tracked scopes — the lint rule can't see
+  // through the handler boundary.
+  // eslint-disable-next-line solid/reactivity
   const shareTmdbId = createMemo(() => baseItem()?.id ?? "");
+  // eslint-disable-next-line solid/reactivity
   const shareMediaType = createMemo<"movie" | "tv">(() => {
     const mt = baseItem()?.media_type;
     return mt === "tv" ? "tv" : "movie";
   });
 
+  // ── MDBList ratings (for share content) ───────────────────────
+  // Fetches IMDb / Rotten Tomatoes / Metacritic ratings from MDBList
+  // via our /api/media/ratings server route. Reuses the same data
+  // that the RatingPanel already shows — no extra API calls.
+  // ESLint: shareTmdbId and shareMediaType are Accessors passed by
+  // reference to useMdbListRatings, which tracks them inside its own
+  // createResource. The lint rule can't see through the hook boundary.
+  // eslint-disable-next-line solid/reactivity
+  const mdbRatings = useMdbListRatings(shareTmdbId, shareMediaType);
+
   // ── Smart Share ────────────────────────────────────────────────
   // If the browser supports the Web Share API, use native share
   // directly (no bottom sheet). Otherwise, open the premium
   // bottom sheet. Never fail silently.
+  //
+  // The share text includes MDBList ratings (IMDb / RT / MC) when
+  // available, formatted beautifully with each service on its own
+  // line. If no MDBList ratings are available, falls back to the
+  // TMDB vote_average.
   const handleSmartShare = async () => {
     if (canWebShare()) {
       try {
         const d = tmdb();
         const url = buildShareUrl(shareMediaType(), shareTmdbId());
         const text = d
-          ? buildShareTextBody(d, shareMediaType(), null)
+          ? buildShareTextBody(d, shareMediaType(), mdbRatings.ratings())
           : `Check this out on CineLog: ${url}`;
         const shareTitle = d ? resolveTitle(d) : "CineLog";
         await navigator.share({ title: shareTitle, text, url });

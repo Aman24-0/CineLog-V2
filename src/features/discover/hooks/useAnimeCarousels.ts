@@ -14,6 +14,12 @@
 // When the master flag is off, the hook returns empty arrays and never
 // fires any AniList requests. When a per-carousel flag is off, only that
 // carousel is skipped.
+//
+// OUTAGE HANDLING:
+//   When AniList is temporarily down (403 "temporarily disabled"), the
+//   hook sets `error` to true so the UI can show a "temporarily
+//   unavailable" message instead of hiding the carousels entirely.
+//   The `retry` function can be called to re-attempt the fetch.
 
 import { createSignal, onMount, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
@@ -38,6 +44,10 @@ export interface AnimeCarousels {
   hiddenGems: Accessor<TMDBTitle[]>;
   movies: Accessor<TMDBTitle[]>;
   loading: Accessor<boolean>;
+  /** True when all carousels failed (e.g. AniList is down). */
+  error: Accessor<boolean>;
+  /** True when AniList returned a 403 outage (temporarily disabled). */
+  outage: Accessor<boolean>;
   retry: () => void;
 }
 
@@ -51,6 +61,8 @@ export function useAnimeCarousels(): AnimeCarousels {
   const [hiddenGems, setHiddenGems] = createSignal<TMDBTitle[]>([]);
   const [movies, setMovies] = createSignal<TMDBTitle[]>([]);
   const [loading, setLoading] = createSignal(false);
+  const [error, setError] = createSignal(false);
+  const [outage, setOutage] = createSignal(false);
 
   const loadAll = () => {
     if (isServer) return;
@@ -58,6 +70,35 @@ export function useAnimeCarousels(): AnimeCarousels {
     // everything. The hook returns empty arrays for all carousels.
     if (!settings.enabled()) return;
     setLoading(true);
+    setError(false);
+    setOutage(false);
+
+    // Track individual carousel results so we can detect when ALL
+    // carousels failed (indicating AniList is down).
+    let failedCount = 0;
+    let outageDetected = false;
+    const totalCarousels = [
+      settings.trendingCarousel(),
+      settings.seasonalCarousel(),
+      settings.upcomingCarousel(),
+      settings.topRatedCarousel(),
+      settings.popularCarousel(),
+      settings.hiddenGemsCarousel(),
+      settings.animeMoviesCarousel()
+    ].filter(Boolean).length;
+
+    const handleResult = (err: unknown) => {
+      failedCount++;
+      // Check if this is an AniList outage error
+      const msg = err instanceof Error ? err.message : String(err);
+      if (
+        msg.includes("temporarily disabled") ||
+        msg.includes("severe stability issues") ||
+        msg.includes("outage")
+      ) {
+        outageDetected = true;
+      }
+    };
 
     // Fetch all enabled carousels in parallel. Each carousel has its
     // own per-carousel flag (defaults to true) so the admin can hide
@@ -68,27 +109,35 @@ export function useAnimeCarousels(): AnimeCarousels {
     // instant and the AniList API is only hit on cache miss.
     Promise.allSettled([
       settings.trendingCarousel()
-        ? getTrendingAnimeCarousel(12).then(setTrending)
+        ? getTrendingAnimeCarousel(12).then(setTrending).catch(handleResult)
         : Promise.resolve(),
       settings.seasonalCarousel()
-        ? getSeasonalAnimeCarousel(12).then(setSeasonal)
+        ? getSeasonalAnimeCarousel(12).then(setSeasonal).catch(handleResult)
         : Promise.resolve(),
       settings.upcomingCarousel()
-        ? getUpcomingAnimeCarousel(12).then(setUpcoming)
+        ? getUpcomingAnimeCarousel(12).then(setUpcoming).catch(handleResult)
         : Promise.resolve(),
       settings.topRatedCarousel()
-        ? getTopRatedAnimeCarousel(12).then(setTopRated)
+        ? getTopRatedAnimeCarousel(12).then(setTopRated).catch(handleResult)
         : Promise.resolve(),
       settings.popularCarousel()
-        ? getPopularAnimeCarousel(12).then(setPopular)
+        ? getPopularAnimeCarousel(12).then(setPopular).catch(handleResult)
         : Promise.resolve(),
       settings.hiddenGemsCarousel()
-        ? getHiddenGemsAnimeCarousel(12).then(setHiddenGems)
+        ? getHiddenGemsAnimeCarousel(12).then(setHiddenGems).catch(handleResult)
         : Promise.resolve(),
       settings.animeMoviesCarousel()
-        ? getAnimeMoviesCarousel(12).then(setMovies)
+        ? getAnimeMoviesCarousel(12).then(setMovies).catch(handleResult)
         : Promise.resolve()
-    ]).finally(() => setLoading(false));
+    ]).finally(() => {
+      setLoading(false);
+      // If ALL carousels failed, set error state so the UI can show
+      // a "temporarily unavailable" message instead of hiding entirely.
+      if (totalCarousels > 0 && failedCount >= totalCarousels) {
+        setError(true);
+        if (outageDetected) setOutage(true);
+      }
+    });
   };
 
   onMount(loadAll);
@@ -102,6 +151,8 @@ export function useAnimeCarousels(): AnimeCarousels {
     hiddenGems,
     movies,
     loading,
+    error,
+    outage,
     retry: loadAll
   };
 }

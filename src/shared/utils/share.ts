@@ -260,7 +260,7 @@ export function buildShareText(
 ): string {
   const body = buildShareTextBody(details, mediaType, mdbRatings);
   const url = buildShareUrl(mediaType, tmdbId);
-  return `${body}\n\n▶️ Start tracking your cinema log on CineLog:\n${url}`;
+  return `${body}\n${url}`;
 }
 
 /**
@@ -273,18 +273,27 @@ export function buildShareText(
  *
  * Layout (same as buildShareText, minus the URL footer):
  *   🎬 {Title}
- *   ⭐ Ratings: IMDb: 7.5/10 | RT: 85% | MC: 70   (if mdbRatings provided)
- *   ⭐ Rating: {X.X/10}                            (fallback: TMDB only)
+ *   ⭐ IMDb • 8.7/10          (if available)
+ *   🍅 Rotten Tomatoes • 96%   (if available)
+ *   🟩 Metacritic • 84         (if available)
+ *   ⭐ Rating: {X.X/10}        (fallback: TMDB only, if no MDBList)
  *   📅 Released: {Mon D, YYYY}
- *   🎭 {Genre1, Genre2, Genre3}
+ *   🎭 {Genre1 • Genre2 • Genre3}
  *   📺 {N} Season(s) · {M} Episode(s)   (TV only)
  *   📖 {Overview (truncated)}
  *
- *   ▶️ Start tracking your cinema log on CineLog
+ *   ━━━━━━━━━━━━━━
+ *   🎞 Track on CineLog
+ *
+ * RATINGS:
+ *   Each available rating service gets its own line with its emoji
+ *   prefix. If a service is unavailable (null, "NR", "0"), it is
+ *   omitted entirely — never display placeholders, null, or undefined.
+ *   If no MDBList ratings are available, falls back to TMDB vote_average.
  *
  * @param mdbRatings Optional MDBList ratings payload. When provided,
- *   the ratings line shows all available services (IMDb / RT / MC)
- *   instead of just the TMDB vote_average. Falls back gracefully.
+ *   the ratings section shows each service on its own line with emoji.
+ *   Falls back gracefully to TMDB vote_average.
  */
 export function buildShareTextBody(
   details: TMDBDetails | WatchlistItem | null | undefined,
@@ -295,25 +304,36 @@ export function buildShareTextBody(
   const dateIso = resolveReleaseDate(details);
   const dateLabel = formatReleaseDate(dateIso);
   const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
-  const mdbLine = formatMdbRatingsLine(mdbRatings ?? null);
   const overview = truncateOverview(
     (details as TMDBDetails)?.overview ?? "",
     280
   );
   const genres =
-    (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
+    (details as TMDBDetails)?.genres?.map((g) => g.name).join(" • ") ?? "";
 
   const lines: string[] = [];
   lines.push(`🎬 ${title}`);
 
-  // Ratings line — prefer the multi-service MDBList line when available.
-  // Fall back to the single TMDB vote_average so the share text always
-  // has SOME rating (unless both are unavailable).
-  if (mdbLine) {
-    lines.push(`⭐ Ratings: ${mdbLine}`);
+  // ── Ratings section ──────────────────────────────────────────────
+  // Each available service gets its own line with emoji prefix.
+  // Unavailable services are omitted entirely.
+  const hasMdbRating = mdbRatings && (
+    isUsableRating(mdbRatings.imdb) ||
+    isUsableRating(mdbRatings.rottenTomatoes) ||
+    isUsableRating(mdbRatings.metacritic)
+  );
+
+  if (hasMdbRating) {
+    const imdb = formatMdbRating(mdbRatings!.imdb);
+    if (imdb) lines.push(`⭐ IMDb • ${imdb}`);
+    const rt = formatMdbRating(mdbRatings!.rottenTomatoes);
+    if (rt) lines.push(`🍅 Rotten Tomatoes • ${rt}`);
+    const mc = formatMdbRating(mdbRatings!.metacritic);
+    if (mc) lines.push(`🟩 Metacritic • ${mc}`);
   } else if (tmdbRating !== "N/A") {
     lines.push(`⭐ Rating: ${tmdbRating}`);
   }
+
   if (dateLabel) {
     lines.push(`📅 Released: ${dateLabel}`);
   }
@@ -345,9 +365,22 @@ export function buildShareTextBody(
   }
 
   lines.push("");
-  lines.push("▶️ Start tracking your cinema log on CineLog");
+  lines.push("━━━━━━━━━━━━━━");
+  lines.push("🎞 Track on CineLog");
 
   return lines.join("\n");
+}
+
+/**
+ * Check if a rating is usable (non-null, non-NR, non-zero).
+ * Used to decide whether to include a rating line in the share text.
+ */
+function isUsableRating(
+  rating: ShareServiceRating | null | undefined
+): boolean {
+  if (!rating) return false;
+  const score = (rating.score ?? "").trim();
+  return !!score && score !== "NR" && score !== "0" && score !== "—" && score !== "-";
 }
 
 /**
@@ -477,13 +510,15 @@ export function sanitizeFilename(title: string): string {
  *
  * Layout:
  *   🎬 Interstellar
- *   IMDb 8.7 | RT 8.4 | MC 90
+ *   ⭐ IMDb • 8.7/10
+ *   🍅 Rotten Tomatoes • 96%
+ *   🟩 Metacritic • 90
  *   📅 Released: Oct 26, 2014
- *   🎭 Adventure, Drama, Science Fiction
+ *   🎭 Adventure • Drama • Science Fiction
  *   ⏱ 169 min
  *   📖 Overview text...
  *   ━━━━━━━━━━━━━━
- *   Track this title on CineLog
+ *   🎞 Track on CineLog
  *   https://cinelogv2.vercel.app/movie/157336
  *   ━━━━━━━━━━━━━━
  *
@@ -506,7 +541,7 @@ export function buildRichShareText(
     280
   );
   const genres =
-    (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
+    (details as TMDBDetails)?.genres?.map((g) => g.name).join(" • ") ?? "";
   const runtime = (details as TMDBDetails)?.runtime;
   const url = buildShareUrl(mediaType, tmdbId);
   const separator = "━━━━━━━━━━━━━━";
@@ -514,19 +549,24 @@ export function buildRichShareText(
   const lines: string[] = [];
   lines.push(`🎬 ${title}`);
 
-  // Ratings line — compact format without labels
-  const mdbLine = formatMdbRatingsLine(mdbRatings ?? null);
-  if (mdbLine) {
-    // Replace "IMDb: X | RT: Y | MC: Z" with "IMDb X | RT Y | MC Z"
-    const compact = mdbLine
-      .replace(/IMDb:\s*/g, "IMDb ")
-      .replace(/RT:\s*/g, "RT ")
-      .replace(/MC:\s*/g, "MC ");
-    lines.push(compact);
+  // Ratings — each service on its own line with emoji prefix
+  const hasMdbRating = mdbRatings && (
+    isUsableRating(mdbRatings.imdb) ||
+    isUsableRating(mdbRatings.rottenTomatoes) ||
+    isUsableRating(mdbRatings.metacritic)
+  );
+
+  if (hasMdbRating) {
+    const imdb = formatMdbRating(mdbRatings!.imdb);
+    if (imdb) lines.push(`⭐ IMDb • ${imdb}`);
+    const rt = formatMdbRating(mdbRatings!.rottenTomatoes);
+    if (rt) lines.push(`🍅 Rotten Tomatoes • ${rt}`);
+    const mc = formatMdbRating(mdbRatings!.metacritic);
+    if (mc) lines.push(`🟩 Metacritic • ${mc}`);
   } else {
     const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
     if (tmdbRating !== "N/A") {
-      lines.push(`TMDB ${tmdbRating}`);
+      lines.push(`⭐ Rating: ${tmdbRating}`);
     }
   }
 
@@ -563,7 +603,7 @@ export function buildRichShareText(
   }
 
   lines.push(separator);
-  lines.push("Track this title on CineLog");
+  lines.push("🎞 Track on CineLog");
   lines.push(url);
   lines.push(separator);
 

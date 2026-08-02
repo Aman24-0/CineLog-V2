@@ -246,6 +246,43 @@ export async function anilistRequest<T = unknown>(
           break;
         }
 
+        // ── 403: AniList temporarily disabled (outage) ────────────────
+        // AniList returns 403 when the API is temporarily disabled due to
+        // stability issues. This is NOT a permanent auth error — it's a
+        // transient outage that should be retried like a 5xx. We check
+        // the response body for the "temporarily disabled" message to
+        // distinguish from genuine 403 auth errors.
+        if (res.status === 403) {
+          let isOutage = false;
+          try {
+            const text = await res.text();
+            if (
+              text.includes("temporarily disabled") ||
+              text.includes("severe stability issues")
+            ) {
+              isOutage = true;
+            }
+          } catch {
+            // Can't read body — assume it's a transient outage.
+            isOutage = true;
+          }
+          if (isOutage) {
+            lastError = new Error(
+              "AniList API is temporarily disabled (outage). Will retry."
+            );
+            if (attempt < retries) {
+              const delay = 2000 * Math.pow(2, attempt);
+              await new Promise((r) => setTimeout(r, delay));
+              continue;
+            }
+            break;
+          }
+          // Genuine 403 — not retryable.
+          throw new Error(
+            `AniList HTTP 403: Forbidden`
+          );
+        }
+
         // ── 5xx: server error → exponential backoff ──────────────────
         if (res.status >= 500 && res.status < 600) {
           lastError = new Error(`AniList server error ${res.status}`);
@@ -257,7 +294,7 @@ export async function anilistRequest<T = unknown>(
           break;
         }
 
-        // ── Non-retryable HTTP errors (4xx except 429) ───────────────
+        // ── Non-retryable HTTP errors (4xx except 429 and 403) ────────
         // Include the response body in the error message so 400s from
         // malformed GraphQL queries (e.g. removed schema fields) are
         // debuggable from the console — AniList's statusText is often

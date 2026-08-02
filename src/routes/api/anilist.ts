@@ -71,10 +71,36 @@ async function fetchWithRetry(
   for (let attempt = 0; attempt <= retries; attempt++) {
     try {
       const res = await fetch(url, init);
+      // ── 5xx: server error → retry ────────────────────────────────
       if (res.status >= 500 && res.status < 600 && attempt < retries) {
         const delay = 1000 * Math.pow(2, attempt);
         await new Promise((r) => setTimeout(r, delay));
         continue;
+      }
+      // ── 403: AniList temporarily disabled (outage) → retry ───────
+      // AniList returns 403 with a "temporarily disabled" message when
+      // the API is down for stability reasons. This is a transient
+      // outage, not a permanent auth error. We check the body to
+      // distinguish from genuine 403s.
+      if (res.status === 403 && attempt < retries) {
+        // Clone the response so we can read the body without consuming it.
+        const cloned = res.clone();
+        try {
+          const text = await cloned.text();
+          if (
+            text.includes("temporarily disabled") ||
+            text.includes("severe stability issues")
+          ) {
+            const delay = 2000 * Math.pow(2, attempt);
+            await new Promise((r) => setTimeout(r, delay));
+            continue;
+          }
+        } catch {
+          // Can't read body — assume transient outage and retry.
+          const delay = 2000 * Math.pow(2, attempt);
+          await new Promise((r) => setTimeout(r, delay));
+          continue;
+        }
       }
       return res;
     } catch (err) {
@@ -135,10 +161,22 @@ export async function POST(event: APIEvent): Promise<Response> {
     // Read body once so we can re-serialize + add cache headers.
     const text = await upstream.text();
     const status = upstream.status;
-    const cacheControl =
-      status >= 200 && status < 300
-        ? CACHE_HEADERS_SUCCESS["Cache-Control"]
-        : CACHE_HEADERS_ERROR["Cache-Control"];
+
+    // Cache control — never cache 403 outage responses (AniList down).
+    // These are transient and should be retried quickly.
+    let cacheControl: string;
+    if (status >= 200 && status < 300) {
+      cacheControl = CACHE_HEADERS_SUCCESS["Cache-Control"];
+    } else if (
+      status === 403 &&
+      (text.includes("temporarily disabled") ||
+        text.includes("severe stability issues"))
+    ) {
+      // AniList outage — don't cache at all (client will retry soon).
+      cacheControl = "no-store, max-age=0";
+    } else {
+      cacheControl = CACHE_HEADERS_ERROR["Cache-Control"];
+    }
 
     // Pass through rate-limit headers so the client can react.
     const rateLimitHeaders: Record<string, string> = {};

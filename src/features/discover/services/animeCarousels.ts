@@ -279,8 +279,22 @@ async function cachedCarousel(
     async () => {
       try {
         const result = await fetchAnilist();
-        return await anilistMediaToTmdbTitles(result.media, limit);
+        const titles = await anilistMediaToTmdbTitles(result.media, limit);
+        return titles;
       } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err);
+        // If AniList is in an outage state, don't cache the empty result.
+        // Propagate the error so the useAnimeCarousels hook can detect
+        // the outage and show the "temporarily unavailable" state.
+        if (
+          msg.includes("temporarily disabled") ||
+          msg.includes("severe stability issues") ||
+          msg.includes("outage")
+        ) {
+          throw err;
+        }
+        // Other errors (bad mappings, TMDB failures) are non-fatal.
+        // Return empty array so the carousel simply doesn't render.
         console.warn(`[animeCarousels] ${cacheKey} failed:`, err);
         return [];
       }

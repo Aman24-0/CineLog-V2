@@ -807,10 +807,49 @@ export default function DiscoverPage() {
               </Show>
 
               {/* 9. ANIME CAROUSELS (Phase 3 — AniList integration).
-                  Renders ONLY when animeCarousels has any titles. Each
-                  rail is gated on its own signal so empty rails are
-                  hidden (no "No titles available." empty states for
-                  anime the user doesn't care about). */}
+                  Renders ONLY when animeCarousels has any titles OR when
+                  AniList is in an outage state. Each rail is gated on its
+                  own signal so empty rails are hidden (no "No titles
+                  available." empty states for anime the user doesn't care
+                  about). When AniList is down, a single "Anime data
+                  temporarily unavailable" message is shown. */}
+              <Show when={animeCarousels.loading()}>
+                <RowSkeleton />
+              </Show>
+
+              <Show when={animeCarousels.outage() && !animeCarousels.loading()}>
+                <section class="discover-fold" aria-label="Anime — Temporarily Unavailable">
+                  <div class="discover-fold-header">
+                    <div class="discover-fold-label">
+                      <span class="material-symbols-outlined" aria-hidden="true">
+                        anime
+                      </span>
+                      Anime
+                    </div>
+                  </div>
+                  <div class="discover-empty-state">
+                    <span class="material-symbols-outlined discover-empty-icon" aria-hidden="true">
+                      cloud_off
+                    </span>
+                    <p class="type-body-soft">Anime data is temporarily unavailable</p>
+                    <p class="type-caption" style={{ color: "var(--text-muted)" }}>
+                      AniList is experiencing issues. Anime carousels will return when service is restored.
+                    </p>
+                    <button
+                      type="button"
+                      class="btn-ghost focus-ring"
+                      style={{ "margin-top": "0.75rem" }}
+                      onClick={animeCarousels.retry}
+                    >
+                      <span class="material-symbols-outlined" aria-hidden="true">
+                        refresh
+                      </span>
+                      Retry
+                    </button>
+                  </div>
+                </section>
+              </Show>
+
               <Show when={animeCarousels.trending().length > 0}>
                 <ErrorBoundary
                   fallback={(e) => (
