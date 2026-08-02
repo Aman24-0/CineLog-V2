@@ -83,7 +83,7 @@ const FeedPage: Component = () => {
   };
 
   const handleDiscoverClick = () => {
-    navigate("/discover");
+    navigate("/people");
   };
 
   const handleSignInClick = () => {
@@ -187,15 +187,15 @@ const FeedPage: Component = () => {
           <GlassEmptyState
             icon="group"
             title="No activity yet"
-            message="Follow some cinephiles to see their latest watches, ratings, and collections here. Discover titles to find users with similar taste."
+            message="Follow some cinephiles to see their latest watches, ratings, and collections here."
             variant="default"
             action={
               <GlassButton
                 variant="primary"
                 onClick={handleDiscoverClick}
-                icon="explore"
+                icon="person_search"
               >
-                Discover titles
+                Find people to follow
               </GlassButton>
             }
           />

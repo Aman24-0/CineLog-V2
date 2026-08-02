@@ -547,3 +547,48 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
+
+/* ─── Find People Page (/people) ───────────────────────────────────
+   Mirrors the FeedPage header + list layout for visual consistency. */
+
+.people-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1, 4px);
+  padding: var(--sp-5, 20px) var(--sp-4, 16px) var(--sp-3, 12px);
+}
+
+.people-title {
+  font-family: var(--font-heading, "Playfair Display", serif);
+  font-size: var(--text-2xl, 1.5rem);
+  font-weight: 700;
+  color: var(--text-strong, #fff);
+  margin: 0;
+  line-height: 1.15;
+}
+
+.people-subtitle {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted, #888);
+  margin: 0;
+}
+
+.people-search-wrap {
+  padding: 0 var(--sp-4, 16px) var(--sp-3, 12px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-base, #0a0a0a) 80%,
+    transparent 100%
+  );
+  backdrop-filter: blur(8px);
+}
+
+.people-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 8px);
+  padding: 0 var(--sp-4, 16px) var(--sp-4, 16px);
+}
