@@ -326,3 +326,224 @@
     transition: none;
   }
 }
+
+/* ─── Followers / Following List Page ──────────────────────────────
+   Shared styles for /u/<username>/followers and /u/<username>/following.
+   Mirrors the FeedPage header + list layout so the social surfaces
+   feel consistent. */
+
+.follow-list-header {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 12px);
+  padding: var(--sp-5, 20px) var(--sp-4, 16px) var(--sp-3, 12px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-base, #0a0a0a) 70%,
+    transparent 100%
+  );
+  backdrop-filter: blur(8px);
+}
+
+.follow-list-back-btn {
+  background: none;
+  border: none;
+  padding: var(--sp-1, 4px);
+  cursor: pointer;
+  color: var(--text-strong, #fff);
+  border-radius: var(--radius-sm, 6px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: background var(--dur-base, 220ms) var(--ease-out, ease-out);
+}
+
+.follow-list-back-btn:hover {
+  background: var(--glass-bg-strong, rgba(255, 255, 255, 0.08));
+}
+
+.follow-list-back-btn .material-symbols-outlined {
+  font-size: 22px;
+}
+
+.follow-list-header-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.follow-list-title {
+  font-family: var(--font-heading, "Playfair Display", serif);
+  font-size: var(--text-xl, 1.25rem);
+  font-weight: 700;
+  color: var(--text-strong, #fff);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.follow-list-subtitle {
+  font-size: var(--text-sm, 0.875rem);
+  color: var(--text-muted, #888);
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.follow-list,
+.follow-list-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 8px);
+  padding: 0 var(--sp-4, 16px) var(--sp-4, 16px);
+}
+
+/* ─── UserListItem ───────────────────────────────────────────────── */
+
+.user-list-item {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 12px);
+  padding: var(--sp-3, 12px);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+  backdrop-filter: blur(20px) saturate(180%);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 12px);
+  transition:
+    background var(--dur-base, 220ms) var(--ease-out, ease-out),
+    border-color var(--dur-base, 220ms) var(--ease-out, ease-out);
+}
+
+.user-list-item:hover {
+  background: var(--glass-bg-strong, rgba(255, 255, 255, 0.08));
+  border-color: var(--glass-border-strong, rgba(255, 255, 255, 0.16));
+}
+
+.user-list-item-avatar-btn {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  border-radius: 50%;
+  overflow: hidden;
+  transition: transform var(--dur-base, 220ms) var(--ease-spring, ease);
+}
+
+.user-list-item-avatar-btn:hover:not(:disabled) {
+  transform: scale(1.05);
+}
+
+.user-list-item-avatar-btn:disabled {
+  cursor: default;
+}
+
+.user-list-item-avatar {
+  width: 40px !important;
+  height: 40px !important;
+}
+
+.user-list-item-text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+}
+
+.user-list-item-text:disabled {
+  cursor: default;
+}
+
+.user-list-item-name {
+  font-size: var(--text-sm, 0.875rem);
+  font-weight: 600;
+  color: var(--text-strong, #fff);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.user-list-item-username {
+  font-size: var(--text-xs, 0.75rem);
+  color: var(--text-muted, #888);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ─── Skeleton ───────────────────────────────────────────────────── */
+
+.user-list-item-skeleton {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 12px);
+  padding: var(--sp-3, 12px);
+  background: var(--glass-bg, rgba(255, 255, 255, 0.04));
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.08));
+  border-radius: var(--radius-md, 12px);
+}
+
+.user-list-item-skeleton-avatar {
+  width: 40px !important;
+  height: 40px !important;
+  flex-shrink: 0;
+}
+
+.user-list-item-skeleton-text {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1, 4px);
+}
+
+/* ─── Load-More + Sentinel + End Marker ────────────────────────────
+   Reuses the .feed-spin keyframes from feed.css (same file). */
+
+.follow-list-load-more {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2, 8px);
+  padding: var(--sp-4, 16px);
+  color: var(--text-muted, #888);
+  font-size: var(--text-sm, 0.875rem);
+}
+
+.follow-list-sentinel {
+  width: 100%;
+  height: 1px;
+}
+
+.follow-list-end {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3, 12px);
+  padding: var(--sp-5, 20px) var(--sp-4, 16px);
+  color: var(--text-muted, #888);
+}
+
+.follow-list-end-line {
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border, rgba(255, 255, 255, 0.08));
+  max-width: 80px;
+}
+
+.follow-list-end-text {
+  font-size: var(--text-xs, 0.75rem);
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
