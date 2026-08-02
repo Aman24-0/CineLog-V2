@@ -11,12 +11,20 @@ import NavButton from "./NavButton";
  *   the "intentional vs serendipitous" split into a single primary
  *   surface — the user no longer has to switch tabs to do both.
  *
- * Bottom nav is now exactly three destinations, in this order:
+ * Phase 5 — Social:
+ *   Added "Feed" as the 4th tab. The feed is the social activity
+ *   stream of users the viewer follows (see /api/feed + useFeed).
+ *   Placing it last keeps the three library-first tabs (Discover,
+ *   Watchlist, Collections) in their familiar positions so existing
+ *   muscle memory isn't broken.
+ *
+ * Bottom nav is now exactly four destinations, in this order:
  *   1. Discover    — serendipitous browsing + intentional search + genre
  *                    exploration, all in one place
  *   2. Watchlist   — the user's library (formerly "Vault")
  *   3. Collections — user folders + subscribed universes (promoted
  *      from a Watchlist sub-page to a primary destination)
+ *   4. Feed        — social activity stream of followed users
  *
  * Profile is NOT in the bottom nav — it's accessed from the AppHeader
  * avatar, which navigates to /profile.
@@ -58,6 +66,13 @@ export default function BottomNavigation() {
         label="Collections"
         active={path() === "/collections" || path().startsWith("/collections/")}
         onClick={() => go("/collections")}
+      />
+
+      <NavButton
+        icon="groups"
+        label="Feed"
+        active={path() === "/feed"}
+        onClick={() => go("/feed")}
       />
     </nav>
   );
