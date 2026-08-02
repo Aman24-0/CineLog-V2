@@ -2737,12 +2737,15 @@
 /* ─── Social Stats (V3 — inline variant) ───────────────────────────────── */
 
 /* ─── Edit Profile Modal (V3) ──────────────────────────────────────────── */
-
-/* ─── Edit Profile Modal (V3) ──────────────────────────────────────────── */
 .edit-profile-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999990;
+  /* z-index 999999 matches the AppShell modals (DetailsModal, AuthModal,
+     CollectionModal) so the EditProfileModal is never blocked by them.
+     The BannerEditor sub-modal is also at 999999 but renders LATER in
+     the DOM (it's a child of EditProfileModal), so it paints on top
+     via DOM order. */
+  z-index: 999999;
   display: flex;
   align-items: flex-end;
   justify-content: center;

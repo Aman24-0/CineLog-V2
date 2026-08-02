@@ -37,6 +37,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
   const [uploading, setUploading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
   const [saving, setSaving] = createSignal(false);
+  // Store the selected File so we can re-compress + upload on save
+  // without re-reading from the DOM (which is fragile — the file input
+  // might have been cleared or might not have the expected ID).
+  let selectedFile: File | null = null;
 
   // Reset state when the editor mounts (props may change between opens
   // because the parent gates this component with <Show>, so it remounts
@@ -91,8 +95,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
     setError(null);
     setUploading(true);
     try {
+      // Store the file for the save handler.
+      selectedFile = file;
+      // Generate a local preview URL using the compressed blob.
       const blob = await compressBannerImage(file);
-      // Preview as data URL
       const dataUrl = await new Promise<string>((resolve, reject) => {
         const reader = new FileReader();
         reader.onload = () => resolve(reader.result as string);
@@ -141,21 +147,12 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
       }
 
       if (preview.type === "upload" && previewUrl()) {
-        // Upload the compressed blob to Supabase Storage
-        // We need to re-compress since we only stored the data URL
-        // Actually, the data URL IS the compressed image — we can
-        // upload it directly as a data URL, or re-upload from the blob.
-        // For simplicity, we store the data URL. For production, we'd
-        // upload to Supabase Storage and store the public URL.
-        // Let's try Storage first, fall back to data URL.
+        // Upload the selected file to Supabase Storage.
+        // We use the stored selectedFile (set in handleFileSelect) so
+        // we don't have to re-read from the DOM (which is fragile).
         try {
-          // Re-read the file and compress
-          const fileInput = document.getElementById(
-            "banner-file-input"
-          ) as HTMLInputElement;
-          const file = fileInput?.files?.[0];
-          if (file) {
-            const blob = await compressBannerImage(file);
+          if (selectedFile) {
+            const blob = await compressBannerImage(selectedFile);
             const storageUrl = await uploadBannerToSupabase(props.userId, blob);
             const ok = await props.onSave("upload", storageUrl);
             if (!ok) {
@@ -163,7 +160,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
               return;
             }
           } else {
-            // Fallback: save the data URL directly
+            // Fallback: save the data URL directly (no file selected —
+            // shouldn't happen because currentPreview() requires
+            // previewUrl() to be set, which only happens after a file
+            // is selected. But defensive.)
             const ok = await props.onSave("upload", previewUrl());
             if (!ok) {
               setError("Failed to save banner. Try again.");
@@ -172,12 +172,12 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           }
         } catch (err) {
           console.error("[BannerEditor] Upload failed:", err);
-          // Fallback: save the data URL
-          const ok = await props.onSave("upload", previewUrl());
-          if (!ok) {
-            setError("Failed to save banner. Try again.");
-            return;
-          }
+          setError(
+            err instanceof Error
+              ? `Upload failed: ${err.message}`
+              : "Upload failed. Try again."
+          );
+          return;
         }
       } else if (preview.type === "url") {
         const ok = await props.onSave("url", preview.url);
