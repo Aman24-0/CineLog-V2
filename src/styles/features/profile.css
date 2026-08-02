@@ -3084,3 +3084,27 @@
   border-top: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
   flex-shrink: 0;
 }
+
+/* ─── Follow button row (public profile) ───────────────────────────
+   Renders below the ProfileHeader when viewing someone else's profile.
+   Holds the FollowButton (Follow / Following toggle). The row is
+   centered + tight so the button is in the thumb zone without
+   crowding the social-stats row beneath. */
+
+.profile-v3-follow-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: var(--sp-2, 8px) var(--sp-4, 16px) var(--sp-1, 4px);
+}
+
+@media (max-width: 640px) {
+  .profile-v3-follow-row {
+    justify-content: stretch;
+  }
+  /* Make the button fill the row on mobile so it's a comfortable
+     thumb target. */
+  .profile-v3-follow-row > :global(button) {
+    width: 100%;
+  }
+}

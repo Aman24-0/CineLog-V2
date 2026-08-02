@@ -1,6 +1,78 @@
 // src/shared/utils/date.ts
 import type { WatchlistItem } from "~/shared/types";
 
+/**
+ * Format an ISO timestamp as a human-friendly relative string.
+ *
+ *   < 1 min  → "just now"
+ *   < 60 min → "5m ago"
+ *   < 24 h   → "3h ago"
+ *   < 7 d    → "2d ago"
+ *   < 4 w    → "1w ago"
+ *   < 1 y    → "Mar 14"  (no year — same-year dates omit it)
+ *   ≥ 1 y    → "Mar 14, 2024"
+ *
+ * Used by the activity FeedItem to render "watched 3h ago" / "added
+ * 2d ago" without taking too much horizontal space.
+ *
+ * Returns null when the input is missing or unparseable so callers
+ * can fall back to a literal date or skip the timestamp entirely.
+ *
+ * @example formatRelativeTime("2026-08-02T10:00:00Z")  → "just now" (if now)
+ * @example formatRelativeTime("2026-08-01T10:00:00Z")  → "1d ago"
+ * @example formatRelativeTime(undefined)                → null
+ */
+export function formatRelativeTime(
+  input: string | number | Date | null | undefined,
+  now: Date = new Date()
+): string | null {
+  if (input == null || input === "") return null;
+  const d = input instanceof Date ? input : new Date(input);
+  if (isNaN(d.getTime())) return null;
+
+  const diffMs = now.getTime() - d.getTime();
+  // Future timestamps (clock skew) — clamp to 0 so we don't show
+  // negative durations.
+  const pastMs = Math.max(0, diffMs);
+
+  const SEC = 1000;
+  const MIN = 60 * SEC;
+  const HOUR = 60 * MIN;
+  const DAY = 24 * HOUR;
+  const WEEK = 7 * DAY;
+  const YEAR = 365 * DAY;
+
+  if (pastMs < MIN) return "just now";
+  if (pastMs < HOUR) {
+    const m = Math.floor(pastMs / MIN);
+    return `${m}m ago`;
+  }
+  if (pastMs < DAY) {
+    const h = Math.floor(pastMs / HOUR);
+    return `${h}h ago`;
+  }
+  if (pastMs < WEEK) {
+    const d2 = Math.floor(pastMs / DAY);
+    return `${d2}d ago`;
+  }
+  if (pastMs < 4 * WEEK) {
+    const w = Math.floor(pastMs / WEEK);
+    return `${w}w ago`;
+  }
+  if (pastMs < YEAR) {
+    // Same-year dates omit the year.
+    return d.toLocaleDateString("en-US", {
+      month: "short",
+      day: "numeric"
+    });
+  }
+  return d.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+}
+
 // Firestore returns timestamps as { seconds, nanoseconds } objects (or as
 // Timestamp instances which expose the same shape). Normalize any of those,
 // plus Date / ISO string, to a JS Date — or null if not parseable.

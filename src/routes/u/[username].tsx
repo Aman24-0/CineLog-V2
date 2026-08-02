@@ -35,7 +35,9 @@ import { ErrorBoundary, Show, createMemo, For, type Component } from "solid-js";
 import { PageContainer } from "~/shared/ui/layout";
 import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
+import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import FollowButton from "~/shared/ui/social/FollowButton";
 
 import ProfileBanner from "~/features/profile/components/ProfileBanner";
 import ProfileHeader from "~/features/profile/components/ProfileHeader";
@@ -45,6 +47,8 @@ import ActivityFeed from "~/features/profile/components/ActivityFeed";
 import AchievementsPreview from "~/features/profile/components/AchievementsPreview";
 import { useProfileTabs } from "~/features/profile/hooks/useProfileTabs";
 import { usePublicProfile } from "~/features/profile/hooks/usePublicProfile";
+import { useSocialStats } from "~/features/profile/hooks/useSocialStats";
+import { useFollow } from "~/shared/hooks/social/useFollow";
 import { shareProfileLink } from "~/features/profile/utils/share";
 import type { StatsData } from "~/features/profile/useStats";
 import type { ProfileData } from "~/features/profile/useProfileData";
@@ -60,6 +64,7 @@ const PublicProfileRoute: Component = () => {
   const navigate = useNavigate();
   const username = createMemo(() => params.username ?? "");
   const { showToast } = useToast();
+  const { user: viewerUser } = useAuth();
 
   // ESLint: username is an Accessor passed by reference to usePublicProfile,
   // which tracks it inside its own createResource / createEffect. The lint
@@ -68,12 +73,37 @@ const PublicProfileRoute: Component = () => {
   const publicProfile = usePublicProfile(username);
   const { activeTab, setActiveTab } = useProfileTabs();
 
+  // Real social stats — fetch follower + following counts for the
+  // profile being viewed (NOT the viewer's own counts). The hook is
+  // reactive to the profile's user id, so it re-fetches when the
+  // route changes to a different /u/<username>.
+  const profileUserId = createMemo(() => publicProfile.profile()?.id ?? null);
+  // eslint-disable-next-line solid/reactivity
+  const socialStats = useSocialStats(profileUserId);
+
+  // Follow relationship — tracks whether the current viewer is
+  // following this profile. The hook handles the auth gate (signed-out
+  // viewers see "Follow" but clicking opens the auth modal), the
+  // optimistic update, and the toast feedback.
+  // eslint-disable-next-line solid/reactivity
+  const follow = useFollow(profileUserId);
+
   // For logged-out viewers, useAuth returns a null user. ProfileHeader
   // accepts an Accessor<User | null> — passing a constant-null accessor
   // is fine and the component falls back to the profile's display_name.
   const nullUser = (): User | null => null;
-  const zeroAccessor = (): number => 0;
   const noop = () => {};
+
+  // Is the viewer looking at their own profile? When true, we hide
+  // the FollowButton (you can't follow yourself). This also handles
+  // the case where the viewer is signed out (user() is null → not
+  // own profile → FollowButton is shown, but clicking opens auth modal).
+  const isOwnProfile = createMemo(
+    () =>
+      !!viewerUser() &&
+      !!publicProfile.profile() &&
+      viewerUser()!.uid === publicProfile.profile()!.id
+  );
 
   // Convert the PublicProfile to a ProfileRow-shaped object so the
   // existing ProfileBanner + ProfileHeader components can consume it
@@ -343,18 +373,39 @@ const PublicProfileRoute: Component = () => {
                   <ProfileBanner data={profileData()} isEditing={false} />
                 </section>
 
-                {/* 2. Header — isOwnProfile=false so no edit pencil. The
-                       share icon button is rendered by ProfileHeader
-                       itself (V3.2) for both own and other profiles. */}
+                {/* 2. Header — isOwnProfile reflects whether the viewer
+                       is looking at their own profile. When false,
+                       the FollowButton (rendered below the header)
+                       appears so the viewer can follow this user.
+                       The share icon button is rendered by ProfileHeader
+                       itself (V3.2) for both own and public profiles. */}
                 <ProfileHeader
                   profile={profileRow}
                   user={nullUser}
-                  isOwnProfile={() => false}
-                  followers={zeroAccessor}
-                  following={zeroAccessor}
+                  isOwnProfile={isOwnProfile}
+                  followers={() => socialStats.stats().followers}
+                  following={() => socialStats.stats().following}
                   onEdit={noop}
                   onShare={handleShare}
+                  onFollow={() => void follow.follow()}
+                  onUnfollow={() => void follow.unfollow()}
+                  isFollowing={follow.following}
                 />
+
+                {/* Follow button — only when viewing someone else's
+                    profile. The button sits in its own row below the
+                    header so it doesn't crowd the share icon. When
+                    the viewer is signed out, clicking opens the auth
+                    modal (handled inside useFollow). */}
+                <Show when={!isOwnProfile()}>
+                  <div class="profile-v3-follow-row">
+                    <FollowButton
+                      targetUserId={profileUserId}
+                      displayName={() => publicProfile.profile()?.display_name ?? null}
+                      size="compact"
+                    />
+                  </div>
+                </Show>
 
                 {/* 3. Stats row — computed from the public vault. */}
                 <ProfileStatsRow stats={stats} />
