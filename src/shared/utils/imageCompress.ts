@@ -113,6 +113,11 @@ function loadImage(file: File): Promise<HTMLImageElement> {
  * @param userId The user's ID (used as the file path).
  * @param blob The compressed image blob.
  * @returns The public URL of the uploaded image.
+ *
+ * On upload failure (bucket missing, RLS rejection, network error),
+ * falls back to a base64 data URL so the user's banner still updates
+ * locally — the data URL is stored in profiles.banner_url. This is
+ * larger than a Storage URL but avoids blocking the user's edit.
  */
 export async function uploadBannerToSupabase(
   userId: string,
@@ -121,9 +126,9 @@ export async function uploadBannerToSupabase(
   const { getBrowserClient } = await import("~/lib/supabase/browser");
   const supabase = getBrowserClient();
 
-  // Ensure the 'banners' bucket exists (create if missing — may fail if
-  // the bucket doesn't exist and the user doesn't have permission, in
-  // which case we fall back to a data URL).
+  // Upload path: <userId>/banner.jpg — the banners bucket's RLS
+  // requires the first path segment to match auth.uid() (see migration
+  // 20260805_create_banners_bucket.sql).
   const filePath = `${userId}/banner.jpg`;
 
   const { error: uploadError } = await supabase.storage
@@ -134,17 +139,24 @@ export async function uploadBannerToSupabase(
     });
 
   if (uploadError) {
-    // If the bucket doesn't exist, fall back to a data URL.
-    // This is not ideal (data URLs are large) but it's a graceful
-    // degradation that doesn't require admin intervention.
+    // Log the full error so the actual cause is visible in the
+    // browser console. Common causes:
+    //   • "Bucket not found" — the banners bucket doesn't exist
+    //     (fixed by migration 20260805_create_banners_bucket.sql)
+    //   • "new row violates row-level security policy" — RLS rejected
+    //     the write because the path doesn't start with the caller's uid
+    //   • "Payload too large" — the blob exceeds the bucket's
+    //     file_size_limit (5 MB for banners)
     console.warn(
       "[uploadBanner] Storage upload failed, falling back to data URL:",
+      uploadError.message,
       uploadError
     );
     return blobToDataUrl(blob);
   }
 
-  // Get the public URL
+  // Get the public URL — banners is a public bucket so the URL is
+  // directly usable in <img src=...>.
   const { data: urlData } = supabase.storage
     .from("banners")
     .getPublicUrl(filePath);
