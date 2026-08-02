@@ -214,13 +214,19 @@ const ProfilePage: Component = () => {
               onShare={handleShare}
               onShowFollowers={() => {
                 const uname = data()?.profile?.username;
-                if (uname)
+                if (uname) {
                   navigate(`/u/${encodeURIComponent(uname)}/followers`);
+                } else {
+                  showToast("Set a username first to view your followers.", "info");
+                }
               }}
               onShowFollowing={() => {
                 const uname = data()?.profile?.username;
-                if (uname)
+                if (uname) {
                   navigate(`/u/${encodeURIComponent(uname)}/following`);
+                } else {
+                  showToast("Set a username first to view your following.", "info");
+                }
               }}
             />
 

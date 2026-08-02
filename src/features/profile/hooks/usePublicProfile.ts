@@ -25,7 +25,7 @@
 // The hook never reads private data — the SECURITY DEFINER functions
 // are the single enforcement point.
 
-import { createSignal, createEffect, onMount, type Accessor } from "solid-js";
+import { createSignal, createEffect, onMount, onCleanup, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
 import { getClient } from "~/lib/supabase/client";
 import { fetchTmdbMetadataBatch } from "~/core/tmdb/tmdb";
@@ -140,7 +140,13 @@ export function usePublicProfile(
         { p_username: uname }
       );
 
-      if (profileErr) throw profileErr;
+      if (profileErr) {
+        console.error(
+          "[usePublicProfile] get_public_profile_by_username RPC error:",
+          profileErr.message
+        );
+        throw profileErr;
+      }
       const profileRow = (profileRows as PublicProfile[] | null)?.[0] ?? null;
 
       if (!profileRow) {
@@ -151,15 +157,26 @@ export function usePublicProfile(
         // If it returns TRUE, the username doesn't exist at all.
         // Note: is_username_available is authenticated-only — for anon
         // viewers we just show a generic "not found" state.
-        const { data: available } = await supabase.rpc(
-          "is_username_available",
-          {
-            p_username: uname
+        try {
+          const { data: available } = await supabase.rpc(
+            "is_username_available",
+            {
+              p_username: uname
+            }
+          );
+          if (available === false) {
+            setStatus("private");
+          } else {
+            setStatus("not_found");
           }
-        );
-        if (available === false) {
-          setStatus("private");
-        } else {
+        } catch (rpcErr) {
+          // If is_username_available RPC fails (e.g. anon user), fall back
+          // to "not_found" state — the user can't distinguish private from
+          // non-existent without the RPC.
+          console.warn(
+            "[usePublicProfile] is_username_available RPC failed:",
+            rpcErr instanceof Error ? rpcErr.message : rpcErr
+          );
           setStatus("not_found");
         }
         return;
@@ -225,6 +242,30 @@ export function usePublicProfile(
     if (uname && !isServer) {
       lastFetchedUsername = uname;
       void doFetch();
+    }
+  });
+
+  // Safety timeout: if the profile fetch takes more than 10 seconds,
+  // set an error state so the user isn't stuck on a blank loading screen.
+  // This can happen if the Supabase RPC function doesn't exist or the
+  // network is down.
+  let loadingTimeout: ReturnType<typeof setTimeout> | null = null;
+  onMount(() => {
+    loadingTimeout = setTimeout(() => {
+      if (status() === "loading") {
+        console.warn(
+          "[usePublicProfile] Profile fetch timed out after 10s — showing error state"
+        );
+        setError("Profile load timed out. Please try again.");
+        setStatus("not_found");
+        fetching = false;
+      }
+    }, 10_000);
+  });
+  onCleanup(() => {
+    if (loadingTimeout) {
+      clearTimeout(loadingTimeout);
+      loadingTimeout = null;
     }
   });
 
