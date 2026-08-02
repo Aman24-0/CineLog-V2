@@ -1,0 +1,575 @@
+/* src/styles/layout/desktop-workspace.css — Desktop Three-Column Workspace
+   =====================================================================
+
+   Premium desktop application layout inspired by:
+   Netflix Desktop, Steam, Plex, Notion, VS Code, Figma.
+
+   Layout structure:
+   ┌──────────────────────────────────────────────────────────────────────┐
+   │ Header (Logo • Search • Notifications • User)                       │
+   ├──────────────┬────────────────────────────────────┬──────────────────┤
+   │ Left Sidebar │ Main Workspace                      │ Utility Panel    │
+   │              │                                    │                  │
+   │ Navigation   │ Current page content               │ Contextual info  │
+   │              │                                    │                  │
+   └──────────────┴────────────────────────────────────┴──────────────────┘
+
+   Breakpoints:
+   - Mobile (<768px):  Current mobile layout, bottom nav
+   - Tablet (768-1023px): Two-column adaptive
+   - Desktop (>=1024px): Three-column workspace with sidebar
+   - Ultra-wide (>=1440px): Wider grids, inspector panel
+
+   All mobile styles are preserved. Desktop is an enhancement layer.
+*/
+
+/* ============================================================
+   1. DESKTOP WORKSPACE SHELL
+   ============================================================ */
+
+/* The app-shell-bg becomes the workspace container on desktop.
+   On mobile it stays as-is (full-width, bottom-nav padding). */
+@media (min-width: 1024px) {
+  .app-shell-bg {
+    display: grid !important;
+    grid-template-rows: auto 1fr;
+    grid-template-columns: auto 1fr auto;
+    grid-template-areas:
+      "header header header"
+      "sidebar main utility";
+    padding-bottom: 0 !important;
+    min-height: 100vh;
+    min-height: 100dvh;
+  }
+
+  /* Header spans full width */
+  .app-shell-bg > .app-header-glass {
+    grid-area: header;
+  }
+
+  /* Main content fills the center */
+  .app-shell-bg > #main-content {
+    grid-area: main;
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: calc(100vh - var(--desktop-header-height, 56px));
+    height: calc(100dvh - var(--desktop-header-height, 56px));
+    padding-bottom: var(--sp-8, 2rem) !important;
+  }
+
+  /* Bottom nav is hidden on desktop */
+  .app-shell-bg > .bottom-nav-glass {
+    display: none !important;
+  }
+}
+
+/* ============================================================
+   2. DESKTOP HEADER
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .app-header-glass {
+    padding-top: 0.5rem !important;
+    padding-bottom: 0.5rem !important;
+    padding-left: 1.5rem !important;
+    padding-right: 1.5rem !important;
+    --desktop-header-height: 56px;
+    border-bottom: 1px solid var(--hairline);
+    gap: 1rem;
+  }
+
+  /* Hide wordmark on desktop — sidebar has the logo */
+  .app-header__wordmark {
+    display: none;
+  }
+
+  /* Show desktop search bar */
+  .app-header__search {
+    display: flex !important;
+  }
+
+  .app-header__search:hover {
+    background: var(--glass-bg) !important;
+    border-color: var(--p) !important;
+  }
+
+  /* Show desktop action buttons */
+  .app-header__action {
+    display: flex !important;
+  }
+
+  .app-header__action:hover {
+    background: var(--glass-bg) !important;
+    color: var(--text-body) !important;
+    border-color: var(--p) !important;
+  }
+
+  /* Show desktop avatar */
+  .app-header__avatar {
+    display: flex !important;
+  }
+
+  .app-header__avatar:hover {
+    border-color: var(--p) !important;
+  }
+}
+
+/* Mobile: hide desktop-only elements */
+.app-header__search,
+.app-header__action,
+.app-header__avatar {
+  display: none !important;
+}
+
+/* ============================================================
+   3. LEFT SIDEBAR
+   ============================================================ */
+
+.desktop-sidebar {
+  grid-area: sidebar;
+  display: none; /* Hidden on mobile by default */
+  flex-direction: column;
+  width: 220px;
+  height: calc(100vh - var(--desktop-header-height, 56px));
+  height: calc(100dvh - var(--desktop-header-height, 56px));
+  background: var(--surface);
+  border-right: 1px solid var(--hairline);
+  padding: var(--sp-3, 0.75rem) 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: width var(--dur-base) var(--ease-out);
+  position: sticky;
+  top: var(--desktop-header-height, 56px);
+}
+
+.desktop-sidebar--collapsed {
+  width: 64px;
+}
+
+@media (min-width: 1024px) {
+  .desktop-sidebar {
+    display: flex;
+  }
+}
+
+/* Sidebar logo */
+.desktop-sidebar__logo {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  padding: 0.5rem 1rem;
+  margin-bottom: var(--sp-4, 1rem);
+  user-select: none;
+}
+
+.desktop-sidebar__logo-icon {
+  font-size: 24px;
+  color: var(--p);
+  flex-shrink: 0;
+  filter: drop-shadow(0 0 8px var(--p-glow));
+}
+
+.desktop-sidebar__logo-text {
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.25rem;
+  letter-spacing: 0.06em;
+  color: var(--text-strong);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+/* Sidebar navigation */
+.desktop-sidebar__nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  padding: 0 var(--sp-2, 8px);
+}
+
+/* Sidebar nav item */
+.desktop-sidebar__item {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.625rem 0.875rem;
+  border-radius: var(--radius-lg, 12px);
+  border: none;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out),
+    box-shadow var(--dur-fast) var(--ease-out);
+  position: relative;
+  white-space: nowrap;
+  overflow: hidden;
+  text-align: left;
+  width: 100%;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.desktop-sidebar__item:hover {
+  background: var(--raised);
+  color: var(--text-body);
+}
+
+.desktop-sidebar__item--active {
+  background: color-mix(in srgb, var(--p) 10%, var(--raised));
+  color: var(--p);
+  font-weight: 600;
+  box-shadow:
+    inset 0 0 0 1px color-mix(in srgb, var(--p) 15%, transparent),
+    0 0 0 0 var(--p-glow);
+}
+
+.desktop-sidebar__item--active:hover {
+  background: color-mix(in srgb, var(--p) 15%, var(--raised));
+  color: var(--p);
+}
+
+/* Sidebar item icon */
+.desktop-sidebar__item-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.desktop-sidebar__item--active .desktop-sidebar__item-icon {
+  filter: drop-shadow(0 0 6px var(--p-glow));
+}
+
+/* Sidebar item label */
+.desktop-sidebar__item-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Sidebar active indicator (left bar) */
+.desktop-sidebar__item-indicator {
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 3px;
+  height: 60%;
+  border-radius: 0 3px 3px 0;
+  background: var(--p);
+  box-shadow: 0 0 8px var(--p-glow), 0 0 16px var(--p-glow);
+}
+
+/* Collapsed sidebar — icons only */
+.desktop-sidebar--collapsed .desktop-sidebar__item {
+  justify-content: center;
+  padding: 0.75rem;
+}
+
+.desktop-sidebar--collapsed .desktop-sidebar__logo {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+/* Sidebar collapse toggle */
+.desktop-sidebar__toggle {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  margin: var(--sp-2, 8px) var(--sp-2, 8px) 0;
+  border-radius: var(--radius-md, 8px);
+  border: 1px solid var(--hairline);
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  transition:
+    background var(--dur-fast) var(--ease-out),
+    color var(--dur-fast) var(--ease-out);
+  white-space: nowrap;
+}
+
+.desktop-sidebar__toggle:hover {
+  background: var(--raised);
+  color: var(--text-body);
+}
+
+.desktop-sidebar__toggle .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.desktop-sidebar--collapsed .desktop-sidebar__toggle {
+  justify-content: center;
+  padding: 0.5rem;
+}
+
+/* ============================================================
+   4. RIGHT UTILITY PANEL
+   ============================================================ */
+
+.desktop-utility-panel {
+  grid-area: utility;
+  display: none; /* Hidden on mobile by default */
+  flex-direction: column;
+  width: 280px;
+  height: calc(100vh - var(--desktop-header-height, 56px));
+  height: calc(100dvh - var(--desktop-header-height, 56px));
+  background: var(--surface);
+  border-left: 1px solid var(--hairline);
+  padding: var(--sp-5, 1.25rem);
+  overflow-y: auto;
+  overflow-x: hidden;
+  position: sticky;
+  top: var(--desktop-header-height, 56px);
+}
+
+@media (min-width: 1024px) {
+  .desktop-utility-panel {
+    display: flex;
+  }
+}
+
+/* Ultra-wide — wider utility panel */
+@media (min-width: 1440px) {
+  .desktop-utility-panel {
+    width: 320px;
+  }
+}
+
+/* Utility panel section */
+.desktop-utility-panel__section {
+  padding: var(--sp-4, 1rem) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.desktop-utility-panel__section:first-child {
+  padding-top: 0;
+}
+
+.desktop-utility-panel__section:last-child {
+  border-bottom: none;
+}
+
+/* Utility panel heading */
+.desktop-utility-panel__heading {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  color: var(--text-strong);
+  margin: 0 0 var(--sp-2, 8px) 0;
+  letter-spacing: 0.02em;
+}
+
+.desktop-utility-panel__heading .material-symbols-outlined {
+  font-size: 18px;
+  color: var(--p);
+  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
+}
+
+/* Utility panel text */
+.desktop-utility-panel__text {
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+/* ============================================================
+   5. PAGE CONTAINER — DESKTOP ADJUSTMENTS
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  /* Remove bottom nav padding since there's no bottom nav on desktop */
+  .app-shell-bg [role="region"] {
+    padding-bottom: var(--sp-8, 2rem) !important;
+  }
+
+  /* Wider max-width on desktop since we have the center column */
+  .app-shell-bg .max-w-4xl {
+    max-width: 100% !important;
+  }
+}
+
+/* ============================================================
+   6. TABLET ADAPTIVE LAYOUT
+   ============================================================ */
+
+@media (min-width: 768px) and (max-width: 1023px) {
+  /* Tablet: slightly wider content, no sidebar yet */
+  .app-shell-bg {
+    padding-bottom: calc(var(--nav-total-height) + var(--sp-4, 1rem)) !important;
+  }
+}
+
+/* ============================================================
+   7. DESKTOP-SPECIFIC PAGE STYLES
+   ============================================================ */
+
+/* Watchlist — desktop grid layout with more columns */
+@media (min-width: 1024px) {
+  .watchlist-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--sp-4, 1rem);
+  }
+
+  /* Watchlist List View — dense information table for desktop */
+  .watchlist-list-view {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  .watchlist-list-item {
+    display: grid;
+    grid-template-columns: 48px 1fr auto auto auto;
+    gap: var(--sp-3, 0.75rem);
+    align-items: center;
+    padding: var(--sp-2, 8px) var(--sp-3, 12px);
+    border-radius: var(--radius-md, 8px);
+    background: transparent;
+    cursor: pointer;
+    transition: background var(--dur-fast) var(--ease-out);
+  }
+
+  .watchlist-list-item:hover {
+    background: var(--raised);
+  }
+
+  .watchlist-list-item__poster {
+    width: 48px;
+    height: 72px;
+    border-radius: var(--radius-sm, 6px);
+    object-fit: cover;
+    background: var(--tier-3);
+  }
+
+  .watchlist-list-item__title {
+    font-family: "Outfit", sans-serif;
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--text-strong);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .watchlist-list-item__meta {
+    font-family: "Azeret Mono", monospace;
+    font-size: 0.6875rem;
+    color: var(--text-muted);
+    white-space: nowrap;
+  }
+
+  .watchlist-list-item__rating {
+    font-family: "Azeret Mono", monospace;
+    font-size: 0.75rem;
+    color: var(--p);
+    white-space: nowrap;
+  }
+
+  .watchlist-list-item__status {
+    font-family: "Outfit", sans-serif;
+    font-size: 0.6875rem;
+    font-weight: 600;
+    padding: 0.125rem 0.5rem;
+    border-radius: var(--radius-pill);
+    background: var(--glass-bg);
+    border: 1px solid var(--hairline);
+    color: var(--text-body);
+    white-space: nowrap;
+  }
+}
+
+/* Collections — desktop folder explorer */
+@media (min-width: 1024px) {
+  .collections-layout {
+    display: grid;
+    grid-template-columns: 240px 1fr;
+    gap: var(--sp-6, 1.5rem);
+  }
+}
+
+/* Settings — desktop two-column (VS Code style) */
+@media (min-width: 1024px) {
+  .settings-layout {
+    display: grid;
+    grid-template-columns: 220px 1fr;
+    gap: var(--sp-6, 1.5rem);
+    min-height: 60vh;
+  }
+}
+
+/* Upcoming — desktop calendar + list side by side */
+@media (min-width: 1024px) {
+  .upcoming-layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--sp-6, 1.5rem);
+  }
+}
+
+/* Discover — desktop wider content area */
+@media (min-width: 1024px) {
+  .discover-folds .spotlight {
+    border-radius: var(--radius-2xl, 24px) !important;
+  }
+}
+
+/* Detail pages — desktop wider layout */
+@media (min-width: 1024px) {
+  .detail-content {
+    max-width: 100%;
+  }
+
+  .detail-hero {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    gap: var(--sp-8, 2rem);
+  }
+}
+
+/* ============================================================
+   8. SCROLLBAR STYLING — Desktop
+   ============================================================ */
+
+@media (min-width: 1024px) {
+  .desktop-sidebar,
+  .desktop-utility-panel,
+  .app-shell-bg > #main-content {
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline) transparent;
+  }
+
+  .desktop-sidebar::-webkit-scrollbar,
+  .desktop-utility-panel::-webkit-scrollbar,
+  .app-shell-bg > #main-content::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .desktop-sidebar::-webkit-scrollbar-track,
+  .desktop-utility-panel::-webkit-scrollbar-track,
+  .app-shell-bg > #main-content::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .desktop-sidebar::-webkit-scrollbar-thumb,
+  .desktop-utility-panel::-webkit-scrollbar-thumb,
+  .app-shell-bg > #main-content::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+    border-radius: 3px;
+  }
+
+  .desktop-sidebar::-webkit-scrollbar-thumb:hover,
+  .desktop-utility-panel::-webkit-scrollbar-thumb:hover,
+  .app-shell-bg > #main-content::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+}

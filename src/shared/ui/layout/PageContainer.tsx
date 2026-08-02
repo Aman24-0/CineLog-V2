@@ -81,6 +81,8 @@ const PageContainer: ParentComponent<PageContainerProps> = (props) => {
   const resolvedPaddingBottom = () => {
     if (local.noBottomPadding) return "0px";
     if (local.paddingBottom) return local.paddingBottom;
+    // On desktop, no bottom nav padding needed (sidebar replaces bottom nav)
+    // The CSS media query handles this, but we also set a fallback
     return "calc(var(--nav-total-height) + var(--space-6))";
   };
 

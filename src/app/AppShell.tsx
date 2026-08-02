@@ -13,6 +13,8 @@ import BottomNavigation from "~/shared/ui/BottomNavigation";
 import AppHeader from "~/shared/ui/AppHeader";
 import AuthModal from "~/shared/ui/AuthModal";
 import AnnouncementsBanner from "~/shared/ui/AnnouncementsBanner";
+import DesktopSidebar from "~/shared/ui/DesktopSidebar";
+import DesktopUtilityPanel from "~/shared/ui/DesktopUtilityPanel";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -115,10 +117,16 @@ const AppShell: ParentComponent = (props) => {
 
           <AnnouncementsBanner />
 
+          {/* Desktop Sidebar — hidden on mobile, visible on desktop via CSS */}
+          <DesktopSidebar />
+
           {/* SINGLE <main> landmark for the entire consumer app.
             Page routes render <div role="region"> (not <main>) inside
             this <main> so there is exactly one <main> per page. */}
           <main id="main-content">{props.children}</main>
+
+          {/* Desktop Utility Panel — hidden on mobile, visible on desktop via CSS */}
+          <DesktopUtilityPanel />
 
           <ToastContainer />
 
