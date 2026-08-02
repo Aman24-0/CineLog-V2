@@ -218,10 +218,10 @@ const Spotlight: Component<SpotlightProps> = (props) => {
               rating + CTAs. */}
           <h2 class="spotlight-title">{title()}</h2>
 
-          {/* Quick meta pills — year, type, IMDb, vault status.
-              On mobile these wrap into a single compact scrollable row
-              (overflow-x-auto, no-scrollbar) so they don't stack
-              vertically and eat into the backdrop artwork. */}
+          {/* Quick meta pills — two-line compact layout on mobile.
+              Line 1: year • type • rating • vault status
+              Line 2: genre pills (inline, same container)
+              Desktop: same flex-wrap layout, all pills in one flow. */}
           <div class="spotlight-meta">
             <Show when={year()}>
               <span class="v2-pill">{year()}</span>
@@ -262,13 +262,14 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             <Show when={vaultStatusLabel()}>
               <span class="v2-pill v2-pill-accent">{vaultStatusLabel()}</span>
             </Show>
-            {/* Genre pills inline with the meta row on mobile (compact) */}
+            {/* Genre pills inline — they wrap naturally on mobile,
+                creating a second line of genres below the meta row */}
             <For each={genres().slice(0, 3)}>
               {(genre) => <span class="spotlight-genre-pill">{genre}</span>}
             </For>
           </div>
 
-          {/* Overview excerpt — 1 concise line on mobile, 2 on desktop */}
+          {/* Overview excerpt — 2-3 readable lines on mobile, 2 on desktop */}
           <Show when={overview()}>
             <p class="spotlight-overview">{overview()}</p>
           </Show>

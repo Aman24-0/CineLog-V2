@@ -103,20 +103,23 @@
    2. SPOTLIGHT HERO — cinematic, much larger, premium
    ============================================================ */
 
-/* REFINED HEIGHT — smaller hero so the rest of Discover is visible
-   sooner. Was 560px mobile / 640-680px desktop; now capped at 480px
-   with a 50vh mobile fallback so short viewports don't overflow. */
+/* ── MOBILE REDESIGN (<768px) — Premium streaming feel ─────────────
+   Netflix / Apple TV / Disney+ / Letterboxd inspired.
+   Bigger cinematic backdrop, cleaner typography, compact metadata,
+   readable overview, smaller CTA buttons, generous vertical spacing.
+   Desktop is completely untouched. */
 .discover-folds .spotlight {
-  height: 50vh;
-  max-height: 480px;
-  min-height: 360px;
-  border-radius: var(--radius-2xl, 24px);
+  height: 62vh;
+  max-height: 560px;
+  min-height: 380px;
+  border-radius: 0;
   background: var(--tier-2);
   position: relative;
   overflow: hidden;
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight {
+    border-radius: var(--radius-2xl, 24px);
     height: 480px;
   }
 }
@@ -126,41 +129,55 @@
   }
 }
 
-/* Backdrop — slightly brighter for premium feel + slower zoom */
+/* Backdrop — mobile: brighter, more cinematic face-priority.
+   Desktop: slightly brighter for premium feel + slower zoom. */
 .discover-folds .spotlight-backdrop {
-  filter: brightness(0.76) saturate(0.95);
-  transform: scale(1.12);
+  filter: brightness(0.82) saturate(1);
+  transform: scale(1.06);
   /* Prioritize faces and key artwork at the top of the poster */
-  object-position: center 20%;
+  object-position: center 15%;
 }
 .discover-folds .spotlight-backdrop.img-loaded {
-  filter: brightness(0.78) saturate(0.95);
+  filter: brightness(0.82) saturate(1);
   transform: scale(1);
 }
+@media (min-width: 640px) {
+  .discover-folds .spotlight-backdrop {
+    filter: brightness(0.76) saturate(0.95);
+    transform: scale(1.12);
+    object-position: center 20%;
+  }
+  .discover-folds .spotlight-backdrop.img-loaded {
+    filter: brightness(0.78) saturate(0.95);
+    transform: scale(1);
+  }
+}
 
-/* Multi-layer gradient overlay — MOBILE-REDESIGNED for artwork exposure.
-   On mobile the top ~55% of the backdrop stays clearly visible so the
-   artwork isn't obscured by text/buttons. The dark gradient only
-   covers the bottom ~45% for text legibility. Desktop keeps the
-   fuller gradient (left fade for wide-screen text legibility). */
+/* Multi-layer gradient overlay — MOBILE-REDESIGNED for cinematic artwork exposure.
+   On mobile the top ~55-60% of the backdrop stays clearly visible so the
+   artwork isn't obscured by text/buttons. The dark gradient only covers
+   the bottom ~45% for text legibility, with a strong bottom fade for the
+   content cluster. Desktop keeps the fuller gradient (left fade for
+   wide-screen text legibility). */
 .discover-folds .spotlight-overlay {
   background:
-    /* Layer 1 — bottom fade (text legibility, lower 45% only on mobile) */
+    /* Layer 1 — bottom fade (strong, cinematic, text legibility) */
     linear-gradient(
       to top,
       var(--tier-1) 0%,
-      rgba(8, 8, 13, 0.92) 5%,
-      rgba(8, 8, 13, 0.68) 18%,
+      rgba(8, 8, 13, 0.95) 4%,
+      rgba(8, 8, 13, 0.82) 12%,
+      rgba(8, 8, 13, 0.58) 25%,
       rgba(8, 8, 13, 0.28) 42%,
-      rgba(8, 8, 13, 0.05) 65%,
-      transparent 80%
+      rgba(8, 8, 13, 0.08) 60%,
+      transparent 78%
     ),
     /* Layer 2 — top vignette (minimal, badge legibility only) */
     linear-gradient(
         to bottom,
-        rgba(8, 8, 13, 0.3) 0%,
-        rgba(8, 8, 13, 0.08) 8%,
-        transparent 18%
+        rgba(8, 8, 13, 0.25) 0%,
+        rgba(8, 8, 13, 0.06) 8%,
+        transparent 16%
       ),
     /* Layer 4 — warm gold accent (bottom-left) */
     radial-gradient(
@@ -214,7 +231,7 @@
   }
 }
 
-/* Premium badge — larger, with a glow ring + filled icon */
+/* Premium badge — mobile: more spacing from top, desktop: same as before */
 .discover-folds .spotlight-badge {
   position: absolute;
   top: var(--sp-5, 1.25rem);
@@ -241,6 +258,13 @@
     0 0 16px var(--p-glow),
     inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
+@media (min-width: 640px) {
+  .discover-folds .spotlight-badge {
+    font-family: "Azeret Mono", monospace;
+    font-size: 0.6875rem;
+    letter-spacing: 0.1em;
+  }
+}
 .discover-folds .spotlight-badge .material-symbols-outlined {
   font-size: 14px;
   font-variation-settings:
@@ -251,17 +275,18 @@
   filter: drop-shadow(0 0 4px var(--p-glow));
 }
 
-/* Content cluster — more breathing room, better hierarchy */
+/* Content cluster — mobile: generous breathing room, better hierarchy.
+   Desktop: more breathing room, better hierarchy. */
 .discover-folds .spotlight-content {
   position: absolute;
   bottom: 0;
   left: 0;
   right: 0;
   z-index: 3;
-  padding: var(--sp-6, 1.5rem) var(--sp-5, 1.25rem) var(--sp-6, 1.5rem);
+  padding: var(--sp-7, 1.75rem) var(--sp-5, 1.25rem) var(--sp-7, 1.75rem);
   display: flex;
   flex-direction: column;
-  gap: var(--sp-3, 0.75rem);
+  gap: var(--sp-2, 0.5rem);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-content {
@@ -296,11 +321,11 @@
   flex-shrink: 0;
 }
 
-/* Title — Bebas Neue, scaled down to match the reduced hero height.
-   Was 3.5rem mobile / 4.5rem / 5rem desktop; now 2.5rem / 3rem / 3.5rem. */
+/* Title — mobile: RESPONSIVE, bigger, visual focus, max 3 lines.
+   Desktop: Bebas Neue, scaled down to match the reduced hero height. */
 .discover-folds .spotlight-title {
   font-family: "Bebas Neue", cursive;
-  font-size: 2.5rem;
+  font-size: clamp(2.25rem, 8vw, 3rem);
   line-height: 1.05;
   letter-spacing: 0.01em;
   color: var(--text-strong);
@@ -310,13 +335,15 @@
     0 1px 6px rgba(0, 0, 0, 1),
     0 0 1px rgba(0, 0, 0, 1);
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  margin-top: var(--sp-1, 0.25rem);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-title {
     font-size: 3rem;
+    margin-top: 0;
   }
 }
 @media (min-width: 1024px) {
@@ -325,33 +352,34 @@
   }
 }
 
-/* Meta pills — MOBILE: compact horizontal scroll row (no vertical stacking).
-   Desktop: wraps normally. Genre pills are now inline with the meta row
-   on mobile (rendered inside the same flex container by the JSX). */
+/* Meta pills — MOBILE: compact, two-line layout.
+   Line 1: year • type • rating  (inline separator style)
+   Line 2: genre pills (scrollable)
+   Desktop: wraps normally. Genre pills are inline with the meta row. */
 .discover-folds .spotlight-meta {
   display: flex;
-  flex-wrap: nowrap;
-  overflow-x: auto;
+  flex-wrap: wrap;
+  overflow-x: visible;
   scrollbar-width: none;
   -ms-overflow-style: none;
   gap: 0.375rem;
-  margin-top: 0.25rem;
+  margin-top: 0;
 }
 .discover-folds .spotlight-meta::-webkit-scrollbar {
   display: none;
 }
 .discover-folds .spotlight-meta .v2-pill {
-  padding: 0.25rem 0.5rem;
+  padding: 0.2rem 0.45rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg-strong);
   backdrop-filter: blur(16px) saturate(150%);
   -webkit-backdrop-filter: blur(16px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: none;
   color: var(--text-body);
   white-space: nowrap;
   flex-shrink: 0;
@@ -367,8 +395,11 @@
   }
   .discover-folds .spotlight-meta .v2-pill {
     padding: 0.375rem 0.75rem;
+    font-family: "Azeret Mono", monospace;
     font-size: 0.625rem;
+    font-weight: 700;
     letter-spacing: 0.1em;
+    text-transform: uppercase;
   }
 }
 .discover-folds .spotlight-meta .v2-pill[data-rating-display="true"] {
@@ -389,15 +420,15 @@
     inset 0 1px 0 rgba(232, 183, 74, 0.1);
 }
 
-/* Actions — MOBILE RESTRUCTURE:
-   Primary row (Details + Add to Vault) side by side in a flex-row.
-   Secondary "Not in the mood" is a compact text link below, NOT a
-   giant third pill button. Desktop keeps the original inline layout. */
+/* Actions — MOBILE REDESIGN: compact CTA buttons.
+   Primary row (Details + Add to Vault) side by side, equal width,
+   48px height, same premium style. Secondary "Shuffle" is a compact
+   text link below. Desktop keeps the original inline layout. */
 .discover-folds .spotlight-actions {
   display: flex;
   flex-direction: column;
-  gap: 0.375rem;
-  margin-top: var(--sp-3, 0.75rem);
+  gap: 0.25rem;
+  margin-top: var(--sp-2, 0.5rem);
   align-items: stretch;
 }
 .discover-folds .spotlight-actions-primary {
@@ -408,6 +439,9 @@
 }
 .discover-folds .spotlight-actions-primary > * {
   flex: 1;
+  min-height: 48px;
+  font-size: 0.6875rem !important;
+  padding: 0.5rem 0.75rem !important;
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-actions {
@@ -415,6 +449,7 @@
     flex-wrap: wrap;
     gap: 0.75rem;
     align-items: center;
+    margin-top: var(--sp-3, 0.75rem);
   }
   .discover-folds .spotlight-actions-primary {
     width: auto;
@@ -422,46 +457,55 @@
   }
   .discover-folds .spotlight-actions-primary > * {
     flex: none;
+    min-height: unset;
+    font-size: unset !important;
+    padding: unset !important;
   }
 }
 
-/* Premium genre pills row — small glass pills below the meta row */
-.discover-folds .spotlight-genres {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.375rem;
-  margin-top: 0.25rem;
-}
+/* Premium genre pills — mobile: compact, readable, same style as meta pills.
+   Desktop: small glass pills below the meta row. */
 .discover-folds .spotlight-genre-pill {
   display: inline-flex;
   align-items: center;
-  padding: 0.25rem 0.625rem;
+  padding: 0.2rem 0.5rem;
   border-radius: var(--radius-pill);
   background: rgba(232, 183, 74, 0.08);
   backdrop-filter: blur(10px) saturate(140%);
   -webkit-backdrop-filter: blur(10px) saturate(140%);
   border: 1px solid rgba(232, 183, 74, 0.18);
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.5625rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.01em;
+  text-transform: none;
   color: var(--text-body);
   box-shadow: inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  white-space: nowrap;
+}
+@media (min-width: 640px) {
+  .discover-folds .spotlight-genre-pill {
+    padding: 0.25rem 0.625rem;
+    font-family: "Azeret Mono", monospace;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
 }
 
-/* Premium overview excerpt — Outfit, clamped to fit the reduced hero.
-   1 line on mobile, 2 lines on desktop. */
+/* Premium overview excerpt — mobile: 2-3 readable lines with fade.
+   Desktop: 2 lines, Outfit. */
 .discover-folds .spotlight-overview {
   font-family: "Outfit", sans-serif;
   font-size: 0.8125rem;
   font-weight: 400;
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--text-soft);
-  margin: 0.25rem 0 0;
+  margin: 0;
   max-width: 580px;
   display: -webkit-box;
-  -webkit-line-clamp: 1;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
   text-shadow: 0 1px 6px rgba(0, 0, 0, 0.9);
@@ -470,6 +514,7 @@
   .discover-folds .spotlight-overview {
     font-size: 0.9375rem;
     -webkit-line-clamp: 2;
+    margin: 0.25rem 0 0;
   }
 }
 
