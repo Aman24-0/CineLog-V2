@@ -431,6 +431,7 @@ export default function DetailsModal() {
           details={tmdb}
           mediaType={shareMediaType}
           tmdbId={shareTmdbId}
+          vaultItem={vaultItem}
         />
       </Portal>
     </Show>

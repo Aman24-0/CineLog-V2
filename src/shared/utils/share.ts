@@ -471,6 +471,106 @@ export function sanitizeFilename(title: string): string {
 }
 
 /**
+ * Build a richly formatted share text with separator lines and all
+ * metadata. This is the "Copy Rich Text" variant — more visually
+ * structured than `buildShareTextBody()` with emoji + separator lines.
+ *
+ * Layout:
+ *   🎬 Interstellar
+ *   IMDb 8.7 | RT 8.4 | MC 90
+ *   📅 Released: Oct 26, 2014
+ *   🎭 Adventure, Drama, Science Fiction
+ *   ⏱ 169 min
+ *   📖 Overview text...
+ *   ━━━━━━━━━━━━━━
+ *   Track this title on CineLog
+ *   https://cinelogv2.vercel.app/movie/157336
+ *   ━━━━━━━━━━━━━━
+ *
+ * @param details TMDB details payload
+ * @param mediaType "movie" | "tv"
+ * @param tmdbId TMDB numeric id
+ * @param mdbRatings Optional MDBList ratings payload
+ */
+export function buildRichShareText(
+  details: TMDBDetails | WatchlistItem | null | undefined,
+  mediaType: "movie" | "tv",
+  tmdbId: number | string,
+  mdbRatings?: ShareMdbRatings | null
+): string {
+  const title = resolveTitle(details);
+  const dateIso = resolveReleaseDate(details);
+  const dateLabel = formatReleaseDate(dateIso);
+  const overview = truncateOverview(
+    (details as TMDBDetails)?.overview ?? "",
+    280
+  );
+  const genres =
+    (details as TMDBDetails)?.genres?.map((g) => g.name).join(", ") ?? "";
+  const runtime = (details as TMDBDetails)?.runtime;
+  const url = buildShareUrl(mediaType, tmdbId);
+  const separator = "━━━━━━━━━━━━━━";
+
+  const lines: string[] = [];
+  lines.push(`🎬 ${title}`);
+
+  // Ratings line — compact format without labels
+  const mdbLine = formatMdbRatingsLine(mdbRatings ?? null);
+  if (mdbLine) {
+    // Replace "IMDb: X | RT: Y | MC: Z" with "IMDb X | RT Y | MC Z"
+    const compact = mdbLine
+      .replace(/IMDb:\s*/g, "IMDb ")
+      .replace(/RT:\s*/g, "RT ")
+      .replace(/MC:\s*/g, "MC ");
+    lines.push(compact);
+  } else {
+    const tmdbRating = formatRating((details as TMDBDetails)?.vote_average);
+    if (tmdbRating !== "N/A") {
+      lines.push(`TMDB ${tmdbRating}`);
+    }
+  }
+
+  if (dateLabel) {
+    lines.push(`📅 Released: ${dateLabel}`);
+  }
+  if (genres) {
+    lines.push(`🎭 ${genres}`);
+  }
+  if (mediaType === "movie" && runtime && runtime > 0) {
+    lines.push(`⏱ ${runtime} min`);
+  }
+
+  // Series-specific
+  if (mediaType === "tv") {
+    const d = details as TMDBDetails;
+    if (typeof d?.number_of_seasons === "number" && d.number_of_seasons > 0) {
+      const seasonWord = d.number_of_seasons === 1 ? "Season" : "Seasons";
+      if (
+        typeof d?.number_of_episodes === "number" &&
+        d.number_of_episodes > 0
+      ) {
+        lines.push(
+          `📺 ${d.number_of_seasons} ${seasonWord} · ${d.number_of_episodes} Episodes`
+        );
+      } else {
+        lines.push(`📺 ${d.number_of_seasons} ${seasonWord}`);
+      }
+    }
+  }
+
+  if (overview) {
+    lines.push(`📖 ${overview}`);
+  }
+
+  lines.push(separator);
+  lines.push("Track this title on CineLog");
+  lines.push(url);
+  lines.push(separator);
+
+  return lines.join("\n");
+}
+
+/**
  * Copy text to the clipboard.
  *
  * Uses the modern `navigator.clipboard.writeText` API with a fallback

@@ -14,17 +14,37 @@
 // PKCE authorization code that must be exchanged for a session via
 // `supabase.auth.exchangeCodeForSession(code)`.
 //
-// Without this route, every confirmation email link 404s — the user
-// clicks the link, sees a 404 page, and has no idea their account
-// was actually confirmed (it was, on the Supabase side, but the
-// client never got the session).
+// PKCE VERIFIER MISSING — GRACEFUL RECOVERY (v2 fix):
+// ---------------------------------------------------------------------
+// BUG: After logout + clear browser cache + login, the PKCE code
+// verifier cookie is missing from localStorage. This causes
+// `exchangeCodeForSession()` to return:
+//   { error: { message: "PKCE code verifier not found." } }
 //
-// FLOW:
-//   1. Read `code` and `next` from the URL search params.
-//   2. If `code` is missing → show an error.
-//   3. Call `supabase.auth.exchangeCodeForSession(code)`.
-//   4. On success → redirect to `next` (default: `/discover`).
-//   5. On error → show an error message with a "Back to sign-in" link.
+// However, the Supabase auth flow has ALREADY succeeded — the OAuth
+// provider confirmed the user's identity and Supabase created the
+// session. The only thing that failed was the CLIENT-SIDE PKCE
+// verifier check (which is a localStorage cookie that was cleared).
+//
+// The user sees "PKCE code verifier not found." error, presses
+// "Back to CineLog", and everything works — because the session
+// IS valid, it just wasn't exchanged via PKCE.
+//
+// FIX: When `exchangeCodeForSession()` fails with a PKCE verifier
+// error, immediately check `supabase.auth.getSession()`. If a valid
+// session exists, treat the login as successful and redirect. Only
+// show the error page when BOTH the exchange fails AND no
+// authenticated session exists.
+//
+// PROGRESSIVE UX:
+// ---------------------------------------------------------------------
+// Instead of immediately showing errors, the UI progresses through:
+//   1. "Signing you in…" — initial exchangeCodeForSession attempt
+//   2. "Checking session…" — getSession fallback after PKCE error
+//   3. "Finalizing authentication…" — session found, preparing redirect
+//   4. "Redirecting…" — about to navigate away
+//
+// Only after EVERY check fails is the error page shown.
 //
 // SSR-SAFETY:
 //   The Supabase browser client stores sessions in localStorage, so
@@ -47,11 +67,62 @@ import {
 import { isServer } from "solid-js/web";
 import { getClient } from "~/lib/supabase/client";
 
+/**
+ * Progressive status messages shown to the user during the auth flow.
+ * Each message corresponds to a step in the authentication pipeline,
+ * giving the user confidence that something is happening rather than
+ * staring at a static spinner.
+ */
+type AuthStep =
+  | "exchanging"   // Step 1: Calling exchangeCodeForSession
+  | "checking"     // Step 2: Calling getSession fallback
+  | "finalizing"   // Step 3: Session found, preparing redirect
+  | "redirecting"  // Step 4: About to navigate away
+  | "done";        // Terminal: error state
+
+const STEP_LABELS: Record<AuthStep, string> = {
+  exchanging: "Signing you in\u2026",
+  checking: "Checking session\u2026",
+  finalizing: "Finalizing authentication\u2026",
+  redirecting: "Redirecting\u2026",
+  done: ""
+};
+
+/**
+ * Check if an error message indicates a missing PKCE verifier.
+ * Supabase returns this when the code_verifier cookie was cleared
+ * from localStorage (e.g., user cleared browser cache mid-flow).
+ *
+ * The check is case-insensitive and matches both the exact message
+ * and common variations.
+ */
+function isPkceVerifierError(message: string): boolean {
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("code verifier not found") ||
+    lower.includes("pkce") && lower.includes("verifier")
+  );
+}
+
+/**
+ * Determine the redirect target from the `next` search param.
+ * Only allows relative paths starting with "/" to prevent open
+ * redirect attacks.
+ *
+ * Solid Router's searchParams can return `string | string[] | undefined`
+ * for array-style query params. We only accept a single string.
+ */
+function getRedirectTarget(
+  next: string | string[] | undefined | null
+): string {
+  return typeof next === "string" && next.startsWith("/") ? next : "/discover";
+}
+
 const AuthCallback: Component = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [error, setError] = createSignal<string | null>(null);
-  const [status, setStatus] = createSignal<"loading" | "done">("loading");
+  const [step, setStep] = createSignal<AuthStep>("exchanging");
 
   onMount(async () => {
     // Skip on the server — exchangeCodeForSession only works on the
@@ -65,44 +136,103 @@ const AuthCallback: Component = () => {
       setError(
         "No authorization code was found in the URL. The link may be incomplete or expired."
       );
-      setStatus("done");
+      setStep("done");
       return;
     }
 
+    const target = getRedirectTarget(next);
+
     try {
       const supabase = getClient();
+
+      // ── Step 1: Exchange the PKCE code for a session ────────────
       const { error: exchangeError } =
         await supabase.auth.exchangeCodeForSession(code);
 
-      if (exchangeError) {
-        // Common errors:
-        //   - "invalid request: invalid grant"  → code already used or expired
-        //   - "code verifier not found"         → PKCE verifier cookie missing
-        //     (browser cleared cookies mid-flow)
-        console.error(
-          "[auth/callback] exchangeCodeForSession failed:",
-          exchangeError.message
-        );
-        setError(
-          exchangeError.message ||
-            "We couldn't verify your account. The link may have expired."
-        );
-        setStatus("done");
+      if (!exchangeError) {
+        // Success — session is now stored in localStorage. Redirect.
+        setStep("redirecting");
+        window.location.assign(target);
         return;
       }
 
-      // Success — session is now stored in localStorage. Redirect
-      // to the `next` URL or default to /discover.
-      // Use a hard navigation (window.location) instead of navigate()
-      // because the auth state change needs to propagate through the
-      // root layout's onSessionChange listener before the new page
-      // renders. A soft navigation would render the new page with
-      // the old (signed-out) auth state for one frame.
-      const target =
-        typeof next === "string" && next.startsWith("/")
-          ? next
-          : "/discover";
-      window.location.assign(target);
+      // ── Step 2: PKCE verifier missing — check for existing session
+      //
+      // When the PKCE code verifier is missing from localStorage (e.g.,
+      // the user cleared browser cache between the OAuth redirect and
+      // the callback), `exchangeCodeForSession` fails. But the OAuth
+      // flow may have ALREADY succeeded — Supabase's server created
+      // the session, and the browser may have received it via a
+      // different mechanism (e.g., the auth cookie set by the
+      // redirect). We check `getSession()` to see if a valid session
+      // already exists.
+      if (isPkceVerifierError(exchangeError.message)) {
+        console.warn(
+          "[auth/callback] PKCE verifier missing, checking for existing session\u2026"
+        );
+        setStep("checking");
+
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+
+        if (!sessionError && sessionData?.session) {
+          // Valid session exists — login is successful.
+          console.info(
+            "[auth/callback] Valid session found after PKCE failure. Treating login as successful."
+          );
+          setStep("finalizing");
+
+          // Small delay so the user sees "Finalizing authentication…"
+          // before the redirect. This gives a sense of completion.
+          await new Promise((r) => setTimeout(r, 300));
+
+          setStep("redirecting");
+          window.location.assign(target);
+          return;
+        }
+
+        // No session found — the login truly failed. Fall through
+        // to the error page.
+        console.warn(
+          "[auth/callback] No valid session found after PKCE failure. Login failed."
+        );
+      } else {
+        // Non-PKCE error (e.g., "invalid grant" — code already used
+        // or expired). Check for existing session as a fallback — in
+        // some cases the code was already exchanged on a previous
+        // attempt and the session is still valid.
+        console.warn(
+          "[auth/callback] exchangeCodeForSession failed:",
+          exchangeError.message,
+          "\u2014 checking for existing session\u2026"
+        );
+        setStep("checking");
+
+        const { data: sessionData, error: sessionError } =
+          await supabase.auth.getSession();
+
+        if (!sessionError && sessionData?.session) {
+          console.info(
+            "[auth/callback] Valid session found despite exchange error. Redirecting."
+          );
+          setStep("finalizing");
+          await new Promise((r) => setTimeout(r, 300));
+          setStep("redirecting");
+          window.location.assign(target);
+          return;
+        }
+      }
+
+      // ── All recovery attempts failed — show error ───────────────
+      console.error(
+        "[auth/callback] All authentication attempts failed:",
+        exchangeError.message
+      );
+      setError(
+        exchangeError.message ||
+          "We couldn\u2019t verify your account. The link may have expired."
+      );
+      setStep("done");
     } catch (err) {
       console.error("[auth/callback] Unexpected error:", err);
       setError(
@@ -110,9 +240,12 @@ const AuthCallback: Component = () => {
           ? err.message
           : "An unexpected error occurred during sign-in."
       );
-      setStatus("done");
+      setStep("done");
     }
   });
+
+  // Current label to display based on the auth step
+  const currentLabel = () => STEP_LABELS[step()];
 
   return (
     <div
@@ -133,7 +266,8 @@ const AuthCallback: Component = () => {
           "box-shadow": "var(--shadow-elevated)"
         }}
       >
-        <Show when={status() === "loading"}>
+        {/* Loading / progressive states — shown while authenticating */}
+        <Show when={step() !== "done"}>
           <div
             class="mb-4 flex h-12 w-12 items-center justify-center rounded-full"
             style={{
@@ -156,14 +290,21 @@ const AuthCallback: Component = () => {
             class="type-headline mb-2"
             style={{ "font-size": "1.125rem", margin: 0 }}
           >
-            Signing you in…
+            {currentLabel()}
           </h1>
           <p class="type-body-soft" style={{ "font-size": "0.875rem" }}>
-            Verifying your account. You'll be redirected in a moment.
+            {step() === "exchanging"
+              ? "Verifying your account. You\u2019ll be redirected in a moment."
+              : step() === "checking"
+                ? "Looking for an existing session\u2026"
+                : step() === "finalizing"
+                  ? "Almost there\u2026"
+                  : "You\u2019ll be redirected in a moment."}
           </p>
         </Show>
 
-        <Show when={status() === "done" && error()}>
+        {/* Error state — shown only when ALL authentication attempts fail */}
+        <Show when={step() === "done" && error()}>
           <div
             class="mb-4 flex h-12 w-12 items-center justify-center rounded-full"
             style={{
