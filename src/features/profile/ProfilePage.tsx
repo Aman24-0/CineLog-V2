@@ -201,7 +201,9 @@ const ProfilePage: Component = () => {
             </section>
 
             {/* 2. Header — avatar, name, @username, member since, bio,
-                   action row (Edit Profile / Share), social stats. */}
+                   action row (Edit Profile / Share), social stats.
+                   The follower/following counts are clickable →
+                   /u/<username>/followers and /u/<username>/following. */}
             <ProfileHeader
               profile={() => data()?.profile ?? null}
               user={user}
@@ -210,6 +212,16 @@ const ProfilePage: Component = () => {
               following={() => socialStats.stats().following}
               onEdit={() => setEditModalOpen(true)}
               onShare={handleShare}
+              onShowFollowers={() => {
+                const uname = data()?.profile?.username;
+                if (uname)
+                  navigate(`/u/${encodeURIComponent(uname)}/followers`);
+              }}
+              onShowFollowing={() => {
+                const uname = data()?.profile?.username;
+                if (uname)
+                  navigate(`/u/${encodeURIComponent(uname)}/following`);
+              }}
             />
 
             {/* 3. Stats row — 5 GlassCards: titles, movies, series, hours, avg rating. */}

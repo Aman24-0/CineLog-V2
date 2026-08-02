@@ -46,6 +46,12 @@ export interface ProfileHeaderProps {
   onUnfollow?: () => void;
   /** Whether the current viewer is following this user. */
   isFollowing?: Accessor<boolean>;
+  /** True while a follow/unfollow request is in flight (disables the button + shows spinner). */
+  followPending?: Accessor<boolean>;
+  /** Navigate to the followers list (clickable count). Optional. */
+  onShowFollowers?: () => void;
+  /** Navigate to the following list (clickable count). Optional. */
+  onShowFollowing?: () => void;
 }
 
 const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
@@ -157,6 +163,8 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
                 size="compact"
                 icon="person_add"
                 onClick={() => props.onFollow?.()}
+                loading={props.followPending?.() ?? false}
+                disabled={props.followPending?.() ?? false}
                 aria-label={`Follow ${displayName()}`}
               >
                 Follow
@@ -168,6 +176,8 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
               size="compact"
               icon="person_remove"
               onClick={() => props.onUnfollow?.()}
+              loading={props.followPending?.() ?? false}
+              disabled={props.followPending?.() ?? false}
               aria-label={`Unfollow ${displayName()}`}
             >
               Following
@@ -176,12 +186,19 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
         </div>
       </Show>
 
-      {/* Social stats */}
+      {/* Social stats — each count is a button that opens the
+          corresponding list (followers / following). The buttons are
+          disabled when the handler isn't wired (e.g. on the viewer's
+          own profile where we don't yet navigate to a list — though
+          we still do, since the viewer can browse their own social
+          graph too). */}
       <div class="profile-header-v3-social">
         <button
           type="button"
           class="profile-header-v3-social-stat focus-ring"
           aria-label={`${props.following()} following`}
+          onClick={() => props.onShowFollowing?.()}
+          disabled={!props.onShowFollowing}
         >
           <span class="profile-header-v3-social-num">{props.following()}</span>
           <span class="profile-header-v3-social-label">Following</span>
@@ -193,6 +210,8 @@ const ProfileHeader: Component<ProfileHeaderProps> = (props) => {
           type="button"
           class="profile-header-v3-social-stat focus-ring"
           aria-label={`${props.followers()} followers`}
+          onClick={() => props.onShowFollowers?.()}
+          disabled={!props.onShowFollowers}
         >
           <span class="profile-header-v3-social-num">{props.followers()}</span>
           <span class="profile-header-v3-social-label">Followers</span>

@@ -37,7 +37,6 @@ import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { tmdbImage } from "~/core/tmdb/tmdb";
-import FollowButton from "~/shared/ui/social/FollowButton";
 
 import ProfileBanner from "~/features/profile/components/ProfileBanner";
 import ProfileHeader from "~/features/profile/components/ProfileHeader";
@@ -216,6 +215,20 @@ const PublicProfileRoute: Component = () => {
     );
   };
 
+  // Navigate to the followers / following lists. We use the username
+  // (not the user id) in the URL so the list page can be shared + so
+  // it works for both own and other users' profiles uniformly.
+  const handleShowFollowers = () => {
+    const uname = username();
+    if (!uname) return;
+    navigate(`/u/${encodeURIComponent(uname)}/followers`);
+  };
+  const handleShowFollowing = () => {
+    const uname = username();
+    if (!uname) return;
+    navigate(`/u/${encodeURIComponent(uname)}/following`);
+  };
+
   // Click handler for activity/favorites items — navigates to the
   // title's route via client-side routing (no full page reload, so the
   // public profile's loaded data + scroll position survives Back).
@@ -375,10 +388,12 @@ const PublicProfileRoute: Component = () => {
 
                 {/* 2. Header — isOwnProfile reflects whether the viewer
                        is looking at their own profile. When false,
-                       the FollowButton (rendered below the header)
-                       appears so the viewer can follow this user.
+                       ProfileHeader renders its built-in Follow button
+                       (wired via onFollow/onUnfollow/isFollowing).
                        The share icon button is rendered by ProfileHeader
-                       itself (V3.2) for both own and public profiles. */}
+                       itself (V3.2) for both own and public profiles.
+                       The follower/following counts are clickable →
+                       /u/<username>/followers and /u/<username>/following. */}
                 <ProfileHeader
                   profile={profileRow}
                   user={nullUser}
@@ -390,22 +405,10 @@ const PublicProfileRoute: Component = () => {
                   onFollow={() => void follow.follow()}
                   onUnfollow={() => void follow.unfollow()}
                   isFollowing={follow.following}
+                  followPending={follow.pending}
+                  onShowFollowers={handleShowFollowers}
+                  onShowFollowing={handleShowFollowing}
                 />
-
-                {/* Follow button — only when viewing someone else's
-                    profile. The button sits in its own row below the
-                    header so it doesn't crowd the share icon. When
-                    the viewer is signed out, clicking opens the auth
-                    modal (handled inside useFollow). */}
-                <Show when={!isOwnProfile()}>
-                  <div class="profile-v3-follow-row">
-                    <FollowButton
-                      targetUserId={profileUserId}
-                      displayName={() => publicProfile.profile()?.display_name ?? null}
-                      size="compact"
-                    />
-                  </div>
-                </Show>
 
                 {/* 3. Stats row — computed from the public vault. */}
                 <ProfileStatsRow stats={stats} />
