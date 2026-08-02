@@ -71,7 +71,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="groups"
         label="Feed"
-        active={path() === "/feed"}
+        active={path() === "/feed" || path() === "/people"}
         onClick={() => go("/feed")}
       />
     </nav>
