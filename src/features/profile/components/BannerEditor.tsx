@@ -100,6 +100,10 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
         reader.readAsDataURL(blob);
       });
       setPreviewUrl(dataUrl);
+      // Switch to the "upload" tab so currentPreview() returns the
+      // uploaded image (otherwise it stays on "auto" and the preview
+      // doesn't update — the "banner preview doesn't change" bug).
+      setTab("upload");
     } catch (err) {
       setError("Failed to process image. Try a different file.");
       console.error("[BannerEditor] Image processing failed:", err);
