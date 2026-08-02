@@ -27,6 +27,7 @@ import {
   onCleanup,
   type Component
 } from "solid-js";
+import { Portal } from "solid-js/web";
 import { GlassButton, GlassInput } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import { getClient } from "~/lib/supabase/client";
@@ -209,12 +210,17 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
 
   return (
     <Show when={props.open}>
-      <div
-        class="edit-profile-modal-overlay"
-        role="dialog"
-        aria-modal="true"
-        aria-label="Edit profile"
-      >
+      {/* Portal so the modal renders at the document root, escaping any
+          stacking context / overflow:hidden in the parent PageContainer.
+          Without this, the modal can be clipped or hidden behind other
+          elements (the "Edit Profile button feels dead" bug). */}
+      <Portal>
+        <div
+          class="edit-profile-modal-overlay"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Edit profile"
+        >
         <div class="edit-profile-modal-sheet">
           {/* Header */}
           <div class="edit-profile-modal-header">
@@ -467,8 +473,10 @@ const EditProfileModal: Component<EditProfileModalProps> = (props) => {
           </div>
         </div>
       </div>
+      </Portal>
 
-      {/* Banner editor — embedded as a sub-modal */}
+      {/* Banner editor — embedded as a sub-modal. Has its own <Portal>
+          so it renders above this EditProfileModal. */}
       <Show when={bannerEditorOpen()}>
         <BannerEditor
           open={bannerEditorOpen()}
