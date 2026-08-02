@@ -34,6 +34,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 import { extractAccessToken } from "~/lib/auth/token";
+import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 interface APIEvent {
   request: Request;
@@ -154,6 +155,18 @@ export async function GET(event: APIEvent): Promise<Response> {
     // For type=following: rows where follower_id = targetUserId
     //   (these are people the target follows).
     //
+    // ─── 1. Fetch the follow edges ─────────────────────────────────
+    //
+    // Use the admin client so the list works for anon viewers too
+    // (follows_read RLS only allows authenticated users). The follows
+    // table is public by design — anyone can browse anyone's social
+    // graph.
+    //
+    // For type=followers: rows where following_id = targetUserId
+    //   (these are people who follow the target).
+    // For type=following: rows where follower_id = targetUserId
+    //   (these are people the target follows).
+    //
     // We select the OPPOSITE column — for followers we want
     // follower_id (the person doing the following); for following we
     // want following_id (the person being followed).
@@ -162,7 +175,21 @@ export async function GET(event: APIEvent): Promise<Response> {
     const filterColumn =
       type === "followers" ? "following_id" : "follower_id";
 
-    const { data: followRows, error: followError } = await callerClient
+    let adminClient;
+    try {
+      adminClient = createAdminClient();
+    } catch (err) {
+      console.error(
+        "[api/follow/list] createAdminClient failed:",
+        err instanceof Error ? err.message : err
+      );
+      return jsonResponse(
+        { error: "Server misconfigured — missing service-role key." },
+        500
+      );
+    }
+
+    const { data: followRows, error: followError } = await adminClient
       .from("follows")
       .select(`id, ${oppositeColumn}, created_at`)
       .eq(filterColumn, targetUserId)
@@ -194,14 +221,22 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     // ─── 2. Batch-fetch the user profiles ──────────────────────────
     //
-    // RLS on profiles allows authenticated SELECT on public columns
-    // (id, username, display_name, avatar_url, deleted_at). Anon
-    // viewers can't read profiles — they get an empty list (the
-    // follows were readable but the profile enrichment fails).
+    // IMPORTANT: use the SERVICE-ROLE admin client (not the caller-
+    // scoped client) for this read. The profiles table's RLS only
+    // allows SELECT where id = auth.uid() — so the caller-scoped
+    // client would return ZERO rows for other users' profiles, and
+    // the list would show empty rows.
     //
-    // We use the caller-scoped client so the read runs with the
-    // caller's auth context.
-    const { data: profileRows, error: profileError } = await callerClient
+    // Privacy: the follows table is public (follows_read allows any
+    // authenticated user to read all rows), so the caller can already
+    // see who follows whom. The profile enrichment only adds public
+    // display fields (username, display_name, avatar_url) — no email,
+    // bio, country, or other private fields.
+    //
+    // We use the admin client for both anon and authenticated callers
+    // so the list works even for logged-out viewers browsing a public
+    // profile's followers.
+    const { data: profileRows, error: profileError } = await adminClient
       .from("profiles")
       .select("id, username, display_name, avatar_url, deleted_at")
       .in("id", userIds);
@@ -246,7 +281,10 @@ export async function GET(event: APIEvent): Promise<Response> {
     // N round-trips for N list items.
     const callerFollowingSet = new Set<string>();
     if (callerUid) {
-      const { data: callerFollowingRows } = await callerClient
+      // Use the admin client so this works even if the caller's token
+      // has expired mid-session (the isFollowing enrichment is best-
+      // effort, not critical).
+      const { data: callerFollowingRows } = await adminClient
         .from("follows")
         .select("following_id")
         .eq("follower_id", callerUid)

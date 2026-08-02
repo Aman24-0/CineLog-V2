@@ -511,7 +511,23 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     const actorProfiles = new Map<string, ActorProfile>();
     if (actorIds.length > 0) {
-      const { data: profileRows, error: profileError } = await callerClient
+      // IMPORTANT: use the SERVICE-ROLE admin client (not the caller-
+      // scoped client) for this read. The profiles table's RLS only
+      // allows SELECT where id = auth.uid() — so the caller-scoped
+      // client would return ZERO rows for other users' profiles,
+      // and the feed would show "Someone" for every activity.
+      //
+      // Privacy: we only fetch profiles for users who appear in the
+      // caller's feed (i.e. users the caller follows + whose
+      // activity_log rows exist). The actorIds list is derived from
+      // the activity_log rows already filtered to the caller's
+      // follows. So we never leak profile data for users the caller
+      // doesn't follow.
+      //
+      // We only SELECT public columns (id, display_name, username,
+      // avatar_url, deleted_at) — no email, bio, country, or other
+      // private fields.
+      const { data: profileRows, error: profileError } = await adminClient
         .from("profiles")
         .select("id, display_name, username, avatar_url, deleted_at")
         .in("id", actorIds);
