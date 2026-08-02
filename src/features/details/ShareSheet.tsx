@@ -424,6 +424,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
         snap="tall"
         title="Share"
         icon="share"
+        zIndexBase={1000000}
       >
         {/* Header Section */}
         <div class="share-premium-header">

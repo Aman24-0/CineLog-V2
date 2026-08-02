@@ -24,6 +24,8 @@ import YourActivityCard from "~/features/details/components/YourActivityCard";
 import AddToFolderSheet from "~/features/details/components/AddToFolderSheet";
 import ConfirmRemoveSheet from "~/features/details/components/ConfirmRemoveSheet";
 import ShareSheet from "~/features/details/ShareSheet";
+import { canWebShare, buildShareUrl, buildShareTextBody, resolveTitle } from "~/shared/utils/share";
+import { useMdbListRatings, type FrontendMediaType } from "~/features/details/useMdbListRatings";
 
 import DetailsHero from "./DetailsHero";
 import DetailsHeader from "./DetailsHeader";
@@ -87,6 +89,32 @@ export default function DetailsModal() {
     const mt = baseItem()?.media_type;
     return mt === "tv" ? "tv" : "movie";
   });
+
+  // ── Smart Share ────────────────────────────────────────────────
+  // If the browser supports the Web Share API, use native share
+  // directly (no bottom sheet). Otherwise, open the premium
+  // bottom sheet. Never fail silently.
+  const handleSmartShare = async () => {
+    if (canWebShare()) {
+      try {
+        const d = tmdb();
+        const url = buildShareUrl(shareMediaType(), shareTmdbId());
+        const text = d
+          ? buildShareTextBody(d, shareMediaType(), null)
+          : `Check this out on CineLog: ${url}`;
+        const shareTitle = d ? resolveTitle(d) : "CineLog";
+        await navigator.share({ title: shareTitle, text, url });
+        return; // Shared successfully
+      } catch (err) {
+        const name = (err as DOMException)?.name;
+        if (name === "AbortError") return; // User cancelled — do nothing
+        // Non-AbortError — fall through to bottom sheet
+        console.warn("[DetailsModal] Native share failed, opening sheet:", err);
+      }
+    }
+    // No native share, or native share failed — open the bottom sheet
+    setShowShare(true);
+  };
 
   const { form, setForm, isDirty, resetTo, isEditing, setIsEditing } =
     // ESLint: vaultItem is an Accessor passed by reference to useDetailsForm,
@@ -309,7 +337,7 @@ export default function DetailsModal() {
                       onAddToVault={handleAddToVault}
                       onOpenFolders={() => setShowFolders(true)}
                       onRemove={() => setShowRemoveConfirm(true)}
-                      onShare={() => setShowShare(true)}
+                      onShare={handleSmartShare}
                     />
                     <Show
                       when={!isEditing() || !inVault()}

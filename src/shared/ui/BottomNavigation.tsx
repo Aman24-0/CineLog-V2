@@ -1,4 +1,6 @@
 import { useNavigate, useLocation } from "@solidjs/router";
+import { useAuth } from "~/shared/hooks/useAuth";
+import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import NavButton from "./NavButton";
 
 /**
@@ -22,6 +24,10 @@ import NavButton from "./NavButton";
  *     3. Collections — user folders + subscribed universes
  *     4. Profile     — personal dashboard (stats, history, achievements)
  *
+ *   For logged-out users, the Profile tab opens the AuthModal directly
+ *   instead of navigating to the empty "Your Cinematic Identity" page.
+ *   This matches the behavior of the previous Header Profile button.
+ *
  * The bar is opaque (not glass) so content scrolling underneath never
  * bleeds through — this matches Letterboxd / Trakt / TV Time, which all
  * use solid bottom bars for thumb-zone stability.
@@ -29,6 +35,8 @@ import NavButton from "./NavButton";
 export default function BottomNavigation() {
   const navigate = useNavigate();
   const location = useLocation();
+  const { isSignedIn } = useAuth();
+  const { openAuthModal } = useAuthModal();
 
   // Active state is derived from the current URL so the highlight matches the
   // page the user is actually on, regardless of how they navigated.
@@ -36,6 +44,21 @@ export default function BottomNavigation() {
 
   const go = (href: string) => {
     navigate(href);
+  };
+
+  /**
+   * Handle Profile tab click:
+   *   - Logged in → navigate to /profile
+   *   - Logged out → open AuthModal directly
+   * This avoids showing the empty "Your Cinematic Identity" placeholder
+   * page for logged-out users.
+   */
+  const handleProfileClick = () => {
+    if (isSignedIn()) {
+      go("/profile");
+    } else {
+      openAuthModal();
+    }
   };
 
   return (
@@ -65,7 +88,7 @@ export default function BottomNavigation() {
         icon="person"
         label="Profile"
         active={path() === "/profile" || path().startsWith("/profile/")}
-        onClick={() => go("/profile")}
+        onClick={handleProfileClick}
       />
     </nav>
   );
