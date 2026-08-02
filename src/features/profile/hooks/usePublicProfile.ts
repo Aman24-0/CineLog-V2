@@ -111,6 +111,7 @@ export function usePublicProfile(
   const [favorites, setFavorites] = createSignal<WatchlistItem[]>([]);
   const [error, setError] = createSignal<string | null>(null);
   let fetching = false;
+  let lastFetchedUsername: string | null = null;
 
   const doFetch = async () => {
     if (isServer) return;
@@ -121,6 +122,7 @@ export function usePublicProfile(
     }
     if (fetching) return;
     fetching = true;
+    lastFetchedUsername = uname;
 
     setStatus("loading");
     setError(null);
@@ -214,14 +216,28 @@ export function usePublicProfile(
     }
   };
 
+  // Initial fetch on mount. The createEffect below also runs on mount,
+  // but we use a guard to prevent the double-fetch: the effect checks
+  // if the username has already been fetched before triggering.
+
   onMount(() => {
-    void doFetch();
+    const uname = username();
+    if (uname && !isServer) {
+      lastFetchedUsername = uname;
+      void doFetch();
+    }
   });
 
   // Refetch when the username in the URL changes (route param change).
+  // Guard: skip if the username hasn't changed since the last fetch
+  // (prevents the double-fetch that would happen because createEffect
+  // runs on mount too, after onMount).
   createEffect(() => {
     const u = username();
-    if (u && !isServer) void doFetch();
+    if (u && !isServer && u !== lastFetchedUsername) {
+      lastFetchedUsername = u;
+      void doFetch();
+    }
   });
 
   return {

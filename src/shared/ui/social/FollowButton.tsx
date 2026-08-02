@@ -25,7 +25,7 @@
 
 import { Show, createMemo, type Component, type Accessor } from "solid-js";
 import { GlassButton } from "~/shared/ui/glass";
-import { useFollow } from "~/shared/hooks/social/useFollow";
+import { useFollow, type UseFollowOptions } from "~/shared/hooks/social/useFollow";
 
 export interface FollowButtonProps {
   /** The user id of the account to follow / unfollow. */
@@ -38,6 +38,12 @@ export interface FollowButtonProps {
   displayName?: Accessor<string | null | undefined>;
   /** Button size preset. @default "default" */
   size?: "compact" | "default" | "large";
+  /**
+   * When the caller already knows the follow status (e.g. from the
+   * follow-list API which enriches each user with `isFollowing`),
+   * pass it here to skip the initial status check round-trip.
+   */
+  initialFollowing?: Accessor<boolean | undefined>;
 }
 
 const FollowButton: Component<FollowButtonProps> = (props) => {
@@ -46,10 +52,17 @@ const FollowButton: Component<FollowButtonProps> = (props) => {
   // tracked scopes). The hook tracks the memo's value internally.
   const targetId = createMemo(() => props.targetUserId());
 
+  // Build options for useFollow — if initialFollowing is provided,
+  // pass it so the hook skips the redundant status check.
+  const followOptions: UseFollowOptions = {};
+  if (props.initialFollowing) {
+    followOptions.initialFollowing = props.initialFollowing;
+  }
+
   // useFollow handles: auth gating, optimistic updates, toast feedback,
   // SSR safety, and re-fetching when targetUserId changes.
   // eslint-disable-next-line solid/reactivity
-  const { following, pending, follow, unfollow } = useFollow(targetId);
+  const { following, pending, follow, unfollow } = useFollow(targetId, followOptions);
 
   // The label is "Following" when the optimistic state is true (so the
   // button visually reflects the post-click state immediately). It

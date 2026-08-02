@@ -64,6 +64,16 @@ interface FollowMutationResponse {
   error?: string;
 }
 
+export interface UseFollowOptions {
+  /**
+   * When the caller already knows the follow status (e.g. from the
+   * follow-list API which enriches each user with `isFollowing`),
+   * pass it here to skip the initial GET /api/follow/status round-trip.
+   * The hook will still re-fetch on targetUserId / auth changes.
+   */
+  initialFollowing?: Accessor<boolean | undefined>;
+}
+
 interface UseFollowReturn {
   following: Accessor<boolean>;
   loading: Accessor<boolean>;
@@ -88,7 +98,8 @@ interface UseFollowReturn {
  *   the status check until a real id appears.
  */
 export function useFollow(
-  targetUserId: Accessor<string | null | undefined>
+  targetUserId: Accessor<string | null | undefined>,
+  options?: UseFollowOptions
 ): UseFollowReturn {
   const { user, isSignedIn } = useAuth();
   const { showToast } = useToast();
@@ -98,6 +109,11 @@ export function useFollow(
   const [loading, setLoading] = createSignal(false);
   const [pending, setPending] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
+
+  // Track whether we've successfully applied initialFollowing at least
+  // once for the current targetUserId. This prevents the initial status
+  // fetch from overwriting the caller-provided value.
+  let appliedInitialForTarget: string | null = null;
 
   // Track the in-flight status fetch so a rapid targetUserId change
   // doesn't race two fetches against each other.
@@ -315,6 +331,20 @@ export function useFollow(
     // Touch both — the effect re-runs when either changes.
     void target;
     void signedIn;
+
+    // If the caller provided an initialFollowing value and we haven't
+    // applied it for this target yet, use it immediately and skip the
+    // network round-trip. This is critical for list pages where the
+    // API already returns isFollowing per user — without it, each
+    // UserListItem would fire a separate GET /api/follow/status.
+    const initial = options?.initialFollowing?.();
+    if (initial !== undefined && target && target !== appliedInitialForTarget) {
+      setFollowing(initial);
+      setLoading(false);
+      appliedInitialForTarget = target;
+      return;
+    }
+
     void refresh();
   });
 

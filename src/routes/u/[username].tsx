@@ -87,6 +87,17 @@ const PublicProfileRoute: Component = () => {
   // eslint-disable-next-line solid/reactivity
   const follow = useFollow(profileUserId);
 
+  // Helper: after a successful follow/unfollow, refresh the social
+  // stats so the follower count on the profile updates reactively.
+  const handleFollow = async () => {
+    const success = await follow.follow();
+    if (success) void socialStats.refresh();
+  };
+  const handleUnfollow = async () => {
+    const success = await follow.unfollow();
+    if (success) void socialStats.refresh();
+  };
+
   // For logged-out viewers, useAuth returns a null user. ProfileHeader
   // accepts an Accessor<User | null> — passing a constant-null accessor
   // is fine and the component falls back to the profile's display_name.
@@ -402,8 +413,8 @@ const PublicProfileRoute: Component = () => {
                   following={() => socialStats.stats().following}
                   onEdit={noop}
                   onShare={handleShare}
-                  onFollow={() => void follow.follow()}
-                  onUnfollow={() => void follow.unfollow()}
+                  onFollow={() => void handleFollow()}
+                  onUnfollow={() => void handleUnfollow()}
                   isFollowing={follow.following}
                   followPending={follow.pending}
                   onShowFollowers={handleShowFollowers}

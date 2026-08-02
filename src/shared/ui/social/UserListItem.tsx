@@ -6,14 +6,17 @@
 // (clickable → /u/<username>), and a FollowButton on the right (only
 // when the viewer is signed in AND this isn't their own row).
 //
-// The component is purely presentational — the parent (FollowListPage)
-// owns the data + pagination. The FollowButton wraps useFollow so the
-// follow state is always fresh.
+// OPTIMIZATION: The API endpoints (/api/follow/list, /api/users/search)
+// already enrich each user with `isFollowing` so the caller doesn't
+// need to fire N separate GET /api/follow/status calls. We pass that
+// value as `initialFollowing` to useFollow so the first render is
+// correct immediately and the hook only needs to handle mutations
+// (follow/unfollow clicks).
 
 import { Show, createMemo, type Component } from "solid-js";
 import { useNavigate } from "@solidjs/router";
 
-import { GlassAvatar, GlassButton } from "~/shared/ui/glass";
+import { GlassAvatar } from "~/shared/ui/glass";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useFollow } from "~/shared/hooks/social/useFollow";
 import type { APIUser } from "~/shared/hooks/social/useFollowList";
@@ -35,9 +38,15 @@ const UserListItem: Component<UserListItemProps> = (props) => {
   // useFollow is reactive to the target user id — when this component
   // re-renders for a different user (SolidJS reuses components in <For>
   // lists), the hook re-fetches the follow status.
+  // IMPORTANT: We pass `initialFollowing` from the API response so the
+  // hook skips the redundant GET /api/follow/status round-trip. The
+  // API already tells us whether the viewer follows this user.
   const targetId = createMemo(() => props.user.id);
+  const initialFollowing = createMemo(() => props.user.isFollowing);
   // eslint-disable-next-line solid/reactivity
-  const { following, pending, follow, unfollow } = useFollow(targetId);
+  const { following, pending, follow, unfollow } = useFollow(targetId, {
+    initialFollowing
+  });
 
   const displayName = () => props.user.displayName ?? props.user.username ?? "Cinephile";
   const username = () => props.user.username;
@@ -91,21 +100,31 @@ const UserListItem: Component<UserListItemProps> = (props) => {
       {/* Follow / Following button — only when the viewer is signed
           in AND this isn't their own row. */}
       <Show when={!isOwnRow()}>
-        <GlassButton
-          variant={following() ? "ghost" : "primary"}
-          size="compact"
-          icon={following() ? "person_remove" : "person_add"}
-          loading={pending()}
-          disabled={pending()}
+        <button
+          type="button"
+          class={`user-list-item-follow-btn focus-ring ${
+            following() ? "following" : "not-following"
+          }`}
           onClick={handleClick}
+          disabled={pending()}
           aria-label={
             following()
               ? `Unfollow ${displayName()}`
               : `Follow ${displayName()}`
           }
         >
+          <Show when={pending()}>
+            <span class="material-symbols-outlined feed-spin" aria-hidden="true" style={{ "font-size": "16px" }}>
+              progress_activity
+            </span>
+          </Show>
+          <Show when={!pending()}>
+            <span class="material-symbols-outlined" aria-hidden="true" style={{ "font-size": "16px" }}>
+              {following() ? "person_remove" : "person_add"}
+            </span>
+          </Show>
           {following() ? "Following" : "Follow"}
-        </GlassButton>
+        </button>
       </Show>
     </article>
   );
