@@ -316,8 +316,19 @@ export async function GET(event: APIEvent): Promise<Response> {
   const offset = (page - 1) * limit;
 
   // Resolve the caller's session.
+  //
+  // CineLog stores Supabase sessions in localStorage (not cookies), so
+  // the cookie path returns null in the deployed app. The frontend
+  // sends the access token as a Bearer token in the Authorization
+  // header — the standard pattern for GET requests that can't have a
+  // body. We fall back to the cookie path so server-side callers (e.g.
+  // SSR) and any future cookie-based session storage still work.
   const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const accessToken = getSupabaseAccessToken(cookieHeader);
+  const authHeader = event.request.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  const accessToken = bearerToken || getSupabaseAccessToken(cookieHeader);
 
   if (!accessToken) {
     return jsonResponse(

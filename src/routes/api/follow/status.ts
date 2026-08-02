@@ -62,11 +62,22 @@ export async function GET(event: APIEvent): Promise<Response> {
     );
   }
 
-  // Resolve the caller's access token (body not allowed on GET — we
-  // rely on the cookie). If there's no session, the user is signed out
-  // and therefore follows no one — return `following: false`.
+  // Resolve the caller's access token.
+  //
+  // CineLog stores Supabase sessions in localStorage (not cookies), so
+  // the cookie path returns null in the deployed app. The frontend
+  // sends the access token as a Bearer token in the Authorization
+  // header. We fall back to the cookie path for server-side callers
+  // and any future cookie-based session storage.
+  //
+  // If neither path yields a token, the user is signed out — return
+  // `following: false` so the FollowButton renders "Follow".
   const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const accessToken = getSupabaseAccessToken(cookieHeader);
+  const authHeader = event.request.headers.get("authorization") ?? "";
+  const bearerToken = authHeader.startsWith("Bearer ")
+    ? authHeader.slice("Bearer ".length).trim()
+    : "";
+  const accessToken = bearerToken || getSupabaseAccessToken(cookieHeader);
 
   if (!accessToken) {
     return jsonResponse({ following: false });

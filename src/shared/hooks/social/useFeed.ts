@@ -38,6 +38,7 @@ import {
 import { isServer } from "solid-js/web";
 
 import { useAuth } from "~/shared/hooks/useAuth";
+import { getClient } from "~/lib/supabase/client";
 import type { FeedActivity } from "~/routes/api/feed";
 
 // Re-export the FeedActivity type so consumers can import everything
@@ -116,10 +117,24 @@ export function useFeed(limit: number = DEFAULT_LIMIT): UseFeedReturn {
     setError(null);
 
     try {
+      // Resolve the caller's Supabase access token.
+      //
+      // CineLog stores sessions in localStorage (not cookies), so the
+      // API route can't read the session from the cookie. We pull the
+      // token from the Supabase client and send it as a Bearer token
+      // in the Authorization header — the standard pattern for GET
+      // requests that can't have a body.
+      const supabase = getClient();
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token ?? null;
+
       const url = `/api/feed?limit=${limit}&page=${page}`;
       const res = await fetch(url, {
         method: "GET",
-        credentials: "include"
+        credentials: "include",
+        headers: accessToken
+          ? { Authorization: `Bearer ${accessToken}` }
+          : {}
       });
 
       if (!res.ok) {

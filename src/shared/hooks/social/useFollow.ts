@@ -141,10 +141,23 @@ export function useFollow(
 
     const fetchPromise = (async () => {
       try {
+        // Resolve the caller's Supabase access token.
+        //
+        // CineLog stores sessions in localStorage (not cookies), so
+        // the API route can't read the session from the cookie. We
+        // pull the token from the Supabase client and send it as a
+        // Bearer token in the Authorization header.
+        const supabase = getClient();
+        const { data: sessionData } = await supabase.auth.getSession();
+        const accessToken = sessionData?.session?.access_token ?? null;
+
         const url = `/api/follow/status?targetUserId=${encodeURIComponent(target)}`;
         const res = await fetch(url, {
           method: "GET",
-          credentials: "include" // sends the sb-*-auth-token cookie
+          credentials: "include",
+          headers: accessToken
+            ? { Authorization: `Bearer ${accessToken}` }
+            : {}
         });
 
         if (!res.ok) {
