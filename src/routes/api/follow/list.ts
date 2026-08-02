@@ -15,8 +15,10 @@
 // AUTH:
 //   Public (no session required) — the social graph is public by
 //   design (the follows table has `follows_read` RLS allowing any
-//   authenticated user to SELECT all rows). Anonymous viewers get an
-//   empty list because the anon role can't read follows.
+//   authenticated user to SELECT all rows, and `follows_read_anon`
+//   allowing anonymous users too). Anonymous viewers can see the
+//   follower/following list but `isFollowing` is always false for
+//   them since there's no session to check against.
 //
 //   The caller's session (if present) is used to enrich each row with
 //   `isFollowing` — whether the CALLER follows that user. This lets
@@ -158,9 +160,9 @@ export async function GET(event: APIEvent): Promise<Response> {
     // ─── 1. Fetch the follow edges ─────────────────────────────────
     //
     // Use the admin client so the list works for anon viewers too
-    // (follows_read RLS only allows authenticated users). The follows
-    // table is public by design — anyone can browse anyone's social
-    // graph.
+    // (follows_read RLS only allows authenticated users, though
+    // follows_read_anon now also allows anon reads). The admin
+    // client ensures consistent behavior regardless of auth state.
     //
     // For type=followers: rows where following_id = targetUserId
     //   (these are people who follow the target).
