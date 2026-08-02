@@ -50,6 +50,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
 interface APIEvent {
   request: Request;
@@ -419,15 +420,26 @@ export async function GET(event: APIEvent): Promise<Response> {
     //
     // The service-role key NEVER reaches the browser — it's only used
     // server-side in this route file.
-    const adminClient = createClient(supabaseUrl, supabaseAnonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-      global: {
-        headers: {
-          apikey: supabaseAnonKey,
-          Authorization: `Bearer ${process.env.SUPABASE_SERVICE_ROLE_KEY ?? ""}`
-        }
-      }
-    });
+    //
+    // NOTE: We use the shared `createAdminClient()` helper rather than
+    // constructing the client inline. The previous inline construction
+    // passed the anon key as `apikey` and the service-role key as the
+    // Bearer token — but Supabase's client uses the `apikey` for auth,
+    // so the request was effectively anon-authenticated and RLS
+    // blocked the read, causing a 500 error.
+    let adminClient;
+    try {
+      adminClient = createAdminClient();
+    } catch (err) {
+      console.error(
+        "[api/feed] createAdminClient failed:",
+        err instanceof Error ? err.message : err
+      );
+      return jsonResponse(
+        { error: "Server misconfigured — missing service-role key." },
+        500
+      );
+    }
 
     // Supabase's `in()` filter handles up to ~1000 values comfortably.
     // A user following more than 1000 accounts is rare; if it happens

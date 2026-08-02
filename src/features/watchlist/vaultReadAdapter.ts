@@ -6,6 +6,7 @@ import type {
   VaultRow,
   VaultStatus
 } from "~/lib/supabase/repositories";
+import { logActivity } from "~/lib/supabase/repositories/activityLog";
 import { enrichWithEpisodeProgressAsync } from "./episodeProgressAdapter";
 import { STATUS_TO_UI, STATUS_TO_DB } from "~/shared/utils/vaultStatus";
 import type { WatchlistItem } from "~/shared/types";
@@ -237,6 +238,20 @@ export async function createVaultItemInSupabase(
   const { data, error } = await repo.createVaultItem(payload);
   if (error) throw error;
   if (!data) throw new Error("[vaultAdapter] createVaultItem returned no data");
+
+  // Log to activity_log so the social feed can surface
+  // "alice added X to watchlist". Fire-and-forget — never blocks
+  // the user's primary action.
+  logActivity({
+    userId,
+    action: "vault_created",
+    entityId: String(item.id),
+    entityType: item.media_type,
+    metadata: {
+      title: item.title ?? item.name ?? null,
+      status: item.status ?? "Planned"
+    }
+  });
 
   // Return a WatchlistItem that merges the original TMDB metadata with
   // the persisted vault state so the caller's modal state is complete.

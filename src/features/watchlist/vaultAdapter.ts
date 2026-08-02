@@ -38,6 +38,7 @@ import type {
   VaultUpdate
 } from "~/lib/supabase/repositories";
 import { STATUS_TO_DB } from "~/shared/utils/vaultStatus";
+import { logActivity } from "~/lib/supabase/repositories/activityLog";
 import type { WatchlistItem } from "~/shared/types";
 
 // Re-export READ operations so existing consumers can keep importing
@@ -69,6 +70,16 @@ export async function updateStatusInSupabase(
     vaultStatus
   );
   if (error) throw error;
+
+  // Log to activity_log so the social feed can surface
+  // "alice updated status of X".
+  logActivity({
+    userId,
+    action: "vault_status_changed",
+    entityId: itemId,
+    entityType: mediaType,
+    metadata: { status }
+  });
 }
 
 /** Update a vault item's rating in Supabase. */
@@ -84,6 +95,15 @@ export async function updateRatingInSupabase(
     rating
   );
   if (error) throw error;
+
+  // Log to activity_log so the social feed can surface "alice rated X".
+  logActivity({
+    userId,
+    action: "vault_rated",
+    entityId: itemId,
+    entityType: mediaType,
+    metadata: { rating }
+  });
 }
 
 /** Update a vault item's notes in Supabase. */
@@ -250,6 +270,15 @@ export async function toggleFavoriteInSupabase(
     update
   );
   if (error) throw error;
+
+  // Log to activity_log so the social feed can surface
+  // "alice favorited X" / "alice unfavorited X".
+  logActivity({
+    userId,
+    action: currentValue ? "vault_unfavorited" : "vault_favorited",
+    entityId: itemId,
+    entityType: mediaType
+  });
 }
 
 /** Toggle the `is_pinned` flag on a vault item. */
