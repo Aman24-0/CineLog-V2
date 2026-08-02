@@ -24,19 +24,22 @@
 
 import { Title } from "@solidjs/meta";
 import { useNavigate } from "@solidjs/router";
-import { Show, For, onCleanup, type Component } from "solid-js";
+import { Show, For, createSignal, onCleanup, type Component } from "solid-js";
 
 import { PageContainer } from "~/shared/ui/layout";
 import {
   GlassButton,
   GlassEmptyState,
+  GlassInput,
   GlassSkeleton
 } from "~/shared/ui/glass";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 
 import { useFeed } from "~/shared/hooks/social/useFeed";
+import { useUserSearch } from "~/shared/hooks/social/useUserSearch";
 import FeedItem from "~/shared/ui/social/FeedItem";
+import UserListItem from "~/shared/ui/social/UserListItem";
 
 const FeedPage: Component = () => {
   const navigate = useNavigate();
@@ -44,6 +47,11 @@ const FeedPage: Component = () => {
   const { showToast } = useToast();
 
   const feed = useFeed(20);
+  const userSearch = useUserSearch();
+  const [searchQuery, setSearchQuery] = createSignal("");
+  const [showSearch, setShowSearch] = createSignal(false);
+
+  const hasSearchQuery = () => searchQuery().trim().length >= 2;
 
   // IntersectionObserver sentinel for infinite scroll. We attach a
   // <div> ref at the end of the list; when it scrolls into view, we
@@ -86,6 +94,20 @@ const FeedPage: Component = () => {
     navigate("/people");
   };
 
+  const handleSearchInput = (value: string) => {
+    setSearchQuery(value);
+    if (value.trim().length >= 2) {
+      userSearch.search(value);
+    }
+  };
+
+  const handleToggleSearch = () => {
+    setShowSearch((prev) => !prev);
+    if (showSearch()) {
+      setSearchQuery("");
+    }
+  };
+
   const handleSignInClick = () => {
     // The global AuthModal is opened by any component that calls
     // useAuthModal().openAuthModal(). Since the AppShell renders the
@@ -106,19 +128,107 @@ const FeedPage: Component = () => {
               Activity from people you follow
             </p>
           </div>
-          <Show when={isSignedIn() && !feed.loading()}>
-            <GlassButton
-              variant="ghost"
-              size="compact"
-              icon="refresh"
-              onClick={handleRefresh}
-              loading={feed.loadingMore()}
-              aria-label="Refresh feed"
-            >
-              Refresh
-            </GlassButton>
-          </Show>
+          <div class="feed-page-header-actions">
+            <Show when={isSignedIn()}>
+              <GlassButton
+                variant="ghost"
+                size="compact"
+                icon={showSearch() ? "close" : "person_search"}
+                onClick={handleToggleSearch}
+                aria-label={showSearch() ? "Close search" : "Search people"}
+              >
+                {showSearch() ? "Close" : "Search"}
+              </GlassButton>
+              <Show when={!showSearch()}>
+                <GlassButton
+                  variant="ghost"
+                  size="compact"
+                  icon="refresh"
+                  onClick={handleRefresh}
+                  loading={feed.loadingMore()}
+                  aria-label="Refresh feed"
+                >
+                  Refresh
+                </GlassButton>
+              </Show>
+            </Show>
+          </div>
         </header>
+
+        {/* ─── INLINE SEARCH ─────────────────────────────────────── */}
+        <Show when={showSearch() && isSignedIn()}>
+          <div class="feed-search-wrap">
+            <GlassInput
+              value={searchQuery()}
+              onInput={(e: Event) =>
+                handleSearchInput((e.currentTarget as HTMLInputElement).value)
+              }
+              placeholder="Search people by username or name…"
+              aria-label="Search users"
+              icon="search"
+              autocomplete="off"
+              autofocus
+            />
+          </div>
+
+          {/* Search results */}
+          <Show when={hasSearchQuery() && userSearch.loading()}>
+            <div class="feed-list" role="status" aria-live="polite">
+              <For each={Array.from({ length: 3 })}>
+                {() => (
+                  <div class="user-list-item-skeleton">
+                    <GlassSkeleton class="user-list-item-skeleton-avatar rounded-full" />
+                    <div class="user-list-item-skeleton-text">
+                      <GlassSkeleton class="h-3 w-32 rounded" />
+                      <GlassSkeleton class="mt-1 h-2 w-24 rounded" />
+                    </div>
+                  </div>
+                )}
+              </For>
+            </div>
+          </Show>
+
+          <Show when={hasSearchQuery() && !userSearch.loading() && userSearch.error()}>
+            <div class="feed-list">
+              <GlassEmptyState
+                icon="error"
+                title="Search failed"
+                message={userSearch.error() ?? "Something went wrong."}
+                variant="compact"
+              />
+            </div>
+          </Show>
+
+          <Show when={hasSearchQuery() && !userSearch.loading() && !userSearch.error() && userSearch.results().length === 0}>
+            <div class="feed-list">
+              <GlassEmptyState
+                icon="person_off"
+                title="No users found"
+                message={`No cinephiles match "${searchQuery()}". Try a different search.`}
+                variant="compact"
+              />
+            </div>
+          </Show>
+
+          <Show when={hasSearchQuery() && !userSearch.loading() && !userSearch.error() && userSearch.results().length > 0}>
+            <div class="feed-list" role="list" aria-label="Search results">
+              <For each={userSearch.results()}>
+                {(user) => <UserListItem user={user} />}
+              </For>
+            </div>
+          </Show>
+
+          <Show when={!hasSearchQuery()}>
+            <div class="feed-list">
+              <GlassEmptyState
+                icon="person_search"
+                title="Search for people"
+                message="Type a username or display name above to find cinephiles to follow."
+                variant="compact"
+              />
+            </div>
+          </Show>
+        </Show>
 
         {/* ─── SIGNED-OUT ──────────────────────────────────────── */}
         <Show when={!isSignedIn()}>

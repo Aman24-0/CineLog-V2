@@ -263,6 +263,30 @@ export function useFeed(limit: number = DEFAULT_LIMIT): UseFeedReturn {
     }
   });
 
+  // Auto-refresh when the page becomes visible again (user navigated
+  // back from adding a title to watchlist, or switched tabs). This
+  // ensures the feed shows new activity without requiring a manual
+  // refresh. We use a 30-second debounce to avoid excessive refreshes.
+  let lastRefreshTime = Date.now();
+  const REFRESH_DEBOUNCE_MS = 30_000; // 30 seconds
+
+  const handleVisibilityChange = () => {
+    if (document.visibilityState === "visible" && isSignedIn()) {
+      const now = Date.now();
+      if (now - lastRefreshTime >= REFRESH_DEBOUNCE_MS) {
+        lastRefreshTime = now;
+        void refresh();
+      }
+    }
+  };
+
+  onMount(() => {
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+  });
+  onCleanup(() => {
+    document.removeEventListener("visibilitychange", handleVisibilityChange);
+  });
+
   return {
     items,
     loading,

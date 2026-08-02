@@ -45,6 +45,28 @@
   margin: 0;
 }
 
+.feed-page-header-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1, 4px);
+  flex-shrink: 0;
+}
+
+/* ─── Inline Search (Feed Page) ───────────────────────────────────── */
+
+.feed-search-wrap {
+  padding: 0 var(--sp-4, 16px) var(--sp-3, 12px);
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  background: linear-gradient(
+    to bottom,
+    var(--bg-base, #0a0a0a) 80%,
+    transparent 100%
+  );
+  backdrop-filter: blur(8px);
+}
+
 /* ─── Feed List ──────────────────────────────────────────────────── */
 
 .feed-list {
