@@ -49,8 +49,8 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
+import { extractAccessToken } from "~/lib/auth/token";
 
 interface APIEvent {
   request: Request;
@@ -177,6 +177,31 @@ function yearFromDate(dateStr: string | null | undefined): string | null {
   if (!dateStr || typeof dateStr !== "string") return null;
   const year = dateStr.slice(0, 4);
   return /^\d{4}$/.test(year) ? year : null;
+}
+
+/**
+ * Read the TMDB id from an activity_log row's metadata payload.
+ *
+ * The activityLog.ts writer stores the TMDB id in `metadata.tmdb_id`
+ * (NOT entity_id — see the file header comment for why). The value
+ * can be a number or a numeric string; we coerce to a number and
+ * validate it's positive.
+ *
+ * @returns The TMDB id as a number, or null when missing/invalid.
+ */
+function readTmdbIdFromMetadata(
+  metadata: unknown
+): number | null {
+  if (!metadata || typeof metadata !== "object") return null;
+  const raw = (metadata as { tmdb_id?: unknown }).tmdb_id;
+  if (typeof raw === "number" && Number.isFinite(raw) && raw > 0) {
+    return raw;
+  }
+  if (typeof raw === "string") {
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return null;
 }
 
 /**
@@ -316,20 +341,12 @@ export async function GET(event: APIEvent): Promise<Response> {
   const page = Math.max(1, parseInt(url.searchParams.get("page") ?? "", 10) || 1);
   const offset = (page - 1) * limit;
 
-  // Resolve the caller's session.
-  //
-  // CineLog stores Supabase sessions in localStorage (not cookies), so
-  // the cookie path returns null in the deployed app. The frontend
-  // sends the access token as a Bearer token in the Authorization
-  // header — the standard pattern for GET requests that can't have a
-  // body. We fall back to the cookie path so server-side callers (e.g.
-  // SSR) and any future cookie-based session storage still work.
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const authHeader = event.request.headers.get("authorization") ?? "";
-  const bearerToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
-  const accessToken = bearerToken || getSupabaseAccessToken(cookieHeader);
+  // Resolve the caller's session via the unified token helper.
+  // CineLog stores sessions in localStorage (not cookies), so the
+  // browser sends the access token via the Authorization header (for
+  // GET requests) or the body (for POST). The helper tries all
+  // channels + the cookie fallback.
+  const accessToken = extractAccessToken(event);
 
   if (!accessToken) {
     return jsonResponse(
@@ -515,12 +532,17 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     // ─── 4. Batch-fetch TMDB metadata for movie/tv entities ────────
     // Build the list of (mediaType, tmdbId) pairs to look up.
+    //
+    // IMPORTANT: The TMDB id is stored in `metadata.tmdb_id` (NOT
+    // entity_id). The activity_log.entity_id column is UUID-typed
+    // (designed for row UUIDs like vault row ids), but TMDB ids are
+    // numbers — they can't be stored in a UUID column. So the
+    // activityLog.ts writer stores the TMDB id in metadata instead.
     const tmdbKeys: Array<{ mediaType: "movie" | "tv"; tmdbId: number }> = [];
     for (const a of filtered) {
       if (a.entity_type !== "movie" && a.entity_type !== "tv") continue;
-      if (!a.entity_id) continue;
-      const tmdbId = parseInt(a.entity_id, 10);
-      if (!Number.isFinite(tmdbId) || tmdbId <= 0) continue;
+      const tmdbId = readTmdbIdFromMetadata(a.metadata);
+      if (tmdbId === null) continue;
       tmdbKeys.push({
         mediaType: a.entity_type as "movie" | "tv",
         tmdbId
@@ -546,8 +568,8 @@ export async function GET(event: APIEvent): Promise<Response> {
       // Title enrichment — only for movie/tv entities.
       let title: FeedActivity["title"] = null;
       if (a.entity_type === "movie" || a.entity_type === "tv") {
-        const tmdbId = a.entity_id ? parseInt(a.entity_id, 10) : NaN;
-        if (Number.isFinite(tmdbId) && tmdbId > 0) {
+        const tmdbId = readTmdbIdFromMetadata(a.metadata);
+        if (tmdbId !== null) {
           const cacheRow = tmdbCacheMap.get(
             `${a.entity_type}/${tmdbId}`
           );

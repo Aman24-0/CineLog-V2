@@ -245,7 +245,7 @@ export async function createVaultItemInSupabase(
   logActivity({
     userId,
     action: "vault_created",
-    entityId: String(item.id),
+    tmdbId: item.id,
     entityType: item.media_type,
     metadata: {
       title: item.title ?? item.name ?? null,

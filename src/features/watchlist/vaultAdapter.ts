@@ -76,7 +76,7 @@ export async function updateStatusInSupabase(
   logActivity({
     userId,
     action: "vault_status_changed",
-    entityId: itemId,
+    tmdbId: itemId,
     entityType: mediaType,
     metadata: { status }
   });
@@ -100,7 +100,7 @@ export async function updateRatingInSupabase(
   logActivity({
     userId,
     action: "vault_rated",
-    entityId: itemId,
+    tmdbId: itemId,
     entityType: mediaType,
     metadata: { rating }
   });
@@ -276,7 +276,7 @@ export async function toggleFavoriteInSupabase(
   logActivity({
     userId,
     action: currentValue ? "vault_unfavorited" : "vault_favorited",
-    entityId: itemId,
+    tmdbId: itemId,
     entityType: mediaType
   });
 }

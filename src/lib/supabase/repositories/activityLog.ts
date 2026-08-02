@@ -27,6 +27,20 @@
 //   Errors are logged to the console but never surface to the UI.
 //
 //   This matches the pattern used by `auditLog.ts` for admin actions.
+//
+// IMPORTANT: entity_id is UUID-typed
+// ----------------------------------
+//   The `activity_log.entity_id` column is `uuid` (NOT text). It's
+//   designed to hold a row UUID (e.g. a vault row id or collection id).
+//   TMDB ids are NUMBERS (e.g. 550), which are NOT valid UUIDs —
+//   inserting "550" into a uuid column fails with a type error.
+//
+//   So for vault activities (which reference a TMDB title, not a
+//   vault row), we store the TMDB id in `metadata.tmdb_id` (JSONB)
+//   and leave `entity_id` NULL. The feed API reads it back from
+//   metadata. This keeps the schema clean (entity_id stays UUID-
+//   typed for future entity-keyed activities) while still letting
+//   the feed enrich with TMDB metadata.
 
 import { getClient } from "~/lib/supabase/client";
 
@@ -51,9 +65,16 @@ export interface ActivityLogPayload {
   userId: string;
   /** What kind of action (e.g. "vault_created", "vault_rated"). */
   action: ActivityAction;
-  /** The TMDB id of the movie/TV title the action is about (or null for collection actions). */
-  entityId?: string | null;
-  /** "movie" | "tv" | "collection" — drives how the feed renders the item. */
+  /**
+   * The TMDB id of the movie/TV title the action is about.
+   * Stored in `metadata.tmdb_id` (NOT entity_id — see file header).
+   * Pass null for collection-only actions.
+   */
+  tmdbId?: number | string | null;
+  /**
+   * "movie" | "tv" | "collection" — stored in `entity_type`.
+   * Drives how the feed renders the item.
+   */
   entityType?: "movie" | "tv" | "collection" | null;
   /** Optional structured metadata (e.g. { rating: 8 } for vault_rated). */
   metadata?: Record<string, unknown>;
@@ -74,7 +95,7 @@ export interface ActivityLogPayload {
  *   logActivity({
  *     userId: uid,
  *     action: "vault_created",
- *     entityId: String(item.id),
+ *     tmdbId: item.id,
  *     entityType: item.media_type,
  *     metadata: { title: item.title, status: item.status }
  *   });
@@ -100,13 +121,32 @@ export function logActivity(payload: ActivityLogPayload): void {
 export async function logActivityAsync(
   payload: ActivityLogPayload
 ): Promise<void> {
+  // Build the metadata payload — merge the caller's metadata with
+  // the tmdb_id so the feed API can read it back.
+  const metadata: Record<string, unknown> = {
+    ...payload.metadata
+  };
+  if (payload.tmdbId !== null && payload.tmdbId !== undefined) {
+    // Store as a NUMBER so the feed API can parseInt safely (it
+    // handles both number and string forms).
+    const tmdbIdNum =
+      typeof payload.tmdbId === "string"
+        ? parseInt(payload.tmdbId, 10)
+        : payload.tmdbId;
+    if (Number.isFinite(tmdbIdNum) && tmdbIdNum > 0) {
+      metadata.tmdb_id = tmdbIdNum;
+    }
+  }
+
   const supabase = getClient();
   const { error } = await supabase.from("activity_log").insert({
     user_id: payload.userId,
     action: payload.action,
-    entity_id: payload.entityId ?? null,
+    // entity_id is UUID-typed — leave NULL for vault activities.
+    // The TMDB id lives in metadata.tmdb_id.
+    entity_id: null,
     entity_type: payload.entityType ?? null,
-    metadata: payload.metadata ?? {},
+    metadata,
     // ip_address + user_agent are left null — the table accepts null
     // for both. Server-side capture would require forwarding headers
     // through every vault mutation, which is too invasive for the

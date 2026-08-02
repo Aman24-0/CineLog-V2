@@ -33,7 +33,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { extractAccessToken } from "~/lib/auth/token";
 
 interface APIEvent {
   request: Request;
@@ -117,14 +117,11 @@ export async function GET(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "Server misconfigured" }, 500);
   }
 
-  // Resolve the caller's session (optional — anon viewers get
-  // isFollowing=false for every row).
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const authHeader = event.request.headers.get("authorization") ?? "";
-  const bearerToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
-  const callerAccessToken = bearerToken || getSupabaseAccessToken(cookieHeader);
+  // Resolve the caller's session via the unified token helper.
+  // The list is public (anyone can browse), but the isFollowing
+  // enrichment per row requires the caller's session. Anon viewers
+  // get isFollowing=false for every row.
+  const callerAccessToken = extractAccessToken(event);
 
   // Caller-scoped client (so RLS evaluates follows_read with the
   // caller's auth context — any authenticated user can read all rows;

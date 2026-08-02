@@ -31,7 +31,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { extractAccessToken } from "~/lib/auth/token";
 
 interface APIEvent {
   request: Request;
@@ -62,22 +62,14 @@ export async function GET(event: APIEvent): Promise<Response> {
     );
   }
 
-  // Resolve the caller's access token.
+  // Resolve the caller's access token via the unified helper.
   //
-  // CineLog stores Supabase sessions in localStorage (not cookies), so
-  // the cookie path returns null in the deployed app. The frontend
-  // sends the access token as a Bearer token in the Authorization
-  // header. We fall back to the cookie path for server-side callers
-  // and any future cookie-based session storage.
-  //
-  // If neither path yields a token, the user is signed out — return
-  // `following: false` so the FollowButton renders "Follow".
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const authHeader = event.request.headers.get("authorization") ?? "";
-  const bearerToken = authHeader.startsWith("Bearer ")
-    ? authHeader.slice("Bearer ".length).trim()
-    : "";
-  const accessToken = bearerToken || getSupabaseAccessToken(cookieHeader);
+  // CineLog stores sessions in localStorage (not cookies), so the
+  // browser sends the token via the Authorization header. The helper
+  // tries header → query → body → cookie. If no token is found, the
+  // user is signed out — return `following: false` so the FollowButton
+  // renders "Follow".
+  const accessToken = extractAccessToken(event);
 
   if (!accessToken) {
     return jsonResponse({ following: false });

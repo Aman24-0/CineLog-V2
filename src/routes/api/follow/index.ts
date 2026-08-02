@@ -48,7 +48,7 @@
 
 import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { extractAccessToken } from "~/lib/auth/token";
 
 interface APIEvent {
   request: Request;
@@ -67,22 +67,18 @@ function jsonResponse(body: unknown, status = 200): Response {
 }
 
 /**
- * Resolve + verify the caller's session from either the body
- * `accessToken` field or the chunked `sb-*-auth-token` cookie.
+ * Resolve + verify the caller's session via the unified token helper.
  *
  * Returns the verified user id on success, or a `Response` (the error
- * to send to the client) on failure. The discriminated union via
- * `VerifiedSession | { response: Response }` keeps the call site clean.
+ * to send to the client) on failure.
  */
 async function resolveCaller(
   event: APIEvent,
   body: FollowRequestBody
 ): Promise<{ userId: string } | { response: Response }> {
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
-  const accessToken =
-    typeof body.accessToken === "string" && body.accessToken.length > 0
-      ? body.accessToken
-      : getSupabaseAccessToken(cookieHeader);
+  // The helper tries: Authorization header → query → body → cookie.
+  // We pass the pre-parsed body so it can read body.accessToken.
+  const accessToken = extractAccessToken(event, { body });
 
   if (!accessToken) {
     return {
@@ -167,26 +163,21 @@ function validateTargetUserId(
 
 /**
  * Build a Supabase client scoped to the caller's access token so RLS
- * policies that depend on `auth.uid()` evaluate correctly. We rebuild
- * the Authorization header from the verified access token (which we
- * already trust from `resolveCaller`).
+ * policies that depend on `auth.uid()` evaluate correctly. The token
+ * comes from `resolveCaller` (which already tried header → body →
+ * cookie via extractAccessToken).
  */
-function buildCallerClient(
-  accessToken: string | undefined,
-  cookieHeader: string
-) {
+function buildCallerClient(accessToken: string | undefined) {
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
   if (!supabaseUrl || !supabaseAnonKey) {
     throw new Error("Missing VITE_SUPABASE_URL or VITE_SUPABASE_ANON_KEY");
   }
-  const token =
-    typeof accessToken === "string" && accessToken.length > 0
-      ? accessToken
-      : getSupabaseAccessToken(cookieHeader);
   return createClient(supabaseUrl, supabaseAnonKey, {
     auth: { autoRefreshToken: false, persistSession: false },
-    global: { headers: token ? { Authorization: `Bearer ${token}` } : {} }
+    global: {
+      headers: accessToken ? { Authorization: `Bearer ${accessToken}` } : {}
+    }
   });
 }
 
@@ -222,10 +213,11 @@ export async function POST(event: APIEvent): Promise<Response> {
     );
   }
 
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
+  // Build a caller-scoped client using the resolved access token.
+  // resolveCaller already extracted the token via extractAccessToken
+  // (header → body → cookie), so we pass it directly.
   const callerClient = buildCallerClient(
-    typeof body.accessToken === "string" ? body.accessToken : undefined,
-    cookieHeader
+    typeof body.accessToken === "string" ? body.accessToken : undefined
   );
 
   try {
@@ -277,10 +269,8 @@ export async function DELETE(event: APIEvent): Promise<Response> {
   if ("response" in caller) return caller.response;
   const { userId } = caller;
 
-  const cookieHeader = event.request.headers.get("cookie") ?? "";
   const callerClient = buildCallerClient(
-    typeof body.accessToken === "string" ? body.accessToken : undefined,
-    cookieHeader
+    typeof body.accessToken === "string" ? body.accessToken : undefined
   );
 
   try {
