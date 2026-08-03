@@ -126,14 +126,9 @@ interface MergedCrewMember {
  */
 export interface DetailsCastProps {
   details: Accessor<TMDBDetails | null>;
-  /** When true, this component renders nothing (anime uses AniList Characters instead). */
-  isAnime?: Accessor<boolean>;
 }
 
 const DetailsCast: Component<DetailsCastProps> = (props) => {
-  // For anime, hide TMDB Cast — AniList Characters & Voice Actors replaces it.
-  // This avoids showing both real-actor cards and animated-character cards.
-  if (props.isAnime?.()) return null;
   const [selectedPerson, setSelectedPerson] = createSignal<{
     id: number;
     name: string;

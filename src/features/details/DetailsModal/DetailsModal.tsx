@@ -412,18 +412,21 @@ export default function DetailsModal() {
                       />
 
                       {/* ── 6. Characters & Crew ──────────────────────
-                          For anime: AniList Characters & Voice Actors +
-                          Crew carousel (replaces TMDB Cast & Crew).
-                          For movies/TV: TMDB Cast & Crew as before. */}
-                      <DetailsCast
-                        details={tmdb}
-                        isAnime={animeEnrichment.isAnime}
-                      />
-                      <AnimeCharacters
-                        anilist={animeEnrichment.anilist}
-                        enabled={animeEnrichment.settings.charactersStaff}
-                        details={tmdb}
-                      />
+                          MUTUALLY EXCLUSIVE: only one path renders.
+                          For anime: AniList Characters & Voice Actors grid +
+                          Crew horizontal carousel (anime-relevant roles).
+                          For movies/TV: TMDB Cast & Crew as before.
+                          Never both. Never mounted simultaneously. */}
+                      <Show when={animeEnrichment.isAnime()}>
+                        <AnimeCharacters
+                          anilist={animeEnrichment.anilist}
+                          enabled={animeEnrichment.settings.charactersStaff}
+                          details={tmdb}
+                        />
+                      </Show>
+                      <Show when={!animeEnrichment.isAnime()}>
+                        <DetailsCast details={tmdb} />
+                      </Show>
 
                       {/* ── 7. Unified Details Grid ───────────────────
                           For anime: merges AniList data (Episodes, Season,
