@@ -24,7 +24,7 @@ import { isServer } from "solid-js/web";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
-import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
+import { fetchTmdbMetadata, fetchPersonDetails } from "~/core/tmdb/tmdb";
 import type { ProfileRow } from "~/lib/supabase/repositories";
 import type { TMDBTitle } from "~/shared/types";
 import type { UpdateProfilePayload } from "~/lib/supabase/repositories/profile";
@@ -225,29 +225,13 @@ export function useProfileData() {
 async function fetchFavoriteDirector(
   personId: string
 ): Promise<FavoriteDirector | null> {
-  try {
-    // All TMDB API calls now go through the server-side proxy at /api/media/*
-    // which injects the API key from TMDB_API_KEY (server-only env var).
-    const API = "/api/media";
-    // 10s AbortController timeout prevents this fetch from hanging forever
-    // and blocking the profile page from rendering.
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 10_000);
-    try {
-      const res = await fetch(`${API}/person/${personId}?language=en-US`, {
-        signal: controller.signal
-      });
-      if (!res.ok) return null;
-      const data = await res.json();
-      return {
-        id: String(data.id),
-        name: data.name ?? "Unknown",
-        profile_path: data.profile_path ?? null
-      };
-    } finally {
-      clearTimeout(timeoutId);
-    }
-  } catch {
-    return null;
-  }
+  // Uses fetchPersonDetails which goes through cachedFetch (10-min TTL),
+  // so repeated profile visits don't re-fetch the same person data.
+  const data = await fetchPersonDetails(personId);
+  if (!data) return null;
+  return {
+    id: String(data.id),
+    name: data.name ?? "Unknown",
+    profile_path: data.profile_path ?? null
+  };
 }

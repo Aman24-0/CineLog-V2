@@ -277,31 +277,48 @@ export function filterByStatus(
   );
 }
 
-/** Apply the advanced filters (type, region, genre, platform, tag). */
+/** Apply the advanced filters (type, region, genre, platform, tag).
+ * Single-pass — avoids creating up to 5 intermediate arrays. */
 export function filterByAdvanced(
   items: WatchlistItem[],
   f: VaultFilters
 ): WatchlistItem[] {
-  let out = items;
-  if (f.type !== "all") out = out.filter((m) => m.media_type === f.type);
-  if (f.region !== "all") out = out.filter((m) => matchesRegion(m, f.region));
-  if (f.genre !== "all")
-    out = out.filter((m) => {
-      if (!m.genresList || !Array.isArray(m.genresList)) return false;
-      return m.genresList.some((g) => {
+  // Fast path: no filters active
+  if (
+    f.type === "all" &&
+    f.region === "all" &&
+    f.genre === "all" &&
+    f.platform === "all" &&
+    f.tag === "all"
+  ) {
+    return items;
+  }
+
+  const result: WatchlistItem[] = [];
+  for (let i = 0; i < items.length; i++) {
+    const m = items[i];
+    if (f.type !== "all" && m.media_type !== f.type) continue;
+    if (f.region !== "all" && !matchesRegion(m, f.region)) continue;
+    if (f.genre !== "all") {
+      if (!m.genresList || !Array.isArray(m.genresList)) continue;
+      let hasGenre = false;
+      for (let j = 0; j < m.genresList.length; j++) {
+        const g = m.genresList[j];
         const name =
           typeof g === "string"
             ? g
             : typeof g === "object" && g !== null && "name" in g
               ? String((g as { name: unknown }).name)
               : String(g);
-        return name === f.genre;
-      });
-    });
-  if (f.platform !== "all")
-    out = out.filter((m) => matchesPlatform(m, f.platform));
-  if (f.tag !== "all") out = out.filter((m) => m.tag === f.tag);
-  return out;
+        if (name === f.genre) { hasGenre = true; break; }
+      }
+      if (!hasGenre) continue;
+    }
+    if (f.platform !== "all" && !matchesPlatform(m, f.platform)) continue;
+    if (f.tag !== "all" && m.tag !== f.tag) continue;
+    result.push(m);
+  }
+  return result;
 }
 
 /**

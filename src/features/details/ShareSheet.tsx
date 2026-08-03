@@ -23,7 +23,8 @@ import {
   type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
-import html2canvas from "html2canvas";
+// html2canvas is ~300KB. Loaded dynamically on first share-card
+// generation to keep the DetailsModal chunk lean.
 import QRCode from "qrcode";
 import { GlassSheet } from "~/shared/ui/glass/GlassSheet";
 import { useToast } from "~/shared/hooks/useToast";
@@ -262,6 +263,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
       const el = document.getElementById("share-card-render");
       if (!el) throw new Error("Card element not found");
 
+      const { default: html2canvas } = await import("html2canvas");
       const canvas = await html2canvas(el, {
         backgroundColor: "#0a0a0a",
         useCORS: true,

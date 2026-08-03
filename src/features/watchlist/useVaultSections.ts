@@ -166,21 +166,14 @@ export function useVaultSections(args: UseVaultSectionsArgs) {
     return result;
   });
 
-  /** Count of items that are "claimed" by status shelves (for dedup tracking) */
+  /** Count of items in status shelves (shelves 1-4, not "All Titles").
+   *  Derived from the sections memo to avoid a second O(n) pass. */
   const claimedCount = createMemo(() => {
-    const list = args.watchlist();
-    if (args.flatMode() || list.length === 0) return 0;
-    // Count items that would be in shelves 1-4 (not "All Titles")
-    // Uses isWatchable for progress, status checks for others
-    return list.filter((m) => {
-      const inProgress = isWatchable(m); // status === "Watching"
-      const planned = m.status === "Planned" || m.status === "Plan to Watch";
-      const ninetyDaysAgo = Date.now() - 90 * 24 * 60 * 60 * 1000;
-      const recentCompleted =
-        m.status === "Completed" &&
-        (resolveTimelineDate(m)?.getTime() || 0) >= ninetyDaysAgo;
-      return inProgress || planned || recentCompleted;
-    }).length;
+    let count = 0;
+    for (const s of sections()) {
+      if (s.id !== "all") count += s.items.length;
+    }
+    return count;
   });
 
   return {

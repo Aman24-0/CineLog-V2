@@ -34,6 +34,8 @@ export const OMDb_TTL = 24 * 60 * 60 * 1000; // 24 hours
 // Cache storage
 // ---------------------------------------------------------------------------
 
+const MAX_CACHE_SIZE = 300;
+
 const cache = new Map<string, CacheEntry<unknown>>();
 const inFlight = new Map<string, Promise<unknown>>();
 
@@ -75,6 +77,18 @@ export function getCached<T>(key: string): T | undefined {
  * Store a value in the cache with the given TTL.
  */
 export function setCached<T>(key: string, value: T, ttl: number): void {
+  // Evict expired entries first, then oldest if still over limit.
+  if (cache.size >= MAX_CACHE_SIZE) {
+    const now = Date.now();
+    for (const [k, entry] of cache) {
+      if (now > entry.expiresAt) { cache.delete(k); break; }
+    }
+    if (cache.size >= MAX_CACHE_SIZE) {
+      // Delete the oldest entry (first key inserted — Map preserves insertion order)
+      const firstKey = cache.keys().next().value;
+      if (firstKey !== undefined) cache.delete(firstKey);
+    }
+  }
   cache.set(key, { value, expiresAt: Date.now() + ttl });
 }
 

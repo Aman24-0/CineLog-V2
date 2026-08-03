@@ -89,12 +89,15 @@ export default function CinematicHero(props: CinematicHeroProps) {
   // Disabled when trailer is active — the iframe shouldn't parallax.
   let heroRef: HTMLDivElement | undefined;
   let scrollRef: HTMLElement | undefined;
+  let cachedHeroHeight = 0;
 
   const onScroll = () => {
     if (!scrollRef || !heroRef) return;
     if (props.trailerActive) return; // no parallax during trailer playback
     const scrollTop = scrollRef.scrollTop;
-    const heroHeight = heroRef.offsetHeight;
+    // Cache heroHeight to avoid forced reflow on every scroll frame.
+    // Only recompute on first call (0) — height doesn't change during scroll.
+    const heroHeight = cachedHeroHeight || (cachedHeroHeight = heroRef.offsetHeight);
     const progress = Math.min(1, scrollTop / heroHeight);
     setScrolled(progress > 0.1);
 
