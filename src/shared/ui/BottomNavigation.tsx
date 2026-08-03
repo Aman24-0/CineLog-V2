@@ -66,6 +66,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="explore"
         label="Discover"
+        href="/discover"
         active={path() === "/discover" || path() === "/search"}
         onClick={() => go("/discover")}
       />
@@ -73,6 +74,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="visibility"
         label="Watchlist"
+        href="/watchlist"
         active={path() === "/watchlist"}
         onClick={() => go("/watchlist")}
       />
@@ -80,6 +82,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="collections_bookmark"
         label="Collections"
+        href="/collections"
         active={path() === "/collections" || path().startsWith("/collections/")}
         onClick={() => go("/collections")}
       />
@@ -87,6 +90,7 @@ export default function BottomNavigation() {
       <NavButton
         icon="person"
         label="Profile"
+        href="/profile"
         active={path() === "/profile" || path().startsWith("/profile/")}
         onClick={handleProfileClick}
       />

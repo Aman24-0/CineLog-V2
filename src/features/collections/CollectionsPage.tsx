@@ -78,10 +78,10 @@ export default function CollectionsPage() {
   // Dynamic subtitle counts: "X Collections · Y Subscribed Universes".
   // Computed from the live signals so the count updates immediately
   // on create/delete/archive/subscribe/unsubscribe.
-  const subtitleCounts = createMemo(() => ({
-    collections: activeCollections().length,
-    universes: subscribedUniverses().length
-  }));
+  // Split into two primitive memos so SolidJS's === check skips re-renders
+  // when the count hasn't changed (object memos always create a new ref).
+  const collectionCount = createMemo(() => activeCollections().length);
+  const universeCount = createMemo(() => subscribedUniverses().length);
 
   const handleCreate = async () => {
     const name = newName().trim();
@@ -160,8 +160,8 @@ export default function CollectionsPage() {
                 create/delete/archive/subscribe/unsubscribe. */}
             <p class="collections-page-subtitle-counts">
               <span>
-                {subtitleCounts().collections}{" "}
-                {subtitleCounts().collections !== 1
+                {collectionCount()}{" "}
+                {collectionCount() !== 1
                   ? "Collections"
                   : "Collection"}
               </span>
@@ -170,8 +170,8 @@ export default function CollectionsPage() {
                 aria-hidden="true"
               />
               <span>
-                {subtitleCounts().universes}{" "}
-                {subtitleCounts().universes !== 1
+                {universeCount()}{" "}
+                {universeCount() !== 1
                   ? "Subscribed Universes"
                   : "Subscribed Universe"}
               </span>

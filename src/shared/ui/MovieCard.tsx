@@ -200,14 +200,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const firstPlatform = () => props.movie.platformsList?.[0];
 
   // O(1) favorites lookup via provider-level Set.
-  const favColId = () => {
-    const all = collections.userCollections();
-    return (
-      all.find((c) => c.isFavorites) ??
-      all.find((c) => c.name === "Favorites") ??
-      null
-    )?.id ?? null;
-  };
+  // favoritesCollectionId is derived once in the CollectionsProvider,
+  // eliminating per-card .find() scans over the collections array.
+  const favColId = () => collections.favoritesCollectionId();
 
   const isFavourite = () => {
     if (!favColId()) return false;

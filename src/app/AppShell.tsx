@@ -19,6 +19,7 @@ import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import SearchOverlay from "~/features/search/SearchOverlay";
+import { initScrollRestoration } from "~/shared/utils/scrollRestoration";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
 const CollectionModal = lazy(
@@ -72,6 +73,10 @@ const AppShell: ParentComponent = (props) => {
   const { collectionSelectedItem } = useCollectionModal();
   const { authModalOpen } = useAuthModal();
   const location = useLocation();
+
+  // Initialize scroll position memory for the 4 main tab routes.
+  // This runs once in AppShell which persists across all navigations.
+  initScrollRestoration();
 
   // Admin routes render their own layout (AdminShell) with its own sidebar,
   // top bar, and auth gate. They must NOT be wrapped in the consumer AppShell

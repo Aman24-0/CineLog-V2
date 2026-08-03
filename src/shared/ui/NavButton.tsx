@@ -1,12 +1,33 @@
 import { JSX, createMemo, type Component } from "solid-js";
 import Icon from "./Icon";
 
+// Route chunk prefetch map — maps href to the import() trigger.
+// Defined at module level so it's shared across all NavButton instances.
+// Only the first hover/touch/focus triggers the actual import().
+const ROUTE_PREFETCH: Record<string, () => Promise<unknown>> = {
+  "/discover": () => import("~/features/discover/DiscoverPage"),
+  "/watchlist": () => import("~/features/watchlist/WatchlistView"),
+  "/collections": () => import("~/features/collections/CollectionsPage"),
+  "/profile": () => import("~/features/profile/ProfilePage")
+};
+const prefetchedRoutes = new Set<string>();
+
+function prefetchNavRoute(href: string): void {
+  if (prefetchedRoutes.has(href)) return;
+  const fn = ROUTE_PREFETCH[href];
+  if (!fn) return;
+  prefetchedRoutes.add(href);
+  void fn().catch(() => prefetchedRoutes.delete(href));
+}
+
 type Props = {
   icon: string;
   label: string;
   active?: boolean;
   disabled?: boolean;
   onClick?: JSX.EventHandler<HTMLButtonElement, MouseEvent>;
+  /** Route path — when provided, the chunk is prefetched on hover/touch/focus. */
+  href?: string;
 };
 
 /**
@@ -32,7 +53,13 @@ const NavButton: Component<Props> = (props) => {
   return (
     <button
       type="button"
-      onClick={(e) => props.onClick?.(e)}
+      onClick={(e) => {
+        if (props.href) prefetchNavRoute(props.href);
+        props.onClick?.(e);
+      }}
+      onMouseEnter={() => props.href && prefetchNavRoute(props.href)}
+      onTouchStart={() => props.href && prefetchNavRoute(props.href)}
+      onFocus={() => props.href && prefetchNavRoute(props.href)}
       disabled={props.disabled}
       class="focus-ring relative flex flex-1 flex-col items-center justify-center gap-1"
       style={{

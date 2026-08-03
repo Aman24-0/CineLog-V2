@@ -3,6 +3,7 @@ import { useNavigate, useLocation } from "@solidjs/router";
 import { For, createSignal, createMemo, Show, type Component } from "solid-js";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
+import { prefetchRoute } from "~/shared/utils/routePrefetch";
 
 /**
  * DesktopSidebar — permanent left navigation for desktop/tablet.
@@ -87,7 +88,12 @@ const DesktopSidebar: Component = () => {
               <button
                 type="button"
                 class={`desktop-sidebar__item${active() ? " desktop-sidebar__item--active" : ""}`}
-                onClick={() => item.onClick ? item.onClick() : go(item.href)}
+                onClick={() => {
+                  prefetchRoute(item.href);
+                  item.onClick ? item.onClick() : go(item.href);
+                }}
+                onMouseEnter={() => prefetchRoute(item.href)}
+                onFocus={() => prefetchRoute(item.href)}
                 aria-current={active() ? "page" : undefined}
                 aria-label={item.label}
                 title={collapsed() ? item.label : undefined}

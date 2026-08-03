@@ -837,6 +837,16 @@ const useCollectionsLogic = () => {
   };
 
   // ─── O(1) Favorites Lookup (Performance Sprint 1, Task 3) ─────
+  // Derive the Favorites collection ID once per userCollections tick.
+  // Used by MovieCard and FavoritesGrid — avoids per-card .find() scans.
+  const favoritesCollectionId = createMemo(() => {
+    const all = userCollections();
+    const fav =
+      all.find((c) => c.isFavorites) ??
+      all.find((c) => c.name === "Favorites");
+    return fav?.id ?? null;
+  });
+
   //
   // Build a Set of "${media_type}/${id}" keys for every entry in the
   // Favorites collection. MovieCard uses `favoritesSet.has(key)`
@@ -847,12 +857,12 @@ const useCollectionsLogic = () => {
   // vs. the old per-card O(all collections × all entries) scan.
   const favoritesSet = createMemo(() => {
     const all = userCollections();
-    const favCol =
-      all.find((c) => c.isFavorites) ??
-      all.find((c) => c.name === "Favorites");
-    if (!favCol?.entries?.length) return new Set<string>();
+    const favId = favoritesCollectionId();
+    if (!favId) return new Set<string>();
+    const fav = all.find((c) => c.id === favId);
+    if (!fav?.entries?.length) return new Set<string>();
     const set = new Set<string>();
-    for (const e of favCol.entries) {
+    for (const e of fav.entries) {
       if (e?.id && e.media_type) set.add(`${e.media_type}/${e.id}`);
     }
     return set;
@@ -883,6 +893,7 @@ const useCollectionsLogic = () => {
     unarchiveCollection,
     fetchWithArchived,
     favoritesSet,
+    favoritesCollectionId,
     ...queries
   };
 };

@@ -25,14 +25,20 @@
 import { mount, StartClient } from "@solidjs/start/client";
 import { injectSpeedInsights } from "@vercel/speed-insights";
 
-// Initialize Vercel Speed Insights for production Core Web Vitals
-// collection. injectSpeedInsights() is a no-op in development and during
-// SSR — it only activates on the deployed Vercel preview/production URL.
-// This call must happen AFTER the app mounts so the SDK can hook into
-// the correct navigation/route-change events.
-injectSpeedInsights();
-
+// Mount the SolidJS app first — this is the critical path to first paint.
+// Everything else is deferred to avoid blocking hydration.
 mount(() => <StartClient />, document.getElementById("app")!);
+
+// Initialize Vercel Speed Insights AFTER mount so the SDK can hook
+// into the correct navigation/route-change events. This is a no-op in
+// development and during SSR — it only activates on Vercel.
+// Using requestIdleCallback so it doesn't compete with post-hydration work.
+if (typeof requestIdleCallback !== "undefined") {
+  requestIdleCallback(() => injectSpeedInsights());
+} else {
+  // Fallback for browsers without requestIdleCallback.
+  setTimeout(() => injectSpeedInsights(), 200);
+}
 
 // ─── Service Worker registration (production only) ──────────────────
 // Runs AFTER mount() so hydration isn't blocked. The browser will

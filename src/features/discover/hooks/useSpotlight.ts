@@ -118,9 +118,13 @@ export function useSpotlight(args: UseSpotlightArgs) {
   const [error, setError] = createSignal<string | null>(null);
 
   /** Set of "{mediaType}/{tmdbId}" keys for every title in the vault. */
-  const vaultKeys = createMemo(
-    () => new Set(args.vault().map((m) => `${m.media_type}/${m.id}`))
-  );
+  const vaultKeys = createMemo(() => {
+    const set = new Set<string>();
+    for (const v of args.vault()) {
+      set.add(`${v.media_type}/${v.id}`);
+    }
+    return set;
+  });
 
   /**
    * Filter a list of TMDB titles down to ones that are eligible for
