@@ -6,10 +6,10 @@
 // inside MetadataGrid is ownership-aware (vault only).
 //
 // For anime, passes AniList data to MetadataGrid so it can merge
-// AniList-specific fields (Format, Season, Popularity, Favourites,
-// Ranking, Studio from AniList) into the unified grid. This replaces
-// the separate "AniList Stats" and "Studio" sections that previously
-// appeared below the Details grid.
+// AniList-specific fields (Episodes, Season, Popularity, Favourites,
+// Ranking, Studio from AniList) into the unified grid. Format and
+// Duration are excluded — already shown in Hero chips. Episodes is
+// hidden for anime movies (always 1 episode).
 import { Show } from "solid-js";
 import type { Accessor } from "solid-js";
 import MetadataGrid from "~/features/details/components/MetadataGrid";

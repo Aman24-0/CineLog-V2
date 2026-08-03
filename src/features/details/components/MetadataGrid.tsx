@@ -239,16 +239,16 @@ export default function MetadataGrid(props: MetadataGridProps) {
 
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
 
-    // ── Anime: AniList-specific cells at the top ──────────────────
-    // For anime, AniList Format + Episodes go first (like TV Seasons
-    // + Episodes) so they land in row 1 of the grid.
+    // ── Anime: AniList-specific cells ──────────────────────────────
+    // For anime, Format and Duration are NOT shown — they're already
+    // displayed in the Hero's quick-meta pills. Episodes is hidden
+    // for anime movies (always 1 episode) but shown for TV/OVA/ONA.
     if (isAnime && al) {
-      // Format (TV, MOVIE, OVA, ONA, etc.)
-      if (al.format) {
-        list.push({ label: "Format", value: al.format });
-      }
-      // Episodes from AniList (preferred over TMDB for anime)
-      if (al.episodes != null) {
+      // Format is already shown in Hero chips — skip
+      // Duration is already shown beside Year in Hero — skip
+      // Episodes: hide for anime movies (always 1), show for series
+      const isAnimeMovie = al.format === "MOVIE";
+      if (!isAnimeMovie && al.episodes != null) {
         list.push({ label: "Episodes", value: String(al.episodes) });
       }
     } else if (isAnime && !al) {
@@ -336,16 +336,16 @@ export default function MetadataGrid(props: MetadataGridProps) {
       });
     }
 
-    // Duration (AniList) — for anime, use AniList duration instead of TMDB runtime.
-    // Runtime is already shown in hero pills, so we only add this for anime
-    // when AniList has it (as "per episode" duration).
-    if (isAnime && al?.duration) {
-      list.push({ label: "Duration", value: `${al.duration} min` });
-    }
+    // Duration is already shown in Hero chips — skip for anime.
+    // For movies/TV, runtime is also in Hero — no Duration cell.
 
-    // Budget (Movie only, non-anime or anime without AniList)
+    // Budget & Box Office — always side-by-side in the same row.
+    // Both are only shown for movies (not TV series). For anime movies,
+    // they still appear if TMDB has the data. The two cells are always
+    // added consecutively so they land in the same grid row.
     if (!isTv) {
       const budgetUSD = formatMoneyUSD(d?.budget);
+      const boxOfficeUSD = formatMoneyUSD(d?.revenue);
       if (budgetUSD) {
         const localFormat = formatMoneyLocal(d?.budget ?? 0, region());
         const showLocal = showLocalCurrency() && localFormat !== null;
@@ -354,11 +354,6 @@ export default function MetadataGrid(props: MetadataGridProps) {
           value: showLocal ? localFormat! : budgetUSD
         });
       }
-    }
-
-    // Box Office / Revenue (Movie only, non-anime or anime without AniList)
-    if (!isTv) {
-      const boxOfficeUSD = formatMoneyUSD(d?.revenue);
       if (boxOfficeUSD) {
         const localFormat = formatMoneyLocal(d?.revenue ?? 0, region());
         const showLocal = showLocalCurrency() && localFormat !== null;

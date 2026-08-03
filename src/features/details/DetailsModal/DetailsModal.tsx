@@ -48,9 +48,14 @@ import UserCollectionInfo from "~/features/details/components/UserCollectionInfo
 //   - Stats → merged into MetadataGrid as unified Detail cells
 //   - Studio → merged into MetadataGrid Studio cell
 //   - Characters → AnimeCharacters replaces DetailsCast for anime
+//   - Crew → merged into AnimeCharacters as a horizontal carousel
+//
+// Recommendations use TMDB for ALL titles (movies, TV, anime).
+// AniList recommendations removed — TMDB has better artwork,
+// larger pool, more diverse results. AniList still provides:
+// Relations, Characters, Voice Actors, Metadata, Source Material.
 import AnimeSections from "./AnimeSections";
 import AnimeCharacters from "./AnimeCharacters";
-import AnimeRecommendations from "./AnimeRecommendations";
 import { useAnimeEnrichment } from "~/features/details/useAnimeEnrichment";
 
 import { useDetailsForm } from "./useDetailsForm";
@@ -406,9 +411,9 @@ export default function DetailsModal() {
                         anilist={animeEnrichment.anilist}
                       />
 
-                      {/* ── 6. Characters ─────────────────────────────
-                          For anime: AniList Characters & Voice Actors
-                          (replaces TMDB Cast & Crew).
+                      {/* ── 6. Characters & Crew ──────────────────────
+                          For anime: AniList Characters & Voice Actors +
+                          Crew carousel (replaces TMDB Cast & Crew).
                           For movies/TV: TMDB Cast & Crew as before. */}
                       <DetailsCast
                         details={tmdb}
@@ -417,13 +422,15 @@ export default function DetailsModal() {
                       <AnimeCharacters
                         anilist={animeEnrichment.anilist}
                         enabled={animeEnrichment.settings.charactersStaff}
+                        details={tmdb}
                       />
 
                       {/* ── 7. Unified Details Grid ───────────────────
-                          For anime: merges AniList data (Format, Episodes,
-                          Season, Studio, Popularity, Favourites, Ranking,
-                          Source Material) into the grid alongside TMDB data.
-                          No duplicate fields. */}
+                          For anime: merges AniList data (Episodes, Season,
+                          Studio, Popularity, Favourites, Ranking, Source)
+                          into the grid alongside TMDB data.
+                          Format and Duration are excluded — already in Hero.
+                          Episodes hidden for anime movies (always 1). */}
                       <DetailsMetadata
                         baseItem={baseItem}
                         details={tmdb}
@@ -478,19 +485,14 @@ export default function DetailsModal() {
                         })}
                       />
 
-                      {/* ── 11. More Like This ────────────────────────
-                          For anime: AniList Recommendations ONLY (replaces
-                          TMDB "You May Also Like" to avoid duplicate sections).
-                          For movies/TV: TMDB "You May Also Like" as before. */}
+                      {/* ── 11. You May Also Like ──────────────────────
+                          TMDB recommendations for ALL titles (movies, TV,
+                          anime). AniList recommendations removed — TMDB
+                          has better artwork, larger pool, more diverse.
+                          AniList still provides: Relations, Characters,
+                          Voice Actors, Metadata, Source Material. */}
                       <DetailsRecommendations
                         baseItem={baseItem}
-                        watchlist={watchlist}
-                        onSelect={handleSelectItem}
-                        isAnime={animeEnrichment.isAnime}
-                      />
-                      <AnimeRecommendations
-                        anilistId={animeEnrichment.anilistId}
-                        currentTmdbId={() => baseItem()?.id}
                         watchlist={watchlist}
                         onSelect={handleSelectItem}
                       />
