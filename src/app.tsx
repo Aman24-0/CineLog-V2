@@ -33,6 +33,7 @@ import { OfflineBanner } from "~/shared/ui/OfflineBanner";
 import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
+import { SearchProvider } from "~/shared/contexts/SearchContext";
 import { GlassLoadingState } from "~/shared/ui/glass";
 
 // Read the signals so the createEffects are tracked. The return values are
@@ -57,7 +58,8 @@ export default function App() {
             <UserLibraryProvider>
               <VaultProvider>
                 <CollectionsProvider>
-                  <AppShell>
+                  <SearchProvider>
+                    <AppShell>
                     <Suspense
                       fallback={
                         <GlassLoadingState fullHeight message="Loading" />
@@ -66,6 +68,7 @@ export default function App() {
                       {props.children}
                     </Suspense>
                   </AppShell>
+                  </SearchProvider>
                 </CollectionsProvider>
               </VaultProvider>
             </UserLibraryProvider>

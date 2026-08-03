@@ -112,7 +112,7 @@
   height: 62vh;
   max-height: 560px;
   min-height: 380px;
-  border-radius: 0;
+  border-radius: var(--radius-lg, 12px);
   background: var(--tier-2);
   position: relative;
   overflow: hidden;
