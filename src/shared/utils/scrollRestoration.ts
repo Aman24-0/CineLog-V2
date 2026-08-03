@@ -15,6 +15,10 @@
  *   track navigations and `useIsRouting()` to detect when routing is
  *   in progress.
  *
+ * SSR Safety:
+ *   ALL window/document access is guarded with `typeof window !== "undefined"`.
+ *   The scroll event listener and scrollTo calls only run in the browser.
+ *
  * Memory safety:
  *   - Only 4 entries max (one per tab route).
  *   - Positions are simple numbers — negligible memory.
@@ -68,6 +72,12 @@ let justRestored = false;
  * When navigating to a previously-visited tab route: restores scrollY.
  */
 export function initScrollRestoration(): void {
+  // SSR guard — bail out entirely on the server.
+  // useLocation() and useIsRouting() are safe in SSR (they return
+  // reactive signals), but all window/document access below must
+  // only happen in the browser.
+  const isBrowser = typeof window !== "undefined";
+
   const location = useLocation();
   const isRouting = useIsRouting();
 
@@ -86,7 +96,7 @@ export function initScrollRestoration(): void {
     // Save scroll position of the previous route if it was a tab route.
     if (prevPathname !== pathname && isTabRoute(prevPathname)) {
       const key = getTabKey(prevPathname);
-      if (key !== null) {
+      if (key !== null && isBrowser) {
         scrollPositions.set(key, window.scrollY);
       }
     }
@@ -94,7 +104,7 @@ export function initScrollRestoration(): void {
     // --- ARRIVING at the new route ---
     if (isTabRoute(pathname)) {
       const key = getTabKey(pathname);
-      if (key !== null && scrollPositions.has(key)) {
+      if (key !== null && scrollPositions.has(key) && isBrowser) {
         const savedY = scrollPositions.get(key)!;
         if (savedY > 0) {
           justRestored = true;
@@ -117,26 +127,29 @@ export function initScrollRestoration(): void {
   // Also save scroll position on scroll events (debounced)
   // so if the user scrolls, waits a bit, then navigates, we still
   // capture the latest position.
-  let scrollTimer: ReturnType<typeof setTimeout> | null = null;
-  const onScroll = () => {
-    if (justRestored) return;
-    if (scrollTimer) clearTimeout(scrollTimer);
-    scrollTimer = setTimeout(() => {
-      const current = prevPathname;
-      if (current && isTabRoute(current)) {
-        const key = getTabKey(current);
-        if (key !== null) {
-          scrollPositions.set(key, window.scrollY);
+  // Guard: only attach the listener in the browser.
+  if (isBrowser) {
+    let scrollTimer: ReturnType<typeof setTimeout> | null = null;
+    const onScroll = () => {
+      if (justRestored) return;
+      if (scrollTimer) clearTimeout(scrollTimer);
+      scrollTimer = setTimeout(() => {
+        const current = prevPathname;
+        if (current && isTabRoute(current)) {
+          const key = getTabKey(current);
+          if (key !== null) {
+            scrollPositions.set(key, window.scrollY);
+          }
         }
-      }
-    }, 150);
-  };
-  window.addEventListener("scroll", onScroll, { passive: true });
+      }, 150);
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
 
-  onCleanup(() => {
- window.removeEventListener("scroll", onScroll);
-    if (scrollTimer) clearTimeout(scrollTimer);
-  });
+    onCleanup(() => {
+      window.removeEventListener("scroll", onScroll);
+      if (scrollTimer) clearTimeout(scrollTimer);
+    });
+  }
 }
 
 /**

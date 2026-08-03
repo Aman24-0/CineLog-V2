@@ -4,7 +4,8 @@ import {
   Suspense,
   Show,
   createMemo,
-  createEffect
+  createEffect,
+  onMount
 } from "solid-js";
 import { Portal } from "solid-js/web";
 import { useLocation } from "@solidjs/router";
@@ -75,8 +76,12 @@ const AppShell: ParentComponent = (props) => {
   const location = useLocation();
 
   // Initialize scroll position memory for the 4 main tab routes.
-  // This runs once in AppShell which persists across all navigations.
-  initScrollRestoration();
+  // Guarded with onMount to avoid SSR — initScrollRestoration uses
+  // useLocation/useIsRouting which are SSR-safe, but the internal
+  // window.addEventListener must only run in the browser.
+  onMount(() => {
+    initScrollRestoration();
+  });
 
   // Admin routes render their own layout (AdminShell) with its own sidebar,
   // top bar, and auth gate. They must NOT be wrapped in the consumer AppShell
