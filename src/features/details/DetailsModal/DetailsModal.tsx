@@ -38,11 +38,18 @@ import DetailsSeasons from "./DetailsSeasons";
 import DetailsRecommendations from "./DetailsRecommendations";
 import WhereToWatch from "~/features/details/components/WhereToWatch";
 import UserCollectionInfo from "~/features/details/components/UserCollectionInfo";
-// AniList enrichment (Phase 4) — renders characters, studios, relations,
-// airing schedule, OP/ED themes ONLY for anime titles. Self-gating:
+// AniList enrichment (Phase 4) — renders Relations, Source Material,
+// OP/ED themes, Airing Schedule ONLY for anime titles. Self-gating:
 // the hook returns null for non-anime, and AnimeSections renders
 // nothing when anilist is null.
+//
+// Stats, Studio, and Characters sections have been MOVED out of
+// AnimeSections into the main flow:
+//   - Stats → merged into MetadataGrid as unified Detail cells
+//   - Studio → merged into MetadataGrid Studio cell
+//   - Characters → AnimeCharacters replaces DetailsCast for anime
 import AnimeSections from "./AnimeSections";
+import AnimeCharacters from "./AnimeCharacters";
 import AnimeRecommendations from "./AnimeRecommendations";
 import { useAnimeEnrichment } from "~/features/details/useAnimeEnrichment";
 
@@ -376,25 +383,56 @@ export default function DetailsModal() {
                         </DetailSection>
                       }
                     >
+                      {/* ── 3. Your Activity ───────────────────────── */}
                       <Show when={inVault() && vaultItem()}>
                         <DetailSection style={{ "margin-top": "1.5rem" }}>
                           <YourActivityCard vaultItem={vaultItem()!} />
                         </DetailSection>
                       </Show>
+
+                      {/* ── 4. Ratings (IMDb / RT / MC from MDBList) ── */}
                       <DetailsRatings
                         baseItem={baseItem}
                         details={tmdb}
                         omdb={omdb}
                         vaultItem={vaultItem}
                       />
-                      <DetailsOverview details={tmdb} />
-                      <DetailsCast details={tmdb} />
+
+                      {/* ── 5. Overview ────────────────────────────────
+                          For anime: prefers AniList description (richer),
+                          falls back to TMDB. Never shows both. */}
+                      <DetailsOverview
+                        details={tmdb}
+                        anilist={animeEnrichment.anilist}
+                      />
+
+                      {/* ── 6. Characters ─────────────────────────────
+                          For anime: AniList Characters & Voice Actors
+                          (replaces TMDB Cast & Crew).
+                          For movies/TV: TMDB Cast & Crew as before. */}
+                      <DetailsCast
+                        details={tmdb}
+                        isAnime={animeEnrichment.isAnime}
+                      />
+                      <AnimeCharacters
+                        anilist={animeEnrichment.anilist}
+                        enabled={animeEnrichment.settings.charactersStaff}
+                      />
+
+                      {/* ── 7. Unified Details Grid ───────────────────
+                          For anime: merges AniList data (Format, Episodes,
+                          Season, Studio, Popularity, Favourites, Ranking,
+                          Source Material) into the grid alongside TMDB data.
+                          No duplicate fields. */}
                       <DetailsMetadata
                         baseItem={baseItem}
                         details={tmdb}
                         omdb={omdb}
                         vaultItem={vaultItem}
+                        anilist={animeEnrichment.anilist}
+                        isAnime={animeEnrichment.isAnime}
                       />
+
                       {/* User Collection — only shows if this title belongs to
                           a user-created folder or subscribed universe. TMDB
                           belongs_to_collection is deliberately NOT rendered
@@ -403,10 +441,13 @@ export default function DetailsModal() {
                       <Show when={baseItem()}>
                         <UserCollectionInfo currentItem={baseItem()!} />
                       </Show>
-                      {/* Where to Watch — between Details and Episodes.
+
+                      {/* ── 8. Where to Watch ─────────────────────────
                           Country-filtered: only shows platforms available in
                           the user's set region (from Account settings). */}
                       <WhereToWatch baseItem={baseItem} details={tmdb} />
+
+                      {/* ── TV Seasons / Episodes ────────────────────── */}
                       <DetailsSeasons
                         baseItem={baseItem}
                         details={tmdb}
@@ -416,24 +457,17 @@ export default function DetailsModal() {
                         onEpisodeUnmark={handleEpisodeUnmark}
                         onAddToVault={handleAddToVault}
                       />
-                      <DetailsRecommendations
-                        baseItem={baseItem}
-                        watchlist={watchlist}
-                        onSelect={handleSelectItem}
-                      />
-                      {/* AniList recommendations (Phase 6) — shown ONLY for
-                          anime titles with a known AniList id. Uses AniList's
-                          recommendation graph (community-rated "if you liked
-                          X, try Y") instead of TMDB's. */}
-                      <AnimeRecommendations
-                        anilistId={animeEnrichment.anilistId}
-                        currentTmdbId={() => baseItem()?.id}
-                        watchlist={watchlist}
-                        onSelect={handleSelectItem}
-                      />
-                      {/* AniList enrichment (Phase 4) — renders ONLY for anime
-                          titles. Sections: studios, characters & VAs, relations,
-                          source material, OP/ED themes, airing schedule. */}
+
+                      {/* ── 9. Relations ──────────────────────────────
+                          AniList-only: Prequels, Sequels, OVAs, etc.
+                          Rendered by AnimeSections (self-gating). */}
+
+                      {/* ── 10. Source Material ────────────────────────
+                          AniList-only: Manga, Light Novel, etc. + AniList link.
+                          Rendered by AnimeSections (self-gating). */}
+
+                      {/* ── Theme Songs & Airing Schedule ─────────────
+                          AniList-only. Rendered by AnimeSections (self-gating). */}
                       <AnimeSections
                         anilist={animeEnrichment.anilist}
                         settings={() => ({
@@ -442,6 +476,23 @@ export default function DetailsModal() {
                           airingSchedule: animeEnrichment.settings.airingSchedule(),
                           openingEndingThemes: animeEnrichment.settings.openingEndingThemes()
                         })}
+                      />
+
+                      {/* ── 11. More Like This ────────────────────────
+                          For anime: AniList Recommendations ONLY (replaces
+                          TMDB "You May Also Like" to avoid duplicate sections).
+                          For movies/TV: TMDB "You May Also Like" as before. */}
+                      <DetailsRecommendations
+                        baseItem={baseItem}
+                        watchlist={watchlist}
+                        onSelect={handleSelectItem}
+                        isAnime={animeEnrichment.isAnime}
+                      />
+                      <AnimeRecommendations
+                        anilistId={animeEnrichment.anilistId}
+                        currentTmdbId={() => baseItem()?.id}
+                        watchlist={watchlist}
+                        onSelect={handleSelectItem}
                       />
                     </Show>
                   </div>

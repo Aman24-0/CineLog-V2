@@ -3,6 +3,7 @@ import { For, Show, createMemo, createSignal } from "solid-js";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { formatDateLong } from "~/shared/utils/format";
 import type { WatchlistItem, TMDBDetails, OMDbRatings } from "~/shared/types";
+import type { AniListMedia } from "~/lib/anilist";
 
 interface MetadataGridProps {
   /** TMDB identity — always present */
@@ -14,6 +15,11 @@ interface MetadataGridProps {
    * The "Your Status" cell only renders when this is present.
    */
   vaultItem?: WatchlistItem | null;
+  /** AniList data — null for non-anime titles. When present, anime-specific
+   *  cells are added and TMDB duplicates are hidden. */
+  anilist?: AniListMedia | null;
+  /** Whether this title is anime. */
+  isAnime?: boolean;
 }
 
 interface MetaCell {
@@ -121,6 +127,67 @@ function formatMoneyLocal(revenueUSD: number, region: string): string | null {
   return `${sym}${Math.round(local).toLocaleString("en-US")}`;
 }
 
+// ─── AniList helpers ─────────────────────────────────────────────────
+
+/** Format AniList season + year as "Spring 2025" etc. */
+function formatAniListSeason(season: string | null | undefined, year: number | null | undefined): string | null {
+  if (!season && !year) return null;
+  if (!season) return String(year);
+  if (!year) return season.charAt(0) + season.slice(1).toLowerCase();
+  return `${season.charAt(0) + season.slice(1).toLowerCase()} ${year}`;
+}
+
+/** Format large numbers with "k" suffix for ≥1000. */
+function formatCompact(num: number | null | undefined): string | null {
+  if (num == null) return null;
+  return num >= 1000 ? `${(num / 1000).toFixed(1)}k` : String(num);
+}
+
+/** Get the top AniList ranking (all-time rated or popular). */
+function getTopRank(anilist: AniListMedia): string | null {
+  if (!anilist.rankings || anilist.rankings.length === 0) return null;
+  const rated = anilist.rankings.filter((r) => r.type === "RATED" && r.allTime);
+  if (rated.length > 0) {
+    const top = rated.sort((a, b) => a.rank - b.rank)[0];
+    return `#${top.rank} Highest Rated`;
+  }
+  const popular = anilist.rankings.filter((r) => r.type === "POPULAR" && r.allTime);
+  if (popular.length > 0) {
+    const top = popular.sort((a, b) => a.rank - b.rank)[0];
+    return `#${top.rank} Most Popular`;
+  }
+  return null;
+}
+
+/** Get main animation studios from AniList. */
+function getAniListStudios(anilist: AniListMedia): string | null {
+  const edges = anilist.studios?.edges;
+  if (!edges || edges.length === 0) return null;
+  const names = edges
+    .filter((e) => e.isMain && e.node?.isAnimationStudio)
+    .map((e) => e.node.name);
+  return names.length > 0 ? names.join(", ") : null;
+}
+
+/** Map AniList source enum to display label. */
+const SOURCE_LABELS: Record<string, string> = {
+  ORIGINAL: "Original",
+  MANGA: "Manga",
+  LIGHT_NOVEL: "Light Novel",
+  VISUAL_NOVEL: "Visual Novel",
+  VIDEO_GAME: "Video Game",
+  OTHER: "Other",
+  NOVEL: "Novel",
+  DOUJINSHI: "Doujinshi",
+  ANIME: "Anime",
+  WEB_NOVEL: "Web Novel",
+  LIVE_ACTION: "Live Action",
+  GAME: "Game",
+  COMIC: "Comic",
+  MULTIMEDIA_PROJECT: "Multimedia Project",
+  PICTURE_BOOK: "Picture Book"
+};
+
 /**
  * MetadataGrid — responsive grid of metadata cells.
  *
@@ -161,6 +228,8 @@ export default function MetadataGrid(props: MetadataGridProps) {
     const d = props.details;
     const b = props.baseItem;
     const o = props.omdb;
+    const al = props.anilist;
+    const isAnime = props.isAnime ?? false;
     const list: MetaCell[] = [];
 
     // Year, Type, and Runtime are intentionally NOT rendered here —
@@ -170,36 +239,57 @@ export default function MetadataGrid(props: MetadataGridProps) {
 
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
 
-    // v2.6: For TV, push Seasons + Episodes FIRST so they land in
-    // row 1 (cols 1 and 2) of the grid at every breakpoint. The
-    // natural pairing "Seasons × Episodes" reads best when they're
-    // adjacent on the same row — pushing Status before them broke
-    // that pairing on the 2-col mobile layout.
-    if (isTv) {
-      if (d?.number_of_seasons) {
-        list.push({ label: "Seasons", value: String(d.number_of_seasons) });
+    // ── Anime: AniList-specific cells at the top ──────────────────
+    // For anime, AniList Format + Episodes go first (like TV Seasons
+    // + Episodes) so they land in row 1 of the grid.
+    if (isAnime && al) {
+      // Format (TV, MOVIE, OVA, ONA, etc.)
+      if (al.format) {
+        list.push({ label: "Format", value: al.format });
+      }
+      // Episodes from AniList (preferred over TMDB for anime)
+      if (al.episodes != null) {
+        list.push({ label: "Episodes", value: String(al.episodes) });
+      }
+    } else if (isAnime && !al) {
+      // Anime without AniList data — still show TMDB episodes
+      if (isTv) {
+        if (d?.number_of_seasons) {
+          list.push({ label: "Seasons", value: String(d.number_of_seasons) });
+        }
       }
       if (d?.number_of_episodes) {
         list.push({ label: "Episodes", value: String(d.number_of_episodes) });
       }
+    } else {
+      // ── Non-anime: TV Seasons + Episodes ──────────────────────
+      if (isTv) {
+        if (d?.number_of_seasons) {
+          list.push({ label: "Seasons", value: String(d.number_of_seasons) });
+        }
+        if (d?.number_of_episodes) {
+          list.push({ label: "Episodes", value: String(d.number_of_episodes) });
+        }
+      }
     }
 
-    // Status (TMDB) — pushed after Seasons/Episodes for TV so the
-    // seasons pairing stays together in row 1. For movies, Status
-    // is still the first cell (no Seasons/Episodes to compete with).
-    if (d?.status) {
+    // Status — for anime with AniList, use AniList status; otherwise TMDB.
+    if (isAnime && al?.status) {
+      // Map AniList status to a readable string
+      const statusMap: Record<string, string> = {
+        FINISHED: "Finished",
+        RELEASING: "Airing",
+        NOT_YET_RELEASED: "Not Yet Released",
+        CANCELLED: "Cancelled",
+        HIATUS: "Hiatus"
+      };
+      list.push({ label: "Status", value: statusMap[al.status] ?? al.status });
+    } else if (d?.status) {
       list.push({ label: "Status", value: d.status });
     }
 
-    // Release Date (full) — TMDB stores this as `release_date` for
-    // movies and `first_air_date` for TV (both YYYY-MM-DD strings).
-    // The Hero/quick-meta pills already show the YEAR (split on "-"),
-    // so the grid's Release Date cell shows the FULL readable date
-    // (e.g. "September 1, 2000") to add information without
-    // duplicating the hero. Hidden when the date is missing/invalid
-    // — `formatDateLong` returns null for null/undefined/empty/garbage.
-    // Falls back to baseItem's date (vault-sourced) when TMDB
-    // details haven't loaded yet.
+    // Release Date — TMDB for all titles (AniList dates are fuzzy).
+    // For anime, still show TMDB release date.
     const releaseDateRaw =
       d?.release_date ||
       d?.first_air_date ||
@@ -211,7 +301,15 @@ export default function MetadataGrid(props: MetadataGridProps) {
       list.push({ label: "Release Date", value: releaseDateFormatted });
     }
 
-    // TV-specific (continued)
+    // Season (AniList) — e.g. "Spring 2025" — only for anime.
+    if (isAnime && al) {
+      const seasonStr = formatAniListSeason(al.season, al.seasonYear);
+      if (seasonStr) {
+        list.push({ label: "Season", value: seasonStr });
+      }
+    }
+
+    // TV-specific: Network (TMDB)
     if (isTv) {
       if (d?.networks && d.networks.length > 0) {
         list.push({
@@ -221,8 +319,14 @@ export default function MetadataGrid(props: MetadataGridProps) {
       }
     }
 
-    // Movie-specific
-    if (!isTv && d?.production_companies && d.production_companies.length > 0) {
+    // Studio — for anime, use AniList (hide TMDB production_companies).
+    // For movies/TV, use TMDB production_companies as before.
+    if (isAnime && al) {
+      const studioStr = getAniListStudios(al);
+      if (studioStr) {
+        list.push({ label: "Studio", value: studioStr });
+      }
+    } else if (!isTv && d?.production_companies && d.production_companies.length > 0) {
       list.push({
         label: "Studio",
         value: d.production_companies
@@ -232,11 +336,14 @@ export default function MetadataGrid(props: MetadataGridProps) {
       });
     }
 
-    // Budget (Movie only) — TMDB reports production budget in USD.
-    // Hidden when 0 or unavailable (TMDB doesn't always have it,
-    // and many indie films report $0 budget).
-    // v2.6: Now also supports the ⇄ currency toggle (same logic
-    // as Box Office — see canToggleCurrency memo below).
+    // Duration (AniList) — for anime, use AniList duration instead of TMDB runtime.
+    // Runtime is already shown in hero pills, so we only add this for anime
+    // when AniList has it (as "per episode" duration).
+    if (isAnime && al?.duration) {
+      list.push({ label: "Duration", value: `${al.duration} min` });
+    }
+
+    // Budget (Movie only, non-anime or anime without AniList)
     if (!isTv) {
       const budgetUSD = formatMoneyUSD(d?.budget);
       if (budgetUSD) {
@@ -249,13 +356,10 @@ export default function MetadataGrid(props: MetadataGridProps) {
       }
     }
 
-    // Box Office / Revenue (Movie only) — from TMDB revenue.
-    // Hidden when revenue is 0 or unavailable.
-    // Tap-to-toggle currency conversion (USD ⇄ local) is preserved.
+    // Box Office / Revenue (Movie only, non-anime or anime without AniList)
     if (!isTv) {
       const boxOfficeUSD = formatMoneyUSD(d?.revenue);
       if (boxOfficeUSD) {
-        // When toggled on AND a local format exists, show local; else USD.
         const localFormat = formatMoneyLocal(d?.revenue ?? 0, region());
         const showLocal = showLocalCurrency() && localFormat !== null;
         list.push({
@@ -265,9 +369,17 @@ export default function MetadataGrid(props: MetadataGridProps) {
       }
     }
 
-    // Certification (OMDb)
-    if (o?.rated && o.rated !== "N/A") {
+    // Certification / Age Rating (OMDb for non-anime, AniList for anime)
+    if (isAnime && al?.isAdult != null) {
+      list.push({ label: "Age Rating", value: al.isAdult ? "18+" : "PG" });
+    } else if (o?.rated && o.rated !== "N/A") {
       list.push({ label: "Rated", value: o.rated });
+    }
+
+    // Source Material (AniList) — only for anime.
+    if (isAnime && al?.source) {
+      const sourceLabel = SOURCE_LABELS[al.source as string] ?? al.source;
+      list.push({ label: "Source", value: sourceLabel });
     }
 
     // Language
@@ -285,6 +397,24 @@ export default function MetadataGrid(props: MetadataGridProps) {
       d?.origin_country || d?.production_countries?.map((c) => c.iso_3166_1);
     if (countries && countries.length > 0) {
       list.push({ label: "Country", value: countries.slice(0, 2).join(", ") });
+    }
+
+    // ── AniList Stats (merged into grid) ─────────────────────────
+    // These were previously in the separate "AniList Stats" section.
+    // Now they appear as normal Detail cards alongside TMDB data.
+    if (isAnime && al) {
+      const popularity = formatCompact(al.popularity);
+      if (popularity) {
+        list.push({ label: "Popularity", value: popularity });
+      }
+      const favourites = formatCompact(al.favourites);
+      if (favourites) {
+        list.push({ label: "Favourites", value: favourites });
+      }
+      const rank = getTopRank(al);
+      if (rank) {
+        list.push({ label: "Ranking", value: rank });
+      }
     }
 
     return list;
@@ -308,14 +438,11 @@ export default function MetadataGrid(props: MetadataGridProps) {
     const b = props.baseItem;
     const isTv = b?.media_type === "tv" || d?.media_type === "tv";
     if (isTv) return false;
+    // Anime movies may still have budget/box office from TMDB
     // Need at least one non-zero money field for any toggle to make sense.
     const hasBudget = !!d?.budget && d.budget > 0;
     const hasRevenue = !!d?.revenue && d.revenue > 0;
     if (!hasBudget && !hasRevenue) return false;
-    // The local format helper returns null when the region has no
-    // currency mapping (e.g. user in a country not in COUNTRY_CURRENCY).
-    // In that case there's nothing to toggle TO, so we hide the
-    // interactivity on both cells.
     const probeAmount = d?.revenue ?? d?.budget ?? 0;
     return formatMoneyLocal(probeAmount, region()) !== null;
   });
