@@ -18,6 +18,7 @@ import DesktopUtilityPanel from "~/shared/ui/DesktopUtilityPanel";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
+import SearchOverlay from "~/features/search/SearchOverlay";
 
 const DetailsModal = lazy(() => import("~/features/details/DetailsModal"));
 const CollectionModal = lazy(
@@ -127,6 +128,10 @@ const AppShell: ParentComponent = (props) => {
 
           {/* Desktop Utility Panel — hidden on mobile, visible on desktop via CSS */}
           <DesktopUtilityPanel />
+
+          {/* Global Search Overlay — independent from any page, renders
+              above the current page when the user searches from the AppHeader. */}
+          <SearchOverlay />
 
           <ToastContainer />
 

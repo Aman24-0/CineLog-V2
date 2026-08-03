@@ -1,23 +1,31 @@
 // src/shared/contexts/SearchContext.tsx
 //
-// SearchContext — shared search state for the global AppHeader search bar
-// and the DiscoverPage search results.
+// SearchContext — INDEPENDENT global search overlay state.
 //
-// WHY: The search bar moved from DiscoverPage into the global AppHeader.
-// Both components need access to the same search state (query, results,
-// loading, etc.) without prop drilling. This context provides a single
-// instance of `useSearch` that both can consume.
+// Search is an application-level feature, NOT a Discover feature.
+// It works from ANY page without navigating away.
 //
-// USAGE:
-//   <SearchProvider>  ← wraps the app (inside UserLibraryProvider)
-//     <AppHeader />   ← consumes useGlobalSearch() for the search bar
-//     <DiscoverPage />← consumes useGlobalSearch() for search results
-//   </SearchProvider>
+// KEY BEHAVIOUR:
+//   • openSearch() — opens the overlay, focuses the input
+//   • closeSearch() — closes the overlay, CLEARS everything:
+//     query, results, focus, scroll position. Every new search
+//     starts completely clean.
+//   • The search overlay renders its own results independently.
+//   • DiscoverPage does NOT render search results.
+//   • The overlay is a Portal — it floats above the current page.
+//
+// ARCHITECTURE:
+//   <SearchProvider> wraps the app (inside UserLibraryProvider).
+//   AppHeader consumes it for the search icon + overlay trigger.
+//   The SearchOverlay component (rendered in AppShell) consumes
+//   it for the search bar + results.
 
 import {
   createContext,
   useContext,
   createSignal,
+  createEffect,
+  onCleanup,
   type Component,
   type JSX
 } from "solid-js";
@@ -31,9 +39,8 @@ import type {
 import type { TMDBTitle } from "~/shared/types";
 
 // ── Shape of the context value ──────────────────────────────────────
-// Mirrors the return type of useSearch() exactly so consumers can't
-// tell the difference between the context and a direct hook call.
 interface SearchContextValue {
+  // Search hook state
   query: Accessor<string>;
   setQuery: (q: string) => void;
   debouncedQuery: Accessor<string>;
@@ -55,10 +62,12 @@ interface SearchContextValue {
   isGenreBrowse: Accessor<boolean>;
   animeResults: Accessor<TMDBTitle[]>;
   animeLoading: Accessor<boolean>;
-  // Extra: search bar open/close state for the AppHeader expand/collapse
+  // Overlay state
   searchOpen: Accessor<boolean>;
-  setSearchOpen: (open: boolean) => void;
-  toggleSearch: () => void;
+  /** Open the search overlay. Does NOT navigate. */
+  openSearch: () => void;
+  /** Close the search overlay AND reset ALL search state. */
+  closeSearch: () => void;
 }
 
 const SearchContext = createContext<SearchContextValue>();
@@ -81,18 +90,55 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (
   // Instantiate the search hook ONCE — all consumers share this instance.
   const search = useSearch({ vault: watchlist });
 
-  // Search bar open/close state — used by AppHeader for the expand/collapse
-  // animation. When the user clicks the search icon, this flips to true
-  // and the search bar expands. Clicking outside or pressing Escape
-  // collapses it.
+  // Search overlay open/close state
   const [searchOpen, setSearchOpen] = createSignal(false);
-  const toggleSearch = () => setSearchOpen((v) => !v);
+
+  /** Open the search overlay — does NOT navigate to any page. */
+  const openSearch = () => {
+    setSearchOpen(true);
+  };
+
+  /** Close the search overlay AND completely reset the search session.
+   *  Destroys: query, results, focus, scroll position.
+   *  Every new search starts clean. */
+  const closeSearch = () => {
+    setSearchOpen(false);
+    // Reset all search state — complete session destruction
+    search.setQuery("");
+    search.clearGenre();
+    // Results will be cleared automatically by the useSearch hook
+    // when the query is set to "" (hasQuery becomes false)
+  };
+
+  // ⌘K keyboard shortcut — open/close search from anywhere
+  const handleGlobalKeyDown = (e: KeyboardEvent) => {
+    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
+      e.preventDefault();
+      if (searchOpen()) {
+        closeSearch();
+      } else {
+        openSearch();
+      }
+    }
+    // Escape closes the search overlay
+    if (e.key === "Escape" && searchOpen()) {
+      closeSearch();
+    }
+  };
+
+  // Register global keyboard listeners
+  createEffect(() => {
+    document.addEventListener("keydown", handleGlobalKeyDown);
+    onCleanup(() => {
+      document.removeEventListener("keydown", handleGlobalKeyDown);
+    });
+  });
 
   const value: SearchContextValue = {
     ...search,
     searchOpen,
-    setSearchOpen,
-    toggleSearch
+    openSearch,
+    closeSearch
   };
 
   return (

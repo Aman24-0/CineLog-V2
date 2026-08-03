@@ -121,11 +121,9 @@ import { streamingProviders } from "~/core/preferences";
 import { useFeatureFlags } from "~/lib/featureFlags";
 import { useHomepageConfig } from "~/lib/homepageConfig";
 import type { TMDBTitle } from "~/shared/types";
-// Search — now lives in the global AppHeader. DiscoverPage consumes
-// the shared search state via useGlobalSearch() and shows SearchResults
-// when the user has an active query.
-import { useGlobalSearch } from "~/shared/contexts/SearchContext";
-import SearchResults from "~/features/search/SearchResults";
+// Search is now an independent application-level feature.
+// The SearchOverlay is rendered in AppShell (not here).
+// DiscoverPage only shows the Discover sections.
 // AniList anime carousels — Phase 3 integration. Renders ONLY when
 // the anime_settings.enabled flag is on (admin-controlled). Each
 // carousel is independent and uses cached AniList → TMDB mapping.
@@ -152,10 +150,6 @@ export default function DiscoverPage() {
 
   // Region — single source of truth, reactive.
   const region = useDiscoverRegion();
-
-  // === SEARCH (from global context) ===
-  const search = useGlobalSearch();
-  const showSearchResults = search.hasQuery;
 
   // === PERSONALIZATION ENGINE ===
   const personalized = usePersonalizedDiscover(watchlist, isGuest);
@@ -373,8 +367,40 @@ export default function DiscoverPage() {
     filterFeed(row3.titles(), row2Filtered().renderedIds)
   );
 
+  // ── SHUFFLE UTILITY ───────────────────────────────────────────────
+  // Fisher-Yates shuffle for interleaving TMDB + Anime titles so the
+  // user can't tell where each item came from. Shuffles only after
+  // both datasets have finished loading — no bias toward either source.
+  const shuffle = <T,>(arr: T[]): T[] => {
+    const result = [...arr];
+    for (let i = result.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      [result[i], result[j]] = [result[j], result[i]];
+    }
+    return result;
+  };
+
+  // ── MERGE UTILITY ─────────────────────────────────────────────────
+  // Merge + deduplicate two TMDBTitle arrays by id, then shuffle.
+  const mergeAndShuffle = (a: TMDBTitle[], b: TMDBTitle[]): TMDBTitle[] => {
+    const seen = new Set<number>();
+    const merged: TMDBTitle[] = [];
+    for (const t of a) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      merged.push(t);
+    }
+    for (const t of b) {
+      if (seen.has(t.id)) continue;
+      seen.add(t.id);
+      merged.push(t);
+    }
+    return shuffle(merged);
+  };
+
   // ── ROW 6: "Weekend Picks & Hidden Gems" ─────────────────────────
   // Merged: Hidden Movies + Hidden TV + Hidden Gems Anime
+  // Shuffled so TMDB + Anime titles are interleaved naturally.
   const row4Key = createMemo(() => ({ day: personalizedDayKey() }));
   // eslint-disable-next-line solid/reactivity
   const row4 = useDiscoverRow(row4Key, async () => {
@@ -386,35 +412,22 @@ export default function DiscoverPage() {
       primaryReleaseDateLte: "2023-12-31"
     });
   });
-  // Merge Weekend Picks + Hidden Gems Anime into one unified carousel
   const weekendPicksCombined = createMemo(() => {
     const tmdbTitles = row4.titles();
     const animeTitles = animeCarousels.hiddenGems();
     if (animeTitles.length === 0) return tmdbTitles;
-    // Merge + deduplicate by id
-    const seen = new Set<number>();
-    const merged: TMDBTitle[] = [];
-    for (const t of tmdbTitles) {
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      merged.push(t);
-    }
-    for (const t of animeTitles) {
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      merged.push(t);
-    }
-    return merged;
+    return mergeAndShuffle(tmdbTitles, animeTitles);
   });
   const row4Filtered = createMemo(() =>
     filterFeed(weekendPicksCombined(), row3Filtered().renderedIds)
   );
 
   // ── ROW 7: "Popular Anime" (merged Popular + Top Rated Anime) ────
+  // No NEW SEASON badges — Popular Anime only shows poster, title,
+  // year, rating, and type. Nothing else.
   const popularAnimeCombined = createMemo(() => {
     const popular = animeCarousels.popular();
     const topRated = animeCarousels.topRated();
-    // Merge + deduplicate by id
     const seen = new Set<number>();
     const merged: TMDBTitle[] = [];
     for (const t of popular) {
@@ -429,30 +442,31 @@ export default function DiscoverPage() {
     }
     return merged;
   });
-  const row5Filtered = createMemo(() =>
-    filterFeed(popularAnimeCombined(), row4Filtered().renderedIds)
-  );
+  // Popular Anime: filter out vault titles but do NOT pass newSeasonBadgeIds
+  const row5Filtered = createMemo(() => {
+    const vault = excludedKeys();
+    const tracked = trackedTvSeasons();
+    const renderedIds = new Set(row4Filtered().renderedIds);
+    const filtered: TMDBTitle[] = [];
+    for (const t of popularAnimeCombined()) {
+      if (renderedIds.has(t.id)) continue;
+      const key = `${t.media_type}/${t.id}`;
+      if (!vault.has(key)) {
+        filtered.push(t);
+        renderedIds.add(t.id);
+      }
+    }
+    return { titles: filtered, badgeIds: new Set<string>(), renderedIds };
+  });
 
   // ── ROW 8: "Coming Soon" (merged Upcoming Movies + TV + Anime) ───
+  // Shuffled so TMDB + Anime titles are interleaved naturally.
   const navigate = useNavigate();
   const upcomingCombined = createMemo(() => {
     const tmdbUpcoming = feeds.upcoming();
     const animeUpcoming = animeCarousels.upcoming();
     if (animeUpcoming.length === 0) return tmdbUpcoming;
-    // Merge + deduplicate by id
-    const seen = new Set<number>();
-    const merged: TMDBTitle[] = [];
-    for (const t of tmdbUpcoming) {
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      merged.push(t);
-    }
-    for (const t of animeUpcoming) {
-      if (seen.has(t.id)) continue;
-      seen.add(t.id);
-      merged.push(t);
-    }
-    return merged;
+    return mergeAndShuffle(tmdbUpcoming, animeUpcoming);
   });
   const upcomingFeed = createMemo(() =>
     filterFeed(upcomingCombined(), row5Filtered().renderedIds)
@@ -472,11 +486,7 @@ export default function DiscoverPage() {
       <div class="ambient-glow" aria-hidden="true" />
 
       <Show when={!isLoading()} fallback={<DiscoverSkeleton />}>
-        {/* === SEARCH RESULTS MODE === */}
-        <Show
-          when={showSearchResults()}
-          fallback={
-            <div class="page-enter discover-folds relative">
+        <div class="page-enter discover-folds relative">
               {/* 1. SPOTLIGHT — daily rotating hero */}
               <Show when={homepageConfig.isEnabled("spotlight")}>
                 <ErrorBoundary
@@ -786,24 +796,7 @@ export default function DiscoverPage() {
                   </button>
                 </div>
               </Show>
-            </div>
-          }
-        >
-          {/* === SEARCH RESULTS (shown when query ≥ 2 chars, debounced) === */}
-          <div class="page-enter discover-folds relative">
-            <SearchResults
-              loading={search.loading}
-              error={search.error}
-              query={search.query}
-              results={search.results}
-              isInVault={search.isInVault}
-              onOpenTitle={handleOpenTitle}
-              onAddToVault={addToVault}
-              animeResults={search.animeResults}
-              animeLoading={search.animeLoading}
-            />
-          </div>
-        </Show>
+        </div>
       </Show>
     </PageContainer>
   );

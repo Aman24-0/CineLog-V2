@@ -17,9 +17,6 @@ import NotificationCenter from "~/features/upcoming/components/NotificationCente
 import { useGlobalSearch } from "~/shared/contexts/SearchContext";
 
 // ─── Module-level style constants ────────────────────────────────────
-// Static styles shared across every AppHeader render. Extracted to
-// module level so they're allocated once (not per header mount) and
-// the prop reference stays stable for downstream consumers.
 const WORDMARK_STYLE: JSX.CSSProperties = {
   "font-size": "1.5rem",
   "line-height": "1",
@@ -59,16 +56,13 @@ const AVATAR_STYLE: JSX.CSSProperties = {
 /**
  * AppHeader — sticky application header.
  *
- * MOBILE Layout: [wordmark] ........ [search] [bell]
- * DESKTOP Layout: [wordmark] [search bar] .... [quick-add] [sync] [bell] [avatar]
+ * MOBILE Layout:  [CINELOG] .............. [🔍] [🔔]
+ * DESKTOP Layout: [CINELOG] [search bar] .. [quick-add] [sync] [🔔] [avatar]
  *
- * Search is now a global feature — an icon button that expands into the
- * search bar with a smooth animation. The search bar is always visible
- * on desktop (expanded by default) and collapsed to an icon on mobile.
- *
- * The bell icon (only rendered when signed in) opens the Notification
- * Center sheet, which lists the user's release-day reminders and other
- * in-app notifications.
+ * Search is a GLOBAL feature. The 🔍 icon sits beside the bell on the
+ * right side. Tapping it opens the search overlay (a slide-down panel
+ * below the header) without navigating away from the current page.
+ * Closing the overlay resets ALL search state completely.
  */
 const AppHeader: Component = () => {
   const { isSignedIn, user } = useAuth();
@@ -77,51 +71,15 @@ const AppHeader: Component = () => {
   const notif = useNotifications();
   const [notifOpen, setNotifOpen] = createSignal(false);
 
-  // Global search context — shared with DiscoverPage
+  // Global search context — independent from DiscoverPage
   const search = useGlobalSearch();
   let searchInputRef: HTMLInputElement | undefined;
 
-  // When search bar opens, focus the input and navigate to /discover
+  // Focus the search input when the overlay opens
   createEffect(() => {
     if (search.searchOpen()) {
-      // Small delay to allow the animation to start before focusing
-      setTimeout(() => searchInputRef?.focus(), 100);
-      // If we're not on /discover, navigate there so results show
-      if (!window.location.pathname.startsWith("/discover")) {
-        navigate("/discover");
-      }
+      setTimeout(() => searchInputRef?.focus(), 80);
     }
-  });
-
-  // Close search on Escape
-  const handleKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && search.searchOpen()) {
-      search.setSearchOpen(false);
-      search.setQuery("");
-    }
-  };
-
-  // Click-outside handler for the search bar
-  let searchContainerRef: HTMLDivElement | undefined;
-  const handleClickOutside = (e: MouseEvent) => {
-    if (
-      search.searchOpen() &&
-      searchContainerRef &&
-      !searchContainerRef.contains(e.target as Node)
-    ) {
-      search.setSearchOpen(false);
-    }
-  };
-
-  createEffect(() => {
-    if (search.searchOpen()) {
-      document.addEventListener("mousedown", handleClickOutside);
-      document.addEventListener("keydown", handleKeyDown);
-    }
-    onCleanup(() => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("keydown", handleKeyDown);
-    });
   });
 
   const handleQuickAdd = () => {
@@ -141,14 +99,18 @@ const AppHeader: Component = () => {
     search.commitSearch(search.query());
   };
 
+  // Clear button — single clear button that clears text AND results
+  const handleClearSearch = () => {
+    search.setQuery("");
+    searchInputRef?.focus();
+  };
+
   return (
     <header
       class="app-header-glass sticky top-0 z-30 flex items-center justify-between"
       role="banner"
     >
-      {/* Wordmark — aria-label ensures screen readers announce
-          "CineLog" as a word rather than letter-by-letter.
-          On desktop, the wordmark is hidden since the sidebar has the logo. */}
+      {/* Wordmark */}
       <h1
         class="font-headline m-0 app-header__wordmark"
         aria-label="CineLog"
@@ -157,12 +119,9 @@ const AppHeader: Component = () => {
         CINE<span style={WORDMARK_ACCENT_STYLE}>LOG</span>
       </h1>
 
-      {/* ── Global Search ──────────────────────────────────────────
-          MOBILE: Search icon button → expands into search bar
-          DESKTOP: Always-visible search bar (pill style) */}
-
-      {/* Desktop search bar — always visible on desktop */}
-      <div class="app-header__search-desktop" ref={searchContainerRef}>
+      {/* Desktop search bar — always visible on desktop, sits between
+          wordmark and right cluster */}
+      <div class="app-header__search-desktop">
         <form
           class="app-header-search-form"
           onSubmit={handleSearchSubmit}
@@ -190,10 +149,7 @@ const AppHeader: Component = () => {
               <button
                 type="button"
                 class="app-header-search-clear focus-ring"
-                onClick={() => {
-                  search.setQuery("");
-                  searchInputRef?.focus();
-                }}
+                onClick={handleClearSearch}
                 aria-label="Clear search"
               >
                 <span
@@ -215,33 +171,32 @@ const AppHeader: Component = () => {
         </form>
       </div>
 
-      {/* Mobile search icon — toggles the search bar */}
-      <button
-        type="button"
-        class="app-header__search-mobile focus-ring"
-        style={HEADER_ACTION_STYLE}
-        onClick={() => {
-          if (search.searchOpen()) {
-            search.setSearchOpen(false);
-            search.setQuery("");
-          } else {
-            search.setSearchOpen(true);
-          }
-        }}
-        aria-label="Search"
-        title="Search"
-      >
-        <span
-          class="material-symbols-outlined"
-          style={{ "font-size": "20px" }}
-          aria-hidden="true"
-        >
-          {search.searchOpen() ? "close" : "search"}
-        </span>
-      </button>
-
-      {/* Right cluster */}
+      {/* Right cluster — search icon (mobile) + quick-add + sync + bell + avatar */}
       <div class="flex items-center gap-1.5">
+        {/* Mobile search icon — toggles the overlay. On desktop, this is hidden. */}
+        <button
+          type="button"
+          class="app-header__search-mobile focus-ring"
+          style={HEADER_ACTION_STYLE}
+          onClick={() => {
+            if (search.searchOpen()) {
+              search.closeSearch();
+            } else {
+              search.openSearch();
+            }
+          }}
+          aria-label={search.searchOpen() ? "Close search" : "Search"}
+          title={search.searchOpen() ? "Close" : "Search"}
+        >
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "20px" }}
+            aria-hidden="true"
+          >
+            {search.searchOpen() ? "close" : "search"}
+          </span>
+        </button>
+
         {/* Desktop Quick Add — hidden on mobile */}
         <button
           type="button"
@@ -292,7 +247,7 @@ const AppHeader: Component = () => {
         </button>
       </div>
 
-      {/* Mobile expanded search bar — slides down below the header */}
+      {/* Mobile search overlay — slides down below the header */}
       <Show when={search.searchOpen()}>
         <div class="app-header-search-mobile-bar">
           <form
@@ -310,7 +265,6 @@ const AppHeader: Component = () => {
               <input
                 ref={(el) => {
                   searchInputRef = el;
-                  // Auto-focus when the mobile search bar opens
                   setTimeout(() => el.focus(), 50);
                 }}
                 type="search"
@@ -322,14 +276,12 @@ const AppHeader: Component = () => {
                 autocomplete="off"
                 spellcheck={false}
               />
+              {/* Single clear button — clears text + results */}
               <Show when={search.query()}>
                 <button
                   type="button"
                   class="app-header-search-clear focus-ring"
-                  onClick={() => {
-                    search.setQuery("");
-                    searchInputRef?.focus();
-                  }}
+                  onClick={handleClearSearch}
                   aria-label="Clear search"
                 >
                   <span

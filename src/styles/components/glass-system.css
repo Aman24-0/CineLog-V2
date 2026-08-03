@@ -249,6 +249,65 @@
 }
 
 /* ============================================================
+   SEARCH OVERLAY — independent results panel below the header
+   ============================================================ */
+
+.search-overlay {
+  position: fixed;
+  top: var(--app-header-height, 56px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 25;
+  background: var(--void);
+  overflow-y: auto;
+  animation: fadeIn 0.2s ease-out;
+  /* Subtract bottom nav height on mobile so content isn't hidden */
+  padding-bottom: calc(var(--nav-total-height, 0px) + 2rem);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.search-overlay-content {
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--sp-6, 1.5rem) var(--sp-5, 1.25rem);
+}
+
+/* ============================================================
+   GENRE DROPDOWN — icon styles (mirrors OTT dropdown logo style)
+   ============================================================ */
+
+.genre-dropdown-trigger-icon {
+  font-size: 16px;
+  color: var(--p);
+  flex-shrink: 0;
+}
+
+.genre-dropdown-option-icon {
+  font-size: 18px;
+  color: var(--text-soft);
+  flex-shrink: 0;
+  width: 24px;
+  height: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Active genre option icon — gold */
+.ott-dropdown-option[data-active="true"] .genre-dropdown-option-icon {
+  color: var(--p);
+}
+
+/* ============================================================
    BOTTOM NAVIGATION — premium floating glass pill
    ============================================================ */
 
