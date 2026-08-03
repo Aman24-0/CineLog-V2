@@ -39,11 +39,49 @@ import { isServer } from "solid-js/web";
 
 /**
  * Cache: "${mediaType}/${tmdbId}" → IMDb score string (e.g. "7.3") or
- * null (title has no IMDb rating on MDBList). Once cached, the value
- * persists for the entire browser session — scrolling back to a
- * previously-viewed card is instant.
+ * null (title has no IMDb rating on MDBList). Bounded to 500 entries
+ * via LRU eviction (Performance Sprint 1, Task 2).
  */
 const ratingCache = new Map<string, string | null>();
+
+/**
+ * LRU Cache with bounded size (Performance Sprint 1, Task 2).
+ *
+ * Replaces the unbounded Map with a 500-entry LRU. When the cache
+ * is full, the least-recently-used entry is evicted. This prevents
+ * memory growth on long sessions (user scrolls through 1000+ titles
+ * across Discover, Search, Collections, etc.).
+ *
+ * The LRU is implemented as a Map (which maintains insertion order).
+ * On every `get`, the entry is deleted and re-inserted at the end
+ * (most-recently-used). On `set`, if the cache exceeds MAX_SIZE,
+ * the first entry (least-recently-used) is deleted.
+ *
+ * Preserves all existing behavior: O(1) lookups, request deduplication,
+ * null-caching for unavailable titles.
+ */
+const MAX_CACHE_SIZE = 500;
+
+// Internal LRU operations — not exposed outside this module.
+const lruGet = (key: string): string | null | undefined => {
+  if (!ratingCache.has(key)) return undefined;
+  // Move to end (most-recently-used) by delete + re-insert.
+  const value = ratingCache.get(key)!;
+  ratingCache.delete(key);
+  ratingCache.set(key, value);
+  return value;
+};
+
+const lruSet = (key: string, value: string | null): void => {
+  // If key already exists, delete first so it moves to end.
+  if (ratingCache.has(key)) ratingCache.delete(key);
+  // Evict least-recently-used if at capacity.
+  if (ratingCache.size >= MAX_CACHE_SIZE) {
+    const oldest = ratingCache.keys().next().value;
+    if (oldest !== undefined) ratingCache.delete(oldest);
+  }
+  ratingCache.set(key, value);
+};
 
 /**
  * Set of cache keys currently in-flight. Prevents duplicate fetches
@@ -108,9 +146,10 @@ export function useLazyImdbRating(
    * callbacks + updates the local signal.
    */
   const fetchRating = (key: string) => {
-    // Already cached — set the signal synchronously.
-    if (ratingCache.has(key)) {
-      setRating(ratingCache.get(key) ?? null);
+    // Already cached — set the signal synchronously (LRU get promotes).
+    const cached = lruGet(key);
+    if (cached !== undefined) {
+      setRating(cached);
       setLoading(false);
       return;
     }
@@ -155,7 +194,7 @@ export function useLazyImdbRating(
         // Extract the IMDb score. "NR" means unavailable → cache null.
         const score = data?.imdb?.score;
         const normalized = score && score !== "NR" ? score : null;
-        ratingCache.set(key, normalized);
+        lruSet(key, normalized);
         inFlight.delete(key);
         // Notify all pending callbacks (including ours).
         const cbs = pendingCallbacks.get(key) ?? [];
@@ -164,7 +203,7 @@ export function useLazyImdbRating(
       })
       .catch(() => {
         // Network error — cache null so we don't retry every scroll.
-        ratingCache.set(key, null);
+        lruSet(key, null);
         inFlight.delete(key);
         const cbs = pendingCallbacks.get(key) ?? [];
         for (const cb of cbs) cb(null);
@@ -192,9 +231,12 @@ export function useLazyImdbRating(
     // cached (e.g. the user scrolled to this card before), set it
     // immediately without waiting for intersection.
     const key = cacheKey();
-    if (key && ratingCache.has(key)) {
-      setRating(ratingCache.get(key) ?? null);
-      return;
+    if (key) {
+      const cached = lruGet(key);
+      if (cached !== undefined) {
+        setRating(cached);
+        return;
+      }
     }
 
     observer = new IntersectionObserver(

@@ -20,13 +20,10 @@ import {
   createContext,
   useContext,
   createSignal,
-  onMount,
-  onCleanup,
+  createMemo,
   createEffect,
   ParentComponent
 } from "solid-js";
-import { onSessionChange } from "~/lib/supabase/session";
-import type { Session } from "~/lib/supabase/session";
 import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
@@ -145,8 +142,6 @@ const useCollectionsLogic = () => {
   const { authReady, isSignedIn } = useAuth();
   const [userCollections, setUserCollections] = createSignal<Collection[]>([]);
   const [loading, setLoading] = createSignal(true);
-  let unsubAuth: (() => void) | null = null;
-
   // Delegate universe preferences to the extracted hook
   const universePrefs = useUniversePrefsLogic();
 
@@ -227,19 +222,13 @@ const useCollectionsLogic = () => {
     }
   };
 
-  onMount(() => {
-    try {
-      const subscription = onSessionChange(
-        async (_event, session: Session | null) => {
-          const supabaseUid = session?.user?.id ?? null;
-          await loadForUid(supabaseUid);
-        }
-      );
-      unsubAuth = () => subscription.unsubscribe();
-    } catch (err) {
-      console.error("[useCollections] Auth subscription failed:", err);
-    }
-  });
+  // Performance Sprint 1, Task 1: Removed duplicate onSessionChange listener.
+  // CollectionsProvider now reacts through useAuth's existing auth state
+  // (authReady, user, isSignedIn) via the createEffect below. This ensures
+  // only ONE active auth listener exists for the entire application.
+  // Previously, both useAuth and useCollections each registered independent
+  // onAuthStateChange subscriptions, causing redundant Supabase calls and
+  // double-firing of the loadForUid logic.
 
   /**
    * REACTIVE AUTH TRIGGER (bug fix).
@@ -267,9 +256,8 @@ const useCollectionsLogic = () => {
     }
   });
 
-  onCleanup(() => {
-    if (unsubAuth) unsubAuth();
-  });
+  // No cleanup needed — we no longer register our own auth subscription.
+  // The single auth listener in useAuth handles all session lifecycle events.
 
   const curated = (): Collection[] => CURATED_COLLECTIONS;
   const allCollections = (): Collection[] => [
@@ -848,6 +836,28 @@ const useCollectionsLogic = () => {
     }
   };
 
+  // ─── O(1) Favorites Lookup (Performance Sprint 1, Task 3) ─────
+  //
+  // Build a Set of "${media_type}/${id}" keys for every entry in the
+  // Favorites collection. MovieCard uses `favoritesSet.has(key)`
+  // instead of scanning all collections + entries (O(n + m) per card → O(1)).
+  // The Set is rebuilt reactively whenever userCollections changes, which
+  // is the same trigger that previously caused 100+ cards to re-scan.
+  // The Set build itself is O(favorites entries) — typically <500 items —
+  // vs. the old per-card O(all collections × all entries) scan.
+  const favoritesSet = createMemo(() => {
+    const all = userCollections();
+    const favCol =
+      all.find((c) => c.isFavorites) ??
+      all.find((c) => c.name === "Favorites");
+    if (!favCol?.entries?.length) return new Set<string>();
+    const set = new Set<string>();
+    for (const e of favCol.entries) {
+      if (e?.id && e.media_type) set.add(`${e.media_type}/${e.id}`);
+    }
+    return set;
+  });
+
   // ─── Queries (delegated to collectionQueries.ts) ─────────────
   const queries = createCollectionQueries(userCollections);
 
@@ -872,6 +882,7 @@ const useCollectionsLogic = () => {
     archiveCollection,
     unarchiveCollection,
     fetchWithArchived,
+    favoritesSet,
     ...queries
   };
 };

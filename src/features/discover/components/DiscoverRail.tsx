@@ -165,6 +165,8 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                       class="search-rail-poster-img"
                       loading="lazy"
                       decoding="async"
+                      width={342}
+                      height={513}
                       alt=""
                       aria-hidden="true"
                       onError={(e) => {

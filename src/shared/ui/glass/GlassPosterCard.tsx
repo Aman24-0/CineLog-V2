@@ -88,6 +88,8 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
             class="absolute inset-0 h-full w-full object-cover transition-transform duration-base ease-smooth group-hover:scale-[1.04]"
             loading="lazy"
             decoding="async"
+            width={342}
+            height={513}
           />
         </Show>
         <Show when={!local.loading && !local.imageUrl}>

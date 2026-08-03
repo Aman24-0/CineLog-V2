@@ -199,7 +199,76 @@ const AppShell: ParentComponent = (props) => {
             Rendered at z-[999998] — below Details (z-[999999]) so if both are
             open, Details paints on top. In practice only one is open at a time. */}
           <Show when={collectionSelectedItem()}>
-            <Suspense fallback={null}>
+            <Suspense
+              fallback={
+                <Portal>
+                  <div
+                    class="fixed inset-0 z-[999998] flex items-center justify-center"
+                    style={{
+                      background: "rgba(0,0,0,0.75)",
+                      "backdrop-filter": "blur(8px)",
+                      "-webkit-backdrop-filter": "blur(8px)"
+                    }}
+                    role="dialog"
+                    aria-modal="true"
+                    aria-label="Loading collection"
+                  >
+                    <div
+                      class="flex flex-col items-center gap-3"
+                      style={{
+                        width: "280px",
+                        padding: "24px",
+                        "border-radius": "16px",
+                        background: "rgba(255,255,255,0.06)",
+                        "border": "1px solid rgba(255,255,255,0.10)",
+                        "backdrop-filter": "blur(12px)"
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "20px",
+                          "border-radius": "6px",
+                          background: "rgba(255,255,255,0.08)",
+                          animation: "softPulse 1.2s ease-in-out infinite"
+                        }}
+                        aria-hidden="true"
+                      />
+                      <div
+                        style={{
+                          width: "70%",
+                          height: "14px",
+                          "border-radius": "6px",
+                          background: "rgba(255,255,255,0.05)",
+                          animation: "softPulse 1.2s ease-in-out infinite"
+                        }}
+                        aria-hidden="true"
+                      />
+                      <div
+                        style={{
+                          width: "100%",
+                          height: "12px",
+                          "border-radius": "6px",
+                          background: "rgba(255,255,255,0.05)",
+                          animation: "softPulse 1.2s ease-in-out infinite"
+                        }}
+                        aria-hidden="true"
+                      />
+                      <div
+                        style={{
+                          width: "85%",
+                          height: "12px",
+                          "border-radius": "6px",
+                          background: "rgba(255,255,255,0.05)",
+                          animation: "softPulse 1.2s ease-in-out infinite"
+                        }}
+                        aria-hidden="true"
+                      />
+                    </div>
+                  </div>
+                </Portal>
+              }
+            >
               <CollectionModal />
             </Suspense>
           </Show>

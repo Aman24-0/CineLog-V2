@@ -330,6 +330,8 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
                               alt=""
                               loading="lazy"
                               decoding="async"
+                              width={185}
+                              height={185}
                               onError={(e) => {
                                 e.currentTarget.style.display = "none";
                               }}
@@ -390,6 +392,8 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
                               alt=""
                               loading="lazy"
                               decoding="async"
+                              width={185}
+                              height={185}
                               onError={(e) => {
                                 e.currentTarget.style.display = "none";
                               }}

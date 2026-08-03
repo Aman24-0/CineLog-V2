@@ -140,6 +140,8 @@ const SimilarTitles: Component<SimilarTitlesProps> = (props) => {
                     }
                     alt=""
                     class="similar-title-poster-img"
+                    width={185}
+                    height={278}
                     fallback={
                       <div
                         class="similar-title-poster-fallback"

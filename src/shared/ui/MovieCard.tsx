@@ -20,6 +20,16 @@ import { useToast } from "~/shared/hooks/useToast";
 import HighlightText from "./HighlightText";
 import { GlassCard } from "~/shared/ui/glass";
 
+// Prefetch trigger — call to start downloading the DetailsModal chunk.
+// Only fires once per hover session; subsequent hovers are no-ops
+// because the chunk is already cached by the browser.
+let prefetchTriggered = false;
+const prefetchDetailsModal = () => {
+  if (prefetchTriggered) return;
+  prefetchTriggered = true;
+  void import("~/features/details/DetailsModal");
+};
+
 // ─── Module-level style constants ────────────────────────────────────
 // Extracted from JSX so each MovieCard instance doesn't allocate its
 // own style-object literals on mount. With ~100 cards per page (Vault /
@@ -158,9 +168,10 @@ const MovieCard: Component<MovieCardProps> = (props) => {
   const [imgLoaded, setImgLoaded] = createSignal(false);
   const [imgError, setImgError] = createSignal(false);
 
-  // Favorites collection — used by the heart button to toggle
-  // membership. We read the collections context lazily (the hook is
-  // only called once per card, but the lookups are cheap memos).
+  // Favorites — uses O(1) Set lookup (Performance Sprint 1, Task 3).
+  // The provider-level `favoritesSet` is a Set<"media_type/id"> built
+  // reactively from the Favorites collection entries. This replaces the
+  // old per-card collection scan (find + some) that was O(n + m).
   const collections = useCollections();
   const { showToast } = useToast();
 
@@ -188,27 +199,20 @@ const MovieCard: Component<MovieCardProps> = (props) => {
 
   const firstPlatform = () => props.movie.platformsList?.[0];
 
-  // Resolve the Favorites collection once per render. It's the one
-  // with isFavorites=true (or, fallback, named exactly "Favorites").
-  const favoritesCollection = () => {
+  // O(1) favorites lookup via provider-level Set.
+  const favColId = () => {
     const all = collections.userCollections();
     return (
       all.find((c) => c.isFavorites) ??
       all.find((c) => c.name === "Favorites") ??
       null
-    );
+    )?.id ?? null;
   };
 
-  const favColId = () => favoritesCollection()?.id ?? null;
-
   const isFavourite = () => {
-    const id = favColId();
-    if (!id) return false;
-    return collections.isInCollection(
-      id,
-      String(props.movie.id),
-      props.movie.media_type
-    );
+    if (!favColId()) return false;
+    const key = `${props.movie.media_type}/${props.movie.id}`;
+    return collections.favoritesSet().has(key);
   };
 
   // ─── Localized favorite signal (INP optimization) ───────────────────
@@ -379,6 +383,9 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           props.onClick();
         }
       }}
+      onMouseEnter={prefetchDetailsModal}
+      onTouchStart={prefetchDetailsModal}
+      onFocus={prefetchDetailsModal}
       variant={variant() === "featured" ? "accent" : "glass"}
       // padding="none" + size="compact" + border="none" — the MovieCard's
       // .vault-card-inner already manages its own border, shadow, padding,
@@ -421,6 +428,8 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             class={`vault-card-poster${imgLoaded() ? " img-loaded" : ""}`}
             loading="lazy"
             decoding="async"
+            width={posterSize() === "w342" ? 342 : 500}
+            height={posterSize() === "w342" ? 513 : 750}
             alt=""
             aria-hidden="true"
             onLoad={(e) => {

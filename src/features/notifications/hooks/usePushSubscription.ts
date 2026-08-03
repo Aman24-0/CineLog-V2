@@ -153,7 +153,7 @@ function arrayBufferToBase64(buffer: ArrayBuffer | null): string {
 }
 
 export function usePushSubscription(): UsePushSubscriptionReturn {
-  const { user } = useAuth();
+  const { user, isSignedIn } = useAuth();
 
   const [isSubscribed, setIsSubscribed] = createSignal(false);
   const [isSupported, setIsSupported] = createSignal(false);
@@ -509,7 +509,11 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
   };
 
   // ─── onMount: initial state load ──────────────────────────────────
+  // Performance Sprint 1, Task 7: Only initialize push subscription logic
+  // for authenticated users. Guest users must never subscribe or attempt
+  // to fetch VAPID keys / check subscriptions (wasteful network requests).
   onMount(() => {
+    if (!isSignedIn()) return;
     if (!checkSupport()) return;
     // Fetch the VAPID key + check existing subscription in parallel.
     // These don't depend on each other, so running them concurrently

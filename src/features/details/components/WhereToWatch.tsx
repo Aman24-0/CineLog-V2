@@ -198,6 +198,8 @@ const WhereToWatch: Component<WhereToWatchProps> = (props) => {
                       class="wheretowatch-logo"
                       loading="lazy"
                       decoding="async"
+                      width={154}
+                      height={103}
                       alt=""
                       aria-hidden="true"
                       onError={(e) => {
