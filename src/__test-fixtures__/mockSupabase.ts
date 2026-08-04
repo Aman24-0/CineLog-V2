@@ -43,6 +43,14 @@ export interface MockSupabaseOptions {
   maybeSingleData?: unknown | null;
   /** The error to return. */
   error?: Error | null;
+  /**
+   * The `count` to return from a bare-await query (`.from().update()/
+   * insert()/upsert()/delete()` without `.single()`). Mirrors PostgREST's
+   * `count: 'exact'` option. Defaults to `undefined` (no count), matching
+   * the pre-existing behavior. Set to a number to simulate "N rows
+   * affected".
+   */
+  count?: number;
 }
 
 /**
@@ -62,14 +70,21 @@ export function createMockSupabase(options: MockSupabaseOptions = {}): {
     listData = [],
     singleData = null,
     maybeSingleData,
-    error = null
+    error = null,
+    count
   } = options;
   // maybeSingleData defaults to singleData for backward compat
   const maybeData =
     maybeSingleData !== undefined ? maybeSingleData : singleData;
 
   // The "result" that awaiting the query produces.
-  const listResult = { data: listData, error };
+  // `count` is only included when explicitly provided (via the `count`
+  // option) so that callers relying on the legacy `{ data, error }`
+  // shape aren't affected by a new field. When `count` is set, the
+  // result is `{ data, error, count }` — mirroring PostgREST's response
+  // when `count: 'exact'` is requested.
+  const listResult =
+    count !== undefined ? { data: listData, error, count } : { data: listData, error };
   const singleResult = { data: singleData, error };
   const maybeResult = { data: maybeData, error };
 

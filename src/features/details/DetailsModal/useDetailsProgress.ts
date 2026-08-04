@@ -76,12 +76,17 @@ export interface UseDetailsProgressResult {
    * @param episode  Episode number of the rated episode.
    * @param rating   New rating (1-N) or null to clear.
    *
-   * If the episode_progress row doesn't exist (the user hasn't marked
-   * the episode as watched yet), this is a no-op — the caller should
-   * ensure the row exists first by calling handleEpisodeChange. The
-   * hook also maintains a local `episodeRatings` accessor that the
-   * DetailsModal can pass to SeasonNavigator so the stars reflect the
-   * persisted values.
+   * The underlying `updateEpisodeRatingInSupabase` adapter now UPSERTs
+   * (was a plain UPDATE before the rating-persistence bugfix): if the
+   * episode_progress row doesn't exist — which happens when the tracker
+   * jumped past the episode without creating intermediate rows — it is
+   * created with the rating + watched-episode defaults. So callers no
+   * longer need to ensure the row exists first via `handleEpisodeChange`.
+   *
+   * The hook also maintains a local `episodeRatings` accessor that the
+   * DetailsModal passes to SeasonNavigator so the stars reflect the
+   * persisted values. It's updated optimistically here so the star the
+   * user just clicked highlights immediately.
    */
   handleEpisodeRating: (
     season: number,
@@ -401,20 +406,19 @@ export function useDetailsProgress(
         rating
       );
       if (!ok) {
-        // Rollback the optimistic update.
-        setEpisodeRatings((prev) => {
-          const next = new Map(prev);
-          next.set(key, rating === null ? null : next.get(key) ?? null);
-          // Best-effort rollback — we don't have the previous value
-          // handy, so we just leave the optimistic state. The next
-          // hydrate will correct it.
-          return next;
-        });
+        // Rollback: re-hydrate from the server. The previous rollback
+        // was broken — it didn't have the prior value, so it left the
+        // optimistic state in place. Re-hydrating is the correct fix:
+        // it replaces the local Map with the canonical server state,
+        // which discards the failed optimistic write and restores the
+        // real persisted rating (if any).
+        void hydrateEpisodeRatings();
         args.showToast("Failed to save rating.", "error");
       }
     } catch (err) {
       console.error("[useDetailsProgress] handleEpisodeRating failed:", err);
       args.showToast("Failed to save rating.", "error");
+      void hydrateEpisodeRatings();
     }
   };
 

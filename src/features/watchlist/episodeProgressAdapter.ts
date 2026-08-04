@@ -314,16 +314,21 @@ export async function unmarkEpisodeInSupabase(
 }
 
 /**
- * Phase 6 Task 2 — Update the per-episode rating on a specific
- * episode_progress record.
+ * Phase 6 Task 2 — Set the per-episode rating on a specific
+ * episode_progress record, creating the row if it doesn't exist.
  *
  * The rating is stored on the episode_progress row identified by
- * (vaultId, seasonNumber, episodeNumber). If the row doesn't exist
- * (the user hasn't marked the episode as watched yet), this is a
- * no-op — the caller should ensure the row exists first by calling
- * `updateSeasonEpisodeInSupabase` (which upserts the progress row).
+ * (vaultId, seasonNumber, episodeNumber). The underlying repository
+ * function is a two-step upsert (UPDATE first; if zero rows affected,
+ * INSERT with watched-episode defaults) so that rating an episode the
+ * tracker jumped past — which therefore has no episode_progress row —
+ * still persists. Before the bugfix, this was a plain UPDATE that
+ * silently no-op'd on missing rows, causing ratings to vanish on the
+ * next page refresh.
  *
- * Pass `null` to clear the rating.
+ * Pass `null` to clear the rating on an existing row. Passing `null`
+ * when the row doesn't exist is a no-op (no row is created just to
+ * store NULL).
  *
  * The caller is responsible for validating the rating range against
  * the user's `ratingScale` preference (1-5 for "5star", 1-10 for

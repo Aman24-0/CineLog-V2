@@ -108,11 +108,13 @@ export class EpisodeProgressRepository {
   }
 
   /**
-   * Phase 6 Task 2 — Update the rating on a specific episode_progress
-   * record. See `episodeProgress.write.ts` for the full rationale.
+   * Phase 6 Task 2 — Set the rating on a specific episode_progress
+   * record, creating the row if it doesn't exist. See
+   * `episodeProgress.write.ts` for the full rationale (two-step
+   * upsert: UPDATE first, INSERT with watched-episode defaults if
+   * zero rows were affected).
    *
-   * If the record doesn't exist (the user hasn't marked the episode as
-   * watched yet), this is a no-op. Pass `null` to clear the rating.
+   * Pass `null` to clear the rating on an existing row.
    */
   updateEpisodeRating(
     vaultId: string,

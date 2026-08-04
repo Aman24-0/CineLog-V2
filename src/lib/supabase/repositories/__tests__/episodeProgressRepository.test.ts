@@ -203,15 +203,17 @@ describe("EpisodeProgressRepository", () => {
 
   // ── Phase 6 Task 2: per-episode rating ────────────────────────────
   describe("updateEpisodeRating", () => {
-    it("returns no error on success when setting a rating", async () => {
-      const { client } = createMockSupabase({ listData: [] });
+    it("returns no error on success when setting a rating (row exists)", async () => {
+      // count: 1 simulates "1 row was updated by the UPDATE step" —
+      // so the INSERT fallback should NOT fire.
+      const { client } = createMockSupabase({ listData: [], count: 1 });
       const repo = new EpisodeProgressRepository(client as never);
       const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
       expect(result.error).toBeNull();
     });
 
     it("returns no error when clearing the rating (null)", async () => {
-      const { client } = createMockSupabase({ listData: [] });
+      const { client } = createMockSupabase({ listData: [], count: 1 });
       const repo = new EpisodeProgressRepository(client as never);
       const result = await repo.updateEpisodeRating("vault-1", 1, 5, null);
       expect(result.error).toBeNull();
@@ -223,6 +225,76 @@ describe("EpisodeProgressRepository", () => {
       const repo = new EpisodeProgressRepository(client as never);
       const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
       expect(result.error).toBe(err);
+    });
+
+    // ── BUGFIX: rating persistence when the episode_progress row is
+    // missing. Before the fix, `updateEpisodeRating` was a plain UPDATE
+    // that silently no-op'd on missing rows — so ratings vanished on
+    // the next page refresh. The fix is a two-step upsert: UPDATE first;
+    // if zero rows affected, INSERT with watched-episode defaults. ──
+
+    it("INSERTS a new row when the UPDATE affects zero rows (row missing) and rating is non-null", async () => {
+      // count: 0 simulates "the UPDATE matched zero rows" — the
+      // episode_progress row doesn't exist yet (e.g. the tracker
+      // jumped past this episode). The fix should fall back to INSERT.
+      const { client, query } = createMockSupabase({ listData: [], count: 0 });
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
+      expect(result.error).toBeNull();
+      // Verify the INSERT path fired: upsert should have been called
+      // with a payload that includes the rating + watched-episode defaults.
+      expect(query.upsert).toHaveBeenCalledTimes(1);
+      const upsertArg = query.upsert.mock.calls[0][0];
+      expect(upsertArg).toMatchObject({
+        vault_id: "vault-1",
+        season_number: 1,
+        episode_number: 5,
+        rating: 8,
+        is_completed: true,
+        progress_minutes: 0
+      });
+      // watched_at should be a valid ISO string (set to now()).
+      expect(typeof upsertArg.watched_at).toBe("string");
+      expect(new Date(upsertArg.watched_at).getTime()).not.toBeNaN();
+    });
+
+    it("does NOT insert when the row is missing AND rating is null (nothing to clear)", async () => {
+      // count: 0 + rating: null → the row doesn't exist and we're
+      // trying to clear a rating. There's nothing to clear, so we
+      // should NOT create a row just to store NULL.
+      const { client, query } = createMockSupabase({ listData: [], count: 0 });
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, null);
+      expect(result.error).toBeNull();
+      // The INSERT/upsert path should NOT have fired.
+      expect(query.upsert).not.toHaveBeenCalled();
+    });
+
+    it("does NOT insert when the UPDATE succeeds (count > 0)", async () => {
+      // count: 1 → the UPDATE matched an existing row, so the INSERT
+      // fallback should be skipped.
+      const { client, query } = createMockSupabase({ listData: [], count: 1 });
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
+      expect(result.error).toBeNull();
+      // The UPDATE path should have fired (update called with { rating }).
+      expect(query.update).toHaveBeenCalledTimes(1);
+      expect(query.update.mock.calls[0][0]).toEqual({ rating: 8 });
+      // The INSERT/upsert path should NOT have fired.
+      expect(query.upsert).not.toHaveBeenCalled();
+    });
+
+    it("scopes the UPDATE to the target row via eq filters", async () => {
+      // Verify the UPDATE is filtered to the right vault_id + season + episode
+      // so we never accidentally update a different episode's rating.
+      const { client, query } = createMockSupabase({ listData: [], count: 1 });
+      const repo = new EpisodeProgressRepository(client as never);
+      await repo.updateEpisodeRating("vault-1", 2, 3, 5);
+      // eq should have been called for vault_id, season_number, episode_number.
+      const eqCalls = query.eq.mock.calls.map((c) => c[0]);
+      expect(eqCalls).toContain("vault_id");
+      expect(eqCalls).toContain("season_number");
+      expect(eqCalls).toContain("episode_number");
     });
   });
 });
