@@ -1,26 +1,44 @@
 // src/middleware.ts
 //
-// CineLog V2 — SolidStart Server Middleware (Phase 7 Task 5 fix)
+// CineLog V2 — SolidStart Server Middleware (Cookie-Scoped Supabase Client)
 // ---------------------------------------------------------------------
 // BUG BEING FIXED:
 //   After the Phase 7 migration to `@supabase/ssr` with cookie storage,
 //   Google OAuth sign-in fails with "PKCE code verifier not found in
-//   storage". The root cause: the `/auth/callback` route and the SSR
-//   server entry were not sharing the Request/Response cookie adapters
-//   with the Supabase server client, so the PKCE code_verifier cookie
-//   (set by the browser client when `signInWithOAuth` was called) was
-//   never read by the server during the OAuth callback.
+//   storage". The root cause: the server-side Supabase client was not
+//   seeing the PKCE code_verifier cookie (set by the browser client
+//   when `signInWithOAuth` was called) because the cookie adapter was
+//   not properly round-tripping cookies between the browser and server.
 //
 // WHAT THIS MIDDLEWARE DOES:
 //   1. `onRequest` — for EVERY incoming request, parse the `Cookie`
-//      header, initialize a fresh `@supabase/ssr` server client bound
-//      to those cookies, and store the client + cookie jar on
-//      `event.locals.supabase`.
-//   2. Routes (especially `/auth/callback`) read `event.locals.supabase`
+//      header (via `createServerClientFromRequest`, which uses the
+//      `cookie` package's `parse()` for byte-identical decoding with
+//      the browser client's `serialize()` writes).
+//   2. Initialize a fresh `@supabase/ssr` server client bound to
+//      those cookies.
+//   3. Store the client + cookie jar on `event.locals.supabase`.
+//   4. Routes (especially `/auth/callback`) read `event.locals.supabase`
 //      to get a request-scoped client that can see the PKCE verifier
 //      cookie. Any cookie writes the client makes (e.g. the session
 //      cookies set by `exchangeCodeForSession`) are accumulated in the
 //      cookie jar, which the route flushes to its outgoing `Response`.
+//
+// DEBUG LOGGING:
+//   Set the `SUPABASE_DEBUG_COOKIE_LOG=1` env var to enable verbose
+//   logging of every `getAll` / `setAll` call on the server cookie
+//   adapter. The logs are prefixed with `[supabase-server-cookies]`
+//   and show:
+//     • `getAll()` — the number of cookies on the request + a summary
+//       of auth-relevant cookie names (values are NOT logged).
+//     • `setAll()` — each cookie being queued for the response
+//       (name, value length, secure flag, httpOnly flag).
+//
+//   Additionally, this middleware ALWAYS logs a one-line summary of
+//   the incoming request's cookie count when the path is `/auth/callback`
+//   — so you can immediately see whether the PKCE verifier cookie
+//   arrived without needing to enable full debug logging. This is
+//   the smallest possible debug aid for the OAuth flow.
 //
 // WHY A MIDDLEWARE (not just per-route init):
 //   • The auth callback needs the client BEFORE it renders — a server
@@ -35,15 +53,12 @@
 //
 // WHY `onRequest` ONLY (no `onBeforeResponse`):
 //   The SolidStart `onBeforeResponse` hook's `response` param is typed
-//   as `{ body? }` (see @solidjs/start middleware types) — it does not
-//   expose the outgoing Response's headers in a way that's safe to
-//   mutate across all response shapes (streamed, static, etc.).
-//   Instead, each route that uses `event.locals.supabase.client` is
-//   responsible for flushing `event.locals.supabase.cookieJar` onto
+//   as `{ body? }` — it does not expose the outgoing Response's headers
+//   in a way that's safe to mutate across all response shapes (streamed,
+//   static, etc.). Instead, each route that uses `event.locals.supabase.client`
+//   is responsible for flushing `event.locals.supabase.cookieJar` onto
 //   the `Response` it returns. The auth callback does this explicitly
-//   (see `src/routes/auth/callback.tsx`). This is the same pattern the
-//   existing `/api/stats` and `/api/discover/taste` routes already use
-//   with `createServerClientFromRequest`.
+//   (see `src/routes/auth/callback.tsx`).
 //
 // FAILURE MODE:
 //   If the Supabase env vars (`VITE_SUPABASE_URL` / `VITE_SUPABASE_ANON_KEY`)
@@ -51,15 +66,8 @@
 //   env — `createServerClientFromRequest` throws. We catch + log here
 //   and leave `event.locals.supabase` undefined. Routes that need
 //   Supabase check for its presence and fall back to a direct
-//   `createServerClientFromRequest(event.request)` call (which will
-//   also throw, but with a clearer stack pointing at the route).
+//   `createServerClientFromRequest(event.request)` call.
 //
-// SSR-SAFETY:
-//   This file is imported by the SolidStart server entry on the server
-//   only. It never runs in the browser. `createServerClientFromRequest`
-//   internally calls `createServerClient` which asserts `isServer` —
-//   so a misconfigured build that tries to bundle this into the client
-//   would fail loudly.
 
 import { createMiddleware } from "@solidjs/start/middleware";
 import type { SupabaseClient } from "@supabase/supabase-js";
@@ -88,9 +96,9 @@ export interface SupabaseRequestContext {
 
 // ── Augment the global App namespace so TypeScript knows about
 //    `event.locals.supabase`. SolidStart's `FetchEvent.locals` is
-//    typed as `App.RequestEventLocals` (see @solidjs/start server
-//    types), so declaring this interface globally makes the property
-//    visible everywhere `event.locals` is accessed.
+//    typed as `App.RequestEventLocals`, so declaring this interface
+//    globally makes the property visible everywhere `event.locals`
+//    is accessed.
 //
 //    The property is OPTIONAL because the middleware may fail to
 //    create the client (e.g. missing env vars during build). Routes
@@ -105,18 +113,74 @@ declare global {
 }
 
 /**
- * SolidStart auto-discovers `src/middleware.ts` (or `src/middleware/index.ts`)
- * and wires the default export into the request pipeline. Every
- * incoming request — SSR page renders, API routes, the auth callback —
- * passes through `onRequest` before reaching its handler.
+ * Check whether a URL path is the OAuth callback. Used to gate the
+ * always-on debug log so we can see the PKCE verifier arriving
+ * without enabling full cookie debug logging.
+ */
+function isAuthCallbackPath(pathname: string): boolean {
+  return pathname === "/auth/callback" || pathname.startsWith("/auth/callback?");
+}
+
+/**
+ * Returns `true` when the `SUPABASE_DEBUG_COOKIE_LOG` env var is set
+ * to "1" or "true". When enabled, the server cookie adapter (in
+ * `src/lib/supabase/server.ts`) logs every `getAll` / `setAll` call.
+ */
+function isCookieDebugLoggingEnabled(): boolean {
+  const flag =
+    (import.meta as any).env?.SUPABASE_DEBUG_COOKIE_LOG ??
+    (typeof process !== "undefined" && process.env?.SUPABASE_DEBUG_COOKIE_LOG);
+  return flag === "1" || flag === "true";
+}
+
+/**
+ * SolidStart auto-discovers `src/middleware.ts` and wires the default
+ * export into the request pipeline. Every incoming request — SSR page
+ * renders, API routes, the auth callback — passes through `onRequest`
+ * before reaching its handler.
  */
 export default createMiddleware({
   onRequest: (event) => {
+    const url = new URL(event.request.url);
+    const isCallback = isAuthCallbackPath(url.pathname);
+    const cookieHeader = event.request.headers.get("cookie") ?? "";
+
+    // Always log on the auth callback path — this is the diagnostic
+    // aid the user asked for. We log the cookie NAMES (not values,
+    // which may contain session tokens / the PKCE verifier).
+    if (isCallback) {
+      const cookieNames = cookieHeader
+        ? cookieHeader
+            .split(";")
+            .map((c) => c.trim().split("=")[0])
+            .filter(Boolean)
+        : [];
+      console.log(
+        "[middleware] /auth/callback incoming request —",
+        cookieNames.length,
+        "cookies:",
+        cookieNames.join(", ") || "(none)",
+        "| has code param:",
+        url.searchParams.has("code"),
+        "| has flow_id param:",
+        url.searchParams.has("flow_id")
+      );
+    }
+
     try {
       const { client, cookies } = createServerClientFromRequest(
         event.request
       );
       event.locals.supabase = { client, cookieJar: cookies };
+
+      if (isCallback && isCookieDebugLoggingEnabled()) {
+        // The adapter's own getAll() will log the detailed summary
+        // when debug logging is enabled — here we just confirm the
+        // middleware initialized the client.
+        console.log(
+          "[middleware] Supabase client initialized for /auth/callback. event.locals.supabase is set."
+        );
+      }
     } catch (err) {
       // Don't crash the request — log and let downstream routes handle
       // the missing client. This keeps the server alive even if the

@@ -126,9 +126,22 @@ export async function signInWithGoogle(returnPath?: string): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
+    // IMPORTANT: The `redirectTo` MUST point to `/auth/callback` so the
+    // server-side GET handler in `src/routes/auth/callback.tsx` runs the
+    // PKCE code exchange. Previously this pointed directly at `/profile`,
+    // which bypassed the server callback entirely — the browser client's
+    // `detectSessionInUrl` was expected to handle the exchange, but that
+    // path was unreliable with the `@supabase/ssr` cookie storage adapter
+    // and produced "PKCE code verifier not found in storage" errors.
+    //
+    // The `/auth/callback` route reads the `next` query param to decide
+    // where to redirect AFTER the exchange succeeds, so we pass the user's
+    // intended destination as `?next=<returnPath>`.
     const redirectTo =
       typeof window !== "undefined"
-        ? `${window.location.origin}${returnPath ?? "/profile"}`
+        ? `${window.location.origin}/auth/callback${
+            returnPath ? `?next=${encodeURIComponent(returnPath)}` : ""
+          }`
         : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

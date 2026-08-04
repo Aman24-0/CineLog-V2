@@ -226,7 +226,9 @@ const AdminLoginPage: Component = () => {
     setError(null);
     setOauthLoading(true);
     try {
-      await signInWithGoogle("/admin/login");
+      await signInWithGoogle(
+        `/auth/callback?next=${encodeURIComponent("/admin/login")}`
+      );
       // Browser will redirect — code below never runs
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed.";

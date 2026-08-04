@@ -356,11 +356,36 @@ export async function GET(event: APIEvent): Promise<Response> {
     // verifier against the code, and if valid, returns the session.
     // The session cookies (sb-access-token, sb-refresh-token) are
     // written to the cookie jar via the `setAll` adapter.
-    const { error: exchangeError } =
-      await client.auth.exchangeCodeForSession(code);
+    console.log(
+      "[auth/callback] Calling exchangeCodeForSession with code length:",
+      code.length
+    );
+    const exchangeResult = await client.auth.exchangeCodeForSession(code);
+    console.log(
+      "[auth/callback] exchangeCodeForSession result —",
+      "error:",
+      exchangeResult.error
+        ? `${exchangeResult.error.name}: ${exchangeResult.error.message}`
+        : "(none)",
+      "| session present:",
+      !!exchangeResult.data?.session,
+      "| user present:",
+      !!exchangeResult.data?.user
+    );
+
+    const { error: exchangeError } = exchangeResult;
 
     if (!exchangeError) {
       // Success — flush the session cookies to the redirect Response.
+      const setCookies = cookieJar.toSetCookieHeaders();
+      console.log(
+        "[auth/callback] Exchange succeeded. Flushing",
+        setCookies.length,
+        "Set-Cookie headers to the redirect response. Cookie names:",
+        setCookies
+          .map((h) => h.split("=")[0])
+          .join(", ") || "(none)"
+      );
       return buildRedirectResponse(target, cookieJar);
     }
 
