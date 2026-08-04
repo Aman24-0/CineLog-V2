@@ -20,75 +20,132 @@
    8. Continue Universes + Surprise Me — premium glass cards
    9. Motion — smooth transitions, soft elevation, no excessive animation
 
+   Sprint 5C — Cinematic Atmosphere Foundation (Dulo-inspired)
+   Deep indigo/purple ambient replaces flat gold-dominant glow.
+   Layered feathered gradients create depth without visible circles.
+   Gold remains as interactive accent only.
+
    All changes are visual only — no business logic, routing, or API calls.
    Existing functionality is preserved.
 */
 
 /* ============================================================
-   1. CINEMATIC BACKGROUND — layered radial gradients + lighting
+   1. CINEMATIC BACKGROUND — layered ambient lighting system
+   ============================================================
+
+   Sprint 5C: Dulo-inspired deep indigo/purple ambient atmosphere.
+   Replaces flat gold-dominant glow with a multi-layer cinematic depth:
+
+   Layer 1 (primary) — Deep indigo wash from above, creates the "void"
+   feeling that makes content float. NOT gold — indigo/purple.
+   Layer 2 (secondary) — Soft violet accent, adds asymmetry.
+   Layer 3 (gold accent) — Very subtle warm gold near Spotlight only.
+   Layer 4 (mid-page) — Faint purple ambient that keeps rails alive.
+   Layer 5 (vignette) — Bottom vignette for rail readability.
+
+   All layers use extremely large ellipses (>100%) with soft falloffs
+   to ensure NO visible circles. Everything bleeds naturally.
+
+   Reusable ambient tokens (Task 4) are defined here for future pages.
    ============================================================ */
 
-/* The Discover page gets its own ambient lighting setup. Two radial
-   gradients at the top create a "spotlight from above" effect (warm
-   gold + cool blue), while a third faint vignette at the bottom keeps
-   contrast high for the rails. The gradients are subtle enough to
-   not interfere with content readability. */
+/* ── Task 4: Reusable Ambient Lighting Tokens ──
+   These custom properties define the cinematic ambient palette.
+   Future pages (Watchlist, Collections, Profile) can reference these
+   same tokens for app-wide visual consistency. */
+.discover-folds {
+  /* Primary ambient — deep indigo, the dominant atmosphere */
+  --ambient-indigo: rgba(30, 27, 75, 0.35);
+  --ambient-indigo-mid: rgba(30, 27, 75, 0.18);
+  /* Secondary ambient — soft violet, asymmetric accent */
+  --ambient-violet: rgba(88, 28, 135, 0.15);
+  --ambient-violet-faint: rgba(124, 58, 237, 0.08);
+  /* Gold accent ambient — warm, only near hero/spotlight */
+  --ambient-gold: color-mix(in srgb, var(--p) 14%, transparent);
+  --ambient-gold-faint: color-mix(in srgb, var(--p) 5%, transparent);
+  /* Vignette — deep charcoal for edge darkening */
+  --ambient-vignette: rgba(8, 8, 13, 0.5);
+}
+
 .discover-folds,
 .discover-skeleton,
 .discover-search-bar-form ~ .page-enter {
   position: relative;
 }
 
-/* Page-level ambient glow — the existing .ambient-glow div is rendered
-   inside the PageContainer. We strengthen it into a proper cinematic
-   lighting setup with two layered radial gradients.
+/* ── Task 1: Primary ambient — indigo/purple cinematic wash ──
+   Large feathered ellipse centered at top, covering the full viewport.
+   No visible edges — the ellipse is 140% wide, fades to transparent
+   by 70%. This creates the "deep space" feeling that makes content
+   float above the background.
 
-   LAYOUT-SAFE: width: 100vw + left: 0 (NOT 120vw + translateX(-50%)).
-   The previous 120vw caused horizontal overflow on mobile because
-   position:fixed elements wider than the viewport extend the
-   document's scroll width, and body's overflow-x:clip does NOT clip
-   fixed-position descendants. Using 100vw + left:0 covers the full
-   viewport without exceeding it. */
+   LAYOUT-SAFE: width: 100vw + left: 0 (NOT wider). */
 .discover-folds::before,
 .page-enter.discover-folds::before {
   content: "";
   position: fixed;
-  top: -20vh;
+  top: -25vh;
   left: 0;
   width: 100vw;
-  height: 70vh;
+  height: 80vh;
   background:
+    /* Layer 1 — Deep indigo primary (DOMINANT atmosphere) */
     radial-gradient(
-      ellipse 60% 50% at 50% 0%,
-      color-mix(in srgb, var(--p) 12%, transparent) 0%,
-      color-mix(in srgb, var(--p) 4%, transparent) 40%,
-      transparent 70%
+      ellipse 140% 90% at 50% 0%,
+      var(--ambient-indigo) 0%,
+      var(--ambient-indigo-mid) 30%,
+      transparent 65%
     ),
+    /* Layer 2 — Soft violet accent (asymmetry, slight left bias) */
     radial-gradient(
-      ellipse 40% 30% at 20% 10%,
-      color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
-      transparent 60%
+      ellipse 80% 60% at 30% 10%,
+      var(--ambient-violet) 0%,
+      transparent 55%
+    ),
+    /* Layer 3 — Faint violet right-side balance */
+    radial-gradient(
+      ellipse 60% 50% at 80% 5%,
+      var(--ambient-violet-faint) 0%,
+      transparent 50%
+    ),
+    /* Layer 4 — Warm gold accent (subtle, near Spotlight area) */
+    radial-gradient(
+      ellipse 50% 30% at 50% 15%,
+      var(--ambient-gold) 0%,
+      var(--ambient-gold-faint) 40%,
+      transparent 70%
     );
   pointer-events: none;
   z-index: 0;
-  filter: blur(60px);
-  opacity: 0.9;
+  filter: blur(80px);
+  opacity: 1;
 }
 
-/* Bottom vignette — keeps the rails section readable */
+/* ── Task 1 continued: Bottom + mid-page ambient ──
+   Bottom vignette keeps rails readable. A very faint mid-page
+   purple glow prevents the "black gap" between Spotlight and rails. */
 .discover-folds::after,
 .page-enter.discover-folds::after {
   content: "";
   position: fixed;
-  bottom: -10vh;
+  bottom: -15vh;
   left: 0;
   right: 0;
-  height: 40vh;
-  background: radial-gradient(
-    ellipse 80% 60% at 50% 100%,
-    rgba(8, 8, 13, 0.45) 0%,
-    transparent 60%
-  );
+  height: 60vh;
+  background:
+    /* Vignette — deep edge darkening */
+    radial-gradient(
+      ellipse 120% 80% at 50% 100%,
+      var(--ambient-vignette) 0%,
+      rgba(8, 8, 13, 0.15) 40%,
+      transparent 65%
+    ),
+    /* Faint mid-page purple glow — keeps atmosphere alive in rails */
+    radial-gradient(
+      ellipse 100% 50% at 50% 60%,
+      rgba(30, 27, 75, 0.08) 0%,
+      transparent 50%
+    );
   pointer-events: none;
   z-index: 0;
 }
@@ -97,6 +154,30 @@
 .discover-folds > * {
   position: relative;
   z-index: 1;
+}
+
+/* ── Task 3: Section ambient bridges ──
+   Prevents the visual "black gap" between Spotlight and Genre
+   Explorer / Discover rails. A very subtle radial glow sits
+   at the top of each discover-fold to bleed into the gap above,
+   creating continuous atmosphere instead of hard transitions. */
+.discover-folds .discover-fold {
+  position: relative;
+}
+.discover-folds .discover-fold::before {
+  content: "";
+  position: absolute;
+  top: -2rem;
+  left: -5%;
+  right: -5%;
+  height: 4rem;
+  background: radial-gradient(
+    ellipse 110% 100% at 50% 50%,
+    rgba(30, 27, 75, 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+  z-index: -1;
 }
 
 /* ============================================================
@@ -108,6 +189,11 @@
    Bigger cinematic backdrop, cleaner typography, compact metadata,
    readable overview, smaller CTA buttons, generous vertical spacing.
    Desktop is completely untouched. */
+/* ── Task 2: Spotlight floating appearance + cinematic halo ──
+   Enhanced shadow stack creates a strong sense of elevation.
+   The spotlight now visibly floats ABOVE the ambient background.
+   A subtle indigo-reflected glow on the border adds atmosphere
+   without competing with the gold accent. */
 .discover-folds .spotlight {
   height: 62vh;
   max-height: 560px;
@@ -116,6 +202,12 @@
   background: var(--tier-2);
   position: relative;
   overflow: hidden;
+  box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.6),
+    0 2px 8px rgba(0, 0, 0, 0.4),
+    0 0 0 1px rgba(30, 27, 75, 0.25),
+    0 0 60px rgba(30, 27, 75, 0.15),
+    inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight {
@@ -131,14 +223,18 @@
 
 /* Backdrop — mobile: brighter, more cinematic face-priority.
    Desktop: slightly brighter for premium feel + slower zoom. */
+/* ── Task 2: Better backdrop blending ──
+   Slightly desaturate the backdrop so ambient purple/indigo shows
+   through more naturally. The artwork becomes a texture within the
+   atmosphere rather than fighting it. */
 .discover-folds .spotlight-backdrop {
-  filter: brightness(0.82) saturate(1);
+  filter: brightness(0.78) saturate(0.9);
   transform: scale(1.06);
   /* Prioritize faces and key artwork at the top of the poster */
   object-position: center 15%;
 }
 .discover-folds .spotlight-backdrop.img-loaded {
-  filter: brightness(0.82) saturate(1);
+  filter: brightness(0.8) saturate(0.92);
   transform: scale(1);
 }
 @media (min-width: 640px) {
@@ -159,6 +255,11 @@
    the bottom ~45% for text legibility, with a strong bottom fade for the
    content cluster. Desktop keeps the fuller gradient (left fade for
    wide-screen text legibility). */
+/* ── Task 2: Richer overlay with edge vignette ──
+   Added edge vignette layer (all sides) for the "floating card"
+   feeling. The gold accent is softened (15% → 12%) so it doesn't
+   overpower the indigo atmosphere. Cool accent replaced with
+   indigo ambient for consistency with the new background system. */
 .discover-folds .spotlight-overlay {
   background:
     /* Layer 1 — bottom fade (strong, cinematic, text legibility) */
@@ -175,20 +276,27 @@
     /* Layer 2 — top vignette (minimal, badge legibility only) */
     linear-gradient(
         to bottom,
-        rgba(8, 8, 13, 0.25) 0%,
-        rgba(8, 8, 13, 0.06) 8%,
-        transparent 16%
+        rgba(8, 8, 13, 0.3) 0%,
+        rgba(8, 8, 13, 0.08) 10%,
+        transparent 18%
       ),
-    /* Layer 4 — warm gold accent (bottom-left) */
+    /* Layer 3 — edge vignette (all sides, subtle depth) */
+    radial-gradient(
+        ellipse 85% 85% at 50% 50%,
+        transparent 50%,
+        rgba(8, 8, 13, 0.2) 80%,
+        rgba(8, 8, 13, 0.35) 100%
+      ),
+    /* Layer 4 — warm gold accent (bottom-left, softened) */
     radial-gradient(
         ellipse 55% 35% at 0% 100%,
-        color-mix(in srgb, var(--p) 20%, transparent) 0%,
+        color-mix(in srgb, var(--p) 12%, transparent) 0%,
         transparent 55%
       ),
-    /* Layer 5 — cool accent (top-right, subtle) */
+    /* Layer 5 — indigo ambient reflection (top-right) */
     radial-gradient(
-        ellipse 40% 28% at 100% 0%,
-        color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
+        ellipse 50% 40% at 100% 0%,
+        rgba(30, 27, 75, 0.12) 0%,
         transparent 50%
       );
 }
@@ -218,20 +326,31 @@
           rgba(8, 8, 13, 0.14) 22%,
           transparent 50%
         ),
+      /* Edge vignette (desktop) */
+      radial-gradient(
+        ellipse 90% 90% at 50% 50%,
+        transparent 45%,
+        rgba(8, 8, 13, 0.15) 75%,
+        rgba(8, 8, 13, 0.3) 100%
+      ),
+      /* Gold accent (softened for desktop) */
       radial-gradient(
         ellipse 55% 35% at 0% 100%,
-        color-mix(in srgb, var(--p) 20%, transparent) 0%,
+        color-mix(in srgb, var(--p) 12%, transparent) 0%,
         transparent 55%
       ),
+      /* Indigo ambient (replaces orange) */
       radial-gradient(
-        ellipse 40% 28% at 100% 0%,
-        color-mix(in srgb, var(--p2, #ff6b35) 8%, transparent) 0%,
+        ellipse 45% 35% at 100% 0%,
+        rgba(30, 27, 75, 0.1) 0%,
         transparent 50%
       );
   }
 }
 
-/* Premium badge — mobile: more spacing from top, desktop: same as before */
+/* ── Task 5: Enhanced badge glow ──
+   Stronger cinematic halo around the badge, adding an indigo
+   ambient reflection for depth. Gold glow intensified. */
 .discover-folds .spotlight-badge {
   position: absolute;
   top: var(--sp-5, 1.25rem);
@@ -253,10 +372,11 @@
   text-transform: uppercase;
   color: var(--p);
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(232, 183, 74, 0.1),
-    0 0 16px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    0 4px 20px rgba(0, 0, 0, 0.6),
+    0 0 0 1px rgba(232, 183, 74, 0.12),
+    0 0 20px var(--p-glow),
+    0 0 40px rgba(30, 27, 75, 0.15),
+    inset 0 1px 0 rgba(232, 183, 74, 0.12);
 }
 @media (min-width: 640px) {
   .discover-folds .spotlight-badge {
@@ -372,8 +492,8 @@
   padding: 0.2rem 0.45rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
@@ -1093,8 +1213,8 @@
   padding: 0.5rem 0.875rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -1219,7 +1339,9 @@
   display: none;
 }
 
-/* Premium insight card — strong glass with golden border + soft glow */
+/* Premium insight card — strong glass with golden border + soft glow
+   Task 6: Normalized glass — consistent blur(20px) saturate(150%)
+   across all Discover glass surfaces for unified feel. */
 .discover-folds .discover-insight-card {
   display: inline-flex;
   align-items: center;
@@ -1227,8 +1349,8 @@
   padding: 0.625rem 1rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(160%);
-  -webkit-backdrop-filter: blur(20px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   flex-shrink: 0;
   box-shadow:
@@ -1278,7 +1400,9 @@
    8. CONTINUE UNIVERSES + SURPRISE ME — premium glass cards
    ============================================================ */
 
-/* Premium continue universe card — bigger, glassy, with golden border */
+/* Premium continue universe card — bigger, glassy, with golden border
+   Task 6 + Task 7: Normalized glass + enhanced depth shadow for
+   stronger elevation separation from the background. */
 .discover-folds .discover-continue-card {
   flex-shrink: 0;
   width: 220px;
@@ -1293,6 +1417,8 @@
   gap: var(--sp-2, 0.5rem);
   scroll-snap-align: start;
   box-shadow:
+    0 6px 20px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(30, 27, 75, 0.1),
     var(--shadow-glass-card),
     inset 0 1px 0 rgba(232, 183, 74, 0.06);
   transition:
@@ -1368,6 +1494,8 @@
   background: var(--tier-2);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
+    0 8px 32px rgba(0, 0, 0, 0.55),
+    0 0 0 1px rgba(30, 27, 75, 0.15),
     var(--shadow-glass-elevated),
     0 0 24px var(--p-glow),
     inset 0 1px 0 rgba(232, 183, 74, 0.1);
@@ -1467,12 +1595,13 @@
   gap: 0.375rem;
   flex-shrink: 0;
 }
+/* Task 6: Glass consistency — surprise meta pills normalized to blur(20px) */
 .discover-folds .discover-surprise-meta .v2-pill {
   padding: 0.25rem 0.5rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg-strong);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   font-family: "Azeret Mono", monospace;
   font-size: 0.5625rem;
@@ -1664,17 +1793,18 @@
   }
 }
 
-/* Premium accent bar before the label — bigger + double glow */
+/* Task 5: Accent bar — taller with deeper cinematic glow */
 .discover-folds .discover-fold-label::before {
   content: "";
   width: 4px;
-  height: 22px;
+  height: 24px;
   background: var(--p);
   border-radius: var(--radius-3xs);
   flex-shrink: 0;
   box-shadow:
     0 0 8px var(--p-glow),
-    0 0 16px var(--p-glow);
+    0 0 20px var(--p-glow),
+    0 0 40px rgba(232, 183, 74, 0.15);
 }
 @media (min-width: 640px) {
   .discover-folds .discover-fold-label::before {
@@ -1694,7 +1824,7 @@
   filter: drop-shadow(0 0 6px var(--p-glow));
 }
 
-/* Premium "See All" action button — glass pill with gold tint + chevron */
+/* Task 5 + Task 7: See All button — elevated, stronger glass, better depth */
 .discover-folds .discover-fold-action {
   display: inline-flex;
   align-items: center;
@@ -1702,8 +1832,8 @@
   padding: 0.375rem 0.625rem 0.375rem 0.75rem;
   border-radius: var(--radius-pill);
   background: rgba(232, 183, 74, 0.08);
-  backdrop-filter: blur(10px) saturate(140%);
-  -webkit-backdrop-filter: blur(10px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid rgba(232, 183, 74, 0.2);
   font-family: "Outfit", sans-serif;
   font-size: 0.6875rem;
@@ -1743,7 +1873,7 @@
     "opsz" 24;
 }
 
-/* Premium "See All" / "Load more" button — glassy gold pill */
+/* Task 6: Glass consistency — Load More button normalized to blur(20px) */
 .discover-folds .search-load-more {
   display: flex;
   align-items: center;
@@ -1752,8 +1882,8 @@
   margin-top: var(--sp-3, 0.75rem);
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -1991,6 +2121,7 @@
    11. PREMIUM EMPTY STATE — refined icon + message
    ============================================================ */
 
+/* Task 6: Glass consistency — empty state normalized to blur(20px) saturate(150%) */
 .discover-folds .discover-empty-state {
   display: flex;
   flex-direction: column;
@@ -2001,8 +2132,8 @@
   text-align: center;
   min-height: 160px;
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   border-radius: var(--radius-lg);
   box-shadow:
@@ -2067,6 +2198,7 @@
    12. PREMIUM GUEST CTA — refined sign-in nudge
    ============================================================ */
 
+/* Task 6: Glass consistency — guest CTA already normalized, no change needed */
 .discover-folds .discover-guest-nudge {
   padding: var(--sp-10, 2.5rem) var(--sp-4, 1rem);
   text-align: center;
@@ -2098,6 +2230,7 @@
   display: none;
 }
 
+/* Task 6: Glass consistency — quick-filter tabs normalized to blur(20px) */
 .discover-folds .discover-fold .quick-filter-tab {
   flex-shrink: 0;
   display: inline-flex;
@@ -2106,8 +2239,8 @@
   padding: 0.5rem 0.875rem;
   border-radius: var(--radius-pill);
   background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     0 2px 8px rgba(0, 0, 0, 0.3),
@@ -2177,13 +2310,18 @@
 }
 
 /* ============================================================
-   15. PREMIUM FOLD RHYTHM — more breathing room between sections
-   ============================================================ */
+   15. PREMIUM FOLD RHYTHM — breathing room with atmospheric blending
+   ============================================================
+
+   Task 3: Gap reduced from sp-10 (2.5rem) to sp-8 (2rem) so the
+   section ambient bridges (::before) can overlap and blend sections
+   together. The old 2.5rem gap created visible black space between
+   the indigo ambient and the next section's content. */
 
 .discover-folds {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-10, 2.5rem);
+  gap: var(--sp-8, 2rem);
 }
 .discover-folds .discover-fold {
   display: flex;
