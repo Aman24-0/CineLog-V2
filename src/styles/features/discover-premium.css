@@ -20,10 +20,11 @@
    8. Continue Universes + Surprise Me — premium glass cards
    9. Motion — smooth transitions, soft elevation, no excessive animation
 
-   Sprint 5C — Cinematic Atmosphere Foundation (Dulo-inspired)
-   Deep indigo/purple ambient replaces flat gold-dominant glow.
-   Layered feathered gradients create depth without visible circles.
-   Gold remains as interactive accent only.
+   Sprint 5C (REVISED) — Cinematic Atmosphere Foundation (Dulo-inspired)
+   Deep indigo/violet/blue-grey ambient on cinematic graphite canvas.
+   Reusable ambient tokens in design-system.css for all future pages.
+   Gold is interactive accent ONLY — not background atmosphere.
+   Every section shares one continuous atmosphere. No plain black.
 
    All changes are visual only — no business logic, routing, or API calls.
    Existing functionality is preserved.
@@ -33,38 +34,29 @@
    1. CINEMATIC BACKGROUND — layered ambient lighting system
    ============================================================
 
-   Sprint 5C: Dulo-inspired deep indigo/purple ambient atmosphere.
-   Replaces flat gold-dominant glow with a multi-layer cinematic depth:
+   Sprint 5C (REVISED): Dulo-inspired cinematic graphite + indigo atmosphere.
+   Reusable ambient tokens now live in design-system.css (global).
 
-   Layer 1 (primary) — Deep indigo wash from above, creates the "void"
-   feeling that makes content float. NOT gold — indigo/purple.
+   Layer 1 (primary) — Deep indigo wash from above.
    Layer 2 (secondary) — Soft violet accent, adds asymmetry.
-   Layer 3 (gold accent) — Very subtle warm gold near Spotlight only.
-   Layer 4 (mid-page) — Faint purple ambient that keeps rails alive.
-   Layer 5 (vignette) — Bottom vignette for rail readability.
+   Layer 3 (blue-grey) — Cool atmospheric depth.
+   Layer 4 (gold accent) — Very subtle warm gold near Spotlight ONLY.
+   Layer 5 (mid-page) — Indigo + violet keeps all rails alive.
+   Layer 6 (vignette) — Bottom vignette for rail readability.
 
    All layers use extremely large ellipses (>100%) with soft falloffs
    to ensure NO visible circles. Everything bleeds naturally.
 
-   Reusable ambient tokens (Task 4) are defined here for future pages.
+   Graphite base (--cine-graphite) replaces flat --void black.
    ============================================================ */
 
-/* ── Task 4: Reusable Ambient Lighting Tokens ──
-   These custom properties define the cinematic ambient palette.
-   Future pages (Watchlist, Collections, Profile) can reference these
-   same tokens for app-wide visual consistency. */
+/* ── Task 1 + Task 8: Cinematic Graphite Canvas ──
+   Uses global ambient tokens from design-system.css.
+   The graphite base replaces flat --void black, giving ambient
+   lighting a tinted surface to illuminate. Future pages
+   reference the same global tokens for app-wide consistency. */
 .discover-folds {
-  /* Primary ambient — deep indigo, the dominant atmosphere */
-  --ambient-indigo: rgba(30, 27, 75, 0.35);
-  --ambient-indigo-mid: rgba(30, 27, 75, 0.18);
-  /* Secondary ambient — soft violet, asymmetric accent */
-  --ambient-violet: rgba(88, 28, 135, 0.15);
-  --ambient-violet-faint: rgba(124, 58, 237, 0.08);
-  /* Gold accent ambient — warm, only near hero/spotlight */
-  --ambient-gold: color-mix(in srgb, var(--p) 14%, transparent);
-  --ambient-gold-faint: color-mix(in srgb, var(--p) 5%, transparent);
-  /* Vignette — deep charcoal for edge darkening */
-  --ambient-vignette: rgba(8, 8, 13, 0.5);
+  background: var(--cine-graphite);
 }
 
 .discover-folds,
@@ -73,77 +65,97 @@
   position: relative;
 }
 
-/* ── Task 1: Primary ambient — indigo/purple cinematic wash ──
-   Large feathered ellipse centered at top, covering the full viewport.
-   No visible edges — the ellipse is 140% wide, fades to transparent
-   by 70%. This creates the "deep space" feeling that makes content
-   float above the background.
+/* Skeleton and page-enter also get the graphite canvas */
+.discover-skeleton {
+  background: var(--cine-graphite);
+}
+
+/* ── Task 2: Primary ambient — indigo/violet/blue-grey cinematic wash ──
+   Page-sized atmospheric lighting from top. Multiple overlapping layers
+   create a deep, non-uniform atmosphere. No visible circles — all
+   ellipses are oversized with soft falloffs. Gold is accent-only.
 
    LAYOUT-SAFE: width: 100vw + left: 0 (NOT wider). */
 .discover-folds::before,
 .page-enter.discover-folds::before {
   content: "";
   position: fixed;
-  top: -25vh;
+  top: -20vh;
   left: 0;
   width: 100vw;
-  height: 80vh;
+  height: 85vh;
   background:
     /* Layer 1 — Deep indigo primary (DOMINANT atmosphere) */
     radial-gradient(
-      ellipse 140% 90% at 50% 0%,
+      ellipse 150% 100% at 50% 0%,
       var(--ambient-indigo) 0%,
-      var(--ambient-indigo-mid) 30%,
+      var(--ambient-indigo-mid) 25%,
+      rgba(30, 27, 75, 0.08) 55%,
+      transparent 75%
+    ),
+    /* Layer 2 — Soft violet accent (left bias, asymmetry) */
+    radial-gradient(
+      ellipse 90% 70% at 25% 8%,
+      var(--ambient-violet) 0%,
+      rgba(88, 28, 135, 0.06) 45%,
       transparent 65%
     ),
-    /* Layer 2 — Soft violet accent (asymmetry, slight left bias) */
+    /* Layer 3 — Blue-grey atmospheric depth (right-center) */
     radial-gradient(
-      ellipse 80% 60% at 30% 10%,
-      var(--ambient-violet) 0%,
-      transparent 55%
+      ellipse 70% 55% at 75% 12%,
+      rgba(55, 65, 81, 0.12) 0%,
+      rgba(55, 65, 81, 0.04) 45%,
+      transparent 65%
     ),
-    /* Layer 3 — Faint violet right-side balance */
+    /* Layer 4 — Faint violet right-side balance */
     radial-gradient(
-      ellipse 60% 50% at 80% 5%,
+      ellipse 60% 50% at 85% 5%,
       var(--ambient-violet-faint) 0%,
       transparent 50%
     ),
-    /* Layer 4 — Warm gold accent (subtle, near Spotlight area) */
+    /* Layer 5 — Warm gold accent (subtle, Spotlight area only) */
     radial-gradient(
-      ellipse 50% 30% at 50% 15%,
+      ellipse 45% 25% at 50% 18%,
       var(--ambient-gold) 0%,
-      var(--ambient-gold-faint) 40%,
-      transparent 70%
+      var(--ambient-gold-faint) 45%,
+      transparent 75%
     );
   pointer-events: none;
   z-index: 0;
-  filter: blur(80px);
-  opacity: 1;
+  filter: blur(70px);
 }
 
-/* ── Task 1 continued: Bottom + mid-page ambient ──
-   Bottom vignette keeps rails readable. A very faint mid-page
-   purple glow prevents the "black gap" between Spotlight and rails. */
+/* ── Task 2 continued: Bottom vignette + mid-page ambient ──
+   Bottom vignette keeps rails readable. Stronger mid-page indigo
+   prevents any section from falling into plain black.
+   Blue-grey adds subtle cool depth to the lower atmosphere. */
 .discover-folds::after,
 .page-enter.discover-folds::after {
   content: "";
   position: fixed;
-  bottom: -15vh;
+  bottom: -20vh;
   left: 0;
   right: 0;
-  height: 60vh;
+  height: 70vh;
   background:
     /* Vignette — deep edge darkening */
     radial-gradient(
-      ellipse 120% 80% at 50% 100%,
+      ellipse 130% 90% at 50% 100%,
       var(--ambient-vignette) 0%,
-      rgba(8, 8, 13, 0.15) 40%,
+      rgba(8, 8, 13, 0.2) 35%,
+      transparent 60%
+    ),
+    /* Mid-page indigo — keeps atmosphere alive in all rails */
+    radial-gradient(
+      ellipse 120% 60% at 50% 55%,
+      rgba(30, 27, 75, 0.12) 0%,
+      rgba(30, 27, 75, 0.04) 40%,
       transparent 65%
     ),
-    /* Faint mid-page purple glow — keeps atmosphere alive in rails */
+    /* Faint violet mid-page warmth */
     radial-gradient(
-      ellipse 100% 50% at 50% 60%,
-      rgba(30, 27, 75, 0.08) 0%,
+      ellipse 80% 40% at 40% 50%,
+      rgba(88, 28, 135, 0.05) 0%,
       transparent 50%
     );
   pointer-events: none;
@@ -156,25 +168,26 @@
   z-index: 1;
 }
 
-/* ── Task 3: Section ambient bridges ──
-   Prevents the visual "black gap" between Spotlight and Genre
-   Explorer / Discover rails. A very subtle radial glow sits
-   at the top of each discover-fold to bleed into the gap above,
-   creating continuous atmosphere instead of hard transitions. */
+/* ── Task 3 + Task 7: Section ambient bridges ──
+   Prevents any section from feeling disconnected. A soft radial
+   glow bleeds upward from each fold into the gap above, creating
+   continuous atmosphere. Every section (Genre Explorer, Trending,
+   Popular, Top Rated) gets the same treatment — no plain black. */
 .discover-folds .discover-fold {
   position: relative;
 }
 .discover-folds .discover-fold::before {
   content: "";
   position: absolute;
-  top: -2rem;
-  left: -5%;
-  right: -5%;
-  height: 4rem;
+  top: -3rem;
+  left: -8%;
+  right: -8%;
+  height: 5rem;
   background: radial-gradient(
-    ellipse 110% 100% at 50% 50%,
-    rgba(30, 27, 75, 0.06) 0%,
-    transparent 70%
+    ellipse 120% 100% at 50% 50%,
+    rgba(30, 27, 75, 0.1) 0%,
+    rgba(30, 27, 75, 0.03) 50%,
+    transparent 75%
   );
   pointer-events: none;
   z-index: -1;
@@ -189,11 +202,11 @@
    Bigger cinematic backdrop, cleaner typography, compact metadata,
    readable overview, smaller CTA buttons, generous vertical spacing.
    Desktop is completely untouched. */
-/* ── Task 2: Spotlight floating appearance + cinematic halo ──
-   Enhanced shadow stack creates a strong sense of elevation.
-   The spotlight now visibly floats ABOVE the ambient background.
-   A subtle indigo-reflected glow on the border adds atmosphere
-   without competing with the gold accent. */
+/* ── Task 2 + Task 5: Spotlight floating appearance + cinematic halo ──
+   Enhanced shadow stack creates strong elevation above the graphite
+   canvas. Indigo-reflected border glow adds atmosphere without
+   competing with the gold interactive accent. Larger outer glow
+   creates the "illuminated from behind" poster feel. */
 .discover-folds .spotlight {
   height: 62vh;
   max-height: 560px;
@@ -205,8 +218,8 @@
   box-shadow:
     0 8px 32px rgba(0, 0, 0, 0.6),
     0 2px 8px rgba(0, 0, 0, 0.4),
-    0 0 0 1px rgba(30, 27, 75, 0.25),
-    0 0 60px rgba(30, 27, 75, 0.15),
+    0 0 0 1px rgba(30, 27, 75, 0.3),
+    0 0 80px rgba(30, 27, 75, 0.2),
     inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 @media (min-width: 640px) {
@@ -649,8 +662,8 @@
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   transition:
     transform var(--dur-base) var(--ease-spring),
     background var(--dur-fast) var(--ease-out),
@@ -723,8 +736,8 @@
   .discover-folds .spotlight-reroll {
     padding: 0.625rem 1rem;
     background: var(--glass-bg);
-    backdrop-filter: blur(14px) saturate(140%);
-    -webkit-backdrop-filter: blur(14px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(150%);
+    -webkit-backdrop-filter: blur(20px) saturate(150%);
     border: 1px solid var(--glass-border-warm-strong);
     color: var(--text-soft);
     font-size: 0.75rem;
@@ -1663,8 +1676,8 @@
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.45),
     inset 0 1px 0 rgba(255, 255, 255, 0.18) !important;
-  backdrop-filter: blur(16px) saturate(160%);
-  -webkit-backdrop-filter: blur(16px) saturate(160%);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
   transition:
     transform var(--dur-base) var(--ease-spring),
     background var(--dur-fast) var(--ease-out),
@@ -2313,15 +2326,15 @@
    15. PREMIUM FOLD RHYTHM — breathing room with atmospheric blending
    ============================================================
 
-   Task 3: Gap reduced from sp-10 (2.5rem) to sp-8 (2rem) so the
-   section ambient bridges (::before) can overlap and blend sections
-   together. The old 2.5rem gap created visible black space between
-   the indigo ambient and the next section's content. */
+   Task 3 (REVISED): Gap reduced from sp-8 (2rem) to sp-7 (1.75rem)
+   so section ambient bridges (::before) overlap and blend sections
+   together more tightly. Combined with the stronger bridges and
+   mid-page ambient, this creates one continuous cinematic canvas. */
 
 .discover-folds {
   display: flex;
   flex-direction: column;
-  gap: var(--sp-8, 2rem);
+  gap: var(--sp-7, 1.75rem);
 }
 .discover-folds .discover-fold {
   display: flex;
