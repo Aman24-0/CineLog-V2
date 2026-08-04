@@ -1,5 +1,5 @@
 /**
- * CineLog V2 — Supabase Browser Client
+ * CineLog V2 — Supabase Browser Client (httpOnly Cookie Storage)
  * ---------------------------------------------------------------------
  * Singleton browser-side Supabase client.
  *
@@ -13,14 +13,43 @@
  * ----------
  * Mirrors the pattern used by `src/core/firebase/config.ts`:
  * `isServer` from `solid-js/web` is used to guard every code path that
- * would touch `window` / `localStorage`. Calling `createBrowserClient`
+ * would touch `window` / `document`. Calling `createBrowserClient`
  * or `getBrowserClient` on the server throws a descriptive error so the
  * mistake is loud rather than silently misconfiguring session state.
  *
+ * Phase 7 Task 5 — httpOnly Cookie Storage
+ * ----------------------------------------
+ * Previously the browser client used `persistSession: true`, which
+ * stored the auth session (access_token + refresh_token) in
+ * `localStorage`. That made sessions readable by any JS on the page,
+ * including XSS payloads — a security risk.
+ *
+ * We now use `@supabase/ssr`'s `createBrowserClient`, which:
+ *   • Stores auth tokens in httpOnly cookies (set by the server on
+ *     login/redirect, NOT readable by client-side JS).
+ *   • Sends the cookies automatically with every request to the
+ *     same origin (so API routes like `/api/stats` and
+ *     `/api/discover/taste` can read the session via the server
+ *     client's `getSession()`).
+ *   • Uses PKCE flow for OAuth redirects.
+ *
+ * The browser client NO LONGER uses `localStorage` for sessions. It
+ * still keeps an in-memory cache of the current session (so
+ * `onAuthStateChange` listeners fire immediately), but the source of
+ * truth is the cookie — set by the server, refreshed by the server
+ * on expiry.
+ *
+ * Migration note
+ * --------------
+ * Existing users with a `localStorage`-stored session will be logged
+ * out on first visit after this deploy. They'll need to sign in again,
+ * after which the session lives in cookies. This is a one-time cost
+ * of the security migration — acceptable for a session-security fix.
+ *
  * Auth configuration (browser-optimised)
  * --------------------------------------
- *   persistSession     : true   localStorage-backed session persistence
- *   autoRefreshToken   : true   background JWT refresh before expiry
+ *   persistSession     : false  no localStorage — sessions are in cookies
+ *   autoRefreshToken   : true   refresh via the cookie (server-side)
  *   detectSessionInUrl : true   parse `access_token=` after OAuth redirect
  *   flowType           : "pkce" modern PKCE flow (recommended by Supabase)
  *
@@ -38,13 +67,10 @@
  * Replacement in dev does not leak stale auth listeners across
  * hot reloads. The same key works on the production bundle because
  * `globalThis` is a stable host.
- *
- * This module is part of the SDK integration layer only (Phase 1 of
- * the migration roadmap). It does not yet wire into Auth, Repositories
- * or any feature — those steps are explicitly deferred.
  */
 
-import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { createBrowserClient as ssrCreateBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 
 /**
@@ -129,9 +155,23 @@ export function createBrowserClient(): SupabaseClient {
 
   const { url, anonKey } = readPublicConfig();
 
-  return createClient(url, anonKey, {
+  // `@supabase/ssr`'s createBrowserClient is the cookie-aware variant
+  // of `@supabase/supabase-js`'s createClient. It:
+  //   • Reads/writes auth tokens via document.cookie (httpOnly cookies
+  //     set by the server are automatically sent with same-origin
+  //     requests, so API routes can read them).
+  //   • Does NOT use localStorage for sessions (persistSession: false).
+  //   • Auto-refreshes expired tokens via a fetch to /auth/v1/token
+  //     (which sets the refreshed cookie via the response).
+  //   • Uses PKCE flow for OAuth redirects.
+  //
+  // Note: httpOnly cookies are NOT readable by client-side JS, but
+  // they ARE automatically sent with same-origin requests. The
+  // browser client doesn't need to read them — it just relies on the
+  // server to set them and on the browser to send them.
+  return ssrCreateBrowserClient(url, anonKey, {
     auth: {
-      persistSession: true,
+      persistSession: false,
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: "pkce"

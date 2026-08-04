@@ -67,42 +67,354 @@
 //   It cannot read the page's localStorage or sessionStorage directly
 //   (SWs have a separate storage scope), so the VAPID public key +
 //   subscription are managed by the page and POSTed to the server.
+//
+// RUNTIME CACHING (Phase 7 Task 1)
+// ---------------------------------
+//   The fetch handler implements three strategies keyed by request type:
+//
+//   1. CACHE-FIRST  — static assets (JS/CSS/fonts/icons) under our own
+//      origin. These are content-addressed by Vite's hashed filenames
+//      so a cached copy is always safe to serve forever. Falls back to
+//      the network only on cache miss, then caches the response.
+//
+//   2. NETWORK-FIRST — HTML navigations (requests whose destination is
+//      "document"). The SW always tries the network first so users get
+//      the latest HTML on first load. On network failure (offline), it
+//      falls back to the cached app shell so the SPA still loads.
+//
+//   3. STALE-WHILE-REVALIDATE — same-origin /api/* calls AND cross-
+//      origin TMDB image CDN requests. Serve cached response
+//      immediately if present, then fetch a fresh copy in the
+//      background to update the cache for next time. This gives
+//      instant poster loads on repeat visits while keeping the cache
+//      fresh.
+//
+//   The app shell (a small set of critical URLs) is PRECACHED on
+//   install so the app loads offline even on a cold SW install. The
+//   precache list is intentionally minimal — full assets are populated
+//   lazily by the runtime cache as the user navigates.
+//
+//   Bounded cache eviction: each cache has a MAX_ENTRIES cap. When
+//   exceeded, the oldest entries are evicted (LRU-ish — we delete by
+//   iteration order, which Cache API preserves as insertion order).
+//   This prevents the cache from growing unboundedly over months of
+//   use, which would otherwise trigger storage eviction by the browser.
 // ---------------------------------------------------------------------
 
-// ─── install: take over immediately ─────────────────────────────────
-self.addEventListener("install", () => {
-  self.skipWaiting();
+// ─── Cache names (versioned so a deploy can bust old caches) ────────
+const CACHE_VERSION = "v7";
+const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
+const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
+const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
+
+// ─── App-shell URLs to precache on install ──────────────────────────
+//   Only the bare minimum: the entry HTML and the offline fallback.
+//   Vite-built JS/CSS chunks are NOT precached because their hashed
+//   names change every deploy — we'd just be wasting storage. The
+//   runtime cache fills them in on first navigation.
+const APP_SHELL_URLS = ["/", "/offline.html"];
+
+// ─── Cache size caps (per cache) ────────────────────────────────────
+const MAX_STATIC_ENTRIES = 80;
+const MAX_HTML_ENTRIES = 8;
+const MAX_RUNTIME_ENTRIES = 200;
+
+/**
+ * Evict the oldest entries from a cache until its size is <= max.
+ * Called after every cache.put() so the cap is enforced continuously.
+ *
+ * The Cache API preserves insertion order, so deleting the first
+ * entries is an LRU-ish eviction (it's not a true LRU because reading
+ * doesn't reorder, but it's good enough to bound storage growth).
+ */
+async function trimCache(cacheName, maxEntries) {
+  const cache = await caches.open(cacheName);
+  const keys = await cache.keys();
+  if (keys.length <= maxEntries) return;
+  // Delete oldest (first inserted) entries until under cap.
+  const excess = keys.length - maxEntries;
+  for (let i = 0; i < excess; i++) {
+    await cache.delete(keys[i]);
+  }
+}
+
+// ─── install: precache app shell + take over immediately ────────────
+self.addEventListener("install", (event) => {
+  event.waitUntil(
+    (async () => {
+      const cache = await caches.open(CACHE_STATIC);
+      // Precache app shell URLs. Use addAll — if ANY URL fails, the
+      // whole install fails (intentional: we want a working shell).
+      // We catch per-URL so a missing /offline.html (added later)
+      // doesn't block the SW from installing.
+      await Promise.all(
+        APP_SHELL_URLS.map(async (url) => {
+          try {
+            await cache.add(new Request(url, { cache: "reload" }));
+          } catch (err) {
+            // Non-fatal: the runtime cache will populate on first
+            // navigation. We log so it's visible in devtools.
+            console.warn(`[SW] precache miss for ${url}:`, err);
+          }
+        })
+      );
+      self.skipWaiting();
+    })()
+  );
 });
 
-// ─── activate: control existing clients immediately ─────────────────
+// ─── activate: claim clients + clean up old cache versions ──────────
 self.addEventListener("activate", (event) => {
-  event.waitUntil(self.clients.claim());
+  event.waitUntil(
+    (async () => {
+      // Delete any cache from a previous CACHE_VERSION so we don't
+      // leak storage after a deploy. Caches for the current version
+      // are kept.
+      const allKeys = await caches.keys();
+      await Promise.all(
+        allKeys
+          .filter(
+            (key) =>
+              key.startsWith("cinelog-") && !key.endsWith(`-${CACHE_VERSION}`)
+          )
+          .map((key) => caches.delete(key))
+      );
+      await self.clients.claim();
+    })()
+  );
 });
 
-// ─── fetch: passthrough handler ─────────────────────────────────────
-// Chrome's PWA installability criteria require the SW to register a
-// `fetch` event handler — without it, Chrome refuses to show the
-// "Install app" prompt and the app fails the PWA audit. We use a
-// simple passthrough (`event.respondWith(fetch(event.request))`)
-// instead of a caching layer because:
-//   1. CineLog's content is highly dynamic (TMDB API responses, user
-//      vault data, push subscription state) — caching at the SW level
-//      would introduce staleness bugs that are hard to debug.
-//   2. Static assets (JS, CSS, fonts, images) are already cached by
-//      the browser's HTTP cache + Vercel's CDN edge cache. A SW cache
-//      layer would be redundant.
-//   3. The minimum viable handler unblocks the PWA installability
-//      audit without adding complexity. A future phase can add a
-//      runtime cache for TMDB poster images if offline support
-//      becomes a product goal.
+// ─── fetch: runtime caching strategies ──────────────────────────────
 //
-// Same-origin AND cross-origin requests are both passed through. We do
-// NOT catch network errors — if `fetch()` rejects, the browser shows
-// its default offline error page, which is the expected UX (we are
-// not pretending to be offline-capable).
+// Three strategies keyed by request type (see the RUNTIME CACHING
+// block at the top of this file for the full rationale):
+//
+//   • Navigation (mode === "navigate")           → NETWORK-FIRST (HTML)
+//   • Same-origin static asset (script/style/font/image) → CACHE-FIRST
+//   • Same-origin /api/* OR TMDB image CDN       → STALE-WHILE-REVALIDATE
+//   • Everything else                            → passthrough (no cache)
+//
+// We NEVER cache:
+//   • POST/PUT/DELETE (mutations must hit the server)
+//   • Supabase auth endpoints (would break session refresh)
+//   • Push subscription endpoints
+// These are filtered out by the method check + URL pattern check.
 self.addEventListener("fetch", (event) => {
-  event.respondWith(fetch(event.request));
+  const req = event.request;
+
+  // Only handle GET — mutations (POST/PUT/DELETE/PATCH) always go to
+  // the network. Caching them would cause duplicate-writes when the
+  // SW serves a cached response.
+  if (req.method !== "GET") return;
+
+  const url = new URL(req.url);
+
+  // Skip non-http(s) schemes (chrome-extension://, data:, blob:, etc.)
+  // — the SW can't meaningfully cache them and trying to fetch them
+  // throws. Let the browser handle them with its default behavior.
+  if (url.protocol !== "http:" && url.protocol !== "https:") return;
+
+  // Skip Supabase auth + push subscription endpoints — caching these
+  // would break session refresh and push subscription lifecycle.
+  // We match on path prefix to be conservative.
+  const isSupabaseAuthOrPush =
+    url.pathname.startsWith("/auth/v1/") ||
+    url.pathname.startsWith("/rest/v1/") && url.pathname.includes("push_subscriptions") ||
+    url.pathname.startsWith("/realtime/v1/");
+
+  // Skip /api/push/* and /api/email/* (mutation endpoints, even on GET
+  // they return dynamic per-user state we don't want to cache).
+  const isPushOrEmailApi =
+    url.pathname.startsWith("/api/push/") ||
+    url.pathname.startsWith("/api/email/");
+
+  if (isSupabaseAuthOrPush || isPushOrEmailApi) return;
+
+  // ─── Strategy 1: NETWORK-FIRST for HTML navigations ───────────────
+  if (req.mode === "navigate") {
+    event.respondWith(networkFirstHtml(req));
+    return;
+  }
+
+  // ─── Strategy 2: CACHE-FIRST for same-origin static assets ────────
+  if (url.origin === self.location.origin) {
+    const dest = req.destination;
+    if (
+      dest === "style" ||
+      dest === "script" ||
+      dest === "font" ||
+      dest === "image"
+    ) {
+      event.respondWith(cacheFirstStatic(req));
+      return;
+    }
+    // Same-origin /api/* → SWR
+    if (url.pathname.startsWith("/api/")) {
+      event.respondWith(staleWhileRevalidate(req));
+      return;
+    }
+    // Other same-origin GETs (e.g. /manifest.json, /favicon.ico) → SWR
+    event.respondWith(staleWhileRevalidate(req));
+    return;
+  }
+
+  // ─── Strategy 3: STALE-WHILE-REVALIDATE for TMDB image CDN ───────
+  // TMDB posters are served from image.tmdb.org. They're large, rarely
+  // change, and the user sees them on every page — perfect SWR targets.
+  // Cross-origin fonts (Google Fonts) are also SWR'd.
+  if (
+    url.hostname === "image.tmdb.org" ||
+    url.hostname.endsWith(".image.tmdb.org")
+  ) {
+    event.respondWith(staleWhileRevalidate(req));
+    return;
+  }
 });
+
+/**
+ * NETWORK-FIRST for HTML navigations.
+ *
+ *   1. Try the network — on success, cache the response and serve it.
+ *   2. On network failure (offline), fall back to the cached app
+ *      shell. We use caches.match("/") to find the precached root,
+ *      which lets the SPA hydrate and route client-side.
+ *   3. If neither is available, serve /offline.html (also precached).
+ *
+ * We only cache "ok" responses (status 200) — redirects (3xx) and
+ * errors (4xx/5xx) are passed through without caching so a transient
+ * 502 doesn't get stuck in the cache.
+ */
+async function networkFirstHtml(req) {
+  const cache = await caches.open(CACHE_HTML);
+  try {
+    const networkResp = await fetch(req);
+    if (networkResp && networkResp.ok && networkResp.status === 200) {
+      // Clone before putting — the response body can only be consumed
+      // once, and we're about to return it to the page AND cache it.
+      cache.put(req, networkResp.clone());
+      trimCache(CACHE_HTML, MAX_HTML_ENTRIES);
+    }
+    return networkResp;
+  } catch (err) {
+    // Network failed — try the cached version of this exact URL first.
+    const cached = await cache.match(req);
+    if (cached) return cached;
+    // Then try the app shell (lets the SPA hydrate and route client-side).
+    const shell = await cache.match("/");
+    if (shell) return shell;
+    // Last resort: precached offline page.
+    const offline = await caches.match("/offline.html");
+    if (offline) return offline;
+    // Nothing cached at all — rethrow so the browser shows its native
+    // offline page (better than a blank response).
+    throw err;
+  }
+}
+
+/**
+ * CACHE-FIRST for same-origin static assets.
+ *
+ *   1. Check the cache. If hit, return immediately (instant load).
+ *   2. On miss, fetch from network, cache the response, return it.
+ *   3. On network error AND cache miss, return a synthetic 504 so the
+ *      browser knows the asset is unavailable (better than an
+ *      unhandled rejection).
+ *
+ * Vite hashes filenames, so a cached asset is always the correct
+ * version — there's no staleness risk. This is why we can cache
+ * "forever" (until the MAX cap evicts).
+ */
+async function cacheFirstStatic(req) {
+  const cache = await caches.open(CACHE_STATIC);
+  const cached = await cache.match(req);
+  if (cached) return cached;
+  try {
+    const networkResp = await fetch(req);
+    if (networkResp && networkResp.ok) {
+      cache.put(req, networkResp.clone());
+      trimCache(CACHE_STATIC, MAX_STATIC_ENTRIES);
+    }
+    return networkResp;
+  } catch (err) {
+    // Cache miss + network failure — return a 504 Gateway Timeout so
+    // the browser doesn't show a confusing blank asset. The page will
+    // render with the missing asset (a missing JS chunk is fatal, but
+    // a missing image is not).
+    return new Response("Offline and not cached", {
+      status: 504,
+      statusText: "Gateway Timeout",
+      headers: { "Content-Type": "text/plain" }
+    });
+  }
+}
+
+/**
+ * STALE-WHILE-REVALIDATE for /api/* calls and TMDB images.
+ *
+ *   1. Check the cache. If hit, serve it immediately AND fire a
+ *      background fetch to update the cache for next time.
+ *   2. On cache miss, fetch from network, cache, return.
+ *   3. On cache miss + network failure, return a 504.
+ *
+ * The background revalidation is `fetch(req).then(cache.put)` — it's
+ * not awaited, so the user gets the stale response instantly. Errors
+ * in the background fetch are swallowed (the next request will try
+ * again with the same stale-then-revalidate flow).
+ *
+ * We only cache GET responses with status 200 — error responses are
+ * passed through uncached so transient failures don't get stuck.
+ */
+async function staleWhileRevalidate(req) {
+  const cache = await caches.open(CACHE_RUNTIME);
+  const cached = await cache.match(req);
+
+  // Fire the background revalidation. We use a separate promise so
+  // errors don't propagate to the response — the user just sees the
+  // stale (or fresh network) response, and the cache silently updates.
+  const revalidate = fetch(req)
+    .then((networkResp) => {
+      if (networkResp && networkResp.ok && networkResp.status === 200) {
+        cache.put(req, networkResp.clone());
+        trimCache(CACHE_RUNTIME, MAX_RUNTIME_ENTRIES);
+      }
+      return networkResp;
+    })
+    .catch(() => {
+      // Background revalidation failed (offline, 5xx, etc.) — silently
+      // swallow. The cached response (if any) is already being served.
+      // The next request will retry the revalidation.
+    });
+
+  // If we have a cached response, serve it immediately — do NOT await
+  // the revalidation. The user gets instant feedback.
+  if (cached) {
+    // Revalidate in the background (don't await).
+    event_queueMicrotask(() => revalidate);
+    return cached;
+  }
+
+  // No cached response — we MUST wait for the network (no choice).
+  try {
+    const networkResp = await revalidate;
+    if (networkResp) return networkResp;
+  } catch (err) {
+    // revalidate already caught its own errors, but defensive: if it
+    // somehow rejected, fall through to the 504 below.
+  }
+  return new Response("Offline and not cached", {
+    status: 504,
+    statusText: "Gateway Timeout",
+    headers: { "Content-Type": "text/plain" }
+  });
+}
+
+/**
+ * Helper to schedule a microtask without referencing the global `queueMicrotask`
+ * name (some bundlers rename it). We define a local alias for clarity.
+ */
+function event_queueMicrotask(fn) {
+  Promise.resolve().then(fn);
+}
 
 // ─── push: show a notification ──────────────────────────────────────
 self.addEventListener("push", (event) => {

@@ -26,6 +26,7 @@ import {
 } from "solid-js";
 import { getCurrentUid, useAuth } from "~/shared/hooks/useAuth";
 import { useToast } from "~/shared/hooks/useToast";
+import { useRealtimeSync } from "~/shared/hooks/useRealtimeSync";
 import { CURATED_COLLECTIONS } from "~/shared/data/curatedCollections";
 import {
   archiveCollectionInSupabase,
@@ -946,6 +947,35 @@ const CollectionsContext =
 
 export const CollectionsProvider: ParentComponent = (props) => {
   const collections = useCollectionsLogic();
+
+  // ── Phase 7 Task 2: Supabase Realtime ──────────────────────────
+  // Subscribe to Postgres Changes on `collections` AND
+  // `collection_entries` for the current user. When a collection or
+  // its entries are mutated on another device (or another tab), the
+  // debounced refresh re-pulls the collections list so this device
+  // stays in sync without a manual refresh.
+  //
+  // We use `refreshCollections(getCurrentUid())` as the callback
+  // because `refreshCollections` is the public API exposed by
+  // `useCollectionsLogic`. It re-fetches the collections list from
+  // Supabase (1 query + parallel entry fetches). The debounce in
+  // `useRealtimeSync` collapses bursts from bulk operations.
+  //
+  // The `uid` getter is read reactively by the hook so it
+  // re-subscribes when the user signs in/out. The `getCurrentUid`
+  // helper reads from the auth signal, which updates on session
+  // changes.
+  useRealtimeSync({
+    uid: () => getCurrentUid(),
+    onCollectionsChange: () => {
+      const uid = getCurrentUid();
+      if (uid) {
+        void collections.refreshCollections(uid);
+      }
+    },
+    channelSuffix: "collections"
+  });
+
   return (
     <CollectionsContext.Provider value={collections}>
       {props.children}

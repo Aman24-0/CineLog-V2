@@ -8,9 +8,10 @@
 //      sheet), otherwise copies a text summary to the clipboard.
 //   2. Export CSV — generates a CSV of the user's ratings and
 //      triggers a browser download.
-//   3. Download as Image — uses html2canvas to rasterise the share
-//      card to a PNG and download it. The card has its own ref so
-//      we capture only the branded card, not the whole modal chrome.
+//   3. Download as Image — POSTs the card payload to the server-side
+//      `/api/share-card` route, which renders a PNG via headless
+//      Chromium. (Phase 7 Task 6 — replaces the previous client-side
+//      `html2canvas` approach that added ~300KB to the bundle.)
 //
 // The modal is presentational — it receives the stats via props and
 // calls back to the parent for sharing/exporting so the parent owns
@@ -22,6 +23,7 @@ import { useToast } from "~/shared/hooks/useToast";
 import { useAuth } from "~/shared/hooks/useAuth";
 import type { AllStats } from "~/lib/supabase/repositories/stats";
 import type { WatchlistItem } from "~/shared/types";
+import type { ShareCardPayload } from "~/lib/shareCard/templates";
 
 interface StatsShareModalProps {
   open: boolean;
@@ -51,11 +53,8 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
     duration?: number
   ) => showToast(msg, type, duration ?? (type === "error" ? 4000 : 2500));
 
-  // Ref to the shareable card so html2canvas can capture only that
-  // element rather than the whole modal (which includes the action
-  // buttons and footer that shouldn't be in the image).
-  let cardRef: HTMLDivElement | undefined;
-
+  // Phase 7 Task 6: capturing state is still used for the button label,
+  // but the capture itself now happens server-side via /api/share-card.
   const [capturing, setCapturing] = createSignal(false);
 
   // Resolve display name + avatar — props override auth user.
@@ -202,48 +201,72 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
   };
 
   /**
-   * handleDownloadImage — rasterise the share card to a PNG and
-   * download it. Uses html2canvas (loaded dynamically so the rest
-   * of the app doesn't pay the bundle cost unless the user clicks
-   * the button).
+   * handleDownloadImage — POST the card payload to the server-side
+   * `/api/share-card` route, which renders a PNG via headless
+   * Chromium and returns the image bytes. The downloaded file is
+   * a self-contained branded shareable.
    *
-   * The cardRef captures only the branded share card — not the
-   * modal header or action buttons — so the downloaded image looks
-   * like a self-contained shareable.
+   * Phase 7 Task 6: this replaces the previous client-side
+   * `html2canvas` approach. The card payload is built from the same
+   * `summaryRows()` accessor the in-modal card renders, so the
+   * server-rendered PNG matches what the user sees.
+   *
+   * On error (network failure, 401, 5xx, 503 when Chromium isn't
+   * available), we show a toast and fall back to the Web Share API
+   * with just the text summary (so the user still gets SOMETHING).
    */
   const handleDownloadImage = async () => {
-    if (!cardRef) {
-      notify("Couldn't find the card to capture.", "error");
-      return;
-    }
     if (capturing()) return;
     setCapturing(true);
     try {
-      const html2canvas = (await import("html2canvas")).default;
-      const canvas = await html2canvas(cardRef, {
-        backgroundColor: "#0a0a0f",
-        scale: 2, // 2x for retina quality
-        useCORS: true,
-        logging: false
+      const payload: ShareCardPayload = {
+        template: "stats",
+        displayName: displayName(),
+        avatarUrl: avatarUrl() ?? null,
+        title: "My Cinematic Stats",
+        eyebrow: "My Cinematic Stats",
+        rows: summaryRows(),
+        footer: "cinelog.app"
+      };
+
+      const resp = await fetch("/api/share-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
       });
-      canvas.toBlob((blob) => {
-        if (!blob) {
-          notify("Couldn't generate the image.", "error");
-          return;
-        }
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `cinelog-stats-${new Date().toISOString().slice(0, 10)}.png`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(url);
-        notify("Image downloaded", "success");
-      }, "image/png");
+
+      if (!resp.ok) {
+        // 401 / 5xx / 503 → fall back to text share.
+        const errBody = await resp.json().catch(() => ({} as { error?: string }));
+        console.warn(
+          "[StatsShareModal] /api/share-card failed:",
+          resp.status,
+          errBody?.error
+        );
+        notify(
+          resp.status === 503
+            ? "Image rendering isn't available right now. Try the text Share instead."
+            : "Couldn't generate the image. Try the text Share instead.",
+          "error",
+          4000
+        );
+        return;
+      }
+
+      const blob = await resp.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cinelog-stats-${new Date().toISOString().slice(0, 10)}.png`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      notify("Image downloaded", "success");
     } catch (err) {
-      console.error("[StatsShareModal] html2canvas failed:", err);
-      notify("Couldn't capture the card as an image.", "error", 4000);
+      console.error("[StatsShareModal] share-card fetch failed:", err);
+      notify("Couldn't generate the image. Try the text Share instead.", "error", 4000);
     } finally {
       setCapturing(false);
     }
@@ -258,8 +281,10 @@ const StatsShareModal: Component<StatsShareModalProps> = (props) => {
       size="md"
     >
       <div class="stats-share-modal-body">
-        {/* Branded share card — captured by html2canvas */}
-        <div class="stats-share-card stats-share-card-branded" ref={cardRef}>
+        {/* Branded share card — shown in-modal for preview.
+            The PNG download is rendered server-side by /api/share-card
+            (Phase 7 Task 6) using the same payload this card shows. */}
+        <div class="stats-share-card stats-share-card-branded">
           <div class="stats-share-card-header stats-share-card-header-branded">
             <GlassAvatar
               src={avatarUrl() ?? null}

@@ -23,8 +23,9 @@ import {
   type Component
 } from "solid-js";
 import { Portal } from "solid-js/web";
-// html2canvas is ~300KB. Loaded dynamically on first share-card
-// generation to keep the DetailsModal chunk lean.
+// Phase 7 Task 6: html2canvas (~300KB) has been REMOVED from the
+// client bundle. Share-card PNG generation now happens server-side
+// via the /api/share-card route, which uses headless Chromium.
 import QRCode from "qrcode";
 import { GlassSheet } from "~/shared/ui/glass/GlassSheet";
 import { useToast } from "~/shared/hooks/useToast";
@@ -49,6 +50,7 @@ import {
   formatMdbRatingsLine
 } from "~/shared/utils/share";
 import type { TMDBDetails, WatchlistItem } from "~/shared/types";
+import type { ShareCardPayload } from "~/lib/shareCard/templates";
 
 // ─── TMDB image helper ────────────────────────────────────────
 
@@ -256,27 +258,66 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
   };
 
   // ── 5. Generate Share Card ─────────────────────────────────
+  // Phase 7 Task 6: POST the card payload to /api/share-card,
+  // which renders a PNG via headless Chromium server-side. Replaces
+  // the previous client-side html2canvas approach (~300KB bundle).
   const handleGenerateShareCard = async () => {
     if (isGeneratingCard()) return;
     setIsGeneratingCard(true);
     try {
-      const el = document.getElementById("share-card-render");
-      if (!el) throw new Error("Card element not found");
+      const details = props.details();
+      const mediaType = props.mediaType();
+      const vaultItem = props.vaultItem?.() ?? null;
 
-      const { default: html2canvas } = await import("html2canvas");
-      const canvas = await html2canvas(el, {
-        backgroundColor: "#0a0a0a",
-        useCORS: true,
-        scale: 2,
-        logging: false
+      // Build the payload from the same data the in-sheet card shows.
+      const releaseDate = resolveReleaseDate(details);
+      const year = releaseDate
+        ? String(new Date(releaseDate).getFullYear())
+        : null;
+
+      const genres = details?.genres
+        ? details.genres.map((g) => g.name).filter(Boolean).join(", ")
+        : null;
+
+      const payload: ShareCardPayload = {
+        template: "details",
+        displayName: "CineLog user",
+        avatarUrl: null,
+        title: resolveTitle(details) || "Untitled",
+        eyebrow: vaultItem?.status ? vaultItem.status : "Now Watching",
+        details: {
+          mediaType,
+          year,
+          rating: vaultItem?.rating ?? null,
+          status: vaultItem?.status ?? null,
+          posterUrl: details?.poster_path
+            ? tmdbImage(details.poster_path, "w342")
+            : null,
+          tagline: details?.tagline ?? null,
+          genres
+        },
+        footer: "cinelog.app"
+      };
+
+      const resp = await fetch("/api/share-card", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        credentials: "include"
       });
 
-      const blob = await new Promise<Blob>((resolve) => {
-        canvas.toBlob((b: Blob | null) => {
-          resolve(b ?? new Blob());
-        }, "image/png");
-      });
+      if (!resp.ok) {
+        const errBody = await resp.json().catch(() => ({} as { error?: string }));
+        console.warn(
+          "[ShareSheet] /api/share-card failed:",
+          resp.status,
+          errBody?.error
+        );
+        showToast("Couldn't generate card. Try Share instead.", "error", 2500);
+        return;
+      }
 
+      const blob = await resp.blob();
       const url = URL.createObjectURL(blob);
       setShareCardUrl(url);
     } catch {
@@ -760,109 +801,11 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
         </Show>
       </GlassSheet>
 
-      {/* Hidden Share Card for html2canvas capture */}
-      <Show when={props.show() && props.details()}>
-        <div class="share-card-wrapper">
-          <div id="share-card-render" class="share-card-canvas">
-            {/* Backdrop */}
-            <Show when={props.details()?.backdrop_path}>
-              <img
-                src={tmdbImage(props.details()!.backdrop_path, "w780")}
-                alt=""
-                class="share-card-backdrop"
-                crossorigin="anonymous"
-              />
-              <div class="share-card-backdrop-overlay" />
-            </Show>
-
-            <div class="share-card-content">
-              {/* Top: Poster + Info */}
-              <div class="share-card-top">
-                <Show when={props.details()?.poster_path}>
-                  <img
-                    src={tmdbImage(props.details()!.poster_path, "w342")}
-                    alt=""
-                    class="share-card-poster"
-                    crossorigin="anonymous"
-                  />
-                </Show>
-                <div class="share-card-info">
-                  <h2 class="share-card-title">{title()}</h2>
-                  <Show when={year()}>
-                    <p class="share-card-year">{year()}</p>
-                  </Show>
-                  <Show when={genresText()}>
-                    <p class="share-card-genres">{genresText()}</p>
-                  </Show>
-                  <Show when={runtimeText()}>
-                    <p class="share-card-runtime">⏱ {runtimeText()}</p>
-                  </Show>
-                </div>
-              </div>
-
-              {/* Ratings */}
-              <Show when={ratingsLine()}>
-                <div class="share-card-ratings-row">
-                  <Show when={mdbRatings()?.imdb?.score && mdbRatings()?.imdb?.score !== "NR"}>
-                    <span class="share-card-rating-chip">
-                      <span class="share-card-rating-chip-label">IMDb</span>
-                      {mdbRatings()?.imdb?.score}
-                    </span>
-                  </Show>
-                  <Show when={mdbRatings()?.rottenTomatoes?.score && mdbRatings()?.rottenTomatoes?.score !== "NR"}>
-                    <span class="share-card-rating-chip">
-                      <span class="share-card-rating-chip-label">RT</span>
-                      {mdbRatings()?.rottenTomatoes?.score}
-                    </span>
-                  </Show>
-                  <Show when={mdbRatings()?.metacritic?.score && mdbRatings()?.metacritic?.score !== "NR"}>
-                    <span class="share-card-rating-chip">
-                      <span class="share-card-rating-chip-label">MC</span>
-                      {mdbRatings()?.metacritic?.score}
-                    </span>
-                  </Show>
-                </div>
-              </Show>
-
-              {/* Watch Status & User Rating */}
-              <Show when={watchStatusLabel()}>
-                <div class="share-card-status-row">
-                  <span class="share-card-status-chip">
-                    {watchStatusLabel()}
-                  </span>
-                  <Show when={userRatingDisplay()}>
-                    <span class="share-card-status-chip gold">
-                      {userRatingDisplay()}
-                    </span>
-                  </Show>
-                </div>
-              </Show>
-
-              {/* Footer: Branding + QR */}
-              <div class="share-card-footer">
-                <div class="share-card-branding">
-                  <p class="share-card-branding-name">CINELOG</p>
-                  <p class="share-card-branding-url">cinelogv2.vercel.app</p>
-                </div>
-                <img
-                  src={(() => {
-                    // Inline QR generation — we use the qrDataUrl if available,
-                    // otherwise a placeholder. This is rendered in a hidden div,
-                    // so the QR is typically generated by the time the user
-                    // clicks "Generate Share Card".
-                    return (
-                      qrDataUrl() ||
-                      "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7"
-                    );
-                  })()}
-                  alt="QR Code"
-                  class="share-card-qr"
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-      </Show>
+      {/* Phase 7 Task 6: The hidden #share-card-render DOM block was
+          removed — it only existed for html2canvas to capture, and we
+          now render the share card server-side via /api/share-card.
+          The QR Code Fullscreen Overlay below is independent and still
+          works (it uses the qrDataUrl() signal directly). */}
 
       {/* QR Code Fullscreen Overlay */}
       <Show when={showQrFullscreen() && qrDataUrl()}>

@@ -32,6 +32,7 @@ import {
 } from "solid-js";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { useRealtimeSync } from "~/shared/hooks/useRealtimeSync";
 import type { WatchlistItem } from "~/shared/types";
 
 // ---------------------------------------------------------------------------
@@ -296,6 +297,21 @@ export const UserLibraryProvider: ParentComponent = (props) => {
     updateItem,
     removeItem
   };
+
+  // ── Phase 7 Task 2: Supabase Realtime ──────────────────────────
+  // Subscribe to Postgres Changes on the `vault` table for the
+  // current user. When a vault row is inserted/updated/deleted on
+  // another device (or another tab), the debounced `refresh()` call
+  // re-pulls the vault from Supabase so this device's local state
+  // stays in sync without a manual refresh.
+  //
+  // We pass `onVaultChange` only — the `CollectionsProvider` owns
+  // the collections subscription separately to avoid a circular
+  // dependency (UserLibraryProvider doesn't know about collections).
+  useRealtimeSync({
+    uid: () => getUserId(),
+    onVaultChange: doFetch
+  });
 
   return (
     <UserLibraryContext.Provider value={library}>

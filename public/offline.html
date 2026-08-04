@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, viewport-fit=cover"
+    />
+    <title>CineLog V2 — Offline</title>
+    <meta name="theme-color" content="#0a0a0a" />
+    <meta name="robots" content="noindex" />
+    <style>
+      /* ── Reset + base ─────────────────────────────────────── */
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      html,
+      body {
+        height: 100%;
+        width: 100%;
+      }
+      body {
+        background: #0a0a0a;
+        color: #fafafa;
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+          "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-height: 100vh;
+        padding: 24px;
+        text-align: center;
+        -webkit-font-smoothing: antialiased;
+      }
+      /* ── Card ─────────────────────────────────────────────── */
+      .offline-card {
+        max-width: 440px;
+        width: 100%;
+        padding: 48px 32px 40px;
+        background: linear-gradient(
+          180deg,
+          rgba(255, 255, 255, 0.04) 0%,
+          rgba(255, 255, 255, 0.01) 100%
+        );
+        border: 1px solid rgba(255, 255, 255, 0.08);
+        border-radius: 20px;
+        backdrop-filter: blur(10px);
+        -webkit-backdrop-filter: blur(10px);
+      }
+      .offline-icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 72px;
+        height: 72px;
+        margin-bottom: 20px;
+        border-radius: 50%;
+        background: rgba(232, 183, 74, 0.12);
+        border: 1px solid rgba(232, 183, 74, 0.32);
+      }
+      .offline-icon svg {
+        width: 36px;
+        height: 36px;
+        color: #e8b74a;
+      }
+      .offline-logo {
+        font-family: "Bebas Neue", ui-sans-serif, system-ui, sans-serif;
+        font-size: 14px;
+        letter-spacing: 0.32em;
+        color: rgba(232, 183, 74, 0.85);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+      }
+      .offline-logo .cine {
+        color: #fafafa;
+      }
+      h1 {
+        font-family:
+          ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        font-size: 22px;
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin-bottom: 12px;
+        color: #fafafa;
+      }
+      p {
+        font-size: 15px;
+        line-height: 1.55;
+        color: rgba(250, 250, 250, 0.7);
+        margin-bottom: 28px;
+      }
+      .retry-btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 12px 24px;
+        border: none;
+        border-radius: 12px;
+        background: #e8b74a;
+        color: #0a0a0a;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition:
+          transform 0.15s ease,
+          opacity 0.15s ease;
+        text-decoration: none;
+      }
+      .retry-btn:hover {
+        transform: translateY(-1px);
+      }
+      .retry-btn:active {
+        transform: translateY(0);
+        opacity: 0.9;
+      }
+      .retry-btn svg {
+        width: 16px;
+        height: 16px;
+      }
+      /* ── Footnote ─────────────────────────────────────────── */
+      .footnote {
+        margin-top: 24px;
+        font-size: 12px;
+        color: rgba(250, 250, 250, 0.4);
+        line-height: 1.5;
+      }
+      /* ── Mobile adjustments ──────────────────────────────── */
+      @media (max-width: 480px) {
+        .offline-card {
+          padding: 36px 24px 32px;
+        }
+        h1 {
+          font-size: 19px;
+        }
+        p {
+          font-size: 14px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="offline-card" role="main">
+      <div class="offline-icon" aria-hidden="true">
+        <!-- Cloud-off icon (Material-style outline) -->
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <path
+            d="M22 8.5a4.5 4.5 0 0 0-8.5-2.2 6 6 0 0 0-9.5 5.2 4 4 0 0 0 .5 7.5h9"
+          />
+          <line x1="2" y1="2" x2="22" y2="22" />
+        </svg>
+      </div>
+
+      <div class="offline-logo">
+        <span class="cine">CINE</span>LOG
+      </div>
+
+      <h1>You're offline</h1>
+      <p>
+        Your watchlist is still here. We've cached your library so you can keep
+        browsing your movies and shows — anything new will sync the moment
+        you're back online.
+      </p>
+
+      <button class="retry-btn" onclick="location.reload()" type="button">
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2.5"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        >
+          <polyline points="23 4 23 10 17 10" />
+          <path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10" />
+        </svg>
+        Try Again
+      </button>
+
+      <p class="footnote">
+        If the connection is back, tapping "Try Again" will reload the app.
+      </p>
+    </main>
+
+    <script>
+      // Auto-reload when the connection comes back. The `online` event
+      // fires when the browser regains network access. We then reload
+      // so the SW serves the fresh app shell + content.
+      window.addEventListener("online", function () {
+        location.reload();
+      });
+    </script>
+  </body>
+</html>

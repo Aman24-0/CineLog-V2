@@ -23,10 +23,12 @@
     "@solidjs/meta": "^0.29.4",
     "@solidjs/router": "^0.14.5",
     "@solidjs/start": "^1.0.10",
+    "@sparticuz/chromium": "^149.0.0",
+    "@supabase/ssr": "^0.12.4",
     "@supabase/supabase-js": "^2.110.2",
     "@thisbeyond/solid-dnd": "^0.7.5",
     "@vercel/speed-insights": "^2.0.0",
-    "html2canvas": "^1.4.1",
+    "puppeteer-core": "^25.5.0",
     "qrcode": "^1.5.4",
     "solid-js": "^1.9.3"
   },
