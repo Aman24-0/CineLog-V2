@@ -155,6 +155,14 @@ export default createMiddleware({
             .map((c) => c.trim().split("=")[0])
             .filter(Boolean)
         : [];
+      // Highlight whether the PKCE verifier cookies are present.
+      // The verifier is stored under either:
+      //   • `<storageKey>-code-verifier` (legacy fixed key)
+      //   • `<storageKey>-flow-<flowId>-code-verifier` (flow-specific slot)
+      // where `<storageKey>` is `sb-<project-ref>-auth-token`.
+      const verifierCookies = cookieNames.filter(
+        (n) => n.includes("-code-verifier") || n.includes("-flows-code-verifier")
+      );
       console.log(
         "[middleware] /auth/callback incoming request —",
         cookieNames.length,
@@ -162,8 +170,14 @@ export default createMiddleware({
         cookieNames.join(", ") || "(none)",
         "| has code param:",
         url.searchParams.has("code"),
-        "| has flow_id param:",
-        url.searchParams.has("flow_id")
+        "| has sb_flow_id param:",
+        url.searchParams.has("sb_flow_id"),
+        "| sb_flow_id:",
+        url.searchParams.get("sb_flow_id") ?? "(none)",
+        "| PKCE verifier cookies present:",
+        verifierCookies.length > 0,
+        "| verifier cookie names:",
+        verifierCookies.join(", ") || "(none)"
       );
     }
 

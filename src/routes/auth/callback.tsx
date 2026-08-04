@@ -338,7 +338,32 @@ export async function GET(event: APIEvent): Promise<Response> {
   const url = new URL(event.request.url);
   const code = url.searchParams.get("code");
   const next = url.searchParams.get("next");
+  // CRITICAL: Read the `sb_flow_id` parameter from the callback URL.
+  // When `experimental.appendPkceFlowIdToRedirects` is enabled on the
+  // browser client (see src/lib/supabase/browser.ts), the OAuth
+  // redirect URL includes `sb_flow_id=<flowId>`. Passing this to
+  // `exchangeCodeForSession(code, { flowId })` tells the server client
+  // to look up the verifier in the FLOW-SPECIFIC slot key
+  // (`<storageKey>-flow-<flowId>-code-verifier`) rather than the
+  // legacy fixed key (`<storageKey>-code-verifier`). This is the
+  // modern, reliable approach recommended by @supabase/ssr for SSR
+  // frameworks — it avoids edge cases where the legacy dual-write
+  // race loses the verifier cookie.
+  const flowId = url.searchParams.get("sb_flow_id");
   const target = getRedirectTarget(next);
+
+  console.log(
+    "[auth/callback] GET handler invoked. code present:",
+    !!code,
+    "| code length:",
+    code?.length ?? 0,
+    "| sb_flow_id present:",
+    !!flowId,
+    "| sb_flow_id:",
+    flowId ?? "(none)",
+    "| next:",
+    next ?? "(none)"
+  );
 
   if (!code) {
     return renderErrorPage(
@@ -352,17 +377,39 @@ export async function GET(event: APIEvent): Promise<Response> {
   try {
     // ── Step 1: Exchange the PKCE code for a session ──────────────
     // The server client reads the code_verifier from the request's
-    // cookies (via the `getAll` adapter). Supabase verifies the
-    // verifier against the code, and if valid, returns the session.
-    // The session cookies (sb-access-token, sb-refresh-token) are
-    // written to the cookie jar via the `setAll` adapter.
+    // cookies (via the `getAll` adapter). If `flowId` is provided,
+    // it reads from the flow-specific slot key; otherwise it falls
+    // back to the legacy fixed key. Supabase verifies the verifier
+    // against the code, and if valid, returns the session. The
+    // session cookies (sb-access-token, sb-refresh-token) are written
+    // to the cookie jar via the `setAll` adapter.
+    //
+    // FALLBACK STRATEGY:
+    //   If `flowId` is present and the exchange fails with a PKCE
+    //   verifier missing error, we RETRY without `flowId`. This reads
+    //   from the LEGACY fixed key (`<storageKey>-code-verifier`).
+    //   The legacy key is dual-written by auth-js alongside the
+    //   flow-specific slot. On some browsers (especially mobile Safari
+    //   with ITP, or Chrome with partitioned cookies), the slot key
+    //   cookie might be missing while the legacy key survives (or vice
+    //   versa). Trying both maximizes the chance of finding the verifier.
+    //
+    //   This is safe because a PKCE verifier missing error is thrown
+    //   BEFORE the HTTP request to Supabase's token endpoint — the
+    //   auth code is NOT consumed by a failed lookup. Only when the
+    //   verifier IS found but doesn't match is the code consumed.
     console.log(
-      "[auth/callback] Calling exchangeCodeForSession with code length:",
-      code.length
+      "[auth/callback] Calling exchangeCodeForSession — code length:",
+      code.length,
+      "| flowId:",
+      flowId ?? "(none — will use legacy verifier key)"
     );
-    const exchangeResult = await client.auth.exchangeCodeForSession(code);
+    let exchangeResult = await client.auth.exchangeCodeForSession(
+      code,
+      flowId ? { flowId } : undefined
+    );
     console.log(
-      "[auth/callback] exchangeCodeForSession result —",
+      "[auth/callback] exchangeCodeForSession result (attempt 1) —",
       "error:",
       exchangeResult.error
         ? `${exchangeResult.error.name}: ${exchangeResult.error.message}`
@@ -373,7 +420,33 @@ export async function GET(event: APIEvent): Promise<Response> {
       !!exchangeResult.data?.user
     );
 
-    const { error: exchangeError } = exchangeResult;
+    let { error: exchangeError } = exchangeResult;
+
+    // ── Step 1b: Fallback — retry without flowId if PKCE verifier missing
+    //   This handles the case where the browser wrote the legacy
+    //   `<storageKey>-code-verifier` cookie (via dual-write) but the
+    //   flow-specific slot cookie (`<storageKey>-flow-<flowId>-code-verifier`)
+    //   is missing. This can happen on mobile browsers with strict
+    //   cookie partitioning or when the slot cookie exceeds browser
+    //   limits and gets chunked, with chunks being lost.
+    if (exchangeError && isPkceVerifierError(exchangeError.message) && flowId) {
+      console.warn(
+        "[auth/callback] PKCE verifier missing with flowId. Retrying WITHOUT flowId (reads from legacy key)\u2026"
+      );
+      exchangeResult = await client.auth.exchangeCodeForSession(code, undefined);
+      console.log(
+        "[auth/callback] exchangeCodeForSession result (attempt 2, no flowId) —",
+        "error:",
+        exchangeResult.error
+          ? `${exchangeResult.error.name}: ${exchangeResult.error.message}`
+          : "(none)",
+        "| session present:",
+        !!exchangeResult.data?.session,
+        "| user present:",
+        !!exchangeResult.data?.user
+      );
+      exchangeError = exchangeResult.error;
+    }
 
     if (!exchangeError) {
       // Success — flush the session cookies to the redirect Response.

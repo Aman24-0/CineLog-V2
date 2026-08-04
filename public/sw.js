@@ -102,7 +102,13 @@
 // ---------------------------------------------------------------------
 
 // ─── Cache names (versioned so a deploy can bust old caches) ────────
-const CACHE_VERSION = "v7";
+// Bumped from v7 → v8 to force cache invalidation after the PKCE cookie
+// adapter rewrite. Users with a cached v7 SW were running the OLD
+// browser code (implicit document.cookie fallback) even after the new
+// deploy — the cacheFirstStatic strategy was serving stale JS bundles.
+// Bumping the version causes the activate handler to delete all v7
+// caches, forcing the browser to fetch fresh assets on next navigation.
+const CACHE_VERSION = "v8";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;

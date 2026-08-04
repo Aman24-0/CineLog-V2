@@ -357,13 +357,40 @@ export function createBrowserClient(): SupabaseClient {
   //                                 — see `useAuthActions.ts`).
   //   flowType           : "pkce" → PKCE OAuth flow (verifier stored
   //                                  in a cookie via setAll).
+  //
+  // CRITICAL — experimental.appendPkceFlowIdToRedirects:
+  //   When enabled, the `sb_flow_id` query parameter is appended to
+  //   the OAuth `redirect_to` URL. After Google redirects back to
+  //   `/auth/callback?code=...&sb_flow_id=<flowId>`, the server-side
+  //   callback reads `sb_flow_id` from the URL and passes it to
+  //   `exchangeCodeForSession(code, { flowId })`. This tells the
+  //   server client to look up the verifier in the FLOW-SPECIFIC
+  //   slot key (`<storageKey>-flow-<flowId>-code-verifier`) rather
+  //   than the legacy fixed key (`<storageKey>-code-verifier`).
+  //
+  //   Without this, the server falls back to the legacy key. The
+  //   legacy key IS dual-written by auth-js, but we've seen it
+  //   fail in production (mobile browsers, partitioned cookies,
+  //   edge cases where the dual-write race loses). Using the
+  //   flow-specific slot is the MODERN, reliable approach — it's
+  //   what the @supabase/ssr docs recommend for SSR frameworks.
+  //
+  //   IMPORTANT: this option MUST be set IDENTICALLY on both the
+  //   browser client and the server client. If only the browser
+  //   has it, the redirect URL gets `sb_flow_id` but the server
+  //   client's `exchangeCodeForSession` won't look for it. If only
+  //   the server has it, the redirect URL won't have `sb_flow_id`
+  //   and the server has nothing to read.
   return ssrCreateBrowserClient(url, anonKey, {
     cookies,
     auth: {
       persistSession: false,
       autoRefreshToken: true,
       detectSessionInUrl: true,
-      flowType: "pkce"
+      flowType: "pkce",
+      experimental: {
+        appendPkceFlowIdToRedirects: true
+      }
     }
   });
 }

@@ -190,6 +190,16 @@ export function createServerClient(
   // cookies, not in localStorage. The supabase-js option `persistSession`
   // specifically controls localStorage persistence, which we don't
   // want on the server.
+  //
+  // CRITICAL — experimental.appendPkceFlowIdToRedirects:
+  //   MUST match the browser client's setting. When the browser
+  //   enables this, it appends `sb_flow_id=<flowId>` to the OAuth
+  //   redirect URL. The server-side callback reads `sb_flow_id`
+  //   from the URL and passes it to `exchangeCodeForSession(code,
+  //   { flowId })`. The server client uses this option to know
+  //   that flow-specific slot keys are in play.
+  //
+  //   See `src/lib/supabase/browser.ts` for the full rationale.
   return ssrCreateServerClient(url, anonKey, {
     cookies: {
       getAll: adapter.getAll,
@@ -199,7 +209,10 @@ export function createServerClient(
       persistSession: false,
       autoRefreshToken: true,
       detectSessionInUrl: false,
-      flowType: "pkce"
+      flowType: "pkce",
+      experimental: {
+        appendPkceFlowIdToRedirects: true
+      }
     }
   });
 }
