@@ -285,6 +285,37 @@ function buildBrowserCookieAdapter() {
         if ("httpOnly" in mergedOptions) {
           delete (mergedOptions as any).httpOnly;
         }
+        // CRITICAL — strip any `domain` attribute.
+        // The PKCE verifier cookie MUST be a HOST-ONLY cookie (scoped
+        // to the exact origin that wrote it, no subdomain matching).
+        // If supabase ever passes `options.domain` (e.g. set to
+        // `.vercel.app` for cross-preview-cookie sharing, or to a
+        // custom domain), the cookie would be scoped to that domain
+        // AND all its subdomains. This breaks the OAuth flow because:
+        //
+        //   • The user starts the flow on `cinelogv2.vercel.app`.
+        //   • The browser writes the verifier cookie scoped to
+        //     `domain=.vercel.app` (if `domain` were set).
+        //   • On the OAuth callback, the request goes to
+        //     `cinelogv2.vercel.app/auth/callback` — the browser
+        //     DOES send the cookie (subdomain match)...
+        //   • ...BUT if the user started on a custom domain like
+        //     `cinelog.app`, the verifier cookie would be scoped to
+        //     `.cinelog.app`, and on a callback to a DIFFERENT
+        //     subdomain (e.g. `auth.cinelog.app`), it would be sent
+        //     — but our callback is on the SAME origin, so this is
+        //     a theoretical concern.
+        //
+        //   The REAL concern: setting `domain` at all can cause
+        //   subtle cookie-scoping bugs that are hard to debug. The
+        //   safest default is to OMIT `domain` entirely, which makes
+        //   the cookie host-only (scoped to the exact hostname the
+        //   browser is on). This is the behaviour we want — the
+        //   browser wrote the verifier on origin X, the callback is
+        //   on origin X, the cookie is sent. No subdomain surprises.
+        if ("domain" in mergedOptions) {
+          delete (mergedOptions as any).domain;
+        }
         const serialized = serializeCookie(name, value, mergedOptions);
         if (typeof document !== "undefined") {
           document.cookie = serialized;

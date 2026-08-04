@@ -226,9 +226,23 @@ const AdminLoginPage: Component = () => {
     setError(null);
     setOauthLoading(true);
     try {
-      await signInWithGoogle(
-        `/auth/callback?next=${encodeURIComponent("/admin/login")}`
-      );
+      // CRITICAL: `redirectTo` MUST be an absolute URL rooted at the
+      // current origin (`window.location.origin`). Passing a relative
+      // path like "/auth/callback?next=..." was previously attempted,
+      // but Supabase's redirect URL allowlist matches against full
+      // URLs and may reject relative paths — and even if accepted,
+      // the browser would resolve the relative URL against the
+      // CURRENT origin anyway. Being explicit here guarantees the
+      // user returns to the EXACT origin they started on, preventing
+      // cross-domain cookie loss (the PKCE verifier cookie is scoped
+      // to the origin that wrote it — if the user starts on
+      // cinelogv2.vercel.app but a proxy rewrites the redirect to a
+      // different hostname, the verifier cookie won't be sent on the
+      // callback request).
+      const redirectTo = `${window.location.origin}/auth/callback?next=${encodeURIComponent(
+        "/admin/login"
+      )}`;
+      await signInWithGoogle(redirectTo);
       // Browser will redirect — code below never runs
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Google sign-in failed.";

@@ -126,17 +126,33 @@ export async function signInWithGoogle(returnPath?: string): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
-    // IMPORTANT: The `redirectTo` MUST point to `/auth/callback` so the
-    // server-side GET handler in `src/routes/auth/callback.tsx` runs the
-    // PKCE code exchange. Previously this pointed directly at `/profile`,
-    // which bypassed the server callback entirely — the browser client's
-    // `detectSessionInUrl` was expected to handle the exchange, but that
-    // path was unreliable with the `@supabase/ssr` cookie storage adapter
-    // and produced "PKCE code verifier not found in storage" errors.
+    // CRITICAL — strict origin for `redirectTo`:
+    //   The `redirectTo` URL MUST be rooted at `window.location.origin`
+    //   (e.g. `https://cinelogv2.vercel.app/auth/callback`). We NEVER
+    //   pass a relative path like `/auth/callback` because:
     //
-    // The `/auth/callback` route reads the `next` query param to decide
-    // where to redirect AFTER the exchange succeeds, so we pass the user's
-    // intended destination as `?next=<returnPath>`.
+    //     1. Supabase's redirect URL allowlist matches against FULL
+    //        URLs — relative paths may be rejected, causing the OAuth
+    //        flow to fail before it even starts.
+    //     2. The PKCE verifier cookie is written by the browser via
+    //        `document.cookie` (see src/lib/supabase/browser.ts
+    //        `setAll` adapter) and is scoped to the CURRENT origin
+    //        (no explicit `domain` attribute → host-only cookie).
+    //        If the user starts the OAuth flow on origin A but the
+    //        `redirectTo` resolves to origin B (e.g. due to a proxy
+    //        rewrite, custom domain, or Vercel preview URL), the
+    //        verifier cookie will NOT be sent on the callback request
+    //        to origin B — and the exchange will fail with
+    //        "PKCE code verifier not found in storage".
+    //
+    //   Using `window.location.origin` guarantees the user returns to
+    //   the EXACT origin they started on. The browser will send the
+    //   verifier cookie because the callback is same-origin with the
+    //   page that wrote it.
+    //
+    //   The `/auth/callback` route reads the `next` query param to
+    //   decide where to redirect AFTER the exchange succeeds, so we
+    //   pass the user's intended destination as `?next=<returnPath>`.
     const redirectTo =
       typeof window !== "undefined"
         ? `${window.location.origin}/auth/callback${

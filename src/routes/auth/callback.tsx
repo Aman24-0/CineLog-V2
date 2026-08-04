@@ -359,9 +359,13 @@ const AuthCallback: Component = () => {
                 <a class="auth-callback-primary" href="/discover">
                   Back to CineLog
                 </a>
-                <a class="auth-callback-secondary" href="/auth/login">
+                <button
+                  type="button"
+                  class="auth-callback-secondary"
+                  onClick={() => navigate("/discover", { replace: true })}
+                >
                   Try again
-                </a>
+                </button>
               </div>
             </div>
           }
@@ -463,6 +467,16 @@ const style = `
   color: rgba(250,250,250,0.5);
   font-size: 0.8125rem;
   text-decoration: none;
+  /* Reset button defaults so it looks like the secondary link it
+     replaced (was an <a href="/auth/login">). We use a <button> so
+     we can call navigate("/discover", { replace: true }) instead of
+     reloading the current error URL — which caused a 404 because
+     /auth/login doesn't exist as a route. */
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: inherit;
 }
 .auth-callback-secondary:hover { color: rgba(250,250,250,0.8); }
 .auth-callback-spinner {
