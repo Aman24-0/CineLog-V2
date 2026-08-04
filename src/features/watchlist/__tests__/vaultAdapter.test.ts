@@ -188,8 +188,11 @@ describe("vaultReadAdapter", () => {
       vi.clearAllMocks();
     });
 
-    it("fetches all statuses and merges results", async () => {
-      // Each status returns a different row so we can verify merge + sort
+    it("fetches all statuses in a single query and sorts results", async () => {
+      // Phase 5 Task 5: all 5 statuses are fetched in ONE query via
+      // getVaultByStatuses (IN filter) instead of 5 parallel calls.
+      // Each row represents a different status so we can verify the
+      // merge + sort behavior is unchanged.
       const plannedRow = {
         ...mockVaultRow,
         tmdb_id: 1,
@@ -206,21 +209,27 @@ describe("vaultReadAdapter", () => {
         created_at: "2024-03-01T00:00:00Z"
       };
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockImplementation((_userId, status) => {
-          if (status === "planned")
-            return Promise.resolve({ data: [plannedRow], error: null });
-          if (status === "watching")
-            return Promise.resolve({ data: [watchingRow], error: null });
-          if (status === "completed")
-            return Promise.resolve({ data: [completedRow], error: null });
-          return Promise.resolve({ data: [], error: null });
+        getVaultByStatuses: vi.fn().mockResolvedValue({
+          data: [plannedRow, watchingRow, completedRow],
+          error: null
         })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       const result = await fetchVaultFromSupabase("user-1");
-      // 5 statuses called in parallel
-      expect(mockRepo.getVaultByStatus).toHaveBeenCalledTimes(5);
+      // Single call to getVaultByStatuses (not 5 calls to getVaultByStatus)
+      expect(mockRepo.getVaultByStatuses).toHaveBeenCalledTimes(1);
+      expect(mockRepo.getVaultByStatuses).toHaveBeenCalledWith(
+        "user-1",
+        expect.arrayContaining([
+          "planned",
+          "watching",
+          "completed",
+          "on_hold",
+          "dropped"
+        ]),
+        expect.anything()
+      );
       expect(result).toHaveLength(3);
       // Sorted by created_at desc → watching (June) first, completed (March), planned (Jan)
       expect(result[0].id).toBe("2"); // watching
@@ -228,29 +237,27 @@ describe("vaultReadAdapter", () => {
       expect(result[2].id).toBe("1"); // planned
     });
 
-    it("skips statuses that return errors", async () => {
+    it("returns empty array when the query returns an error", async () => {
+      // Phase 5 Task 5: with a single query, an error means we return
+      // an empty array (the previous "skip failed statuses" behavior
+      // no longer applies — there's only one query).
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockImplementation((_userId, status) => {
-          if (status === "watching") {
-            return Promise.resolve({ data: [], error: new Error("Fail") });
-          }
-          // Only planned returns a row; others return empty
-          if (status === "planned") {
-            return Promise.resolve({ data: [mockVaultRow], error: null });
-          }
-          return Promise.resolve({ data: [], error: null });
-        })
+        getVaultByStatuses: vi
+          .fn()
+          .mockResolvedValue({ data: [], error: new Error("Fail") })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       const result = await fetchVaultFromSupabase("user-1");
-      // Only planned succeeded with a row
-      expect(result).toHaveLength(1);
+      expect(result).toEqual([]);
     });
 
-    it("returns empty array when all statuses return empty", async () => {
+    it("returns empty array when the query returns empty", async () => {
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null })
+        getVaultByStatuses: vi.fn().mockResolvedValue({
+          data: [],
+          error: null
+        })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 

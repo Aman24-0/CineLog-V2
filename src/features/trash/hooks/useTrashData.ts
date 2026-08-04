@@ -113,6 +113,18 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
   const [error, setError] = createSignal<Error | null>(null);
   const [busy, setBusy] = createSignal(false);
 
+  // Phase 5 Task 7: Track whether the next `load` call is the initial
+  // load. autoPurgeExpired is expensive (scans the vault + collections
+  // tables for soft-deleted items past their retention window and
+  // hard-deletes them). Running it on every refetch() — e.g. after the
+  // user restores or permanently deletes an item — wastes a full table
+  // scan + delete round-trip when the trash list is already fresh.
+  //
+  // The flag starts true (the onMount call is the initial load) and is
+  // flipped to false after the first load completes. Subsequent
+  // refetch() calls skip the purge and just re-fetch the list.
+  let isInitialLoad = true;
+
   const load = async () => {
     const userId = uid();
     if (!userId) {
@@ -122,13 +134,17 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
     setLoading(true);
     setError(null);
 
-    // Auto-purge expired items silently before listing.
-    try {
-      await autoPurgeExpired(userId);
-    } catch (err) {
-      // Auto-purge failures are non-fatal — we still want to show
-      // whatever's in the trash. Log and continue.
-      console.warn("[useTrashData] Auto-purge failed:", err);
+    // Auto-purge expired items silently before listing — ONLY on the
+    // initial load. Subsequent refetch() calls skip this because the
+    // purge already ran on mount and the trash list is fresh.
+    if (isInitialLoad) {
+      try {
+        await autoPurgeExpired(userId);
+      } catch (err) {
+        // Auto-purge failures are non-fatal — we still want to show
+        // whatever's in the trash. Log and continue.
+        console.warn("[useTrashData] Auto-purge failed:", err);
+      }
     }
 
     try {
@@ -142,6 +158,9 @@ export function useTrashData(uid: Accessor<string | null>): UseTrashDataResult {
       console.error("[useTrashData] Failed to load trash:", err);
       setError(err instanceof Error ? err : new Error(String(err)));
     } finally {
+      // Mark the initial load as complete — subsequent refetch() calls
+      // will skip the auto-purge.
+      isInitialLoad = false;
       setLoading(false);
     }
   };

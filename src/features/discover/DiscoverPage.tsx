@@ -81,6 +81,7 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  onCleanup,
   Show,
   For,
   ErrorBoundary,
@@ -116,6 +117,7 @@ import {
   getTrending,
   genreIdFor
 } from "~/core/tmdb/discover";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 import { streamingProviders } from "~/core/preferences";
 import { useFeatureFlags } from "~/lib/featureFlags";
@@ -240,6 +242,86 @@ export default function DiscoverPage() {
     filterFeed(row1.titles(), spotlightRenderedIds())
   );
   const row1Label = createMemo(() => personalized.seedLabel());
+
+  // ── LCP IMAGE PRELOADING (Phase 5 Task 4) ──────────────────────────
+  //
+  // Injects <link rel="preload" as="image"> for the first 3 above-the-
+  // fold images on the Discover page so the browser starts fetching
+  // them the moment the data resolves — BEFORE the corresponding <img>
+  // tags are rendered by the Spotlight / DiscoverRail components.
+  //
+  // The 3 preloaded images are:
+  //   1. Spotlight backdrop (w1280) — the LCP element, typically the
+  //      largest image in the viewport on initial load.
+  //   2. First poster from row1 ("Because you liked") — w342.
+  //   3. Second poster from row1 — w342.
+  //
+  // This is a client-side optimization. The preload links are added to
+  // document.head via createEffect and removed on cleanup (when the
+  // pick changes via shuffle, or on page unmount). SSR can't preload
+  // these because the Spotlight pick and row1 titles are fetched
+  // dynamically after hydration.
+  //
+  // We track the injected <link> elements in a module-level Set so
+  // each effect run removes the previous run's links before adding
+  // new ones — this keeps the head clean and avoids duplicate
+  // preloads for the same URL.
+  let preloadedLinks: HTMLLinkElement[] = [];
+
+  const injectLcpPreloads = (urls: string[]) => {
+    // Remove previously injected preload links.
+    for (const link of preloadedLinks) {
+      link.remove();
+    }
+    preloadedLinks = [];
+
+    // Inject new preload links for the given URLs.
+    for (const url of urls) {
+      if (!url) continue;
+      const link = document.createElement("link");
+      link.rel = "preload";
+      link.as = "image";
+      link.href = url;
+      // fetchpriority="high" tells the browser to prioritize this
+      // image over other network requests in the queue.
+      link.setAttribute("fetchpriority", "high");
+      document.head.appendChild(link);
+      preloadedLinks.push(link);
+    }
+  };
+
+  createEffect(() => {
+    // Watch the Spotlight pick + row1 titles reactively.
+    const pick = spotlightPick();
+    const row1Titles = row1Filtered().titles;
+
+    const urls: string[] = [];
+
+    // 1. Spotlight backdrop (the LCP element).
+    if (pick) {
+      const path = pick.title.backdrop_path || pick.title.poster_path;
+      if (path) urls.push(tmdbImage(path, "w1280"));
+    }
+
+    // 2-3. First two posters from row1.
+    for (const title of row1Titles.slice(0, 2)) {
+      if (title.poster_path) {
+        urls.push(tmdbImage(title.poster_path, "w342"));
+      }
+    }
+
+    if (urls.length > 0) {
+      injectLcpPreloads(urls);
+    }
+  });
+
+  onCleanup(() => {
+    // Clean up all injected preload links on page unmount.
+    for (const link of preloadedLinks) {
+      link.remove();
+    }
+    preloadedLinks = [];
+  });
 
   // ── ROW 4: "Trending in ▼ Genre" ────────────────────────────────
   // The genre dropdown replaces the fixed "Trending in [Top Genre]".

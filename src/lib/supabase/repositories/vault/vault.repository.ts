@@ -11,6 +11,7 @@ import { getClient } from "../../client";
 import type { TypedSupabaseClient } from "./vault.types";
 import {
   getVaultByStatus,
+  getVaultByStatuses,
   getVaultByTmdbId,
   getVaultItem,
   getFavorites,
@@ -114,6 +115,17 @@ export class VaultRepository {
     options?: { sort?: VaultSort; pagination?: VaultPagination }
   ): Promise<VaultListResult> {
     return getVaultByStatus(this.supabase, userId, status, options);
+  }
+  /**
+   * Multi-status variant of getVaultByStatus — fetches all items
+   * across the given statuses in a single query (Phase 5 Task 5).
+   */
+  getVaultByStatuses(
+    userId: string,
+    statuses: VaultStatus[],
+    options?: { sort?: VaultSort; pagination?: VaultPagination }
+  ): Promise<VaultListResult> {
+    return getVaultByStatuses(this.supabase, userId, statuses, options);
   }
   getFavorites(
     userId: string,

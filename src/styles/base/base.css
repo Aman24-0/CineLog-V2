@@ -97,6 +97,15 @@
 
 /* Material Symbols */
 .material-symbols-outlined {
+  /* Phase 5 Task 3: font-family is now declared explicitly here because
+     we no longer load the Google Fonts CSS (which previously declared
+     both the @font-face AND this class's font-family in the same
+     stylesheet). The @fontsource-variable package declares the
+     @font-face with the family name 'Material Symbols Outlined
+     Variable' (with the "Variable" suffix), so we reference that name
+     here. The variable font includes all four axes (FILL, GRAD, opsz,
+     wght) so the font-variation-settings rules below continue to work. */
+  font-family: "Material Symbols Outlined Variable", "Material Symbols Outlined", sans-serif;
   font-variation-settings:
     "FILL" 0,
     "wght" 400,

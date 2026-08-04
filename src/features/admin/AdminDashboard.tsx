@@ -58,6 +58,14 @@ const AdminDashboard: Component = () => {
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   const fetchStats = async () => {
+    // Phase 5 Task 9: Skip polling when the document is hidden
+    // (e.g. user switched to another tab or minimized the window).
+    // The visibilitychange listener below restarts polling when the
+    // tab becomes visible again, so we never miss a refresh — we just
+    // avoid wasting API calls while the user isn't looking.
+    if (typeof document !== "undefined" && document.hidden) {
+      return;
+    }
     try {
       const resp = await fetch("/api/admin/stats", {
         credentials: "include",
@@ -82,13 +90,46 @@ const AdminDashboard: Component = () => {
     }
   };
 
+  // Phase 5 Task 9: Pause + resume polling on visibility change.
+  //
+  // When the document becomes hidden (user switches tabs / minimizes
+  // the window), we clear the 60s polling interval so no API calls
+  // fire while the dashboard isn't visible. When the document becomes
+  // visible again, we immediately fetch fresh stats (so the user sees
+  // current data on return) and restart the 60s interval.
+  //
+  // This saves up to ~60 unnecessary /api/admin/stats calls per hour
+  // per open-but-hidden admin tab (1 call/min × 60 min).
+  const handleVisibilityChange = () => {
+    if (typeof document === "undefined") return;
+    if (document.hidden) {
+      // Tab hidden — pause polling.
+      if (pollTimer) {
+        clearInterval(pollTimer);
+        pollTimer = undefined;
+      }
+    } else {
+      // Tab visible again — fetch immediately + restart polling.
+      // Only restart if we don't already have a timer (defensive —
+      // avoids duplicate intervals if visibilitychange fires twice).
+      if (!pollTimer) {
+        void fetchStats();
+        pollTimer = setInterval(fetchStats, 60_000);
+      }
+    }
+  };
+
   onMount(() => {
     void fetchStats();
     pollTimer = setInterval(fetchStats, 60_000); // every 60s
+    document.addEventListener("visibilitychange", handleVisibilityChange);
   });
 
   onCleanup(() => {
     if (pollTimer) clearInterval(pollTimer);
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    }
   });
 
   const formatNumber = (n: number): string => {

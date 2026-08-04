@@ -239,6 +239,21 @@ export async function restoreCollectionInSupabase(
 /**
  * Duplicate a collection — creates a new collection with the same name
  * + "(copy)" and copies all entries.
+ *
+ * Phase 5 Task 6: Entry copying now uses a BATCH INSERT instead of a
+ * sequential per-entry loop. Previously, duplicating a collection with
+ * N entries required 4N Supabase queries (resolve vault UUID + check
+ * exists + compute position + insert, per entry). The batch approach
+ * requires only 3 queries TOTAL regardless of N:
+ *
+ *   1. ONE query to resolve all vault UUIDs from TMDB identities
+ *      (`.in("tmdb_id", [...])` filtered by user_id).
+ *   2. ONE query to batch-insert all collection_entries rows
+ *      (`.insert([{ collection_id, vault_id, position, order_index }, ...])`).
+ *   3. (The computeNextPosition query is skipped because the new
+ *      collection is empty — positions start at 0.)
+ *
+ * For a 50-entry collection, this reduces 200 queries → 2 queries.
  */
 export async function duplicateCollectionInSupabase(
   userId: string,
@@ -286,15 +301,104 @@ export async function duplicateCollectionInSupabase(
     );
   }
 
-  // 3. Copy entries — preserves the source order via the ordered
-  //    add-loop (each addToCollection appends to the end).
-  for (const entry of entries) {
-    await addEntryToCollectionByTmdbId(
-      userId,
-      newId,
-      entry.id,
-      entry.media_type
+  // 3. BATCH COPY ENTRIES (Phase 5 Task 6).
+  //    Skip entirely when the source has no entries — avoids an empty
+  //    batch insert + an unnecessary vault UUID resolution query.
+  if (entries.length === 0) {
+    return newId;
+  }
+
+  // 3a. Resolve ALL vault UUIDs in a SINGLE query.
+  //     The entries' `id` field is the TMDB id (as a string). We need
+  //     the vault row UUIDs for the collection_entries insert. Query
+  //     the vault table with `.in("tmdb_id", [...])` filtered by
+  //     user_id to resolve them all at once.
+  const uniqueTmdbIds = Array.from(
+    new Set(entries.map((e) => Number(e.id)))
+  );
+  const { getClient } = await import("~/lib/supabase/client");
+  const supabase = getClient();
+  const { data: vaultRows, error: vaultError } = await supabase
+    .from("vault")
+    .select("id, tmdb_id, media_type")
+    .eq("user_id", userId)
+    .in("tmdb_id", uniqueTmdbIds)
+    .is("deleted_at", null);
+
+  if (vaultError) {
+    console.error(
+      "[collectionAdapter] Error resolving vault UUIDs for duplicate:",
+      vaultError
     );
+    // Non-fatal — the duplicate collection exists but has no entries.
+    // The user can manually re-add entries if needed.
+    return newId;
+  }
+
+  // Build lookup: `${mediaType}/${tmdbId}` → vaultId.
+  // TMDB ids can collide across media types (movie/1398 vs tv/1398
+  // are different titles), so we key by the composite.
+  const vaultIdByKey = new Map<string, string>();
+  for (const vrow of (vaultRows ?? []) as Array<{
+    id: string;
+    tmdb_id: number;
+    media_type: "movie" | "tv";
+  }>) {
+    vaultIdByKey.set(`${vrow.media_type}/${vrow.tmdb_id}`, vrow.id);
+  }
+
+  // 3b. Build the batch insert payload.
+  //     Position starts at 0 (the new collection is empty, so
+  //     computeNextPosition would return 0). Each entry gets the
+  //     next sequential position, preserving the source order.
+  //     `order_index` mirrors `position` (0-based) to keep both
+  //     columns in sync, matching the convention in
+  //     updateEntryPosition.
+  const insertPayload: Array<{
+    collection_id: string;
+    vault_id: string;
+    position: number;
+    order_index: number;
+  }> = [];
+  let position = 0;
+  for (const entry of entries) {
+    const key = `${entry.media_type}/${Number(entry.id)}`;
+    const vaultId = vaultIdByKey.get(key);
+    if (!vaultId) {
+      // Vault item was deleted between fetching the source entries
+      // and resolving UUIDs. Skip it — matches the old sequential
+      // behavior where addEntryToCollectionByTmdbId returned false.
+      console.warn(
+        `[collectionAdapter] Vault item ${key} not found during duplicate — skipping entry.`
+      );
+      continue;
+    }
+    insertPayload.push({
+      collection_id: newId,
+      vault_id: vaultId,
+      position,
+      order_index: position
+    });
+    position++;
+  }
+
+  // 3c. Batch insert all entries in a SINGLE query.
+  //     The UNIQUE(collection_id, vault_id) constraint is satisfied
+  //     because the new collection is empty and each source entry
+  //     has a unique vault_id.
+  if (insertPayload.length > 0) {
+    const { error: insertError } = await supabase
+      .from("collection_entries")
+      .insert(insertPayload);
+
+    if (insertError) {
+      console.error(
+        "[collectionAdapter] Error batch-inserting entries for duplicate:",
+        insertError
+      );
+      // Non-fatal — the duplicate collection exists but may be missing
+      // some or all entries. The user can manually re-add them.
+    }
   }
 
   return newId;

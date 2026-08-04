@@ -26,6 +26,21 @@
 //      hit the API. The observer disconnects after the first intersection
 //      (we don't need to re-fetch on every scroll).
 //
+//      PERFORMANCE (Phase 5 Task 1): A single SHARED IntersectionObserver
+//      is used for ALL cards, backed by a WeakMap<element, callback>.
+//      Previously each card instantiated its own IntersectionObserver on
+//      mount — on a Discover page with 100+ cards that meant 100+ live
+//      observers, each with its own internal callback queue + element
+//      set. Browsers cap the per-page observer count and each observer
+//      adds its own bookkeeping cost. The shared observer eliminates
+//      that overhead entirely: one observer, one callback, O(1) per
+//      card registration. The WeakMap ensures that when an element is
+//      GC'd (card unmounts), its callback entry is collected too — no
+//      manual unobserve bookkeeping needed beyond the explicit
+//      `sharedObserver.unobserve(el)` in onCleanup (which removes the
+//      element from the observer's internal watch set immediately so
+//      the callback never fires for a detached element).
+//
 // FALLBACK BEHAVIOR:
 //   While the score is loading (or if the API returns null/error), the
 //   hook returns `null`. The caller falls back to TMDB's `vote_average`
@@ -100,6 +115,95 @@ const pendingCallbacks = new Map<
   string,
   Array<(score: string | null) => void>
 >();
+
+// ─── Shared IntersectionObserver pool (Phase 5 Task 1) ──────────────
+//
+// A SINGLE IntersectionObserver is shared across every card that uses
+// useLazyImdbRating. Previously each card created its own observer on
+// mount, which on a Discover page with 100+ cards meant 100+ live
+// IntersectionObserver instances — each carrying its own internal
+// element set + callback queue. Browsers cap the per-page observer
+// count and each one adds bookkeeping cost.
+//
+// The shared observer is lazily constructed on first use (client only)
+// and lives for the lifetime of the page. Each card registers its
+// element + a per-card callback in a WeakMap; when the observer fires
+// for any entry, we look up the matching callback and invoke it.
+//
+// The WeakMap is keyed by the element itself — when an element is
+// detached + GC'd, its callback entry is collected automatically. We
+// also explicitly `unobserve(el)` in onCleanup so the observer stops
+// firing for that element immediately (the WeakMap GC is lazy and
+// could fire one last callback for a detached element otherwise).
+//
+// The callback receives the element so the observer's main handler
+// stays generic (no per-card closures captured in the observer itself).
+
+type IntersectionCallback = (element: HTMLElement) => void;
+
+let sharedObserver: IntersectionObserver | null = null;
+const elementCallbacks = new WeakMap<HTMLElement, IntersectionCallback>();
+
+/**
+ * Lazily construct the shared IntersectionObserver. Returns null on
+ * platforms without IntersectionObserver support (SSR, very old
+ * browsers) — the caller falls back to an immediate fetch.
+ */
+function getSharedObserver(): IntersectionObserver | null {
+  if (typeof IntersectionObserver === "undefined") return null;
+  if (sharedObserver) return sharedObserver;
+
+  sharedObserver = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        const el = entry.target as HTMLElement;
+        const cb = elementCallbacks.get(el);
+        if (cb) {
+          // Invoke the per-card callback. The callback is responsible
+          // for unobserving the element (so the observer stops watching
+          // it after the first intersection) and clearing its WeakMap
+          // entry — we don't do it here because the callback may want
+          // to re-arm the observer for a different cache key.
+          cb(el);
+        }
+      }
+    },
+    { rootMargin: "200px 0px", threshold: 0 }
+  );
+
+  return sharedObserver;
+}
+
+/**
+ * Register `callback` to fire when `element` first scrolls into view.
+ * Uses the shared IntersectionObserver pool — O(1) registration, no
+ * per-card observer allocation. The callback fires AT MOST ONCE per
+ * registration; the caller is responsible for re-registering if it
+ * wants to observe subsequent intersections.
+ */
+function observeOnce(
+  element: HTMLElement,
+  callback: IntersectionCallback
+): void {
+  const observer = getSharedObserver();
+  if (!observer) {
+    // No IntersectionObserver support — fire immediately.
+    callback(element);
+    return;
+  }
+  elementCallbacks.set(element, callback);
+  observer.observe(element);
+}
+
+/**
+ * Unobserve an element and clear its callback entry. Safe to call
+ * even if the element was never observed (no-op).
+ */
+function unobserveElement(element: HTMLElement): void {
+  if (sharedObserver) sharedObserver.unobserve(element);
+  elementCallbacks.delete(element);
+}
 
 // ─── Hook ────────────────────────────────────────────────────────────
 
@@ -211,21 +315,20 @@ export function useLazyImdbRating(
       });
   };
 
-  // Set up the IntersectionObserver on mount. The observer watches the
-  // card's root element and fires the fetch when it first scrolls into
-  // view. After the first intersection, the observer disconnects (we
-  // don't need to re-fetch on every scroll — the cache handles repeats).
-  let observer: IntersectionObserver | undefined;
+  // Set up the shared IntersectionObserver on mount. The observer
+  // watches the card's root element and fires the fetch when it first
+  // scrolls into view. After the first intersection, the element is
+  // unobserved (we don't need to re-fetch on every scroll — the cache
+  // handles repeats).
+  //
+  // Phase 5 Task 1: uses the shared observer pool instead of a
+  // per-card observer. The `observedEl` ref lets onCleanup unobserve
+  // the exact element that was registered (the ref may be populated
+  // asynchronously via queueMicrotask).
+  let observedEl: HTMLElement | undefined;
 
   onMount(() => {
     if (isServer) return;
-    if (typeof IntersectionObserver === "undefined") {
-      // IntersectionObserver not available (very old browser) — just
-      // fire the fetch immediately as a fallback.
-      const key = cacheKey();
-      if (key) fetchRating(key);
-      return;
-    }
 
     // Check the cache synchronously on mount — if the score is already
     // cached (e.g. the user scrolled to this card before), set it
@@ -239,39 +342,46 @@ export function useLazyImdbRating(
       }
     }
 
-    observer = new IntersectionObserver(
-      (entries) => {
-        for (const entry of entries) {
-          if (entry.isIntersecting) {
-            const k = cacheKey();
-            if (k) fetchRating(k);
-            observer?.disconnect();
-            observer = undefined;
-            break;
-          }
-        }
-      },
-      { rootMargin: "200px 0px", threshold: 0 }
-    );
+    // Register with the shared observer. observeOnce handles the
+    // "IntersectionObserver not available" fallback by invoking the
+    // callback immediately, so we don't need a separate code path.
+    const register = (el: HTMLElement) => {
+      observedEl = el;
+      observeOnce(el, (target) => {
+        // Stop watching this element immediately so the callback
+        // never fires again for the same registration.
+        unobserveElement(target);
+        observedEl = undefined;
+        const k = cacheKey();
+        if (k) fetchRating(k);
+      });
+    };
 
-    // Observe the element. It might not be available yet (SolidJS sets
-    // refs after the element is created). Use a microtask delay to
-    // ensure the ref is populated.
     const el = elementRef();
     if (el) {
-      observer.observe(el);
+      register(el);
     } else {
-      // Ref not ready — try again on the next microtask.
+      // Ref not ready — try again on the next microtask. SolidJS
+      // populates refs after the element is created, which happens
+      // just after onMount fires.
       queueMicrotask(() => {
         const el2 = elementRef();
-        if (el2 && observer) observer.observe(el2);
+        if (el2) register(el2);
       });
     }
   });
 
   onCleanup(() => {
-    observer?.disconnect();
-    observer = undefined;
+    // Unobserve the element we registered (if any). This is critical
+    // for cards that unmount before their first intersection — without
+    // it, the shared observer would keep the element in its internal
+    // watch set forever (the WeakMap GC is lazy). The shared observer
+    // itself is never disconnected — it lives for the page lifetime
+    // and serves all cards.
+    if (observedEl) {
+      unobserveElement(observedEl);
+      observedEl = undefined;
+    }
   });
 
   return { rating, loading };

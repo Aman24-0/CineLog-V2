@@ -12,6 +12,13 @@
 // still override with their own accessor for tests, but in production
 // every Discover section should just consume the hook's default so
 // region switches propagate automatically.
+//
+// Phase 5 Task 8: Removed unused signals `topRatedMovies`, `topRatedTv`,
+// `newSeasons`, and `nowPlaying`. These were fetched on every Discover
+// page load (4 extra TMDB API calls) but never consumed by
+// DiscoverPage.tsx — the page only uses `upcoming`, `loading`, and
+// `retry`. Removing them eliminates 4 wasted API calls + 4 wasted
+// network round-trips on every Discover page load.
 
 import {
   createSignal,
@@ -24,22 +31,14 @@ import { isServer } from "solid-js/web";
 import type { TMDBTitle } from "~/shared/types";
 import {
   getTrending,
-  getNowPlaying,
   getUpcoming,
-  getTopRatedMovies,
-  getTopRatedTv,
-  getOnTheAir,
   discoverMovies
 } from "~/core/tmdb/discover";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
 export interface DiscoverFeeds {
   trending: Accessor<TMDBTitle[]>;
-  nowPlaying: Accessor<TMDBTitle[]>;
   upcoming: Accessor<TMDBTitle[]>;
-  topRatedMovies: Accessor<TMDBTitle[]>;
-  topRatedTv: Accessor<TMDBTitle[]>;
-  newSeasons: Accessor<TMDBTitle[]>;
   hiddenGems: Accessor<TMDBTitle[]>;
   loading: Accessor<boolean>;
   /** Retry the full feed batch (used by the empty-state Retry button). */
@@ -60,11 +59,7 @@ export function useDiscoverFeeds(
   const region = regionOverride ?? defaultRegion;
 
   const [trending, setTrending] = createSignal<TMDBTitle[]>([]);
-  const [nowPlaying, setNowPlaying] = createSignal<TMDBTitle[]>([]);
   const [upcoming, setUpcoming] = createSignal<TMDBTitle[]>([]);
-  const [topRatedMovies, setTopRatedMovies] = createSignal<TMDBTitle[]>([]);
-  const [topRatedTv, setTopRatedTv] = createSignal<TMDBTitle[]>([]);
-  const [newSeasons, setNewSeasons] = createSignal<TMDBTitle[]>([]);
   const [hiddenGems, setHiddenGems] = createSignal<TMDBTitle[]>([]);
   const [loading, setLoading] = createSignal(false);
 
@@ -78,6 +73,10 @@ export function useDiscoverFeeds(
 
     // Fetch all feeds in parallel. Each is independent — failures don't
     // affect other feeds. All use cachedFetch so repeated visits are instant.
+    //
+    // Phase 5 Task 8: Removed 4 unused feeds (nowPlaying, topRatedMovies,
+    // topRatedTv, newSeasons/onTheAir) — they were fetched but never
+    // consumed by DiscoverPage.tsx, wasting 4 TMDB API calls per load.
     const feeds: Promise<unknown>[] = [
       getTrending("all", "week")
         .then((v) => {
@@ -85,35 +84,11 @@ export function useDiscoverFeeds(
         })
         .catch((e) => console.error("[useDiscoverFeeds] trending:", e)),
 
-      getNowPlaying(r)
-        .then((v) => {
-          setNowPlaying(v);
-        })
-        .catch((e) => console.error("[useDiscoverFeeds] nowPlaying:", e)),
-
       getUpcoming(r)
         .then((v) => {
           setUpcoming(v);
         })
         .catch((e) => console.error("[useDiscoverFeeds] upcoming:", e)),
-
-      getTopRatedMovies()
-        .then((v) => {
-          setTopRatedMovies(v);
-        })
-        .catch((e) => console.error("[useDiscoverFeeds] topRatedMovies:", e)),
-
-      getTopRatedTv()
-        .then((v) => {
-          setTopRatedTv(v);
-        })
-        .catch((e) => console.error("[useDiscoverFeeds] topRatedTv:", e)),
-
-      getOnTheAir()
-        .then((v) => {
-          setNewSeasons(v);
-        })
-        .catch((e) => console.error("[useDiscoverFeeds] onTheAir:", e)),
 
       // Hidden gems: high rating, low popularity
       discoverMovies({
@@ -167,11 +142,7 @@ export function useDiscoverFeeds(
 
   return {
     trending,
-    nowPlaying,
     upcoming,
-    topRatedMovies,
-    topRatedTv,
-    newSeasons,
     hiddenGems,
     loading,
     retry: loadAll

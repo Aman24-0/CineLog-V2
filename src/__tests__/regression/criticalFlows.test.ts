@@ -352,15 +352,20 @@ describe("Critical Flow Regression Tests", () => {
   // ───────────────────────────────────────────────────────────────────
   describe("Watchlist fetch flow", () => {
     it("fetches vault items across all 5 statuses", async () => {
+      // Phase 5 Task 5: fetchVaultFromSupabase now uses a SINGLE
+      // getVaultByStatuses call with an IN filter instead of 5
+      // parallel getVaultByStatus calls.
       const mockRepo = {
-        getVaultByStatus: vi.fn().mockResolvedValue({ data: [], error: null })
+        getVaultByStatuses: vi
+          .fn()
+          .mockResolvedValue({ data: [], error: null })
       };
       vi.mocked(getVaultRepository).mockReturnValue(mockRepo as never);
 
       await fetchVaultFromSupabase("user-1");
-      // 5 statuses: planned, watching, completed, on_hold, dropped
-      expect(mockRepo.getVaultByStatus).toHaveBeenCalledTimes(5);
-      const statuses = mockRepo.getVaultByStatus.mock.calls.map((c) => c[1]);
+      // Single call to getVaultByStatuses with all 5 statuses
+      expect(mockRepo.getVaultByStatuses).toHaveBeenCalledTimes(1);
+      const statuses = mockRepo.getVaultByStatuses.mock.calls[0][1];
       expect(statuses).toContain("planned");
       expect(statuses).toContain("watching");
       expect(statuses).toContain("completed");
