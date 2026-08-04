@@ -1670,7 +1670,7 @@
   width: 4px;
   height: 22px;
   background: var(--p);
-  border-radius: 2px;
+  border-radius: var(--radius-3xs);
   flex-shrink: 0;
   box-shadow:
     0 0 8px var(--p-glow),
@@ -1835,7 +1835,7 @@
   position: relative;
   width: 100%;
   height: 560px;
-  border-radius: var(--radius-2xl, 24px);
+  border-radius: var(--radius-lg);
   background: var(--tier-2);
   overflow: hidden;
   border: 1px solid var(--glass-border-warm-strong);
@@ -1847,6 +1847,7 @@
 @media (min-width: 640px) {
   .discover-skeleton-spotlight {
     height: 640px;
+    border-radius: var(--radius-2xl);
   }
 }
 @media (min-width: 1024px) {
@@ -2188,6 +2189,32 @@
   display: flex;
   flex-direction: column;
   gap: var(--sp-4, 1rem);
+}
+
+/* ============================================================
+   15.5 SHOW MORE CARD — match Discover rail card widths
+   ============================================================ */
+
+/* Show More card — match Discover rail card widths + poster aspect ratio.
+   The base style in search.css targets the Search page (130px/160px).
+   Discover uses wider cards (155px/190px/200px), so we override here.
+   The 2/3 aspect ratio (width * 1.5) ensures the Show More card
+   has the same proportions as a real poster card. */
+.discover-folds .search-rail-show-more-inner {
+  width: 155px;
+  height: 232px;
+}
+@media (min-width: 640px) {
+  .discover-folds .search-rail-show-more-inner {
+    width: 190px;
+    height: 285px;
+  }
+}
+@media (min-width: 1024px) {
+  .discover-folds .search-rail-show-more-inner {
+    width: 200px;
+    height: 300px;
+  }
 }
 
 /* ============================================================
