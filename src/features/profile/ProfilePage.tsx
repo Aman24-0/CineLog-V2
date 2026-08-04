@@ -27,7 +27,7 @@ import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import { useToast } from "~/shared/hooks/useToast";
 import { getClient } from "~/lib/supabase/client";
 
-import { PageContainer } from "~/shared/ui/layout";
+import { PageContainer } from "~/shared/ui";
 import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
 
 import { useProfileData } from "./useProfileData";

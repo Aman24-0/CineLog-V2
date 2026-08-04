@@ -45,13 +45,10 @@ import { getClient as getSupabaseClient } from "~/lib/supabase/client";
 // Shared controls — `Segmented` is used by the `renderSegmented` helper.
 import { Segmented } from "~/features/settings/sharedControls";
 
-// Accent application helpers (local safety-net duplicates of the ones
-// in `~/core/preferences/customAccent` — see the file header in
-// `../accentHelpers.ts` for the rationale).
-import {
-  applyAccentToDocument,
-  clearAccentFromDocument
-} from "~/features/settings/accentHelpers";
+// Accent application helpers — consolidated into `~/core/preferences/customAccent`
+// (Phase 2 Task 6 — the local `accentHelpers.ts` duplicate was deleted).
+// The `applyAccentToDocument` / `clearAccentFromDocument` exports below
+// are re-exported from `~/core/preferences`.
 
 // Section metadata + the SettingsState type.
 import {
@@ -71,6 +68,8 @@ import {
   streamingProviders,
   toggleStreamingProvider,
   updateNotifPref,
+  applyAccentToDocument,
+  clearAccentFromDocument,
   type TmdbProvider,
   type NotificationPrefs
 } from "~/core/preferences";

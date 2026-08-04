@@ -5,8 +5,13 @@
 // Endpoints:
 //   GET /api/admin/users?search=&page=&limit=    — list/search users
 //   GET /api/admin/users?id=<uuid>                — get single user
-//   PATCH /api/admin/users                        — update user (disable/enable/delete)
-//   DELETE /api/admin/users?id=<uuid>             — soft-delete user
+//   PATCH /api/admin/users                        — perform an action on a user
+//        Body: { id, action: "disable" | "enable" | "delete" | "reset_preferences", reason? }
+//
+// There is no DELETE endpoint — soft-deletion is performed via the
+// `action: "delete"` body field on PATCH, which sets `profiles.deleted_at`
+// and `profiles.scheduled_deletion_at` (purge happens later via the
+// maintenance cron).
 //
 // All endpoints require admin authentication via requireAdmin().
 // All mutations are audit-logged.

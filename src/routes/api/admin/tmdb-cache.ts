@@ -10,8 +10,11 @@
 //   GET    /api/admin/tmdb-cache/stats              — cache hit/miss + size + oldest
 //   GET    /api/admin/tmdb-cache?id=<uuid>          — single entry
 //   DELETE /api/admin/tmdb-cache?id=<uuid>          — delete single entry
-//   POST   /api/admin/tmdb-cache/invalidate-expired — bulk delete all expired
-//   POST   /api/admin/tmdb-cache/refresh?id=<uuid>  — re-fetch from TMDB (TODO)
+//   POST   /api/admin/tmdb-cache?action=invalidate-expired  — bulk delete all expired
+//   POST   /api/admin/tmdb-cache?action=invalidate-all      — truncate the cache
+//
+// There is no refresh / re-fetch endpoint — the cache is passively
+// refreshed on read when an entry's `expires_at` has passed.
 
 import {
   requireAdmin,

@@ -80,13 +80,11 @@ export default defineConfig({
         "src/features/watchlist/vaultFilterUtils.ts",
         "src/features/watchlist/presetAdapter.ts",
         "src/features/watchlist/episodeProgressAdapter.ts",
-        "src/features/dashboard/dashboardAdapter.ts",
         "src/features/collections/collectionAdapter.ts",
         "src/features/collections/collectionMapper.ts",
         "src/features/collections/collectionEntryAdapter.ts",
         "src/shared/hooks/userLibraryAdapter.ts",
         // Business logic (100% target)
-        "src/features/dashboard/recommendationEngine.ts",
         "src/features/collections/components/timelineSort.ts",
         "src/features/collections/utils/evaluateSmartRules.ts",
         "src/features/search/genreBrowseUtils.ts",

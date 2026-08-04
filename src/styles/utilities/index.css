@@ -1,6 +1,5 @@
 /* src/styles/utilities/index.css — Phase 14.2 CSS architecture
    Barrel file: imports utility CSS. */
 
-@import "./visibility.css";
 @import "./transitions.css";
 @import "./helpers.css";

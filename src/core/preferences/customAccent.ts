@@ -38,12 +38,29 @@ function isValidHex(v: string | null): boolean {
   return /^#([0-9a-fA-F]{6}|[0-9a-fA-F]{3})$/.test(v);
 }
 
+/**
+ * Normalize a hex color to 6-digit form (#abc → #aabbcc).
+ * Returns the original input (trimmed) if it's already 6-digit,
+ * or null if it's not a valid 3- or 6-digit hex.
+ */
+function normalizeHex(hex: string): string | null {
+  const m = /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.exec(hex.trim());
+  if (!m) return null;
+  const digits = m[1];
+  if (digits.length === 3) {
+    // Expand shorthand: each digit becomes two of the same.
+    // "#abc" → "#aabbcc"
+    return `#${digits.split("").map((c) => c + c).join("")}`;
+  }
+  return `#${digits}`;
+}
+
 function hexToRgba(hex: string, alpha: number): string {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!m) return `rgba(168,255,120,${alpha})`;
-  const r = parseInt(m[1].slice(0, 2), 16);
-  const g = parseInt(m[1].slice(2, 4), 16);
-  const b = parseInt(m[1].slice(4, 6), 16);
+  const normalized = normalizeHex(hex);
+  if (!normalized) return `rgba(168,255,120,${alpha})`;
+  const r = parseInt(normalized.slice(1, 3), 16);
+  const g = parseInt(normalized.slice(3, 5), 16);
+  const b = parseInt(normalized.slice(5, 7), 16);
   return `rgba(${r},${g},${b},${alpha})`;
 }
 
@@ -56,13 +73,15 @@ export const [customAccent, setCustomAccent] = createSignal<string>(
 /**
  * Compute a luminance-aware contrast color (black or white) for a given
  * hex accent, so text on accent buttons stays readable.
+ *
+ * Accepts both 3-digit (#abc) and 6-digit (#aabbcc) hex shorthand.
  */
 export function contrastOn(hex: string): string {
-  const m = /^#([0-9a-fA-F]{6})$/.exec(hex.trim());
-  if (!m) return "#08080D";
-  const r = parseInt(m[1].slice(0, 2), 16);
-  const g = parseInt(m[1].slice(2, 4), 16);
-  const b = parseInt(m[1].slice(4, 6), 16);
+  const normalized = normalizeHex(hex);
+  if (!normalized) return "#08080D";
+  const r = parseInt(normalized.slice(1, 3), 16);
+  const g = parseInt(normalized.slice(3, 5), 16);
+  const b = parseInt(normalized.slice(5, 7), 16);
   // Relative luminance per WCAG
   const lin = (c: number) => {
     const s = c / 255;

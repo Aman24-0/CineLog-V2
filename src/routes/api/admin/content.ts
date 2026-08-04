@@ -8,9 +8,14 @@
 //   GET    /api/admin/content?slot=&include_deleted=   — list
 //   GET    /api/admin/content?id=<uuid>                — single
 //   POST   /api/admin/content                          — create
-//   PATCH  /api/admin/content                          — update
+//   PATCH  /api/admin/content                          — update (use this to
+//                                                          reorder slots by
+//                                                          sending a new
+//                                                          `position` value)
 //   DELETE /api/admin/content?id=<uuid>                — soft-delete
-//   POST   /api/admin/content/reorder                  — batch reorder slot positions
+//
+// There is no separate /api/admin/content/reorder endpoint — reordering
+// is done by PATCHing individual rows with updated `position` values.
 
 import {
   requireAdmin,

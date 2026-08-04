@@ -64,9 +64,46 @@ const GlassAvatar: Component<GlassAvatarProps> = (rawProps) => {
 
   const [imgError, setImgError] = createSignal(false);
 
-  const getInitials = () => {
-    if (!local.name) return "?";
-    return local.name.charAt(0).toUpperCase();
+  /**
+   * Derive up to two uppercase initials from a name.
+   *
+   * Examples:
+   *   "John Doe"      → "JD"
+   *   "John doe"      → "JD"
+   *   "John"          → "JO"   (single-word name → first two letters)
+   *   "John Michael Doe" → "JM" (only first two words contribute)
+   *   "  jane  q  public  " → "JQ"
+   *   "" / null / whitespace-only → "?"
+   *
+   * The previous implementation only returned the first character of
+   * `name`, which was ambiguous in lists showing multiple "J" avatars.
+   * Returning two initials disambiguates users whose names share a
+   * first letter without making the avatar text too dense for the
+   * smaller size presets.
+   */
+  const getInitials = (): string => {
+    const raw = (local.name ?? "").trim();
+    if (!raw) return "?";
+
+    // Split on any run of whitespace and keep the first two non-empty
+    // tokens. This is intentionally simple — we don't try to handle
+    // surname prefixes like "van der Berg" specially; the goal is
+    // just "two visible letters in the avatar circle", not a
+    // culturally-correct initials derivation.
+    const words = raw.split(/\s+/).filter(Boolean);
+    if (words.length === 1) {
+      // Single-word name → use the first two letters of the word.
+      // (e.g. "John" → "JO"). If the word is a single character
+      // (e.g. an initial "J"), we'd get "J" with no padding.
+      const w = words[0];
+      return w.length === 1
+        ? w.toUpperCase()
+        : (w.slice(0, 2).toUpperCase());
+    }
+    // Two-or-more-word name → first letter of each of the first two words.
+    const first = words[0].charAt(0);
+    const second = words[1].charAt(0);
+    return (first + second).toUpperCase();
   };
 
   const containerClasses = () => {

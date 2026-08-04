@@ -427,6 +427,7 @@ export type Database = {
       };
       profiles: {
         Row: {
+          admin_disabled_at: string | null;
           avatar_url: string | null;
           banner_override_path: string | null;
           banner_type: string;
@@ -442,15 +443,15 @@ export type Database = {
           favorite_movie_id: string | null;
           favorite_series_id: string | null;
           id: string;
-          is_public: boolean;
+          is_admin: boolean;
           language_code: string;
           scheduled_deletion_at: string | null;
-          social_links: Json;
           timezone: string;
           updated_at: string;
           username: string;
         };
         Insert: {
+          admin_disabled_at?: string | null;
           avatar_url?: string | null;
           banner_override_path?: string | null;
           banner_type?: string;
@@ -466,15 +467,15 @@ export type Database = {
           favorite_movie_id?: string | null;
           favorite_series_id?: string | null;
           id: string;
-          is_public?: boolean;
+          is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
-          social_links?: Json;
           timezone?: string;
           updated_at?: string;
           username: string;
         };
         Update: {
+          admin_disabled_at?: string | null;
           avatar_url?: string | null;
           banner_override_path?: string | null;
           banner_type?: string;
@@ -490,49 +491,14 @@ export type Database = {
           favorite_movie_id?: string | null;
           favorite_series_id?: string | null;
           id?: string;
-          is_public?: boolean;
+          is_admin?: boolean;
           language_code?: string;
           scheduled_deletion_at?: string | null;
-          social_links?: Json;
           timezone?: string;
           updated_at?: string;
           username?: string;
         };
         Relationships: [];
-      };
-      follows: {
-        Row: {
-          id: string;
-          follower_id: string;
-          following_id: string;
-          created_at: string;
-        };
-        Insert: {
-          id?: string;
-          follower_id: string;
-          following_id: string;
-          created_at?: string;
-        };
-        Update: {
-          id?: string;
-          follower_id?: string;
-          following_id?: string;
-          created_at?: string;
-        };
-        Relationships: [
-          {
-            foreignKeyName: "follows_follower_id_fkey";
-            columns: ["follower_id"];
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          },
-          {
-            foreignKeyName: "follows_following_id_fkey";
-            columns: ["following_id"];
-            referencedRelation: "profiles";
-            referencedColumns: ["id"];
-          }
-        ];
       };
       tmdb_cache: {
         Row: {
@@ -619,6 +585,7 @@ export type Database = {
           updated_at: string;
           user_id: string;
           vault_view: Database["public"]["Enums"]["vault_view_type"];
+          weekly_recap_last_sent: string | null;
         };
         Insert: {
           accent_color?: string;
@@ -639,6 +606,7 @@ export type Database = {
           updated_at?: string;
           user_id: string;
           vault_view?: Database["public"]["Enums"]["vault_view_type"];
+          weekly_recap_last_sent?: string | null;
         };
         Update: {
           accent_color?: string;
@@ -659,6 +627,7 @@ export type Database = {
           updated_at?: string;
           user_id?: string;
           vault_view?: Database["public"]["Enums"]["vault_view_type"];
+          weekly_recap_last_sent?: string | null;
         };
         Relationships: [
           {
@@ -805,26 +774,37 @@ export type Database = {
         };
         Relationships: [];
       };
-      // ─── App Config (admin Phase 3) ────────────────────────────────
+      // ─── App Config (admin Phase 1) ────────────────────────────────
       // Generic key/value table used for site-wide settings, feature
       // flags, homepage config, anime settings, etc.
       app_config: {
         Row: {
           key: string;
-          value: Json;
           updated_at: string;
+          updated_by: string | null;
+          value: Json;
         };
         Insert: {
           key: string;
-          value: Json;
           updated_at?: string;
+          updated_by?: string | null;
+          value: Json;
         };
         Update: {
           key?: string;
-          value?: Json;
           updated_at?: string;
+          updated_by?: string | null;
+          value?: Json;
         };
-        Relationships: [];
+        Relationships: [
+          {
+            foreignKeyName: "app_config_updated_by_fkey";
+            columns: ["updated_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
       };
       vault: {
         Row: {
@@ -909,6 +889,401 @@ export type Database = {
           }
         ];
       };
+      // ─── Admin: admin_actions audit log (admin Phase 1) ──────────────
+      // Append-only audit log of admin operations. RLS allows admins
+      // to SELECT and any authenticated user to INSERT (server-side
+      // logging via service_role). No UPDATE or DELETE policy →
+      // append-only is enforced at the database level.
+      admin_actions: {
+        Row: {
+          id: string;
+          admin_id: string;
+          action: string;
+          entity_type: string | null;
+          entity_id: string | null;
+          payload: Json;
+          ip_address: string | null;
+          user_agent: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          admin_id: string;
+          action: string;
+          entity_type?: string | null;
+          entity_id?: string | null;
+          payload?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          admin_id?: string;
+          action?: string;
+          entity_type?: string | null;
+          entity_id?: string | null;
+          payload?: Json;
+          ip_address?: string | null;
+          user_agent?: string | null;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_actions_admin_id_fkey";
+            columns: ["admin_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Admin: announcements (admin Phase 2) ────────────────────────
+      // Banner/toast/modal notices shown to all users.
+      announcements: {
+        Row: {
+          id: string;
+          type: Database["public"]["Enums"]["announcement_type"];
+          severity: Database["public"]["Enums"]["announcement_severity"];
+          title: string;
+          body: string | null;
+          cta_label: string | null;
+          cta_href: string | null;
+          is_dismissible: boolean;
+          is_active: boolean;
+          starts_at: string | null;
+          ends_at: string | null;
+          target_audience: string;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          type?: Database["public"]["Enums"]["announcement_type"];
+          severity?: Database["public"]["Enums"]["announcement_severity"];
+          title: string;
+          body?: string | null;
+          cta_label?: string | null;
+          cta_href?: string | null;
+          is_dismissible?: boolean;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          target_audience?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          type?: Database["public"]["Enums"]["announcement_type"];
+          severity?: Database["public"]["Enums"]["announcement_severity"];
+          title?: string;
+          body?: string | null;
+          cta_label?: string | null;
+          cta_href?: string | null;
+          is_dismissible?: boolean;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          target_audience?: string;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "announcements_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Admin: featured_content (admin Phase 2) ─────────────────────
+      // Admin-curated hero/spotlight/rail/pinned/editor_pick slots.
+      featured_content: {
+        Row: {
+          id: string;
+          slot: Database["public"]["Enums"]["featured_slot"];
+          tmdb_id: number;
+          media_type: Database["public"]["Enums"]["media_type"];
+          title_override: string | null;
+          note: string | null;
+          tagline: string | null;
+          position: number;
+          is_active: boolean;
+          starts_at: string | null;
+          ends_at: string | null;
+          created_by: string | null;
+          created_at: string;
+          updated_at: string;
+          deleted_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          slot: Database["public"]["Enums"]["featured_slot"];
+          tmdb_id: number;
+          media_type: Database["public"]["Enums"]["media_type"];
+          title_override?: string | null;
+          note?: string | null;
+          tagline?: string | null;
+          position?: number;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          slot?: Database["public"]["Enums"]["featured_slot"];
+          tmdb_id?: number;
+          media_type?: Database["public"]["Enums"]["media_type"];
+          title_override?: string | null;
+          note?: string | null;
+          tagline?: string | null;
+          position?: number;
+          is_active?: boolean;
+          starts_at?: string | null;
+          ends_at?: string | null;
+          created_by?: string | null;
+          created_at?: string;
+          updated_at?: string;
+          deleted_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "featured_content_created_by_fkey";
+            columns: ["created_by"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Admin: maintenance_runs (admin Phase 3) ─────────────────────
+      // Audit table for maintenance operations invoked from the admin UI.
+      maintenance_runs: {
+        Row: {
+          id: string;
+          admin_id: string | null;
+          operation: string;
+          status: string;
+          rows_affected: number;
+          details: Json;
+          error: string | null;
+          started_at: string;
+          finished_at: string | null;
+        };
+        Insert: {
+          id?: string;
+          admin_id?: string | null;
+          operation: string;
+          status: string;
+          rows_affected?: number;
+          details?: Json;
+          error?: string | null;
+          started_at?: string;
+          finished_at?: string | null;
+        };
+        Update: {
+          id?: string;
+          admin_id?: string | null;
+          operation?: string;
+          status?: string;
+          rows_affected?: number;
+          details?: Json;
+          error?: string | null;
+          started_at?: string;
+          finished_at?: string | null;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "maintenance_runs_admin_id_fkey";
+            columns: ["admin_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Notifications (Upcoming Page redesign) ──────────────────────
+      // In-app notification feed (reminders, watchlist_added, etc.).
+      notifications: {
+        Row: {
+          id: string;
+          user_id: string;
+          title: string;
+          message: string | null;
+          type: string;
+          related_title_id: string | null;
+          related_title_type: string | null;
+          scheduled_for: string | null;
+          sent_at: string | null;
+          read_at: string | null;
+          created_at: string;
+          is_read: boolean;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          title: string;
+          message?: string | null;
+          type: string;
+          related_title_id?: string | null;
+          related_title_type?: string | null;
+          scheduled_for?: string | null;
+          sent_at?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+          is_read?: boolean;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          title?: string;
+          message?: string | null;
+          type?: string;
+          related_title_id?: string | null;
+          related_title_type?: string | null;
+          scheduled_for?: string | null;
+          sent_at?: string | null;
+          read_at?: string | null;
+          created_at?: string;
+          is_read?: boolean;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── User reminders (Upcoming Page redesign) ─────────────────────
+      // Per-user "Remind Me" subscriptions for upcoming titles.
+      user_reminders: {
+        Row: {
+          id: string;
+          user_id: string;
+          tmdb_id: string;
+          title_type: string;
+          release_date: string;
+          is_scheduled: boolean;
+          notification_sent: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          tmdb_id: string;
+          title_type: string;
+          release_date: string;
+          is_scheduled?: boolean;
+          notification_sent?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          tmdb_id?: string;
+          title_type?: string;
+          release_date?: string;
+          is_scheduled?: boolean;
+          notification_sent?: boolean;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_reminders_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Push subscriptions (Phase 2 — Web Push) ─────────────────────
+      // Per-user Web Push subscriptions (one row per browser/device).
+      push_subscriptions: {
+        Row: {
+          id: string;
+          user_id: string;
+          endpoint: string;
+          keys: Json;
+          expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          endpoint: string;
+          keys: Json;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          endpoint?: string;
+          keys?: Json;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "push_subscriptions_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      // ─── Rate limit buckets (Phase 1 — DB-backed rate limiting) ──────
+      // Service-role-only table used by /api routes for persistent
+      // rate limiting. RLS blocks anon/authenticated entirely;
+      // service_role bypasses RLS.
+      rate_limit_buckets: {
+        Row: {
+          bucket: string;
+          key: string;
+          count: number;
+          window_start: string;
+          locked_until: string | null;
+          last_updated: string;
+        };
+        Insert: {
+          bucket: string;
+          key: string;
+          count?: number;
+          window_start?: string;
+          locked_until?: string | null;
+          last_updated?: string;
+        };
+        Update: {
+          bucket?: string;
+          key?: string;
+          count?: number;
+          window_start?: string;
+          locked_until?: string | null;
+          last_updated?: string;
+        };
+        Relationships: [];
+      };
     };
     Views: {
       [_ in never]: never;
@@ -918,57 +1293,37 @@ export type Database = {
         Args: { p_username: string };
         Returns: boolean;
       };
-      // ── Public profile lookup (V3.2 — /u/[username] route) ──
-      // Returns the public-facing columns of a profile row when
-      // is_public = true AND deleted_at IS NULL; returns no rows
-      // otherwise. Callable by anon + authenticated. Bypasses RLS
-      // via SECURITY DEFINER — see migration 20260731_public_profile_lookup.sql.
-      get_public_profile_by_username: {
-        Args: { p_username: string };
-        Returns: {
-          id: string;
-          username: string;
-          display_name: string;
-          bio: string | null;
-          avatar_url: string | null;
-          banner_url: string | null;
-          banner_type: string;
-          favorite_movie_id: string | null;
-          favorite_series_id: string | null;
-          favorite_director_id: string | null;
-          social_links: Json;
-          is_public: boolean;
-          created_at: string;
-        }[];
+      // ── get_user_email (admin Phase 4) ──────────────────────────
+      // SECURITY DEFINER function that returns the email for a single
+      // user_id from auth.users. Callable by service_role (bypasses
+      // the internal admin check) and authenticated (subject to the
+      // internal admin check — returns NULL for non-admin callers).
+      get_user_email: {
+        Args: { user_id: string };
+        Returns: string | null;
       };
-      // ── Public vault lookup (V3.2 — /u/[username] route) ──
-      // Returns non-deleted vault rows for a user whose profile is
-      // public. Joins profiles to enforce is_public = true at query
-      // time. Callable by anon + authenticated.
-      get_public_vault_by_user: {
-        Args: { p_user_id: string };
-        Returns: {
-          id: string;
-          user_id: string;
-          tmdb_id: number;
-          media_type: string;
-          status: string;
-          is_favorite: boolean;
-          is_pinned: boolean;
-          rating: number | null;
-          notes: string | null;
-          rewatch_count: number;
-          progress_minutes: number | null;
-          watched_on: string | null;
-          started_at: string | null;
-          completed_at: string | null;
-          last_activity_at: string | null;
-          created_at: string;
-          updated_at: string;
-          season_dates: Json | null;
-          season_rewatch_count: number;
-          season_rewatch_dates: Json | null;
-        }[];
+      // ── Rate limit helpers (Phase 1) ────────────────────────────
+      // Atomic increment-and-get for rate limit enforcement.
+      // Returns JSONB { allowed, count, retry_after_ms }.
+      bump_rate_limit: {
+        Args: {
+          p_bucket: string;
+          p_key: string;
+          p_window_ms: number;
+          p_lockout_ms?: number;
+          p_max?: number;
+        };
+        Returns: Json;
+      };
+      // Clears a rate limit row (called on successful auth, etc.).
+      reset_rate_limit: {
+        Args: { p_bucket: string; p_key: string };
+        Returns: void;
+      };
+      // Returns true if the key is currently hard-locked.
+      is_rate_limited: {
+        Args: { p_bucket: string; p_key: string };
+        Returns: boolean;
       };
     };
     Enums: {
@@ -996,12 +1351,15 @@ export type Database = {
         | "export_completed"
         | "export_failed";
       adult_content_type: "hide" | "show";
+      announcement_severity: "info" | "success" | "warning" | "error";
+      announcement_type: "banner" | "toast" | "modal";
       collection_type: "user" | "curated" | "smart";
       collection_view_type: "grid" | "carousel" | "timeline" | "list";
       density_type: "comfortable" | "compact";
       discover_view_type: "grid" | "list";
       external_provider_type:
         "imdb" | "trakt" | "anilist" | "myanimelist" | "tvdb" | "tvmaze";
+      featured_slot: "hero" | "spotlight" | "rail" | "pinned" | "editor_pick";
       import_export_format: "json" | "csv";
       import_export_job_type: "import" | "export";
       import_export_source:
@@ -1179,6 +1537,8 @@ export const Constants = {
         "export_failed"
       ],
       adult_content_type: ["hide", "show"],
+      announcement_severity: ["info", "success", "warning", "error"],
+      announcement_type: ["banner", "toast", "modal"],
       collection_type: ["user", "curated", "smart"],
       collection_view_type: ["grid", "carousel", "timeline", "list"],
       density_type: ["comfortable", "compact"],
@@ -1191,6 +1551,7 @@ export const Constants = {
         "tvdb",
         "tvmaze"
       ],
+      featured_slot: ["hero", "spotlight", "rail", "pinned", "editor_pick"],
       import_export_format: ["json", "csv"],
       import_export_job_type: ["import", "export"],
       import_export_source: [

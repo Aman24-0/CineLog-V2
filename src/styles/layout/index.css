@@ -6,7 +6,6 @@
    components/. These files are for any project-specific layout
    primitives that aren't covered by Tailwind. */
 
-@import "./container.css";
 @import "./grid.css";
 @import "./flex.css";
 @import "./spacing.css";

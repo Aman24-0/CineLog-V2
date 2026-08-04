@@ -9,13 +9,12 @@
 // The component calls onChange({start, end}) on any change.
 //
 // Display label: the human-readable "From — To" string is rendered
-// via date-fns `format(date, 'dd MMM yyyy')` so users always see the
-// current year (e.g. "30 Jul 2026 — 29 Aug 2026"), regardless of
-// browser locale quirks with <input type="date">. The actual date
-// inputs remain HTML5 native pickers for accessibility.
+// via `Intl.DateTimeFormat` so users always see the current year
+// (e.g. "30 Jul 2026 — 29 Aug 2026"), regardless of browser locale
+// quirks with <input type="date">. The actual date inputs remain
+// HTML5 native pickers for accessibility.
 
 import { type Component, createMemo, For, Show } from "solid-js";
-import { format, parseISO } from "date-fns";
 
 export interface DateRange {
   start: string; // YYYY-MM-DD
@@ -58,15 +57,45 @@ function presetFor(value: DateRange): PresetKey {
 }
 
 /**
+ * Shared "dd MMM yyyy" formatter (e.g. "30 Jul 2026").
+ *
+ * Built once and reused — `Intl.DateTimeFormat` is expensive to
+ * construct on every call, so the singleton is the idiomatic pattern.
+ * Uses the `en-GB` locale because it gives us day-first ordering
+ * ("30 Jul 2026") which matches the previous date-fns `dd MMM yyyy`
+ * format exactly. The app doesn't localize date strings here — this
+ * label is informational only, and the underlying <input type="date">
+ * already respects the user's locale for editing.
+ */
+const DISPLAY_DATE_FORMATTER = new Intl.DateTimeFormat("en-GB", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric"
+});
+
+/**
  * Format a YYYY-MM-DD string as "dd MMM yyyy" (e.g. "30 Jul 2026").
  * Falls back to the raw string if parsing fails — never throws.
  */
 function formatDisplay(dateStr: string): string {
   if (!dateStr) return "—";
   try {
-    const d = parseISO(dateStr);
+    // `new Date("YYYY-MM-DD")` parses as UTC midnight. We construct a
+    // local-date version via `new Date(year, monthIdx, day)` so the
+    // formatter doesn't shift the day backward in negative-offset
+    // timezones (e.g. a UTC-7 user would otherwise see "29 Jul 2026"
+    // for a "2026-07-30" input).
+    const parts = dateStr.split("-");
+    if (parts.length !== 3) return dateStr;
+    const year = Number(parts[0]);
+    const month = Number(parts[1]) - 1;
+    const day = Number(parts[2]);
+    if (!Number.isFinite(year) || !Number.isFinite(month) || !Number.isFinite(day)) {
+      return dateStr;
+    }
+    const d = new Date(year, month, day);
     if (isNaN(d.getTime())) return dateStr;
-    return format(d, "dd MMM yyyy");
+    return DISPLAY_DATE_FORMATTER.format(d);
   } catch {
     return dateStr;
   }

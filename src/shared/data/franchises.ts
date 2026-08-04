@@ -8,7 +8,6 @@
  *   - useDiscoverTaste.ts
  *   - useTrajectories.ts
  *   - useTasteSurfaces.ts
- *   - RelationshipPill.tsx
  *
  * Now every consumer imports from HERE. Adding a new franchise is a
  * one-file change that immediately affects Details, Discover, Search,
