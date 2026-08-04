@@ -32,6 +32,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -67,6 +68,13 @@ function toInt(v: unknown): number | undefined {
 export async function POST(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "collection_entry.create"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const body = (await event.request.json().catch(() => ({}))) as EntryInput;
@@ -181,6 +189,13 @@ export async function PATCH(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "collection_entry.update"
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = (await event.request.json().catch(() => ({}))) as EntryInput;
     if (!body.id) {
@@ -259,6 +274,13 @@ export async function PATCH(event: APIEvent) {
 export async function DELETE(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "collection_entry.delete"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const url = new URL(event.request.url);

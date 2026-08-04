@@ -21,6 +21,7 @@ import {
   FEATURE_FLAG_DEFAULTS,
   KNOWN_FLAG_NAMES
 } from "~/core/feature-flags/defaults";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -79,6 +80,13 @@ export async function PUT(event: APIEvent) {
   if (!adminResult.ok) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "feature_flag.update"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const body = (await event.request.json().catch(() => ({}))) as {

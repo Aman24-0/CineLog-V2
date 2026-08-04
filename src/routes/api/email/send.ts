@@ -78,6 +78,7 @@ import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { checkAndIncrement } from "~/lib/server/rateLimiter";
 import { timingSafeEqual as nodeTimingSafeEqual } from "node:crypto";
 
 interface APIEvent {
@@ -95,65 +96,21 @@ interface SendEmailRequestBody {
   bypassRateLimit?: unknown;
 }
 
-// ─── In-memory rate limiter (per user, 24-hour window) ────────────────
+// ─── Rate limiter (per user, DB-backed, 24-hour window) ─────────────
+//
+// Replaces the previous in-memory Map that was a no-op on Vercel
+// serverless (cold starts reset the Map). Now backed by the
+// `rate_limit_buckets` table via the service-role client.
 //
 // Tracks the count of emails sent in the current 24-hour window per
-// user. After MAX_EMAILS_PER_DAY, further sends are rejected with 429.
+// user. After MAX_EMAILS_PER_DAY (10), further sends are rejected
+// with 429.
 //
-// State is lost on serverless cold-start. For production use we'd want
-// a database-backed counter, but for a fallback email channel this is
-// acceptable — the worst case is a few extra emails slip through on
-// cold-start.
+// Fails OPEN on DB error — a Supabase outage shouldn't block a
+// legitimate email send (the worst case is a few extra emails slip
+// through during the outage window).
 
-interface RateLimitEntry {
-  count: number;
-  resetAt: number;
-}
-
-const emailRateLimitMap = new Map<string, RateLimitEntry>();
 const MAX_EMAILS_PER_DAY = 10;
-const RATE_LIMIT_WINDOW_MS = 24 * 60 * 60 * 1000;
-const RATE_LIMIT_PURGE_INTERVAL_MS = 5 * 60 * 1000;
-let lastRateLimitPurge = Date.now();
-
-function purgeStaleRateLimitEntries(): void {
-  const now = Date.now();
-  if (now - lastRateLimitPurge < RATE_LIMIT_PURGE_INTERVAL_MS) return;
-  lastRateLimitPurge = now;
-  for (const [uid, entry] of emailRateLimitMap.entries()) {
-    if (now > entry.resetAt) {
-      emailRateLimitMap.delete(uid);
-    }
-  }
-}
-
-/**
- * Returns { allowed, remaining } for the given user. If the user is
- * over the limit, returns allowed=false. Otherwise increments the
- * counter and returns allowed=true with the remaining count.
- */
-function checkAndIncrementRateLimit(
-  uid: string
-): { allowed: boolean; remaining: number } {
-  purgeStaleRateLimitEntries();
-  const now = Date.now();
-  const entry = emailRateLimitMap.get(uid);
-  if (!entry || now > entry.resetAt) {
-    emailRateLimitMap.set(uid, {
-      count: 1,
-      resetAt: now + RATE_LIMIT_WINDOW_MS,
-    });
-    return { allowed: true, remaining: MAX_EMAILS_PER_DAY - 1 };
-  }
-  if (entry.count >= MAX_EMAILS_PER_DAY) {
-    return { allowed: false, remaining: 0 };
-  }
-  entry.count += 1;
-  return {
-    allowed: true,
-    remaining: MAX_EMAILS_PER_DAY - entry.count,
-  };
-}
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -504,7 +461,8 @@ export async function POST(event: APIEvent): Promise<Response> {
 
   // ─── Rate limit (cron bypasses) ─────────────────────────────────
   if (!isCronCaller || !bypassRateLimit) {
-    const { allowed, remaining } = checkAndIncrementRateLimit(
+    const { allowed, remaining } = await checkAndIncrement(
+      "emailSend",
       effectiveUserId
     );
     if (!allowed) {
@@ -512,7 +470,7 @@ export async function POST(event: APIEvent): Promise<Response> {
         {
           error: "Email rate limit exceeded. Try again later.",
           limit: MAX_EMAILS_PER_DAY,
-          windowHours: 24,
+          windowHours: 24
         },
         429
       );

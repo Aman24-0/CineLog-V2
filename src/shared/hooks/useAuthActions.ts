@@ -78,12 +78,20 @@ export async function signUpWithEmail(
 
 /**
  * Sign out the current user.
+ *
+ * Uses `scope: "local"` so only the CURRENT device's session is
+ * revoked. The previous default (`global`) signed the user out of
+ * ALL devices, which surprised users who clicked "Sign out" on one
+ * device and lost their session on every other device too. The
+ * explicit "Sign out everywhere" intent lives in `signOutGlobal()`
+ * in `features/account/accountActions.ts`, which still uses
+ * `scope: "global"`.
  */
 export async function signOut(): Promise<AuthResult> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
-    const { error } = await supabase.auth.signOut();
+    const { error } = await supabase.auth.signOut({ scope: "local" });
     if (error) throw error;
     showToast("Signed out", "info");
     return { success: true };

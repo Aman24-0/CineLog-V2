@@ -1,20 +1,32 @@
-// src/routes/admin/collections/[id].tsx
+// src/routes/admin/collections/[id]/index.tsx
 //
 // CineLog V2 — Admin Collection Editor Route
 // ---------------------------------------------------------------------
 // Renders AdminCollectionEditorPage for /admin/collections/<slug-or-id>.
 // The editor is admin-only and fully separate from the consumer
 // /collections/<id>/edit page.
+//
+// Phase 1 audit fix (Maj-4):
+//   Previously this route did NOT wrap with <AdminShell> and did NOT
+//   call useAdminAuth(), unlike every other /admin/* route. Non-admin
+//   visitors could therefore render the editor chrome (UI shell) even
+//   though every API call was still server-side protected. Now this
+//   route uses the same pattern as every sibling admin route — the
+//   <AdminShell> component internally invokes useAdminAuth() and
+//   redirects unauthenticated visitors to /admin/login, so the editor
+//   chrome is gated the same way as the rest of the panel.
 
 import { Title } from "@solidjs/meta";
 import { lazy, ErrorBoundary } from "solid-js";
+import AdminShell from "~/features/admin/AdminShell";
+
 const AdminCollectionEditorPage = lazy(
   () => import("~/features/admin/AdminCollectionEditorPage")
 );
 
 export default function AdminCollectionEditorRoute() {
   return (
-    <>
+    <AdminShell>
       <Title>CineLog Admin — Collection Editor</Title>
       <ErrorBoundary
         fallback={(error, reset) => (
@@ -49,6 +61,6 @@ export default function AdminCollectionEditorRoute() {
       >
         <AdminCollectionEditorPage />
       </ErrorBoundary>
-    </>
+    </AdminShell>
   );
 }

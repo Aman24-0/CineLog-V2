@@ -78,6 +78,12 @@ function base64UrlDecode(str: string): Uint8Array {
 
 /**
  * Read the admin JWT secret from env. Server-only.
+ *
+ * Enforces a minimum length of 32 characters (Phase 1 audit fix —
+ * previously 16 chars, which is too short for an HS256 signing key).
+ * 32 chars × 6 bits/char (base64) = 192 bits of entropy, which is
+ * well above the 128-bit minimum for HS256. Anything shorter is
+ * vulnerable to offline brute-force if the cookie is ever leaked.
  */
 function getSecret(): string {
   if (!isServer) {
@@ -86,10 +92,10 @@ function getSecret(): string {
     );
   }
   const secret = process.env.ADMIN_JWT_SECRET;
-  if (!secret || secret.length < 16) {
+  if (!secret || secret.length < 32) {
     throw new Error(
-      "[CineLog Admin] ADMIN_JWT_SECRET is missing or too short (<16 chars). " +
-        "Generate a 32+ character random string."
+      "[CineLog Admin] ADMIN_JWT_SECRET is missing or too short (<32 chars). " +
+        "Generate a 32+ character random string (e.g. `openssl rand -hex 32`)."
     );
   }
   return secret;

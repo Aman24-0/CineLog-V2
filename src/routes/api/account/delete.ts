@@ -61,6 +61,11 @@ import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import {
+  isRateLimited,
+  recordFailure,
+  clearFailures
+} from "~/lib/server/rateLimiter";
 
 interface APIEvent {
   request: Request;
@@ -71,61 +76,18 @@ interface DeleteRequestBody {
   accessToken?: unknown;
 }
 
-// ─── In-memory rate limiter ───────────────────────────────────────
+// ─── Rate limiter ──────────────────────────────────────────────────
 //
-// Same pattern as /api/admin/auth. We track failed attempts per IP
-// (the IP is the only stable identifier we have before authentication).
-// After 5 failures in 15 minutes, the IP is locked out.
+// DB-backed via the `rate_limit_buckets` table. Replaces the previous
+// in-memory Map that was a no-op on Vercel serverless (cold starts
+// reset the Map, so an attacker could force cold starts to bypass the
+// lockout).
 //
-// State is lost on server restart — acceptable since this is a
-// destructive operation that the user is unlikely to attempt
-// repeatedly.
-
-interface RateLimitEntry {
-  failures: number;
-  lockedUntil: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_FAILURES = 5;
-const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
-const PURGE_INTERVAL_MS = 5 * 60 * 1000;
-let lastPurge = Date.now();
-
-function purgeStaleEntries(): void {
-  const now = Date.now();
-  if (now - lastPurge < PURGE_INTERVAL_MS) return;
-  lastPurge = now;
-  for (const [ip, entry] of rateLimitMap.entries()) {
-    if (entry.lockedUntil < now && entry.failures === 0) {
-      rateLimitMap.delete(ip);
-    }
-  }
-}
-
-function isRateLimited(ip: string | null): boolean {
-  purgeStaleEntries();
-  if (!ip) return false;
-  const entry = rateLimitMap.get(ip);
-  if (!entry) return false;
-  return entry.lockedUntil > Date.now();
-}
-
-function recordFailure(ip: string | null): void {
-  if (!ip) return;
-  const entry = rateLimitMap.get(ip) ?? { failures: 0, lockedUntil: 0 };
-  entry.failures += 1;
-  if (entry.failures >= MAX_FAILURES) {
-    entry.lockedUntil = Date.now() + LOCKOUT_MS;
-    entry.failures = 0;
-  }
-  rateLimitMap.set(ip, entry);
-}
-
-function clearFailures(ip: string | null): void {
-  if (!ip) return;
-  rateLimitMap.delete(ip);
-}
+// Same semantics as before: 5 failures from the same IP in 15 minutes
+// triggers a 15-minute lockout. State now persists across cold starts.
+//
+// Fails OPEN on DB error — a Supabase outage shouldn't lock legitimate
+// users out of deleting their own account.
 
 // ─── Helpers ──────────────────────────────────────────────────────
 
@@ -158,7 +120,7 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   const ip = getClientIP(event);
-  if (isRateLimited(ip)) {
+  if (await isRateLimited("accountDelete", ip ?? "")) {
     return jsonResponse(
       { error: "Too many attempts. Please try again in 15 minutes." },
       429
@@ -216,7 +178,7 @@ export async function POST(event: APIEvent): Promise<Response> {
     await verifyClient.auth.getUser(accessToken);
 
   if (userError || !userData?.user) {
-    recordFailure(ip);
+    await recordFailure("accountDelete", ip ?? "");
     return jsonResponse(
       { error: "Your session has expired. Please sign in again." },
       401
@@ -244,7 +206,7 @@ export async function POST(event: APIEvent): Promise<Response> {
       : "";
 
   if (confirmation !== userEmail) {
-    recordFailure(ip);
+    await recordFailure("accountDelete", ip ?? "");
     return jsonResponse(
       {
         error:
@@ -312,7 +274,7 @@ export async function POST(event: APIEvent): Promise<Response> {
       });
     }
 
-    clearFailures(ip);
+    await clearFailures("accountDelete", ip ?? "");
 
     // Log to stderr for the audit trail (we can't write to admin_actions
     // because the user_id FK just got SET NULL'd, and the user isn't

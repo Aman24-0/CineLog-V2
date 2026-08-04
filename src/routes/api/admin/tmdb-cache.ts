@@ -19,6 +19,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -202,6 +203,13 @@ export async function DELETE(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "tmdb_cache.delete"
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const url = new URL(event.request.url);
     const id = url.searchParams.get("id");
@@ -240,6 +248,13 @@ export async function DELETE(event: APIEvent) {
 export async function POST(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "tmdb_cache.invalidate"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const url = new URL(event.request.url);

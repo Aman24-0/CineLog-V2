@@ -18,6 +18,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -32,6 +33,45 @@ interface FeaturedContentInput {
   is_active?: boolean;
   starts_at?: string | null;
   ends_at?: string | null;
+}
+
+// ─── Enum validation ───────────────────────────────────────────────
+//
+// Postgres enum constraints will reject invalid values with a leaky
+// 500 error. We validate explicitly server-side and return 400 so the
+// client gets a clean error message and the DB never sees the bad value.
+
+const VALID_CONTENT_SLOTS = new Set([
+  "hero",
+  "spotlight",
+  "rail",
+  "pinned",
+  "editor_pick"
+]);
+const VALID_MEDIA_TYPES = new Set(["movie", "tv"]);
+
+/**
+ * Validate that any enum-valued fields on the input are within the
+ * allowed set. Returns null on success, or an error string on failure.
+ *
+ * Only validates fields that are PRESENT in the body — absent fields
+ * are left to the default-value logic downstream.
+ */
+function validateContentEnums(body: FeaturedContentInput): string | null {
+  if (body.slot !== undefined && !VALID_CONTENT_SLOTS.has(body.slot)) {
+    return `Invalid slot. Must be one of: ${[
+      ...VALID_CONTENT_SLOTS
+    ].join(", ")}.`;
+  }
+  if (
+    body.media_type !== undefined &&
+    !VALID_MEDIA_TYPES.has(body.media_type)
+  ) {
+    return `Invalid media_type. Must be one of: ${[
+      ...VALID_MEDIA_TYPES
+    ].join(", ")}.`;
+  }
+  return null;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -87,6 +127,13 @@ export async function POST(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "featured_content.create"
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = (await event.request
       .json()
@@ -96,6 +143,14 @@ export async function POST(event: APIEvent) {
         { error: "slot, tmdb_id, media_type are required" },
         400
       );
+    }
+
+    // Validate enum fields BEFORE touching the DB — prevents leaky
+    // Postgres 500 errors when an invalid enum value would violate
+    // the column constraint.
+    const enumError = validateContentEnums(body);
+    if (enumError) {
+      return jsonResponse({ error: enumError }, 400);
     }
 
     const supabase = createAdminClient();
@@ -168,6 +223,13 @@ export async function PATCH(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
 
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "featured_content.update"
+  );
+  if (rateLimited) return rateLimited;
+
   try {
     const body = (await event.request
       .json()
@@ -175,6 +237,12 @@ export async function PATCH(event: APIEvent) {
       id?: string;
     };
     if (!body.id) return jsonResponse({ error: "id is required" }, 400);
+
+    // Validate enum fields BEFORE the DB update.
+    const enumError = validateContentEnums(body);
+    if (enumError) {
+      return jsonResponse({ error: enumError }, 400);
+    }
 
     const update: Record<string, unknown> = {};
     for (const key of [
@@ -223,6 +291,13 @@ export async function PATCH(event: APIEvent) {
 export async function DELETE(event: APIEvent) {
   const adminResult = await requireAdmin(event);
   if (!adminResult.ok) return jsonResponse({ error: "Unauthorized" }, 401);
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "featured_content.delete"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const url = new URL(event.request.url);

@@ -46,6 +46,11 @@ import {
   getClientIP
 } from "~/lib/supabase/admin";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import {
+  isRateLimited,
+  recordFailure,
+  clearFailures
+} from "~/lib/server/rateLimiter";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -82,58 +87,18 @@ interface AdminProfileRow {
   admin_disabled_at: string | null;
 }
 
-// ─── In-memory rate limiter ───────────────────────────────────────
+// ─── Rate limiter ──────────────────────────────────────────────────
 //
-// Tracks failed login attempts per IP. After 5 failures, the IP is
-// locked out for 15 minutes. State is lost on server restart —
-// acceptable for an admin panel with a single admin.
-
-interface RateLimitEntry {
-  failures: number;
-  lockedUntil: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_FAILURES = 5;
-const LOCKOUT_MS = 15 * 60 * 1000; // 15 minutes
-
-const PURGE_INTERVAL_MS = 5 * 60 * 1000;
-let lastPurge = Date.now();
-
-function purgeStaleEntries(): void {
-  const now = Date.now();
-  if (now - lastPurge < PURGE_INTERVAL_MS) return;
-  lastPurge = now;
-  for (const [ip, entry] of rateLimitMap.entries()) {
-    if (entry.lockedUntil < now && entry.failures === 0) {
-      rateLimitMap.delete(ip);
-    }
-  }
-}
-
-function isRateLimited(ip: string | null): boolean {
-  purgeStaleEntries();
-  if (!ip) return false;
-  const entry = rateLimitMap.get(ip);
-  if (!entry) return false;
-  return entry.lockedUntil > Date.now();
-}
-
-function recordFailure(ip: string | null): void {
-  if (!ip) return;
-  const entry = rateLimitMap.get(ip) ?? { failures: 0, lockedUntil: 0 };
-  entry.failures += 1;
-  if (entry.failures >= MAX_FAILURES) {
-    entry.lockedUntil = Date.now() + LOCKOUT_MS;
-    entry.failures = 0;
-  }
-  rateLimitMap.set(ip, entry);
-}
-
-function clearFailures(ip: string | null): void {
-  if (!ip) return;
-  rateLimitMap.delete(ip);
-}
+// DB-backed via the `rate_limit_buckets` table. Replaces the previous
+// in-memory Map that was a no-op on Vercel serverless (cold starts
+// reset the Map, so an attacker could force cold starts to bypass the
+// 5-attempt lockout).
+//
+// Same semantics: 5 failures from the same IP in 15 minutes triggers
+// a 15-minute lockout. State now persists across cold starts.
+//
+// Fails OPEN on DB error — a Supabase outage shouldn't lock an admin
+// out of the panel entirely.
 
 // ─── Constant-time string comparison ──────────────────────────────
 
@@ -222,7 +187,7 @@ async function verifyProfileAndIssueAdmin(args: {
     .single<AdminProfileRow>();
 
   if (profileError || !profile) {
-    recordFailure(ip);
+    await recordFailure("adminAuth", ip ?? "");
     return {
       ok: false,
       response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
@@ -230,7 +195,7 @@ async function verifyProfileAndIssueAdmin(args: {
   }
 
   if (!profile.is_admin) {
-    recordFailure(ip);
+    await recordFailure("adminAuth", ip ?? "");
     return {
       ok: false,
       response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
@@ -238,7 +203,7 @@ async function verifyProfileAndIssueAdmin(args: {
   }
 
   if (profile.admin_disabled_at) {
-    recordFailure(ip);
+    await recordFailure("adminAuth", ip ?? "");
     return {
       ok: false,
       response: jsonResponse(
@@ -262,7 +227,7 @@ async function verifyProfileAndIssueAdmin(args: {
   }
 
   if (!constantTimeEqual(pin, expectedPin)) {
-    recordFailure(ip);
+    await recordFailure("adminAuth", ip ?? "");
     return {
       ok: false,
       response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
@@ -270,7 +235,7 @@ async function verifyProfileAndIssueAdmin(args: {
   }
 
   // 3. All checks passed — clear rate limit, sign JWT, log
-  clearFailures(ip);
+  await clearFailures("adminAuth", ip ?? "");
 
   let token: string;
   try {
@@ -343,7 +308,7 @@ export async function POST(event: APIEvent) {
     const userAgent = event.request.headers.get("user-agent");
 
     // 1. Rate limit check
-    if (isRateLimited(ip)) {
+    if (await isRateLimited("adminAuth", ip ?? "")) {
       return jsonResponse(
         {
           ok: false,
@@ -419,7 +384,7 @@ export async function POST(event: APIEvent) {
         await verifyClient.auth.getUser(accessToken);
 
       if (userError || !userData?.user) {
-        recordFailure(ip);
+        await recordFailure("adminAuth", ip ?? "");
         return jsonResponse(
           {
             ok: false,
@@ -431,7 +396,7 @@ export async function POST(event: APIEvent) {
 
       const userEmail = userData.user.email ?? "";
       if (!userEmail) {
-        recordFailure(ip);
+        await recordFailure("adminAuth", ip ?? "");
         return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
       }
 
@@ -466,7 +431,7 @@ export async function POST(event: APIEvent) {
       });
 
     if (authError || !authData.session || !authData.user) {
-      recordFailure(ip);
+      await recordFailure("adminAuth", ip ?? "");
       return jsonResponse({ ok: false, error: "Invalid credentials" }, 401);
     }
 

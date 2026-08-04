@@ -67,6 +67,7 @@ import { isServer } from "solid-js/web";
 import webPush from "web-push";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { checkAndIncrement } from "~/lib/server/rateLimiter";
 
 interface APIEvent {
   request: Request;
@@ -91,52 +92,17 @@ interface PushSubscriptionRow {
   expires_at: string | null;
 }
 
-// ─── In-memory rate limiter (per user) ──────────────────────────────
+// ─── Rate limiter (per user, DB-backed) ─────────────────────────────
+//
+// Replaces the previous in-memory Map that was a no-op on Vercel
+// serverless (cold starts reset the Map). Now backed by the
+// `rate_limit_buckets` table via the service-role client.
 //
 // Tracks the count of sends in the current 1-minute window. After
-// MAX_SENDS_PER_MINUTE, further sends are rejected with 429.
+// 30 sends/minute, further sends are rejected with 429.
 //
-// State is lost on serverless cold-start, but the limit is generous
-// enough that legitimate use will never hit it. The limit exists to
-// prevent runaway clients (e.g. a bug that fires notifications in a
-// loop) from spamming the user.
-
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_SENDS_PER_MINUTE = 30;
-const WINDOW_MS = 60 * 1000;
-const PURGE_INTERVAL_MS = 5 * 60 * 1000;
-let lastPurge = Date.now();
-
-function purgeStaleEntries(): void {
-  const now = Date.now();
-  if (now - lastPurge < PURGE_INTERVAL_MS) return;
-  lastPurge = now;
-  for (const [uid, entry] of rateLimitMap.entries()) {
-    if (now - entry.windowStart > WINDOW_MS) {
-      rateLimitMap.delete(uid);
-    }
-  }
-}
-
-function isRateLimited(uid: string): boolean {
-  purgeStaleEntries();
-  const now = Date.now();
-  const entry = rateLimitMap.get(uid);
-  if (!entry || now - entry.windowStart > WINDOW_MS) {
-    rateLimitMap.set(uid, { count: 1, windowStart: now });
-    return false;
-  }
-  entry.count += 1;
-  if (entry.count > MAX_SENDS_PER_MINUTE) {
-    return true;
-  }
-  return false;
-}
+// Fails OPEN on DB error — a Supabase outage shouldn't block users
+// from receiving notifications.
 
 // ─── Helpers ────────────────────────────────────────────────────────
 
@@ -388,10 +354,11 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   // ─── Rate limit ─────────────────────────────────────────────────
-  if (isRateLimited(callerUid)) {
+  const rateLimitResult = await checkAndIncrement("pushSend", callerUid);
+  if (!rateLimitResult.allowed) {
     return jsonResponse(
       {
-        error: "Too many notifications sent in the last minute. Please wait.",
+        error: "Too many notifications sent in the last minute. Please wait."
       },
       429
     );

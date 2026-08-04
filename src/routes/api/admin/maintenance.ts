@@ -36,6 +36,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -200,6 +201,13 @@ export async function POST(event: APIEvent) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
   const admin: AdminUser = adminResult.admin;
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    admin,
+    "maintenance.run"
+  );
+  if (rateLimited) return rateLimited;
 
   try {
     const body = (await event.request.json().catch(() => ({}))) as RunBody;

@@ -19,6 +19,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
+import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -147,6 +148,13 @@ export async function PUT(event: APIEvent): Promise<Response> {
   if (!adminResult.ok) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
+
+  const rateLimited = await enforceAdminMutationRateLimit(
+    event,
+    adminResult.admin,
+    "anime_settings.update"
+  );
+  if (rateLimited) return rateLimited;
 
   let body: { settings?: unknown };
   try {

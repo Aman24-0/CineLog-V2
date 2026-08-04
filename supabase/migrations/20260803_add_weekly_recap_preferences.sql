@@ -142,7 +142,7 @@ GRANT EXECUTE ON FUNCTION public.mark_weekly_recap_sent(UUID)
 -- ─── 4. Schedule the weekly recap cron job ───────────────────────────
 --
 -- We use pg_cron to invoke the /api/cron/weekly-recap endpoint every
--- Monday at 09:00 UTC. The endpoint then:
+-- day at 09:00 UTC. The endpoint then:
 --   1. Calls get_users_for_weekly_recap() to find users whose
 --      weeklyDigestDay preference matches today's day-of-week.
 --   2. For each user, queries their vault activity, inserts a
@@ -157,15 +157,38 @@ GRANT EXECUTE ON FUNCTION public.mark_weekly_recap_sent(UUID)
 -- pg_net) for HTTP requests. If pg_net is not installed, install it
 -- first via the Supabase dashboard → Database → Extensions → enable "pg_net".
 --
--- CRON_SECRET: the endpoint requires this secret in the X-Cron-Secret
--- header. The value must match the CRON_SECRET env var on Vercel.
--- Replace '<CRON_SECRET>' below with the actual secret value (generate
--- with `openssl rand -hex 32`). WARNING: this exposes the secret in the
--- cron.job table — only the postgres role can read cron.job, so this is
--- acceptable for a low-privilege secret like the cron trigger.
+-- ─── SECRET RESOLUTION (Phase 1 audit fix) ───────────────────────────
 --
--- APP_URL: replace '<APP_URL>' with your Vercel production URL (e.g.
--- 'https://cinelog-v2.vercel.app').
+-- PREVIOUSLY this migration contained literal `<APP_URL>` and
+-- `<CRON_SECRET>` placeholders that an operator had to manually
+-- replace before running. In practice this was never done, so the
+-- scheduled cron job was POSTing to the literal URL
+-- `https://<APP_URL>/api/cron/weekly-recap` with the literal
+-- `<CRON_SECRET>` header — neither worked.
+--
+-- NOW the migration reads both values from Postgres "custom GUC"
+-- settings via `current_setting('app.<name>', true)`. These are set
+-- OUT-OF-BAND by the operator (one-time setup) using either:
+--
+--   Option A — Database-level setting (persists across reboots):
+--     ALTER DATABASE <db_name> SET app.app_url = 'https://cinelog-v2.vercel.app';
+--     ALTER DATABASE <db_name> SET app.cron_secret = '<a-strong-random-secret>';
+--
+--   Option B — Supabase Dashboard:
+--     Database → Connection Settings → Session Settings → add
+--     `app.app_url` and `app.cron_secret`.
+--
+--   Option C — Supabase Vault (preferred for the secret):
+--     INSERT INTO vault.secrets (name, secret) VALUES
+--       ('cron_secret', '<a-strong-random-secret>');
+--     Then read it in the cron body via:
+--       SELECT decrypted_secret FROM vault.decrypted_secrets
+--         WHERE name = 'cron_secret' INTO cron_secret;
+--
+-- The migration uses Option A/B for both values because it's the
+-- simplest. If the settings are not set, the cron job is NOT
+-- scheduled (the DO block raises a NOTICE and skips), so the
+-- migration is safe to run in any environment.
 --
 -- The cron schedule runs EVERY day at 09:00 UTC. The endpoint filters
 -- by the user's preferred day, so only the right users get a recap on
@@ -180,9 +203,46 @@ CREATE EXTENSION IF NOT EXISTS pg_net WITH SCHEMA extensions;
 
 DO $$
 DECLARE
-  app_url TEXT := '<APP_URL>';          -- REPLACE with your Vercel URL
-  cron_secret TEXT := '<CRON_SECRET>';  -- REPLACE with your CRON_SECRET
+  -- Read app URL and cron secret from Postgres custom GUC settings.
+  -- The second arg `true` to current_setting() means "return NULL if
+  -- the setting is not set, instead of raising an error". This lets
+  -- the migration gracefully skip the cron.schedule call when the
+  -- operator hasn't configured the secrets yet.
+  v_app_url    TEXT := current_setting('app.app_url', true);
+  v_cron_secret TEXT := current_setting('app.cron_secret', true);
 BEGIN
+  IF v_app_url IS NULL OR v_cron_secret IS NULL THEN
+    RAISE NOTICE
+      'Weekly recap cron job NOT scheduled: app.app_url and/or app.cron_secret '
+      'Postgres settings are not configured. To enable, run: '
+      'ALTER DATABASE <db_name> SET app.app_url = ''https://your-vercel-url.vercel.app''; '
+      'ALTER DATABASE <db_name> SET app.cron_secret = ''<a-strong-random-secret>''; '
+      'then re-run this migration.';
+    RETURN;
+  END IF;
+
+  -- Validate the URL looks like an https URL before scheduling.
+  -- This catches the common case where the operator set the value
+  -- without the scheme (e.g. "cinelog-v2.vercel.app" instead of
+  -- "https://cinelog-v2.vercel.app").
+  IF NOT (v_app_url LIKE 'https://%') THEN
+    RAISE NOTICE
+      'Weekly recap cron job NOT scheduled: app.app_url must start with '
+      '''https://''. Got: %. Set it to your full Vercel production URL.',
+      v_app_url;
+    RETURN;
+  END IF;
+
+  -- Validate the secret looks non-trivial (≥16 chars). This is just
+  -- a sanity check — the real strength comes from the operator
+  -- generating a 32+ char random string.
+  IF length(v_cron_secret) < 16 THEN
+    RAISE NOTICE
+      'Weekly recap cron job NOT scheduled: app.cron_secret looks too short '
+      '(<16 chars). Generate a strong random secret (e.g. `openssl rand -hex 32`).';
+    RETURN;
+  END IF;
+
   -- Unschedule any existing job with this name (idempotent).
   BEGIN
     PERFORM cron.unschedule('weekly_recap');
@@ -192,19 +252,31 @@ BEGIN
 
   -- Schedule: every day at 09:00 UTC. The endpoint filters by user's
   -- preferred day, so a daily run covers all 7 day preferences.
+  --
+  -- We inline the resolved values into the cron command via format().
+  -- The values come from current_setting() (operator-controlled), not
+  -- from user input, so SQL injection is not a concern here.
   PERFORM cron.schedule(
     'weekly_recap',
     '0 9 * * *',
-    $cmd$
-      SELECT net.http_post(
-        url := format('%s/api/cron/weekly-recap', '<APP_URL>'),
-        headers := jsonb_build_object(
-          'Content-Type', 'application/json',
-          'X-Cron-Secret', '<CRON_SECRET>'
-        ),
-        body := '{}'::jsonb
-      );
-    $cmd$
+    format(
+      $cmd$
+        SELECT net.http_post(
+          url := '%s/api/cron/weekly-recap',
+          headers := jsonb_build_object(
+            'Content-Type', 'application/json',
+            'X-Cron-Secret', '%s'
+          ),
+          body := '{}'::jsonb
+        );
+      $cmd$,
+      v_app_url,
+      v_cron_secret
+    )
   );
+
+  RAISE NOTICE
+    'Weekly recap cron job scheduled: POST %/api/cron/weekly-recap daily at 09:00 UTC.',
+    v_app_url;
 END;
 $$;

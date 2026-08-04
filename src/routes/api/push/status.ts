@@ -50,32 +50,23 @@
 import { isServer } from "solid-js/web";
 import webPush from "web-push";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
+import { checkAndIncrement } from "~/lib/server/rateLimiter";
 
 interface APIEvent {
   request: Request;
 }
 
-// ─── In-memory rate limiter (per IP) ──────────────────────────────────
-
-interface RateLimitEntry {
-  count: number;
-  windowStart: number;
-}
-
-const rateLimitMap = new Map<string, RateLimitEntry>();
-const MAX_REQUESTS_PER_MINUTE = 20;
-const WINDOW_MS = 60 * 1000;
-
-function isRateLimited(ip: string): boolean {
-  const now = Date.now();
-  const entry = rateLimitMap.get(ip);
-  if (!entry || now - entry.windowStart > WINDOW_MS) {
-    rateLimitMap.set(ip, { count: 1, windowStart: now });
-    return false;
-  }
-  entry.count += 1;
-  return entry.count > MAX_REQUESTS_PER_MINUTE;
-}
+// ─── Rate limiter (per IP, DB-backed) ───────────────────────────────
+//
+// Replaces the previous in-memory Map that was a no-op on Vercel
+// serverless (cold starts reset the Map). Now backed by the
+// `rate_limit_buckets` table via the service-role client.
+//
+// Tracks the count of requests in the current 1-minute window. After
+// 20 requests/minute, further requests are rejected with 429.
+//
+// Fails OPEN on DB error — a Supabase outage shouldn't block the
+// diagnostic endpoint entirely.
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -222,7 +213,8 @@ export async function GET(event: APIEvent): Promise<Response> {
   // ─── Rate limit ─────────────────────────────────────────────────────
   const forwardedFor = event.request.headers.get("x-forwarded-for");
   const ip = forwardedFor?.split(",")[0]?.trim() ?? "unknown";
-  if (isRateLimited(ip)) {
+  const rateLimitResult = await checkAndIncrement("pushStatus", ip);
+  if (!rateLimitResult.allowed) {
     return jsonResponse({ error: "Too many requests" }, 429);
   }
 
