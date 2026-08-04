@@ -3,7 +3,8 @@
    Tokens are CSS variables (:root custom properties) so import order
    does not affect cascade priority — all :root vars are equivalent.
 
-   Sprint 1B: Added blur.css and opacity.css imports. */
+   Sprint 1B: Added blur.css and opacity.css imports.
+   Phase 3: Added design-system.css (cinematic design system foundation). */
 
 @import "./colors.css";
 @import "./spacing.css";
@@ -15,3 +16,4 @@
 @import "./blur.css";
 @import "./opacity.css";
 @import "./preferences.css";
+@import "./design-system.css";

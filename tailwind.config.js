@@ -125,7 +125,8 @@ export default {
          Maps --shadow-* tokens to Tailwind shadow-* utilities.
          Usage: shadow-xs, shadow-sm, shadow-md, shadow-lg, shadow-xl,
                 shadow-card, shadow-raised, shadow-float, shadow-glow,
-                shadow-premium, shadow-elevated, shadow-hero */
+                shadow-premium, shadow-elevated, shadow-hero,
+                shadow-elevation-1, shadow-elevation-2, shadow-elevation-3 */
       boxShadow: {
         'xs': 'var(--shadow-xs)',
         'sm': 'var(--shadow-sm)',
@@ -139,6 +140,14 @@ export default {
         'premium': 'var(--shadow-premium)',
         'elevated': 'var(--shadow-elevated)',
         'hero': 'var(--shadow-hero)',
+        /* Phase 3 — Elevation composite shadows */
+        'elevation-1': 'var(--elevation-1-shadow-composite)',
+        'elevation-2': 'var(--elevation-2-shadow-composite)',
+        'elevation-3': 'var(--elevation-3-shadow-composite)',
+        /* Phase 3 — Glass shadows */
+        'glass-card': 'var(--shadow-glass-card)',
+        'glass-elevated': 'var(--shadow-glass-elevated)',
+        'glass-glow': 'var(--shadow-glass-glow)',
       },
 
       /* ─── Colors ───
@@ -220,6 +229,11 @@ export default {
         'glass': 'var(--glass-bg)',
         'glass-strong': 'var(--glass-bg-strong)',
         'glass-border': 'var(--glass-border)',
+        /* Phase 3 — Glass variants */
+        'glass-subtle': 'var(--glass-subtle-bg)',
+        'glass-default': 'var(--glass-default-bg)',
+        'glass-medium': 'var(--glass-medium-bg)',
+        'glass-heavy': 'var(--glass-heavy-bg)',
 
         /* Borders */
         'hairline': 'var(--hairline)',
@@ -231,6 +245,22 @@ export default {
         /* Active state */
         'active-bg': 'var(--active-bg)',
         'active-text': 'var(--active-text)',
+        /* Phase 3 — Semantic backgrounds */
+        'bg-hover': 'var(--color-bg-hover)',
+        'bg-pressed': 'var(--color-bg-pressed)',
+        'bg-overlay': 'var(--color-bg-overlay)',
+        'bg-backdrop': 'var(--color-bg-backdrop)',
+        /* Phase 3 — Semantic text states */
+        'text-accent': 'var(--color-text-accent)',
+        'text-inverse': 'var(--color-text-inverse)',
+        'text-link': 'var(--color-text-link)',
+        'text-placeholder': 'var(--color-text-placeholder)',
+        'text-disabled': 'var(--color-text-disabled)',
+        'text-on-accent': 'var(--color-text-on-accent)',
+        /* Phase 3 — Semantic border states */
+        'border-hover': 'var(--color-border-hover)',
+        'border-pressed': 'var(--color-border-pressed)',
+        'border-focus': 'var(--color-border-focus)',
       },
 
       /* ─── Z-Index ───
@@ -287,12 +317,20 @@ export default {
          Usage: duration-micro, duration-fast, duration-base, etc. */
       transitionDuration: {
         'micro': 'var(--dur-micro)',
+        'instant': 'var(--dur-instant)',
+        'focus': 'var(--dur-focus)',
+        'hover': 'var(--dur-hover)',
+        'press': 'var(--dur-press)',
         'fast': 'var(--dur-fast)',
         'base': 'var(--dur-base)',
+        'enter': 'var(--dur-enter)',
+        'exit': 'var(--dur-exit)',
         'modal': 'var(--dur-modal)',
+        'layout': 'var(--dur-layout)',
         'page': 'var(--dur-page)',
         'slow': 'var(--dur-slow)',
         'normal': 'var(--duration-normal)',
+        'reduced': 'var(--dur-reduced)',
       },
 
       /* ─── Transition Timing / Easing ───
@@ -300,6 +338,9 @@ export default {
          Usage: ease-spring, ease-smooth, ease-out, etc. */
       transitionTimingFunction: {
         'spring': 'var(--ease-spring)',
+        'spring-gentle': 'var(--ease-spring-gentle)',
+        'spring-bouncy': 'var(--ease-spring-bouncy)',
+        'spring-snappy': 'var(--ease-spring-snappy)',
         'smooth': 'var(--ease-smooth)',
         'out': 'var(--ease-out)',
         'in-out': 'var(--ease-in-out)',
@@ -307,6 +348,7 @@ export default {
         'emphasized': 'var(--ease-emphasized)',
         'decelerate': 'var(--ease-decelerate)',
         'accelerate': 'var(--ease-accelerate)',
+        'reduced': 'var(--ease-reduced)',
       },
 
       /* ─── Backdrop Blur ───
@@ -321,6 +363,34 @@ export default {
         '2xl': 'var(--blur-2xl)',
         '3xl': 'var(--blur-3xl)',
         'glass': '16px',
+      },
+      /* ─── Phase 3 — Height Utilities ───
+         Maps --height-* tokens to Tailwind h-* utilities.
+         Usage: h-input, h-button, h-button-sm, h-chip, etc. */
+      height: {
+        'input': 'var(--height-input)',
+        'input-sm': 'var(--height-input-sm)',
+        'input-lg': 'var(--height-input-lg)',
+        'button': 'var(--height-button)',
+        'button-sm': 'var(--height-button-sm)',
+        'button-lg': 'var(--height-button-lg)',
+        'button-icon': 'var(--height-button-icon)',
+        'button-icon-sm': 'var(--height-button-icon-sm)',
+        'button-icon-lg': 'var(--height-button-icon-lg)',
+        'tab': 'var(--height-tab)',
+        'chip': 'var(--height-chip)',
+        'chip-sm': 'var(--height-chip-sm)',
+        'navbar': 'var(--nav-height)',
+        'header': 'var(--app-header-height)',
+        'row': 'var(--height-row)',
+        'row-compact': 'var(--height-row-compact)',
+        'row-comfortable': 'var(--height-row-comfortable)',
+      },
+
+      /* ─── Phase 3 — Min Height (touch targets) ─── */
+      minHeight: {
+        'touch': 'var(--touch-target-min)',
+        'touch-lg': 'var(--touch-target-comfortable)',
       },
     }
   },

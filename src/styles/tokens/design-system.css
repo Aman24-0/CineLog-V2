@@ -1,0 +1,632 @@
+/* src/styles/tokens/design-system.css — Phase 3: Cinematic Design System
+   =====================================================================
+
+   Premium design foundation for CineLog V2. Every future page inherits
+   this automatically via the token import chain.
+
+   Design direction:
+   - Premium, Modern, Editorial, Cinematic, Glassmorphism, Luxury, Minimal
+   - Deep charcoal background with subtle indigo/midnight ambient
+   - Frosted glass surfaces with warm gold hairline borders
+   - CineLog Gold (#E8B74A) ONLY as interactive accent
+   - Very subtle purple ambient lighting (atmosphere, not UI)
+   - Soft layered depth, elegant shadows, thin translucent borders
+   - Mobile-first, fast, readable
+
+   Architecture:
+   1. Color Hierarchy     — semantic color roles for every context
+   2. Background System   — layered backgrounds with subtle gradients
+   3. Glass System        — standardized glass variants (5 levels)
+   4. Elevation System    — 4-level visual hierarchy
+   5. Typography Roles    — semantic type scale (Display → Mono)
+   6. Component Metrics   — heights, icon sizes, touch targets
+   7. Motion Additions    — spring physics, choreography, reduced-motion
+
+   IMPORTANT: All tokens are ADDITIVE. No existing tokens are modified.
+   Existing components continue working without changes.
+   ===================================================================== */
+
+@layer base {
+  :root {
+    /* ==============================================================
+       1. COLOR HIERARCHY
+       Complete semantic color roles. Every color a component needs
+       has a single authoritative token.
+       ============================================================== */
+
+    /* ─── Background Colors ─── */
+    --color-bg-base: var(--void);
+    --color-bg-surface: var(--surface);
+    --color-bg-raised: var(--raised);
+    --color-bg-elevated: var(--tier-3);
+    --color-bg-glass: var(--glass-bg);
+    --color-bg-glass-strong: var(--glass-bg-strong);
+    --color-bg-overlay: rgba(0, 0, 0, 0.6);
+    --color-bg-backdrop: rgba(0, 0, 0, 0.4);
+
+    /* ─── Interactive State Colors ─── */
+    --color-bg-hover: color-mix(in srgb, var(--text-body) 6%, transparent);
+    --color-bg-pressed: color-mix(in srgb, var(--text-body) 10%, transparent);
+    --color-bg-accent-hover: var(--p-hover);
+    --color-bg-accent-pressed: color-mix(in srgb, var(--p) 20%, transparent);
+
+    /* ─── Border State Colors ─── */
+    --color-border-hover: var(--hairline-3);
+    --color-border-pressed: color-mix(in srgb, var(--text-body) 18%, transparent);
+    --color-border-focus: var(--p);
+    --color-border-focus-ring: var(--p);
+
+    /* ─── Text State Colors ─── */
+    --color-text-primary: var(--text-strong);
+    --color-text-secondary: var(--text-body);
+    --color-text-tertiary: var(--text-soft);
+    --color-text-placeholder: var(--text-dim);
+    --color-text-accent: var(--p);
+    --color-text-inverse: var(--active-text);
+    --color-text-link: var(--p);
+    --color-text-link-hover: color-mix(in srgb, var(--p) 80%, var(--text-strong));
+    --color-text-disabled: var(--text-dim);
+    --color-text-on-accent: var(--active-text);
+    --color-text-on-danger: #ffffff;
+    --color-text-on-success: #0a0a0a;
+
+    /* ─── Accent State Colors ─── */
+    --color-accent: var(--p);
+    --color-accent-secondary: var(--p2);
+    --color-accent-glow: var(--p-glow);
+    --color-accent-dim: var(--p-dim);
+    --color-accent-border: var(--p-border);
+    --color-accent-hover: var(--p-hover);
+    --color-accent-subtle: color-mix(in srgb, var(--p) 8%, transparent);
+
+    /* ==============================================================
+       2. BACKGROUND SYSTEM
+       Layered backgrounds with subtle gradients for depth.
+       Each context gets its own background token.
+       ============================================================== */
+
+    /* ─── Ambient Gradient ───
+       Subtle indigo-to-purple radial gradient for page atmosphere.
+       Separated from accent (--p-glow) which is gold.
+       This is the BACKGROUND mood, not interactive color. */
+    --ambient-color-start: rgba(30, 27, 75, 0.15);
+    --ambient-color-mid: rgba(45, 20, 62, 0.08);
+    --ambient-color-end: transparent;
+    --ambient-opacity: 0.6;
+    --ambient-size: 120vw;
+    --ambient-position: 50% -10%;
+
+    /* ─── Page Backgrounds ─── */
+    --bg-page: var(--void);
+    --bg-page-gradient:
+      radial-gradient(
+        ellipse at 50% 0%,
+        var(--ambient-color-start) 0%,
+        var(--ambient-color-mid) 40%,
+        var(--ambient-color-end) 70%
+      ),
+      var(--void);
+
+    /* ─── Modal Background ─── */
+    --bg-modal-surface: var(--glass-bg-strong);
+    --bg-modal-backdrop: rgba(0, 0, 0, 0.7);
+
+    /* ─── Sheet Background (bottom sheet) ─── */
+    --bg-sheet-surface: var(--glass-bg-strong);
+    --bg-sheet-backdrop: rgba(0, 0, 0, 0.5);
+    --bg-sheet-handle: rgba(255, 255, 255, 0.12);
+
+    /* ─── Hero Background ─── */
+    --bg-hero-base: var(--tier-0);
+    --bg-hero-gradient: linear-gradient(
+      180deg,
+      transparent 0%,
+      var(--tier-0) 100%
+    );
+    --bg-hero-overlay: linear-gradient(
+      180deg,
+      rgba(10, 10, 10, 0.3) 0%,
+      rgba(10, 10, 10, 0.95) 100%
+    );
+
+    /* ─── Sidebar Background ─── */
+    --bg-sidebar: var(--tier-1);
+    --bg-sidebar-hover: var(--color-bg-hover);
+    --bg-sidebar-active: var(--color-bg-accent-hover);
+
+    /* ─── Desktop Workspace Background ─── */
+    --bg-workspace: var(--void);
+    --bg-workspace-panel: var(--tier-1);
+
+    /* ─── Card Backgrounds ─── */
+    --bg-card: var(--surface);
+    --bg-card-hover: var(--tier-2);
+    --bg-card-glass: var(--glass-bg);
+
+    /* ─── Input Backgrounds ─── */
+    --bg-input: var(--tier-1);
+    --bg-input-focus: var(--tier-2);
+    --bg-input-disabled: var(--tier-0);
+
+    /* ─── Dropdown Background ─── */
+    --bg-dropdown: var(--glass-bg-strong);
+    --bg-dropdown-hover: var(--color-bg-hover);
+    --bg-dropdown-active: var(--color-bg-accent-hover);
+
+    /* ==============================================================
+       3. GLASS SYSTEM
+       Five standardized glass variants. Every glass component
+       references ONE of these, ensuring visual consistency.
+
+       Each variant defines: background, blur, border, shadow.
+       Components compose these via Tailwind classes or CSS.
+       ============================================================== */
+
+    /* ─── Glass Variant: Subtle ───
+       Lightest glass. For large background panels, ambient overlays,
+       non-interactive backdrop fills. Barely visible frost. */
+    --glass-subtle-bg: rgba(15, 15, 22, 0.4);
+    --glass-subtle-blur: var(--blur-md);
+    --glass-subtle-border: var(--hairline);
+    --glass-subtle-shadow: var(--shadow-xs);
+    --glass-subtle-saturate: 120%;
+
+    /* ─── Glass Variant: Default ───
+       Standard glass. For cards, list items, content panels.
+       The workhorse glass level. */
+    --glass-default-bg: var(--glass-bg);
+    --glass-default-blur: var(--blur-xl);
+    --glass-default-border: var(--glass-border);
+    --glass-default-shadow: var(--shadow-sm);
+    --glass-default-saturate: 150%;
+
+    /* ─── Glass Variant: Medium ───
+       Stronger glass. For headers, navigation, toolbars.
+       More legible over complex backgrounds. */
+    --glass-medium-bg: rgba(13, 13, 20, 0.82);
+    --glass-medium-blur: var(--blur-2xl);
+    --glass-medium-border: var(--hairline-2);
+    --glass-medium-shadow: var(--shadow-md);
+    --glass-medium-saturate: 160%;
+
+    /* ─── Glass Variant: Strong ───
+       Heavy glass. For modals, sheets, dialogs, popovers.
+       Near-opaque for maximum content legibility. */
+    --glass-strong-bg: var(--glass-bg-strong);
+    --glass-strong-blur: var(--blur-2xl);
+    --glass-strong-border: var(--hairline-3);
+    --glass-strong-shadow: var(--shadow-premium);
+    --glass-strong-saturate: 170%;
+
+    /* ─── Glass Variant: Heavy ───
+       Nearly opaque. For critical UI: search bars, input fields,
+       toast containers, floating elements. */
+    --glass-heavy-bg: rgba(10, 10, 16, 0.94);
+    --glass-heavy-blur: var(--blur-3xl);
+    --glass-heavy-border: var(--hairline-2);
+    --glass-heavy-shadow: var(--shadow-elevated);
+    --glass-heavy-saturate: 180%;
+
+    /* ─── Glass Shared Tokens ───
+       Used by glass-system.css for the golden highlight effect. */
+    --glass-highlight: inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    --glass-highlight-hover: inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    --glass-inner-glow: inset 0 0 20px rgba(232, 183, 74, 0.03);
+
+    /* ==============================================================
+       4. ELEVATION SYSTEM
+       Four levels of visual hierarchy. Each level bundles:
+       background, backdrop-blur, border, box-shadow, and z-index.
+
+       Level 0: Flat — inline content, text, dividers
+       Level 1: Raised — cards, list items, input fields
+       Level 2: Floating — dropdowns, popovers, tooltips, search
+       Level 3: Overlay — modals, sheets, dialogs
+       ============================================================== */
+
+    /* ─── Elevation Level 0: Flat ───
+       Base level. No shadow, no blur. Content sits directly
+       on the surface. Dividers, text blocks, inline elements. */
+    --elevation-0-bg: transparent;
+    --elevation-0-blur: 0px;
+    --elevation-0-border: transparent;
+    --elevation-0-shadow: none;
+    --elevation-0-z: var(--z-base);
+
+    /* ─── Elevation Level 1: Raised ───
+       Cards, list items, input fields. Subtle lift from surface.
+       Uses glass-subtle or glass-default depending on context. */
+    --elevation-1-bg: var(--glass-subtle-bg);
+    --elevation-1-blur: var(--glass-subtle-blur);
+    --elevation-1-border: var(--glass-subtle-border);
+    --elevation-1-shadow: var(--shadow-sm);
+    --elevation-1-z: var(--z-content);
+    /* Composite shadow for elevation 1 */
+    --elevation-1-shadow-composite:
+      var(--elevation-1-shadow),
+      var(--glass-highlight);
+
+    /* ─── Elevation Level 2: Floating ───
+       Dropdowns, popovers, tooltips, search bars, sticky headers.
+       Clearly separated from content beneath. */
+    --elevation-2-bg: var(--glass-medium-bg);
+    --elevation-2-blur: var(--glass-medium-blur);
+    --elevation-2-border: var(--glass-medium-border);
+    --elevation-2-shadow: var(--shadow-md);
+    --elevation-2-z: var(--z-dropdown);
+    /* Composite shadow for elevation 2 */
+    --elevation-2-shadow-composite:
+      var(--elevation-2-shadow),
+      var(--glass-highlight);
+
+    /* ─── Elevation Level 3: Overlay ───
+       Modals, sheets, dialogs. Highest separation. Demands full
+       user attention. Blocks interaction with content beneath. */
+    --elevation-3-bg: var(--glass-strong-bg);
+    --elevation-3-blur: var(--glass-strong-blur);
+    --elevation-3-border: var(--glass-strong-border);
+    --elevation-3-shadow: var(--shadow-elevated);
+    --elevation-3-z: var(--z-modal);
+    /* Composite shadow for elevation 3 */
+    --elevation-3-shadow-composite:
+      var(--elevation-3-shadow),
+      var(--glass-highlight-hover),
+      0 0 0 1px var(--hairline);
+
+    /* ─── Elevation Utility: Backdrop ───
+       The semi-transparent overlay behind modals/sheets. */
+    --elevation-backdrop-bg: var(--bg-modal-backdrop);
+    --elevation-backdrop-blur: 4px;
+    --elevation-backdrop-z: var(--z-overlay-high);
+
+    /* ==============================================================
+       5. TYPOGRAPHY ROLES
+       Semantic type scale. Each role maps to specific tokens from
+       typography.css. Components reference roles, not raw tokens.
+
+       The existing --font-size-* scale is very compact (base = 11px)
+       which is intentional for the mobile-first cinema UI.
+       These roles provide semantic naming on top of that scale.
+       ============================================================== */
+
+    /* ─── Display ───
+       Largest text. Page titles, hero headlines, stat numbers.
+       Uses Bebas Neue for cinematic impact. */
+    --type-display-family: var(--font-family-display);
+    --type-display-size: var(--font-size-12xl);
+    --type-display-weight: var(--font-weight-black);
+    --type-display-line-height: var(--line-height-none);
+    --type-display-letter-spacing: var(--letter-spacing-wider-2);
+    --type-display-color: var(--text-strong);
+
+    /* ─── Hero ───
+       Hero section headlines, featured content titles.
+       Large but not as impactful as display. */
+    --type-hero-family: var(--font-family-display);
+    --type-hero-size: var(--font-size-10xl);
+    --type-hero-weight: var(--font-weight-black);
+    --type-hero-line-height: var(--line-height-none);
+    --type-hero-letter-spacing: var(--letter-spacing-wider);
+    --type-hero-color: var(--text-strong);
+
+    /* ─── Heading ───
+       Section headings, page subtitles, column headers.
+       Outfit bold for clear hierarchy. */
+    --type-heading-family: var(--font-family-heading);
+    --type-heading-size: var(--font-size-5xl);
+    --type-heading-weight: var(--font-weight-bold);
+    --type-heading-line-height: var(--line-height-tight);
+    --type-heading-letter-spacing: var(--letter-spacing-tight);
+    --type-heading-color: var(--text-strong);
+
+    /* ─── Title ───
+       Card titles, item names, row headers.
+       The workhorse heading level. */
+    --type-title-family: var(--font-family-heading);
+    --type-title-size: var(--font-size-4xl);
+    --type-title-weight: var(--font-weight-semibold);
+    --type-title-line-height: var(--line-height-snug);
+    --type-title-letter-spacing: var(--letter-spacing-tight);
+    --type-title-color: var(--text-strong);
+
+    /* ─── Subtitle ───
+       Secondary titles, metadata groupings, section descriptions. */
+    --type-subtitle-family: var(--font-family-heading);
+    --type-subtitle-size: var(--font-size-2xl);
+    --type-subtitle-weight: var(--font-weight-semibold);
+    --type-subtitle-line-height: var(--line-height-normal);
+    --type-subtitle-letter-spacing: var(--letter-spacing-normal);
+    --type-subtitle-color: var(--text-body);
+
+    /* ─── Body ───
+       Primary reading text, descriptions, paragraphs.
+       Optimized for readability. */
+    --type-body-family: var(--font-family-body);
+    --type-body-size: var(--font-size-4xl);
+    --type-body-weight: var(--font-weight-regular);
+    --type-body-line-height: var(--line-height-normal);
+    --type-body-letter-spacing: var(--letter-spacing-normal);
+    --type-body-color: var(--text-body);
+
+    /* ─── Body Small ───
+       Secondary reading text, helper text, descriptions. */
+    --type-body-sm-family: var(--font-family-body);
+    --type-body-sm-size: var(--font-size-2xl);
+    --type-body-sm-weight: var(--font-weight-regular);
+    --type-body-sm-line-height: var(--line-height-normal);
+    --type-body-sm-letter-spacing: var(--letter-spacing-normal);
+    --type-body-sm-color: var(--text-soft);
+
+    /* ─── Caption ───
+       Small annotations, timestamps, tertiary info.
+       Lighter weight for visual de-emphasis. */
+    --type-caption-family: var(--font-family-body);
+    --type-caption-size: var(--font-size-xl);
+    --type-caption-weight: var(--font-weight-regular);
+    --type-caption-line-height: var(--line-height-normal);
+    --type-caption-letter-spacing: var(--letter-spacing-wide);
+    --type-caption-color: var(--text-muted);
+
+    /* ─── Label ───
+       Form labels, section eyebrows, category tags.
+       Azeret Mono for data/code feel. Uppercased and tracked. */
+    --type-label-family: var(--font-family-label);
+    --type-label-size: var(--font-size-sm);
+    --type-label-weight: var(--font-weight-bold);
+    --type-label-line-height: var(--line-height-normal);
+    --type-label-letter-spacing: var(--letter-spacing-label);
+    --type-label-color: var(--text-muted);
+
+    /* ─── Label Small ───
+       Smaller labels, badge text, chip text. */
+    --type-label-sm-family: var(--font-family-label);
+    --type-label-sm-size: var(--font-size-xs);
+    --type-label-sm-weight: var(--font-weight-bold);
+    --type-label-sm-line-height: var(--line-height-normal);
+    --type-label-sm-letter-spacing: var(--letter-spacing-label-wide);
+    --type-label-sm-color: var(--text-dim);
+
+    /* ─── Mono ───
+       Data values, code, technical readouts.
+       Azeret Mono, no text-transform. */
+    --type-mono-family: var(--font-family-mono);
+    --type-mono-size: var(--font-size-2xl);
+    --type-mono-weight: var(--font-weight-medium);
+    --type-mono-line-height: var(--line-height-normal);
+    --type-mono-letter-spacing: var(--letter-spacing-normal);
+    --type-mono-color: var(--text-soft);
+
+    /* ─── Button ───
+       Button text. Bold, tracked, uppercased for impact. */
+    --type-button-family: var(--font-family-body);
+    --type-button-size: var(--font-size-lg);
+    --type-button-weight: var(--font-weight-extrabold);
+    --type-button-line-height: var(--line-height-none);
+    --type-button-letter-spacing: var(--letter-spacing-label);
+    --type-button-color: var(--active-text);
+
+    /* ─── Overline ───
+       Section eyebrows, category headers above content.
+       Mono, uppercased, wide-tracked — the "label above a section" pattern. */
+    --type-overline-family: var(--font-family-label);
+    --type-overline-size: var(--font-size-sm);
+    --type-overline-weight: var(--font-weight-bold);
+    --type-overline-line-height: var(--line-height-normal);
+    --type-overline-letter-spacing: var(--letter-spacing-eyebrow);
+    --type-overline-color: var(--p);
+
+    /* ==============================================================
+       6. COMPONENT METRICS
+       Standardized dimensions for consistent component sizing.
+       ============================================================== */
+
+    /* ─── Component Heights ─── */
+    --height-input: 40px;
+    --height-input-sm: 32px;
+    --height-input-lg: 48px;
+    --height-button: 40px;
+    --height-button-sm: 32px;
+    --height-button-lg: 48px;
+    --height-button-icon: 40px;
+    --height-button-icon-sm: 32px;
+    --height-button-icon-lg: 48px;
+    --height-tab: 36px;
+    --height-chip: 28px;
+    --height-chip-sm: 24px;
+    --height-navbar: var(--nav-height);
+    --height-header: var(--app-header-height);
+    --height-row: 48px;
+    --height-row-compact: 40px;
+    --height-row-comfortable: 56px;
+
+    /* ─── Icon Sizes ─── */
+    --icon-xs: 14px;
+    --icon-sm: 16px;
+    --icon-md: 20px;
+    --icon-lg: 24px;
+    --icon-xl: 32px;
+    --icon-2xl: 40px;
+
+    /* ─── Touch Targets ─── */
+    --touch-target-min: 44px;
+    --touch-target-comfortable: 48px;
+
+    /* ─── Poster / Image Sizes ─── */
+    --poster-width: 120px;
+    --poster-height: 180px;
+    --poster-width-sm: 92px;
+    --poster-height-sm: 138px;
+    --poster-radius: var(--radius-card);
+
+    /* ─── Avatar Sizes ─── */
+    --avatar-xs: 24px;
+    --avatar-sm: 32px;
+    --avatar-md: 40px;
+    --avatar-lg: 56px;
+    --avatar-xl: 80px;
+
+    /* ==============================================================
+       7. MOTION ADDITIONS
+       Spring physics, choreography patterns, and reduced-motion
+       fallbacks. Extends the existing motion.css tokens.
+       ============================================================== */
+
+    /* ─── Spring Physics ───
+       For CSS spring-like motion where Web Animations API springs
+       aren't available. These are easing curves that approximate
+       spring behavior. */
+    --ease-spring-gentle: cubic-bezier(0.22, 1.2, 0.36, 1);
+    --ease-spring-bouncy: cubic-bezier(0.34, 1.56, 0.64, 1);
+    --ease-spring-snappy: cubic-bezier(0.15, 1.8, 0.4, 1);
+
+    /* ─── Duration Scale Extensions ─── */
+    --dur-instant: 50ms;
+    --dur-focus: 120ms;
+    --dur-hover: 180ms;
+    --dur-press: 100ms;
+    --dur-enter: 300ms;
+    --dur-exit: 200ms;
+    --dur-layout: 400ms;
+
+    /* ─── Choreography Tokens ───
+       For coordinated multi-element animations. */
+    --stagger-item: 40ms;
+    --stagger-list: 50ms;
+    --stagger-grid: 30ms;
+    --stagger-cascade: 60ms;
+    --stagger-orchestral: 80ms;
+
+    /* ─── Reduced Motion Fallbacks ───
+       When reduced motion is active, transitions use these
+       near-instant durations instead of the normal ones.
+       120ms is the accessibility minimum for perceiving state changes. */
+    --dur-reduced: 120ms;
+    --dur-reduced-enter: 80ms;
+    --dur-reduced-exit: 60ms;
+    --ease-reduced: cubic-bezier(0, 0, 0.2, 1);
+
+    /* ─── Transition Presets ───
+       Common transition shorthands for component authors. */
+    --transition-fast: var(--dur-fast) var(--ease-out);
+    --transition-base: var(--dur-base) var(--ease-smooth);
+    --transition-modal: var(--dur-modal) var(--ease-smooth);
+    --transition-page: var(--dur-page) var(--ease-smooth);
+    --transition-slow: var(--dur-slow) var(--ease-out);
+    --transition-spring: var(--dur-base) var(--ease-spring);
+    --transition-focus: var(--dur-focus) var(--ease-out);
+
+    /* ─── Animation Presets ───
+       Complete animation shorthand tokens. */
+    --animate-fade: fadeIn var(--dur-base) ease-out both;
+    --animate-fade-up: fadeUp var(--dur-page) var(--ease-smooth) both;
+    --animate-slide-up: slideUp var(--dur-page) var(--ease-smooth) both;
+    --animate-pop: popIn var(--dur-modal) var(--ease-smooth) both;
+    --animate-scale: scaleIn var(--dur-modal) ease-out both;
+    --animate-shimmer: shimmer 1.8s ease-in-out infinite;
+  }
+}
+
+/* ==============================================================
+   LIGHT MODE OVERRIDES — Design System Tokens
+   =============================================================
+   Extends the Cinema Cream palette from preferences.css
+   with the new Phase 3 tokens. */
+
+:root[data-theme-resolved="light"] {
+  /* ─── Background System — Light ─── */
+  --ambient-color-start: rgba(100, 90, 140, 0.06);
+  --ambient-color-mid: rgba(120, 80, 120, 0.03);
+  --ambient-opacity: 0.4;
+
+  --bg-page-gradient:
+    radial-gradient(
+      ellipse at 50% 0%,
+      var(--ambient-color-start) 0%,
+      var(--ambient-color-mid) 40%,
+      var(--ambient-color-end) 70%
+    ),
+    var(--void);
+
+  --bg-modal-backdrop: rgba(0, 0, 0, 0.4);
+  --bg-sheet-backdrop: rgba(0, 0, 0, 0.3);
+  --bg-sheet-handle: rgba(28, 24, 21, 0.2);
+
+  --bg-sidebar: var(--tier-1);
+  --bg-sidebar-hover: rgba(28, 24, 21, 0.04);
+  --bg-sidebar-active: rgba(28, 24, 21, 0.08);
+
+  --bg-input: var(--tier-1);
+  --bg-input-focus: var(--tier-2);
+  --bg-input-disabled: var(--tier-0);
+
+  --bg-dropdown: rgba(255, 253, 248, 0.94);
+  --bg-dropdown-hover: rgba(28, 24, 21, 0.04);
+  --bg-dropdown-active: rgba(28, 24, 21, 0.08);
+
+  /* ─── Interactive States — Light ─── */
+  --color-bg-hover: rgba(28, 24, 21, 0.04);
+  --color-bg-pressed: rgba(28, 24, 21, 0.08);
+
+  /* ─── Glass System — Light ─── */
+  --glass-subtle-bg: rgba(255, 253, 248, 0.5);
+  --glass-default-bg: var(--glass-bg);
+  --glass-medium-bg: rgba(255, 253, 248, 0.88);
+  --glass-strong-bg: var(--glass-bg-strong);
+  --glass-heavy-bg: rgba(255, 253, 248, 0.96);
+
+  --glass-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.5);
+  --glass-highlight-hover: inset 0 1px 0 rgba(255, 255, 255, 0.7);
+  --glass-inner-glow: none;
+
+  /* ─── Elevation — Light ─── */
+  --elevation-1-shadow: 0 1px 3px rgba(60, 50, 30, 0.06), 0 4px 12px rgba(60, 50, 30, 0.04);
+  --elevation-2-shadow: 0 4px 12px rgba(60, 50, 30, 0.08), 0 8px 24px rgba(60, 50, 30, 0.06);
+  --elevation-3-shadow: 0 8px 24px rgba(60, 50, 30, 0.1), 0 16px 48px rgba(60, 50, 30, 0.08);
+
+  /* ─── Typography — Light ─── */
+  --type-display-color: #1a1714;
+  --type-hero-color: #1a1714;
+  --type-heading-color: #1a1714;
+  --type-title-color: #2c2823;
+  --type-body-color: #2c2823;
+  --type-body-sm-color: rgba(44, 40, 35, 0.72);
+  --type-caption-color: rgba(44, 40, 35, 0.58);
+  --type-label-color: rgba(44, 40, 35, 0.58);
+  --type-label-sm-color: rgba(44, 40, 35, 0.5);
+  --type-mono-color: rgba(44, 40, 35, 0.65);
+  --type-overline-color: var(--p);
+}
+
+/* ==============================================================
+   HIGH CONTRAST OVERRIDES — Design System Tokens
+   ============================================================== */
+
+:root[data-high-contrast="true"] {
+  --color-bg-hover: rgba(255, 255, 255, 0.08);
+  --color-bg-pressed: rgba(255, 255, 255, 0.14);
+
+  --color-border-hover: rgba(255, 255, 255, 0.28);
+  --color-border-pressed: rgba(255, 255, 255, 0.4);
+
+  --glass-subtle-border: rgba(255, 255, 255, 0.14);
+  --glass-default-border: rgba(255, 255, 255, 0.2);
+
+  --elevation-1-shadow: 0 1px 3px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.5);
+  --elevation-2-shadow: 0 4px 12px rgba(0, 0, 0, 0.7), 0 8px 24px rgba(0, 0, 0, 0.6);
+  --elevation-3-shadow: 0 8px 24px rgba(0, 0, 0, 0.8), 0 16px 48px rgba(0, 0, 0, 0.7);
+}
+
+:root[data-high-contrast="true"][data-theme-resolved="light"] {
+  --color-bg-hover: rgba(0, 0, 0, 0.06);
+  --color-bg-pressed: rgba(0, 0, 0, 0.12);
+
+  --color-border-hover: rgba(28, 24, 21, 0.32);
+  --color-border-pressed: rgba(28, 24, 21, 0.48);
+
+  --glass-subtle-border: rgba(28, 24, 21, 0.22);
+  --glass-default-border: rgba(28, 24, 21, 0.32);
+
+  --elevation-1-shadow: 0 1px 3px rgba(28, 24, 21, 0.12), 0 4px 12px rgba(28, 24, 21, 0.08);
+  --elevation-2-shadow: 0 4px 12px rgba(28, 24, 21, 0.16), 0 8px 24px rgba(28, 24, 21, 0.12);
+  --elevation-3-shadow: 0 8px 24px rgba(28, 24, 21, 0.2), 0 16px 48px rgba(28, 24, 21, 0.16);
+}
