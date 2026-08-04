@@ -118,6 +118,14 @@ export function collectionRowToCollection(
   const archivedAt =
     (row as CollectionRow & { archived_at?: string | null }).archived_at ??
     null;
+  // Phase 4 Task 1: read the persisted smart-collection rules from the
+  // `rules` JSONB column. NULL for non-smart collections; a JSON-serialised
+  // SmartRule[] for smart collections. We cast through unknown because the
+  // DB column is Json (untyped) but the app expects SmartRule[].
+  const rawRules = row.rules ?? null;
+  const smartRules = Array.isArray(rawRules)
+    ? (rawRules as unknown as Collection["smartRules"])
+    : undefined;
   return {
     id: row.id,
     name: row.name,
@@ -133,13 +141,12 @@ export function collectionRowToCollection(
     isArchived: archivedAt !== null,
     sortOrder: row.sort_mode as Collection["sortOrder"] | undefined,
     entries,
-    // Smart collection support — smartRules are not stored in the
-    // collections table (no column). Smart collections are identified
-    // by collection_type = "smart" but the rules themselves would need
-    // a dedicated column or JSONB field. For now, smart collections
-    // created via the UI will have collection_type = "smart" but no
-    // persisted rules — the UI treats them as empty user collections.
+    // Smart collection support — Phase 4 Task 1 added the `rules` JSONB
+    // column to the collections table. Smart collections are identified
+    // by collection_type = "smart"; the rules are persisted in `rules`
+    // and hydrated here so the UI can re-evaluate them on load.
     isSmart: row.collection_type === "smart",
+    smartRules,
     // isFavorites is not a column in the Supabase schema — the Favorites
     // folder is identified by name ("Favorites") in the app. The UI
     // sorts by isFavorites, so we set it based on the name.

@@ -10,12 +10,11 @@
 //   - tmdb_id        (TMDB movie or TV id — display metadata is fetched
 //                     from TMDB on demand, never stored)
 //   - media_type     ('movie' | 'tv')
-//   - position       (default sort order — admin's primary ordering)
-//   - release_position (sort by theatrical release date)
-//   - story_position   (sort by in-universe story chronology)
-//   - timeline_position (sort by in-universe timeline — same as story
-//                       for most franchises, distinct for time-travel
-//                       franchises like Endgame/X-Men)
+//   - position       (admin's primary manual ordering — only position
+//                     column remaining after Phase 4 Task 6 dropped the
+//                     legacy release_position / story_position /
+//                     timeline_position columns)
+//   - incident_year  (in-universe year of incident — drives Storyline sort)
 //   - note           (admin note shown in admin UI only)
 //
 // Endpoints:
@@ -42,9 +41,6 @@ interface EntryInput {
   tmdb_id?: number | string;
   media_type?: "movie" | "tv";
   position?: number;
-  release_position?: number;
-  story_position?: number;
-  timeline_position?: number;
   /** In-universe year of incident (drives Storyline sort). NULL = unknown. */
   incident_year?: number | null;
   note?: string | null;
@@ -133,15 +129,12 @@ export async function POST(event: APIEvent) {
 
     // 3. Insert.
     //    incident_year is optional — NULL means unknown (Storyline sort
-    //    falls back to story_position).
+    //    falls back to position).
     const insert: Record<string, unknown> = {
       universe_id: body.universe_id,
       tmdb_id: tmdbId,
       media_type: body.media_type,
       position,
-      release_position: toInt(body.release_position) ?? position,
-      story_position: toInt(body.story_position) ?? position,
-      timeline_position: toInt(body.timeline_position) ?? position,
       incident_year:
         body.incident_year === undefined
           ? null
@@ -206,18 +199,6 @@ export async function PATCH(event: APIEvent) {
     if (body.position !== undefined) {
       const p = toInt(body.position);
       if (p !== undefined) update.position = p;
-    }
-    if (body.release_position !== undefined) {
-      const p = toInt(body.release_position);
-      if (p !== undefined) update.release_position = p;
-    }
-    if (body.story_position !== undefined) {
-      const p = toInt(body.story_position);
-      if (p !== undefined) update.story_position = p;
-    }
-    if (body.timeline_position !== undefined) {
-      const p = toInt(body.timeline_position);
-      if (p !== undefined) update.timeline_position = p;
     }
     if (body.incident_year !== undefined) {
       // Allow null to clear the year; otherwise coerce to int.

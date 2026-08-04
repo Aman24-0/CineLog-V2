@@ -51,20 +51,24 @@ export const UNIVERSE_DISCOVER_COLUMNS =
 /**
  * Compact column list for curated_universe_entries rows.
  *
- * Includes `incident_year` (added in migration 20260725) so the
- * consumer collection detail page can render the storyline sort
- * using the admin-set in-universe year. The column is NULL for
- * entries created before the migration — the adapter handles this
- * by falling back to `story_position`.
+ * Phase 4 Task 6 dropped the legacy `timeline_position`,
+ * `release_position`, and `story_position` columns — only `position`
+ * and `incident_year` remain. The storyline / release / timeline
+ * sort modes now derive their order from `incident_year` and the
+ * TMDB `release_date` (fetched separately), with `position` as the
+ * admin's primary manual order.
  */
 export const UNIVERSE_ENTRY_DISCOVER_COLUMNS =
-  "id,universe_id,tmdb_id,media_type,position,timeline_position,release_position,story_position,incident_year,note,created_at" as const;
+  "id,universe_id,tmdb_id,media_type,position,incident_year,note,created_at" as const;
 
 /**
  * Compact column list for user_universe_subscriptions rows.
+ *
+ * Phase 4 Task 2 added `is_hidden` — included here so the discover
+ * page can exclude hidden universes from the default feed.
  */
 export const SUBSCRIPTION_DISCOVER_COLUMNS =
-  "id,user_id,universe_id,is_pinned,custom_cover,custom_banner,custom_color,custom_sort,created_at,updated_at" as const;
+  "id,user_id,universe_id,is_pinned,is_hidden,custom_cover,custom_banner,custom_color,custom_sort,created_at,updated_at" as const;
 
 // ---------------------------------------------------------------------------
 // Typed client accessor

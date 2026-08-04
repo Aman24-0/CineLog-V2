@@ -55,6 +55,68 @@ export interface UserLibrary {
 }
 
 // ---------------------------------------------------------------------------
+// Deep-merge helper (Phase 4 Task 9a)
+// ---------------------------------------------------------------------------
+
+/**
+ * Returns true if `v` is a plain object (not an array, not null, not a
+ * class instance). Used to decide whether to deep-merge a field.
+ *
+ * We check the prototype is either `Object.prototype` or `null`
+ * (Object.create(null)). This correctly excludes Date, Array, Map,
+ * Set, class instances, etc.
+ */
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (v === null || typeof v !== "object") return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Deep-merge a partial update into an existing WatchlistItem.
+ *
+ * Phase 4 Task 9a: top-level primitive fields are shallow-merged (the
+ * update's value wins). Top-level plain-object fields (like `watchProgress`,
+ * `seasonDates`, `franchises`) are deep-merged one level — the update's
+ * keys overwrite the existing item's keys, but keys absent from the
+ * update are preserved.
+ *
+ * Arrays, Dates, and non-plain-object values are replaced wholesale
+ * (correct for `tags`, `genres`, `credits`, `addedAt` when it's a Date, etc.).
+ *
+ * @param item    The existing watchlist item (immutable — not mutated).
+ * @param update  The partial update to apply.
+ * @returns A new WatchlistItem with the update applied.
+ */
+function deepMergeItem(
+  item: WatchlistItem,
+  update: Partial<WatchlistItem>
+): WatchlistItem {
+  // We work with a loosely-typed record internally so we can assign
+  // merged plain-object values without TypeScript narrowing each key
+  // to `never` (which happens when you try to assign a union-spread
+  // back to a keyed property on a concrete interface). The cast back
+  // to WatchlistItem at the end is safe because we only ever:
+  //   1. Copy existing fields from `item` (already valid WatchlistItem).
+  //   2. Overwrite with fields from `update` (Partial<WatchlistItem>).
+  //   3. Deep-merge plain-object fields (spreads two plain objects →
+  //      structurally compatible with the original field type).
+  const merged: Record<string, unknown> = { ...(item as unknown as Record<string, unknown>) };
+  for (const key of Object.keys(update)) {
+    const updateVal = (update as unknown as Record<string, unknown>)[key];
+    const existingVal = (item as unknown as Record<string, unknown>)[key];
+    // Both values are plain objects → merge one level deep.
+    if (isPlainObject(updateVal) && isPlainObject(existingVal)) {
+      merged[key] = { ...existingVal, ...updateVal };
+    } else {
+      // Primitive, array, Date, or mixed → replace wholesale.
+      merged[key] = updateVal;
+    }
+  }
+  return merged as unknown as WatchlistItem;
+}
+
+// ---------------------------------------------------------------------------
 // Context
 // ---------------------------------------------------------------------------
 
@@ -188,18 +250,29 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   });
 
   /**
-   * Optimistic local update: merge partial fields into a single item.
+   * Deep-merge a partial update into a single item.
    *
-   * Creates a new array (so SolidJS detects the change) but only the
-   * affected item is shallow-merged — all other items keep their original
-   * reference, so SolidJS's keyed <For> skips re-rendering them.
+   * Phase 4 Task 9a: previously this used a shallow merge (`{ ...item, ...update }`),
+   * which meant updating a nested field like `watchProgress` would REPLACE the
+   * entire `watchProgress` object — losing sibling fields. For example, calling
+   * `updateItem(id, { watchProgress: { currentTime: 120 } })` would wipe
+   * `duration`, `season`, `episode`, and `server` from the existing
+   * `watchProgress`.
+   *
+   * The fix deep-merges plain-object fields (one level deep — enough for
+   * `watchProgress`, `addedAt`, `seasonDates`, `franchises`, and any other
+   * nested record). Arrays and non-plain-object values are replaced
+   * wholesale (correct for `tags`, `genres`, `credits`, etc.).
+   *
+   * Top-level primitive fields (status, rating, etc.) are still shallow-
+   * merged — only plain-object fields get the deep-merge treatment.
    */
   const updateItem = (itemId: string, update: Partial<WatchlistItem>) => {
     setWatchlist((prev) => {
       const idx = prev.findIndex((m) => m.id === itemId);
       if (idx < 0) return prev; // not found — no change
       const next = [...prev];
-      next[idx] = { ...next[idx], ...update };
+      next[idx] = deepMergeItem(next[idx], update);
       return next;
     });
   };

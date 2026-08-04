@@ -133,12 +133,18 @@ export function curatedEntryRowToCollectionEntry(
     release_date: tmdb?.release_date,
     first_air_date: tmdb?.first_air_date,
     // Sort indices from the DB:
+    // Phase 4 Task 6 dropped the legacy story_position / release_position /
+    // timeline_position columns. The storyline / release / timeline sort
+    // modes now derive their order from `incident_year` (below) and the
+    // TMDB `release_date`, with `position` as the admin's primary order.
+    // The `storyOrder` / `releaseOrder` fields on CollectionEntry are kept
+    // for backwards-compat with the type, but fall back to `position`.
     order: row.position,
-    storyOrder: row.story_position,
-    releaseOrder: row.release_position,
+    storyOrder: row.position,
+    releaseOrder: row.position,
     // In-universe "year of incident" set by the admin (e.g. 1943 for
     // Captain America: The First Avenger). Drives the Storyline sort.
-    // NULL means unknown — the consumer falls back to storyOrder.
+    // NULL means unknown — the consumer falls back to `position`.
     incidentYear: row.incident_year ?? undefined,
     // Franchise group derived from the title (e.g. "Captain America: The
     // First Avenger" → "Captain America"). Used by the "Franchise" view

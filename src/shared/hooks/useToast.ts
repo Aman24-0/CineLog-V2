@@ -35,6 +35,27 @@ const DEFAULT_DURATION: Record<ToastType, number> = {
 
 const MAX_TOASTS = 3;
 
+/**
+ * Phase 4 Task 9b — Deduplication window.
+ *
+ * If the same (msg, type) pair is shown within this window, the second
+ * call is a no-op (the first toast's timer is unaffected). 1200ms is
+ * long enough to coalesce double-taps and rapid save loops, short
+ * enough that a legitimately repeated action (save → wait → save again)
+ * still shows a fresh toast.
+ */
+const DEDUP_WINDOW_MS = 1200;
+
+/**
+ * Track the last-shown signature + timestamp so rapid duplicate calls
+ * can be suppressed. Module-level (not per-hook) so dedup works across
+ * components that each call useToast() — which is the common case
+ * (the provider + the consumer both call useToast and share the same
+ * underlying toasts signal).
+ */
+let lastToastSignature: string | null = null;
+let lastToastAt = 0;
+
 /** Remove a toast by id, playing the exit animation first. */
 function dismissToast(id: number) {
   // Mark as exiting so the ToastContainer can play .toast-exit, then
@@ -56,6 +77,25 @@ export function useToast() {
     duration: number = DEFAULT_DURATION[type],
     options?: { actionLabel?: string; onAction?: () => void }
   ) => {
+    // Phase 4 Task 9b — deduplicate rapid duplicate toasts.
+    //
+    // We key on `${type}::${msg}` so "Saved" success + "Saved" error
+    // are still distinct (different type), but two rapid "Saved"
+    // success calls coalesce into one. The actionLabel is NOT included
+    // in the signature because action toasts are rare and the dedup
+    // window is short — a stale action toast is worse than a duplicate.
+    const signature = `${type}::${msg}`;
+    const now = Date.now();
+    if (
+      lastToastSignature === signature &&
+      now - lastToastAt < DEDUP_WINDOW_MS
+    ) {
+      // Duplicate within the window — suppress.
+      return;
+    }
+    lastToastSignature = signature;
+    lastToastAt = now;
+
     const id = ++toastIdSeq;
 
     const newToast: Toast = {

@@ -863,10 +863,15 @@ export type CollectionType = "official" | "curated" | "user";
 /** Viewing order modes for curated universes.
  *
  * Three unified modes (consumer + admin use the SAME set):
- *   - "story"     → Storyline (in-universe chronology, uses story_position)
- *   - "release"   → Release Year (theatrical release date order, uses release_position)
+ *   - "story"     → Storyline (in-universe chronology, uses incident_year; falls back to position)
+ *   - "release"   → Release Year (theatrical release date order, uses TMDB release_date; falls back to position)
  *   - "franchise" → Franchise (grouped by movie series — Iron Man films together,
- *                   Thor films together, etc. — uses story_position within each group)
+ *                   Thor films together, etc. — uses incident_year within each group)
+ *
+ * Phase 4 Task 6 dropped the legacy `story_position` / `release_position` /
+ * `timeline_position` DB columns. The sort modes now derive their order
+ * from `incident_year` and the TMDB `release_date`, with `position` as
+ * the admin's primary manual order and universal tiebreaker.
  *
  * Legacy values "chronological" | "saga" | "custom" are kept for backward
  * compat with existing preferences rows in the DB; the UI no longer exposes
@@ -912,16 +917,21 @@ export interface CollectionEntry {
    * `useCollections.reorderEntries`. Lower = earlier in the list.
    *
    * Curated universe entries don't use this field — their order is
-   * owned by the admin via `position` / `story_position` /
-   * `release_position` on `curated_universe_entries`.
+   * owned by the admin via `position` on `curated_universe_entries`
+   * (Phase 4 Task 6 dropped the legacy story_position / release_position /
+   * timeline_position columns; the sort modes now derive from incident_year
+   * and TMDB release_date).
    */
   orderIndex?: number;
-  /** Storyline sort index (curated_universe_entries.story_position).
-   *  Lower = earlier in the in-universe chronology. */
+  /** Storyline sort index. Phase 4 Task 6 dropped the underlying
+   *  `curated_universe_entries.story_position` column — the adapter
+   *  now backfills this from `position` for backwards-compat with
+   *  consumers that still read it. Lower = earlier in the in-universe chronology. */
   storyOrder?: number;
-  /** Release-date sort index (curated_universe_entries.release_position).
-   *  Lower = earlier theatrical release. Used as a tiebreaker when
-   *  release_date strings are missing or equal. */
+  /** Release-date sort index. Phase 4 Task 6 dropped the underlying
+   *  `curated_universe_entries.release_position` column — the adapter
+   *  now backfills this from `position` for backwards-compat. Used as
+   *  a tiebreaker when release_date strings are missing or equal. */
   releaseOrder?: number;
   /** Franchise / movie-series label used by the "Franchise" viewing
    *  order (e.g. "Iron Man", "Thor", "Captain America", "Avengers").

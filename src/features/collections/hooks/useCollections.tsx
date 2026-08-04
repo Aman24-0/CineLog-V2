@@ -36,7 +36,8 @@ import {
   fetchCollectionsFromSupabase,
   renameCollectionInSupabase,
   unarchiveCollectionInSupabase,
-  updateCollectionMetaInSupabase
+  updateCollectionMetaInSupabase,
+  updateSmartRulesInSupabase
 } from "../collectionAdapter";
 import {
   addEntryToCollectionByTmdbId,
@@ -47,8 +48,6 @@ import {
 import { useUniversePrefsLogic } from "./useUniversePrefs";
 import { createCollectionQueries } from "./collectionQueries";
 import {
-  COLLECTION_FEATURE_SUPPORT,
-  UnsupportedFeatureError,
   detectUnsupportedMetaFields
 } from "../collectionErrors";
 import type { CollectionMetaInput } from "../collectionErrors";
@@ -779,7 +778,8 @@ const useCollectionsLogic = () => {
         ])
       );
 
-      // Fire server write
+      // Fire server write — Phase 4 Task 1: rules are now persisted via the
+      // `rules` JSONB column on the collections table.
       const serverId = await createCollectionInSupabase(uid, name, {
         collectionType: "smart"
       });
@@ -789,13 +789,26 @@ const useCollectionsLogic = () => {
           prev.map((c) => (c.id === tempId ? { ...c, id: serverId } : c))
         );
         resolveRealId(serverId);
+        // Persist the initial rules to the new collection (best-effort —
+        // failure here is non-fatal because the collection exists; the
+        // user can re-save rules via updateSmartRules).
+        if (rules.length > 0) {
+          try {
+            await updateSmartRulesInSupabase(serverId, rules);
+          } catch (err) {
+            console.warn(
+              "[useCollections] Failed to persist initial smart rules:",
+              err
+            );
+          }
+        }
       } else {
         resolveRealId(tempId);
       }
 
       if (rules.length > 0) {
         showToast(
-          `Created "${name}". Rules are evaluated live — not saved (schema limitation).`,
+          `Created "${name}" with ${rules.length} rule${rules.length === 1 ? "" : "s"}.`,
           "info",
           3000
         );
@@ -816,23 +829,40 @@ const useCollectionsLogic = () => {
     collectionId: string,
     rules: SmartRule[]
   ): Promise<void> => {
-    // Phase 8.1 — Smart collection rules CANNOT be persisted. The
-    // collections table has no JSONB or rules column. Instead of
-    // silently ignoring (the old behavior), we throw an explicit
-    // UnsupportedFeatureError. The hook catches it and shows a toast.
-    void collectionId;
-    if (rules.length > 0) {
-      const err = new UnsupportedFeatureError(
-        "smartRules",
-        COLLECTION_FEATURE_SUPPORT.smartRules.limitation,
-        "Smart collection rules cannot be saved — the database schema does not support persisting rules."
-      );
-      console.warn(err.message);
+    // Phase 4 Task 1 — Smart collection rules ARE NOW persisted to the
+    // `collections.rules` JSONB column (migration 20260804_add_collections_rules).
+    // We optimistically update the local signal, fire the server write, and
+    // rollback + toast on error — same pattern as the other mutations.
+    //
+    // If the collectionId is a temp ID (not yet reconciled with the server),
+    // wait for the real ID before writing.
+    const realId = await waitForRealId(collectionId);
+
+    // Snapshot for rollback.
+    const snapshot = userCollections();
+
+    // Optimistic update — set smartRules on the local collection so the
+    // UI re-evaluates immediately.
+    setUserCollections((prev) =>
+      prev.map((c) =>
+        c.id === realId ? { ...c, smartRules: rules, updatedAt: new Date().toISOString() } : c
+      )
+    );
+
+    try {
+      await updateSmartRulesInSupabase(realId, rules);
       showToast(
-        "Rules are evaluated live and cannot be saved (schema limitation).",
-        "info",
-        3000
+        rules.length > 0
+          ? `Saved ${rules.length} rule${rules.length === 1 ? "" : "s"}.`
+          : "Cleared rules.",
+        "success",
+        1500
       );
+    } catch (err) {
+      // Rollback the optimistic update.
+      setUserCollections(snapshot);
+      console.error("Failed to update smart rules:", err);
+      showToast("Failed to save rules. Please try again.", "error");
     }
   };
 

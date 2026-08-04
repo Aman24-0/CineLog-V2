@@ -106,13 +106,13 @@ export interface UnsupportedFieldsWarning {
  * checking — callers consult this before attempting an operation.
  */
 export const COLLECTION_FEATURE_SUPPORT = {
-  /** Smart collection rules (JSONB rules array) — NOT supported. */
+  /** Smart collection rules (JSONB rules array) — SUPPORTED as of Phase 4 Task 1.
+   *  Persisted to the `collections.rules` JSONB column (migration
+   *  20260804_add_collections_rules). The hook `useCollections.updateSmartRules`
+   *  now reads/writes this column instead of throwing UnsupportedFeatureError. */
   smartRules: {
-    supported: false as const,
-    limitation:
-      "The collections table has no JSONB or rules column. " +
-      "Smart collection rules are evaluated client-side only and cannot be persisted. " +
-      "Database Bible §04 defines collection_type='smart' but does not define a rules column."
+    supported: true as const,
+    mappedTo: "rules"
   },
   /** Entry media_type — resolved from vault, not stored on collection_entries. */
   entryMediaType: {

@@ -22,14 +22,13 @@ export interface AdminEntry {
   tmdb_id: number;
   media_type: "movie" | "tv";
   /** In-universe "year of incident" set by the admin. Drives the
-   *  Storyline sort order. NULL = unknown (falls back to story_position). */
+   *  Storyline sort order. NULL = unknown (falls back to position). */
   incident_year: number | null;
-  /** Legacy position fields — no longer edited by the admin UI but kept
-   *  for backward compat with existing rows. The DB still maintains them. */
+  /** Admin's primary manual ordering. After Phase 4 Task 6, this is the
+   *  only sort column remaining on curated_universe_entries — the legacy
+   *  release_position / story_position / timeline_position columns were
+   *  dropped. */
   position: number;
-  release_position: number;
-  story_position: number;
-  timeline_position: number;
   note: string | null;
   created_at: string;
   // Enriched by the API (not stored in DB):
@@ -43,15 +42,15 @@ export interface AdminEntry {
  * editor AND the consumer collection detail page. Labels are kept in
  * sync with `UNIVERSE_VIEWING_ORDERS` in curatedUniverseAdapter.ts.
  *
- *   - "story"     → Storyline    (uses story_position)
- *   - "release"   → Release Year (uses release_position)
+ *   - "story"     → Storyline    (uses incident_year; falls back to position)
+ *   - "release"   → Release Year (uses TMDB release_date; falls back to position)
  *   - "franchise" → Franchise    (grouped by movie series; within each
- *                                 group, uses story_position)
+ *                                 group, uses incident_year → position)
  *
- * Legacy "position" and "timeline" modes are no longer exposed in the
- * UI. The DB columns `position` (admin's primary) and `timeline_position`
- * are still maintained — the consumer never sees them, but the admin
- * can still edit them via the per-entry Edit modal.
+ * Phase 4 Task 6 dropped the legacy `release_position`, `story_position`,
+ * and `timeline_position` DB columns. The sort modes now derive their
+ * order from `incident_year` and the TMDB `release_date`, with `position`
+ * as the admin's primary manual order and universal tiebreaker.
  */
 export type SortMode = "story" | "release" | "franchise";
 

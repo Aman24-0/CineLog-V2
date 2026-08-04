@@ -79,7 +79,10 @@ export function toCollectionInsert(
     banner_url: payload.bannerUrl ?? null,
     color: payload.color ?? null,
     sort_mode: payload.sortMode ?? "manual",
-    view_mode: payload.viewMode ?? "grid"
+    view_mode: payload.viewMode ?? "grid",
+    // Phase 4 Task 1: persist smart-collection rules when provided.
+    // NULL for non-smart collections (the DB default).
+    rules: payload.rules ?? null
   };
 }
 
@@ -106,6 +109,9 @@ export function toCollectionUpdate(
   // repository, but we also surface it on UpdateCollectionPayload so
   // the generic updateCollection path can clear/set it if needed.
   if (payload.archivedAt !== undefined) update.archived_at = payload.archivedAt;
+  // Phase 4 Task 1: smart-collection rules. Only set when explicitly
+  // provided (undefined = leave unchanged). Pass null to clear.
+  if (payload.rules !== undefined) update.rules = payload.rules;
   return update;
 }
 

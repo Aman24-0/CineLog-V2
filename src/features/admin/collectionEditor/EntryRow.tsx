@@ -4,8 +4,10 @@
 // ---------------------------------------------------------------------
 // A single entry in the admin collection editor.
 //
-// Simplified (v3): the four sort indices (position, release_position,
-// story_position, timeline_position) are NO LONGER editable here.
+// Simplified (v3): the sort indices are NO LONGER editable here.
+// Phase 4 Task 6 dropped the legacy release_position / story_position /
+// timeline_position DB columns; only `position` remains (admin's primary
+// manual order, edited via drag-and-drop on the list, not per-row).
 //   - Release sort uses TMDB release_date (auto)
 //   - Franchise sort uses title-derived franchise (auto)
 //   - Storyline sort uses the single `incident_year` field below

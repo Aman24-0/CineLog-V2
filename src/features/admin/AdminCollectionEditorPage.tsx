@@ -15,9 +15,9 @@
 //       - incident_year (the in-universe year the movie takes place,
 //                       e.g. 1943 for Captain America: The First Avenger)
 //     The other sorts are fully automatic:
-//       - release_position  → derived from TMDB release_date
-//       - franchise         → derived from the title ("Captain America:
-//                            The First Avenger" → "Captain America")
+//       - release  → derived from TMDB release_date
+//       - franchise → derived from the title ("Captain America:
+//                    The First Avenger" → "Captain America")
 //   • Sort-mode switcher — view the list under any of the 3 sorts
 //     so the admin can verify each ordering looks right.
 //   • Per-entry edit modal — adjust incident_year + admin note.
@@ -242,15 +242,12 @@ const AdminCollectionEditorPage: Component = () => {
         const da = a.release_date ?? "";
         const db = b.release_date ?? "";
         if (da && db && da !== db) return da.localeCompare(db);
-        // Tiebreaker: legacy release_position, then admin primary.
-        const ra = a.release_position ?? a.position ?? 0;
-        const rb = b.release_position ?? b.position ?? 0;
-        if (ra !== rb) return ra - rb;
+        // Tiebreaker: admin's primary position.
         return (a.position ?? 0) - (b.position ?? 0);
       }
       if (mode === "franchise") {
         // Franchise mode: primary sort by franchise label, then by
-        // incident_year within each group (story_position fallback).
+        // incident_year within each group (position fallback).
         const fa = deriveFranchise(a.title);
         const fb = deriveFranchise(b.title);
         if (fa !== fb) return fa.localeCompare(fb);
@@ -259,9 +256,6 @@ const AdminCollectionEditorPage: Component = () => {
         if (ia !== null && ib !== null && ia !== ib) return ia - ib;
         if (ia !== null && ib === null) return -1;
         if (ia === null && ib !== null) return 1;
-        const sa = a.story_position ?? a.position ?? 0;
-        const sb = b.story_position ?? b.position ?? 0;
-        if (sa !== sb) return sa - sb;
         return (a.position ?? 0) - (b.position ?? 0);
       }
       // mode === "story" — Storyline sort by incident_year.
@@ -270,9 +264,6 @@ const AdminCollectionEditorPage: Component = () => {
       if (ia !== null && ib !== null && ia !== ib) return ia - ib;
       if (ia !== null && ib === null) return -1;
       if (ia === null && ib !== null) return 1;
-      const sa = a.story_position ?? a.position ?? 0;
-      const sb = b.story_position ?? b.position ?? 0;
-      if (sa !== sb) return sa - sb;
       return (a.position ?? 0) - (b.position ?? 0);
     });
   });

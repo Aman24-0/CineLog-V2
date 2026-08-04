@@ -58,7 +58,7 @@ export function sortAndEnrich(
         const dateB = b.release_date || b.first_air_date || "";
         if (dateA && dateB && dateA !== dateB)
           return dateA.localeCompare(dateB);
-        // Tiebreaker: releaseOrder (DB release_position), then admin order.
+        // Tiebreaker: admin's primary order (Phase 4 Task 6 dropped release_position).
         const ra = a.releaseOrder ?? a.order ?? 0;
         const rb = b.releaseOrder ?? b.order ?? 0;
         if (ra !== rb) return ra - rb;
@@ -90,14 +90,15 @@ export function sortAndEnrich(
     default:
       // Storyline order. Primary sort: incidentYear (admin-set in-universe
       // year of incident). Entries without an incidentYear sink to the
-      // bottom and are sorted by storyOrder (legacy DB column) as fallback.
+      // bottom and are sorted by admin's primary `order` as fallback
+      // (Phase 4 Task 6 dropped the legacy story_position column).
       sorted.sort((a, b) => {
         const ia = a.incidentYear;
         const ib = b.incidentYear;
         if (ia !== undefined && ib !== undefined && ia !== ib) return ia - ib;
         if (ia !== undefined && ib === undefined) return -1; // known year first
         if (ia === undefined && ib !== undefined) return 1;
-        // Both undefined → fall back to storyOrder then admin primary.
+        // Both undefined → fall back to admin primary order.
         const sa = a.storyOrder ?? a.order ?? 0;
         const sb = b.storyOrder ?? b.order ?? 0;
         if (sa !== sb) return sa - sb;

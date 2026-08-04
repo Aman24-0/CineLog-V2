@@ -112,6 +112,8 @@ export type Database = {
           description: string | null;
           id: string;
           name: string;
+          /** Phase 4 Task 1: Smart collection rules (JSON-serialised SmartRule[]). NULL for non-smart collections. */
+          rules: Json | null;
           sort_mode: Database["public"]["Enums"]["sort_mode_type"];
           updated_at: string;
           user_id: string | null;
@@ -128,6 +130,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           name: string;
+          rules?: Json | null;
           sort_mode?: Database["public"]["Enums"]["sort_mode_type"];
           updated_at?: string;
           user_id?: string | null;
@@ -144,6 +147,7 @@ export type Database = {
           description?: string | null;
           id?: string;
           name?: string;
+          rules?: Json | null;
           sort_mode?: Database["public"]["Enums"]["sort_mode_type"];
           updated_at?: string;
           user_id?: string | null;
@@ -167,9 +171,6 @@ export type Database = {
           media_type: Database["public"]["Enums"]["media_type"];
           note: string | null;
           position: number;
-          release_position: number;
-          story_position: number;
-          timeline_position: number;
           tmdb_id: number;
           universe_id: string;
         };
@@ -180,9 +181,6 @@ export type Database = {
           media_type: Database["public"]["Enums"]["media_type"];
           note?: string | null;
           position?: number;
-          release_position?: number;
-          story_position?: number;
-          timeline_position?: number;
           tmdb_id: number;
           universe_id: string;
         };
@@ -193,9 +191,6 @@ export type Database = {
           media_type?: Database["public"]["Enums"]["media_type"];
           note?: string | null;
           position?: number;
-          release_position?: number;
-          story_position?: number;
-          timeline_position?: number;
           tmdb_id?: number;
           universe_id?: string;
         };
@@ -255,6 +250,8 @@ export type Database = {
           label: string;
           description: string | null;
           before_entry_id: string | null;
+          /** Phase 4 Task 5: Kind of identifier in before_entry_id — 'uuid' | 'tmdb_id' | NULL (when before_entry_id is NULL). */
+          before_entry_kind: string | null;
           order_index: number;
           created_at: string;
           updated_at: string;
@@ -265,6 +262,7 @@ export type Database = {
           label: string;
           description?: string | null;
           before_entry_id?: string | null;
+          before_entry_kind?: string | null;
           order_index?: number;
           created_at?: string;
           updated_at?: string;
@@ -275,6 +273,7 @@ export type Database = {
           label?: string;
           description?: string | null;
           before_entry_id?: string | null;
+          before_entry_kind?: string | null;
           order_index?: number;
           created_at?: string;
           updated_at?: string;
@@ -685,6 +684,8 @@ export type Database = {
           custom_cover: string | null;
           custom_sort: string | null;
           id: string;
+          /** Phase 4 Task 2: TRUE when the user has hidden this universe (subscription retained, hidden from default lists). */
+          is_hidden: boolean;
           is_pinned: boolean;
           universe_id: string;
           updated_at: string;
@@ -697,6 +698,7 @@ export type Database = {
           custom_cover?: string | null;
           custom_sort?: string | null;
           id?: string;
+          is_hidden?: boolean;
           is_pinned?: boolean;
           universe_id: string;
           updated_at?: string;
@@ -709,6 +711,7 @@ export type Database = {
           custom_cover?: string | null;
           custom_sort?: string | null;
           id?: string;
+          is_hidden?: boolean;
           is_pinned?: boolean;
           universe_id?: string;
           updated_at?: string;

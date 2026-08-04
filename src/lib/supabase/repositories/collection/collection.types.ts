@@ -77,6 +77,9 @@ export interface CreateCollectionPayload {
   readonly color?: string | null;
   readonly sortMode?: SortModeType;
   readonly viewMode?: CollectionViewType;
+  /** Phase 4 Task 1: Smart collection rules (JSON-serialised SmartRule[]).
+   *  NULL for non-smart collections. Only meaningful when collectionType = 'smart'. */
+  readonly rules?: import("../../database.types").Json | null;
 }
 
 /**
@@ -97,6 +100,9 @@ export interface UpdateCollectionPayload {
   readonly viewMode?: CollectionViewType;
   /** ISO timestamp to archive; `null` to unarchive. */
   readonly archivedAt?: string | null;
+  /** Phase 4 Task 1: Smart collection rules (JSON-serialised SmartRule[]).
+   *  Pass null to clear rules; pass a SmartRule[] (cast to Json) to persist. */
+  readonly rules?: import("../../database.types").Json | null;
 }
 
 /**

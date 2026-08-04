@@ -49,7 +49,7 @@
 //   RLS error, etc.), the error is logged to stderr but not surfaced
 //   to the user — prefs are a UX concern, not a data-integrity one.
 
-import { createEffect } from "solid-js";
+import { createEffect, createRoot } from "solid-js";
 import { isServer } from "solid-js/web";
 import {
   getUserSettings,
@@ -115,6 +115,9 @@ import {
   type SyncCadence
 } from "./syncCadence";
 import { hideRatingsInScreenshots, setHideRatingsInScreenshots } from "./hideRatingsScreenshots";
+// Phase 4 Task 7: theme (the 8 accent presets) is now synced to Supabase
+// instead of only persisting locally to cinelog_theme localStorage.
+import { theme, setTheme, type Theme } from "~/core/theme";
 
 // ─── Types ────────────────────────────────────────────────────────
 
@@ -122,9 +125,16 @@ import { hideRatingsInScreenshots, setHideRatingsInScreenshots } from "./hideRat
  * A flat snapshot of all syncable preferences, packed into a single
  * JSONB object. The keys are stable identifiers (not the signal names)
  * so we can rename signals without breaking old snapshots.
+ *
+ * Phase 4 Task 7: added `theme` (the 8 accent presets: cinematic, pearl,
+ * sage, matrix, netflix, interstellar, neonhorizon, vibranium). This was
+ * previously localStorage-only (`cinelog_theme`) — it now syncs to
+ * Supabase so a user's accent choice travels across devices.
  */
 export interface PreferencesSnapshot {
   themeMode?: ThemeMode;
+  /** Phase 4 Task 7: accent preset (8 themes). Synced to prefs_json. */
+  theme?: Theme;
   density?: Density;
   fontSize?: FontSize;
   posterQuality?: PosterQuality;
@@ -167,6 +177,8 @@ function writeSyncedAt(ts: number): void {
 function readSnapshot(): PreferencesSnapshot {
   return {
     themeMode: themeMode(),
+    // Phase 4 Task 7: include the accent theme in the snapshot.
+    theme: theme(),
     density: density(),
     fontSize: fontSize(),
     posterQuality: posterQuality(),
@@ -194,6 +206,10 @@ function readSnapshot(): PreferencesSnapshot {
  */
 function applySnapshot(snap: PreferencesSnapshot): void {
   if (snap.themeMode) setThemeMode(snap.themeMode);
+  // Phase 4 Task 7: apply the accent theme from the server snapshot.
+  // setTheme also writes to localStorage (`cinelog_theme`) and updates
+  // the document's theme-* class, so the UI picks it up immediately.
+  if (snap.theme) setTheme(snap.theme);
   if (snap.density) setDensity(snap.density);
   if (snap.fontSize) setFontSize(snap.fontSize);
   if (snap.posterQuality) setPosterQuality(snap.posterQuality);
@@ -302,6 +318,23 @@ let pushTimer: ReturnType<typeof setTimeout> | null = null;
 const PUSH_DEBOUNCE_MS = 1500;
 
 /**
+ * Phase 4 Task 8 — Disposable effect handle.
+ *
+ * The previous implementation called `createEffect()` at module scope
+ * (outside any `createRoot`). SolidJS effects created outside a root
+ * are NEVER disposed — they keep running until the page is unloaded.
+ * `stopPreferenceSync()` only nulled `activeUserId`, which meant the
+ * effect kept tracking every preference signal AND kept the closure
+ * alive (preventing GC of the old user's snapshot). On repeated
+ * sign-in / sign-out cycles, this leaked one effect per cycle.
+ *
+ * The fix wraps the `createEffect` in a `createRoot` and stores the
+ * root's dispose function. `stopPreferenceSync()` calls dispose(),
+ * which cleanly tears down the effect AND its signal subscriptions.
+ */
+let syncRootDispose: (() => void) | null = null;
+
+/**
  * Start watching preference signals and pushing changes to Supabase
  * (debounced 1.5s). Call this on sign-in. Call stopPreferenceSync()
  * on sign-out to release the listener.
@@ -309,31 +342,57 @@ const PUSH_DEBOUNCE_MS = 1500;
  * The effect tracks every preference signal, so any change triggers
  * a debounced push. Without debouncing, rapid toggles (e.g. dragging
  * a slider) would fire dozens of writes per second.
+ *
+ * Phase 4 Task 8: the effect is created inside a `createRoot` so it
+ * can be disposed on sign-out. Repeated start/stop cycles no longer
+ * leak effect subscriptions.
  */
 export function startPreferenceSync(userId: string): void {
   if (isServer) return;
+
+  // If a previous sync is still running (e.g. sign-in without a
+  // preceding sign-out), dispose it first so we don't accumulate
+  // duplicate effects.
+  if (syncRootDispose) {
+    syncRootDispose();
+    syncRootDispose = null;
+  }
+
   activeUserId = userId;
 
-  // Track all preference signals in a single effect. When any one
-  // changes, schedule a debounced push.
-  createEffect(() => {
-    // Read every signal so the effect tracks them all.
-    readSnapshot();
+  // createRoot gives us a dispose() handle. The effect created inside
+  // is torn down when dispose() is called — releasing its signal
+  // subscriptions and allowing GC of the closure.
+  syncRootDispose = createRoot((dispose) => {
+    // Track all preference signals in a single effect. When any one
+    // changes, schedule a debounced push.
+    createEffect(() => {
+      // Read every signal so the effect tracks them all.
+      readSnapshot();
 
-    // Schedule a push. Clear any pending one so we coalesce rapid
-    // changes into a single write.
-    if (pushTimer) clearTimeout(pushTimer);
-    pushTimer = setTimeout(() => {
-      if (activeUserId) {
-        void pushPreferencesToSupabase(activeUserId);
-      }
-      pushTimer = null;
-    }, PUSH_DEBOUNCE_MS);
+      // Schedule a push. Clear any pending one so we coalesce rapid
+      // changes into a single write.
+      if (pushTimer) clearTimeout(pushTimer);
+      pushTimer = setTimeout(() => {
+        if (activeUserId) {
+          void pushPreferencesToSupabase(activeUserId);
+        }
+        pushTimer = null;
+      }, PUSH_DEBOUNCE_MS);
+    });
+
+    // Return the dispose handle so the outer assignment captures it.
+    return dispose;
   });
 }
 
 /**
  * Stop the auto-pusher. Call on sign-out.
+ *
+ * Phase 4 Task 8: disposes the `createEffect` (via the createRoot
+ * dispose handle) instead of just nulling `activeUserId`. This
+ * releases the effect's signal subscriptions and prevents the
+ * leak that occurred on repeated sign-in/sign-out cycles.
  *
  * Flushes any pending push synchronously (fire-and-forget) so the
  * last change before sign-out isn't lost.
@@ -342,6 +401,12 @@ export function stopPreferenceSync(): void {
   if (pushTimer) {
     clearTimeout(pushTimer);
     pushTimer = null;
+  }
+  // Phase 4 Task 8: dispose the effect (and its signal subscriptions).
+  // This is the fix — previously the effect kept running after sign-out.
+  if (syncRootDispose) {
+    syncRootDispose();
+    syncRootDispose = null;
   }
   // Fire-and-forget the final push so sign-out isn't blocked.
   if (activeUserId) {

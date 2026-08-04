@@ -17,8 +17,11 @@ import type { AdminEntry } from "./types";
  * 20260729_add_archived_at_to_collections.sql). Each phase has:
  *   - label        (e.g. "Phase 1", "Infinity Saga")
  *   - description  (optional, e.g. "Avengers Assemble")
- *   - before_entry_id  (TMDB id of the entry the divider appears
- *                       BEFORE; null = render at the very top)
+ *   - before_entry_id  (TMDB id OR UUID of the entry the divider
+ *                       appears BEFORE; null = render at the very top)
+ *   - before_entry_kind (Phase 4 Task 5: 'uuid' | 'tmdb_id' | null —
+ *                       disambiguates before_entry_id so the consumer
+ *                       can resolve it safely without guessing)
  *   - order_index  (sort order when multiple phases share the same
  *                   before_entry_id — rare but supported)
  *
@@ -34,6 +37,8 @@ export interface UniversePhaseRow {
   label: string;
   description: string | null;
   before_entry_id: string | null;
+  /** Phase 4 Task 5: 'uuid' | 'tmdb_id' | null (null when before_entry_id is null). */
+  before_entry_kind: string | null;
   order_index: number;
 }
 
@@ -61,7 +66,7 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
       const supabase = getClient();
       const { data, error: err } = await supabase
         .from("universe_phases")
-        .select("id, label, description, before_entry_id, order_index")
+        .select("id, label, description, before_entry_id, before_entry_kind, order_index")
         .eq("universe_id", props.universeId)
         .order("order_index", { ascending: true });
       if (err) throw err;
@@ -107,12 +112,17 @@ const UniversePhasesPanel: Component<UniversePhasesPanelProps> = (props) => {
         label,
         description: newDescription().trim() || null,
         before_entry_id: newBeforeEntryId() || null,
+        // Phase 4 Task 5: explicitly record the kind so the consumer can
+        // resolve before_entry_id without guessing. The admin UI stores
+        // TMDB ids (the dropdown is populated from entryOptions which
+        // uses String(e.tmdb_id)), so the kind is always 'tmdb_id' here.
+        before_entry_kind: newBeforeEntryId() ? "tmdb_id" : null,
         order_index: nextOrder
       };
       const { data, error: err } = await supabase
         .from("universe_phases")
         .insert(payload)
-        .select("id, label, description, before_entry_id, order_index")
+        .select("id, label, description, before_entry_id, before_entry_kind, order_index")
         .single();
       if (err) throw err;
       if (data) {

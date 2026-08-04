@@ -2,6 +2,7 @@
  * CineLog V2 — Universe Preferences Adapter
  * ---------------------------------------------------------------------
  * Phase 8 — Collections Migration
+ * Phase 4 Task 2 — is_hidden column added to user_universe_subscriptions
  *
  * Maps the app's `UniversePreferences` type to the Supabase
  * `user_universe_subscriptions` table.
@@ -10,22 +11,17 @@
  *   UniversePreferences.universeId    ↔ subscription.universe_id
  *   UniversePreferences.isAdded       ↔ row exists (true) / deleted (false)
  *   UniversePreferences.isPinned      ↔ subscription.is_pinned
- *   UniversePreferences.isHidden      ↔ NOT in schema — stored as a
- *                                       local signal only (see note below)
+ *   UniversePreferences.isHidden      ↔ subscription.is_hidden  (Phase 4 Task 2)
  *   UniversePreferences.preferredOrder   ↔ subscription.custom_sort (JSON)
  *   UniversePreferences.preferredProvider ↔ subscription.custom_sort (JSON)
  *   UniversePreferences.customOverrides  ↔ subscription.custom_sort (JSON)
  *
- * NOTE on `isHidden`:
- *   The `user_universe_subscriptions` table has no `is_hidden` column.
- *   The Firestore model supported hiding a universe without removing it.
- *   In Supabase, "hidden" is approximated by deleting the subscription
- *   (same as "removed"). The UI's "hidden universes" restore list will
- *   show universes the user has previously added but no longer has a
- *   subscription for — since we can't distinguish hidden from removed,
- *   both are treated as "not subscribed". The hiddenUniverses memo will
- *   return an empty list. This is a known limitation documented in the
- *   Database Bible's future-reserved columns.
+ * NOTE on `isHidden` (Phase 4 Task 2):
+ *   The `user_universe_subscriptions` table now has an `is_hidden` column
+ *   (migration 20260804_add_universe_is_hidden.sql). Hiding a universe
+ *   UPDATEs the row (is_hidden = TRUE) instead of DELETEing it. Restoring
+ *   UPDATEs it back to FALSE. The `hiddenUniverses` memo now returns real
+ *   data — universes the user has subscribed to AND marked hidden.
  */
 
 import { getClient } from "~/lib/supabase/client";
@@ -91,7 +87,10 @@ export async function fetchUniversePreferencesFromSupabase(
     return {
       universeId: row.universe_id,
       isAdded: true, // row exists = added
-      isHidden: false, // not supported in Supabase schema
+      // Phase 4 Task 2: read the is_hidden column. A hidden universe
+      // is still "added" (the subscription row exists) but is filtered
+      // out of the default "added universes" list by the hook.
+      isHidden: row.is_hidden ?? false,
       isPinned: row.is_pinned,
       preferredOrder,
       preferredProvider,
@@ -137,6 +136,48 @@ export async function removeUniverseSubscription(
   const { error } = await supabase
     .from(TABLE)
     .delete()
+    .eq("user_id", userId)
+    .eq("universe_id", universeId);
+
+  if (error) throw error;
+}
+
+/**
+ * Phase 4 Task 2 — Hide a universe subscription (sets is_hidden = TRUE).
+ *
+ * The subscription row is RETAINED — the universe stays in the user's
+ * subscription list but is filtered out of the default "added universes"
+ * view. The user can restore it from the "hidden universes" list.
+ */
+export async function hideUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ is_hidden: true })
+    .eq("user_id", userId)
+    .eq("universe_id", universeId);
+
+  if (error) throw error;
+}
+
+/**
+ * Phase 4 Task 2 — Restore a hidden universe (sets is_hidden = FALSE).
+ *
+ * Brings the universe back into the default "added universes" view.
+ * The subscription row must already exist (the universe was previously
+ * added then hidden — NOT removed).
+ */
+export async function restoreUniverseSubscription(
+  userId: string,
+  universeId: string
+): Promise<void> {
+  const supabase = getClient();
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ is_hidden: false })
     .eq("user_id", userId)
     .eq("universe_id", universeId);
 

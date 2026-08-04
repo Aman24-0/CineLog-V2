@@ -187,6 +187,34 @@ export async function updateCollectionMetaInSupabase(
 }
 
 /**
+ * Phase 4 Task 1 — Persist smart-collection rules to the `collections.rules`
+ * JSONB column.
+ *
+ * The rules are stored as a JSON-serialised `SmartRule[]`. Passing an empty
+ * array (or null) clears the rules — the collection remains a smart
+ * collection (collection_type = 'smart') but matches nothing until rules
+ * are re-added.
+ *
+ * @param collectionId  The collection id (must be a smart collection).
+ * @param rules         The SmartRule[] to persist. Empty array clears.
+ * @throws if the Supabase update fails.
+ */
+export async function updateSmartRulesInSupabase(
+  collectionId: string,
+  rules: import("~/shared/types").SmartRule[]
+): Promise<void> {
+  const repo = getCollectionRepository();
+  // Cast through unknown to the Json type the DB expects. SmartRule is a
+  // plain object with primitive / array values, so it satisfies the Json
+  // structural type — TypeScript just can't verify that automatically.
+  const rulesJson = rules as unknown as import("~/lib/supabase/database.types").Json;
+  const { error } = await repo.updateCollection(collectionId, {
+    rules: rulesJson
+  });
+  if (error) throw error;
+}
+
+/**
  * Soft-delete a collection (sets deleted_at).
  */
 export async function deleteCollectionInSupabase(

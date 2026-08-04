@@ -17,8 +17,10 @@ import { SUGGESTED_UNIVERSES } from "~/shared/data/suggestedUniverses";
 import {
   addUniverseSubscription,
   fetchUniversePreferencesFromSupabase,
+  hideUniverseSubscription,
   pinUniverseSubscription,
   removeUniverseSubscription,
+  restoreUniverseSubscription,
   setUniversePreferences,
   unpinUniverseSubscription
 } from "../universePreferencesAdapter";
@@ -133,13 +135,37 @@ export function useUniversePrefsLogic() {
   };
 
   const hideUniverseFromPrefs = async (universeId: string): Promise<void> => {
-    // isHidden not in Supabase schema — approximated by removing subscription
-    await removeUniverseFromPrefs(universeId);
+    // Phase 4 Task 2: hide via is_hidden column (subscription retained).
+    const uid = getCurrentUid();
+    if (!uid) {
+      showToast("Sign in to hide universes.", "error");
+      return;
+    }
+    try {
+      await hideUniverseSubscription(uid, universeId);
+      await refreshUniversePrefs(uid);
+      showToast("Universe hidden", "success", 1500);
+    } catch (err) {
+      console.error("Failed to hide universe:", err);
+      showToast("Failed to hide universe.", "error");
+    }
   };
 
   const restoreUniverseToPrefs = async (universeId: string): Promise<void> => {
-    await addUniverseToPrefs(universeId);
-    showToast("Universe restored", "success", 1500);
+    // Phase 4 Task 2: restore via is_hidden = false (subscription retained).
+    const uid = getCurrentUid();
+    if (!uid) {
+      showToast("Sign in to restore universes.", "error");
+      return;
+    }
+    try {
+      await restoreUniverseSubscription(uid, universeId);
+      await refreshUniversePrefs(uid);
+      showToast("Universe restored", "success", 1500);
+    } catch (err) {
+      console.error("Failed to restore universe:", err);
+      showToast("Failed to restore universe.", "error");
+    }
   };
 
   const pinUniverseInPrefs = async (universeId: string): Promise<void> => {
