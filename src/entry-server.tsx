@@ -53,7 +53,34 @@ export default createHandler(() => (
             name="description"
             content="CineLog V2 — track your movies and TV shows, discover new favorites, and build curated collections. A modern watchlist app for cinephiles."
           />
-          <meta name="theme-color" content="#7c3aed" />
+          {/* Per-mode theme-color meta tags.
+              ---------------------------------------------------------------
+              The browser uses this color for the URL bar / status bar
+              tint on mobile (Chrome on Android, Safari on iOS 15+).
+              CineLog has TWO modes:
+                • Dark (default) — void black background (#0a0a0a) with
+                  cinema gold accent (#e8b74a). The URL bar should be
+                  void black so the app feels immersive.
+                • Light — warm cream background. The URL bar should be
+                  the same cream so it blends with the page.
+
+              The `media` attribute lets us declare BOTH values and the
+              browser picks the right one based on the user's OS theme.
+              This is the modern, standards-based alternative to setting
+              a single theme-color and hoping it matches every mode.
+
+              The manifest.json `theme_color` field is the FALLBACK for
+              PWA install (the standalone app's status bar). We set it
+              to #0a0a0a (dark) because the app defaults to dark mode —
+              most installs will be in dark mode, and the per-mode meta
+              tags below take precedence in browsers that support them.
+
+              Chrome 93+, Firefox 91+, and Safari 15+ all support the
+              `media` attribute on theme-color meta tags. Older
+              browsers fall back to the manifest.json theme_color. */}
+          <meta name="theme-color" content="#0a0a0a" media="(prefers-color-scheme: dark)" />
+          <meta name="theme-color" content="#faf7f0" media="(prefers-color-scheme: light)" />
+          <meta name="theme-color" content="#0a0a0a" />
           <meta name="apple-mobile-web-app-capable" content="yes" />
           <meta name="mobile-web-app-capable" content="yes" />
           <meta

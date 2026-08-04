@@ -435,11 +435,18 @@ const MovieCard: Component<MovieCardProps> = (props) => {
           />
         </Show>
 
-        {/* Status badge (top-left) — status-aware color */}
+        {/* Status badge (top-left) — status-aware color.
+            The badge is exposed to AT via role="status" + aria-label so
+            screen-reader users hear "Status: Watching" rather than the
+            old behaviour where aria-hidden="true" made the badge
+            completely invisible to AT (the user would have to infer
+            status from surrounding context). The visible text remains
+            the same (statusLabel()). */}
         <div
           class={`tag-chip absolute left-2 top-2 ${statusBadgeClass()}`}
           style={STATUS_BADGE_STYLE}
-          aria-hidden="true"
+          role="status"
+          aria-label={`Status: ${statusLabel()}`}
         >
           {statusLabel()}
         </div>

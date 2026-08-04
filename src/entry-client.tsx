@@ -43,12 +43,64 @@ if (typeof requestIdleCallback !== "undefined") {
 // ─── Service Worker registration (production only) ──────────────────
 // Runs AFTER mount() so hydration isn't blocked. The browser will
 // schedule this on the next idle frame.
+//
+// UPDATE TOAST (Phase 3):
+//   When a new SW takes over (controllerchange event), we show a toast
+//   notification saying "New version available! Refresh to update."
+//   This closes the UX gap where the new SW activated silently and the
+//   user kept using the stale UI until their next navigation. The
+//   useToast() hook is imported lazily INSIDE the controllerchange
+//   handler (not at module load) so we don't pull the toast module
+//   into the initial bundle just for SW registration.
 if (
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
   import.meta.env.PROD
 ) {
   window.addEventListener("load", () => {
+    // Listen for controllerchange — fires when a new SW takes over
+    // (either because skipWaiting() was called from updatefound, or
+    // because the user navigated and the waiting SW activated).
+    // We show the toast ONCE per controllerchange. The toast has an
+    // "action" type with a "Refresh" button so the user can reload
+    // with one tap.
+    let toastShownForThisController = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (toastShownForThisController) return;
+      toastShownForThisController = true;
+
+      // Lazy-import the toast hook so it's not in the initial bundle.
+      // useToast() returns { showToast } — the toasts signal is
+      // module-level so it works even outside a Solid reactive root.
+      import("~/shared/hooks/useToast")
+        .then(({ useToast }) => {
+          const { showToast } = useToast();
+          showToast(
+            "New version available! Refresh to update.",
+            "action",
+            0, // duration: 0 = persistent until dismissed or action taken
+            {
+              actionLabel: "Refresh",
+              onAction: () => {
+                // Hard reload to bust any cached chunks.
+                if (typeof window !== "undefined") {
+                  window.location.reload();
+                }
+              }
+            }
+          );
+        })
+        .catch((err) => {
+          // If the toast module fails to load (e.g. chunk load error
+          // on a flaky connection), fall back to a console.info so
+          // the user at least sees something in devtools.
+          console.info(
+            "[SW] New version available — refresh to update. (Toast module failed to load.)",
+            err
+          );
+        });
+    });
+
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((registration) => {

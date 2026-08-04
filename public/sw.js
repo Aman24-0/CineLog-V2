@@ -1,6 +1,6 @@
 // public/sw.js
 //
-// CineLog V2 — Service Worker for Web Push Notifications
+// CineLog V2 — Service Worker for Web Push Notifications + PWA Foundation
 // ---------------------------------------------------------------------
 // Scope:       '/' (registered from entry-client.tsx)
 // Lifetime:    Persistent across browser sessions; survives tab close.
@@ -13,6 +13,13 @@
 //   activate     → clients.claim() so the SW controls the current tab
 //                  immediately (otherwise it only controls tabs opened
 //                  AFTER it activated).
+//   fetch        → passthrough fetch handler. Required for Chrome's PWA
+//                  installability criteria (a SW must register a fetch
+//                  handler to be considered a "real" PWA). We simply
+//                  pass the request through to the network — no
+//                  caching layer yet. This is the minimum viable
+//                  implementation; a future phase can add a runtime
+//                  cache for TMDB images / static assets.
 //   push         → parse the JSON payload and show a system
 //                  notification. Payload shape (sent by /api/push/send):
 //                    {
@@ -21,11 +28,25 @@
 //                      icon?: string,        // default /favicon.ico
 //                      badge?: string,       // default /favicon.ico
 //                      tag?: string,         // default "default"
-//                      url?: string          // click-through target
+//                      url?: string,         // click-through target
+//                      requireInteraction?: boolean  // default false
 //                    }
+//                  The requireInteraction flag is read from the PAYLOAD
+//                  (previously hardcoded to true, which made every
+//                  notification sticky — annoying for low-priority
+//                  reminders). Server-side default in /api/push/send
+//                  is false; only release-day reminders set it to true.
 //   notificationclick → focus an existing tab pointing at `url` if one
 //                  exists, otherwise open a new tab. Then close the
 //                  notification.
+//   pushsubscriptionchange → fired by the browser when the push
+//                  subscription has expired or been invalidated (e.g.
+//                  the user cleared site data, or the push service
+//                  rotated the endpoint). We attempt to resubscribe
+//                  and POST the new subscription to /api/push/subscribe
+//                  so the server can replace the stale endpoint. If
+//                  resubscription fails, we log cleanly — the next
+//                  user-initiated subscription will pick up the slack.
 //
 // QUIET HOURS:
 //   Quiet hours are enforced SERVER-SIDE by /api/push/send (the server
@@ -58,6 +79,31 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// ─── fetch: passthrough handler ─────────────────────────────────────
+// Chrome's PWA installability criteria require the SW to register a
+// `fetch` event handler — without it, Chrome refuses to show the
+// "Install app" prompt and the app fails the PWA audit. We use a
+// simple passthrough (`event.respondWith(fetch(event.request))`)
+// instead of a caching layer because:
+//   1. CineLog's content is highly dynamic (TMDB API responses, user
+//      vault data, push subscription state) — caching at the SW level
+//      would introduce staleness bugs that are hard to debug.
+//   2. Static assets (JS, CSS, fonts, images) are already cached by
+//      the browser's HTTP cache + Vercel's CDN edge cache. A SW cache
+//      layer would be redundant.
+//   3. The minimum viable handler unblocks the PWA installability
+//      audit without adding complexity. A future phase can add a
+//      runtime cache for TMDB poster images if offline support
+//      becomes a product goal.
+//
+// Same-origin AND cross-origin requests are both passed through. We do
+// NOT catch network errors — if `fetch()` rejects, the browser shows
+// its default offline error page, which is the expected UX (we are
+// not pretending to be offline-capable).
+self.addEventListener("fetch", (event) => {
+  event.respondWith(fetch(event.request));
+});
+
 // ─── push: show a notification ──────────────────────────────────────
 self.addEventListener("push", (event) => {
   let data = {};
@@ -79,11 +125,17 @@ self.addEventListener("push", (event) => {
     badge: data.badge || "/favicon.ico",
     tag: data.tag || "default",
     data: data.url ? { url: data.url } : undefined,
-    // requireInteraction: keep the notification visible until the user
-    // dismisses it, rather than auto-hiding after a few seconds. This
-    // matches user intent for release-day reminders (the whole point
-    // is to grab attention).
-    requireInteraction: true,
+    // requireInteraction: when true, the notification stays visible
+    // until the user dismisses it (instead of auto-hiding after a
+    // few seconds). This is appropriate for high-priority reminders
+    // (e.g. "Your tracked show releases today!") but annoying for
+    // low-priority pings. The server decides per-notification by
+    // setting `requireInteraction: true|false` in the push payload.
+    // We READ it from the payload (defaulting to false) instead of
+    // hardcoding it to true — the previous behaviour made every
+    // notification sticky, which trained users to dismiss them
+    // reflexively.
+    requireInteraction: data.requireInteraction === true,
   };
 
   event.waitUntil(self.registration.showNotification(title, options));
@@ -112,6 +164,79 @@ self.addEventListener("notificationclick", (event) => {
         return null;
       })
   );
+});
+
+// ─── pushsubscriptionchange: resubscribe + notify server ───────────
+// Fired by the browser when the push subscription has expired or been
+// invalidated. Browsers can rotate the endpoint at any time (e.g. when
+// the user clears site data, or the push service rotates keys). If we
+// don't resubscribe, the server will keep sending pushes to a dead
+// endpoint and the user silently stops receiving notifications.
+//
+// FLOW:
+//   1. If `event.newSubscription` is provided by the browser (the new
+//      "automatic" subscription), use it directly. Otherwise, attempt
+//      to resubscribe via PushManager.subscribe() — but this requires
+//      the VAPID public key, which is not stored in the SW. The page
+//      fetches it from Supabase's app_config table; the SW cannot
+//      easily do the same (no Supabase client, no auth cookie context
+//      for the RLS-protected row). So if the browser doesn't provide
+//      a new subscription, we log cleanly and let the page handle
+//      resubscription on the user's next visit (the
+//      usePushSubscription() hook's checkSubscription() detects the
+//      missing subscription and the user sees the toggle flip to OFF).
+//   2. POST the new subscription to /api/push/subscribe so the server
+//      can REPLACE the stale endpoint. We include the old endpoint in
+//      the body so the server can find and delete the old row before
+//      inserting the new one.
+//   3. If anything fails, log cleanly — we don't want a transient
+//      network error to crash the SW.
+self.addEventListener("pushsubscriptionchange", (event) => {
+  const oldSubscription = event.oldSubscription;
+  const newSubscription = event.newSubscription;
+
+  const handleChange = async () => {
+    // Log the change unconditionally so it's visible in devtools —
+    // this is the "at least logs the change cleanly" fallback.
+    console.info("[SW] pushsubscriptionchange fired", {
+      oldEndpoint: oldSubscription?.endpoint ?? null,
+      newEndpoint: newSubscription?.endpoint ?? null,
+    });
+
+    // If the browser provided a new subscription automatically, POST
+    // it to the server immediately. This is the happy path.
+    if (newSubscription) {
+      try {
+        await fetch("/api/push/subscribe", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            subscription: newSubscription,
+            oldEndpoint: oldSubscription?.endpoint ?? null,
+          }),
+        });
+        console.info("[SW] pushsubscriptionchange: new subscription posted to server");
+      } catch (err) {
+        console.warn("[SW] pushsubscriptionchange: failed to POST new subscription", err);
+      }
+      return;
+    }
+
+    // No new subscription provided by the browser. We can't resubscribe
+    // ourselves because we don't have the VAPID key in the SW scope.
+    // The page's usePushSubscription() hook will detect the missing
+    // subscription on the user's next visit and re-prompt them to
+    // re-enable notifications (which calls subscribe() with the VAPID
+    // key it fetches from app_config). This is the correct UX — silent
+    // re-subscription without the user's knowledge would be surprising
+    // and could violate platform push policies (which require explicit
+    // user consent for subscription).
+    console.info(
+      "[SW] pushsubscriptionchange: no new subscription provided. The page will re-subscribe on the user's next visit."
+    );
+  };
+
+  event.waitUntil(handleChange());
 });
 
 // ─── message: handle page-driven lifecycle commands ─────────────────

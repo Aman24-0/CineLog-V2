@@ -29,9 +29,10 @@ const CollectionModal = lazy(
  * AppShell — the application's root layout.
  *
  * STRUCTURE:
- *   <div class="app-shell-bg">
+ *   <div class="app-shell-bg" inert?={anyModalOpen()}>
+ *     <a class="skip-link" href="#main-content">Skip to content</a>
  *     <AppHeader />          ← <header role="banner">
- *     <main>                 ← SINGLE <main> landmark (WCAG 2.4.1)
+ *     <main id="main-content">← SINGLE <main> landmark (WCAG 2.4.1)
  *       {props.children}     ← page content (pages use <div role="region">)
  *     </main>
  *     <ToastContainer />     ← aria-live region
@@ -41,26 +42,33 @@ const CollectionModal = lazy(
  *     <CollectionModal />    ← Portal, rendered above
  *   </div>
  *
- * ACCESSIBILITY (WCAG 1.3.1, 2.1.2, 4.1.2):
- *   We do NOT set `inert` OR `aria-hidden` on the background wrapper when
- *   a modal is open. Both approaches cause the Vercel/Lighthouse audit
- *   "ARIA hidden element must not be focusable or contain focusable
- *   elements" to flag the background `<header>`, `<nav>`, `<form>`,
- *   `.scroll-to-top`, etc. — because the audit's static DOM scan sees
- *   focusable buttons inside an inert/aria-hidden parent and reports
- *   them, even though `inert` does make them non-focusable at runtime.
+ * ACCESSIBILITY (WCAG 1.3.1, 2.1.2, 2.4.1, 4.1.2):
+ *   SKIP LINK (WCAG 2.4.1 — Bypass Blocks):
+ *     The first element in the consumer wrapper is a visually-hidden
+ *     skip link (`<a href="#main-content" class="skip-link">`). It
+ *     becomes visible only when focused (Tab from the address bar)
+ *     so keyboard users can jump straight to the main content
+ *     without tabbing through the entire header + bottom nav on
+ *     every page. The link targets the `<main id="main-content">`
+ *     landmark below.
  *
- *   Instead, we rely on `aria-modal="true"` on each modal dialog (set
- *   in DetailsModal / CollectionModal / AuthModal). `aria-modal="true"`
- *   tells assistive technology that the rest of the page is inert —
- *   screen readers honour this and skip the background. A focus trap
- *   (in DetailsModal) contains keyboard focus inside the modal.
+ *   INERT BACKGROUND (WCAG 2.1.2 — No Keyboard Trap, 4.1.2):
+ *     When any modal (Details / Auth / Collection) is open, we set
+ *     the `inert` attribute on the consumer app wrapper. This makes
+ *     the entire background (header, sidebar, main, bottom nav)
+ *     non-focusable AND hidden from the accessibility tree —
+ *     exactly the behaviour AT users expect when a modal opens.
+ *     `inert` is the modern, native alternative to manually setting
+ *     `aria-hidden="true"` on each chrome element (which is what the
+ *     Vercel/Lighthouse audit flags as "ARIA hidden element must not
+ *     be focusable" when child focusables are still in the tab order).
+ *     With `inert`, focusables are removed from the tab order AND
+ *     hidden from AT, so there is no audit violation.
  *
- *   This is the WCAG-compliant way that passes the Vercel audit:
- *     - No `aria-hidden` on structural layout tags (header, nav, main).
- *     - No `inert` on the background wrapper (avoids false positives).
- *     - `aria-modal="true"` on the dialog handles AT hiding.
- *     - Focus trap handles keyboard users.
+ *     The `aria-modal="true"` attribute on each dialog is also kept
+ *     (GlassModal / GlassSheet / AuthModal set it) as a belt-and-
+ *     braces signal to AT — some legacy screen readers don't yet
+ *     honour `inert` but DO honour `aria-modal`.
  *
  * SINGLE <main> LANDMARK (WCAG 1.3.1, 2.4.1):
  *   The AppShell renders EXACTLY ONE <main> landmark. Page routes
@@ -86,9 +94,10 @@ const AppShell: ParentComponent = (props) => {
   // but bypass all consumer chrome.
   const isAdminRoute = createMemo(() => location.pathname.startsWith("/admin"));
 
-  // Any modal open — used for body scroll lock (set in each modal's onMount).
-  // We do NOT use `inert` or `aria-hidden` on the background wrapper — see
-  // the comment above for the full rationale.
+  // Any modal open — used for body scroll lock (set in each modal's onMount)
+  // AND for setting `inert` on the consumer wrapper so the background chrome
+  // (header, sidebar, main, bottom nav) is non-focusable AND hidden from AT
+  // while a modal is open. See the header comment for the full rationale.
   const anyModalOpen = createMemo(
     () => !!selectedItem() || !!collectionSelectedItem() || !!authModalOpen()
   );
@@ -107,6 +116,11 @@ const AppShell: ParentComponent = (props) => {
       fallback={
         <div
           class="app-shell-bg min-h-screen w-full"
+          // `inert` makes the entire background chrome (header, sidebar,
+          // main, bottom nav) non-focusable AND hidden from the AT tree
+          // when any modal is open. This is the WCAG-compliant way to
+          // contain keyboard focus inside the modal — see header comment.
+          inert={anyModalOpen() ? true : undefined}
           style={{
             "padding-bottom":
               "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
@@ -114,6 +128,14 @@ const AppShell: ParentComponent = (props) => {
             color: "var(--text)"
           }}
         >
+          {/* Skip link (WCAG 2.4.1 — Bypass Blocks). First focusable
+              element in the DOM so keyboard users land on it before
+              the header. Visually hidden until focused (CSS in
+              base/accessibility.css). */}
+          <a href="#main-content" class="skip-link">
+            Skip to content
+          </a>
+
           <AppHeader />
 
           <AnnouncementsBanner />

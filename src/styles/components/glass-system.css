@@ -672,6 +672,47 @@
   }
 }
 
+/* ─── GlassSheet EXIT animations (Phase 3) ───────────────────────
+   When `closing()` is true in GlassSheet.tsx, the sheet swaps from
+   `animate-slide-up` to `sheet-glass-closing` and the backdrop swaps
+   from `animate-fade-in` to `sheet-backdrop-closing`. These classes
+   play the REVERSE of the entrance animations so the sheet slides
+   back down and the backdrop fades out. The animation duration
+   matches `var(--dur-modal, 320ms)` (read by GlassSheet's setTimeout
+   so the unmount happens after the animation finishes). */
+@keyframes sheet-slide-down {
+  from {
+    transform: translateY(0);
+    opacity: 1;
+  }
+  to {
+    transform: translateY(100%);
+    opacity: 0.5;
+  }
+}
+
+.sheet-glass-closing {
+  /* Override the entrance animation with the exit animation. The
+     `forwards` fill-mode keeps the final state (translateY(100%) +
+     opacity 0.5) until the component unmounts. */
+  animation: sheet-slide-down var(--dur-modal, 320ms)
+    var(--ease-spring, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+}
+
+@keyframes sheet-backdrop-fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
+.sheet-backdrop-closing {
+  animation: sheet-backdrop-fade-out var(--dur-modal, 320ms) ease-out
+    forwards;
+}
+
 /* ============================================================
    GlassModal — centered frosted modal
    ============================================================ */

@@ -3,6 +3,7 @@ import {
   ParentComponent,
   JSX,
   Show,
+  createSignal,
   onCleanup,
   onMount,
   mergeProps,
@@ -49,7 +50,7 @@ const FOCUSABLE_SELECTOR =
 export interface GlassSheetProps {
   /** Whether the sheet is open. */
   open: boolean;
-  /** Called when the user dismisses the sheet (backdrop tap, ESC, swipe down). */
+  /** Called when the user dismisses the sheet (backdrop tap, ESC). */
   onClose: () => void;
   /** Sheet strength (controls blur + opacity). @default "strong" */
   strength?: SheetStrength;
@@ -99,7 +100,31 @@ const defaultProps: Required<
  *  - Border: 1px hairline-2 with `border-t` accent for the "rising" feel
  *  - Shadow: `shadow-elevated` + an inner top highlight to simulate light from above
  *  - Drag handle: a 36×4 pill at the top, always visible by default
- *  - Slide-up animation on mount, slide-down on close
+ *  - Slide-up entrance animation on mount (see CSS @keyframes sheet-slide-up)
+ *  - Slide-down exit animation on close (see CSS @keyframes sheet-slide-down,
+ *    applied via the `.sheet-glass-closing` class during the close transition)
+ *
+ * NOTE ON SWIPE-TO-DISMISS:
+ *   This component does NOT currently implement a swipe-down gesture. The
+ *   drag handle is decorative (visual cue only). Closing the sheet is done
+ *   via backdrop tap, ESC, or the optional header close button. A swipe-
+ *   down handler could be added later (touchstart → touchmove with a
+ *   threshold → onClose) but is intentionally omitted now to keep the
+ *   component small and avoid the touch-scroll conflicts that arise when
+ *   the body has its own scrollable content.
+ *
+ * EXIT ANIMATION:
+ *   When `open` transitions from true → false, the sheet plays a
+ *   `sheet-slide-down` animation (the inverse of `sheet-slide-up`) before
+ *   unmounting. This is implemented by:
+ *     1. Tracking `prevOpen` in a closure (same pattern as the focus-restore
+ *        effect).
+ *     2. When the open→close edge is detected, set `closing(true)` so the
+ *        JSX swaps the class from `animate-slide-up` to `sheet-glass-closing`.
+ *     3. After the animation duration (var(--dur-modal, 320ms) + 10ms buffer),
+ *        set `closing(false)` so the next render actually unmounts via the
+ *        outer <Show when={props.open}>. The <Show> condition is OR'd with
+ *        `closing()` so the sheet stays mounted during the animation.
  *
  * Accessibility:
  *  - role="dialog" aria-modal="true"
@@ -114,6 +139,12 @@ const defaultProps: Required<
  */
 const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
   const props = mergeProps(defaultProps, rawProps);
+
+  // `closing` signal — set to true when `props.open` transitions from
+  // true → false so the sheet can play its exit animation before
+  // unmounting. Reset to false after the animation duration so the
+  // <Show> condition below actually unmounts the Portal content.
+  const [closing, setClosing] = createSignal(false);
 
   // Focus management:
   //   - `sheetSurfaceRef` — the inner surface div, used to query
@@ -173,11 +204,18 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
   });
 
   // Auto-focus first focusable element when sheet opens + restore
-  // focus to the trigger when it closes.
+  // focus to the trigger when it closes. Also drives the exit-animation
+  // state: when `open` flips from true → false, set `closing(true)` so
+  // the JSX swaps to the slide-down class, then clear it after the
+  // animation duration so the outer <Show> unmounts.
   createEffect(() => {
     const isOpen = props.open;
     if (isOpen && !prevOpen) {
-      // Opening — save previously focused element (the trigger).
+      // Opening — reset closing flag (in case a previous close was
+      // interrupted by re-opening mid-animation) and clear any pending
+      // closing timer.
+      setClosing(false);
+      // Save previously focused element (the trigger).
       if (typeof document !== "undefined") {
         previouslyFocused =
           (document.activeElement as HTMLElement | null) ?? null;
@@ -191,7 +229,14 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
         });
       }
     } else if (!isOpen && prevOpen) {
-      // Closing — restore focus to the trigger.
+      // Closing — kick off the exit animation by setting `closing(true)`.
+      // The <Show> condition below is `props.open || closing()` so the
+      // sheet stays mounted while the animation plays. After
+      // var(--dur-modal, 320ms) + 10ms buffer, clear `closing` so the
+      // <Show> finally unmounts. We also restore focus to the trigger
+      // immediately (don't wait for the animation to finish — focus
+      // should move out of the sheet BEFORE it slides out of view).
+      setClosing(true);
       if (previouslyFocused) {
         const toFocus = previouslyFocused;
         previouslyFocused = null;
@@ -203,16 +248,40 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
           }
         });
       }
+      // Read the CSS variable for the animation duration. Fall back to
+      // 320ms if unset (matches the default in glass-system.css).
+      let durMs = 320;
+      if (typeof window !== "undefined") {
+        const raw = window
+          .getComputedStyle(document.documentElement)
+          .getPropertyValue("--dur-modal")
+          .trim();
+        if (raw) {
+          const parsed = parseFloat(raw);
+          if (!Number.isNaN(parsed) && parsed > 0) durMs = parsed;
+        }
+      }
+      const timer = setTimeout(() => setClosing(false), durMs + 10);
+      // If the sheet re-opens before the timer fires, clear it so we
+      // don't accidentally unmount the freshly-opened sheet.
+      onCleanup(() => clearTimeout(timer));
     }
     prevOpen = isOpen;
   });
 
+  // `mounted` = open OR closing — keeps the Portal content alive while
+  // the exit animation plays. Once `closing` flips back to false (after
+  // the timer above), the <Show> unmounts for real.
+  const mounted = () => props.open || closing();
+
   return (
-    <Show when={props.open}>
+    <Show when={mounted()}>
       <Portal>
-        {/* Backdrop */}
+        {/* Backdrop — fades out during the exit animation via the
+            `sheet-backdrop-closing` class. The entrance animation is
+            the same `animate-fade-in` as before. */}
         <div
-          class="animate-fade-in fixed inset-0 z-[999990]"
+          class={`fixed inset-0 z-[999990] ${closing() ? "sheet-backdrop-closing" : "animate-fade-in"}`}
           style={{
             "z-index": props.zIndexBase,
             background: "rgba(0,0,0,0.55)",
@@ -224,12 +293,14 @@ const GlassSheet: ParentComponent<GlassSheetProps> = (rawProps) => {
           }}
           aria-hidden="true"
         />
-        {/* Sheet */}
+        {/* Sheet — swaps to `sheet-glass-closing` (slide-down) when
+            `closing()` is true. The default class is `sheet-glass
+            animate-slide-up` (slide-up entrance). */}
         <div
           role="dialog"
           aria-modal="true"
           aria-labelledby={props.id ? `${props.id}-title` : undefined}
-          class="sheet-glass animate-slide-up"
+          class={`sheet-glass ${closing() ? "sheet-glass-closing" : "animate-slide-up"}`}
           style={{
             "z-index": props.zIndexBase + 1,
             ...({

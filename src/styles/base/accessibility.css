@@ -14,7 +14,52 @@
    (fade-in, slide-up, pop-in, etc.) so the UI still feels responsive
    without any disorienting motion. This matches the WCAG 2.3.3 spirit
    (Animation from Interactions — minimized) while preserving the
-   "something happened" feedback loop. */
+   "something happened" feedback loop.
+
+   This file also contains the SKIP-LINK styles (WCAG 2.4.1 — Bypass
+   Blocks). The skip link is rendered as the first focusable element in
+   AppShell.tsx and jumps keyboard users straight to #main-content. */
+
+/* ─── Skip Link (WCAG 2.4.1 — Bypass Blocks) ────────────────────────
+   Visually hidden off-screen until focused. On focus, slides into the
+   top-left corner as a visible chip so keyboard users see the focus
+   indicator. z-index above every modal (which go up to ~999999) so the
+   skip link remains focusable even when the page chrome is inert —
+   though `inert` on the wrapper would technically remove it from the
+   tab order, the skip link is the FIRST child of the wrapper so it is
+   focused BEFORE any modal opens (the user presses Tab once, lands on
+   the skip link, presses Enter to skip to main content). When a modal
+   IS open, the skip link is part of the inert wrapper and correctly
+   becomes non-focusable, which is the desired behaviour (the modal's
+   GlassModal/GlassSheet handles its own focus trap). */
+.skip-link {
+  position: absolute;
+  left: -9999px;
+  top: 0;
+  z-index: 9999999;
+  display: inline-flex;
+  align-items: center;
+  padding: 0.625rem 1rem;
+  background: var(--p, #e8b74a);
+  color: var(--void, #0a0a0a);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-decoration: none;
+  border-radius: 0 0 var(--radius-md, 8px) 0;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  /* Transition only on focus — never animate the off-screen position
+     so the link doesn't slide across the screen on page load. */
+  transition: left 0.15s ease-out, top 0.15s ease-out;
+}
+
+.skip-link:focus,
+.skip-link:focus-visible {
+  left: 0;
+  top: 0;
+  outline: 3px solid var(--text-strong, #fff);
+  outline-offset: 2px;
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,
