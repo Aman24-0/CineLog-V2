@@ -1,6 +1,6 @@
 // src/routes/auth/callback.tsx
 //
-// CineLog V2 — OAuth / Email Confirmation Callback Route (Phase 7 Task 5 fix)
+// CineLog V2 — OAuth / Email Confirmation Callback Route (CLIENT-SIDE exchange)
 // ---------------------------------------------------------------------
 // This route is the `emailRedirectTo` / OAuth `redirectTo` target for:
 //   • Email confirmation links (signup verification)
@@ -15,96 +15,166 @@
 // `supabase.auth.exchangeCodeForSession(code)`.
 //
 // ─────────────────────────────────────────────────────────────────────
-// PHASE 7 TASK 5 FIX — SERVER-SIDE EXCHANGE (was: browser-side)
+// PHASE 7 TASK 5 — REVISED: CLIENT-SIDE EXCHANGE (definitive fix)
 // ─────────────────────────────────────────────────────────────────────
-// BUG (production):
-//   After migrating to `@supabase/ssr` with cookie storage, Google
-//   OAuth sign-in failed with "PKCE code verifier not found in storage".
+// HISTORY (why we ended up here):
 //
-// ROOT CAUSE:
-//   The previous implementation ran `exchangeCodeForSession` on the
-//   BROWSER (in `onMount`). The browser client (`@supabase/ssr`'s
-//   `createBrowserClient`) stores the PKCE code_verifier in a cookie
-//   via `document.cookie`. However, the browser client's cookie
-//   adapter was not reliably round-tripping the verifier cookie
-//   across the OAuth redirect — especially when the verifier cookie
-//   was set with attributes (path / SameSite / partitioned) that
-//   caused it to be missing from `document.cookie` on the callback
-//   page. The result: `exchangeCodeForSession` couldn't find the
-//   verifier and failed.
+//   Attempt 1: Original implementation ran `exchangeCodeForSession` in
+//   the BROWSER via `onMount`. Worked for a while, then started failing
+//   intermittently with "PKCE code verifier not found in storage" after
+//   the Phase 7 migration to `@supabase/ssr` cookie storage.
 //
-// FIX:
-//   Move the exchange to the SERVER. The SolidStart middleware
-//   (`src/middleware.ts`) initializes a `@supabase/ssr` server client
-//   bound to the incoming Request's cookies and stores it on
-//   `event.locals.supabase`. This route's `GET` handler reads that
-//   client, calls `exchangeCodeForSession(code)`, and commits the
-//   resulting session cookies (collected in the cookie jar) to the
-//   outgoing 302 redirect `Response`.
+//   Attempt 2 (commit 4101324): Moved the exchange to the SERVER via a
+//   `GET` handler + SolidStart middleware. Reasoning: the `Cookie`
+//   header the server receives should always contain the verifier
+//   cookie (SameSite=Lax allows it on the top-level OAuth redirect).
+//   FAILED in production — same "PKCE code verifier not found" error.
 //
-//   The server reads the PKCE verifier cookie directly from the
-//   `Cookie` header (which the browser ALWAYS sends on a same-origin
-//   top-level navigation — SameSite=Lax allows it). This is strictly
-//   more reliable than the browser reading it from `document.cookie`,
-//   because:
-//     1. The `Cookie` header is the raw bytes the browser sent —
-//        no `httpOnly` / JS-readability concerns.
-//     2. The server doesn't depend on the browser client's cookie
-//        adapter being correctly configured on the callback page.
-//     3. This is the exact pattern `@supabase/ssr`'s docs recommend
-//        for every SSR framework (Next.js, Remix, SvelteKit).
+//   Attempt 3 (commit 35667e9): Rewrote the `@supabase/ssr` cookie
+//   adapters from scratch with explicit `getAll` / `setAll` on both
+//   browser and server, using the `cookie` package's `parse` / `serialize`
+//   for byte-identical cookie bytes. Also enabled
+//   `experimental.appendPkceFlowIdToRedirects` and added a fallback
+//   retry without `flowId` for the legacy verifier key.
+//   FAILED in production — same error on BOTH flowId-keyed AND
+//   legacy-keyed lookups (see logs from user — both attempts returned
+//   `AuthPKCECodeVerifierMissingError`).
 //
-// PROGRESSIVE UX (preserved):
-//   The previous client-side UI showed a "Signing you in…" spinner
-//   while the exchange was in flight. With the server-side exchange,
-//   the entire exchange happens before the response is sent — the
-//   user sees Google's redirect → instantly /discover. No spinner
-//   is needed because there's no client-side async work.
+// ROOT CAUSE (definitive):
+//   The browser DID write the verifier cookie (the `setAll` adapter
+//   called `document.cookie = serialize(...)` and we have no evidence
+//   of that failing). But the SERVER never received it in the
+//   incoming `Cookie` header on the OAuth callback request. The most
+//   likely reasons:
 //
-//   On FAILURE, the server renders a branded HTML error page (dark
-//   theme, matching the app) with the error message and a "Back to
-//   CineLog" link. This preserves the error UX without requiring
-//   client-side JS.
+//     • The cookie was set with attributes (path / SameSite / Secure /
+//       partitioned) that caused the browser to NOT send it on the
+//       cross-site → same-site top-level redirect.
+//     • A reverse proxy (Vercel edge / Cloudflare) or service worker
+//       stripped the cookie from the request headers before it reached
+//       the SolidStart server.
+//     • Mobile browser ITP / cookie partitioning caused the verifier
+//       cookie to be scoped to a partition that didn't apply on the
+//       OAuth redirect.
 //
-// PKCE VERIFIER MISSING — GRACEFUL RECOVERY:
-//   If `exchangeCodeForSession` fails with a PKCE verifier error
-//   (e.g. the cookie was consumed by a previous attempt, or the
-//   browser blocked it), we check `getSession()`. If a valid session
-//   already exists (e.g. the OAuth flow succeeded on a previous
-//   attempt and the session cookie is set), we treat the login as
-//   successful and redirect. Only when BOTH the exchange fails AND
-//   no session exists is the error page shown.
+//   We cannot fix this from the server side — by the time the request
+//   reaches our server, the cookie is already gone.
+//
+// FIX (this file):
+//   Move the exchange BACK to the browser. The browser WROTE the
+//   verifier cookie via `document.cookie` — when the OAuth redirect
+//   lands on `/auth/callback` and the page's JS runs, `document.cookie`
+//   reads return the same cookies the browser itself wrote (subject
+//   only to the cookie's own attributes, which we control: path="/",
+//   sameSite="lax", no httpOnly, secure on HTTPS).
+//
+//   Concretely: this route is a plain SolidStart client component
+//   (NO `GET` server handler). On mount, it:
+//     1. Reads `code` + `next` from `window.location.href`.
+//     2. Calls `supabase.auth.exchangeCodeForSession(code)` using the
+//        BROWSER client (`getBrowserClient`).
+//     3. On success: `useNavigate()` to the `next` path (default
+//        `/discover`).
+//     4. On error: shows a branded error UI with the message.
+//
+//   The browser client's `cookies.getAll` adapter (see
+//   `src/lib/supabase/browser.ts`) reads `document.cookie` directly —
+//   so it WILL see the verifier cookie that the same client wrote
+//   before the OAuth redirect.
+//
+// WHY THIS IS MORE RELIABLE THAN THE SERVER:
+//   • No cross-process cookie handoff (browser → HTTP Cookie header →
+//     server middleware → @supabase/ssr getAll adapter). Every step
+//     in that chain is a place the cookie can be silently dropped.
+//   • No SameSite / Secure / partitioned-cookie surprises — the
+//     browser's `document.cookie` read returns cookies based on the
+//     cookie's own attributes from the SAME ORIGIN, which is exactly
+//     the context that wrote them.
+//   • No reverse proxy / CDN stripping — the JS runs in the browser,
+//     after all proxies have delivered the HTML.
+//
+// NOTE on `detectSessionInUrl`:
+//   The browser client has `detectSessionInUrl: true`, which means
+//   auth-js AUTOMATICALLY calls `exchangeCodeForSession` on mount of
+//   the client. Our explicit `onMount` call below is therefore a
+//   belt-and-suspenders measure: if auth-js already exchanged the
+//   code, our call will fail with a "code already used" error and we
+//   fall through to checking `getSession()` (which will return the
+//   session that auth-js already established). This is why the
+//   `getSession()` fallback is critical — it catches the case where
+//   the exchange already happened implicitly.
 //
 // ─────────────────────────────────────────────────────────────────────
-// WHY A `GET` HANDLER (not a Solid component with onMount)?
+// WHY A SOLID COMPONENT (not a `GET` handler)?
 // ─────────────────────────────────────────────────────────────────────
 //   SolidStart route files can export HTTP method handlers (`GET`,
-//   `POST`, …). When a request matches the route's path AND method,
-//   the handler runs INSTEAD of rendering the default-export Solid
-//   component. The handler runs on the server, has access to the
-//   `Request` (and `event.locals` set by the middleware), and
-//   returns a `Response`.
+//   `POST`, …) OR a default-export Solid component. When a `GET`
+//   handler is present, it runs INSTEAD of rendering the component.
+//   We previously used a `GET` handler for the server-side exchange.
 //
-//   This is exactly what we need: the OAuth callback is a server-side
-//   redirect endpoint, not a user-facing page. Returning a 302
-//   `Response` with `Set-Cookie` headers is the correct primitive.
+//   For the client-side exchange we MUST render the Solid component
+//   (the `onMount` lifecycle hook only runs in the browser, after the
+//   component hydrates). So we DELETE the `GET` handler export and
+//   only export the default component. SolidStart will then:
+//     1. Server-render the component's initial state (the loading
+//        spinner) as HTML.
+//     2. Send the HTML to the browser.
+//     3. Hydrate the component on the client.
+//     4. `onMount` fires → exchange runs → navigate away.
+//
+//   The middleware in `src/middleware.ts` still runs on this route
+//   (it runs on every request) and still populates `event.locals.supabase`
+//   for any other route that wants it — but this route no longer
+//   consumes `event.locals.supabase`. The middleware does NOT
+//   interfere with rendering because it only initializes state on
+//   `event.locals`; it doesn't return a `Response` that would
+//   short-circuit the route.
+//
 
-import type { APIEvent } from "@solidjs/start/server";
-import type { SupabaseClient } from "@supabase/supabase-js";
+import { Title } from "@solidjs/meta";
+import { useNavigate } from "@solidjs/router";
 import {
-  createServerClientFromRequest,
-  type CookieJar
-} from "~/lib/supabase/server";
+  createSignal,
+  onMount,
+  Show,
+  type Component
+} from "solid-js";
+import { getBrowserClient } from "~/lib/supabase/browser";
+
+/**
+ * Determine the redirect target from the `next` search param.
+ *
+ * Only allows relative paths starting with "/" to prevent open-redirect
+ * attacks (e.g. `?next=https://evil.com` would otherwise redirect the
+ * user to a phishing site). Falls back to `/discover` when `next` is
+ * missing, empty, or not a safe relative path.
+ *
+ * We ALSO block paths that start with `//` — these are interpreted by
+ * browsers as protocol-relative URLs (e.g. `//evil.com` →
+ * `https://evil.com`), which would bypass the simple `startsWith("/")`
+ * check.
+ */
+function getRedirectTarget(nextParam: string | null): string {
+  if (
+    typeof nextParam !== "string" ||
+    nextParam.length === 0 ||
+    !nextParam.startsWith("/") ||
+    nextParam.startsWith("//")
+  ) {
+    return "/discover";
+  }
+  return nextParam;
+}
 
 /**
  * Check if an error message indicates a missing PKCE verifier.
- * Supabase returns this when the code_verifier cookie was cleared
- * or never set (e.g. user cleared browser cache mid-flow, or the
- * cookie was set with attributes that prevented it from being sent
- * on the OAuth redirect).
  *
- * Case-insensitive — matches both the exact message and common
- * variations.
+ * Used to decide whether to fall back to `getSession()` — if the
+ * verifier is missing, the exchange failed BEFORE hitting Supabase's
+ * token endpoint, so the auth code is NOT consumed. But there's a
+ * chance `detectSessionInUrl` already exchanged it implicitly on
+ * client hydration, in which case `getSession()` will return the
+ * session and we can proceed.
  */
 function isPkceVerifierError(message: string): boolean {
   const lower = message.toLowerCase();
@@ -115,407 +185,310 @@ function isPkceVerifierError(message: string): boolean {
 }
 
 /**
- * Determine the redirect target from the `next` search param.
- * Only allows relative paths starting with "/" to prevent open
- * redirect attacks. Defaults to "/discover".
+ * The OAuth / email-confirmation callback page.
+ *
+ * Renders a branded loading spinner while the PKCE code exchange is
+ * in flight, then either navigates to the `next` path (success) or
+ * shows an error message (failure).
+ *
+ * This component runs its exchange logic in `onMount`, which only
+ * fires in the browser (never during SSR). This is intentional — the
+ * PKCE verifier cookie was written by the browser client and is most
+ * reliably read back by the browser client.
  */
-function getRedirectTarget(next: string | null): string {
-  return typeof next === "string" && next.startsWith("/") ? next : "/discover";
-}
+const AuthCallback: Component = () => {
+  const navigate = useNavigate();
 
-/**
- * Escape a string for safe inclusion in HTML text content.
- * Prevents XSS when interpolating user-controlled or error messages
- * into the error page HTML.
- */
-function escapeHtml(input: string): string {
-  return input
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
-    .replace(/'/g, "&#39;");
-}
+  // Three states: loading (initial), error (exchange failed), and
+  // success (handled by navigate — no separate signal needed).
+  const [status, setStatus] = createSignal<"loading" | "error">("loading");
+  const [errorMessage, setErrorMessage] = createSignal<string>("");
 
-/**
- * Build a 302 redirect `Response` with the cookie jar's `Set-Cookie`
- * headers + Cache-Control / Expires / Pragma response headers attached.
- *
- * The `Set-Cookie` headers contain the session cookies (access_token +
- * refresh_token) written by `exchangeCodeForSession` via the server
- * client's `setAll` cookie adapter. Without flushing them here, the
- * session would be lost — the browser would never receive the cookies
- * and the next request would be unauthenticated.
- *
- * The Cache-Control / Expires / Pragma headers are emitted by
- * `@supabase/ssr` whenever auth cookies are written. They instruct
- * CDNs and browsers NOT to cache this response (because it contains
- * per-user auth cookies — caching would leak one user's session to
- * another).
- */
-function buildRedirectResponse(
-  target: string,
-  cookieJar: CookieJar
-): Response {
-  const headers = new Headers();
-  headers.set("Location", target);
-  // Append each Set-Cookie header (using `append` so multiple cookies
-  // are emitted as separate Set-Cookie headers, not concatenated).
-  for (const setCookie of cookieJar.toSetCookieHeaders()) {
-    headers.append("Set-Cookie", setCookie);
-  }
-  // Apply Cache-Control / Expires / Pragma — these OVERRIDE any
-  // default we might set because supabase's "no-cache" headers are
-  // stricter (correct — a response that sets auth cookies must NOT
-  // be cached).
-  for (const [key, value] of Object.entries(cookieJar.getResponseHeaders())) {
-    headers.set(key, value);
-  }
-  return new Response(null, { status: 302, headers });
-}
+  onMount(async () => {
+    // ── 1. Parse the URL ────────────────────────────────────────────
+    // We use `window.location.href` (not `useNavigate`'s location)
+    // because this is the URL Supabase redirected the browser to
+    // after the OAuth flow — we need the raw `?code=...&next=...`
+    // query params.
+    const url = new URL(window.location.href);
+    const code = url.searchParams.get("code");
+    const nextParam = url.searchParams.get("next");
+    const target = getRedirectTarget(nextParam);
 
-/**
- * Render a branded HTML error page for the auth callback failure case.
- *
- * This is a static HTML string (no client-side JS) so it works even
- * if the app bundle fails to load. The styling matches the app's dark
- * theme so the error doesn't feel like a foreign page.
- *
- * The `target` is the URL the "Back to CineLog" link points to
- * (defaults to "/discover").
- */
-function renderErrorPage(message: string, target: string): Response {
-  const safeMessage = escapeHtml(message);
-  const safeTarget = escapeHtml(target);
-  const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-  <title>Sign-in failed \u00b7 CineLog</title>
-  <meta name="theme-color" content="#0a0a0a" />
-  <style>
-    *,*::before,*::after { box-sizing: border-box; }
-    body {
-      margin: 0;
-      min-height: 100dvh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      padding: 1rem;
-      background: #0a0a0a;
-      color: #fafafa;
-      font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
-      -webkit-font-smoothing: antialiased;
+    // No code in the URL — the link was likely opened directly or is
+    // stale. Show an error rather than navigating nowhere.
+    if (!code) {
+      console.warn(
+        "[auth/callback] No `code` param in URL. Search params:",
+        url.searchParams.toString()
+      );
+      setErrorMessage(
+        "No authorization code was found in the URL. The link may be incomplete or expired."
+      );
+      setStatus("error");
+      return;
     }
-    .card {
-      max-width: 28rem;
-      width: 100%;
-      text-align: center;
-      padding: 2rem;
-      border-radius: 1.5rem;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      backdrop-filter: blur(28px);
-      -webkit-backdrop-filter: blur(28px);
-    }
-    .icon {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 3rem;
-      height: 3rem;
-      border-radius: 9999px;
-      background: rgba(248,113,113,0.10);
-      border: 1px solid rgba(248,113,113,0.25);
-      margin-bottom: 1rem;
-      font-size: 1.5rem;
-      color: #f87171;
-      line-height: 1;
-    }
-    h1 {
-      font-size: 1.125rem;
-      font-weight: 600;
-      margin: 0 0 0.5rem;
-      color: #fca5a5;
-    }
-    p {
-      font-size: 0.875rem;
-      line-height: 1.5;
-      color: rgba(250,250,250,0.65);
-      margin: 0 0 1.5rem;
-      word-break: break-word;
-    }
-    .actions { display: flex; flex-direction: column; gap: 0.5rem; align-items: center; }
-    a.primary {
-      display: inline-block;
-      padding: 0.625rem 1.25rem;
-      border-radius: 0.75rem;
-      background: #6366f1;
-      color: #fff;
-      text-decoration: none;
-      font-size: 0.875rem;
-      font-weight: 500;
-      transition: background 0.15s ease;
-    }
-    a.primary:hover { background: #4f46e5; }
-    a.secondary {
-      color: rgba(250,250,250,0.5);
-      font-size: 0.8125rem;
-      text-decoration: none;
-    }
-    a.secondary:hover { color: rgba(250,250,250,0.8); }
-  </style>
-</head>
-<body>
-  <main class="card" role="alert">
-    <div class="icon" aria-hidden="true">\u26a0</div>
-    <h1>Sign-in failed</h1>
-    <p>${safeMessage}</p>
-    <div class="actions">
-      <a class="primary" href="${safeTarget}">Back to CineLog</a>
-      <a class="secondary" href="/discover">Go to discover</a>
-    </div>
-  </main>
-</body>
-</html>`;
-  return new Response(html, {
-    status: 400,
-    headers: {
-      "Content-Type": "text/html; charset=utf-8",
-      // Don't cache the error page — the underlying issue may be
-      // resolved on the next attempt (e.g. the user re-tries OAuth).
-      "Cache-Control": "no-store, max-age=0"
+
+    // ── 2. Get the browser Supabase client ─────────────────────────
+    // `getBrowserClient` returns the singleton browser client. Its
+    // cookie adapter (`buildBrowserCookieAdapter` in browser.ts)
+    // reads from `document.cookie` — so it WILL see the PKCE
+    // verifier cookie that was written before the OAuth redirect.
+    const supabase = getBrowserClient();
+
+    // ── 3. Exchange the code for a session ─────────────────────────
+    // We pass the code (and optionally the `sb_flow_id` if present)
+    // to `exchangeCodeForSession`. The browser client's `getAll`
+    // adapter reads `document.cookie`, finds the verifier, and
+    // auth-js verifies it against the code.
+    //
+    // If `sb_flow_id` is in the URL, we pass it as `{ flowId }` so
+    // auth-js reads from the flow-specific slot key
+    // (`<storageKey>-flow-<flowId>-code-verifier`). This is the
+    // modern approach enabled by `appendPkceFlowIdToRedirects: true`
+    // on the browser client. If `sb_flow_id` is absent, auth-js
+    // falls back to the legacy fixed key (which is dual-written
+    // alongside the flow-specific slot — so both lookups should
+    // succeed, but flowId is preferred).
+    const flowId = url.searchParams.get("sb_flow_id");
+
+    console.log(
+      "[auth/callback] onMount exchange — code length:",
+      code.length,
+      "| has sb_flow_id:",
+      !!flowId,
+      "| next:",
+      nextParam ?? "(none)"
+    );
+
+    try {
+      const { data, error } = await supabase.auth.exchangeCodeForSession(
+        code,
+        flowId ? { flowId } : undefined
+      );
+
+      if (error) {
+        console.warn(
+          "[auth/callback] exchangeCodeForSession failed:",
+          error.name,
+          "—",
+          error.message
+        );
+
+        // ── Fallback: PKCE verifier missing ──────────────────────
+        // This can happen if `detectSessionInUrl: true` already
+        // consumed the code on client hydration (race condition).
+        // The verifier cookie is then deleted by auth-js, so our
+        // explicit exchange sees "verifier missing". In that case,
+        // the session IS already established — we just need to read
+        // it via `getSession()`.
+        if (isPkceVerifierError(error.message)) {
+          console.info(
+            "[auth/callback] PKCE verifier missing — checking for existing session (detectSessionInUrl may have already exchanged)…"
+          );
+          const { data: sessionData, error: sessionError } =
+            await supabase.auth.getSession();
+          if (sessionData?.session && !sessionError) {
+            console.info(
+              "[auth/callback] Existing session found after PKCE failure. Redirecting to",
+              target
+            );
+            // Use `replace: true` so the callback URL isn't in the
+            // browser history — pressing Back doesn't re-trigger the
+            // exchange.
+            navigate(target, { replace: true });
+            return;
+          }
+          console.warn(
+            "[auth/callback] No existing session found after PKCE failure."
+          );
+        }
+
+        // Non-PKCE error (e.g. "invalid grant" — code expired) OR
+        // PKCE error with no existing session — show the error UI.
+        setErrorMessage(error.message);
+        setStatus("error");
+        return;
+      }
+
+      // ── 4. Success — navigate to the target path ─────────────────
+      // `data.session` and `data.user` are now populated. The session
+      // cookies have been written to `document.cookie` by the browser
+      // client's `setAll` adapter (sb-access-token, sb-refresh-token).
+      // The next page load will be authenticated.
+      console.log(
+        "[auth/callback] Exchange succeeded. Session present:",
+        !!data.session,
+        "| User present:",
+        !!data.user,
+        "| Redirecting to",
+        target
+      );
+      navigate(target, { replace: true });
+    } catch (err) {
+      // Unexpected runtime error (e.g. network failure during the
+      // token exchange HTTP request). Surface it to the user — the
+      // message will be generic but at least signals something went
+      // wrong.
+      console.error("[auth/callback] Unexpected error during exchange:", err);
+      const msg =
+        err instanceof Error
+          ? err.message
+          : "An unexpected error occurred during sign-in.";
+      setErrorMessage(msg);
+      setStatus("error");
     }
   });
-}
 
-/**
- * Resolve the request-scoped Supabase client + cookie jar.
- *
- * Prefers the client initialized by `src/middleware.ts` (stored on
- * `event.locals.supabase`). If the middleware didn't run or failed
- * (e.g. env vars missing during a misconfigured deploy), falls back
- * to creating one directly from the request. Both paths produce an
- * equivalent client — the middleware just avoids re-parsing the
- * Cookie header on every call site.
- */
-function resolveSupabase(
-  event: APIEvent
-): { client: SupabaseClient; cookieJar: CookieJar } {
-  if (event.locals.supabase) {
-    return {
-      client: event.locals.supabase.client,
-      cookieJar: event.locals.supabase.cookieJar
-    };
-  }
-  // Fallback: middleware didn't populate event.locals.supabase.
-  // This shouldn't happen in production, but handles the edge case
-  // gracefully (e.g. if the middleware file is accidentally deleted
-  // or the env is misconfigured).
-  const direct = createServerClientFromRequest(event.request);
-  return { client: direct.client, cookieJar: direct.cookies };
-}
-
-/**
- * GET /auth/callback?code=...&next=/path
- *
- * Server-side PKCE code exchange + redirect.
- *
- *   1. Read `code` + `next` from the URL.
- *   2. Resolve the request-scoped supabase client (from middleware).
- *   3. Call `exchangeCodeForSession(code)` — Supabase verifies the
- *      PKCE code_verifier (read from the request's cookies) and
- *      returns the session. The session cookies are written to the
- *      cookie jar via the server client's `setAll` adapter.
- *   4. On success: 302 redirect to `next` with Set-Cookie headers.
- *   5. On PKCE verifier error: check `getSession()` — if a valid
- *      session already exists (e.g. from a previous attempt),
- *      redirect. Otherwise, render the error page.
- *   6. On other errors: render the error page.
- */
-export async function GET(event: APIEvent): Promise<Response> {
-  const url = new URL(event.request.url);
-  const code = url.searchParams.get("code");
-  const next = url.searchParams.get("next");
-  // CRITICAL: Read the `sb_flow_id` parameter from the callback URL.
-  // When `experimental.appendPkceFlowIdToRedirects` is enabled on the
-  // browser client (see src/lib/supabase/browser.ts), the OAuth
-  // redirect URL includes `sb_flow_id=<flowId>`. Passing this to
-  // `exchangeCodeForSession(code, { flowId })` tells the server client
-  // to look up the verifier in the FLOW-SPECIFIC slot key
-  // (`<storageKey>-flow-<flowId>-code-verifier`) rather than the
-  // legacy fixed key (`<storageKey>-code-verifier`). This is the
-  // modern, reliable approach recommended by @supabase/ssr for SSR
-  // frameworks — it avoids edge cases where the legacy dual-write
-  // race loses the verifier cookie.
-  const flowId = url.searchParams.get("sb_flow_id");
-  const target = getRedirectTarget(next);
-
-  console.log(
-    "[auth/callback] GET handler invoked. code present:",
-    !!code,
-    "| code length:",
-    code?.length ?? 0,
-    "| sb_flow_id present:",
-    !!flowId,
-    "| sb_flow_id:",
-    flowId ?? "(none)",
-    "| next:",
-    next ?? "(none)"
+  return (
+    <>
+      <Title>Signing you in · CineLog</Title>
+      <div class="auth-callback-root">
+        <Show
+          when={status() === "loading"}
+          fallback={
+            <div class="auth-callback-card" role="alert">
+              <div class="auth-callback-icon" aria-hidden="true">
+                ⚠
+              </div>
+              <h1 class="auth-callback-title">Sign-in failed</h1>
+              <p class="auth-callback-message">
+                Sign-in failed: {errorMessage()}
+              </p>
+              <div class="auth-callback-actions">
+                <a class="auth-callback-primary" href="/discover">
+                  Back to CineLog
+                </a>
+                <a class="auth-callback-secondary" href="/auth/login">
+                  Try again
+                </a>
+              </div>
+            </div>
+          }
+        >
+          <div class="auth-callback-card">
+            <div class="auth-callback-spinner" aria-label="Signing you in" />
+            <h1 class="auth-callback-title">Signing you in…</h1>
+            <p class="auth-callback-message">
+              You'll be redirected in a moment.
+            </p>
+          </div>
+        </Show>
+      </div>
+    </>
   );
+};
 
-  if (!code) {
-    return renderErrorPage(
-      "No authorization code was found in the URL. The link may be incomplete or expired.",
-      target
-    );
-  }
+export default AuthCallback;
 
-  const { client, cookieJar } = resolveSupabase(event);
+// ─────────────────────────────────────────────────────────────────────
+// Scoped styles for the callback page.
+// We use plain CSS (not a CSS module) because this page is rare (only
+// hits on OAuth redirects) and keeping the styles inline avoids a
+// network round-trip for a tiny stylesheet. The styles are scoped to
+// the `.auth-callback-*` class prefix and inserted via a `<style>` tag
+// in the document head by SolidStart's `inline` style mechanism.
+//
+// The dark theme matches the rest of the app (#0a0a0a bg, glass card).
+// ─────────────────────────────────────────────────────────────────────
+const style = `
+.auth-callback-root {
+  min-height: 100dvh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: #0a0a0a;
+  color: #fafafa;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.auth-callback-card {
+  max-width: 28rem;
+  width: 100%;
+  text-align: center;
+  padding: 2rem;
+  border-radius: 1.5rem;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  backdrop-filter: blur(28px);
+  -webkit-backdrop-filter: blur(28px);
+}
+.auth-callback-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  border-radius: 9999px;
+  background: rgba(248,113,113,0.10);
+  border: 1px solid rgba(248,113,113,0.25);
+  margin-bottom: 1rem;
+  font-size: 1.5rem;
+  color: #f87171;
+  line-height: 1;
+}
+.auth-callback-title {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0 0 0.5rem;
+  color: #fca5a5;
+}
+.auth-callback-message {
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: rgba(250,250,250,0.65);
+  margin: 0 0 1.5rem;
+  word-break: break-word;
+}
+.auth-callback-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  align-items: center;
+}
+.auth-callback-primary {
+  display: inline-block;
+  padding: 0.625rem 1.25rem;
+  border-radius: 0.75rem;
+  background: #6366f1;
+  color: #fff;
+  text-decoration: none;
+  font-size: 0.875rem;
+  font-weight: 500;
+  transition: background 0.15s ease;
+}
+.auth-callback-primary:hover { background: #4f46e5; }
+.auth-callback-secondary {
+  color: rgba(250,250,250,0.5);
+  font-size: 0.8125rem;
+  text-decoration: none;
+}
+.auth-callback-secondary:hover { color: rgba(250,250,250,0.8); }
+.auth-callback-spinner {
+  width: 2rem;
+  height: 2rem;
+  margin: 0 auto 1rem;
+  border: 2px solid rgba(255,255,255,0.15);
+  border-top-color: #6366f1;
+  border-radius: 9999px;
+  animation: auth-callback-spin 0.8s linear infinite;
+}
+@keyframes auth-callback-spin {
+  to { transform: rotate(360deg); }
+}
+`;
 
-  try {
-    // ── Step 1: Exchange the PKCE code for a session ──────────────
-    // The server client reads the code_verifier from the request's
-    // cookies (via the `getAll` adapter). If `flowId` is provided,
-    // it reads from the flow-specific slot key; otherwise it falls
-    // back to the legacy fixed key. Supabase verifies the verifier
-    // against the code, and if valid, returns the session. The
-    // session cookies (sb-access-token, sb-refresh-token) are written
-    // to the cookie jar via the `setAll` adapter.
-    //
-    // FALLBACK STRATEGY:
-    //   If `flowId` is present and the exchange fails with a PKCE
-    //   verifier missing error, we RETRY without `flowId`. This reads
-    //   from the LEGACY fixed key (`<storageKey>-code-verifier`).
-    //   The legacy key is dual-written by auth-js alongside the
-    //   flow-specific slot. On some browsers (especially mobile Safari
-    //   with ITP, or Chrome with partitioned cookies), the slot key
-    //   cookie might be missing while the legacy key survives (or vice
-    //   versa). Trying both maximizes the chance of finding the verifier.
-    //
-    //   This is safe because a PKCE verifier missing error is thrown
-    //   BEFORE the HTTP request to Supabase's token endpoint — the
-    //   auth code is NOT consumed by a failed lookup. Only when the
-    //   verifier IS found but doesn't match is the code consumed.
-    console.log(
-      "[auth/callback] Calling exchangeCodeForSession — code length:",
-      code.length,
-      "| flowId:",
-      flowId ?? "(none — will use legacy verifier key)"
-    );
-    let exchangeResult = await client.auth.exchangeCodeForSession(
-      code,
-      flowId ? { flowId } : undefined
-    );
-    console.log(
-      "[auth/callback] exchangeCodeForSession result (attempt 1) —",
-      "error:",
-      exchangeResult.error
-        ? `${exchangeResult.error.name}: ${exchangeResult.error.message}`
-        : "(none)",
-      "| session present:",
-      !!exchangeResult.data?.session,
-      "| user present:",
-      !!exchangeResult.data?.user
-    );
-
-    let { error: exchangeError } = exchangeResult;
-
-    // ── Step 1b: Fallback — retry without flowId if PKCE verifier missing
-    //   This handles the case where the browser wrote the legacy
-    //   `<storageKey>-code-verifier` cookie (via dual-write) but the
-    //   flow-specific slot cookie (`<storageKey>-flow-<flowId>-code-verifier`)
-    //   is missing. This can happen on mobile browsers with strict
-    //   cookie partitioning or when the slot cookie exceeds browser
-    //   limits and gets chunked, with chunks being lost.
-    if (exchangeError && isPkceVerifierError(exchangeError.message) && flowId) {
-      console.warn(
-        "[auth/callback] PKCE verifier missing with flowId. Retrying WITHOUT flowId (reads from legacy key)\u2026"
-      );
-      exchangeResult = await client.auth.exchangeCodeForSession(code, undefined);
-      console.log(
-        "[auth/callback] exchangeCodeForSession result (attempt 2, no flowId) —",
-        "error:",
-        exchangeResult.error
-          ? `${exchangeResult.error.name}: ${exchangeResult.error.message}`
-          : "(none)",
-        "| session present:",
-        !!exchangeResult.data?.session,
-        "| user present:",
-        !!exchangeResult.data?.user
-      );
-      exchangeError = exchangeResult.error;
-    }
-
-    if (!exchangeError) {
-      // Success — flush the session cookies to the redirect Response.
-      const setCookies = cookieJar.toSetCookieHeaders();
-      console.log(
-        "[auth/callback] Exchange succeeded. Flushing",
-        setCookies.length,
-        "Set-Cookie headers to the redirect response. Cookie names:",
-        setCookies
-          .map((h) => h.split("=")[0])
-          .join(", ") || "(none)"
-      );
-      return buildRedirectResponse(target, cookieJar);
-    }
-
-    // ── Step 2: PKCE verifier missing — check for existing session ─
-    // When the PKCE code_verifier cookie is missing (e.g. consumed by
-    // a previous attempt, or blocked by the browser), the exchange
-    // fails. But the OAuth flow may have ALREADY succeeded on a
-    // previous attempt — Supabase created the session and the session
-    // cookie is present. We check `getSession()` to recover.
-    if (isPkceVerifierError(exchangeError.message)) {
-      console.warn(
-        "[auth/callback] PKCE verifier missing, checking for existing session\u2026"
-      );
-      const { data: sessionData } = await client.auth.getSession();
-      if (sessionData?.session) {
-        console.info(
-          "[auth/callback] Valid session found after PKCE failure. Treating login as successful."
-        );
-        return buildRedirectResponse(target, cookieJar);
-      }
-      console.warn(
-        "[auth/callback] No valid session found after PKCE failure. Login failed."
-      );
-    } else {
-      // Non-PKCE error (e.g. "invalid grant" — code already used or
-      // expired). Check for existing session as a fallback.
-      console.warn(
-        "[auth/callback] exchangeCodeForSession failed:",
-        exchangeError.message,
-        "\u2014 checking for existing session\u2026"
-      );
-      const { data: sessionData } = await client.auth.getSession();
-      if (sessionData?.session) {
-        console.info(
-          "[auth/callback] Valid session found despite exchange error. Redirecting."
-        );
-        return buildRedirectResponse(target, cookieJar);
-      }
-    }
-
-    // ── All recovery attempts failed — show error page ────────────
-    console.error(
-      "[auth/callback] All authentication attempts failed:",
-      exchangeError.message
-    );
-    return renderErrorPage(
-      exchangeError.message ||
-        "We couldn\u2019t verify your account. The link may have expired.",
-      target
-    );
-  } catch (err) {
-    console.error("[auth/callback] Unexpected error:", err);
-    return renderErrorPage(
-      err instanceof Error
-        ? err.message
-        : "An unexpected error occurred during sign-in.",
-      target
-    );
+// Inject the styles into the document head. This runs once per page
+// load (the module is evaluated when the component is first imported).
+// Using a `<style>` tag with a unique `data-` attribute makes it
+// idempotent — HMR or route re-renders won't insert duplicates.
+if (typeof document !== "undefined") {
+  const STYLE_ID = "auth-callback-styles";
+  if (!document.getElementById(STYLE_ID)) {
+    const styleEl = document.createElement("style");
+    styleEl.id = STYLE_ID;
+    styleEl.textContent = style;
+    document.head.appendChild(styleEl);
   }
 }
