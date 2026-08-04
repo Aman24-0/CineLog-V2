@@ -208,8 +208,8 @@ DECLARE
   -- the setting is not set, instead of raising an error". This lets
   -- the migration gracefully skip the cron.schedule call when the
   -- operator hasn't configured the secrets yet.
-  v_app_url    TEXT := current_setting('app.app_url', true);
-  v_cron_secret TEXT := current_setting('app.cron_secret', true);
+  v_app_url    TEXT := 'https://cinelogv2.vercel.app';
+  v_cron_secret TEXT := '1814ad6f0414470a8760f52d02ec7886635a0c4cbc0f4f849421474bfc3c6f64';
 BEGIN
   IF v_app_url IS NULL OR v_cron_secret IS NULL THEN
     RAISE NOTICE
