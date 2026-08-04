@@ -66,9 +66,36 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
   // Track which keys are currently being added (for the per-row spinner).
   const [addingKeys, setAddingKeys] = createSignal<Set<string>>(new Set());
 
+  // Phase 6.2 Task 2a — multi-select for bulk add.
+  // selectedKeys holds the set of result rows the user has checked.
+  // Bulk add iterates this set and calls addToCollection for each.
+  const [selectedKeys, setSelectedKeys] = createSignal<Set<string>>(
+    new Set()
+  );
+  const [isBulkAdding, setIsBulkAdding] = createSignal(false);
+
+  const toggleSelect = (key: string) => {
+    setSelectedKeys((prev) => {
+      const next = new Set<string>(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const all = new Set<string>();
+    for (const r of search.results()) {
+      if (!r.alreadyInCollection) all.add(r.key);
+    }
+    setSelectedKeys(all);
+  };
+
+  const deselectAll = () => setSelectedKeys(new Set<string>());
+
   const handleAdd = async (key: string, item: WatchlistItem) => {
     if (existingKeys().has(key)) return; // already in collection
-    setAddingKeys((prev) => new Set(prev).add(key));
+    setAddingKeys((prev) => new Set<string>(prev).add(key));
 
     try {
       const entry: CollectionEntry = {
@@ -85,16 +112,72 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
         orderIndex: (props.collection.entries ?? []).length
       };
       await addToCollection(props.collection.id, entry);
+      // After a successful add, remove the key from the selected set
+      // (the row will now show "Added" so it's no longer selectable).
+      setSelectedKeys((prev) => {
+        if (!prev.has(key)) return prev;
+        const next = new Set<string>(prev);
+        next.delete(key);
+        return next;
+      });
     } catch (err) {
       console.error("[AddTitlesModal] Failed to add:", err);
       showToast("Failed to add title.", "error");
     } finally {
       setAddingKeys((prev) => {
-        const next = new Set(prev);
+        const next = new Set<string>(prev);
         next.delete(key);
         return next;
       });
     }
+  };
+
+  // Bulk add — iterates the selected keys, resolves each back to its
+  // WatchlistItem from the search results, and calls handleAdd for each.
+  // Sequential to preserve the optimistic-update pattern in addToCollection
+  // (each call updates the local entries signal immediately).
+  const handleBulkAdd = async () => {
+    const selected = selectedKeys();
+    if (selected.size === 0) return;
+    // Build a key → item map from the current search results so we can
+    // resolve each selected key to its WatchlistItem.
+    const resultMap = new Map<string, WatchlistItem>();
+    for (const r of search.results()) {
+      resultMap.set(r.key, r.item);
+    }
+    const toAdd: { key: string; item: WatchlistItem }[] = [];
+    for (const key of selected) {
+      const item = resultMap.get(key);
+      if (item) toAdd.push({ key, item });
+    }
+    if (toAdd.length === 0) return;
+    setIsBulkAdding(true);
+    let success = 0;
+    let fail = 0;
+    for (const { key, item } of toAdd) {
+      try {
+        await handleAdd(key, item);
+        success++;
+      } catch {
+        fail++;
+      }
+    }
+    setIsBulkAdding(false);
+    if (success > 0) {
+      showToast(
+        `Added ${success} title${success === 1 ? "" : "s"} to ${props.collection.name}.`,
+        "success"
+      );
+    }
+    if (fail > 0) {
+      showToast(
+        `Failed to add ${fail} title${fail === 1 ? "" : "s"}.`,
+        "error"
+      );
+    }
+    // Clear selection after bulk add (successful adds have already been
+    // removed from the set inside handleAdd; this clears any that failed).
+    deselectAll();
   };
 
   return (
@@ -183,118 +266,253 @@ const AddTitlesModal: Component<AddTitlesModalProps> = (props) => {
               }
             >
               <For each={search.results()}>
-                {(result) => (
-                  <div class="add-titles-result">
-                    {/* Poster thumbnail (40×60) */}
-                    <Show
-                      when={result.item.poster_path}
-                      fallback={
-                        <div
-                          class="add-titles-result-poster-fallback"
-                          aria-hidden="true"
+                {(result) => {
+                  const isSelected = () =>
+                    selectedKeys().has(result.key);
+                  return (
+                    <div class="add-titles-result">
+                      {/* Phase 6.2 Task 2a — checkbox for multi-select.
+                          Only renders for results NOT already in the
+                          collection (already-added rows show "Added"
+                          and can't be re-added). */}
+                      <Show when={!result.alreadyInCollection}>
+                        <button
+                          type="button"
+                          class="add-titles-result-select focus-ring"
+                          aria-label={
+                            isSelected()
+                              ? `Deselect ${result.item.title || result.item.name}`
+                              : `Select ${result.item.title || result.item.name}`
+                          }
+                          aria-pressed={isSelected()}
+                          onClick={() => toggleSelect(result.key)}
+                          style={{
+                            display: "flex",
+                            "align-items": "center",
+                            "justify-content": "center",
+                            width: "28px",
+                            height: "28px",
+                            "border-radius": "9999px",
+                            border: `2px solid ${isSelected() ? "var(--p)" : "var(--hairline-2)"}`,
+                            background: isSelected() ? "var(--p)" : "transparent",
+                            color: "var(--active-text)",
+                            cursor: "pointer",
+                            "flex-shrink": "0"
+                          }}
                         >
-                          <span
-                            class="material-symbols-outlined"
+                          <Show when={isSelected()}>
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                              style={{ "font-size": "16px" }}
+                            >
+                              check
+                            </span>
+                          </Show>
+                        </button>
+                      </Show>
+
+                      {/* Poster thumbnail (40×60) */}
+                      <Show
+                        when={result.item.poster_path}
+                        fallback={
+                          <div
+                            class="add-titles-result-poster-fallback"
                             aria-hidden="true"
                           >
-                            movie
-                          </span>
-                        </div>
-                      }
-                    >
-                      <img
-                        src={tmdbImage(result.item.poster_path!, "w92")}
-                        class="add-titles-result-poster"
-                        loading="lazy"
-                        decoding="async"
-                        alt=""
-                        aria-hidden="true"
-                        onError={(e) => {
-                          e.currentTarget.style.display = "none";
-                        }}
-                      />
-                    </Show>
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                            >
+                              movie
+                            </span>
+                          </div>
+                        }
+                      >
+                        <img
+                          src={tmdbImage(result.item.poster_path!, "w92")}
+                          class="add-titles-result-poster"
+                          loading="lazy"
+                          decoding="async"
+                          alt=""
+                          aria-hidden="true"
+                          onError={(e) => {
+                            e.currentTarget.style.display = "none";
+                          }}
+                        />
+                      </Show>
 
-                    {/* Title + year */}
-                    <div class="add-titles-result-info">
-                      <p class="add-titles-result-title">
-                        {result.item.title || result.item.name || "Untitled"}
-                      </p>
-                      <p class="add-titles-result-meta">
-                        <span>
-                          {result.item.media_type === "tv" ? "Series" : "Movie"}
-                        </span>
-                        <Show
-                          when={(
-                            result.item.release_date ||
-                            result.item.first_air_date ||
-                            ""
-                          ).slice(0, 4)}
-                        >
+                      {/* Title + year */}
+                      <div class="add-titles-result-info">
+                        <p class="add-titles-result-title">
+                          {result.item.title || result.item.name || "Untitled"}
+                        </p>
+                        <p class="add-titles-result-meta">
                           <span>
-                            {" "}
-                            ·{" "}
-                            {(
+                            {result.item.media_type === "tv" ? "Series" : "Movie"}
+                          </span>
+                          <Show
+                            when={(
                               result.item.release_date ||
                               result.item.first_air_date ||
                               ""
                             ).slice(0, 4)}
-                          </span>
-                        </Show>
-                      </p>
-                    </div>
-
-                    {/* Add button */}
-                    <Show
-                      when={!result.alreadyInCollection}
-                      fallback={
-                        <span
-                          class="add-titles-result-added"
-                          aria-label="Already in collection"
-                        >
-                          <span
-                            class="material-symbols-outlined"
-                            aria-hidden="true"
                           >
-                            check
-                          </span>
-                          Added
-                        </span>
-                      }
-                    >
-                      <button
-                        type="button"
-                        class="add-titles-result-add-btn focus-ring"
-                        onClick={() => handleAdd(result.key, result.item)}
-                        disabled={addingKeys().has(result.key)}
-                        aria-label={`Add ${result.item.title || result.item.name} to ${props.collection.name}`}
-                      >
-                        <Show
-                          when={!addingKeys().has(result.key)}
-                          fallback={
+                            <span>
+                              {" "}
+                              ·{" "}
+                              {(
+                                result.item.release_date ||
+                                result.item.first_air_date ||
+                                ""
+                              ).slice(0, 4)}
+                            </span>
+                          </Show>
+                        </p>
+                      </div>
+
+                      {/* Add button — single-row add (still available
+                          alongside the bulk-add footer button). */}
+                      <Show
+                        when={!result.alreadyInCollection}
+                        fallback={
+                          <span
+                            class="add-titles-result-added"
+                            aria-label="Already in collection"
+                          >
                             <span
-                              class="material-symbols-outlined add-titles-result-add-spinner"
+                              class="material-symbols-outlined"
                               aria-hidden="true"
                             >
-                              progress_activity
+                              check
                             </span>
-                          }
-                        >
-                          <span
-                            class="material-symbols-outlined"
-                            aria-hidden="true"
-                          >
-                            add
+                            Added
                           </span>
-                        </Show>
-                        <span>Add</span>
-                      </button>
-                    </Show>
-                  </div>
-                )}
+                        }
+                      >
+                        <button
+                          type="button"
+                          class="add-titles-result-add-btn focus-ring"
+                          onClick={() => handleAdd(result.key, result.item)}
+                          disabled={addingKeys().has(result.key) || isBulkAdding()}
+                          aria-label={`Add ${result.item.title || result.item.name} to ${props.collection.name}`}
+                        >
+                          <Show
+                            when={!addingKeys().has(result.key)}
+                            fallback={
+                              <span
+                                class="material-symbols-outlined add-titles-result-add-spinner"
+                                aria-hidden="true"
+                              >
+                                progress_activity
+                              </span>
+                            }
+                          >
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                            >
+                              add
+                            </span>
+                          </Show>
+                          <span>Add</span>
+                        </button>
+                      </Show>
+                    </div>
+                  );
+                }}
               </For>
             </Show>
           </div>
+
+          {/* Phase 6.2 Task 2a — bulk-add action bar.
+              Shows: select all / deselect all, selected count, and a
+              bulk "Add N" button. Hidden when no results are shown. */}
+          <Show when={search.results().length > 0}>
+            <div
+              class="add-titles-modal-bulk-bar"
+              style={{
+                display: "flex",
+                "align-items": "center",
+                gap: "var(--sp-2)",
+                padding: "var(--sp-2) var(--sp-4)",
+                "border-top": "1px solid var(--hairline)",
+                "background": "var(--glass-bg-strong)"
+              }}
+            >
+              <button
+                type="button"
+                class="collection-action-bar-btn focus-ring"
+                onClick={() =>
+                  selectedKeys().size > 0 ? deselectAll() : selectAllVisible()
+                }
+                disabled={isBulkAdding()}
+                aria-label={
+                  selectedKeys().size > 0 ? "Deselect all" : "Select all results"
+                }
+                style={{
+                  "font-size": "0.6875rem",
+                  opacity: isBulkAdding() ? "0.5" : "1"
+                }}
+              >
+                <span class="material-symbols-outlined" aria-hidden="true" style={{ "font-size": "16px" }}>
+                  {selectedKeys().size > 0 ? "deselect" : "select_all"}
+                </span>
+                <span class="collection-action-bar-btn-label">
+                  {selectedKeys().size > 0 ? "Deselect all" : "Select all"}
+                </span>
+              </button>
+              <span
+                class="type-meta"
+                style={{
+                  "font-size": "0.75rem",
+                  color: "var(--text-soft)",
+                  "white-space": "nowrap"
+                }}
+                aria-live="polite"
+              >
+                {selectedKeys().size} selected
+              </span>
+              <div style={{ flex: "1" }} />
+              <button
+                type="button"
+                class="btn-primary focus-ring"
+                onClick={() => void handleBulkAdd()}
+                disabled={selectedKeys().size === 0 || isBulkAdding()}
+                aria-label={`Add ${selectedKeys().size} selected titles to ${props.collection.name}`}
+                style={{
+                  "font-size": "0.6875rem",
+                  opacity:
+                    selectedKeys().size === 0 || isBulkAdding() ? "0.5" : "1"
+                }}
+              >
+                <Show
+                  when={!isBulkAdding()}
+                  fallback={
+                    <span
+                      class="material-symbols-outlined"
+                      aria-hidden="true"
+                      style={{
+                        "font-size": "16px",
+                        animation: "cinelog-spin 0.9s linear infinite"
+                      }}
+                    >
+                      progress_activity
+                    </span>
+                  }
+                >
+                  <span class="material-symbols-outlined" aria-hidden="true" style={{ "font-size": "16px" }}>
+                    playlist_add
+                  </span>
+                </Show>
+                <span>
+                  {isBulkAdding()
+                    ? "Adding..."
+                    : `Add ${selectedKeys().size || ""}`}
+                </span>
+              </button>
+            </div>
+          </Show>
 
           {/* Footer */}
           <div class="add-titles-modal-footer">

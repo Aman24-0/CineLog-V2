@@ -25,6 +25,8 @@ import {
   updateProgressInSupabase,
   updateRatingInSupabase,
   updateStatusInSupabase,
+  updateTagInSupabase,
+  clearTagFromAllItemsInSupabase,
   updateWatchDateInSupabase
 } from "./vaultAdapter";
 import {
@@ -64,6 +66,11 @@ export interface VaultStore extends UserLibrary {
     itemId: string,
     progressMinutes: number
   ) => Promise<void>;
+  readonly updateTag: (
+    itemId: string,
+    tag: string | null
+  ) => Promise<void>;
+  readonly clearTagFromAllItems: (tagName: string) => Promise<number>;
   readonly savePreset: (name: string, filters: VaultFilters) => Promise<void>;
   readonly deletePreset: (presetId: string) => Promise<void>;
   readonly renamePreset: (presetId: string, name: string) => Promise<void>;
@@ -271,6 +278,66 @@ const useVaultLogic = (): VaultStore => {
       { updatedAt: new Date().toISOString() }
     );
 
+  // ---- Tag CRUD (Phase 6.2 Task 1a) ----
+  // updateTag sets a single tag string on one vault item. Pass null/"" to
+  // clear. The tag is persisted to the `tag` TEXT column on the vault
+  // table (added in 20260808_add_vault_tag.sql) and mirrored optimistically
+  // on the local WatchlistItem so the UI updates immediately.
+  const updateTag = (itemId: string, tag: string | null) => {
+    const trimmed = tag && tag.trim() ? tag.trim() : null;
+    return runWriteOptimistic(
+      itemId,
+      (u, id, mt) => updateTagInSupabase(u, id, mt, trimmed),
+      trimmed ? "Tag added!" : "Tag removed!",
+      "Failed to update tag.",
+      { tag: trimmed ?? undefined, updatedAt: new Date().toISOString() }
+    );
+  };
+
+  /**
+   * clearTagFromAllItems — bulk-clears a tag value from every vault item
+   * that currently has it set. Used by the "Manage Tags" UI in the filter
+   * panel when a user deletes a tag from their vocabulary.
+   *
+   * Optimistically clears the tag on every local item that has it, then
+   * issues a single SQL UPDATE to the vault table. On failure, refreshes
+   * from the server to restore the true state.
+   *
+   * Returns the count of items that had the tag cleared (from the server).
+   */
+  const clearTagFromAllItems = async (tagName: string): Promise<number> => {
+    if (!uid()) {
+      showToast("Please sign in to make changes.", "error");
+      return 0;
+    }
+    // Optimistic local update — clear the tag on every matching item.
+    // We read the current watchlist once, then call updateItem for each
+    // match. updateItem merges the partial update into the stored item.
+    const matching = watchlist().filter((m) => m.tag === tagName);
+    if (matching.length === 0) {
+      showToast(`No items tagged "${tagName}".`, "info");
+      return 0;
+    }
+    const nowIso = new Date().toISOString();
+    for (const item of matching) {
+      updateItem(item.id, { tag: undefined, updatedAt: nowIso });
+    }
+    try {
+      const count = await clearTagFromAllItemsInSupabase(uid()!, tagName);
+      showToast(
+        count > 0
+          ? `Removed "${tagName}" from ${count} item${count === 1 ? "" : "s"}.`
+          : `Tag "${tagName}" removed.`,
+        "success"
+      );
+      return count;
+    } catch (err) {
+      void refresh();
+      showToast(`Failed to remove tag "${tagName}".`, "error");
+      throw err;
+    }
+  };
+
   // ---- Watch progress (special: auto-upgrades Planned → Watching) ----
   const updateWatchProgress = async (
     itemId: string,
@@ -337,6 +404,8 @@ const useVaultLogic = (): VaultStore => {
     toggleFavorite,
     togglePinned,
     updateProgress,
+    updateTag,
+    clearTagFromAllItems,
     savePreset: presetsMgr.savePreset,
     deletePreset: presetsMgr.deletePreset,
     renamePreset: presetsMgr.renamePreset,

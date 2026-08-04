@@ -7,9 +7,9 @@ import {
   onCleanup,
   Accessor
 } from "solid-js";
-import { searchMulti, getTrending, genreIdFor } from "~/core/tmdb/discover";
+import { searchMulti, searchPeople, getTrending, genreIdFor } from "~/core/tmdb/discover";
 import { buildVaultKeySet, vaultIdKey } from "~/shared/utils/vaultMatch";
-import type { TMDBTitle, WatchlistItem } from "~/shared/types";
+import type { TMDBTitle, TMDBPerson, WatchlistItem } from "~/shared/types";
 import { loadRecent, saveRecent, MAX_RECENT } from "./searchStorage";
 import {
   searchAnimeFallback,
@@ -24,7 +24,8 @@ import {
 export interface SearchResults {
   movies: TMDBTitle[];
   series: TMDBTitle[];
-  people: TMDBTitle[];
+  /** Phase 6.2 Task 4b — people results from TMDB /search/multi. */
+  people: TMDBPerson[];
   totalCount: number;
 }
 
@@ -132,25 +133,97 @@ export function useSearch(args: UseSearchArgs) {
     }
     setLoading(true);
     setError(null);
-    // Reset anime fallback state — will be re-populated if TMDB returns 0.
+    // Reset anime fallback state — will be re-populated if the query
+    // looks anime-related (Phase 6.2 Task 4a: now fires in PARALLEL with
+    // TMDB, not as a fallback only when TMDB returns 0).
     setAnimeResults([]);
     setAnimeLoading(false);
-    searchMulti(q)
-      .then((items) => {
+
+    // Phase 6.2 Task 4a — fire AniList IN PARALLEL with TMDB when the
+    // query looks anime-related. Previously AniList was a fallback that
+    // only fired when TMDB returned 0 results. Now both fire at once,
+    // and the AniList results are MERGED into the movies/series arrays
+    // (deduped by TMDB id) so the user sees a single unified list.
+    //
+    // We still keep the separate `animeResults` signal for the case
+    // where TMDB returns 0 — in that case the UI shows a dedicated
+    // "Anime Results" section so the user knows the results came from
+    // a different source.
+    const animeLooksLikely = looksLikeAnimeQuery(q);
+    let animePromise: Promise<TMDBTitle[]> | null = null;
+    if (animeLooksLikely) {
+      setAnimeLoading(true);
+      animePromise = searchAnimeFallback(q, 10)
+        .then((titles) => {
+          setAnimeResults(titles);
+          return titles;
+        })
+        .catch(() => {
+          setAnimeResults([]);
+          return [];
+        })
+        .finally(() => setAnimeLoading(false));
+    }
+
+    // Phase 6.2 Task 4b — fire searchPeople IN PARALLEL with searchMulti.
+    // TMDB's /search/multi (used by searchMulti) filters out people, so
+    // we make a separate /search/person call to populate the People
+    // section. The call is cached (10-min TTL) so repeat searches are
+    // instant. We keep the limit low (8) to avoid overwhelming the UI.
+    const peoplePromise = searchPeople(q, 8).catch(() => [] as TMDBPerson[]);
+
+    Promise.all([searchMulti(q), peoplePromise])
+      .then(([items, peopleRaw]) => {
         const movies = items.filter((t) => t.media_type === "movie");
         const series = items.filter((t) => t.media_type === "tv");
-        const totalCount = movies.length + series.length;
-        setResults({ movies, series, people: [], totalCount });
 
-        // Phase 5 — AniList fallback. Only fire if TMDB returned zero
-        // results AND the query looks anime-related. This avoids spamming
-        // AniList for every English movie search.
-        if (totalCount === 0 && looksLikeAnimeQuery(q)) {
-          setAnimeLoading(true);
-          searchAnimeFallback(q, 10)
-            .then((titles) => setAnimeResults(titles))
-            .catch(() => setAnimeResults([]))
-            .finally(() => setAnimeLoading(false));
+        // Phase 6.2 Task 4a — merge AniList results into movies/series.
+        // If animePromise is null (query didn't look anime), this is a
+        // no-op. If it's in-flight, we wait for it so the merged result
+        // includes both sources. Dedup by TMDB id (a popular anime like
+        // "Attack on Titan" might appear in both TMDB and AniList).
+        const mergeAnime = (animeTitles: TMDBTitle[]): {
+          movies: TMDBTitle[];
+          series: TMDBTitle[];
+        } => {
+          if (animeTitles.length === 0) return { movies, series };
+          const seenMovieIds = new Set(movies.map((m) => m.id));
+          const seenSeriesIds = new Set(series.map((s) => s.id));
+          const extraSeries: TMDBTitle[] = [];
+          const extraMovies: TMDBTitle[] = [];
+          for (const t of animeTitles) {
+            if (t.media_type === "movie" && !seenMovieIds.has(t.id)) {
+              extraMovies.push(t);
+              seenMovieIds.add(t.id);
+            } else if (t.media_type === "tv" && !seenSeriesIds.has(t.id)) {
+              extraSeries.push(t);
+              seenSeriesIds.add(t.id);
+            }
+          }
+          return {
+            movies: [...movies, ...extraMovies],
+            series: [...series, ...extraSeries]
+          };
+        };
+
+        const finalize = (animeTitles: TMDBTitle[]) => {
+          const merged = mergeAnime(animeTitles);
+          const totalCount = merged.movies.length + merged.series.length;
+          setResults({
+            movies: merged.movies,
+            series: merged.series,
+            people: peopleRaw,
+            totalCount
+          });
+        };
+
+        if (animePromise) {
+          // Wait for AniList to finish so we can merge in one shot.
+          // If AniList fails, we still set the TMDB results (the
+          // .catch in the promise above returns []).
+          animePromise.then((animeTitles) => finalize(animeTitles));
+        } else {
+          finalize([]);
         }
       })
       .catch((err) => {

@@ -64,6 +64,12 @@ export interface CreateVaultItemPayload {
   >[];
   /** Original add timestamp — preserved across imports so the timeline stays accurate. */
   readonly createdAt?: string;
+  /**
+   * User-defined tag (single string per item, e.g. "Weekend Watch").
+   * Optional — most items have no tag. Backed by the `tag` TEXT column on
+   * the vault table (added in 20260808_add_vault_tag.sql).
+   */
+  readonly tag?: string | null;
 }
 
 export type VaultSortField =

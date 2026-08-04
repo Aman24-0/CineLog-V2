@@ -3,6 +3,8 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  onMount,
+  onCleanup,
   type Accessor
 } from "solid-js";
 import { useSearchParams } from "@solidjs/router";
@@ -18,6 +20,7 @@ import {
   hasAdvancedFiltersActive
 } from "./vaultFilterUtils";
 import { resolvePlatformDisplayName } from "./platformDisplayNames";
+import { readTagDefinitions } from "./tagStore";
 
 /**
  * useVaultFiltering — owns the filter state + the filtered/sorted memo
@@ -82,6 +85,15 @@ export interface UseVaultFilteringResult {
   uniqueGenres: Accessor<string[]>;
   uniquePlatforms: Accessor<string[]>;
   uniqueTags: Accessor<string[]>;
+  /**
+   * Union of the user's tag vocabulary (saved in localStorage) and the
+   * tags currently in use on vault items. This is what the Tags filter
+   * dropdown renders. Phase 6.2 Task 1a.
+   */
+  uniqueTagsPlus: Accessor<string[]>;
+  /** Bump this signal to force `uniqueTagsPlus` to re-read localStorage
+   *  after the vocabulary changes. */
+  refreshTagVocab: () => void;
 }
 
 export function useVaultFiltering(
@@ -127,6 +139,25 @@ export function useVaultFiltering(
       ) {
         setActiveStatusTab(status);
       }
+    }
+  });
+
+  // Phase 6.2 Task 3b — Read ?genre= from URL (set by Stats GenreChart).
+  // When the user taps a genre bar in the Statistics page, they're
+  // navigated to /watchlist?genre=<name>. This effect picks up that
+  // param and applies it as the active Genre filter, so the user
+  // lands on a ready-filtered list of their titles in that genre.
+  //
+  // We deliberately do NOT clear the param after reading — the URL
+  // is the source of truth, and the user can share/bookmark it. If
+  // the user manually clears the filter via the UI, the URL stays
+  // as-is (we don't sync filter → URL, only URL → filter).
+  createEffect(() => {
+    const genre = searchParams.genre;
+    if (typeof genre === "string" && genre) {
+      setFilters((prev) =>
+        prev.genre === genre ? prev : { ...prev, genre }
+      );
     }
   });
 
@@ -242,6 +273,44 @@ export function useVaultFiltering(
     return [...set].sort();
   });
 
+  // ── TAG VOCABULARY (Phase 6.2 Task 1a) ──────────────────────────────
+  // The user's tag vocabulary is stored in localStorage (tagStore.ts) so
+  // it persists across sessions without requiring a Supabase round-trip.
+  // We keep a `tagVocabVersion` signal that callers can bump via
+  // `refreshTagVocab()` after add/remove operations to force the
+  // `uniqueTagsPlus` memo to re-read localStorage.
+  const [tagVocabVersion, setTagVocabVersion] = createSignal(0);
+  const refreshTagVocab = () => setTagVocabVersion((v) => v + 1);
+
+  // Listen for the custom "cinelog:tags-updated" event so changes from
+  // OTHER components (or other tabs via the storage event) are picked
+  // up automatically without each consumer needing to call refresh.
+  onMount(() => {
+    const handler = () => refreshTagVocab();
+    window.addEventListener("cinelog:tags-updated", handler);
+    window.addEventListener("storage", handler);
+    onCleanup(() => {
+      window.removeEventListener("cinelog:tags-updated", handler);
+      window.removeEventListener("storage", handler);
+    });
+  });
+
+  // uniqueTagsPlus — union of (vocabulary from localStorage) ∪ (tags in use).
+  // The `tagVocabVersion()` read inside the memo creates a reactive
+  // dependency so the memo re-runs whenever the vocabulary changes.
+  const uniqueTagsPlus = createMemo(() => {
+    // Read tagVocabVersion to create the reactive dependency.
+    tagVocabVersion();
+    const vocab = readTagDefinitions();
+    const set = new Set<string>(vocab);
+    const list = args.watchlist();
+    for (let i = 0; i < list.length; i++) {
+      const t = list[i].tag;
+      if (t) set.add(t);
+    }
+    return [...set].sort();
+  });
+
   const filtered = createMemo(() => {
     let f = args.watchlist();
     if (search()) f = f.filter((m) => matchSearch(m, search()));
@@ -301,6 +370,8 @@ export function useVaultFiltering(
     clearFilters,
     uniqueGenres,
     uniquePlatforms,
-    uniqueTags
+    uniqueTags,
+    uniqueTagsPlus,
+    refreshTagVocab
   };
 }

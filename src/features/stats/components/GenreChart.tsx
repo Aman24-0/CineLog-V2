@@ -6,10 +6,11 @@
 // axis. The bar width encodes the count; the colour is a stable gold
 // accent.
 //
-// Clicking a bar navigates to /discover with the genre as a `genre`
-// query parameter. The Discover page reads the param and auto-expands
-// the matching genre chip in the GenreExplorer so the user lands on a
-// ready-filtered carousel of that genre.
+// Clicking a bar navigates to /watchlist?genre=<name> (Phase 6.2 Task
+// 3b). The Watchlist page reads the `genre` query param via
+// useSearchParams() inside useVaultFiltering and applies it as the
+// active Genre filter — so the user lands on a ready-filtered Watchlist
+// showing only titles in that genre.
 //
 // Implementation note: this previously used recharts (a React-only
 // library). recharts' React hooks crashed inside SolidJS. We now use
@@ -51,18 +52,24 @@ const GenreChart: Component<GenreChartProps> = (props) => {
     }));
 
   const handleClick = (item: BarHItem) => {
-    // Navigate to /discover?genre=<name>. The Discover page reads the
-    // `genre` query param via useSearchParams() and auto-expands the
-    // matching chip in the GenreExplorer so the user lands on a
-    // ready-filtered carousel.
-    navigate(`/discover?genre=${encodeURIComponent(item.label)}`);
+    // Phase 6.2 Task 3b — navigate to /watchlist?genre=<name>.
+    // The Watchlist's useVaultFiltering reads `?genre=` from the URL
+    // and applies it as the active Genre filter, so the user lands
+    // on a ready-filtered list of titles in that genre.
+    //
+    // Previous behavior (pre-6.2) navigated to /discover?genre=...
+    // which opened the Discover page's GenreExplorer. The task spec
+    // asks for navigation to the Watchlist (filtered) instead — this
+    // is more useful because it shows the user's OWN titles in that
+    // genre, not TMDB's general catalog.
+    navigate(`/watchlist?genre=${encodeURIComponent(item.label)}`);
   };
 
   return (
     <ChartContainer
       icon="palette"
       title="Top Genres"
-      subtitle="Your taste profile — click a bar to explore"
+      subtitle="Your taste profile — click a bar to view your titles in that genre"
       height="100%"
     >
       <Show

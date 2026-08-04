@@ -30,7 +30,7 @@
 // Loading / empty / guest states are handled inline so the page
 // degrades gracefully when the user is signed out or has no titles.
 
-import { Show, Suspense, createMemo, type Component } from "solid-js";
+import { Show, Suspense, createMemo, createSignal, type Component } from "solid-js";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import PageContainer from "~/shared/ui/PageContainer";
 import { GlassButton, GlassEmptyState, GlassSkeleton } from "~/shared/ui/glass";
@@ -46,11 +46,19 @@ import TrendsChart from "./components/TrendsChart";
 import MovieSeriesPie from "./components/MovieSeriesPie";
 import HighestRatedCarousel from "./components/HighestRatedCarousel";
 import StatsShareModal from "./components/StatsShareModal";
-import { createSignal } from "solid-js";
+import DateRangeSelector from "./components/DateRangeSelector";
 
 const StatisticsPage: Component = () => {
   const library = useUserLibrary();
-  const { stats, loading, isEmpty, isGuest } = useStatsData();
+  const {
+    stats,
+    loading,
+    isEmpty,
+    isGuest,
+    dateRange,
+    setDateRange,
+    totalTitlesAllTime
+  } = useStatsData();
   const [activeTab, setActiveTab] = usePersistentStatsTab("activity");
   const [shareOpen, setShareOpen] = createSignal(false);
 
@@ -58,6 +66,13 @@ const StatisticsPage: Component = () => {
   // null (which would throw) or `watchlist` not being a function.
   // Falls back to [] so chart components receive a stable empty
   // array instead of an undefined value.
+  //
+  // NOTE: This returns the FULL watchlist (unfiltered). Chart
+  // components that need the filtered list use `stats()` (which is
+  // derived from the date-range-filtered watchlist inside useStatsData).
+  // The `watchlist` accessor here is only used by components that need
+  // the raw items (e.g. HighestRatedCarousel's open-title action +
+  // ActivityChart's per-item drill-down).
   const watchlist = createMemo(() => {
     try {
       if (!library || typeof library.watchlist !== "function") return [];
@@ -67,6 +82,11 @@ const StatisticsPage: Component = () => {
       return [];
     }
   });
+
+  // Phase 6.2 Task 3a — count of titles in the filtered view (matching
+  // the current dateRange). Derived from stats() since the stats
+  // calculator already ran over the filtered list.
+  const filteredCount = createMemo(() => stats()?.overview.totalTitles ?? 0);
 
   // The active tab determines which chart(s) are rendered. We use a
   // Switch-like cascade of <Show> blocks because SolidJS doesn't have
@@ -151,6 +171,19 @@ const StatisticsPage: Component = () => {
             Charts and insights from your watchlist — visualised, not just
             counted.
           </p>
+
+          {/* Phase 6.2 Task 3a — date-range filter.
+              Renders only when signed in + not loading + has titles.
+              Hidden for guests / loading / empty states (no point in
+              offering a filter when there's nothing to filter). */}
+          <Show when={!isGuest() && !loading() && totalTitlesAllTime() > 0}>
+            <DateRangeSelector
+              value={dateRange}
+              onChange={setDateRange}
+              totalTitlesAllTime={totalTitlesAllTime}
+              filteredCount={filteredCount}
+            />
+          </Show>
         </div>
 
         <div class="sec-body">
@@ -204,6 +237,37 @@ const StatisticsPage: Component = () => {
                 <a href="/search" class="btn-primary focus-ring">
                   Find titles to watch
                 </a>
+              }
+            />
+          </Show>
+
+          {/* ── Filtered-empty state (Phase 6.2 Task 3a) ──
+              The user has titles in their vault, but the selected
+              date-range filter excludes all of them. Show a hint to
+              switch back to "All Time" instead of a blank dashboard. */}
+          <Show
+            when={
+              !isGuest() &&
+              !loading() &&
+              !isEmpty() &&
+              !stats() &&
+              totalTitlesAllTime() > 0
+            }
+          >
+            <GlassEmptyState
+              icon="calendar_clock"
+              title="No titles in this range"
+              message={`Your vault has ${totalTitlesAllTime()} titles, but none were added in the selected window. Try switching to "All Time".`}
+              variant="default"
+              surface
+              action={
+                <button
+                  type="button"
+                  class="btn-primary focus-ring"
+                  onClick={() => setDateRange("all")}
+                >
+                  Show all titles
+                </button>
               }
             />
           </Show>

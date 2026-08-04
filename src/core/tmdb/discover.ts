@@ -250,6 +250,64 @@ export async function searchMulti(query: string): Promise<TMDBTitle[]> {
 }
 
 /**
+ * searchPeople — Phase 6.2 Task 4b
+ *
+ * Calls TMDB /search/person to find people (actors, directors, etc.)
+ * matching the query. Returns TMDBPerson[] with the fields needed by
+ * the SearchResults People section: id, name, profile_path.
+ *
+ * This is a SEPARATE call from searchMulti (which filters people out)
+ * so we don't change searchMulti's contract for the other 3 callers
+ * (animeCarousels, TmdbSearchModal, collectionFetcher).
+ *
+ * The call is cached via cachedFetch with the same TMDB_TTL as
+ * searchMulti so repeat searches are instant.
+ *
+ * @param query  The search string (min 2 chars to match useSearch's gate).
+ * @param limit  Max results to return (default 8). TMDB returns 20 per
+ *                page; we slice to keep the UI manageable.
+ */
+export async function searchPeople(
+  query: string,
+  limit = 8
+): Promise<import("~/shared/types").TMDBPerson[]> {
+  if (!query || query.trim().length < 2) return [];
+  const params = new URLSearchParams({
+    language: "en-US",
+    query,
+    page: "1",
+    include_adult: "false"
+  });
+  const res = await cachedFetch(
+    buildCacheKey("tmdb:search/person", { q: query }),
+    TMDB_TTL,
+    async () => {
+      const r = await fetchWithRetry(`${API}/search/person?${params}`);
+      if (!r.ok) throw new Error(`searchPeople failed: ${r.status}`);
+      return r.json();
+    }
+  );
+  const results: Array<{
+    id: number;
+    name?: string;
+    profile_path?: string | null;
+    known_for_department?: string;
+    gender?: number;
+    popularity?: number;
+  }> = (res.results || []).filter((r: { id?: number }) => typeof r.id === "number");
+  return results.slice(0, limit).map((p) => ({
+    id: p.id,
+    name: p.name ?? "Unknown",
+    profile_path: p.profile_path ?? null,
+    known_for_department: p.known_for_department,
+    gender: p.gender,
+    // biography / birthday / etc. are NOT returned by /search/person —
+    // they're fetched on-demand by PersonModal via fetchPersonDetails.
+    // We leave them undefined so the type contract is honest.
+  }));
+}
+
+/**
  * fetchTitleDetails — minimal details fetch for resolving a director
  * name on a Discover card. We only call this when we actually need
  * the director (e.g. for the "Directors you love" surface); the

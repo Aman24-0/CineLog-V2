@@ -12,6 +12,10 @@ interface VaultFiltersProps {
   uniqueGenres: string[];
   uniquePlatforms: string[];
   uniqueTags: string[];
+  /** Union of tag vocabulary + tags in use. Phase 6.2 Task 1a. */
+  uniqueTagsPlus: string[];
+  /** Bump to force re-read of tag vocabulary from localStorage. */
+  refreshTagVocab: () => void;
   onClose: () => void;
   onClear: () => void;
 }
@@ -108,6 +112,8 @@ export default function VaultFilters(props: VaultFiltersProps) {
             uniqueGenres={props.uniqueGenres}
             uniquePlatforms={props.uniquePlatforms}
             uniqueTags={props.uniqueTags}
+            uniqueTagsPlus={props.uniqueTagsPlus}
+            refreshTagVocab={props.refreshTagVocab}
             presets={presets}
             onSavePreset={(name) => savePreset(name, props.filters)}
             onDeletePreset={(id) => deletePreset(id)}

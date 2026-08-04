@@ -250,3 +250,111 @@ export function getEpisodeProgress(
 export function getInProgressCount(list: WatchlistItem[]): number {
   return list.filter(isWatchable).length;
 }
+
+/**
+ * NextEpisode — the suggested next-unwatched episode for a TV series.
+ *
+ * Returned by `getNextEpisode()`. Used by the "Watch next" auto-suggestion
+ * badge in the Watching shelf (Phase 6.2 Task 1b).
+ */
+export interface NextEpisode {
+  /** Season number of the next episode to watch. */
+  season: number;
+  /** Episode number of the next episode to watch. */
+  episode: number;
+  /** Total episodes in the next-episode's season (0 if unknown). */
+  totalEps: number;
+  /** Human-readable label, e.g. "S2 E5" or "S1 E1". */
+  label: string;
+  /** True when the user has completed every episode of every season.
+   *  When true, the badge should show "Caught up" instead of a next ep. */
+  isAtEnd: boolean;
+}
+
+/**
+ * getNextEpisode — compute the next-unwatched episode for a TV series.
+ *
+ * Phase 6.2 Task 1b — Watch next auto-suggestion. Given a Watching-status
+ * TV item, returns the episode the user should watch next:
+ *
+ *   - If the user is mid-season (current episode < season count), the
+ *     next episode is current + 1 in the same season.
+ *   - If the user is at the end of a season (current episode >= season
+ *     count), the next episode is E1 of the next season (if any).
+ *   - If the user is at the end of the LAST season, returns `isAtEnd: true`
+ *     (the series is complete from the user's perspective).
+ *
+ * Returns null when:
+ *   - item is null/undefined
+ *   - item is not watchable (status !== "Watching")
+ *   - media_type !== "tv" (movies don't have episodes)
+ *
+ * SEASON DATA SOURCES: same fallback chain as `getEpisodeProgress`:
+ *   1. `m.seasons` (cached on WatchlistItem)
+ *   2. `m.totalEps` (legacy, treated as season 1's count)
+ *   3. `[]` (no data → returns S1 E1 as a best-effort suggestion)
+ */
+export function getNextEpisode(
+  m: WatchlistItem | null | undefined,
+  details?: TMDBDetails | null
+): NextEpisode | null {
+  if (!m || !isWatchable(m)) return null;
+  if (m.media_type !== "tv") return null;
+
+  const season = m.season || 1;
+  const episode = m.episode || 1;
+  const seasonList = resolveSeasons(m, details);
+
+  // No season data — best-effort suggestion of S1 E1 (or current+1).
+  if (seasonList.length === 0) {
+    return {
+      season: 1,
+      episode: 1,
+      totalEps: 0,
+      label: "S1 E1",
+      isAtEnd: false
+    };
+  }
+
+  // Find the current season's episode count.
+  const currentSeasonData = seasonList.find((s) => s.number === season);
+  const currentSeasonCount = currentSeasonData?.count || 0;
+
+  // Case 1: mid-season — next episode is current + 1 in the same season.
+  if (currentSeasonCount === 0 || episode < currentSeasonCount) {
+    const nextEp = episode + 1;
+    return {
+      season,
+      episode: nextEp,
+      totalEps: currentSeasonCount,
+      label: `S${season} E${nextEp}`,
+      isAtEnd: false
+    };
+  }
+
+  // Case 2: at the end of a season — find the next season (if any).
+  const sortedSeasons = [...seasonList].sort((a, b) => a.number - b.number);
+  const idx = sortedSeasons.findIndex((s) => s.number === season);
+  const nextSeason = idx >= 0 && idx + 1 < sortedSeasons.length
+    ? sortedSeasons[idx + 1]
+    : null;
+
+  if (nextSeason) {
+    return {
+      season: nextSeason.number,
+      episode: 1,
+      totalEps: nextSeason.count,
+      label: `S${nextSeason.number} E1`,
+      isAtEnd: false
+    };
+  }
+
+  // Case 3: at the end of the LAST season — series is complete.
+  return {
+    season,
+    episode,
+    totalEps: currentSeasonCount,
+    label: "Caught up",
+    isAtEnd: true
+  };
+}

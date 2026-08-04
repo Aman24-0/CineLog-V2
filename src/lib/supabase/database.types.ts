@@ -833,6 +833,7 @@ export type Database = {
           season_rewatch_dates: Json | null;
           started_at: string | null;
           status: Database["public"]["Enums"]["vault_status_type"];
+          tag: string | null;
           tmdb_id: number;
           updated_at: string;
           user_id: string;
@@ -857,6 +858,7 @@ export type Database = {
           season_rewatch_dates?: Json | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["vault_status_type"];
+          tag?: string | null;
           tmdb_id: number;
           updated_at?: string;
           user_id: string;
@@ -881,6 +883,7 @@ export type Database = {
           season_rewatch_dates?: Json | null;
           started_at?: string | null;
           status?: Database["public"]["Enums"]["vault_status_type"];
+          tag?: string | null;
           tmdb_id?: number;
           updated_at?: string;
           user_id?: string;

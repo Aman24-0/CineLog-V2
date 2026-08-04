@@ -461,5 +461,56 @@ export async function updateSeasonDatesInSupabase(
   throw error;
 }
 
+/** Update a vault item's tag in Supabase.
+ *
+ * Phase 6.2 Task 1a — Tag CRUD. Pass `null` (or empty string) to clear
+ * the tag. The value is written to the `tag` TEXT column on the vault
+ * table (added in 20260808_add_vault_tag.sql).
+ */
+export async function updateTagInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  tag: string | null
+): Promise<void> {
+  const repo = getVaultRepository();
+  const { error } = await repo.updateVaultItem(
+    { userId, tmdbId: Number(itemId), mediaType },
+    { tag: tag && tag.trim() ? tag.trim() : null }
+  );
+  if (error) throw error;
+}
+
+/**
+ * Clear a tag value from ALL of the user's vault items.
+ *
+ * Phase 6.2 Task 1a — Tag CRUD. When a user deletes a tag from their
+ * tag vocabulary, we need to remove it from every item that currently
+ * has it set. This is a single SQL UPDATE: SET tag = NULL WHERE
+ * user_id = ? AND tag = ?.
+ *
+ * The `vault` table's RLS policy allows users to update only their own
+ * rows, so no user_id check is needed beyond the RLS filter — but we
+ * include it explicitly so the query is scoped even at the SQL level.
+ *
+ * Returns the count of items that had the tag cleared.
+ */
+export async function clearTagFromAllItemsInSupabase(
+  userId: string,
+  tagName: string
+): Promise<number> {
+  const { getClient } = await import("~/lib/supabase/client");
+  const supabase = getClient();
+  const { data, error } = await supabase
+    .from("vault")
+    .update({ tag: null })
+    .eq("user_id", userId)
+    .eq("tag", tagName)
+    .is("deleted_at", null)
+    .select("id");
+  if (error) throw error;
+  return Array.isArray(data) ? data.length : 0;
+}
+
 // Re-export the identity type so callers can import it from here.
 export type { VaultIdentity };

@@ -75,6 +75,19 @@ export interface EntryListRowProps {
    *  it's decorative (non-interactive). */
   dragActivators?: Record<string, (e: Event) => void>;
 
+  // ── Phase 6.2 Task 2a: Multi-select bulk operations ──
+  /** When true, the row renders a checkbox instead of the drag handle
+   *  and the row click toggles selection (instead of opening the title
+   *  detail modal). The detail modal is still openable via the row's
+   *  title text — see the `onOpen` callback on the title <p>. */
+  selectable?: boolean;
+  /** When `selectable` is true, this controls whether the row's checkbox
+   *  is checked. Ignored when `selectable` is false. */
+  selected?: boolean;
+  /** Called when the user toggles selection (clicks the checkbox or the
+   *  row body while in selectable mode). */
+  onToggleSelect?: () => void;
+
   // ── Deprecated props (kept for call-site compatibility, NOT rendered) ──
   /** @deprecated Status badge removed in v5. No-op. */
   onCycleStatus?: () => void;
@@ -97,21 +110,59 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
     return Math.round(props.rating);
   };
 
+  // Phase 6.2 Task 2a — in selectable mode, clicking the row body
+  // toggles selection instead of opening the title detail modal.
+  // The title <p> still calls onOpen so users can navigate to the
+  // detail page even while bulk-selecting.
+  const handleRowClick = () => {
+    if (props.selectable) {
+      props.onToggleSelect?.();
+    } else {
+      props.onOpen?.();
+    }
+  };
+
   return (
     <div
-      class={`entry-list-row${props.isDragging ? " is-dragging" : ""}`}
+      class={`entry-list-row${props.isDragging ? " is-dragging" : ""}${props.selected ? " is-selected" : ""}`}
       role="button"
       tabindex={0}
-      aria-label={`${title()} ${year()}`}
-      onClick={() => props.onOpen?.()}
+      aria-label={`${title()} ${year()}${props.selected ? " (selected)" : ""}`}
+      aria-pressed={props.selectable ? props.selected ?? false : undefined}
+      onClick={() => handleRowClick()}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {
           e.preventDefault();
-          props.onOpen?.();
+          handleRowClick();
         }
       }}
     >
-      <Show when={props.draggable}>
+      <Show when={props.selectable}>
+        <button
+          type="button"
+          class="entry-list-row-select-handle focus-ring"
+          aria-label={props.selected ? "Deselect" : "Select"}
+          aria-pressed={props.selected ?? false}
+          // Stop propagation so the row click doesn't double-toggle.
+          onClick={(e) => {
+            e.stopPropagation();
+            props.onToggleSelect?.();
+          }}
+        >
+          <span
+            class="material-symbols-outlined"
+            aria-hidden="true"
+            style={{
+              "font-size": "20px",
+              color: props.selected ? "var(--p)" : "var(--text-dim)"
+            }}
+          >
+            {props.selected ? "check_circle" : "radio_button_unchecked"}
+          </span>
+        </button>
+      </Show>
+
+      <Show when={props.draggable && !props.selectable}>
         <button
           type="button"
           class="entry-list-row-drag-handle focus-ring"
@@ -155,6 +206,15 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
         <p
           class="entry-list-row-title"
           title={`${title()}${year() ? ` (${year()})` : ""}`}
+          // In selectable mode, the title is the only way to open the
+          // title detail modal (the row body toggles selection). We
+          // stop propagation so the row's onClick doesn't fire.
+          onClick={(e) => {
+            if (props.selectable) {
+              e.stopPropagation();
+              props.onOpen?.();
+            }
+          }}
         >
           {title()}
         </p>
@@ -195,8 +255,9 @@ const EntryListRow: Component<EntryListRowProps> = (props) => {
       {/* Remove from collection — ALWAYS visible (no hover-reveal),
           clear hit area (32×32), danger color on hover. Stops
           propagation so the row click (open title detail) doesn't
-          fire when the user is just trying to remove the entry. */}
-      <Show when={props.showRemove}>
+          fire when the user is just trying to remove the entry.
+          HIDDEN in selectable mode (bulk remove is via the bulk bar). */}
+      <Show when={props.showRemove && !props.selectable}>
         <button
           type="button"
           class="entry-list-row-action danger focus-ring"

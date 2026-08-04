@@ -9,13 +9,14 @@ import {
 } from "./FilterControls";
 import type { VaultFilters as FilterType } from "~/shared/types";
 import type { FilterPreset } from "~/shared/types";
+import { useVault } from "../useVault";
+import { addTagDefinition, removeTagDefinition } from "../tagStore";
 
 /**
  * VaultFiltersContent — the scrollable body of the filter drawer.
  *
  * v2 REDESIGN:
  *   - REMOVED Status filter (now handled by header status chips).
- *   - REMOVED Tags filter (feature not currently supported).
  *   - Type + Region converted from <select> dropdowns to horizontal
  *     selectable chip rows (FilterChips component).
  *   - Platform filter uses the dynamic TMDB provider list from
@@ -24,11 +25,20 @@ import type { FilterPreset } from "~/shared/types";
  *     numeric inputs (.filter-range-input class) instead of plain white
  *     text inputs.
  *
+ * v2.6.2 (Phase 6.2 Task 1a):
+ *   - RE-ADDED Tags filter (was removed in v2 redesign because the
+ *     feature wasn't backed by persistence). Now backed by the `tag`
+ *     column on the vault table + a localStorage-managed tag vocabulary.
+ *   - Added a "Manage Tags" subsection with an input + Add button to
+ *     create new tag definitions, and a list with delete buttons to
+ *     remove tags (clears from all items + removes from vocabulary).
+ *
  * Sections:
- *   1. Content — Type (chips) / Region (chips) / Genre (dropdown) / Platform (dropdown)
- *   2. Ratings & Metrics — IMDb / RT / Year / Runtime range inputs (dark theme)
- *   3. Sort By — single dropdown with 9 sort options
- *   4. Presets — save/load/delete named filter presets
+ *   1. Content — Type (chips) / Region (chips) / Genre (dropdown) / Platform (dropdown) / Tag (dropdown)
+ *   2. Tags Manager — input + list with delete buttons
+ *   3. Ratings & Metrics — IMDb / RT / Year / Runtime range inputs (dark theme)
+ *   4. Sort By — single dropdown with 9 sort options
+ *   5. Presets — save/load/delete named filter presets
  */
 export interface VaultFiltersContentProps {
   filters: FilterType;
@@ -36,6 +46,11 @@ export interface VaultFiltersContentProps {
   uniqueGenres: string[];
   uniquePlatforms: string[];
   uniqueTags: string[];
+  /** Union of tag vocabulary + tags in use. Drives the Tag filter dropdown
+   *  and the Manage Tags list. Phase 6.2 Task 1a. */
+  uniqueTagsPlus: string[];
+  /** Bump to force re-read of tag vocabulary from localStorage. */
+  refreshTagVocab: () => void;
   presets: Accessor<FilterPreset[]>;
   onSavePreset: (name: string) => Promise<void>;
   onDeletePreset: (id: string) => void;
@@ -43,6 +58,9 @@ export interface VaultFiltersContentProps {
 
 export default function VaultFiltersContent(props: VaultFiltersContentProps) {
   const [presetName, setPresetName] = createSignal("");
+  const [newTagName, setNewTagName] = createSignal("");
+  const [pendingDeleteTag, setPendingDeleteTag] = createSignal<string | null>(null);
+  const vault = useVault();
 
   /** Batched setFilters — wraps each filter update in batch() so the
       filtered memo re-computes ONCE instead of triggering cascading
@@ -57,6 +75,60 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
     setPresetName("");
   };
 
+  // ── Tag CRUD handlers (Phase 6.2 Task 1a) ───────────────────────────
+  //
+  // Add: writes the new tag name to localStorage (tagStore.addTagDefinition)
+  //   and bumps refreshTagVocab so the dropdown + list update immediately.
+  //   If the tag already exists (case-insensitive), addTagDefinition is a
+  //   no-op — we still refresh so the UI is consistent.
+  //
+  // Delete: two-step. First tap shows a confirm state (pendingDeleteTag).
+  //   Second tap calls vault.clearTagFromAllItems (SQL UPDATE on the vault
+  //   table clearing `tag` where it equals tagName) + removeTagDefinition
+  //   (localStorage). The local watchlist signal is updated optimistically
+  //   inside clearTagFromAllItems, so the Tags filter dropdown re-renders
+  //   with the tag gone. We also reset the active tag filter to "all" if
+  //   the user just deleted the currently-selected tag.
+  const handleAddTag = () => {
+    const name = newTagName().trim();
+    if (!name) return;
+    addTagDefinition(name);
+    props.refreshTagVocab();
+    setNewTagName("");
+  };
+
+  const handleDeleteTag = async (tagName: string) => {
+    // Second tap: confirmed — actually delete.
+    try {
+      await vault.clearTagFromAllItems(tagName);
+      removeTagDefinition(tagName);
+      props.refreshTagVocab();
+      // If the deleted tag was the active filter, reset to "all".
+      if (props.filters.tag === tagName) {
+        batchedSet({ tag: "all" });
+      }
+    } catch {
+      // clearTagFromAllItems already shows an error toast on failure.
+      // Just clear the pending state so the user can retry.
+    } finally {
+      setPendingDeleteTag(null);
+    }
+  };
+
+  const handleTagDeleteClick = (tagName: string) => {
+    // First tap: enter confirm state. Second tap within 3s: actually delete.
+    if (pendingDeleteTag() === tagName) {
+      void handleDeleteTag(tagName);
+    } else {
+      setPendingDeleteTag(tagName);
+      // Auto-clear the confirm state after 3s so a stray tap doesn't
+      // leave a delete button looking "armed".
+      setTimeout(() => {
+        setPendingDeleteTag((cur) => (cur === tagName ? null : cur));
+      }, 3000);
+    }
+  };
+
   return (
     <div
       class="hide-scrollbar flex-1 space-y-4 overflow-y-auto px-6 py-4"
@@ -64,7 +136,8 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
         "overscroll-behavior": "contain"
       }}
     >
-      {/* CONTENT section — Status + Tags REMOVED. Type/Region are now chips. */}
+      {/* CONTENT section — Status REMOVED. Type/Region are chips.
+          Tag filter RE-ADDED in Phase 6.2 Task 1a (was removed in v2). */}
       <div>
         <p class="filter-section-title">Content</p>
         <div class="space-y-3">
@@ -116,8 +189,160 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
               ...props.uniquePlatforms.map((p) => ({ l: p, v: p }))
             ]}
           />
-          {/* Status + Tag filters REMOVED — Status is handled by the
-              header status chips; Tags feature is not currently supported. */}
+          {/* Tag — RE-ADDED in Phase 6.2 Task 1a.
+              Shows the union of (tag vocabulary in localStorage) ∪ (tags
+              currently in use on vault items). When the user picks a tag,
+              the filter narrows to items with that tag value. */}
+          <GlassSelect
+            label="Tag"
+            val={props.filters.tag}
+            set={(v) => batchedSet({ tag: v })}
+            opts={[
+              { l: "All Tags", v: "all" },
+              ...props.uniqueTagsPlus.map((t) => ({ l: t, v: t }))
+            ]}
+          />
+        </div>
+      </div>
+
+      {/* TAGS MANAGER — Phase 6.2 Task 1a.
+          Lets the user create new tag definitions (saved to localStorage)
+          and remove existing tags (clears from all vault items + removes
+          from the vocabulary). Deleting is a two-tap action: first tap
+          arms the delete button (shows "Confirm?"), second tap executes. */}
+      <div>
+        <p class="filter-section-title">Manage Tags</p>
+        <div class="space-y-3">
+          {/* Add new tag — input + Add button. Enter key also submits. */}
+          <div class="flex gap-2">
+            <input
+              value={newTagName()}
+              onInput={(e) => setNewTagName(e.currentTarget.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") handleAddTag();
+              }}
+              placeholder="New tag name (e.g. Weekend Watch)"
+              class="filter-range-input"
+              style={{ flex: 1 }}
+              maxLength={40}
+            />
+            <button
+              onClick={handleAddTag}
+              disabled={!newTagName().trim()}
+              class="type-meta rounded-xl px-3 py-2 transition-all active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
+              style={{
+                background: "var(--p)",
+                color: "var(--active-text)",
+                "font-size": "0.5625rem",
+                "font-weight": 800
+              }}
+            >
+              Add
+            </button>
+          </div>
+          {/* List of existing tags with delete buttons.
+              Empty state is shown when the user has no tags defined AND
+              no items have tags set. */}
+          <Show
+            when={props.uniqueTagsPlus.length > 0}
+            fallback={
+              <p
+                class="type-body-soft"
+                style={{
+                  "font-size": "0.75rem",
+                  "text-align": "center",
+                  padding: "var(--sp-3)"
+                }}
+              >
+                No tags yet. Create one above.
+              </p>
+            }
+          >
+            <div
+              class="hide-scrollbar max-h-40 space-y-2 overflow-y-auto"
+              style={{ "overscroll-behavior": "contain" }}
+            >
+              <For each={props.uniqueTagsPlus}>
+                {(tag) => {
+                  // Show a small dot indicator if the tag is currently
+                  // applied to at least one item (vs. just a definition).
+                  const inUse = () => props.uniqueTags.includes(tag);
+                  const isPending = () => pendingDeleteTag() === tag;
+                  return (
+                    <div
+                      class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
+                      style={{
+                        background: "var(--tier-1)",
+                        border: "1px solid var(--hairline)"
+                      }}
+                    >
+                      <div class="flex min-w-0 flex-1 items-center gap-2">
+                        <Icon
+                          name="bookmark"
+                          style={{
+                            "font-size": "14px",
+                            color: inUse() ? "var(--p)" : "var(--text-soft)"
+                          }}
+                          aria-hidden="true"
+                        />
+                        <span class="truncate text-sm text-white">{tag}</span>
+                        <Show when={inUse()}>
+                          <span
+                            class="type-meta shrink-0 rounded-full px-1.5 py-0.5"
+                            style={{
+                              "font-size": "0.5rem",
+                              background: "var(--p)",
+                              color: "var(--active-text)",
+                              opacity: 0.7
+                            }}
+                          >
+                            IN USE
+                          </span>
+                        </Show>
+                      </div>
+                      <button
+                        onClick={() => handleTagDeleteClick(tag)}
+                        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-colors"
+                        style={{
+                          background: isPending()
+                            ? "rgba(239,68,68,0.15)"
+                            : "transparent",
+                          color: isPending() ? "#ef4444" : "#9ca3af"
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isPending()) {
+                            e.currentTarget.style.background =
+                              "rgba(239,68,68,0.1)";
+                            e.currentTarget.style.color = "#ef4444";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isPending()) {
+                            e.currentTarget.style.background = "transparent";
+                            e.currentTarget.style.color = "#9ca3af";
+                          }
+                        }}
+                        aria-label={
+                          isPending()
+                            ? `Confirm delete tag ${tag}`
+                            : `Delete tag ${tag}`
+                        }
+                        title={
+                          isPending() ? "Tap again to confirm" : "Delete tag"
+                        }
+                      >
+                        <Icon
+                          name={isPending() ? "delete" : "delete"}
+                          style={{ "font-size": "14px" }}
+                          aria-hidden="true"
+                        />
+                      </button>
+                    </div>
+                  );
+                }}
+              </For>
+            </div>
+          </Show>
         </div>
       </div>
 

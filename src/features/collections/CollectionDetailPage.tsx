@@ -33,6 +33,7 @@ import ReorderModal from "./components/ReorderModal";
 import EntryListRow from "./components/EntryListRow";
 import FolderEditor from "./components/FolderEditor";
 import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
+import BulkActionBar from "./components/BulkActionBar";
 import { useCollectionFilter } from "./hooks/useCollectionFilter";
 import {
   useCollectionSort,
@@ -148,6 +149,97 @@ export default function CollectionDetailPage() {
   const [isRefreshingSmart, setIsRefreshingSmart] = createSignal(false);
   // Smart-collection builder modal — opened by the "Edit rules" action.
   const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
+
+  // Phase 6.2 Task 2a — Multi-select bulk mode for entries.
+  // bulkMode: when true, EntryListRow shows checkboxes instead of remove
+  //   buttons, and a BulkActionBar appears at the bottom of the entry list.
+  // selectedEntryKeys: a Set of "media_type:id" strings for entries the
+  //   user has tapped. Cleared on cancel / after a successful bulk remove.
+  // isBulkRemoving: disables the bulk bar buttons while the sequential
+  //   remove operations are in-flight.
+  const [bulkMode, setBulkMode] = createSignal(false);
+  const [selectedEntryKeys, setSelectedEntryKeys] = createSignal<Set<string>>(
+    new Set()
+  );
+  const [isBulkRemoving, setIsBulkRemoving] = createSignal(false);
+
+  const entryKey = (e: CollectionEntry) => `${e.media_type}:${e.id}`;
+
+  const toggleEntrySelection = (entry: CollectionEntry) => {
+    const key = entryKey(entry);
+    setSelectedEntryKeys((prev) => {
+      const next = new Set<string>(prev);
+      if (next.has(key)) next.delete(key);
+      else next.add(key);
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const all = new Set<string>();
+    for (const e of filteredUserEntries()) all.add(entryKey(e));
+    setSelectedEntryKeys(all);
+  };
+
+  const deselectAll = () => setSelectedEntryKeys(new Set<string>());
+
+  const exitBulkMode = () => {
+    setBulkMode(false);
+    deselectAll();
+  };
+
+  const enterBulkMode = () => {
+    setBulkMode(true);
+    // Don't pre-select anything — let the user choose.
+    deselectAll();
+  };
+
+  const handleBulkRemove = async () => {
+    const col = collection();
+    if (!col) return;
+    const selected = selectedEntryKeys();
+    if (selected.size === 0) return;
+    // Find the actual entry objects so we can pass them to removeFromCollection.
+    // We use the FULL entry list (not filtered) because the user may have
+    // selected entries that are now hidden by a filter.
+    const allEntries = col.entries ?? [];
+    const toRemove = allEntries.filter((e) => selected.has(entryKey(e)));
+    if (toRemove.length === 0) {
+      exitBulkMode();
+      return;
+    }
+    setIsBulkRemoving(true);
+    let successCount = 0;
+    let failCount = 0;
+    // Sequential — preserves the optimistic-update pattern in
+    // removeFromCollection (each call updates the local signal immediately).
+    for (const entry of toRemove) {
+      try {
+        await removeFromCollection(col.id, entry.id, entry.media_type);
+        successCount++;
+      } catch (err) {
+        failCount++;
+        console.error(
+          `[CollectionDetailPage] bulk-remove failed for ${entry.id}:`,
+          err
+        );
+      }
+    }
+    setIsBulkRemoving(false);
+    if (successCount > 0) {
+      showToast(
+        `Removed ${successCount} entr${successCount === 1 ? "y" : "ies"} from ${col.name}.`,
+        "success"
+      );
+    }
+    if (failCount > 0) {
+      showToast(
+        `Failed to remove ${failCount} entr${failCount === 1 ? "y" : "ies"}.`,
+        "error"
+      );
+    }
+    exitBulkMode();
+  };
 
   const isUniverse = createMemo(() => collection()?.type === "curated");
 
@@ -760,8 +852,13 @@ export default function CollectionDetailPage() {
             <CollectionActionBar
               collection={collection()!}
               showReorder={showReorderButton()}
+              bulkMode={bulkMode()}
               onAddTitles={() => setShowAddTitles(true)}
               onReorder={() => setShowReorder(true)}
+              onSelect={() => {
+                if (bulkMode()) exitBulkMode();
+                else enterBulkMode();
+              }}
               onShare={handleShare}
               onArchive={handleArchive}
               onUnarchive={handleUnarchive}
@@ -906,6 +1003,7 @@ export default function CollectionDetailPage() {
                       const v = vaultMap().get(
                         `${entry.media_type}:${entry.id}`
                       );
+                      const key = `${entry.media_type}:${entry.id}`;
                       return (
                         <EntryListRow
                           entry={entry}
@@ -915,8 +1013,11 @@ export default function CollectionDetailPage() {
                           episodeProgress={
                             episodeProgressOf(entry) ?? undefined
                           }
-                          draggable={showDragHandles()}
+                          draggable={showDragHandles() && !bulkMode()}
                           showRemove
+                          selectable={bulkMode()}
+                          selected={selectedEntryKeys().has(key)}
+                          onToggleSelect={() => toggleEntrySelection(entry)}
                           onOpen={() => handleOpenEntry(entry)}
                           onCycleStatus={() => cycleStatus(entry)}
                           onCycleRating={() => cycleRating(entry)}
@@ -926,6 +1027,21 @@ export default function CollectionDetailPage() {
                     }}
                   </For>
                 </div>
+
+                {/* Phase 6.2 Task 2a — BulkActionBar appears below the
+                    entry list when bulkMode is active. Sticky at the
+                    bottom so it stays visible while scrolling. */}
+                <Show when={bulkMode()}>
+                  <BulkActionBar
+                    selectedCount={selectedEntryKeys().size}
+                    totalShown={filteredUserEntries().length}
+                    isRemoving={isBulkRemoving()}
+                    onSelectAll={selectAllVisible}
+                    onDeselectAll={deselectAll}
+                    onBulkRemove={handleBulkRemove}
+                    onCancel={exitBulkMode}
+                  />
+                </Show>
               </Show>
             </Show>
           </div>

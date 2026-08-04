@@ -94,6 +94,14 @@ export function toVaultInsert(
     insert.created_at = payload.createdAt;
   }
 
+  // Tag (Phase 6.2 Task 1a) — only set when provided so we don't clobber
+  // existing tag values with null on partial inserts. `null` is a valid
+  // explicit value (clears the tag), so we use `undefined !==` rather
+  // than a truthiness check.
+  if (payload.tag !== undefined) {
+    insert.tag = payload.tag;
+  }
+
   return insert;
 }
 

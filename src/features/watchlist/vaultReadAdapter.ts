@@ -87,7 +87,9 @@ export function vaultRowToWatchlistItem(row: VaultRow): WatchlistItem {
     // created before these columns existed, and the contract that the
     // WatchlistItem type marks them optional but treats undefined as false).
     isFavorite: row.is_favorite ?? false,
-    isPinned: row.is_pinned ?? false
+    isPinned: row.is_pinned ?? false,
+    // Phase 6.2 Task 1a — user-defined tag. Optional; most items have none.
+    tag: row.tag ?? undefined
   };
 }
 
@@ -231,7 +233,9 @@ export async function createVaultItemInSupabase(
     // lastActivityAt = most recent activity (updatedAt or addedAt or now)
     lastActivityAt:
       item.updatedAt ??
-      (typeof item.addedAt === "string" ? item.addedAt : undefined)
+      (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    // Phase 6.2 Task 1a — preserve user-defined tag on create + restore.
+    tag: item.tag
   };
 
   const { data, error } = await repo.createVaultItem(payload);
@@ -315,7 +319,9 @@ export async function upsertVaultItemInSupabase(
           : undefined,
     lastActivityAt:
       item.updatedAt ??
-      (typeof item.addedAt === "string" ? item.addedAt : undefined)
+      (typeof item.addedAt === "string" ? item.addedAt : undefined),
+    // Phase 6.2 Task 1a — preserve user-defined tag on upsert (restore).
+    tag: item.tag
   };
 
   const { data, error } = await repo.upsertVaultItem(payload);

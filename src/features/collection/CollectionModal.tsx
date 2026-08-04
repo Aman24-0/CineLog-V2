@@ -1,6 +1,6 @@
 // src/features/collection/CollectionModal.tsx
 import { normalizeGenres } from "~/shared/utils/genres";
-import { Show, onMount, onCleanup, createMemo, createResource } from "solid-js";
+import { Show, onMount, onCleanup, createMemo, createResource, createSignal } from "solid-js";
 
 import { Portal } from "solid-js/web";
 
@@ -13,6 +13,12 @@ import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useModalState } from "~/shared/hooks/useModalState";
 
 import { useVault } from "~/features/watchlist/useVault";
+
+import { getCurrentUid } from "~/shared/hooks/useAuth";
+
+import { useToast } from "~/shared/hooks/useToast";
+
+import { createVaultItemInSupabase } from "~/features/watchlist/vaultAdapter";
 
 import type { TMDBTitle, WatchlistItem } from "~/shared/types";
 
@@ -114,6 +120,90 @@ export default function CollectionModal() {
     openTitle(baseItem, watchlist());
   };
 
+  // ── Phase 6.2 Task 2b — "Add all to vault" bulk action ──────────────
+  //
+  // missingTitles: TMDBTitle[] of franchise entries the user doesn't
+  //   yet have in their vault. Drives the button visibility + the
+  //   count shown in the label.
+  //
+  // isAddingAll: while true, the button is disabled + shows a spinner.
+  //   Set true at the start of the bulk add, false when it completes
+  //   (success OR partial failure).
+  //
+  // handleAddAllToVault: iterates the missing titles and calls
+  //   createVaultItemInSupabase for each (status: "Planned"). Sequential
+  //   so we don't hammer Supabase's rate limit. After the loop, calls
+  //   refresh() so the vault signal picks up the new items + the
+  //   progress ring updates to 100%.
+  const missingTitles = createMemo(() => {
+    const data = collectionData();
+    if (!data) return [];
+    const vault = watchlist();
+    return data.filter((t) => findInVault(vault, t) === null);
+  });
+
+  const [isAddingAll, setIsAddingAll] = createSignal(false);
+  const { showToast } = useToast();
+  const { refresh: refreshVault } = useVault();
+
+  const handleAddAllToVault = async () => {
+    const uid = getCurrentUid();
+    if (!uid) {
+      showToast("Sign in to save titles to your vault.", "error");
+      return;
+    }
+    const missing = missingTitles();
+    if (missing.length === 0) return;
+    setIsAddingAll(true);
+    let success = 0;
+    let fail = 0;
+    for (const title of missing) {
+      try {
+        const item: WatchlistItem = {
+          id: String(title.id),
+          title: title.title,
+          name: title.name,
+          media_type: title.media_type,
+          poster_path: title.poster_path,
+          backdrop_path: title.backdrop_path,
+          status: "Planned",
+          release_date: title.release_date,
+          first_air_date: title.first_air_date,
+          genresList: normalizeGenres(title.genres as unknown[])
+        };
+        await createVaultItemInSupabase(uid, item);
+        success++;
+      } catch (err) {
+        fail++;
+        // Don't abort the loop on a single failure — keep adding the
+        // rest so the user gets as many titles as possible. The error
+        // is logged + surfaced as a final count toast below.
+        console.error(
+          `[CollectionModal] bulk-add failed for ${title.id}:`,
+          err
+        );
+      }
+    }
+    setIsAddingAll(false);
+    // Refresh the vault so the progress ring + timeline update
+    // immediately (the optimistic path in createVaultItem doesn't
+    // push into the local watchlist signal because we don't have
+    // direct access to setWatchlist here).
+    void refreshVault();
+    if (success > 0) {
+      showToast(
+        `Added ${success} title${success === 1 ? "" : "s"} to your vault.`,
+        "success"
+      );
+    }
+    if (fail > 0) {
+      showToast(
+        `Failed to add ${fail} title${fail === 1 ? "" : "s"}.`,
+        "error"
+      );
+    }
+  };
+
   onMount(() => {
     document.body.style.overflow = "hidden";
     const handleEsc = (e: KeyboardEvent) => {
@@ -171,6 +261,9 @@ export default function CollectionModal() {
                     backdropUrl={backdropUrl}
                     franchiseName={() => franchise()?.name}
                     stats={stats}
+                    missingCount={() => missingTitles().length}
+                    isAddingAll={isAddingAll}
+                    onAddAll={handleAddAllToVault}
                     onClose={closeCollection}
                   />
                   <CollectionStats stats={stats} />

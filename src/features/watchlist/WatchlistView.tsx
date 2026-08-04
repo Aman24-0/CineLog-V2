@@ -66,7 +66,9 @@ export default function WatchlistView() {
     clearFilters,
     uniqueGenres,
     uniquePlatforms,
-    uniqueTags
+    uniqueTags,
+    uniqueTagsPlus,
+    refreshTagVocab
   } = filtering;
 
   // Infinite scroll — bump display limit when user nears the bottom.
@@ -200,6 +202,8 @@ export default function WatchlistView() {
         uniqueGenres={uniqueGenres}
         uniquePlatforms={uniquePlatforms}
         uniqueTags={uniqueTags}
+        uniqueTagsPlus={uniqueTagsPlus}
+        refreshTagVocab={refreshTagVocab}
         onClose={() => setShowFilter(false)}
         onClear={() => {
           clearFilters();

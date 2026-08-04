@@ -31,6 +31,9 @@ export interface CollectionActionBarProps {
   /** True when the user has selected "Manual Order" sort — the
    *  Reorder button is only shown in that case. */
   showReorder?: boolean;
+  /** True when multi-select bulk mode is active — the Select button
+   *  shows an "active" state. Phase 6.2 Task 2a. */
+  bulkMode?: boolean;
   // ── User collection actions ──
   onAddTitles?: () => void;
   onReorder?: () => void;
@@ -39,6 +42,8 @@ export interface CollectionActionBarProps {
   onUnarchive?: () => void;
   onDelete?: () => void;
   onDuplicate?: () => void;
+  /** Enter multi-select bulk mode. Phase 6.2 Task 2a. */
+  onSelect?: () => void;
   // ── Universe actions ──
   onUnsubscribe?: () => void;
 }
@@ -111,6 +116,29 @@ const CollectionActionBar: Component<CollectionActionBarProps> = (props) => {
             <span class="collection-action-bar-btn-label">Reorder</span>
           </button>
         </Show>
+
+        {/* Phase 6.2 Task 2a — Select button toggles multi-select bulk mode.
+            When active (bulkMode=true), the button is highlighted with the
+            accent color so the user can see they're in selection mode. */}
+        <button
+          type="button"
+          class={`collection-action-bar-btn focus-ring${props.bulkMode ? " is-active" : ""}`}
+          onClick={() => props.onSelect?.()}
+          aria-label={props.bulkMode ? "Exit selection mode" : "Select entries to bulk-remove"}
+          aria-pressed={props.bulkMode ?? false}
+          title="Select entries"
+          style={props.bulkMode ? {
+            background: "var(--p)",
+            color: "var(--active-text)"
+          } : undefined}
+        >
+          <span class="material-symbols-outlined" aria-hidden="true">
+            {props.bulkMode ? "deselect" : "checklist"}
+          </span>
+          <span class="collection-action-bar-btn-label">
+            {props.bulkMode ? "Selecting" : "Select"}
+          </span>
+        </button>
       </Show>
 
       {/* Share — available on both user collections and universes */}

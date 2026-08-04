@@ -19,6 +19,12 @@ export interface WatchlistDialogsProps {
   uniqueGenres: Accessor<string[]>;
   uniquePlatforms: Accessor<string[]>;
   uniqueTags: Accessor<string[]>;
+  /** Union of (tag vocabulary in localStorage) ∪ (tags in use on items).
+   *  Phase 6.2 Task 1a — drives the Tags filter dropdown + Manage Tags list. */
+  uniqueTagsPlus: Accessor<string[]>;
+  /** Bump to force `uniqueTagsPlus` to re-read localStorage after a
+   *  tag definition add/remove. Phase 6.2 Task 1a. */
+  refreshTagVocab: () => void;
   onClose: () => void;
   onClear: () => void;
 }
@@ -48,6 +54,8 @@ export default function WatchlistDialogs(props: WatchlistDialogsProps) {
           uniqueGenres={props.uniqueGenres()}
           uniquePlatforms={props.uniquePlatforms()}
           uniqueTags={props.uniqueTags()}
+          uniqueTagsPlus={props.uniqueTagsPlus()}
+          refreshTagVocab={props.refreshTagVocab}
           onClose={props.onClose}
           onClear={props.onClear}
         />

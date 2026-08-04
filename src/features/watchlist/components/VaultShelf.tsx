@@ -2,6 +2,7 @@
 import { For, Show, Component } from "solid-js";
 import MovieCard from "~/shared/ui/MovieCard";
 import type { VaultSection } from "../useVaultSections";
+import WatchNextBadge from "./WatchNextBadge";
 
 interface VaultShelfProps {
   section: VaultSection;
@@ -55,6 +56,13 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
     props.maxItems != null
       ? props.section.items.slice(0, props.maxItems)
       : props.section.items;
+
+  // Phase 6.2 Task 1b — show the "Watch next" badge only on the
+  // "watching" shelf (Continue Watching + Watching). For other shelves
+  // (Planned, Recently Completed, All Titles) the badge is suppressed
+  // because the user isn't actively progressing through those titles.
+  const showWatchNext = () =>
+    props.section.id === "watching" || props.section.id === "in-progress";
 
   const handleSeeAll = () => {
     if (props.onSeeAll) {
@@ -130,13 +138,16 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
           <div class="vault-shelf-grid" role="list">
             <For each={gridItems()}>
               {(m) => (
-                <div role="listitem">
+                <div role="listitem" style={{ position: "relative" }}>
                   <MovieCard
                     movie={m}
                     variant="compact"
                     search={props.search()}
                     onClick={() => props.onOpenMovie(m.id)}
                   />
+                  <Show when={showWatchNext()}>
+                    <WatchNextBadge item={m} />
+                  </Show>
                 </div>
               )}
             </For>
@@ -147,13 +158,16 @@ const VaultShelf: Component<VaultShelfProps> = (props) => {
         <div class="vault-shelf-rail" role="list">
           <For each={railItems()}>
             {(m) => (
-              <div class="vault-shelf-card" role="listitem">
+              <div class="vault-shelf-card" role="listitem" style={{ position: "relative" }}>
                 <MovieCard
                   movie={m}
                   variant="compact"
                   search={props.search()}
                   onClick={() => props.onOpenMovie(m.id)}
                 />
+                <Show when={showWatchNext()}>
+                  <WatchNextBadge item={m} />
+                </Show>
               </div>
             )}
           </For>
