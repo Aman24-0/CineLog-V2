@@ -108,7 +108,16 @@
 // deploy — the cacheFirstStatic strategy was serving stale JS bundles.
 // Bumping the version causes the activate handler to delete all v7
 // caches, forcing the browser to fetch fresh assets on next navigation.
-const CACHE_VERSION = "v8";
+//
+// v8 → v10 (Task 13): the auth callback component was rewritten to
+// remove the manual `exchangeCodeForSession` call (which raced with
+// `detectSessionInUrl`). Returning users with a cached v8 JS bundle
+// would still have the old callback code that calls
+// `exchangeCodeForSession` manually — bumping to v10 invalidates
+// their cached bundles and forces them to download the new
+// passive-listener version. Skipping v9 to keep the version
+// monotonically ahead of any intermediate deploys.
+const CACHE_VERSION = "v10";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;

@@ -1,6 +1,6 @@
 // src/routes/auth/callback.tsx
 //
-// CineLog V2 — OAuth / Email Confirmation Callback Route (CLIENT-SIDE exchange)
+// CineLog V2 — OAuth / Email Confirmation Callback Route (PASSIVE LISTENER)
 // ---------------------------------------------------------------------
 // This route is the `emailRedirectTo` / OAuth `redirectTo` target for:
 //   • Email confirmation links (signup verification)
@@ -15,120 +15,96 @@
 // `supabase.auth.exchangeCodeForSession(code)`.
 //
 // ─────────────────────────────────────────────────────────────────────
-// PHASE 7 TASK 5 — REVISED: CLIENT-SIDE EXCHANGE (definitive fix)
+// PHASE 7 TASK 5 — REVISED v2: PASSIVE LISTENER (definitive fix)
 // ─────────────────────────────────────────────────────────────────────
 // HISTORY (why we ended up here):
 //
-//   Attempt 1: Original implementation ran `exchangeCodeForSession` in
-//   the BROWSER via `onMount`. Worked for a while, then started failing
-//   intermittently with "PKCE code verifier not found in storage" after
-//   the Phase 7 migration to `@supabase/ssr` cookie storage.
+//   Attempt 1: Browser-side exchange via onMount + exchangeCodeForSession.
+//   FAILED — "PKCE code verifier not found in storage".
 //
-//   Attempt 2 (commit 4101324): Moved the exchange to the SERVER via a
-//   `GET` handler + SolidStart middleware. Reasoning: the `Cookie`
-//   header the server receives should always contain the verifier
-//   cookie (SameSite=Lax allows it on the top-level OAuth redirect).
-//   FAILED in production — same "PKCE code verifier not found" error.
+//   Attempt 2: Server-side exchange via SolidStart middleware + GET
+//   handler. FAILED — same PKCE error (verifier cookie lost in
+//   cross-site redirect).
 //
-//   Attempt 3 (commit 35667e9): Rewrote the `@supabase/ssr` cookie
-//   adapters from scratch with explicit `getAll` / `setAll` on both
-//   browser and server, using the `cookie` package's `parse` / `serialize`
-//   for byte-identical cookie bytes. Also enabled
-//   `experimental.appendPkceFlowIdToRedirects` and added a fallback
-//   retry without `flowId` for the legacy verifier key.
-//   FAILED in production — same error on BOTH flowId-keyed AND
-//   legacy-keyed lookups (see logs from user — both attempts returned
-//   `AuthPKCECodeVerifierMissingError`).
+//   Attempt 3: Rewrote @supabase/ssr cookie adapters + flow-specific
+//   verifier lookup + SW cache bust. FAILED — same error on both
+//   flowId-keyed AND legacy-keyed lookups.
+//
+//   Attempt 4 (commit 1c0ccc0): Moved exchange BACK to browser via
+//   onMount + exchangeCodeForSession. FAILED — race condition:
+//   `detectSessionInUrl: true` on the browser client AUTOMATICALLY
+//   calls `exchangeCodeForSession` on client hydration, which races
+//   with our explicit `onMount` call. One of them consumes the code
+//   first; the other fails with "code already used" or
+//   "PKCE verifier not found" (because the verifier cookie is
+//   deleted after a successful exchange).
 //
 // ROOT CAUSE (definitive):
-//   The browser DID write the verifier cookie (the `setAll` adapter
-//   called `document.cookie = serialize(...)` and we have no evidence
-//   of that failing). But the SERVER never received it in the
-//   incoming `Cookie` header on the OAuth callback request. The most
-//   likely reasons:
+//   The browser client is configured with `detectSessionInUrl: true`
+//   (see src/lib/supabase/browser.ts). When the client hydrates on a
+//   URL containing `?code=...`, auth-js AUTOMATICALLY parses the code
+//   from the URL and calls `exchangeCodeForSession` internally. This
+//   is the official, Supabase-recommended way to handle OAuth
+//   callbacks in a SPA — the callback page does NOT need to call
+//   `exchangeCodeForSession` manually.
 //
-//     • The cookie was set with attributes (path / SameSite / Secure /
-//       partitioned) that caused the browser to NOT send it on the
-//       cross-site → same-site top-level redirect.
-//     • A reverse proxy (Vercel edge / Cloudflare) or service worker
-//       stripped the cookie from the request headers before it reached
-//       the SolidStart server.
-//     • Mobile browser ITP / cookie partitioning caused the verifier
-//       cookie to be scoped to a partition that didn't apply on the
-//       OAuth redirect.
-//
-//   We cannot fix this from the server side — by the time the request
-//   reaches our server, the cookie is already gone.
+//   Our previous onMount block was calling `exchangeCodeForSession`
+//   AT THE SAME TIME as auth-js's automatic `detectSessionInUrl`
+//   exchange. The two calls raced each other:
+//     • If auth-js won the race: our call failed with
+//       "PKCE verifier not found" (verifier was deleted after the
+//       successful exchange). We then fell back to `getSession()`,
+//       which returned the session — but this was fragile and
+//       depended on timing.
+//     • If our call won the race: auth-js's automatic exchange then
+//       failed with "code already used" (we consumed it first), and
+//       auth-js logged a confusing error to the console.
 //
 // FIX (this file):
-//   Move the exchange BACK to the browser. The browser WROTE the
-//   verifier cookie via `document.cookie` — when the OAuth redirect
-//   lands on `/auth/callback` and the page's JS runs, `document.cookie`
-//   reads return the same cookies the browser itself wrote (subject
-//   only to the cookie's own attributes, which we control: path="/",
-//   sameSite="lax", no httpOnly, secure on HTTPS).
+//   Make the callback component completely PASSIVE. It does NOT call
+//   `exchangeCodeForSession`. It only:
+//     1. Renders a branded loading spinner.
+//     2. Sets up an `onAuthStateChange` listener on mount.
+//     3. When auth-js fires `SIGNED_IN` or `INITIAL_SESSION` with a
+//        valid session (which happens after `detectSessionInUrl`
+//        completes the exchange), navigates to the `next` path.
+//     4. If no session is detected within 10 seconds, shows the
+//        "Sign-in failed" error UI.
 //
-//   Concretely: this route is a plain SolidStart client component
-//   (NO `GET` server handler). On mount, it:
-//     1. Reads `code` + `next` from `window.location.href`.
-//     2. Calls `supabase.auth.exchangeCodeForSession(code)` using the
-//        BROWSER client (`getBrowserClient`).
-//     3. On success: `useNavigate()` to the `next` path (default
-//        `/discover`).
-//     4. On error: shows a branded error UI with the message.
+//   This eliminates the race entirely — only ONE code path exchanges
+//   the code (auth-js's automatic `detectSessionInUrl`), and our
+//   component just observes the resulting auth state change.
 //
-//   The browser client's `cookies.getAll` adapter (see
-//   `src/lib/supabase/browser.ts`) reads `document.cookie` directly —
-//   so it WILL see the verifier cookie that the same client wrote
-//   before the OAuth redirect.
-//
-// WHY THIS IS MORE RELIABLE THAN THE SERVER:
-//   • No cross-process cookie handoff (browser → HTTP Cookie header →
-//     server middleware → @supabase/ssr getAll adapter). Every step
-//     in that chain is a place the cookie can be silently dropped.
-//   • No SameSite / Secure / partitioned-cookie surprises — the
-//     browser's `document.cookie` read returns cookies based on the
-//     cookie's own attributes from the SAME ORIGIN, which is exactly
-//     the context that wrote them.
-//   • No reverse proxy / CDN stripping — the JS runs in the browser,
-//     after all proxies have delivered the HTML.
-//
-// NOTE on `detectSessionInUrl`:
-//   The browser client has `detectSessionInUrl: true`, which means
-//   auth-js AUTOMATICALLY calls `exchangeCodeForSession` on mount of
-//   the client. Our explicit `onMount` call below is therefore a
-//   belt-and-suspenders measure: if auth-js already exchanged the
-//   code, our call will fail with a "code already used" error and we
-//   fall through to checking `getSession()` (which will return the
-//   session that auth-js already established). This is why the
-//   `getSession()` fallback is critical — it catches the case where
-//   the exchange already happened implicitly.
+// WHY THIS IS THE CORRECT PATTERN:
+//   • The Supabase docs for SPA OAuth recommend exactly this:
+//     configure `detectSessionInUrl: true` and let auth-js handle
+//     the exchange. The callback page is a UI shell that waits for
+//     the exchange to complete and then redirects.
+//   • No race condition is possible — there's only one exchanger.
+//   • No "code already used" errors — auth-js is the only caller.
+//   • No "PKCE verifier not found" errors from our code — we never
+//     read the verifier; auth-js reads it once, atomically, on
+//     hydration.
 //
 // ─────────────────────────────────────────────────────────────────────
 // WHY A SOLID COMPONENT (not a `GET` handler)?
 // ─────────────────────────────────────────────────────────────────────
 //   SolidStart route files can export HTTP method handlers (`GET`,
-//   `POST`, …) OR a default-export Solid component. When a `GET`
-//   handler is present, it runs INSTEAD of rendering the component.
-//   We previously used a `GET` handler for the server-side exchange.
-//
-//   For the client-side exchange we MUST render the Solid component
-//   (the `onMount` lifecycle hook only runs in the browser, after the
-//   component hydrates). So we DELETE the `GET` handler export and
-//   only export the default component. SolidStart will then:
-//     1. Server-render the component's initial state (the loading
-//        spinner) as HTML.
-//     2. Send the HTML to the browser.
-//     3. Hydrate the component on the client.
-//     4. `onMount` fires → exchange runs → navigate away.
+//   `POST`, …) OR a default-export Solid component. We render the
+//   Solid component because:
+//     1. The `onMount` lifecycle hook only runs in the browser
+//        (after hydration), which is exactly when auth-js's
+//        `detectSessionInUrl` runs.
+//     2. The `onAuthStateChange` listener must be registered on the
+//        browser client — server-side registration doesn't make sense
+//        (the server has no persistent connection to the browser).
+//     3. The loading spinner + error UI need to render as HTML for
+//        SSR, then hydrate on the client.
 //
 //   The middleware in `src/middleware.ts` still runs on this route
-//   (it runs on every request) and still populates `event.locals.supabase`
-//   for any other route that wants it — but this route no longer
-//   consumes `event.locals.supabase`. The middleware does NOT
-//   interfere with rendering because it only initializes state on
-//   `event.locals`; it doesn't return a `Response` that would
-//   short-circuit the route.
+//   (it runs on every request) but does NOT interfere — it only
+//   initializes `event.locals.supabase` for any future server-side
+//   route that wants it; it doesn't return a `Response`.
 //
 
 import { Title } from "@solidjs/meta";
@@ -136,10 +112,12 @@ import { useNavigate } from "@solidjs/router";
 import {
   createSignal,
   onMount,
+  onCleanup,
   Show,
   type Component
 } from "solid-js";
 import { getBrowserClient } from "~/lib/supabase/browser";
+import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 /**
  * Determine the redirect target from the `next` search param.
@@ -167,177 +145,172 @@ function getRedirectTarget(nextParam: string | null): string {
 }
 
 /**
- * Check if an error message indicates a missing PKCE verifier.
+ * How long to wait for `detectSessionInUrl` to complete the PKCE
+ * exchange before showing the "Sign-in failed" error UI.
  *
- * Used to decide whether to fall back to `getSession()` — if the
- * verifier is missing, the exchange failed BEFORE hitting Supabase's
- * token endpoint, so the auth code is NOT consumed. But there's a
- * chance `detectSessionInUrl` already exchanged it implicitly on
- * client hydration, in which case `getSession()` will return the
- * session and we can proceed.
+ * 10 seconds is generous — the exchange is a single HTTP POST to
+ * Supabase's token endpoint, which normally completes in <1s even on
+ * slow mobile connections. The extra buffer covers:
+ *   • Slow 3G / flaky mobile network.
+ *   • Cold start of the Supabase auth service.
+ *   • The browser's hydration latency (parsing + evaluating the JS
+ *     bundle before auth-js even starts the exchange).
+ *
+ * If 10 seconds pass with no `SIGNED_IN` event, something is wrong
+ * (e.g. the code expired, the verifier cookie was lost, or the
+ * Supabase project is misconfigured). We surface a generic error
+ * message and let the user retry.
  */
-function isPkceVerifierError(message: string): boolean {
-  const lower = message.toLowerCase();
-  return (
-    lower.includes("code verifier not found") ||
-    (lower.includes("pkce") && lower.includes("verifier"))
-  );
-}
+const AUTH_EXCHANGE_TIMEOUT_MS = 10_000;
 
 /**
  * The OAuth / email-confirmation callback page.
  *
- * Renders a branded loading spinner while the PKCE code exchange is
- * in flight, then either navigates to the `next` path (success) or
- * shows an error message (failure).
+ * Renders a branded loading spinner while `detectSessionInUrl`
+ * (configured on the browser client) performs the PKCE exchange
+ * automatically. Listens for the resulting `SIGNED_IN` /
+ * `INITIAL_SESSION` auth state change and navigates to the `next`
+ * path. If no session is detected within 10 seconds, shows an error.
  *
- * This component runs its exchange logic in `onMount`, which only
- * fires in the browser (never during SSR). This is intentional — the
- * PKCE verifier cookie was written by the browser client and is most
- * reliably read back by the browser client.
+ * This component is intentionally "dumb" — it does NOT call
+ * `exchangeCodeForSession` manually. That was the source of the race
+ * condition that caused "PKCE code verifier not found" and
+ * "code already used" errors. See the file header for the full
+ * rationale.
  */
 const AuthCallback: Component = () => {
   const navigate = useNavigate();
 
-  // Three states: loading (initial), error (exchange failed), and
-  // success (handled by navigate — no separate signal needed).
+  // Two states: loading (initial) and error (timeout or no code).
+  // Success is handled by navigate() — no separate signal needed.
   const [status, setStatus] = createSignal<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = createSignal<string>("");
 
-  onMount(async () => {
-    // ── 1. Parse the URL ────────────────────────────────────────────
-    // We use `window.location.href` (not `useNavigate`'s location)
-    // because this is the URL Supabase redirected the browser to
-    // after the OAuth flow — we need the raw `?code=...&next=...`
-    // query params.
+  onMount(() => {
+    // ── 1. Parse the URL for the `next` redirect target ────────────
+    // We DON'T read `code` or `sb_flow_id` — auth-js's
+    // `detectSessionInUrl` will parse them itself. We only need
+    // `next` so we know where to redirect after the exchange.
     const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
     const nextParam = url.searchParams.get("next");
     const target = getRedirectTarget(nextParam);
 
-    // No code in the URL — the link was likely opened directly or is
-    // stale. Show an error rather than navigating nowhere.
-    if (!code) {
-      console.warn(
-        "[auth/callback] No `code` param in URL. Search params:",
-        url.searchParams.toString()
-      );
-      setErrorMessage(
-        "No authorization code was found in the URL. The link may be incomplete or expired."
-      );
-      setStatus("error");
-      return;
-    }
+    console.log(
+      "[auth/callback] onMount — passive listener mode. next:",
+      nextParam ?? "(none)",
+      "| target:",
+      target,
+      "| has code in URL:",
+      url.searchParams.has("code"),
+      "| has sb_flow_id:",
+      url.searchParams.has("sb_flow_id")
+    );
 
     // ── 2. Get the browser Supabase client ─────────────────────────
     // `getBrowserClient` returns the singleton browser client. Its
-    // cookie adapter (`buildBrowserCookieAdapter` in browser.ts)
-    // reads from `document.cookie` — so it WILL see the PKCE
-    // verifier cookie that was written before the OAuth redirect.
+    // `detectSessionInUrl: true` config means auth-js ALREADY started
+    // parsing the `?code=...` from the URL on client hydration —
+    // possibly even before our onMount fires. We just need to listen
+    // for the resulting auth state change.
     const supabase = getBrowserClient();
 
-    // ── 3. Exchange the code for a session ─────────────────────────
-    // We pass the code (and optionally the `sb_flow_id` if present)
-    // to `exchangeCodeForSession`. The browser client's `getAll`
-    // adapter reads `document.cookie`, finds the verifier, and
-    // auth-js verifies it against the code.
+    // ── 3. Set up the 10-second timeout ────────────────────────────
+    // If no `SIGNED_IN` / `INITIAL_SESSION` event fires within 10
+    // seconds, something went wrong with the exchange. Show the
+    // error UI so the user isn't stuck on a spinner forever.
     //
-    // If `sb_flow_id` is in the URL, we pass it as `{ flowId }` so
-    // auth-js reads from the flow-specific slot key
-    // (`<storageKey>-flow-<flowId>-code-verifier`). This is the
-    // modern approach enabled by `appendPkceFlowIdToRedirects: true`
-    // on the browser client. If `sb_flow_id` is absent, auth-js
-    // falls back to the legacy fixed key (which is dual-written
-    // alongside the flow-specific slot — so both lookups should
-    // succeed, but flowId is preferred).
-    const flowId = url.searchParams.get("sb_flow_id");
+    // We store the timeout id so we can cancel it in the success
+    // path (and in onCleanup) — otherwise the timeout would fire
+    // AFTER we've navigated away, calling setStatus on an unmounted
+    // component (Solid handles this gracefully, but it's wasteful
+    // and would log a confusing warning).
+    let timeoutId: ReturnType<typeof setTimeout> | undefined;
+    let didSucceed = false;
 
-    console.log(
-      "[auth/callback] onMount exchange — code length:",
-      code.length,
-      "| has sb_flow_id:",
-      !!flowId,
-      "| next:",
-      nextParam ?? "(none)"
-    );
-
-    try {
-      const { data, error } = await supabase.auth.exchangeCodeForSession(
-        code,
-        flowId ? { flowId } : undefined
+    timeoutId = setTimeout(() => {
+      if (didSucceed) return;
+      console.error(
+        "[auth/callback] Timed out after",
+        AUTH_EXCHANGE_TIMEOUT_MS,
+        "ms waiting for SIGNED_IN / INITIAL_SESSION event. The PKCE exchange may have failed silently."
       );
+      setErrorMessage(
+        "Sign-in timed out. The authorization code may have expired, or the browser blocked the session cookie. Please try again."
+      );
+      setStatus("error");
+    }, AUTH_EXCHANGE_TIMEOUT_MS);
 
-      if (error) {
-        console.warn(
-          "[auth/callback] exchangeCodeForSession failed:",
-          error.name,
-          "—",
-          error.message
+    // ── 4. Set up the onAuthStateChange listener ───────────────────
+    // auth-js fires `INITIAL_SESSION` on client load (after
+    // `detectSessionInUrl` has processed the URL) and `SIGNED_IN`
+    // when a new session is established. Both events carry the
+    // session object — if it's non-null, the exchange succeeded.
+    //
+    // We listen for BOTH events because:
+    //   • `INITIAL_SESSION` fires first if the exchange completed
+    //     BEFORE our listener was registered (race with hydration).
+    //     In that case, the session is already in storage and the
+    //     initial event carries it.
+    //   • `SIGNED_IN` fires when the exchange completes AFTER our
+    //     listener is registered. This is the normal case when the
+    //     exchange takes >0ms (which it always does — it's an HTTP
+    //     POST).
+    //
+    // Listening for either event with a non-null session covers
+    // both timing windows.
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (event: AuthChangeEvent, session: Session | null) => {
+        console.log(
+          "[auth/callback] onAuthStateChange — event:",
+          event,
+          "| session present:",
+          !!session,
+          "| user present:",
+          !!session?.user
         );
 
-        // ── Fallback: PKCE verifier missing ──────────────────────
-        // This can happen if `detectSessionInUrl: true` already
-        // consumed the code on client hydration (race condition).
-        // The verifier cookie is then deleted by auth-js, so our
-        // explicit exchange sees "verifier missing". In that case,
-        // the session IS already established — we just need to read
-        // it via `getSession()`.
-        if (isPkceVerifierError(error.message)) {
-          console.info(
-            "[auth/callback] PKCE verifier missing — checking for existing session (detectSessionInUrl may have already exchanged)…"
-          );
-          const { data: sessionData, error: sessionError } =
-            await supabase.auth.getSession();
-          if (sessionData?.session && !sessionError) {
-            console.info(
-              "[auth/callback] Existing session found after PKCE failure. Redirecting to",
-              target
-            );
-            // Use `replace: true` so the callback URL isn't in the
-            // browser history — pressing Back doesn't re-trigger the
-            // exchange.
-            navigate(target, { replace: true });
-            return;
+        if (
+          (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
+          session
+        ) {
+          didSucceed = true;
+          if (timeoutId) {
+            clearTimeout(timeoutId);
+            timeoutId = undefined;
           }
-          console.warn(
-            "[auth/callback] No existing session found after PKCE failure."
+          console.info(
+            "[auth/callback] Session detected via",
+            event,
+            "— redirecting to",
+            target
           );
+          // Use `replace: true` so the callback URL isn't in the
+          // browser history — pressing Back doesn't re-trigger the
+          // exchange.
+          navigate(target, { replace: true });
         }
-
-        // Non-PKCE error (e.g. "invalid grant" — code expired) OR
-        // PKCE error with no existing session — show the error UI.
-        setErrorMessage(error.message);
-        setStatus("error");
-        return;
       }
+    );
 
-      // ── 4. Success — navigate to the target path ─────────────────
-      // `data.session` and `data.user` are now populated. The session
-      // cookies have been written to `document.cookie` by the browser
-      // client's `setAll` adapter (sb-access-token, sb-refresh-token).
-      // The next page load will be authenticated.
-      console.log(
-        "[auth/callback] Exchange succeeded. Session present:",
-        !!data.session,
-        "| User present:",
-        !!data.user,
-        "| Redirecting to",
-        target
-      );
-      navigate(target, { replace: true });
-    } catch (err) {
-      // Unexpected runtime error (e.g. network failure during the
-      // token exchange HTTP request). Surface it to the user — the
-      // message will be generic but at least signals something went
-      // wrong.
-      console.error("[auth/callback] Unexpected error during exchange:", err);
-      const msg =
-        err instanceof Error
-          ? err.message
-          : "An unexpected error occurred during sign-in.";
-      setErrorMessage(msg);
-      setStatus("error");
-    }
+    // ── 5. Cleanup on unmount ──────────────────────────────────────
+    // When the component unmounts (either because we navigated away
+    // OR because SolidStart tore down the route), unsubscribe the
+    // auth listener and clear the timeout. Without this, the listener
+    // would leak across route changes and the timeout could fire on
+    // an unrelated page.
+    onCleanup(() => {
+      if (timeoutId) {
+        clearTimeout(timeoutId);
+        timeoutId = undefined;
+      }
+      // `authListener.subscription.unsubscribe()` is the official
+      // way to tear down an onAuthStateChange listener (see
+      // https://supabase.com/docs/reference/javascript/auth-onauthstatechange).
+      // The optional chaining guards against the edge case where
+      // `supabase.auth.onAuthStateChange` returned a malformed
+      // result (it never does in practice, but TS wants it).
+      authListener?.subscription?.unsubscribe?.();
+    });
   });
 
   return (
