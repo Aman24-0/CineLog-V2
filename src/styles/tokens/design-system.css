@@ -523,54 +523,6 @@
     --animate-pop: popIn var(--dur-modal) var(--ease-smooth) both;
     --animate-scale: scaleIn var(--dur-modal) ease-out both;
     --animate-shimmer: shimmer 1.8s ease-in-out infinite;
-
-    /* ==============================================================
-       8. AMBIENT LIGHTING SYSTEM (Sprint 5C)
-       Reusable cinematic ambient tokens for ALL pages.
-       Dulo-inspired deep graphite + indigo atmosphere.
-
-       Any page can reference these tokens directly in its CSS.
-       Future pages (Watchlist, Collections, Profile, Settings, Search,
-       Details Modal) inherit the same cinematic foundation.
-
-       Accent-compatible: gold ambient tokens use var(--p) so they
-       auto-update when the user changes accent color in Appearance.
-
-       Do NOT hardcode ambient values in feature files — use these
-       tokens so the entire app shares one atmosphere.
-       ============================================================== */
-
-    /* ─── Cinematic Graphite Base ───
-       Darker than --surface but warmer than --void.
-       Indigo-tinted so ambient lighting is visible.
-       NEVER pure OLED black — always has a subtle cool undertone. */
-    --cine-graphite: #0e0e18;
-    --cine-graphite-surface: #12121e;
-
-    /* ─── Ambient Color Palette ───
-       Indigo/violet/blue-grey for atmospheric depth.
-       Gold is accent-only, derived from var(--p). */
-    --ambient-indigo: rgba(30, 27, 75, 0.4);
-    --ambient-indigo-mid: rgba(30, 27, 75, 0.22);
-    --ambient-indigo-faint: rgba(30, 27, 75, 0.08);
-    --ambient-violet: rgba(88, 28, 135, 0.18);
-    --ambient-violet-faint: rgba(124, 58, 237, 0.1);
-    --ambient-blue-grey: rgba(55, 65, 81, 0.12);
-    --ambient-blue-grey-faint: rgba(71, 85, 105, 0.06);
-    --ambient-gold: color-mix(in srgb, var(--p) 14%, transparent);
-    --ambient-gold-faint: color-mix(in srgb, var(--p) 5%, transparent);
-    --ambient-vignette: rgba(8, 8, 13, 0.55);
-
-    /* ─── Ambient Utility Tokens ─── */
-    --ambient-shadow: 0 4px 24px rgba(0, 0, 0, 0.3);
-
-    /* ─── Glass Neutral ───
-       Grey frosted glass with very subtle purple reflection.
-       Never bright white. Never muddy. */
-    --glass-neutral-bg: rgba(18, 18, 30, 0.65);
-    --glass-neutral-border: rgba(140, 130, 180, 0.08);
-    --glass-neutral-highlight: inset 0 1px 0 rgba(180, 170, 220, 0.06);
-    --glass-highlight-accent: inset 0 1px 0 rgba(232, 183, 74, 0.1);
   }
 }
 
@@ -643,24 +595,6 @@
   --type-label-sm-color: rgba(44, 40, 35, 0.5);
   --type-mono-color: rgba(44, 40, 35, 0.65);
   --type-overline-color: var(--p);
-
-  /* ─── Ambient Lighting System — Light ─── */
-  --cine-graphite: #fdf8f0;
-  --cine-graphite-surface: #f5f0e8;
-  --ambient-indigo: rgba(100, 90, 140, 0.06);
-  --ambient-indigo-mid: rgba(100, 90, 140, 0.03);
-  --ambient-indigo-faint: rgba(100, 90, 140, 0.01);
-  --ambient-violet: rgba(120, 80, 120, 0.04);
-  --ambient-violet-faint: rgba(120, 80, 120, 0.02);
-  --ambient-blue-grey: rgba(80, 90, 110, 0.04);
-  --ambient-blue-grey-faint: rgba(80, 90, 110, 0.02);
-  --ambient-gold: color-mix(in srgb, var(--p) 6%, transparent);
-  --ambient-gold-faint: color-mix(in srgb, var(--p) 2%, transparent);
-  --ambient-vignette: rgba(28, 24, 21, 0.08);
-  --ambient-shadow: 0 4px 24px rgba(60, 50, 30, 0.08);
-  --glass-neutral-bg: rgba(255, 253, 248, 0.5);
-  --glass-neutral-border: rgba(60, 50, 30, 0.06);
-  --glass-neutral-highlight: inset 0 1px 0 rgba(255, 255, 255, 0.4);
 }
 
 /* ==============================================================
