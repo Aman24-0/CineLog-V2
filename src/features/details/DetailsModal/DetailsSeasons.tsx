@@ -42,6 +42,23 @@ export interface DetailsSeasonsProps {
     newTrackerEpisode: number
   ) => void;
   onAddToVault: () => void;
+  /**
+   * Phase 6 Task 2 — Called when the user rates an episode. Optional;
+   * when omitted, EpisodeCard hides the rating row. The parent
+   * (useDetailsProgress.handleEpisodeRating) persists the rating.
+   */
+  onRateEpisode?: (
+    season: number,
+    episode: number,
+    rating: number | null
+  ) => void;
+  /**
+   * Phase 6 Task 2 — Accessor returning a Map of "S{season}E{episode}"
+   * → rating for the current vault item. Optional; when omitted (or
+   * when the accessor returns an empty Map), no episode shows a
+   * pre-existing rating.
+   */
+  episodeRatings?: Accessor<Map<string, number | null>>;
 }
 
 export default function DetailsSeasons(props: DetailsSeasonsProps) {
@@ -61,6 +78,8 @@ export default function DetailsSeasons(props: DetailsSeasonsProps) {
             onEpisodeChange={props.onEpisodeChange}
             onEpisodeUnmark={props.onEpisodeUnmark}
             onAddToVault={props.onAddToVault}
+            onRateEpisode={props.onRateEpisode}
+            episodeRatings={props.episodeRatings?.() ?? new Map()}
           />
         </Suspense>
       </DetailSection>

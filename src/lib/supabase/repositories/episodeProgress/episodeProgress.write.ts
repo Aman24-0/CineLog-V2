@@ -118,3 +118,36 @@ export async function deleteEpisodeProgressFrom(
 
   return { error: toError(error) };
 }
+
+/**
+ * Phase 6 Task 2 — Update the rating on a specific episode_progress
+ * record.
+ *
+ * If the record doesn't exist (the user hasn't marked the episode as
+ * watched yet), this is a no-op — the function returns `{ error: null }`
+ * but no rows are updated. The caller should call `upsertEpisodeProgress`
+ * first if it wants to ensure the row exists before setting the rating.
+ *
+ * Passing `null` for the rating clears it (sets the column to NULL).
+ * The app validates the rating range (1-10 or 1-5 depending on the
+ * user's ratingScale preference) before calling this function — the
+ * DB column has no CHECK constraint.
+ *
+ * @returns { error } — null on success, Error on failure.
+ */
+export async function updateEpisodeRating(
+  supabase: TypedSupabaseClient,
+  vaultId: string,
+  seasonNumber: number,
+  episodeNumber: number,
+  rating: number | null
+): Promise<EpisodeProgressWriteResult> {
+  const { error } = await supabase
+    .from(TABLE)
+    .update({ rating })
+    .eq("vault_id", vaultId)
+    .eq("season_number", seasonNumber)
+    .eq("episode_number", episodeNumber);
+
+  return { error: toError(error) };
+}

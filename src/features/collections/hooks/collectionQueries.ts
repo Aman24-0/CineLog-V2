@@ -56,7 +56,8 @@ export function createCollectionQueries(
       Array.isArray(col.smartRules) &&
       col.smartRules.length > 0
     ) {
-      const matched = evaluateSmartRules(col.smartRules, vault);
+      const combinator = col.smartRulesCombinator ?? "and";
+      const matched = evaluateSmartRules(col.smartRules, vault, combinator);
       entries = matched.map((v) => ({
         id: String(v.id),
         media_type: v.media_type,
@@ -111,7 +112,8 @@ export function createCollectionQueries(
     vault: WatchlistItem[]
   ): CollectionEntry[] => {
     if (!col.isSmart || !col.smartRules) return col.entries ?? [];
-    const matched = evaluateSmartRules(col.smartRules, vault);
+    const combinator = col.smartRulesCombinator ?? "and";
+    const matched = evaluateSmartRules(col.smartRules, vault, combinator);
     return matched.map((v) => ({
       id: String(v.id),
       media_type: v.media_type,

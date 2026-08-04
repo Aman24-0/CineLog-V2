@@ -287,6 +287,8 @@ export type Database = {
           id: string;
           is_completed: boolean;
           progress_minutes: number;
+          /** Phase 6 Task 2: per-episode rating (1-10 or 1-5, app-validated). NULL = no rating. */
+          rating: number | null;
           season_number: number;
           updated_at: string;
           vault_id: string;
@@ -298,6 +300,7 @@ export type Database = {
           id?: string;
           is_completed?: boolean;
           progress_minutes?: number;
+          rating?: number | null;
           season_number: number;
           updated_at?: string;
           vault_id: string;
@@ -309,6 +312,7 @@ export type Database = {
           id?: string;
           is_completed?: boolean;
           progress_minutes?: number;
+          rating?: number | null;
           season_number?: number;
           updated_at?: string;
           vault_id?: string;

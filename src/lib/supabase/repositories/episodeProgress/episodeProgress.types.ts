@@ -39,6 +39,13 @@ export interface UpsertEpisodeProgressPayload {
   readonly isCompleted?: boolean;
   readonly progressMinutes?: number;
   readonly watchedAt?: string | null;
+  /**
+   * Phase 6 Task 2 — per-episode rating (1-10 or 1-5, depending on
+   * the user's ratingScale preference). NULL/undefined means "no
+   * rating" (the default). The app validates the range before
+   * passing it here — the DB column has no CHECK constraint.
+   */
+  readonly rating?: number | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -21,6 +21,7 @@ const mockRow: EpisodeProgressRow = {
   episode_number: 5,
   is_completed: false,
   progress_minutes: 30,
+  rating: null,
   watched_at: "2024-06-01T00:00:00Z",
   updated_at: "2024-06-01T00:00:00Z"
 } as unknown as EpisodeProgressRow;
@@ -199,6 +200,31 @@ describe("EpisodeProgressRepository", () => {
       expect(result.error).toBe(err);
     });
   });
+
+  // ── Phase 6 Task 2: per-episode rating ────────────────────────────
+  describe("updateEpisodeRating", () => {
+    it("returns no error on success when setting a rating", async () => {
+      const { client } = createMockSupabase({ listData: [] });
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
+      expect(result.error).toBeNull();
+    });
+
+    it("returns no error when clearing the rating (null)", async () => {
+      const { client } = createMockSupabase({ listData: [] });
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, null);
+      expect(result.error).toBeNull();
+    });
+
+    it("returns error on failure", async () => {
+      const err = new Error("Rating update failed");
+      const { client } = createMockSupabaseError(err);
+      const repo = new EpisodeProgressRepository(client as never);
+      const result = await repo.updateEpisodeRating("vault-1", 1, 5, 8);
+      expect(result.error).toBe(err);
+    });
+  });
 });
 
 describe("episodeProgress.utils", () => {
@@ -239,6 +265,36 @@ describe("episodeProgress.utils", () => {
         watchedAt: null
       });
       expect(result.watched_at).toBeDefined();
+    });
+
+    // Phase 6 Task 2 — rating field
+    it("defaults rating to null when not provided", () => {
+      const result = toInsert({
+        vaultId: "v1",
+        seasonNumber: 1,
+        episodeNumber: 1
+      });
+      expect(result.rating).toBeNull();
+    });
+
+    it("passes rating through when provided", () => {
+      const result = toInsert({
+        vaultId: "v1",
+        seasonNumber: 1,
+        episodeNumber: 1,
+        rating: 8
+      });
+      expect(result.rating).toBe(8);
+    });
+
+    it("passes null rating through (explicit clear)", () => {
+      const result = toInsert({
+        vaultId: "v1",
+        seasonNumber: 1,
+        episodeNumber: 1,
+        rating: null
+      });
+      expect(result.rating).toBeNull();
     });
   });
 

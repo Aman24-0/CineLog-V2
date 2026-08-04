@@ -88,17 +88,21 @@ const STATUS_OPTIONS = [
  *     thumbnails) instead of just a count.
  *   • Added "Release Date" + "is not" operators per spec.
  *
- * NOTE: The Supabase `collections` table has no JSONB column for
- * rules — see collectionErrors.ts. Rules are evaluated live at view
- * time and not persisted. The collection_type='smart' flag IS
- * persisted, so the collection survives but appears empty until the
- * builder is opened again with the same rules. This is a documented
- * schema limitation, surfaced as a toast on create.
+ * Phase 6 Task 1 — FULLY WIRED:
+ *   • On CREATE: calls `createSmartCollection(name, rules, combinator)`
+ *     which persists both the rules AND the combinator to the
+ *     `collections.rules` JSONB column (migration 20260804_add_collections_rules).
+ *   • On EDIT (when `collectionId` is provided): calls
+ *     `updateSmartRules(collectionId, rules, combinator)` to update the
+ *     persisted rules. The `initial` prop hydrates the form from the
+ *     collection's existing `smartRules` + `smartRulesCombinator`.
+ *   • The combinator is now part of the persisted payload, so an
+ *     "OR" collection survives a page refresh.
  */
 export default function SmartCollectionBuilder(
   props: SmartCollectionBuilderProps
 ) {
-  const { createSmartCollection } = useCollections();
+  const { createSmartCollection, updateSmartRules } = useCollections();
   const { watchlist } = useVault();
 
   const [name, setName] = createSignal(props.initial?.name ?? "");
@@ -110,6 +114,7 @@ export default function SmartCollectionBuilder(
   const [combinator, setCombinator] = createSignal<"and" | "or">(
     props.initial?.combinator ?? "and"
   );
+  const [isSaving, setIsSaving] = createSignal(false);
 
   // Build autocomplete suggestions from the user's actual vault data.
   // Each field maps to a list of unique values that exist in the vault.
@@ -164,27 +169,13 @@ export default function SmartCollectionBuilder(
     )
   );
 
+  // Phase 6 Task 1: evaluateSmartRules now accepts the combinator, so the
+  // live preview matches what getCollectionProgress / resolveSmartCollection
+  // will produce on the collection detail page. The previous OR branch
+  // (manual union) is no longer needed.
   const matchedItems = createMemo(() => {
     if (validRules().length === 0) return [];
-    // evaluateSmartRules currently ANDs rules. For OR combinator,
-    // we evaluate each rule individually and union the results.
-    if (combinator() === "and") {
-      return evaluateSmartRules(validRules(), watchlist());
-    }
-    // OR — union of individual rule matches.
-    const seen = new Set<string>();
-    const result: ReturnType<typeof watchlist> = [];
-    for (const rule of validRules()) {
-      const matches = evaluateSmartRules([rule], watchlist());
-      for (const m of matches) {
-        const key = `${m.media_type}:${m.id}`;
-        if (!seen.has(key)) {
-          seen.add(key);
-          result.push(m);
-        }
-      }
-    }
-    return result;
+    return evaluateSmartRules(validRules(), watchlist(), combinator());
   });
 
   const matchCount = () => matchedItems().length;
@@ -219,8 +210,25 @@ export default function SmartCollectionBuilder(
     const n = name().trim();
     if (!n) return;
     if (validRules().length === 0) return;
-    await createSmartCollection(n, validRules());
-    props.onClose();
+    setIsSaving(true);
+    try {
+      if (isEditing() && props.collectionId) {
+        // Edit mode — update the existing smart collection's rules
+        // (and combinator). The name is NOT changed here; renaming is
+        // done via the FolderEditor / renameCollection.
+        await updateSmartRules(
+          props.collectionId,
+          validRules(),
+          combinator()
+        );
+      } else {
+        // Create mode — persist a brand-new smart collection.
+        await createSmartCollection(n, validRules(), combinator());
+      }
+      props.onClose();
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Lock body scroll while the modal is open.
@@ -555,11 +563,18 @@ export default function SmartCollectionBuilder(
             class="btn-primary"
             style={{ width: "100%", "margin-top": "var(--sp-3)" }}
             onClick={handleCreate}
-            disabled={!name().trim() || matchCount() === 0}
+            disabled={
+              isSaving() ||
+              !name().trim() ||
+              matchCount() === 0 ||
+              (isEditing() ? false : !name().trim())
+            }
           >
-            {isEditing()
-              ? "Update Smart Collection"
-              : "Create Smart Collection"}
+            {isSaving()
+              ? "Saving…"
+              : isEditing()
+                ? "Update Smart Collection"
+                : "Create Smart Collection"}
           </button>
         </div>
       </div>

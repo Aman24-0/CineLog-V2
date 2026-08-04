@@ -32,6 +32,7 @@ import AddTitlesModal from "./components/AddTitlesModal";
 import ReorderModal from "./components/ReorderModal";
 import EntryListRow from "./components/EntryListRow";
 import FolderEditor from "./components/FolderEditor";
+import SmartCollectionBuilder from "./components/SmartCollectionBuilder";
 import { useCollectionFilter } from "./hooks/useCollectionFilter";
 import {
   useCollectionSort,
@@ -106,7 +107,8 @@ export default function CollectionDetailPage() {
     archiveCollection,
     unarchiveCollection,
     deleteCollection,
-    duplicateCollection
+    duplicateCollection,
+    resolveSmartCollection
   } = useCollections();
   const { openTitle } = useModalState();
   const { showToast } = useToast();
@@ -139,6 +141,13 @@ export default function CollectionDetailPage() {
   // Unsubscribe confirmation dialog (universes only)
   const [unsubscribeTarget, setUnsubscribeTarget] =
     createSignal<Collection | null>(null);
+  // Phase 6 Task 1 — Refreshing state for the "Refresh smart collection"
+  // button. Re-evaluates the smart rules against the user's current vault
+  // (which we already do reactively, but the button also pulls a fresh
+  // vault from Supabase in case new items were added on another device).
+  const [isRefreshingSmart, setIsRefreshingSmart] = createSignal(false);
+  // Smart-collection builder modal — opened by the "Edit rules" action.
+  const [showSmartBuilder, setShowSmartBuilder] = createSignal(false);
 
   const isUniverse = createMemo(() => collection()?.type === "curated");
 
@@ -319,6 +328,38 @@ export default function CollectionDetailPage() {
     navigate("/collections");
   };
 
+  // ── Smart collection actions ──────────────────────────────────────
+  //
+  // Phase 6 Task 1 — Smart collections evaluate their rules against the
+  // user's vault LIVE (resolveSmartCollection), so the entry list always
+  // reflects the current vault state. The "Refresh" button pulls a fresh
+  // vault from Supabase (in case items were added on another device) and
+  // shows a confirmation toast with the new match count.
+
+  const handleRefreshSmart = async () => {
+    const col = collection();
+    if (!col?.isSmart) return;
+    setIsRefreshingSmart(true);
+    try {
+      await refreshVault();
+      const matched = resolveSmartCollection(collection()!, watchlist());
+      showToast(
+        `Refreshed — ${matched.length} title${matched.length === 1 ? "" : "s"} match.`,
+        "success",
+        2000
+      );
+    } catch (err) {
+      console.error("[CollectionDetailPage] Refresh smart failed:", err);
+      showToast("Failed to refresh. Try again.", "error");
+    } finally {
+      setIsRefreshingSmart(false);
+    }
+  };
+
+  const handleEditSmartRules = () => {
+    setShowSmartBuilder(true);
+  };
+
   // ── Entry actions (status / rating cycle / remove) ─────────────
   const { updateStatus, updateRating } = useVault();
   void addToCollection; // addToCollection is used by AddTitlesModal directly
@@ -467,6 +508,15 @@ export default function CollectionDetailPage() {
   const userEntries = createMemo<CollectionEntry[]>(() => {
     const col = collection();
     if (!col || col.type === "curated") return [];
+    // Phase 6 Task 1: smart collections resolve their entries DYNAMICALLY
+    // from the user's vault (the rules are evaluated against the current
+    // watchlist()). This means a smart collection's entry list updates
+    // automatically as the user adds/removes vault items — no manual
+    // refresh needed. The "Refresh" button on the action bar pulls a
+    // fresh vault from Supabase to catch changes from other devices.
+    if (col.isSmart && Array.isArray(col.smartRules) && col.smartRules.length > 0) {
+      return resolveSmartCollection(col, watchlist());
+    }
     return col.entries ?? [];
   });
 
@@ -720,6 +770,70 @@ export default function CollectionDetailPage() {
               onUnsubscribe={handleUnsubscribe}
             />
 
+            {/* Smart collection controls — Refresh + Edit Rules.
+                Phase 6 Task 1: smart collections evaluate their rules
+                against the vault live, but the user can pull a fresh
+                vault from Supabase (in case items were added on another
+                device) or re-open the builder to tweak the rules. */}
+            <Show when={collection()?.isSmart}>
+              <div
+                class="smart-collection-controls"
+                style={{
+                  display: "flex",
+                  gap: "var(--sp-2)",
+                  "margin-top": "var(--sp-2)",
+                  "flex-wrap": "wrap"
+                }}
+              >
+                <button
+                  type="button"
+                  class="collection-action-bar-btn focus-ring"
+                  onClick={() => void handleRefreshSmart()}
+                  disabled={isRefreshingSmart()}
+                  aria-label="Refresh smart collection"
+                  title="Re-evaluate rules against your current vault"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    aria-hidden="true"
+                    style={{
+                      "font-size": "18px",
+                      // Spin animation while refreshing — uses a CSS
+                      // animation defined in utilities/transitions.css
+                      // via the `spin` class. We add it conditionally
+                      // to avoid the animation running when not refreshing.
+                      animation: isRefreshingSmart()
+                        ? "cinelog-spin 0.9s linear infinite"
+                        : "none"
+                    }}
+                  >
+                    refresh
+                  </span>
+                  <span class="collection-action-bar-btn-label">
+                    {isRefreshingSmart() ? "Refreshing…" : "Refresh"}
+                  </span>
+                </button>
+                <button
+                  type="button"
+                  class="collection-action-bar-btn focus-ring"
+                  onClick={() => handleEditSmartRules()}
+                  aria-label="Edit smart collection rules"
+                  title="Edit rules"
+                >
+                  <span
+                    class="material-symbols-outlined"
+                    aria-hidden="true"
+                    style={{ "font-size": "18px" }}
+                  >
+                    tune
+                  </span>
+                  <span class="collection-action-bar-btn-label">
+                    Edit Rules
+                  </span>
+                </button>
+              </div>
+            </Show>
+
             {/* Row 2: Sort + Search + Filter chips */}
             <CollectionSortFilter
               collection={collection()!}
@@ -837,6 +951,22 @@ export default function CollectionDetailPage() {
             <ReorderModal
               collection={collection()!}
               onClose={() => setShowReorder(false)}
+            />
+          </Show>
+
+          {/* Smart collection builder — opened by the "Edit Rules" action.
+              Passes the collection's existing rules + combinator as the
+              initial state, and the collectionId so the builder calls
+              updateSmartRules (instead of createSmartCollection). */}
+          <Show when={showSmartBuilder() && collection()?.isSmart}>
+            <SmartCollectionBuilder
+              onClose={() => setShowSmartBuilder(false)}
+              collectionId={collection()!.id}
+              initial={{
+                name: collection()!.name,
+                rules: collection()!.smartRules ?? [],
+                combinator: collection()!.smartRulesCombinator ?? "and"
+              }}
             />
           </Show>
 

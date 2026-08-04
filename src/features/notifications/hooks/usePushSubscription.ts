@@ -51,6 +51,7 @@ import { createSignal, onMount, type Accessor } from "solid-js";
 import { getClient } from "~/lib/supabase/client";
 import { getBrowserSession } from "~/lib/supabase/session";
 import { useAuth } from "~/shared/hooks/useAuth";
+import { notifPrefs } from "~/core/preferences/notifications";
 
 /**
  * PushSubscriptionKeys — the encryption keys the Web Push API gives us
@@ -87,6 +88,21 @@ export interface UsePushSubscriptionReturn {
   error: Accessor<string | null>;
   /** The VAPID public key fetched from app_config (empty if not set). */
   vapidPublicKey: Accessor<string>;
+
+  /**
+   * Phase 6 Task 3 — The set of notification categories the user has
+   * opted into (mirrors `notifPrefs` from core/preferences). Each key
+   * corresponds to a category the server checks via
+   * `/api/push/send-admin`'s `category` field. The UI can render
+   * per-category toggles by reading this accessor + calling
+   * `updateNotifPref` from `core/preferences/notifications`.
+   *
+   * Returns `null` when the user is NOT subscribed to push on this
+   * device — there's no point showing category toggles if push itself
+   * is off. The UI should gate the category section on
+   * `isSubscribed()`.
+   */
+  subscribedCategories: Accessor<Record<string, boolean> | null>;
 
   /** Subscribe the current device to push notifications. Returns true on success. */
   subscribe: () => Promise<boolean>;
@@ -521,12 +537,36 @@ export function usePushSubscription(): UsePushSubscriptionReturn {
     void Promise.all([fetchVapidKey(), checkSubscription()]);
   });
 
+  // Phase 6 Task 3 — Derive the per-category opt-in state from the
+  // global `notifPrefs` signal. We expose this as an Accessor so the
+  // PushToggle / NotificationSection UI can render category toggles
+  // that reflect the same source of truth the server checks (the
+  // `notifPrefs` is synced to `user_preferences.prefs_json` via
+  // `preferencesSync.ts`, so the server-side check sees the same
+  // values the user toggles here).
+  //
+  // Returns `null` when push is NOT subscribed on this device — the
+  // UI uses this to hide the per-category section until the user
+  // enables push.
+  const subscribedCategories: Accessor<Record<string, boolean> | null> = () => {
+    if (!isSubscribed()) return null;
+    const prefs = notifPrefs();
+    return {
+      newSeason: prefs.newSeason,
+      continueWatching: prefs.continueWatching,
+      weeklyRecap: prefs.weeklyRecap,
+      recommendations: prefs.recommendations,
+      syncStatus: prefs.syncStatus
+    };
+  };
+
   return {
     isSubscribed,
     isSupported,
     isLoading,
     error,
     vapidPublicKey,
+    subscribedCategories,
     subscribe,
     unsubscribe,
     checkSubscription,

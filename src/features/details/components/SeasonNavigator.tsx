@@ -39,6 +39,26 @@ interface SeasonNavigatorProps {
   ) => void;
   /** Called when the user taps "Add to Watchlist" on a non-watchlist title's episode */
   onAddToVault: () => void;
+  /**
+   * Phase 6 Task 2 — Called when the user rates an episode.
+   * `rating` is the new rating (1-N) or null to clear. The parent
+   * (useDetailsProgress.handleEpisodeRating) persists it to the
+   * `episode_progress.rating` column.
+   *
+   * Optional — when omitted, EpisodeCard hides the rating row.
+   */
+  onRateEpisode?: (
+    season: number,
+    episode: number,
+    rating: number | null
+  ) => void;
+  /**
+   * Phase 6 Task 2 — A map of "S{season}E{episode}" → rating for the
+   * current vault item. Used to hydrate each EpisodeCard's stars with
+   * the persisted rating. Optional — when omitted, no episode shows
+   * a pre-existing rating (the stars start empty).
+   */
+  episodeRatings?: Map<string, number | null>;
 }
 
 /**
@@ -468,10 +488,25 @@ const SeasonNavigator: Component<SeasonNavigatorProps> = (props) => {
                                   currentEpisode() > ep.episode_number))
                             }
                             inVault={!!props.vaultItem}
+                            rating={
+                              props.episodeRatings?.get(
+                                `S${ep.season_number}E${ep.episode_number}`
+                              ) ?? null
+                            }
                             onToggle={(newWatched) =>
                               handleEpisodeToggle(ep, newWatched)
                             }
                             onAddToVault={() => props.onAddToVault()}
+                            onRate={
+                              props.onRateEpisode
+                                ? (rating) =>
+                                    props.onRateEpisode?.(
+                                      ep.season_number,
+                                      ep.episode_number,
+                                      rating
+                                    )
+                                : undefined
+                            }
                           />
                         )}
                       </For>

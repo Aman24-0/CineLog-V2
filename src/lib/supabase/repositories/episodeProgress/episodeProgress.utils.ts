@@ -25,7 +25,11 @@ export function toInsert(
     episode_number: payload.episodeNumber,
     is_completed: payload.isCompleted ?? false,
     progress_minutes: payload.progressMinutes ?? 0,
-    watched_at: payload.watchedAt ?? new Date().toISOString()
+    watched_at: payload.watchedAt ?? new Date().toISOString(),
+    // Phase 6 Task 2: per-episode rating. undefined → NULL (the DB
+    // default), so existing callers that don't pass `rating` continue
+    // to work without setting a rating.
+    rating: payload.rating ?? null
   };
 }
 

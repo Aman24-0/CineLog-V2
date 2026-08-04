@@ -737,7 +737,8 @@ const useCollectionsLogic = () => {
 
   const createSmartCollection = async (
     name: string,
-    rules: SmartRule[]
+    rules: SmartRule[],
+    combinator: "and" | "or" = "and"
   ): Promise<void> => {
     const uid = getCurrentUid();
     if (!uid) {
@@ -773,7 +774,8 @@ const useCollectionsLogic = () => {
             updatedAt: now,
             isFavorites: false,
             isSmart: true,
-            smartRules: rules
+            smartRules: rules,
+            smartRulesCombinator: combinator
           }
         ])
       );
@@ -794,7 +796,7 @@ const useCollectionsLogic = () => {
         // user can re-save rules via updateSmartRules).
         if (rules.length > 0) {
           try {
-            await updateSmartRulesInSupabase(serverId, rules);
+            await updateSmartRulesInSupabase(serverId, rules, combinator);
           } catch (err) {
             console.warn(
               "[useCollections] Failed to persist initial smart rules:",
@@ -827,12 +829,16 @@ const useCollectionsLogic = () => {
 
   const updateSmartRules = async (
     collectionId: string,
-    rules: SmartRule[]
+    rules: SmartRule[],
+    combinator: "and" | "or" = "and"
   ): Promise<void> => {
     // Phase 4 Task 1 — Smart collection rules ARE NOW persisted to the
     // `collections.rules` JSONB column (migration 20260804_add_collections_rules).
     // We optimistically update the local signal, fire the server write, and
     // rollback + toast on error — same pattern as the other mutations.
+    //
+    // Phase 6 Task 1 — the combinator ("and" | "or") is now persisted
+    // alongside the rules (see collectionAdapter.updateSmartRulesInSupabase).
     //
     // If the collectionId is a temp ID (not yet reconciled with the server),
     // wait for the real ID before writing.
@@ -841,16 +847,23 @@ const useCollectionsLogic = () => {
     // Snapshot for rollback.
     const snapshot = userCollections();
 
-    // Optimistic update — set smartRules on the local collection so the
-    // UI re-evaluates immediately.
+    // Optimistic update — set smartRules + smartRulesCombinator on the local
+    // collection so the UI re-evaluates immediately.
     setUserCollections((prev) =>
       prev.map((c) =>
-        c.id === realId ? { ...c, smartRules: rules, updatedAt: new Date().toISOString() } : c
+        c.id === realId
+          ? {
+              ...c,
+              smartRules: rules,
+              smartRulesCombinator: combinator,
+              updatedAt: new Date().toISOString()
+            }
+          : c
       )
     );
 
     try {
-      await updateSmartRulesInSupabase(realId, rules);
+      await updateSmartRulesInSupabase(realId, rules, combinator);
       showToast(
         rules.length > 0
           ? `Saved ${rules.length} rule${rules.length === 1 ? "" : "s"}.`

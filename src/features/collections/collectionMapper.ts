@@ -122,10 +122,40 @@ export function collectionRowToCollection(
   // `rules` JSONB column. NULL for non-smart collections; a JSON-serialised
   // SmartRule[] for smart collections. We cast through unknown because the
   // DB column is Json (untyped) but the app expects SmartRule[].
+  //
+  // Phase 6 Task 1: the rules column may now store EITHER:
+  //   • Legacy shape:  SmartRule[]                     (combinator = "and")
+  //   • New shape:     { rules: SmartRule[], combinator: "and"|"or" }
+  // We detect the shape and hydrate both `smartRules` and
+  // `smartRulesCombinator` on the Collection. Legacy rows default to
+  // AND-combination (the original evaluateSmartRules behavior).
   const rawRules = row.rules ?? null;
-  const smartRules = Array.isArray(rawRules)
-    ? (rawRules as unknown as Collection["smartRules"])
-    : undefined;
+  let smartRules: Collection["smartRules"];
+  let smartRulesCombinator: Collection["smartRulesCombinator"];
+  if (Array.isArray(rawRules)) {
+    // Legacy shape — bare SmartRule[].
+    smartRules = rawRules as unknown as Collection["smartRules"];
+    smartRulesCombinator = "and";
+  } else if (
+    rawRules &&
+    typeof rawRules === "object" &&
+    Array.isArray(
+      (rawRules as { rules?: unknown }).rules
+    )
+  ) {
+    // New shape — { rules, combinator }.
+    const obj = rawRules as {
+      rules: unknown[];
+      combinator?: unknown;
+    };
+    smartRules =
+      obj.rules as unknown as Collection["smartRules"];
+    smartRulesCombinator =
+      obj.combinator === "or" ? "or" : "and";
+  } else {
+    smartRules = undefined;
+    smartRulesCombinator = undefined;
+  }
   return {
     id: row.id,
     name: row.name,
@@ -147,6 +177,7 @@ export function collectionRowToCollection(
     // and hydrated here so the UI can re-evaluate them on load.
     isSmart: row.collection_type === "smart",
     smartRules,
+    smartRulesCombinator,
     // isFavorites is not a column in the Supabase schema — the Favorites
     // folder is identified by name ("Favorites") in the app. The UI
     // sorts by isFavorites, so we set it based on the name.

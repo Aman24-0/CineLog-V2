@@ -12,7 +12,8 @@ import {
   updateSeasonEpisodeInSupabase,
   updateWatchProgressInSupabase,
   markEpisodeCompletedInSupabase,
-  unmarkEpisodeInSupabase
+  unmarkEpisodeInSupabase,
+  updateEpisodeRatingInSupabase
 } from "../episodeProgressAdapter";
 import {
   getVaultRepository,
@@ -38,6 +39,7 @@ const mockProgress: EpisodeProgressRow = {
   episode_number: 5,
   is_completed: false,
   progress_minutes: 30,
+  rating: null,
   watched_at: "2024-06-01T00:00:00Z",
   updated_at: "2024-06-01T00:00:00Z"
 } as unknown as EpisodeProgressRow;
@@ -407,6 +409,122 @@ describe("episodeProgressAdapter", () => {
       );
 
       const result = await unmarkEpisodeInSupabase("user-1", "123", "tv", 2, 5);
+      expect(result).toBe(false);
+    });
+  });
+
+  // ── Phase 6 Task 2: per-episode rating ────────────────────────────
+  describe("updateEpisodeRatingInSupabase", () => {
+    it("resolves vault UUID and updates the rating on the episode_progress row", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
+      };
+      const mockProgRepo = {
+        updateEpisodeRating: vi.fn().mockResolvedValue({ error: null })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
+
+      const result = await updateEpisodeRatingInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        8
+      );
+      expect(result).toBe(true);
+      // Verify the vault UUID was resolved via the TMDB identity.
+      expect(mockVaultRepo.getVaultByTmdbId).toHaveBeenCalledWith(
+        "user-1",
+        123,
+        "tv"
+      );
+      // Verify the rating update was called with the correct vault + position + rating.
+      expect(mockProgRepo.updateEpisodeRating).toHaveBeenCalledWith(
+        "vault-uuid-1",
+        2,
+        5,
+        8
+      );
+    });
+
+    it("supports clearing the rating (null)", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
+      };
+      const mockProgRepo = {
+        updateEpisodeRating: vi.fn().mockResolvedValue({ error: null })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
+
+      const result = await updateEpisodeRatingInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        null
+      );
+      expect(result).toBe(true);
+      expect(mockProgRepo.updateEpisodeRating).toHaveBeenCalledWith(
+        "vault-uuid-1",
+        2,
+        5,
+        null
+      );
+    });
+
+    it("returns false when vault item not found", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi.fn().mockResolvedValue({ data: null, error: null })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+
+      const result = await updateEpisodeRatingInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        8
+      );
+      expect(result).toBe(false);
+    });
+
+    it("returns false on update error", async () => {
+      const mockVaultRepo = {
+        getVaultByTmdbId: vi
+          .fn()
+          .mockResolvedValue({ data: mockVaultRow, error: null })
+      };
+      const mockProgRepo = {
+        updateEpisodeRating: vi
+          .fn()
+          .mockResolvedValue({ error: new Error("Rating update fail") })
+      };
+      vi.mocked(getVaultRepository).mockReturnValue(mockVaultRepo as never);
+      vi.mocked(getEpisodeProgressRepository).mockReturnValue(
+        mockProgRepo as never
+      );
+
+      const result = await updateEpisodeRatingInSupabase(
+        "user-1",
+        "123",
+        "tv",
+        2,
+        5,
+        8
+      );
       expect(result).toBe(false);
     });
   });

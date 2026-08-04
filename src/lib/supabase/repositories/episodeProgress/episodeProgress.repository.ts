@@ -19,6 +19,7 @@ import {
   clearEpisodeProgress,
   deleteEpisodeProgressFrom,
   markEpisodeCompleted,
+  updateEpisodeRating,
   upsertEpisodeProgress
 } from "./episodeProgress.write";
 import type {
@@ -103,6 +104,28 @@ export class EpisodeProgressRepository {
       vaultId,
       fromSeason,
       fromEpisode
+    );
+  }
+
+  /**
+   * Phase 6 Task 2 — Update the rating on a specific episode_progress
+   * record. See `episodeProgress.write.ts` for the full rationale.
+   *
+   * If the record doesn't exist (the user hasn't marked the episode as
+   * watched yet), this is a no-op. Pass `null` to clear the rating.
+   */
+  updateEpisodeRating(
+    vaultId: string,
+    seasonNumber: number,
+    episodeNumber: number,
+    rating: number | null
+  ): Promise<EpisodeProgressWriteResult> {
+    return updateEpisodeRating(
+      this.supabase,
+      vaultId,
+      seasonNumber,
+      episodeNumber,
+      rating
     );
   }
 }

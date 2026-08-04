@@ -6,9 +6,9 @@ import { normalizeGenre } from "~/shared/utils/genres";
 /**
  * evaluateSmartRules — filter a vault by a set of smart collection rules.
  *
- * All rules are AND-combined: an item must match EVERY rule to be included.
- * (OR-combination is handled by the caller — see SmartCollectionBuilder,
- * which calls this once per rule and unions the results.)
+ * Rules are combined with the given `combinator` (default "and"):
+ *   • "and" — an item must match EVERY rule to be included.
+ *   • "or"  — an item matches if ANY rule matches.
  *
  * Supported operators (per field):
  *   - director:     contains, is, is_not
@@ -24,9 +24,30 @@ import { normalizeGenre } from "~/shared/utils/genres";
  */
 export function evaluateSmartRules(
   rules: SmartRule[],
-  vault: WatchlistItem[]
+  vault: WatchlistItem[],
+  combinator: "and" | "or" = "and"
 ): WatchlistItem[] {
   if (!Array.isArray(rules) || !rules.length) return [];
+  if (combinator === "or") {
+    // OR — item matches if ANY rule matches. We can't use a single
+    // .filter()+some() because each rule may have different field
+    // semantics; instead we test each rule independently and union.
+    const seen = new Set<string>();
+    const out: WatchlistItem[] = [];
+    for (const item of vault) {
+      for (const rule of rules) {
+        if (matchRule(item, rule)) {
+          const key = `${item.media_type}:${item.id}`;
+          if (!seen.has(key)) {
+            seen.add(key);
+            out.push(item);
+          }
+          break; // item already matched — no need to test more rules
+        }
+      }
+    }
+    return out;
+  }
   return vault.filter((item) => rules.every((rule) => matchRule(item, rule)));
 }
 

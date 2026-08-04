@@ -312,3 +312,56 @@ export async function unmarkEpisodeInSupabase(
   }
   return true;
 }
+
+/**
+ * Phase 6 Task 2 — Update the per-episode rating on a specific
+ * episode_progress record.
+ *
+ * The rating is stored on the episode_progress row identified by
+ * (vaultId, seasonNumber, episodeNumber). If the row doesn't exist
+ * (the user hasn't marked the episode as watched yet), this is a
+ * no-op — the caller should ensure the row exists first by calling
+ * `updateSeasonEpisodeInSupabase` (which upserts the progress row).
+ *
+ * Pass `null` to clear the rating.
+ *
+ * The caller is responsible for validating the rating range against
+ * the user's `ratingScale` preference (1-5 for "5star", 1-10 for
+ * "10star"). For "thumbs" users, the rating input is hidden in the
+ * UI so this function won't be called.
+ *
+ * @returns true on success, false on failure.
+ */
+export async function updateEpisodeRatingInSupabase(
+  userId: string,
+  itemId: string,
+  mediaType: WatchlistItem["media_type"],
+  season: number,
+  episode: number,
+  rating: number | null
+): Promise<boolean> {
+  const vaultId = await resolveVaultId(userId, itemId, mediaType);
+  if (!vaultId) {
+    console.error(
+      "[episodeProgressAdapter] Could not resolve vaultId for item:",
+      itemId
+    );
+    return false;
+  }
+
+  const repo = getEpisodeProgressRepository();
+  const { error } = await repo.updateEpisodeRating(
+    vaultId,
+    season,
+    episode,
+    rating
+  );
+  if (error) {
+    console.error(
+      "[episodeProgressAdapter] updateEpisodeRating error:",
+      error
+    );
+    return false;
+  }
+  return true;
+}

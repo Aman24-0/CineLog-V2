@@ -11,9 +11,10 @@
 //     url?: string,              // click-through URL (default "/")
 //     tag?: string,              // notification tag (default "default")
 //     icon?: string,             // icon URL (default "/favicon.ico")
-//     badge?: string             // badge URL (default "/favicon.ico")
+//     badge?: string,            // badge URL (default "/favicon.ico")
+//     category?: PushCategory    // Phase 6 Task 3 — per-category opt-in
 //   }
-//   → 200 { sent: number, failed: number }  on success
+//   → 200 { sent: number, failed: number, skipped: number }  on success
 //   → 401 on missing/invalid CRON_SECRET
 //   → 400 on validation error
 //   → 503 if VAPID keys are not configured
@@ -33,6 +34,22 @@
 //   • Authentication is via a shared CRON_SECRET env var, not a user
 //     session. The secret must be set on Vercel and in the pg_cron
 //     job's HTTP request header.
+//
+// PHASE 6 TASK 3 — PER-CATEGORY OPT-IN:
+//   The request body may include a `category` field identifying which
+//   notification category the send belongs to (e.g. "weeklyRecap",
+//   "newSeason"). When `category` is provided, the endpoint looks up
+//   the user's per-category preference from
+//   `user_preferences.prefs_json.notifPrefs` and SKIPS the send if the
+//   user has opted out of that category. The response includes a
+//   `skipped` count so the caller can distinguish "delivered" from
+//   "suppressed by user preference".
+//
+//   When `category` is omitted (or an unknown value), the send proceeds
+//   unconditionally — backward compatibility for callers that haven't
+//   been updated yet. This is a deliberate fail-open: we'd rather
+//   over-deliver to a user who forgot to toggle a category off than
+//   silently suppress a notification they expected.
 //
 // SECURITY:
 //   • The CRON_SECRET env var gates access. Only the cron job (and
@@ -58,6 +75,29 @@ interface APIEvent {
   request: Request;
 }
 
+/**
+ * Phase 6 Task 3 — The set of notification categories the user can
+ * opt in / out of via `notifPrefs`. These match the keys on the
+ * `NotificationPrefs` interface in `core/preferences/notifications.ts`.
+ *
+ * The string values are stable identifiers used in the `category`
+ * field of the request body and in `prefs_json.notifPrefs`.
+ */
+type PushCategory =
+  | "newSeason"
+  | "continueWatching"
+  | "weeklyRecap"
+  | "recommendations"
+  | "syncStatus";
+
+const VALID_CATEGORIES: ReadonlySet<PushCategory> = new Set([
+  "newSeason",
+  "continueWatching",
+  "weeklyRecap",
+  "recommendations",
+  "syncStatus"
+]);
+
 interface SendAdminRequestBody {
   userId?: unknown;
   title?: unknown;
@@ -66,6 +106,8 @@ interface SendAdminRequestBody {
   tag?: unknown;
   icon?: unknown;
   badge?: unknown;
+  /** Phase 6 Task 3 — per-category opt-in check. */
+  category?: unknown;
 }
 
 interface PushSubscriptionRow {
@@ -174,6 +216,75 @@ function configureVapid(): void {
   vapidConfigured = true;
 }
 
+// ─── Phase 6 Task 3: per-category opt-in check ──────────────────────
+//
+// The user's per-category preferences are stored in
+// `user_preferences.prefs_json.notifPrefs` (mirrored from the browser's
+// localStorage by `preferencesSync.ts`). The shape matches the
+// `NotificationPrefs` interface:
+//
+//   {
+//     newSeason: boolean,
+//     continueWatching: boolean,
+//     weeklyRecap: boolean,
+//     recommendations: boolean,
+//     syncStatus: boolean,
+//     ... (quiet hours, email prefs, etc.)
+//   }
+//
+// `true` means the user has opted IN to that category. When the field
+// is missing (older snapshots), we default to opted-IN — same fail-open
+// rationale as the rest of the endpoint. The browser-side default
+// (`DEFAULT_NOTIF_PREFS`) has most categories ON, so this matches the
+// user's expected initial state.
+//
+// We read via the service-role admin client because:
+//   1. There's no user session (this endpoint is called by the cron).
+//   2. RLS on user_preferences restricts reads to the owner, which
+//      would block the server from checking the preference. The
+//      service-role bypasses RLS — same pattern as the existing
+//      `isUserInQuietHours` helper in /api/push/send.ts.
+async function isCategoryOptedIn(
+  adminClient: ReturnType<typeof createAdminClient>,
+  userId: string,
+  category: PushCategory
+): Promise<boolean> {
+  try {
+    const { data, error } = await adminClient
+      .from("user_preferences")
+      .select("prefs_json")
+      .eq("user_id", userId)
+      .maybeSingle();
+
+    if (error || !data?.prefs_json) {
+      // No preferences row yet — fail open (deliver). The user hasn't
+      // explicitly opted out, so we honor the send.
+      return true;
+    }
+
+    // prefs_json is stored as JSONB. The shape is the full
+    // PreferencesSnapshot (see preferencesSync.ts) — we only care
+    // about the notifPrefs sub-object.
+    const snapshot = data.prefs_json as {
+      notifPrefs?: Record<string, unknown>;
+    };
+    const prefs = snapshot.notifPrefs;
+    if (!prefs || typeof prefs !== "object") {
+      // No notifPrefs sub-object — fail open.
+      return true;
+    }
+
+    const value = prefs[category];
+    // Explicit `false` → opted out. Anything else (true, undefined,
+    // wrong type) → opted in (fail open).
+    return value !== false;
+  } catch {
+    // On any error, fail open — better to deliver than to silently
+    // suppress a notification the user expected.
+    return true;
+  }
+}
+
 // ─── POST handler ─────────────────────────────────────────────────────
 
 export async function POST(event: APIEvent): Promise<Response> {
@@ -255,8 +366,36 @@ export async function POST(event: APIEvent): Promise<Response> {
   const icon = typeof body.icon === "string" ? body.icon : "/favicon.ico";
   const badge = typeof body.badge === "string" ? body.badge : "/favicon.ico";
 
+  // Phase 6 Task 3 — validate the category field. Unknown values are
+  // treated as "no category" (the send proceeds unconditionally) so a
+  // typo by the caller doesn't accidentally suppress notifications.
+  const rawCategory =
+    typeof body.category === "string" ? body.category : undefined;
+  const category: PushCategory | undefined =
+    rawCategory && VALID_CATEGORIES.has(rawCategory as PushCategory)
+      ? (rawCategory as PushCategory)
+      : undefined;
+
   // ─── Fetch all push subscriptions for the user ──────────────────────
   const adminClient = createAdminClient();
+
+  // Phase 6 Task 3 — per-category opt-in check. When `category` is
+  // provided, look up the user's notifPrefs and skip the send if they
+  // opted out of this category. We do this BEFORE the subscription
+  // fetch to avoid a wasted query when we're going to skip anyway.
+  // Returns `skipped: 1` so the caller can distinguish "suppressed by
+  // user preference" from "no subscriptions".
+  if (category) {
+    const optedIn = await isCategoryOptedIn(adminClient, userId, category);
+    if (!optedIn) {
+      // The user has explicitly opted out of this category. We return
+      // 200 (not 403 or similar) because the request itself was valid
+      // — we just chose not to deliver. The `skipped` field tells the
+      // caller what happened.
+      return jsonResponse({ sent: 0, failed: 0, skipped: 1 });
+    }
+  }
+
   const { data: subs, error: subsError } = (await adminClient
     .from("push_subscriptions")
     .select("id, user_id, endpoint, keys, expires_at")
@@ -280,7 +419,7 @@ export async function POST(event: APIEvent): Promise<Response> {
     // No subscriptions — user hasn't enabled push on any device.
     // Not an error; the in-app notification row was already inserted
     // by the caller.
-    return jsonResponse({ sent: 0, failed: 0 });
+    return jsonResponse({ sent: 0, failed: 0, skipped: 0 });
   }
 
   // ─── Filter out expired subscriptions ───────────────────────────────
@@ -313,7 +452,7 @@ export async function POST(event: APIEvent): Promise<Response> {
   }
 
   if (validSubs.length === 0) {
-    return jsonResponse({ sent: 0, failed: 0 });
+    return jsonResponse({ sent: 0, failed: 0, skipped: 0 });
   }
 
   // ─── Send to each subscription ──────────────────────────────────────
@@ -372,7 +511,7 @@ export async function POST(event: APIEvent): Promise<Response> {
     }
   }
 
-  return jsonResponse({ sent, failed });
+  return jsonResponse({ sent, failed, skipped: 0 });
 }
 
 // Reject GET / other methods.

@@ -179,6 +179,9 @@ export default function DetailsModal() {
     handleSetStatus,
     handleEpisodeChange,
     handleEpisodeUnmark,
+    handleEpisodeRating,
+    episodeRatings,
+    hydrateEpisodeRatings,
     handleSelectItem,
     handleRemoveFromVault
   } = useDetailsActions({
@@ -199,6 +202,17 @@ export default function DetailsModal() {
 
   // Reset trailer state whenever the open title changes.
   createEffect(on(vaultItem, () => setShowTrailer(false)));
+
+  // Phase 6 Task 2 — Hydrate episode ratings whenever the vault item
+  // changes (modal opens, or user navigates to a related title). This
+  // fetches all episode_progress rows for the open TV title so the
+  // EpisodeCards can render their persisted star ratings. Movies and
+  // non-vault titles short-circuit inside the hydrator.
+  createEffect(
+    on(vaultItem, () => {
+      void hydrateEpisodeRatings();
+    })
+  );
 
   const close = () => closeTitle();
 
@@ -466,6 +480,8 @@ export default function DetailsModal() {
                         onEpisodeChange={handleEpisodeChange}
                         onEpisodeUnmark={handleEpisodeUnmark}
                         onAddToVault={handleAddToVault}
+                        onRateEpisode={handleEpisodeRating}
+                        episodeRatings={episodeRatings}
                       />
 
                       {/* ── 9. Relations ──────────────────────────────

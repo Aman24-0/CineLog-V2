@@ -208,4 +208,81 @@ describe("evaluateSmartRules", () => {
       expect(evaluateSmartRules(rules, vault)).toHaveLength(1);
     });
   });
+
+  // ── Phase 6 Task 1: combinator ("and" | "or") ───────────────────
+  describe("combinator", () => {
+    it("defaults to 'and' (backward compatible)", () => {
+      const vault = [
+        makeMovie({
+          id: "1",
+          director: "Nolan",
+          genresList: ["Sci-Fi"]
+        }),
+        makeMovie({
+          id: "2",
+          director: "Nolan",
+          genresList: ["Drama"]
+        })
+      ];
+      const rules: SmartRule[] = [
+        { field: "director", operator: "contains", value: "nolan" },
+        { field: "genre", operator: "contains", value: "sci-fi" }
+      ];
+      // Default — AND: only item 1 matches both.
+      const result = evaluateSmartRules(rules, vault);
+      expect(result).toHaveLength(1);
+      expect(result[0].id).toBe("1");
+    });
+
+    it("OR combinator — item matches if ANY rule matches", () => {
+      const vault = [
+        makeMovie({
+          id: "1",
+          director: "Nolan",
+          genresList: ["Sci-Fi"]
+        }),
+        makeMovie({
+          id: "2",
+          director: "Kubrick",
+          genresList: ["Drama"]
+        }),
+        makeMovie({
+          id: "3",
+          director: "Scorsese",
+          genresList: ["Crime"]
+        })
+      ];
+      const rules: SmartRule[] = [
+        { field: "director", operator: "contains", value: "nolan" },
+        { field: "genre", operator: "contains", value: "drama" }
+      ];
+      // OR: items 1 (Nolan) and 2 (Drama) both match.
+      const result = evaluateSmartRules(rules, vault, "or");
+      expect(result).toHaveLength(2);
+      const ids = result.map((r) => r.id).sort();
+      expect(ids).toEqual(["1", "2"]);
+    });
+
+    it("OR combinator — dedupes items matching multiple rules", () => {
+      // An item that matches BOTH rules should appear only once.
+      const vault = [
+        makeMovie({
+          id: "1",
+          director: "Nolan",
+          genresList: ["Sci-Fi"]
+        })
+      ];
+      const rules: SmartRule[] = [
+        { field: "director", operator: "contains", value: "nolan" },
+        { field: "genre", operator: "contains", value: "sci-fi" }
+      ];
+      const result = evaluateSmartRules(rules, vault, "or");
+      expect(result).toHaveLength(1);
+    });
+
+    it("OR combinator with empty rules returns empty", () => {
+      const vault = [makeMovie({ id: "1" })];
+      expect(evaluateSmartRules([], vault, "or")).toEqual([]);
+    });
+  });
 });

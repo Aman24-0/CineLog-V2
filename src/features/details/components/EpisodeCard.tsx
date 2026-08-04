@@ -1,8 +1,9 @@
 // src/features/details/components/EpisodeCard.tsx
-import { Show, createSignal, type Component } from "solid-js";
+import { Show, createSignal, For, type Component } from "solid-js";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import { formatRuntime } from "~/shared/utils/format";
 import { SafeImage } from "~/shared/ui";
+import { ratingScale } from "~/core/preferences";
 import type { TMDBEpisode } from "~/shared/types";
 
 /**
@@ -32,12 +33,28 @@ import type { TMDBEpisode } from "~/shared/types";
  *     - Compact (28px circle in the top-right corner)
  *     - Bidirectional (tap to mark watched, tap again to unwatch)
  *     - State-clear (filled check vs empty circle at a glance)
+ *
+ * Phase 6 Task 2 — EPISODE RATING:
+ *   When the episode is watched AND the user is in the vault AND the
+ *   user's ratingScale is "5star" or "10star" (NOT "thumbs"), a row
+ *   of star buttons appears below the overview. Tapping a star:
+ *     • Sets the rating (1-N depending on the scale).
+ *     • Calls onRate(rating) which persists it to the
+ *       `episode_progress.rating` column.
+ *   Tapping the same star again clears the rating (sets it to null).
+ *   For "thumbs" users, the rating row is hidden — thumbs-up/down
+ *   doesn't translate to a 1-N scale.
  */
 export interface EpisodeCardProps {
   episode: TMDBEpisode;
   isCurrent: boolean;
   isWatched: boolean;
   inVault: boolean;
+  /**
+   * The user's existing rating for this episode (1-N), or null/undefined
+   * if no rating has been set. Phase 6 Task 2.
+   */
+  rating?: number | null;
   /**
    * Called when the user taps the circular toggle.
    * `newWatched` is the desired new state:
@@ -48,10 +65,65 @@ export interface EpisodeCardProps {
    */
   onToggle: (newWatched: boolean) => void;
   onAddToVault: () => void;
+  /**
+   * Phase 6 Task 2 — Called when the user picks a star rating.
+   * `rating` is the new rating (1-N), or null to clear. The parent
+   * (SeasonNavigator → useDetailsProgress.handleEpisodeRating)
+   * persists it via `updateEpisodeRatingInSupabase`.
+   */
+  onRate?: (rating: number | null) => void;
 }
 
 const EpisodeCard: Component<EpisodeCardProps> = (props) => {
   const [expanded, setExpanded] = createSignal(false);
+  // Local rating signal for optimistic UI — the parent's `rating` prop
+  // is the source of truth, but we keep a local copy so the star the
+  // user just clicked highlights IMMEDIATELY before the server round-
+  // trip completes. The local signal resets whenever the prop changes
+  // (e.g. on a vault refresh).
+  const [localRating, setLocalRating] = createSignal<number | null>(
+    props.rating ?? null
+  );
+
+  // Keep localRating in sync with the prop. When the parent's rating
+  // changes (e.g. after a vault refresh picks up the persisted value),
+  // we update the local signal so the stars reflect the canonical state.
+  // We use createEffect-like behavior via a derived signal: read the
+  // prop on every render and reset localRating when it changes.
+  // SolidJS doesn't have a built-in "sync signal to prop" primitive,
+  // so we use a createEffect-free approach: track the last-seen prop
+  // value and reset localRating when it differs.
+  let lastPropRating = props.rating ?? null;
+  const currentRating = (): number | null => {
+    const propRating = props.rating ?? null;
+    if (propRating !== lastPropRating) {
+      lastPropRating = propRating;
+      setLocalRating(propRating);
+    }
+    return localRating();
+  };
+
+  // Whether to show the rating row at all. Hidden when:
+  //   • Not in vault (can't rate an episode we're not tracking).
+  //   • Not watched (rating an unwatched episode makes no sense).
+  //   • ratingScale is "thumbs" (no 1-N scale applies).
+  const showRatingRow = (): boolean =>
+    props.inVault &&
+    props.isWatched &&
+    ratingScale() !== "thumbs" &&
+    typeof props.onRate === "function";
+
+  // The max value for the rating scale — 5 for "5star", 10 for "10star".
+  const ratingMax = (): number => (ratingScale() === "5star" ? 5 : 10);
+
+  const handleStarClick = (star: number): void => {
+    if (!props.onRate) return;
+    const cur = currentRating();
+    // Tap the same star again → clear the rating.
+    const next = cur === star ? null : star;
+    setLocalRating(next);
+    props.onRate(next);
+  };
 
   const stillUrl = () =>
     props.episode.still_path ? tmdbImage(props.episode.still_path, "w342") : "";
@@ -167,6 +239,97 @@ const EpisodeCard: Component<EpisodeCardProps> = (props) => {
           >
             {expanded() ? "Less" : "More"}
           </button>
+        </Show>
+
+        {/* Phase 6 Task 2 — Per-episode rating row.
+            Renders only when: in vault + watched + scale != "thumbs" +
+            onRate callback is provided. Each star is a button so the
+            row is keyboard-accessible. Tapping a star sets the rating;
+            tapping the same star again clears it (toggle behavior). */}
+        <Show when={showRatingRow()}>
+          <div
+            class="episode-card-rating"
+            role="radiogroup"
+            aria-label={`Rating for episode ${props.episode.episode_number}`}
+            style={{
+              display: "flex",
+              "align-items": "center",
+              gap: "2px",
+              "margin-top": "6px"
+            }}
+          >
+            <For each={Array.from({ length: ratingMax() }, (_, i) => i + 1)}>
+              {(star) => {
+                const isActive = () =>
+                  (currentRating() ?? 0) >= star;
+                return (
+                  <button
+                    type="button"
+                    class="episode-card-star focus-ring"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleStarClick(star);
+                    }}
+                    aria-label={
+                      currentRating() === star
+                        ? `Clear rating`
+                        : `Rate ${star} of ${ratingMax()}`
+                    }
+                    aria-checked={currentRating() === star}
+                    role="radio"
+                    style={{
+                      background: "none",
+                      border: "none",
+                      cursor: "pointer",
+                      padding: "2px",
+                      "font-size": "16px",
+                      "line-height": "1",
+                      color: isActive() ? "#f5c518" : "var(--text-dim)",
+                      transition: "color 0.15s ease"
+                    }}
+                    title={`Rate ${star} of ${ratingMax()}`}
+                  >
+                    <span
+                      class="material-symbols-outlined"
+                      style={{
+                        "font-size": "16px",
+                        "font-variation-settings": isActive()
+                          ? "'FILL' 1, 'wght' 400, 'GRAD' 0, 'opsz' 16"
+                          : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 16"
+                      }}
+                      aria-hidden="true"
+                    >
+                      star
+                    </span>
+                  </button>
+                );
+              }}
+            </For>
+            <Show when={currentRating() != null}>
+              <button
+                type="button"
+                class="episode-card-rating-clear focus-ring"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleStarClick(currentRating()!);
+                }}
+                style={{
+                  background: "none",
+                  border: "none",
+                  cursor: "pointer",
+                  padding: "2px 4px",
+                  "margin-left": "4px",
+                  "font-size": "0.625rem",
+                  color: "var(--text-dim)",
+                  "font-family": "'Outfit', sans-serif"
+                }}
+                aria-label="Clear episode rating"
+                title="Clear rating"
+              >
+                clear
+              </button>
+            </Show>
+          </div>
         </Show>
       </div>
 

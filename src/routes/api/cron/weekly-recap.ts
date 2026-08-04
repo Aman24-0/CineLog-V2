@@ -316,6 +316,11 @@ async function sendRecapPush(
         body,
         tag: "weekly-recap",
         url: "/upcoming",
+        // Phase 6 Task 3 — pass the category so /api/push/send-admin
+        // can skip users who have opted out of "weeklyRecap" via their
+        // notifPrefs. The category check is fail-open: if the user
+        // has no preferences row yet, the send proceeds.
+        category: "weeklyRecap",
       }),
     });
 

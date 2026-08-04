@@ -78,6 +78,19 @@ export interface UseDetailsActionsResult {
     newTrackerSeason: number,
     newTrackerEpisode: number
   ) => Promise<void>;
+  /**
+   * Phase 6 Task 2 — Persist a per-episode rating to the
+   * `episode_progress.rating` column. Delegates to useDetailsProgress.
+   */
+  handleEpisodeRating: (
+    season: number,
+    episode: number,
+    rating: number | null
+  ) => Promise<void>;
+  /** Phase 6 Task 2 — Map of "S{season}E{episode}" → rating for the open vault item. */
+  episodeRatings: Accessor<Map<string, number | null>>;
+  /** Phase 6 Task 2 — Re-fetch all episode_progress ratings for the open vault item. */
+  hydrateEpisodeRatings: () => Promise<void>;
   handleMarkCompleted: () => Promise<void>;
   handleSelectItem: (item: WatchlistItem) => void;
   handleRemoveFromVault: () => Promise<void>;
