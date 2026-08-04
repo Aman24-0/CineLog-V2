@@ -46,16 +46,17 @@
 
 /* ============================================================
    APP HEADER — premium sticky glass
+   Uses glass-medium variant: strong blur for navigation.
    ============================================================ */
 
 .app-header-glass {
-  background: rgba(8, 8, 13, 0.86);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border-bottom: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-medium-bg);
+  backdrop-filter: var(--glass-medium-blur) saturate(var(--glass-medium-saturate));
+  -webkit-backdrop-filter: var(--glass-medium-blur) saturate(var(--glass-medium-saturate));
+  border-bottom: 1px solid var(--glass-medium-border);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.45),
-    inset 0 -1px 0 rgba(232, 183, 74, 0.04);
+    var(--glass-medium-shadow),
+    var(--glass-highlight);
   padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
   padding-bottom: 0.875rem;
   padding-left: 1.25rem;
@@ -63,15 +64,15 @@
 }
 
 .app-header-avatar {
-  background: var(--glass-bg);
-  backdrop-filter: blur(16px) saturate(150%);
-  -webkit-backdrop-filter: blur(16px) saturate(150%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-default-bg);
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  border: 1px solid var(--glass-default-border);
   padding: 0.25rem;
   padding-right: 0.625rem;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    var(--glass-default-shadow),
+    var(--glass-highlight);
   transition:
     background var(--dur-fast) var(--ease-out),
     border-color var(--dur-fast) var(--ease-out),
@@ -79,12 +80,12 @@
     transform var(--dur-fast) var(--ease-spring);
 }
 .app-header-avatar:hover {
-  background: var(--glass-bg-strong);
-  border-color: rgba(232, 183, 74, 0.3);
+  background: var(--glass-strong-bg);
+  border-color: var(--glass-strong-border);
   box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.45),
-    0 0 12px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-strong-shadow),
+    var(--glass-highlight-hover),
+    0 0 12px var(--p-glow);
   transform: translateY(-1px);
 }
 .app-header-avatar:active {
@@ -129,13 +130,13 @@
   gap: var(--sp-3, 0.75rem);
   padding: 0.5rem 0.875rem;
   border-radius: var(--radius-pill);
-  background: var(--glass-bg);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-default-bg);
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  border: 1px solid var(--glass-default-border);
   box-shadow:
-    0 2px 12px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    var(--glass-default-shadow),
+    var(--glass-highlight);
   transition:
     border-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
@@ -143,13 +144,13 @@
 }
 
 .app-header-search-bar:focus-within {
-  border-color: var(--p);
-  background: var(--glass-bg-strong);
+  border-color: var(--color-border-focus);
+  background: var(--glass-strong-bg);
   box-shadow:
     0 0 0 3px var(--p-dim),
     0 0 20px var(--p-glow),
-    0 4px 16px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-strong-shadow),
+    var(--glass-highlight-hover);
 }
 
 .app-header-search-icon {
@@ -211,9 +212,9 @@
   font-size: 0.6875rem;
   font-family: "Azeret Mono", monospace;
   color: var(--text-muted);
-  background: var(--glass-bg);
+  background: var(--glass-default-bg);
   padding: 0.125rem 0.375rem;
-  border-radius: 4px;
+  border-radius: var(--radius-4);
   border: 1px solid var(--hairline);
   flex-shrink: 0;
 }
@@ -224,12 +225,12 @@
   top: 100%;
   left: 0;
   right: 0;
-  background: rgba(8, 8, 13, 0.92);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border-bottom: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border-bottom: 1px solid var(--glass-strong-border);
   padding: 0.75rem 1rem;
-  animation: slideDown 0.2s ease-out;
+  animation: slideDown var(--dur-instant) var(--ease-out);
   z-index: 29;
 }
 
@@ -320,17 +321,16 @@
   width: calc(100% - 2 * var(--nav-float-inset, 1rem));
   max-width: 420px;
   height: var(--nav-height);
-  z-index: 40;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(28px) saturate(170%);
-  -webkit-backdrop-filter: blur(28px) saturate(170%);
-  border: 1px solid var(--glass-border-warm-strong);
+  z-index: var(--z-dropdown);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
   border-radius: 2rem;
   box-shadow:
-    0 12px 36px rgba(0, 0, 0, 0.75),
-    0 4px 12px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(232, 183, 74, 0.06),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-strong-shadow),
+    var(--glass-highlight-hover),
+    0 0 0 1px var(--hairline);
   overflow: hidden;
 }
 
@@ -341,10 +341,11 @@
    ============================================================ */
 
 .glass-panel {
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-subtle-bg);
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  border: 1px solid var(--glass-subtle-border);
+  box-shadow: var(--glass-subtle-shadow);
 }
 
 /* ============================================================
@@ -353,21 +354,21 @@
    ============================================================ */
 
 .glass-sheet-backdrop {
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  background: var(--elevation-backdrop-bg);
+  backdrop-filter: var(--elevation-backdrop-blur) saturate(140%);
+  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(140%);
   padding-bottom: var(--nav-total-height, 6rem);
 }
 
 .glass-sheet-surface-premium {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(32px) saturate(170%);
-  -webkit-backdrop-filter: blur(32px) saturate(170%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
   box-shadow:
-    var(--shadow-glass-elevated),
+    var(--glass-strong-shadow),
     0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-highlight-hover);
 }
 
 /* ============================================================
@@ -470,17 +471,17 @@
 .glass-tabs-pill {
   padding: 3px;
   border-radius: var(--radius-pill);
-  background: rgba(13, 13, 20, 0.5);
-  border: 1px solid var(--hairline-2);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: var(--glass-subtle-bg);
+  border: 1px solid var(--glass-subtle-border);
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
   gap: 2px;
 }
 .glass-tab-pill {
   border-radius: var(--radius-pill);
 }
 .glass-tab-pill:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
-  background: rgba(232, 183, 74, 0.06);
+  background: var(--color-bg-hover);
   color: var(--text-strong);
 }
 .glass-tab-pill.glass-tab-active {
@@ -531,7 +532,7 @@
 }
 .glass-tab-underline:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
   color: var(--text-strong);
-  background: rgba(232, 183, 74, 0.04);
+  background: var(--color-bg-hover);
 }
 .glass-tab-underline.glass-tab-active {
   color: var(--p);
@@ -545,17 +546,17 @@
 .glass-tabs-segmented {
   padding: 3px;
   border-radius: var(--radius-md);
-  background: rgba(13, 13, 20, 0.5);
-  border: 1px solid var(--hairline-2);
-  backdrop-filter: blur(20px) saturate(140%);
-  -webkit-backdrop-filter: blur(20px) saturate(140%);
+  background: var(--glass-subtle-bg);
+  border: 1px solid var(--glass-subtle-border);
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate));
   gap: 2px;
 }
 .glass-tab-segmented {
   border-radius: calc(var(--radius-md) - 3px);
 }
 .glass-tab-segmented:hover:not(.glass-tab-active):not(.glass-tab-disabled) {
-  background: rgba(232, 183, 74, 0.06);
+  background: var(--color-bg-hover);
   color: var(--text-strong);
 }
 .glass-tab-segmented.glass-tab-active {
@@ -589,11 +590,11 @@
   max-height: inherit;
   border-top-left-radius: var(--radius-2xl, 24px);
   border-top-right-radius: var(--radius-2xl, 24px);
-  border: 1px solid var(--glass-border-warm-strong);
+  border: 1px solid var(--glass-strong-border);
   border-bottom: none;
   box-shadow:
-    var(--shadow-glass-elevated),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-strong-shadow),
+    var(--glass-highlight-hover);
   overflow: hidden;
   /* Slide-up origin */
   transform-origin: bottom center;
@@ -693,11 +694,11 @@
   max-height: calc(100vh - 2rem);
   width: 100%;
   border-radius: var(--radius-2xl, 24px);
-  border: 1px solid var(--glass-border-warm-strong);
+  border: 1px solid var(--glass-strong-border);
   box-shadow:
-    var(--shadow-glass-elevated),
+    var(--glass-strong-shadow),
     0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-highlight-hover);
   overflow: hidden;
   transform-origin: center center;
 }
@@ -777,52 +778,49 @@
 
 /* Search bar — full glass treatment */
 .search-bar {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(20px) saturate(150%) !important;
-  -webkit-backdrop-filter: blur(20px) saturate(150%) !important;
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  background: var(--glass-default-bg) !important;
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06) !important;
+    var(--glass-default-shadow),
+    var(--glass-highlight) !important;
 }
 
 /* Filter chip — stronger glass + HIGH CONTRAST text.
-   Previously this used a faint gold tint (rgba 0.12) with dark text
-   (var(--active-text) = #08080D), making the chips unreadable.
    Now: visible gold-tinted background + white text so the active-filter
    pills (e.g. "INDIAN x") are always legible. */
 .filter-chip {
   background: rgba(232, 183, 74, 0.2) !important;
   border: 1px solid var(--p, #e8b74a) !important;
   color: #ffffff !important;
-  backdrop-filter: blur(14px) saturate(140%);
-  -webkit-backdrop-filter: blur(14px) saturate(140%);
+  backdrop-filter: var(--blur-md) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--blur-md) saturate(var(--glass-subtle-saturate));
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    0 0 0 1px rgba(232, 183, 74, 0.2),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1);
+    var(--shadow-xs),
+    var(--glass-highlight);
 }
 
-/* View toggle — make it more glassy */
+/* View toggle — glass default variant */
 .view-toggle {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(16px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  background: var(--glass-default-bg) !important;
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    var(--glass-default-shadow),
+    var(--glass-highlight);
 }
 
-/* Filter button — glass treatment */
+/* Filter button — glass default variant */
 .filter-button {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(16px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  background: var(--glass-default-bg) !important;
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+    var(--glass-default-shadow),
+    var(--glass-highlight);
 }
 .filter-button[data-active="true"] {
   background: var(--active-bg) !important;
@@ -830,19 +828,19 @@
   color: var(--active-text) !important;
   box-shadow:
     var(--active-glow),
-    0 4px 16px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    var(--glass-default-shadow),
+    var(--glass-highlight) !important;
 }
 
-/* Quick filter tab — stronger glass */
+/* Quick filter tab — glass default variant */
 .quick-filter-tab {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(16px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(16px) saturate(140%) !important;
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  background: var(--glass-default-bg) !important;
+  backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-default-blur) saturate(var(--glass-default-saturate)) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.05);
+    var(--glass-default-shadow),
+    var(--glass-highlight);
 }
 .quick-filter-tab[data-active="true"] {
   background: var(--active-bg) !important;
@@ -850,8 +848,8 @@
   color: var(--active-text) !important;
   box-shadow:
     var(--active-glow),
-    0 4px 16px rgba(0, 0, 0, 0.45),
-    inset 0 1px 0 rgba(255, 255, 255, 0.1) !important;
+    var(--glass-default-shadow),
+    var(--glass-highlight) !important;
 }
 
 /* ============================================================
@@ -861,30 +859,27 @@
 /* Search rail card — premium glass poster */
 .search-rail-poster {
   background: var(--tier-2) !important;
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
-    0 6px 20px rgba(0, 0, 0, 0.55),
-    0 0 0 1px rgba(232, 183, 74, 0.05),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06) !important;
+    var(--glass-default-shadow),
+    var(--glass-highlight) !important;
   transition:
     transform var(--dur-base) var(--ease-spring),
     box-shadow var(--dur-base) var(--ease-out);
 }
 .search-rail-card:hover .search-rail-poster {
   box-shadow:
-    0 12px 32px rgba(0, 0, 0, 0.7),
-    0 0 16px var(--p-glow),
-    0 0 0 1px color-mix(in srgb, var(--p) 30%, transparent),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1) !important;
+    var(--glass-strong-shadow),
+    var(--glass-highlight-hover),
+    0 0 16px var(--p-glow) !important;
 }
 
 /* Vault card inner — stronger premium feel */
 .vault-card-inner {
-  border: 1px solid var(--glass-border-warm-strong) !important;
+  border: 1px solid var(--glass-default-border) !important;
   box-shadow:
     var(--shadow-premium),
-    0 0 0 1px rgba(232, 183, 74, 0.04),
-    inset 0 1px 0 rgba(232, 183, 74, 0.08) !important;
+    var(--glass-highlight) !important;
 }
 
 /* ============================================================
@@ -916,26 +911,23 @@
    RATING CHIPS — premium glass treatment
    ============================================================ */
 
+/* Rating chips — glass subtle variant */
 .rating-chip {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(8px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(8px) saturate(140%) !important;
-  box-shadow:
-    0 1px 4px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(232, 183, 74, 0.04);
+  background: var(--glass-subtle-bg) !important;
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  box-shadow: var(--glass-subtle-shadow), var(--glass-highlight);
 }
 
 /* ============================================================
-   STATUS BADGES — premium glass treatment
+   STATUS BADGES — glass subtle variant
    ============================================================ */
 
 .tag-chip {
-  background: var(--glass-bg) !important;
-  backdrop-filter: blur(10px) saturate(140%) !important;
-  -webkit-backdrop-filter: blur(10px) saturate(140%) !important;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.4),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  background: var(--glass-subtle-bg) !important;
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate)) !important;
+  box-shadow: var(--glass-subtle-shadow), var(--glass-highlight);
 }
 
 /* ============================================================

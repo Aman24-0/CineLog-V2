@@ -65,8 +65,7 @@ const GlassInput: Component<GlassInputProps> = (rawProps) => {
             .filter(Boolean)
             .join(" ")}
           style={{
-            "box-shadow":
-              "0 2px 12px rgba(0,0,0,0.35), inset 0 1px 0 rgba(232,183,74,0.04)"
+            "box-shadow": "var(--glass-default-shadow), var(--glass-highlight)"
           }}
         />
         <Show when={local.rightContent}>

@@ -1,36 +1,41 @@
-/* src/styles/components/chips.css — CineLog V2 Redesign */
+/* src/styles/components/chips.css — CineLog V2 Redesign
+   Migrated to Phase 3 design system tokens. */
 
-/* Pills & Tags — warm cinema accent */
+/* Tag Chips — glass subtle variant */
 .tag-chip {
-  background: rgba(0, 0, 0, 0.72);
-  border: 1px solid rgba(232, 183, 74, 0.1);
-  backdrop-filter: blur(8px);
+  background: var(--glass-subtle-bg);
+  border: 1px solid var(--glass-subtle-border);
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-6);
-  font-family: "Azeret Mono", monospace;
-  font-size: 8px;
-  font-weight: 700;
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: var(--letter-spacing-wide);
   transition: background var(--dur-fast) var(--ease-out);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--glass-subtle-shadow);
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* Rating Pills — glass subtle variant */
 .rating-pill {
-  background: rgba(0, 0, 0, 0.7);
-  backdrop-filter: blur(12px);
-  border: 1px solid rgba(232, 183, 74, 0.08);
+  background: var(--glass-subtle-bg);
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  border: 1px solid var(--hairline);
   padding: var(--sp-1) var(--sp-2);
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   gap: var(--sp-1);
-  font-family: "Azeret Mono", monospace;
-  font-size: 9px;
-  font-weight: 700;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+  box-shadow: var(--glass-default-shadow);
   transition: all var(--dur-base) var(--ease-spring);
 }

@@ -1,7 +1,5 @@
 /* src/styles/components/toast.css — Glass toast system
-   Polished: type-aware styling (success/error/info/action), entrance +
-   exit animations, ARIA-friendly structure, and proper z-index layering.
-   Designed to match the cinematic dark + neon-green identity. */
+   Migrated to Phase 3 design system tokens. */
 
 /* Container — fixed above the bottom nav, centered horizontally.
    Uses safe-area-inset-bottom so toasts never sit under the iOS home
@@ -16,7 +14,7 @@
       env(safe-area-inset-bottom, 0px)
   );
   transform: translateX(-50%);
-  z-index: 9999; /* below modals (999999+), above nav (40) */
+  z-index: var(--z-toast);
   display: flex;
   flex-direction: column-reverse; /* newest at bottom, closest to thumb */
   gap: var(--sp-2);
@@ -24,25 +22,25 @@
   pointer-events: none;
 }
 
-/* Single toast — glass surface with hairline border + accent stripe.
+/* Single toast — glass strong variant with accent stripe.
    The accent stripe (left edge) communicates type at a glance. */
 .toast {
   position: relative;
   display: flex;
   align-items: center;
   gap: var(--sp-3);
-  padding: 0.75rem 1rem 0.75rem 1.125rem;
+  padding: var(--sp-3) var(--sp-4) var(--sp-3) calc(var(--sp-4) + var(--sp-1));
   border-radius: var(--radius-md);
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(24px) saturate(140%);
-  -webkit-backdrop-filter: blur(24px) saturate(140%);
-  border: 1px solid var(--hairline-2);
-  box-shadow: var(--shadow-elevated);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
+  box-shadow: var(--glass-strong-shadow);
   color: var(--text-strong);
-  font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  line-height: 1.4;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-xl);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-snug);
   pointer-events: auto;
   overflow: hidden;
   animation: toastIn var(--dur-modal) var(--ease-spring) both;
@@ -65,12 +63,12 @@
   flex-shrink: 0;
 }
 .toast.toast-success::before {
-  background: #4ade80;
-  box-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+  background: var(--color-success);
+  box-shadow: 0 0 8px var(--color-success-border);
 }
 .toast.toast-error::before {
-  background: #f87171;
-  box-shadow: 0 0 8px rgba(248, 113, 113, 0.5);
+  background: var(--color-danger);
+  box-shadow: 0 0 8px var(--color-danger-border);
 }
 .toast.toast-info::before {
   background: var(--p);
@@ -86,19 +84,19 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: var(--height-button-icon-sm);
+  height: var(--height-button-icon-sm);
   border-radius: 50%;
   flex-shrink: 0;
-  font-size: 16px;
+  font-size: var(--icon-sm);
 }
 .toast-success .toast-icon {
-  background: rgba(74, 222, 128, 0.12);
-  color: #4ade80;
+  background: var(--color-success-bg);
+  color: var(--color-success);
 }
 .toast-error .toast-icon {
-  background: rgba(248, 113, 113, 0.12);
-  color: #f87171;
+  background: var(--color-danger-bg);
+  color: var(--color-danger);
 }
 .toast-info .toast-icon {
   background: var(--p-dim);
@@ -125,14 +123,14 @@
   background: transparent;
   border: none;
   color: var(--p);
-  font-family: "Azeret Mono", monospace;
-  font-size: 0.6875rem;
-  font-weight: 800;
-  letter-spacing: 0.1em;
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-extrabold);
+  letter-spacing: var(--letter-spacing-extra-wide);
   text-transform: uppercase;
   cursor: pointer;
-  padding: 0.375rem 0.5rem;
-  margin: -0.375rem -0.5rem -0.375rem 0;
+  padding: var(--sp-1) var(--sp-2);
+  margin: calc(var(--sp-1) * -1) calc(var(--sp-2) * -1) calc(var(--sp-1) * -1) 0;
   border-radius: var(--radius-sm);
   transition: background var(--dur-fast) var(--ease-out);
   flex-shrink: 0;
@@ -149,8 +147,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
+  width: var(--icon-lg);
+  height: var(--icon-lg);
   border-radius: 50%;
   background: transparent;
   border: none;
@@ -170,7 +168,7 @@
 @media (prefers-reduced-motion: reduce) {
   .toast,
   .toast.toast-exit {
-    animation-duration: 120ms !important;
+    animation-duration: var(--dur-reduced) !important;
   }
 }
 
@@ -184,7 +182,7 @@
     transform: none;
   }
   .toast {
-    padding: 0.875rem 1rem 0.875rem 1.25rem;
-    font-size: 0.8125rem;
+    padding: var(--sp-3) var(--sp-4) var(--sp-3) var(--sp-5);
+    font-size: var(--font-size-xl);
   }
 }

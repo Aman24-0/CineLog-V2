@@ -1,7 +1,5 @@
 /* src/styles/components/dialogs.css — Phase 14.2 CSS architecture
-   Polished: refined modal/sheet enter animations, backdrop fade, and
-   a unified .modal-backdrop + .modal-surface language.
-   PHASE 4: Strengthened glass with golden tint + layered shadows. */
+   Migrated to Phase 3 design system tokens. */
 
 /* Bottom-sheet enter (mobile) / pop-in (≥640px) */
 .modal-sheet-enter {
@@ -13,25 +11,22 @@
   }
 }
 
-/* Backdrop fade — used by AuthModal, DetailsModal, CollectionModal.
-   The backdrop element itself should have class "modal-backdrop" and
-   sit at z-[999998] or higher. */
+/* Backdrop fade — used by AuthModal, DetailsModal, CollectionModal. */
 .modal-backdrop {
   animation: fadeIn var(--dur-base) ease-out both;
 }
 
-/* Glass modal surface — full glassmorphism with golden tint.
+/* Glass modal surface — glass strong variant.
    Individual modals can compose this with their own layout class. */
 .modal-surface {
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(32px) saturate(170%);
-  -webkit-backdrop-filter: blur(32px) saturate(170%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
   box-shadow:
-    var(--shadow-glass-elevated),
+    var(--glass-strong-shadow),
     0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.2);
+    var(--glass-highlight-hover);
   position: relative;
   z-index: 1;
 }
@@ -40,26 +35,23 @@
 .sheet-handle {
   width: 36px;
   height: 4px;
-  border-radius: 2px;
+  border-radius: var(--radius-3xs);
   background: var(--hairline-3);
   margin: 0 auto var(--sp-3);
   flex-shrink: 0;
 }
 
-/* Sheet backdrop — used by bottom sheets like ConfirmRemoveSheet */
+/* Sheet backdrop — elevation backdrop tokens */
 .sheet-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
+  background: var(--elevation-backdrop-bg);
+  backdrop-filter: var(--elevation-backdrop-blur) saturate(140%);
+  -webkit-backdrop-filter: var(--elevation-backdrop-blur) saturate(140%);
   pointer-events: auto;
 }
 
-/* Sheet container — centers the sheet surface.
-   max-height constrains the sheet within viewport bounds so it
-   never renders partially off-screen on short mobile devices.
-   The content area inside .sheet-content handles overflow scrolling. */
+/* Sheet container — centers the sheet surface. */
 .sheet-container {
   position: fixed;
   left: 50%;
@@ -86,28 +78,23 @@
   }
 }
 
-/* Sheet content — premium glass surface.
-   overflow:hidden clips children to the rounded border (visual).
-   The inner scrollable area (in ConfirmRemoveSheet JSX) uses
-   overflow-y:auto + flex-1 + min-h-0 so content scrolls when the
-   sheet exceeds max-height, while the action row stays pinned. */
+/* Sheet content — glass strong variant. */
 .sheet-content {
   border-top-left-radius: var(--radius-2xl, 24px);
   border-top-right-radius: var(--radius-2xl, 24px);
-  border: 1px solid var(--glass-border-warm-strong);
+  border: 1px solid var(--glass-strong-border);
   border-bottom: none;
   box-shadow:
-    var(--shadow-glass-elevated),
+    var(--glass-strong-shadow),
     0 0 24px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+    var(--glass-highlight-hover);
   overflow: hidden;
-  /* Flex column layout: content area scrolls, action row stays pinned */
   display: flex;
   flex-direction: column;
 }
 @media (min-width: 640px) {
   .sheet-content {
     border-radius: var(--radius-2xl, 24px);
-    border: 1px solid var(--glass-border-warm-strong);
+    border: 1px solid var(--glass-strong-border);
   }
 }

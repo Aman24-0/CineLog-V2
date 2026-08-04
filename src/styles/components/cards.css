@@ -1,32 +1,29 @@
 /* src/styles/components/cards.css — CineLog V2 Redesign
-   Glass cinema card system with warm gold accents,
-   deeper shadows, and refined hover states. */
+   Glass cinema card system — migrated to Phase 3 design system tokens. */
 
-/* Surfaces & Cards */
+/* Surfaces & Cards — glass subtle variant */
 .glass-surface {
-  background: rgba(18, 18, 28, 0.65);
-  backdrop-filter: blur(16px) saturate(140%);
-  -webkit-backdrop-filter: blur(16px) saturate(140%);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  box-shadow:
-    var(--shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  background: var(--glass-subtle-bg);
+  backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  -webkit-backdrop-filter: var(--glass-subtle-blur) saturate(var(--glass-subtle-saturate));
+  border: 1px solid var(--hairline);
+  box-shadow: var(--glass-subtle-shadow), var(--glass-highlight);
   border-radius: var(--radius-xl);
 }
 .stat-card {
   background: var(--tier-2);
-  border: 1px solid rgba(255, 255, 255, 0.07);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-xl);
   box-shadow: var(--shadow-card);
   transition:
-    background var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    background var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-spring);
 }
 .stat-card:hover {
   background: var(--tier-3);
-  border-color: rgba(255, 255, 255, 0.11);
+  border-color: var(--hairline-2);
   box-shadow: var(--shadow-raised);
   transform: translateY(-2px);
 }
@@ -39,8 +36,8 @@
 .movie-card {
   cursor: pointer;
   transition:
-    transform var(--dur-base) var(--ease-spring),
-    opacity var(--dur-base) var(--ease-out);
+    transform var(--transition-spring),
+    opacity var(--transition-base);
 }
 .movie-card:hover {
   transform: translateY(-3px) scale(1.02);
@@ -54,14 +51,12 @@
   border-radius: var(--radius-card);
   overflow: hidden;
   border: 1px solid var(--hairline-2);
-  box-shadow:
-    var(--shadow-premium),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow-premium), var(--glass-highlight);
   background: var(--tier-2);
   position: relative;
   transition:
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out);
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
 }
 .movie-card:hover .movie-card-inner {
   border-color: color-mix(in srgb, var(--p) 50%, transparent);
@@ -69,7 +64,7 @@
     0 0 0 1px color-mix(in srgb, var(--p) 35%, transparent),
     0 0 20px var(--p-glow),
     0 16px 48px rgba(0, 0, 0, 0.85),
-    inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    var(--glass-highlight-hover);
 }
 .movie-card-poster {
   position: absolute;
@@ -81,9 +76,9 @@
   opacity: 0;
   transform: scale(1.02);
   transition:
-    opacity var(--dur-slow) var(--ease-out),
-    transform var(--dur-slow) var(--ease-smooth),
-    filter var(--dur-base) var(--ease-out);
+    opacity var(--transition-slow),
+    transform var(--transition-slow),
+    filter var(--transition-base);
   filter: brightness(0.88) saturate(0.9);
 }
 .movie-card-poster.img-loaded {
@@ -129,8 +124,8 @@
   background-size:
     300% 100%,
     100% 100%;
-  animation: shimmer 1.4s ease-in-out infinite;
-  transition: opacity var(--dur-base) var(--ease-out);
+  animation: var(--animate-shimmer);
+  transition: opacity var(--transition-base);
 }
 .poster-loading.hidden {
   opacity: 0;
@@ -144,10 +139,8 @@
   height: 220px;
   border-radius: var(--radius-card);
   overflow: hidden;
-  background: #0c0c14;
-  box-shadow:
-    var(--shadow-hero),
-    inset 0 0 0 1px rgba(232, 183, 74, 0.04);
+  background: var(--tier-1);
+  box-shadow: var(--shadow-hero), var(--glass-highlight);
 }
 .featured-hero::after {
   content: "";
@@ -174,8 +167,8 @@
   opacity: 0;
   filter: brightness(0.8) saturate(0.85);
   transition:
-    opacity var(--dur-slow) var(--ease-out),
-    filter var(--dur-slow) var(--ease-out);
+    opacity var(--transition-slow),
+    filter var(--transition-slow);
 }
 .featured-hero img.loaded {
   opacity: 1;
@@ -184,16 +177,14 @@
 /* Continue Watching — warm cinema accent on hover */
 .continue-card {
   border-radius: var(--radius-card);
-  border: 1px solid rgba(232, 183, 74, 0.05);
-  box-shadow:
-    var(--shadow-premium),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-premium), var(--glass-highlight);
   overflow: hidden;
-  background: #0c0c14;
+  background: var(--tier-1);
   transition:
-    box-shadow var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    box-shadow var(--transition-base),
+    border-color var(--transition-base),
+    transform var(--transition-spring);
 }
 .continue-card:hover {
   box-shadow:
@@ -214,9 +205,9 @@
   opacity: 0;
   filter: brightness(0.55) saturate(0.8);
   transition:
-    opacity var(--dur-slow) var(--ease-out),
-    filter var(--dur-base) var(--ease-out),
-    transform var(--dur-slow) var(--ease-smooth);
+    opacity var(--transition-slow),
+    filter var(--transition-base),
+    transform var(--transition-slow);
 }
 .continue-card-img.img-loaded {
   opacity: 1;
@@ -241,23 +232,19 @@
 /* Upcoming / Timeline Cards */
 .upcoming-card {
   background: var(--surface);
-  border: 1px solid rgba(232, 183, 74, 0.05);
+  border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
-  box-shadow:
-    var(--shadow-card),
-    inset 0 1px 0 rgba(255, 255, 255, 0.03);
+  box-shadow: var(--shadow-card), var(--glass-highlight);
   transition:
-    background var(--dur-base) var(--ease-out),
-    border-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    background var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-spring);
 }
 .upcoming-card:hover {
-  background: rgba(232, 183, 74, 0.02);
+  background: var(--color-bg-hover);
   border-color: color-mix(in srgb, var(--p) 30%, transparent);
-  box-shadow:
-    var(--shadow-raised),
-    inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  box-shadow: var(--shadow-raised), var(--glass-highlight-hover);
   transform: translateX(2px);
 }
 .upcoming-card:active {
@@ -268,16 +255,16 @@
 /* Progress Bar — cinema gold fill */
 .progress-bar {
   height: 3px;
-  background: rgba(232, 183, 74, 0.08);
-  border-radius: 3px;
+  background: var(--p-dim);
+  border-radius: var(--radius-3xs);
   overflow: hidden;
 }
 .progress-bar-fill {
   height: 100%;
   background: var(--p, #e8b74a);
-  border-radius: 3px;
-  box-shadow: 0 0 8px var(--p-glow, rgba(232, 183, 74, 0.4));
-  transition: width 400ms var(--ease-smooth);
+  border-radius: var(--radius-3xs);
+  box-shadow: 0 0 8px var(--p-glow);
+  transition: width var(--dur-layout) var(--ease-smooth);
 }
 
 /* Empty State — refined */
@@ -287,14 +274,14 @@
   align-items: center;
   justify-content: center;
   text-align: center;
-  padding: 48px 24px;
-  gap: 16px;
-  animation: fadeIn var(--dur-page) var(--ease-smooth) both;
+  padding: var(--sp-12) var(--sp-6);
+  gap: var(--sp-4);
+  animation: var(--animate-fade-up);
 }
 .empty-state-icon {
-  width: 72px;
-  height: 72px;
-  border-radius: 24px;
+  width: var(--icon-2xl);
+  height: var(--icon-2xl);
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -304,25 +291,25 @@
   flex-shrink: 0;
 }
 .empty-state-title {
-  font-family: "Bebas Neue", cursive;
-  font-size: 2rem;
-  letter-spacing: 0.06em;
+  font-family: var(--font-family-display);
+  font-size: var(--font-size-9xl);
+  letter-spacing: var(--letter-spacing-wider-2);
   color: var(--text-strong);
-  line-height: 1;
+  line-height: var(--line-height-none);
 }
 .empty-state-body {
-  font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-family: var(--font-family-body);
+  font-size: var(--font-size-2xl);
+  font-weight: var(--font-weight-medium);
   color: var(--muted);
   max-width: 280px;
-  line-height: 1.6;
+  line-height: var(--line-height-relaxed);
 }
 
 /* Settings — warm cinema accent */
 .settings-row {
-  background: #0f0f18;
-  border: 1px solid rgba(232, 183, 74, 0.04);
+  background: var(--surface);
+  border: 1px solid var(--hairline);
   border-left: 2px solid transparent;
   border-radius: var(--radius-md);
   padding: var(--sp-4);
@@ -332,13 +319,13 @@
   cursor: pointer;
   box-shadow: var(--shadow-card);
   transition:
-    background var(--dur-base) var(--ease-out),
-    border-left-color var(--dur-base) var(--ease-out),
-    box-shadow var(--dur-base) var(--ease-out),
-    transform var(--dur-base) var(--ease-spring);
+    background var(--transition-base),
+    border-left-color var(--transition-base),
+    box-shadow var(--transition-base),
+    transform var(--transition-spring);
 }
 .settings-row:hover {
-  background: #141422;
+  background: var(--tier-2);
   border-left-color: var(--p);
   box-shadow: var(--shadow-raised);
   transform: translateX(2px);
@@ -349,11 +336,11 @@
 }
 
 .section-title {
-  font-family: "Azeret Mono", monospace;
-  font-size: 11px;
-  font-weight: 700;
+  font-family: var(--font-family-label);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-bold);
   text-transform: uppercase;
-  letter-spacing: 0.16em;
+  letter-spacing: var(--letter-spacing-label);
   color: var(--p);
   margin-bottom: var(--sp-4);
   margin-top: var(--sp-6);
@@ -364,10 +351,10 @@
 .section-title::before {
   content: "";
   display: inline-block;
-  width: 3px;
-  height: 12px;
+  width: var(--radius-3xs);
+  height: var(--sp-3);
   background: var(--p);
-  border-radius: 2px;
+  border-radius: var(--radius-3xs);
   flex-shrink: 0;
   box-shadow: 0 0 8px var(--p-glow);
 }

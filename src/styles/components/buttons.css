@@ -1,40 +1,35 @@
 /* src/styles/components/buttons.css — CineLog V2 Redesign
-   Glass cinema close button with warm gold accent. */
+   Glass cinema close button — migrated to Phase 3 design system tokens. */
 
 .cinematic-close-btn {
   position: absolute;
   top: calc(env(safe-area-inset-top, 0px) + var(--sp-4));
   right: var(--sp-4);
-  z-index: 30;
+  z-index: var(--z-sticky);
   display: flex;
   align-items: center;
   justify-content: center;
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: var(--glass-bg-strong);
-  backdrop-filter: blur(20px) saturate(150%);
-  -webkit-backdrop-filter: blur(20px) saturate(150%);
-  border: 1px solid var(--glass-border-warm-strong);
+  background: var(--glass-strong-bg);
+  backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  -webkit-backdrop-filter: var(--glass-strong-blur) saturate(var(--glass-strong-saturate));
+  border: 1px solid var(--glass-strong-border);
   color: var(--text-strong);
   cursor: pointer;
-  box-shadow:
-    0 4px 12px rgba(0, 0, 0, 0.5),
-    0 0 0 1px rgba(232, 183, 74, 0.08),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+  box-shadow: var(--glass-strong-shadow), var(--glass-highlight);
   transition:
-    transform var(--dur-fast) var(--ease-spring),
-    background var(--dur-fast) var(--ease-out),
-    border-color var(--dur-fast) var(--ease-out),
-    box-shadow var(--dur-fast) var(--ease-out);
+    transform var(--transition-focus),
+    background var(--transition-fast),
+    border-color var(--transition-fast),
+    box-shadow var(--transition-fast);
 }
 .cinematic-close-btn:hover {
   background: var(--active-bg);
   border-color: var(--active-border);
   color: var(--active-text);
-  box-shadow:
-    var(--active-glow),
-    0 4px 16px rgba(0, 0, 0, 0.5);
+  box-shadow: var(--active-glow), var(--glass-strong-shadow);
   transform: scale(1.06);
 }
 .cinematic-close-btn:active {
@@ -45,7 +40,7 @@
 :root[data-theme-resolved="light"] .cinematic-close-btn {
   background: rgba(0, 0, 0, 0.55);
   border-color: rgba(255, 255, 255, 0.22);
-  color: #ffffff;
+  color: var(--text-inverse);
 }
 :root[data-theme-resolved="light"] .cinematic-close-btn:hover {
   background: rgba(0, 0, 0, 0.72);
