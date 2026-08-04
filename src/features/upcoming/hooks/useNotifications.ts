@@ -30,6 +30,8 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
   clearReadNotifications,
+  snoozeNotification as repoSnoozeNotification,
+  dismissNotification as repoDismissNotification,
   scheduleReminder as repoScheduleReminder,
   cancelReminder as repoCancelReminder,
   type NotificationRow,
@@ -582,6 +584,191 @@ export function useNotifications() {
     }
   };
 
+  // ─── Snooze / dismiss (Phase 6 Part 3 — Task 1) ───────────────────
+  //
+  // Snooze: hide the notification until `minutes` from now. The
+  // notification stays in the feed (just hidden) so the user can
+  // un-snooze by re-opening the notification center after the snooze
+  // expires.
+  //
+  // We update the server FIRST, then optimistically update the local
+  // state. On failure, we don't roll back — the next refresh will
+  // restore the correct state. The toast informs the user.
+  const snooze = async (notificationId: string, minutes: number) => {
+    if (!Number.isFinite(minutes) || minutes <= 0) return;
+    const until = new Date(Date.now() + minutes * 60 * 1000).toISOString();
+    const ok = await repoSnoozeNotification(notificationId, until);
+    if (ok) {
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, snoozed_until: until } : n
+        )
+      );
+      const label =
+        minutes < 60
+          ? `${minutes} min`
+          : minutes < 1440
+          ? `${Math.round(minutes / 60 * 10) / 10} hr`
+          : `${Math.round(minutes / 1440 * 10) / 10} days`;
+      toast.showToast(`Snoozed for ${label}`, "info");
+    } else {
+      toast.showToast("Couldn't snooze notification.", "error");
+    }
+  };
+
+  // Dismiss: permanently remove the notification from the feed.
+  // We optimistically remove it from local state, then call the
+  // server. On failure, we re-fetch to restore.
+  const dismiss = async (notificationId: string) => {
+    const prevList = notifications();
+    setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+    const ok = await repoDismissNotification(notificationId);
+    if (!ok) {
+      // Restore — server rejected the delete.
+      setNotifications(prevList);
+      toast.showToast("Couldn't dismiss notification.", "error");
+    }
+  };
+
+  // ─── "Notify all" bulk action (Phase 6 Part 3 — Task 1) ──────────
+  //
+  // Force-send push + email notifications for ALL of the user's
+  // unsent reminders, regardless of whether they're "due" yet.
+  //
+  // This is the manual "fire the digest now" button — useful when the
+  // user knows they have upcoming releases and wants to confirm
+  // delivery is working, or wants to nudge themselves about an
+  // imminent release.
+  //
+  // Skips reminders that have already been sent (notification_sent=true)
+  // to avoid re-firing the same reminder twice.
+  //
+  // Returns a summary { sent, failed, suppressed } so the caller can
+  // show a meaningful toast.
+  const notifyAll = async (): Promise<{
+    sent: number;
+    failed: number;
+    suppressed: number;
+  }> => {
+    const id = uid();
+    if (!id) {
+      return { sent: 0, failed: 0, suppressed: 0 };
+    }
+
+    // Read the full reminder list (already loaded by refresh(), but
+    // we re-fetch to make sure we have the latest sent state).
+    const all = await getUserReminders(id);
+    const unsent = all.filter((r) => !r.notification_sent);
+    if (unsent.length === 0) {
+      toast.showToast("No pending reminders to notify.", "info");
+      return { sent: 0, failed: 0, suppressed: 0 };
+    }
+
+    const inQuiet = isInQuietHours();
+    const canShowToast =
+      typeof window !== "undefined" &&
+      "Notification" in window &&
+      Notification.permission === "granted";
+    const prefs = notifPrefs();
+    const emailFallbackEnabled = prefs.emailEnabled;
+    const recipientEmail = user()?.email ?? "";
+
+    let sent = 0;
+    let failed = 0;
+    let suppressed = 0;
+
+    for (const r of unsent) {
+      const notifTitle = "CineLog — Release Day";
+      const notifBody = `Your tracked title is out today. Tap to open.`;
+      let pushSucceeded = false;
+
+      if (canShowToast && !inQuiet) {
+        try {
+          new Notification(notifTitle, {
+            body: notifBody,
+            icon: "/favicon.ico",
+            tag: `reminder-${r.id}`
+          });
+        } catch {
+          // ignore — push may still succeed
+        }
+      }
+
+      try {
+        const pushResult = await sendPushNotification(
+          id,
+          notifTitle,
+          notifBody,
+          `/upcoming`,
+          `reminder-${r.id}`
+        );
+        pushSucceeded = pushResult.sent > 0;
+      } catch (err) {
+        console.warn(
+          "[notifications] Push send failed during notifyAll:",
+          err
+        );
+      }
+
+      if (!pushSucceeded && emailFallbackEnabled && recipientEmail && !inQuiet) {
+        const emailed = await sendEmailNotification(
+          id,
+          recipientEmail,
+          notifTitle,
+          notifBody,
+          "reminder",
+          {
+            releaseDate: r.release_date
+              ? new Date(r.release_date + "T00:00:00").toLocaleDateString(
+                  undefined,
+                  { year: "numeric", month: "long", day: "numeric" }
+                )
+              : "Today"
+          }
+        ).catch(() => false);
+        if (emailed) {
+          sent++;
+        } else if (pushSucceeded) {
+          // push already counted below
+        } else {
+          failed++;
+        }
+      } else if (pushSucceeded) {
+        sent++;
+      } else if (inQuiet) {
+        suppressed++;
+      } else {
+        failed++;
+      }
+
+      // Always mark as sent so we don't retry on the next page load.
+      try {
+        await markReminderSent(r.id);
+      } catch {
+        // ignore
+      }
+    }
+
+    if (sent > 0 && failed === 0 && suppressed === 0) {
+      toast.showToast(
+        `Notified ${sent} reminder${sent === 1 ? "" : "s"}.`,
+        "success"
+      );
+    } else if (suppressed > 0 && sent === 0 && failed === 0) {
+      toast.showToast(
+        `All ${suppressed} reminder${suppressed === 1 ? "" : "s"} suppressed (quiet hours).`,
+        "info"
+      );
+    } else {
+      toast.showToast(
+        `Notified ${sent}, ${failed} failed, ${suppressed} suppressed.`,
+        sent > 0 ? "success" : "error"
+      );
+    }
+
+    return { sent, failed, suppressed };
+  };
+
   const unreadCount = createMemo(
     () => notifications().filter((n) => !n.is_read).length
   );
@@ -603,6 +790,9 @@ export function useNotifications() {
     markRead,
     markAllRead,
     clearRead,
+    snooze,
+    dismiss,
+    notifyAll,
     requestPermission
   };
 }

@@ -20,6 +20,7 @@
 
 import { Show, For, createMemo } from "solid-js";
 import type { SettingsState } from "./types";
+import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
   ToggleRow,
   SelectRow,
@@ -355,6 +356,8 @@ export function NotificationSection(props: { state: SettingsState }) {
                 </ControlRow>
               </div>
             </div>
+
+            <SectionResetButton state={s} sectionId="notifications" />
           </div>
         </Show>
       </section>

@@ -77,6 +77,22 @@ interface LoginBody {
   // Cookie-based discovery is still supported as a fallback for any
   // future setup that switches the browser client to cookie storage.
   accessToken?: unknown;
+  /**
+   * Phase 6 Part 3 — Task 4: TOTP code for 2FA.
+   *
+   * If the admin has 2FA enabled, this field is REQUIRED. The login
+   * flow then becomes:
+   *   1. Verify Supabase identity (password OR session).
+   *   2. Verify is_admin flag on profile.
+   *   3. Verify PIN.
+   *   4. Verify TOTP code against the admin's 2FA secret.
+   *
+   * If 2FA is enabled but no code is provided, the server returns
+   * 401 with `{ ok: false, error: "2FA code required", requires2FA: true }`
+   * so the client can prompt for the code and retry without losing
+   * the (already-verified) identity + PIN.
+   */
+  totpCode?: unknown;
 }
 
 interface AdminProfileRow {
@@ -158,8 +174,9 @@ async function verifyProfileAndIssueAdmin(args: {
   ip: string | null;
   userAgent: string | null;
   loginMethod: "password" | "session";
+  totpCode?: string;
 }): Promise<IssueResult | IssueError> {
-  const { userId, email, pin, ip, userAgent, loginMethod } = args;
+  const { userId, email, pin, ip, userAgent, loginMethod, totpCode } = args;
 
   // 1. Look up the profile (service role bypasses RLS)
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -232,6 +249,83 @@ async function verifyProfileAndIssueAdmin(args: {
       ok: false,
       response: jsonResponse({ ok: false, error: "Invalid credentials" }, 401)
     };
+  }
+
+  // ─── Phase 6 Part 3 — Task 4: 2FA (TOTP) check ───────────────────
+  //
+  // After identity + admin + PIN are verified, check whether the
+  // admin has 2FA enabled. If yes, a valid TOTP code is required
+  // to complete the login.
+  //
+  // If 2FA is enabled but no code is provided, we return 401 with
+  // `requires2FA: true` so the client can show the TOTP input and
+  // retry. We do NOT record a rate-limit failure for this case
+  // (the user's identity + PIN were correct, they just need to
+  // complete the 2FA step).
+  //
+  // If 2FA is enabled AND a code is provided but it's invalid, we
+  // DO record a failure — that's the same as a wrong PIN.
+  try {
+    const { data: twofaRow } = await adminClient
+      .from("admin_2fa_secrets")
+      .select("secret_cipher, enabled_at")
+      .eq("admin_id", profile.id)
+      .maybeSingle();
+
+    const isEnabled =
+      twofaRow && twofaRow.enabled_at !== null;
+
+    if (isEnabled) {
+      if (!totpCode) {
+        // 2FA required but no code provided — prompt the client.
+        return {
+          ok: false,
+          response: jsonResponse(
+            {
+              ok: false,
+              error: "2FA code required",
+              requires2FA: true
+            },
+            401
+          )
+        };
+      }
+      // Verify the TOTP code.
+      const { decryptSecret, verifyTOTP } = await import(
+        "~/lib/server/totp"
+      );
+      try {
+        const secretBase32 = decryptSecret(
+          twofaRow!.secret_cipher as string
+        );
+        if (!verifyTOTP(secretBase32, totpCode)) {
+          await recordFailure("adminAuth", ip ?? "");
+          return {
+            ok: false,
+            response: jsonResponse(
+              { ok: false, error: "Invalid 2FA code" },
+              401
+            )
+          };
+        }
+      } catch (err) {
+        console.error("[CineLog Admin] 2FA verification error:", err);
+        return {
+          ok: false,
+          response: jsonResponse(
+            { ok: false, error: "Server misconfiguration" },
+            500
+          )
+        };
+      }
+    }
+  } catch (err) {
+    // Non-fatal — if the 2FA check itself errors (e.g. table missing
+    // because the migration hasn't been applied yet), we log and
+    // proceed without 2FA. This is a fail-open for the migration
+    // window only — once the migration is applied, the query above
+    // will succeed and 2FA will be enforced.
+    console.warn("[CineLog Admin] 2FA check failed (continuing without 2FA):", err);
   }
 
   // 3. All checks passed — clear rate limit, sign JWT, log
@@ -324,6 +418,8 @@ export async function POST(event: APIEvent) {
       typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
     const password = typeof body.password === "string" ? body.password : "";
     const pin = typeof body.pin === "string" ? body.pin.trim() : "";
+    const totpCode =
+      typeof body.totpCode === "string" ? body.totpCode.trim() : "";
     const explicitMode =
       typeof body.mode === "string" &&
       (body.mode === "password" || body.mode === "session")
@@ -406,7 +502,8 @@ export async function POST(event: APIEvent) {
         pin,
         ip,
         userAgent,
-        loginMethod: "session"
+        loginMethod: "session",
+        totpCode: totpCode || undefined
       });
 
       return result.response;
@@ -441,7 +538,8 @@ export async function POST(event: APIEvent) {
       pin,
       ip,
       userAgent,
-      loginMethod: "password"
+      loginMethod: "password",
+      totpCode: totpCode || undefined
     });
 
     return result.response;

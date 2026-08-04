@@ -48,6 +48,11 @@ interface ConfirmDialogState {
   action: "disable" | "enable" | "delete" | "reset_preferences";
 }
 
+interface BulkConfirmState {
+  action: "disable" | "enable" | "delete";
+  count: number;
+}
+
 const PAGE_SIZE = 25;
 
 const AdminUsersPage: Component = () => {
@@ -57,6 +62,15 @@ const AdminUsersPage: Component = () => {
   const [confirmDialog, setConfirmDialog] =
     createSignal<ConfirmDialogState | null>(null);
   const [actionLoading, setActionLoading] = createSignal(false);
+  // Phase 6 Part 3 — Task 4: bulk user operations.
+  // `selectedIds` tracks the multi-select state. `bulkMode` toggles
+  // the per-row checkboxes + bulk action bar.
+  const [selectedIds, setSelectedIds] = createSignal<Set<string>>(new Set<string>());
+  const [bulkMode, setBulkMode] = createSignal(false);
+  const [bulkConfirm, setBulkConfirm] = createSignal<BulkConfirmState | null>(
+    null
+  );
+  const [bulkLoading, setBulkLoading] = createSignal(false);
   const [toast, setToast] = createSignal<{
     msg: string;
     type: "success" | "error";
@@ -143,6 +157,97 @@ const AdminUsersPage: Component = () => {
     }
   };
 
+  // ─── Bulk user operations (Phase 6 Part 3 — Task 4) ──────────────
+  //
+  // Multi-select handlers. The selection is a Set<string> of user ids.
+  // Toggling a row adds/removes its id. "Select all visible" adds all
+  // non-admin, non-deleted users on the current page.
+  //
+  // Bulk actions (disable / enable / delete) are confirmed via a
+  // separate dialog (BulkConfirmState) and dispatched to the same
+  // PATCH /api/admin/users endpoint with `ids: string[]` instead of
+  // a single `id`. The server returns { applied, skipped, errors }.
+
+  const toggleRowSelection = (userId: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(userId)) {
+        next.delete(userId);
+      } else {
+        next.add(userId);
+      }
+      return next;
+    });
+  };
+
+  const selectAllVisible = () => {
+    const visible = (users()?.users ?? []).filter(
+      (u) => !u.is_admin && !u.deleted_at
+    );
+    setSelectedIds(new Set<string>(visible.map((u) => u.id)));
+  };
+
+  const deselectAll = () => {
+    setSelectedIds(new Set<string>());
+  };
+
+  const enterBulkMode = () => {
+    setBulkMode(true);
+    setSelectedIds(new Set<string>());
+  };
+
+  const exitBulkMode = () => {
+    setBulkMode(false);
+    setSelectedIds(new Set<string>());
+    setBulkConfirm(null);
+  };
+
+  const handleBulkAction = async () => {
+    const dialog = bulkConfirm();
+    if (!dialog) return;
+
+    setBulkLoading(true);
+    try {
+      const ids = Array.from(selectedIds());
+      const resp = await fetch("/api/admin/users", {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ids,
+          action: dialog.action
+        })
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || body.error) {
+        showToast(body.error || `Failed: ${resp.status}`, "error");
+      } else {
+        const applied: number = body.applied ?? 0;
+        const skipped: number = body.skipped ?? 0;
+        const errors: Array<{ id: string; error: string }> = body.errors ?? [];
+        if (errors.length === 0 && skipped === 0) {
+          showToast(
+            `${applied} user${applied === 1 ? "" : "s"} ${dialog.action}d.`,
+            "success"
+          );
+        } else {
+          showToast(
+            `${applied} done, ${skipped} skipped, ${errors.length} failed.`,
+            applied > 0 ? "success" : "error"
+          );
+        }
+        setRefreshKey((k) => k + 1);
+        exitBulkMode();
+      }
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Network error";
+      showToast(msg, "error");
+    } finally {
+      setBulkLoading(false);
+      setBulkConfirm(null);
+    }
+  };
+
   const formatDate = (iso: string | null): string => {
     if (!iso) return "—";
     const d = new Date(iso);
@@ -209,14 +314,23 @@ const AdminUsersPage: Component = () => {
         </p>
       </div>
 
-      {/* Search bar */}
-      <div style={{ "margin-bottom": "var(--sp-4)" }}>
+      {/* Search + bulk-mode toggle bar */}
+      <div
+        style={{
+          display: "flex",
+          gap: "var(--sp-3)",
+          "align-items": "center",
+          "flex-wrap": "wrap",
+          "margin-bottom": "var(--sp-4)"
+        }}
+      >
         <input
           type="text"
           placeholder="Search by username or display name…"
           onInput={(e) => debouncedSearch(e.currentTarget.value)}
           style={{
-            width: "100%",
+            flex: 1,
+            "min-width": "240px",
             "max-width": "480px",
             padding: "var(--sp-3) var(--sp-4)",
             background: "var(--tier-2)",
@@ -227,7 +341,128 @@ const AdminUsersPage: Component = () => {
             outline: "none"
           }}
         />
+        {/* Phase 6 Part 3 — Task 4: bulk-mode toggle. */}
+        <Show
+          when={!bulkMode()}
+          fallback={
+            <button
+              type="button"
+              onClick={exitBulkMode}
+              style={{
+                padding: "var(--sp-2) var(--sp-4)",
+                background: "var(--tier-2)",
+                color: "var(--text-secondary)",
+                border: "1px solid var(--hairline-2)",
+                "border-radius": "var(--radius-md)",
+                "font-size": "0.8125rem",
+                "font-weight": 500,
+                cursor: "pointer"
+              }}
+            >
+              ✕ Exit bulk mode
+            </button>
+          }
+        >
+          <button
+            type="button"
+            onClick={enterBulkMode}
+            style={{
+              padding: "var(--sp-2) var(--sp-4)",
+              background: "var(--p-dim, rgba(245, 197, 24, 0.1))",
+              color: "var(--p, #f5c518)",
+              border: "1px solid rgba(245, 197, 24, 0.3)",
+              "border-radius": "var(--radius-md)",
+              "font-size": "0.8125rem",
+              "font-weight": 600,
+              cursor: "pointer"
+            }}
+          >
+            ☑ Bulk actions
+          </button>
+        </Show>
       </div>
+
+      {/* Phase 6 Part 3 — Task 4: bulk action bar (shown when in bulk mode
+          and at least one row is selected). */}
+      <Show when={bulkMode() && selectedIds().size > 0}>
+        <div
+          style={{
+            display: "flex",
+            gap: "var(--sp-2)",
+            "align-items": "center",
+            "flex-wrap": "wrap",
+            padding: "var(--sp-3) var(--sp-4)",
+            background: "var(--tier-2)",
+            border: "1px solid var(--hairline)",
+            "border-radius": "var(--radius-md)",
+            "margin-bottom": "var(--sp-3)"
+          }}
+        >
+          <span
+            style={{
+              "font-size": "0.8125rem",
+              "font-weight": 600,
+              color: "var(--text)"
+            }}
+          >
+            {selectedIds().size} selected
+          </span>
+          <button
+            type="button"
+            onClick={selectAllVisible}
+            style={bulkActionBtnStyle("default")}
+          >
+            Select all visible
+          </button>
+          <button
+            type="button"
+            onClick={deselectAll}
+            style={bulkActionBtnStyle("default")}
+          >
+            Deselect all
+          </button>
+          <div style={{ flex: 1 }} />
+          <button
+            type="button"
+            onClick={() =>
+              setBulkConfirm({
+                action: "disable",
+                count: selectedIds().size
+              })
+            }
+            disabled={bulkLoading()}
+            style={bulkActionBtnStyle("warning")}
+          >
+            Disable {selectedIds().size}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setBulkConfirm({
+                action: "enable",
+                count: selectedIds().size
+              })
+            }
+            disabled={bulkLoading()}
+            style={bulkActionBtnStyle("default")}
+          >
+            Enable {selectedIds().size}
+          </button>
+          <button
+            type="button"
+            onClick={() =>
+              setBulkConfirm({
+                action: "delete",
+                count: selectedIds().size
+              })
+            }
+            disabled={bulkLoading()}
+            style={bulkActionBtnStyle("danger")}
+          >
+            Delete {selectedIds().size}
+          </button>
+        </div>
+      </Show>
 
       {/* Table */}
       <div
@@ -254,6 +489,44 @@ const AdminUsersPage: Component = () => {
                   "border-bottom": "1px solid var(--hairline)"
                 }}
               >
+                {/* Phase 6 Part 3 — Task 4: bulk-select checkbox column. */}
+                <Show when={bulkMode()}>
+                  <th
+                    style={{
+                      padding: "var(--sp-3) var(--sp-2)",
+                      width: "40px",
+                      "text-align": "center"
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={
+                        selectedIds().size > 0 &&
+                        (users()?.users ?? []).every(
+                          (u) =>
+                            u.is_admin ||
+                            u.deleted_at ||
+                            selectedIds().has(u.id)
+                        )
+                      }
+                      onChange={() => {
+                        const allVisibleSelected = (users()?.users ?? []).every(
+                          (u) =>
+                            u.is_admin ||
+                            u.deleted_at ||
+                            selectedIds().has(u.id)
+                        );
+                        if (allVisibleSelected) {
+                          deselectAll();
+                        } else {
+                          selectAllVisible();
+                        }
+                      }}
+                      style={{ cursor: "pointer" }}
+                      aria-label="Select all visible users"
+                    />
+                  </th>
+                </Show>
                 <th
                   style={{
                     padding: "var(--sp-3) var(--sp-4)",
@@ -324,7 +597,7 @@ const AdminUsersPage: Component = () => {
               <Show when={users.loading}>
                 <tr>
                   <td
-                    colspan={7}
+                    colspan={bulkMode() ? 8 : 7}
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
@@ -339,7 +612,7 @@ const AdminUsersPage: Component = () => {
               <Show when={users.error}>
                 <tr>
                   <td
-                    colspan={7}
+                    colspan={bulkMode() ? 8 : 7}
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
@@ -359,7 +632,7 @@ const AdminUsersPage: Component = () => {
               >
                 <tr>
                   <td
-                    colspan={7}
+                    colspan={bulkMode() ? 8 : 7}
                     style={{
                       padding: "var(--sp-6)",
                       "text-align": "center",
@@ -376,7 +649,10 @@ const AdminUsersPage: Component = () => {
                   <tr
                     style={{
                       "border-bottom": "1px solid var(--hairline)",
-                      transition: "background 0.15s ease"
+                      transition: "background 0.15s ease",
+                      background: selectedIds().has(user.id)
+                        ? "rgba(245, 197, 24, 0.06)"
+                        : undefined
                     }}
                     onMouseEnter={(e) =>
                       (e.currentTarget.style.background = "var(--tier-2)")
@@ -385,6 +661,38 @@ const AdminUsersPage: Component = () => {
                       (e.currentTarget.style.background = "transparent")
                     }
                   >
+                    {/* Phase 6 Part 3 — Task 4: per-row checkbox. */}
+                    <Show when={bulkMode()}>
+                      <td
+                        style={{
+                          padding: "var(--sp-3) var(--sp-2)",
+                          "text-align": "center"
+                        }}
+                      >
+                        <Show
+                          when={!user.is_admin && !user.deleted_at}
+                          fallback={
+                            <span
+                              style={{
+                                color: "var(--text-muted)",
+                                "font-size": "0.75rem"
+                              }}
+                              aria-label="Not selectable"
+                            >
+                              —
+                            </span>
+                          }
+                        >
+                          <input
+                            type="checkbox"
+                            checked={selectedIds().has(user.id)}
+                            onChange={() => toggleRowSelection(user.id)}
+                            style={{ cursor: "pointer" }}
+                            aria-label={`Select ${user.display_name}`}
+                          />
+                        </Show>
+                      </td>
+                    </Show>
                     <td style={{ padding: "var(--sp-3) var(--sp-4)" }}>
                       <div
                         style={{
@@ -760,6 +1068,126 @@ const AdminUsersPage: Component = () => {
         )}
       </Show>
 
+      {/* Phase 6 Part 3 — Task 4: bulk confirm dialog. */}
+      <Show when={bulkConfirm()}>
+        {(dialog) => (
+          <div
+            style={{
+              position: "fixed",
+              inset: 0,
+              background: "rgba(0,0,0,0.7)",
+              "backdrop-filter": "blur(4px)",
+              "z-index": 1000,
+              display: "flex",
+              "align-items": "center",
+              "justify-content": "center",
+              padding: "var(--sp-4)"
+            }}
+            onClick={() => !bulkLoading() && setBulkConfirm(null)}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                background: "var(--tier-1)",
+                border: "1px solid var(--hairline)",
+                "border-radius": "var(--radius-lg)",
+                padding: "var(--sp-6)",
+                "max-width": "480px",
+                width: "100%",
+                "box-shadow": "var(--shadow-xl)"
+              }}
+            >
+              <h3
+                style={{
+                  "font-size": "1.125rem",
+                  "font-weight": 600,
+                  margin: "0 0 var(--sp-3) 0",
+                  color:
+                    dialog().action === "delete"
+                      ? "rgb(252, 165, 165)"
+                      : dialog().action === "disable"
+                      ? "rgb(253, 224, 71)"
+                      : "var(--text)"
+                }}
+              >
+                Bulk {dialog().action} {dialog().count} user
+                {dialog().count === 1 ? "" : "s"}?
+              </h3>
+              <p
+                style={{
+                  "font-size": "0.875rem",
+                  color: "var(--text-secondary)",
+                  "margin-bottom": "var(--sp-4)"
+                }}
+              >
+                {dialog().action === "delete"
+                  ? "This will soft-delete all selected users. Their profiles will be hidden but retained for the retention period."
+                  : dialog().action === "disable"
+                  ? "Selected users will be signed out and unable to log in until re-enabled."
+                  : "Selected users will be able to log in again."}
+              </p>
+              <p
+                style={{
+                  "font-size": "0.8125rem",
+                  color: "var(--text-muted)",
+                  "margin-bottom": "var(--sp-5)"
+                }}
+              >
+                Self-action and admin-targets are automatically skipped.
+                Each successful mutation is recorded in the audit trail.
+              </p>
+              <div
+                style={{
+                  display: "flex",
+                  gap: "var(--sp-3)",
+                  "justify-content": "flex-end"
+                }}
+              >
+                <button
+                  onClick={() => setBulkConfirm(null)}
+                  disabled={bulkLoading()}
+                  style={{
+                    padding: "var(--sp-2) var(--sp-4)",
+                    background: "transparent",
+                    border: "1px solid var(--hairline-2)",
+                    "border-radius": "var(--radius-md)",
+                    color: "var(--text-secondary)",
+                    "font-size": "0.875rem",
+                    "font-weight": 500,
+                    cursor: "pointer"
+                  }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleBulkAction}
+                  disabled={bulkLoading()}
+                  style={{
+                    padding: "var(--sp-2) var(--sp-4)",
+                    background:
+                      dialog().action === "delete"
+                        ? "rgb(239, 68, 68)"
+                        : dialog().action === "disable"
+                        ? "rgb(251, 191, 36)"
+                        : "var(--p)",
+                    color: "white",
+                    border: "none",
+                    "border-radius": "var(--radius-md)",
+                    "font-size": "0.875rem",
+                    "font-weight": 600,
+                    cursor: "pointer"
+                  }}
+                >
+                  {bulkLoading()
+                    ? "Working…"
+                    : `Confirm ${dialog().action} (${dialog().count})`}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+      </Show>
+
       {/* Toast */}
       <Show when={toast()}>
         {(t) => (
@@ -841,5 +1269,39 @@ function pageBtnStyle(disabled: boolean): Record<string, string> {
 
 // Avoid unused warning for untrack (used to suppress reactivity warnings)
 void untrack;
+
+// Phase 6 Part 3 — Task 4: bulk action bar button styles.
+function bulkActionBtnStyle(
+  variant: "default" | "warning" | "danger"
+): Record<string, string> {
+  const base: Record<string, string> = {
+    padding: "6px 12px",
+    "border-radius": "var(--radius-sm)",
+    "font-size": "0.75rem",
+    "font-weight": "600",
+    cursor: "pointer",
+    border: "1px solid var(--hairline-2)",
+    background: "transparent",
+    transition: "all 0.15s ease"
+  };
+  if (variant === "warning") {
+    return {
+      ...base,
+      color: "rgb(253, 224, 71)",
+      "border-color": "rgba(251, 191, 36, 0.4)"
+    };
+  }
+  if (variant === "danger") {
+    return {
+      ...base,
+      color: "rgb(252, 165, 165)",
+      "border-color": "rgba(239, 68, 68, 0.4)"
+    };
+  }
+  return {
+    ...base,
+    color: "var(--text-secondary)"
+  };
+}
 
 export default AdminUsersPage;

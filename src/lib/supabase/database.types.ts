@@ -948,6 +948,44 @@ export type Database = {
           }
         ];
       };
+      // ─── Admin: 2FA secrets (Phase 6 Part 3 — Task 4) ─────────────────
+      // Per-admin TOTP secret for 2FA enrollment. Secret is AES-encrypted
+      // server-side; only the encrypted ciphertext is stored here.
+      admin_2fa_secrets: {
+        Row: {
+          admin_id: string;
+          secret_cipher: string;
+          enabled_at: string | null;
+          backup_codes_hash: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          admin_id: string;
+          secret_cipher: string;
+          enabled_at?: string | null;
+          backup_codes_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          admin_id?: string;
+          secret_cipher?: string;
+          enabled_at?: string | null;
+          backup_codes_hash?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "admin_2fa_secrets_admin_id_fkey";
+            columns: ["admin_id"];
+            isOneToOne: true;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       // ─── Admin: announcements (admin Phase 2) ────────────────────────
       // Banner/toast/modal notices shown to all users.
       announcements: {
@@ -1141,6 +1179,7 @@ export type Database = {
           read_at: string | null;
           created_at: string;
           is_read: boolean;
+          snoozed_until: string | null;
         };
         Insert: {
           id?: string;
@@ -1155,6 +1194,7 @@ export type Database = {
           read_at?: string | null;
           created_at?: string;
           is_read?: boolean;
+          snoozed_until?: string | null;
         };
         Update: {
           id?: string;
@@ -1169,6 +1209,7 @@ export type Database = {
           read_at?: string | null;
           created_at?: string;
           is_read?: boolean;
+          snoozed_until?: string | null;
         };
         Relationships: [
           {

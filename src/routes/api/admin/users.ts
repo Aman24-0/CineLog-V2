@@ -275,10 +275,22 @@ export async function GET(event: APIEvent) {
 
 // ─── PATCH /api/admin/users ───────────────────────────────────────
 //
-// Body: { id, action, reason? }
+// Body: { id, action, reason? }              — single-user mode (legacy)
+//    or { ids: string[], action, reason? }   — bulk mode (Phase 6 Part 3 — Task 4)
+//
 //   action: "disable" | "enable" | "delete" | "reset_preferences"
 //
-// Returns: { ok: true } on success, { ok: false, error } on failure.
+// Bulk mode applies the action to every id in `ids`. Self-action and
+// admin-target safeguards are enforced per id (skipped with a count
+// returned in the response). The audit log gets one entry per
+// successful mutation.
+//
+// Returns:
+//   single: { ok: true } | { ok: false, error }
+//   bulk:   { ok: true, applied: N, skipped: M, errors: [...] }
+//           — `applied` = successful mutations
+//           — `skipped` = self/admin-target/not-found (defensive skips)
+//           — `errors` = array of { id, error } for failed mutations
 
 export async function PATCH(event: APIEvent) {
   const adminResult = await requireAdmin(event);
@@ -296,16 +308,16 @@ export async function PATCH(event: APIEvent) {
   try {
     const body = (await event.request.json().catch(() => ({}))) as {
       id?: string;
+      ids?: unknown;
       action?: string;
       reason?: string;
     };
 
-    const userId = body.id;
     const action = body.action;
     const reason = body.reason ?? "";
 
-    if (!userId || !action) {
-      return jsonResponse({ error: "Missing id or action" }, 400);
+    if (!action) {
+      return jsonResponse({ error: "Missing action" }, 400);
     }
 
     if (
@@ -314,7 +326,117 @@ export async function PATCH(event: APIEvent) {
       return jsonResponse({ error: "Invalid action" }, 400);
     }
 
+    // ─── Normalize the target list ──────────────────────────────
+    // Accept either `id` (single, legacy) or `ids` (array, bulk).
+    // If both are provided, prefer `ids`. If neither, 400.
+    let targetIds: string[] = [];
+    if (Array.isArray(body.ids)) {
+      targetIds = (body.ids as unknown[]).filter(
+        (id): id is string => typeof id === "string" && id.length > 0
+      );
+    } else if (typeof body.id === "string" && body.id.length > 0) {
+      targetIds = [body.id];
+    }
+
+    if (targetIds.length === 0) {
+      return jsonResponse({ error: "Missing id(s)" }, 400);
+    }
+
+    // Cap the bulk size to prevent abuse. 100 is generous — the
+    // adminUsers page shows 25 per page, so even "select all" on
+    // a single page is well under this.
+    if (targetIds.length > 100) {
+      return jsonResponse(
+        { error: "Bulk operation limited to 100 users at a time." },
+        400
+      );
+    }
+
     const supabase = createAdminClient();
+
+    // ─── Bulk path ───────────────────────────────────────────────
+    if (targetIds.length > 1) {
+      const result = {
+        ok: true as const,
+        applied: 0,
+        skipped: 0,
+        errors: [] as Array<{ id: string; error: string }>
+      };
+
+      // Fetch all targets in one query so we can pre-filter
+      // (self-action, admin-target, not-found) before mutating.
+      const { data: targets } = await supabase
+        .from("profiles")
+        .select("id, is_admin, username, display_name")
+        .in("id", targetIds);
+
+      const targetMap = new Map<string, { is_admin: boolean; username: string; display_name: string } | null>();
+      for (const row of (targets ?? []) as Array<{
+        id: string;
+        is_admin: boolean;
+        username: string;
+        display_name: string;
+      }>) {
+        targetMap.set(row.id, {
+          is_admin: row.is_admin,
+          username: row.username,
+          display_name: row.display_name
+        });
+      }
+
+      for (const userId of targetIds) {
+        // Self-action check.
+        if (userId === adminResult.admin.id) {
+          result.skipped++;
+          continue;
+        }
+        const target = targetMap.get(userId);
+        if (!target) {
+          result.skipped++;
+          continue;
+        }
+        if (target.is_admin) {
+          result.skipped++;
+          continue;
+        }
+
+        try {
+          const ok = await applyUserAction(
+            supabase,
+            userId,
+            action
+          );
+          if (ok) {
+            result.applied++;
+            // Audit log per successful mutation.
+            await logAdminAction(event, adminResult.admin, {
+              action: `user.${action}`, // matches single-mode audit action
+              entity_type: "user",
+              entity_id: userId,
+              payload: {
+                reason,
+                target_username: target.username,
+                target_display_name: target.display_name,
+                bulk: true
+              }
+            });
+          } else {
+            result.errors.push({ id: userId, error: "Mutation failed" });
+          }
+        } catch (err) {
+          result.errors.push({
+            id: userId,
+            error: err instanceof Error ? err.message : String(err)
+          });
+        }
+      }
+
+      return jsonResponse(result);
+    }
+
+    // ─── Single-user path (legacy, unchanged) ────────────────────
+    const userId = targetIds[0];
+    const supabase2 = supabase;
 
     // Prevent self-action — admin can't disable/delete themselves
     if (userId === adminResult.admin.id) {
@@ -325,7 +447,7 @@ export async function PATCH(event: APIEvent) {
     }
 
     // Verify target isn't another admin (defense in depth)
-    const { data: target } = await supabase
+    const { data: target } = await supabase2
       .from("profiles")
       .select("is_admin, username, display_name")
       .eq("id", userId)
@@ -345,7 +467,7 @@ export async function PATCH(event: APIEvent) {
     const auditPayload: Record<string, unknown> = { reason };
 
     if (action === "disable") {
-      const { error } = await supabase
+      const { error } = await supabase2
         .from("profiles")
         .update({ admin_disabled_at: new Date().toISOString() })
         .eq("id", userId);
@@ -355,7 +477,7 @@ export async function PATCH(event: APIEvent) {
       }
       auditAction = "user.disable";
     } else if (action === "enable") {
-      const { error } = await supabase
+      const { error } = await supabase2
         .from("profiles")
         .update({ admin_disabled_at: null })
         .eq("id", userId);
@@ -366,7 +488,7 @@ export async function PATCH(event: APIEvent) {
       auditAction = "user.enable";
     } else if (action === "delete") {
       // Soft delete — sets deleted_at
-      const { error } = await supabase
+      const { error } = await supabase2
         .from("profiles")
         .update({ deleted_at: new Date().toISOString() })
         .eq("id", userId);
@@ -376,7 +498,7 @@ export async function PATCH(event: APIEvent) {
       }
       auditAction = "user.delete";
     } else if (action === "reset_preferences") {
-      const { error } = await supabase
+      const { error } = await supabase2
         .from("user_preferences")
         .delete()
         .eq("user_id", userId);
@@ -403,5 +525,51 @@ export async function PATCH(event: APIEvent) {
   } catch (err) {
     console.error("[CineLog Admin] Users PATCH error:", err);
     return jsonResponse({ error: "Server error" }, 500);
+  }
+}
+
+/**
+ * Apply a single user-action mutation. Returns true on success.
+ *
+ * Extracted so the bulk path can reuse the same logic per id without
+ * duplicating the action→mutation mapping.
+ */
+async function applyUserAction(
+  supabase: ReturnType<typeof createAdminClient>,
+  userId: string,
+  action: string
+): Promise<boolean> {
+  try {
+    if (action === "disable") {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ admin_disabled_at: new Date().toISOString() })
+        .eq("id", userId);
+      return !error;
+    }
+    if (action === "enable") {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ admin_disabled_at: null })
+        .eq("id", userId);
+      return !error;
+    }
+    if (action === "delete") {
+      const { error } = await supabase
+        .from("profiles")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", userId);
+      return !error;
+    }
+    if (action === "reset_preferences") {
+      const { error } = await supabase
+        .from("user_preferences")
+        .delete()
+        .eq("user_id", userId);
+      return !error;
+    }
+    return false;
+  } catch {
+    return false;
   }
 }

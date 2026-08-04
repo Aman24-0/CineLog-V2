@@ -71,6 +71,13 @@ const DEFAULT_NOTIF_PREFS: NotificationPrefs = {
   emailSyncStatus: true
 };
 
+/**
+ * Phase 6 Part 3 — Task 3.
+ * Exposed so the Settings page can reset the notifications section
+ * to defaults (see features/settings/settingsDefaults.ts).
+ */
+export { DEFAULT_NOTIF_PREFS };
+
 function readNotifPrefs(): NotificationPrefs {
   if (isServer) return DEFAULT_NOTIF_PREFS;
   try {

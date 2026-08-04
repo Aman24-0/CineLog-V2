@@ -7,8 +7,14 @@
 //   • Tap a notification → mark as read + open the related title.
 //   • "Mark all as read" button at the top.
 //   • "Clear read" button at the bottom (deletes read notifications).
+//   • Per-notification: Snooze (1h / 4h / 1d) or Dismiss.
+//
+// Phase 6 Part 3 — Task 1:
+//   Each notification now has inline Snooze (with a small dropdown for
+//   the duration) and Dismiss buttons. Snoozed notifications are
+//   filtered out of the active feed until their snooze_until elapses.
 
-import { type Component, For, Show, createMemo, type Accessor } from "solid-js";
+import { type Component, For, Show, createMemo, type Accessor, createSignal } from "solid-js";
 import { GlassModal } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import type { NotificationRow } from "~/lib/supabase/repositories/upcoming";
@@ -20,6 +26,8 @@ interface NotificationCenterProps {
   onMarkRead: (id: string) => void;
   onMarkAllRead: () => void;
   onClearRead: () => void;
+  onSnooze: (id: string, minutes: number) => void;
+  onDismiss: (id: string) => void;
   onOpenTitle?: (relatedId: string, relatedType: string | null) => void;
 }
 
@@ -38,6 +46,13 @@ const TYPE_ICON: Record<NotificationRow["type"], string> = {
   season_available: "new_releases",
   info: "info"
 };
+
+const SNOOZE_OPTIONS: { minutes: number; label: string }[] = [
+  { minutes: 60, label: "1 hour" },
+  { minutes: 240, label: "4 hours" },
+  { minutes: 1440, label: "1 day" },
+  { minutes: 7 * 1440, label: "1 week" }
+];
 
 function bucketFor(iso: string): BucketKey {
   const d = new Date(iso);
@@ -63,8 +78,44 @@ function relativeTime(iso: string): string {
   return new Date(iso).toLocaleDateString();
 }
 
+/**
+ * Returns true if a notification is currently snoozed (i.e. its
+ * `snoozed_until` is set and in the future). Snoozed notifications
+ * are filtered out of the active feed.
+ */
+function isSnoozed(n: NotificationRow): boolean {
+  if (!n.snoozed_until) return false;
+  return new Date(n.snoozed_until).getTime() > Date.now();
+}
+
+function snoozeLabel(n: NotificationRow): string | null {
+  if (!n.snoozed_until) return null;
+  const ms = new Date(n.snoozed_until).getTime() - Date.now();
+  if (ms <= 0) return null;
+  const mins = Math.ceil(ms / 60_000);
+  if (mins < 60) return `Snoozed ${mins}m`;
+  const hrs = Math.ceil(mins / 60);
+  if (hrs < 24) return `Snoozed ${hrs}h`;
+  const days = Math.ceil(hrs / 24);
+  return `Snoozed ${days}d`;
+}
+
 const NotificationCenter: Component<NotificationCenterProps> = (props) => {
   const toast = useToast();
+
+  // Currently-open snooze dropdown (notification id), or null.
+  const [openSnoozeFor, setOpenSnoozeFor] = createSignal<string | null>(null);
+
+  // The visible feed = notifications that are NOT currently snoozed.
+  // Snoozed items are hidden from the feed; if the user wants to see
+  // them, they can use the "Show snoozed" toggle (future enhancement).
+  const visibleNotifications = createMemo<NotificationRow[]>(() =>
+    props.notifications().filter((n) => !isSnoozed(n))
+  );
+
+  const snoozedCount = createMemo(
+    () => props.notifications().length - visibleNotifications().length
+  );
 
   const grouped = createMemo<
     { key: BucketKey; label: string; items: NotificationRow[] }[]
@@ -75,7 +126,7 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
       this_week: [],
       earlier: []
     };
-    for (const n of props.notifications()) {
+    for (const n of visibleNotifications()) {
       buckets[bucketFor(n.created_at)].push(n);
     }
     return (Object.keys(buckets) as BucketKey[])
@@ -84,7 +135,7 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
   });
 
   const hasUnread = createMemo(() =>
-    props.notifications().some((n) => !n.is_read)
+    visibleNotifications().some((n) => !n.is_read)
   );
 
   const handleClick = (n: NotificationRow) => {
@@ -103,6 +154,15 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
   const handleClearRead = async () => {
     await props.onClearRead();
     toast.showToast("Read notifications cleared", "info");
+  };
+
+  const handleSnooze = (id: string, minutes: number) => {
+    setOpenSnoozeFor(null);
+    void props.onSnooze(id, minutes);
+  };
+
+  const handleDismiss = (id: string) => {
+    void props.onDismiss(id);
   };
 
   return (
@@ -143,6 +203,19 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
           </div>
         }
       >
+        <Show when={snoozedCount() > 0}>
+          <div class="upcoming-notif-snoozed-banner">
+            <span
+              class="material-symbols-outlined"
+              aria-hidden="true"
+              style={{ "font-size": "14px" }}
+            >
+              bedtime
+            </span>
+            <span>{snoozedCount()} snoozed notification{snoozedCount() === 1 ? "" : "s"} hidden</span>
+          </div>
+        </Show>
+
         <div class="upcoming-notif-list">
           <For each={grouped()}>
             {(group) => (
@@ -150,37 +223,120 @@ const NotificationCenter: Component<NotificationCenterProps> = (props) => {
                 <h4 class="upcoming-notif-group-label">{group.label}</h4>
                 <For each={group.items}>
                   {(n) => (
-                    <button
-                      type="button"
+                    <div
                       class={`upcoming-notif-item ${n.is_read ? "is-read" : "is-unread"}`}
-                      onClick={() => handleClick(n)}
                     >
-                      <span class="upcoming-notif-icon-wrap">
-                        <span
-                          class="material-symbols-outlined upcoming-notif-icon"
-                          aria-hidden="true"
-                        >
-                          {TYPE_ICON[n.type]}
-                        </span>
-                        <Show when={!n.is_read}>
+                      <button
+                        type="button"
+                        class="upcoming-notif-item-main focus-ring"
+                        onClick={() => handleClick(n)}
+                        aria-label={`Open notification: ${n.title}`}
+                      >
+                        <span class="upcoming-notif-icon-wrap">
                           <span
-                            class="upcoming-notif-unread-dot"
+                            class="material-symbols-outlined upcoming-notif-icon"
                             aria-hidden="true"
-                          />
-                        </Show>
-                      </span>
-                      <span class="upcoming-notif-content">
-                        <span class="upcoming-notif-title">{n.title}</span>
-                        <Show when={n.message}>
-                          <span class="upcoming-notif-message">
-                            {n.message}
+                          >
+                            {TYPE_ICON[n.type]}
                           </span>
-                        </Show>
-                        <span class="upcoming-notif-time">
-                          {relativeTime(n.created_at)}
+                          <Show when={!n.is_read}>
+                            <span
+                              class="upcoming-notif-unread-dot"
+                              aria-hidden="true"
+                            />
+                          </Show>
                         </span>
-                      </span>
-                    </button>
+                        <span class="upcoming-notif-content">
+                          <span class="upcoming-notif-title">{n.title}</span>
+                          <Show when={n.message}>
+                            <span class="upcoming-notif-message">
+                              {n.message}
+                            </span>
+                          </Show>
+                          <span class="upcoming-notif-time">
+                            {relativeTime(n.created_at)}
+                          </span>
+                        </span>
+                      </button>
+
+                      {/* Per-notification actions: snooze + dismiss */}
+                      <div class="upcoming-notif-actions">
+                        <Show
+                          when={openSnoozeFor() === n.id}
+                          fallback={
+                            <button
+                              type="button"
+                              class="upcoming-notif-action-btn focus-ring"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenSnoozeFor((cur) =>
+                                  cur === n.id ? null : n.id
+                                );
+                              }}
+                              aria-label="Snooze notification"
+                              title="Snooze"
+                            >
+                              <span
+                                class="material-symbols-outlined"
+                                aria-hidden="true"
+                              >
+                                bedtime
+                              </span>
+                            </button>
+                          }
+                        >
+                          <div class="upcoming-notif-snooze-popover">
+                            <For each={SNOOZE_OPTIONS}>
+                              {(opt) => (
+                                <button
+                                  type="button"
+                                  class="upcoming-notif-snooze-option focus-ring"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleSnooze(n.id, opt.minutes);
+                                  }}
+                                >
+                                  {opt.label}
+                                </button>
+                              )}
+                            </For>
+                            <button
+                              type="button"
+                              class="upcoming-notif-snooze-cancel focus-ring"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setOpenSnoozeFor(null);
+                              }}
+                            >
+                              Cancel
+                            </button>
+                          </div>
+                        </Show>
+                        <button
+                          type="button"
+                          class="upcoming-notif-action-btn upcoming-notif-action-dismiss focus-ring"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleDismiss(n.id);
+                          }}
+                          aria-label="Dismiss notification"
+                          title="Dismiss"
+                        >
+                          <span
+                            class="material-symbols-outlined"
+                            aria-hidden="true"
+                          >
+                            close
+                          </span>
+                        </button>
+                      </div>
+
+                      <Show when={snoozeLabel(n)}>
+                        <span class="upcoming-notif-snoozed-tag">
+                          {snoozeLabel(n)}
+                        </span>
+                      </Show>
+                    </div>
                   )}
                 </For>
               </div>

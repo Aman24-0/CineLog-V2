@@ -276,6 +276,59 @@
   color: var(--text-soft);
 }
 
+/* Spacer that pushes the expiry badge to the right of the meta row */
+.trash-item-card-meta-spacer {
+  flex: 1;
+}
+
+/* Phase 6 Part 3 — Task 2: expiry countdown badge */
+.trash-expiry-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 9999px;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.trash-expiry-badge-icon {
+  font-size: 12px !important;
+  line-height: 1;
+}
+
+.trash-expiry-badge-label {
+  line-height: 1;
+}
+
+.trash-expiry-badge-default {
+  color: var(--text-soft);
+  background: rgba(255, 255, 255, 0.04);
+  border-color: rgba(255, 255, 255, 0.08);
+}
+
+.trash-expiry-badge-info {
+  color: rgb(165, 180, 252);
+  background: rgba(99, 102, 241, 0.1);
+  border-color: rgba(99, 102, 241, 0.25);
+}
+
+.trash-expiry-badge-warning {
+  color: rgb(253, 224, 71);
+  background: rgba(251, 191, 36, 0.12);
+  border-color: rgba(251, 191, 36, 0.3);
+}
+
+.trash-expiry-badge-danger {
+  color: rgb(252, 165, 165);
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+}
+
 .trash-item-card-expiry {
   display: flex;
   align-items: center;

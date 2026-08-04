@@ -186,6 +186,7 @@ const UpcomingPage: Component = () => {
   const [trailerOpen, setTrailerOpen] = createSignal(false);
   const [trailerTitle, setTrailerTitle] = createSignal<TMDBTitle | null>(null);
   const [trailerVideoId, setTrailerVideoId] = createSignal<string | null>(null);
+  const [notifyAllLoading, setNotifyAllLoading] = createSignal(false);
 
   // ── Selected calendar day (for calendar view detail) ────────────
   const [selectedDay, setSelectedDay] = createSignal<string | null>(null);
@@ -418,6 +419,26 @@ const UpcomingPage: Component = () => {
     () => !data.loading() && data.titles().length === 0
   );
 
+  // ── "Notify all" bulk action (Phase 6 Part 3 — Task 1) ──────────
+  //
+  // Force-send push + email for all unsent reminders. Shows a spinner
+  // on the button while the operation is in flight, then a summary
+  // toast (handled inside the hook).
+  const handleNotifyAll = async () => {
+    if (notifyAllLoading()) return;
+    setNotifyAllLoading(true);
+    try {
+      await notif.notifyAll();
+    } finally {
+      setNotifyAllLoading(false);
+    }
+  };
+
+  // Pending-reminder count — drives the badge on the "Notify all" button.
+  const pendingReminderCount = createMemo(
+    () => notif.reminders().filter((r) => !r.notification_sent).length
+  );
+
   return (
     <PageContainer width="narrow" paddingTop="0" paddingBottom="var(--sp-12)">
       <div class="sec-page sec-fade-in upcoming-page">
@@ -442,6 +463,43 @@ const UpcomingPage: Component = () => {
           <p class="sec-subtitle">
             Calendar + reminders for movies and series coming soon.
           </p>
+          <Show when={pendingReminderCount() > 0}>
+            <button
+              type="button"
+              class="upcoming-notify-all focus-ring"
+              onClick={handleNotifyAll}
+              disabled={notifyAllLoading()}
+              aria-label={`Notify all ${pendingReminderCount()} pending reminders`}
+            >
+              <Show
+                when={!notifyAllLoading()}
+                fallback={
+                  <span
+                    class="material-symbols-outlined"
+                    aria-hidden="true"
+                    style={{
+                      "font-size": "16px",
+                      animation: "spin 1s linear infinite"
+                    }}
+                  >
+                    progress_activity
+                  </span>
+                }
+              >
+                <span
+                  class="material-symbols-outlined"
+                  aria-hidden="true"
+                  style={{ "font-size": "16px" }}
+                >
+                  campaign
+                </span>
+              </Show>
+              Notify all
+              <span class="upcoming-notify-all-badge">
+                {pendingReminderCount()}
+              </span>
+            </button>
+          </Show>
         </div>
 
         <div class="sec-body">
@@ -604,6 +662,8 @@ const UpcomingPage: Component = () => {
         onMarkRead={notif.markRead}
         onMarkAllRead={notif.markAllRead}
         onClearRead={notif.clearRead}
+        onSnooze={notif.snooze}
+        onDismiss={notif.dismiss}
         onOpenTitle={(relatedId, relatedType) => {
           // Navigate to the canonical deep-link route /{type}/{id}.
           // The Details modal opens automatically from there.

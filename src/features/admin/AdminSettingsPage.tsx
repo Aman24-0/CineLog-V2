@@ -24,6 +24,7 @@ import {
   type Component,
   type JSX
 } from "solid-js";
+import AdminTwoFactorPanel from "~/features/admin/components/AdminTwoFactorPanel";
 
 interface SiteSettings {
   site_name: string;
@@ -657,6 +658,13 @@ const AdminSettingsPage: Component = () => {
           </button>
         </div>
       </Show>
+
+      {/* Phase 6 Part 3 — Task 4: Admin 2FA enrollment panel.
+          Always rendered (independent of the site-wide settings above),
+          because 2FA is per-admin, not site-wide. */}
+      <div style={{ "margin-top": "var(--sp-6)" }}>
+        <AdminTwoFactorPanel />
+      </div>
     </div>
   );
 };

@@ -31,6 +31,54 @@
   border-radius: 14px;
 }
 
+/* Phase 6 Part 3 — Task 1: "Notify all" bulk action button */
+.upcoming-notify-all {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  margin-top: var(--sp-2, 0.5rem);
+  padding: 6px 12px;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--on-primary, #0a0a0a);
+  background: var(--p, #f5c518);
+  border: none;
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: opacity var(--dur-fast, 120ms), transform var(--dur-fast, 120ms);
+}
+.upcoming-notify-all:hover {
+  opacity: 0.9;
+}
+.upcoming-notify-all:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+.upcoming-notify-all .material-symbols-outlined {
+  font-size: 16px !important;
+}
+.upcoming-notify-all-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  font-size: 0.625rem;
+  font-weight: 700;
+  color: var(--p, #f5c518);
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 9999px;
+  font-family: "Azeret Mono", monospace;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .upcoming-toolbar-left {
   flex: 1 1 280px;
   min-width: 0;
@@ -1083,7 +1131,7 @@
 
 .upcoming-notif-item {
   display: grid;
-  grid-template-columns: 36px 1fr;
+  grid-template-columns: 1fr auto;
   gap: var(--sp-2, 0.5rem);
   width: 100%;
   text-align: left;
@@ -1091,8 +1139,8 @@
   background: rgba(255, 255, 255, 0.02);
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 10px;
-  cursor: pointer;
   transition: background var(--dur-fast, 120ms);
+  position: relative;
 }
 .upcoming-notif-item:hover {
   background: rgba(255, 255, 255, 0.04);
@@ -1100,6 +1148,118 @@
 .upcoming-notif-item.is-unread {
   background: rgba(245, 197, 24, 0.04);
   border-color: rgba(245, 197, 24, 0.15);
+}
+
+/* Phase 6 Part 3 — Task 1: per-notification actions */
+.upcoming-notif-item-main {
+  display: grid;
+  grid-template-columns: 36px 1fr;
+  gap: var(--sp-2, 0.5rem);
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  color: inherit;
+  min-width: 0;
+}
+.upcoming-notif-actions {
+  display: flex;
+  align-items: flex-start;
+  gap: 2px;
+  position: relative;
+}
+.upcoming-notif-action-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms), color var(--dur-fast, 120ms);
+  padding: 0;
+}
+.upcoming-notif-action-btn .material-symbols-outlined {
+  font-size: 16px !important;
+}
+.upcoming-notif-action-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--text-strong, #fff);
+}
+.upcoming-notif-action-dismiss:hover {
+  background: rgba(239, 68, 68, 0.12);
+  color: rgb(252, 165, 165);
+}
+.upcoming-notif-snooze-popover {
+  position: absolute;
+  top: 32px;
+  right: 0;
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  background: var(--tier-2, #1a1a1a);
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.08));
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: var(--shadow-glow, 0 8px 24px rgba(0, 0, 0, 0.4));
+  min-width: 120px;
+}
+.upcoming-notif-snooze-option,
+.upcoming-notif-snooze-cancel {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  border: none;
+  color: var(--text-strong, #fff);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  padding: 6px 8px;
+  border-radius: 5px;
+  cursor: pointer;
+}
+.upcoming-notif-snooze-option:hover {
+  background: rgba(245, 197, 24, 0.12);
+  color: var(--p, #f5c518);
+}
+.upcoming-notif-snooze-cancel {
+  color: var(--text-soft, rgba(255, 255, 255, 0.7));
+  margin-top: 2px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  padding-top: 8px;
+}
+.upcoming-notif-snoozed-tag {
+  grid-column: 1 / -1;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.625rem;
+  color: var(--p, #f5c518);
+  background: rgba(245, 197, 24, 0.08);
+  border-radius: 4px;
+  padding: 2px 6px;
+  margin-top: 2px;
+  width: fit-content;
+}
+.upcoming-notif-snoozed-banner {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  margin-bottom: var(--sp-2, 0.5rem);
+  background: rgba(99, 102, 241, 0.08);
+  border: 1px solid rgba(99, 102, 241, 0.2);
+  border-radius: 8px;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  color: rgb(165, 180, 252);
 }
 
 .upcoming-notif-icon-wrap {

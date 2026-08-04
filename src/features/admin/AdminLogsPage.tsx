@@ -111,7 +111,7 @@ const AdminLogsPage: Component = () => {
             color: "var(--text)"
           }}
         >
-          Audit Logs
+          Audit Trail
         </h2>
         <p
           style={{

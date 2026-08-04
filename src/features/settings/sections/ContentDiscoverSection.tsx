@@ -24,6 +24,7 @@
 
 import { Show, For, createMemo } from "solid-js";
 import type { SettingsState } from "./types";
+import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
   ControlRow,
   ToggleRow,
@@ -352,6 +353,8 @@ export function ContentDiscoverSection(props: { state: SettingsState }) {
                 </div>
               </div>
             </div>
+
+            <SectionResetButton state={s} sectionId="content" />
           </div>
         </Show>
       </section>

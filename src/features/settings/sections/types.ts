@@ -179,6 +179,29 @@ export interface SettingsState {
   // ── Sidebar nav click handler (page-shell sidebar) ─────────────
   handleSidebarClick: (id: string) => void;
 
+  // ── Phase 6 Part 3 — Task 3: Reset + import/export ──────────────
+  /**
+   * Reset the given section's preferences to their default values.
+   * The section id matches the `id` field in SectionMeta (e.g.
+   * "appearance", "notifications", "calendar", "content", "sync").
+   * Shows a success/error toast.
+   */
+  handleResetSection: (sectionId: string) => void;
+
+  /**
+   * Export all current preferences to a JSON file and trigger a
+   * browser download. The file is named
+   * `cinelog-preferences-YYYY-MM-DD.json`.
+   */
+  handleExportSettings: () => void;
+
+  /**
+   * Import preferences from a JSON file (typically chosen via an
+   * `<input type="file">`). Validates the file's magic header and
+   * shape before applying.
+   */
+  handleImportSettings: (file: File) => Promise<void>;
+
   // ── Render helpers ──────────────────────────────────────────────
   renderSegmented: <T extends string | number>(
     options: SegmentedOption<T>[],

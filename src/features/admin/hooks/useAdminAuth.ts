@@ -45,6 +45,14 @@ export interface LoginResult {
   /** Optional debug detail from the server (e.g. env-var misconfiguration). */
   detail?: string;
   admin?: AdminSession;
+  /**
+   * Phase 6 Part 3 — Task 4: 2FA required flag.
+   *
+   * When the server returns `{ ok: false, requires2FA: true }`, the
+   * caller should prompt the user for a TOTP code and retry the
+   * login with `totpCode` set.
+   */
+  requires2FA?: boolean;
 }
 
 // ─── Module-level signals ─────────────────────────────────────────
@@ -118,14 +126,22 @@ export function useAdminAuth() {
     async login(
       email: string,
       password: string,
-      pin: string
+      pin: string,
+      totpCode?: string
     ): Promise<LoginResult> {
       setLoginLoading(true);
       setLoginError(null);
       try {
+        const payload: Record<string, unknown> = {
+          email,
+          password,
+          pin,
+          mode: "password"
+        };
+        if (totpCode) payload.totpCode = totpCode;
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ email, password, pin, mode: "password" })
+          body: JSON.stringify(payload)
         })) as LoginResult;
 
         if (body?.ok && body.admin) {
@@ -133,8 +149,18 @@ export function useAdminAuth() {
           return { ok: true, admin: body.admin };
         }
         const errMsg = formatLoginError(body);
-        setLoginError(errMsg);
-        return { ok: false, error: errMsg };
+        // Don't overwrite the error message if 2FA is required —
+        // the caller will use the requires2FA flag to switch to the
+        // TOTP input step, and we don't want to display "2FA code
+        // required" as an error in the UI.
+        if (!body?.requires2FA) {
+          setLoginError(errMsg);
+        }
+        return {
+          ok: false,
+          error: errMsg,
+          requires2FA: body?.requires2FA
+        };
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Network error";
         setLoginError(errMsg);
@@ -155,7 +181,7 @@ export function useAdminAuth() {
      * request body. The server validates it via
      * `supabase.auth.getUser(access_token)`.
      */
-    async loginWithPin(pin: string): Promise<LoginResult> {
+    async loginWithPin(pin: string, totpCode?: string): Promise<LoginResult> {
       setLoginLoading(true);
       setLoginError(null);
       try {
@@ -190,9 +216,15 @@ export function useAdminAuth() {
           return { ok: false, error: msg };
         }
 
+        const payload: Record<string, unknown> = {
+          pin,
+          mode: "session",
+          accessToken
+        };
+        if (totpCode) payload.totpCode = totpCode;
         const body = (await fetchJSON("/api/admin/auth", {
           method: "POST",
-          body: JSON.stringify({ pin, mode: "session", accessToken })
+          body: JSON.stringify(payload)
         })) as LoginResult;
 
         if (body?.ok && body.admin) {
@@ -200,8 +232,14 @@ export function useAdminAuth() {
           return { ok: true, admin: body.admin };
         }
         const errMsg = formatLoginError(body);
-        setLoginError(errMsg);
-        return { ok: false, error: errMsg };
+        if (!body?.requires2FA) {
+          setLoginError(errMsg);
+        }
+        return {
+          ok: false,
+          error: errMsg,
+          requires2FA: body?.requires2FA
+        };
       } catch (err) {
         const errMsg = err instanceof Error ? err.message : "Network error";
         setLoginError(errMsg);

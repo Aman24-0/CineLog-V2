@@ -43,6 +43,14 @@ export interface NotificationRow {
   read_at: string | null;
   created_at: string;
   is_read: boolean;
+  /**
+   * Phase 6 Part 3 — Task 1.
+   * When non-null and in the future, the notification is snoozed
+   * (hidden from the active feed until this timestamp elapses).
+   * When non-null and in the past, the snooze has expired (the
+   * client treats it the same as NULL).
+   */
+  snoozed_until: string | null;
 }
 
 export interface UserReminderRow {
@@ -943,9 +951,16 @@ export async function getNotifications(
 async function insertNotification(
   row: Omit<
     NotificationRow,
-    "id" | "created_at" | "is_read" | "read_at" | "sent_at"
+    | "id"
+    | "created_at"
+    | "is_read"
+    | "read_at"
+    | "sent_at"
+    | "snoozed_until"
   > &
-    Partial<Pick<NotificationRow, "is_read" | "read_at" | "sent_at">>
+    Partial<
+      Pick<NotificationRow, "is_read" | "read_at" | "sent_at" | "snoozed_until">
+    >
 ): Promise<NotificationRow | null> {
   try {
     const supabase = getClient();
@@ -959,7 +974,8 @@ async function insertNotification(
         related_title_id: row.related_title_id,
         related_title_type: row.related_title_type,
         scheduled_for: row.scheduled_for,
-        is_read: row.is_read ?? false
+        is_read: row.is_read ?? false,
+        snoozed_until: row.snoozed_until ?? null
       })
       .select()
       .single();
@@ -1019,6 +1035,61 @@ export async function clearReadNotifications(userId: string): Promise<boolean> {
       .delete()
       .eq("user_id", userId)
       .eq("is_read", true);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Snooze + dismiss (Phase 6 Part 3 — Task 1)
+// ---------------------------------------------------------------------------
+
+/**
+ * Snooze a single notification until the given ISO timestamp.
+ *
+ * The notification remains in the feed but is filtered out client-side
+ * (and server-side via the `notifications_user_active_idx` partial index)
+ * until `untilISO` elapses. After that, it re-appears in the active feed.
+ *
+ * Snoozing is idempotent: re-snoozing the same notification with a new
+ * timestamp simply overwrites the previous snooze.
+ *
+ * Returns true on success, false on error.
+ */
+export async function snoozeNotification(
+  notificationId: string,
+  untilISO: string
+): Promise<boolean> {
+  try {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from("notifications")
+      .update({ snoozed_until: untilISO })
+      .eq("id", notificationId);
+    return !error;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Permanently delete a single notification. The user is dismissing it
+ * from their feed — it will not reappear, even if the underlying
+ * reminder is re-fired (the reminder row in `user_reminders` is NOT
+ * affected; only the in-app feed row is removed).
+ *
+ * Returns true on success, false on error.
+ */
+export async function dismissNotification(
+  notificationId: string
+): Promise<boolean> {
+  try {
+    const supabase = getClient();
+    const { error } = await supabase
+      .from("notifications")
+      .delete()
+      .eq("id", notificationId);
     return !error;
   } catch {
     return false;

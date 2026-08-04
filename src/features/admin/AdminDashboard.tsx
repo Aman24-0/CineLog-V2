@@ -28,6 +28,7 @@ import {
   type Component,
   For
 } from "solid-js";
+import AuditTrailWidget from "~/features/admin/components/AuditTrailWidget";
 
 interface AdminStats {
   total_users: number;
@@ -420,6 +421,13 @@ const AdminDashboard: Component = () => {
           </For>
         </div>
       </Show>
+
+      {/* Phase 6 Part 3 — Task 4: Audit Trail widget.
+          Shows the 5 most recent admin_actions so the operator can
+          see "what's been happening" without navigating away. */}
+      <div style={{ "margin-top": "var(--sp-5)" }}>
+        <AuditTrailWidget />
+      </div>
     </div>
   );
 };

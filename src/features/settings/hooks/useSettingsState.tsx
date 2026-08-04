@@ -91,6 +91,11 @@ import { extractDominantColor } from "~/shared/utils/colorExtractor";
 // fallbackOptions) and the providers loop.
 import { UI_LANGUAGES } from "~/shared/constants/settings";
 
+// Phase 6 Part 3 — Task 3: type-only import for the section reset
+// handler. The actual functions are imported dynamically so they
+// don't bloat the initial bundle.
+import type { SettingsSectionId } from "../settingsDefaults";
+
 export function useSettingsState(): SettingsState {
   const navigate = useNavigate();
   const { user, isSignedIn } = useAuth();
@@ -998,6 +1003,72 @@ export function useSettingsState(): SettingsState {
     setTimeout(() => scrollToSection(id), 50);
   }
 
+  // ─── Reset section to defaults (Phase 6 Part 3 — Task 3) ──────────
+  //
+  // Reset the given section's preferences to their default values.
+  // The reset is applied immediately to the preference signals (which
+  // also persist to localStorage via their createEffect, and sync to
+  // Supabase via the preferencesSync debouncer).
+  //
+  // A toast confirms the reset. The user can't undo via a toast
+  // action (the previous values are lost once the signals are
+  // overwritten) — but they can re-toggle individual prefs if they
+  // remember what they had.
+  const handleResetSection = (sectionId: string) => {
+    // Lazy-import to avoid pulling the entire settingsDefaults module
+    // (and its preference-module dependencies) into the initial bundle.
+    // The reset path is rarely used, so the import-on-click cost is
+    // acceptable.
+    import("../settingsDefaults").then(
+      ({ resetSectionToDefaults }) => {
+        const ok = resetSectionToDefaults(
+          sectionId as SettingsSectionId
+        );
+        if (ok) {
+          showToast(
+            `Reset ${sectionId} to defaults`,
+            "success"
+          );
+        } else {
+          showToast(
+            `Couldn't reset "${sectionId}" — unknown section.`,
+            "error"
+          );
+        }
+      }
+    );
+  };
+
+  // ─── Export preferences to JSON file ──────────────────────────────
+  const handleExportSettings = () => {
+    import("../settingsDefaults").then(({ exportSettingsToFile }) => {
+      const ok = exportSettingsToFile();
+      if (ok) {
+        showToast("Preferences exported", "success");
+      } else {
+        showToast("Couldn't export preferences.", "error");
+      }
+    });
+  };
+
+  // ─── Import preferences from JSON file ────────────────────────────
+  //
+  // Accepts a File from an <input type="file">. Reads the file,
+  // validates it (magic header + shape), and applies the snapshot
+  // to the preference signals.
+  const handleImportSettings = async (file: File) => {
+    const { importSettingsFromFile } = await import("../settingsDefaults");
+    const result = await importSettingsFromFile(file);
+    if (result.ok) {
+      showToast(
+        `Imported ${result.applied} preference${result.applied === 1 ? "" : "s"}`,
+        "success"
+      );
+    } else {
+      showToast(result.error, "error");
+    }
+  };
+
   // Highlight matched text in section titles/descriptions.
   const highlightText = (text: string): JSX.Element => {
     const q = query().trim();
@@ -1144,6 +1215,11 @@ export function useSettingsState(): SettingsState {
 
     // Sidebar nav click handler (page-shell sidebar)
     handleSidebarClick,
+
+    // Phase 6 Part 3 — Task 3: Reset + import/export
+    handleResetSection,
+    handleExportSettings,
+    handleImportSettings,
 
     // Render helpers
     renderSegmented

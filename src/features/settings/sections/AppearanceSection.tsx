@@ -25,6 +25,7 @@ import { Show, For } from "solid-js";
 import type { SettingsState } from "./types";
 import ThemeCard from "~/features/settings/components/ThemeCard";
 import AccentSwatch from "~/features/settings/components/AccentSwatch";
+import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
   ControlRow,
   ToggleRow
@@ -359,6 +360,8 @@ export function AppearanceSection(props: { state: SettingsState }) {
                 />
               </div>
             </div>
+
+            <SectionResetButton state={s} sectionId="appearance" />
           </div>
         </Show>
       </section>

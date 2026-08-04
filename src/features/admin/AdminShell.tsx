@@ -118,7 +118,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     href: "/admin/logs",
-    label: "Audit Logs",
+    label: "Audit Trail",
     icon: "📝",
     description: "Admin action history"
   },

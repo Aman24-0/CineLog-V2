@@ -365,6 +365,8 @@ const AppHeader: Component = () => {
           onMarkRead={notif.markRead}
           onMarkAllRead={notif.markAllRead}
           onClearRead={notif.clearRead}
+          onSnooze={notif.snooze}
+          onDismiss={notif.dismiss}
           onOpenTitle={(relatedId, relatedType) => {
             setNotifOpen(false);
             navigate(`/${relatedType ?? "movie"}/${relatedId}`);

@@ -19,6 +19,7 @@
 
 import { Show } from "solid-js";
 import type { SettingsState } from "./types";
+import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
   SelectRow,
   ControlRow
@@ -163,6 +164,8 @@ export function CalendarSection(props: { state: SettingsState }) {
                 </ControlRow>
               </div>
             </div>
+
+            <SectionResetButton state={s} sectionId="calendar" />
           </div>
         </Show>
       </section>

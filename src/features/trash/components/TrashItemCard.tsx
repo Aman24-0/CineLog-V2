@@ -39,6 +39,7 @@ import type {
   TrashedVaultItem,
   TrashedCollection
 } from "~/features/trash/trashAdapter";
+import TrashExpiryBadge from "./TrashExpiryBadge";
 
 // ── Shared helpers ─────────────────────────────────────────────
 
@@ -146,6 +147,8 @@ export const TrashVaultItemCard: Component<TrashVaultItemCardProps> = (
             <span class="trash-item-card-meta-text">
               Deleted {formatDate(props.item.deletedAt)}
             </span>
+            <span class="trash-item-card-meta-spacer" />
+            <TrashExpiryBadge expiresAt={props.item.expiresAt} />
           </div>
 
           <p class="trash-item-card-expiry">
@@ -245,6 +248,8 @@ export const TrashCollectionCard: Component<TrashCollectionCardProps> = (
             <span class="trash-item-card-meta-text">
               Deleted {formatDate(props.collection.deletedAt)}
             </span>
+            <span class="trash-item-card-meta-spacer" />
+            <TrashExpiryBadge expiresAt={props.collection.expiresAt} />
           </div>
 
           <p class="trash-item-card-expiry">

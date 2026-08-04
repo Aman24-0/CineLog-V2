@@ -96,6 +96,12 @@ const AdminLoginPage: Component = () => {
   const [email, setEmail] = createSignal("");
   const [password, setPassword] = createSignal("");
   const [pin, setPin] = createSignal("");
+  const [totpCode, setTotpCode] = createSignal("");
+  // Phase 6 Part 3 — Task 4: 2FA step state.
+  // When the server returns requires2FA=true, we transition to the
+  // 2FA step (showing the TOTP input). The user's identity + PIN
+  // were already verified, so we keep them in state for the retry.
+  const [requires2FA, setRequires2FA] = createSignal(false);
   const [submitting, setSubmitting] = createSignal(false);
   const [oauthLoading, setOauthLoading] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
@@ -144,14 +150,24 @@ const AdminLoginPage: Component = () => {
     }
 
     setSubmitting(true);
-    const result = await auth.loginWithPin(pin().trim());
+    // If we're in the 2FA retry step, pass the TOTP code along.
+    const result = await auth.loginWithPin(
+      pin().trim(),
+      requires2FA() ? totpCode().trim() || undefined : undefined
+    );
     setSubmitting(false);
 
     if (result.ok) {
       navigate("/admin", { replace: true });
+    } else if (result.requires2FA) {
+      // Transition to the 2FA step — keep PIN + identity in state.
+      setRequires2FA(true);
+      setTotpCode("");
+      setError(null);
     } else {
       setError(result.error ?? "Login failed");
       setPin("");
+      setRequires2FA(false);
     }
   };
 
@@ -170,13 +186,38 @@ const AdminLoginPage: Component = () => {
     }
 
     setSubmitting(true);
-    const result = await auth.login(email().trim(), password(), pin().trim());
+    const result = await auth.login(
+      email().trim(),
+      password(),
+      pin().trim(),
+      requires2FA() ? totpCode().trim() || undefined : undefined
+    );
     setSubmitting(false);
 
     if (result.ok) {
       navigate("/admin", { replace: true });
+    } else if (result.requires2FA) {
+      setRequires2FA(true);
+      setTotpCode("");
+      setError(null);
     } else {
       setError(result.error ?? "Login failed");
+    }
+  };
+
+  // ─── 2FA code submit (Phase 6 Part 3 — Task 4) ──────────────────
+  // Reuses whichever primary submit handler was active (session vs
+  // password). We detect which one by whether `password()` is set.
+  const handle2FASubmit = async (e: Event) => {
+    e.preventDefault();
+    if (!/^\d{6}$/.test(totpCode().trim())) {
+      setError("2FA code must be exactly 6 digits.");
+      return;
+    }
+    if (password()) {
+      await handlePasswordSubmit(e);
+    } else {
+      await handlePinSubmit(e);
     }
   };
 
@@ -590,6 +631,145 @@ const AdminLoginPage: Component = () => {
             <Show when={error() && !session()?.email && !showPasswordForm()}>
               <div style={{ "margin-top": "var(--sp-4)" }}>
                 <ErrorBlock message={error()!} />
+              </div>
+            </Show>
+
+            {/* Phase 6 Part 3 — Task 4: 2FA (TOTP) code input.
+                Shown when the server returned requires2FA=true after
+                the user's identity + PIN were already verified. The
+                user types the 6-digit code from their authenticator
+                app and submits — we re-call the same login handler
+                with the TOTP code attached. */}
+            <Show when={requires2FA()}>
+              <div style={{ "margin-top": "var(--sp-5)" }}>
+                <div
+                  style={{
+                    background: "rgba(99, 102, 241, 0.08)",
+                    border: "1px solid rgba(99, 102, 241, 0.25)",
+                    "border-radius": "var(--radius-md)",
+                    padding: "var(--sp-3) var(--sp-4)",
+                    "margin-bottom": "var(--sp-4)",
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-3)"
+                  }}
+                >
+                  <span style={{ "font-size": "1.125rem" }} aria-hidden="true">
+                    🔐
+                  </span>
+                  <div style={{ "min-width": 0, flex: 1 }}>
+                    <div
+                      style={{
+                        "font-size": "0.8125rem",
+                        "font-weight": 600,
+                        color: "rgb(165, 180, 252)"
+                      }}
+                    >
+                      Two-factor authentication required
+                    </div>
+                    <div
+                      style={{
+                        "font-size": "0.75rem",
+                        color: "var(--text-muted)",
+                        "margin-top": "2px"
+                      }}
+                    >
+                      Enter the 6-digit code from your authenticator app.
+                    </div>
+                  </div>
+                </div>
+
+                <form onSubmit={handle2FASubmit} novalidate>
+                  <div style={{ "margin-bottom": "var(--sp-5)" }}>
+                    <label
+                      for="admin-totp"
+                      style={labelStyle}
+                    >
+                      Authenticator code
+                    </label>
+                    <input
+                      id="admin-totp"
+                      type="text"
+                      inputmode="numeric"
+                      autocomplete="one-time-code"
+                      maxlength={6}
+                      value={totpCode()}
+                      onInput={(e) =>
+                        setTotpCode(
+                          e.currentTarget.value.replace(/\D/g, "").slice(0, 6)
+                        )
+                      }
+                      disabled={submitting()}
+                      placeholder="123456"
+                      required
+                      autofocus
+                      style={{
+                        ...inputStyle,
+                        "letter-spacing": "0.5em",
+                        "text-align": "center",
+                        "font-family": "monospace"
+                      }}
+                    />
+                  </div>
+
+                  <Show when={error()}>
+                    <ErrorBlock message={error()!} />
+                  </Show>
+
+                  <button
+                    type="submit"
+                    disabled={submitting() || totpCode().length !== 6}
+                    style={{
+                      width: "100%",
+                      padding: "var(--sp-3) var(--sp-4)",
+                      background:
+                        submitting() || totpCode().length !== 6
+                          ? "var(--tier-3)"
+                          : "var(--p)",
+                      color:
+                        submitting() || totpCode().length !== 6
+                          ? "var(--text-muted)"
+                          : "var(--on-primary)",
+                      border: "none",
+                      "border-radius": "var(--radius-md)",
+                      "font-size": "0.9375rem",
+                      "font-weight": 600,
+                      cursor:
+                        submitting() || totpCode().length !== 6
+                          ? "not-allowed"
+                          : "pointer",
+                      transition: "all 0.15s ease"
+                    }}
+                  >
+                    <Show when={!submitting()} fallback="Verifying…">
+                      Verify & Enter
+                    </Show>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRequires2FA(false);
+                      setTotpCode("");
+                      setError(null);
+                    }}
+                    disabled={submitting()}
+                    style={{
+                      width: "100%",
+                      padding: "var(--sp-2) var(--sp-4)",
+                      "margin-top": "var(--sp-2)",
+                      background: "transparent",
+                      color: "var(--text-muted)",
+                      border: "none",
+                      "border-radius": "var(--radius-md)",
+                      "font-size": "0.8125rem",
+                      "font-weight": 500,
+                      cursor: "pointer"
+                    }}
+                  >
+                    ← Back
+                  </button>
+                </form>
               </div>
             </Show>
           </Show>

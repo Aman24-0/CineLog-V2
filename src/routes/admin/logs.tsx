@@ -12,7 +12,7 @@ const AdminLogsPage = lazy(() => import("~/features/admin/AdminLogsPage"));
 export default function AdminLogsRoute() {
   return (
     <AdminShell>
-      <Title>CineLog Admin — Audit Logs</Title>
+      <Title>CineLog Admin — Audit Trail</Title>
       <AdminLogsPage />
     </AdminShell>
   );

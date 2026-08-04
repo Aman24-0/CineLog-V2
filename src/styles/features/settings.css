@@ -270,6 +270,65 @@
   margin-top: var(--sp-2);
 }
 
+/* Phase 6 Part 3 — Task 3: Reset + Import/Export */
+.settings-section-reset-row {
+  display: flex;
+  justify-content: flex-end;
+  padding-top: var(--sp-4);
+  margin-top: var(--sp-3);
+  border-top: 1px dashed var(--hairline);
+}
+.settings-section-reset-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--text-soft);
+  background: transparent;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md, 8px);
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms), color var(--dur-fast, 120ms), border-color var(--dur-fast, 120ms);
+}
+.settings-section-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  color: rgb(252, 165, 165);
+  border-color: rgba(239, 68, 68, 0.3);
+}
+.settings-section-reset-btn .material-symbols-outlined {
+  font-size: 14px !important;
+}
+
+.settings-import-export-row {
+  display: flex;
+  gap: var(--sp-2);
+  margin-top: var(--sp-3);
+}
+.settings-import-export-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--p, #f5c518);
+  background: rgba(245, 197, 24, 0.08);
+  border: 1px solid rgba(245, 197, 24, 0.25);
+  border-radius: 9999px;
+  cursor: pointer;
+  transition: background var(--dur-fast, 120ms);
+}
+.settings-import-export-btn:hover {
+  background: rgba(245, 197, 24, 0.16);
+}
+.settings-import-export-btn .material-symbols-outlined {
+  font-size: 14px !important;
+}
+
 .settings-accordion-view-all {
   display: flex;
   align-items: center;

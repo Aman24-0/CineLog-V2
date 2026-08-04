@@ -21,6 +21,7 @@
 
 import { Show } from "solid-js";
 import type { SettingsState } from "./types";
+import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import { ToggleRow } from "~/features/settings/sharedControls";
 
 // Sync feature cards (cloud status, cadence, import, export).
@@ -157,6 +158,8 @@ export function SyncSection(props: { state: SettingsState }) {
                 </div>
               </div>
             </Show>
+
+            <SectionResetButton state={s} sectionId="sync" />
           </div>
         </Show>
       </section>

@@ -76,6 +76,24 @@ import { useSettingsState } from "~/features/settings/hooks/useSettingsState";
 
 const SettingsPage: Component = () => {
   const s = useSettingsState();
+  // Hidden file input ref for the Import button. We trigger the click
+  // programmatically so the visible Import button can be styled freely.
+  let importInputRef: HTMLInputElement | undefined;
+
+  const handleImportClick = () => {
+    importInputRef?.click();
+  };
+
+  const handleImportFileChosen = (
+    e: Event & { currentTarget: HTMLInputElement }
+  ) => {
+    const file = e.currentTarget.files?.[0];
+    if (file) {
+      void s.handleImportSettings(file);
+    }
+    // Reset so the same file can be re-imported if needed.
+    e.currentTarget.value = "";
+  };
 
   return (
     <>
@@ -104,6 +122,47 @@ const SettingsPage: Component = () => {
             <p class="sec-subtitle">
               Account, appearance, content, sync, and more — all in one place.
             </p>
+
+            {/* Phase 6 Part 3 — Task 3: Import / Export buttons */}
+            <div class="settings-import-export-row">
+              <button
+                type="button"
+                class="settings-import-export-btn focus-ring"
+                onClick={s.handleExportSettings}
+                aria-label="Export preferences to a JSON file"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  aria-hidden="true"
+                  style={{ "font-size": "16px" }}
+                >
+                  download
+                </span>
+                <span>Export</span>
+              </button>
+              <button
+                type="button"
+                class="settings-import-export-btn focus-ring"
+                onClick={handleImportClick}
+                aria-label="Import preferences from a JSON file"
+              >
+                <span
+                  class="material-symbols-outlined"
+                  aria-hidden="true"
+                  style={{ "font-size": "16px" }}
+                >
+                  upload
+                </span>
+                <span>Import</span>
+              </button>
+              <input
+                ref={importInputRef}
+                type="file"
+                accept="application/json,.json"
+                style={{ display: "none" }}
+                onChange={handleImportFileChosen}
+              />
+            </div>
           </div>
 
           {/* Search bar — sticky on mobile, inline on desktop */}
