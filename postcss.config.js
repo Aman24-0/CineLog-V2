@@ -19,15 +19,25 @@
 //                                    PostCSS plugin is no longer needed.
 //   • src/styles/base/tailwind.css — @tailwind directives replaced
 //                                    with @import "tailwindcss"
-//   • tailwind.config.js    KEPT for now — Tailwind v4 reads JS config
-//                                    via the @config directive in CSS
-//                                    (added in the next step). This
-//                                    avoids a breaking change to the
-//                                    theme tokens.
+//   • tailwind.config.js    KEPT — Tailwind v4 reads JS config via the
+//                                    `config` option on the PostCSS
+//                                    plugin (set below). We deliberately
+//                                    do NOT use the `@config` directive
+//                                    in CSS, because that directive is
+//                                    resolved relative to the root CSS
+//                                    file (e.g. src/app/globals.css),
+//                                    not the file it is written in.
+//                                    That breaks Vercel builds with
+//                                    "Can't resolve '../../../tailwind.config.js'".
+//                                    Passing the path through the
+//                                    plugin options is robust against
+//                                    CSS import depth.
 // ─────────────────────────────────────────────────────────────────────
 
 export default {
   plugins: {
-    "@tailwindcss/postcss": {}
+    "@tailwindcss/postcss": {
+      config: "./tailwind.config.js"
+    }
   }
 };
