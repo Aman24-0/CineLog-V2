@@ -44,6 +44,12 @@ interface EntryInput {
   /** In-universe year of incident (drives Storyline sort). NULL = unknown. */
   incident_year?: number | null;
   note?: string | null;
+  // Phase 9 Chunk 5a: rich entry fields
+  sub_universe?: string | null;
+  viewing_order?: number | null;
+  story_note?: string | null;
+  key_events?: string[] | null;
+  is_entry_point?: boolean | null;
 }
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -130,6 +136,8 @@ export async function POST(event: APIEvent) {
     // 3. Insert.
     //    incident_year is optional — NULL means unknown (Storyline sort
     //    falls back to position).
+    //    Phase 9 Chunk 5a: also persists sub_universe, viewing_order,
+    //    story_note, key_events, is_entry_point.
     const insert: Record<string, unknown> = {
       universe_id: body.universe_id,
       tmdb_id: tmdbId,
@@ -139,7 +147,12 @@ export async function POST(event: APIEvent) {
         body.incident_year === undefined
           ? null
           : (toInt(body.incident_year) ?? null),
-      note: body.note ?? null
+      note: body.note ?? null,
+      sub_universe: body.sub_universe ?? "main",
+      viewing_order: toInt(body.viewing_order) ?? 0,
+      story_note: body.story_note ?? null,
+      key_events: Array.isArray(body.key_events) ? body.key_events : [],
+      is_entry_point: body.is_entry_point === true
     };
 
     const { data, error } = await supabase
@@ -214,6 +227,26 @@ export async function PATCH(event: APIEvent) {
     }
     if (body.media_type === "movie" || body.media_type === "tv") {
       update.media_type = body.media_type;
+    }
+    // Phase 9 Chunk 5a: rich entry fields
+    if (body.sub_universe !== undefined) {
+      update.sub_universe =
+        body.sub_universe === null || body.sub_universe === ""
+          ? "main"
+          : body.sub_universe;
+    }
+    if (body.viewing_order !== undefined) {
+      const vo = toInt(body.viewing_order);
+      update.viewing_order = vo ?? 0;
+    }
+    if (body.story_note !== undefined) {
+      update.story_note = body.story_note === "" ? null : body.story_note;
+    }
+    if (body.key_events !== undefined) {
+      update.key_events = Array.isArray(body.key_events) ? body.key_events : [];
+    }
+    if (body.is_entry_point !== undefined) {
+      update.is_entry_point = body.is_entry_point === true;
     }
 
     if (Object.keys(update).length === 0) {

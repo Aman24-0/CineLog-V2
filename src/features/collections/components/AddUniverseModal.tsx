@@ -38,7 +38,7 @@ interface AddUniverseModalProps {
 
 const AddUniverseModal: Component<AddUniverseModalProps> = (props) => {
   const { addUniverseToPrefs } = useCollections();
-  const { allCuratedUniverses, subscribedIds, loading, refresh } =
+  const { allCuratedUniverses, subscribedIds, loading, refresh, addSubscribedUniverse } =
     useCuratedUniverses();
   const [search, setSearch] = createSignal("");
   const [adding, setAdding] = createSignal<string | null>(null);
@@ -57,9 +57,23 @@ const AddUniverseModal: Component<AddUniverseModalProps> = (props) => {
 
   const handleAdd = async (col: Collection) => {
     setAdding(col.id);
-    await addUniverseToPrefs(col.id);
-    await refresh();
-    setAdding(null);
+    // Phase 9 Chunk 5a bug fix: Optimistic update — push the universe
+    // into the shared subscribedUniverses signal IMMEDIATELY so the
+    // CollectionsPage grid updates without waiting for the DB write +
+    // refetch to complete. The refresh() call below reconciles the
+    // optimistic state with the server's source of truth.
+    addSubscribedUniverse(col);
+    try {
+      await addUniverseToPrefs(col.id);
+      await refresh();
+    } catch (err) {
+      // Rollback the optimistic update on error.
+      console.error("[AddUniverseModal] Subscribe failed — rolling back:", err);
+      const { removeSubscribedUniverse } = useCuratedUniverses();
+      removeSubscribedUniverse(col.id);
+    } finally {
+      setAdding(null);
+    }
   };
 
   return (

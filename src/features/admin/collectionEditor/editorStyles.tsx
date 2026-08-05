@@ -17,7 +17,12 @@ import { type JSX } from "solid-js";
 // ---------------------------------------------------------------------------
 
 /** A labelled form field wrapper. */
-export function Field(props: { label: string; children: JSX.Element }) {
+export function Field(props: {
+  label: string;
+  /** Optional hint text shown beneath the label (e.g. character count). */
+  hint?: string;
+  children: JSX.Element;
+}) {
   return (
     <div>
       <label
@@ -32,6 +37,18 @@ export function Field(props: { label: string; children: JSX.Element }) {
         {props.label}
       </label>
       {props.children}
+      {props.hint ? (
+        <div
+          style={{
+            "font-size": "0.7rem",
+            color: "var(--text-muted)",
+            "margin-top": "var(--sp-1)",
+            opacity: 0.85
+          }}
+        >
+          {props.hint}
+        </div>
+      ) : null}
     </div>
   );
 }

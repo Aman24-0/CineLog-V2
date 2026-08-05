@@ -44,9 +44,12 @@ export const ENTRY_DISCOVER_COLUMNS =
 
 /**
  * Compact column list for curated_universes rows.
+ *
+ * Phase 9 Chunk 5a: added lore, franchise_type, viewing_order_guide,
+ * color_theme, total_entries.
  */
 export const UNIVERSE_DISCOVER_COLUMNS =
-  "id,slug,name,description,cover_url,banner_url,color,default_view,created_at,updated_at" as const;
+  "id,slug,name,description,cover_url,banner_url,color,default_view,created_at,updated_at,lore,franchise_type,viewing_order_guide,color_theme,total_entries" as const;
 
 /**
  * Compact column list for curated_universe_entries rows.
@@ -59,7 +62,7 @@ export const UNIVERSE_DISCOVER_COLUMNS =
  * admin's primary manual order.
  */
 export const UNIVERSE_ENTRY_DISCOVER_COLUMNS =
-  "id,universe_id,tmdb_id,media_type,position,incident_year,note,created_at" as const;
+  "id,universe_id,tmdb_id,media_type,position,incident_year,note,created_at,sub_universe,viewing_order,story_note,key_events,is_entry_point" as const;
 
 /**
  * Compact column list for user_universe_subscriptions rows.

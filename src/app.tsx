@@ -69,6 +69,7 @@ import { OfflineBanner } from "~/shared/ui/OfflineBanner";
 import { UserLibraryProvider } from "~/shared/hooks/useUserLibrary";
 import { VaultProvider } from "~/features/watchlist/useVault";
 import { CollectionsProvider } from "~/features/collections/hooks/useCollections";
+import { CuratedUniversesProvider } from "~/features/collections/hooks/useCuratedUniverses";
 import { SearchProvider } from "~/shared/contexts/SearchContext";
 import { GlassLoadingState } from "~/shared/ui/glass";
 
@@ -94,7 +95,8 @@ export default function App() {
             <UserLibraryProvider>
               <VaultProvider>
                 <CollectionsProvider>
-                  <SearchProvider>
+                  <CuratedUniversesProvider>
+                    <SearchProvider>
                     <AppShell>
                     <Suspense
                       fallback={
@@ -105,6 +107,7 @@ export default function App() {
                     </Suspense>
                   </AppShell>
                   </SearchProvider>
+                  </CuratedUniversesProvider>
                 </CollectionsProvider>
               </VaultProvider>
             </UserLibraryProvider>

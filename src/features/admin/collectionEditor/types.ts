@@ -14,6 +14,18 @@ export interface AdminUniverse {
   banner_url: string | null;
   created_at: string;
   updated_at: string;
+  // Phase 9 Chunk 5a: rich universe fields
+  lore: string | null;
+  franchise_type:
+    | "cinematic_universe"
+    | "franchise"
+    | "anthology"
+    | "shared_universe"
+    | "multiverse"
+    | null;
+  viewing_order_guide: string | null;
+  color_theme: string | null;
+  total_entries: number | null;
 }
 
 export interface AdminEntry {
@@ -31,10 +43,31 @@ export interface AdminEntry {
   position: number;
   note: string | null;
   created_at: string;
+  // Phase 9 Chunk 5a: rich entry fields
+  sub_universe: string | null;
+  viewing_order: number | null;
+  story_note: string | null;
+  key_events: string[] | null;
+  is_entry_point: boolean | null;
   // Enriched by the API (not stored in DB):
   title?: string | null;
   poster_path?: string | null;
   release_date?: string | null;
+}
+
+/**
+ * Phase 9 Chunk 5a: Admin-side shape of a custom viewing order row.
+ * Used by the Viewing Order Builder section of the editor.
+ */
+export interface AdminViewingOrder {
+  id: string;
+  universe_id: string;
+  name: string;
+  description: string | null;
+  is_default: boolean;
+  entry_ids: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 /**
@@ -60,6 +93,12 @@ export interface EntryUpdate {
   incident_year?: number | null;
   /** Admin-only note shown in admin UI only. */
   note?: string | null;
+  // Phase 9 Chunk 5a: rich entry fields
+  sub_universe?: string | null;
+  viewing_order?: number | null;
+  story_note?: string | null;
+  key_events?: string[] | null;
+  is_entry_point?: boolean | null;
 }
 
 /** Build a TMDB poster URL from a poster_path. */

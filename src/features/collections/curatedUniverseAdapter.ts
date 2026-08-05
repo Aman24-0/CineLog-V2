@@ -27,6 +27,8 @@ import type {
   Collection,
   CollectionEntry,
   UniversePhase,
+  UniverseFranchiseType,
+  UniverseViewingOrder,
   ViewingOrder,
   ViewingOrderOption
 } from "~/shared/types";
@@ -92,6 +94,21 @@ export function curatedUniverseRowToCollection(
   const defaultOrder: ViewingOrder =
     defaultViewMap[row.default_view] ?? "story";
 
+  // Phase 9 Chunk 5a: Normalize franchise_type — only accept values that
+  // match our union; anything else falls back to undefined.
+  const validFranchiseTypes: ReadonlySet<string> = new Set([
+    "cinematic_universe",
+    "franchise",
+    "anthology",
+    "shared_universe",
+    "multiverse"
+  ]);
+  const franchiseType = row.franchise_type
+    ? validFranchiseTypes.has(row.franchise_type)
+      ? (row.franchise_type as UniverseFranchiseType)
+      : undefined
+    : undefined;
+
   return {
     id: row.id,
     name: row.name,
@@ -100,13 +117,19 @@ export function curatedUniverseRowToCollection(
     backdrop_path: row.banner_url ?? undefined,
     poster_path: row.cover_url ?? undefined,
     coverImagePath: row.cover_url ?? undefined,
-    accentColor: row.color ?? undefined,
+    accentColor: row.color_theme ?? row.color ?? undefined,
     entries,
     // The 3 unified orders — same labels in admin and consumer.
     viewingOrders: UNIVERSE_VIEWING_ORDERS,
     defaultOrder,
     createdAt: row.created_at,
-    updatedAt: row.updated_at
+    updatedAt: row.updated_at,
+    // Phase 9 Chunk 5a: rich universe fields
+    lore: row.lore ?? undefined,
+    franchiseType,
+    viewingOrderGuide: row.viewing_order_guide ?? undefined,
+    colorTheme: row.color_theme ?? undefined,
+    totalEntries: row.total_entries ?? entries.length
   };
 }
 
@@ -151,7 +174,14 @@ export function curatedEntryRowToCollectionEntry(
     // to group all films in the same series together. Standalone titles
     // (no colon) fall into "Standalone & Other".
     franchise: deriveFranchise(title),
-    userNote: row.note ?? undefined
+    userNote: row.note ?? undefined,
+    // Phase 9 Chunk 5a: rich entry fields
+    rowId: row.id,
+    subUniverse: row.sub_universe ?? "main",
+    viewingOrder: row.viewing_order ?? 0,
+    storyNote: row.story_note ?? undefined,
+    keyEvents: row.key_events ?? [],
+    isEntryPoint: row.is_entry_point ?? false
   };
 }
 
@@ -415,7 +445,7 @@ export async function fetchPhasesForUniverse(
     const { data, error } = await supabase
       .from("universe_phases")
       .select(
-        "id, universe_id, label, description, before_entry_id, order_index, created_at, updated_at"
+        "id, universe_id, label, description, before_entry_id, order_index, created_at, updated_at, cover_url, sub_universe, viewing_order, lore"
       )
       .eq("universe_id", universeId)
       .order("order_index", { ascending: true });
@@ -437,6 +467,10 @@ export async function fetchPhasesForUniverse(
         order_index: number;
         created_at: string;
         updated_at: string;
+        cover_url: string | null;
+        sub_universe: string | null;
+        viewing_order: number | null;
+        lore: string | null;
       }>
     ).map((row) => ({
       id: row.id,
@@ -446,7 +480,11 @@ export async function fetchPhasesForUniverse(
       beforeEntryId: row.before_entry_id,
       orderIndex: row.order_index,
       createdAt: row.created_at,
-      updatedAt: row.updated_at
+      updatedAt: row.updated_at,
+      coverUrl: row.cover_url,
+      subUniverse: row.sub_universe ?? "main",
+      viewingOrder: row.viewing_order ?? 0,
+      lore: row.lore
     }));
   } catch (err) {
     console.error(
@@ -467,4 +505,124 @@ export function withPhases(
   phases: UniversePhase[]
 ): Collection {
   return { ...collection, phases };
+}
+
+// ---------------------------------------------------------------------------
+// Phase 9 Chunk 5a: Custom Viewing Orders
+// ---------------------------------------------------------------------------
+// Admin-defined viewing orders for a curated universe. Each order references
+// a list of entry positions stored in `universe_viewing_order_entries`.
+// Used by the user-side CollectionDetailPage to reorder the entry grid.
+// ---------------------------------------------------------------------------
+
+/**
+ * Fetch all custom viewing orders for a curated universe, with their
+ * ordered entry IDs. Returns an empty array on error or when no orders
+ * have been configured.
+ *
+ * Orders are returned sorted by `is_default` DESC then `created_at` ASC
+ * so the default order appears first.
+ */
+export async function fetchViewingOrdersForUniverse(
+  universeId: string
+): Promise<UniverseViewingOrder[]> {
+  try {
+    const { getClient } = await import("~/lib/supabase/client");
+    const supabase = getClient();
+    // 1. Fetch all viewing orders for this universe.
+    const { data: orders, error: ordersError } = await supabase
+      .from("universe_viewing_orders")
+      .select(
+        "id, universe_id, name, description, is_default, created_at, updated_at"
+      )
+      .eq("universe_id", universeId)
+      .order("is_default", { ascending: false })
+      .order("created_at", { ascending: true });
+    if (ordersError) {
+      console.error(
+        "[curatedUniverseAdapter] Error fetching viewing orders:",
+        ordersError
+      );
+      return [];
+    }
+    if (!orders || orders.length === 0) return [];
+
+    // 2. Batch-fetch all entries for all orders in a single query.
+    const orderIds = orders.map((o) => o.id);
+    const { data: orderEntries, error: oeError } = await supabase
+      .from("universe_viewing_order_entries")
+      .select("order_id, entry_id, position")
+      .in("order_id", orderIds)
+      .order("position", { ascending: true });
+    if (oeError) {
+      console.error(
+        "[curatedUniverseAdapter] Error fetching viewing order entries:",
+        oeError
+      );
+      // Still return orders with empty entry lists rather than failing
+      // entirely — the user can still see the order names.
+      return (orders as Array<{
+        id: string;
+        universe_id: string;
+        name: string;
+        description: string | null;
+        is_default: boolean;
+        created_at: string;
+        updated_at: string;
+      }>).map((o) => ({
+        id: o.id,
+        universeId: o.universe_id,
+        name: o.name,
+        description: o.description,
+        isDefault: o.is_default,
+        entryIds: [],
+        createdAt: o.created_at,
+        updatedAt: o.updated_at
+      }));
+    }
+
+    // 3. Group entry IDs by order_id, preserving position order.
+    const entriesByOrder = new Map<string, string[]>();
+    for (const oe of orderEntries ?? []) {
+      const list = entriesByOrder.get(oe.order_id) ?? [];
+      list.push(oe.entry_id);
+      entriesByOrder.set(oe.order_id, list);
+    }
+
+    return (orders as Array<{
+      id: string;
+      universe_id: string;
+      name: string;
+      description: string | null;
+      is_default: boolean;
+      created_at: string;
+      updated_at: string;
+    }>).map((o) => ({
+      id: o.id,
+      universeId: o.universe_id,
+      name: o.name,
+      description: o.description,
+      isDefault: o.is_default,
+      entryIds: entriesByOrder.get(o.id) ?? [],
+      createdAt: o.created_at,
+      updatedAt: o.updated_at
+    }));
+  } catch (err) {
+    console.error(
+      "[curatedUniverseAdapter] Failed to fetch viewing orders:",
+      err
+    );
+    return [];
+  }
+}
+
+/**
+ * Attach fetched custom viewing orders to an existing Collection object.
+ * Used by the detail page after it resolves the universe.
+ */
+export function withCustomViewingOrders(
+  collection: Collection,
+  orders: UniverseViewingOrder[]
+): Collection {
+  return { ...collection, customViewingOrders: orders };
 }

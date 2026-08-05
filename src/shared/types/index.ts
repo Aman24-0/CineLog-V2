@@ -963,6 +963,63 @@ export interface CollectionEntry {
   isCustomEntry?: boolean;
   /** Cached runtime from TMDB */
   runtime?: number;
+  /**
+   * Phase 9 Chunk 5a: Sub-universe this entry belongs to
+   * (e.g. "Earth-616", "What If...?", "TV Series"). Defaults to "main".
+   */
+  subUniverse?: string;
+  /**
+   * Phase 9 Chunk 5a: Admin-defined viewing order index within the universe.
+   * Lower = earlier in the universe's primary watch order.
+   */
+  viewingOrder?: number;
+  /**
+   * Phase 9 Chunk 5a: Where this entry fits in the story
+   * (e.g. "Takes place after Civil War, before Infinity War.").
+   */
+  storyNote?: string;
+  /**
+   * Phase 9 Chunk 5a: Key story beats for this entry
+   * (e.g. ["First Infinity Stone", "Nick Fury introduced"]).
+   */
+  keyEvents?: string[];
+  /**
+   * Phase 9 Chunk 5a: Marks a recommended starting point for new viewers.
+   */
+  isEntryPoint?: boolean;
+  /**
+   * Phase 9 Chunk 5a: UUID of the curated_universe_entries row.
+   * Available for curated universes; used by viewing order entries.
+   */
+  rowId?: string;
+}
+
+/**
+ * Phase 9 Chunk 5a: Franchise type classification for curated universes.
+ * Mirrors the CHECK constraint on `curated_universes.franchise_type`.
+ */
+export type UniverseFranchiseType =
+  | "cinematic_universe"
+  | "franchise"
+  | "anthology"
+  | "shared_universe"
+  | "multiverse";
+
+/**
+ * Phase 9 Chunk 5a: Admin-defined custom viewing order for a curated universe.
+ * Stored in the `universe_viewing_orders` table. Each order references a
+ * list of entry positions in `universe_viewing_order_entries`.
+ */
+export interface UniverseViewingOrder {
+  id: string;
+  universeId: string;
+  name: string;
+  description?: string | null;
+  isDefault: boolean;
+  /** Ordered list of curated_universe_entries IDs (row IDs, not TMDB IDs). */
+  entryIds: string[];
+  createdAt?: string;
+  updatedAt?: string;
 }
 
 /**
@@ -1033,6 +1090,38 @@ export interface Collection {
    *  Empty/undefined for user collections. Fetched from the
    *  `universe_phases` table; NEVER hardcoded. */
   phases?: UniversePhase[];
+  /**
+   * Phase 9 Chunk 5a: Rich lore / background paragraph for the universe.
+   * Mirrors `curated_universes.lore`.
+   */
+  lore?: string;
+  /**
+   * Phase 9 Chunk 5a: Universe classification (cinematic_universe, franchise,
+   * anthology, shared_universe, multiverse). Mirrors
+   * `curated_universes.franchise_type`.
+   */
+  franchiseType?: UniverseFranchiseType;
+  /**
+   * Phase 9 Chunk 5a: Admin-written recommended viewing guide.
+   * Mirrors `curated_universes.viewing_order_guide`.
+   */
+  viewingOrderGuide?: string;
+  /**
+   * Phase 9 Chunk 5a: Optional accent color override for the universe hub.
+   * Mirrors `curated_universes.color_theme`.
+   */
+  colorTheme?: string;
+  /**
+   * Phase 9 Chunk 5a: Total number of entries (denormalized).
+   * Mirrors `curated_universes.total_entries`.
+   */
+  totalEntries?: number;
+  /**
+   * Phase 9 Chunk 5a: Admin-defined custom viewing orders
+   * (e.g. "Release Order", "Chronological Order", "Machete Order").
+   * Mirrors rows in `universe_viewing_orders`.
+   */
+  customViewingOrders?: UniverseViewingOrder[];
 }
 
 /**
@@ -1055,6 +1144,24 @@ export interface UniversePhase {
   orderIndex: number;
   createdAt?: string;
   updatedAt?: string;
+  /**
+   * Phase 9 Chunk 5a: Phase cover image URL.
+   * Mirrors `universe_phases.cover_url`.
+   */
+  coverUrl?: string | null;
+  /**
+   * Phase 9 Chunk 5a: Sub-universe label (e.g. "Earth-616", "What If...?").
+   * Defaults to 'main'.
+   */
+  subUniverse?: string;
+  /**
+   * Phase 9 Chunk 5a: Order in which to watch the phases.
+   */
+  viewingOrder?: number;
+  /**
+   * Phase 9 Chunk 5a: Phase-specific lore / backstory.
+   */
+  lore?: string | null;
 }
 
 /* ============================================================

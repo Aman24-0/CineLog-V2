@@ -40,6 +40,18 @@ interface UniverseInput {
   color?: string | null;
   cover_url?: string | null;
   banner_url?: string | null;
+  // Phase 9 Chunk 5a: rich universe fields
+  lore?: string | null;
+  franchise_type?:
+    | "cinematic_universe"
+    | "franchise"
+    | "anthology"
+    | "shared_universe"
+    | "multiverse"
+    | null;
+  viewing_order_guide?: string | null;
+  color_theme?: string | null;
+  total_entries?: number | null;
 }
 
 /**
@@ -229,7 +241,13 @@ export async function POST(event: APIEvent) {
       default_view: normalizeDefaultView(body.default_view),
       color: body.color ?? null,
       cover_url: body.cover_url ?? null,
-      banner_url: body.banner_url ?? null
+      banner_url: body.banner_url ?? null,
+      // Phase 9 Chunk 5a: rich universe fields (null-safe)
+      lore: body.lore ?? null,
+      franchise_type: body.franchise_type ?? "franchise",
+      viewing_order_guide: body.viewing_order_guide ?? null,
+      color_theme: body.color_theme ?? null,
+      total_entries: body.total_entries ?? 0
     };
 
     const supabase = createAdminClient();
@@ -311,7 +329,13 @@ export async function PATCH(event: APIEvent) {
       "default_view",
       "color",
       "cover_url",
-      "banner_url"
+      "banner_url",
+      // Phase 9 Chunk 5a: rich universe fields
+      "lore",
+      "franchise_type",
+      "viewing_order_guide",
+      "color_theme",
+      "total_entries"
     ] as const) {
       if (body[key] !== undefined) {
         update[key] =

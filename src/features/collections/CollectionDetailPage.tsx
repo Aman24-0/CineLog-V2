@@ -20,11 +20,13 @@ import { useToast } from "~/shared/hooks/useToast";
 import {
   fetchCuratedUniverseBySlug,
   fetchPhasesForUniverse,
+  fetchViewingOrdersForUniverse,
+  withCustomViewingOrders,
   withPhases
 } from "./curatedUniverseAdapter";
-import { useUniversePrefsLogic } from "./hooks/useUniversePrefs";
 import { useCuratedUniverses } from "./hooks/useCuratedUniverses";
 import UniverseDashboard from "./components/UniverseDashboard";
+import RichUniverseHub from "./components/RichUniverseHub";
 import TimelineEngine from "./components/TimelineEngine";
 import CollectionActionBar from "./components/CollectionActionBar";
 import CollectionSortFilter from "./components/CollectionSortFilter";
@@ -109,12 +111,12 @@ export default function CollectionDetailPage() {
     unarchiveCollection,
     deleteCollection,
     duplicateCollection,
-    resolveSmartCollection
+    resolveSmartCollection,
+    removeUniverseFromPrefs
   } = useCollections();
   const { openTitle } = useModalState();
   const { showToast } = useToast();
-  const { removeUniverseFromPrefs } = useUniversePrefsLogic();
-  const { refresh: refreshUniverses } = useCuratedUniverses();
+  const { refresh: refreshUniverses, removeSubscribedUniverse } = useCuratedUniverses();
 
   const [activeOrder, setActiveOrder] =
     createSignal<ViewingOrder>("chronological");
@@ -325,15 +327,22 @@ export default function CollectionDetailPage() {
 
       if (curated) {
         // 4. For curated universes, also fetch admin-authored phase
-        //    dividers from the `universe_phases` table. These are
-        //    rendered as section headers in the TimelineEngine.
-        const universePhases = await fetchPhasesForUniverse(curated.id);
+        //    dividers from the `universe_phases` table AND custom
+        //    viewing orders from `universe_viewing_orders` (Phase 9
+        //    Chunk 5a). Both are rendered in the user-side UI.
+        const [universePhases, viewingOrders] = await Promise.all([
+          fetchPhasesForUniverse(curated.id),
+          fetchViewingOrdersForUniverse(curated.id)
+        ]);
         if (myEpoch !== resolveEpoch) return;
-        setCollection(
-          universePhases.length > 0
-            ? withPhases(curated, universePhases)
-            : curated
-        );
+        let enriched = curated;
+        if (universePhases.length > 0) {
+          enriched = withPhases(enriched, universePhases);
+        }
+        if (viewingOrders.length > 0) {
+          enriched = withCustomViewingOrders(enriched, viewingOrders);
+        }
+        setCollection(enriched);
         setPhases(universePhases);
       } else {
         setNotFound(true);
@@ -413,8 +422,19 @@ export default function CollectionDetailPage() {
   const confirmUnsubscribe = async () => {
     const target = unsubscribeTarget();
     if (!target) return;
-    await removeUniverseFromPrefs(target.id);
-    await refreshUniverses();
+    // Phase 9 Chunk 5a: Optimistic removal — drop the universe from the
+    // shared subscribedUniverses signal immediately so the Collections
+    // grid updates without waiting for the refetch.
+    removeSubscribedUniverse(target.id);
+    try {
+      await removeUniverseFromPrefs(target.id);
+      await refreshUniverses();
+    } catch (err) {
+      console.error("[CollectionDetailPage] Unsubscribe failed:", err);
+      // On error, the refresh above won't have run; force a refresh to
+      // reconcile the optimistic removal with the server state.
+      await refreshUniverses();
+    }
     setUnsubscribeTarget(null);
     showToast(`Unsubscribed from "${target.name}"`, "success");
     navigate("/collections");
@@ -847,6 +867,30 @@ export default function CollectionDetailPage() {
                   : undefined
               }
             />
+
+            {/* Phase 9 Chunk 5a: Rich Universe Hub — renders lore,
+                viewing_order_guide, custom viewing order selector,
+                sub-universe filter, and an enhanced entry grid with
+                story notes, key events, and entry point badges.
+                Only rendered when the universe has Phase 9 Chunk 5a
+                rich data (lore, viewing_order_guide, or custom
+                viewing orders). Universes without that data fall
+                through to the existing TimelineEngine below. */}
+            <Show
+              when={
+                collection()?.type === "curated" &&
+                (
+                  collection()?.lore ||
+                  collection()?.viewingOrderGuide ||
+                  (collection()?.customViewingOrders ?? []).length > 0 ||
+                  (collection()?.entries ?? []).some(
+                    (e) => e.storyNote || (e.keyEvents && e.keyEvents.length > 0) || e.isEntryPoint
+                  )
+                )
+              }
+            >
+              <RichUniverseHub collection={collection()!} />
+            </Show>
 
             {/* Row 1: Action Bar */}
             <CollectionActionBar

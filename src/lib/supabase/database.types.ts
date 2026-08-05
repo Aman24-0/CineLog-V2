@@ -168,31 +168,51 @@ export type Database = {
           created_at: string;
           id: string;
           incident_year: number | null;
+          /** Phase 9 Chunk 5a: key story beats for this entry (e.g. "First Infinity Stone"). */
+          key_events: string[];
+          /** Phase 9 Chunk 5a: marks a recommended starting point for new viewers. */
+          is_entry_point: boolean;
           media_type: Database["public"]["Enums"]["media_type"];
           note: string | null;
           position: number;
+          /** Phase 9 Chunk 5a: which sub-universe this entry belongs to (e.g. "Earth-616", "What If...?"). */
+          sub_universe: string;
+          /** Phase 9 Chunk 5a: where this entry fits in the story. */
+          story_note: string | null;
           tmdb_id: number;
           universe_id: string;
+          /** Phase 9 Chunk 5a: admin-defined viewing order within the universe. */
+          viewing_order: number;
         };
         Insert: {
           created_at?: string;
           id?: string;
           incident_year?: number | null;
+          key_events?: string[];
+          is_entry_point?: boolean;
           media_type: Database["public"]["Enums"]["media_type"];
           note?: string | null;
           position?: number;
+          sub_universe?: string;
+          story_note?: string | null;
           tmdb_id: number;
           universe_id: string;
+          viewing_order?: number;
         };
         Update: {
           created_at?: string;
           id?: string;
           incident_year?: number | null;
+          key_events?: string[];
+          is_entry_point?: boolean;
           media_type?: Database["public"]["Enums"]["media_type"];
           note?: string | null;
           position?: number;
+          sub_universe?: string;
+          story_note?: string | null;
           tmdb_id?: number;
           universe_id?: string;
+          viewing_order?: number;
         };
         Relationships: [
           {
@@ -208,38 +228,58 @@ export type Database = {
         Row: {
           banner_url: string | null;
           color: string | null;
+          /** Phase 9 Chunk 5a: optional accent color override for the universe hub. */
+          color_theme: string | null;
           cover_url: string | null;
           created_at: string;
           default_view: Database["public"]["Enums"]["universe_default_view_type"];
           description: string | null;
+          /** Phase 9 Chunk 5a: universe classification (cinematic_universe, franchise, anthology, shared_universe, multiverse). */
+          franchise_type: string | null;
           id: string;
+          /** Phase 9 Chunk 5a: rich text lore / background paragraph. */
+          lore: string | null;
           name: string;
           slug: string;
+          /** Phase 9 Chunk 5a: total number of entries (denormalized for fast display). */
+          total_entries: number;
           updated_at: string;
+          /** Phase 9 Chunk 5a: admin-written recommended viewing guide. */
+          viewing_order_guide: string | null;
         };
         Insert: {
           banner_url?: string | null;
           color?: string | null;
+          color_theme?: string | null;
           cover_url?: string | null;
           created_at?: string;
           default_view?: Database["public"]["Enums"]["universe_default_view_type"];
           description?: string | null;
+          franchise_type?: string | null;
           id?: string;
+          lore?: string | null;
           name: string;
           slug: string;
+          total_entries?: number;
           updated_at?: string;
+          viewing_order_guide?: string | null;
         };
         Update: {
           banner_url?: string | null;
           color?: string | null;
+          color_theme?: string | null;
           cover_url?: string | null;
           created_at?: string;
           default_view?: Database["public"]["Enums"]["universe_default_view_type"];
           description?: string | null;
+          franchise_type?: string | null;
           id?: string;
+          lore?: string | null;
           name?: string;
           slug?: string;
+          total_entries?: number;
           updated_at?: string;
+          viewing_order_guide?: string | null;
         };
         Relationships: [];
       };
@@ -255,6 +295,14 @@ export type Database = {
           order_index: number;
           created_at: string;
           updated_at: string;
+          /** Phase 9 Chunk 5a: phase cover image URL. */
+          cover_url: string | null;
+          /** Phase 9 Chunk 5a: phase-specific lore / backstory. */
+          lore: string | null;
+          /** Phase 9 Chunk 5a: sub-universe label (e.g. "Earth-616", "What If...?", "TV Series"). Defaults to 'main'. */
+          sub_universe: string;
+          /** Phase 9 Chunk 5a: order in which to watch the phases. */
+          viewing_order: number;
         };
         Insert: {
           id?: string;
@@ -266,6 +314,10 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          cover_url?: string | null;
+          lore?: string | null;
+          sub_universe?: string;
+          viewing_order?: number;
         };
         Update: {
           id?: string;
@@ -277,6 +329,10 @@ export type Database = {
           order_index?: number;
           created_at?: string;
           updated_at?: string;
+          cover_url?: string | null;
+          lore?: string | null;
+          sub_universe?: string;
+          viewing_order?: number;
         };
         Relationships: [];
       };
@@ -676,6 +732,83 @@ export type Database = {
             columns: ["user_id"];
             isOneToOne: false;
             referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      universe_viewing_order_entries: {
+        Row: {
+          id: string;
+          order_id: string;
+          entry_id: string;
+          position: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          order_id: string;
+          entry_id: string;
+          position: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          order_id?: string;
+          entry_id?: string;
+          position?: number;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "universe_viewing_order_entries_order_id_fkey";
+            columns: ["order_id"];
+            isOneToOne: false;
+            referencedRelation: "universe_viewing_orders";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "universe_viewing_order_entries_entry_id_fkey";
+            columns: ["entry_id"];
+            isOneToOne: false;
+            referencedRelation: "curated_universe_entries";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
+      universe_viewing_orders: {
+        Row: {
+          id: string;
+          universe_id: string;
+          name: string;
+          description: string | null;
+          is_default: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          universe_id: string;
+          name: string;
+          description?: string | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          universe_id?: string;
+          name?: string;
+          description?: string | null;
+          is_default?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "universe_viewing_orders_universe_id_fkey";
+            columns: ["universe_id"];
+            isOneToOne: false;
+            referencedRelation: "curated_universes";
             referencedColumns: ["id"];
           }
         ];

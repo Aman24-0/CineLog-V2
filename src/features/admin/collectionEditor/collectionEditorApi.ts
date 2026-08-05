@@ -11,7 +11,7 @@
 // request. Errors are surfaced as thrown Error instances with the
 // server-provided message (or a fallback HTTP-status-based message).
 
-import type { AdminEntry, AdminUniverse } from "./types";
+import type { AdminEntry, AdminUniverse, AdminViewingOrder } from "./types";
 import { isUuid } from "./sortUtils";
 
 /**
@@ -199,6 +199,11 @@ export async function saveUniverseMetadata(
     color: string;
     cover_url: string;
     banner_url: string;
+    // Phase 9 Chunk 5a: rich universe fields
+    lore: string;
+    franchise_type: AdminUniverse["franchise_type"];
+    viewing_order_guide: string;
+    color_theme: string;
   }
 ): Promise<AdminUniverse> {
   const resp = await fetch("/api/admin/collections", {
@@ -213,7 +218,11 @@ export async function saveUniverseMetadata(
       default_view: form.default_view,
       color: form.color || null,
       cover_url: form.cover_url || null,
-      banner_url: form.banner_url || null
+      banner_url: form.banner_url || null,
+      lore: form.lore || null,
+      franchise_type: form.franchise_type ?? "franchise",
+      viewing_order_guide: form.viewing_order_guide || null,
+      color_theme: form.color_theme || null
     })
   });
   const body = await resp.json().catch(() => ({}));
@@ -231,7 +240,130 @@ export async function saveUniverseMetadata(
       default_view: form.default_view,
       color: form.color || null,
       cover_url: form.cover_url || null,
-      banner_url: form.banner_url || null
+      banner_url: form.banner_url || null,
+      lore: form.lore || null,
+      franchise_type: form.franchise_type ?? "franchise",
+      viewing_order_guide: form.viewing_order_guide || null,
+      color_theme: form.color_theme || null,
+      total_entries: null,
+      created_at: "",
+      updated_at: ""
     }
   );
+}
+
+// =========================================================================
+// Phase 9 Chunk 5a: Viewing Orders API
+// =========================================================================
+
+/**
+ * Fetch all viewing orders for a universe.
+ */
+export async function fetchViewingOrders(
+  universeId: string
+): Promise<AdminViewingOrder[]> {
+  const resp = await fetch(
+    `/api/admin/viewing-orders?universe_id=${encodeURIComponent(universeId)}`,
+    { credentials: "include" }
+  );
+  if (!resp.ok) {
+    throw new Error(`Failed to load viewing orders (HTTP ${resp.status})`);
+  }
+  const data = await resp.json();
+  return (data.orders ?? []) as AdminViewingOrder[];
+}
+
+/**
+ * Create a new viewing order.
+ */
+export async function createViewingOrder(
+  universeId: string,
+  form: {
+    name: string;
+    description: string;
+    is_default: boolean;
+    entry_ids?: string[];
+  }
+): Promise<AdminViewingOrder> {
+  const resp = await fetch("/api/admin/viewing-orders", {
+    method: "POST",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      universe_id: universeId,
+      name: form.name.trim(),
+      description: form.description || null,
+      is_default: form.is_default,
+      entry_ids: form.entry_ids ?? []
+    })
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok || body.error) {
+    throw new Error(body.error || "Failed to create viewing order");
+  }
+  return body.order as AdminViewingOrder;
+}
+
+/**
+ * Update an existing viewing order's metadata (name, description, is_default).
+ */
+export async function updateViewingOrder(
+  orderId: string,
+  form: {
+    name?: string;
+    description?: string;
+    is_default?: boolean;
+  }
+): Promise<AdminViewingOrder> {
+  const resp = await fetch("/api/admin/viewing-orders", {
+    method: "PATCH",
+    credentials: "include",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ id: orderId, ...form })
+  });
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok || body.error) {
+    throw new Error(body.error || "Failed to update viewing order");
+  }
+  return body.order as AdminViewingOrder;
+}
+
+/**
+ * Reorder the entries within a viewing order.
+ * Accepts the new full ordering of entry IDs; the server wipes and re-inserts.
+ */
+export async function reorderViewingOrderEntries(
+  orderId: string,
+  entryIds: string[]
+): Promise<void> {
+  const resp = await fetch(
+    `/api/admin/viewing-orders?id=${encodeURIComponent(orderId)}`,
+    {
+      method: "PUT",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ entry_ids: entryIds })
+    }
+  );
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok || body.error) {
+    throw new Error(body.error || "Failed to reorder viewing order");
+  }
+}
+
+/**
+ * Delete a viewing order. Cascade-removes its join rows.
+ */
+export async function deleteViewingOrder(orderId: string): Promise<void> {
+  const resp = await fetch(
+    `/api/admin/viewing-orders?id=${encodeURIComponent(orderId)}`,
+    {
+      method: "DELETE",
+      credentials: "include"
+    }
+  );
+  const body = await resp.json().catch(() => ({}));
+  if (!resp.ok || body.error) {
+    throw new Error(body.error || "Failed to delete viewing order");
+  }
 }

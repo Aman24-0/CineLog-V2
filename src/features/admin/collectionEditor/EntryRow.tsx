@@ -23,7 +23,7 @@
 // The row is "controlled" — it calls back up to the parent for any
 // mutation. Local state is used only for the edit-form fields.
 
-import { Show, createSignal, type Component } from "solid-js";
+import { Show, For, createSignal, type Component } from "solid-js";
 import { posterUrl, releaseYear, type AdminEntry } from "./types";
 
 interface Props {
@@ -46,6 +46,12 @@ const EntryRow: Component<Props> = (props) => {
   // Edit-form state (only populated when editing starts)
   const [fIncidentYear, setFIncidentYear] = createSignal<string>("");
   const [fNote, setFNote] = createSignal("");
+  // Phase 9 Chunk 5a: rich entry fields
+  const [fSubUniverse, setFSubUniverse] = createSignal("");
+  const [fViewingOrder, setFViewingOrder] = createSignal<string>("");
+  const [fStoryNote, setFStoryNote] = createSignal("");
+  const [fKeyEvents, setFKeyEvents] = createSignal("");
+  const [fIsEntryPoint, setFIsEntryPoint] = createSignal(false);
 
   const startEdit = () => {
     setFIncidentYear(
@@ -54,6 +60,15 @@ const EntryRow: Component<Props> = (props) => {
         : ""
     );
     setFNote(props.entry.note ?? "");
+    setFSubUniverse(props.entry.sub_universe ?? "main");
+    setFViewingOrder(
+      props.entry.viewing_order !== null
+        ? String(props.entry.viewing_order)
+        : ""
+    );
+    setFStoryNote(props.entry.story_note ?? "");
+    setFKeyEvents((props.entry.key_events ?? []).join(", "));
+    setFIsEntryPoint(props.entry.is_entry_point === true);
     setEditing(true);
   };
 
@@ -71,9 +86,26 @@ const EntryRow: Component<Props> = (props) => {
         const n = parseInt(raw, 10);
         incidentYear = Number.isFinite(n) ? n : null;
       }
+      // Parse viewing_order — empty string means "0" (default).
+      const voRaw = fViewingOrder().trim();
+      let viewingOrder: number | null = null;
+      if (voRaw) {
+        const n = parseInt(voRaw, 10);
+        viewingOrder = Number.isFinite(n) ? n : null;
+      }
+      // Parse key_events — comma-separated string → string[].
+      const keyEvents = fKeyEvents()
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
       await props.onSave(props.entry, {
         incident_year: incidentYear,
-        note: fNote().trim() || null
+        note: fNote().trim() || null,
+        sub_universe: fSubUniverse().trim() || "main",
+        viewing_order: viewingOrder ?? 0,
+        story_note: fStoryNote().trim() || null,
+        key_events: keyEvents,
+        is_entry_point: fIsEntryPoint()
       });
       setEditing(false);
     } finally {
@@ -229,14 +261,14 @@ const EntryRow: Component<Props> = (props) => {
           <span style={{ opacity: 0.7 }}>TMDB {props.entry.tmdb_id}</span>
         </div>
 
-        {/* Display / edit incident_year + note */}
+        {/* Display / edit incident_year + note + Phase 9 Chunk 5a rich fields */}
         <Show
           when={editing()}
           fallback={
             <div
               style={{
                 display: "flex",
-                gap: "var(--sp-3)",
+                gap: "var(--sp-2) var(--sp-3)",
                 "margin-top": "var(--sp-2)",
                 "font-size": "0.7rem",
                 color: "var(--text-muted)",
@@ -252,9 +284,68 @@ const EntryRow: Component<Props> = (props) => {
                     : "—"}
                 </strong>
               </span>
+              <Show when={props.entry.sub_universe && props.entry.sub_universe !== "main"}>
+                <span
+                  style={{
+                    padding: "1px 6px",
+                    "border-radius": "3px",
+                    background:
+                      "color-mix(in srgb, var(--p, #7c3aed) 18%, transparent)",
+                    color: "var(--text)",
+                    "font-weight": 600
+                  }}
+                >
+                  {props.entry.sub_universe}
+                </span>
+              </Show>
+              <Show when={props.entry.is_entry_point}>
+                <span
+                  style={{
+                    padding: "1px 6px",
+                    "border-radius": "3px",
+                    background: "rgba(34, 197, 94, 0.2)",
+                    color: "rgb(134, 239, 172)",
+                    "font-weight": 600
+                  }}
+                  title="Recommended starting point for new viewers"
+                >
+                  ★ Entry Point
+                </span>
+              </Show>
+              <Show when={props.entry.viewing_order !== null && props.entry.viewing_order !== 0}>
+                <span>Order: {props.entry.viewing_order}</span>
+              </Show>
               <Show when={props.entry.note}>
                 <span style={{ "font-style": "italic", opacity: 0.85 }}>
                   📝 {props.entry.note}
+                </span>
+              </Show>
+              <Show when={props.entry.story_note}>
+                <span style={{ "font-style": "italic", opacity: 0.85 }}>
+                  📖 {props.entry.story_note}
+                </span>
+              </Show>
+              <Show when={(props.entry.key_events ?? []).length > 0}>
+                <span style={{ display: "inline-flex", gap: "4px", "flex-wrap": "wrap" }}>
+                  <For each={(props.entry.key_events ?? []).slice(0, 3)}>
+                    {(ev) => (
+                      <span
+                        style={{
+                          padding: "1px 6px",
+                          "border-radius": "3px",
+                          background: "var(--tier-3, rgba(255,255,255,0.04))",
+                          border: "1px solid var(--hairline)"
+                        }}
+                      >
+                        {ev}
+                      </span>
+                    )}
+                  </For>
+                  <Show when={(props.entry.key_events ?? []).length > 3}>
+                    <span style={{ opacity: 0.7 }}>
+                      +{(props.entry.key_events ?? []).length - 3} more
+                    </span>
+                  </Show>
                 </span>
               </Show>
             </div>
@@ -262,11 +353,10 @@ const EntryRow: Component<Props> = (props) => {
         >
           <div
             style={{
-              display: "flex",
-              gap: "var(--sp-3)",
-              "margin-top": "var(--sp-2)",
-              "align-items": "end",
-              "flex-wrap": "wrap"
+              display: "grid",
+              "grid-template-columns": "repeat(auto-fit, minmax(140px, 1fr))",
+              gap: "var(--sp-2)",
+              "margin-top": "var(--sp-2)"
             }}
           >
             <div>
@@ -279,7 +369,96 @@ const EntryRow: Component<Props> = (props) => {
                 style={numInputStyle}
               />
             </div>
-            <div style={{ flex: 1, "min-width": "180px" }}>
+            <div>
+              <div style={labelStyle}>Viewing order</div>
+              <input
+                type="number"
+                value={fViewingOrder()}
+                onInput={(e) => setFViewingOrder(e.currentTarget.value)}
+                placeholder="0"
+                style={numInputStyle}
+              />
+            </div>
+            <div>
+              <div style={labelStyle}>Sub-universe</div>
+              <input
+                type="text"
+                value={fSubUniverse()}
+                onInput={(e) => setFSubUniverse(e.currentTarget.value)}
+                placeholder="main"
+                style={{
+                  width: "100%",
+                  padding: "var(--sp-1) var(--sp-2)",
+                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  border: "1px solid var(--hairline)",
+                  "border-radius": "var(--radius-sm)",
+                  color: "var(--text)",
+                  "font-size": "0.75rem",
+                  "box-sizing": "border-box"
+                }}
+              />
+            </div>
+            <div style={{ display: "flex", "align-items": "flex-end", gap: "var(--sp-2)" }}>
+              <label
+                style={{
+                  display: "flex",
+                  "align-items": "center",
+                  gap: "4px",
+                  "font-size": "0.7rem",
+                  color: "var(--text-muted)",
+                  cursor: "pointer",
+                  "padding-bottom": "4px"
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={fIsEntryPoint()}
+                  onChange={(e) => setFIsEntryPoint(e.currentTarget.checked)}
+                />
+                Entry point
+              </label>
+            </div>
+            <div style={{ "grid-column": "1 / -1" }}>
+              <div style={labelStyle}>Story note (where this fits in the story)</div>
+              <textarea
+                value={fStoryNote()}
+                onInput={(e) => setFStoryNote(e.currentTarget.value)}
+                placeholder="e.g. Takes place after Civil War, before Infinity War. Black Widow's origin story."
+                style={{
+                  width: "100%",
+                  "min-height": "50px",
+                  resize: "vertical",
+                  padding: "var(--sp-1) var(--sp-2)",
+                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  border: "1px solid var(--hairline)",
+                  "border-radius": "var(--radius-sm)",
+                  color: "var(--text)",
+                  "font-size": "0.75rem",
+                  "box-sizing": "border-box",
+                  "font-family": "inherit"
+                }}
+              />
+            </div>
+            <div style={{ "grid-column": "1 / -1" }}>
+              <div style={labelStyle}>Key events (comma-separated)</div>
+              <input
+                type="text"
+                value={fKeyEvents()}
+                onInput={(e) => setFKeyEvents(e.currentTarget.value)}
+                placeholder="First Infinity Stone, Nick Fury introduced, Post-credit: Avengers initiative"
+                style={{
+                  width: "100%",
+                  padding: "var(--sp-1) var(--sp-2)",
+                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  border: "1px solid var(--hairline)",
+                  "border-radius": "var(--radius-sm)",
+                  color: "var(--text)",
+                  "font-size": "0.75rem",
+                  "box-sizing": "border-box"
+                }}
+              />
+            </div>
+            <div style={{ "grid-column": "1 / -1" }}>
               <div style={labelStyle}>Note (admin only)</div>
               <input
                 type="text"

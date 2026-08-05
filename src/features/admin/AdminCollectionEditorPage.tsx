@@ -65,9 +65,11 @@ import { useParams, useNavigate, A } from "@solidjs/router";
 import TmdbSearchModal from "./collectionEditor/TmdbSearchModal";
 import EntryRow from "./collectionEditor/EntryRow";
 import UniversePhasesPanel from "./collectionEditor/UniversePhasesPanel";
+import ViewingOrderBuilder from "./collectionEditor/ViewingOrderBuilder";
 import {
   type AdminUniverse,
   type AdminEntry,
+  type AdminViewingOrder,
   type SortMode
 } from "./collectionEditor/types";
 import {
@@ -94,7 +96,8 @@ import {
   addEntryFromTmdb,
   saveEntry,
   deleteEntry,
-  saveUniverseMetadata
+  saveUniverseMetadata,
+  fetchViewingOrders
 } from "./collectionEditor/collectionEditorApi";
 
 const AdminCollectionEditorPage: Component = () => {
@@ -103,6 +106,9 @@ const AdminCollectionEditorPage: Component = () => {
 
   const [universe, setUniverse] = createSignal<AdminUniverse | null>(null);
   const [entries, setEntries] = createSignal<AdminEntry[]>([]);
+  const [viewingOrders, setViewingOrders] = createSignal<AdminViewingOrder[]>(
+    []
+  );
   const [subscriberCount, setSubscriberCount] = createSignal<number | null>(
     null
   );
@@ -118,6 +124,8 @@ const AdminCollectionEditorPage: Component = () => {
   const [savingMeta, setSavingMeta] = createSignal(false);
 
   // Metadata form state (populated when the meta panel is opened)
+  // Phase 9 Chunk 5a: extended with lore, franchise_type, viewing_order_guide,
+  // color_theme.
   const [metaForm, setMetaForm] = createSignal({
     name: "",
     slug: "",
@@ -125,7 +133,13 @@ const AdminCollectionEditorPage: Component = () => {
     default_view: "timeline" as AdminUniverse["default_view"],
     color: "",
     cover_url: "",
-    banner_url: ""
+    banner_url: "",
+    lore: "",
+    franchise_type: "franchise" as NonNullable<
+      AdminUniverse["franchise_type"]
+    >,
+    viewing_order_guide: "",
+    color_theme: ""
   });
 
   const showToast = (msg: string, type: "success" | "error") => {
@@ -150,12 +164,28 @@ const AdminCollectionEditorPage: Component = () => {
         default_view: u.default_view,
         color: u.color ?? "",
         cover_url: u.cover_url ?? "",
-        banner_url: u.banner_url ?? ""
+        banner_url: u.banner_url ?? "",
+        lore: u.lore ?? "",
+        franchise_type: u.franchise_type ?? "franchise",
+        viewing_order_guide: u.viewing_order_guide ?? "",
+        color_theme: u.color_theme ?? ""
       });
       const ents = await fetchEntries(u.id);
       setEntries(ents);
-      const subs = await fetchSubscriberCount(u.id);
+      // Phase 9 Chunk 5a: fetch viewing orders in parallel with the
+      // subscriber count. Failures are non-fatal.
+      const [subs, orders] = await Promise.all([
+        fetchSubscriberCount(u.id),
+        fetchViewingOrders(u.id).catch((e) => {
+          console.error(
+            "[AdminCollectionEditorPage] Failed to load viewing orders:",
+            e
+          );
+          return [] as AdminViewingOrder[];
+        })
+      ]);
       setSubscriberCount(subs);
+      setViewingOrders(orders);
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Unknown error";
       setError(msg);
@@ -497,6 +527,116 @@ const AdminCollectionEditorPage: Component = () => {
                 placeholder="https://…"
               />
             </Field>
+
+            {/* Phase 9 Chunk 5a: rich universe fields */}
+            <Field
+              label="Lore / Background"
+              hint={`${metaForm().lore.length} characters — aim for 200+ for a rich universe page`}
+            >
+              <textarea
+                style={{
+                  ...inputStyle,
+                  "min-height": "120px",
+                  resize: "vertical",
+                  "font-family": "inherit"
+                }}
+                value={metaForm().lore}
+                onInput={(e) =>
+                  setMetaForm({
+                    ...metaForm(),
+                    lore: e.currentTarget.value
+                  })
+                }
+                placeholder="The rich backstory of this universe. Shown prominently on the user-side universe hub. e.g. 'The Marvel Cinematic Universe is a media franchise and shared universe centered on a series of superhero films…'"
+              />
+            </Field>
+
+            <div
+              style={{
+                display: "grid",
+                "grid-template-columns": "1fr 1fr",
+                gap: "var(--sp-3)",
+                "margin-top": "var(--sp-3)"
+              }}
+              class="md:grid-cols-2"
+            >
+              <Field label="Franchise Type">
+                <select
+                  style={inputStyle}
+                  value={metaForm().franchise_type}
+                  onChange={(e) =>
+                    setMetaForm({
+                      ...metaForm(),
+                      franchise_type: e.currentTarget
+                        .value as NonNullable<AdminUniverse["franchise_type"]>
+                    })
+                  }
+                >
+                  <option value="cinematic_universe">
+                    Cinematic Universe
+                  </option>
+                  <option value="franchise">Franchise</option>
+                  <option value="anthology">Anthology</option>
+                  <option value="shared_universe">Shared Universe</option>
+                  <option value="multiverse">Multiverse</option>
+                </select>
+              </Field>
+              <Field label="Color Theme (override accent)">
+                <input
+                  style={inputStyle}
+                  type="color"
+                  value={metaForm().color_theme || "#7c3aed"}
+                  onInput={(e) =>
+                    setMetaForm({
+                      ...metaForm(),
+                      color_theme: e.currentTarget.value
+                    })
+                  }
+                />
+              </Field>
+            </div>
+
+            <Field label="Viewing Order Guide (admin-written recommendation)">
+              <textarea
+                style={{
+                  ...inputStyle,
+                  "min-height": "80px",
+                  resize: "vertical",
+                  "font-family": "inherit"
+                }}
+                value={metaForm().viewing_order_guide}
+                onInput={(e) =>
+                  setMetaForm({
+                    ...metaForm(),
+                    viewing_order_guide: e.currentTarget.value
+                  })
+                }
+                placeholder="A short admin-written guide that appears in a styled callout on the universe hub. e.g. 'For first-time viewers, start with Iron Man (2008) and follow the release order. The Storyline order is best for re-watches.'"
+              />
+            </Field>
+
+            {/* Live count of entries — auto-derived, read-only display. */}
+            <div
+              style={{
+                "margin-top": "var(--sp-3)",
+                padding: "var(--sp-2) var(--sp-3)",
+                "border-radius": "var(--radius-md)",
+                background: "var(--tier-2, rgba(255,255,255,0.02))",
+                border: "1px solid var(--hairline)",
+                "font-size": "0.8rem",
+                color: "var(--text-muted)",
+                display: "flex",
+                "justify-content": "space-between",
+                "align-items": "center",
+                "flex-wrap": "wrap",
+                gap: "var(--sp-2)"
+              }}
+            >
+              <span>Total entries (auto-calculated)</span>
+              <strong style={{ color: "var(--text)" }}>
+                {entries().length}
+              </strong>
+            </div>
             <div
               style={{
                 display: "flex",
@@ -569,6 +709,21 @@ const AdminCollectionEditorPage: Component = () => {
           <UniversePhasesPanel
             universeId={universe()!.id}
             entries={entries()}
+          />
+        </Show>
+
+        {/* Phase 9 Chunk 5a: Viewing Order Builder — admin-defined custom
+            viewing orders (e.g. "Release Order", "Chronological Order",
+            "Machete Order"). Each order is a list of entry row IDs in a
+            specific sequence. Users see these as a dropdown on the
+            universe hub. */}
+        <Show when={universe()}>
+          <ViewingOrderBuilder
+            universeId={universe()!.id}
+            entries={entries()}
+            orders={viewingOrders()}
+            onOrdersChange={setViewingOrders}
+            showToast={showToast}
           />
         </Show>
 
