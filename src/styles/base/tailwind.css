@@ -1,6 +1,17 @@
 /* src/styles/base/tailwind.css — Phase 14.2 CSS architecture */
 /* Extracted from globals.css — zero CSS modifications */
+/* ───────────────────────────────────────────────────────────────────── */
+/* PHASE 8 CHUNK 3 — TAILWIND v3 → v4 UPGRADE                                  */
+/* ───────────────────────────────────────────────────────────────────── */
+/* Tailwind v4 replaces the three @tailwind directives with a single
+   @import "tailwindcss" statement. The single import pulls in base +
+   components + utilities in the correct order.
+   
+   The @config directive tells Tailwind v4 to keep reading the legacy
+   tailwind.config.js (so the project's theme tokens — fontFamily,
+   fontSize, colors, etc. — continue to work without rewriting them
+   in the new CSS-first @theme syntax). This is the recommended
+   migration path for existing projects per the Tailwind v4 docs. */
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import "tailwindcss";
+@config "../../../../tailwind.config.js";

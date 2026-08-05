@@ -28,6 +28,30 @@
 //     see (read-only).
 //   • Back button → returns to /admin/collections (the list page),
 //     NOT to the consumer collection page.
+//
+// ─────────────────────────────────────────────────────────────────────
+// PHASE 8 CHUNK 3 — FILE SPLIT
+// ─────────────────────────────────────────────────────────────────────
+// This file was previously 1045 LOC. As of Phase 8 Chunk 3 it has been
+// split into focused sub-modules under ./collectionEditor/:
+//
+//   • sortUtils.ts            → SORT_MODES, deriveFranchise, sortEntries,
+//                               groupByFranchise, leftBadgeFor, isUuid
+//   • editorStyles.tsx        → Field, toastStyle, cardStyle, inputStyle,
+//                               btnPrimaryStyle, btnSecondaryStyle,
+//                               sortBtn, sortBtnActive, alertErrorStyle
+//   • collectionEditorApi.ts  → resolveUniverse, fetchEntries,
+//                               fetchSubscriberCount, addEntryFromTmdb,
+//                               saveEntry, deleteEntry,
+//                               saveUniverseMetadata
+//   • types.ts                → AdminUniverse, AdminEntry, SortMode
+//                               (already existed)
+//   • EntryRow.tsx            → entry row sub-component (already existed)
+//   • TmdbSearchModal.tsx     → TMDB search modal (already existed)
+//   • UniversePhasesPanel.tsx → phase dividers panel (already existed)
+//
+// The page component now focuses purely on state + render.
+// ─────────────────────────────────────────────────────────────────────
 
 import {
   createSignal,
@@ -35,8 +59,7 @@ import {
   For,
   onMount,
   createMemo,
-  type Component,
-  type JSX
+  type Component
 } from "solid-js";
 import { useParams, useNavigate, A } from "@solidjs/router";
 import TmdbSearchModal from "./collectionEditor/TmdbSearchModal";
@@ -47,22 +70,32 @@ import {
   type AdminEntry,
   type SortMode
 } from "./collectionEditor/types";
-
-/**
- * The 3 unified sort modes — same labels as the consumer side
- * (see UNIVERSE_VIEWING_ORDERS in curatedUniverseAdapter.ts).
- *
- *   - "story"     → Storyline    (sort by incident_year)
- *   - "release"   → Release Year (sort by TMDB release_date)
- *   - "franchise" → Franchise    (group by title-derived franchise,
- *                                 then sort within each group by
- *                                 incident_year)
- */
-const SORT_MODES: { id: SortMode; label: string }[] = [
-  { id: "story", label: "Storyline" },
-  { id: "release", label: "Release Year" },
-  { id: "franchise", label: "Franchise" }
-];
+import {
+  SORT_MODES,
+  sortEntries,
+  groupByFranchise,
+  leftBadgeFor
+} from "./collectionEditor/sortUtils";
+import {
+  Field,
+  toastStyle,
+  cardStyle,
+  alertErrorStyle,
+  inputStyle,
+  btnPrimaryStyle,
+  btnSecondaryStyle,
+  sortBtn,
+  sortBtnActive
+} from "./collectionEditor/editorStyles";
+import {
+  resolveUniverse,
+  fetchEntries,
+  fetchSubscriberCount,
+  addEntryFromTmdb,
+  saveEntry,
+  deleteEntry,
+  saveUniverseMetadata
+} from "./collectionEditor/collectionEditorApi";
 
 const AdminCollectionEditorPage: Component = () => {
   const params = useParams();
@@ -100,89 +133,11 @@ const AdminCollectionEditorPage: Component = () => {
     setTimeout(() => setToast(null), 2800);
   };
 
-  // Resolve the universe. params.id may be a slug (preferred) or a UUID
-  // — the API accepts either; we use the GET ?id=… form which currently
-  // expects a UUID. To support slug-based URLs we list all universes
-  // first and find by slug. (Trade-off: one extra round-trip; cleaner
-  // URLs in the admin address bar.)
-  const resolveUniverse = async (): Promise<{
-    universe: AdminUniverse | null;
-    lookupError: string | null;
-  }> => {
-    const idOrSlug = params.id;
-    if (!idOrSlug)
-      return { universe: null, lookupError: "No universe id in URL." };
-
-    // Try UUID first (cheap path — single fetch).
-    const isUuid =
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(
-        idOrSlug
-      );
-    if (isUuid) {
-      const resp = await fetch(
-        `/api/admin/collections?id=${encodeURIComponent(idOrSlug)}`,
-        {
-          credentials: "include"
-        }
-      );
-      if (resp.ok) {
-        const data = await resp.json();
-        return { universe: data.universe as AdminUniverse, lookupError: null };
-      }
-      if (resp.status !== 404) {
-        return { universe: null, lookupError: `HTTP ${resp.status}` };
-      }
-    }
-
-    // Fallback: list all and find by slug.
-    const listResp = await fetch("/api/admin/collections", {
-      credentials: "include"
-    });
-    if (!listResp.ok)
-      return { universe: null, lookupError: `HTTP ${listResp.status}` };
-    const listData = await listResp.json();
-    const found = (listData.universes as AdminUniverse[]).find(
-      (u) => u.slug === idOrSlug || u.id === idOrSlug
-    );
-    return {
-      universe: found ?? null,
-      lookupError: found ? null : "Universe not found."
-    };
-  };
-
-  const fetchEntries = async (universeId: string) => {
-    const resp = await fetch(
-      `/api/admin/collections/entries?universe_id=${encodeURIComponent(universeId)}`,
-      { credentials: "include" }
-    );
-    if (!resp.ok) {
-      throw new Error(`Failed to load entries (HTTP ${resp.status})`);
-    }
-    const data = await resp.json();
-    return data.entries as AdminEntry[];
-  };
-
-  const fetchSubscriberCount = async (universeId: string) => {
-    try {
-      const resp = await fetch(
-        `/api/admin/collections?id=${encodeURIComponent(universeId)}&stats=1`,
-        { credentials: "include" }
-      );
-      if (!resp.ok) return null;
-      const data = await resp.json();
-      return typeof data.subscriber_count === "number"
-        ? data.subscriber_count
-        : null;
-    } catch {
-      return null;
-    }
-  };
-
   const loadAll = async () => {
     setLoading(true);
     setError(null);
     try {
-      const { universe: u, lookupError } = await resolveUniverse();
+      const { universe: u, lookupError } = await resolveUniverse(params.id);
       if (lookupError || !u) {
         setError(lookupError ?? "Universe not found.");
         return;
@@ -211,101 +166,22 @@ const AdminCollectionEditorPage: Component = () => {
 
   onMount(loadAll);
 
-  // ─── Franchise derivation ─────────────────────────────────────────
-  // Mirrors `deriveFranchise()` in curatedUniverseAdapter.ts so the
-  // admin "Franchise" sort groups entries identically to how the
-  // consumer will see them. IMPORTANT: keep the two implementations in
-  // sync — if you change one, change the other.
-  const deriveFranchise = (title: string | null | undefined): string => {
-    if (!title) return "Standalone & Other";
-    const trimmed = title.trim();
-    if (!trimmed) return "Standalone & Other";
-    const colonIdx = trimmed.indexOf(":");
-    if (colonIdx > 0) return trimmed.slice(0, colonIdx).trim();
-    const trailingNum = trimmed.replace(/\s+(?:\d+|[IVXLCDM]+)$/i, "");
-    if (trailingNum && trailingNum !== trimmed) return trailingNum.trim();
-    return trimmed;
-  };
-
-  // ─── Sort logic ────────────────────────────────────────────────
+  // ─── Sort logic (delegated to sortUtils) ──────────────────────────
   // No drag-and-drop reordering — each sort is either fully automatic
   // (release, franchise) or driven by the per-entry `incident_year`
   // field (storyline). The admin edits incident_year via the pencil
   // icon on each row.
 
-  // Sort entries by the active sort mode.
-  const sortedEntries = createMemo(() => {
-    const mode = sortMode();
-    return [...entries()].sort((a, b) => {
-      if (mode === "release") {
-        // Release sort: by TMDB release_date (string compare).
-        const da = a.release_date ?? "";
-        const db = b.release_date ?? "";
-        if (da && db && da !== db) return da.localeCompare(db);
-        // Tiebreaker: admin's primary position.
-        return (a.position ?? 0) - (b.position ?? 0);
-      }
-      if (mode === "franchise") {
-        // Franchise mode: primary sort by franchise label, then by
-        // incident_year within each group (position fallback).
-        const fa = deriveFranchise(a.title);
-        const fb = deriveFranchise(b.title);
-        if (fa !== fb) return fa.localeCompare(fb);
-        const ia = a.incident_year;
-        const ib = b.incident_year;
-        if (ia !== null && ib !== null && ia !== ib) return ia - ib;
-        if (ia !== null && ib === null) return -1;
-        if (ia === null && ib !== null) return 1;
-        return (a.position ?? 0) - (b.position ?? 0);
-      }
-      // mode === "story" — Storyline sort by incident_year.
-      const ia = a.incident_year;
-      const ib = b.incident_year;
-      if (ia !== null && ib !== null && ia !== ib) return ia - ib;
-      if (ia !== null && ib === null) return -1;
-      if (ia === null && ib !== null) return 1;
-      return (a.position ?? 0) - (b.position ?? 0);
-    });
-  });
+  const sortedEntries = createMemo(() =>
+    sortEntries(entries(), sortMode())
+  );
 
   // Group sorted entries by franchise (only used in franchise mode).
   // Returns null when not in franchise mode so the renderer can decide
   // whether to draw group headers or a flat list.
-  const groupedByFranchise = createMemo<
-    { franchise: string; entries: AdminEntry[] }[] | null
-  >(() => {
-    if (sortMode() !== "franchise") return null;
-    const groups: { franchise: string; entries: AdminEntry[] }[] = [];
-    let current: { franchise: string; entries: AdminEntry[] } | null = null;
-    for (const entry of sortedEntries()) {
-      const f = deriveFranchise(entry.title);
-      if (!current || current.franchise !== f) {
-        current = { franchise: f, entries: [] };
-        groups.push(current);
-      }
-      current.entries.push(entry);
-    }
-    return groups;
-  });
-
-  // Compute the left-badge string for an entry given the active sort.
-  // - storyline → incident_year (or "—" if unset)
-  // - release   → release year (or "—")
-  // - franchise → 1-based index within the franchise group
-  const leftBadgeFor = (
-    entry: AdminEntry,
-    groupIndex: number | null
-  ): string => {
-    if (sortMode() === "story") {
-      return entry.incident_year !== null ? String(entry.incident_year) : "—";
-    }
-    if (sortMode() === "release") {
-      const y = entry.release_date?.match(/^(\d{4})/)?.[1];
-      return y ?? "—";
-    }
-    // franchise
-    return groupIndex !== null ? String(groupIndex + 1) : "—";
-  };
+  const groupedByFranchise = createMemo(() =>
+    groupByFranchise(sortedEntries(), sortMode())
+  );
 
   // ─── Add entry from TMDB search ───────────────────────────────────
 
@@ -319,28 +195,7 @@ const AdminCollectionEditorPage: Component = () => {
     const u = universe();
     if (!u) return;
     try {
-      const resp = await fetch("/api/admin/collections/entries", {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          universe_id: u.id,
-          tmdb_id: result.tmdb_id,
-          media_type: result.media_type
-        })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok || body.error) {
-        showToast(body.error || "Failed to add entry", "error");
-        return;
-      }
-      // Append the new entry with TMDB metadata already in hand.
-      const newEntry: AdminEntry = {
-        ...(body.entry as AdminEntry),
-        title: result.title,
-        poster_path: result.poster_path,
-        release_date: result.release_date
-      };
+      const newEntry = await addEntryFromTmdb(u.id, result);
       setEntries((prev) => [...prev, newEntry]);
       showToast(`Added "${result.title}"`, "success");
       // Keep the search modal open so the admin can add more.
@@ -356,38 +211,27 @@ const AdminCollectionEditorPage: Component = () => {
     entry: AdminEntry,
     updates: Partial<AdminEntry>
   ) => {
-    const resp = await fetch("/api/admin/collections/entries", {
-      method: "PATCH",
-      credentials: "include",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: entry.id, ...updates })
-    });
-    const body = await resp.json().catch(() => ({}));
-    if (!resp.ok || body.error) {
-      showToast(body.error || "Failed to save entry", "error");
-      return;
+    try {
+      await saveEntry(entry, updates);
+      setEntries((prev) =>
+        prev.map((e) => (e.id === entry.id ? { ...e, ...updates } : e))
+      );
+      showToast("Entry updated", "success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to save entry";
+      showToast(msg, "error");
     }
-    setEntries((prev) =>
-      prev.map((e) => (e.id === entry.id ? { ...e, ...updates } : e))
-    );
-    showToast("Entry updated", "success");
   };
 
   const handleEntryDelete = async (entry: AdminEntry) => {
-    const resp = await fetch(
-      `/api/admin/collections/entries?id=${encodeURIComponent(entry.id)}`,
-      {
-        method: "DELETE",
-        credentials: "include"
-      }
-    );
-    const body = await resp.json().catch(() => ({}));
-    if (!resp.ok || body.error) {
-      showToast(body.error || "Failed to delete entry", "error");
-      return;
+    try {
+      await deleteEntry(entry);
+      setEntries((prev) => prev.filter((e) => e.id !== entry.id));
+      showToast("Entry removed", "success");
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Failed to delete entry";
+      showToast(msg, "error");
     }
-    setEntries((prev) => prev.filter((e) => e.id !== entry.id));
-    showToast("Entry removed", "success");
   };
 
   // ─── Save universe metadata ───────────────────────────────────────
@@ -397,37 +241,7 @@ const AdminCollectionEditorPage: Component = () => {
     if (!u) return;
     setSavingMeta(true);
     try {
-      const resp = await fetch("/api/admin/collections", {
-        method: "PATCH",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          id: u.id,
-          name: metaForm().name.trim(),
-          slug: metaForm().slug.trim().toLowerCase(),
-          description: metaForm().description || null,
-          default_view: metaForm().default_view,
-          color: metaForm().color || null,
-          cover_url: metaForm().cover_url || null,
-          banner_url: metaForm().banner_url || null
-        })
-      });
-      const body = await resp.json().catch(() => ({}));
-      if (!resp.ok || body.error) {
-        showToast(body.error || "Failed to save metadata", "error");
-        return;
-      }
-      // Update local state — note: if slug changed, the URL is now stale.
-      const updated: AdminUniverse = body.universe ?? {
-        ...u,
-        name: metaForm().name,
-        slug: metaForm().slug,
-        description: metaForm().description || null,
-        default_view: metaForm().default_view,
-        color: metaForm().color || null,
-        cover_url: metaForm().cover_url || null,
-        banner_url: metaForm().banner_url || null
-      };
+      const updated = await saveUniverseMetadata(u.id, metaForm());
       setUniverse(updated);
       setShowMetaPanel(false);
       showToast("Metadata saved", "success");
@@ -795,7 +609,7 @@ const AdminCollectionEditorPage: Component = () => {
                     <EntryRow
                       entry={entry}
                       displayIndex={i() + 1}
-                      leftBadge={leftBadgeFor(entry, null)}
+                      leftBadge={leftBadgeFor(entry, sortMode(), null)}
                       onSave={handleEntrySave}
                       onDelete={handleEntryDelete}
                     />
@@ -859,7 +673,7 @@ const AdminCollectionEditorPage: Component = () => {
                         <EntryRow
                           entry={entry}
                           displayIndex={i() + 1}
-                          leftBadge={leftBadgeFor(entry, i())}
+                          leftBadge={leftBadgeFor(entry, sortMode(), i())}
                           onSave={handleEntrySave}
                           onDelete={handleEntryDelete}
                         />
@@ -923,114 +737,5 @@ const AdminCollectionEditorPage: Component = () => {
     </div>
   );
 };
-
-// ─── Sub-components & styles ───────────────────────────────────────
-
-function Field(props: { label: string; children: JSX.Element }) {
-  return (
-    <div>
-      <label
-        style={{
-          display: "block",
-          "font-size": "0.75rem",
-          color: "var(--text-muted)",
-          "margin-bottom": "var(--sp-1)",
-          "font-weight": "500"
-        }}
-      >
-        {props.label}
-      </label>
-      {props.children}
-    </div>
-  );
-}
-
-const cardStyle: JSX.CSSProperties = {
-  background: "var(--tier-1, rgba(255,255,255,0.04))",
-  border: "1px solid var(--hairline)",
-  "border-radius": "var(--radius-lg)",
-  display: "flex",
-  "align-items": "center",
-  gap: "var(--sp-3)"
-};
-
-const alertErrorStyle: JSX.CSSProperties = {
-  background: "rgba(239, 68, 68, 0.1)",
-  border: "1px solid rgba(239, 68, 68, 0.3)",
-  "border-radius": "var(--radius-md)",
-  padding: "var(--sp-4)",
-  "margin-bottom": "var(--sp-4)",
-  "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)"
-};
-
-const inputStyle: JSX.CSSProperties = {
-  width: "100%",
-  background: "var(--tier-2, rgba(255,255,255,0.02))",
-  border: "1px solid var(--hairline)",
-  "border-radius": "var(--radius-md)",
-  padding: "var(--sp-2) var(--sp-3)",
-  color: "var(--text)",
-  "font-size": "0.875rem",
-  "font-family": "inherit",
-  "box-sizing": "border-box"
-};
-
-const btnPrimaryStyle: JSX.CSSProperties = {
-  background: "var(--accent, #00d9a3)",
-  color: "var(--void, #0a0e14)",
-  border: "none",
-  padding: "var(--sp-2) var(--sp-4)",
-  "border-radius": "var(--radius-md)",
-  "font-weight": "600",
-  "font-size": "0.8125rem",
-  cursor: "pointer"
-};
-
-const btnSecondaryStyle: JSX.CSSProperties = {
-  background: "transparent",
-  color: "var(--text)",
-  border: "1px solid var(--hairline)",
-  padding: "var(--sp-2) var(--sp-4)",
-  "border-radius": "var(--radius-md)",
-  "font-weight": "500",
-  "font-size": "0.8125rem",
-  cursor: "pointer"
-};
-
-const sortBtn: JSX.CSSProperties = {
-  background: "var(--tier-2, rgba(255,255,255,0.02))",
-  color: "var(--text-muted)",
-  border: "1px solid var(--hairline)",
-  padding: "var(--sp-1) var(--sp-3)",
-  "border-radius": "var(--radius-sm)",
-  "font-size": "0.75rem",
-  "font-weight": "500",
-  cursor: "pointer"
-};
-
-const sortBtnActive: JSX.CSSProperties = {
-  ...sortBtn,
-  background: "var(--accent, #00d9a3)",
-  color: "var(--void, #0a0e14)",
-  "border-color": "transparent",
-  "font-weight": "600"
-};
-
-function toastStyle(success: boolean): JSX.CSSProperties {
-  return {
-    position: "fixed",
-    bottom: "var(--sp-6)",
-    right: "var(--sp-6)",
-    "z-index": 400,
-    background: success ? "rgb(34, 197, 94)" : "rgb(239, 68, 68)",
-    color: "white",
-    padding: "var(--sp-3) var(--sp-4)",
-    "border-radius": "var(--radius-md)",
-    "font-size": "0.875rem",
-    "font-weight": "600",
-    "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
-  };
-}
 
 export default AdminCollectionEditorPage;
