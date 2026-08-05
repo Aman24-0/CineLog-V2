@@ -381,30 +381,58 @@ export function createBrowserClient(): SupabaseClient {
   //                                 cookies (httpOnly, set by the
   //                                 server on the OAuth callback).
   //   autoRefreshToken   : true  → refresh via cookie-aware fetch.
-  //   detectSessionInUrl : true  → parse `?code=` from the URL after
-  //                                 an OAuth redirect (used as a
-  //                                 fallback when the OAuth redirect
-  //                                 goes to a non-/auth/callback page
-  //                                 — see `useAuthActions.ts`).
+  //   detectSessionInUrl : false → DO NOT let auth-js auto-exchange
+  //                                 the OAuth `?code=` parameter.
+  //                                 See the long note below — this
+  //                                 was previously `true` but caused
+  //                                 silent exchange failures.
   //   flowType           : "pkce" → PKCE OAuth flow (verifier stored
   //                                  in a cookie via setAll).
+  //
+  // ─────────────────────────────────────────────────────────────────────
+  // CRITICAL — why `detectSessionInUrl: false` (Phase 7 Task 14)
+  // ─────────────────────────────────────────────────────────────────────
+  // Previous behaviour: `detectSessionInUrl: true` made auth-js parse
+  // `?code=` from the URL on client construction and call
+  // `exchangeCodeForSession` internally. This is the official SPA
+  // pattern, BUT in our production setup the auto-exchange was failing
+  // SILENTLY — auth-js swallowed the rejection (logged to console but
+  // did NOT propagate), so:
+  //   1. `onAuthStateChange` fired `INITIAL_SESSION` with `session: null`.
+  //   2. `SIGNED_IN` NEVER fired.
+  //   3. Our callback component (which had been rewritten as a "passive
+  //      listener" — see `src/routes/auth/callback.tsx` history) waited
+  //      10s for an event that never came, then timed out with a generic
+  //      "Sign-in timed out" error.
+  //
+  // The silent failure made diagnosis impossible — we never saw the
+  // actual error message from the exchange. By disabling
+  // `detectSessionInUrl` and calling `exchangeCodeForSession(code,
+  // { flowId })` MANUALLY in the callback component's `onMount`, we:
+  //   • Eliminate the race condition (only ONE exchanger).
+  //   • Get the actual error message via try/catch.
+  //   • Can surface the real error to the user (and to our logs)
+  //     instead of a generic 10s timeout.
+  //
+  // The cost: if a user lands on ANY page other than `/auth/callback`
+  // with `?code=` in the URL (e.g. they manually copy-pasted a
+  // callback URL to `/discover`), the code won't be exchanged. This
+  // is a non-issue in practice because:
+  //   • `signInWithOAuth({ redirectTo: "${origin}/auth/callback" })`
+  //     ALWAYS sends the user to `/auth/callback` (we enforce the
+  //     strict origin in `useAuthActions.ts`, `AuthModal.tsx`, and
+  //     `admin/login.tsx`).
+  //   • Email confirmation links use the same `emailRedirectTo`.
   //
   // CRITICAL — experimental.appendPkceFlowIdToRedirects:
   //   When enabled, the `sb_flow_id` query parameter is appended to
   //   the OAuth `redirect_to` URL. After Google redirects back to
-  //   `/auth/callback?code=...&sb_flow_id=<flowId>`, the server-side
-  //   callback reads `sb_flow_id` from the URL and passes it to
+  //   `/auth/callback?code=...&sb_flow_id=<flowId>`, the callback
+  //   component reads `sb_flow_id` from the URL and passes it to
   //   `exchangeCodeForSession(code, { flowId })`. This tells the
-  //   server client to look up the verifier in the FLOW-SPECIFIC
-  //   slot key (`<storageKey>-flow-<flowId>-code-verifier`) rather
-  //   than the legacy fixed key (`<storageKey>-code-verifier`).
-  //
-  //   Without this, the server falls back to the legacy key. The
-  //   legacy key IS dual-written by auth-js, but we've seen it
-  //   fail in production (mobile browsers, partitioned cookies,
-  //   edge cases where the dual-write race loses). Using the
-  //   flow-specific slot is the MODERN, reliable approach — it's
-  //   what the @supabase/ssr docs recommend for SSR frameworks.
+  //   client to look up the verifier in the FLOW-SPECIFIC slot key
+  //   (`<storageKey>-flow-<flowId>-code-verifier`) rather than the
+  //   legacy fixed key (`<storageKey>-code-verifier`).
   //
   //   IMPORTANT: this option MUST be set IDENTICALLY on both the
   //   browser client and the server client. If only the browser
@@ -417,7 +445,7 @@ export function createBrowserClient(): SupabaseClient {
     auth: {
       persistSession: false,
       autoRefreshToken: true,
-      detectSessionInUrl: true,
+      detectSessionInUrl: false,
       flowType: "pkce",
       experimental: {
         appendPkceFlowIdToRedirects: true

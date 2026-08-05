@@ -117,7 +117,21 @@
 // their cached bundles and forces them to download the new
 // passive-listener version. Skipping v9 to keep the version
 // monotonically ahead of any intermediate deploys.
-const CACHE_VERSION = "v10";
+//
+// v10 → v11 (Task 14): the passive-listener approach (v10) FAILED in
+// production — `detectSessionInUrl: true` was silently failing the
+// PKCE exchange, and the callback was waiting 10s for a `SIGNED_IN`
+// event that never came. We've now:
+//   • Set `detectSessionInUrl: false` in `src/lib/supabase/browser.ts`.
+//   • Rewrote `src/routes/auth/callback.tsx` to MANUALLY call
+//     `exchangeCodeForSession(code, { flowId })` with try/catch +
+//     real error display.
+// Returning users with a cached v10 bundle still have the passive-
+// listener code (no manual exchange) AND the `detectSessionInUrl: true`
+// browser client config — both of which are broken together. Bumping
+// to v11 invalidates their cached bundles and forces them to download
+// the new explicit-exchange version.
+const CACHE_VERSION = "v11";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
