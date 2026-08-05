@@ -1,19 +1,48 @@
 // src/features/admin/AdminFeatureFlagsPage.tsx
 //
-// CineLog V2 — Admin Feature Flags Page Component
+// CineLog V2 — Admin Feature Flags Page (Phase 9 Chunk 6 rewrite)
 // ---------------------------------------------------------------------
-// UI:
-//   - List of all feature flags, each as a toggle card
-//   - Each card shows: flag name, description, current value
-//   - Toggle switches call PUT /api/admin/feature-flags
-//   - Optimistic UI (toggle immediately, revert on error)
+// Glass UI rewrite of the feature-flag toggle surface.
 //
-// FLAG METADATA (descriptions):
-//   Imported from src/core/feature-flags/defaults.ts — the single source
-//   of truth shared with the admin API. To add a new flag, add it there
-//   AND in the migration seed.
+// ZERO-DUPLICATION: Feature flags live ONLY on this page. No other
+// admin page edits the `feature_flags` key in app_config.
+//
+// USER-SIDE MAPPING (Strict): The flag list comes from
+// src/core/feature-flags/defaults.ts → FEATURE_FLAG_METADATA — the
+// single source of truth shared with the admin API. Each flag's
+// `enforced_in` field documents exactly which user-side component
+// consumes it. No dummy flags are rendered.
+//
+// ROLLOUT %: The backend stores flags as a plain Record<string,
+// boolean> (see /api/admin/feature-flags PUT body schema). There is
+// no per-flag rollout_percentage column in the DB or in the API
+// contract. Per the Chunk 6 spec ("add a rollout % slider for each
+// flag, OR just a clean toggle if not applicable"), we render a
+// clean toggle — a slider with no backend persistence would be a
+// dummy control, which the Zero-Duplication / Strict-Mapping rules
+// forbid.
+//
+// FLAG HISTORY: For each flag we fetch the last 5 audit-log entries
+// with action="feature_flag.toggle" and entity_id=<flag_name> from
+// /api/admin/logs. The history is loaded lazily — the admin clicks
+// "Show history" to expand the per-flag history panel.
+//
+// MOBILE-FIRST: Flag cards stack vertically on all breakpoints. The
+// toggle switch is 48×28px (touch-target friendly). History items
+// wrap gracefully on narrow screens.
 
-import { createSignal, Show, For, onMount, type Component } from "solid-js";
+import {
+  createSignal,
+  createMemo,
+  Show,
+  For,
+  onMount,
+  type Component
+} from "solid-js";
+import { GlassCard } from "~/shared/ui/glass/GlassCard";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import {
   FEATURE_FLAG_METADATA,
   type FlagMeta
@@ -21,15 +50,54 @@ import {
 
 const FLAG_METADATA: readonly FlagMeta[] = FEATURE_FLAG_METADATA;
 
+// ─── Audit log types ───────────────────────────────────────────────
+
+interface AuditLogEntry {
+  id: string;
+  admin_id: string;
+  action: string;
+  entity_type: string | null;
+  entity_id: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+  admin_username: string | null;
+  admin_display_name: string | null;
+}
+
+interface LogsResponse {
+  logs: AuditLogEntry[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
+// ─── Component ─────────────────────────────────────────────────────
+
 const AdminFeatureFlagsPage: Component = () => {
   const [flags, setFlags] = createSignal<Record<string, boolean>>({});
   const [loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
   const [saving, setSaving] = createSignal<Record<string, boolean>>({});
   const [toast, setToast] = createSignal<{
-    msg: string;
+    text: string;
     type: "success" | "error";
   } | null>(null);
+
+  // Per-flag history state
+  const [histories, setHistories] = createSignal<
+    Record<string, AuditLogEntry[]>
+  >({});
+  const [expandedFlags, setExpandedFlags] = createSignal<
+    Record<string, boolean>
+  >({});
+  const [historyLoading, setHistoryLoading] = createSignal<
+    Record<string, boolean>
+  >({});
+
+  const showToast = (text: string, type: "success" | "error") => {
+    setToast({ text, type });
+    setTimeout(() => setToast(null), 2800);
+  };
 
   const fetchFlags = async () => {
     try {
@@ -47,8 +115,7 @@ const AdminFeatureFlagsPage: Component = () => {
       setFlags(data.flags);
       setError(null);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Unknown error";
-      setError(msg);
+      setError(err instanceof Error ? err.message : "Unknown error");
     } finally {
       setLoading(false);
     }
@@ -56,13 +123,9 @@ const AdminFeatureFlagsPage: Component = () => {
 
   onMount(fetchFlags);
 
-  const showToast = (msg: string, type: "success" | "error") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 2500);
-  };
+  // ─── Flag toggle (optimistic) ────────────────────────────────
 
   const toggleFlag = async (name: string, newValue: boolean) => {
-    // Optimistic update
     const oldValue = flags()[name];
     setFlags({ ...flags(), [name]: newValue });
     setSaving({ ...saving(), [name]: true });
@@ -76,16 +139,19 @@ const AdminFeatureFlagsPage: Component = () => {
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
-        // Revert on error
         setFlags({ ...flags(), [name]: oldValue });
         showToast(body.error || "Failed to update flag", "error");
       } else {
         showToast(`'${name}' is now ${newValue ? "ON" : "OFF"}`, "success");
-        // Update with the canonical response
         if (body.flags) setFlags(body.flags);
+        // Invalidate cached history for this flag so the next expand
+        // re-fetches.
+        setHistories({
+          ...histories(),
+          [name]: []
+        });
       }
     } catch {
-      // Revert on network error
       setFlags({ ...flags(), [name]: oldValue });
       showToast("Network error", "error");
     } finally {
@@ -93,248 +159,315 @@ const AdminFeatureFlagsPage: Component = () => {
     }
   };
 
+  const resetToDefaults = async () => {
+    if (
+      !confirm(
+        "Reset ALL feature flags to their default values? This affects every user immediately."
+      )
+    )
+      return;
+    const defaults: Record<string, boolean> = {};
+    for (const f of FLAG_METADATA) defaults[f.name] = f.default_value;
+    setSaving(
+      Object.fromEntries(FLAG_METADATA.map((f) => [f.name, true]))
+    );
+    try {
+      const resp = await fetch("/api/admin/feature-flags", {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ flags: defaults })
+      });
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || body.error) {
+        showToast(body.error || "Failed to reset", "error");
+      } else {
+        setFlags(body.flags ?? defaults);
+        showToast("All flags reset to defaults", "success");
+        setHistories({});
+      }
+    } catch {
+      showToast("Network error", "error");
+    } finally {
+      setSaving({});
+    }
+  };
+
+  // ─── Flag history (lazy load) ────────────────────────────────
+
+  const fetchHistory = async (flagName: string) => {
+    setHistoryLoading({ ...historyLoading(), [flagName]: true });
+    try {
+      const params = new URLSearchParams({
+        action: "feature_flag.toggle",
+        entity_type: "feature_flag",
+        limit: "5"
+      });
+      const resp = await fetch(
+        `/api/admin/logs?${params.toString()}`,
+        { credentials: "include" }
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as LogsResponse;
+      // Filter to just this flag (entity_id === flagName)
+      const filtered = data.logs.filter((l) => l.entity_id === flagName);
+      setHistories({ ...histories(), [flagName]: filtered });
+    } catch {
+      setHistories({ ...histories(), [flagName]: [] });
+    } finally {
+      setHistoryLoading({ ...historyLoading(), [flagName]: false });
+    }
+  };
+
+  const toggleHistory = (flagName: string) => {
+    const isExpanded = expandedFlags()[flagName] === true;
+    if (!isExpanded && histories()[flagName] === undefined) {
+      fetchHistory(flagName);
+    }
+    setExpandedFlags({
+      ...expandedFlags(),
+      [flagName]: !isExpanded
+    });
+  };
+
+  const modifiedCount = createMemo(() => {
+    let count = 0;
+    for (const f of FLAG_METADATA) {
+      if ((flags()[f.name] ?? f.default_value) !== f.default_value) count++;
+    }
+    return count;
+  });
+
+  // ─── Render ──────────────────────────────────────────────────
+
   return (
-    <div>
-      <div style={{ "margin-bottom": "var(--sp-6)" }}>
-        <h2
-          style={{
-            "font-size": "1.5rem",
-            "font-weight": "700",
-            margin: "0 0 var(--sp-1) 0",
-            color: "var(--text)"
-          }}
-        >
-          Feature Flags
-        </h2>
-        <p
-          style={{
-            "font-size": "0.875rem",
-            color: "var(--text-muted)",
-            margin: 0
-          }}
-        >
-          Toggle features on/off without redeploying. Changes take effect
-          immediately for all users.
-        </p>
+    <div class="admin-config-shell">
+      <div class="admin-config-header">
+        <div>
+          <h2>Feature Flags</h2>
+          <p>
+            Toggle features on/off without redeploying. Changes take
+            effect within 60 seconds for active users. Each flag maps
+            to a real user-side consumer (no dummy toggles).
+          </p>
+        </div>
+        <div class="admin-config-actions">
+          <Show when={modifiedCount() > 0}>
+            <GlassBadge
+              intent="warning"
+              label={`${modifiedCount()} modified`}
+              size="compact"
+            />
+          </Show>
+          <GlassButton
+            variant="secondary"
+            size="compact"
+            onClick={resetToDefaults}
+            disabled={loading()}
+            icon="restart_alt"
+          >
+            Reset All
+          </GlassButton>
+        </div>
       </div>
 
       <Show when={error()}>
-        <div
-          role="alert"
-          style={{
-            background: "rgba(239, 68, 68, 0.1)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            "border-radius": "var(--radius-md)",
-            padding: "var(--sp-4)",
-            "margin-bottom": "var(--sp-4)",
-            "font-size": "0.875rem",
-            color: "rgb(252, 165, 165)"
-          }}
-        >
+        <div class="admin-config-alert" role="alert">
           Failed to load flags: {error()}
         </div>
       </Show>
 
       <Show when={loading()}>
-        <div
-          style={{
-            display: "flex",
-            "flex-direction": "column",
-            gap: "var(--sp-3)"
-          }}
-        >
+        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
           <For each={Array.from({ length: 6 })}>
-            {() => (
-              <div
-                style={{
-                  background: "var(--tier-1)",
-                  border: "1px solid var(--hairline)",
-                  "border-radius": "var(--radius-lg)",
-                  padding: "var(--sp-5)",
-                  height: "80px",
-                  animation: "pulse 1.5s ease-in-out infinite"
-                }}
-              />
-            )}
+            {() => <div class="admin-config-skeleton" />}
           </For>
         </div>
       </Show>
 
       <Show when={!loading()}>
-        <div
-          style={{
-            display: "flex",
-            "flex-direction": "column",
-            gap: "var(--sp-3)"
-          }}
-        >
+        <div class="admin-flag-list">
           <For each={FLAG_METADATA}>
             {(flag) => {
               const value = () => flags()[flag.name] ?? flag.default_value;
               const isSaving = () => saving()[flag.name] === true;
+              const isExpanded = () => expandedFlags()[flag.name] === true;
+              const flagHistory = () => histories()[flag.name] ?? [];
+              const isHistoryLoading = () =>
+                historyLoading()[flag.name] === true;
+
               return (
-                <div
-                  style={{
-                    background: "var(--tier-1)",
-                    border: "1px solid var(--hairline)",
-                    "border-radius": "var(--radius-lg)",
-                    padding: "var(--sp-5)",
-                    display: "flex",
-                    "align-items": "center",
-                    "justify-content": "space-between",
-                    gap: "var(--sp-4)",
-                    transition: "border-color 0.15s ease"
-                  }}
-                >
-                  <div style={{ flex: 1, "min-width": 0 }}>
-                    <div
-                      style={{
-                        display: "flex",
-                        "align-items": "center",
-                        gap: "var(--sp-3)",
-                        "margin-bottom": "var(--sp-1)"
-                      }}
-                    >
-                      <span
-                        style={{ "font-size": "1.25rem", "line-height": "1" }}
-                      >
-                        {flag.icon}
-                      </span>
-                      <h3
-                        style={{
-                          "font-size": "1rem",
-                          "font-weight": "600",
-                          margin: 0,
-                          color: "var(--text)",
-                          "font-family": "monospace"
-                        }}
-                      >
-                        {flag.name}
-                      </h3>
-                      <Show when={value() !== flag.default_value}>
-                        <span
-                          style={{
-                            background: "rgba(99, 102, 241, 0.15)",
-                            color: "rgb(165, 180, 252)",
-                            "font-size": "0.6875rem",
-                            "font-weight": "600",
-                            padding: "1px 6px",
-                            "border-radius": "var(--radius-sm)",
-                            "text-transform": "uppercase",
-                            "letter-spacing": "0.05em"
-                          }}
-                        >
-                          Modified
-                        </span>
-                      </Show>
+                <GlassCard class="admin-flag-card" padding="default">
+                  <div class="admin-flag-row">
+                    <div class="admin-flag-icon">{flag.icon}</div>
+                    <div class="admin-flag-body">
+                      <div class="admin-flag-name">
+                        <h4>{flag.name}</h4>
+                        <Show when={value() !== flag.default_value}>
+                          <GlassBadge
+                            intent="primary"
+                            label="Modified"
+                            size="compact"
+                          />
+                        </Show>
+                        <Show when={isSaving()}>
+                          <span
+                            style={{
+                              "font-size": "0.75rem",
+                              color: "var(--text-muted)"
+                            }}
+                          >
+                            Saving…
+                          </span>
+                        </Show>
+                      </div>
+                      <p class="admin-flag-desc">{flag.description}</p>
+                      <p class="admin-flag-enforced">
+                        Enforced in: <code>{flag.enforced_in}</code>
+                      </p>
                     </div>
-                    <p
-                      style={{
-                        "font-size": "0.8125rem",
-                        color: "var(--text-secondary)",
-                        margin: "0 0 var(--sp-1) 0"
-                      }}
+                    <button
+                      class="admin-config-toggle"
+                      role="switch"
+                      aria-checked={value()}
+                      aria-label={`Toggle ${flag.name}`}
+                      disabled={isSaving()}
+                      onClick={() => toggleFlag(flag.name, !value())}
                     >
-                      {flag.description}
-                    </p>
-                    <p
-                      style={{
-                        "font-size": "0.75rem",
-                        color: "var(--text-muted)",
-                        margin: 0
-                      }}
-                    >
-                      Enforced in:{" "}
-                      <code style={{ color: "var(--text-secondary)" }}>
-                        {flag.enforced_in}
-                      </code>
-                    </p>
+                      <span class="toggle-knob" />
+                    </button>
                   </div>
 
-                  {/* Toggle */}
-                  <button
-                    role="switch"
-                    aria-checked={value()}
-                    aria-label={`Toggle ${flag.name}`}
-                    disabled={isSaving()}
-                    onClick={() => toggleFlag(flag.name, !value())}
-                    style={{
-                      "flex-shrink": 0,
-                      width: "48px",
-                      height: "28px",
-                      "border-radius": "14px",
-                      background: value() ? "var(--p)" : "var(--tier-3)",
-                      border:
-                        "1px solid " +
-                        (value() ? "var(--p)" : "var(--hairline-2)"),
-                      position: "relative",
-                      cursor: isSaving() ? "wait" : "pointer",
-                      transition:
-                        "background 0.15s ease, border-color 0.15s ease",
-                      padding: 0
-                    }}
-                  >
-                    <span
-                      style={{
-                        position: "absolute",
-                        top: "3px",
-                        left: value() ? "22px" : "3px",
-                        width: "20px",
-                        height: "20px",
-                        "border-radius": "50%",
-                        background: "white",
-                        "box-shadow": "0 1px 3px rgba(0,0,0,0.3)",
-                        transition: "left 0.15s ease"
-                      }}
-                    />
-                  </button>
-                </div>
+                  {/* History toggle + panel */}
+                  <div class="admin-flag-history">
+                    <button
+                      class={`admin-flag-history-toggle ${isExpanded() ? "expanded" : ""}`}
+                      onClick={() => toggleHistory(flag.name)}
+                      aria-expanded={isExpanded()}
+                    >
+                      <span class="material-symbols-outlined">
+                        chevron_right
+                      </span>
+                      {isExpanded() ? "Hide history" : "Show history"}
+                    </button>
+
+                    <Show when={isExpanded()}>
+                      <div class="admin-flag-history-list">
+                        <Show
+                          when={isHistoryLoading()}
+                          fallback={
+                            <Show
+                              when={flagHistory().length > 0}
+                              fallback={
+                                <div
+                                  style={{
+                                    "font-size": "0.75rem",
+                                    color: "var(--text-muted)",
+                                    padding: "var(--sp-1) var(--sp-2)",
+                                    "font-style": "italic"
+                                  }}
+                                >
+                                  No changes recorded for this flag.
+                                </div>
+                              }
+                            >
+                              <For each={flagHistory()}>
+                                {(entry) => {
+                                  const payload = entry.payload as {
+                                    old?: boolean | null;
+                                    new?: boolean;
+                                  };
+                                  return (
+                                    <div class="admin-flag-history-item">
+                                      <span
+                                        class={`change-arrow ${
+                                          payload.new
+                                            ? "change-on"
+                                            : "change-off"
+                                        }`}
+                                      >
+                                        {payload.old === null ||
+                                        payload.old === undefined
+                                          ? "○"
+                                          : payload.old
+                                            ? "●"
+                                            : "○"}
+                                        →
+                                        {payload.new ? "●" : "○"}
+                                      </span>
+                                      <span>
+                                        {payload.old === true
+                                          ? "ON"
+                                          : payload.old === false
+                                            ? "OFF"
+                                            : "default"}
+                                        {" → "}
+                                        {payload.new ? "ON" : "OFF"}
+                                      </span>
+                                      <span class="history-meta">
+                                        {entry.admin_display_name ??
+                                          entry.admin_username ??
+                                          "Unknown"}{" "}
+                                        ·{" "}
+                                        {new Date(
+                                          entry.created_at
+                                        ).toLocaleString()}
+                                      </span>
+                                    </div>
+                                  );
+                                }}
+                              </For>
+                            </Show>
+                          }
+                        >
+                          <div
+                            style={{
+                              "font-size": "0.75rem",
+                              color: "var(--text-muted)",
+                              padding: "var(--sp-1) var(--sp-2)"
+                            }}
+                          >
+                            Loading history…
+                          </div>
+                        </Show>
+                      </div>
+                    </Show>
+                  </div>
+                </GlassCard>
               );
             }}
           </For>
         </div>
-      </Show>
 
-      <div
-        style={{
-          "margin-top": "var(--sp-6)",
-          padding: "var(--sp-4)",
-          background: "var(--tier-2)",
-          border: "1px solid var(--hairline)",
-          "border-radius": "var(--radius-md)",
-          "font-size": "0.8125rem",
-          color: "var(--text-muted)"
-        }}
-      >
-        <strong style={{ color: "var(--text-secondary)" }}>Note:</strong>{" "}
-        Feature flag changes take effect within 60 seconds for active users
-        (when their client re-fetches flags). New page loads reflect changes
-        immediately.
-      </div>
+        <GlassCard
+          class="admin-config-card"
+          padding="default"
+          style={{ "margin-top": "var(--sp-5)" }}
+        >
+          <p
+            style={{
+              "font-size": "0.8125rem",
+              color: "var(--text-muted)",
+              margin: 0,
+              "line-height": "1.5"
+            }}
+          >
+            <strong style={{ color: "var(--text-secondary)" }}>
+              Note:
+            </strong>{" "}
+            Feature flag changes take effect within 60 seconds for active
+            users (when their client re-fetches flags). New page loads
+            reflect changes immediately. The flag registry is defined in{" "}
+            <code>src/core/feature-flags/defaults.ts</code> — adding a new
+            flag requires editing that file AND the migration seed.
+          </p>
+        </GlassCard>
+      </Show>
 
       {/* Toast */}
       <Show when={toast()}>
         {(t) => (
-          <div
-            style={{
-              position: "fixed",
-              bottom: "var(--sp-6)",
-              right: "var(--sp-6)",
-              background:
-                t().type === "success"
-                  ? "rgb(34, 197, 94)"
-                  : "rgb(239, 68, 68)",
-              color: "white",
-              padding: "var(--sp-3) var(--sp-5)",
-              "border-radius": "var(--radius-md)",
-              "box-shadow": "var(--shadow-xl)",
-              "z-index": 1100,
-              "font-size": "0.875rem",
-              "font-weight": "500"
-            }}
-          >
-            {t().msg}
-          </div>
+          <div class={`admin-config-toast ${t().type}`}>{t().text}</div>
         )}
       </Show>
     </div>

@@ -1,27 +1,73 @@
 // src/features/admin/AdminHomepagePage.tsx
 //
-// CineLog V2 — Admin Homepage Sections Page
+// CineLog V2 — Admin Discover Config Page (Phase 9 Chunk 6 rewrite)
 // ---------------------------------------------------------------------
-// UI:
-//   - List of 16 Discover sections, each as a draggable card
-//   - Each card shows: section name, current order, enabled toggle
-//   - "Move up" / "Move down" buttons to reorder
-//   - Save button to commit changes
-//   - Live preview of the resulting order
+// Glass UI rewrite of the Discover section config page.
 //
-// Backend:
-//   GET /api/admin/homepage     — fetch current config
-//   PUT /api/admin/homepage     — save updated config
+// STRICT USER-SIDE MAPPING (CRITICAL):
+//   The legacy page exposed all 16 sections from homepageConfig.ts
+//   DEFAULT_CONFIG as toggleable cards. However, an audit of
+//   src/features/discover/DiscoverPage.tsx shows that ONLY 7 of
+//   those sections are actually rendered on the user side today:
+//
+//     1. spotlight          — Section 1 (Spotlight hero)
+//     2. genre_explorer     — Section 2 (Genre Explorer)
+//     3. because_you_love   — Section 3 ("Because You Love…")
+//     4. trending           — Section 4 (Trending in Genre)
+//     5. new_on_ott         — Section 5 (New on OTT)
+//     6. weekend_picks      — Section 6 (Weekend Picks & Hidden Gems)
+//     7. coming_soon        — Section 8 (Coming Soon — also gated by
+//                              the `upcoming` feature flag)
+//
+//   Section 7 (Popular Anime) is DATA-DRIVEN, not config-driven — it
+//   renders when `popularAnimeCombined().length > 0`, so it has no
+//   homepage_config toggle and is NOT shown here.
+//
+//   The other 9 sections in DEFAULT_CONFIG (continue_universes,
+//   insight_strip, theatres, surprise_me, step_outside, hidden_gems,
+//   top_rated_movies, top_rated_series, new_seasons) are vestigial —
+//   they exist in the config schema but DiscoverPage does not call
+//   isEnabled() for them. Exposing them as admin toggles would be
+//   dummy controls (the Strict-Mapping rule forbids this), so they
+//   are NOT rendered here. They remain in the DB schema for forward
+//   compatibility — if a future chunk wires them into DiscoverPage,
+//   they can be added back here in the same PR.
+//
+// ZERO-DUPLICATION: Homepage section config lives ONLY on this page.
+// No other admin page edits the `homepage_sections` key.
+//
+// DRAG-AND-DROP: Uses @thisbeyond/solid-dnd (pointer-based, works on
+// touch). Every row ALSO has visible ↑ / ↓ buttons so the page is
+// fully usable without drag.
+//
+// LIVE PREVIEW: A right-side panel renders a mock Discover layout
+// that updates as the admin toggles/reorders sections. The preview is
+// purely client-side (no network).
+//
+// MOBILE-FIRST: Editor + preview stack on tablet/phone (below 960px).
+// Tabs are not needed (only 7 sections). Drag handles + buttons wrap.
 
 import {
   createSignal,
+  createMemo,
   Show,
   For,
   onMount,
-  createMemo,
-  type Component,
-  type JSX
+  type Component
 } from "solid-js";
+import {
+  DragDropProvider,
+  DragDropSensors,
+  SortableProvider,
+  closestCenter,
+  createSortable
+} from "@thisbeyond/solid-dnd";
+import { GlassCard } from "~/shared/ui/glass/GlassCard";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+
+// ─── Types ─────────────────────────────────────────────────────────
 
 interface SectionConfig {
   enabled: boolean;
@@ -32,109 +78,80 @@ interface HomepageConfig {
   sections: Record<string, SectionConfig>;
 }
 
-const SECTION_META: {
+// ─── Section catalogue (STRICT — only sections DiscoverPage renders) ─
+
+interface SectionMeta {
   key: string;
   label: string;
   description: string;
   icon: string;
-}[] = [
+  // Where this section is gated on the user side. Documented so the
+  // admin understands the impact of toggling.
+  userSide: string;
+  // Additional feature-flag dependency (if any). The admin should
+  // know that even if this section is "enabled", the flag must also
+  // be on for it to render.
+  featureFlagDep?: string;
+}
+
+const SECTION_META: SectionMeta[] = [
+  {
+    key: "spotlight",
+    label: "Spotlight",
+    description: "Daily rotating hero card with a single highlighted title.",
+    icon: "flashlight_on",
+    userSide: "DiscoverPage → <Spotlight /> (Section 1)"
+  },
   {
     key: "genre_explorer",
     label: "Genre Explorer",
     description: "Chips + continuous carousel for browsing by genre.",
-    icon: "🎭"
-  },
-  {
-    key: "spotlight",
-    label: "Spotlight",
-    description: "Hero card with a single highlighted title.",
-    icon: "🔦"
-  },
-  {
-    key: "continue_universes",
-    label: "Continue Your Universes",
-    description: "Resume curated universes the user has started.",
-    icon: "📚"
-  },
-  {
-    key: "insight_strip",
-    label: "Insight Strip",
-    description: "Quick stat cards (watch time, top genres, etc.).",
-    icon: "📊"
-  },
-  {
-    key: "trending",
-    label: "Trending This Week",
-    description: "TMDB trending movies & series.",
-    icon: "🔥"
-  },
-  {
-    key: "theatres",
-    label: "In Theatres Now",
-    description: "Currently playing in theatres (region-aware).",
-    icon: "🎬"
+    icon: "palette",
+    userSide: "DiscoverPage → <GenreExplorer /> (Section 2)"
   },
   {
     key: "because_you_love",
     label: "Because You Love…",
-    description: "Personalized recommendations based on vault.",
-    icon: "❤️"
+    description:
+      "Personalized recommendations seeded from the user's vault.",
+    icon: "favorite",
+    userSide: "DiscoverPage → row1 (Section 3)"
   },
   {
-    key: "surprise_me",
-    label: "Surprise Me",
-    description: "Random title picker (gated by random_picker flag).",
-    icon: "🎲"
-  },
-  {
-    key: "weekend_picks",
-    label: "Weekend Picks",
-    description: "Editorial picks for the weekend.",
-    icon: "📅"
-  },
-  {
-    key: "step_outside",
-    label: "Step Outside Your Taste",
-    description: "Titles outside the user's usual genres.",
-    icon: "🧭"
-  },
-  {
-    key: "hidden_gems",
-    label: "Hidden Gems",
-    description: "Low-vote high-rated titles.",
-    icon: "💎"
-  },
-  {
-    key: "top_rated_movies",
-    label: "Top Rated Movies",
-    description: "All-time top-rated movies from TMDB.",
-    icon: "⭐"
-  },
-  {
-    key: "top_rated_series",
-    label: "Top Rated Series",
-    description: "All-time top-rated TV series from TMDB.",
-    icon: "📺"
+    key: "trending",
+    label: "Trending in Genre",
+    description: "Trending titles filtered by the selected genre.",
+    icon: "trending_up",
+    userSide: "DiscoverPage → row2 (Section 4)"
   },
   {
     key: "new_on_ott",
     label: "New on OTT",
-    description: "Streaming provider releases (region-aware).",
-    icon: "🎥"
+    description: "Streaming releases from the user's selected providers.",
+    icon: "live_tv",
+    userSide: "DiscoverPage → row3 (Section 5)"
   },
   {
-    key: "new_seasons",
-    label: "New Seasons",
-    description: "Recently-released new seasons.",
-    icon: "🆕"
+    key: "weekend_picks",
+    label: "Weekend Picks & Hidden Gems",
+    description: "Editorial picks merged with hidden-gems anime.",
+    icon: "diamond",
+    userSide: "DiscoverPage → row4 (Section 6)"
   },
   {
     key: "coming_soon",
     label: "Coming Soon",
-    description: "Upcoming releases (gated by upcoming flag).",
-    icon: "🔜"
+    description:
+      "Upcoming releases (movies + TV + anime). Also gated by the 'upcoming' feature flag.",
+    icon: "upcoming",
+    userSide: "DiscoverPage → upcomingFeed (Section 8)",
+    featureFlagDep: "upcoming"
   }
 ];
+
+const SECTION_KEYS = SECTION_META.map((s) => s.key);
+
+// ─── Component ─────────────────────────────────────────────────────
 
 const AdminHomepagePage: Component = () => {
   const [config, setConfig] = createSignal<HomepageConfig>({ sections: {} });
@@ -144,17 +161,11 @@ const AdminHomepagePage: Component = () => {
   const [loading, setLoading] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [toast, setToast] = createSignal<{
-    msg: string;
-    type: "success" | "error";
-  } | null>(null);
-
-  const showToast = (msg: string, type: "success" | "error") => {
-    setToast({ msg, type });
-    setTimeout(() => setToast(null), 2500);
-  };
+  const toast = signalToast();
+  const [draggingKey, setDraggingKey] = createSignal<string | null>(null);
 
   const fetchConfig = async () => {
+    setLoading(true);
     try {
       const resp = await fetch("/api/admin/homepage", {
         credentials: "include"
@@ -179,7 +190,8 @@ const AdminHomepagePage: Component = () => {
 
   onMount(fetchConfig);
 
-  // Sort sections by order for display
+  // ─── Derived state ───────────────────────────────────────────
+
   const sortedSections = createMemo(() => {
     const cfg = config();
     return SECTION_META.map((meta) => ({
@@ -190,10 +202,14 @@ const AdminHomepagePage: Component = () => {
   });
 
   const isDirty = createMemo(() => {
-    const orig = JSON.stringify(originalConfig());
-    const curr = JSON.stringify(config());
-    return orig !== curr;
+    return JSON.stringify(originalConfig()) !== JSON.stringify(config());
   });
+
+  const activeCount = createMemo(
+    () => sortedSections().filter((s) => s.enabled).length
+  );
+
+  // ─── Mutations ───────────────────────────────────────────────
 
   const toggleEnabled = (key: string) => {
     const cfg = config();
@@ -212,8 +228,6 @@ const AdminHomepagePage: Component = () => {
     if (idx < 0) return;
     const newIdx = idx + direction;
     if (newIdx < 0 || newIdx >= sorted.length) return;
-
-    // Swap the order values of the two adjacent sections
     const a = sorted[idx];
     const b = sorted[newIdx];
     const cfg = config();
@@ -234,6 +248,40 @@ const AdminHomepagePage: Component = () => {
     });
   };
 
+  // DnD reorder: when a drag ends, recompute the order based on the
+  // new position of the dragged item. @thisbeyond/solid-dnd fires
+  // onDragEnd with { draggable: { id }, droppable?: { id } | null }.
+  const onDragEnd = (payload: {
+    draggable: { id: string | number };
+    droppable?: { id: string | number } | null;
+  }) => {
+    const fromKey = String(payload.draggable.id);
+    const toKey = payload.droppable ? String(payload.droppable.id) : null;
+    setDraggingKey(null);
+    if (!toKey || fromKey === toKey) return;
+
+    const sorted = sortedSections();
+    const fromIdx = sorted.findIndex((s) => s.key === fromKey);
+    const toIdx = sorted.findIndex((s) => s.key === toKey);
+    if (fromIdx < 0 || toIdx < 0) return;
+
+    // Build the new order array
+    const reordered = [...sorted];
+    const [moved] = reordered.splice(fromIdx, 1);
+    reordered.splice(toIdx, 0, moved);
+
+    // Assign sequential order values
+    const cfg = config();
+    const newSections: Record<string, SectionConfig> = { ...cfg.sections };
+    reordered.forEach((s, i) => {
+      newSections[s.key] = {
+        enabled: cfg.sections[s.key]?.enabled ?? true,
+        order: i + 1
+      };
+    });
+    setConfig({ sections: newSections });
+  };
+
   const save = async () => {
     setSaving(true);
     try {
@@ -245,14 +293,14 @@ const AdminHomepagePage: Component = () => {
       });
       const body = await resp.json().catch(() => ({}));
       if (!resp.ok || body.error) {
-        showToast(body.error || "Failed to save", "error");
+        toast.show(body.error || "Failed to save", "error");
       } else {
         setConfig(body.config);
         setOriginalConfig(body.config);
-        showToast("Homepage sections updated", "success");
+        toast.show("Discover layout updated", "success");
       }
     } catch {
-      showToast("Network error", "error");
+      toast.show("Network error", "error");
     } finally {
       setSaving(false);
     }
@@ -263,325 +311,329 @@ const AdminHomepagePage: Component = () => {
       return;
     const defaults: HomepageConfig = {
       sections: Object.fromEntries(
-        SECTION_META.map((m, i) => [m.key, { enabled: true, order: i + 1 }])
+        SECTION_META.map((m, i) => [
+          m.key,
+          { enabled: true, order: i + 1 }
+        ])
       )
     };
     setConfig(defaults);
   };
 
+  // ─── Render ──────────────────────────────────────────────────
+
   return (
-    <div>
-      <div
-        style={{
-          "margin-bottom": "var(--sp-6)",
-          display: "flex",
-          "justify-content": "space-between",
-          "align-items": "flex-start",
-          gap: "var(--sp-4)"
-        }}
-      >
+    <div class="admin-config-shell">
+      <div class="admin-config-header">
         <div>
-          <h2
-            style={{
-              "font-size": "1.5rem",
-              "font-weight": "700",
-              margin: "0 0 var(--sp-1) 0",
-              color: "var(--text)"
-            }}
-          >
-            Homepage Sections
-          </h2>
-          <p
-            style={{
-              "font-size": "0.875rem",
-              color: "var(--text-muted)",
-              margin: 0
-            }}
-          >
-            Toggle and reorder the 16 Discover sections. Changes apply to all
-            users immediately.
+          <h2>Discover Layout</h2>
+          <p>
+            Toggle and reorder the 7 sections that actually render on
+            the Discover page. Changes apply to all users within 5
+            minutes (config cache TTL).
           </p>
         </div>
-        <div style={{ display: "flex", gap: "var(--sp-2)", "flex-shrink": 0 }}>
-          <button
+        <div class="admin-config-actions">
+          <GlassBadge
+            intent="default"
+            label={`${activeCount()}/${SECTION_META.length} active`}
+            size="compact"
+          />
+          <GlassButton
+            variant="secondary"
+            size="compact"
             onClick={resetToDefaults}
-            style={btnSecondary}
             disabled={loading() || saving()}
           >
             Reset
-          </button>
-          <button
+          </GlassButton>
+          <GlassButton
+            variant="primary"
+            size="compact"
             onClick={save}
             disabled={!isDirty() || saving() || loading()}
-            style={isDirty() && !saving() ? btnPrimary : btnDisabled}
+            loading={saving()}
+            icon="save"
           >
-            {saving() ? "Saving…" : "Save Changes"}
-          </button>
+            {saving() ? "Saving…" : "Save"}
+          </GlassButton>
         </div>
       </div>
 
       <Show when={error()}>
-        <div role="alert" style={alertError}>
+        <div class="admin-config-alert" role="alert">
           Failed to load: {error()}
         </div>
       </Show>
 
       <Show when={loading()}>
-        <div
-          style={{
-            display: "flex",
-            "flex-direction": "column",
-            gap: "var(--sp-3)"
-          }}
-        >
-          <For each={Array.from({ length: 8 })}>
-            {() => <div style={{ ...skeletonCard, height: "70px" }} />}
+        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
+          <For each={Array.from({ length: 7 })}>
+            {() => <div class="admin-config-skeleton" style={{ height: "60px" }} />}
           </For>
         </div>
       </Show>
 
       <Show when={!loading()}>
-        <div
-          style={{
-            display: "flex",
-            "flex-direction": "column",
-            gap: "var(--sp-2)"
-          }}
-        >
-          <For each={sortedSections()}>
-            {(section, idx) => (
+        <div class="admin-homepage-layout">
+          {/* ─── Editor column ─────────────────────────────────── */}
+          <div>
+            <DragDropProvider
+              onDragEnd={onDragEnd}
+              collisionDetector={closestCenter}
+            >
+              <DragDropSensors />
+              <div class="admin-homepage-editor">
+                <SortableProvider ids={sortedSections().map((s) => s.key)}>
+                  <For each={sortedSections()}>
+                    {(section, idx) => (
+                      <SortableSectionRow
+                        section={section}
+                        index={idx()}
+                        total={sortedSections().length}
+                        isDragging={draggingKey() === section.key}
+                        onDragStart={() => setDraggingKey(section.key)}
+                        onMoveUp={() => moveSection(section.key, -1)}
+                        onMoveDown={() => moveSection(section.key, 1)}
+                        onToggle={() => toggleEnabled(section.key)}
+                      />
+                    )}
+                  </For>
+                </SortableProvider>
+              </div>
+            </DragDropProvider>
+
+            <Show when={isDirty()}>
               <div
                 style={{
-                  ...cardStyle,
-                  opacity: section.enabled ? 1 : 0.55,
-                  "border-color": section.enabled
-                    ? "var(--hairline)"
-                    : "var(--hairline-strong)"
+                  "margin-top": "var(--sp-4)",
+                  display: "flex",
+                  gap: "var(--sp-2)",
+                  "justify-content": "flex-end"
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    "align-items": "center",
-                    gap: "var(--sp-3)",
-                    flex: 1
-                  }}
+                <GlassButton
+                  variant="ghost"
+                  size="compact"
+                  onClick={() => setConfig(originalConfig())}
                 >
-                  <span
-                    style={{
-                      "font-size": "1.25rem",
-                      width: "28px",
-                      "text-align": "center"
-                    }}
-                  >
-                    {section.icon}
-                  </span>
-                  <div style={{ flex: 1, "min-width": 0 }}>
-                    <div
-                      style={{
-                        "font-weight": "600",
-                        color: "var(--text)",
-                        "font-size": "0.95rem"
-                      }}
-                    >
-                      {section.label}
-                    </div>
-                    <div
-                      style={{
-                        "font-size": "0.8rem",
-                        color: "var(--text-muted)",
-                        "margin-top": "2px"
-                      }}
-                    >
-                      {section.description}
-                    </div>
-                  </div>
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    "align-items": "center",
-                    gap: "var(--sp-2)"
-                  }}
+                  Discard
+                </GlassButton>
+                <GlassButton
+                  variant="primary"
+                  size="compact"
+                  onClick={save}
+                  disabled={saving()}
+                  loading={saving()}
+                  icon="save"
                 >
-                  <span
-                    style={{
-                      "font-size": "0.75rem",
-                      color: "var(--text-muted)",
-                      "min-width": "20px",
-                      "text-align": "right"
-                    }}
-                  >
-                    #{section.order}
-                  </span>
-                  <button
-                    onClick={() => moveSection(section.key, -1)}
-                    disabled={idx() === 0}
-                    style={idx() === 0 ? iconBtnDisabled : iconBtn}
-                    aria-label={`Move ${section.label} up`}
-                    title="Move up"
-                  >
-                    ↑
-                  </button>
-                  <button
-                    onClick={() => moveSection(section.key, 1)}
-                    disabled={idx() === sortedSections().length - 1}
-                    style={
-                      idx() === sortedSections().length - 1
-                        ? iconBtnDisabled
-                        : iconBtn
-                    }
-                    aria-label={`Move ${section.label} down`}
-                    title="Move down"
-                  >
-                    ↓
-                  </button>
-                  <button
-                    onClick={() => toggleEnabled(section.key)}
-                    style={section.enabled ? toggleOn : toggleOff}
-                    aria-label={`Toggle ${section.label}`}
-                  >
-                    {section.enabled ? "ON" : "OFF"}
-                  </button>
-                </div>
+                  {saving() ? "Saving…" : "Save Changes"}
+                </GlassButton>
               </div>
-            )}
-          </For>
+            </Show>
+          </div>
+
+          {/* ─── Live Preview column ──────────────────────────── */}
+          <div class="admin-homepage-preview">
+            <div class="admin-homepage-preview-header">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "1rem" }}
+              >
+                preview
+              </span>
+              Live Preview
+            </div>
+            <div class="admin-homepage-preview-mock">
+              <For each={sortedSections()}>
+                {(section) => (
+                  <Show when={section.enabled}>
+                    <Show
+                      when={section.key === "spotlight"}
+                      fallback={
+                        <div class="admin-preview-rail">
+                          <div class="admin-preview-rail-label">
+                            <span
+                              class="material-symbols-outlined"
+                              style={{ "font-size": "0.85rem" }}
+                            >
+                              {section.icon}
+                            </span>
+                            {section.label}
+                          </div>
+                          <div class="admin-preview-rail-posters">
+                            <For each={Array.from({ length: 6 })}>
+                              {() => <div class="admin-preview-poster" />}
+                            </For>
+                          </div>
+                        </div>
+                      }
+                    >
+                      <div class="admin-preview-hero">
+                        <span
+                          class="material-symbols-outlined"
+                          style={{
+                            "font-size": "1rem",
+                            "margin-right": "var(--sp-1)"
+                          }}
+                        >
+                          {section.icon}
+                        </span>
+                        {section.label} (hero)
+                      </div>
+                    </Show>
+                  </Show>
+                )}
+              </For>
+              <Show when={activeCount() === 0}>
+                <div class="admin-preview-empty">
+                  All sections disabled — Discover page will be empty.
+                </div>
+              </Show>
+            </div>
+            <p
+              style={{
+                "font-size": "0.7rem",
+                color: "var(--text-muted)",
+                "margin-top": "var(--sp-3)",
+                "line-height": "1.4"
+              }}
+            >
+              Preview reflects the saved + unsaved toggle/order state.
+              "Coming Soon" also requires the <code>upcoming</code> feature
+              flag to be ON.
+            </p>
+          </div>
         </div>
       </Show>
 
-      <Show when={toast()}>
-        <div
-          style={{
-            position: "fixed",
-            bottom: "var(--sp-6)",
-            right: "var(--sp-6)",
-            "z-index": 100,
-            background:
-              toast()?.type === "success"
-                ? "rgb(34, 197, 94)"
-                : "rgb(239, 68, 68)",
-            color: "white",
-            padding: "var(--sp-3) var(--sp-4)",
-            "border-radius": "var(--radius-md)",
-            "font-size": "0.875rem",
-            "font-weight": "600",
-            "box-shadow": "0 10px 25px rgba(0,0,0,0.3)"
-          }}
-        >
-          {toast()?.msg}
-        </div>
+      {/* ─── Toast ──────────────────────────────────────────────── */}
+      <Show when={toast.msg()}>
+        {(m) => (
+          <div class={`admin-config-toast ${m().type}`}>{m().text}</div>
+        )}
       </Show>
     </div>
   );
 };
 
-// ─── Style constants ────────────────────────────────────────────────
+// ─── Sortable section row (sub-component) ──────────────────────────
 
-const cardStyle: JSX.CSSProperties = {
-  background: "var(--tier-1)",
-  border: "1px solid var(--hairline)",
-  "border-radius": "var(--radius-lg)",
-  padding: "var(--sp-3) var(--sp-4)",
-  display: "flex",
-  "align-items": "center",
-  gap: "var(--sp-3)",
-  transition: "opacity 0.15s, border-color 0.15s"
+interface SortableSectionRowProps {
+  section: SectionMeta & { enabled: boolean; order: number };
+  index: number;
+  total: number;
+  isDragging: boolean;
+  onDragStart: () => void;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+  onToggle: () => void;
+}
+
+const SortableSectionRow = (props: SortableSectionRowProps) => {
+  const sortable = createSortable(props.section.key);
+
+  return (
+    <div
+      ref={sortable.ref}
+      class={`admin-homepage-section-card ${
+        props.section.enabled ? "" : "disabled-section"
+      } ${props.isDragging ? "dragging" : ""}`}
+      style={{
+        background: "var(--tier-1)",
+        border: "1px solid var(--hairline)",
+        "border-radius": "var(--radius-md)"
+      }}
+    >
+      <div
+        class="admin-homepage-drag-handle"
+        {...sortable.dragActivators}
+        onPointerDown={() => props.onDragStart()}
+        title="Drag to reorder"
+        aria-label={`Drag handle for ${props.section.label}`}
+      >
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "1.1rem" }}
+        >
+          drag_indicator
+        </span>
+      </div>
+
+      <span class="admin-homepage-section-order">#{props.index + 1}</span>
+
+      <span class="admin-homepage-section-icon">
+        <span
+          class="material-symbols-outlined"
+          style={{ "font-size": "1.2rem" }}
+        >
+          {props.section.icon}
+        </span>
+      </span>
+
+      <div class="admin-homepage-section-body">
+        <div class="admin-homepage-section-label">
+          {props.section.label}
+          <Show when={props.section.featureFlagDep}>
+            <GlassBadge
+              intent="warning"
+              label={`needs ${props.section.featureFlagDep} flag`}
+              size="compact"
+            />
+          </Show>
+        </div>
+        <div class="admin-homepage-section-desc">
+          {props.section.description}
+        </div>
+      </div>
+
+      <div class="admin-homepage-section-actions">
+        <button
+          class="admin-homepage-icon-btn"
+          onClick={props.onMoveUp}
+          disabled={props.index === 0}
+          aria-label={`Move ${props.section.label} up`}
+          title="Move up"
+        >
+          ↑
+        </button>
+        <button
+          class="admin-homepage-icon-btn"
+          onClick={props.onMoveDown}
+          disabled={props.index === props.total - 1}
+          aria-label={`Move ${props.section.label} down`}
+          title="Move down"
+        >
+          ↓
+        </button>
+        <button
+          class="admin-config-toggle"
+          role="switch"
+          aria-checked={props.section.enabled}
+          aria-label={`Toggle ${props.section.label}`}
+          onClick={props.onToggle}
+        >
+          <span class="toggle-knob" />
+        </button>
+      </div>
+    </div>
+  );
 };
 
-const skeletonCard: JSX.CSSProperties = {
-  background: "var(--tier-1)",
-  border: "1px solid var(--hairline)",
-  "border-radius": "var(--radius-lg)",
-  animation: "pulse 1.5s ease-in-out infinite"
-};
+// ─── Toast helper ──────────────────────────────────────────────────
 
-const alertError: JSX.CSSProperties = {
-  background: "rgba(239, 68, 68, 0.1)",
-  border: "1px solid rgba(239, 68, 68, 0.3)",
-  "border-radius": "var(--radius-md)",
-  padding: "var(--sp-4)",
-  "margin-bottom": "var(--sp-4)",
-  "font-size": "0.875rem",
-  color: "rgb(252, 165, 165)"
-};
-
-const btnPrimary: JSX.CSSProperties = {
-  background: "var(--accent, #00d9a3)",
-  color: "var(--void, #0a0e14)",
-  border: "none",
-  padding: "var(--sp-2) var(--sp-4)",
-  "border-radius": "var(--radius-md)",
-  "font-weight": "600",
-  "font-size": "0.875rem",
-  cursor: "pointer"
-};
-
-const btnSecondary: JSX.CSSProperties = {
-  background: "transparent",
-  color: "var(--text)",
-  border: "1px solid var(--hairline)",
-  padding: "var(--sp-2) var(--sp-4)",
-  "border-radius": "var(--radius-md)",
-  "font-weight": "500",
-  "font-size": "0.875rem",
-  cursor: "pointer"
-};
-
-const btnDisabled: JSX.CSSProperties = {
-  background: "var(--tier-2)",
-  color: "var(--text-muted)",
-  border: "1px solid var(--hairline)",
-  padding: "var(--sp-2) var(--sp-4)",
-  "border-radius": "var(--radius-md)",
-  "font-weight": "500",
-  "font-size": "0.875rem",
-  cursor: "not-allowed",
-  opacity: 0.5
-};
-
-const iconBtn: JSX.CSSProperties = {
-  background: "var(--tier-2)",
-  color: "var(--text)",
-  border: "1px solid var(--hairline)",
-  width: "28px",
-  height: "28px",
-  "border-radius": "var(--radius-sm)",
-  cursor: "pointer",
-  "font-size": "0.875rem",
-  display: "flex",
-  "align-items": "center",
-  "justify-content": "center"
-};
-
-const iconBtnDisabled: JSX.CSSProperties = {
-  ...iconBtn,
-  opacity: 0.3,
-  cursor: "not-allowed"
-};
-
-const toggleOn: JSX.CSSProperties = {
-  background: "var(--accent, #00d9a3)",
-  color: "var(--void, #0a0e14)",
-  border: "none",
-  padding: "var(--sp-1) var(--sp-3)",
-  "border-radius": "var(--radius-sm)",
-  "font-weight": "700",
-  "font-size": "0.75rem",
-  cursor: "pointer",
-  "min-width": "42px"
-};
-
-const toggleOff: JSX.CSSProperties = {
-  background: "var(--tier-2)",
-  color: "var(--text-muted)",
-  border: "1px solid var(--hairline)",
-  padding: "var(--sp-1) var(--sp-3)",
-  "border-radius": "var(--radius-sm)",
-  "font-weight": "700",
-  "font-size": "0.75rem",
-  cursor: "pointer",
-  "min-width": "42px"
-};
+function signalToast() {
+  const [msg, setMsg] = createSignal<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const show = (text: string, type: "success" | "error") => {
+    setMsg({ text, type });
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => setMsg(null), 2800);
+  };
+  return { msg, show };
+}
 
 export default AdminHomepagePage;

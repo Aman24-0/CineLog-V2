@@ -83,6 +83,10 @@ interface TmdbSettings {
 interface MaintenanceWindow {
   enabled: boolean;
   scheduled_at: string | null;
+  // Phase 9 Chunk 6 — optional end timestamp for the maintenance window.
+  // When set, the banner auto-dismisses after this time. Backward-compatible:
+  // missing/null means the window stays until an admin disables it manually.
+  ends_at: string | null;
   message: string;
 }
 
@@ -161,7 +165,7 @@ const DEFAULTS: AllSettings = {
     fallback_language: "en",
     include_adult: false
   },
-  maintenance_window: { enabled: false, scheduled_at: null, message: "" },
+  maintenance_window: { enabled: false, scheduled_at: null, ends_at: null, message: "" },
   retention_policy: {
     soft_deleted_profiles_days: 90,
     activity_log_days: 180,
@@ -283,12 +287,25 @@ function validateMaintenanceWindow(input: unknown): MaintenanceWindow {
   if (typeof input !== "object" || input === null)
     throw new Error("must be an object");
   const obj = input as Record<string, unknown>;
+  const scheduledAt =
+    typeof obj.scheduled_at === "string" && obj.scheduled_at.length > 0
+      ? obj.scheduled_at
+      : null;
+  let endsAt: string | null = null;
+  if (typeof obj.ends_at === "string" && obj.ends_at.length > 0) {
+    // If ends_at is before scheduled_at, ignore it (treat as null) rather
+    // than rejecting the whole payload — the admin UI prevents this
+    // client-side, but we defend here too.
+    if (scheduledAt && new Date(obj.ends_at) > new Date(scheduledAt)) {
+      endsAt = obj.ends_at;
+    } else if (!scheduledAt) {
+      endsAt = obj.ends_at;
+    }
+  }
   return {
     enabled: typeof obj.enabled === "boolean" ? obj.enabled : false,
-    scheduled_at:
-      typeof obj.scheduled_at === "string" && obj.scheduled_at.length > 0
-        ? obj.scheduled_at
-        : null,
+    scheduled_at: scheduledAt,
+    ends_at: endsAt,
     message: typeof obj.message === "string" ? obj.message.slice(0, 500) : ""
   };
 }

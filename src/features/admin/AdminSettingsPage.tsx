@@ -1,41 +1,57 @@
 // src/features/admin/AdminSettingsPage.tsx
 //
-// CineLog V2 — Admin Settings Page Component
+// CineLog V2 — Admin Settings Page (Phase 9 Chunk 6 rewrite)
 // ---------------------------------------------------------------------
-// Editable form for the site-wide settings keys (defined in the
-// Phase 3 migration). Phase 9 Chunk 2 enforces the zero-duplication
-// rule: service-specific settings belong on the dedicated Services
-// Hub page, NOT here. The keys currently editable on this page are:
-//   1. site_settings      — site name, tagline, contact, social links
-//   2. rate_limits        — per-min / per-hour / per-day caps
-//   3. maintenance_window — banner toggle, scheduled time, message
-//   4. retention_policy   — how long to keep soft-deleted rows, logs
+// The single admin surface for site-wide, non-service, non-feature,
+// non-communication settings. Phase 9 Chunk 6 enforces the
+// zero-duplication rule:
 //
-// REMOVED (Phase 9 Chunk 2):
-//   • tmdb_settings — moved to /admin/services/tmdb (TmdbServicePage).
-//     Same backing key (tmdb_settings) on /api/admin/settings, same
-//     PUT shape — only the UI control moved. This is the single source
-//     of truth for TMDB config now; editing it on both pages would
-//     inevitably drift.
-//   • Any future service-specific key (e.g. anilist_settings,
-//     resend_settings) should also live on its corresponding
-//     /admin/services/<name> page, not here.
+//   KEYS ON THIS PAGE (3):
+//     1. site_settings      — site name, tagline, contact, social links
+//     2. rate_limits        — per-min / per-hour / per-day caps
+//     3. retention_policy   — how long to keep soft-deleted rows, logs
+//
+//   KEYS REMOVED FROM THIS PAGE (Phase 9 Chunk 6):
+//     • maintenance_window — MOVED to /admin/maintenance. The maintenance
+//       page now owns the scheduling UI (start/end date + message) for
+//       the same backing key. Editing it on both pages would drift.
+//     • tmdb_settings       — on /admin/services/tmdb (Chunk 2).
+//     • notification_settings — on /admin/communication (Chunk 4).
+//     • feature_flags       — on /admin/feature-flags (separate page).
+//
+// USER-SIDE MAPPING (Strict — every field maps to a real consumer):
+//   • site_settings.site_name → header logo text, <title>, email templates
+//   • site_settings.tagline → footer + meta description
+//   • site_settings.contact_email → "Contact us" links in footer + emails
+//   • site_settings.{support,privacy,terms}_url → footer links
+//   • site_settings.social_links → footer social icons
+//   • rate_limits.api_per_min → API rate-limit middleware
+//   • rate_limits.auth_attempts_per_hr → auth throttle
+//   • rate_limits.upload_mb_per_day → upload limiter
+//   • retention_policy.* → default days cutoff for maintenance purge ops
 //
 // DATA FLOW:
-//   • GET /api/admin/settings returns { settings: { key: { value, updated_at } } }
-//   • On save, we send PUT /api/admin/settings with { settings: { key: newValue } }
-//     for only the keys that changed.
-//   • The API validates each value; on success we re-fetch the full
-//     state so the UI reflects server-side clamping.
+//   • GET /api/admin/settings → { settings: { key: { value, updated_at } } }
+//   • PUT /api/admin/settings with { settings: { key: newValue } }
+//
+// MOBILE-FIRST: Single-column on phone; two-column field grids on
+// tablet+ (540px breakpoint). Each section is a GlassCard with a
+// clear heading.
 
 import {
   createSignal,
+  createMemo,
   Show,
+  For,
   onMount,
   type Component,
   type JSX
 } from "solid-js";
-import AdminTwoFactorPanel from "~/features/admin/components/AdminTwoFactorPanel";
+import { GlassCard } from "~/shared/ui/glass/GlassCard";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+
+// ─── Types ─────────────────────────────────────────────────────────
 
 interface SiteSettings {
   site_name: string;
@@ -44,28 +60,19 @@ interface SiteSettings {
   support_url: string;
   privacy_url: string;
   terms_url: string;
-  social_links: { twitter: string; instagram: string; github: string };
+  social_links: {
+    twitter: string;
+    instagram: string;
+    github: string;
+  };
 }
+
 interface RateLimits {
   api_per_min: number;
   auth_attempts_per_hr: number;
   upload_mb_per_day: number;
 }
-// TmdbSettings is still part of the SettingsState shape (the server
-// returns it), but Phase 9 Chunk 2 removed the editable UI for it
-// from this page. The admin edits TMDB config on
-// /admin/services/tmdb now. We keep the type here so the fetch
-// result is correctly typed; we just don't render inputs for it.
-interface TmdbSettings {
-  cache_ttl_days: number;
-  fallback_language: string;
-  include_adult: boolean;
-}
-interface MaintenanceWindow {
-  enabled: boolean;
-  scheduled_at: string | null;
-  message: string;
-}
+
 interface RetentionPolicy {
   soft_deleted_profiles_days: number;
   activity_log_days: number;
@@ -73,20 +80,35 @@ interface RetentionPolicy {
   admin_actions_days: number;
 }
 
-interface SettingsState {
-  site_settings: { value: SiteSettings; updated_at: string | null };
-  rate_limits: { value: RateLimits; updated_at: string | null };
-  tmdb_settings: { value: TmdbSettings; updated_at: string | null };
-  maintenance_window: { value: MaintenanceWindow; updated_at: string | null };
-  retention_policy: { value: RetentionPolicy; updated_at: string | null };
+type SettingsKey = "site_settings" | "rate_limits" | "retention_policy";
+
+interface SettingsResponse {
+  settings: Record<
+    SettingsKey,
+    { value: unknown; updated_at: string | null }
+  >;
 }
 
+// ─── Component ─────────────────────────────────────────────────────
+
 const AdminSettingsPage: Component = () => {
-  const [settings, setSettings] = createSignal<SettingsState | null>(null);
+  const [site, setSite] = createSignal<SiteSettings | null>(null);
+  const [limits, setLimits] = createSignal<RateLimits | null>(null);
+  const [retention, setRetention] = createSignal<RetentionPolicy | null>(
+    null
+  );
+  const [updatedAt, setUpdatedAt] = createSignal<Record<string, string | null>>(
+    {}
+  );
   const [loading, setLoading] = createSignal(true);
   const [saving, setSaving] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
-  const [success, setSuccess] = createSignal<string | null>(null);
+  const toast = signalToast();
+
+  // Track original values to detect dirty state
+  const [origSite, setOrigSite] = createSignal<string>("");
+  const [origLimits, setOrigLimits] = createSignal<string>("");
+  const [origRetention, setOrigRetention] = createSignal<string>("");
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -101,11 +123,26 @@ const AdminSettingsPage: Component = () => {
         }
         throw new Error(`HTTP ${resp.status}`);
       }
-      const data = (await resp.json()) as { settings: SettingsState };
-      setSettings(data.settings);
+      const data = (await resp.json()) as SettingsResponse;
+
+      const s = data.settings.site_settings.value as SiteSettings;
+      const r = data.settings.rate_limits.value as RateLimits;
+      const ret = data.settings.retention_policy.value as RetentionPolicy;
+
+      setSite(s);
+      setLimits(r);
+      setRetention(ret);
+      setUpdatedAt({
+        site_settings: data.settings.site_settings.updated_at,
+        rate_limits: data.settings.rate_limits.updated_at,
+        retention_policy: data.settings.retention_policy.updated_at
+      });
+      setOrigSite(JSON.stringify(s));
+      setOrigLimits(JSON.stringify(r));
+      setOrigRetention(JSON.stringify(ret));
       setError(null);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load settings");
+      setError(err instanceof Error ? err.message : "Failed to load");
     } finally {
       setLoading(false);
     }
@@ -113,716 +150,493 @@ const AdminSettingsPage: Component = () => {
 
   onMount(fetchSettings);
 
-  // ─── Local mutation helpers ────────────────────────────────
-  const updateSite = (patch: Partial<SiteSettings>) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            site_settings: {
-              ...s.site_settings,
-              value: { ...s.site_settings.value, ...patch }
-            }
-          }
-        : s
+  const isDirty = createMemo(() => {
+    if (!site() || !limits() || !retention()) return false;
+    return (
+      JSON.stringify(site()) !== origSite() ||
+      JSON.stringify(limits()) !== origLimits() ||
+      JSON.stringify(retention()) !== origRetention()
     );
-  };
-  const updateSocial = (
-    key: keyof SiteSettings["social_links"],
-    val: string
-  ) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            site_settings: {
-              ...s.site_settings,
-              value: {
-                ...s.site_settings.value,
-                social_links: {
-                  ...s.site_settings.value.social_links,
-                  [key]: val
-                }
-              }
-            }
-          }
-        : s
-    );
-  };
-  const updateRateLimits = (patch: Partial<RateLimits>) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            rate_limits: {
-              ...s.rate_limits,
-              value: { ...s.rate_limits.value, ...patch }
-            }
-          }
-        : s
-    );
-  };
-  // updateTmdb was removed in Phase 9 Chunk 2 — TMDB settings are now
-  // edited on /admin/services/tmdb (TmdbServicePage). The
-  // tmdb_settings key is still loaded from the API (so the type is
-  // correct) but is read-only on this page.
-  const updateMaintenance = (patch: Partial<MaintenanceWindow>) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            maintenance_window: {
-              ...s.maintenance_window,
-              value: { ...s.maintenance_window.value, ...patch }
-            }
-          }
-        : s
-    );
-  };
-  const updateRetention = (patch: Partial<RetentionPolicy>) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            retention_policy: {
-              ...s.retention_policy,
-              value: { ...s.retention_policy.value, ...patch }
-            }
-          }
-        : s
-    );
-  };
+  });
 
-  // ─── Save handler ──────────────────────────────────────────
   const save = async () => {
-    const s = settings();
-    if (!s) return;
+    if (!site() || !limits() || !retention()) return;
     setSaving(true);
-    setError(null);
-    setSuccess(null);
+    const updates: Record<string, unknown> = {};
+    if (JSON.stringify(site()) !== origSite())
+      updates.site_settings = site();
+    if (JSON.stringify(limits()) !== origLimits())
+      updates.rate_limits = limits();
+    if (JSON.stringify(retention()) !== origRetention())
+      updates.retention_policy = retention();
+
     try {
-      // Phase 9 Chunk 2 — tmdb_settings is intentionally omitted
-      // from the PUT body. Editing it here would re-introduce the
-      // duplication the Services Hub was created to prevent. The
-      // TmdbServicePage sends its own PUT for tmdb_settings.
       const resp = await fetch("/api/admin/settings", {
         method: "PUT",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          settings: {
-            site_settings: s.site_settings.value,
-            rate_limits: s.rate_limits.value,
-            maintenance_window: s.maintenance_window.value,
-            retention_policy: s.retention_policy.value
-          }
-        })
+        body: JSON.stringify({ settings: updates })
       });
-      const json = (await resp.json()) as {
-        ok: boolean;
-        updated?: string[];
-        errors?: { key: string; error: string }[];
-        error?: string;
-      };
-      if (!resp.ok || !json.ok) {
-        throw new Error(
-          json.error ?? json.errors?.[0]?.error ?? `HTTP ${resp.status}`
-        );
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || body.error) {
+        toast.show(body.error || "Failed to save", "error");
+      } else {
+        // Re-fetch to get server-validated values + updated_at
+        await fetchSettings();
+        toast.show("Settings saved", "success");
       }
-      setSuccess(`Saved ${json.updated?.length ?? 0} settings.`);
-      // Re-fetch to reflect server-side clamping
-      await fetchSettings();
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Save failed");
+    } catch {
+      toast.show("Network error", "error");
     } finally {
       setSaving(false);
     }
   };
 
-  const formatDate = (iso: string | null) => {
-    if (!iso) return "never";
+  const reset = () => {
+    if (!isDirty()) return;
+    if (!confirm("Discard unsaved changes?")) return;
+    fetchSettings();
+  };
+
+  const formatUpdated = (key: string) => {
+    const ts = updatedAt()[key];
+    if (!ts) return "Never";
     try {
-      return new Date(iso).toLocaleString();
+      return new Date(ts).toLocaleString();
     } catch {
-      return iso;
+      return ts;
     }
   };
 
-  // ─── Render ────────────────────────────────────────────────
+  // ─── Field updaters ──────────────────────────────────────────
+
+  const updateSite = (patch: Partial<SiteSettings>) => {
+    setSite({ ...(site() as SiteSettings), ...patch });
+  };
+
+  const updateSocial = (key: keyof SiteSettings["social_links"], val: string) => {
+    const current = site() as SiteSettings;
+    setSite({
+      ...current,
+      social_links: { ...current.social_links, [key]: val }
+    });
+  };
+
+  const updateLimit = (key: keyof RateLimits, val: number) => {
+    setLimits({ ...(limits() as RateLimits), [key]: val });
+  };
+
+  const updateRetention = (key: keyof RetentionPolicy, val: number) => {
+    setRetention({ ...(retention() as RetentionPolicy), [key]: val });
+  };
+
+  // ─── Render ──────────────────────────────────────────────────
+
   return (
-    <div
-      class="admin-settings-page"
-      style={{ padding: "var(--sp-6)", "max-width": "900px" }}
-    >
-      {/* Header */}
-      <div
-        style={{
-          display: "flex",
-          "align-items": "center",
-          "justify-content": "space-between",
-          "margin-bottom": "var(--sp-6)",
-          "flex-wrap": "wrap",
-          gap: "var(--sp-3)"
-        }}
-      >
+    <div class="admin-config-shell">
+      <div class="admin-config-header">
         <div>
-          <h1
-            style={{ margin: 0, "font-size": "1.75rem", color: "var(--text)" }}
-          >
-            Settings
-          </h1>
-          <p
-            style={{
-              margin: "var(--sp-1) 0 0 0",
-              color: "var(--text-muted)",
-              "font-size": "0.875rem"
-            }}
-          >
-            Site-wide configuration. Changes are audit-logged.
+          <h2>App Settings</h2>
+          <p>
+            Site-wide configuration for branding, rate limits, and data
+            retention. Service-specific settings live on the Services Hub;
+            maintenance scheduling lives on the Maintenance page.
           </p>
         </div>
-        <button
-          type="button"
-          onClick={save}
-          disabled={saving() || !settings()}
-          style={btnStyle(saving() || !settings())}
-        >
-          {saving() ? "Saving…" : "💾 Save all"}
-        </button>
+        <div class="admin-config-actions">
+          <GlassButton
+            variant="secondary"
+            size="compact"
+            onClick={reset}
+            disabled={!isDirty() || saving() || loading()}
+          >
+            Reset
+          </GlassButton>
+          <GlassButton
+            variant="primary"
+            size="compact"
+            onClick={save}
+            disabled={!isDirty() || saving() || loading()}
+            loading={saving()}
+            icon="save"
+          >
+            {saving() ? "Saving…" : "Save Changes"}
+          </GlassButton>
+        </div>
       </div>
 
       <Show when={error()}>
-        <div style={errorStyle}>{error()}</div>
-      </Show>
-      <Show when={success()}>
-        <div style={successStyle}>{success()}</div>
-      </Show>
-
-      <Show when={loading() && !settings()} fallback={null}>
-        <div style={loadingStyle}>Loading settings…</div>
+        <div class="admin-config-alert" role="alert">
+          Failed to load: {error()}
+        </div>
       </Show>
 
-      <Show when={settings()}>
-        {/* ─── Site settings ─────────────────────────────── */}
-        <Section
-          title="Site settings"
-          subtitle="Brand and contact details shown across the app."
-          updated={formatDate(settings()!.site_settings.updated_at)}
-        >
-          <Field label="Site name">
-            <input
-              type="text"
-              value={settings()!.site_settings.value.site_name}
-              onInput={(e) => updateSite({ site_name: e.currentTarget.value })}
-              style={inputStyle}
-              maxlength={60}
+      <Show when={loading()}>
+        <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
+          <For each={Array.from({ length: 3 })}>
+            {() => <div class="admin-config-skeleton" />}
+          </For>
+        </div>
+      </Show>
+
+      <Show when={!loading() && site() && limits() && retention()}>
+        {/* ─── Site Settings ─────────────────────────────────── */}
+        <GlassCard class="admin-config-card" padding="comfortable">
+          <div class="admin-config-card-header">
+            <h3>Site Identity</h3>
+            <GlassBadge
+              intent="default"
+              label={`Updated ${formatUpdated("site_settings")}`}
+              size="compact"
             />
-          </Field>
-          <Field label="Tagline">
-            <input
-              type="text"
-              value={settings()!.site_settings.value.tagline}
-              onInput={(e) => updateSite({ tagline: e.currentTarget.value })}
-              style={inputStyle}
-              maxlength={120}
-            />
-          </Field>
-          <Field label="Contact email">
-            <input
-              type="email"
-              value={settings()!.site_settings.value.contact_email}
-              onInput={(e) =>
-                updateSite({ contact_email: e.currentTarget.value })
-              }
-              style={inputStyle}
-              maxlength={120}
-            />
-          </Field>
-          <div style={fieldGridStyle}>
-            <Field label="Support URL">
+          </div>
+          <p class="admin-config-card-desc">
+            Branding shown in the header, footer, and email templates.
+            Maps to <code>site_settings</code> in app_config.
+          </p>
+
+          <div class="admin-config-field-grid two-col">
+            <div class="admin-config-field">
+              <label>Site Name</label>
+              <input
+                type="text"
+                value={site()!.site_name}
+                onInput={(e) => updateSite({ site_name: e.currentTarget.value })}
+                maxlength={60}
+              />
+              <span class="admin-config-field-hint">
+                Shown in the header logo and email subject lines.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Tagline</label>
+              <input
+                type="text"
+                value={site()!.tagline}
+                onInput={(e) => updateSite({ tagline: e.currentTarget.value })}
+                maxlength={120}
+              />
+              <span class="admin-config-field-hint">
+                Shown in the footer and meta description.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Contact Email</label>
+              <input
+                type="email"
+                value={site()!.contact_email}
+                onInput={(e) =>
+                  updateSite({ contact_email: e.currentTarget.value })
+                }
+                maxlength={120}
+              />
+              <span class="admin-config-field-hint">
+                "Contact us" links in footer and emails.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Support URL</label>
               <input
                 type="url"
-                value={settings()!.site_settings.value.support_url}
+                value={site()!.support_url}
+                placeholder="https://help.cinelog.app"
                 onInput={(e) =>
                   updateSite({ support_url: e.currentTarget.value })
                 }
-                style={inputStyle}
-                placeholder="https://"
               />
-            </Field>
-            <Field label="Privacy URL">
+            </div>
+            <div class="admin-config-field">
+              <label>Privacy URL</label>
               <input
                 type="url"
-                value={settings()!.site_settings.value.privacy_url}
+                value={site()!.privacy_url}
+                placeholder="https://cinelog.app/privacy"
                 onInput={(e) =>
                   updateSite({ privacy_url: e.currentTarget.value })
                 }
-                style={inputStyle}
-                placeholder="https://"
-              />
-            </Field>
-            <Field label="Terms URL">
-              <input
-                type="url"
-                value={settings()!.site_settings.value.terms_url}
-                onInput={(e) =>
-                  updateSite({ terms_url: e.currentTarget.value })
-                }
-                style={inputStyle}
-                placeholder="https://"
-              />
-            </Field>
-          </div>
-          <Field label="Social links">
-            <div style={fieldGridStyle}>
-              <input
-                type="url"
-                value={settings()!.site_settings.value.social_links.twitter}
-                onInput={(e) => updateSocial("twitter", e.currentTarget.value)}
-                style={inputStyle}
-                placeholder="Twitter/X URL"
-              />
-              <input
-                type="url"
-                value={settings()!.site_settings.value.social_links.instagram}
-                onInput={(e) =>
-                  updateSocial("instagram", e.currentTarget.value)
-                }
-                style={inputStyle}
-                placeholder="Instagram URL"
-              />
-              <input
-                type="url"
-                value={settings()!.site_settings.value.social_links.github}
-                onInput={(e) => updateSocial("github", e.currentTarget.value)}
-                style={inputStyle}
-                placeholder="GitHub URL"
               />
             </div>
-          </Field>
-        </Section>
+            <div class="admin-config-field">
+              <label>Terms URL</label>
+              <input
+                type="url"
+                value={site()!.terms_url}
+                placeholder="https://cinelog.app/terms"
+                onInput={(e) => updateSite({ terms_url: e.currentTarget.value })}
+              />
+            </div>
+          </div>
 
-        {/* ─── Rate limits ───────────────────────────────── */}
-        <Section
-          title="Rate limits"
-          subtitle="Per-user request caps. The server enforces these."
-          updated={formatDate(settings()!.rate_limits.updated_at)}
-        >
-          <div style={fieldGridStyle}>
-            <Field label="API requests / min">
+          <div
+            style={{
+              "margin-top": "var(--sp-4)",
+              "padding-top": "var(--sp-4)",
+              "border-top": "1px solid var(--hairline)"
+            }}
+          >
+            <label
+              style={{
+                display: "block",
+                "font-size": "0.75rem",
+                "font-weight": "600",
+                "text-transform": "uppercase",
+                "letter-spacing": "0.05em",
+                color: "var(--text-secondary)",
+                "margin-bottom": "var(--sp-3)"
+              }}
+            >
+              Social Links
+            </label>
+            <div class="admin-config-field-grid two-col">
+              <div class="admin-config-field">
+                <label>Twitter</label>
+                <input
+                  type="url"
+                  value={site()!.social_links.twitter}
+                  placeholder="https://twitter.com/cinelog"
+                  onInput={(e) => updateSocial("twitter", e.currentTarget.value)}
+                />
+              </div>
+              <div class="admin-config-field">
+                <label>Instagram</label>
+                <input
+                  type="url"
+                  value={site()!.social_links.instagram}
+                  placeholder="https://instagram.com/cinelog"
+                  onInput={(e) =>
+                    updateSocial("instagram", e.currentTarget.value)
+                  }
+                />
+              </div>
+              <div class="admin-config-field">
+                <label>GitHub</label>
+                <input
+                  type="url"
+                  value={site()!.social_links.github}
+                  placeholder="https://github.com/cinelog"
+                  onInput={(e) => updateSocial("github", e.currentTarget.value)}
+                />
+              </div>
+            </div>
+          </div>
+        </GlassCard>
+
+        {/* ─── Rate Limits ───────────────────────────────────── */}
+        <GlassCard class="admin-config-card" padding="comfortable">
+          <div class="admin-config-card-header">
+            <h3>Rate Limits</h3>
+            <GlassBadge
+              intent="default"
+              label={`Updated ${formatUpdated("rate_limits")}`}
+              size="compact"
+            />
+          </div>
+          <p class="admin-config-card-desc">
+            API and auth throttling enforced by the server middleware.
+            Maps to <code>rate_limits</code> in app_config.
+          </p>
+
+          <div class="admin-config-field-grid two-col">
+            <div class="admin-config-field">
+              <label>API requests / min</label>
               <input
                 type="number"
                 min={5}
                 max={600}
-                value={settings()!.rate_limits.value.api_per_min}
+                value={limits()!.api_per_min}
                 onInput={(e) =>
-                  updateRateLimits({
-                    api_per_min: Number(e.currentTarget.value)
-                  })
+                  updateLimit("api_per_min", Number(e.currentTarget.value))
                 }
-                style={inputStyle}
               />
-            </Field>
-            <Field label="Auth attempts / hour">
+              <span class="admin-config-field-hint">
+                Per-user cap on API calls. Range: 5–600.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Auth attempts / hr</label>
               <input
                 type="number"
                 min={3}
                 max={100}
-                value={settings()!.rate_limits.value.auth_attempts_per_hr}
+                value={limits()!.auth_attempts_per_hr}
                 onInput={(e) =>
-                  updateRateLimits({
-                    auth_attempts_per_hr: Number(e.currentTarget.value)
-                  })
+                  updateLimit(
+                    "auth_attempts_per_hr",
+                    Number(e.currentTarget.value)
+                  )
                 }
-                style={inputStyle}
               />
-            </Field>
-            <Field label="Upload MB / day">
+              <span class="admin-config-field-hint">
+                Login/signup attempts before throttle. Range: 3–100.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Upload MB / day</label>
               <input
                 type="number"
                 min={1}
                 max={1000}
-                value={settings()!.rate_limits.value.upload_mb_per_day}
+                value={limits()!.upload_mb_per_day}
                 onInput={(e) =>
-                  updateRateLimits({
-                    upload_mb_per_day: Number(e.currentTarget.value)
-                  })
+                  updateLimit("upload_mb_per_day", Number(e.currentTarget.value))
                 }
-                style={inputStyle}
               />
-            </Field>
-          </div>
-        </Section>
-
-        {/* ─── TMDB settings ────────────────────────────────────
-            Phase 9 Chunk 2: removed from this page to enforce the
-            zero-duplication rule. TMDB settings are now edited on
-            /admin/services/tmdb (TmdbServicePage), which is the
-            single source of truth for all TMDB operational config
-            (status, cache, API key, cache TTL, fallback language,
-            include_adult). Keeping them here too would inevitably
-            drift. The link below takes the operator there. */}
-        <Section
-          title="TMDB settings"
-          subtitle="Moved to the Services Hub (zero duplication)."
-          updated={formatDate(settings()!.tmdb_settings.updated_at)}
-        >
-          <div
-            style={{
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "space-between",
-              gap: "var(--sp-3)",
-              "flex-wrap": "wrap"
-            }}
-          >
-            <div
-              style={{
-                "font-size": "0.875rem",
-                color: "var(--text-muted)"
-              }}
-            >
-              Cache TTL, fallback language, and adult content toggle
-              now live on the dedicated TMDB service page.
+              <span class="admin-config-field-hint">
+                Avatar/banner upload cap. Range: 1–1000 MB.
+              </span>
             </div>
-            <a
-              href="/admin/services/tmdb"
-              style={{
-                color: "var(--p)",
-                "text-decoration": "none",
-                "font-size": "0.8125rem",
-                "font-weight": 600,
-                "border": "1px solid var(--hairline-2)",
-                padding: "var(--sp-2) var(--sp-4)",
-                "border-radius": "var(--radius-md)",
-                background: "var(--tier-2)"
-              }}
-            >
-              Open TMDB Service →
-            </a>
           </div>
-        </Section>
+        </GlassCard>
 
-        {/* ─── Maintenance window ─────────────────────────── */}
-        <Section
-          title="Maintenance window"
-          subtitle="Show a banner to users when maintenance is scheduled."
-          updated={formatDate(settings()!.maintenance_window.updated_at)}
-        >
-          <Field label="Enabled">
-            <label
-              style={{
-                display: "flex",
-                "align-items": "center",
-                gap: "var(--sp-2)",
-                "font-size": "0.875rem",
-                color: "var(--text)"
-              }}
-            >
-              <input
-                type="checkbox"
-                checked={settings()!.maintenance_window.value.enabled}
-                onChange={(e) =>
-                  updateMaintenance({ enabled: e.currentTarget.checked })
-                }
-              />
-              Show maintenance banner to users
-            </label>
-          </Field>
-          <Field label="Scheduled at (UTC)">
-            <input
-              type="datetime-local"
-              value={
-                settings()!.maintenance_window.value.scheduled_at
-                  ? new Date(settings()!.maintenance_window.value.scheduled_at!)
-                      .toISOString()
-                      .slice(0, 16)
-                  : ""
-              }
-              onInput={(e) =>
-                updateMaintenance({
-                  scheduled_at: e.currentTarget.value
-                    ? new Date(e.currentTarget.value).toISOString()
-                    : null
-                })
-              }
-              style={inputStyle}
+        {/* ─── Retention Policy ──────────────────────────────── */}
+        <GlassCard class="admin-config-card" padding="comfortable">
+          <div class="admin-config-card-header">
+            <h3>Retention Policy</h3>
+            <GlassBadge
+              intent="default"
+              label={`Updated ${formatUpdated("retention_policy")}`}
+              size="compact"
             />
-          </Field>
-          <Field label="Banner message">
-            <textarea
-              value={settings()!.maintenance_window.value.message}
-              onInput={(e) =>
-                updateMaintenance({ message: e.currentTarget.value })
-              }
-              style={{
-                ...inputStyle,
-                "min-height": "80px",
-                resize: "vertical"
-              }}
-              maxlength={500}
-              placeholder="We'll be performing scheduled maintenance. Some features may be unavailable."
-            />
-          </Field>
-        </Section>
+          </div>
+          <p class="admin-config-card-desc">
+            Default day cutoffs for maintenance purge operations. These
+            values pre-fill the "days" inputs on the Maintenance page.
+            Maps to <code>retention_policy</code> in app_config.
+          </p>
 
-        {/* ─── Retention policy ───────────────────────────── */}
-        <Section
-          title="Retention policy"
-          subtitle="How long to keep soft-deleted rows, logs, and cache. Used by Maintenance operations as default cutoffs."
-          updated={formatDate(settings()!.retention_policy.updated_at)}
-        >
-          <div style={fieldGridStyle}>
-            <Field label="Soft-deleted profiles (days)">
+          <div class="admin-config-field-grid two-col">
+            <div class="admin-config-field">
+              <label>Soft-deleted profiles (days)</label>
               <input
                 type="number"
                 min={1}
                 max={3650}
-                value={
-                  settings()!.retention_policy.value.soft_deleted_profiles_days
-                }
+                value={retention()!.soft_deleted_profiles_days}
                 onInput={(e) =>
-                  updateRetention({
-                    soft_deleted_profiles_days: Number(e.currentTarget.value)
-                  })
+                  updateRetention(
+                    "soft_deleted_profiles_days",
+                    Number(e.currentTarget.value)
+                  )
                 }
-                style={inputStyle}
               />
-            </Field>
-            <Field label="Activity log (days)">
+              <span class="admin-config-field-hint">
+                Profiles soft-deleted longer than this get purged.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Activity log (days)</label>
               <input
                 type="number"
                 min={7}
                 max={3650}
-                value={settings()!.retention_policy.value.activity_log_days}
+                value={retention()!.activity_log_days}
                 onInput={(e) =>
-                  updateRetention({
-                    activity_log_days: Number(e.currentTarget.value)
-                  })
+                  updateRetention(
+                    "activity_log_days",
+                    Number(e.currentTarget.value)
+                  )
                 }
-                style={inputStyle}
               />
-            </Field>
-            <Field label="TMDB cache (days)">
+              <span class="admin-config-field-hint">
+                Activity feed entries older than this get pruned.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>TMDB cache (days)</label>
               <input
                 type="number"
                 min={1}
                 max={3650}
-                value={settings()!.retention_policy.value.tmdb_cache_days}
+                value={retention()!.tmdb_cache_days}
                 onInput={(e) =>
-                  updateRetention({
-                    tmdb_cache_days: Number(e.currentTarget.value)
-                  })
+                  updateRetention(
+                    "tmdb_cache_days",
+                    Number(e.currentTarget.value)
+                  )
                 }
-                style={inputStyle}
               />
-            </Field>
-            <Field label="Admin actions (days)">
+              <span class="admin-config-field-hint">
+                Cached TMDB responses older than this get purged.
+              </span>
+            </div>
+            <div class="admin-config-field">
+              <label>Admin actions (days)</label>
               <input
                 type="number"
                 min={30}
                 max={36500}
-                value={settings()!.retention_policy.value.admin_actions_days}
+                value={retention()!.admin_actions_days}
                 onInput={(e) =>
-                  updateRetention({
-                    admin_actions_days: Number(e.currentTarget.value)
-                  })
+                  updateRetention(
+                    "admin_actions_days",
+                    Number(e.currentTarget.value)
+                  )
                 }
-                style={inputStyle}
               />
-            </Field>
+              <span class="admin-config-field-hint">
+                Audit log entries older than this get cleaned up.
+              </span>
+            </div>
           </div>
-        </Section>
+        </GlassCard>
 
-        {/* Sticky save bar at bottom */}
-        <div
-          style={{
-            "margin-top": "var(--sp-8)",
-            "padding-top": "var(--sp-4)",
-            "border-top": "1px solid var(--hairline)",
-            display: "flex",
-            "justify-content": "flex-end",
-            gap: "var(--sp-3)"
-          }}
-        >
-          <button
-            type="button"
-            onClick={fetchSettings}
-            disabled={saving()}
-            style={cancelBtnStyle}
+        {/* ─── Save bar ──────────────────────────────────────── */}
+        <div class="admin-settings-save-bar">
+          <Show
+            when={isDirty()}
+            fallback={
+              <span class="clean-indicator">No unsaved changes</span>
+            }
           >
-            Revert
-          </button>
-          <button
-            type="button"
-            onClick={save}
-            disabled={saving()}
-            style={btnStyle(saving())}
-          >
-            {saving() ? "Saving…" : "💾 Save all"}
-          </button>
+            <span class="dirty-indicator">● Unsaved changes</span>
+          </Show>
+          <div style={{ display: "flex", gap: "var(--sp-2)" }}>
+            <GlassButton
+              variant="ghost"
+              size="compact"
+              onClick={reset}
+              disabled={!isDirty() || saving()}
+            >
+              Discard
+            </GlassButton>
+            <GlassButton
+              variant="primary"
+              size="compact"
+              onClick={save}
+              disabled={!isDirty() || saving()}
+              loading={saving()}
+              icon="save"
+            >
+              {saving() ? "Saving…" : "Save All"}
+            </GlassButton>
+          </div>
         </div>
       </Show>
 
-      {/* Phase 6 Part 3 — Task 4: Admin 2FA enrollment panel.
-          Always rendered (independent of the site-wide settings above),
-          because 2FA is per-admin, not site-wide. */}
-      <div style={{ "margin-top": "var(--sp-6)" }}>
-        <AdminTwoFactorPanel />
-      </div>
+      {/* ─── Toast ──────────────────────────────────────────────── */}
+      <Show when={toast.msg()}>
+        {(m) => (
+          <div class={`admin-config-toast ${m().type}`}>{m().text}</div>
+        )}
+      </Show>
     </div>
   );
 };
 
-// ─── Sub-components ───────────────────────────────────────────────
+// ─── Toast helper ──────────────────────────────────────────────────
 
-const Section: Component<{
-  title: string;
-  subtitle?: string;
-  updated?: string;
-  children: JSX.Element;
-}> = (props) => (
-  <section
-    style={{
-      "margin-bottom": "var(--sp-8)",
-      background: "var(--tier-1)",
-      border: "1px solid var(--hairline)",
-      "border-radius": "var(--radius-md)",
-      padding: "var(--sp-6)"
-    }}
-  >
-    <div style={{ "margin-bottom": "var(--sp-4)" }}>
-      <h2 style={{ margin: 0, "font-size": "1.125rem", color: "var(--text)" }}>
-        {props.title}
-      </h2>
-      <Show when={props.subtitle}>
-        <p
-          style={{
-            margin: "var(--sp-1) 0 0 0",
-            "font-size": "0.8125rem",
-            color: "var(--text-muted)"
-          }}
-        >
-          {props.subtitle}
-        </p>
-      </Show>
-      <Show when={props.updated}>
-        <p
-          style={{
-            margin: "var(--sp-1) 0 0 0",
-            "font-size": "0.75rem",
-            color: "var(--text-muted)"
-          }}
-        >
-          Last updated: {props.updated}
-        </p>
-      </Show>
-    </div>
-    <div
-      style={{
-        display: "flex",
-        "flex-direction": "column",
-        gap: "var(--sp-4)"
-      }}
-    >
-      {props.children}
-    </div>
-  </section>
-);
-
-const Field: Component<{ label: string; children: JSX.Element }> = (props) => (
-  <div
-    style={{
-      display: "flex",
-      "flex-direction": "column",
-      gap: "var(--sp-2)",
-      flex: 1,
-      "min-width": 0
-    }}
-  >
-    <label
-      style={{
-        "font-size": "0.8125rem",
-        color: "var(--text-secondary)",
-        "font-weight": "500"
-      }}
-    >
-      {props.label}
-    </label>
-    {props.children}
-  </div>
-);
-
-// ─── Styles ───────────────────────────────────────────────────────
-
-const inputStyle = {
-  width: "100%",
-  padding: "var(--sp-2) var(--sp-3)",
-  background: "var(--tier-2)",
-  border: "1px solid var(--hairline-2)",
-  "border-radius": "var(--radius-md)",
-  color: "var(--text)",
-  "font-size": "0.875rem",
-  "font-family": "inherit",
-  outline: "none",
-  "box-sizing": "border-box" as const
-} as const;
-
-const fieldGridStyle = {
-  display: "grid",
-  "grid-template-columns": "repeat(auto-fit, minmax(180px, 1fr))",
-  gap: "var(--sp-4)"
-} as const;
-
-const errorStyle = {
-  background: "rgba(239, 68, 68, 0.1)",
-  border: "1px solid rgba(239, 68, 68, 0.3)",
-  "border-radius": "var(--radius-md)",
-  padding: "var(--sp-3) var(--sp-4)",
-  "margin-bottom": "var(--sp-4)",
-  color: "rgb(252, 165, 165)",
-  "font-size": "0.875rem"
-} as const;
-
-const successStyle = {
-  background: "rgba(74, 222, 128, 0.1)",
-  border: "1px solid rgba(74, 222, 128, 0.3)",
-  "border-radius": "var(--radius-md)",
-  padding: "var(--sp-3) var(--sp-4)",
-  "margin-bottom": "var(--sp-4)",
-  color: "rgb(187, 247, 208)",
-  "font-size": "0.875rem"
-} as const;
-
-const loadingStyle = {
-  padding: "var(--sp-8)",
-  "text-align": "center",
-  color: "var(--text-muted)",
-  "font-size": "0.875rem"
-} as const;
-
-const cancelBtnStyle = {
-  padding: "var(--sp-2) var(--sp-4)",
-  background: "transparent",
-  color: "var(--text-secondary)",
-  border: "1px solid var(--hairline-2)",
-  "border-radius": "var(--radius-md)",
-  "font-size": "0.8125rem",
-  "font-weight": "500",
-  cursor: "pointer"
-} as const;
-
-function btnStyle(disabled: boolean) {
-  return {
-    padding: "var(--sp-2) var(--sp-4)",
-    background: disabled ? "var(--tier-3)" : "var(--p)",
-    color: disabled ? "var(--text-muted)" : "var(--on-primary)",
-    border: "none",
-    "border-radius": "var(--radius-md)",
-    "font-size": "0.8125rem",
-    "font-weight": "600",
-    cursor: disabled ? "not-allowed" : "pointer"
-  } as const;
+function signalToast() {
+  const [msg, setMsg] = createSignal<{
+    text: string;
+    type: "success" | "error";
+  } | null>(null);
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  const show = (text: string, type: "success" | "error") => {
+    setMsg({ text, type });
+    if (timer) clearTimeout(timer);
+    timer = setTimeout(() => setMsg(null), 2800);
+  };
+  return { msg, show };
 }
 
 export default AdminSettingsPage;

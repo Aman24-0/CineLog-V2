@@ -5,6 +5,7 @@
 // Endpoints:
 //   GET  /api/admin/maintenance           — list recent runs + ops info
 //   POST /api/admin/maintenance           — run a maintenance operation
+//   POST /api/admin/maintenance           — dry-run preview (body: { dry_run: true })
 //   GET  /api/admin/maintenance/runs      — alias for run history (paginated)
 //
 // Operations exposed (each maps to a SQL function defined in the
@@ -193,6 +194,126 @@ export async function GET(event: APIEvent) {
 interface RunBody {
   operation?: unknown;
   args?: unknown;
+  dry_run?: unknown;
+}
+
+// ─── Dry-run count estimation ────────────────────────────────────
+//
+// Phase 9 Chunk 6 — the admin UI shows a "Dry Run" button next to each
+// operation. When pressed, the client sends `{ dry_run: true }` in the
+// POST body. Instead of executing the purge RPC, we run a read-only
+// COUNT query against the same table with the same WHERE clause the
+// SQL function would use. The count is an estimate (the actual purge
+// may delete a slightly different number if rows are added/removed
+// between the dry run and the real run), but it's close enough to
+// give the admin confidence before they hit "Run" on a destructive op.
+//
+// For operations that don't delete rows (refresh_admin_analytics,
+// vacuum_analyze_hint), the dry run returns -1 and the UI shows "N/A".
+
+const DRY_RUN_TABLES: Partial<
+  Record<
+    OperationName,
+    {
+      table: string;
+      // column to compare against the days-cutoff, or null for no-date ops
+      dateColumn: string | null;
+      // for soft-delete purges, only count rows where deleted_at IS NOT NULL
+      softDelete?: boolean;
+      // for orphan checks, a custom filter description (we can't easily
+      // express "NOT IN subquery" via the supabase client, so we use
+      // a left-join approximation: count entries whose vault_id is null
+      // OR not found — this is an upper bound, not exact)
+      orphanCheck?: boolean;
+    }
+  >
+> = {
+  purge_soft_deleted_profiles: {
+    table: "profiles",
+    dateColumn: "deleted_at",
+    softDelete: true
+  },
+  purge_old_activity_log: {
+    table: "activity_log",
+    dateColumn: "created_at"
+  },
+  purge_expired_tmdb_cache: {
+    table: "tmdb_cache",
+    dateColumn: "expires_at"
+  },
+  purge_orphaned_collection_entries: {
+    table: "collection_entries",
+    dateColumn: null,
+    orphanCheck: true
+  },
+  purge_soft_deleted_vault: {
+    table: "vault",
+    dateColumn: "deleted_at",
+    softDelete: true
+  },
+  cleanup_old_admin_actions: {
+    table: "admin_actions",
+    dateColumn: "created_at"
+  }
+};
+
+async function estimateDryRunCount(
+  supabase: ReturnType<typeof createAdminClient>,
+  opDef: OperationDef,
+  days: number | undefined
+): Promise<{ count: number; note?: string }> {
+  const meta = DRY_RUN_TABLES[opDef.name];
+  if (!meta) {
+    // refresh_admin_analytics, vacuum_analyze_hint — no rows affected
+    return { count: -1, note: "No rows affected (maintenance/op hint op)" };
+  }
+
+  // Compute the ISO cutoff timestamp for date-based purges.
+  const cutoffIso =
+    meta.dateColumn && days !== undefined
+      ? new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString()
+      : null;
+
+  let query = supabase
+    .from(meta.table)
+    .select("*", { count: "exact", head: true });
+
+  if (meta.softDelete && meta.dateColumn && cutoffIso) {
+    // Soft-delete purge: count rows where deleted_at IS NOT NULL AND
+    // deleted_at < cutoff. The supabase client doesn't support IS NOT
+    // NULL directly in the fluent API, so we use .not(column, "is", null)
+    // chained with .lt(column, cutoff).
+    query = query.not(meta.dateColumn, "is", null).lt(meta.dateColumn, cutoffIso);
+  } else if (meta.dateColumn && cutoffIso) {
+    // Date-based purge (no soft-delete gate): count rows where
+    // dateColumn < cutoff.
+    query = query.lt(meta.dateColumn, cutoffIso);
+  } else if (meta.dateColumn && !cutoffIso) {
+    // Operations with a dateColumn but no days cutoff (shouldn't happen
+    // for current ops, but handle gracefully).
+    return { count: 0, note: "No cutoff specified" };
+  }
+
+  // For orphan checks, the supabase client can't easily express a
+  // NOT IN subquery. We return -1 with a note so the UI shows
+  // "estimate unavailable" rather than a misleading 0.
+  if (meta.orphanCheck) {
+    return {
+      count: -1,
+      note: "Orphan check — run the operation to see actual count"
+    };
+  }
+
+  const { count, error } = await query;
+
+  if (error) {
+    return {
+      count: -1,
+      note: `Estimate unavailable: ${error.message}`
+    };
+  }
+
+  return { count: count ?? 0 };
 }
 
 export async function POST(event: APIEvent) {
@@ -236,6 +357,26 @@ export async function POST(event: APIEvent) {
         }
         days = Math.floor(args.days);
       }
+    }
+
+    // ─── Dry-run branch ──────────────────────────────────────────
+    //
+    // When dry_run is true, estimate the number of rows that WOULD be
+    // affected without actually deleting anything. No maintenance_runs
+    // row is inserted, no RPC is called, and no audit log entry is
+    // written — the operation is purely a read-only COUNT.
+    const isDryRun = body.dry_run === true;
+    if (isDryRun) {
+      const supabase = createAdminClient();
+      const estimation = await estimateDryRunCount(supabase, opDef, days);
+      return jsonResponse({
+        ok: true,
+        dry_run: true,
+        operation: opDef.name,
+        args: { days },
+        would_affect: estimation.count,
+        note: estimation.note ?? null
+      });
     }
 
     // ─── Insert a "running" row ────────────────────────────────
