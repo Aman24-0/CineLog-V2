@@ -1,0 +1,813 @@
+/* src/styles/features/admin-anime.css — Admin Anime Management page
+   ============================================================
+   Phase 9 Chunk 5c — Anime Management Overhaul.
+
+   Layout:
+     .admin-anime-page
+       ├── .admin-anime-header
+       ├── GlassTabs (settings / mappings / cache)
+       ├── SettingsTab — GlassCard sections of toggle rows
+       ├── MappingsTab — search + filter chips + table → stacked cards
+       └── CacheTab — stat tiles + numeric config rows
+
+   Mobile-first: at <720px the mapping table collapses to stacked
+   cards (each row becomes its own card with the same fields, just
+   vertically arranged using data-label pseudo-elements).
+   ============================================================ */
+
+/* ─── Page shell ────────────────────────────────────────────────── */
+
+.admin-anime-page {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-5);
+  max-width: 960px;
+  margin: 0 auto;
+  padding: var(--sp-4);
+}
+
+@media (min-width: 768px) {
+  .admin-anime-page {
+    padding: var(--sp-6) var(--sp-4);
+  }
+}
+
+.admin-anime-header {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.admin-anime-title {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  margin: 0;
+  letter-spacing: -0.01em;
+}
+
+.admin-anime-subtitle {
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+  max-width: 70ch;
+  line-height: 1.5;
+}
+
+/* ─── Common: alert / loading / footnote ────────────────────────── */
+
+.admin-anime-alert {
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  border-radius: var(--radius-md);
+  color: rgb(252, 165, 165);
+  font-size: 0.875rem;
+}
+
+.admin-anime-loading {
+  padding: var(--sp-8);
+  text-align: center;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+}
+
+.admin-anime-footnote {
+  padding: var(--sp-3) var(--sp-4);
+  background: var(--tier-2);
+  border-radius: var(--radius-md);
+  border: 1px solid var(--hairline);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.6;
+}
+
+.admin-anime-footnote code {
+  background: var(--tier-3);
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  font-size: 0.7rem;
+  color: var(--text-soft);
+}
+
+/* ─── Section (GlassCard) header ────────────────────────────────── */
+
+.admin-anime-section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.admin-anime-section-header {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-3);
+  padding-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.admin-anime-section-icon {
+  font-size: 28px !important;
+  color: var(--accent, #00d9a3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-anime-section-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin-anime-section-subtitle {
+  margin: var(--sp-1) 0 0 0;
+  font-size: 0.78rem;
+  color: var(--text-muted);
+  line-height: 1.5;
+  max-width: 70ch;
+}
+
+/* ─── Toggle row ────────────────────────────────────────────────── */
+
+.admin-anime-toggle-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.admin-anime-toggle-row:last-child {
+  border-bottom: none;
+}
+
+.admin-anime-toggle-row.is-disabled {
+  opacity: 0.55;
+}
+
+.admin-anime-toggle-info {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-anime-toggle-icon {
+  font-size: 20px !important;
+  color: var(--accent, #00d9a3);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+.admin-anime-toggle-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.admin-anime-toggle-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.admin-anime-toggle-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  line-height: 1.45;
+}
+
+.admin-anime-toggle-userside {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  color: var(--text-dim);
+  margin-top: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  word-break: break-word;
+}
+
+.admin-anime-toggle-userside .material-symbols-outlined {
+  font-size: 12px;
+  flex-shrink: 0;
+}
+
+.admin-anime-toggle-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.admin-anime-saving-indicator {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  font-style: italic;
+}
+
+/* ─── Toggle switch ─────────────────────────────────────────────── */
+
+.admin-anime-toggle-switch {
+  position: relative;
+  width: 44px;
+  height: 24px;
+  border-radius: 12px;
+  background: var(--tier-3);
+  border: 1px solid var(--hairline);
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+  padding: 0;
+  flex-shrink: 0;
+}
+
+.admin-anime-toggle-switch.is-on {
+  background: var(--accent, #00d9a3);
+  border-color: transparent;
+}
+
+.admin-anime-toggle-switch.is-disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.admin-anime-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--text-on-primary, #fff);
+  transition: left 0.15s ease;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.admin-anime-toggle-switch.is-on .admin-anime-toggle-knob {
+  left: 22px;
+}
+
+/* ─── Mappings tab ──────────────────────────────────────────────── */
+
+.admin-anime-mappings {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.admin-anime-mappings-toolbar {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.admin-anime-search {
+  /* GlassInput fills the container */
+}
+
+.admin-anime-filter-chips {
+  display: flex;
+  gap: var(--sp-2);
+  flex-wrap: wrap;
+}
+
+.admin-anime-filter-chip {
+  padding: var(--sp-1) var(--sp-3);
+  border-radius: 999px;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  color: var(--text-muted);
+  font-size: 0.78rem;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease,
+    border-color 150ms ease;
+}
+
+.admin-anime-filter-chip:hover {
+  background: var(--tier-3);
+  color: var(--text);
+}
+
+.admin-anime-filter-chip.is-active {
+  background: var(--accent, #00d9a3);
+  color: var(--void, #0a0e14);
+  border-color: transparent;
+  font-weight: 600;
+}
+
+/* Confidence-tinted chips (only when not active — when active they
+   turn accent-green to indicate selection). */
+.admin-anime-filter-chip.is-success:not(.is-active) {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: rgb(134, 239, 172);
+}
+
+.admin-anime-filter-chip.is-warning:not(.is-active) {
+  border-color: rgba(234, 179, 8, 0.4);
+  color: rgb(253, 224, 71);
+}
+
+.admin-anime-filter-chip.is-danger:not(.is-active) {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: rgb(252, 165, 165);
+}
+
+.admin-anime-filter-chip.is-primary:not(.is-active) {
+  border-color: var(--accent, #00d9a3);
+  color: var(--accent, #00d9a3);
+}
+
+/* ─── Notice banner ─────────────────────────────────────────────── */
+
+.admin-anime-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: rgba(234, 179, 8, 0.08);
+  border: 1px solid rgba(234, 179, 8, 0.3);
+  border-radius: var(--radius-md);
+  font-size: 0.8rem;
+  color: rgb(253, 224, 71);
+  line-height: 1.5;
+}
+
+.admin-anime-notice .material-symbols-outlined {
+  font-size: 18px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+/* ─── Skeleton ──────────────────────────────────────────────────── */
+
+.admin-anime-skeleton {
+  background: var(--tier-1);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  animation: admin-anime-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes admin-anime-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+/* ─── Mappings table (desktop) / stacked cards (mobile) ─────────── */
+
+.admin-anime-mappings-table {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--hairline);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.admin-anime-mappings-thead {
+  display: grid;
+  grid-template-columns: 110px 110px minmax(0, 1fr) 180px 140px;
+  gap: var(--sp-2);
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--tier-2);
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+}
+
+.admin-anime-mapping-row {
+  display: grid;
+  grid-template-columns: 110px 110px minmax(0, 1fr) 180px 140px;
+  gap: var(--sp-2);
+  padding: var(--sp-3);
+  background: var(--tier-1);
+  align-items: center;
+  font-size: 0.85rem;
+}
+
+.admin-anime-mapping-row:hover {
+  background: var(--tier-2);
+}
+
+.admin-anime-cell {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  min-width: 0;
+}
+
+.admin-anime-cell-title {
+  overflow: hidden;
+}
+
+.admin-anime-title-text {
+  font-weight: 500;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: inline-block;
+  max-width: 100%;
+}
+
+.admin-anime-no-title {
+  color: var(--text-dim);
+  font-style: italic;
+}
+
+.admin-anime-id {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.78rem;
+  color: var(--text-soft);
+  font-variant-numeric: tabular-nums;
+}
+
+.admin-anime-cell-confidence {
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.admin-anime-confidence-desc {
+  font-size: 0.65rem;
+  color: var(--text-dim);
+  line-height: 1.3;
+}
+
+.admin-anime-cell-actions {
+  justify-content: flex-end;
+}
+
+/* ─── Mobile: stacked card layout (<720px) ──────────────────────── */
+
+@media (max-width: 720px) {
+  .admin-anime-mappings-thead {
+    display: none;
+  }
+
+  .admin-anime-mapping-row {
+    grid-template-columns: 1fr;
+    gap: var(--sp-2);
+    padding: var(--sp-3);
+    border-radius: var(--radius-md);
+    border: 1px solid var(--hairline);
+    background: var(--tier-1);
+  }
+
+  /* Each cell gets a label via data-label pseudo-element */
+  .admin-anime-cell::before {
+    content: attr(data-label);
+    display: block;
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--text-muted);
+    font-weight: 600;
+    margin-bottom: 2px;
+  }
+
+  .admin-anime-cell-actions {
+    justify-content: flex-start;
+    margin-top: var(--sp-1);
+  }
+}
+
+/* ─── Icon buttons (table actions) ──────────────────────────────── */
+
+.admin-anime-icon-btn {
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: background-color 150ms ease, color 150ms ease,
+    border-color 150ms ease;
+}
+
+.admin-anime-icon-btn:hover {
+  background: var(--tier-3);
+  color: var(--text);
+  border-color: var(--hairline-2);
+}
+
+.admin-anime-icon-btn .material-symbols-outlined {
+  font-size: 18px;
+}
+
+.admin-anime-icon-btn-approve:hover {
+  border-color: rgba(34, 197, 94, 0.4);
+  color: rgb(134, 239, 172);
+  background: rgba(34, 197, 94, 0.1);
+}
+
+.admin-anime-icon-btn-danger:hover {
+  border-color: rgba(239, 68, 68, 0.4);
+  color: rgb(252, 165, 165);
+  background: rgba(239, 68, 68, 0.1);
+}
+
+/* ─── Pagination ────────────────────────────────────────────────── */
+
+.admin-anime-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-3);
+  padding: var(--sp-2) 0;
+}
+
+.admin-anime-pagination-info {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ─── Cache tab ─────────────────────────────────────────────────── */
+
+.admin-anime-cache-tiles {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: var(--sp-3);
+}
+
+@media (max-width: 720px) {
+  .admin-anime-cache-tiles {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-anime-cache-tiles {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-anime-cache-tile {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.admin-anime-cache-tile-icon {
+  font-size: 22px !important;
+  color: var(--accent, #00d9a3);
+  margin-bottom: var(--sp-1);
+}
+
+.admin-anime-cache-tile-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+
+.admin-anime-cache-tile-label {
+  font-size: 0.8rem;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+.admin-anime-cache-tile-hint {
+  font-size: 0.7rem;
+  color: var(--text-dim);
+}
+
+/* ─── Numeric rows ──────────────────────────────────────────────── */
+
+.admin-anime-numeric-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  padding: var(--sp-3) 0;
+  border-bottom: 1px solid var(--hairline);
+}
+
+.admin-anime-numeric-row:last-child {
+  border-bottom: none;
+}
+
+.admin-anime-numeric-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.admin-anime-numeric-label {
+  font-weight: 600;
+  color: var(--text);
+  font-size: 0.9375rem;
+}
+
+.admin-anime-numeric-desc {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin-top: 2px;
+  line-height: 1.45;
+}
+
+.admin-anime-numeric-control {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2);
+  flex-shrink: 0;
+}
+
+.admin-anime-numeric-unit {
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  min-width: 44px;
+}
+
+@media (max-width: 540px) {
+  .admin-anime-numeric-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: var(--sp-2);
+  }
+  .admin-anime-numeric-control {
+    justify-content: flex-end;
+  }
+}
+
+/* ─── Inputs ────────────────────────────────────────────────────── */
+
+.admin-anime-input {
+  width: 100%;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-md);
+  padding: var(--sp-2) var(--sp-3);
+  color: var(--text);
+  font-size: 0.875rem;
+  font-family: inherit;
+  box-sizing: border-box;
+  transition: border-color 150ms ease, background-color 150ms ease;
+}
+
+.admin-anime-input:focus {
+  outline: none;
+  border-color: var(--accent, #00d9a3);
+  background: var(--tier-1);
+}
+
+.admin-anime-input::placeholder {
+  color: var(--text-dim);
+}
+
+.admin-anime-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-anime-input-numeric {
+  width: 110px;
+}
+
+select.admin-anime-input {
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23a0a0a0' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right var(--sp-3) center;
+  padding-right: var(--sp-6);
+}
+
+/* ─── Modal ─────────────────────────────────────────────────────── */
+
+.admin-anime-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.7);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--sp-4);
+}
+
+.admin-anime-modal-surface {
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  border-radius: var(--radius-lg);
+  max-width: 560px;
+  width: 100%;
+  max-height: 90vh;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.5);
+}
+
+.admin-anime-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--sp-4) var(--sp-5);
+  border-bottom: 1px solid var(--hairline);
+}
+
+.admin-anime-modal-title {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.admin-anime-modal-body {
+  padding: var(--sp-4) var(--sp-5);
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+}
+
+.admin-anime-modal-footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--sp-2);
+  padding: var(--sp-3) var(--sp-5);
+  border-top: 1px solid var(--hairline);
+}
+
+/* ─── Form fields ───────────────────────────────────────────────── */
+
+.admin-anime-form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+
+@media (max-width: 480px) {
+  .admin-anime-form-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.admin-anime-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-1);
+}
+
+.admin-anime-field-label {
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+
+/* ─── Toast ─────────────────────────────────────────────────────── */
+
+.admin-anime-toast {
+  position: fixed;
+  bottom: var(--sp-6);
+  right: var(--sp-6);
+  z-index: 300;
+  color: white;
+  padding: var(--sp-3) var(--sp-4);
+  border-radius: var(--radius-md);
+  font-size: 0.875rem;
+  font-weight: 600;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+}
+
+@media (max-width: 480px) {
+  .admin-anime-toast {
+    bottom: var(--sp-3);
+    right: var(--sp-3);
+    left: var(--sp-3);
+    text-align: center;
+  }
+}
+
+/* ─── Reduced motion ────────────────────────────────────────────── */
+
+@media (prefers-reduced-motion: reduce) {
+  .admin-anime-toggle-switch,
+  .admin-anime-toggle-knob,
+  .admin-anime-filter-chip,
+  .admin-anime-icon-btn,
+  .admin-anime-input {
+    transition: none;
+  }
+  .admin-anime-skeleton {
+    animation: none;
+    opacity: 0.5;
+  }
+}
