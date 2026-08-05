@@ -35,7 +35,7 @@ create table if not exists public.announcement_dismissals (
   profile_id uuid
     references public.profiles(id) on delete set null,
   guest_hash text,
-  dismissed_at timestamstatz not null default now(),
+  dismissed_at timestamptz not null default now(),
   -- A dismissal is either by a known user OR a guest (never both,
   -- never neither). Enforced via a check constraint so a buggy
   -- caller can't insert a half-populated row.
