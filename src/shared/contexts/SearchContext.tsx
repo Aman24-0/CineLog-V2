@@ -110,17 +110,16 @@ export const SearchProvider: Component<{ children: JSX.Element }> = (
     // when the query is set to "" (hasQuery becomes false)
   };
 
-  // ⌘K keyboard shortcut — open/close search from anywhere
+  // Escape closes the search overlay.
+  //
+  // NOTE (Phase 10 Chunk 1): The ⌘K handler that previously lived here
+  // was REMOVED. It conflicted with AppHeader's ⌘K handler (both fired
+  // on the same keystroke). AppHeader's handler now owns ⌘K and focuses
+  // the desktop inline search bar. The old handler also called
+  // closeSearch() on the second ⌘K press, which would WIPE the user's
+  // query — a regression now that the desktop bar drives the
+  // SearchOverlay directly via search.hasQuery().
   const handleGlobalKeyDown = (e: KeyboardEvent) => {
-    if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-      e.preventDefault();
-      if (searchOpen()) {
-        closeSearch();
-      } else {
-        openSearch();
-      }
-    }
-    // Escape closes the search overlay
     if (e.key === "Escape" && searchOpen()) {
       closeSearch();
     }

@@ -1,4 +1,40 @@
 // src/shared/ui/AppHeader.tsx
+//
+// Phase 10 Chunk 1 — Desktop View & UI Architecture Redesign
+// ───────────────────────────────────────────────────────────
+// WHAT CHANGED:
+//   • Removed the duplicate mobile slide-down search bar
+//     (`app-header-search-mobile-bar`). It bound a SECOND GlassInput
+//     to the same `search.query()` signal as the desktop inline bar,
+//     so on desktop / tablet both inputs were mounted at once and
+//     ⌘K triggered a duplicate search bar to slide down BELOW the
+//     inline bar. The inline bar is now the single source of truth
+//     for search input on desktop; mobile users tap the search icon
+//     to navigate to /discover (which has its own search surface).
+//
+//   • Mobile search icon no longer toggles an overlay — it navigates
+//     to /discover. The toggle behaviour (search-open / search-close
+//     icon swap) was only there to drive the now-removed slide-down.
+//
+//   • Simplified the ⌘K handler — always focuses the desktop inline
+//     bar (no need to check `search.searchOpen()` since the overlay
+//     no longer exists).
+//
+//   • Removed `mobileSearchRef` and the createEffect that focused
+//     it — no mobile input to focus anymore.
+//
+// VISUAL STRUCTURE:
+//   MOBILE  (<1024px): [CINELOG] ........................ [🔍] [🔔]
+//                       (search icon → /discover)
+//
+//   DESKTOP (≥1024px): [CINELOG] [────── search ──────] [➕] [☁️] [🔔] [👤]
+//                       (inline expansive search bar)
+//
+// The breakpoint is 1024px (aligned with the desktop sidebar) — NOT
+// 640px as it was before. This prevents the "stretched mobile app"
+// feel on tablets where the desktop search bar showed without the
+// desktop sidebar.
+
 import {
   Show,
   createSignal,
@@ -49,7 +85,8 @@ const AVATAR_STYLE: JSX.CSSProperties = {
 
 // Search-clear button rendered inside GlassInput's `rightContent` slot.
 // Styled as a subtle pill so it doesn't compete with the search icon
-// on the left. Re-used by both desktop and mobile search bars.
+// on the left. Used only by the desktop inline bar (the mobile
+// slide-down that previously used it has been removed).
 const SEARCH_CLEAR_BTN_STYLE: JSX.CSSProperties = {
   display: "inline-flex",
   "align-items": "center",
@@ -61,37 +98,27 @@ const SEARCH_CLEAR_BTN_STYLE: JSX.CSSProperties = {
   background: "transparent",
   color: "var(--text-muted)",
   cursor: "pointer",
-  transition: "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)"
+  transition:
+    "background var(--dur-fast) var(--ease-out), color var(--dur-fast) var(--ease-out)"
 };
 
 /**
  * AppHeader — sticky application header.
  *
- * MOBILE Layout:  [CINELOG] .............. [🔍] [🔔]
- * DESKTOP Layout: [CINELOG] [search bar] .. [quick-add] [sync] [🔔] [avatar]
+ * MOBILE Layout  (<1024px): [CINELOG] .............. [🔍] [🔔]
+ *   • Search icon navigates to /discover (no overlay).
+ *   • BottomNavigation handles primary nav.
  *
- * Search is a GLOBAL feature. The 🔍 icon sits beside the bell on the
- * right side. Tapping it opens the search overlay (a slide-down panel
- * below the header) without navigating away from the current page.
- * Closing the overlay resets ALL search state completely.
+ * DESKTOP Layout (≥1024px): [CINELOG] [search bar] [➕] [☁️] [🔔] [👤]
+ *   • Inline expansive search bar (drives global SearchOverlay).
+ *   • DesktopSidebar handles primary nav (left sidebar).
+ *   • Quick Add + Cloud Sync + Avatar are desktop-only.
  *
- * GLASS SYSTEM MIGRATION:
- *   The header's action buttons now use <GlassIconButton size="default">
- *   (44×44px) instead of hand-rolled <button> + style constants. This:
- *     1. Satisfies WCAG 2.5.5 (Target Size — 44×44px minimum).
- *     2. Eliminates the duplicate style between mobile/desktop buttons.
- *     3. Gives us free variants, loading states, badges, and focus
- *        rings via the shared component.
- *
- *   The search inputs now use <GlassInput>. Both the desktop search
- *   bar and the mobile search overlay previously bound the SAME
- *   `searchInputRef` variable — when both were mounted at once on
- *   desktop (the mobile overlay is rendered conditionally but was
- *   using a callback ref that overwrote the desktop ref), focusing
- *   the desktop bar would silently lose its ref. The new code uses
- *   SEPARATE refs for desktop and mobile inputs, eliminating the
- *   collision. GlassInput forwards `ref` via JSX spread, so each
- *   input has its own stable ref.
+ * GLASS SYSTEM:
+ *   • All action buttons use <GlassIconButton size="default"> (44×44px,
+ *     WCAG 2.5.5 compliant).
+ *   • Search input uses <GlassInput> with `rightContent` slot for the
+ *     clear button (or ⌘K hint when empty).
  */
 const AppHeader: Component = () => {
   const { isSignedIn, user } = useAuth();
@@ -100,35 +127,20 @@ const AppHeader: Component = () => {
   const notif = useNotifications();
   const [notifOpen, setNotifOpen] = createSignal(false);
 
-  // Global search context — independent from DiscoverPage
+  // Global search context — drives the SearchOverlay rendered in AppShell.
   const search = useGlobalSearch();
 
-  // SEPARATE refs for desktop and mobile search inputs. Previously
-  // the mobile overlay's callback ref OVERWROTE the desktop ref when
-  // both were mounted, causing focus() calls to land on the wrong
-  // input (the audit flagged this as a "duplicate ref collision bug").
-  // Each input now owns its own ref.
+  // Desktop inline search bar ref — focused on ⌘K.
+  // The mobile slide-down bar's ref was removed along with the bar.
   let desktopSearchRef: HTMLInputElement | undefined;
-  let mobileSearchRef: HTMLInputElement | undefined;
 
-  // Focus the search input when the overlay opens. The mobile overlay
-  // is the one that needs auto-focus (desktop input is always visible
-  // and is focused only on ⌘K). We focus whichever input is currently
-  // mounted — mobile takes priority when search.searchOpen() is true.
-  createEffect(() => {
-    if (search.searchOpen()) {
-      setTimeout(() => mobileSearchRef?.focus(), 80);
-    }
-  });
-
-  // ⌘K keyboard shortcut — focuses the desktop search input when the
-  // overlay is NOT open. The desktop bar is hidden on mobile, so this
-  // is a no-op there (mobileSearchRef is undefined on desktop).
+  // ⌘K keyboard shortcut — focuses the desktop inline search input.
+  // On mobile this is a no-op (desktopSearchRef is undefined because
+  // the inline bar is hidden via CSS, but SolidJS still mounts it in
+  // the DOM — so we additionally check viewport width to be safe).
   const handleShortcut = (e: KeyboardEvent) => {
     if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
-      // Only intercept when the desktop search input exists (desktop)
-      // and the mobile overlay isn't already open.
-      if (desktopSearchRef && !search.searchOpen()) {
+      if (desktopSearchRef && typeof window !== "undefined" && window.innerWidth >= 1024) {
         e.preventDefault();
         desktopSearchRef.focus();
       }
@@ -152,21 +164,28 @@ const AppHeader: Component = () => {
     }
   };
 
+  // Mobile search icon — navigates to /discover where the full search
+  // experience lives. Previously this opened a slide-down overlay with
+  // its own GlassInput (the "dummy" duplicate search bar), which has
+  // been removed.
+  const handleMobileSearchClick = () => {
+    navigate("/discover");
+  };
+
   const handleSearchSubmit = (e: Event) => {
     e.preventDefault();
     search.commitSearch(search.query());
   };
 
-  // Clear button — single clear button that clears text AND results.
-  // Re-rendered into whichever input's `rightContent` slot is active.
-  const renderClearButton = (inputRef: HTMLInputElement | undefined) => (
+  // Clear button rendered inside the desktop GlassInput's rightContent slot.
+  const renderClearButton = () => (
     <button
       type="button"
       class="focus-ring"
       style={SEARCH_CLEAR_BTN_STYLE}
       onClick={() => {
         search.setQuery("");
-        inputRef?.focus();
+        desktopSearchRef?.focus();
       }}
       aria-label="Clear search"
       onMouseEnter={(e) => {
@@ -198,7 +217,7 @@ const AppHeader: Component = () => {
       class="app-header-glass sticky top-0 z-30 flex items-center justify-between"
       role="banner"
     >
-      {/* Wordmark */}
+      {/* Wordmark — hidden on desktop (sidebar has the logo) */}
       <h1
         class="font-headline m-0 app-header__wordmark"
         aria-label="CineLog"
@@ -207,10 +226,8 @@ const AppHeader: Component = () => {
         CINE<span style={WORDMARK_ACCENT_STYLE}>LOG</span>
       </h1>
 
-      {/* Desktop search bar — always visible on desktop, sits between
-          wordmark and right cluster. Uses GlassInput for consistent
-          glass styling and a stable ref. The mobile overlay (below)
-          has its own GlassInput with a separate ref — no collision. */}
+      {/* Desktop inline search bar — always visible on desktop (≥1024px),
+          hidden on mobile/tablet. Drives the global SearchOverlay. */}
       <div class="app-header__search-desktop">
         <form
           class="app-header-search-form"
@@ -228,22 +245,25 @@ const AppHeader: Component = () => {
             autocomplete="off"
             spellcheck={false}
             rightContent={
-              <Show when={search.query()} fallback={
-                <span
-                  class="app-header-search-shortcut"
-                  style={{
-                    "font-size": "11px",
-                    color: "var(--text-dim)",
-                    "font-family": "'Azeret Mono', monospace",
-                    padding: "2px 6px",
-                    "border-radius": "var(--radius-sm)",
-                    border: "1px solid var(--hairline-2)"
-                  }}
-                >
-                  ⌘K
-                </span>
-              }>
-                {renderClearButton(desktopSearchRef)}
+              <Show
+                when={search.query()}
+                fallback={
+                  <span
+                    class="app-header-search-shortcut"
+                    style={{
+                      "font-size": "11px",
+                      color: "var(--text-dim)",
+                      "font-family": "'Azeret Mono', monospace",
+                      padding: "2px 6px",
+                      "border-radius": "var(--radius-sm)",
+                      border: "1px solid var(--hairline-2)"
+                    }}
+                  >
+                    ⌘K
+                  </span>
+                }
+              >
+                {renderClearButton()}
               </Show>
             }
           />
@@ -253,33 +273,22 @@ const AppHeader: Component = () => {
         </form>
       </div>
 
-      {/* Right cluster — search icon (mobile) + quick-add + sync + bell + avatar */}
+      {/* Right cluster — mobile search icon + quick-add + sync + bell + avatar.
+          The mobile search icon, quick-add, sync, and avatar are individually
+          toggled by CSS at the 1024px breakpoint (see glass-system.css). */}
       <div class="flex items-center gap-1.5">
-        {/* Mobile search icon — toggles the overlay. On desktop, this is hidden. */}
-        <Show
-          when={search.searchOpen()}
-          fallback={
-            <GlassIconButton
-              class="app-header__search-mobile"
-              variant="secondary"
-              size="default"
-              icon="search"
-              label="Search"
-              onClick={() => search.openSearch()}
-            />
-          }
-        >
-          <GlassIconButton
-            class="app-header__search-mobile"
-            variant="secondary"
-            size="default"
-            icon="close"
-            label="Close search"
-            onClick={() => search.closeSearch()}
-          />
-        </Show>
+        {/* Mobile search icon — visible only on mobile/tablet (<1024px).
+            Navigates to /discover (no overlay). */}
+        <GlassIconButton
+          class="app-header__search-mobile"
+          variant="secondary"
+          size="default"
+          icon="search"
+          label="Search"
+          onClick={handleMobileSearchClick}
+        />
 
-        {/* Desktop Quick Add — hidden on mobile. size="default" (44×44) */}
+        {/* Desktop Quick Add — hidden on mobile/tablet. size="default" (44×44) */}
         <GlassIconButton
           class="app-header__action"
           variant="secondary"
@@ -289,7 +298,7 @@ const AppHeader: Component = () => {
           onClick={handleQuickAdd}
         />
 
-        {/* Desktop Sync Status — hidden on mobile */}
+        {/* Desktop Sync Status — hidden on mobile/tablet */}
         <Show when={isSignedIn()}>
           <GlassIconButton
             class="app-header__action"
@@ -302,13 +311,13 @@ const AppHeader: Component = () => {
           />
         </Show>
 
-        {/* Notification bell */}
+        {/* Notification bell — visible on all viewports */}
         <HeaderNotificationBell
           unreadCount={notif.unreadCount}
           onClick={() => setNotifOpen(true)}
         />
 
-        {/* Desktop User Avatar — hidden on mobile. Now 44×44 to meet WCAG 2.5.5. */}
+        {/* Desktop User Avatar — hidden on mobile/tablet. 44×44 (WCAG 2.5.5). */}
         <button
           type="button"
           class="app-header__avatar focus-ring"
@@ -317,44 +326,15 @@ const AppHeader: Component = () => {
           aria-label={isSignedIn() ? "Profile" : "Sign in"}
           title={isSignedIn() ? "Profile" : "Sign in"}
         >
-          <span class="material-symbols-outlined" style={{ "font-size": "18px" }} aria-hidden="true">
+          <span
+            class="material-symbols-outlined"
+            style={{ "font-size": "18px" }}
+            aria-hidden="true"
+          >
             {isSignedIn() ? "person" : "login"}
           </span>
         </button>
       </div>
-
-      {/* Mobile search overlay — slides down below the header. Uses its
-          OWN GlassInput with a separate ref (mobileSearchRef) so the
-          desktop bar's ref is never overwritten. */}
-      <Show when={search.searchOpen()}>
-        <div class="app-header-search-mobile-bar">
-          <form
-            class="app-header-search-mobile-form"
-            onSubmit={handleSearchSubmit}
-            role="search"
-          >
-            <GlassInput
-              ref={mobileSearchRef}
-              type="search"
-              icon="search"
-              placeholder="Search movies, series, anime…"
-              value={search.query()}
-              onInput={(e) => search.setQuery(e.currentTarget.value)}
-              aria-label="Search movies, series, and anime"
-              autocomplete="off"
-              spellcheck={false}
-              rightContent={
-                <Show when={search.query()}>
-                  {renderClearButton(mobileSearchRef)}
-                </Show>
-              }
-            />
-            <button type="submit" class="sr-only">
-              Search
-            </button>
-          </form>
-        </div>
-      </Show>
 
       {/* Notification Center sheet — Portal-mounted by GlassModal */}
       <Show when={notifOpen() && isSignedIn()}>

@@ -47,7 +47,11 @@
     grid-area: header;
   }
 
-  /* Main content fills the center */
+  /* Main content fills the center column. The inner content is
+     centered and capped at max-w-screen-2xl (1536px) so ultra-wide
+     monitors don't get uncomfortably stretched lines of text/posters.
+     The padding provides comfortable breathing room from the sidebar
+     and utility panel. */
   .app-shell-bg > #main-content {
     grid-area: main;
     overflow-y: auto;
@@ -57,7 +61,21 @@
     padding-bottom: var(--sp-8, 2rem) !important;
   }
 
-  /* Bottom nav is hidden on desktop */
+  /* Center the page content inside the main column with a max-width.
+     PageContainer already does this on mobile (max-w-4xl); on desktop
+     we widen it to max-w-screen-2xl so grids can use the extra space.
+     This rule targets the common page wrapper class. */
+  .app-shell-bg > #main-content > .page-container,
+  .app-shell-bg > #main-content > [role="region"] {
+    max-width: var(--content-max, 1536px);
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: var(--sp-6, 1.5rem);
+    padding-right: var(--sp-6, 1.5rem);
+  }
+
+  /* Bottom nav is hidden on desktop — the DesktopSidebar handles
+     primary navigation. */
   .app-shell-bg > .bottom-nav-glass {
     display: none !important;
   }
@@ -83,17 +101,13 @@
     display: none;
   }
 
-  /* Show desktop search bar */
-  .app-header__search {
-    display: flex !important;
-  }
+  /* The inline desktop search bar is shown via glass-system.css
+     (.app-header__search-desktop → display:flex at ≥1024px).
+     No extra rule needed here — the previous `.app-header__search`
+     selector was a typo (the actual JSX class is `-desktop`). */
 
-  .app-header__search:hover {
-    background: var(--glass-bg) !important;
-    border-color: var(--p) !important;
-  }
-
-  /* Show desktop action buttons */
+  /* Desktop action buttons (Quick Add, Cloud Sync) — hidden on
+     mobile via the rule below; shown on desktop here. */
   .app-header__action {
     display: flex !important;
   }
@@ -104,7 +118,7 @@
     border-color: var(--p) !important;
   }
 
-  /* Show desktop avatar */
+  /* Desktop avatar — hidden on mobile via the rule below; shown here. */
   .app-header__avatar {
     display: flex !important;
   }
@@ -114,8 +128,9 @@
   }
 }
 
-/* Mobile: hide desktop-only elements */
-.app-header__search,
+/* Mobile/tablet (<1024px): hide desktop-only elements.
+   These are the SAME classes toggled by glass-system.css but we keep
+   the explicit mobile-default here for clarity and cascade safety. */
 .app-header__action,
 .app-header__avatar {
   display: none !important;
@@ -129,7 +144,7 @@
   grid-area: sidebar;
   display: none; /* Hidden on mobile by default */
   flex-direction: column;
-  width: 220px;
+  width: 240px; /* Phase 10 Chunk 1: 240px (was 220px) for comfortable nav labels */
   height: calc(100vh - var(--desktop-header-height, 56px));
   height: calc(100dvh - var(--desktop-header-height, 56px));
   background: var(--surface);
@@ -143,7 +158,7 @@
 }
 
 .desktop-sidebar--collapsed {
-  width: 64px;
+  width: 72px; /* Phase 10 Chunk 1: 72px (was 64px) — fits a 44px icon button + 14px padding each side */
 }
 
 @media (min-width: 1024px) {
@@ -315,12 +330,13 @@
   grid-area: utility;
   display: none; /* Hidden on mobile by default */
   flex-direction: column;
-  width: 280px;
+  gap: 0.75rem;
+  width: 300px;
   height: calc(100vh - var(--desktop-header-height, 56px));
   height: calc(100dvh - var(--desktop-header-height, 56px));
   background: var(--surface);
   border-left: 1px solid var(--hairline);
-  padding: var(--sp-5, 1.25rem);
+  padding: var(--sp-4, 1rem);
   overflow-y: auto;
   overflow-x: hidden;
   position: sticky;
@@ -336,49 +352,18 @@
 /* Ultra-wide — wider utility panel */
 @media (min-width: 1440px) {
   .desktop-utility-panel {
-    width: 320px;
+    width: 340px;
   }
 }
 
-/* Utility panel section */
-.desktop-utility-panel__section {
-  padding: var(--sp-4, 1rem) 0;
-  border-bottom: 1px solid var(--hairline);
-}
+/* Phase 10 Chunk 1: GlassCard-based shelves.
+   The legacy `.desktop-utility-panel__section` / `__heading` / `__text`
+   classes have been removed — the panel now renders GlassCard
+   components with their own internal layout. */
 
-.desktop-utility-panel__section:first-child {
-  padding-top: 0;
-}
-
-.desktop-utility-panel__section:last-child {
-  border-bottom: none;
-}
-
-/* Utility panel heading */
-.desktop-utility-panel__heading {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 700;
-  color: var(--text-strong);
-  margin: 0 0 var(--sp-2, 8px) 0;
-  letter-spacing: 0.02em;
-}
-
-.desktop-utility-panel__heading .material-symbols-outlined {
-  font-size: 18px;
-  color: var(--p);
-  font-variation-settings: "FILL" 1, "wght" 400, "GRAD" 0, "opsz" 24;
-}
-
-/* Utility panel text */
-.desktop-utility-panel__text {
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  color: var(--text-soft);
-  margin: 0;
+/* Utility panel card spacing */
+.desktop-utility-panel__card {
+  width: 100%;
 }
 
 /* ============================================================

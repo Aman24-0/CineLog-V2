@@ -105,26 +105,35 @@
 
 /* ============================================================
    APP HEADER — Global Search (expandable search bar)
+
+   PHASE 10 CHUNK 1:
+   Breakpoints aligned to 1024px (was 640px) so tablet viewports
+   (640–1023px) use the mobile pattern (search icon → /discover)
+   instead of showing the desktop inline bar without the desktop
+   sidebar. This eliminates the "stretched mobile app" feel.
    ============================================================ */
 
-/* Desktop search bar — always visible on desktop, hidden on mobile */
+/* Desktop inline search bar — hidden on mobile/tablet, visible on desktop (≥1024px).
+   flex:1 lets it grow to fill the available header space, with a sane
+   max-width so it doesn't dominate on ultra-wide screens. */
 .app-header__search-desktop {
   display: none;
   flex: 1;
-  max-width: 420px;
+  max-width: 560px;
   margin: 0 1rem;
 }
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .app-header__search-desktop {
     display: flex;
   }
 }
 
-/* Mobile search icon — visible on mobile, hidden on desktop */
+/* Mobile search icon — visible on mobile/tablet, hidden on desktop (≥1024px).
+   On click, navigates to /discover (no overlay). */
 .app-header__search-mobile {
   display: flex;
 }
-@media (min-width: 640px) {
+@media (min-width: 1024px) {
   .app-header__search-mobile {
     display: none;
   }
