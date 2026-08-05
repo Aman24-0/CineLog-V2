@@ -45,6 +45,7 @@ import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import { BarChartV, type BarVItem } from "~/features/stats/components/SvgChart";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -487,7 +488,7 @@ const EmailPage: Component = () => {
       </section>
 
       <Show when={loading()}>
-        <div class="text-center text-sm text-text-muted">Loading…</div>
+        <GlassLoadingState size="small" message="Loading delivery logs…" />
       </Show>
     </div>
   );

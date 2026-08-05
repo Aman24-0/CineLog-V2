@@ -36,6 +36,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import ServicePageHeader from "./ServicePageHeader";
 import ServiceKeyStatus from "./ServiceKeyStatus";
 
@@ -324,9 +325,13 @@ const WebPushServicePage: Component = () => {
         </Show>
 
         <Show when={!status() && !loading()}>
-          <div class="px-3 py-4 text-center text-xs text-text-muted">
-            Failed to load VAPID status.
-          </div>
+          <GlassEmptyState
+            icon="error"
+            title="Failed to load VAPID status"
+            message="The VAPID status check failed. Check the service status pill above for details."
+            variant="compact"
+            surface
+          />
         </Show>
 
         <p class="mt-4 max-w-3xl text-xs text-text-soft">

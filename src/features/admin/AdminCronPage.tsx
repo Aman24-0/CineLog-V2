@@ -36,6 +36,7 @@ import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassModal } from "~/shared/ui/glass/GlassModal";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types (mirror API) ─────────────────────────────────────────
 
@@ -247,12 +248,7 @@ const AdminCronPage: Component = () => {
       <Show when={loading()}>
         <div class="flex flex-col gap-3">
           <For each={Array.from({ length: 3 })}>
-            {() => (
-              <div
-                class="admin-devtools-skeleton"
-                style={{ height: "180px" }}
-              />
-            )}
+            {() => <GlassSkeleton variant="card" height="180px" />}
           </For>
         </div>
       </Show>

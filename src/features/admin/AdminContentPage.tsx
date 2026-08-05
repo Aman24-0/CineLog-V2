@@ -70,6 +70,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -556,12 +557,7 @@ const AdminContentPage: Component = () => {
 
           <Show when={loading()}>
             <For each={Array.from({ length: 3 })}>
-              {() => (
-                <div
-                  class="admin-content-skeleton"
-                  style={{ height: "72px" }}
-                />
-              )}
+              {() => <GlassSkeleton variant="block" height="72px" />}
             </For>
           </Show>
 

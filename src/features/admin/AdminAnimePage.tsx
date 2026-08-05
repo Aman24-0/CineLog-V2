@@ -52,6 +52,8 @@ import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassTabs, type GlassTabItem } from "~/shared/ui/glass/GlassTabs";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -498,7 +500,7 @@ function SettingsTab(props: {
     <Show
       when={!props.loading}
       fallback={
-        <div class="admin-anime-loading">Loading settings…</div>
+        <GlassLoadingState message="Loading settings…" class="!py-8" />
       }
     >
       {/* Master Toggle */}
@@ -861,7 +863,7 @@ function MappingsTab(props: {
 
       <Show when={loading()}>
         <For each={Array.from({ length: 4 })}>
-          {() => <div class="admin-anime-skeleton" style={{ height: "60px" }} />}
+          {() => <GlassSkeleton variant="block" height="60px" />}
         </For>
       </Show>
 
@@ -1198,7 +1200,7 @@ function CacheTab(props: {
   return (
     <Show
       when={!props.loading}
-      fallback={<div class="admin-anime-loading">Loading cache config…</div>}
+      fallback={<GlassLoadingState message="Loading cache config…" class="!py-8" />}
     >
       {/* Stat tiles (read-only summary) */}
       <div class="admin-anime-cache-tiles">

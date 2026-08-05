@@ -23,6 +23,9 @@ import {
   type Component,
   type JSX
 } from "solid-js";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 
 interface UserGrowthRow {
   day: string;
@@ -206,14 +209,17 @@ const AdminAnalyticsPage: Component = () => {
             Aggregated engagement metrics, refreshed hourly by pg_cron.
           </p>
         </div>
-        <button
-          type="button"
+        <GlassButton
+          variant="glass"
+          size="compact"
+          icon={loading() ? "progress_activity" : "refresh"}
           onClick={fetchAnalytics}
           disabled={loading()}
-          style={btnStyle(loading())}
+          loading={loading()}
+          aria-label="Refresh analytics"
         >
-          {loading() ? "Loading…" : "↻ Refresh"}
-        </button>
+          Refresh
+        </GlassButton>
       </div>
 
       {/* Refresh metadata */}
@@ -237,7 +243,7 @@ const AdminAnalyticsPage: Component = () => {
       </Show>
 
       <Show when={loading() && !data()} fallback={null}>
-        <div style={loadingStyle}>Loading analytics…</div>
+        <GlassLoadingState message="Loading analytics…" />
       </Show>
 
       <Show when={data()}>
@@ -294,7 +300,15 @@ const AdminAnalyticsPage: Component = () => {
         <Section title="User growth (last 90 days)">
           <Show
             when={data()!.user_growth.length > 0}
-            fallback={<EmptyState label="No data yet" />}
+            fallback={
+              <GlassEmptyState
+                icon="show_chart"
+                title="No data yet"
+                message="User growth data will appear once the analytics MV refreshes."
+                variant="compact"
+                surface
+              />
+            }
           >
             <svg
               viewBox="0 0 100 30"
@@ -327,7 +341,15 @@ const AdminAnalyticsPage: Component = () => {
         <Section title="Top titles (last 30 days)">
           <Show
             when={data()!.top_titles.length > 0}
-            fallback={<EmptyState label="No vault activity yet" />}
+            fallback={
+              <GlassEmptyState
+                icon="trending_up"
+                title="No vault activity yet"
+                message="Top titles will appear here once users start adding to their vaults."
+                variant="compact"
+                surface
+              />
+            }
           >
             <div style={tableWrapStyle}>
               <table style={tableStyle}>
@@ -388,7 +410,15 @@ const AdminAnalyticsPage: Component = () => {
         <Section title="Content engagement (last 90 days, by action)">
           <Show
             when={engagementByAction().length > 0}
-            fallback={<EmptyState label="No activity_log entries in range" />}
+            fallback={
+              <GlassEmptyState
+                icon="insights"
+                title="No activity_log entries in range"
+                message="Engagement data will appear once users interact with content."
+                variant="compact"
+                surface
+              />
+            }
           >
             <div style={tableWrapStyle}>
               <table style={tableStyle}>
@@ -498,22 +528,6 @@ const Section: Component<{ title: string; children: JSX.Element }> = (
   </section>
 );
 
-const EmptyState: Component<{ label: string }> = (props) => (
-  <div
-    style={{
-      padding: "var(--sp-8)",
-      "text-align": "center",
-      color: "var(--text-muted)",
-      "font-size": "0.875rem",
-      background: "var(--tier-1)",
-      border: "1px dashed var(--hairline-2)",
-      "border-radius": "var(--radius-md)"
-    }}
-  >
-    {props.label}
-  </div>
-);
-
 // ─── Styles ───────────────────────────────────────────────────────
 
 const cardsGridStyle = {
@@ -601,25 +615,5 @@ const errorStyle = {
   color: "rgb(252, 165, 165)",
   "font-size": "0.875rem"
 } as const;
-
-const loadingStyle = {
-  padding: "var(--sp-8)",
-  "text-align": "center",
-  color: "var(--text-muted)",
-  "font-size": "0.875rem"
-} as const;
-
-function btnStyle(disabled: boolean) {
-  return {
-    padding: "var(--sp-2) var(--sp-4)",
-    background: disabled ? "var(--tier-3)" : "var(--p)",
-    color: disabled ? "var(--text-muted)" : "var(--on-primary)",
-    border: "none",
-    "border-radius": "var(--radius-md)",
-    "font-size": "0.8125rem",
-    "font-weight": "600",
-    cursor: disabled ? "not-allowed" : "pointer"
-  } as const;
-}
 
 export default AdminAnalyticsPage;

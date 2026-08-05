@@ -19,7 +19,8 @@ import {
   For,
   type Component
 } from "solid-js";
-import { useNavigate } from "@solidjs/router";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 
 interface EnvVar {
   key: string;
@@ -69,7 +70,6 @@ function getLocalStorageSize(): number {
 }
 
 const AdminDeveloperPage: Component = () => {
-  const navigate = useNavigate();
   const [envVars, setEnvVars] = createSignal<EnvVar[]>([]);
   const [diagnostics, setDiagnostics] = createSignal<DiagnosticInfo | null>(
     null
@@ -138,13 +138,15 @@ const AdminDeveloperPage: Component = () => {
       <section class="admin-developer-section">
         <div class="admin-developer-section-header">
           <h2>Environment Variables</h2>
-          <button
-            type="button"
-            class="btn-ghost focus-ring"
+          <GlassButton
+            variant="ghost"
+            size="compact"
+            icon={showSecrets() ? "visibility_off" : "visibility"}
             onClick={() => setShowSecrets(!showSecrets())}
+            aria-label={showSecrets() ? "Hide secret values" : "Show secret values"}
           >
             {showSecrets() ? "Hide secrets" : "Show secrets"}
-          </button>
+          </GlassButton>
         </div>
         <div class="admin-developer-env-list">
           <For each={envVars()}>
@@ -154,16 +156,13 @@ const AdminDeveloperPage: Component = () => {
                 <span class="admin-developer-env-value">
                   {v.isSecret && !showSecrets() ? redact(v.value) : v.value || "(not set)"}
                 </span>
-                <button
-                  type="button"
-                  class="btn-ghost admin-developer-copy focus-ring"
+                <GlassButton
+                  variant="ghost"
+                  size="compact"
+                  icon="content_copy"
                   onClick={() => copyToClipboard(v.value)}
-                  aria-label={`Copy ${v.key}`}
-                >
-                  <span class="material-symbols-outlined" aria-hidden="true" style={{ "font-size": "16px" }}>
-                    content_copy
-                  </span>
-                </button>
+                  aria-label={`Copy ${v.key} value to clipboard`}
+                />
               </div>
             )}
           </For>
@@ -173,7 +172,7 @@ const AdminDeveloperPage: Component = () => {
       {/* Diagnostics */}
       <section class="admin-developer-section">
         <h2>Diagnostics</h2>
-        <Show when={diagnostics()} fallback={<p>Loading…</p>}>
+        <Show when={diagnostics()} fallback={<GlassLoadingState size="small" message="Loading diagnostics…" />}>
           {(d) => (
             <div class="admin-developer-diag-grid">
               <div class="admin-developer-diag-row">
@@ -221,10 +220,10 @@ const AdminDeveloperPage: Component = () => {
       <section class="admin-developer-section">
         <h2>Cache & Logs</h2>
         <div class="admin-developer-links">
-          <button
-            type="button"
+          <a
+            href="/admin/tmdb-cache"
             class="admin-developer-link focus-ring"
-            onClick={() => navigate("/admin/tmdb-cache")}
+            aria-label="TMDB Cache — View and invalidate cached TMDB responses"
           >
             <span class="material-symbols-outlined" aria-hidden="true">storage</span>
             <div>
@@ -234,11 +233,11 @@ const AdminDeveloperPage: Component = () => {
               </span>
             </div>
             <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-          </button>
-          <button
-            type="button"
+          </a>
+          <a
+            href="/admin/feature-flags"
             class="admin-developer-link focus-ring"
-            onClick={() => navigate("/admin/feature-flags")}
+            aria-label="Feature Flags — Enable or disable app features per user or globally"
           >
             <span class="material-symbols-outlined" aria-hidden="true">flag</span>
             <div>
@@ -248,11 +247,11 @@ const AdminDeveloperPage: Component = () => {
               </span>
             </div>
             <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-          </button>
-          <button
-            type="button"
+          </a>
+          <a
+            href="/admin/logs"
             class="admin-developer-link focus-ring"
-            onClick={() => navigate("/admin/logs")}
+            aria-label="Admin Audit Logs — View admin actions and system events"
           >
             <span class="material-symbols-outlined" aria-hidden="true">receipt_long</span>
             <div>
@@ -262,11 +261,11 @@ const AdminDeveloperPage: Component = () => {
               </span>
             </div>
             <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-          </button>
-          <button
-            type="button"
+          </a>
+          <a
+            href="/admin/maintenance"
             class="admin-developer-link focus-ring"
-            onClick={() => navigate("/admin/maintenance")}
+            aria-label="Maintenance — Run maintenance tasks and view system health"
           >
             <span class="material-symbols-outlined" aria-hidden="true">build</span>
             <div>
@@ -276,7 +275,7 @@ const AdminDeveloperPage: Component = () => {
               </span>
             </div>
             <span class="material-symbols-outlined" aria-hidden="true">chevron_right</span>
-          </button>
+          </a>
         </div>
       </section>
     </div>

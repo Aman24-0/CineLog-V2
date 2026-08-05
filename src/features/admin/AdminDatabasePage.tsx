@@ -47,6 +47,7 @@ import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types (mirror API) ─────────────────────────────────────────
 
@@ -319,12 +320,7 @@ const AdminDatabasePage: Component = () => {
         <Show when={loading()}>
           <div class="flex flex-col gap-2 p-4">
             <For each={Array.from({ length: 8 })}>
-              {() => (
-                <div
-                  class="admin-devtools-skeleton"
-                  style={{ height: "48px" }}
-                />
-              )}
+              {() => <GlassSkeleton variant="block" height="48px" />}
             </For>
           </div>
         </Show>

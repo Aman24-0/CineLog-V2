@@ -43,6 +43,8 @@ import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -449,9 +451,7 @@ const AdminTmdbCachePage: Component = () => {
         </Show>
         <Show when={statsLoading()}>
           <For each={Array.from({ length: 6 })}>
-            {() => (
-              <div class="admin-devtools-skeleton" style={{ height: "80px" }} />
-            )}
+            {() => <GlassSkeleton variant="block" height="80px" />}
           </For>
         </Show>
       </div>
@@ -546,16 +546,7 @@ const AdminTmdbCachePage: Component = () => {
       {/* Entry list */}
       <GlassCard padding="default" class="admin-devtools-card">
         <Show when={loading()}>
-          <div class="flex items-center justify-center gap-2 px-4 py-8 text-sm text-text-muted">
-            <span
-              class="material-symbols-outlined text-base"
-              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
-              aria-hidden="true"
-            >
-              progress_activity
-            </span>
-            Loading cache entries…
-          </div>
+          <GlassLoadingState message="Loading cache entries…" class="!py-8" />
         </Show>
 
         <Show when={!loading() && entries().length === 0}>

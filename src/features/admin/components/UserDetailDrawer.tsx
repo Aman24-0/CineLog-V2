@@ -61,6 +61,7 @@ import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassAvatar } from "~/shared/ui/glass/GlassAvatar";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 
 // ─── Types ───────────────────────────────────────────────────────
 //
@@ -662,16 +663,7 @@ const UserDetailDrawer: Component<UserDetailDrawerProps> = (props) => {
     >
       <div class="flex h-full flex-col gap-4 overflow-y-auto pb-2">
         <Show when={loading() && !detail()}>
-          <div class="flex items-center justify-center gap-2 py-12 text-sm text-text-muted">
-            <span
-              class="material-symbols-outlined text-base"
-              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
-              aria-hidden="true"
-            >
-              progress_activity
-            </span>
-            Loading user…
-          </div>
+          <GlassLoadingState message="Loading user…" class="!py-12" />
         </Show>
 
         <Show when={error()}>

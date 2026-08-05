@@ -55,6 +55,8 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { DonutChart } from "~/features/stats/components/SvgChart";
 import AuditTrailWidget from "~/features/admin/components/AuditTrailWidget";
 
@@ -249,30 +251,23 @@ const RecentUserSignups: Component = () => {
       </div>
 
       <Show when={loading()}>
-        <div class="flex items-center justify-center gap-2 px-4 py-6 text-xs text-text-muted">
-          <span
-            class="material-symbols-outlined text-base"
-            style={{
-              animation: "softPulse 1.2s ease-in-out infinite"
-            }}
-            aria-hidden="true"
-          >
-            progress_activity
-          </span>
-          Loading…
-        </div>
+        <GlassLoadingState size="small" message="Loading signups…" class="!py-4" />
       </Show>
 
       <Show when={error()}>
-        <div class="px-3 py-2 text-xs text-danger">
+        <div class="px-3 py-2 text-xs text-danger" role="alert">
           Failed to load: {error()}
         </div>
       </Show>
 
       <Show when={!loading() && !error() && users().length === 0}>
-        <div class="px-4 py-6 text-center text-xs text-text-muted">
-          No users yet.
-        </div>
+        <GlassEmptyState
+          icon="person_add"
+          title="No users yet"
+          message="New signups will appear here."
+          variant="compact"
+          surface
+        />
       </Show>
 
       <Show when={!loading() && !error() && users().length > 0}>
@@ -548,7 +543,7 @@ const AdminDashboard: Component = () => {
             Service Health
           </h3>
           <Show when={servicesLoading() && services().length === 0}>
-            <span class="text-[10px] text-text-muted">Loading…</span>
+            <GlassLoadingState size="small" message="Probing services…" class="!py-0 !text-[10px]" />
           </Show>
           <Show when={servicesError()}>
             <span class="text-[10px] text-danger">

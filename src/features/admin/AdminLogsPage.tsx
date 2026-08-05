@@ -38,6 +38,7 @@ import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassModal } from "~/shared/ui/glass/GlassModal";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 
 // ─── Types ──────────────────────────────────────────────────────
 
@@ -497,16 +498,7 @@ const AdminLogsPage: Component = () => {
       {/* Logs table */}
       <GlassCard padding="none" class="admin-devtools-card">
         <Show when={loading()}>
-          <div class="flex items-center justify-center gap-2 px-4 py-8 text-sm text-text-muted">
-            <span
-              class="material-symbols-outlined text-base"
-              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
-              aria-hidden="true"
-            >
-              progress_activity
-            </span>
-            Loading audit trail…
-          </div>
+          <GlassLoadingState message="Loading audit trail…" class="!py-8" />
         </Show>
 
         <Show when={!loading() && logs().length === 0}>

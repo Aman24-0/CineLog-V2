@@ -40,6 +40,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassInput } from "~/shared/ui/glass/GlassInput";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import ServicePageHeader from "./ServicePageHeader";
 import ServiceKeyStatus from "./ServiceKeyStatus";
 
@@ -346,16 +347,7 @@ const TmdbServicePage: Component = () => {
         </div>
 
         <Show when={settingsLoading() && !settings()}>
-          <div class="flex items-center justify-center gap-2 px-4 py-6 text-xs text-text-muted">
-            <span
-              class="material-symbols-outlined text-base"
-              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
-              aria-hidden="true"
-            >
-              progress_activity
-            </span>
-            Loading…
-          </div>
+          <GlassLoadingState size="small" message="Loading TMDB settings…" class="!py-6" />
         </Show>
 
         <Show when={settings()}>

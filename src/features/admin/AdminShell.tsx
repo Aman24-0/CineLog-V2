@@ -54,6 +54,7 @@ import {
   createMemo,
   For,
   onMount,
+  onCleanup,
   createSignal,
   type Component
 } from "solid-js";
@@ -300,6 +301,31 @@ const AdminShell: ParentComponent = (props) => {
     setSidebarOpen(false);
   };
 
+  // Close the mobile sidebar on Escape key (accessibility pattern
+  // for off-canvas drawers — Phase 9 Chunk 8). Also closes when
+  // the route changes (handled by the <A onClick={closeSidebar}>
+  // in Sidebar).
+  const handleKeyDown = (e: KeyboardEvent) => {
+    if (e.key === "Escape" && sidebarOpen()) {
+      e.preventDefault();
+      setSidebarOpen(false);
+      // Return focus to the hamburger button so keyboard users
+      // don't lose their place after closing the drawer.
+      const hamburger = document.querySelector<HTMLButtonElement>(
+        ".admin-hamburger"
+      );
+      hamburger?.focus();
+    }
+  };
+
+  onMount(() => {
+    document.addEventListener("keydown", handleKeyDown);
+  });
+
+  onCleanup(() => {
+    document.removeEventListener("keydown", handleKeyDown);
+  });
+
   return (
     <Show
       when={auth.isAdmin()}
@@ -338,6 +364,17 @@ const AdminShell: ParentComponent = (props) => {
       }
     >
       <div class="admin-shell flex min-h-screen bg-void text-text">
+        {/* Skip-link for keyboard users — jumps focus past the sidebar
+            nav directly into the page <main>. Visually hidden until
+            focused. Phase 9 Chunk 8 accessibility pass. */}
+        <a
+          href="#admin-main-content"
+          class="admin-skip-link"
+          aria-label="Skip to main content"
+        >
+          Skip to main content
+        </a>
+
         {/* Mobile / tablet hamburger button (visible below lg / 1024px).
             The previous implementation hardcoded `display: none` which
             meant the sidebar was unreachable on small screens — Phase 9
@@ -459,7 +496,11 @@ const AdminShell: ParentComponent = (props) => {
               responsive: 1 unit on mobile, 6 units on lg+ (the previous
               fixed `p-6` caused content to touch the screen edges on
               small screens). */}
-          <main class="flex-1 overflow-y-auto p-4 lg:p-6">
+          <main
+            id="admin-main-content"
+            class="flex-1 overflow-y-auto p-4 lg:p-6"
+            tabindex={-1}
+          >
             {props.children}
           </main>
         </div>

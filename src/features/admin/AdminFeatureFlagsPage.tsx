@@ -43,6 +43,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 import {
   FEATURE_FLAG_METADATA,
   type FlagMeta
@@ -280,7 +281,7 @@ const AdminFeatureFlagsPage: Component = () => {
       <Show when={loading()}>
         <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-3)" }}>
           <For each={Array.from({ length: 6 })}>
-            {() => <div class="admin-config-skeleton" />}
+            {() => <GlassSkeleton variant="card" />}
           </For>
         </div>
       </Show>

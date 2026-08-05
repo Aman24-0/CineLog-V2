@@ -31,6 +31,8 @@ import {
 } from "solid-js";
 import { A } from "@solidjs/router";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 
 interface AuditLogRow {
   id: string;
@@ -143,30 +145,23 @@ const AuditTrailWidget: Component = () => {
       </div>
 
       <Show when={loading()}>
-        <div class="flex items-center justify-center gap-2 px-4 py-6 text-xs text-text-muted">
-          <span
-            class="material-symbols-outlined text-base"
-            style={{
-              animation: "softPulse 1.2s ease-in-out infinite"
-            }}
-            aria-hidden="true"
-          >
-            progress_activity
-          </span>
-          Loading…
-        </div>
+        <GlassLoadingState size="small" message="Loading actions…" class="!py-4" />
       </Show>
 
       <Show when={error()}>
-        <div class="px-3 py-2 text-xs text-danger">
+        <div class="px-3 py-2 text-xs text-danger" role="alert">
           Failed to load: {error()}
         </div>
       </Show>
 
       <Show when={!loading() && !error() && logs().length === 0}>
-        <div class="px-4 py-6 text-center text-xs text-text-muted">
-          No admin actions yet.
-        </div>
+        <GlassEmptyState
+          icon="history_edu"
+          title="No admin actions yet"
+          message="Recent admin actions will appear here."
+          variant="compact"
+          surface
+        />
       </Show>
 
       <Show when={!loading() && !error() && logs().length > 0}>

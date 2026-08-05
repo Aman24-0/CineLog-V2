@@ -66,6 +66,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -369,7 +370,7 @@ const AdminHomepagePage: Component = () => {
       <Show when={loading()}>
         <div style={{ display: "flex", "flex-direction": "column", gap: "var(--sp-2)" }}>
           <For each={Array.from({ length: 7 })}>
-            {() => <div class="admin-config-skeleton" style={{ height: "60px" }} />}
+            {() => <GlassSkeleton variant="block" height="60px" />}
           </For>
         </div>
       </Show>

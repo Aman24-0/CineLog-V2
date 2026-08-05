@@ -1,0 +1,315 @@
+/* src/styles/features/admin-polish.css
+ *
+ * Phase 9 Chunk 8 — Final Polish & Mobile Audit
+ * ---------------------------------------------
+ * Cross-cutting mobile + accessibility rules that apply to ALL admin
+ * pages. These are intentionally kept separate from the per-page
+ * feature CSS files (admin-content, admin-anime, admin-config,
+ * admin-devtools) so they can be evolved without re-touching each
+ * individual page sheet.
+ *
+ * Scope: selectors are prefixed with `.admin-` or target admin
+ * page wrappers, so these rules don't leak into the consumer app.
+ *
+ * Coverage:
+ *   1. Focus-visible baseline for all admin-only interactive elements
+ *      (supplements the global :focus-visible rule with admin-tinted
+ *      outline that respects the glass surface).
+ *   2. Long-string / URL / code overflow protection — prevents
+ *      horizontal page scroll on mobile when admin tables render
+ *      UUIDs, TMDB IDs, JSON payloads, etc.
+ *   3. Admin table mobile hardening — min-widths so columns don't
+ *      collapse below readable widths inside their overflow-x:auto
+ *      wrappers.
+ *   4. Hamburger button safe-area tuning so it doesn't sit under
+ *      the iOS status bar / notch on mobile.
+ *   5. Sidebar drawer keyboard focus indication + scroll lock when
+ *      the mobile drawer is open.
+ *   6. `.admin-developer-link` flex-wrap fallback for <360px phones
+ *      (the link's three columns can wrap to two lines).
+ *   7. `.admin-filter-bar` 1-column stack on phones — every page
+ *      that uses .admin-filter-bar should fall back to a single
+ *      column below 540px (this is the spec).
+ *   8. `.admin-pagination` wrap on mobile so Prev/Next + page
+ *      counter don't horizontally scroll.
+ *   9. `.admin-cache-entry`, `.admin-cron-card`, `.admin-db-table`
+ *      mobile hardening.
+ *  10. Prefers-reduced-motion override — disable ALL admin
+ *      animations when the user has reduced motion enabled.
+ */
+
+/* ─── 1. Focus-visible baseline ────────────────────────────────
+ * The global :focus-visible rule in base.css adds a 2px primary
+ * outline. For admin pages we additionally bump the offset on
+ * dense icon-only buttons so the ring doesn't overlap the icon
+ * glyph. We also disable the global outline on `[aria-hidden]`
+ * decorative spans (already handled globally, but reinforced here
+ * for admin icon spans inside buttons).
+ */
+.admin-shell button:focus-visible,
+.admin-shell a:focus-visible,
+.admin-shell [role="tab"]:focus-visible,
+.admin-shell [role="switch"]:focus-visible,
+.admin-shell input:focus-visible,
+.admin-shell select:focus-visible,
+.admin-shell textarea:focus-visible,
+.admin-shell [tabindex]:focus-visible {
+  outline: 2px solid var(--p);
+  outline-offset: 2px;
+  border-radius: var(--radius-sm, 4px);
+}
+
+/* Dense icon-only buttons need a slightly larger offset so the
+ * focus ring doesn't visually merge with the icon. */
+.admin-shell .admin-content-icon-btn:focus-visible,
+.admin-shell .admin-content-move-btn:focus-visible,
+.admin-shell .admin-homepage-icon-btn:focus-visible,
+.admin-shell .admin-developer-copy:focus-visible,
+.admin-shell .admin-pagination-controls button:focus-visible {
+  outline-offset: 3px;
+}
+
+/* ─── 2. Long-string overflow protection ───────────────────────
+ * UUIDs, SHA-256 hashes, JSON payloads, TMDB URLs, and code spans
+ * can break mobile layouts when they're wider than the viewport.
+ * These rules force them to wrap.
+ */
+.admin-shell code,
+.admin-shell pre,
+.admin-shell .font-mono {
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.admin-shell .admin-logs-table td,
+.admin-shell .admin-logs-table th,
+.admin-shell .admin-db-table td,
+.admin-shell .admin-db-table th,
+.admin-shell .admin-maint-runs-table td,
+.admin-shell .admin-maint-runs-table th {
+  /* Long UUIDs / JSON keys inside table cells */
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.admin-shell .admin-developer-env-key,
+.admin-shell .admin-developer-env-value {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+  min-width: 0;
+}
+
+.admin-shell .admin-developer-diag-mono {
+  word-break: break-all;
+  overflow-wrap: anywhere;
+}
+
+/* ─── 3. Admin table mobile hardening ──────────────────────────
+ * Every admin table is wrapped in a .admin-*-scroll container
+ * with overflow-x: auto. To make horizontal scroll meaningful
+ * (rather than the table shrinking into an unusable state), we
+ * enforce a sensible min-width on the inner <table>. The min-width
+ * is calibrated per-table so all columns stay readable.
+ */
+.admin-logs-table {
+  min-width: 720px;
+}
+
+.admin-db-table {
+  min-width: 640px;
+}
+
+.admin-maint-runs-table {
+  min-width: 720px;
+}
+
+/* ─── 4. Hamburger safe-area ───────────────────────────────────
+ * On notched iPhones the hamburger button at top-3 left-3 can
+ * collide with the safe-area inset. Honor env() when available.
+ */
+@supports (top: env(safe-area-inset-top)) {
+  .admin-hamburger {
+    top: calc(env(safe-area-inset-top, 0px) + 0.75rem) !important;
+    left: calc(env(safe-area-inset-left, 0px) + 0.75rem) !important;
+  }
+}
+
+/* ─── 5. Sidebar drawer scroll lock ────────────────────────────
+ * When the mobile drawer is open we lock body scroll so the
+ * background doesn't scroll under the drawer. The class is added
+ * to <body> via JS — but as a safety net, we also ensure the
+ * drawer itself scrolls. The .admin-sidebar already has
+ * overflow-y: auto in AdminShell.tsx, so this is just a
+ * belt-and-braces rule.
+ */
+.admin-sidebar {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* When the drawer is open AND the user is keyboard-navigating,
+ * make the first focusable item visible by default. SolidJS
+ * <A> anchors receive focus naturally via Tab; this just ensures
+ * the focus ring isn't clipped by the drawer's top padding. */
+.admin-sidebar a:focus-visible {
+  outline-offset: 4px;
+}
+
+/* ─── 6. Admin developer links mobile fallback ─────────────────
+ * On very narrow phones (<360px) the three-column link row
+ * (icon | title+desc | chevron) can wrap awkwardly. Allow the
+ * description to shrink + wrap.
+ */
+@media (max-width: 380px) {
+  .admin-developer-link {
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+  }
+  .admin-developer-link > div {
+    min-width: 0;
+    flex: 1 1 calc(100% - 4rem);
+  }
+  .admin-developer-link-desc {
+    font-size: 0.6875rem;
+  }
+}
+
+/* ─── 7. Filter bar 1-column stack on phones ───────────────────
+ * The spec says every .admin-filter-bar must collapse to a
+ * single column below 540px. Most pages already do this via
+ * their own per-page CSS, but this is a safety net so any new
+ * page that uses .admin-filter-bar inherits the behavior.
+ */
+@media (max-width: 540px) {
+  .admin-filter-bar {
+    grid-template-columns: 1fr !important;
+  }
+  .admin-filter-actions {
+    justify-self: stretch !important;
+  }
+  .admin-filter-actions > * {
+    flex: 1 1 0%;
+  }
+}
+
+/* ─── 8. Pagination wrap on mobile ─────────────────────────────
+ * Prev / page counter / Next should wrap to two lines on phones
+ * rather than horizontally scrolling.
+ */
+@media (max-width: 480px) {
+  .admin-pagination {
+    flex-wrap: wrap;
+    justify-content: center;
+    text-align: center;
+  }
+  .admin-pagination-controls {
+    width: 100%;
+    justify-content: center;
+  }
+}
+
+/* ─── 9. Cache entry / cron card / db table mobile hardening ─
+ * On phones the action button on the right of cache entries can
+ * push the title off-screen. Allow the entry body to shrink.
+ */
+@media (max-width: 480px) {
+  .admin-cache-entry {
+    flex-wrap: wrap;
+    gap: var(--sp-2);
+  }
+  .admin-cache-entry-body {
+    flex: 1 1 calc(100% - 3rem);
+    min-width: 0;
+  }
+  .admin-cache-entry-title {
+    flex-wrap: wrap;
+    gap: var(--sp-1);
+  }
+  .admin-cache-entry-meta {
+    font-size: 0.6875rem;
+    word-break: break-word;
+  }
+
+  /* Cron card action row: stack buttons full-width */
+  .admin-cron-card .admin-cron-actions {
+    flex-wrap: wrap;
+  }
+  .admin-cron-card .admin-cron-actions > * {
+    flex: 1 1 100%;
+  }
+
+  /* Database RLS policy modal: reduce padding on phones */
+  .admin-db-policy-modal {
+    max-width: 100% !important;
+    margin: 0 !important;
+  }
+}
+
+/* ─── 10. Reduced motion ───────────────────────────────────────
+ * Honor prefers-reduced-motion: media query. Disables:
+ *   • softPulse spinner animation
+ *   • sidebar slide-in transition
+ *   • hover -translate-y-0.5 transforms on admin cards
+ *   • skeleton shimmer
+ */
+@media (prefers-reduced-motion: reduce) {
+  .admin-shell *,
+  .admin-shell *::before,
+  .admin-shell *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .admin-sidebar {
+    transition: none !important;
+  }
+
+  .admin-hamburger {
+    transition: none !important;
+  }
+}
+
+/* ─── 11. Admin shell grid hardening ───────────────────────────
+ * Force the dashboard's 7-column service health strip to wrap
+ * gracefully on tablets. The existing grid-cols-2 / sm:grid-cols-3
+ * / md:grid-cols-4 / lg:grid-cols-7 already does this, but we
+ * add a safety net so any future grid with >4 cols on lg wraps
+ * to 2 cols on phones.
+ */
+@media (max-width: 380px) {
+  .admin-shell .grid {
+    grid-template-columns: repeat(1, minmax(0, 1fr)) !important;
+  }
+  /* But preserve intentionally-2-col layouts like stat tile rows
+   * that are already small enough to fit. */
+  .admin-shell .grid-cols-2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  }
+}
+
+/* ─── 12. Skip-link for keyboard users ─────────────────────────
+ * Allows keyboard users to skip past the sidebar nav and jump
+ * directly to the main content. Rendered visually hidden until
+ * focused.
+ */
+.admin-skip-link {
+  position: absolute;
+  top: -100px;
+  left: 0;
+  z-index: 100;
+  padding: var(--sp-2) var(--sp-4);
+  background: var(--p);
+  color: var(--on-primary);
+  border-radius: 0 0 var(--radius-md) 0;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  transition: top 0.15s ease;
+}
+
+.admin-skip-link:focus,
+.admin-skip-link:focus-visible {
+  top: 0;
+  outline: 2px solid var(--p);
+  outline-offset: -2px;
+}

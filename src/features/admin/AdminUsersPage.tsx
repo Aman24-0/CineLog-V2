@@ -48,6 +48,7 @@ import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassAvatar } from "~/shared/ui/glass/GlassAvatar";
 import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+import { GlassLoadingState } from "~/shared/ui/glass/GlassLoadingState";
 import UserDetailDrawer from "~/features/admin/components/UserDetailDrawer";
 import { useAdminAuth } from "./hooks/useAdminAuth";
 
@@ -574,16 +575,7 @@ const AdminUsersPage: Component = () => {
       {/* ─── Loading / error / empty states ─────────────────── */}
       <Show when={users.loading && !users()}>
         <GlassCard padding="comfortable">
-          <div class="flex items-center justify-center gap-2 py-8 text-sm text-text-muted">
-            <span
-              class="material-symbols-outlined text-base"
-              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
-              aria-hidden="true"
-            >
-              progress_activity
-            </span>
-            Loading users…
-          </div>
+          <GlassLoadingState message="Loading users…" class="!py-8" />
         </GlassCard>
       </Show>
 
