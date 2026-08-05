@@ -81,7 +81,10 @@ interface NavGroup {
 //   • Overview       — at-a-glance pages (dashboard, analytics, audit)
 //   • Users          — account management
 //   • Content        — what users see on Discover / collections
-//   • Communication  — outbound messaging (announcements)
+//   • Communication  — outbound messaging (announcements, push, email,
+//                      global notification settings). Phase 9 Chunk 4
+//                      expanded this group from just Announcements to
+//                      the full Communication Hub.
 //   • Configuration  — global app config + feature toggles
 //   • Services       — one page per external integration. Each page is
 //                      the SINGLE source of truth for that service's
@@ -124,9 +127,24 @@ const NAV_GROUPS: NavGroup[] = [
     label: "Communication",
     items: [
       {
-        href: "/admin/announcements",
+        href: "/admin/communication/announcements",
         label: "Announcements",
         icon: "campaign"
+      },
+      {
+        href: "/admin/communication/push",
+        label: "Web Push",
+        icon: "notifications"
+      },
+      {
+        href: "/admin/communication/email",
+        label: "Email",
+        icon: "mail"
+      },
+      {
+        href: "/admin/communication/notifications",
+        label: "Notification Settings",
+        icon: "tune"
       }
     ]
   },

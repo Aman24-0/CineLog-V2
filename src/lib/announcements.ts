@@ -128,6 +128,34 @@ export function useAnnouncements(options?: {
   const dismiss = (id: string) => {
     persistDismissal(id);
     setAnnouncements((prev) => prev.filter((a) => a.id !== id));
+
+    // Phase 9 Chunk 4 — fire-and-forget beacon to the server so the
+    // admin Communication Hub can track dismissal stats. We use
+    // navigator.sendBeacon when available (survives page unload),
+    // otherwise fetch with keepalive. We NEVER block the UI on this
+    // call and we NEVER throw on failure — dismissal is best-effort.
+    try {
+      const payload = JSON.stringify({ announcementId: id });
+      if (
+        typeof navigator !== "undefined" &&
+        typeof navigator.sendBeacon === "function"
+      ) {
+        const blob = new Blob([payload], { type: "application/json" });
+        navigator.sendBeacon("/api/announcements/dismiss", blob);
+      } else {
+        void fetch("/api/announcements/dismiss", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: payload,
+          keepalive: true
+        }).catch(() => {
+          // Swallow — dismissal is best-effort.
+        });
+      }
+    } catch {
+      // Swallow.
+    }
   };
 
   const visibleBanners = createMemo(() =>

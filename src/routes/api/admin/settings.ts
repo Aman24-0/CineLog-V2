@@ -38,14 +38,20 @@ type SettingsKey =
   | "rate_limits"
   | "tmdb_settings"
   | "maintenance_window"
-  | "retention_policy";
+  | "retention_policy"
+  // Phase 9 Chunk 4 — Communication Hub: global notification settings.
+  // The Communication Hub → Notifications page is the SINGLE source
+  // of truth for these values; they are NOT editable on
+  // AdminSettingsPage (zero duplication).
+  | "notification_settings";
 
 const ALL_KEYS: SettingsKey[] = [
   "site_settings",
   "rate_limits",
   "tmdb_settings",
   "maintenance_window",
-  "retention_policy"
+  "retention_policy",
+  "notification_settings"
 ];
 
 interface SiteSettings {
@@ -87,12 +93,50 @@ interface RetentionPolicy {
   admin_actions_days: number;
 }
 
+// Phase 9 Chunk 4 — Global notification settings.
+//
+// These are ADMIN-controlled defaults and limits that apply on top
+// of (not instead of) user-side notifPrefs. The mapping is:
+//
+//   • default_quiet_hours_start / end — applied to brand-new users
+//     as their initial notifPrefs.quietHoursStart / End. Existing
+//     users keep whatever they've set.
+//   • min_lead_time_minutes / max_lead_time_minutes — bounds for
+//     the user's episodeReminderLead setting. Users can't set a
+//     lead time outside this range.
+//   • push_categories_enabled — GLOBAL kill switches per category.
+//     When false, NO user receives that category, regardless of
+//     their personal pref. This is the admin emergency stop.
+//   • email_categories_enabled — same idea, for email fallback.
+interface NotificationSettings {
+  default_quiet_hours_enabled: boolean;
+  default_quiet_hours_start: string; // "HH:MM"
+  default_quiet_hours_end: string; // "HH:MM"
+  min_lead_time_minutes: number; // 0, 5, 15, 30, 60, 1440
+  max_lead_time_minutes: number; // upper bound for user's lead time
+  push_categories_enabled: {
+    newSeason: boolean;
+    continueWatching: boolean;
+    weeklyRecap: boolean;
+    recommendations: boolean;
+    syncStatus: boolean;
+  };
+  email_categories_enabled: {
+    newSeason: boolean;
+    continueWatching: boolean;
+    weeklyRecap: boolean;
+    recommendations: boolean;
+    syncStatus: boolean;
+  };
+}
+
 interface AllSettings {
   site_settings: SiteSettings;
   rate_limits: RateLimits;
   tmdb_settings: TmdbSettings;
   maintenance_window: MaintenanceWindow;
   retention_policy: RetentionPolicy;
+  notification_settings: NotificationSettings;
 }
 
 // ─── Default values (used if a key is missing from app_config) ────
@@ -123,6 +167,34 @@ const DEFAULTS: AllSettings = {
     activity_log_days: 180,
     tmdb_cache_days: 30,
     admin_actions_days: 365
+  },
+  // Phase 9 Chunk 4 — Communication Hub defaults.
+  // The quiet-hours defaults mirror DEFAULT_NOTIF_PREFS from
+  // core/preferences/notifications.ts so brand-new users start with
+  // the same experience regardless of which side they're configured
+  // on. The push/email category kill switches default to true
+  // (all channels enabled) — the admin can disable a category
+  // globally only when there's a specific reason to.
+  notification_settings: {
+    default_quiet_hours_enabled: false,
+    default_quiet_hours_start: "22:00",
+    default_quiet_hours_end: "07:00",
+    min_lead_time_minutes: 5,
+    max_lead_time_minutes: 1440,
+    push_categories_enabled: {
+      newSeason: true,
+      continueWatching: true,
+      weeklyRecap: true,
+      recommendations: true,
+      syncStatus: true
+    },
+    email_categories_enabled: {
+      newSeason: true,
+      continueWatching: true,
+      weeklyRecap: true,
+      recommendations: true,
+      syncStatus: true
+    }
   }
 };
 
@@ -242,12 +314,102 @@ function validateRetentionPolicy(input: unknown): RetentionPolicy {
   };
 }
 
+// Phase 9 Chunk 4 — notification settings validator.
+// Validates the shape of the notification_settings key. Unknown
+// fields are dropped; missing fields fall back to defaults.
+function validateNotificationSettings(input: unknown): NotificationSettings {
+  if (typeof input !== "object" || input === null)
+    throw new Error("must be an object");
+  const obj = input as Record<string, unknown>;
+  const defaults = DEFAULTS.notification_settings;
+
+  // Validate HH:MM time strings.
+  const validateTime = (v: unknown, def: string): string => {
+    if (typeof v !== "string") return def;
+    const m = v.match(/^(\d{2}):(\d{2})$/);
+    if (!m) return def;
+    const h = Number(m[1]);
+    const min = Number(m[2]);
+    if (h < 0 || h > 23 || min < 0 || min > 59) return def;
+    return v;
+  };
+
+  // Validate lead time minutes — must be one of the allowed values.
+  const ALLOWED_LEAD_TIMES = [0, 5, 15, 30, 60, 1440];
+  const validateLeadTime = (v: unknown, def: number): number => {
+    const n = typeof v === "number" ? v : def;
+    return ALLOWED_LEAD_TIMES.includes(n) ? n : def;
+  };
+
+  // Validate a category-enabled sub-object.
+  const validateCategories = (
+    sub: unknown,
+    def: NotificationSettings["push_categories_enabled"]
+  ): NotificationSettings["push_categories_enabled"] => {
+    const o =
+      sub && typeof sub === "object" ? (sub as Record<string, unknown>) : {};
+    return {
+      newSeason: typeof o.newSeason === "boolean" ? o.newSeason : def.newSeason,
+      continueWatching:
+        typeof o.continueWatching === "boolean"
+          ? o.continueWatching
+          : def.continueWatching,
+      weeklyRecap:
+        typeof o.weeklyRecap === "boolean" ? o.weeklyRecap : def.weeklyRecap,
+      recommendations:
+        typeof o.recommendations === "boolean"
+          ? o.recommendations
+          : def.recommendations,
+      syncStatus:
+        typeof o.syncStatus === "boolean" ? o.syncStatus : def.syncStatus
+    };
+  };
+
+  const minLead = validateLeadTime(
+    obj.min_lead_time_minutes,
+    defaults.min_lead_time_minutes
+  );
+  const maxLead = validateLeadTime(
+    obj.max_lead_time_minutes,
+    defaults.max_lead_time_minutes
+  );
+
+  return {
+    default_quiet_hours_enabled:
+      typeof obj.default_quiet_hours_enabled === "boolean"
+        ? obj.default_quiet_hours_enabled
+        : defaults.default_quiet_hours_enabled,
+    default_quiet_hours_start: validateTime(
+      obj.default_quiet_hours_start,
+      defaults.default_quiet_hours_start
+    ),
+    default_quiet_hours_end: validateTime(
+      obj.default_quiet_hours_end,
+      defaults.default_quiet_hours_end
+    ),
+    // Ensure min <= max. If they're swapped, fall back to defaults.
+    min_lead_time_minutes:
+      minLead <= maxLead ? minLead : defaults.min_lead_time_minutes,
+    max_lead_time_minutes:
+      minLead <= maxLead ? maxLead : defaults.max_lead_time_minutes,
+    push_categories_enabled: validateCategories(
+      obj.push_categories_enabled,
+      defaults.push_categories_enabled
+    ),
+    email_categories_enabled: validateCategories(
+      obj.email_categories_enabled,
+      defaults.email_categories_enabled
+    )
+  };
+}
+
 const VALIDATORS: Record<SettingsKey, (input: unknown) => unknown> = {
   site_settings: validateSiteSettings,
   rate_limits: validateRateLimits,
   tmdb_settings: validateTmdbSettings,
   maintenance_window: validateMaintenanceWindow,
-  retention_policy: validateRetentionPolicy
+  retention_policy: validateRetentionPolicy,
+  notification_settings: validateNotificationSettings
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────
