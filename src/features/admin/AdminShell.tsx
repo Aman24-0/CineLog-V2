@@ -1,6 +1,6 @@
 // src/features/admin/AdminShell.tsx
 //
-// CineLog V2 — Admin Layout Shell
+// CineLog V2 — Admin Layout Shell (Phase 9 Chunk 1 — Glass Redesign)
 // ---------------------------------------------------------------------
 // The admin shell is a separate layout from the consumer AppShell.
 // It does NOT use the bottom navigation, the consumer header, or
@@ -15,8 +15,27 @@
 //     </div>
 //   </div>
 //
+// PHASE 9 CHUNK 1 CHANGES:
+//   • Sidebar reorganized into 7 named groups: Overview, Users, Content,
+//     Communication, Configuration, Services, Developer. The previous
+//     flat list mixed concerns (e.g. "TMDB Cache" sat between
+//     "Announcements" and "Analytics"), making the panel hard to
+//     navigate. The grouping also sets up the Phase 9 "Services Hub"
+//     separation from "App Settings" — service-related pages
+//     (TMDB Cache, AniList, Maintenance) now live under Services,
+//     while global app configuration (Settings, Feature Flags) lives
+//     under Configuration.
+//   • All inline emoji icons replaced with Material Symbols (consistent
+//     with the rest of the Glass UI system).
+//   • Sidebar / topbar restyled using Glass design tokens
+//     (bg-glass, backdrop-blur-xl, border-glass-border, text-text-*).
+//     Logout button now uses <GlassButton variant="glass">.
+//   • Removed the always-empty FUTURE_ITEMS placeholder block — it was
+//     dead code carried since Phase 1 and violated the Phase 9
+//     "no dead/dummy UI" rule.
+//
 // RESPONSIVE:
-//   - Desktop (≥768px): sidebar is visible, 240px wide
+//   - Desktop (≥768px): sidebar is visible, 248px wide
 //   - Mobile (<768px): sidebar hidden, hamburger menu opens it as overlay
 //
 // SESSION GATE:
@@ -30,109 +49,173 @@ import {
   createMemo,
   For,
   onMount,
-  createSignal
+  createSignal,
+  type Component
 } from "solid-js";
 import { useNavigate, useLocation, A } from "@solidjs/router";
 import { useAdminAuth } from "./hooks/useAdminAuth";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+
+// ─── Navigation Model ──────────────────────────────────────────
 
 interface NavItem {
   href: string;
   label: string;
+  /** Material Symbols icon name (renders via .material-symbols-outlined). */
   icon: string;
-  description: string;
 }
 
-// Navigation items (Phase 1 + Phase 2)
-const NAV_ITEMS: NavItem[] = [
+interface NavGroup {
+  label: string;
+  items: NavItem[];
+}
+
+// Sidebar groups (Phase 9 Chunk 1).
+//
+// Grouping rationale:
+//   • Overview       — at-a-glance pages (dashboard, analytics, audit)
+//   • Users          — account management
+//   • Content        — what users see on Discover / collections
+//   • Communication  — outbound messaging (announcements)
+//   • Configuration  — global app config + feature toggles
+//   • Services       — external integrations & operational tooling
+//                      (TMDB Cache, AniList, Maintenance). This is the
+//                      future home of the "Services Hub" — Phase 9 will
+//                      consolidate service-specific settings here so they
+//                      don't duplicate the global Settings page.
+//   • Developer      — env diagnostics, cache tools
+//
+// Every href below points to a real route file under src/routes/admin/
+// — no dead links, no dummy placeholders.
+const NAV_GROUPS: NavGroup[] = [
   {
-    href: "/admin",
-    label: "Dashboard",
-    icon: "📊",
-    description: "Overview metrics"
+    label: "Overview",
+    items: [
+      { href: "/admin", label: "Dashboard", icon: "dashboard" },
+      { href: "/admin/analytics", label: "Analytics", icon: "insights" },
+      { href: "/admin/logs", label: "Audit Trail", icon: "history_edu" }
+    ]
   },
   {
-    href: "/admin/users",
     label: "Users",
-    icon: "👥",
-    description: "Manage user accounts"
+    items: [
+      { href: "/admin/users", label: "Users", icon: "group" }
+    ]
   },
   {
-    href: "/admin/feature-flags",
-    label: "Feature Flags",
-    icon: "⚙️",
-    description: "Toggle app features"
-  },
-  {
-    href: "/admin/content",
     label: "Content",
-    icon: "🎬",
-    description: "Featured & pinned titles"
+    items: [
+      { href: "/admin/content", label: "Featured", icon: "featured_video" },
+      { href: "/admin/homepage", label: "Homepage", icon: "home" },
+      {
+        href: "/admin/collections",
+        label: "Collections",
+        icon: "collections_bookmark"
+      }
+    ]
   },
   {
-    href: "/admin/homepage",
-    label: "Homepage",
-    icon: "🔥",
-    description: "Discover section toggles"
+    label: "Communication",
+    items: [
+      {
+        href: "/admin/announcements",
+        label: "Announcements",
+        icon: "campaign"
+      }
+    ]
   },
   {
-    href: "/admin/collections",
-    label: "Collections",
-    icon: "📦",
-    description: "Curated universes CRUD"
+    label: "Configuration",
+    items: [
+      { href: "/admin/settings", label: "Settings", icon: "settings" },
+      {
+        href: "/admin/feature-flags",
+        label: "Feature Flags",
+        icon: "toggle_on"
+      }
+    ]
   },
   {
-    href: "/admin/announcements",
-    label: "Announcements",
-    icon: "📢",
-    description: "Banners & notices"
+    label: "Services",
+    items: [
+      { href: "/admin/tmdb-cache", label: "TMDB Cache", icon: "storage" },
+      { href: "/admin/anime", label: "AniList", icon: "animation" },
+      { href: "/admin/maintenance", label: "Maintenance", icon: "build" }
+    ]
   },
   {
-    href: "/admin/tmdb-cache",
-    label: "TMDB Cache",
-    icon: "🗄️",
-    description: "Cache stats & ops"
-  },
-  {
-    href: "/admin/analytics",
-    label: "Analytics",
-    icon: "📈",
-    description: "Aggregated engagement metrics"
-  },
-  {
-    href: "/admin/maintenance",
-    label: "Maintenance",
-    icon: "🔧",
-    description: "Cleanup & vacuum operations"
-  },
-  {
-    href: "/admin/settings",
-    label: "Settings",
-    icon: "🌍",
-    description: "Site-wide configuration"
-  },
-  {
-    href: "/admin/anime",
-    label: "Anime",
-    icon: "🌸",
-    description: "AniList integration settings"
-  },
-  {
-    href: "/admin/logs",
-    label: "Audit Trail",
-    icon: "📝",
-    description: "Admin action history"
-  },
-  {
-    href: "/admin/developer",
     label: "Developer",
-    icon: "🛠️",
-    description: "Env vars, diagnostics, cache tools"
+    items: [
+      { href: "/admin/developer", label: "Developer", icon: "terminal" }
+    ]
   }
 ];
 
-// (Phase 3 items are now in NAV_ITEMS — this is kept for backwards
-// compatibility but should always be empty.)
-const FUTURE_ITEMS: NavItem[] = [];
+// ─── Sidebar Sub-component ─────────────────────────────────────
+
+interface SidebarProps {
+  activePath: () => string;
+  onNavigate: () => void;
+}
+
+const isActive = (href: string, currentPath: string): boolean => {
+  if (href === "/admin") return currentPath === "/admin";
+  return currentPath.startsWith(href);
+};
+
+const Sidebar: Component<SidebarProps> = (props) => {
+  return (
+    <nav
+      class="flex flex-col gap-5"
+      aria-label="Admin navigation"
+    >
+      <For each={NAV_GROUPS}>
+        {(group) => (
+          <div class="flex flex-col gap-1">
+            <div
+              class="px-3 font-label text-[10px] font-bold uppercase tracking-widest text-text-muted"
+              aria-hidden="true"
+            >
+              {group.label}
+            </div>
+            <For each={group.items}>
+              {(item) => {
+                const active = () => isActive(item.href, props.activePath());
+                return (
+                  <A
+                    href={item.href}
+                    onClick={props.onNavigate}
+                    aria-current={active() ? "page" : undefined}
+                    class={`group flex items-center gap-3 rounded-md px-3 py-2 text-sm transition-[background-color,color] duration-fast ease-standard ${
+                      active()
+                        ? "bg-primary-dim font-semibold text-primary"
+                        : "font-medium text-text-secondary hover:bg-glass-strong hover:text-text-strong"
+                    }`}
+                  >
+                    <span
+                      class="material-symbols-outlined text-lg"
+                      style={{
+                        "font-variation-settings": active()
+                          ? "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 20"
+                          : "'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20"
+                      }}
+                      aria-hidden="true"
+                    >
+                      {item.icon}
+                    </span>
+                    <span>{item.label}</span>
+                  </A>
+                );
+              }}
+            </For>
+          </div>
+        )}
+      </For>
+    </nav>
+  );
+};
+
+// ─── AdminShell ────────────────────────────────────────────────
 
 const AdminShell: ParentComponent = (props) => {
   const navigate = useNavigate();
@@ -144,10 +227,6 @@ const AdminShell: ParentComponent = (props) => {
 
   // Path-based active state
   const currentPath = () => location.pathname;
-  const isActive = (href: string) => {
-    if (href === "/admin") return currentPath() === "/admin";
-    return currentPath().startsWith(href);
-  };
 
   // Breadcrumb from path
   const breadcrumb = createMemo(() => {
@@ -193,65 +272,37 @@ const AdminShell: ParentComponent = (props) => {
         <Show
           when={auth.adminReady()}
           fallback={
-            <div
-              style={{
-                "min-height": "100vh",
-                display: "flex",
-                "align-items": "center",
-                "justify-content": "center",
-                background: "var(--void)",
-                color: "var(--text-muted)",
-                "font-size": "0.9375rem"
-              }}
-            >
-              <div style={{ "text-align": "center" }}>
-                <div
+            <div class="flex min-h-screen items-center justify-center bg-void text-text-muted">
+              <div class="text-center">
+                <span
+                  class="material-symbols-outlined mx-auto mb-3 block text-4xl"
                   style={{
-                    "font-size": "2rem",
-                    "margin-bottom": "var(--sp-3)"
+                    animation: "softPulse 1.2s ease-in-out infinite"
                   }}
+                  aria-hidden="true"
                 >
-                  ⏳
-                </div>
-                <div>Verifying admin session…</div>
+                  progress_activity
+                </span>
+                <div class="text-sm">Verifying admin session…</div>
               </div>
             </div>
           }
         >
-          <div
-            style={{
-              "min-height": "100vh",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-              background: "var(--void)",
-              color: "var(--text-muted)",
-              "font-size": "0.9375rem"
-            }}
-          >
-            <div style={{ "text-align": "center" }}>
-              <div
-                style={{ "font-size": "2rem", "margin-bottom": "var(--sp-3)" }}
+          <div class="flex min-h-screen items-center justify-center bg-void text-text-muted">
+            <div class="text-center">
+              <span
+                class="material-symbols-outlined mx-auto mb-3 block text-4xl"
+                aria-hidden="true"
               >
-                🔒
-              </div>
-              <div style={{ "margin-bottom": "var(--sp-4)" }}>
-                Redirecting to login…
-              </div>
+                lock
+              </span>
+              <div class="mb-4 text-sm">Redirecting to login…</div>
             </div>
           </div>
         </Show>
       }
     >
-      <div
-        class="admin-shell"
-        style={{
-          display: "flex",
-          "min-height": "100vh",
-          background: "var(--void)",
-          color: "var(--text)"
-        }}
-      >
+      <div class="admin-shell flex min-h-screen bg-void text-text">
         {/* Mobile hamburger */}
         <button
           class="admin-hamburger"
@@ -284,209 +335,78 @@ const AdminShell: ParentComponent = (props) => {
               position: "fixed",
               inset: 0,
               background: "rgba(0,0,0,0.6)",
+              "backdrop-filter": "blur(4px)",
               "z-index": 40
             }}
             class="admin-sidebar-overlay"
           />
         </Show>
 
-        {/* Sidebar */}
+        {/* Sidebar — Glass surface.
+            We use the Glass tokens (bg-glass + backdrop-blur-xl +
+            border-glass-border) directly via Tailwind utilities rather
+            than wrapping in <GlassSurface>, because the sidebar is a
+            full-height column with a right divider — not a rounded
+            floating card. The tokens are the same ones GlassSurface
+            applies internally, so the visual language is consistent. */}
         <aside
-          class="admin-sidebar"
-          style={{
-            width: "240px",
-            "flex-shrink": 0,
-            background: "var(--tier-1)",
-            "border-right": "1px solid var(--hairline)",
-            padding: "var(--sp-5) var(--sp-3)",
-            "overflow-y": "auto",
-            position: "sticky",
-            top: 0,
-            "max-height": "100vh"
-          }}
+          class="admin-sidebar sticky top-0 flex max-h-screen w-[248px] flex-shrink-0 flex-col gap-1 overflow-y-auto border-r border-glass-border bg-glass px-3 py-5 backdrop-blur-xl"
         >
           {/* Brand */}
-          <div
-            style={{
-              padding: "0 var(--sp-3) var(--sp-5)",
-              "border-bottom": "1px solid var(--hairline)",
-              "margin-bottom": "var(--sp-4)"
-            }}
-          >
-            <div
-              style={{
-                "font-size": "1.125rem",
-                "font-weight": "700",
-                color: "var(--text)"
-              }}
-            >
-              🎬 CineLog
-            </div>
-            <div
-              style={{
-                "font-size": "0.75rem",
-                color: "var(--text-muted)",
-                "text-transform": "uppercase",
-                "letter-spacing": "0.1em",
-                "margin-top": "2px"
-              }}
-            >
-              Admin Panel
+          <div class="border-b border-glass-border px-3 pb-5">
+            <div class="flex items-center gap-2">
+              <span
+                class="material-symbols-outlined text-xl text-primary"
+                style={{
+                  "font-variation-settings":
+                    "'FILL' 1, 'wght' 500, 'GRAD' 0, 'opsz' 24"
+                }}
+                aria-hidden="true"
+              >
+                movie
+              </span>
+              <div>
+                <div class="text-base font-bold leading-tight text-text-strong">
+                  CineLog
+                </div>
+                <div class="font-label text-[10px] font-semibold uppercase tracking-widest text-text-muted">
+                  Admin Panel
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Active nav */}
-          <nav
-            style={{ display: "flex", "flex-direction": "column", gap: "2px" }}
-          >
-            <For each={NAV_ITEMS}>
-              {(item) => (
-                <A
-                  href={item.href}
-                  onClick={closeSidebar}
-                  style={{
-                    display: "flex",
-                    "align-items": "center",
-                    gap: "var(--sp-3)",
-                    padding: "var(--sp-2) var(--sp-3)",
-                    "border-radius": "var(--radius-md)",
-                    "text-decoration": "none",
-                    "font-size": "0.875rem",
-                    "font-weight": isActive(item.href) ? "600" : "400",
-                    background: isActive(item.href)
-                      ? "var(--p-dim)"
-                      : "transparent",
-                    color: isActive(item.href)
-                      ? "var(--p)"
-                      : "var(--text-secondary)",
-                    transition: "all 0.15s ease"
-                  }}
-                >
-                  <span style={{ "font-size": "1rem", "line-height": "1" }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </A>
-              )}
-            </For>
-
-            {/* Divider */}
-            <div
-              style={{
-                margin: "var(--sp-4) 0 var(--sp-2)",
-                "border-top": "1px solid var(--hairline)"
-              }}
-            />
-
-            {/* Future items — disabled */}
-            <For each={FUTURE_ITEMS}>
-              {(item) => (
-                <div
-                  title={item.description}
-                  style={{
-                    display: "flex",
-                    "align-items": "center",
-                    gap: "var(--sp-3)",
-                    padding: "var(--sp-2) var(--sp-3)",
-                    "border-radius": "var(--radius-md)",
-                    "font-size": "0.875rem",
-                    "font-weight": "400",
-                    color: "var(--text-muted)",
-                    opacity: 0.5,
-                    cursor: "not-allowed"
-                  }}
-                >
-                  <span style={{ "font-size": "1rem", "line-height": "1" }}>
-                    {item.icon}
-                  </span>
-                  <span>{item.label}</span>
-                </div>
-              )}
-            </For>
-          </nav>
+          {/* Nav groups */}
+          <div class="mt-2">
+            <Sidebar activePath={currentPath} onNavigate={closeSidebar} />
+          </div>
         </aside>
 
         {/* Main */}
-        <div
-          class="admin-main"
-          style={{
-            flex: 1,
-            "min-width": 0,
-            display: "flex",
-            "flex-direction": "column"
-          }}
-        >
-          {/* TopBar */}
+        <div class="admin-main flex min-w-0 flex-1 flex-col">
+          {/* TopBar — Glass surface */}
           <header
-            class="admin-topbar"
-            style={{
-              padding: "var(--sp-3) var(--sp-6)",
-              background: "var(--tier-1)",
-              "border-bottom": "1px solid var(--hairline)",
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "space-between",
-              position: "sticky",
-              top: 0,
-              "z-index": 30
-            }}
+            class="admin-topbar sticky top-0 z-30 flex items-center justify-between border-b border-glass-border bg-glass px-6 py-3 backdrop-blur-xl"
           >
-            <div
-              style={{
-                display: "flex",
-                "align-items": "center",
-                gap: "var(--sp-3)"
-              }}
-            >
+            <div class="flex items-center gap-3">
               <span
-                style={{ "font-size": "1.125rem" }}
-                class="admin-hamburger-hidden"
+                class="admin-hamburger-hidden material-symbols-outlined text-xl text-primary"
+                aria-hidden="true"
               >
-                🎬
+                movie
               </span>
-              <h1
-                style={{
-                  "font-size": "1rem",
-                  "font-weight": "600",
-                  margin: 0,
-                  color: "var(--text)"
-                }}
-              >
+              <h1 class="m-0 text-base font-semibold text-text">
                 {breadcrumb()}
               </h1>
             </div>
 
-            <div
-              style={{
-                display: "flex",
-                "align-items": "center",
-                gap: "var(--sp-4)"
-              }}
-            >
+            <div class="flex items-center gap-4">
               <Show when={auth.admin()}>
                 {(admin) => (
-                  <div
-                    style={{
-                      display: "flex",
-                      "align-items": "center",
-                      gap: "var(--sp-2)",
-                      "font-size": "0.8125rem",
-                      color: "var(--text-secondary)"
-                    }}
-                  >
+                  <div class="flex items-center gap-2 text-xs text-text-secondary">
                     <div
-                      style={{
-                        width: "28px",
-                        height: "28px",
-                        "border-radius": "50%",
-                        background: "var(--p)",
-                        color: "var(--on-primary)",
-                        display: "flex",
-                        "align-items": "center",
-                        "justify-content": "center",
-                        "font-weight": "600",
-                        "font-size": "0.75rem"
-                      }}
+                      class="flex h-7 w-7 items-center justify-center rounded-full bg-primary text-xs font-semibold text-on-primary"
+                      aria-hidden="true"
                     >
                       {admin().display_name.charAt(0).toUpperCase()}
                     </div>
@@ -495,43 +415,22 @@ const AdminShell: ParentComponent = (props) => {
                 )}
               </Show>
 
-              <button
+              <GlassButton
+                variant="glass"
+                size="compact"
+                icon="logout"
                 onClick={handleLogout}
-                style={{
-                  background: "transparent",
-                  border: "1px solid var(--hairline-2)",
-                  "border-radius": "var(--radius-md)",
-                  padding: "var(--sp-2) var(--sp-3)",
-                  color: "var(--text-secondary)",
-                  "font-size": "0.8125rem",
-                  "font-weight": "500",
-                  cursor: "pointer",
-                  transition: "all 0.15s ease"
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.background = "var(--tier-2)";
-                  e.currentTarget.style.color = "var(--text)";
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.background = "transparent";
-                  e.currentTarget.style.color = "var(--text-secondary)";
-                }}
+                aria-label="Logout"
               >
                 Logout
-              </button>
+              </GlassButton>
             </div>
           </header>
 
           {/* Page content — AdminShell is the root layout for /admin
               routes (AppShell renders bare children for admin), so this
               is the SINGLE <main> landmark for admin pages. */}
-          <main
-            style={{
-              flex: 1,
-              padding: "var(--sp-6)",
-              "overflow-y": "auto"
-            }}
-          >
+          <main class="flex-1 overflow-y-auto p-6">
             {props.children}
           </main>
         </div>

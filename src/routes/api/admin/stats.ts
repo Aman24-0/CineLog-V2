@@ -42,6 +42,14 @@ interface AdminStats {
     size_mb: number | null;
   };
   api_request_count: number;
+  /**
+   * Phase 9 Chunk 1 — count of activity_log rows created since the
+   * start of the current UTC day. Used by the redesigned
+   * AdminDashboard's "API Requests Today" GlassStatCard so the metric
+   * reflects today's traffic rather than the all-time total exposed by
+   * `api_request_count` (which is retained for backwards compat).
+   */
+  api_requests_today: number;
   server_status: "online";
   database_size_mb: number | null;
   fetched_at: string;
@@ -75,6 +83,14 @@ export async function GET(event: APIEvent) {
       now.getTime() - 30 * 24 * 60 * 60 * 1000
     ).toISOString();
 
+    // Phase 9 Chunk 1 — start of the current UTC day (00:00:00Z).
+    // Used for the "API Requests Today" metric. We use UTC (not the
+    // server's local tz) so the cutoff is stable across deployments
+    // and matches the ISO timestamps stored in activity_log.created_at.
+    const startOfTodayUtc = new Date(now);
+    startOfTodayUtc.setUTCHours(0, 0, 0, 0);
+    const isoStartOfToday = startOfTodayUtc.toISOString();
+
     // ─── Run queries in parallel for speed ────────────────────────────
     const [
       totalUsersResp,
@@ -85,7 +101,8 @@ export async function GET(event: APIEvent) {
       vaultMediaTypeResp,
       tmdbCacheCountResp,
       tmdbCacheExpiredResp,
-      activityLogCountResp
+      activityLogCountResp,
+      activityLogTodayResp
     ] = await Promise.all([
       // 1. Total users (non-deleted profiles)
       supabase
@@ -130,7 +147,15 @@ export async function GET(event: APIEvent) {
         .lt("expires_at", isoNow),
 
       // 6. Activity log total (proxy for API request count)
-      supabase.from("activity_log").select("id", { count: "exact", head: true })
+      supabase.from("activity_log").select("id", { count: "exact", head: true }),
+
+      // 7. Phase 9 Chunk 1 — activity_log rows created since the
+      // start of today (UTC). Backs the "API Requests Today"
+      // GlassStatCard on the redesigned AdminDashboard.
+      supabase
+        .from("activity_log")
+        .select("id", { count: "exact", head: true })
+        .gte("created_at", isoStartOfToday)
     ]);
 
     // Aggregate movies vs TV
@@ -199,6 +224,7 @@ export async function GET(event: APIEvent) {
         size_mb: tmdbCacheSizeMb
       },
       api_request_count: activityLogCountResp.count ?? 0,
+      api_requests_today: activityLogTodayResp.count ?? 0,
       server_status: "online",
       database_size_mb: databaseSizeMb,
       fetched_at: isoNow
