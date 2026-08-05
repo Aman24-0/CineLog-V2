@@ -1,6 +1,6 @@
 // src/features/admin/AdminDashboard.tsx
 //
-// CineLog V2 — Admin Dashboard Page (Phase 9 Chunk 1 — Glass Redesign)
+// CineLog V2 — Admin Dashboard Page (Phase 9 Chunks 1 + 2 — Glass Redesign)
 // ---------------------------------------------------------------------
 // At-a-glance overview of the CineLog V2 platform.
 //
@@ -10,7 +10,8 @@
 //   ├──────────────────────────────────────────────────────────────┤
 //   │ Service Health Strip (7 pills: Supabase / TMDB / MDBList /   │
 //   │   AniList / Resend / Vercel / Web Push)                      │
-//   │   ← Phase 9 Chunk 2 will wire these to live health checks.   │
+//   │   ← Phase 9 Chunk 2 wires these to live health checks via    │
+//   │     /api/admin/services/status.                              │
 //   ├──────────────────────────────────────────────────────────────┤
 //   │ Key Metrics (4 GlassStatCards):                              │
 //   │   Total Users · Active Watchlist Entries ·                  │
@@ -24,29 +25,23 @@
 //   └──────────────────────────────────────────────────────────────┘
 //
 // DATA SOURCES (all real — no hardcoded dummy numbers):
-//   • /api/admin/stats  — totals + today's API request count
-//   • /api/admin/users  — recent signups (ordered by created_at desc)
-//   • /api/admin/logs   — recent admin actions (via AuditTrailWidget)
+//   • /api/admin/stats              — totals + today's API request count
+//   • /api/admin/users              — recent signups (ordered by created_at desc)
+//   • /api/admin/logs               — recent admin actions (via AuditTrailWidget)
+//   • /api/admin/services/status    — live service health (Phase 9 Chunk 2)
 //
-// The page polls /api/admin/stats every 60s and pauses polling when
-// the document is hidden (saves up to ~60 calls/hr per hidden tab).
+// The page polls /api/admin/stats AND /api/admin/services/status every
+// 60s and pauses polling when the document is hidden (saves up to
+// ~120 calls/hr per hidden tab).
 //
-// PHASE 9 CHUNK 1 CHANGES (vs. previous AdminDashboard):
-//   • Replaced the hand-rolled 10-card grid with 4 GlassStatCards
-//     using the unified Glass design system. The previous grid showed
-//     several metrics that overlapped with the dedicated Analytics
-//     page (Active 7d/30d, Movies vs TV count, Database Size, Server
-//     Status) — those are still available on /admin/analytics; the
-//     dashboard now shows only the 4 headline metrics the operator
-//     needs at a glance.
-//   • Added a Service Health Strip (placeholder UI for Chunk 2).
-//   • Added a Movies vs TV donut chart using the existing SvgChart
-//     primitives (no new chart library).
-//   • Added a Recent User Signups panel alongside the existing audit
-//     trail widget so the operator can see growth + admin activity
-//     side-by-side.
-//   • Removed the previous emoji-icon stat cards in favour of
-//     Material Symbols (consistent with the Glass system).
+// PHASE 9 CHUNK 2 CHANGES (vs. Chunk 1's AdminDashboard):
+//   • Service Health Strip now fetches live data from
+//     /api/admin/services/status. Each pill shows the actual probe
+//     status (ok / degraded / down / unknown) with appropriate color
+//     coding + latency tooltip.
+//   • The strip polls on the same 60s cadence as the stats panel,
+//     sharing the visibility-change pause/resume logic so the two
+//     polls stay in sync.
 
 import {
   createSignal,
@@ -102,38 +97,71 @@ interface ListUsersResponse {
   limit: number;
 }
 
-// ─── Service Health Strip (placeholder for Phase 9 Chunk 2) ────
+// ─── Service Health Strip (Phase 9 Chunk 2 — live data) ────────
 //
-// Chunk 2 will wire each pill to a real health probe:
-//   • Supabase  — ping the /health endpoint or check the database
-//                 size query result from /api/admin/stats
-//   • TMDB      — probe /configuration with the API key
-//   • MDBList   — probe /user/me with the API key
-//   • AniList   — probe the GraphQL endpoint with a trivial query
-//   • Resend    — probe /domains
-//   • Vercel    — probe the deployment status API
-//   • Web Push  — check VAPID keys are configured
+// Each pill is backed by a real probe from /api/admin/services/status.
+// The endpoint runs concurrently-bounded checks against each upstream
+// (Supabase DB count, TMDB /configuration, MDBList /user/me, AniList
+// GraphQL, Resend /domains, Vercel /v6/deployments, Web Push env+DB)
+// and returns a single aggregated payload.
 //
-// For Chunk 1 we render the pills as neutral/unknown status so the
-// layout is in place. The "info" intent signals "no live data yet"
-// without misleading the operator into thinking a service is up/down.
+// Status → intent mapping:
+//   • ok       → success (green)
+//   • degraded → warning (amber)
+//   • down     → danger  (red)
+//   • unknown  → default (gray) — e.g. Vercel when no token is set
 
-interface ServiceHealthPill {
-  name: string;
-  icon: string;
-  /** Chunk 2 will replace this with "operational" | "degraded" | "down". */
-  status: "unknown";
+type ServiceStatus = "ok" | "degraded" | "down" | "unknown";
+
+interface ServiceHealth {
+  service: string;
+  status: ServiceStatus;
+  latency_ms: number | null;
+  detail?: string;
 }
 
-const SERVICE_PILLS: ServiceHealthPill[] = [
-  { name: "Supabase", icon: "database", status: "unknown" },
-  { name: "TMDB", icon: "movie", status: "unknown" },
-  { name: "MDBList", icon: "rate_review", status: "unknown" },
-  { name: "AniList", icon: "animation", status: "unknown" },
-  { name: "Resend", icon: "mail", status: "unknown" },
-  { name: "Vercel", icon: "cloud", status: "unknown" },
-  { name: "Web Push", icon: "notifications", status: "unknown" }
+interface ServicesStatusResponse {
+  services: ServiceHealth[];
+  fetched_at: string;
+}
+
+// Service icon + ordering. The icon matches the one used on the
+// corresponding /admin/services/<name> page so the operator can scan
+// visually. The order matches the sidebar Services group order for
+// the same reason.
+const SERVICE_META: Array<{ name: string; icon: string; href: string }> = [
+  { name: "Supabase", icon: "database", href: "/admin/services/supabase" },
+  { name: "TMDB", icon: "movie", href: "/admin/services/tmdb" },
+  { name: "MDBList", icon: "rate_review", href: "/admin/services/mdblist" },
+  { name: "AniList", icon: "animation", href: "/admin/services/anilist" },
+  { name: "Resend", icon: "mail", href: "/admin/services/resend" },
+  { name: "Vercel", icon: "cloud", href: "/admin/services/vercel" },
+  { name: "Web Push", icon: "notifications", href: "/admin/services/web-push" }
 ];
+
+const STATUS_INTENT: Record<
+  ServiceStatus,
+  "success" | "warning" | "danger" | "default"
+> = {
+  ok: "success",
+  degraded: "warning",
+  down: "danger",
+  unknown: "default"
+};
+
+const STATUS_LABEL: Record<ServiceStatus, string> = {
+  ok: "OK",
+  degraded: "Degraded",
+  down: "Down",
+  unknown: "—"
+};
+
+const STATUS_DOT_CLASS: Record<ServiceStatus, string> = {
+  ok: "bg-success",
+  degraded: "bg-warning",
+  down: "bg-danger",
+  unknown: "bg-text-soft"
+};
 
 // ─── Helpers ───────────────────────────────────────────────────
 
@@ -286,6 +314,11 @@ const AdminDashboard: Component = () => {
   const [error, setError] = createSignal<string | null>(null);
   const [lastUpdated, setLastUpdated] = createSignal<Date | null>(null);
 
+  // Service health state (Phase 9 Chunk 2)
+  const [services, setServices] = createSignal<ServiceHealth[]>([]);
+  const [servicesLoading, setServicesLoading] = createSignal(true);
+  const [servicesError, setServicesError] = createSignal<string | null>(null);
+
   let pollTimer: ReturnType<typeof setInterval> | undefined;
 
   const fetchStats = async () => {
@@ -321,11 +354,36 @@ const AdminDashboard: Component = () => {
     }
   };
 
+  // Phase 9 Chunk 2 — service health poller. Shares the visibility
+  // gate with the stats poller so the two stay in sync. Pausing on
+  // hidden avoids 60 wasted /api/admin/services/status calls per
+  // hour per hidden tab.
+  const fetchServices = async () => {
+    if (typeof document !== "undefined" && document.hidden) return;
+    try {
+      const resp = await fetch("/api/admin/services/status", {
+        credentials: "include"
+      });
+      if (resp.status === 401) {
+        window.location.href = "/admin/login";
+        return;
+      }
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as ServicesStatusResponse;
+      setServices(data.services);
+      setServicesError(null);
+    } catch (err) {
+      setServicesError(err instanceof Error ? err.message : "Unknown error");
+    } finally {
+      setServicesLoading(false);
+    }
+  };
+
   // Pause + resume polling on visibility change. When the document
   // becomes hidden we clear the 60s interval; when it becomes visible
-  // again we immediately fetch fresh stats + restart the interval.
-  // Saves up to ~60 unnecessary /api/admin/stats calls per hour per
-  // open-but-hidden admin tab.
+  // again we immediately fetch fresh stats + services and restart the
+  // interval. Saves up to ~120 unnecessary calls per hour per
+  // open-but-hidden admin tab (60 stats + 60 services).
   const handleVisibilityChange = () => {
     if (typeof document === "undefined") return;
     if (document.hidden) {
@@ -336,14 +394,22 @@ const AdminDashboard: Component = () => {
     } else {
       if (!pollTimer) {
         void fetchStats();
-        pollTimer = setInterval(fetchStats, 60_000);
+        void fetchServices();
+        pollTimer = setInterval(() => {
+          void fetchStats();
+          void fetchServices();
+        }, 60_000);
       }
     }
   };
 
   onMount(() => {
     void fetchStats();
-    pollTimer = setInterval(fetchStats, 60_000); // every 60s
+    void fetchServices();
+    pollTimer = setInterval(() => {
+      void fetchStats();
+      void fetchServices();
+    }, 60_000);
     document.addEventListener("visibilitychange", handleVisibilityChange);
   });
 
@@ -353,6 +419,29 @@ const AdminDashboard: Component = () => {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
     }
   });
+
+  // ─── Service health: order + fill missing rows ──────────────
+  // The /api/admin/services/status endpoint returns rows in probe
+  // order, but we want the dashboard pills to match the sidebar
+  // order (Supabase → TMDB → MDBList → AniList → Resend → Vercel →
+  // Web Push). We also fill in any missing rows as "unknown" so the
+  // pill count never shrinks below 7 if a probe is added/removed.
+  const orderedServices = (): ServiceHealth[] => {
+    const list = services();
+    const err = servicesError();
+    return SERVICE_META.map((meta) => {
+      const found = list.find((s) => s.service === meta.name);
+      if (found) return found;
+      return {
+        service: meta.name,
+        status: "unknown" as ServiceStatus,
+        latency_ms: null,
+        // servicesError() is string | null; coerce to string | undefined
+        // so the result satisfies ServiceHealth['detail'].
+        detail: err ?? undefined
+      };
+    });
+  };
 
   // ─── Donut chart data (Movies vs TV across all vaults) ───────
   // Uses the existing <DonutChart> primitive from the Statistics
@@ -412,7 +501,9 @@ const AdminDashboard: Component = () => {
                 icon="refresh"
                 onClick={() => {
                   setLoading(true);
+                  setServicesLoading(true);
                   void fetchStats();
+                  void fetchServices();
                 }}
                 aria-label="Refresh stats"
               >
@@ -439,13 +530,14 @@ const AdminDashboard: Component = () => {
         </div>
       </Show>
 
-      {/* ─── Service Health Strip ────────────────────────────
-          Phase 9 Chunk 2 will replace the "unknown" status with real
-          health probe results. For now we render neutral pills so the
-          layout is in place and the operator knows which services will
-          be monitored. */}
+      {/* ─── Service Health Strip (Phase 9 Chunk 2 — live data) ───
+          Each pill is a clickable link to /admin/services/<name>
+          so the operator can drill into a degraded service in one
+          click. The status dot uses the canonical status color; the
+          GlassBadge shows the status label (OK / Degraded / Down / —).
+          Latency is shown in the tooltip via the title attribute. */}
       <GlassCard padding="default">
-        <div class="mb-3 flex items-center gap-2">
+        <div class="mb-3 flex flex-wrap items-center gap-2">
           <span
             class="material-symbols-outlined text-base text-text-soft"
             aria-hidden="true"
@@ -455,34 +547,56 @@ const AdminDashboard: Component = () => {
           <h3 class="m-0 text-xs font-bold uppercase tracking-widest text-text-muted">
             Service Health
           </h3>
+          <Show when={servicesLoading() && services().length === 0}>
+            <span class="text-[10px] text-text-muted">Loading…</span>
+          </Show>
+          <Show when={servicesError()}>
+            <span class="text-[10px] text-danger">
+              Live check failed: {servicesError()}
+            </span>
+          </Show>
           <span class="ml-auto text-[10px] text-text-muted">
-            Live checks coming in Chunk 2
+            Polls every 60s · pauses when tab hidden
           </span>
         </div>
-        <div class="flex flex-wrap gap-2">
-          <For each={SERVICE_PILLS}>
-            {(pill) => (
-              <div
-                class="flex items-center gap-2 rounded-md border border-glass-border bg-tier-2 px-3 py-1.5"
-                title={`${pill.name} — status unknown (wiring up in Phase 9 Chunk 2)`}
-              >
-                <span
-                  class="material-symbols-outlined text-sm text-text-soft"
-                  aria-hidden="true"
+        <div class="grid grid-cols-2 gap-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7">
+          <For each={orderedServices()}>
+            {(svc) => {
+              const meta = SERVICE_META.find((m) => m.name === svc.service);
+              const title = `${svc.service} — ${
+                STATUS_LABEL[svc.status]
+              }${
+                svc.latency_ms !== null ? ` · ${svc.latency_ms}ms` : ""
+              }${svc.detail ? ` · ${svc.detail}` : ""}`;
+              return (
+                <a
+                  href={meta?.href ?? "#"}
+                  class="flex items-center gap-2 rounded-md border border-glass-border bg-tier-2 px-3 py-2 text-xs no-underline transition-[background-color] hover:bg-glass-strong"
+                  title={title}
+                  aria-label={title}
                 >
-                  {pill.icon}
-                </span>
-                <span class="text-xs font-medium text-text-secondary">
-                  {pill.name}
-                </span>
-                <GlassBadge
-                  intent="default"
-                  size="compact"
-                  label="—"
-                  glass
-                />
-              </div>
-            )}
+                  <span
+                    class={`inline-block h-2 w-2 flex-shrink-0 rounded-full ${STATUS_DOT_CLASS[svc.status]}`}
+                    aria-hidden="true"
+                  />
+                  <span
+                    class="material-symbols-outlined text-sm text-text-soft"
+                    aria-hidden="true"
+                  >
+                    {meta?.icon ?? "circle"}
+                  </span>
+                  <span class="flex-1 truncate font-medium text-text-secondary">
+                    {svc.service}
+                  </span>
+                  <GlassBadge
+                    intent={STATUS_INTENT[svc.status]}
+                    label={STATUS_LABEL[svc.status]}
+                    size="compact"
+                    glass
+                  />
+                </a>
+              );
+            }}
           </For>
         </div>
       </GlassCard>

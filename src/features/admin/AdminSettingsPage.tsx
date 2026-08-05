@@ -2,13 +2,24 @@
 //
 // CineLog V2 — Admin Settings Page Component
 // ---------------------------------------------------------------------
-// Editable form for the 5 site-wide settings keys (defined in the
-// Phase 3 migration):
-//   1. site_settings     — site name, tagline, contact, social links
-//   2. rate_limits       — per-min / per-hour / per-day caps
-//   3. tmdb_settings     — cache TTL, language, adult content
-//   4. maintenance_window — banner toggle, scheduled time, message
-//   5. retention_policy  — how long to keep soft-deleted rows, logs
+// Editable form for the site-wide settings keys (defined in the
+// Phase 3 migration). Phase 9 Chunk 2 enforces the zero-duplication
+// rule: service-specific settings belong on the dedicated Services
+// Hub page, NOT here. The keys currently editable on this page are:
+//   1. site_settings      — site name, tagline, contact, social links
+//   2. rate_limits        — per-min / per-hour / per-day caps
+//   3. maintenance_window — banner toggle, scheduled time, message
+//   4. retention_policy   — how long to keep soft-deleted rows, logs
+//
+// REMOVED (Phase 9 Chunk 2):
+//   • tmdb_settings — moved to /admin/services/tmdb (TmdbServicePage).
+//     Same backing key (tmdb_settings) on /api/admin/settings, same
+//     PUT shape — only the UI control moved. This is the single source
+//     of truth for TMDB config now; editing it on both pages would
+//     inevitably drift.
+//   • Any future service-specific key (e.g. anilist_settings,
+//     resend_settings) should also live on its corresponding
+//     /admin/services/<name> page, not here.
 //
 // DATA FLOW:
 //   • GET /api/admin/settings returns { settings: { key: { value, updated_at } } }
@@ -40,6 +51,11 @@ interface RateLimits {
   auth_attempts_per_hr: number;
   upload_mb_per_day: number;
 }
+// TmdbSettings is still part of the SettingsState shape (the server
+// returns it), but Phase 9 Chunk 2 removed the editable UI for it
+// from this page. The admin edits TMDB config on
+// /admin/services/tmdb now. We keep the type here so the fetch
+// result is correctly typed; we just don't render inputs for it.
 interface TmdbSettings {
   cache_ttl_days: number;
   fallback_language: string;
@@ -146,19 +162,10 @@ const AdminSettingsPage: Component = () => {
         : s
     );
   };
-  const updateTmdb = (patch: Partial<TmdbSettings>) => {
-    setSettings((s) =>
-      s
-        ? {
-            ...s,
-            tmdb_settings: {
-              ...s.tmdb_settings,
-              value: { ...s.tmdb_settings.value, ...patch }
-            }
-          }
-        : s
-    );
-  };
+  // updateTmdb was removed in Phase 9 Chunk 2 — TMDB settings are now
+  // edited on /admin/services/tmdb (TmdbServicePage). The
+  // tmdb_settings key is still loaded from the API (so the type is
+  // correct) but is read-only on this page.
   const updateMaintenance = (patch: Partial<MaintenanceWindow>) => {
     setSettings((s) =>
       s
@@ -194,6 +201,10 @@ const AdminSettingsPage: Component = () => {
     setError(null);
     setSuccess(null);
     try {
+      // Phase 9 Chunk 2 — tmdb_settings is intentionally omitted
+      // from the PUT body. Editing it here would re-introduce the
+      // duplication the Services Hub was created to prevent. The
+      // TmdbServicePage sends its own PUT for tmdb_settings.
       const resp = await fetch("/api/admin/settings", {
         method: "PUT",
         credentials: "include",
@@ -202,7 +213,6 @@ const AdminSettingsPage: Component = () => {
           settings: {
             site_settings: s.site_settings.value,
             rate_limits: s.rate_limits.value,
-            tmdb_settings: s.tmdb_settings.value,
             maintenance_window: s.maintenance_window.value,
             retention_policy: s.retention_policy.value
           }
@@ -444,57 +454,52 @@ const AdminSettingsPage: Component = () => {
           </div>
         </Section>
 
-        {/* ─── TMDB settings ──────────────────────────────── */}
+        {/* ─── TMDB settings ────────────────────────────────────
+            Phase 9 Chunk 2: removed from this page to enforce the
+            zero-duplication rule. TMDB settings are now edited on
+            /admin/services/tmdb (TmdbServicePage), which is the
+            single source of truth for all TMDB operational config
+            (status, cache, API key, cache TTL, fallback language,
+            include_adult). Keeping them here too would inevitably
+            drift. The link below takes the operator there. */}
         <Section
           title="TMDB settings"
-          subtitle="Controls for the TMDB metadata cache."
+          subtitle="Moved to the Services Hub (zero duplication)."
           updated={formatDate(settings()!.tmdb_settings.updated_at)}
         >
-          <div style={fieldGridStyle}>
-            <Field label="Cache TTL (days)">
-              <input
-                type="number"
-                min={1}
-                max={365}
-                value={settings()!.tmdb_settings.value.cache_ttl_days}
-                onInput={(e) =>
-                  updateTmdb({ cache_ttl_days: Number(e.currentTarget.value) })
-                }
-                style={inputStyle}
-              />
-            </Field>
-            <Field label="Fallback language">
-              <input
-                type="text"
-                value={settings()!.tmdb_settings.value.fallback_language}
-                onInput={(e) =>
-                  updateTmdb({ fallback_language: e.currentTarget.value })
-                }
-                style={inputStyle}
-                maxlength={10}
-                placeholder="en"
-              />
-            </Field>
-            <Field label="Include adult content">
-              <label
-                style={{
-                  display: "flex",
-                  "align-items": "center",
-                  gap: "var(--sp-2)",
-                  "font-size": "0.875rem",
-                  color: "var(--text)"
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={settings()!.tmdb_settings.value.include_adult}
-                  onChange={(e) =>
-                    updateTmdb({ include_adult: e.currentTarget.checked })
-                  }
-                />
-                Allow adult titles in TMDB searches
-              </label>
-            </Field>
+          <div
+            style={{
+              display: "flex",
+              "align-items": "center",
+              "justify-content": "space-between",
+              gap: "var(--sp-3)",
+              "flex-wrap": "wrap"
+            }}
+          >
+            <div
+              style={{
+                "font-size": "0.875rem",
+                color: "var(--text-muted)"
+              }}
+            >
+              Cache TTL, fallback language, and adult content toggle
+              now live on the dedicated TMDB service page.
+            </div>
+            <a
+              href="/admin/services/tmdb"
+              style={{
+                color: "var(--p)",
+                "text-decoration": "none",
+                "font-size": "0.8125rem",
+                "font-weight": 600,
+                "border": "1px solid var(--hairline-2)",
+                padding: "var(--sp-2) var(--sp-4)",
+                "border-radius": "var(--radius-md)",
+                background: "var(--tier-2)"
+              }}
+            >
+              Open TMDB Service →
+            </a>
           </div>
         </Section>
 
