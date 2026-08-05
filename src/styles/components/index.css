@@ -2,9 +2,25 @@
    Barrel file: imports component CSS in cascade order.
 
    Each file contains the CSS for a category of UI components.
-   The _phase*.css files contain the Phase 2.1/2.2 design-system
-   classes that span multiple categories (typography, surfaces,
-   buttons, badges, etc.) — kept as-is to avoid CSS modifications. */
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   The _phase21.css and _phase22_sprint1.css files have been DELETED.
+   Their rules were distributed to the proper category files:
+     • Phase 2.1 GlassButton (.btn-primary/ghost/danger) → buttons.css
+     • Phase 2.1 GlassBadge (.badge-glow)                → badges.css
+     • Phase 2.1 GlassSkeleton (.skeleton-base/text)     → skeleton.css
+     • Phase 2.1 GlassProgress (.progress-premium)       → cards.css
+     • Phase 2.1 TouchRipple (.touch-ripple)             → utilities/helpers.css
+     • Phase 2.1 AmbientGlow (.ambient-glow)             → glass-system.css
+       (the glass-system.css definition already won the cascade)
+     • Phase 2.2 V2 Type Ramp (.type-headline/body/etc.) → base/typography.css
+     • Phase 2.2 V2 Focus Ring (.focus-ring)             → utilities/transitions.css
+     • Phase 2.2 V2 Page Transition (.page-enter)        → utilities/transitions.css
+     • Phase 2.2 V2 Pill (.v2-pill + variants)           → chips.css
+     • Phase 2.2 V2 Card (.v2-card + featured)           → cards.css
+   The two _phase*.css imports below have been removed. */
 
 @import "./buttons.css";
 @import "./cards.css";
@@ -16,6 +32,4 @@
 @import "./inputs.css";
 @import "./dropdown.css";
 @import "./toast.css";
-@import "./_phase21.css";
-@import "./_phase22_sprint1.css";
 @import "./glass-system.css";

@@ -21,13 +21,24 @@
 
 /* ============================================================
    GLOBAL GLASS TONE — strengthen existing tokens
-   ============================================================ */
+   ============================================================
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR (cascade consolidation)
+   ─────────────────────────────────────────────────────────────────────
+   The --glass-bg and --glass-bg-strong redefinitions that previously
+   lived here have been REMOVED. They were silent cascade overrides of
+   the token values in tokens/colors.css (which is imported earlier
+   via tokens/index.css → globals.css). The winning values (0.72 /
+   0.86) have been consolidated INTO tokens/colors.css as the single
+   source of truth. The light-theme overrides in tokens/preferences.css
+   continue to win for [data-theme-resolved="light"].
+
+   The variables below (--shadow-glass-* and --glass-border-warm*) are
+   NOT defined elsewhere — they are component-level variables specific
+   to the Glass system, so they stay here. */
 
 :root {
-  /* Slightly stronger glass opacity for better legibility */
-  --glass-bg: rgba(15, 15, 22, 0.72);
-  --glass-bg-strong: rgba(13, 13, 20, 0.86);
-
   /* Premium layered shadows — used by GlassCard, GlassSheet, GlassModal */
   --shadow-glass-card:
     0 8px 24px rgba(0, 0, 0, 0.45), 0 2px 8px rgba(0, 0, 0, 0.35),

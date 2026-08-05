@@ -1,5 +1,129 @@
 /* src/styles/components/buttons.css — CineLog V2 Redesign
-   Glass cinema close button — migrated to Phase 3 design system tokens. */
+   Glass cinema close button — migrated to Phase 3 design system tokens.
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Merged the GlassButton system (.btn-primary, .btn-ghost, .btn-danger)
+   from the deleted components/_phase21.css. These are the canonical
+   button variants used across the app — they belong with the other
+   button primitives (cinematic-close-btn, etc.). */
+
+/* GlassButton system — primary / ghost / danger variants */
+.btn-primary {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--active-bg);
+  color: var(--active-text);
+  border: none;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 4px 16px var(--p-glow),
+    0 2px 8px rgba(8, 8, 13, 0.4);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    box-shadow var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+}
+.btn-primary:hover {
+  filter: brightness(1.08);
+  box-shadow:
+    0 0 0 1px var(--p),
+    0 6px 24px var(--p-glow),
+    0 4px 12px rgba(8, 8, 13, 0.5);
+}
+.btn-primary:active {
+  transform: scale(0.96);
+  transition-duration: var(--dur-fast);
+}
+.btn-primary:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
+.btn-ghost {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-pill);
+  background: var(--p-dim);
+  color: var(--text-body);
+  border: 1px solid var(--hairline-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    color var(--dur-base) var(--ease-out);
+}
+.btn-ghost:hover {
+  background: var(--p-hover);
+  border-color: var(--p-border);
+  color: var(--text-strong);
+}
+.btn-ghost:active {
+  transform: scale(0.96);
+  transition-duration: var(--dur-fast);
+}
+.btn-ghost:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+.btn-danger {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 0.75rem 1.5rem;
+  border-radius: var(--radius-pill);
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.3);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    background var(--dur-base) var(--ease-out),
+    border-color var(--dur-base) var(--ease-out),
+    filter var(--dur-base) var(--ease-out);
+}
+.btn-danger:hover {
+  background: rgba(248, 113, 113, 0.2);
+  border-color: rgba(248, 113, 113, 0.5);
+  filter: brightness(1.08);
+}
+.btn-danger:active {
+  transform: scale(0.96);
+  transition-duration: var(--dur-fast);
+}
+.btn-danger:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  filter: none;
+}
 
 .cinematic-close-btn {
   position: absolute;

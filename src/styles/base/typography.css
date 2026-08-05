@@ -1,6 +1,15 @@
 /* src/styles/base/typography.css — CineLog V2 Redesign
    Refined typography classes with warm cinema feel.
-   Display fonts have slightly wider tracking for editorial premium. */
+   Display fonts have slightly wider tracking for editorial premium.
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Merged the V2 type ramp (.type-headline, .type-headline-sm, .type-body,
+   .type-body-soft, .type-meta, .type-micro) from the deleted
+   components/_phase22_sprint1.css. The Phase 2.2 definitions superseded
+   the Phase 2.1 definitions in components/_phase21.css (same selectors,
+   later in cascade), so only the winning V2 values are kept here. */
 
 /* Typography */
 .font-headline {
@@ -9,6 +18,60 @@
 }
 .font-mono {
   font-family: "Azeret Mono", monospace;
+}
+
+/* V2 Type Ramp — clear, distinct, no overlap
+   ├── Display   (Bebas Neue, 3.25rem)     — hero titles, page headers
+   ├── Headline  (Outfit 700, 1.25rem)     — section content titles, card titles
+   ├── Body      (Outfit 400, 0.9375rem)   — primary reading text
+   ├── Meta      (Azeret Mono, 0.75rem)    — metadata, labels, captions
+   ├── Eyebrow   (Azeret Mono, 0.6875rem)  — section eyebrows, status labels
+   └── Micro     (Azeret Mono, 0.5625rem)  — badges, chips, micro-labels
+   (type-display, type-display-sm, type-eyebrow removed — dead classes.) */
+.type-headline {
+  font-family: "Outfit", sans-serif;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--text-strong);
+}
+.type-headline-sm {
+  font-family: "Outfit", sans-serif;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--text-strong);
+}
+.type-body {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-body);
+}
+.type-body-soft {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9375rem;
+  font-weight: 400;
+  line-height: 1.55;
+  color: var(--text-soft);
+}
+.type-meta {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.type-micro {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted);
 }
 .type-page-title {
   font-family: "Bebas Neue", cursive;

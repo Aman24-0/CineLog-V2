@@ -267,9 +267,18 @@
     --text-muted: rgba(237, 232, 218, 0.58);
     --text-dim: rgba(237, 232, 218, 0.5);
 
-    /* Glass tokens — warm cinema glass */
-    --glass-bg: rgba(13, 13, 20, 0.78);
-    --glass-bg-strong: rgba(13, 13, 20, 0.92);
+    /* Glass tokens — warm cinema glass.
+       ─────────────────────────────────────────────────────────────────
+       PHASE 8 CHUNK 4 — CSS REFACTOR (cascade consolidation)
+       ─────────────────────────────────────────────────────────────────
+       These values were previously duplicated in components/glass-system.css
+       with slightly different opacities (0.72 / 0.86), which silently
+       overrode the token values here. The override is removed and the
+       winning values (0.72 / 0.86) are consolidated here as the single
+       source of truth. The light-theme overrides in tokens/preferences.css
+       still win for [data-theme-resolved="light"]. */
+    --glass-bg: rgba(15, 15, 22, 0.72);
+    --glass-bg-strong: rgba(13, 13, 20, 0.86);
     --glass-border: rgba(232, 183, 74, 0.06);
     --glass-blur: 24px;
   }

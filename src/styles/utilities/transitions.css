@@ -1,5 +1,37 @@
 /* src/styles/utilities/transitions.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
+/* Extracted from globals.css — zero CSS modifications
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Merged the V2 focus ring (.focus-ring) and V2 page transition
+   (.page-enter + @keyframes pageEnter) from the deleted
+   components/_phase22_sprint1.css. Both are utility-class concerns
+   (focus styling, route-change animation), not component-category
+   concerns, so utilities/ is the correct home. */
+
+/* V2 Focus ring — consistent keyboard focus across all interactive elements */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow:
+    0 0 0 2px var(--tier-1),
+    0 0 0 4px var(--p);
+}
+
+/* V2 Page transition — subtle fade on route change */
+.page-enter {
+  animation: pageEnter var(--dur-page) var(--ease-smooth) both;
+}
+@keyframes pageEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
 
 /* Stagger Animation */
 .stagger > *:nth-child(1) {

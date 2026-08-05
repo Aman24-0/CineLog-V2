@@ -1,5 +1,65 @@
 /* src/styles/components/chips.css — CineLog V2 Redesign
-   Migrated to Phase 3 design system tokens. */
+   Migrated to Phase 3 design system tokens.
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Merged the V2 Pill system (.v2-pill + variants) from the deleted
+   components/_phase22_sprint1.css. The V2 Pill is the unified pill
+   style for badges, tags, and status indicators — conceptually a
+   superset of the chip family, so chips.css is the correct home. */
+
+/* V2 Pill — unified pill style for badges, tags, status indicators.
+   PHASE 4: Strengthened glass treatment with golden border + soft glow.
+   INP FIX: Removed `backdrop-filter: blur(10px) saturate(140%)`. With
+   5-10 pills visible at once (metadata rows, status badges, rating
+   chips) each pill was creating its own GPU blur layer — 700ms+ render
+   blocks on modal open. The semi-transparent `var(--glass-bg)` already
+   provides the glass look; the blur was barely visible on small pills
+   but caused major compositing cost. */
+.v2-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.3rem 0.7rem;
+  border-radius: var(--radius-pill);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border-warm-strong);
+  color: var(--text-soft);
+  white-space: nowrap;
+  box-shadow:
+    0 1px 4px rgba(0, 0, 0, 0.35),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+}
+.v2-pill-accent {
+  background: var(--p-dim);
+  border-color: color-mix(in srgb, var(--p) 30%, transparent);
+  color: var(--p);
+  box-shadow:
+    0 0 8px var(--p-glow),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+}
+.v2-pill-success {
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.3);
+  color: #4ade80;
+  box-shadow:
+    0 0 8px rgba(74, 222, 128, 0.2),
+    inset 0 1px 0 rgba(74, 222, 128, 0.08);
+}
+.v2-pill-info {
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
+  color: #60a5fa;
+  box-shadow:
+    0 0 8px rgba(96, 165, 250, 0.2),
+    inset 0 1px 0 rgba(96, 165, 250, 0.08);
+}
 
 /* Tag Chips — glass subtle variant */
 .tag-chip {

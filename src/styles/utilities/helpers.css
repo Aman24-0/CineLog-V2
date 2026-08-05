@@ -1,5 +1,51 @@
 /* src/styles/utilities/helpers.css — Phase 14.2 CSS architecture */
-/* Extracted from globals.css — zero CSS modifications */
+/* Extracted from globals.css — zero CSS modifications
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Migrated .touch-ripple out of the deleted components/_phase21.css.
+   It is a utility class for tactile feedback on any interactive
+   element, not a component — utilities/ is the correct home.
+
+   NOTE on .ambient-glow: the Phase 2.1 definition from _phase21.css
+   was SUPERSEDED by the stronger version in glass-system.css (which
+   uses color-mix + blur(40px) and is imported later in the cascade).
+   Only the winning glass-system.css definition is kept; the legacy
+   Phase 2.1 duplicate is dropped to eliminate the silent cascade
+   override. */
+
+/* Touch ripple — tactile feedback utility for interactive elements */
+.touch-ripple {
+  position: relative;
+  overflow: hidden;
+}
+.touch-ripple::after {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 0;
+  height: 0;
+  border-radius: 50%;
+  background: rgba(232, 183, 74, 0.15);
+  transform: translate(-50%, -50%);
+  transition:
+    width 400ms var(--ease-out),
+    height 400ms var(--ease-out),
+    opacity 400ms var(--ease-out);
+  opacity: 0;
+  pointer-events: none;
+}
+.touch-ripple:active::after {
+  width: 200%;
+  height: 200%;
+  opacity: 1;
+  transition:
+    width 0ms,
+    height 0ms,
+    opacity 0ms;
+}
 
 /* Backdrop Utilities */
 .backdrop-img {

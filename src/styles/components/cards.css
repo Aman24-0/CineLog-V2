@@ -1,5 +1,57 @@
 /* src/styles/components/cards.css — CineLog V2 Redesign
-   Glass cinema card system — migrated to Phase 3 design system tokens. */
+   Glass cinema card system — migrated to Phase 3 design system tokens.
+
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 8 CHUNK 4 — CSS REFACTOR
+   ─────────────────────────────────────────────────────────────────────
+   Merged the V2 Card variants (.v2-card + .v2-card-featured) from the
+   deleted components/_phase22_sprint1.css. These belong with the other
+   card primitives (movie-card, stat-card, continue-card, etc.). */
+
+/* V2 Card variants — for the scalable Movie Card system */
+.v2-card {
+  position: relative;
+  border-radius: var(--radius-card);
+  overflow: hidden;
+  background: var(--tier-2);
+  border: 1px solid var(--hairline);
+  box-shadow: var(--shadow-premium);
+  transition:
+    transform var(--dur-base) var(--ease-spring),
+    border-color var(--dur-base) var(--ease-out),
+    box-shadow var(--dur-base) var(--ease-out);
+}
+.v2-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--hairline-3);
+  box-shadow: var(--shadow-elevated);
+}
+.v2-card:active {
+  transform: translateY(0) scale(0.97);
+  transition-duration: var(--dur-fast);
+}
+.v2-card-featured {
+  border-color: color-mix(in srgb, var(--p) 25%, transparent);
+  box-shadow:
+    var(--shadow-premium),
+    0 0 0 1px color-mix(in srgb, var(--p) 15%, transparent);
+}
+.v2-card-featured:hover {
+  border-color: color-mix(in srgb, var(--p) 50%, transparent);
+  box-shadow:
+    var(--shadow-elevated),
+    0 0 24px var(--p-glow);
+}
+
+/* Glass progress bar — used inside SeasonNavigator and similar card
+   surfaces. Migrated from the deleted components/_phase21.css. */
+.progress-premium {
+  height: 4px;
+  background: rgba(232, 183, 74, 0.08);
+  border-radius: var(--radius-pill);
+  overflow: hidden;
+  position: relative;
+}
 
 /* Surfaces & Cards — glass subtle variant */
 .glass-surface {

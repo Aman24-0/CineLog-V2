@@ -58,5 +58,14 @@ timestamp*
 # Vinxi auto-generates app.config.timestamp_*.js during dev/build — never commit
 app.config.timestamp_*
 
+# ── Playwright E2E test artifacts ─────────────────────────────────────
+# Test results, HTML reports, screenshots, videos, and traces are
+# generated on test runs and should never be committed.
+/test-results/
+/playwright-report/
+/playwright/.cache/
+/blob-report/
+/playwright/.auth/
+
 # ── AI agent working files (not part of the app) ─────────────────────
 agent-ctx/
