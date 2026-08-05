@@ -114,50 +114,52 @@ export async function signOut(): Promise<AuthResult> {
  * (localhost:3000) and production (cinelogv2.vercel.app).
  *
  * After the redirect, the Supabase client's `detectSessionInUrl: true`
- * parses the PKCE code, exchanges it for a session, and fires
- * `onAuthStateChange`. The useAuth hook's explicit `getSession()` call
- * also catches the session in case the listener missed the event.
+ * parses the PKCE code from the URL, exchanges it for a session
+ * (reading the verifier from `localStorage` — see
+ * `src/lib/supabase/browser.ts`), and fires `onAuthStateChange`.
+ * The `/auth/callback` route component listens for `SIGNED_IN` and
+ * navigates to `/discover`.
  *
  * If the user already has an email/password account with the same
  * verified email, Supabase automatically links the Google identity
  * to the existing account (same user ID, same vault).
+ *
+ * `returnPath` is accepted for backward compatibility with callers
+ * (e.g. `admin/login.tsx`) but is NOT used — the callback always
+ * navigates to `/discover`. See `src/routes/auth/callback.tsx` for
+ * the rationale on dropping the `?next=` query param.
  */
-export async function signInWithGoogle(returnPath?: string): Promise<void> {
+export async function signInWithGoogle(_returnPath?: string): Promise<void> {
   const { showToast } = useToast();
   try {
     const supabase = getClient();
     // CRITICAL — strict origin for `redirectTo`:
-    //   The `redirectTo` URL MUST be rooted at `window.location.origin`
-    //   (e.g. `https://cinelogv2.vercel.app/auth/callback`). We NEVER
-    //   pass a relative path like `/auth/callback` because:
+    //   The `redirectTo` URL MUST be exactly
+    //   `${window.location.origin}/auth/callback` — no query string,
+    //   no relative path. We NEVER pass `/auth/callback` (relative)
+    //   because:
     //
     //     1. Supabase's redirect URL allowlist matches against FULL
     //        URLs — relative paths may be rejected, causing the OAuth
     //        flow to fail before it even starts.
-    //     2. The PKCE verifier cookie is written by the browser via
-    //        `document.cookie` (see src/lib/supabase/browser.ts
-    //        `setAll` adapter) and is scoped to the CURRENT origin
-    //        (no explicit `domain` attribute → host-only cookie).
-    //        If the user starts the OAuth flow on origin A but the
-    //        `redirectTo` resolves to origin B (e.g. due to a proxy
-    //        rewrite, custom domain, or Vercel preview URL), the
-    //        verifier cookie will NOT be sent on the callback request
-    //        to origin B — and the exchange will fail with
-    //        "PKCE code verifier not found in storage".
+    //     2. The PKCE verifier is now stored in `localStorage` (NOT
+    //        a cookie — see `src/lib/supabase/browser.ts` Phase 7
+    //        Task 15). `localStorage` is scoped to the EXACT origin
+    //        that wrote it. If the user starts the OAuth flow on
+    //        origin A but `redirectTo` resolves to origin B, the
+    //        verifier in localStorage on origin A is unreachable from
+    //        origin B → "PKCE code verifier not found".
     //
     //   Using `window.location.origin` guarantees the user returns to
-    //   the EXACT origin they started on. The browser will send the
-    //   verifier cookie because the callback is same-origin with the
-    //   page that wrote it.
+    //   the EXACT origin they started on, where the verifier in
+    //   localStorage is reachable.
     //
-    //   The `/auth/callback` route reads the `next` query param to
-    //   decide where to redirect AFTER the exchange succeeds, so we
-    //   pass the user's intended destination as `?next=<returnPath>`.
+    //   We NO LONGER append `?next=<returnPath>` — the dumb callback
+    //   component always navigates to `/discover` regardless. See
+    //   `src/routes/auth/callback.tsx` header comment for rationale.
     const redirectTo =
       typeof window !== "undefined"
-        ? `${window.location.origin}/auth/callback${
-            returnPath ? `?next=${encodeURIComponent(returnPath)}` : ""
-          }`
+        ? `${window.location.origin}/auth/callback`
         : undefined;
     const { error } = await supabase.auth.signInWithOAuth({
       provider: "google",

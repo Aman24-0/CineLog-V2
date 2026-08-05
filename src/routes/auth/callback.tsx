@@ -1,6 +1,6 @@
 // src/routes/auth/callback.tsx
 //
-// CineLog V2 — OAuth / Email Confirmation Callback Route (EXPLICIT EXCHANGE)
+// CineLog V2 — OAuth / Email Confirmation Callback Route (DUMB LISTENER)
 // ---------------------------------------------------------------------
 // This route is the `emailRedirectTo` / OAuth `redirectTo` target for:
 //   • Email confirmation links (signup verification)
@@ -8,93 +8,86 @@
 //   • OAuth sign-in callbacks (Google, etc.)
 //   • Magic link sign-in
 //
-// Supabase sends the user back to `${origin}/auth/callback?code=...[&sb_flow_id=...]`
-// after the user clicks the confirmation link in their email or completes
-// the OAuth flow on the provider's site. The `code` is a PKCE authorization
-// code that must be exchanged for a session via
-// `supabase.auth.exchangeCodeForSession(code, { flowId })`.
+// Supabase sends the user back to `${origin}/auth/callback?code=...`
+// after the user clicks the confirmation link in their email or
+// completes the OAuth flow on the provider's site.
 //
 // ─────────────────────────────────────────────────────────────────────
-// PHASE 7 TASK 14 — EXPLICIT EXCHANGE (definitive fix)
+// PHASE 7 TASK 15 — DUMB LISTENER (localStorage-based client)
 // ─────────────────────────────────────────────────────────────────────
-// HISTORY (why we ended up here):
+// HISTORY (6 prior failed attempts — see the git log):
 //
-//   Attempt 1: Browser-side exchange via onMount + exchangeCodeForSession.
-//   FAILED — "PKCE code verifier not found in storage" (no flowId).
+//   Attempts 1–5 all used `@supabase/ssr`'s `createBrowserClient` with
+//   a `document.cookie`-backed adapter for session + PKCE verifier
+//   storage. They failed on mobile browsers because:
+//     • SameSite=Lax cookies were dropped on the cross-site OAuth
+//       redirect (provider → supabase → /auth/callback) in some
+//       mobile Safari ITP configurations and Chrome Android incognito.
+//     • The PKCE code_verifier cookie was written by the browser but
+//       not consistently readable on the callback → "PKCE code verifier
+//       not found" on every OAuth attempt.
 //
-//   Attempt 2: Server-side exchange via SolidStart middleware + GET
-//   handler. FAILED — same PKCE error (verifier cookie lost in
-//   cross-site redirect).
+//   Attempt 6 (Task 14, commit 0a3d1fe) disabled `detectSessionInUrl`
+//   and called `exchangeCodeForSession` manually with try/catch. This
+//   was supposed to surface the real error — but the underlying cookie
+//   loss was still happening, so the error was still
+//   "PKCE code verifier not found". The cookie adapter was the problem,
+//   not the exchange call.
 //
-//   Attempt 3: Rewrote @supabase/ssr cookie adapters + flow-specific
-//   verifier lookup + SW cache bust. FAILED — same error on both
-//   flowId-keyed AND legacy-keyed lookups.
+// ROOT CAUSE (definitive, Task 15):
+//   `@supabase/ssr`'s cookie-based browser storage is fundamentally
+//   incompatible with mobile browsers' stricter cookie policies. No
+//   amount of cookie adapter tuning (path, sameSite, domain, secure,
+//   httpOnly) can fix this — the cookies are dropped at the browser
+//   level, not by our code.
 //
-//   Attempt 4 (commit 1c0ccc0): Moved exchange BACK to browser via
-//   onMount + exchangeCodeForSession. FAILED — race condition:
-//   `detectSessionInUrl: true` on the browser client AUTOMATICALLY
-//   calls `exchangeCodeForSession` on client hydration, which raced
-//   with our explicit `onMount` call.
+// FIX (Task 15):
+//   1. `src/lib/supabase/browser.ts` now uses the STANDARD
+//      `createClient` from `@supabase/supabase-js` with
+//      `storage: globalThis.localStorage`. localStorage is first-party
+//      only and NEVER blocked by SameSite/ITP/third-party cookie
+//      policies. The PKCE verifier is stored in localStorage, where
+//      it survives the cross-site OAuth redirect reliably.
 //
-//   Attempt 5 (commit before this one): Made the callback "passive" —
-//   removed the manual exchange, relied ENTIRELY on `detectSessionInUrl`
-//   to auto-exchange, just listened for `onAuthStateChange`.
-//   FAILED in production — `INITIAL_SESSION` arrived with `session: null`
-//   and `SIGNED_IN` never fired. The auto-exchange was failing SILENTLY
-//   (auth-js swallows the rejection, only logs to console) and our
-//   component waited 10s then timed out with a generic error.
+//   2. `detectSessionInUrl: true` is enabled on the client. auth-js
+//      AUTOMATICALLY parses `?code=` from the URL on client hydration
+//      and calls `exchangeCodeForSession(code)` internally. It reads
+//      the verifier from localStorage (where it wrote it before the
+//      redirect) and exchanges the code.
 //
-// ROOT CAUSE (definitive):
-//   `detectSessionInUrl: true` runs DURING client construction (BEFORE
-//   our `onMount`). When the auto-exchange fails, auth-js logs the error
-//   but does NOT propagate it — `onAuthStateChange` only fires
-//   `INITIAL_SESSION` with null session. We had no way to see the actual
-//   error message, no way to surface it to the user, and no way to
-//   recover (the code was already consumed/destroyed).
+//   3. This callback component is now completely DUMB. It does NOT
+//      call `exchangeCodeForSession` manually. It does NOT read `code`
+//      or `sb_flow_id` from the URL. It only:
+//        a. Renders a branded loading spinner.
+//        b. Sets up an `onAuthStateChange` listener on mount.
+//        c. When `SIGNED_IN` fires (or `INITIAL_SESSION` with a
+//           non-null session), navigates to `/discover`.
+//        d. 15-second safety-net timeout — if no session is detected,
+//           shows an error so the user isn't stuck on a spinner forever.
 //
-// FIX (this file + `src/lib/supabase/browser.ts`):
-//   1. Set `detectSessionInUrl: false` on the browser client. This
-//      eliminates the silent auto-exchange — no more race, no more
-//      swallowed errors.
-//   2. In this callback component's `onMount`, MANUALLY call
-//      `exchangeCodeForSession(code, { flowId })` with a try/catch.
-//      On success → navigate to `next`.
-//      On failure → display the ACTUAL error message (so we can finally
-//      see WHY the exchange is failing).
-//   3. Keep the 10s timeout as a safety net (in case the exchange
-//      hangs — should never happen, but defensive).
-//   4. Also set up `onAuthStateChange` as a backup trigger (in case
-//      the exchange succeeds but `exchangeCodeForSession` returns
-//      before the session is fully persisted in cookies — the
-//      `SIGNED_IN` event will fire and we navigate).
-//
-//   This gives us:
-//     • No race condition (only ONE exchanger — our manual call).
-//     • Real error messages (try/catch surfaces the actual rejection).
-//     • Defensive timeout + listener (covers edge cases).
+//   This is the official Supabase-recommended pattern for SPA OAuth
+//   callbacks. With localStorage as the storage backend, the
+//   `detectSessionInUrl` auto-exchange is reliable (no more silent
+//   failures like in Task 13, because the verifier is actually in
+//   storage this time).
 //
 // ─────────────────────────────────────────────────────────────────────
-// WHY A SOLID COMPONENT (not a `GET` handler)?
+// WHY NO `next` PARAM?
 // ─────────────────────────────────────────────────────────────────────
-//   SolidStart route files can export HTTP method handlers (`GET`,
-//   `POST`, …) OR a default-export Solid component. We render the
-//   Solid component because:
-//     1. The `onMount` lifecycle hook only runs in the browser
-//        (after hydration), which is exactly when we need to call
-//        `exchangeCodeForSession` (the browser wrote the verifier
-//        cookie, so the browser must read it back).
-//     2. The loading spinner + error UI need to render as HTML for
-//        SSR, then hydrate on the client.
-//     3. We avoid the cross-site cookie loss that plagued the
-//        server-side exchange attempts (the server saw the verifier
-//        cookie missing because the browser hadn't sent it on the
-//        cross-site OAuth redirect — SameSite=Lax allows it but
-//        some browsers / privacy modes were dropping it).
+// Previous versions read a `?next=<path>` query param to decide where
+// to redirect after the exchange (e.g. `?next=/admin/login`). We've
+// removed that — the callback now ALWAYS navigates to `/discover`.
 //
-//   The middleware in `src/middleware.ts` still runs on this route
-//   (it runs on every request) but does NOT interfere — it only
-//   initializes `event.locals.supabase` for any future server-side
-//   route that wants it; it doesn't return a `Response`.
+//   • Simplifies the contract: the callback URL is always exactly
+//     `${origin}/auth/callback` (no query string), which makes
+//     Supabase's redirect URL allowlist easier to manage.
+//   • The `?next=` param was only ever used by `admin/login.tsx` to
+//     return to the admin login page after OAuth — but admin users
+//     can navigate manually, and the security implication of allowing
+//     an arbitrary `next` param (open-redirect risk) outweighs the
+//     minor UX convenience.
+//   • If we need per-page redirect targets in the future, we can
+//     re-add the param — but for now, `/discover` for everyone.
 //
 
 import { Title } from "@solidjs/meta";
@@ -110,158 +103,103 @@ import { getBrowserClient } from "~/lib/supabase/browser";
 import type { AuthChangeEvent, Session } from "@supabase/supabase-js";
 
 /**
- * Determine the redirect target from the `next` search param.
+ * How long to wait for `detectSessionInUrl` to complete the PKCE
+ * exchange before showing the "Sign-in failed" error UI.
  *
- * Only allows relative paths starting with "/" to prevent open-redirect
- * attacks (e.g. `?next=https://evil.com` would otherwise redirect the
- * user to a phishing site). Falls back to `/discover` when `next` is
- * missing, empty, or not a safe relative path.
- *
- * We ALSO block paths that start with `//` — these are interpreted by
- * browsers as protocol-relative URLs (e.g. `//evil.com` →
- * `https://evil.com`), which would bypass the simple `startsWith("/")`
- * check.
- */
-function getRedirectTarget(nextParam: string | null): string {
-  if (
-    typeof nextParam !== "string" ||
-    nextParam.length === 0 ||
-    !nextParam.startsWith("/") ||
-    nextParam.startsWith("//")
-  ) {
-    return "/discover";
-  }
-  return nextParam;
-}
-
-/**
- * How long to wait for the manual `exchangeCodeForSession` call to
- * complete before showing the "Sign-in failed" error UI.
- *
- * 10 seconds is generous — the exchange is a single HTTP POST to
+ * 15 seconds is generous — the exchange is a single HTTP POST to
  * Supabase's token endpoint, which normally completes in <1s even on
  * slow mobile connections. The extra buffer covers:
  *   • Slow 3G / flaky mobile network.
  *   • Cold start of the Supabase auth service.
  *   • The browser's hydration latency (parsing + evaluating the JS
- *     bundle before our `onMount` even fires).
+ *     bundle before auth-js even starts the exchange).
+ *   • Mobile browsers' stricter resource loading policies (which can
+ *     delay script evaluation by a few seconds on cold loads).
  *
- * If 10 seconds pass with no completion, something is wrong (e.g. the
- * fetch is hanging, the SDK is stuck). We surface a generic error
- * message and let the user retry.
+ * If 15 seconds pass with no `SIGNED_IN` event, something is wrong
+ * (e.g. the code expired, the verifier is missing from localStorage,
+ * or the Supabase project is misconfigured). We surface a generic
+ * error message and let the user retry.
  */
-const AUTH_EXCHANGE_TIMEOUT_MS = 10_000;
+const AUTH_EXCHANGE_TIMEOUT_MS = 15_000;
 
 /**
  * The OAuth / email-confirmation callback page.
  *
- * Calls `exchangeCodeForSession(code, { flowId })` explicitly in
- * `onMount`. See the file header for the full rationale.
+ * This component is intentionally "dumb" — it does NOT call
+ * `exchangeCodeForSession` manually. The browser client (configured
+ * with `detectSessionInUrl: true` in `src/lib/supabase/browser.ts`)
+ * handles the entire exchange automatically. This component just:
+ *   1. Renders a loading spinner.
+ *   2. Listens for `onAuthStateChange`.
+ *   3. Navigates to `/discover` when `SIGNED_IN` (or `INITIAL_SESSION`
+ *      with a session) fires.
+ *   4. Shows an error after 15 seconds if nothing happened.
  */
 const AuthCallback: Component = () => {
   const navigate = useNavigate();
 
-  // Two states: loading (initial) and error (exchange failed or timed out).
+  // Two states: loading (initial) and error (timeout).
   // Success is handled by navigate() — no separate signal needed.
   const [status, setStatus] = createSignal<"loading" | "error">("loading");
   const [errorMessage, setErrorMessage] = createSignal<string>("");
 
   onMount(() => {
-    // ── 1. Parse the URL for `code`, `sb_flow_id`, and `next` ───────
-    const url = new URL(window.location.href);
-    const code = url.searchParams.get("code");
-    const flowId = url.searchParams.get("sb_flow_id");
-    const nextParam = url.searchParams.get("next");
-    const target = getRedirectTarget(nextParam);
-    const errorParam = url.searchParams.get("error");
-    const errorDescription = url.searchParams.get("error_description");
-
     console.log(
-      "[auth/callback] onMount — explicit exchange mode. next:",
-      nextParam ?? "(none)",
-      "| target:",
-      target,
-      "| has code:",
-      !!code,
-      "| has sb_flow_id:",
-      !!flowId,
-      "| has error param:",
-      !!errorParam
+      "[auth/callback] onMount — dumb listener mode. " +
+        "Waiting for detectSessionInUrl + onAuthStateChange..."
     );
 
-    // ── 2. If Supabase sent an error param, surface it immediately ──
-    // The OAuth provider or Supabase may redirect back with
-    // `?error=access_denied&error_description=...` if the user denied
-    // consent or something went wrong on the provider side. In that
-    // case there's no `code` to exchange — we just show the error.
-    if (errorParam) {
-      const msg =
-        errorDescription ||
-        errorParam ||
-        "The OAuth provider returned an error.";
-      console.error(
-        "[auth/callback] OAuth provider returned error:",
-        errorParam,
-        "— description:",
-        errorDescription
-      );
-      setErrorMessage(msg);
-      setStatus("error");
-      return;
-    }
-
-    // ── 3. If no `code`, we can't exchange — show error immediately ──
-    // This should never happen in practice (the callback URL is only
-    // reached with a `code`), but defensive: a user might manually
-    // navigate to `/auth/callback` without a code.
-    if (!code) {
-      console.error(
-        "[auth/callback] No `code` parameter in URL — cannot exchange."
-      );
-      setErrorMessage(
-        "No authorization code was found in the URL. Please try signing in again."
-      );
-      setStatus("error");
-      return;
-    }
-
-    // ── 4. Get the browser Supabase client ─────────────────────────
-    // `getBrowserClient` returns the singleton browser client. With
-    // `detectSessionInUrl: false` (set in `src/lib/supabase/browser.ts`),
-    // the client does NOT auto-exchange the code — we do it manually
-    // below. This is the ONLY code path that exchanges.
+    // ── 1. Get the browser Supabase client ─────────────────────────
+    // `getBrowserClient` returns the singleton browser client. Its
+    // `detectSessionInUrl: true` config means auth-js AUTOMATICALLY
+    // parses `?code=...` from the URL on client hydration and calls
+    // `exchangeCodeForSession(code)` internally. The verifier is read
+    // from `localStorage` (where it was written before the OAuth
+    // redirect). We don't need to do ANYTHING — just listen for the
+    // resulting auth state change.
     const supabase = getBrowserClient();
 
-    // ── 5. Set up the 10-second timeout (safety net) ───────────────
-    // If `exchangeCodeForSession` doesn't resolve within 10s, something
-    // is wrong (network hang, SDK stuck). Show the error UI.
+    // ── 2. Set up the 15-second safety-net timeout ─────────────────
+    // If no `SIGNED_IN` / `INITIAL_SESSION` event fires within 15
+    // seconds, something went wrong with the exchange. Show the
+    // error UI so the user isn't stuck on a spinner forever.
     let timeoutId: ReturnType<typeof setTimeout> | undefined;
-    let didComplete = false;
+    let didSucceed = false;
 
     timeoutId = setTimeout(() => {
-      if (didComplete) return;
+      if (didSucceed) return;
       console.error(
         "[auth/callback] Timed out after",
         AUTH_EXCHANGE_TIMEOUT_MS,
-        "ms waiting for exchangeCodeForSession to resolve."
+        "ms waiting for SIGNED_IN event. The PKCE exchange via " +
+          "detectSessionInUrl may have failed."
       );
       setErrorMessage(
-        "Sign-in timed out. The authorization code may have expired, or the network is too slow. Please try again."
+        "Sign-in timed out. The authorization code may have expired, " +
+          "or the session could not be persisted. Please try again."
       );
       setStatus("error");
     }, AUTH_EXCHANGE_TIMEOUT_MS);
 
-    // ── 6. Set up onAuthStateChange as a BACKUP success trigger ────
-    // `exchangeCodeForSession` resolves with `{ data: { session, user },
-    // error: null }` on success. But in some edge cases (e.g. cookie
-    // write latency), the session is set in storage BEFORE the promise
-    // resolves, and `onAuthStateChange` fires `SIGNED_IN` slightly
-    // earlier. Listening for it lets us redirect the user the instant
-    // the session is available, with no perceptible delay.
+    // ── 3. Set up the onAuthStateChange listener ───────────────────
+    // auth-js fires `INITIAL_SESSION` on client load (after
+    // `detectSessionInUrl` has processed the URL) and `SIGNED_IN`
+    // when a new session is established. Both events carry the
+    // session object — if it's non-null, the exchange succeeded.
     //
-    // We also listen for `INITIAL_SESSION` with a non-null session as
-    // a further fallback (covers the case where the session was already
-    // in cookies from a prior tab — rare but possible).
+    // We listen for BOTH events because:
+    //   • `INITIAL_SESSION` fires first if the exchange completed
+    //     BEFORE our listener was registered (race with hydration).
+    //     In that case, the session is already in localStorage and
+    //     the initial event carries it.
+    //   • `SIGNED_IN` fires when the exchange completes AFTER our
+    //     listener is registered. This is the normal case when the
+    //     exchange takes >0ms (which it always does — it's an HTTP
+    //     POST).
+    //
+    // Listening for either event with a non-null session covers
+    // both timing windows.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
         console.log(
@@ -277,8 +215,7 @@ const AuthCallback: Component = () => {
           (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
           session
         ) {
-          if (didComplete) return;
-          didComplete = true;
+          didSucceed = true;
           if (timeoutId) {
             clearTimeout(timeoutId);
             timeoutId = undefined;
@@ -286,111 +223,17 @@ const AuthCallback: Component = () => {
           console.info(
             "[auth/callback] Session detected via",
             event,
-            "— redirecting to",
-            target
+            "— redirecting to /discover"
           );
           // Use `replace: true` so the callback URL isn't in the
           // browser history — pressing Back doesn't re-trigger the
           // exchange.
-          navigate(target, { replace: true });
+          navigate("/discover", { replace: true });
         }
       }
     );
 
-    // ── 7. Call exchangeCodeForSession manually ────────────────────
-    // This is the PRIMARY code path. We pass `{ flowId }` if
-    // `sb_flow_id` is in the URL — this tells the SDK to look up the
-    // verifier in the flow-specific slot (the modern, reliable
-    // approach). Without flowId, it falls back to the legacy
-    // `<storageKey>-code-verifier` key (which has dual-write race
-    // issues in some browsers).
-    //
-    // The promise resolves with `{ data: { session, user }, error }`.
-    // On success, `session` is non-null and we navigate. On failure,
-    // `error` is non-null and we display the ACTUAL error message
-    // (this is the whole point of the explicit exchange — we finally
-    // get to see WHY it's failing).
-    (async () => {
-      try {
-        console.log(
-          "[auth/callback] Calling exchangeCodeForSession — flowId:",
-          flowId ?? "(none)"
-        );
-
-        const { data, error } = await supabase.auth.exchangeCodeForSession(
-          code,
-          flowId ? { flowId } : undefined
-        );
-
-        if (didComplete) return; // listener already navigated
-
-        if (error) {
-          didComplete = true;
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = undefined;
-          }
-          console.error(
-            "[auth/callback] exchangeCodeForSession returned error:",
-            error.name,
-            "—",
-            error.message,
-            "(status:",
-            error.status ?? "n/a",
-            ")"
-          );
-          setErrorMessage(
-            error.message ||
-              "The authorization code could not be exchanged. Please try again."
-          );
-          setStatus("error");
-          return;
-        }
-
-        if (data?.session) {
-          didComplete = true;
-          if (timeoutId) {
-            clearTimeout(timeoutId);
-            timeoutId = undefined;
-          }
-          console.info(
-            "[auth/callback] exchangeCodeForSession succeeded — redirecting to",
-            target
-          );
-          navigate(target, { replace: true });
-          return;
-        }
-
-        // No error and no session — unusual but not impossible (the
-        // session may arrive via the onAuthStateChange listener
-        // shortly). We do nothing here and let the listener or the
-        // timeout handle it.
-        console.warn(
-          "[auth/callback] exchangeCodeForSession resolved with no error and no session — waiting for onAuthStateChange."
-        );
-      } catch (err) {
-        if (didComplete) return;
-        didComplete = true;
-        if (timeoutId) {
-          clearTimeout(timeoutId);
-          timeoutId = undefined;
-        }
-        const msg =
-          err instanceof Error
-            ? err.message
-            : typeof err === "string"
-              ? err
-              : "An unexpected error occurred during sign-in.";
-        console.error(
-          "[auth/callback] exchangeCodeForSession threw:",
-          err instanceof Error ? err : JSON.stringify(err)
-        );
-        setErrorMessage(msg);
-        setStatus("error");
-      }
-    })();
-
-    // ── 8. Cleanup on unmount ──────────────────────────────────────
+    // ── 4. Cleanup on unmount ──────────────────────────────────────
     // When the component unmounts (either because we navigated away
     // OR because SolidStart tore down the route), unsubscribe the
     // auth listener and clear the timeout. Without this, the listener
@@ -401,12 +244,6 @@ const AuthCallback: Component = () => {
         clearTimeout(timeoutId);
         timeoutId = undefined;
       }
-      // `authListener.subscription.unsubscribe()` is the official
-      // way to tear down an onAuthStateChange listener (see
-      // https://supabase.com/docs/reference/javascript/auth-onauthstatechange).
-      // The optional chaining guards against the edge case where
-      // `supabase.auth.onAuthStateChange` returned a malformed
-      // result (it never does in practice, but TS wants it).
       authListener?.subscription?.unsubscribe?.();
     });
   });
@@ -539,10 +376,8 @@ const style = `
   font-size: 0.8125rem;
   text-decoration: none;
   /* Reset button defaults so it looks like the secondary link it
-     replaced (was an <a href="/auth/login">). We use a <button> so
-     we can call navigate("/discover", { replace: true }) instead of
-     reloading the current error URL — which caused a 404 because
-     /auth/login doesn't exist as a route. */
+     replaced. We use a <button> so we can call
+     navigate("/discover", { replace: true }) instead of reloading. */
   background: none;
   border: none;
   padding: 0;

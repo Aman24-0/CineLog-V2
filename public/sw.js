@@ -131,7 +131,35 @@
 // browser client config — both of which are broken together. Bumping
 // to v11 invalidates their cached bundles and forces them to download
 // the new explicit-exchange version.
-const CACHE_VERSION = "v11";
+//
+// v11 → v13-localstorage (Task 15): the explicit-exchange approach
+// (v11) STILL failed on mobile browsers because the underlying
+// `@supabase/ssr` cookie adapter was fundamentally broken on mobile
+// (SameSite=Lax cookies dropped on cross-site OAuth redirects by
+// Safari ITP and Chrome Android incognito). Task 15 abandons
+// `@supabase/ssr` entirely and switches to the STANDARD
+// `@supabase/supabase-js` `createClient` with `localStorage` as the
+// session + PKCE verifier storage backend. localStorage is first-party
+// only and NEVER blocked by cookie policies.
+//
+// Returning users with a cached v11 bundle still have:
+//   • The `@supabase/ssr` cookie-based browser client (broken on mobile).
+//   • The explicit-exchange callback component (now reverted to dumb
+//     listener since `detectSessionInUrl: true` is reliable again with
+//     localStorage).
+// Bumping to `v13-localstorage` (skipping v12 to keep the version
+// monotonically ahead of any intermediate deploys, and using a
+// descriptive suffix to make this version memorable in devtools)
+// invalidates their cached bundles and forces them to download the
+// new localStorage-based version.
+//
+// NOTE: The version string is used in cache names like
+// `cinelog-static-v13-localstorage`. Cache API names allow hyphens
+// and letters, so this is safe — but it does mean old caches with
+// numeric-only versions (`cinelog-static-v11`) will be matched by
+// the `!key.endsWith("-v13-localstorage")` filter and deleted on
+// activate, which is exactly what we want.
+const CACHE_VERSION = "v13-localstorage";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
