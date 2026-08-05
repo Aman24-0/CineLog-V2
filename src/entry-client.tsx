@@ -24,10 +24,16 @@
 
 import { mount, StartClient } from "@solidjs/start/client";
 import { injectSpeedInsights } from "@vercel/speed-insights";
+import { initSentry, captureException } from "~/lib/sentry/client";
 
 // Mount the SolidJS app first — this is the critical path to first paint.
 // Everything else is deferred to avoid blocking hydration.
 mount(() => <StartClient />, document.getElementById("app")!);
+
+// Phase 8 Chunk 1 — initialize Sentry AFTER mount so it doesn't block
+// hydration. initSentry() is idempotent and a no-op when no DSN is
+// configured (dev, tests), so this is safe to call unconditionally.
+initSentry();
 
 // Initialize Vercel Speed Insights AFTER mount so the SDK can hook
 // into the correct navigation/route-change events. This is a no-op in
@@ -92,8 +98,17 @@ if (
         })
         .catch((err) => {
           // If the toast module fails to load (e.g. chunk load error
-          // on a flaky connection), fall back to a console.info so
-          // the user at least sees something in devtools.
+          // on a flaky connection), capture the error via Sentry (so
+          // we see it in production monitoring) AND log to console.info
+          // so the user at least sees something in devtools.
+          //
+          // Phase 8 Chunk 1: previously this was console.info-only,
+          // which meant chunk-load failures on flaky connections were
+          // invisible in production. Now they're reported to Sentry.
+          captureException(err, {
+            feature: "sw-update-toast",
+            message: "Toast module failed to load on controllerchange"
+          });
           console.info(
             "[SW] New version available — refresh to update. (Toast module failed to load.)",
             err

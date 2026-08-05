@@ -139,3 +139,27 @@ export function useModalState() {
     zIndexBase: 1000000
   };
 }
+
+/**
+ * Test-only reset hook (Phase 8 Chunk 1).
+ *
+ * `useModalState` holds module-level state (`selectedItem` signal AND the
+ * private `historyEntryOurs` flag). Vitest reuses the module instance
+ * across tests, so a test that opens the modal and doesn't close it leaves
+ * `historyEntryOurs = true` for the next test — meaning a subsequent
+ * `closeTitle()` call would erroneously call `window.history.back()`.
+ *
+ * This function clears BOTH the signal and the history flag. It also
+ * removes the popstate listener that `pushHistoryForModal` registers on
+ * `window`, so a stale listener from a previous test doesn't fire during
+ * the next test's history operations.
+ *
+ * Must NOT be called from production code.
+ */
+export function __resetForTest(): void {
+  if (typeof window !== "undefined") {
+    window.removeEventListener("popstate", handlePopState);
+  }
+  historyEntryOurs = false;
+  setSelectedItem(null);
+}

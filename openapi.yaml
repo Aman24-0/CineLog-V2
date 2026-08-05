@@ -1,0 +1,1340 @@
+# CineLog V2 — OpenAPI Specification
+#
+# Documents all 38 API routes under src/routes/api/.
+#
+# Route groups:
+#   1. Public consumer endpoints (15 routes) — read-only, CDN-cached.
+#   2. Authenticated user endpoints (5 routes) — user session required.
+#   3. Admin endpoints (16 routes) — requireAdmin() cookie + DB lookup.
+#   4. Cron endpoints (2 routes) — X-Cron-Secret header.
+#
+# Authentication schemes:
+#   - userSession: Supabase auth cookie (sb-<ref>-auth-token). Enforced
+#     by RLS — the route reads the user from the server Supabase client.
+#   - adminCookie: cinelog_admin HS256 JWT + DB lookup (is_admin AND
+#     admin_disabled_at IS NULL). Enforced by requireAdmin() in
+#     src/lib/supabase/admin/adminGuard.ts.
+#   - cronSecret: X-Cron-Secret header, constant-time compared against
+#     process.env.CRON_SECRET. Used by the pg_cron weekly-recap job.
+#
+# All routes are server-side (SolidStart API routes). The base URL is
+# the deployed origin (https://cinelog.app in production, http://localhost:3000
+# in dev). This spec uses a relative basePath so it works against any
+# deployment.
+
+openapi: 3.0.3
+info:
+  title: CineLog V2 API
+  version: 1.0.0
+  description: |
+    API surface for CineLog V2 — a cinematic watchlist and discovery PWA.
+
+    All endpoints are server-rendered SolidStart API routes
+    (`src/routes/api/*.ts`). Responses are JSON unless noted.
+
+    ## Caching
+
+    Public read-only endpoints set `Cache-Control: s-maxage=300,
+    stale-while-revalidate=600` (5 min fresh, 10 min stale). Vercel's
+    CDN caches these responses and serves them to all users.
+
+    User-specific endpoints set `s-maxage=60, stale-while-revalidate=120`
+    (1 min fresh, 2 min stale). Vercel caches per-user via the auth
+    cookie in the `Vary` header.
+
+    Mutations set `Cache-Control: no-store`.
+
+    ## Errors
+
+    All error responses follow the shape `{ "error": string }`. HTTP
+    status codes are conventional (400 = bad request, 401 = unauth,
+    403 = forbidden, 404 = not found, 429 = rate limited, 500 = server
+    error).
+
+    Rate limiting is in-memory (Map-based) and effectively a no-op on
+    Vercel serverless — each invocation may run in a fresh instance.
+    This is a known limitation.
+
+  contact:
+    name: CineLog V2
+    url: https://github.com/Aman24-0/CineLog-V2
+  license:
+    name: MIT
+
+servers:
+  - url: /
+    description: Relative to the deployed origin (production or dev).
+
+# ─────────────────────────────────────────────────────────────────────
+# Authentication schemes
+# ─────────────────────────────────────────────────────────────────────
+components:
+  securitySchemes:
+    userSession:
+      type: apiKey
+      in: cookie
+      name: sb-<project-ref>-auth-token
+      description: |
+        Supabase auth cookie set by the browser SDK after sign-in.
+        Contains the access + refresh tokens. RLS enforces ownership —
+        the route can only read/write rows belonging to the
+        authenticated user.
+    adminCookie:
+      type: apiKey
+      in: cookie
+      name: cinelog_admin
+      description: |
+        HS256 JWT issued by /api/admin/auth after successful admin
+        login (email + password + optional 2FA PIN). The JWT alone is
+        NOT sufficient — requireAdmin() re-checks the database on every
+        request (is_admin AND admin_disabled_at IS NULL AND deleted_at
+        IS NULL).
+    cronSecret:
+      type: apiKey
+      in: header
+      name: X-Cron-Secret
+      description: |
+        Shared secret for the pg_cron weekly-recap job. Constant-time
+        compared against process.env.CRON_SECRET via
+        crypto.timingSafeEqual.
+
+  schemas:
+    Error:
+      type: object
+      required: [error]
+      properties:
+        error:
+          type: string
+          description: Human-readable error message.
+
+    # Generic success response — most mutations return this.
+    OkResponse:
+      type: object
+      required: [ok]
+      properties:
+        ok:
+          type: boolean
+          description: Whether the operation succeeded.
+
+# ─────────────────────────────────────────────────────────────────────
+# Paths — organized by group
+# ─────────────────────────────────────────────────────────────────────
+paths:
+
+  # ═══════════════════════════════════════════════════════════════════
+  # GROUP 1: Public consumer endpoints (read-only, CDN-cached)
+  # ═══════════════════════════════════════════════════════════════════
+
+  /api/announcements:
+    get:
+      tags: [Public]
+      summary: List active announcements
+      description: |
+        Returns all announcements with `is_active = true` and (if
+        scheduled) `start_at <= now() <= end_at`. Cached on the CDN
+        for 5 minutes.
+      security: []
+      responses:
+        '200':
+          description: Array of announcements.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /api/anime-settings:
+    get:
+      tags: [Public]
+      summary: Public anime integration settings
+      description: |
+        Returns the subset of `app_config.anime_settings` that is safe
+        to expose to the browser (feature toggles + cache TTLs). The
+        AniList access token is NOT included.
+      security: []
+      responses:
+        '200':
+          description: Anime settings object.
+          content:
+            application/json:
+              schema:
+                type: object
+
+  /api/anime-mappings:
+    get:
+      tags: [Public]
+      summary: Anime mappings metadata (CORS preflight)
+      description: |
+        Returns a 405 / method-not-allowed hint for GET. The real
+        endpoint is POST (lookup by TMDB id). This GET exists so CORS
+        preflight requests succeed.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [Public]
+      summary: Lookup AniList mapping by TMDB id
+      description: |
+        Given a TMDB id + media_type, returns the AniList mapping if
+        one exists in the `anime_mappings` table. Does NOT trigger
+        auto-mapping — that happens only on the Details page.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tmdbId: { type: integer }
+                mediaType: { type: string, enum: [movie, tv] }
+              required: [tmdbId, mediaType]
+      responses:
+        '200':
+          description: Mapping found.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  anilistId: { type: integer }
+                  confidence: { type: string, enum: [high, medium, low] }
+        '404':
+          $ref: '#/components/schemas/Error'
+
+  /api/anilist:
+    get:
+      tags: [Public]
+      summary: AniList proxy metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [Public]
+      summary: AniList GraphQL proxy
+      description: |
+        Proxies AniList GraphQL queries through the server so the
+        optional `ANILIST_ACCESS_TOKEN` stays server-side and
+        rate-limit state is shared across users on the same
+        deployment.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query: { type: string }
+                variables: { type: object }
+              required: [query]
+      responses:
+        '200':
+          description: AniList GraphQL response.
+          content:
+            application/json:
+              schema: { type: object }
+        '429':
+          $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/schemas/Error'
+
+  /api/feature-flags:
+    get:
+      tags: [Public]
+      summary: Public feature flags
+      description: |
+        Returns feature flags that are safe to expose to the browser.
+        Admin-only flags are filtered out.
+      security: []
+      responses:
+        '200':
+          description: Feature flag map.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: boolean }
+
+  /api/featured-content:
+    get:
+      tags: [Public]
+      summary: Featured content for the homepage
+      description: |
+        Returns the curated featured-content rows for the Discover
+        homepage. CDN-cached for 5 minutes.
+      security: []
+      responses:
+        '200':
+          description: Array of featured content.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { type: object }
+
+  /api/homepage-config:
+    get:
+      tags: [Public]
+      summary: Homepage section configuration
+      description: |
+        Returns the visible/hidden state + ordering of Discover
+        homepage sections. CDN-cached for 5 minutes.
+      security: []
+      responses:
+        '200':
+          description: Homepage config.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/media/{path}:
+    get:
+      tags: [Public]
+      summary: TMDB metadata proxy (catch-all)
+      description: |
+        Proxies any TMDB API path through the server so the TMDB API
+        key stays server-side. The `{path}` parameter is the TMDB
+        endpoint (e.g. `movie/123`, `tv/456/season/1`).
+      security: []
+      parameters:
+        - name: path
+          in: path
+          required: true
+          schema: { type: string }
+          description: The TMDB API path (without the leading slash).
+          example: movie/550
+      responses:
+        '200':
+          description: TMDB response (JSON).
+          content:
+            application/json:
+              schema: { type: object }
+        '401':
+          $ref: '#/components/schemas/Error'
+        '502':
+          $ref: '#/components/schemas/Error'
+
+  /api/media/ratings:
+    get:
+      tags: [Public]
+      summary: Aggregated ratings for a title
+      description: |
+        Returns IMDb / TMDB / MDBList ratings for a given TMDB id.
+        Triple-deduped (LRU + in-flight + IntersectionObserver on the
+        client).
+      security: []
+      parameters:
+        - name: tmdbId
+          in: query
+          required: true
+          schema: { type: integer }
+        - name: mediaType
+          in: query
+          required: true
+          schema: { type: string, enum: [movie, tv] }
+      responses:
+        '200':
+          description: Ratings object.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  imdb: { type: number, nullable: true }
+                  tmdb: { type: number }
+                  mdblist: { type: number, nullable: true }
+
+  /api/tmdb-cache:
+    get:
+      tags: [Public]
+      summary: Read from the shared TMDB cache
+      description: |
+        Reads a cached TMDB response from the `tmdb_cache` Supabase
+        table (7-day SWR, shared across users).
+      security: []
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema: { type: string }
+          description: The cache key (hashed TMDB endpoint).
+      responses:
+        '200':
+          description: Cached TMDB response.
+          content:
+            application/json:
+              schema: { type: object }
+        '404':
+          $ref: '#/components/schemas/Error'
+    post:
+      tags: [Public]
+      summary: Write to the shared TMDB cache
+      description: |
+        Writes a TMDB response to the `tmdb_cache` table so subsequent
+        requests for the same key hit the cache instead of TMDB.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key: { type: string }
+                response: { type: object }
+                ttl: { type: integer, description: seconds }
+              required: [key, response]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  # ═══════════════════════════════════════════════════════════════════
+  # GROUP 2: Authenticated user endpoints
+  # ═══════════════════════════════════════════════════════════════════
+
+  /api/stats:
+    get:
+      tags: [User]
+      summary: User statistics
+      description: |
+        Returns aggregated stats for the signed-in user's vault
+        (counts by status, genre distribution, ratings histogram,
+        activity over time). Computed client-side after TMDB
+        enrichment — won't scale past ~10k items (known limitation).
+      security:
+        - userSession: []
+      responses:
+        '200':
+          description: Stats object.
+          content:
+            application/json:
+              schema: { type: object }
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/discover/taste:
+    get:
+      tags: [User]
+      summary: User taste profile
+      description: |
+        Returns the user's `TasteProfile` (topGenres, topDirectors,
+        activeFranchises, avgImdb, seedTitle, isColdStart) derived
+        from their vault. Used to personalize the Discover feed.
+      security:
+        - userSession: []
+      responses:
+        '200':
+          description: Taste profile.
+          content:
+            application/json:
+              schema: { type: object }
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/share-card:
+    get:
+      tags: [User]
+      summary: Share-card metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [User]
+      summary: Generate a share-card image
+      description: |
+        Renders a PNG share-card for a given title using
+        puppeteer-core + @sparticuz/chromium. The image is uploaded
+        to Supabase Storage and a signed URL is returned.
+      security:
+        - userSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                tmdbId: { type: integer }
+                mediaType: { type: string, enum: [movie, tv] }
+              required: [tmdbId, mediaType]
+      responses:
+        '200':
+          description: Signed URL to the generated PNG.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  url: { type: string }
+        '401':
+          $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  /api/account/delete:
+    get:
+      tags: [User]
+      summary: Account deletion metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [User]
+      summary: Delete the user's account
+      description: |
+        Soft-deletes the user's profile + permanently deletes their
+        auth account. Rate-limited (5 attempts / 15 min, in-memory —
+        effectively a no-op on Vercel serverless).
+      security:
+        - userSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                confirm: { type: string, description: 'Must equal "DELETE"' }
+              required: [confirm]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/schemas/Error'
+
+  /api/push/status:
+    get:
+      tags: [User]
+      summary: Web push subscription status
+      description: |
+        Returns whether the current user has an active push
+        subscription and the VAPID public key for subscribing.
+      security:
+        - userSession: []
+      responses:
+        '200':
+          description: Push status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  subscribed: { type: boolean }
+                  vapidPublicKey: { type: string }
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/push/send:
+    get:
+      tags: [User]
+      summary: Push send metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [User]
+      summary: Send a push notification to the current user
+      description: |
+        Sends a web push notification to the current user's
+        subscription. Used by the "Send test notification" button in
+        settings.
+      security:
+        - userSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                body: { type: string }
+                url: { type: string, description: 'Click-through URL' }
+              required: [title, body]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/schemas/Error'
+
+  # ═══════════════════════════════════════════════════════════════════
+  # GROUP 3: Cron / system endpoints
+  # ═══════════════════════════════════════════════════════════════════
+
+  /api/push/send-admin:
+    get:
+      tags: [Cron]
+      summary: Admin push send metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [Cron]
+      summary: Send a push notification to all admins
+      description: |
+        Sends a web push notification to every admin with an active
+        subscription. Authenticated via `X-Cron-Secret` header (not
+        a user session) so the pg_cron job can call it.
+      security:
+        - cronSecret: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                title: { type: string }
+                body: { type: string }
+                url: { type: string }
+              required: [title, body]
+      responses:
+        '200':
+          description: Count of notifications sent.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  sent: { type: integer }
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/email/send:
+    get:
+      tags: [Cron]
+      summary: Email send metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [Cron]
+      summary: Send a transactional email
+      description: |
+        Sends an email using one of the templates in
+        `src/lib/email/templates/`. Used by the weekly-recap cron
+        (authenticated via `X-Cron-Secret`) and by user-triggered
+        flows (authenticated via user session).
+      security:
+        - cronSecret: []
+        - userSession: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                template:
+                  type: string
+                  enum: [reminder, weeklyRecap, newSeason, continueWatching, recommendations, syncStatus]
+                to: { type: string, description: 'Recipient email' }
+                payload: { type: object, description: 'Template-specific data' }
+              required: [template, to]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/schemas/Error'
+
+  /api/cron/weekly-recap:
+    get:
+      tags: [Cron]
+      summary: Weekly recap metadata (CORS preflight)
+      description: GET returns a hint; the real endpoint is POST.
+      security: []
+      responses:
+        '200': { description: CORS preflight OK }
+    post:
+      tags: [Cron]
+      summary: Trigger the weekly recap
+      description: |
+        Runs the weekly recap job: for each user with
+        `weekly_recap_enabled = true`, generates a recap email + push
+        notification and sends it. Called by pg_cron weekly.
+      security:
+        - cronSecret: []
+      responses:
+        '200':
+          description: Recap run summary.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  processed: { type: integer }
+                  sent: { type: integer }
+                  errors: { type: integer }
+        '401':
+          $ref: '#/components/schemas/Error'
+        '500':
+          $ref: '#/components/schemas/Error'
+
+  # ═══════════════════════════════════════════════════════════════════
+  # GROUP 4: Admin endpoints (requireAdmin)
+  # ═══════════════════════════════════════════════════════════════════
+
+  /api/admin/auth:
+    post:
+      tags: [Admin]
+      summary: Admin login
+      description: |
+        Authenticates an admin user (email + password + optional 2FA
+        PIN). On success, issues a `cinelog_admin` HS256 JWT cookie
+        and writes to `login_history`.
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email: { type: string, format: email }
+                password: { type: string }
+                pin: { type: string, description: '6-digit 2FA PIN (if 2FA enabled)' }
+              required: [email, password]
+      responses:
+        '200':
+          description: Admin session established (cookie set).
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  ok: { type: boolean }
+                  requiresTwoFactor: { type: boolean }
+        '401':
+          $ref: '#/components/schemas/Error'
+        '429':
+          $ref: '#/components/schemas/Error'
+    delete:
+      tags: [Admin]
+      summary: Admin logout
+      description: Clears the `cinelog_admin` cookie.
+      security:
+        - adminCookie: []
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    get:
+      tags: [Admin]
+      summary: Admin session check
+      description: |
+        Returns whether the current `cinelog_admin` cookie is valid
+        (calls requireAdmin internally). Used by the admin UI to
+        gate the shell.
+      security:
+        - adminCookie: []
+      responses:
+        '200':
+          description: Session valid.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  authenticated: { type: boolean }
+                  user: { type: object }
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/admin/users:
+    get:
+      tags: [Admin]
+      summary: List all users
+      description: |
+        Returns a paginated list of users with their profile summary.
+        Calls `get_user_email` RPC per visible user (N+1 risk,
+        mitigated by Promise.all).
+      security:
+        - adminCookie: []
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+        - name: search
+          in: query
+          schema: { type: string }
+      responses:
+        '200':
+          description: Paginated user list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  users: { type: array, items: { type: object } }
+                  total: { type: integer }
+        '401':
+          $ref: '#/components/schemas/Error'
+    patch:
+      tags: [Admin]
+      summary: Update a user
+      description: |
+        Updates a user's profile (e.g. toggle `is_admin`, disable,
+        reset display_name). Every mutation is audit-logged to
+        `admin_actions`.
+      security:
+        - adminCookie: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                userId: { type: string, format: uuid }
+                changes: { type: object }
+              required: [userId, changes]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'
+        '403':
+          $ref: '#/components/schemas/Error'
+
+  /api/admin/content:
+    get:
+      tags: [Admin]
+      summary: List featured content
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Array of featured content.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      summary: Create featured content
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Created content.
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      tags: [Admin]
+      summary: Update featured content
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      summary: Delete featured content
+      security: [adminCookie: []]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/collections:
+    get:
+      tags: [Admin]
+      summary: List all collections (admin view)
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Array of collections.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      summary: Create a curated collection
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Created collection.
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      tags: [Admin]
+      summary: Update a collection
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      summary: Delete a collection
+      security: [adminCookie: []]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/collections/entries:
+    get:
+      tags: [Admin]
+      summary: List entries in a collection
+      security: [adminCookie: []]
+      parameters:
+        - name: collectionId
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          description: Array of entries.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      summary: Add an entry to a collection
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Created entry.
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      tags: [Admin]
+      summary: Update a collection entry
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      summary: Remove an entry from a collection
+      security: [adminCookie: []]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/announcements:
+    get:
+      tags: [Admin]
+      summary: List all announcements (incl. inactive)
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Array of announcements.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      summary: Create an announcement
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          description: Created announcement.
+          content:
+            application/json:
+              schema: { type: object }
+    patch:
+      tags: [Admin]
+      summary: Update an announcement
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      summary: Delete an announcement
+      security: [adminCookie: []]
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/feature-flags:
+    get:
+      tags: [Admin]
+      summary: List all feature flags (incl. admin-only)
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Feature flag map.
+          content:
+            application/json:
+              schema:
+                type: object
+                additionalProperties: { type: boolean }
+    put:
+      tags: [Admin]
+      summary: Update feature flags
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: { type: boolean }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/settings:
+    get:
+      tags: [Admin]
+      summary: Read app settings
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: App settings object.
+          content:
+            application/json:
+              schema: { type: object }
+    put:
+      tags: [Admin]
+      summary: Update app settings
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/homepage:
+    get:
+      tags: [Admin]
+      summary: Read homepage configuration (admin view)
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Homepage config.
+          content:
+            application/json:
+              schema: { type: object }
+    put:
+      tags: [Admin]
+      summary: Update homepage configuration
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/analytics:
+    get:
+      tags: [Admin]
+      summary: Admin analytics dashboard data
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Analytics aggregates.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/admin/stats:
+    get:
+      tags: [Admin]
+      summary: System statistics (admin view)
+      description: |
+        Returns system-level stats (user counts, vault counts,
+        collection counts, etc.) for the admin dashboard.
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: System stats.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/admin/logs:
+    get:
+      tags: [Admin]
+      summary: Admin audit logs
+      description: |
+        Returns entries from `admin_actions` (append-only) and
+        `maintenance_runs`. Paginated.
+      security: [adminCookie: []]
+      parameters:
+        - name: page
+          in: query
+          schema: { type: integer, default: 1 }
+        - name: limit
+          in: query
+          schema: { type: integer, default: 50 }
+      responses:
+        '200':
+          description: Paginated audit logs.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  logs: { type: array, items: { type: object } }
+                  total: { type: integer }
+
+  /api/admin/maintenance:
+    get:
+      tags: [Admin]
+      summary: Maintenance status + history
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Maintenance status.
+          content:
+            application/json:
+              schema: { type: object }
+    post:
+      tags: [Admin]
+      summary: Trigger a maintenance operation
+      description: |
+        Runs a maintenance operation (e.g. purge soft-deleted vault
+        items, recompute stats, clear TMDB cache). The operation is
+        audit-logged to `maintenance_runs`.
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                operation: { type: string }
+              required: [operation]
+      responses:
+        '200':
+          description: Operation result.
+          content:
+            application/json:
+              schema: { type: object }
+
+  /api/admin/tmdb-cache:
+    get:
+      tags: [Admin]
+      summary: List TMDB cache entries (admin view)
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Array of cache entries.
+          content:
+            application/json:
+              schema: { type: array, items: { type: object } }
+    post:
+      tags: [Admin]
+      summary: Manually refresh a TMDB cache entry
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                key: { type: string }
+              required: [key]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+    delete:
+      tags: [Admin]
+      summary: Invalidate a TMDB cache entry
+      security: [adminCookie: []]
+      parameters:
+        - name: key
+          in: query
+          required: true
+          schema: { type: string }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/anime-settings:
+    get:
+      tags: [Admin]
+      summary: Read full anime settings (admin view)
+      description: |
+        Returns the full `anime_settings` row including fields not
+        exposed by the public `/api/anime-settings` endpoint.
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: Full anime settings.
+          content:
+            application/json:
+              schema: { type: object }
+    put:
+      tags: [Admin]
+      summary: Update anime settings
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { type: object }
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+
+  /api/admin/2fa/status:
+    get:
+      tags: [Admin]
+      summary: 2FA enrollment status
+      description: |
+        Returns whether the current admin has 2FA enabled, and if so,
+        the timestamp of enrollment.
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: 2FA status.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  enabled: { type: boolean }
+                  enrolledAt: { type: string, format: date-time, nullable: true }
+
+  /api/admin/2fa/enroll:
+    post:
+      tags: [Admin]
+      summary: Enroll in 2FA
+      description: |
+        Generates a TOTP secret + QR code for the admin to scan with
+        their authenticator app. The secret is stored encrypted; the
+        QR code is returned for immediate display.
+      security: [adminCookie: []]
+      responses:
+        '200':
+          description: TOTP secret + QR code data URL.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  secret: { type: string }
+                  qrCode: { type: string, description: 'data:image/png;base64,...' }
+
+  /api/admin/2fa/verify:
+    post:
+      tags: [Admin]
+      summary: Verify a 2FA enrollment
+      description: |
+        Verifies a 6-digit PIN against the pending TOTP secret. On
+        success, marks 2FA as enabled for the admin.
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pin: { type: string, description: '6-digit TOTP code' }
+              required: [pin]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'
+
+  /api/admin/2fa/disable:
+    post:
+      tags: [Admin]
+      summary: Disable 2FA
+      description: |
+        Disables 2FA for the current admin. Requires the current PIN
+        to be provided (re-verification).
+      security: [adminCookie: []]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pin: { type: string }
+              required: [pin]
+      responses:
+        '200':
+          $ref: '#/components/schemas/OkResponse'
+        '401':
+          $ref: '#/components/schemas/Error'

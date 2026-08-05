@@ -1,5 +1,16 @@
 // src/entry-server.tsx
 import { createHandler, StartServer } from "@solidjs/start/server";
+// Phase 8 Chunk 1 — Sentry server wrapper.
+//
+// Importing this module has a top-level side effect: it calls
+// `initSentry()` at module load. This is INTENTIONAL — `@sentry/node`
+// v8+ uses OpenTelemetry under the hood and must hook Node's http/https
+// modules BEFORE any outgoing request is made, or trace context is lost.
+// Importing it here (at the top of entry-server) guarantees it runs
+// before any SSR fetch.
+//
+// `captureException` is the only export we consume below.
+import { captureException } from "~/lib/sentry/server";
 
 // ── Global unhandled rejection handler ────────────────────────────
 //
@@ -18,6 +29,14 @@ import { createHandler, StartServer } from "@solidjs/start/server";
 // invocation, so a crash only affects that one request. But on
 // Node-server deployments (and local testing), a crash takes down
 // the entire server. This handler ensures stability in both cases.
+//
+// Phase 8 Chunk 1 — non-TMDB rejections are now ALSO forwarded to
+// Sentry via captureException(). The TMDB-suppression logic is
+// preserved (TMDB 401s / fetch errors are not sent to Sentry because
+// the server-side `beforeSend` in src/lib/sentry/server.ts also filters
+// them, but we additionally skip the captureException call entirely
+// for those to avoid the overhead of constructing an event that
+// `beforeSend` will discard).
 if (typeof process !== "undefined") {
   process.on("unhandledRejection", (reason) => {
     const msg = reason instanceof Error ? reason.message : String(reason);
@@ -34,6 +53,13 @@ if (typeof process !== "undefined") {
       console.warn("[SSR] Suppressed API error (non-fatal):", msg);
     } else {
       console.error("[SSR] Unhandled rejection:", reason);
+      // Forward genuine (non-TMDB) rejections to Sentry for production
+      // monitoring. captureException falls back to console.error when
+      // Sentry is not configured (dev, tests, missing DSN), so this
+      // is a no-op in those environments.
+      captureException(reason, {
+        source: "ssr-unhandled-rejection"
+      });
     }
   });
 }

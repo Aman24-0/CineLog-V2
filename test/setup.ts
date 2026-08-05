@@ -16,6 +16,7 @@
 
 import "@testing-library/jest-dom/vitest";
 import { vi, afterEach, beforeEach } from "vitest";
+import { resetModuleState } from "./resetModuleState";
 
 // ─────────────────────────────────────────────────────────────────────
 // 1. Browser API mocks
@@ -90,6 +91,18 @@ beforeEach(() => {
   if (typeof sessionStorage !== "undefined") {
     sessionStorage.clear();
   }
+
+  // Phase 8 Chunk 1 — reset module-level Solid signals.
+  //
+  // Vitest reuses the same module instance per worker, so signals held at
+  // module scope (useToast, useModalState, useCollectionModal, useAuthModal)
+  // persist across tests. This call clears them to their initial values so
+  // every test starts with a clean UI-state slate.
+  //
+  // Runs AFTER localStorage.clear() so any signal that rehydrates from
+  // localStorage on first read (none currently do, but defensive) sees
+  // the cleared storage, not the previous test's.
+  resetModuleState();
 });
 
 // ─────────────────────────────────────────────────────────────────────
