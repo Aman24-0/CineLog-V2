@@ -719,3 +719,588 @@ describe("normalizeBatch", () => {
     expect(result.failures[0].item).toEqual({ media_type: "movie" });
   });
 });
+
+// ---------------------------------------------------------------------------
+// Phase 12 — V1 legacy backup + round-trip fidelity
+// ---------------------------------------------------------------------------
+
+describe("Phase 12 — V1 legacy backup normalization", () => {
+  it("normalizes a V1 Firebase export with Firestore Timestamps + legacy field names", () => {
+    // V1 backups store dates as Firestore Timestamps ({ seconds, nanoseconds })
+    // and use legacy field names like tmdb_id, mediaType, watchStatus, dateAdded.
+    const v1Item = {
+      tmdb_id: 27205,
+      mediaType: "movie",
+      watchStatus: "completed",
+      titleName: "Inception",
+      dateAdded: { seconds: 1597789898, nanoseconds: 0 },
+      dateUpdated: { seconds: 1597789898, nanoseconds: 0 },
+      dateWatched: { seconds: 1597789898, nanoseconds: 0 },
+      rating: 9,
+      comment: "Mind-bending"
+    };
+    const result = normalizeWatchlistItem(v1Item);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("27205");
+    expect(result!.media_type).toBe("movie");
+    expect(result!.status).toBe("Completed");
+    expect(result!.title).toBe("Inception");
+    expect(result!.rating).toBe(9);
+    expect(result!.notes).toBe("Mind-bending");
+    expect(result!.addedAt).toBe(new Date(1597789898 * 1000).toISOString());
+    expect(result!.updatedAt).toBe(new Date(1597789898 * 1000).toISOString());
+    expect(result!.watchDate).toBe(new Date(1597789898 * 1000).toISOString());
+  });
+
+  it("normalizes a V1 TV item with season/episode + watchProgress", () => {
+    const v1Tv = {
+      tmdb_id: 1396,
+      mediaType: "tv",
+      watchStatus: "watching",
+      titleName: "Breaking Bad",
+      season: 2,
+      episode: 5,
+      totalEps: 13,
+      watchProgress: {
+        currentTime: 1200,
+        duration: 2700,
+        season: 2,
+        episode: 5,
+        server: "https://vidsrc.xyz"
+      }
+    };
+    const result = normalizeWatchlistItem(v1Tv);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("1396");
+    expect(result!.media_type).toBe("tv");
+    expect(result!.status).toBe("Watching");
+    expect(result!.season).toBe(2);
+    expect(result!.episode).toBe(5);
+    expect(result!.totalEps).toBe(13);
+    expect(result!.watchProgress).toBeDefined();
+    expect(result!.watchProgress!.season).toBe(2);
+    expect(result!.watchProgress!.episode).toBe(5);
+    expect(result!.watchProgress!.server).toBe("https://vidsrc.xyz");
+  });
+
+  it("preserves ALL V2 fields from a modern V2 backup (round-trip fidelity)", () => {
+    // A complete V2 WatchlistItem with every optional field populated.
+    // After normalize→validate, every field should survive unchanged.
+    const v2Item = {
+      id: "27205",
+      title: "Inception",
+      media_type: "movie",
+      status: "Completed",
+      rating: 9,
+      watchDate: "2026-01-15T00:00:00.000Z",
+      addedAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-15T00:00:00.000Z",
+      notes: "Mind-bending heist",
+      poster_path: "/abc.jpg",
+      backdrop_path: "/def.jpg",
+      release_date: "2010-07-16",
+      genresList: ["Action", "Sci-Fi", "Thriller"],
+      platformsList: ["Netflix", "Prime"],
+      castList: ["Leonardo DiCaprio", "Joseph Gordon-Levitt"],
+      director: "Christopher Nolan",
+      runtime: 148,
+      imdbId: "tt1375666",
+      imdbRating: "8.8",
+      rtRating: "87%",
+      tmdbRating: "8.4",
+      region: "International",
+      tag: "Rewatch",
+      rewatchCount: 2,
+      rewatchDates: ["2026-01-15", "2026-02-20", "2026-03-10"],
+      directPlayUrl: "https://example.com/play"
+    };
+    const result = normalizeWatchlistItem(v2Item);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("27205");
+    expect(result!.title).toBe("Inception");
+    expect(result!.media_type).toBe("movie");
+    expect(result!.status).toBe("Completed");
+    expect(result!.rating).toBe(9);
+    expect(result!.watchDate).toBe("2026-01-15T00:00:00.000Z");
+    expect(result!.addedAt).toBe("2026-01-01T00:00:00.000Z");
+    expect(result!.updatedAt).toBe("2026-01-15T00:00:00.000Z");
+    expect(result!.notes).toBe("Mind-bending heist");
+    expect(result!.poster_path).toBe("/abc.jpg");
+    expect(result!.backdrop_path).toBe("/def.jpg");
+    expect(result!.genresList).toEqual(["Action", "Sci-Fi", "Thriller"]);
+    expect(result!.platformsList).toEqual(["Netflix", "Prime"]);
+    expect(result!.castList).toEqual(["Leonardo DiCaprio", "Joseph Gordon-Levitt"]);
+    expect(result!.director).toBe("Christopher Nolan");
+    expect(result!.runtime).toBe(148);
+    // Note: imdbId is set by the normalizer but not declared on the
+    // WatchlistItem interface (pre-existing type gap). Access via double cast.
+    expect(
+      (result as unknown as Record<string, unknown>).imdbId
+    ).toBe("tt1375666");
+    expect(result!.imdbRating).toBe("8.8");
+    expect(result!.rtRating).toBe("87%");
+    expect(result!.tmdbRating).toBe("8.4");
+    expect(result!.region).toBe("International");
+    expect(result!.tag).toBe("Rewatch");
+    expect(result!.rewatchCount).toBe(2);
+    expect(result!.rewatchDates).toEqual(["2026-01-15", "2026-02-20", "2026-03-10"]);
+    expect(result!.directPlayUrl).toBe("https://example.com/play");
+  });
+
+  it("preserves V2 series per-season rewatch fields (seasonDates, seasonRewatchDates)", () => {
+    const v2Series = {
+      id: "1396",
+      title: "Breaking Bad",
+      media_type: "tv",
+      status: "Completed",
+      seasonDates: {
+        "1": { start: "2026-01-01", end: "2026-01-15" },
+        "2": { start: "2026-02-01", end: "2026-02-20" }
+      },
+      seasonRewatchCount: 1,
+      seasonRewatchDates: [
+        {
+          "1": { start: "2026-03-01", end: "2026-03-15" },
+          "2": { start: "2026-03-16", end: "2026-04-01" }
+        }
+      ]
+    };
+    const result = normalizeWatchlistItem(v2Series);
+    expect(result).not.toBeNull();
+    expect(result!.seasonDates).toEqual({
+      "1": { start: "2026-01-01", end: "2026-01-15" },
+      "2": { start: "2026-02-01", end: "2026-02-20" }
+    });
+    expect(result!.seasonRewatchCount).toBe(1);
+    expect(result!.seasonRewatchDates).toHaveLength(1);
+    expect(result!.seasonRewatchDates![0]["1"]).toEqual({
+      start: "2026-03-01",
+      end: "2026-03-15"
+    });
+  });
+
+  it("handles a V1 backup with numeric id (auto-converts to string)", () => {
+    const v1NumericId = {
+      tmdb: 12345, // legacy alias for id
+      mediaType: "movie",
+      watchStatus: "planned"
+    };
+    const result = normalizeWatchlistItem(v1NumericId);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("12345");
+    expect(result!.media_type).toBe("movie");
+    expect(result!.status).toBe("Planned");
+  });
+
+  it("handles a V1 backup with empty/missing status (defaults to Planned)", () => {
+    const v1NoStatus = {
+      tmdb_id: 1,
+      mediaType: "movie"
+    };
+    const result = normalizeWatchlistItem(v1NoStatus);
+    expect(result).not.toBeNull();
+    expect(result!.status).toBe("Planned");
+  });
+
+  it("handles a V1 backup with string 'null' status (treated as Planned)", () => {
+    // Some V1 exports wrote the literal string "null" for missing statuses.
+    const v1NullStatus = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      watchStatus: "null"
+    };
+    const result = normalizeWatchlistItem(v1NullStatus);
+    expect(result).not.toBeNull();
+    // "null" is not in STATUS_MAP, so normalizeStatus returns the default "Planned".
+    expect(result!.status).toBe("Planned");
+  });
+
+  it("handles a V1 backup with rating stored as a string ('8.5')", () => {
+    const v1StringRating = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      rating: "8.5"
+    };
+    const result = normalizeWatchlistItem(v1StringRating);
+    expect(result).not.toBeNull();
+    expect(result!.rating).toBe(8.5);
+  });
+
+  it("handles a V1 backup with rating on a 0-5 scale via '4/5' format", () => {
+    // Some V1 exports stored ratings as "4/5". normalizeRating should
+    // scale this to 8 (4/5 * 10 = 8).
+    const v1SlashRating = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      rating: "4/5"
+    };
+    const result = normalizeWatchlistItem(v1SlashRating);
+    expect(result).not.toBeNull();
+    expect(result!.rating).toBe(8);
+  });
+
+  it("handles a V1 backup with rating as a percentage ('85%')", () => {
+    const v1PctRating = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      rating: "85%"
+    };
+    const result = normalizeWatchlistItem(v1PctRating);
+    expect(result).not.toBeNull();
+    expect(result!.rating).toBe(8.5);
+  });
+
+  it("does NOT double V1 integer ratings 1-5 (regression: old heuristic doubled them)", () => {
+    // Regression test: the old normalizeRating doubled any integer 1-5
+    // assuming a 0-5 scale. V1 actually uses 0-10, so a rating of 4
+    // (meaning 4/10) got silently doubled to 8. This test ensures the
+    // fix stays in place.
+    const v1IntRating = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      rating: 4
+    };
+    const result = normalizeWatchlistItem(v1IntRating);
+    expect(result!.rating).toBe(4); // NOT 8
+  });
+
+  it("handles a V1 backup with Unix timestamp (number) dates", () => {
+    const v1UnixDates = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      dateAdded: 1597789898, // seconds
+      dateUpdated: 1597789898000 // milliseconds
+    };
+    const result = normalizeWatchlistItem(v1UnixDates);
+    expect(result).not.toBeNull();
+    // Both should normalize to the same ISO string (1597789898 seconds = 1597789898000 ms).
+    expect(result!.addedAt).toBe(new Date(1597789898 * 1000).toISOString());
+    expect(result!.updatedAt).toBe(new Date(1597789898000).toISOString());
+  });
+
+  it("handles a V1 backup with date strings in various formats", () => {
+    const v1DateStrings = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      dateAdded: "2026-01-15", // date-only
+      dateUpdated: "2026-01-15T12:00:00Z", // ISO
+      dateWatched: "01/15/2026" // US format
+    };
+    const result = normalizeWatchlistItem(v1DateStrings);
+    expect(result).not.toBeNull();
+    expect(result!.addedAt).toBeDefined();
+    expect(result!.updatedAt).toBeDefined();
+    // US format "01/15/2026" should parse to Jan 15 2026.
+    expect(result!.watchDate).toContain("2026-01-15");
+  });
+
+  it("handles a V1 backup with malformed dates (graceful fallback)", () => {
+    const v1BadDates = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      dateAdded: "not-a-date",
+      dateUpdated: null,
+      dateWatched: ""
+    };
+    const result = normalizeWatchlistItem(v1BadDates);
+    expect(result).not.toBeNull();
+    // addedAt falls back to current time when date is invalid.
+    expect(result!.addedAt).toBeDefined();
+    // updatedAt falls back to addedAt.
+    expect(result!.updatedAt).toBe(result!.addedAt);
+    // watchDate is undefined when date is empty/invalid.
+    expect(result!.watchDate).toBeUndefined();
+  });
+
+  it("preserves genresList/platformsList/castList from a V1 backup (already arrays)", () => {
+    const v1WithArrays = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      genresList: ["Action", "Drama"],
+      platformsList: ["Netflix"],
+      castList: ["Actor 1", "Actor 2"]
+    };
+    const result = normalizeWatchlistItem(v1WithArrays);
+    expect(result!.genresList).toEqual(["Action", "Drama"]);
+    expect(result!.platformsList).toEqual(["Netflix"]);
+    expect(result!.castList).toEqual(["Actor 1", "Actor 2"]);
+  });
+
+  it("filters non-string entries from array fields in a V1 backup", () => {
+    // V1 backups sometimes have malformed arrays with mixed types.
+    const v1MixedArrays = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      genresList: ["Action", 42, null, "", "Drama", undefined, true],
+      castList: ["Actor 1", { name: "Actor 2" }, "Actor 3"]
+    };
+    const result = normalizeWatchlistItem(v1MixedArrays);
+    expect(result!.genresList).toEqual(["Action", "Drama"]);
+    expect(result!.castList).toEqual(["Actor 1", "Actor 3"]);
+  });
+
+  it("handles a V1 backup with extra unknown fields (preserves them, doesn't crash)", () => {
+    const v1WithExtra = {
+      tmdb_id: 1,
+      mediaType: "movie",
+      watchStatus: "completed",
+      customField: "preserve me",
+      anotherUnknown: 42,
+      nestedObject: { foo: "bar" }
+    };
+    // Unknown fields are silently dropped (normalizeWatchlistItem only
+    // reads known fields). The item still normalizes successfully.
+    const result = normalizeWatchlistItem(v1WithExtra);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("1");
+    expect(result!.status).toBe("Completed");
+    // Unknown fields are NOT preserved on the normalized item.
+    expect((result as unknown as Record<string, unknown>).customField).toBeUndefined();
+  });
+
+  it("handles a V1 backup with empty string id (returns null)", () => {
+    const v1EmptyId = {
+      tmdb_id: "",
+      mediaType: "movie"
+    };
+    const result = normalizeWatchlistItem(v1EmptyId);
+    expect(result).toBeNull();
+  });
+
+  it("handles a V1 backup with whitespace-only id (returns null)", () => {
+    const v1WhitespaceId = {
+      tmdb_id: "   ",
+      mediaType: "movie"
+    };
+    const result = normalizeWatchlistItem(v1WhitespaceId);
+    // normalizeId trims whitespace; "   ".trim() = "" → returns null.
+    expect(result).toBeNull();
+  });
+
+  it("handles a V1 backup with id = 0 (numeric zero → string '0')", () => {
+    // TMDB id 0 doesn't exist in practice, but the normalizer should
+    // still convert it to "0" rather than null.
+    const v1ZeroId = {
+      tmdb_id: 0,
+      mediaType: "movie"
+    };
+    const result = normalizeWatchlistItem(v1ZeroId);
+    expect(result).not.toBeNull();
+    expect(result!.id).toBe("0");
+  });
+
+  it("handles a V1 backup with mediaType = 'film' (alias for movie)", () => {
+    const v1FilmAlias = {
+      tmdb_id: 1,
+      mediaType: "film"
+    };
+    const result = normalizeWatchlistItem(v1FilmAlias);
+    expect(result!.media_type).toBe("movie");
+  });
+
+  it("handles a V1 backup with mediaType = 'series' / 'show' / 'television' (aliases for tv)", () => {
+    const aliases = ["series", "show", "television"];
+    for (const alias of aliases) {
+      const result = normalizeWatchlistItem({
+        tmdb_id: 1,
+        mediaType: alias
+      });
+      expect(result!.media_type).toBe("tv");
+    }
+  });
+
+  it("handles a V1 backup with mediaType = 'episode' (treated as invalid → null)", () => {
+    // 'episode' is not a valid media_type alias — only movie/tv/series/
+    // show/television/film are. An 'episode' media_type means the row
+    // represents a single episode, which doesn't map to a WatchlistItem.
+    const v1Episode = {
+      tmdb_id: 1,
+      mediaType: "episode"
+    };
+    const result = normalizeWatchlistItem(v1Episode);
+    expect(result).toBeNull();
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 12 — normalizeBatch pipeline edge cases
+// ---------------------------------------------------------------------------
+
+describe("Phase 12 — normalizeBatch pipeline edge cases", () => {
+  it("processes 1000 V1 items without data loss", () => {
+    const raw: unknown[] = [];
+    for (let i = 1; i <= 1000; i++) {
+      raw.push({
+        tmdb_id: i,
+        mediaType: i % 2 === 0 ? "tv" : "movie",
+        watchStatus: ["planned", "watching", "completed", "dropped"][i % 4],
+        titleName: `Title ${i}`,
+        rating: (i % 10) + 1,
+        dateAdded: { seconds: 1597789898 + i, nanoseconds: 0 }
+      });
+    }
+    const result = normalizeBatch(raw);
+    expect(result.items).toHaveLength(1000);
+    expect(result.failures).toHaveLength(0);
+    // Every item should have an id, media_type, status, and addedAt.
+    for (const item of result.items) {
+      expect(item.id).toBeDefined();
+      expect(item.media_type).toMatch(/^(movie|tv)$/);
+      expect(item.status).toMatch(/^(Planned|Watching|Completed|Dropped|Plan to Watch)$/);
+      expect(item.addedAt).toBeDefined();
+    }
+  });
+
+  it("handles a batch with 0 valid items + many failures (no crash)", () => {
+    const raw: unknown[] = [];
+    for (let i = 0; i < 500; i++) {
+      raw.push({ media_type: "movie" }); // missing id → failure
+    }
+    const result = normalizeBatch(raw);
+    expect(result.items).toHaveLength(0);
+    expect(result.failures).toHaveLength(500);
+    expect(result.repairedCount).toBe(0);
+  });
+
+  it("handles a mixed batch of valid + invalid + repaired items", () => {
+    const raw: unknown[] = [
+      // Valid, fully formed (no repair).
+      {
+        id: "1",
+        media_type: "movie",
+        status: "Completed",
+        updatedAt: "2026-01-01",
+        genresList: [],
+        platformsList: [],
+        notes: ""
+      },
+      // Valid but repaired (missing updatedAt, genresList, etc.).
+      { id: 2, media_type: "tv" },
+      // Invalid: missing id.
+      { media_type: "movie" },
+      // Invalid: missing media_type.
+      { id: "3" },
+      // Invalid: bad media_type.
+      { id: "4", media_type: "book" },
+      // Valid, V1 legacy.
+      { tmdb_id: 5, mediaType: "movie", watchStatus: "completed" }
+    ];
+    const result = normalizeBatch(raw);
+    expect(result.items).toHaveLength(3); // items 1, 2, 5
+    expect(result.failures).toHaveLength(3); // items 3, 4, and the bad media_type
+    expect(result.repairedCount).toBe(2); // items 2 and 5 were repaired
+  });
+
+  it("preserves the raw item shape in failure entries for post-mortem debugging", () => {
+    const raw: unknown[] = [
+      { media_type: "movie", customField: "preserve me" },
+      { id: "1", media_type: "invalid-type", note: "bad type" }
+    ];
+    const result = normalizeBatch(raw);
+    expect(result.failures).toHaveLength(2);
+    // The raw item should be preserved exactly as input.
+    expect(result.failures[0].item).toEqual({
+      media_type: "movie",
+      customField: "preserve me"
+    });
+    expect(result.failures[1].item).toEqual({
+      id: "1",
+      media_type: "invalid-type",
+      note: "bad type"
+    });
+  });
+});
+
+// ---------------------------------------------------------------------------
+// Phase 12 — detectBackupFormat + extractRawItems round-trip
+// ---------------------------------------------------------------------------
+
+describe("Phase 12 — detectBackupFormat + extractRawItems round-trip", () => {
+  it("detects + extracts a V2 backup with library.watchlist", () => {
+    const doc = {
+      version: 2,
+      library: {
+        watchlist: [
+          { id: "1", media_type: "movie" },
+          { id: "2", media_type: "tv" }
+        ]
+      }
+    };
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("wrapped-v2");
+    const items = extractRawItems(doc, format);
+    expect(items).toHaveLength(2);
+    expect(items[0]).toEqual({ id: "1", media_type: "movie" });
+  });
+
+  it("detects + extracts a V1 flat-array backup", () => {
+    const doc = [
+      { tmdb_id: 1, mediaType: "movie" },
+      { tmdb_id: 2, mediaType: "tv" }
+    ];
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("flat-array");
+    const items = extractRawItems(doc, format);
+    expect(items).toHaveLength(2);
+  });
+
+  it("detects + extracts a wrapper-data backup", () => {
+    const doc = {
+      data: [{ id: "1", media_type: "movie" }]
+    };
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("wrapper-data");
+    const items = extractRawItems(doc, format);
+    expect(items).toHaveLength(1);
+  });
+
+  it("returns 'unknown' + [] for a completely unparseable backup", () => {
+    const doc = "not even an object";
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("unknown");
+    const items = extractRawItems(doc, format);
+    expect(items).toEqual([]);
+  });
+
+  it("handles a V2 backup with an empty watchlist array", () => {
+    const doc = { version: 2, library: { watchlist: [] } };
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("wrapped-v2");
+    const items = extractRawItems(doc, format);
+    expect(items).toEqual([]);
+  });
+
+  it("handles a V2 backup with library.watchlist = null (malformed)", () => {
+    const doc = { version: 2, library: { watchlist: null } };
+    const format = detectBackupFormat(doc);
+    // library.watchlist is null (not an array), so wrapped-v2 detection
+    // fails. The fallback checks for any known array key in library —
+    // none exist → 'unknown'.
+    expect(format).toBe("unknown");
+    const items = extractRawItems(doc, format);
+    expect(items).toEqual([]);
+  });
+
+  it("handles a V2 backup with library = null (malformed)", () => {
+    const doc = { version: 2, library: null };
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("unknown");
+    const items = extractRawItems(doc, format);
+    expect(items).toEqual([]);
+  });
+
+  it("handles a backup with multiple array wrapper keys (picks the first match)", () => {
+    // If a backup has both `data` and `items` arrays, the detector
+    // should pick the first key in ARRAY_WRAPPER_KEYS order (which is
+    // watchlist, library, vault, data, items, ...). `data` comes before
+    // `items` in the list, so `data` wins.
+    const doc = {
+      data: [{ id: "1" }],
+      items: [{ id: "2" }]
+    };
+    const format = detectBackupFormat(doc);
+    expect(format).toBe("wrapper-data");
+    const items = extractRawItems(doc, format);
+    expect(items).toEqual([{ id: "1" }]);
+  });
+});

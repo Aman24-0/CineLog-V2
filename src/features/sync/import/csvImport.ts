@@ -304,8 +304,13 @@ function mapRowToCandidate(
     if (!title) return null;
     const year = row["Year"] || row["year"] || undefined;
     const typeStr = (row["Type"] || row["type"] || "movie").toLowerCase();
+    // Phase 12: 'episode' is also a TV type — Trakt episode-level exports
+    // use Type=episode for individual TV episodes. Without this, episode
+    // rows were silently misclassified as movies, losing their TV identity.
     const media_type: "movie" | "tv" =
-      typeStr === "show" || typeStr === "tv" ? "tv" : "movie";
+      typeStr === "show" || typeStr === "tv" || typeStr === "episode"
+        ? "tv"
+        : "movie";
     const ratingStr = row["Rating"] || row["rating"];
     const rating = ratingStr ? Number(ratingStr) : undefined;
     const watchedAt = row["WatchedAt"] || row["watchedat"];
