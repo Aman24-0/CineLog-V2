@@ -1,0 +1,1257 @@
+/* src/styles/features/landing.css — Phase 11
+   Landing Page & Marketing Site
+
+   A cinematic, glassmorphic marketing surface. The page is rendered
+   at `/` for logged-out users (see src/routes/index.tsx). AppShell
+   detects the `/` path and bypasses the consumer chrome (AppHeader,
+   BottomNavigation, DesktopSidebar, AnnouncementsBanner) so the
+   LandingPage has a clean canvas. AuthModal + ToastContainer remain
+   mounted by AppShell so the marketing CTAs work.
+
+   Design language:
+   - Full-bleed cinematic hero with TMDB backdrop + warm gradient.
+   - Glass cards (GlassCard variant="glass-strong") for feature pillars.
+   - Cinema gold (--p) accent throughout, with secondary purple/cyan
+     accents per feature card to add visual variety.
+   - Mobile-first: collapses to a single column on small screens,
+     scales to 3-column grids on desktop, and centers content on
+     ultra-wide monitors with max-width constraints.
+
+   Motion:
+   - Uses existing motion tokens (--transition-base, --transition-page,
+     --ease-smooth, --dur-page) for consistency with the rest of the app.
+   - Uses the existing .animate-fade-up keyframe class for staggered
+     entrance animations.
+   - All animations respect prefers-reduced-motion via base.css.
+*/
+
+/* ============================================================
+   ROOT
+   ============================================================ */
+
+.landing-page {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  background: var(--void);
+  color: var(--text);
+  overflow-x: hidden;
+  /* Smooth scrolling for the "Explore Features" CTA */
+  scroll-behavior: smooth;
+}
+
+/* Respect reduced-motion: disable smooth scroll */
+@media (prefers-reduced-motion: reduce) {
+  .landing-page {
+    scroll-behavior: auto;
+  }
+}
+
+.landing-main {
+  position: relative;
+  z-index: 1;
+}
+
+/* ============================================================
+   STICKY HEADER
+   ============================================================ */
+
+.landing-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 50;
+  /* Transparent by default — over the cinematic hero */
+  background: transparent;
+  border-bottom: 1px solid transparent;
+  transition:
+    background var(--transition-base),
+    backdrop-filter var(--transition-base),
+    border-color var(--transition-base),
+    box-shadow var(--transition-base);
+}
+
+/* Glass background once the user scrolls past the hero's first fold */
+.landing-header--scrolled {
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(20px) saturate(150%);
+  -webkit-backdrop-filter: blur(20px) saturate(150%);
+  border-bottom-color: var(--hairline-2);
+  box-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.4),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+}
+
+.landing-header__inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-4);
+  /* Mobile: tight padding. Desktop: wider padding. */
+  padding: 0.875rem 1rem;
+  max-width: 1400px;
+  margin: 0 auto;
+}
+
+@media (min-width: 640px) {
+  .landing-header__inner {
+    padding: 1rem 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-header__inner {
+    padding: 1.125rem 2rem;
+  }
+}
+
+@media (min-width: 1536px) {
+  .landing-header__inner {
+    max-width: 1600px;
+    padding: 1.25rem 3rem;
+  }
+}
+
+/* ─── Logo ─── */
+
+.landing-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  text-decoration: none;
+  color: var(--text-strong);
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.5rem;
+  letter-spacing: 0.04em;
+  line-height: 1;
+  cursor: pointer;
+  transition: opacity var(--transition-fast);
+}
+
+.landing-logo:hover {
+  opacity: 0.88;
+}
+
+.landing-logo__icon {
+  font-size: 24px !important;
+  color: var(--p);
+  filter: drop-shadow(0 0 8px var(--p-glow));
+}
+
+.landing-logo__text {
+  background: linear-gradient(
+    135deg,
+    var(--text-strong) 0%,
+    var(--p) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* ─── Header CTAs ─── */
+
+.landing-header__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+@media (min-width: 640px) {
+  .landing-header__actions {
+    gap: 0.75rem;
+  }
+}
+
+/* ============================================================
+   HERO SECTION
+   ============================================================ */
+
+.landing-hero {
+  position: relative;
+  min-height: 100vh;
+  min-height: 100svh; /* Mobile-safe viewport */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  overflow: hidden;
+  /* Layered backgrounds — backdrop image is rendered by ::backdrop */
+  isolation: isolate;
+}
+
+/* Backdrop image layer — lazy CSS background */
+.landing-hero__backdrop {
+  position: absolute;
+  inset: 0;
+  background-image: var(--hero-backdrop);
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+  /* Slight scale + blur for cinematic depth */
+  transform: scale(1.05);
+  filter: blur(2px) brightness(0.45);
+  opacity: 0; /* Fade in on load via CSS animation */
+  animation: landingHeroBackdrop 1.2s var(--ease-smooth) 100ms forwards;
+  z-index: -3;
+}
+
+@keyframes landingHeroBackdrop {
+  to {
+    opacity: 1;
+  }
+}
+
+/* Gradient overlay for legibility — darkens the bottom & edges */
+.landing-hero__gradient {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(
+      to bottom,
+      rgba(10, 10, 10, 0.4) 0%,
+      rgba(10, 10, 10, 0.55) 50%,
+      rgba(10, 10, 10, 0.92) 100%
+    ),
+    radial-gradient(
+      ellipse at center,
+      transparent 0%,
+      rgba(10, 10, 10, 0.5) 80%,
+      rgba(10, 10, 10, 0.85) 100%
+    );
+  z-index: -2;
+}
+
+/* Warm gold vignette — adds cinematic warmth */
+.landing-hero__vignette {
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(
+    ellipse at 50% 30%,
+    rgba(232, 183, 74, 0.08) 0%,
+    transparent 60%
+  );
+  z-index: -1;
+  pointer-events: none;
+}
+
+/* ─── Hero Content ─── */
+
+.landing-hero__content {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-5);
+  padding: 6rem 1.25rem 4rem;
+  max-width: 900px;
+  width: 100%;
+}
+
+@media (min-width: 640px) {
+  .landing-hero__content {
+    padding: 7rem 2rem 5rem;
+    gap: var(--sp-6);
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-hero__content {
+    padding: 8rem 2rem 6rem;
+    gap: var(--sp-7);
+  }
+}
+
+/* ─── Eyebrow Badge ─── */
+
+.landing-hero__eyebrow {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  border-radius: 999px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px) saturate(140%);
+  -webkit-backdrop-filter: blur(12px) saturate(140%);
+  border: 1px solid var(--hairline-2);
+  color: var(--p);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  box-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+}
+
+.landing-hero__eyebrow .material-symbols-outlined {
+  color: var(--p);
+}
+
+/* ─── Hero Title ─── */
+
+.landing-hero__title {
+  font-family: "Bebas Neue", cursive;
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.05;
+  /* Responsive typography via clamp() — scales from mobile to ultra-wide */
+  font-size: clamp(2.5rem, 8vw, 6rem);
+  color: var(--text-strong);
+  margin: 0;
+  text-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.6),
+    0 0 60px rgba(232, 183, 74, 0.12);
+}
+
+.landing-hero__title-accent {
+  display: inline-block;
+  background: linear-gradient(
+    135deg,
+    var(--p) 0%,
+    var(--p2) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  /* Subtle gold glow */
+  filter: drop-shadow(0 0 24px var(--p-glow));
+}
+
+/* ─── Hero Subtitle ─── */
+
+.landing-hero__subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(1rem, 2.4vw, 1.375rem);
+  line-height: 1.6;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 640px;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, 0.5);
+}
+
+/* ─── Hero CTAs ─── */
+
+.landing-hero__ctas {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.875rem;
+  margin-top: var(--sp-2);
+}
+
+@media (min-width: 640px) {
+  .landing-hero__ctas {
+    gap: 1rem;
+  }
+}
+
+/* ─── Trust Strip ─── */
+
+.landing-hero__trust {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 1rem 1.5rem;
+  margin-top: var(--sp-4);
+  padding-top: var(--sp-4);
+  border-top: 1px solid var(--hairline-2);
+  width: 100%;
+  max-width: 540px;
+}
+
+.landing-hero__trust-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-soft);
+  font-weight: 500;
+}
+
+/* ─── Scroll Indicator ─── */
+
+.landing-hero__scroll {
+  position: absolute;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--hairline-2);
+  color: var(--text-soft);
+  cursor: pointer;
+  transition:
+    color var(--transition-base),
+    background var(--transition-base),
+    border-color var(--transition-base),
+    transform var(--transition-base);
+  animation: landingScrollBob 2.4s var(--ease-smooth) infinite;
+  z-index: 2;
+}
+
+.landing-hero__scroll:hover {
+  color: var(--p);
+  background: var(--glass-bg-strong);
+  border-color: var(--p-border);
+  transform: translateX(-50%) translateY(-2px);
+}
+
+@keyframes landingScrollBob {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(0);
+  }
+  50% {
+    transform: translateX(-50%) translateY(6px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-hero__scroll {
+    animation: none;
+  }
+}
+
+/* ============================================================
+   SECTION HEADERS (shared)
+   ============================================================ */
+
+.landing-section-header {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.875rem;
+  margin-bottom: var(--sp-10);
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
+  padding: 0 1rem;
+}
+
+@media (min-width: 1024px) {
+  .landing-section-header {
+    gap: 1rem;
+    margin-bottom: var(--sp-12);
+  }
+}
+
+.landing-section-eyebrow {
+  display: inline-block;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--p);
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
+}
+
+.landing-section-title {
+  font-family: "Bebas Neue", cursive;
+  font-weight: 400;
+  font-size: clamp(1.875rem, 4.5vw, 3rem);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.landing-section-subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(0.9375rem, 1.6vw, 1.125rem);
+  line-height: 1.6;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+/* ============================================================
+   FEATURES GRID (3 Core Pillars)
+   ============================================================ */
+
+.landing-features {
+  position: relative;
+  padding: var(--sp-16) 1rem;
+  background:
+    radial-gradient(
+      ellipse at top,
+      rgba(232, 183, 74, 0.04) 0%,
+      transparent 60%
+    ),
+    var(--void);
+}
+
+@media (min-width: 640px) {
+  .landing-features {
+    padding: var(--sp-20) 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-features {
+    padding: var(--sp-24) 2rem;
+  }
+}
+
+.landing-features__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1536px) {
+  .landing-features__inner {
+    max-width: 1400px;
+  }
+}
+
+.landing-features__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1.25rem;
+}
+
+@media (min-width: 640px) {
+  .landing-features__grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-features__grid {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1.75rem;
+  }
+}
+
+/* ─── Feature Card ─── */
+
+.landing-feature-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3);
+  height: 100%;
+  /* Subtle warm border glow on hover */
+  transition:
+    transform var(--transition-base),
+    box-shadow var(--transition-base),
+    border-color var(--transition-base);
+}
+
+.landing-feature-card:hover {
+  transform: translateY(-4px);
+  border-color: var(--p-border) !important;
+  box-shadow:
+    0 12px 40px rgba(0, 0, 0, 0.5),
+    0 0 32px var(--p-glow),
+    inset 0 1px 0 rgba(232, 183, 74, 0.08) !important;
+}
+
+.landing-feature-card__icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  height: 56px;
+  border-radius: var(--radius-lg);
+  margin-bottom: var(--sp-2);
+  /* Default gold accent */
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
+  color: var(--p);
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+}
+
+.landing-feature-card__icon .material-symbols-outlined {
+  font-size: 28px !important;
+}
+
+/* Per-card accent variants */
+.landing-feature-card__icon--gold {
+  background: var(--p-dim);
+  border-color: var(--p-border);
+  color: var(--p);
+}
+
+.landing-feature-card__icon--purple {
+  background: rgba(192, 132, 252, 0.1);
+  border-color: rgba(192, 132, 252, 0.3);
+  color: #c084fc;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(192, 132, 252, 0.1);
+}
+
+.landing-feature-card__icon--cyan {
+  background: rgba(56, 189, 248, 0.1);
+  border-color: rgba(56, 189, 248, 0.3);
+  color: #38bdf8;
+  box-shadow:
+    0 4px 16px rgba(0, 0, 0, 0.3),
+    inset 0 1px 0 rgba(56, 189, 248, 0.1);
+}
+
+.landing-feature-card__title {
+  font-family: "Bebas Neue", cursive;
+  font-weight: 400;
+  font-size: 1.5rem;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0;
+  line-height: 1.2;
+}
+
+.landing-feature-card__body {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.9375rem;
+  line-height: 1.65;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.landing-feature-card__list {
+  list-style: none;
+  padding: 0;
+  margin: var(--sp-2) 0 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.landing-feature-card__list li {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  line-height: 1.5;
+}
+
+.landing-feature-card__list li .material-symbols-outlined {
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   APP PREVIEW SECTION
+   ============================================================ */
+
+.landing-preview {
+  position: relative;
+  padding: var(--sp-16) 1rem;
+  background:
+    radial-gradient(
+      ellipse at center,
+      rgba(192, 132, 252, 0.03) 0%,
+      transparent 60%
+    ),
+    var(--void);
+  overflow: hidden;
+}
+
+@media (min-width: 640px) {
+  .landing-preview {
+    padding: var(--sp-20) 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-preview {
+    padding: var(--sp-24) 2rem;
+  }
+}
+
+.landing-preview__inner {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+@media (min-width: 1536px) {
+  .landing-preview__inner {
+    max-width: 1400px;
+  }
+}
+
+/* ─── Mockup wrapper (contains floating badges + mockup card) ─── */
+
+.landing-preview__mockup-wrap {
+  position: relative;
+  margin-top: var(--sp-8);
+}
+
+/* ─── Floating badges ───
+   Absolutely positioned around the mockup. Hidden on mobile (would
+   overlap the mockup awkwardly), visible from md+ where there's
+   enough whitespace around the mockup. */
+
+.landing-preview__floating-badge {
+  position: absolute;
+  z-index: 3;
+  display: none;
+  animation: landingFloatBadge 4s var(--ease-smooth) infinite;
+}
+
+@media (min-width: 768px) {
+  .landing-preview__floating-badge {
+    display: block;
+  }
+}
+
+.landing-preview__floating-badge--tl {
+  top: -16px;
+  left: -16px;
+  animation-delay: 0s;
+}
+
+.landing-preview__floating-badge--tr {
+  top: -16px;
+  right: -16px;
+  animation-delay: 1s;
+}
+
+.landing-preview__floating-badge--bl {
+  bottom: -16px;
+  left: -16px;
+  animation-delay: 2s;
+}
+
+.landing-preview__floating-badge--br {
+  bottom: -16px;
+  right: -16px;
+  animation-delay: 3s;
+}
+
+@keyframes landingFloatBadge {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-preview__floating-badge {
+    animation: none;
+  }
+}
+
+/* ─── Mockup card ─── */
+
+.landing-preview__mockup {
+  position: relative;
+  z-index: 2;
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.6),
+    0 0 0 1px var(--hairline-2),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+}
+
+/* Mock browser chrome — top bar with traffic lights + URL pill */
+.landing-preview__chrome {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  background: var(--tier-2);
+  border-bottom: 1px solid var(--hairline-2);
+}
+
+.landing-preview__dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background: var(--tier-4);
+}
+
+.landing-preview__dot:nth-child(1) {
+  background: rgba(248, 113, 113, 0.6);
+}
+
+.landing-preview__dot:nth-child(2) {
+  background: rgba(251, 191, 36, 0.6);
+}
+
+.landing-preview__dot:nth-child(3) {
+  background: rgba(74, 222, 128, 0.6);
+}
+
+.landing-preview__url {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  margin-left: 0.75rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 999px;
+  background: var(--tier-1);
+  border: 1px solid var(--hairline-2);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+/* ─── Mock app content ─── */
+
+.landing-preview__app {
+  display: flex;
+  min-height: 420px;
+  background: var(--void);
+}
+
+@media (min-width: 768px) {
+  .landing-preview__app {
+    min-height: 520px;
+  }
+}
+
+/* ─── Mock sidebar (desktop only) ─── */
+
+.landing-preview__sidebar {
+  display: none;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem 0.5rem;
+  width: 56px;
+  background: var(--tier-1);
+  border-right: 1px solid var(--hairline-2);
+}
+
+@media (min-width: 768px) {
+  .landing-preview__sidebar {
+    display: flex;
+  }
+}
+
+.landing-preview__sidebar-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
+  margin-bottom: 0.5rem;
+}
+
+.landing-preview__sidebar-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-md);
+  transition: background var(--transition-fast);
+}
+
+.landing-preview__sidebar-icon:first-of-type {
+  background: var(--p-dim);
+}
+
+/* ─── Mock content area ─── */
+
+.landing-preview__content {
+  flex: 1;
+  padding: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-width: 0;
+}
+
+@media (min-width: 768px) {
+  .landing-preview__content {
+    padding: 1.25rem;
+    gap: 1.25rem;
+  }
+}
+
+/* ─── Mock spotlight ─── */
+
+.landing-preview__spotlight {
+  position: relative;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  min-height: 200px;
+  background:
+    linear-gradient(
+      135deg,
+      rgba(232, 183, 74, 0.12) 0%,
+      rgba(192, 132, 252, 0.08) 50%,
+      rgba(56, 189, 248, 0.06) 100%
+    ),
+    radial-gradient(
+      ellipse at top right,
+      rgba(232, 183, 74, 0.15) 0%,
+      transparent 60%
+    ),
+    var(--tier-2);
+  border: 1px solid var(--hairline-2);
+  display: flex;
+  align-items: center;
+  padding: 1.25rem;
+}
+
+@media (min-width: 768px) {
+  .landing-preview__spotlight {
+    min-height: 240px;
+    padding: 1.75rem;
+  }
+}
+
+.landing-preview__spotlight-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  max-width: 70%;
+}
+
+.landing-preview__spotlight-cta {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+/* ─── Skeleton elements ─── */
+
+.landing-preview__skeleton {
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(232, 183, 74, 0.06) 0%,
+    rgba(232, 183, 74, 0.12) 50%,
+    rgba(232, 183, 74, 0.06) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmer 2s var(--ease-smooth) infinite;
+}
+
+.landing-preview__skeleton--badge {
+  width: 80px;
+  height: 18px;
+  border-radius: 999px;
+  background: var(--p-dim);
+}
+
+.landing-preview__skeleton--title {
+  width: 70%;
+  height: 28px;
+  background: linear-gradient(
+    90deg,
+    rgba(232, 183, 74, 0.2) 0%,
+    rgba(232, 183, 74, 0.4) 50%,
+    rgba(232, 183, 74, 0.2) 100%
+  );
+  background-size: 200% 100%;
+}
+
+.landing-preview__skeleton--line {
+  width: 100%;
+  height: 10px;
+}
+
+.landing-preview__skeleton--short {
+  width: 60%;
+}
+
+.landing-preview__skeleton--button {
+  width: 100px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--p);
+  box-shadow: 0 0 16px var(--p-glow);
+}
+
+.landing-preview__skeleton--button-secondary {
+  width: 80px;
+  height: 32px;
+  border-radius: var(--radius-md);
+  background: var(--glass-bg);
+  border: 1px solid var(--hairline-2);
+}
+
+.landing-preview__skeleton--rail-title {
+  width: 140px;
+  height: 14px;
+  margin-bottom: 0.625rem;
+}
+
+/* ─── Mock rails ─── */
+
+.landing-preview__rails {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.landing-preview__rail-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 0.5rem;
+}
+
+@media (min-width: 480px) {
+  .landing-preview__rail-row {
+    grid-template-columns: repeat(4, 1fr);
+    gap: 0.625rem;
+  }
+}
+
+@media (min-width: 768px) {
+  .landing-preview__rail-row {
+    grid-template-columns: repeat(6, 1fr);
+    gap: 0.75rem;
+  }
+}
+
+.landing-preview__poster {
+  aspect-ratio: 2 / 3;
+  border-radius: var(--radius-md);
+  background: linear-gradient(
+    135deg,
+    var(--tier-3) 0%,
+    var(--tier-4) 100%
+  );
+  border: 1px solid var(--hairline-2);
+  /* Subtle glow on hover for interactivity feel */
+  transition: border-color var(--transition-fast), transform var(--transition-fast);
+}
+
+.landing-preview__poster--accent {
+  background: linear-gradient(
+    135deg,
+    rgba(232, 183, 74, 0.3) 0%,
+    rgba(232, 183, 74, 0.15) 50%,
+    var(--tier-3) 100%
+  );
+  border-color: var(--p-border);
+  box-shadow: 0 0 16px var(--p-glow);
+}
+
+/* ============================================================
+   FINAL CTA
+   ============================================================ */
+
+.landing-cta {
+  position: relative;
+  padding: var(--sp-20) 1rem;
+  text-align: center;
+  overflow: hidden;
+  background: var(--void);
+}
+
+@media (min-width: 640px) {
+  .landing-cta {
+    padding: var(--sp-24) 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-cta {
+    padding: var(--sp-32) 2rem;
+  }
+}
+
+.landing-cta__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: 720px;
+  margin: 0 auto;
+  padding: var(--sp-10) 1.5rem;
+  border-radius: 24px;
+  background:
+    linear-gradient(
+      135deg,
+      var(--glass-bg-strong) 0%,
+      var(--glass-bg) 100%
+    );
+  backdrop-filter: blur(24px) saturate(150%);
+  -webkit-backdrop-filter: blur(24px) saturate(150%);
+  border: 1px solid var(--hairline-2);
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+}
+
+/* Ambient gold glow behind the CTA card */
+.landing-cta__glow {
+  position: absolute;
+  inset: -40px;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse at center,
+    var(--p-glow) 0%,
+    transparent 70%
+  );
+  filter: blur(40px);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.landing-cta__title {
+  font-family: "Bebas Neue", cursive;
+  font-weight: 400;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+  margin: 0;
+  text-shadow: 0 0 40px var(--p-glow);
+}
+
+.landing-cta__subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(0.9375rem, 1.6vw, 1.125rem);
+  line-height: 1.6;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 480px;
+}
+
+.landing-cta__button {
+  margin-top: var(--sp-2);
+  /* Extra emphasis on the final CTA */
+  box-shadow:
+    0 0 24px var(--p-glow),
+    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
+  animation: glowPulse 3s ease-in-out infinite;
+}
+
+.landing-cta__footnote {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-dim);
+  margin: 0;
+}
+
+/* ============================================================
+   FOOTER
+   ============================================================ */
+
+.landing-footer {
+  background: var(--void);
+  border-top: 1px solid var(--hairline-2);
+  padding: var(--sp-10) 1rem var(--sp-8);
+}
+
+.landing-footer__inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  gap: 0.875rem;
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.landing-footer__brand {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.25rem;
+  letter-spacing: 0.04em;
+  color: var(--text-strong);
+}
+
+.landing-footer__brand-text {
+  background: linear-gradient(
+    135deg,
+    var(--text-strong) 0%,
+    var(--p) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-footer__tagline {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.landing-footer__links {
+  display: flex;
+  align-items: center;
+  gap: 0.625rem;
+  margin-top: 0.25rem;
+}
+
+.landing-footer__link {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  text-decoration: none;
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 0;
+  transition: color var(--transition-fast);
+}
+
+.landing-footer__link:hover {
+  color: var(--p);
+}
+
+.landing-footer__link--button {
+  font-family: inherit;
+}
+
+.landing-footer__divider {
+  color: var(--text-dim);
+}
+
+.landing-footer__copyright {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  margin: var(--sp-3) 0 0 0;
+}
+
+/* ============================================================
+   REDUCED MOTION
+   ============================================================
+   The base.css baseline already handles prefers-reduced-motion for
+   the .animate-* classes. Here we just disable the decorative
+   infinite animations (scroll bob, floating badges, glow pulse)
+   for users who prefer reduced motion. */
+
+@media (prefers-reduced-motion: reduce) {
+  .landing-cta__button {
+    animation: none;
+  }
+  .landing-hero__backdrop {
+    animation: none;
+    opacity: 1;
+  }
+}

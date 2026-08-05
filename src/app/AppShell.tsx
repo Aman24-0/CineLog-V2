@@ -94,6 +94,17 @@ const AppShell: ParentComponent = (props) => {
   // but bypass all consumer chrome.
   const isAdminRoute = createMemo(() => location.pathname.startsWith("/admin"));
 
+  // Phase 11 — Landing Page: the root route `/` renders the marketing
+  // LandingPage for logged-out users. The LandingPage has its OWN sticky
+  // header, hero, and footer, so the consumer chrome (AppHeader,
+  // BottomNavigation, DesktopSidebar, AnnouncementsBanner) must NOT be
+  // rendered. We still mount AuthModal + ToastContainer so the "Get
+  // Started" / "Login" CTAs work and auth toasts can fire. The route
+  // itself (src/routes/index.tsx) handles the signed-in → /discover
+  // redirect, so by the time LandingPage actually paints the user is
+  // guaranteed to be logged-out (or about to be redirected).
+  const isLandingRoute = createMemo(() => location.pathname === "/");
+
   // Any modal open — used for body scroll lock (set in each modal's onMount)
   // AND for setting `inert` on the consumer wrapper so the background chrome
   // (header, sidebar, main, bottom nav) is non-focusable AND hidden from AT
@@ -110,191 +121,218 @@ const AppShell: ParentComponent = (props) => {
   });
 
   // Admin routes: render children bare — no consumer chrome, no padding.
+  // Landing routes: render children bare (no AppHeader / BottomNav /
+  // DesktopSidebar / AnnouncementsBanner) but still mount AuthModal +
+  // ToastContainer so the marketing CTAs work. The bottom-nav padding
+  // is also removed so the hero can be truly full-bleed.
   return (
     <Show
       when={isAdminRoute()}
       fallback={
-        <div
-          class="app-shell-bg min-h-screen w-full"
-          // `inert` makes the entire background chrome (header, sidebar,
-          // main, bottom nav) non-focusable AND hidden from the AT tree
-          // when any modal is open. This is the WCAG-compliant way to
-          // contain keyboard focus inside the modal — see header comment.
-          inert={anyModalOpen() ? true : undefined}
-          style={{
-            "padding-bottom":
-              "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
-            background: "var(--void)",
-            color: "var(--text)"
-          }}
+        <Show
+          when={isLandingRoute()}
+          fallback={
+            <div
+              class="app-shell-bg min-h-screen w-full"
+              // `inert` makes the entire background chrome (header, sidebar,
+              // main, bottom nav) non-focusable AND hidden from the AT tree
+              // when any modal is open. This is the WCAG-compliant way to
+              // contain keyboard focus inside the modal — see header comment.
+              inert={anyModalOpen() ? true : undefined}
+              style={{
+                "padding-bottom":
+                  "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
+                background: "var(--void)",
+                color: "var(--text)"
+              }}
+            >
+              {/* Skip link (WCAG 2.4.1 — Bypass Blocks). First focusable
+                  element in the DOM so keyboard users land on it before
+                  the header. Visually hidden until focused (CSS in
+                  base/accessibility.css). */}
+              <a href="#main-content" class="skip-link">
+                Skip to content
+              </a>
+
+              <AppHeader />
+
+              <AnnouncementsBanner />
+
+              {/* Desktop Sidebar — hidden on mobile, visible on desktop via CSS */}
+              <DesktopSidebar />
+
+              {/* SINGLE <main> landmark for the entire consumer app.
+                Page routes render <div role="region"> (not <main>) inside
+                this <main> so there is exactly one <main> per page. */}
+              <main id="main-content">{props.children}</main>
+
+              {/* Desktop Utility Panel — hidden on mobile, visible on desktop via CSS */}
+              <DesktopUtilityPanel />
+
+              {/* Global Search Overlay — independent from any page, renders
+                  above the current page when the user searches from the AppHeader. */}
+              <SearchOverlay />
+
+              <ToastContainer />
+
+              <BottomNavigation />
+
+              {/* Auth modal — opened from any page when a guest tries to sign in.
+                AuthModal takes no props; it reads open/close state directly from
+                the useAuthModal() hook. Previously this passed `show` / `onClose`
+                which were silently ignored and also produced a TS error. */}
+              <AuthModal />
+
+              {/* Details modal — opened from Vault, Discover, Search, or Collection.
+                Shown when selectedItem() is truthy. The Suspense fallback is a
+                lightweight centered spinner so the user sees immediate feedback
+                that the modal is opening. Users can tap the backdrop or press
+                ESC to cancel during slow TMDB loads. */}
+              <Show when={selectedItem()}>
+                <Suspense
+                  fallback={
+                    <Portal>
+                      <div
+                        class="fixed inset-0 z-[999999] flex items-center justify-center"
+                        style={{
+                          background: "rgba(0,0,0,0.75)",
+                          "backdrop-filter": "blur(8px)",
+                          "-webkit-backdrop-filter": "blur(8px)"
+                        }}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Loading details"
+                        onClick={() => {
+                          // Allow backdrop tap to cancel slow TMDB loads
+                          import("~/shared/hooks/useModalState").then(
+                            ({ closeTitle }) => closeTitle()
+                          );
+                        }}
+                        onKeyDown={(e: KeyboardEvent) => {
+                          if (e.key === "Escape") {
+                            import("~/shared/hooks/useModalState").then(
+                              ({ closeTitle }) => closeTitle()
+                            );
+                          }
+                        }}
+                      >
+                        <span
+                          class="material-symbols-outlined"
+                          style={{
+                            "font-size": "32px",
+                            color: "var(--text-soft)",
+                            animation: "softPulse 1.2s ease-in-out infinite"
+                          }}
+                          aria-hidden="true"
+                        >
+                          progress_activity
+                        </span>
+                      </div>
+                    </Portal>
+                  }
+                >
+                  <DetailsModal />
+                </Suspense>
+              </Show>
+
+              {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
+                Rendered at z-[999998] — below Details (z-[999999]) so if both are
+                open, Details paints on top. In practice only one is open at a time. */}
+              <Show when={collectionSelectedItem()}>
+                <Suspense
+                  fallback={
+                    <Portal>
+                      <div
+                        class="fixed inset-0 z-[999998] flex items-center justify-center"
+                        style={{
+                          background: "rgba(0,0,0,0.75)",
+                          "backdrop-filter": "blur(8px)",
+                          "-webkit-backdrop-filter": "blur(8px)"
+                        }}
+                        role="dialog"
+                        aria-modal="true"
+                        aria-label="Loading collection"
+                      >
+                        <div
+                          class="flex flex-col items-center gap-3"
+                          style={{
+                            width: "280px",
+                            padding: "24px",
+                            "border-radius": "16px",
+                            background: "rgba(255,255,255,0.06)",
+                            "border": "1px solid rgba(255,255,255,0.10)",
+                            "backdrop-filter": "blur(12px)"
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "20px",
+                              "border-radius": "6px",
+                              background: "rgba(255,255,255,0.08)",
+                              animation: "softPulse 1.2s ease-in-out infinite"
+                            }}
+                            aria-hidden="true"
+                          />
+                          <div
+                            style={{
+                              width: "70%",
+                              height: "14px",
+                              "border-radius": "6px",
+                              background: "rgba(255,255,255,0.05)",
+                              animation: "softPulse 1.2s ease-in-out infinite"
+                            }}
+                            aria-hidden="true"
+                          />
+                          <div
+                            style={{
+                              width: "100%",
+                              height: "12px",
+                              "border-radius": "6px",
+                              background: "rgba(255,255,255,0.05)",
+                              animation: "softPulse 1.2s ease-in-out infinite"
+                            }}
+                            aria-hidden="true"
+                          />
+                          <div
+                            style={{
+                              width: "85%",
+                              height: "12px",
+                              "border-radius": "6px",
+                              background: "rgba(255,255,255,0.05)",
+                              animation: "softPulse 1.2s ease-in-out infinite"
+                            }}
+                            aria-hidden="true"
+                          />
+                        </div>
+                      </div>
+                    </Portal>
+                  }
+                >
+                  <CollectionModal />
+                </Suspense>
+              </Show>
+            </div>
+          }
         >
-          {/* Skip link (WCAG 2.4.1 — Bypass Blocks). First focusable
-              element in the DOM so keyboard users land on it before
-              the header. Visually hidden until focused (CSS in
-              base/accessibility.css). */}
-          <a href="#main-content" class="skip-link">
-            Skip to content
-          </a>
-
-          <AppHeader />
-
-          <AnnouncementsBanner />
-
-          {/* Desktop Sidebar — hidden on mobile, visible on desktop via CSS */}
-          <DesktopSidebar />
-
-          {/* SINGLE <main> landmark for the entire consumer app.
-            Page routes render <div role="region"> (not <main>) inside
-            this <main> so there is exactly one <main> per page. */}
-          <main id="main-content">{props.children}</main>
-
-          {/* Desktop Utility Panel — hidden on mobile, visible on desktop via CSS */}
-          <DesktopUtilityPanel />
-
-          {/* Global Search Overlay — independent from any page, renders
-              above the current page when the user searches from the AppHeader. */}
-          <SearchOverlay />
-
-          <ToastContainer />
-
-          <BottomNavigation />
-
-          {/* Auth modal — opened from any page when a guest tries to sign in.
-            AuthModal takes no props; it reads open/close state directly from
-            the useAuthModal() hook. Previously this passed `show` / `onClose`
-            which were silently ignored and also produced a TS error. */}
-          <AuthModal />
-
-          {/* Details modal — opened from Vault, Discover, Search, or Collection.
-            Shown when selectedItem() is truthy. The Suspense fallback is a
-            lightweight centered spinner so the user sees immediate feedback
-            that the modal is opening. Users can tap the backdrop or press
-            ESC to cancel during slow TMDB loads. */}
-          <Show when={selectedItem()}>
-            <Suspense
-              fallback={
-                <Portal>
-                  <div
-                    class="fixed inset-0 z-[999999] flex items-center justify-center"
-                    style={{
-                      background: "rgba(0,0,0,0.75)",
-                      "backdrop-filter": "blur(8px)",
-                      "-webkit-backdrop-filter": "blur(8px)"
-                    }}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Loading details"
-                    onClick={() => {
-                      // Allow backdrop tap to cancel slow TMDB loads
-                      import("~/shared/hooks/useModalState").then(
-                        ({ closeTitle }) => closeTitle()
-                      );
-                    }}
-                    onKeyDown={(e: KeyboardEvent) => {
-                      if (e.key === "Escape") {
-                        import("~/shared/hooks/useModalState").then(
-                          ({ closeTitle }) => closeTitle()
-                        );
-                      }
-                    }}
-                  >
-                    <span
-                      class="material-symbols-outlined"
-                      style={{
-                        "font-size": "32px",
-                        color: "var(--text-soft)",
-                        animation: "softPulse 1.2s ease-in-out infinite"
-                      }}
-                      aria-hidden="true"
-                    >
-                      progress_activity
-                    </span>
-                  </div>
-                </Portal>
-              }
-            >
-              <DetailsModal />
-            </Suspense>
-          </Show>
-
-          {/* Collection modal — opened from Details FranchiseInfo, Discover, or Vault.
-            Rendered at z-[999998] — below Details (z-[999999]) so if both are
-            open, Details paints on top. In practice only one is open at a time. */}
-          <Show when={collectionSelectedItem()}>
-            <Suspense
-              fallback={
-                <Portal>
-                  <div
-                    class="fixed inset-0 z-[999998] flex items-center justify-center"
-                    style={{
-                      background: "rgba(0,0,0,0.75)",
-                      "backdrop-filter": "blur(8px)",
-                      "-webkit-backdrop-filter": "blur(8px)"
-                    }}
-                    role="dialog"
-                    aria-modal="true"
-                    aria-label="Loading collection"
-                  >
-                    <div
-                      class="flex flex-col items-center gap-3"
-                      style={{
-                        width: "280px",
-                        padding: "24px",
-                        "border-radius": "16px",
-                        background: "rgba(255,255,255,0.06)",
-                        "border": "1px solid rgba(255,255,255,0.10)",
-                        "backdrop-filter": "blur(12px)"
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "20px",
-                          "border-radius": "6px",
-                          background: "rgba(255,255,255,0.08)",
-                          animation: "softPulse 1.2s ease-in-out infinite"
-                        }}
-                        aria-hidden="true"
-                      />
-                      <div
-                        style={{
-                          width: "70%",
-                          height: "14px",
-                          "border-radius": "6px",
-                          background: "rgba(255,255,255,0.05)",
-                          animation: "softPulse 1.2s ease-in-out infinite"
-                        }}
-                        aria-hidden="true"
-                      />
-                      <div
-                        style={{
-                          width: "100%",
-                          height: "12px",
-                          "border-radius": "6px",
-                          background: "rgba(255,255,255,0.05)",
-                          animation: "softPulse 1.2s ease-in-out infinite"
-                        }}
-                        aria-hidden="true"
-                      />
-                      <div
-                        style={{
-                          width: "85%",
-                          height: "12px",
-                          "border-radius": "6px",
-                          background: "rgba(255,255,255,0.05)",
-                          animation: "softPulse 1.2s ease-in-out infinite"
-                        }}
-                        aria-hidden="true"
-                      />
-                    </div>
-                  </div>
-                </Portal>
-              }
-            >
-              <CollectionModal />
-            </Suspense>
-          </Show>
-        </div>
+          {/* Landing route — minimal wrapper. No consumer chrome, but
+              AuthModal + ToastContainer must be mounted so the marketing
+              CTAs ("Get Started" / "Login") open the auth modal and auth
+              success/error toasts can fire. The LandingPage component
+              provides its own <main> landmark and skip link target. */}
+          <div
+            class="app-shell-bg min-h-screen w-full"
+            inert={anyModalOpen() ? true : undefined}
+            style={{
+              background: "var(--void)",
+              color: "var(--text)"
+            }}
+          >
+            {props.children}
+            <ToastContainer />
+            <AuthModal />
+          </div>
+        </Show>
       }
     >
       {/* Admin route: bare render — AdminShell handles its own layout.
