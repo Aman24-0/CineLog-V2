@@ -2299,6 +2299,19 @@
     grid-template-columns: repeat(4, 1fr);
   }
 }
+/* Phase 10 Chunk 2 — desktop grids use more columns so posters don't
+   stretch too wide on the desktop main column (up to 1536px). */
+@media (min-width: 1024px) {
+  .profile-favorites-grid-v3 {
+    grid-template-columns: repeat(5, 1fr);
+    gap: var(--sp-3, 0.75rem);
+  }
+}
+@media (min-width: 1280px) {
+  .profile-favorites-grid-v3 {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
 
 .profile-favorites-grid-v3-skeleton {
   grid-column: 1 / -1;
@@ -2556,6 +2569,18 @@
 @media (min-width: 640px) {
   .profile-achievements-preview-v3-grid {
     grid-template-columns: repeat(5, 1fr);
+  }
+}
+/* Phase 10 Chunk 2 — desktop: 6 cols at lg, 8 cols at xl so badge
+   cells stay compact instead of stretching wide. */
+@media (min-width: 1024px) {
+  .profile-achievements-preview-v3-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+}
+@media (min-width: 1280px) {
+  .profile-achievements-preview-v3-grid {
+    grid-template-columns: repeat(8, 1fr);
   }
 }
 

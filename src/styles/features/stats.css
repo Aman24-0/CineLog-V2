@@ -509,6 +509,13 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+/* Phase 10 Chunk 2 — desktop: 3-column grid for people lists
+   (Directors + Actors) so they don't stretch too wide. */
+@media (min-width: 1024px) {
+  .stats-people-grid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
 
 .stats-people-column {
   display: flex;

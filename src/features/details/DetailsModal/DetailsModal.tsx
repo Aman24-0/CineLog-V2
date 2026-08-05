@@ -314,7 +314,7 @@ export default function DetailsModal() {
           </div>
 
           <div
-            class="relative z-10 w-full max-w-xl lg:max-w-[800px]"
+            class="relative z-10 w-full max-w-xl lg:max-w-[1000px]"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Close button — rendered at the modal-container level (NOT inside

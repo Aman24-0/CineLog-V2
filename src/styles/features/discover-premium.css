@@ -125,7 +125,17 @@
 }
 @media (min-width: 1024px) {
   .discover-folds .spotlight {
-    height: 480px;
+    /* Phase 10 Chunk 2 — grander hero on desktop. Taller + wider
+       cinematic feel. Mobile keeps 480px / 62vh. */
+    height: 560px;
+    max-height: 64vh;
+  }
+}
+@media (min-width: 1280px) {
+  .discover-folds .spotlight {
+    /* xl: even taller for ultra-wide desktops */
+    height: 620px;
+    max-height: 70vh;
   }
 }
 
@@ -348,7 +358,14 @@
 }
 @media (min-width: 1024px) {
   .discover-folds .spotlight-title {
-    font-size: 3.5rem;
+    /* Phase 10 Chunk 2 — grander title to match the taller hero. */
+    font-size: 4rem;
+    -webkit-line-clamp: 2;
+  }
+}
+@media (min-width: 1280px) {
+  .discover-folds .spotlight-title {
+    font-size: 4.5rem;
   }
 }
 

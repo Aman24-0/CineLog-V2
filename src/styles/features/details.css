@@ -2849,3 +2849,69 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
 }
+
+/* ============================================================
+   PHASE 10 CHUNK 2 — Desktop Layout Enhancements
+   ============================================================
+   On desktop (≥1024px):
+   1. Modal is wider (1000px — set via Tailwind class on the
+      modal container in DetailsModal.tsx).
+   2. Cast & Crew rail wraps into a multi-row grid instead of
+      horizontal scroll, so all members are visible at once.
+   3. Seasons accordion renders in a 2-column grid for TV
+      series with many seasons.
+   4. Recommendations / SimilarTitles rails (which reuse the
+      `.search-rail` class) wrap on desktop via search.css.
+
+   Mobile/tablet (<1024px) keeps the original single-column
+   horizontal-scroll layout EXACTLY as-is. */
+
+@media (min-width: 1024px) {
+  /* Cast & Crew rail — wraps into a multi-row grid.
+     Cards keep their 88px width so the round headshots + names
+     stay the same size; they just wrap to multiple rows. */
+  .cast-crew-rail {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    gap: 0.75rem 0.875rem;
+    padding-bottom: 0;
+  }
+
+  /* Slightly larger headshots on desktop for visual balance
+     with the wider modal. */
+  .cast-crew-card {
+    width: 100px;
+  }
+  .cast-crew-card-image {
+    width: 96px;
+    height: 96px;
+  }
+  .cast-crew-card-name,
+  .cast-crew-card-role {
+    max-width: 100px;
+  }
+
+  /* Seasons accordion — 2-column grid on desktop for TV shows
+     with multiple seasons. Each season accordion item is a grid
+     cell. Single-season shows still render in a single column
+     naturally (only 1 item). */
+  .season-navigator-list {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-3, 0.75rem);
+  }
+
+  /* When a season accordion is expanded, span both columns so
+     the episode grid inside has full width. */
+  .season-accordion.season-accordion-expanded {
+    grid-column: 1 / -1;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* xl: 3-column season grid for very wide desktops. */
+  .season-navigator-list {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}

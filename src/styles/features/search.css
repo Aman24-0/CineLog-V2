@@ -188,6 +188,34 @@
     width: 160px;
   }
 }
+
+/* ── Phase 10 Chunk 2 — Desktop wrapping grid ───────────────────────────
+   On desktop (≥1024px) the horizontal-scroll carousel becomes a wrapping
+   flex layout so users see 6–8+ posters at once instead of 3–4. Cards
+   keep their fixed width so the "Show More" card and skeleton cards
+   still render correctly. Mobile/tablet (<1024px) keeps the original
+   horizontal scroll-snap carousel EXACTLY as-is. */
+@media (min-width: 1024px) {
+  .search-rail {
+    flex-wrap: wrap;
+    overflow-x: visible;
+    scroll-snap-type: none;
+    padding-bottom: 0;
+    /* Slightly tighter gap so more cards fit per row */
+    gap: var(--sp-3);
+  }
+  .search-rail-card {
+    /* Keep 160px on lg — fits ~6 cards in a 1100px column */
+    width: 160px;
+  }
+}
+@media (min-width: 1280px) {
+  /* xl: shrink slightly so 7–8 cards fit comfortably in the wider
+      desktop column (1536px max − 240px sidebar − 300px utility panel). */
+  .search-rail-card {
+    width: 150px;
+  }
+}
 .search-rail-card:hover {
   transform: translateY(-3px);
 }

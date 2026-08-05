@@ -1093,3 +1093,116 @@
 .vault-fav-btn.is-favourite:hover {
   background: color-mix(in srgb, var(--color-danger) 32%, var(--glass-bg));
 }
+
+/* ============================================================
+   PHASE 10 CHUNK 2 — Desktop Vault Layout
+   ============================================================
+   On desktop (≥1024px):
+   - .vault-desktop-layout becomes a 2-column grid: 280px filter
+     sidebar + 1fr main content area.
+   - .vault-filters-sidebar is sticky, scrollable, always visible.
+   - The .filter-button in the header is hidden on desktop (the
+     sidebar replaces it).
+   - Mobile/tablet (<1024px): .vault-desktop-layout is a plain
+     block (single column) — the sidebar is hidden via display:none
+     and the filter button shows again.
+   ============================================================ */
+
+.vault-desktop-layout {
+  display: block;
+}
+
+.vault-filters-sidebar {
+  display: none;
+}
+
+.vault-desktop-main {
+  display: block;
+  min-width: 0;
+}
+
+@media (min-width: 1024px) {
+  .vault-desktop-layout {
+    display: grid;
+    grid-template-columns: 280px minmax(0, 1fr);
+    gap: var(--sp-6, 1.5rem);
+    align-items: start;
+  }
+
+  .vault-filters-sidebar {
+    display: flex;
+    flex-direction: column;
+    gap: var(--sp-3, 0.75rem);
+    position: sticky;
+    top: calc(var(--desktop-header-height, 56px) + var(--sp-4, 1rem));
+    max-height: calc(100vh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem));
+    max-height: calc(100dvh - var(--desktop-header-height, 56px) - var(--sp-8, 2rem));
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: var(--sp-4, 1rem);
+    background: var(--glass-bg);
+    border: 1px solid var(--hairline);
+    border-radius: var(--radius-xl, 16px);
+    scrollbar-width: thin;
+    scrollbar-color: var(--hairline) transparent;
+  }
+
+  .vault-filters-sidebar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .vault-filters-sidebar::-webkit-scrollbar-thumb {
+    background: var(--hairline);
+    border-radius: 2px;
+  }
+
+  .vault-filters-sidebar-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding-bottom: 0.5rem;
+    border-bottom: 1px solid var(--hairline);
+  }
+
+  .vault-filters-sidebar-title {
+    font-size: 0.9rem !important;
+    margin: 0 !important;
+    color: var(--text-strong);
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+  }
+
+  .vault-filters-sidebar-actions {
+    margin-top: auto;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--hairline);
+    display: flex;
+    justify-content: stretch;
+  }
+  .vault-filters-sidebar-actions .btn-ghost {
+    width: 100%;
+    font-size: 0.75rem;
+  }
+
+  /* Hide the header filter button on desktop — the sidebar is the
+     primary filter affordance on large screens. The search button
+     and view-toggle remain visible. */
+  .filter-button {
+    display: none !important;
+  }
+
+  /* Bump the vault-shelf-grid to show 4-6 columns on desktop.
+     The base rules (mobile → 1024px) already handle 110px → 170px
+     breakpoints; this expands the column count for the wider
+     desktop main column. */
+  .vault-shelf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)) !important;
+    gap: var(--sp-4, 1rem) !important;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* xl: 5-6 column vault grid for very wide desktops. */
+  .vault-shelf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)) !important;
+  }
+}

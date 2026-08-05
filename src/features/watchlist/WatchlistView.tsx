@@ -10,6 +10,7 @@ import { useVaultFiltering } from "./useVaultFiltering";
 import WatchlistHeader from "./components/WatchlistHeader";
 import WatchlistGrid from "./components/WatchlistGrid";
 import WatchlistDialogs from "./components/WatchlistDialogs";
+import VaultFiltersContent from "./components/VaultFiltersContent";
 import EmptyState from "./components/EmptyState";
 import LoadingSkeleton from "./components/LoadingSkeleton";
 
@@ -32,7 +33,7 @@ import LoadingSkeleton from "./components/LoadingSkeleton";
 export default function WatchlistView() {
   const { openTitle } = useModalState();
   const { openAuthModal } = useAuthModal();
-  const { watchlist, loading, isGuest, error } = useVault();
+  const { watchlist, loading, isGuest, error, presets, savePreset, deletePreset } = useVault();
 
   const [showFilter, setShowFilter] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
@@ -134,63 +135,116 @@ export default function WatchlistView() {
     <PageContainer width="wide" paddingBottom="var(--sp-12)">
       <ScrollToTop />
 
-      <WatchlistHeader
-        viewMode={viewMode}
-        setViewMode={setViewMode}
-        activeFilterCount={activeFilterCount}
-        onFilterClick={() => setShowFilter(true)}
-        searchInput={searchInput}
-        onSearchInput={onSearchInput}
-        onClearAll={clearFilters}
-        activeStatusTab={activeStatusTab}
-        onSelectStatusTab={handleSelectStatusTab}
-        watchlist={watchlist}
-        chips={chips}
-        onClearFilter={clearFilter}
-        filters={filters}
-        setFilters={setFilters}
-      />
-
-      {/* WatchlistStats REMOVED — the inline status chips in the header
-          already show live counts, making a separate stats bar redundant.
-          The filtered count is still visible via the section subtitles
-          (in dashboard mode) or the grid's natural rendering (in flat mode). */}
-
-      <Show when={!loading()} fallback={<LoadingSkeleton />}>
-        <Show
-          when={!error()}
-          fallback={
-            <EmptyState
-              isGuest={false}
-              onLogin={() => {}}
-              title="Error Loading Watchlist"
-              message={error() || "An unknown error occurred."}
-              actionText="Reload Page"
-              onAction={handleReload}
+      <div class="vault-desktop-layout">
+        {/* Phase 10 Chunk 2 — Desktop-only advanced-filters sidebar.
+            Renders VaultFiltersContent inline (always visible) on
+            desktop (≥1024px). Hidden on mobile/tablet, where the
+            existing bottom-sheet VaultFilters (via WatchlistDialogs)
+            handles filter UX. */}
+        <Show when={!isGuest()}>
+          <aside class="vault-filters-sidebar" aria-label="Advanced filters">
+            <div class="vault-filters-sidebar-header">
+              <span
+                class="material-symbols-outlined"
+                style={{ "font-size": "18px", color: "var(--p)" }}
+                aria-hidden="true"
+              >
+                tune
+              </span>
+              <h3 class="type-headline vault-filters-sidebar-title">
+                Filters
+              </h3>
+            </div>
+            <VaultFiltersContent
+              filters={filters()}
+              setFilters={(v) => {
+                setFilters(v);
+                setDisplayLimit(20);
+              }}
+              uniqueGenres={uniqueGenres()}
+              uniquePlatforms={uniquePlatforms()}
+              uniqueTags={uniqueTags()}
+              uniqueTagsPlus={uniqueTagsPlus()}
+              refreshTagVocab={refreshTagVocab}
+              presets={presets}
+              onSavePreset={(name) => savePreset(name, filters())}
+              onDeletePreset={(id) => deletePreset(id)}
             />
-          }
-        >
-          <WatchlistGrid
+            <div class="vault-filters-sidebar-actions">
+              <button
+                type="button"
+                class="btn-ghost"
+                onClick={() => {
+                  clearFilters();
+                  setDisplayLimit(20);
+                }}
+              >
+                Clear All
+              </button>
+            </div>
+          </aside>
+        </Show>
+
+        <div class="vault-desktop-main">
+          <WatchlistHeader
             viewMode={viewMode}
-            loading={loading}
-            error={error}
-            isGuest={isGuest}
-            filtered={filtered}
-            sections={sections}
-            search={search}
-            isFlatMode={isFlatMode}
-            displayLimit={displayLimit}
-            expandedShelves={expandedShelves}
-            onToggleShelf={toggleShelfExpand}
-            onOpenMovie={openMovie}
-            onLogin={handleLogin}
-            onClearFilters={clearFilters}
-            onReload={handleReload}
+            setViewMode={setViewMode}
+            activeFilterCount={activeFilterCount}
+            onFilterClick={() => setShowFilter(true)}
+            searchInput={searchInput}
+            onSearchInput={onSearchInput}
+            onClearAll={clearFilters}
             activeStatusTab={activeStatusTab}
             onSelectStatusTab={handleSelectStatusTab}
+            watchlist={watchlist}
+            chips={chips}
+            onClearFilter={clearFilter}
+            filters={filters}
+            setFilters={setFilters}
           />
-        </Show>
-      </Show>
+
+          {/* WatchlistStats REMOVED — the inline status chips in the header
+              already show live counts, making a separate stats bar redundant.
+              The filtered count is still visible via the section subtitles
+              (in dashboard mode) or the grid's natural rendering (in flat mode). */}
+
+          <Show when={!loading()} fallback={<LoadingSkeleton />}>
+            <Show
+              when={!error()}
+              fallback={
+                <EmptyState
+                  isGuest={false}
+                  onLogin={() => {}}
+                  title="Error Loading Watchlist"
+                  message={error() || "An unknown error occurred."}
+                  actionText="Reload Page"
+                  onAction={handleReload}
+                />
+              }
+            >
+              <WatchlistGrid
+                viewMode={viewMode}
+                loading={loading}
+                error={error}
+                isGuest={isGuest}
+                filtered={filtered}
+                sections={sections}
+                search={search}
+                isFlatMode={isFlatMode}
+                displayLimit={displayLimit}
+                expandedShelves={expandedShelves}
+                onToggleShelf={toggleShelfExpand}
+                onOpenMovie={openMovie}
+                onLogin={handleLogin}
+                onClearFilters={clearFilters}
+                onReload={handleReload}
+                activeStatusTab={activeStatusTab}
+                onSelectStatusTab={handleSelectStatusTab}
+              />
+            </Show>
+          </Show>
+        </div>
+      </div>
 
       <WatchlistDialogs
         show={showFilter}
