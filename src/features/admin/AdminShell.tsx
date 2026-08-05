@@ -179,7 +179,9 @@ const NAV_GROUPS: NavGroup[] = [
   {
     label: "Developer",
     items: [
-      { href: "/admin/developer", label: "Developer", icon: "terminal" }
+      { href: "/admin/developer", label: "Developer", icon: "terminal" },
+      { href: "/admin/cron", label: "Cron Jobs", icon: "schedule" },
+      { href: "/admin/database", label: "Database", icon: "database" }
     ]
   }
 ];

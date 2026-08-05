@@ -1,16 +1,45 @@
 // src/features/admin/AdminLogsPage.tsx
 //
-// CineLog V2 — Admin Audit Logs Page Component
+// CineLog V2 — Admin Audit Logs Page (Phase 9 Chunk 7 — Glass Redesign)
 // ---------------------------------------------------------------------
-// Shows recent admin actions with filters: action, entity_type, date.
-// Read-only (logs are append-only — no edit/delete is possible).
+// Shows recent admin actions with filters and a syntax-highlighted JSON
+// viewer for the payload JSONB column. Read-only — logs are append-only.
 //
-// LAYOUT:
-//   [Filter bar: action, entity_type, refresh]
-//   [Logs table — newest first]
-//   [Pagination]
+// FEATURES:
+//   • Glass UI (GlassCard, GlassInput, GlassBadge, GlassButton, GlassModal)
+//   • Filters: Action Type, Admin User (free-text), Date Range (from/to),
+//     Entity Type
+//   • Paginated table (newest first)
+//   • Click a row → modal with full payload rendered as syntax-highlighted JSON
+//   • "Export to CSV" and "Export to JSON" buttons (downloads current filter)
+//
+// ZERO DUPLICATION:
+//   This is the only admin page that surfaces audit logs. The Dashboard
+//   widget (AuditTrailWidget) reads the same /api/admin/logs endpoint but
+//   is a compact 5-row preview, not a filterable explorer — no overlap.
+//
+// MOBILE-FIRST:
+//   Table is wrapped in a horizontal-scroll container with min-width so
+//   columns don't collapse into each other. The filter bar stacks from
+//   1 column (mobile) → 2 (tablet) → 4 (desktop). The JSON viewer wraps
+//   long lines (white-space: pre-wrap; word-break: break-word).
 
-import { createSignal, Show, For, onMount, type Component } from "solid-js";
+import {
+  createSignal,
+  Show,
+  For,
+  onMount,
+  createMemo,
+  type Component
+} from "solid-js";
+import { GlassCard } from "~/shared/ui/glass/GlassCard";
+import { GlassInput } from "~/shared/ui/glass/GlassInput";
+import { GlassButton } from "~/shared/ui/glass/GlassButton";
+import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
+import { GlassModal } from "~/shared/ui/glass/GlassModal";
+import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
+
+// ─── Types ──────────────────────────────────────────────────────
 
 interface AuditLogRow {
   id: string;
@@ -35,18 +64,58 @@ interface ListLogsResponse {
 
 const PAGE_SIZE = 50;
 
+// Known action options (sourced from logAdminAction callers across the
+// codebase). The dropdown is a convenience — admins can still type any
+// action string into the URL via the API directly.
+const ACTION_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "auth.login", label: "auth.login" },
+  { value: "auth.logout", label: "auth.logout" },
+  { value: "user.disable", label: "user.disable" },
+  { value: "user.enable", label: "user.enable" },
+  { value: "user.delete", label: "user.delete" },
+  { value: "user.reset_preferences", label: "user.reset_preferences" },
+  { value: "feature_flag.toggle", label: "feature_flag.toggle" },
+  { value: "announcement.create", label: "announcement.create" },
+  { value: "announcement.update", label: "announcement.update" },
+  { value: "announcement.delete", label: "announcement.delete" },
+  { value: "tmdb_cache.delete", label: "tmdb_cache.delete" },
+  { value: "tmdb_cache.invalidate_expired", label: "tmdb_cache.invalidate_expired" },
+  { value: "tmdb_cache.invalidate_all", label: "tmdb_cache.invalidate_all" },
+  { value: "maintenance.run", label: "maintenance.run" },
+  { value: "cron.manual_trigger", label: "cron.manual_trigger" },
+  { value: "2fa.enroll", label: "2fa.enroll" },
+  { value: "2fa.disable", label: "2fa.disable" }
+];
+
+const ENTITY_OPTIONS: Array<{ value: string; label: string }> = [
+  { value: "admin_session", label: "admin_session" },
+  { value: "user", label: "user" },
+  { value: "feature_flag", label: "feature_flag" },
+  { value: "announcement", label: "announcement" },
+  { value: "tmdb_cache", label: "tmdb_cache" },
+  { value: "cron_job", label: "cron_job" },
+  { value: "app_config", label: "app_config" },
+  { value: "homepage_config", label: "homepage_config" }
+];
+
+// ─── Component ──────────────────────────────────────────────────
+
 const AdminLogsPage: Component = () => {
   const [logs, setLogs] = createSignal<AuditLogRow[]>([]);
   const [total, setTotal] = createSignal(0);
   const [page, setPage] = createSignal(1);
   const [loading, setLoading] = createSignal(true);
+  const [exporting, setExporting] = createSignal(false);
   const [error, setError] = createSignal<string | null>(null);
 
   // Filters
   const [actionFilter, setActionFilter] = createSignal("");
   const [entityTypeFilter, setEntityTypeFilter] = createSignal("");
+  const [adminFilter, setAdminFilter] = createSignal("");
+  const [fromDate, setFromDate] = createSignal("");
+  const [toDate, setToDate] = createSignal("");
 
-  // Selected log (for detail panel)
+  // Selected log for detail modal
   const [selected, setSelected] = createSignal<AuditLogRow | null>(null);
 
   const fetchLogs = async () => {
@@ -58,6 +127,14 @@ const AdminLogsPage: Component = () => {
       });
       if (actionFilter()) params.set("action", actionFilter());
       if (entityTypeFilter()) params.set("entity_type", entityTypeFilter());
+      if (adminFilter()) params.set("admin_id", adminFilter());
+      if (fromDate()) params.set("from", new Date(fromDate()).toISOString());
+      if (toDate()) {
+        // End of day inclusive
+        const d = new Date(toDate());
+        d.setHours(23, 59, 59, 999);
+        params.set("to", d.toISOString());
+      }
 
       const resp = await fetch(`/api/admin/logs?${params}`, {
         credentials: "include"
@@ -85,574 +162,595 @@ const AdminLogsPage: Component = () => {
 
   const totalPages = () => Math.max(1, Math.ceil(total() / PAGE_SIZE));
 
+  const applyFilters = () => {
+    setPage(1);
+    void fetchLogs();
+  };
+
+  const clearFilters = () => {
+    setActionFilter("");
+    setEntityTypeFilter("");
+    setAdminFilter("");
+    setFromDate("");
+    setToDate("");
+    setPage(1);
+    setTimeout(fetchLogs, 50);
+  };
+
   const formatDate = (iso: string): string => {
     const d = new Date(iso);
     return d.toLocaleDateString() + " " + d.toLocaleTimeString();
   };
 
-  const actionColor = (action: string): string => {
-    if (action.startsWith("auth.")) return "rgb(165, 180, 252)";
-    if (action.startsWith("user.disable") || action.startsWith("user.delete")) {
-      return "rgb(252, 165, 165)";
+  // ─── Export ───────────────────────────────────────────────────
+
+  const buildExportData = async (): Promise<AuditLogRow[]> => {
+    // Fetch all matching logs (up to 5000 to avoid memory blowup) by
+    // walking pages until exhausted or cap reached.
+    const cap = 5000;
+    const collected: AuditLogRow[] = [];
+    let p = 1;
+    while (collected.length < cap) {
+      const params = new URLSearchParams({
+        page: p.toString(),
+        limit: "200"
+      });
+      if (actionFilter()) params.set("action", actionFilter());
+      if (entityTypeFilter()) params.set("entity_type", entityTypeFilter());
+      if (adminFilter()) params.set("admin_id", adminFilter());
+      if (fromDate()) params.set("from", new Date(fromDate()).toISOString());
+      if (toDate()) {
+        const d = new Date(toDate());
+        d.setHours(23, 59, 59, 999);
+        params.set("to", d.toISOString());
+      }
+      const resp = await fetch(`/api/admin/logs?${params}`, {
+        credentials: "include"
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const data = (await resp.json()) as ListLogsResponse;
+      collected.push(...data.logs);
+      if (data.logs.length < 200) break;
+      p++;
     }
-    if (action.startsWith("user.enable")) return "rgb(134, 239, 172)";
-    if (action.startsWith("feature_flag")) return "rgb(253, 224, 71)";
-    return "var(--text-secondary)";
+    return collected;
   };
 
+  const exportJson = async () => {
+    setExporting(true);
+    try {
+      const rows = await buildExportData();
+      const blob = new Blob([JSON.stringify(rows, null, 2)], {
+        type: "application/json"
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cinelog-audit-logs-${new Date().toISOString().slice(0, 10)}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const exportCsv = async () => {
+    setExporting(true);
+    try {
+      const rows = await buildExportData();
+      const headers = [
+        "id",
+        "created_at",
+        "action",
+        "entity_type",
+        "entity_id",
+        "admin_id",
+        "admin_username",
+        "admin_display_name",
+        "ip_address",
+        "payload"
+      ];
+      const escape = (v: unknown): string => {
+        const s = v === null || v === undefined ? "" : String(v);
+        // Wrap in quotes; escape embedded quotes by doubling them
+        if (/[",\n\r]/.test(s)) {
+          return `"${s.replace(/"/g, '""')}"`;
+        }
+        return s;
+      };
+      const lines = [headers.join(",")];
+      for (const r of rows) {
+        lines.push(
+          [
+            r.id,
+            r.created_at,
+            r.action,
+            r.entity_type ?? "",
+            r.entity_id ?? "",
+            r.admin_id,
+            r.admin_username ?? "",
+            r.admin_display_name ?? "",
+            r.ip_address ?? "",
+            JSON.stringify(r.payload)
+          ]
+            .map(escape)
+            .join(",")
+        );
+      }
+      const blob = new Blob([lines.join("\n")], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `cinelog-audit-logs-${new Date().toISOString().slice(0, 10)}.csv`;
+      a.click();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  // ─── Action color (for code tag) ──────────────────────────────
+
+  const actionColorClass = (action: string): string => {
+    if (action.startsWith("auth.")) return "text-[rgb(165,180,252)]";
+    if (
+      action.startsWith("user.disable") ||
+      action.startsWith("user.delete")
+    ) {
+      return "text-[rgb(252,165,165)]";
+    }
+    if (action.startsWith("user.enable")) return "text-[rgb(134,239,172)]";
+    if (action.startsWith("feature_flag")) return "text-[rgb(253,224,71)]";
+    if (action.startsWith("2fa.")) return "text-[rgb(196,181,253)]";
+    if (action.startsWith("tmdb_cache.invalidate_all")) {
+      return "text-[rgb(252,165,165)]";
+    }
+    if (action.startsWith("tmdb_cache")) return "text-[rgb(253,224,71)]";
+    if (action.startsWith("cron.")) return "text-[rgb(147,197,253)]";
+    return "text-text-secondary";
+  };
+
+  // ─── JSON syntax highlighter ──────────────────────────────────
+  //
+  // Renders a JSON object as syntax-highlighted HTML. We pre-escape
+  // HTML entities in each token to prevent XSS via the payload.
+  const renderJson = createMemo(() => {
+    const sel = selected();
+    if (!sel) return "";
+    const payload = sel.payload;
+    if (!payload || Object.keys(payload).length === 0) return "";
+    const json = JSON.stringify(payload, null, 2);
+    // Tokenize: strings, numbers, booleans, null, keys, punctuation.
+    // We use a regex with capture groups to identify each token type.
+    const escapeHtml = (s: string): string =>
+      s
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+    // Match: string (key or value), number, boolean, null, punctuation
+    const tokenRegex =
+      /("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\],])/g;
+
+    return json.replace(
+      tokenRegex,
+      (match, key, str, num, bool, nul, punct) => {
+        if (key) {
+          return `<span class="json-key">${escapeHtml(key)}</span>`;
+        }
+        if (str) {
+          return `<span class="json-string">${escapeHtml(str)}</span>`;
+        }
+        if (num) {
+          return `<span class="json-number">${escapeHtml(num)}</span>`;
+        }
+        if (bool) {
+          return `<span class="json-boolean">${escapeHtml(bool)}</span>`;
+        }
+        if (nul) {
+          return `<span class="json-null">${escapeHtml(nul)}</span>`;
+        }
+        return escapeHtml(punct);
+      }
+    );
+  });
+
+  // ─── Render ───────────────────────────────────────────────────
+
   return (
-    <div>
-      <div style={{ "margin-bottom": "var(--sp-6)" }}>
-        <h2
-          style={{
-            "font-size": "1.5rem",
-            "font-weight": "700",
-            margin: "0 0 var(--sp-1) 0",
-            color: "var(--text)"
-          }}
-        >
-          Audit Trail
-        </h2>
-        <p
-          style={{
-            "font-size": "0.875rem",
-            color: "var(--text-muted)",
-            margin: 0
-          }}
-        >
-          Immutable record of all admin actions. Read-only.
-        </p>
-      </div>
-
-      {/* Filters */}
-      <div
-        style={{
-          display: "flex",
-          gap: "var(--sp-3)",
-          "margin-bottom": "var(--sp-4)",
-          "flex-wrap": "wrap",
-          "align-items": "center"
-        }}
-      >
-        <select
-          value={actionFilter()}
-          onChange={(e) => setActionFilter(e.currentTarget.value)}
-          style={inputStyle}
-        >
-          <option value="">All actions</option>
-          <option value="auth.login">auth.login</option>
-          <option value="auth.logout">auth.logout</option>
-          <option value="user.disable">user.disable</option>
-          <option value="user.enable">user.enable</option>
-          <option value="user.delete">user.delete</option>
-          <option value="user.reset_preferences">user.reset_preferences</option>
-          <option value="feature_flag.toggle">feature_flag.toggle</option>
-        </select>
-
-        <select
-          value={entityTypeFilter()}
-          onChange={(e) => setEntityTypeFilter(e.currentTarget.value)}
-          style={inputStyle}
-        >
-          <option value="">All entities</option>
-          <option value="admin_session">admin_session</option>
-          <option value="user">user</option>
-          <option value="feature_flag">feature_flag</option>
-        </select>
-
-        <button
-          onClick={() => {
-            setPage(1);
-            void fetchLogs();
-          }}
-          style={{
-            background: "var(--p)",
-            color: "var(--on-primary)",
-            border: "none",
-            "border-radius": "var(--radius-md)",
-            padding: "var(--sp-2) var(--sp-4)",
-            "font-size": "0.8125rem",
-            "font-weight": "500",
-            cursor: "pointer"
-          }}
-        >
-          Apply
-        </button>
-
-        <button
-          onClick={() => {
-            setActionFilter("");
-            setEntityTypeFilter("");
-            setPage(1);
-            setTimeout(fetchLogs, 50);
-          }}
-          style={{
-            background: "transparent",
-            border: "1px solid var(--hairline-2)",
-            "border-radius": "var(--radius-md)",
-            padding: "var(--sp-2) var(--sp-4)",
-            "font-size": "0.8125rem",
-            color: "var(--text-secondary)",
-            cursor: "pointer"
-          }}
-        >
-          Clear
-        </button>
-
-        <div style={{ "margin-left": "auto" }}>
-          <button
-            onClick={fetchLogs}
-            style={{
-              background: "transparent",
-              border: "1px solid var(--hairline-2)",
-              "border-radius": "var(--radius-md)",
-              padding: "var(--sp-2) var(--sp-4)",
-              "font-size": "0.8125rem",
-              color: "var(--text-secondary)",
-              cursor: "pointer"
-            }}
-          >
-            ↻ Refresh
-          </button>
+    <div class="admin-devtools-shell">
+      <header class="admin-devtools-header">
+        <div>
+          <h2>Audit Trail</h2>
+          <p>
+            Immutable record of all admin actions. Read-only — logs are
+            append-only and cannot be modified or deleted.
+          </p>
         </div>
-      </div>
+        <div class="admin-devtools-actions">
+          <GlassButton
+            variant="glass"
+            size="compact"
+            icon="download"
+            onClick={exportJson}
+            loading={exporting()}
+          >
+            Export JSON
+          </GlassButton>
+          <GlassButton
+            variant="glass"
+            size="compact"
+            icon="table_view"
+            onClick={exportCsv}
+            loading={exporting()}
+          >
+            Export CSV
+          </GlassButton>
+          <GlassButton
+            variant="secondary"
+            size="compact"
+            icon="refresh"
+            onClick={fetchLogs}
+          >
+            Refresh
+          </GlassButton>
+        </div>
+      </header>
+
+      {/* Filter bar */}
+      <GlassCard padding="default" class="admin-devtools-card">
+        <div class="admin-filter-bar">
+          <div class="admin-filter-field">
+            <label for="log-filter-action">Action Type</label>
+            <select
+              id="log-filter-action"
+              value={actionFilter()}
+              onChange={(e) => setActionFilter(e.currentTarget.value)}
+            >
+              <option value="">All actions</option>
+              <For each={ACTION_OPTIONS}>
+                {(opt) => (
+                  <option value={opt.value}>{opt.label}</option>
+                )}
+              </For>
+            </select>
+          </div>
+
+          <div class="admin-filter-field">
+            <label for="log-filter-entity">Entity Type</label>
+            <select
+              id="log-filter-entity"
+              value={entityTypeFilter()}
+              onChange={(e) => setEntityTypeFilter(e.currentTarget.value)}
+            >
+              <option value="">All entities</option>
+              <For each={ENTITY_OPTIONS}>
+                {(opt) => (
+                  <option value={opt.value}>{opt.label}</option>
+                )}
+              </For>
+            </select>
+          </div>
+
+          <div class="admin-filter-field">
+            <label for="log-filter-admin">Admin User ID</label>
+            <input
+              id="log-filter-admin"
+              type="text"
+              placeholder="UUID or username…"
+              value={adminFilter()}
+              onInput={(e) => setAdminFilter(e.currentTarget.value)}
+              onKeyDown={(e) => e.key === "Enter" && applyFilters()}
+            />
+          </div>
+
+          <div class="admin-filter-field">
+            <label for="log-filter-from">From Date</label>
+            <input
+              id="log-filter-from"
+              type="date"
+              value={fromDate()}
+              onInput={(e) => setFromDate(e.currentTarget.value)}
+            />
+          </div>
+
+          <div class="admin-filter-field">
+            <label for="log-filter-to">To Date</label>
+            <input
+              id="log-filter-to"
+              type="date"
+              value={toDate()}
+              onInput={(e) => setToDate(e.currentTarget.value)}
+            />
+          </div>
+
+          <div class="admin-filter-actions">
+            <GlassButton
+              variant="primary"
+              size="compact"
+              icon="filter_alt"
+              onClick={applyFilters}
+            >
+              Apply
+            </GlassButton>
+            <GlassButton
+              variant="ghost"
+              size="compact"
+              onClick={clearFilters}
+            >
+              Clear
+            </GlassButton>
+          </div>
+        </div>
+      </GlassCard>
 
       <Show when={error()}>
-        <div
-          role="alert"
-          style={{
-            background: "rgba(239, 68, 68, 0.1)",
-            border: "1px solid rgba(239, 68, 68, 0.3)",
-            "border-radius": "var(--radius-md)",
-            padding: "var(--sp-4)",
-            "margin-bottom": "var(--sp-4)",
-            "font-size": "0.875rem",
-            color: "rgb(252, 165, 165)"
-          }}
-        >
+        <div class="admin-devtools-alert" role="alert">
           {error()}
         </div>
       </Show>
 
       {/* Logs table */}
-      <div
-        style={{
-          background: "var(--tier-1)",
-          border: "1px solid var(--hairline)",
-          "border-radius": "var(--radius-lg)",
-          overflow: "hidden"
-        }}
-      >
-        <div style={{ "overflow-x": "auto" }}>
-          <table
-            style={{
-              width: "100%",
-              "border-collapse": "collapse",
-              "font-size": "0.8125rem"
-            }}
-          >
-            <thead>
-              <tr
-                style={{
-                  background: "var(--tier-2)",
-                  "text-align": "left",
-                  "border-bottom": "1px solid var(--hairline)"
-                }}
-              >
-                <th style={thStyle}>Time</th>
-                <th style={thStyle}>Admin</th>
-                <th style={thStyle}>Action</th>
-                <th style={thStyle}>Entity</th>
-                <th style={thStyle}>IP</th>
-              </tr>
-            </thead>
-            <tbody>
-              <Show when={loading()}>
-                <tr>
-                  <td
-                    colspan={5}
-                    style={{
-                      padding: "var(--sp-6)",
-                      "text-align": "center",
-                      color: "var(--text-muted)"
-                    }}
-                  >
-                    Loading…
-                  </td>
-                </tr>
-              </Show>
+      <GlassCard padding="none" class="admin-devtools-card">
+        <Show when={loading()}>
+          <div class="flex items-center justify-center gap-2 px-4 py-8 text-sm text-text-muted">
+            <span
+              class="material-symbols-outlined text-base"
+              style={{ animation: "softPulse 1.2s ease-in-out infinite" }}
+              aria-hidden="true"
+            >
+              progress_activity
+            </span>
+            Loading audit trail…
+          </div>
+        </Show>
 
-              <Show when={!loading() && logs().length === 0}>
-                <tr>
-                  <td
-                    colspan={5}
-                    style={{
-                      padding: "var(--sp-6)",
-                      "text-align": "center",
-                      color: "var(--text-muted)"
-                    }}
-                  >
-                    No log entries found
-                  </td>
-                </tr>
-              </Show>
+        <Show when={!loading() && logs().length === 0}>
+          <div class="p-6">
+            <GlassEmptyState
+              icon="receipt_long"
+              title="No log entries found"
+              message="No audit log entries match your current filters. Try clearing filters or expanding the date range."
+              surface
+            />
+          </div>
+        </Show>
 
-              <For each={logs()}>
-                {(log) => (
-                  <tr
-                    onClick={() => setSelected(log)}
-                    style={{
-                      "border-bottom": "1px solid var(--hairline)",
-                      cursor: "pointer",
-                      transition: "background 0.15s ease"
-                    }}
-                    onMouseEnter={(e) =>
-                      (e.currentTarget.style.background = "var(--tier-2)")
-                    }
-                    onMouseLeave={(e) =>
-                      (e.currentTarget.style.background = "transparent")
-                    }
-                  >
-                    <td style={tdStyle}>
-                      <span style={{ "white-space": "nowrap" }}>
-                        {formatDate(log.created_at)}
-                      </span>
-                    </td>
-                    <td style={tdStyle}>
-                      <div
-                        style={{ "font-weight": "500", color: "var(--text)" }}
-                      >
-                        {log.admin_display_name ?? "Unknown"}
-                      </div>
-                      <div
-                        style={{
-                          "font-size": "0.6875rem",
-                          color: "var(--text-muted)"
-                        }}
-                      >
-                        @{log.admin_username ?? "unknown"}
-                      </div>
-                    </td>
-                    <td style={tdStyle}>
-                      <code
-                        style={{
-                          color: actionColor(log.action),
-                          "font-size": "0.75rem",
-                          "font-weight": "500"
-                        }}
-                      >
-                        {log.action}
-                      </code>
-                    </td>
-                    <td style={tdStyle}>
-                      <Show when={log.entity_type}>
-                        <span style={{ color: "var(--text-secondary)" }}>
-                          {log.entity_type}
+        <Show when={!loading() && logs().length > 0}>
+          <div class="admin-logs-scroll">
+            <table class="admin-logs-table">
+              <thead>
+                <tr>
+                  <th>Time</th>
+                  <th>Admin</th>
+                  <th>Action</th>
+                  <th>Entity</th>
+                  <th>IP</th>
+                </tr>
+              </thead>
+              <tbody>
+                <For each={logs()}>
+                  {(log) => (
+                    <tr
+                      onClick={() => setSelected(log)}
+                      classList={{
+                        "selected-row": selected()?.id === log.id
+                      }}
+                    >
+                      <td>
+                        <span style={{ "white-space": "nowrap" }}>
+                          {formatDate(log.created_at)}
                         </span>
-                        <Show when={log.entity_id}>
-                          <span
-                            style={{
-                              "font-size": "0.6875rem",
-                              color: "var(--text-muted)",
-                              "margin-left": "var(--sp-2)",
-                              "font-family": "monospace"
-                            }}
-                          >
-                            {log.entity_id?.length && log.entity_id.length > 12
-                              ? log.entity_id.slice(0, 8) + "…"
-                              : log.entity_id}
+                      </td>
+                      <td>
+                        <div style={{ "font-weight": "500", color: "var(--text)" }}>
+                          {log.admin_display_name ?? "Unknown"}
+                        </div>
+                        <div style={{ "font-size": "0.6875rem", color: "var(--text-muted)" }}>
+                          @{log.admin_username ?? "unknown"}
+                        </div>
+                      </td>
+                      <td class="action-cell">
+                        <code class={actionColorClass(log.action)}>
+                          {log.action}
+                        </code>
+                      </td>
+                      <td class="entity-cell">
+                        <Show when={log.entity_type}>
+                          <span style={{ color: "var(--text-secondary)" }}>
+                            {log.entity_type}
                           </span>
+                          <Show when={log.entity_id}>
+                            <span class="entity-id" title={log.entity_id ?? ""}>
+                              {log.entity_id}
+                            </span>
+                          </Show>
                         </Show>
-                      </Show>
-                    </td>
-                    <td style={tdStyle}>
+                        <Show when={!log.entity_type}>
+                          <span style={{ color: "var(--text-muted)" }}>—</span>
+                        </Show>
+                      </td>
+                      <td>
+                        <span
+                          style={{
+                            "font-family": "monospace",
+                            "font-size": "0.75rem",
+                            color: "var(--text-muted)"
+                          }}
+                        >
+                          {log.ip_address ?? "—"}
+                        </span>
+                      </td>
+                    </tr>
+                  )}
+                </For>
+              </tbody>
+            </table>
+          </div>
+
+          {/* Pagination */}
+          <Show when={total() > PAGE_SIZE}>
+            <div class="admin-pagination">
+              <span>
+                Showing {(page() - 1) * PAGE_SIZE + 1}–
+                {Math.min(page() * PAGE_SIZE, total())} of {total()}
+              </span>
+              <div class="admin-pagination-controls">
+                <GlassButton
+                  variant="glass"
+                  size="compact"
+                  disabled={page() === 1}
+                  onClick={() => {
+                    setPage((p) => Math.max(1, p - 1));
+                    setTimeout(fetchLogs, 0);
+                  }}
+                >
+                  ← Prev
+                </GlassButton>
+                <span style={{ padding: "6px 12px" }}>
+                  {page()} / {totalPages()}
+                </span>
+                <GlassButton
+                  variant="glass"
+                  size="compact"
+                  disabled={page() >= totalPages()}
+                  onClick={() => {
+                    setPage((p) => Math.min(totalPages(), p + 1));
+                    setTimeout(fetchLogs, 0);
+                  }}
+                >
+                  Next →
+                </GlassButton>
+              </div>
+            </div>
+          </Show>
+        </Show>
+      </GlassCard>
+
+      {/* Detail modal with JSON viewer */}
+      <GlassModal
+        open={selected() !== null}
+        onClose={() => setSelected(null)}
+        title="Log Detail"
+        icon="receipt_long"
+        size="lg"
+      >
+        <Show when={selected()}>
+          {(log) => (
+            <div class="admin-log-detail-drawer">
+              <div class="admin-log-detail-meta">
+                <div class="admin-log-detail-row">
+                  <dt>Time</dt>
+                  <dd>{formatDate(log().created_at)}</dd>
+                </div>
+                <div class="admin-log-detail-row">
+                  <dt>Action</dt>
+                  <dd>
+                    <code class={actionColorClass(log().action)}>
+                      {log().action}
+                    </code>
+                  </dd>
+                </div>
+                <div class="admin-log-detail-row">
+                  <dt>Admin</dt>
+                  <dd>
+                    {log().admin_display_name ?? "Unknown"}{" "}
+                    <span style={{ color: "var(--text-muted)" }}>
+                      @{log().admin_username ?? "unknown"}
+                    </span>
+                  </dd>
+                </div>
+                <div class="admin-log-detail-row">
+                  <dt>Entity</dt>
+                  <dd>
+                    {log().entity_type ?? "—"}
+                    <Show when={log().entity_id}>
                       <span
                         style={{
                           "font-family": "monospace",
                           "font-size": "0.75rem",
+                          "margin-left": "var(--sp-2)",
                           color: "var(--text-muted)"
                         }}
                       >
-                        {log.ip_address ?? "—"}
+                        {log().entity_id}
                       </span>
-                    </td>
-                  </tr>
-                )}
-              </For>
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Pagination */}
-      <Show when={total() > PAGE_SIZE}>
-        <div
-          style={{
-            display: "flex",
-            "justify-content": "space-between",
-            "align-items": "center",
-            "margin-top": "var(--sp-4)",
-            "font-size": "0.8125rem",
-            color: "var(--text-muted)"
-          }}
-        >
-          <span>
-            Showing {(page() - 1) * PAGE_SIZE + 1}–
-            {Math.min(page() * PAGE_SIZE, total())} of {total()}
-          </span>
-          <div style={{ display: "flex", gap: "var(--sp-2)" }}>
-            <button
-              disabled={page() === 1}
-              onClick={() => {
-                setPage((p) => Math.max(1, p - 1));
-                setTimeout(fetchLogs, 0);
-              }}
-              style={pageBtnStyle(page() === 1)}
-            >
-              ← Prev
-            </button>
-            <span style={{ padding: "6px 12px" }}>
-              {page()} / {totalPages()}
-            </span>
-            <button
-              disabled={page() >= totalPages()}
-              onClick={() => {
-                setPage((p) => Math.min(totalPages(), p + 1));
-                setTimeout(fetchLogs, 0);
-              }}
-              style={pageBtnStyle(page() >= totalPages())}
-            >
-              Next →
-            </button>
-          </div>
-        </div>
-      </Show>
-
-      {/* Detail panel */}
-      <Show when={selected()}>
-        {(log) => (
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              background: "rgba(0,0,0,0.7)",
-              "backdrop-filter": "blur(4px)",
-              "z-index": 1000,
-              display: "flex",
-              "align-items": "center",
-              "justify-content": "center",
-              padding: "var(--sp-4)"
-            }}
-            onClick={() => setSelected(null)}
-          >
-            <div
-              onClick={(e) => e.stopPropagation()}
-              style={{
-                background: "var(--tier-1)",
-                border: "1px solid var(--hairline)",
-                "border-radius": "var(--radius-lg)",
-                padding: "var(--sp-6)",
-                "max-width": "640px",
-                width: "100%",
-                "max-height": "80vh",
-                "overflow-y": "auto",
-                "box-shadow": "var(--shadow-xl)"
-              }}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  "justify-content": "space-between",
-                  "align-items": "start",
-                  "margin-bottom": "var(--sp-4)"
-                }}
-              >
-                <h3
-                  style={{
-                    "font-size": "1.125rem",
-                    "font-weight": "600",
-                    margin: 0,
-                    color: "var(--text)"
-                  }}
+                    </Show>
+                  </dd>
+                </div>
+                <div class="admin-log-detail-row">
+                  <dt>IP Address</dt>
+                  <dd class="mono">{log().ip_address ?? "—"}</dd>
+                </div>
+                <div class="admin-log-detail-row">
+                  <dt>Log ID</dt>
+                  <dd class="mono">{log().id}</dd>
+                </div>
+                <div
+                  class="admin-log-detail-row"
+                  style={{ "grid-column": "1 / -1" }}
                 >
-                  Log Detail
-                </h3>
-                <button
-                  onClick={() => setSelected(null)}
-                  style={{
-                    background: "transparent",
-                    border: "none",
-                    color: "var(--text-muted)",
-                    "font-size": "1.25rem",
-                    cursor: "pointer",
-                    padding: "0 4px"
-                  }}
-                  aria-label="Close"
-                >
-                  ×
-                </button>
+                  <dt>User-Agent</dt>
+                  <dd style={{ "word-break": "break-all" }}>
+                    {log().user_agent ?? "—"}
+                  </dd>
+                </div>
               </div>
 
-              <dl
-                style={{
-                  display: "grid",
-                  "grid-template-columns": "120px 1fr",
-                  gap: "var(--sp-2) var(--sp-4)",
-                  "font-size": "0.875rem"
-                }}
-              >
-                <dt style={{ color: "var(--text-muted)" }}>ID</dt>
-                <dd
+              {/* Payload JSON viewer */}
+              <div>
+                <div
                   style={{
-                    margin: 0,
-                    "font-family": "monospace",
-                    "font-size": "0.75rem",
-                    color: "var(--text-secondary)"
+                    display: "flex",
+                    "align-items": "center",
+                    gap: "var(--sp-2)",
+                    "margin-bottom": "var(--sp-2)"
                   }}
                 >
-                  {log().id}
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>Time</dt>
-                <dd style={{ margin: 0, color: "var(--text)" }}>
-                  {formatDate(log().created_at)}
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>Admin</dt>
-                <dd style={{ margin: 0, color: "var(--text)" }}>
-                  {log().admin_display_name ?? "Unknown"}{" "}
-                  <span style={{ color: "var(--text-muted)" }}>
-                    @{log().admin_username ?? "unknown"}
-                  </span>
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>Action</dt>
-                <dd style={{ margin: 0 }}>
-                  <code style={{ color: actionColor(log().action) }}>
-                    {log().action}
-                  </code>
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>Entity</dt>
-                <dd style={{ margin: 0, color: "var(--text-secondary)" }}>
-                  {log().entity_type ?? "—"}
-                  <Show when={log().entity_id}>
-                    <span
-                      style={{
-                        "font-family": "monospace",
-                        "font-size": "0.75rem",
-                        "margin-left": "var(--sp-2)"
+                  <GlassBadge
+                    label="Payload"
+                    intent="info"
+                    size="compact"
+                  />
+                  <Show when={Object.keys(log().payload).length > 0}>
+                    <GlassButton
+                      variant="ghost"
+                      size="compact"
+                      icon="content_copy"
+                      onClick={() => {
+                        navigator.clipboard?.writeText(
+                          JSON.stringify(log().payload, null, 2)
+                        );
                       }}
                     >
-                      {log().entity_id}
-                    </span>
+                      Copy
+                    </GlassButton>
                   </Show>
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>IP</dt>
-                <dd
-                  style={{
-                    margin: 0,
-                    "font-family": "monospace",
-                    "font-size": "0.75rem",
-                    color: "var(--text-secondary)"
-                  }}
-                >
-                  {log().ip_address ?? "—"}
-                </dd>
-
-                <dt style={{ color: "var(--text-muted)" }}>User-Agent</dt>
-                <dd
-                  style={{
-                    margin: 0,
-                    "font-size": "0.75rem",
-                    color: "var(--text-muted)",
-                    "word-break": "break-all"
-                  }}
-                >
-                  {log().user_agent ?? "—"}
-                </dd>
-              </dl>
-
-              <Show when={Object.keys(log().payload).length > 0}>
-                <div style={{ "margin-top": "var(--sp-5)" }}>
-                  <div
-                    style={{
-                      "font-size": "0.75rem",
-                      "font-weight": "600",
-                      color: "var(--text-muted)",
-                      "text-transform": "uppercase",
-                      "letter-spacing": "0.05em",
-                      "margin-bottom": "var(--sp-2)"
-                    }}
-                  >
-                    Payload
-                  </div>
-                  <pre
-                    style={{
-                      background: "var(--tier-2)",
-                      border: "1px solid var(--hairline)",
-                      "border-radius": "var(--radius-md)",
-                      padding: "var(--sp-3)",
-                      "font-size": "0.75rem",
-                      "font-family": "monospace",
-                      color: "var(--text-secondary)",
-                      "white-space": "pre-wrap",
-                      "word-break": "break-all",
-                      margin: 0,
-                      "max-height": "300px",
-                      "overflow-y": "auto"
-                    }}
-                  >
-                    {JSON.stringify(log().payload, null, 2)}
-                  </pre>
                 </div>
-              </Show>
+                <Show
+                  when={Object.keys(log().payload).length > 0}
+                  fallback={
+                    <div class="admin-json-empty">
+                      No payload recorded for this action.
+                    </div>
+                  }
+                >
+                  <pre
+                    class="admin-json-viewer"
+                    innerHTML={renderJson()}
+                  />
+                </Show>
+              </div>
             </div>
-          </div>
-        )}
-      </Show>
+          )}
+        </Show>
+      </GlassModal>
     </div>
   );
 };
-
-// ─── Style helpers ────────────────────────────────────────────────
-
-const thStyle: Record<string, string> = {
-  padding: "var(--sp-3) var(--sp-4)",
-  "font-weight": "600",
-  color: "var(--text-secondary)",
-  "text-align": "left"
-};
-
-const tdStyle: Record<string, string> = {
-  padding: "var(--sp-3) var(--sp-4)",
-  color: "var(--text-secondary)",
-  "vertical-align": "top"
-};
-
-const inputStyle: Record<string, string> = {
-  padding: "var(--sp-2) var(--sp-3)",
-  background: "var(--tier-2)",
-  border: "1px solid var(--hairline-2)",
-  "border-radius": "var(--radius-md)",
-  color: "var(--text)",
-  "font-size": "0.8125rem",
-  outline: "none",
-  cursor: "pointer"
-};
-
-function pageBtnStyle(disabled: boolean): Record<string, string> {
-  return {
-    background: "transparent",
-    border: "1px solid var(--hairline-2)",
-    "border-radius": "var(--radius-sm)",
-    padding: "6px 12px",
-    "font-size": "0.8125rem",
-    color: disabled ? "var(--text-muted)" : "var(--text-secondary)",
-    cursor: disabled ? "not-allowed" : "pointer",
-    opacity: disabled ? "0.5" : "1"
-  };
-}
 
 export default AdminLogsPage;
