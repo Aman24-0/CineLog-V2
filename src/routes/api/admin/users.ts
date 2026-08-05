@@ -3,10 +3,15 @@
 // CineLog V2 — Admin Users API
 // ---------------------------------------------------------------------
 // Endpoints:
-//   GET /api/admin/users?search=&page=&limit=    — list/search users
-//   GET /api/admin/users?id=<uuid>                — get single user
-//   PATCH /api/admin/users                        — perform an action on a user
+//   GET /api/admin/users?search=&page=&limit=                — list/search users
+//        Optional filters (Phase 9 Chunk 3):
+//          &provider=google|email|all     — filter by auth provider
+//          &twofa=enabled|disabled|all    — filter by 2FA status
+//          &admin=true|false|all          — filter by admin flag
+//   GET /api/admin/users?id=<uuid>                           — get single user (detailed)
+//   PATCH /api/admin/users                                   — perform an action on a user
 //        Body: { id, action: "disable" | "enable" | "delete" | "reset_preferences", reason? }
+//        Body: { ids: string[], action, reason? }            — bulk mode (Phase 6 Part 3 — Task 4)
 //
 // There is no DELETE endpoint — soft-deletion is performed via the
 // `action: "delete"` body field on PATCH, which sets `profiles.deleted_at`
@@ -24,7 +29,21 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
+
+// ─── Types ──────────────────────────────────────────────────────
+//
+// UserRow — the lightweight row returned in the LIST response. Kept
+// backwards-compatible with Phase 6 callers (the admin dashboard's
+// "recent signups" panel reads these fields). Phase 9 Chunk 3 adds
+// two new optional fields:
+//   • provider       — "google" | "email" | null (null = unknown)
+//   • twofa_enabled  — true | false | null (null = unknown)
+//
+// These new fields are populated by batch-enriching the page of
+// profiles with auth.users identities + auth.mfa_factors. The
+// enrichment runs per visible row (max 25/page) so the cost is
+// bounded.
 
 interface UserRow {
   id: string;
@@ -40,6 +59,10 @@ interface UserRow {
   is_admin: boolean;
   vault_count: number;
   last_activity: string | null;
+  /** Phase 9 Chunk 3 — primary auth provider. */
+  provider?: "google" | "email" | null;
+  /** Phase 9 Chunk 3 — whether the user has at least one verified MFA factor. */
+  twofa_enabled?: boolean | null;
 }
 
 interface ListUsersResponse {
@@ -49,11 +72,137 @@ interface ListUsersResponse {
   limit: number;
 }
 
+// UserDetail — the rich object returned by GET ?id=<uuid>. Includes
+// everything in UserRow plus the drawer-only fields: bio, linked
+// identities, 2FA factor list, collections/ratings counts, and the
+// last 10 login_history rows.
+
+interface UserIdentity {
+  provider: string;
+  identity_id: string;
+}
+
+interface MfaFactor {
+  id: string;
+  factor_type: string;
+  friendly_name: string | null;
+  status: string;
+}
+
+interface LoginHistoryEntry {
+  id: string;
+  login_at: string;
+  ip_address: string | null;
+  user_agent: string | null;
+}
+
+interface UserDetail {
+  user: UserRow;
+  bio: string | null;
+  identities: UserIdentity[];
+  mfa_factors: MfaFactor[];
+  collections_count: number;
+  ratings_count: number;
+  login_history: LoginHistoryEntry[];
+}
+
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: { "Content-Type": "application/json" }
   });
+}
+
+// ─── Helpers (Phase 9 Chunk 3) ──────────────────────────────────
+
+/**
+ * Derive a single primary provider label from a user's auth identities.
+ *
+ * Supabase stores identities as an array of { provider, identity_id, ... }.
+ * A user who signed up with email/password has one identity with
+ * provider="email". A user who signed in with Google has one with
+ * provider="google". A user who linked Google after email signup has
+ * both — in that case we prefer "google" (the OAuth provider) because
+ * it's the more specific signal for the admin filter UI.
+ *
+ * Returns null when identities is empty or the call failed.
+ */
+function deriveProvider(
+  identities: Array<{ provider: string }> | null | undefined
+): "google" | "email" | null {
+  if (!identities || identities.length === 0) return null;
+  const providers = identities.map((i) => i.provider);
+  if (providers.includes("google")) return "google";
+  if (providers.includes("email")) return "email";
+  // Any other provider (apple, github, etc.) — report as the raw
+  // string so the admin can still see something, but the filter
+  // dropdown only offers google/email/all (the two providers the
+  // user-side actually supports). We normalize to null here so the
+  // filter doesn't show a mystery third option.
+  return null;
+}
+
+/**
+ * Batch-fetch auth.users identities + 2FA factor status for a set of
+ * user ids. Returns a map keyed by user id.
+ *
+ * This is called once per LIST page (max 100 ids). Each id triggers
+ * one `auth.admin.getUserById` + one `auth.admin.mfa.listFactors`
+ * call. For a 25-user page that's 50 parallel calls — Supabase pools
+ * connections so this completes well under a second.
+ *
+ * Failures per-user are swallowed (the map entry is omitted) so one
+ * bad user doesn't break the whole page.
+ */
+async function batchFetchAuthMetadata(
+  supabase: ReturnType<typeof createAdminClient>,
+  userIds: string[]
+): Promise<
+  Map<
+    string,
+    {
+      provider: "google" | "email" | null;
+      twofa_enabled: boolean;
+    }
+  >
+> {
+  const result = new Map<
+    string,
+    { provider: "google" | "email" | null; twofa_enabled: boolean }
+  >();
+  if (userIds.length === 0) return result;
+
+  await Promise.all(
+    userIds.map(async (uid) => {
+      try {
+        const [userResp, factorsResp] = await Promise.all([
+          supabase.auth.admin.getUserById(uid),
+          supabase.auth.admin.mfa.listFactors({ userId: uid })
+        ]);
+        const identities =
+          (userResp.data?.user?.identities as
+            | Array<{ provider: string }>
+            | undefined
+            | null) ?? null;
+        const provider = deriveProvider(identities);
+
+        // listFactors returns { data: { factors: Factor[] } }.
+        // A factor with status "verified" means the user completed
+        // enrollment. We treat 2FA as "enabled" iff ≥1 verified factor.
+        const factors = factorsResp.data?.factors ?? [];
+        const twofa_enabled = factors.some(
+          (f) => f.status === "verified"
+        );
+
+        result.set(uid, { provider, twofa_enabled });
+      } catch {
+        // Swallow — leave this user out of the map. The row will
+        // render with null provider / null twofa_enabled.
+      }
+    })
+  );
+
+  return result;
 }
 
 // ─── GET /api/admin/users ─────────────────────────────────────────
@@ -62,7 +211,36 @@ function jsonResponse(body: unknown, status = 200): Response {
 //   search — optional substring to match against email, username, display_name
 //   page   — 1-indexed page number (default 1)
 //   limit  — page size (default 25, max 100)
-//   id     — if provided, returns a single user instead of a list
+//   id     — if provided, returns a single detailed user instead of a list
+//
+// Phase 9 Chunk 3 filters:
+//   provider — "google" | "email" | "all" (default "all")
+//   twofa    — "enabled" | "disabled" | "all" (default "all")
+//   admin    — "true" | "false" | "all" (default "all")
+//
+// The provider / twofa filters require per-user auth metadata which
+// can't be expressed as a SQL filter on `profiles`. Strategy:
+//   1. Fetch a page of profiles (slightly over-fetch when a filter
+//      is active so we still have a full page after filtering).
+//   2. Batch-fetch auth metadata for that page.
+//   3. Apply the provider/twofa/admin filters in JS.
+//   4. Slice to the requested page size.
+//   5. The `total` reflects the filtered count (best-effort: when
+//      a provider/twofa filter is active, total is the count of
+//      matching users on THIS page only — see note below).
+//
+// NOTE ON TOTAL ACCURACY:
+//   When no provider/twofa filter is active, `total` is the exact
+//   SQL count from the profiles query (unchanged from pre-Chunk-3
+//   behavior). When a provider/twofa filter IS active, computing
+//   the exact global total would require fetching auth metadata
+//   for EVERY user in the database — prohibitively expensive. We
+//   instead report `total` as the count of matching users on the
+//   current over-fetched page. The pagination UI degrades
+//   gracefully: if the page is full, "Next" is enabled; if not,
+//   "Next" is disabled. This is an acceptable trade-off for an
+//   admin tool — the operator filters to find a specific user,
+//   not to page through thousands.
 
 export async function GET(event: APIEvent) {
   const adminResult = await requireAdmin(event);
@@ -80,14 +258,19 @@ export async function GET(event: APIEvent) {
     );
     const userId = url.searchParams.get("id");
 
+    // Phase 9 Chunk 3 — filters
+    const providerFilter = url.searchParams.get("provider") || "all";
+    const twofaFilter = url.searchParams.get("twofa") || "all";
+    const adminFilter = url.searchParams.get("admin") || "all";
+
     const supabase = createAdminClient();
 
-    // Single user lookup
+    // ─── Single user lookup (detailed) ────────────────────────
     if (userId) {
       const { data: profile, error } = await supabase
         .from("profiles")
         .select(
-          "id, username, display_name, avatar_url, country, created_at, deleted_at, admin_disabled_at, scheduled_deletion_at, is_admin"
+          "id, username, display_name, bio, avatar_url, country, created_at, deleted_at, admin_disabled_at, scheduled_deletion_at, is_admin"
         )
         .eq("id", userId)
         .single();
@@ -96,42 +279,117 @@ export async function GET(event: APIEvent) {
         return jsonResponse({ error: "User not found" }, 404);
       }
 
-      // Get email from auth.users via admin API (need to use the auth admin)
+      // Get email + identities from auth.users via admin API
       const {
         data: { user }
       } = await supabase.auth.admin.getUserById(userId);
 
-      // Get vault count
-      const { count: vaultCount } = await supabase
-        .from("vault")
-        .select("id", { count: "exact", head: true })
-        .eq("user_id", userId)
-        .is("deleted_at", null);
+      // Get 2FA factors (server-side admin call).
+      // listFactors returns { data: { factors: Factor[] } }.
+      const { data: mfaData } = await supabase.auth.admin.mfa.listFactors({
+        userId
+      });
+      const allFactors = (mfaData?.factors ?? []).map((f) => ({
+        id: f.id,
+        factor_type: f.factor_type,
+        friendly_name: f.friendly_name ?? null,
+        status: f.status
+      }));
+      const twofa_enabled = allFactors.some((f) => f.status === "verified");
 
-      // Get last activity
-      const { data: lastActivity } = await supabase
-        .from("activity_log")
-        .select("created_at")
-        .eq("user_id", userId)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
+      // Parallel: vault count, collections count, ratings count
+      // (ratings = vault rows where rating IS NOT NULL), last
+      // activity, and login_history (last 10).
+      const [
+        vaultCountResp,
+        ratingsCountResp,
+        collectionsCountResp,
+        lastActivityResp,
+        loginHistoryResp
+      ] = await Promise.all([
+        supabase
+          .from("vault")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .is("deleted_at", null),
+        supabase
+          .from("vault")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .is("deleted_at", null)
+          .not("rating", "is", null),
+        supabase
+          .from("collections")
+          .select("id", { count: "exact", head: true })
+          .eq("user_id", userId)
+          .is("deleted_at", null),
+        supabase
+          .from("activity_log")
+          .select("created_at")
+          .eq("user_id", userId)
+          .order("created_at", { ascending: false })
+          .limit(1)
+          .single(),
+        supabase
+          .from("login_history")
+          .select("id, login_at, ip_address, user_agent")
+          .eq("user_id", userId)
+          .order("login_at", { ascending: false })
+          .limit(10)
+      ]);
+
+      const identities: UserIdentity[] = (user?.identities ?? []).map((i) => ({
+        provider: (i as { provider: string }).provider,
+        identity_id: (i as { identity_id: string }).identity_id
+      }));
 
       const userRow: UserRow = {
-        ...(profile as Omit<
-          UserRow,
-          "email" | "vault_count" | "last_activity"
-        >),
+        id: profile.id,
         email: user?.email ?? "",
-        vault_count: vaultCount ?? 0,
-        last_activity: lastActivity?.created_at ?? null
+        username: profile.username,
+        display_name: profile.display_name,
+        avatar_url: profile.avatar_url,
+        country: profile.country,
+        created_at: profile.created_at,
+        deleted_at: profile.deleted_at,
+        admin_disabled_at: profile.admin_disabled_at,
+        scheduled_deletion_at: profile.scheduled_deletion_at,
+        is_admin: profile.is_admin,
+        vault_count: vaultCountResp.count ?? 0,
+        last_activity: lastActivityResp.data?.created_at ?? null,
+        provider: deriveProvider(user?.identities ?? null),
+        twofa_enabled
       };
 
-      return jsonResponse({ user: userRow });
+      const detail: UserDetail = {
+        user: userRow,
+        bio: profile.bio ?? null,
+        identities,
+        mfa_factors: allFactors,
+        collections_count: collectionsCountResp.count ?? 0,
+        ratings_count: ratingsCountResp.count ?? 0,
+        login_history: (loginHistoryResp.data ?? []) as LoginHistoryEntry[]
+      };
+
+      return jsonResponse({ user: detail });
     }
 
-    // List with optional search
+    // ─── List with optional search ───────────────────────────
+    //
+    // When a provider/twofa filter is active we over-fetch 3x the
+    // page size (capped at the max 100) so the JS-side filter still
+    // has enough rows to fill a page after filtering. The admin
+    // filter (is_admin) is applied in SQL since it's a profiles
+    // column.
+
+    const hasAuthFilter =
+      providerFilter !== "all" || twofaFilter !== "all";
+
+    const effectiveLimit = hasAuthFilter
+      ? Math.min(100, limit * 3)
+      : limit;
     const offset = (page - 1) * limit;
+
     let query = supabase
       .from("profiles")
       .select(
@@ -139,17 +397,22 @@ export async function GET(event: APIEvent) {
         { count: "exact" }
       )
       .order("created_at", { ascending: false })
-      .range(offset, offset + limit - 1);
+      .range(offset, offset + effectiveLimit - 1);
 
     if (search) {
-      // Use OR filter across username + display_name
-      // Email isn't in profiles, so we can't search by email here without
-      // joining auth.users — which the service role can do via a custom query.
-      // For now, we match username + display_name. Email search would require
-      // a different approach (lookup auth.users first, then profiles).
+      // Match username + display_name. Email isn't in profiles (see
+      // the get_user_email RPC note below) so we can't OR it in
+      // SQL — email search would require a different strategy.
       query = query.or(
         `username.ilike.%${search}%,display_name.ilike.%${search}%`
       );
+    }
+
+    // Admin filter is a SQL column — apply in DB.
+    if (adminFilter === "true") {
+      query = query.eq("is_admin", true);
+    } else if (adminFilter === "false") {
+      query = query.eq("is_admin", false);
     }
 
     const { data: profiles, error, count } = await query;
@@ -159,90 +422,54 @@ export async function GET(event: APIEvent) {
       return jsonResponse({ error: "Failed to fetch users" }, 500);
     }
 
-    // Enrich with vault counts and last activity (batch)
-    const userIds = (profiles ?? []).map((p) => p.id);
+    const profileList = profiles ?? [];
+    const userIds = profileList.map((p) => p.id);
 
+    // Batch enrichment: vault counts, last activity, emails, auth metadata.
     const vaultCounts: Record<string, number> = {};
     const lastActivities: Record<string, string> = {};
-    if (userIds.length > 0) {
-      const [vaultResp, activityResp] = await Promise.all([
-        supabase
-          .from("vault")
-          .select("user_id")
-          .in("user_id", userIds)
-          .is("deleted_at", null),
-        supabase
-          .from("activity_log")
-          .select("user_id, created_at")
-          .in("user_id", userIds)
-          .order("created_at", { ascending: false })
-      ]);
+    const emailsById: Record<string, string> = {};
 
-      // Aggregate vault counts
-      for (const row of (vaultResp.data ?? []) as Array<{ user_id: string }>) {
-        vaultCounts[row.user_id] = (vaultCounts[row.user_id] ?? 0) + 1;
-      }
+    const [vaultResp, activityResp, authMeta] = await Promise.all([
+      supabase
+        .from("vault")
+        .select("user_id")
+        .in("user_id", userIds)
+        .is("deleted_at", null),
+      supabase
+        .from("activity_log")
+        .select("user_id, created_at")
+        .in("user_id", userIds)
+        .order("created_at", { ascending: false }),
+      // Phase 9 Chunk 3 — provider + 2FA status per user.
+      batchFetchAuthMetadata(supabase, userIds)
+    ]);
 
-      // Get the latest activity per user (first occurrence since ordered desc)
-      for (const row of (activityResp.data ?? []) as Array<{
-        user_id: string;
-        created_at: string;
-      }>) {
-        if (!lastActivities[row.user_id]) {
-          lastActivities[row.user_id] = row.created_at;
-        }
+    for (const row of (vaultResp.data ?? []) as Array<{ user_id: string }>) {
+      vaultCounts[row.user_id] = (vaultCounts[row.user_id] ?? 0) + 1;
+    }
+    for (const row of (activityResp.data ?? []) as Array<{
+      user_id: string;
+      created_at: string;
+    }>) {
+      if (!lastActivities[row.user_id]) {
+        lastActivities[row.user_id] = row.created_at;
       }
     }
 
-    // Get emails from auth.users via the get_user_email RPC.
-    //
-    // v2 (Phase 4 Task 26): previously we called
-    // `supabase.auth.admin.listUsers({ page: 1, perPage: 1000 })`
-    // and filtered client-side — wasteful (fetches up to 1000 user
-    // records when we only need 25 emails) AND it returns the full
-    // user objects (including sensitive fields like
-    // encrypted_password, email_change, etc.) to the server-side
-    // caller, which is more surface area than necessary.
-    //
-    // Now: we call the `get_user_email(user_id UUID) RETURNS TEXT`
-    // RPC once per visible user (Promise.all, 25 parallel calls).
-    // Each call:
-    //   • Returns ONLY the email (no other auth.users fields).
-    //   • Is SECURITY DEFINER with an admin check inside — even
-    //     if the EXECUTE grant leaked to a non-admin client, the
-    //     function returns NULL instead of the email.
-    //   • Returns NULL for non-existent user_ids (defensive).
-    //
-    // 25 parallel RPC calls is more requests than the old 1
-    // listUsers call, but each one is much smaller (single text
-    // value vs. full user object), and the function's tight
-    // admin check makes the security posture strictly better.
-    // For pages with 100 users (max page size), this still
-    // completes in well under a second because Supabase pools
-    // the connections.
-    const emailsById: Record<string, string> = {};
+    // Get emails via the get_user_email RPC (Phase 4 Task 26 — one
+    // call per visible user, SECURITY DEFINER + admin check).
     if (userIds.length > 0) {
       const emailResults = await Promise.all(
         userIds.map(async (uid) => {
           try {
-            const { data, error } = await supabase.rpc("get_user_email", {
-              user_id: uid
-            });
-            if (error) {
-              console.warn(
-                `[CineLog Admin] get_user_email(${uid}) error:`,
-                error.message
-              );
-              return { uid, email: "" };
-            }
-            // RPC returns TEXT — null when user_id doesn't exist
-            // or caller isn't an admin (defense in depth).
-            return { uid, email: typeof data === "string" ? data : "" };
-          } catch (err) {
-            console.warn(
-              `[CineLog Admin] get_user_email(${uid}) exception:`,
-              err
+            const { data, error: rpcErr } = await supabase.rpc(
+              "get_user_email",
+              { user_id: uid }
             );
+            if (rpcErr) return { uid, email: "" };
+            return { uid, email: typeof data === "string" ? data : "" };
+          } catch {
             return { uid, email: "" };
           }
         })
@@ -252,16 +479,44 @@ export async function GET(event: APIEvent) {
       }
     }
 
-    const users: UserRow[] = (profiles ?? []).map((p) => ({
-      ...(p as Omit<UserRow, "email" | "vault_count" | "last_activity">),
-      email: emailsById[p.id] ?? "",
-      vault_count: vaultCounts[p.id] ?? 0,
-      last_activity: lastActivities[p.id] ?? null
-    }));
+    // Build the rows with all enrichment.
+    let users: UserRow[] = profileList.map((p) => {
+      const meta = authMeta.get(p.id);
+      return {
+        id: p.id,
+        email: emailsById[p.id] ?? "",
+        username: p.username,
+        display_name: p.display_name,
+        avatar_url: p.avatar_url,
+        country: p.country,
+        created_at: p.created_at,
+        deleted_at: p.deleted_at,
+        admin_disabled_at: p.admin_disabled_at,
+        scheduled_deletion_at: p.scheduled_deletion_at,
+        is_admin: p.is_admin,
+        vault_count: vaultCounts[p.id] ?? 0,
+        last_activity: lastActivities[p.id] ?? null,
+        provider: meta?.provider ?? null,
+        twofa_enabled: meta?.twofa_enabled ?? null
+      };
+    });
+
+    // ─── Apply provider/twofa filters in JS ──────────────────
+    if (providerFilter !== "all") {
+      users = users.filter((u) => u.provider === providerFilter);
+    }
+    if (twofaFilter === "enabled") {
+      users = users.filter((u) => u.twofa_enabled === true);
+    } else if (twofaFilter === "disabled") {
+      users = users.filter((u) => u.twofa_enabled === false);
+    }
+
+    // Slice to the requested page size (we may have over-fetched).
+    users = users.slice(0, limit);
 
     const response: ListUsersResponse = {
       users,
-      total: count ?? 0,
+      total: hasAuthFilter ? users.length : (count ?? 0),
       page,
       limit
     };
