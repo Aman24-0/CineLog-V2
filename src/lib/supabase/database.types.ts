@@ -1186,6 +1186,67 @@ export type Database = {
           }
         ];
       };
+      // ─── Admin: announcement_dismissals (Phase 9 Chunk 4 —
+      // Communication Hub) ─────────────────────────────────────────────
+      // Bug #13 (Phase 13 Chunk 3): This table existed in the DB (see
+      // supabase/migrations/20260811_add_announcement_dismissals.sql)
+      // but its type was missing from database.types.ts, so the
+      // generated Supabase client had no typed access to it. The
+      // admin Communication Hub aggregates dismissals via a raw SQL
+      // count, but any future typed client query would have failed
+      // to compile.
+      //
+      // Schema:
+      //   • announcement_id  — FK to announcements(id), CASCADE on delete
+      //   • profile_id       — FK to profiles(id), SET NULL on delete,
+      //                         NULL for anonymous guests
+      //   • guest_hash       — sha256(IP + User-Agent) for guest dedup,
+      //                         NULL for authenticated users
+      //   • dismissed_at     — timestamptz, defaults to now()
+      // A CHECK constraint enforces that exactly one of (profile_id,
+      // guest_hash) is non-null — a dismissal is either by a known user
+      // OR a guest, never both, never neither. The constraint is not
+      // reflected in the type (it's a runtime DB enforcement), but
+      // callers must respect it when constructing Insert payloads.
+      announcement_dismissals: {
+        Row: {
+          id: string;
+          announcement_id: string;
+          profile_id: string | null;
+          guest_hash: string | null;
+          dismissed_at: string;
+        };
+        Insert: {
+          id?: string;
+          announcement_id: string;
+          profile_id?: string | null;
+          guest_hash?: string | null;
+          dismissed_at?: string;
+        };
+        Update: {
+          id?: string;
+          announcement_id?: string;
+          profile_id?: string | null;
+          guest_hash?: string | null;
+          dismissed_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "announcement_dismissals_announcement_id_fkey";
+            columns: ["announcement_id"];
+            isOneToOne: false;
+            referencedRelation: "announcements";
+            referencedColumns: ["id"];
+          },
+          {
+            foreignKeyName: "announcement_dismissals_profile_id_fkey";
+            columns: ["profile_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
       // ─── Admin: featured_content (admin Phase 2) ─────────────────────
       // Admin-curated hero/spotlight/rail/pinned/editor_pick slots.
       featured_content: {

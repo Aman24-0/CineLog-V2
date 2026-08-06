@@ -82,6 +82,8 @@ import { highContrast, setHighContrast } from "./highContrast";
 import {
   language,
   setLanguage,
+  fallbackLanguage,
+  setFallbackLanguage,
   type LanguageCode
 } from "./language";
 import {
@@ -91,8 +93,19 @@ import {
 } from "./vaultStatus";
 import {
   adultContentFilter,
-  setAdultContentFilter
+  setAdultContentFilter,
+  contentRatingCap,
+  setContentRatingCap
 } from "./contentFilters";
+// Bug #28 (Phase 13 Chunk 3): streamingProviders was previously a
+// localStorage-only pref (`cinelog_streaming_providers`). It now syncs
+// through `prefs_json` so a user's OTT subscriptions travel across
+// devices. Without this, a user who selected Netflix+Prime on their
+// laptop would see an empty OTT filter on their phone.
+import {
+  streamingProviders,
+  setStreamingProviders
+} from "./streamingProviders";
 import {
   defaultDiscoverTab,
   setDefaultDiscoverTab,
@@ -130,6 +143,14 @@ import { theme, setTheme, type Theme } from "~/core/theme";
  * sage, matrix, netflix, interstellar, neonhorizon, vibranium). This was
  * previously localStorage-only (`cinelog_theme`) — it now syncs to
  * Supabase so a user's accent choice travels across devices.
+ *
+ * Bug #28 (Phase 13 Chunk 3): added `fallbackLanguage`, `streamingProviders`,
+ * and `contentRatingCap`. All three were defined as signals + persisted
+ * to localStorage, but were never included in the snapshot — so they
+ * silently failed to sync across devices. A user who set Hindi as their
+ * fallback language, picked Netflix+Prime as their OTT providers, and
+ * capped content at "UA" on one device would see defaults on every
+ * other device they signed in on.
  */
 export interface PreferencesSnapshot {
   themeMode?: ThemeMode;
@@ -143,8 +164,19 @@ export interface PreferencesSnapshot {
   reducedMotion?: ReducedMotionPref;
   highContrast?: boolean;
   language?: LanguageCode;
+  /** Bug #28: TMDB overview fallback language (used when no overview
+   *  exists in the primary `language`). Synced so users get the same
+   *  fallback on every device. */
+  fallbackLanguage?: LanguageCode;
   defaultVaultStatus?: VaultStatus;
   adultContentFilter?: boolean;
+  /** Bug #28: max content certification (e.g. "PG-13", "UA 13+", or ""
+   *  for no cap). Synced so parental controls travel across devices. */
+  contentRatingCap?: string;
+  /** Bug #28: TMDB watch_provider IDs the user is subscribed to.
+   *  Empty array is a valid value (no subscriptions), so consumers
+   *  must use Array.isArray() rather than a truthy check. */
+  streamingProviders?: string[];
   defaultDiscoverTab?: DiscoverTab;
   ratingScale?: RatingScale;
   hideRatingsInScreenshots?: boolean;
@@ -187,8 +219,12 @@ function readSnapshot(): PreferencesSnapshot {
     reducedMotion: reducedMotion(),
     highContrast: highContrast(),
     language: language(),
+    // Bug #28: include the three previously-unsynced prefs.
+    fallbackLanguage: fallbackLanguage(),
     defaultVaultStatus: defaultVaultStatus(),
     adultContentFilter: adultContentFilter(),
+    contentRatingCap: contentRatingCap(),
+    streamingProviders: streamingProviders(),
     defaultDiscoverTab: defaultDiscoverTab(),
     ratingScale: ratingScale(),
     hideRatingsInScreenshots: hideRatingsInScreenshots(),
@@ -218,9 +254,25 @@ function applySnapshot(snap: PreferencesSnapshot): void {
   if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
   if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
   if (snap.language) setLanguage(snap.language);
+  // Bug #28: apply the three previously-unsynced prefs. Use strict
+  // type guards rather than truthy checks because:
+  //   • `fallbackLanguage` could legitimately be "en" (truthy) but
+  //     we still want to apply empty strings from older snapshots
+  //     gracefully — typeof guard is safest.
+  //   • `contentRatingCap` can be "" (no cap), which is falsy but valid.
+  //   • `streamingProviders` can be [] (no subscriptions), also falsy.
+  if (typeof snap.fallbackLanguage === "string") {
+    setFallbackLanguage(snap.fallbackLanguage);
+  }
   if (snap.defaultVaultStatus) setDefaultVaultStatus(snap.defaultVaultStatus);
   if (typeof snap.adultContentFilter === "boolean") {
     setAdultContentFilter(snap.adultContentFilter);
+  }
+  if (typeof snap.contentRatingCap === "string") {
+    setContentRatingCap(snap.contentRatingCap);
+  }
+  if (Array.isArray(snap.streamingProviders)) {
+    setStreamingProviders(snap.streamingProviders);
   }
   if (snap.defaultDiscoverTab) setDefaultDiscoverTab(snap.defaultDiscoverTab);
   if (snap.ratingScale) setRatingScale(snap.ratingScale);

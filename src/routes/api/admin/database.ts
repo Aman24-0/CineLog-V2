@@ -63,14 +63,23 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-// The 27 tables in public.* (sourced from database.types.ts).
+// The 30 tables in public.* (sourced from database.types.ts and
+// supabase/migrations/*.sql).
+//
+// Bug #13 (Phase 13 Chunk 3): Three tables were missing from this
+// list — `admin_2fa_secrets` (Phase 13 Chunk 2 security hardening),
+// `announcement_dismissals` (Phase 9 Chunk 4 Communication Hub), and
+// `user_integrations` (Phase 12 Trakt sync). They existed in the DB
+// and had RLS enabled, but were invisible in the Admin DB Inspector.
 // Each entry is annotated with whether RLS is enabled, based on a
 // reading of supabase/migrations/*.sql. Tables without explicit RLS
 // enablement in migrations are marked rls_enabled: false.
 const PUBLIC_TABLES: Array<{ name: string; rls_enabled: boolean }> = [
   { name: "activity_log", rls_enabled: true },
+  { name: "admin_2fa_secrets", rls_enabled: true },
   { name: "admin_actions", rls_enabled: true },
   { name: "anime_mappings", rls_enabled: true },
+  { name: "announcement_dismissals", rls_enabled: true },
   { name: "announcements", rls_enabled: true },
   { name: "app_config", rls_enabled: true },
   { name: "collection_entries", rls_enabled: true },
@@ -91,6 +100,7 @@ const PUBLIC_TABLES: Array<{ name: string; rls_enabled: boolean }> = [
   { name: "universe_phases", rls_enabled: true },
   { name: "universe_viewing_order_entries", rls_enabled: true },
   { name: "universe_viewing_orders", rls_enabled: true },
+  { name: "user_integrations", rls_enabled: true },
   { name: "user_preferences", rls_enabled: true },
   { name: "user_presets", rls_enabled: true },
   { name: "user_reminders", rls_enabled: true },

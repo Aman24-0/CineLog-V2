@@ -36,6 +36,27 @@ function yearOf(dateStr: string | undefined): string {
   return dateStr.split("-")[0];
 }
 
+/**
+ * Resolve the RELEASE year of a title — NOT the user's watch date.
+ *
+ * Bug #9 (Phase 13 Chunk 3): The "Year" column in CSV exports was
+ * previously derived from `watchDate` (the date the user watched the
+ * film), which is wrong for Letterboxd/Trakt/IMDb imports — those
+ * services expect the FILM'S RELEASE YEAR. Letterboxd specifically
+ * uses Year to disambiguate titles, so feeding it the watch year
+ * breaks deduplication and matching against their catalog.
+ *
+ * Resolution: prefer `release_date` (movies) → `first_air_date` (TV).
+ * Fall back to `watchDate` only if neither exists (very old vault
+ * items pre-TMDB-enrichment) so we never emit an empty Year cell.
+ */
+function releaseYearOf(item: WatchlistItem): string {
+  const releaseDate = item.release_date ?? item.first_air_date;
+  if (releaseDate) return yearOf(releaseDate);
+  // Last-resort fallback so CSV imports don't break for legacy items.
+  return yearOf(item.watchDate);
+}
+
 /** Format an addedAt (which may be a Firestore timestamp, ISO string, or Date) as ISO. */
 function isoOf(addedAt: WatchlistItem["addedAt"]): string {
   if (!addedAt) return "";
@@ -79,7 +100,7 @@ export function watchlistToCsv(
       csvRow([
         idx + 1,
         item.title || item.name || "Untitled",
-        yearOf(item.watchDate),
+        releaseYearOf(item),
         `https://www.themoviedb.org/movie/${item.id}`,
         item.rating ?? ""
       ])
@@ -100,7 +121,7 @@ export function watchlistToCsv(
     const rows = items.map((item) =>
       csvRow([
         item.title || item.name || "Untitled",
-        yearOf(item.watchDate),
+        releaseYearOf(item),
         item.media_type === "tv" ? "show" : "movie",
         item.rating ?? "",
         isoOf(item.addedAt),
@@ -141,7 +162,7 @@ export function watchlistToCsv(
         item.media_type === "tv" ? "TV Series" : "Movie",
         item.rating ?? "",
         item.runtime ?? "",
-        yearOf(item.watchDate),
+        releaseYearOf(item),
         (item.genresList ?? []).join(","),
         "",
         item.watchDate ?? "",
