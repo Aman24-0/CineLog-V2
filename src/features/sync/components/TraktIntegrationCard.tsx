@@ -4,32 +4,35 @@
 // → Data & Sync page.
 //
 // STATE
-//   The card tracks two pieces of state:
+//   The card tracks three pieces of state:
 //
 //   1. `connected` — boolean. Whether the user has a Trakt account
 //      linked to their CineLog account.
 //
-//   2. `lastSyncedAt` — Date | null. The last time the user ran a
-//      Trakt sync. Used to display "Last Synced: <date>".
+//   2. `lastSyncedAt` — Date | null. The last time the user's Trakt
+//      integration row was touched (connected or re-connected).
+//      Displayed as "Last Synced: <date>".
+//
+//   3. `statusLoading` — boolean. True while the initial /status
+//      fetch is in flight. While loading, the card body shows a
+//      skeleton so the user doesn't see a flash of the "unconnected"
+//      state.
 //
 // PERSISTENCE
-//   CineLog has no backend endpoint that returns just "is Trakt
-//   connected" — that would be a fourth API route and the user
-//   explicitly asked for no backend changes in Chunk 3. So:
+//   The card fetches `/api/auth/trakt/status` on mount to determine
+//   `connected` and `lastSyncedAt`. This is the single source of
+//   truth — we no longer rely on localStorage or URL parameters for
+//   the connected state.
 //
-//   • `connected` is inferred from the OAuth callback URL parameter
-//     `?trakt=connected` (set by /api/auth/trakt/callback on success)
-//     and persisted to localStorage so it survives page reloads.
+//   After a successful sync (wizard onSuccess), we optimistically
+//   update `lastSyncedAt` locally and re-fetch /status so the
+//   timestamp stays in sync with the backend's `updated_at`.
 //
-//   • `lastSyncedAt` is persisted to localStorage by the
-//     TraktSyncWizard's onSuccess callback.
-//
-//   If the user's Trakt connection is ever revoked server-side
-//   (token expired, refresh failed, manually deleted from DB), the
-//   next call to /api/sync/trakt/preview will return 409 — the
-//   wizard's onConnectionLost callback clears the localStorage flag
-//   and the card flips back to the "unconnected" state on the next
-//   render.
+//   If the user's Trakt connection is ever revoked server-side (token
+//   expired, refresh failed, manually deleted from DB), the next call
+//   to /api/sync/trakt/preview will return 409 — the wizard's
+//   onConnectionLost callback flips the card back to the "unconnected"
+//   state.
 //
 // ERROR HANDLING
 //   The OAuth callback redirects to /settings/sync?error=trakt_email_mismatch
@@ -38,16 +41,18 @@
 //   red error banner explaining the mismatch. The parameter is then
 //   stripped from the URL (so a refresh doesn't re-trigger the banner).
 //
+//   The OAuth callback also redirects with ?error=trakt_state_mismatch
+//   when the CSRF state cookie doesn't match (usually a stale cookie
+//   or session timeout). We show a transient toast for this — the
+//   user just needs to retry.
+//
 // SECURITY
 //   • No tokens are stored client-side.
 //   • The "Connect Trakt" button navigates to /api/auth/trakt —
 //     the server handles the entire OAuth flow.
-//   • The "Disconnect" button calls /api/auth/trakt/disconnect (a
-//     future route — currently returns 404, but we still update
-//     the UI optimistically so the user gets immediate feedback).
-//     Once the disconnect route is implemented server-side, the
-//     behavior will be: call the route, on success clear the
-//     connected flag, on failure show a toast.
+//   • The "Disconnect" button POSTs to /api/auth/trakt/disconnect,
+//     which deletes the user_integrations row server-side. On
+//     success, the card flips back to the "unconnected" state.
 
 import {
   Show,
@@ -55,21 +60,23 @@ import {
   onMount,
   type Component
 } from "solid-js";
-import { GlassCard, GlassButton, GlassBadge } from "~/shared/ui/glass";
+import { GlassCard, GlassButton, GlassBadge, GlassSkeleton } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
 import TraktLogo from "./TraktLogo";
 import TraktSyncWizard from "./TraktSyncWizard";
 
-// ─── Constants ───────────────────────────────────────────────────
+// ─── Types (mirror server response shape) ────────────────────────
 
-const LOCALSTORAGE_CONNECTED_KEY = "cinelog_trakt_connected";
-const LOCALSTORAGE_LAST_SYNCED_KEY = "cinelog_trakt_last_synced_at";
+interface TraktStatusResponse {
+  connected: boolean;
+  lastSynced: string | null;
+  trakt_username: string | null;
+  trakt_email: string | null;
+}
 
 // ─── URL param helpers ───────────────────────────────────────────
 
-interface UrlState {
-  /** Set when OAuth callback succeeded — `?trakt=connected`. */
-  justConnected: boolean;
+interface UrlErrorState {
   /** Set when OAuth callback failed due to email mismatch. */
   emailMismatch: boolean;
   /** Set when OAuth state cookie didn't match (CSRF failure). */
@@ -77,81 +84,40 @@ interface UrlState {
 }
 
 /**
- * Read the OAuth-callback URL parameters and strip them from the
- * address bar (so a refresh doesn't re-trigger error toasts).
+ * Read the OAuth-callback error URL parameters and strip them from the
+ * address bar (so a refresh doesn't re-trigger error toasts/banners).
  *
  * Runs only in the browser — safe to call during onMount.
+ *
+ * Note: we no longer consume `?trakt=connected` here. The connected
+ * state is determined by fetching /api/auth/trakt/status on mount, so
+ * the URL parameter is redundant. We still strip it if present (so a
+ * manual refresh of the OAuth success URL doesn't leave the param
+ * lingering in the address bar).
  */
-const consumeUrlState = (): UrlState => {
+const consumeUrlErrorState = (): UrlErrorState => {
   if (typeof window === "undefined") {
-    return { justConnected: false, emailMismatch: false, stateMismatch: false };
+    return { emailMismatch: false, stateMismatch: false };
   }
   const url = new URL(window.location.href);
   const params = url.searchParams;
 
-  const justConnected = params.get("trakt") === "connected";
   const emailMismatch = params.get("error") === "trakt_email_mismatch";
   const stateMismatch = params.get("error") === "trakt_state_mismatch";
+  const hasConnectedParam = params.get("trakt") === "connected";
 
-  if (justConnected || emailMismatch || stateMismatch) {
-    // Strip the params we consumed — keep any others intact.
-    if (justConnected) params.delete("trakt");
+  if (emailMismatch || stateMismatch || hasConnectedParam) {
     if (emailMismatch || stateMismatch) params.delete("error");
+    if (hasConnectedParam) params.delete("trakt");
     const newSearch = params.toString();
     const newUrl =
       url.pathname + (newSearch ? `?${newSearch}` : "") + url.hash;
     // replaceState so the back button doesn't take the user back to
-    // the URL with the param (which would re-trigger the toast).
+    // the URL with the param (which would re-trigger the toast/banner).
     window.history.replaceState({}, "", newUrl);
   }
 
-  return { justConnected, emailMismatch, stateMismatch };
-};
-
-// ─── localStorage helpers ────────────────────────────────────────
-
-const readConnected = (): boolean => {
-  if (typeof window === "undefined") return false;
-  try {
-    return window.localStorage.getItem(LOCALSTORAGE_CONNECTED_KEY) === "true";
-  } catch {
-    // localStorage can throw in private mode / sandboxed iframes
-    return false;
-  }
-};
-
-const writeConnected = (value: boolean) => {
-  if (typeof window === "undefined") return;
-  try {
-    if (value) {
-      window.localStorage.setItem(LOCALSTORAGE_CONNECTED_KEY, "true");
-    } else {
-      window.localStorage.removeItem(LOCALSTORAGE_CONNECTED_KEY);
-    }
-  } catch {
-    // Best-effort — UI still works without persistence.
-  }
-};
-
-const readLastSynced = (): Date | null => {
-  if (typeof window === "undefined") return null;
-  try {
-    const raw = window.localStorage.getItem(LOCALSTORAGE_LAST_SYNCED_KEY);
-    if (!raw) return null;
-    const d = new Date(raw);
-    return Number.isNaN(d.getTime()) ? null : d;
-  } catch {
-    return null;
-  }
-};
-
-const writeLastSynced = (d: Date) => {
-  if (typeof window === "undefined") return;
-  try {
-    window.localStorage.setItem(LOCALSTORAGE_LAST_SYNCED_KEY, d.toISOString());
-  } catch {
-    // Best-effort.
-  }
+  return { emailMismatch, stateMismatch };
 };
 
 // ─── Date formatting ─────────────────────────────────────────────
@@ -190,28 +156,72 @@ const TraktIntegrationCard: Component = () => {
 
   const [connected, setConnected] = createSignal<boolean>(false);
   const [lastSynced, setLastSynced] = createSignal<Date | null>(null);
+  const [statusLoading, setStatusLoading] = createSignal<boolean>(true);
   const [wizardOpen, setWizardOpen] = createSignal<boolean>(false);
   const [emailMismatch, setEmailMismatch] = createSignal<boolean>(false);
   const [disconnecting, setDisconnecting] = createSignal<boolean>(false);
 
-  // ─── Initialize state from URL + localStorage on mount ────────
-  onMount(() => {
-    const urlState = consumeUrlState();
+  // ─── Fetch connection status from the backend ─────────────────
+  //
+  // This is the single source of truth for `connected` and
+  // `lastSynced`. Called on mount, after a successful sync (so the
+  // backend's updated_at has a chance to be re-read), and after a
+  // successful disconnect (defensive — the optimistic update already
+  // flipped the state).
+  const refreshStatus = async () => {
+    try {
+      const res = await fetch("/api/auth/trakt/status", {
+        method: "GET",
+        credentials: "include",
+        headers: { Accept: "application/json" }
+      });
 
-    // Initialize connected from localStorage, then layer URL on top.
-    const stored = readConnected();
-    setConnected(stored || urlState.justConnected);
+      if (res.status === 401) {
+        // Not signed in — the parent route will handle redirecting
+        // to the auth flow. For now, just leave the card in the
+        // unconnected state.
+        setConnected(false);
+        setLastSynced(null);
+        return;
+      }
 
-    // If justConnected is true, persist so it survives reloads.
-    if (urlState.justConnected) {
-      writeConnected(true);
-      showToast("Trakt account connected successfully", "success", 3000);
+      if (!res.ok) {
+        // Unexpected status — log + leave the card in the unconnected
+        // state. Don't toast: this runs on every mount and would be
+        // noisy.
+        console.warn(
+          "[trakt/status] Unexpected status",
+          res.status,
+          "— leaving card in unconnected state"
+        );
+        setConnected(false);
+        setLastSynced(null);
+        return;
+      }
+
+      const data = (await res.json()) as TraktStatusResponse;
+      setConnected(data.connected === true);
+      if (data.lastSynced) {
+        const d = new Date(data.lastSynced);
+        setLastSynced(Number.isNaN(d.getTime()) ? null : d);
+      } else {
+        setLastSynced(null);
+      }
+    } catch (err) {
+      console.error("[trakt/status] fetch failed:", err);
+      // Network error — leave the card in the unconnected state
+      // rather than spinning forever.
+      setConnected(false);
+      setLastSynced(null);
+    } finally {
+      setStatusLoading(false);
     }
+  };
 
-    // Read last synced timestamp.
-    setLastSynced(readLastSynced());
-
-    // Surface error states.
+  // ─── Initialize on mount ──────────────────────────────────────
+  onMount(() => {
+    // Surface error states from the OAuth callback URL.
+    const urlState = consumeUrlErrorState();
     if (urlState.emailMismatch) {
       setEmailMismatch(true);
       // Don't auto-dismiss — let the user read it. They can dismiss
@@ -227,6 +237,9 @@ const TraktIntegrationCard: Component = () => {
         5000
       );
     }
+
+    // Fetch the real connection status from the backend.
+    void refreshStatus();
   });
 
   // ─── Handlers ────────────────────────────────────────────────
@@ -247,14 +260,6 @@ const TraktIntegrationCard: Component = () => {
     setDisconnecting(true);
 
     try {
-      // The disconnect route doesn't exist yet — it will return 404
-      // or 405 from the static file server. We treat both as "not
-      // implemented yet" but still update the UI optimistically so
-      // the user gets immediate feedback.
-      //
-      // Once /api/auth/trakt/disconnect is implemented server-side,
-      // this same call will hit the real route and we'll respect
-      // the actual response status.
       const res = await fetch("/api/auth/trakt/disconnect", {
         method: "POST",
         credentials: "include",
@@ -265,25 +270,17 @@ const TraktIntegrationCard: Component = () => {
       });
 
       if (res.ok) {
-        // Real disconnect succeeded.
+        // Real disconnect succeeded — flip the card back to the
+        // unconnected state immediately. We don't need to re-fetch
+        // /status because we know the row is gone.
         setConnected(false);
         setLastSynced(null);
-        writeConnected(false);
-        try {
-          window.localStorage.removeItem(LOCALSTORAGE_LAST_SYNCED_KEY);
-        } catch {
-          // ignore
-        }
         showToast("Trakt account disconnected", "info", 3000);
-      } else if (res.status === 404 || res.status === 405) {
-        // Route not yet implemented — update UI optimistically but
-        // tell the user the server-side cleanup is pending.
-        setConnected(false);
-        writeConnected(false);
+      } else if (res.status === 401) {
         showToast(
-          "Disconnected locally. Server-side cleanup will be available in a future update.",
-          "info",
-          5000
+          "You must be signed in to disconnect Trakt.",
+          "error",
+          4000
         );
       } else {
         showToast(
@@ -305,9 +302,13 @@ const TraktIntegrationCard: Component = () => {
   };
 
   const handleWizardSuccess = () => {
-    const now = new Date();
-    setLastSynced(now);
-    writeLastSynced(now);
+    // Optimistically update the local "Last Synced" timestamp so the
+    // UI shows "Today at … <now>" immediately. We then re-fetch
+    // /status so the backend's updated_at has a chance to be the
+    // source of truth (in case the execute route is ever modified to
+    // bump updated_at — currently it doesn't, but this is defensive).
+    setLastSynced(new Date());
+    void refreshStatus();
   };
 
   const handleWizardConnectionLost = () => {
@@ -315,12 +316,6 @@ const TraktIntegrationCard: Component = () => {
     // connected. Flip the card back to the unconnected state.
     setConnected(false);
     setLastSynced(null);
-    writeConnected(false);
-    try {
-      window.localStorage.removeItem(LOCALSTORAGE_LAST_SYNCED_KEY);
-    } catch {
-      // ignore
-    }
   };
 
   const dismissEmailMismatch = () => {
@@ -341,7 +336,7 @@ const TraktIntegrationCard: Component = () => {
                 <p class="trakt-integration-subtitle">Direct Integration</p>
               </div>
             </div>
-            <Show when={connected()}>
+            <Show when={connected() && !statusLoading()}>
               <GlassBadge
                 intent="success"
                 size="default"
@@ -391,69 +386,86 @@ const TraktIntegrationCard: Component = () => {
             </div>
           </Show>
 
-          {/* ── Body: changes based on connection state ──────── */}
+          {/* ── Body: changes based on loading + connection state ── */}
           <Show
-            when={!connected()}
+            when={!statusLoading()}
             fallback={
-              <div class="trakt-integration-body trakt-integration-body-connected">
-                <p class="trakt-integration-desc">
-                  Trakt is connected. Sync your watch history and ratings
-                  on demand — no manual CSV exports needed.
-                </p>
-                <Show when={lastSynced()}>
-                  <p class="trakt-integration-last-synced">
-                    <span
-                      class="material-symbols-outlined"
-                      style={{ "font-size": "14px" }}
-                      aria-hidden="true"
-                    >
-                      schedule
-                    </span>
-                    Last Synced: {formatLastSynced(lastSynced())}
-                  </p>
-                </Show>
-                <div class="trakt-integration-actions">
-                  <GlassButton
-                    variant="primary"
-                    size="default"
-                    icon="sync"
-                    onClick={handleSyncNowClick}
-                  >
-                    Sync Now
-                  </GlassButton>
-                  <button
-                    type="button"
-                    class="trakt-integration-disconnect-btn focus-ring"
-                    onClick={handleDisconnectClick}
-                    disabled={disconnecting()}
-                  >
-                    <Show
-                      when={!disconnecting()}
-                      fallback="Disconnecting…"
-                    >
-                      Disconnect
-                    </Show>
-                  </button>
+              <div class="trakt-integration-body trakt-integration-body-loading">
+                <GlassSkeleton variant="text" lines={2} width="100%" />
+                <div class="trakt-integration-skeleton-actions">
+                  <GlassSkeleton
+                    variant="block"
+                    width="120px"
+                    height="36px"
+                    radius="8px"
+                  />
                 </div>
               </div>
             }
           >
-            <div class="trakt-integration-body trakt-integration-body-unconnected">
-              <p class="trakt-integration-desc">
-                Automatically sync your watch history and ratings from Trakt.
-                Connect your account to get started.
-              </p>
-              <div class="trakt-integration-actions">
-                <GlassButton
-                  variant="primary"
-                  size="default"
-                  icon="link"
-                  onClick={handleConnectClick}
-                >
-                  Connect Trakt
-                </GlassButton>
+            <Show
+              when={!connected()}
+              fallback={
+                <div class="trakt-integration-body trakt-integration-body-connected">
+                  <p class="trakt-integration-desc">
+                    Trakt is connected. Sync your watch history and ratings
+                    on demand — no manual CSV exports needed.
+                  </p>
+                  <Show when={lastSynced()}>
+                    <p class="trakt-integration-last-synced">
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "14px" }}
+                        aria-hidden="true"
+                      >
+                        schedule
+                      </span>
+                      Last Synced: {formatLastSynced(lastSynced())}
+                    </p>
+                  </Show>
+                  <div class="trakt-integration-actions">
+                    <GlassButton
+                      variant="primary"
+                      size="default"
+                      icon="sync"
+                      onClick={handleSyncNowClick}
+                    >
+                      Sync Now
+                    </GlassButton>
+                    <button
+                      type="button"
+                      class="trakt-integration-disconnect-btn focus-ring"
+                      onClick={handleDisconnectClick}
+                      disabled={disconnecting()}
+                    >
+                      <Show
+                        when={!disconnecting()}
+                        fallback="Disconnecting…"
+                      >
+                        Disconnect
+                      </Show>
+                    </button>
+                  </div>
+                </div>
+              }
+            >
+              <div class="trakt-integration-body trakt-integration-body-unconnected">
+                <p class="trakt-integration-desc">
+                  Automatically sync your watch history and ratings from Trakt.
+                  Connect your account to get started.
+                </p>
+                <div class="trakt-integration-actions">
+                  <GlassButton
+                    variant="primary"
+                    size="default"
+                    icon="link"
+                    onClick={handleConnectClick}
+                  >
+                    Connect Trakt
+                  </GlassButton>
+                </div>
               </div>
-            </div>
+            </Show>
           </Show>
         </div>
       </GlassCard>

@@ -3275,6 +3275,17 @@ html[data-ss-hidden="true"] [data-rating-display] {
   flex-wrap: wrap;
 }
 
+/* Skeleton action row shown while /api/auth/trakt/status is in flight.
+   Mimics the layout of the real actions row so the height doesn't
+   jump when the status resolves. */
+.trakt-integration-skeleton-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  flex-wrap: wrap;
+  margin-top: var(--sp-1, 0.25rem);
+}
+
 /* Subtle "Disconnect" link-style button — sits next to the
    primary "Sync Now" button but doesn't compete for attention. */
 .trakt-integration-disconnect-btn {

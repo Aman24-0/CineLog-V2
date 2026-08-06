@@ -164,3 +164,55 @@ Stage Summary:
 - Security: no tokens stored client-side. Connect button navigates to server OAuth init route. All Trakt API access proxied through /api/sync/trakt/preview and /api/sync/trakt/execute.
 - Connection state persistence: localStorage (cinelog_trakt_connected) — survives page reloads. If the server-side integration is ever revoked (token expired, refresh failed, manually deleted from DB), the next preview call returns 409 → wizard fires onConnectionLost → card flips back to "unconnected" + localStorage cleared.
 - Ready for Chunk 4 (potential: /api/auth/trakt/disconnect route, scheduled auto-sync, sync history log).
+
+---
+Task ID: phase-12-chunk-4
+Agent: main (Super Z)
+Task: Phase 12 Chunk 4 — Trakt Status + Disconnect Routes. Build the two missing backend routes the frontend expects (/api/auth/trakt/status GET, /api/auth/trakt/disconnect POST) and rewire TraktIntegrationCard to fetch status on mount instead of relying on localStorage + URL parameters.
+
+Work Log:
+- Audited post-Chunk-3 state: read existing /api/auth/trakt.ts + /api/auth/trakt/callback.ts (OAuth init + callback patterns), /api/sync/trakt/preview.ts (status-check + admin-client + loadTraktIntegration pattern), adminClient.ts (service-role factory), sessionCookie.ts (getSupabaseAccessToken), database.types.ts user_integrations shape (Row: id, user_id, provider, access_token, refresh_token, provider_user_id, provider_email, expires_at, created_at, updated_at), TraktIntegrationCard.tsx (current localStorage + URL-param-based state), TraktSyncWizard.tsx (onSuccess/onConnectionLost callback contracts). Confirmed no status/disconnect routes existed.
+- Created src/routes/api/auth/trakt/status.ts (GET, ~170 LOC):
+  - Verifies CineLog session via anon-key client + getUser(accessToken) (same pattern as preview.ts).
+  - Returns 401 if not authenticated, 500 on DB error.
+  - Queries user_integrations via service-role admin client, selecting ONLY provider_user_id, provider_email, updated_at — NEVER access_token or refresh_token.
+  - Returns { connected: boolean, lastSynced: string|null, trakt_username: string|null, trakt_email: string|null }.
+  - lastSynced = integration.updated_at (per user spec). Note: this is the connect/reconnect time, not the actual last sync time (execute route doesn't bump updated_at — out of scope per "two routes strictly").
+  - Rejects POST/other methods with 405.
+- Created src/routes/api/auth/trakt/disconnect.ts (POST, ~130 LOC):
+  - Verifies CineLog session (same pattern).
+  - Returns 401 if not authenticated, 500 on DB error.
+  - Deletes the user_integrations row via service-role admin client where user_id=userId and provider='trakt'.
+  - Idempotent: deleting a non-existent row returns 200 { ok: true } (Postgres delete affects 0 rows, no error).
+  - Does NOT revoke the token on Trakt's side (no Trakt revocation endpoint exists in their API as of writing; user must revoke manually at https://trakt.tv/settings/oauth — frontend toast mentions this).
+  - Does NOT delete previously-imported vault items (they remain as CineLog records, no longer tied to Trakt).
+  - Rejects GET/other methods with 405.
+- Rewrote src/features/sync/components/TraktIntegrationCard.tsx:
+  - REMOVED all localStorage code (LOCALSTORAGE_CONNECTED_KEY, LOCALSTORAGE_LAST_SYNCED_KEY, readConnected, writeConnected, readLastSynced, writeLastSynced — all deleted).
+  - REMOVED the `?trakt=connected` URL param handling (no longer needed — /status fetch detects connection).
+  - KEPT the `?error=trakt_email_mismatch` + `?error=trakt_state_mismatch` URL param handling (these are error states from the OAuth callback, not connected-state signals). Both are still consumed on mount and stripped from the URL via window.history.replaceState.
+  - Renamed `consumeUrlState` → `consumeUrlErrorState` to reflect the narrowed responsibility.
+  - Added `refreshStatus()` async function that fetches /api/auth/trakt/status, sets `connected` and `lastSynced` from the response, and sets `statusLoading=false` in finally.
+  - Added `statusLoading` signal (initially true) so the card body shows a GlassSkeleton (2 text lines + 1 button block) while the fetch is in flight — prevents flash of "unconnected" state on every page load.
+  - onMount: consume URL error state, then call refreshStatus().
+  - Disconnect handler: removed the 404/405 fallback (route now exists). Now handles 200 (success), 401 (not signed in), and other statuses (generic error toast).
+  - Wizard onSuccess: optimistically updates lastSynced locally, then re-fetches /status (defensive — execute route doesn't currently bump updated_at, but if it ever does, we get the fresh value).
+  - Wizard onConnectionLost: sets connected=false + lastSynced=null (no localStorage to clear anymore).
+  - "Connected" GlassBadge only renders when connected() && !statusLoading() (so it doesn't flash during the initial fetch).
+  - Added `TraktIntegrationCardBody` loading state with GlassSkeleton variant="text" lines={2} + a 120x36px block skeleton mimicking the Connect button shape.
+- Added ~10 lines of CSS to src/styles/features/secondary.css: `.trakt-integration-skeleton-actions` class for the loading skeleton action row (flex + gap + margin-top to match the real actions row layout, prevents height jump when status resolves).
+- Verification:
+  - npx tsc --noEmit → 0 errors
+  - npx vitest run → 55 files / 1412 tests pass (no regressions)
+  - npx eslint on the 3 touched files → 0 errors, 0 warnings
+
+Stage Summary:
+- 4 files: 2 new backend routes (status.ts, disconnect.ts), 1 frontend rewrite (TraktIntegrationCard.tsx), 1 CSS addition (secondary.css). ~600 LOC added/modified.
+- All 4 user-specified rules honored:
+  1. /api/auth/trakt/status — GET, reads session, queries user_integrations for provider='trakt', returns { connected, lastSynced } (lastSynced = updated_at).
+  2. /api/auth/trakt/disconnect — POST, reads session, deletes user_integrations row, returns 200.
+  3. TraktIntegrationCard.tsx — fetches /status on mount, no longer relies on localStorage or URL params for connected state.
+  4. tsc + vitest pass, no regressions.
+- Security: no tokens exposed client-side. status route selects only non-sensitive columns (provider_user_id, provider_email, updated_at). disconnect route uses service-role admin client (RLS would also allow user-side delete, but consistency with status/callback pattern wins).
+- The "Last Synced" timestamp shown in the UI is now sourced from the backend's `updated_at` field — this reflects connect/reconnect time, not actual sync time. If the user wants this to reflect actual sync time, a future chunk can update the execute route to bump updated_at on the integration row after a successful sync.
+- Trakt integration is now end-to-end functional: OAuth → status check → preview → execute → disconnect. All 5 backend routes in place: /api/auth/trakt (init), /api/auth/trakt/callback, /api/auth/trakt/status, /api/auth/trakt/disconnect, /api/sync/trakt/preview, /api/sync/trakt/execute.
