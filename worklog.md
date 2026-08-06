@@ -216,3 +216,31 @@ Stage Summary:
 - Security: no tokens exposed client-side. status route selects only non-sensitive columns (provider_user_id, provider_email, updated_at). disconnect route uses service-role admin client (RLS would also allow user-side delete, but consistency with status/callback pattern wins).
 - The "Last Synced" timestamp shown in the UI is now sourced from the backend's `updated_at` field — this reflects connect/reconnect time, not actual sync time. If the user wants this to reflect actual sync time, a future chunk can update the execute route to bump updated_at on the integration row after a successful sync.
 - Trakt integration is now end-to-end functional: OAuth → status check → preview → execute → disconnect. All 5 backend routes in place: /api/auth/trakt (init), /api/auth/trakt/callback, /api/auth/trakt/status, /api/auth/trakt/disconnect, /api/sync/trakt/preview, /api/sync/trakt/execute.
+
+---
+Task ID: phase-12-chunk-5
+Agent: main (Super Z)
+Task: Phase 12 Chunk 5 — Temporarily hide the TraktIntegrationCard UI when Trakt API credentials aren't configured. Wrap the card in a `import.meta.env.VITE_TRAKT_CLIENT_ID` env-var gate so users never see a "Connect Trakt" button that would 500 on click.
+
+Work Log:
+- Read SyncSection.tsx to locate the TraktIntegrationCard render site (lines 110–118, inside the signed-in branch of the sync accordion panel, between CloudStatusCard and SyncCadenceCard).
+- Audited existing env var conventions in .env.example: confirmed TRAKT_CLIENT_ID/SECRET/REDIRECT_URI are all SERVER-ONLY (no VITE_ prefix). The user's instruction to use VITE_TRAKT_CLIENT_ID as the UI gate is consistent with Vite's "expose to client bundle" convention — and the Trakt client_id is already public (it's in the OAuth authorize URL the server redirects to), so exposing it via VITE_ is safe.
+- Wrapped the entire "Direct integrations" subsection (subsection label + setting-group + <TraktIntegrationCard />) in a `<Show when={!!import.meta.env.VITE_TRAKT_CLIENT_ID}>` block. When the env var is unset/empty, the entire subsection is omitted from the DOM — no label, no card, no skeleton, no /status fetch.
+- Added an inline comment in SyncSection.tsx explaining the gate + pointing operators to .env.example for the dual-env-var pattern.
+- Updated .env.example:
+  - Added a new paragraph documenting VITE_TRAKT_CLIENT_ID as a "CLIENT-SIDE FEATURE FLAG" that must be set to the SAME value as TRAKT_CLIENT_ID.
+  - Explained that the gate is the mere presence (non-empty string) of the var — the actual value is only used as a boolean indicator, not consumed by the client.
+  - Added `VITE_TRAKT_CLIENT_ID=` to the env var list at the bottom of the TRAKT section, with a one-line comment.
+- Verification:
+  - npx tsc --noEmit → 0 errors
+  - npx eslint src/features/settings/sections/SyncSection.tsx → 0 errors, 0 warnings
+  - (Did not re-run vitest — no test files touched, and the change is a one-line conditional render with no logic to test.)
+
+Stage Summary:
+- 3 files modified: SyncSection.tsx (1 <Show> wrapper + inline comment), .env.example (VITE_TRAKT_CLIENT_ID documentation + env var entry), worklog.md (this entry).
+- All 4 user-specified rules honored:
+  1. Opened SyncSection.tsx ✓
+  2. Wrapped <TraktIntegrationCard /> in import.meta.env.VITE_TRAKT_CLIENT_ID check ✓
+  3. If env var missing, card is NOT rendered (entire subsection omitted) ✓
+  4. tsc passes, committed + pushed via PAT ✓
+- To re-enable the Trakt UI in production: set VITE_TRAKT_CLIENT_ID=<your Trakt client_id> (same value as TRAKT_CLIENT_ID) in the deployment env vars and rebuild. The card will reappear automatically.

@@ -107,15 +107,22 @@ export function SyncSection(props: { state: SettingsState }) {
                 <CloudStatusCard />
               </div>
 
-              {/* Direct integrations — Trakt OAuth + sync */}
-              <div class="setting-subsection">
-                <p class="setting-subsection-label">
-                  Direct integrations
-                </p>
-                <div class="setting-group">
-                  <TraktIntegrationCard />
+              {/* Direct integrations — Trakt OAuth + sync.
+                  Hidden when VITE_TRAKT_CLIENT_ID is not set, so the
+                  UI doesn't surface a "Connect Trakt" button that
+                  would 500 on click. Operators must set both
+                  TRAKT_CLIENT_ID (server) and VITE_TRAKT_CLIENT_ID
+                  (client-side feature flag) — see .env.example. */}
+              <Show when={!!import.meta.env.VITE_TRAKT_CLIENT_ID}>
+                <div class="setting-subsection">
+                  <p class="setting-subsection-label">
+                    Direct integrations
+                  </p>
+                  <div class="setting-group">
+                    <TraktIntegrationCard />
+                  </div>
                 </div>
-              </div>
+              </Show>
 
               {/* Sync cadence */}
               <div class="setting-subsection">
