@@ -186,7 +186,7 @@ export default createHandler(() => (
               'Material Symbols Outlined Variable' (the family name declared
               by @fontsource-variable/material-symbols-outlined) instead of
               the old Google Fonts family name. */}
-          {/* eslint-disable-next-line solid/no-innerhtml -- intentional inline script for FOUT prevention (font-loading marker) */}
+          { }
           <script innerHTML={`(function(){try{var done=false;function mark(){if(done)return;done=true;document.documentElement.classList.add('mat-syms-loaded')}setTimeout(mark,800);if(document.fonts&&document.fonts.ready){document.fonts.ready.then(mark)}var f=new FontFace('Material Symbols Outlined Variable','local("Material Symbols Outlined Variable")');f.load().then(mark).catch(mark)}catch(e){document.documentElement.classList.add('mat-syms-loaded')}})();`} />
 
           {assets}

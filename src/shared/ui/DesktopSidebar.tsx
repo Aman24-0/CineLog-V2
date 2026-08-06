@@ -90,7 +90,11 @@ const DesktopSidebar: Component = () => {
                 class={`desktop-sidebar__item${active() ? " desktop-sidebar__item--active" : ""}`}
                 onClick={() => {
                   prefetchRoute(item.href);
-                  item.onClick ? item.onClick() : go(item.href);
+                  if (item.onClick) {
+                    item.onClick();
+                  } else {
+                    go(item.href);
+                  }
                 }}
                 onMouseEnter={() => prefetchRoute(item.href)}
                 onFocus={() => prefetchRoute(item.href)}

@@ -60,11 +60,13 @@ export function initSentry(): void {
   if (initialized) return;
 
   // Skip entirely in Vitest — we never want network calls during tests.
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   if ((import.meta as any).env?.VITEST) {
     initialized = true;
     return;
   }
 
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const dsn = (import.meta as any).env?.VITE_SENTRY_DSN as string | undefined;
   if (!dsn) {
     // No DSN configured — leave Sentry uninitialized. captureException
@@ -75,7 +77,9 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     environment: (import.meta as any).env?.MODE ?? "production",
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     release: (import.meta as any).env?.VITE_SENTRY_RELEASE,
     // 100% of errors — CineLog is a solo project, we want them all.
     sampleRate: 1.0,
@@ -141,7 +145,7 @@ export function captureException(
   } else {
     // Fallback for dev/tests — preserve the original error so the
     // console shows a proper stack trace, not just a string.
-    // eslint-disable-next-line no-console
+     
     console.error("[captureException]", err, context ?? "");
   }
 }

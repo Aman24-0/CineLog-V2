@@ -34,7 +34,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface TableInfo {
   name: string;
@@ -388,18 +388,6 @@ const RLS_POLICIES: Record<string, RlsPolicy[]> = {
     }
   ]
 };
-
-function formatSize(bytes: number): string {
-  if (!bytes) return "0 B";
-  const units = ["B", "KB", "MB", "GB"];
-  let i = 0;
-  let v = bytes;
-  while (v >= 1024 && i < units.length - 1) {
-    v /= 1024;
-    i++;
-  }
-  return `${v.toFixed(1)} ${units[i]}`;
-}
 
 // ─── GET ─────────────────────────────────────────────────────────
 

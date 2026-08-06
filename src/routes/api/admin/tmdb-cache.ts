@@ -24,7 +24,7 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {

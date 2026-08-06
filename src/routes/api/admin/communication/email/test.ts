@@ -42,7 +42,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { renderEmailTemplate, type NotificationType } from "~/lib/email/renderer";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface TestEmailBody {
   template?: unknown;

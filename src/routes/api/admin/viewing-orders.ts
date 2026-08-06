@@ -29,7 +29,7 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface ViewingOrderInput {
   id?: string;
@@ -73,7 +73,7 @@ export async function GET(event: APIEvent) {
     if (error) return jsonResponse({ error: error.message }, 500);
 
     const orderIds = (orders ?? []).map((o) => o.id);
-    let entriesByOrder = new Map<string, { entry_id: string; position: number }[]>();
+    const entriesByOrder = new Map<string, { entry_id: string; position: number }[]>();
     if (orderIds.length > 0) {
       const { data: oe, error: oeError } = await supabase
         .from("universe_viewing_order_entries")

@@ -179,8 +179,8 @@ function configureVapid(): void {
   // the mixed single and double quotes).
   const DQ = String.fromCharCode(34); // double quote
   const SQ = String.fromCharCode(39); // single quote
-  let publicKey = stripQuotes(rawPublic, DQ, SQ);
-  let privateKey = stripQuotes(rawPrivate, DQ, SQ);
+  const publicKey = stripQuotes(rawPublic, DQ, SQ);
+  const privateKey = stripQuotes(rawPrivate, DQ, SQ);
 
   if (!publicKey || !privateKey) {
     vapidConfigError = "VAPID_PUBLIC_KEY or VAPID_PRIVATE_KEY env var is not set.";

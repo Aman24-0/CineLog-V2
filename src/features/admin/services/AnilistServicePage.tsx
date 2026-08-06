@@ -26,7 +26,7 @@
 //
 // RESPONSIVE: stacks to 1 column on mobile.
 
-import { Show, type Component } from "solid-js";
+import { type Component } from "solid-js";
 import { A } from "@solidjs/router";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";

@@ -26,7 +26,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface AnalyticsResponse {
   // User growth (last 90 days)

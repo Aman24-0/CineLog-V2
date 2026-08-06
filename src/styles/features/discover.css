@@ -979,13 +979,23 @@
 
 /* When the search bar is stuck (scrolling), add a subtle shadow
    for elevation — this distinguishes it from the content below.
-   Triggered via :stuck pseudo (not yet widely supported) — fallback
-   is the persistent border-bottom which already gives definition. */
-@supports (selector(:stuck)) {
-  .search-bar-form.discover-search-bar-form:stuck {
-    box-shadow: 0 4px 16px var(--shadow-color);
-  }
-}
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 14 CHUNK 3 — CSS OPTIMIZATION WARNING FIX
+   ─────────────────────────────────────────────────────────────────────
+   Previously this used `@supports (selector(:stuck))` + `:stuck`, but
+   `:stuck` is a non-standard proposal that no browser actually ships
+   and Lightning CSS (the Vite CSS optimizer) flags it as an unknown
+   pseudo-class — emitting a "Found 1 warning while optimizing
+   generated CSS" warning on every `npm run build`. The shadow was
+   ALSO functionally dead code: no JS in the codebase toggles an
+   `.is-stuck` class either, so the rule never matched any element
+   in any browser. Removing the @supports block eliminates the build
+   warning with zero visual regression — the search bar's persistent
+   `border-bottom` (declared on the base rule above) already gives
+   it definition against scrolling content, which the original
+   comment acknowledged as the design-intent fallback. If we ever
+   want a true stuck-shadow effect we'd implement it via an
+   IntersectionObserver hook that toggles `.is-stuck` on the form. */
 
 /* 320px viewport tuning — make sure chips + headings don't overflow */
 @media (max-width: 360px) {

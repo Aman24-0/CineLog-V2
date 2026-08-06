@@ -44,8 +44,7 @@ import {
   Show,
   For,
   onMount,
-  type Component,
-  type JSX
+  type Component
 } from "solid-js";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";

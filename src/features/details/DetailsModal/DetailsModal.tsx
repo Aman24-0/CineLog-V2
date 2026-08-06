@@ -99,9 +99,9 @@ export default function DetailsModal() {
   // ESLint: shareTmdbId and shareMediaType are used inside event handlers
   // (handleSmartShare) which are tracked scopes — the lint rule can't see
   // through the handler boundary.
-  // eslint-disable-next-line solid/reactivity
+   
   const shareTmdbId = createMemo(() => baseItem()?.id ?? "");
-  // eslint-disable-next-line solid/reactivity
+   
   const shareMediaType = createMemo<"movie" | "tv">(() => {
     const mt = baseItem()?.media_type;
     return mt === "tv" ? "tv" : "movie";

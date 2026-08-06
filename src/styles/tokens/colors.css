@@ -30,18 +30,21 @@
          show through. Solid --void is still used by body + admin +
          landing routes where the ambient is hidden.
 
-       PHASE 14 CHUNK 2 — TRUE FROSTED GLASS
-       The 0.82 alpha used in Chunk 1 turned out to be too opaque —
-       the ambient blobs were almost invisible behind the wrapper.
-       Lowered to 0.55 so the blob colors actually bleed through
-       the wrapper and paint the frosted glass cards from behind.
-       Text contrast on consumer routes stays above WCAG AA because:
-         • Text tokens (--text-strong, --text-body) are #fff8e8 /
-           #ede8da — luminance ratio vs. the new effective bg
-           (~#09090c blended) is still > 12:1, well above AA's 4.5:1.
-         • Glass cards layer ON TOP of the ambient at --glass-bg
-           (also lowered in this chunk to 0.55) — text on glass
-           sits on the glass tint, not directly on the ambient.
+       PHASE 14 CHUNK 3 — AGGRESSIVE AMBIENT TRANSPARENCY
+       Chunk 2's 0.55 alpha was still too shy — the background was
+       dark and the DULO.TV-style color wash was barely perceptible.
+       Lowered aggressively to 0.35 so the ambient blobs now bleed
+       through the wrapper at near-full vibrancy. Combined with the
+       much larger blobs + 120-150px blur in ambient-background.css
+       (Chunk 3), the consumer routes now read as vibrant, alive,
+       cinematic color fields rather than a dark UI with faint hints.
+
+       Text contrast is preserved by the glass cards themselves —
+       every textual surface sits on a --glass-bg panel (0.45 in
+       Chunk 3) layered ON TOP of the ambient, so the effective
+       background under text is the glass tint, not the raw ambient.
+       Header/footer text that sits directly on the ambient is large
+       and high-weight (--text-strong #fff8e8), maintaining AA.
 
        --ambient-color-1/2/3: the three blob colors. Defaults are
          the CineLog brand palette (cinema gold + warm orange + cool
@@ -49,7 +52,7 @@
          Discover page extracts a content-aware palette. The Discover
          page overrides these on :root via JS when the Spotlight
          movie changes — see useAmbientPalette in DiscoverPage.tsx. */
-    --void-ambient: rgba(8, 8, 12, 0.55);
+    --void-ambient: rgba(6, 6, 10, 0.35);
     --ambient-color-1: #e8b74a; /* cinema gold (matches --p) */
     --ambient-color-2: #ff6b35; /* warm orange (matches --p2) */
     --ambient-color-3: #1e3a8a; /* cool blue (complementary) */
@@ -385,25 +388,29 @@
        still win for [data-theme-resolved="light"].
 
        ─────────────────────────────────────────────────────────────────
-       PHASE 14 CHUNK 2 — TRUE FROSTED GLASS
+       PHASE 14 CHUNK 3 — AGGRESSIVE GLASS TRANSPARENCY
        ─────────────────────────────────────────────────────────────────
-       --glass-bg lowered from 0.72 → 0.55 so the ambient blobs bleed
-         through the cards. Combined with the increased --glass-blur
-         (24px → 32px), glass cards now look like TRUE frosted glass
-         rather than tinted translucent panels — the ambient colors
-         blur softly through the card body, creating the DULO.TV /
-         Apple TV premium aesthetic.
+       --glass-bg lowered from 0.55 → 0.45 so the ambient colors now
+         bleed HEAVILY through every glass card. Combined with the
+         very transparent --void-ambient (0.35) and the much larger
+         + more blurred ambient blobs (Chunk 3), the cards now feel
+         like genuine frosted glass held up against a vivid color
+         field — the DULO.TV / Apple TV premium aesthetic.
+         Readability is preserved by raising --glass-blur to 32px
+         (kept) so the bleed is diffuse rather than sharp, and by
+         --text-strong (#fff8e8) which has > 14:1 contrast vs. the
+         blended glass tint.
        --glass-bg-strong kept at 0.86 — modals and dialogs MUST stay
          highly legible (they sit at z-index ~999998+, far above the
          ambient, and contain dense form fields + text).
-       --glass-blur raised to 32px — within the user-specified
+       --glass-blur kept at 32px — within the user-specified
          "reasonable" range (20-40px). Above 40px we'd hit mobile
          GPU limits (see ambient-background.css for the mobile blur
          halving rationale); 32px is the sweet spot. The blur-* scale
          tokens in blur.css are unchanged (they're consumed by other
          components like toasts and dropdowns that don't need this
          level of frost). */
-    --glass-bg: rgba(15, 15, 22, 0.55);
+    --glass-bg: rgba(15, 15, 22, 0.45);
     --glass-bg-strong: rgba(13, 13, 20, 0.86);
     --glass-border: rgba(232, 183, 74, 0.06);
     --glass-blur: 32px;

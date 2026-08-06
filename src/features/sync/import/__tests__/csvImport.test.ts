@@ -39,7 +39,7 @@ function q(value: string): string {
 }
 
 /** Build a CSV row from fields, quoting any that contain commas/quotes/newlines. */
-function csvRowSmart(fields: string[]): string {
+function _csvRowSmart(fields: string[]): string {
   return fields
     .map((f) => (/[",\n\r]/.test(f) ? q(f) : f))
     .join(",");

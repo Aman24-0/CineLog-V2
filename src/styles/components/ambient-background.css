@@ -58,8 +58,10 @@
     contain: paint;
     /* The base tint — a near-black with a faint blue undertone that
        reads as "cinematic" rather than "dead black". This sits ABOVE
-       the body's solid --void so unmounted areas still look right. */
-    background: #06060a;
+       the body's solid --void so unmounted areas still look right.
+       PHASE 14 CHUNK 3: slightly darker than Chunk 2 (#06060a) so the
+       vibrant 0.55+0.9-opacity blobs pop harder against the base. */
+    background: #050509;
   }
 
   /* Phase 14 — Stacking-context guarantee.
@@ -107,10 +109,16 @@
        so the float animation doesn't trigger layout/paint on the
        parent. Dropped on mobile (see media query below). */
     will-change: transform;
-    /* The blur is what makes the blob feel "frosted". 80px on desktop,
-       40px on mobile. Static — never animated — so the GPU caches the
-       blurred texture. */
-    filter: blur(80px);
+    /* The blur is what makes the blob feel "frosted".
+       PHASE 14 CHUNK 3: bumped from 80px → 140px on desktop so the
+       blobs read as massive, smooth ambient lights rather than crisp
+       color discs. The larger blur radius means the color spreads
+       further and feathers smoothly into the dark base, which is the
+       DULO.TV aesthetic — you should never see a hard edge on a blob.
+       Static — never animated — so the GPU caches the blurred texture.
+       Mobile keeps 60px (was 40px) — still smooth but halved for GPU
+       memory budget on mid-range Android. */
+    filter: blur(140px);
     /* Smooth color morph when the CSS variables change (e.g. when the
        Spotlight movie changes and the Discover page pushes new colors
        to --ambient-color-1/2/3). 1.5s ease-out matches the Spotlight
@@ -121,19 +129,19 @@
     transition:
       background 1.5s ease-out,
       opacity 600ms ease-out;
-    /* PHASE 14 CHUNK 2 — True Frosted Glass + Ambient Intensity.
-       Base opacity bumped from 0.55 → 0.7 so the colors actually
-       pop now that the wrapper opacity has been lowered to 0.55.
+    /* PHASE 14 CHUNK 3 — AGGRESSIVE OPACITY.
+       Base opacity bumped from 0.7 → 0.9 so the colors pop HEAVILY
+       through the now-very-transparent --void-ambient (0.35) wrapper.
        The --ambient-intensity var (set by the user's preference on
        <html data-ambient-intensity="...">) multiplies this base
        value, so:
-         Subtle  (0.35) → effective 0.245 (barely-there wash)
-         Normal  (0.70) → effective 0.49  (default, balanced)
-         Vibrant (1.00) → effective 0.70  (full DULO.TV-style pop)
+         Subtle  (0.35) → effective 0.315 (gentle wash, still visible)
+         Normal  (0.70) → effective 0.63  (default, vivid)
+         Vibrant (1.00) → effective 0.90  (full DULO.TV color wash)
        calc() with a unitless var works because both operands are
-       numbers — CSS multiplies 0.7 × var(--ambient-intensity) and
+       numbers — CSS multiplies 0.9 × var(--ambient-intensity) and
        clamps to [0,1] for the opacity property. */
-    opacity: calc(0.7 * var(--ambient-intensity));
+    opacity: calc(0.9 * var(--ambient-intensity));
     /* `mix-blend-mode: screen` makes overlapping blobs ADD light
        rather than muddy it — two warm blobs overlapping create a
        brighter warm, not a brown. This is the key to the "alive"
@@ -142,11 +150,14 @@
   }
 
   .ambient-blob-1 {
-    /* Top-left blob — the primary accent. */
-    top: -10vh;
-    left: -10vw;
-    width: 60vw;
-    height: 60vw;
+    /* Top-left blob — the primary accent.
+       PHASE 14 CHUNK 3: size bumped from 60vw → 100vmax so the blob
+       covers a massive area (larger than the viewport on both axes)
+       and the blur feather reaches every corner of the screen. */
+    top: -20vh;
+    left: -20vw;
+    width: 100vmax;
+    height: 100vmax;
     background: radial-gradient(
       circle at center,
       var(--ambient-color-1) 0%,
@@ -157,11 +168,13 @@
 
   .ambient-blob-2 {
     /* Top-right blob — the secondary accent. Offset from blob-1 so
-       their bright centers don't overlap (which would oversaturate). */
-    top: -15vh;
-    right: -15vw;
-    width: 50vw;
-    height: 50vw;
+       their bright centers don't overlap (which would oversaturate).
+       PHASE 14 CHUNK 3: size bumped from 50vw → 90vmax so the blob
+       sweeps a comparable area to blob-1. */
+    top: -25vh;
+    right: -25vw;
+    width: 90vmax;
+    height: 90vmax;
     background: radial-gradient(
       circle at center,
       var(--ambient-color-2) 0%,
@@ -172,11 +185,13 @@
 
   .ambient-blob-3 {
     /* Bottom-center blob — the tertiary accent, larger and slower so
-       it feels like the "base" the other two float over. */
-    bottom: -20vh;
-    left: 20vw;
-    width: 70vw;
-    height: 70vw;
+       it feels like the "base" the other two float over.
+       PHASE 14 CHUNK 3: size bumped from 70vw → 110vmax — the
+       biggest blob so it grounds the composition. */
+    bottom: -30vh;
+    left: 15vw;
+    width: 110vmax;
+    height: 110vmax;
     background: radial-gradient(
       circle at center,
       var(--ambient-color-3) 0%,
@@ -239,28 +254,31 @@
 }
 
 /* ─── Mobile: halve the blur, drop will-change ─────────────────────
-   Mobile GPUs have limited memory bandwidth. A 80px blur on a 60vw
-   element means the GPU has to keep a 60vw × 60vw texture with 80px
-   of border in VRAM — on a 390px-wide phone that's a 234×234 texture
-   per blob, × 3 blobs = ~165KB. Not catastrophic, but the will-change
-   hint DOUBLES that (the compositor pre-allocates a backing store).
-   On mobile we drop will-change and halve the blur — the visual
-   difference is barely perceptible but the memory + jank reduction
-   is significant on mid-range Android.
+   Mobile GPUs have limited memory bandwidth. A 140px blur on a
+   100vmax element would be far too costly — on a 390px-wide phone
+   the 100vmax blob is a 390×390 texture, with 140px of blur border
+   that's a 670×670 GPU buffer per blob, × 3 blobs = ~1.7MB. The
+   will-change hint DOUBLES that. On mobile we drop will-change and
+   cut the blur to 60px (was 40px in Chunk 2 — bumped slightly so the
+   much larger 100vmax blobs still feather smoothly rather than
+   rendering as visible discs). The visual difference vs. desktop is
+   imperceptible at phone scale, but the memory + jank reduction is
+   significant on mid-range Android.
 
-   PHASE 14 CHUNK 2 — the mobile opacity base is lowered from 0.45
-   to 0.6 (i.e. the multiplier is 0.6 instead of 0.7) because the
-   smaller blur means colors are more concentrated; we still
+   PHASE 14 CHUNK 3 — the mobile opacity base is bumped from 0.6
+   → 0.8 to match desktop's aggressiveness; the larger 100vmax blobs
+   spread the color over a much wider area, so even at 60px blur the
+   perceived color density is comparable to desktop's 140px. We still
    multiply by --ambient-intensity so the Subtle/Normal/Vibrant
    preference scales correctly on mobile too. */
 @media (max-width: 768px) {
   .ambient-blob {
-    filter: blur(40px);
+    filter: blur(60px);
     will-change: auto;
-    /* Mobile base 0.6 × intensity multiplier. Slightly lower than
-       desktop's 0.7 because the smaller blur concentrates the
-       colors more. */
-    opacity: calc(0.6 * var(--ambient-intensity));
+    /* Mobile base 0.8 × intensity multiplier. Slightly lower than
+       desktop's 0.9 because the smaller blur concentrates the
+       colors more on a small screen. */
+    opacity: calc(0.8 * var(--ambient-intensity));
   }
 }
 

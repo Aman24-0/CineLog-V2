@@ -84,10 +84,7 @@ import {
 
 import { theme, setTheme, type Theme } from "~/core/theme";
 
-import {
-  fallbackLanguage,
-  setFallbackLanguage
-} from "~/core/preferences/language";
+import { setFallbackLanguage } from "~/core/preferences/language";
 
 import {
   dateFormat,
@@ -95,12 +92,10 @@ import {
 } from "~/core/preferences/dateFormat";
 
 import {
-  contentRatingCap,
   setContentRatingCap
 } from "~/core/preferences/contentFilters";
 
 import {
-  streamingProviders,
   setStreamingProviders
 } from "~/core/preferences/streamingProviders";
 

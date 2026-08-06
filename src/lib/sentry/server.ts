@@ -139,7 +139,7 @@ export function captureException(
   } else {
     // Fallback for dev/tests — preserve the original error so the
     // console shows a proper stack trace, not just a string.
-    // eslint-disable-next-line no-console
+     
     console.error("[captureException]", err, context ?? "");
   }
 }

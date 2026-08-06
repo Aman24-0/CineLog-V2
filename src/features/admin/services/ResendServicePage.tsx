@@ -27,7 +27,7 @@
 // RESPONSIVE: stacks to 1 column on mobile; template list collapses
 // from a 2-col grid to 1-col on small screens.
 
-import { For, Show, type Component } from "solid-js";
+import { For, type Component } from "solid-js";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";

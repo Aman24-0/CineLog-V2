@@ -274,6 +274,7 @@ export interface CookieJar {
 function isServerCookieDebugLoggingEnabled(): boolean {
   if (!isServer) return false;
   const flag =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (import.meta as any).env?.SUPABASE_DEBUG_COOKIE_LOG ??
     (typeof process !== "undefined" && process.env?.SUPABASE_DEBUG_COOKIE_LOG);
   return flag === "1" || flag === "true";
@@ -453,6 +454,7 @@ export async function createServerClientFromRequest(
         const serialized = serializeCookie(
           name,
           value,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           mergedOptions as any
         );
         setCookieHeaders.push(serialized);

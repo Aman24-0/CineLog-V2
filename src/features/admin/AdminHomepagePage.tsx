@@ -62,10 +62,8 @@ import {
   closestCenter,
   createSortable
 } from "@thisbeyond/solid-dnd";
-import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
-import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -149,8 +147,6 @@ const SECTION_META: SectionMeta[] = [
     featureFlagDep: "upcoming"
   }
 ];
-
-const SECTION_KEYS = SECTION_META.map((s) => s.key);
 
 // ─── Component ─────────────────────────────────────────────────────
 

@@ -33,7 +33,6 @@ import {
   type Component
 } from "solid-js";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
-import { GlassInput } from "~/shared/ui/glass/GlassInput";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassModal } from "~/shared/ui/glass/GlassModal";

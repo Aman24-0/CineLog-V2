@@ -26,7 +26,7 @@
 // (desktop) → 1 column (mobile), and the hero typography scales via
 // clamp().
 
-import { Component, createSignal, onCleanup, onMount, Show } from "solid-js";
+import { Component, createSignal, For, onCleanup, onMount } from "solid-js";
 import { A } from "@solidjs/router";
 import { GlassButton, GlassCard, GlassBadge } from "~/shared/ui/glass";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -518,8 +518,7 @@ const LandingPage: Component = () => {
                         movie
                       </span>
                     </div>
-                    {["explore", "bookmark", "auto_awesome_mosaic", "bar_chart", "settings"].map(
-                      (iconName) => (
+                    <For each={["explore", "bookmark", "auto_awesome_mosaic", "bar_chart", "settings"]}>{(iconName) => (
                         <div class="landing-preview__sidebar-icon" aria-hidden="true">
                           <span
                             class="material-symbols-outlined"
@@ -534,8 +533,7 @@ const LandingPage: Component = () => {
                             {iconName}
                           </span>
                         </div>
-                      )
-                    )}
+                      )}</For>
                   </div>
 
                   {/* Main content area */}
@@ -556,11 +554,11 @@ const LandingPage: Component = () => {
 
                     {/* Rails */}
                     <div class="landing-preview__rails">
-                      {[0, 1].map((railIdx) => (
+                      <For each={[0, 1]}>{(railIdx) => (
                         <div class="landing-preview__rail" aria-hidden="true">
                           <div class="landing-preview__skeleton landing-preview__skeleton--rail-title" />
                           <div class="landing-preview__rail-row">
-                            {[0, 1, 2, 3, 4, 5].map((posterIdx) => (
+                            <For each={[0, 1, 2, 3, 4, 5]}>{(posterIdx) => (
                               <div
                                 class="landing-preview__poster"
                                 classList={{
@@ -568,10 +566,10 @@ const LandingPage: Component = () => {
                                     railIdx === 0 && posterIdx === 1
                                 }}
                               />
-                            ))}
+                            )}</For>
                           </div>
                         </div>
-                      ))}
+                      )}</For>
                     </div>
                   </div>
                 </div>

@@ -339,9 +339,9 @@ describe("hardDeleteCollection", () => {
   it("deletes entries first, then the collection row", async () => {
     // The function makes two separate from() calls: collection_entries
     // then collections. Each returns its own thenable.
-    let callIndex = 0;
+    let _callIndex = 0;
     chain.then = vi.fn((resolve: (v: unknown) => unknown) => {
-      callIndex++;
+      _callIndex++;
       Promise.resolve({ error: null }).then(resolve);
     });
 

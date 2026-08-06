@@ -100,10 +100,7 @@ import { useSpotlight } from "./hooks/useSpotlight";
 // 3-color palette to --ambient-color-* CSS variables on :root.
 import { useAmbientPalette } from "./hooks/useAmbientPalette";
 import { useDiscoverFeeds } from "./hooks/useDiscoverFeeds";
-import {
-  usePersonalizedDiscover,
-  formatTopGenreLabel
-} from "./hooks/usePersonalizedDiscover";
+import { usePersonalizedDiscover } from "./hooks/usePersonalizedDiscover";
 import { useDiscoverRow } from "./hooks/useDiscoverRow";
 import { useDiscoverActions } from "./useDiscoverActions";
 import Spotlight from "./components/Spotlight";
@@ -118,7 +115,6 @@ import {
   discoverMoviesWithProvider,
   discoverTvWithProvider,
   getRecommendations,
-  getTrending,
   genreIdFor
 } from "~/core/tmdb/discover";
 import { tmdbImage } from "~/core/tmdb/tmdb";
@@ -408,7 +404,7 @@ export default function DiscoverPage() {
   const row2Filtered = createMemo(() =>
     filterFeed(row2Titles(), row1Filtered().renderedIds)
   );
-  const row2Label = createMemo(() => {
+  const _row2Label = createMemo(() => {
     const genre = trendingGenre();
     return `Trending in ${genre}`;
   });
@@ -542,7 +538,7 @@ export default function DiscoverPage() {
   // Popular Anime: filter out vault titles but do NOT pass newSeasonBadgeIds
   const row5Filtered = createMemo(() => {
     const vault = excludedKeys();
-    const tracked = trackedTvSeasons();
+    const _tracked = trackedTvSeasons();
     const renderedIds = new Set(row4Filtered().renderedIds);
     const filtered: TMDBTitle[] = [];
     for (const t of popularAnimeCombined()) {

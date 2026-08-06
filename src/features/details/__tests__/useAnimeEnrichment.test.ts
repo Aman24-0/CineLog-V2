@@ -389,7 +389,7 @@ describe("useAnimeEnrichment — tmdbType detection", () => {
       })
     );
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       expect(mockAutoMap).toHaveBeenCalled();
       const call = mockAutoMap.mock.calls[0][0];
       expect(call.tmdbType).toBe("movie");
@@ -411,7 +411,7 @@ describe("useAnimeEnrichment — tmdbType detection", () => {
       })
     );
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       expect(mockAutoMap).toHaveBeenCalled();
       const call = mockAutoMap.mock.calls[0][0];
       expect(call.tmdbType).toBe("tv");
@@ -432,7 +432,7 @@ describe("useAnimeEnrichment — tmdbType detection", () => {
       })
     );
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       const call = mockAutoMap.mock.calls[0][0];
       expect(call.year).toBe(2026);
     });
@@ -452,7 +452,7 @@ describe("useAnimeEnrichment — tmdbType detection", () => {
       })
     );
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       const call = mockAutoMap.mock.calls[0][0];
       expect(call.year).toBe(2025);
     });
@@ -472,7 +472,7 @@ describe("useAnimeEnrichment — tmdbType detection", () => {
       })
     );
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       const call = mockAutoMap.mock.calls[0][0];
       expect(call.year).toBeNull();
     });
@@ -511,7 +511,7 @@ describe("useAnimeEnrichment — id type handling", () => {
     });
     const [details] = createSignal<TMDBDetails | null>(makeDetails({ id: 67890 }));
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       expect(mockGetAnilistId).toHaveBeenCalledWith(67890);
     });
   });
@@ -525,7 +525,7 @@ describe("useAnimeEnrichment — id type handling", () => {
     });
     const [details] = createSignal<TMDBDetails | null>(makeDetails({ id: 12345 }));
 
-    await withHook(selected, details, async (api) => {
+    await withHook(selected, details, async (_api) => {
       expect(mockGetAnilistId).toHaveBeenCalledWith(12345);
     });
   });

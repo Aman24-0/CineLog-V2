@@ -75,7 +75,7 @@ const SupabaseServicePage: Component = () => {
   const [extensions, setExtensions] = createSignal<ExtensionsResponse>({
     extensions: []
   });
-  const [extensionsLoading, setExtensionsLoading] = createSignal(true);
+  const [_extensionsLoading, setExtensionsLoading] = createSignal(true);
 
   const fetchStats = async () => {
     setStatsLoading(true);

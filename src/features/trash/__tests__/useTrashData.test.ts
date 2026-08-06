@@ -17,7 +17,7 @@
 //   • No-op when uid is null
 
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { createRoot, createSignal } from "solid-js";
+import { createRoot, createSignal as _createSignal } from "solid-js";
 
 // --- Hoisted mock for the trashAdapter ---
 

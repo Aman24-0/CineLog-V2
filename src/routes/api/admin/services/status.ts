@@ -48,7 +48,7 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 type ServiceStatus = "ok" | "degraded" | "down" | "unknown";
 

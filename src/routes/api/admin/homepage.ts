@@ -28,7 +28,7 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface SectionConfig {
   enabled: boolean;

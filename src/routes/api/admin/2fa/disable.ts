@@ -45,7 +45,7 @@ import {
   clearFailures
 } from "~/lib/server/rateLimiter";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface DisableResponse {
   ok: true;

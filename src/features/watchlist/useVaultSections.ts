@@ -1,7 +1,7 @@
 // src/features/watchlist/useVaultSections.ts
 import { createMemo, Accessor } from "solid-js";
 import { resolveTimelineDate } from "~/shared/utils/date";
-import { isWatchable, getContinueWatchingList } from "~/shared/utils/progress";
+import { getContinueWatchingList } from "~/shared/utils/progress";
 import type { WatchlistItem } from "~/shared/types";
 
 export interface VaultSection {

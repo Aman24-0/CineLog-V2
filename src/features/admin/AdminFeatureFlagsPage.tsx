@@ -42,7 +42,6 @@ import {
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
-import { GlassEmptyState } from "~/shared/ui/glass/GlassEmptyState";
 import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
 import {
   FEATURE_FLAG_METADATA,

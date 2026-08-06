@@ -54,20 +54,6 @@ const STATE_COOKIE_NAME = "trakt_oauth_state";
 const SUCCESS_REDIRECT = "/settings/sync?trakt=connected";
 const ERROR_BASE = "/settings/sync";
 
-function redirectTo(path: string): Response {
-  return new Response(null, {
-    status: 302,
-    headers: {
-      Location: path,
-      "Cache-Control": "no-store"
-    }
-  });
-}
-
-function redirectToWithError(errorCode: string): Response {
-  return redirectTo(`${ERROR_BASE}?error=${encodeURIComponent(errorCode)}`);
-}
-
 /**
  * Build a Set-Cookie header that clears the state cookie.
  * Called after the state has been verified (or on any error path)

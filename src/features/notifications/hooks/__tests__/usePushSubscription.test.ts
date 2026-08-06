@@ -149,11 +149,11 @@ beforeEach(() => {
 
   // Default: no PushManager / Notification support (each test installs
   // its own stubs as needed).
-  // @ts-ignore — jsdom doesn't define these.
+  // @ts-expect-error — jsdom doesn't define these.
   delete (navigator as unknown).serviceWorker;
-  // @ts-ignore — jsdom doesn't define Notification.
+  // @ts-expect-error — jsdom doesn't define Notification.
   delete (globalThis as unknown).Notification;
-  // @ts-ignore — jsdom doesn't define PushManager.
+  // @ts-expect-error — jsdom doesn't define PushManager.
   delete (globalThis as unknown).PushManager;
 
   // Default fetch: 200 OK with sent=0.
@@ -214,7 +214,7 @@ describe("usePushSubscription — isSupported", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore — jsdom doesn't define Notification.
+    // @ts-expect-error — jsdom doesn't define Notification.
     globalThis.Notification = vi.fn();
 
     await withHook(async (api) => {
@@ -229,7 +229,6 @@ describe("usePushSubscription — isSupported", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore — define PushManager as a truthy object.
     globalThis.PushManager = class FakePushManager {} as never;
 
     await withHook(async (api) => {
@@ -244,9 +243,7 @@ describe("usePushSubscription — isSupported", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore — define PushManager as a truthy object.
     globalThis.PushManager = class FakePushManager {} as never;
-    // @ts-ignore — Notification stub.
     globalThis.Notification = { permission: "default", requestPermission: vi.fn() } as never;
 
     await withHook(async (api) => {
@@ -286,9 +283,7 @@ describe("usePushSubscription — subscribe", () => {
       subscribe: vi.fn().mockResolvedValue(newSub)
     };
     installServiceWorkerStub({ pushManager });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore — Notification stub.
     globalThis.Notification = {
       permission: opts.permission ?? "default",
       requestPermission: vi.fn().mockResolvedValue(opts.requestResult ?? "granted")
@@ -455,9 +450,7 @@ describe("usePushSubscription — checkSubscription", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "granted" } as never;
 
     await withHook(async (api) => {
@@ -474,9 +467,7 @@ describe("usePushSubscription — checkSubscription", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "default" } as never;
 
     await withHook(async (api) => {
@@ -500,9 +491,7 @@ describe("usePushSubscription — checkSubscription", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "default" } as never;
 
     await withHook(async (api) => {
@@ -525,9 +514,7 @@ describe("usePushSubscription — unsubscribe", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "granted" } as never;
   }
 
@@ -559,9 +546,7 @@ describe("usePushSubscription — unsubscribe", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "default" } as never;
 
     await withHook(async (api) => {
@@ -579,7 +564,7 @@ describe("usePushSubscription — unsubscribe", () => {
     );
 
     await withHook(async (api) => {
-      const ok = await api.unsubscribe();
+      const _ok = await api.unsubscribe();
       // The browser call returned false (didn't unsubscribe), but we
       // still delete the DB row + mark unsubscribed locally.
       expect(api.isSubscribed()).toBe(false);
@@ -711,9 +696,7 @@ describe("usePushSubscription — subscribedCategories", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "granted" } as never;
 
     await withHook(async (api) => {
@@ -742,9 +725,7 @@ describe("usePushSubscription — vapidPublicKey", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "default" } as never;
 
     mockChain.maybeSingle = vi.fn(() =>
@@ -766,9 +747,7 @@ describe("usePushSubscription — vapidPublicKey", () => {
         subscribe: vi.fn()
       }
     });
-    // @ts-ignore
     globalThis.PushManager = class {} as never;
-    // @ts-ignore
     globalThis.Notification = { permission: "default" } as never;
 
     mockChain.maybeSingle = vi.fn(() =>

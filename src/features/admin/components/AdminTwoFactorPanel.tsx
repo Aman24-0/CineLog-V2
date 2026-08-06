@@ -107,7 +107,7 @@ const AdminTwoFactorPanel: Component = () => {
   };
 
   // Use createResource to fetch on mount.
-  // eslint-disable-next-line solid/reactivity -- fetchStatus is a stable closure
+   
   const [_statusResource] = createResource(fetchStatus);
   void _statusResource;
 

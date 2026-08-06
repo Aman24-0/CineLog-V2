@@ -37,7 +37,7 @@ import {
   encryptSecret
 } from "~/lib/server/totp";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface EnrollResponse {
   ok: true;

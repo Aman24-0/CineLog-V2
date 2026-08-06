@@ -46,7 +46,7 @@ import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import webPush from "web-push";
 import { isServer } from "solid-js/web";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface TestPushBody {
   title?: unknown;

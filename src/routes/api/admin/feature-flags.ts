@@ -23,7 +23,7 @@ import {
 } from "~/core/feature-flags/defaults";
 import { enforceAdminMutationRateLimit } from "~/lib/server/adminRateLimit";
 
-interface APIEvent extends AdminAPIEvent {}
+type APIEvent = AdminAPIEvent;
 
 interface FeatureFlags {
   [key: string]: boolean;

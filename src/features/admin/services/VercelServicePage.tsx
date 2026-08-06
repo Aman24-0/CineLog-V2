@@ -19,7 +19,7 @@
 //
 // RESPONSIVE: stacks to 1 column on mobile.
 
-import { Show, type Component } from "solid-js";
+import { For, Show, type Component } from "solid-js";
 import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassStatCard } from "~/shared/ui/glass/GlassStatCard";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
@@ -199,7 +199,7 @@ const VercelServicePage: Component = () => {
           <code class="font-mono">x-vercel-cron-auth</code> header.
         </p>
         <div class="flex flex-col gap-2">
-          {VERCEL_CRONS.map((cron) => (
+          <For each={VERCEL_CRONS}>{(cron) => (
             <div class="flex flex-col gap-2 rounded-md border border-glass-border bg-tier-2 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
               <div class="flex min-w-0 flex-col gap-1">
                 <code class="break-words font-mono text-sm font-semibold text-text-strong">
@@ -216,7 +216,7 @@ const VercelServicePage: Component = () => {
                 class="flex-shrink-0"
               />
             </div>
-          ))}
+          )}</For>
         </div>
       </GlassCard>
 

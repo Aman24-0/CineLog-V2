@@ -42,7 +42,6 @@
 import {
   createSignal,
   Show,
-  For,
   onMount,
   type Component
 } from "solid-js";
@@ -97,7 +96,7 @@ interface SendTestResponse {
 const PushPage: Component = () => {
   const [status, setStatus] = createSignal<PushStatusResponse | null>(null);
   const [days, setDays] = createSignal<DailyDeliveryPoint[]>([]);
-  const [loading, setLoading] = createSignal(true);
+  const [_loading, setLoading] = createSignal(true);
   const [error, setError] = createSignal<string | null>(null);
 
   // Send Test Push form state

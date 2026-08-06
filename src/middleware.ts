@@ -106,6 +106,7 @@ declare global {
  */
 function isCookieDebugLoggingEnabled(): boolean {
   const flag =
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (import.meta as any).env?.SUPABASE_DEBUG_COOKIE_LOG ??
     (typeof process !== "undefined" && process.env?.SUPABASE_DEBUG_COOKIE_LOG);
   return flag === "1" || flag === "true";
