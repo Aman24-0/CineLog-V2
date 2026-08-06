@@ -27,19 +27,37 @@
    ============================================================ */
 
 /* ─── Search bar ──────────────────────────────────────────────────
-   Phase 14 Chunk 5 fix — switched from solid --bg / --tier-1 to
-   var(--glass-bg) + backdrop-filter so the sticky search wrapper
-   and the input pill both let the ambient field bleed through.
-   The wrapper uses the stronger --glass-bg-strong because it's a
-   STICKY element that needs to visually obscure content scrolling
-   underneath; the inner input pill uses the lighter --glass-bg so
-   the wrapper's blur shows through it. */
+   Phase 14 Chunk 8 hotfix — DOUBLE OUTLINE + DARK UI FIX
+   ─────────────────────────────────────────────────────────────────────
+   Previous state (Chunk 5) had TWO stacked dark layers: the wrapper
+   used var(--glass-bg-strong) (rgba 0.86) AND the inner .settings-search
+   used var(--glass-bg) (rgba 0.45) — combined ~0.92 effective opacity
+   = "solid dark slab" that didn't adapt to the ambient field. On top
+   of that, the <input> in SettingsPage.tsx carried the `focus-ring`
+   utility class, so on focus the user saw THREE overlapping outlines:
+   1. .settings-search border (1px hairline)
+   2. .settings-search:focus-within box-shadow ring (3px p-dim)
+   3. .focus-ring:focus-visible box-shadow on the input (2px tier-1 + 4px p)
+
+   Fix:
+   1. Wrapper background → transparent (no more solid dark slab; the
+      backdrop-filter is retained so scrolling content is still
+      frosted behind the sticky header — just no opaque tint).
+   2. Inner .settings-search background → var(--glass-bg-strong)
+      (single solid glass layer that still lets ~14% of the ambient
+      field bleed through — adapts to the ambient aesthetic while
+      keeping input text readable).
+   3. The .settings-search border is KEPT — this is now the SINGLE
+      outline (the "outer wrapper border"). The double focus ring is
+      eliminated by removing the `focus-ring` class from the <input>
+      in SettingsPage.tsx; the .settings-search:focus-within ring is
+      the only focus indicator. */
 .settings-search-wrapper {
   margin: var(--sp-3) 0 var(--sp-5) 0;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--glass-bg-strong);
+  background: transparent;
   backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   padding: var(--sp-2) 0;
@@ -49,7 +67,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  background: var(--glass-bg);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);

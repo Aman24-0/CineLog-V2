@@ -159,7 +159,7 @@
 // numeric-only versions (`cinelog-static-v11`) will be matched by
 // the `!key.endsWith("-v13-localstorage")` filter and deleted on
 // activate, which is exactly what we want.
-const CACHE_VERSION = "v13-localstorage";
+const CACHE_VERSION = "v14-html-timeout";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
@@ -175,6 +175,34 @@ const APP_SHELL_URLS = ["/", "/offline.html"];
 const MAX_STATIC_ENTRIES = 80;
 const MAX_HTML_ENTRIES = 8;
 const MAX_RUNTIME_ENTRIES = 200;
+
+// ─── HTML navigation fetch timeout ──────────────────────────────────
+//   Phase 14 Chunk 8 hotfix — COLD-START LOADING BAR FIX
+//
+//   The browser's native loading indicator (the progress bar in the
+//   tab chrome) stays active for as long as the navigation fetch is
+//   in flight. On a cold start — Vercel serverless cold start, slow
+//   DNS, flaky 3G, Supabase session check hanging — the server can
+//   take 5–10+ seconds to respond, so the browser loading bar sits
+//   at 60–70% the entire time and looks "stuck".
+//
+//   The previous networkFirstHtml() strategy waited indefinitely for
+//   the network. We now race the fetch against this timeout. If the
+//   network doesn't respond in 3 seconds:
+//     1. Fall back to the cached HTML / app shell immediately so the
+//        browser loading bar finishes and the SPA can hydrate.
+//     2. The original network fetch keeps running in the background
+//        and populates the cache for the next visit (we don't abort
+//        it — AbortController on a navigation fetch can cause weird
+//        half-rendered states in some browsers).
+//
+//   3 seconds is the sweet spot: fast enough that the user never
+//   sees a "stuck" bar for more than 3s, slow enough that a normal
+//   fast connection (typical HTML response is <1s) is never
+//   interrupted. The in-app useAuth cold-start timeout (8s) and the
+//   useUserLibrary safety timer (12s) provide deeper layers of
+//   protection for the in-app spinner.
+const HTML_NAV_TIMEOUT_MS = 3000;
 
 /**
  * Evict the oldest entries from a cache until its size is <= max.
@@ -329,13 +357,27 @@ self.addEventListener("fetch", (event) => {
 });
 
 /**
- * NETWORK-FIRST for HTML navigations.
+ * NETWORK-FIRST (with timeout) for HTML navigations.
  *
- *   1. Try the network — on success, cache the response and serve it.
- *   2. On network failure (offline), fall back to the cached app
- *      shell. We use caches.match("/") to find the precached root,
- *      which lets the SPA hydrate and route client-side.
- *   3. If neither is available, serve /offline.html (also precached).
+ *   Phase 14 Chunk 8 hotfix — COLD-START LOADING BAR FIX
+ *   ─────────────────────────────────────────────────────────────────
+ *   Previously this function did `await fetch(req)` with no timeout.
+ *   On a cold start (Vercel serverless cold start, slow DNS, flaky
+ *   3G), the server can take 5–10+ seconds to respond. The browser's
+ *   native loading indicator stays active the entire time, sitting at
+ *   60–70% and looking "stuck" — the user has to manually refresh.
+ *
+ *   We now race the network fetch against HTML_NAV_TIMEOUT_MS (3s):
+ *     • If the network responds first → cache + return (happy path,
+ *       same as before).
+ *     • If the timeout fires first → fall back to the cached HTML /
+ *       app shell immediately so the browser loading bar finishes and
+ *       the SPA can hydrate. The network fetch is NOT aborted — it
+ *       keeps running in the background and populates the cache for
+ *       the next visit (aborting a navigation fetch can cause weird
+ *       half-rendered states in some browsers).
+ *     • If the network fails (offline) AND we have no cache → fall
+ *       back to /offline.html, then rethrow as a last resort.
  *
  * We only cache "ok" responses (status 200) — redirects (3xx) and
  * errors (4xx/5xx) are passed through without caching so a transient
@@ -343,27 +385,83 @@ self.addEventListener("fetch", (event) => {
  */
 async function networkFirstHtml(req) {
   const cache = await caches.open(CACHE_HTML);
+
+  // Race the network fetch against the cold-start timeout. We use a
+  // custom timeout promise (rather than AbortController) because
+  // aborting a navigation fetch can leave the browser in a weird
+  // half-rendered state on some engines — we want the fetch to keep
+  // running in the background and populate the cache, we just stop
+  // WAITING for it.
+  //
+  // The background cache update is attached directly to the fetch
+  // promise so it fires regardless of whether the timeout won the
+  // race. This means even if we serve the cached app shell (because
+  // the network was slow), the fresh network response will still
+  // populate the cache for the NEXT visit.
+  const networkPromise = fetch(req)
+    .then((resp) => {
+      // Always cache a successful network response, even if the
+      // timeout already fired and we served a cached fallback to
+      // the page. This keeps the cache fresh for the next visit.
+      if (resp && resp.ok && resp.status === 200) {
+        cache.put(req, resp.clone()).then(() =>
+          trimCache(CACHE_HTML, MAX_HTML_ENTRIES)
+        );
+      }
+      return resp;
+    })
+    .catch((err) => {
+      // Network failed — re-throw so the catch block below can
+      // handle the offline fallback. The cache was not updated.
+      throw err;
+    });
+
+  const timeoutPromise = new Promise((_, reject) => {
+    setTimeout(() => {
+      reject(new Error("HTML_NAV_TIMEOUT"));
+    }, HTML_NAV_TIMEOUT_MS);
+  });
+
   try {
-    const networkResp = await fetch(req);
-    if (networkResp && networkResp.ok && networkResp.status === 200) {
-      // Clone before putting — the response body can only be consumed
-      // once, and we're about to return it to the page AND cache it.
-      cache.put(req, networkResp.clone());
-      trimCache(CACHE_HTML, MAX_HTML_ENTRIES);
-    }
+    const networkResp = await Promise.race([
+      networkPromise,
+      timeoutPromise
+    ]);
+    // The network won the race. The cache was already updated inside
+    // networkPromise's .then() handler, so we just return the response.
     return networkResp;
   } catch (err) {
-    // Network failed — try the cached version of this exact URL first.
+    // Either the network failed (offline / 5xx) OR the timeout fired.
+    // In both cases, try to serve a cached response so the browser
+    // loading bar finishes and the SPA can hydrate.
+    //
+    // Network-first means we PREFER the network, but on a cold start
+    // a 3-second-old cached HTML is vastly better than a 10-second
+    // stuck loading bar. The background fetch (still in flight if the
+    // timeout fired) will update the cache for next time.
+
+    // Try the cached version of this exact URL first (deep links).
     const cached = await cache.match(req);
     if (cached) return cached;
-    // Then try the app shell (lets the SPA hydrate and route client-side).
+
+    // Then try the app shell (lets the SPA hydrate and route
+    // client-side to the deep-linked path).
     const shell = await cache.match("/");
     if (shell) return shell;
-    // Last resort: precached offline page.
+
+    // If the timeout fired (not a network error) AND we have no
+    // cache, we still want to let the network request continue —
+    // but we can't hold the browser loading bar open forever. Fall
+    // through to the offline page as a last resort; the user can
+    // refresh to retry.
     const offline = await caches.match("/offline.html");
     if (offline) return offline;
+
     // Nothing cached at all — rethrow so the browser shows its native
-    // offline page (better than a blank response).
+    // offline page (better than a blank response). If the timeout
+    // fired (err.message === "HTML_NAV_TIMEOUT") the original network
+    // fetch is still in flight in the background; the next navigation
+    // will benefit from whatever it caches.
     throw err;
   }
 }

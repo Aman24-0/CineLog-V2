@@ -561,6 +561,16 @@
 }
 
 /* Glass search bar */
+/* Phase 14 Chunk 8 hotfix — INACTIVE STATE AMBIENT FIX
+   ─────────────────────────────────────────────────────────────────────
+   Previously the default (inactive) background was var(--glass-bg-strong)
+   (rgba(13,13,20,0.86)) — too solid/dark, making the search bar read as a
+   black slab that didn't blend with the ambient field behind it. Swapped
+   so the inactive state uses var(--glass-bg) (rgba(15,15,22,0.45)) which
+   lets the ambient blobs bleed through, matching the rest of the header.
+   The focus/active state now uses var(--glass-bg-strong) — solid glass
+   for text readability while typing. The focus indicator (border + ring)
+   is unchanged. */
 .search-premium {
   display: flex;
   align-items: center;
@@ -568,16 +578,25 @@
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   border: 1px solid var(--hairline-2);
-  background: var(--glass-bg-strong);
+  background: var(--glass-bg);
   transition:
     border-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
     background var(--dur-base) var(--ease-out);
 }
-.search-premium:focus-within {
+.search-premium:focus-within,
+.search-premium:focus {
   border-color: var(--p);
   box-shadow: 0 0 0 3px var(--p-dim);
-  background: var(--glass-bg);
+  background: var(--glass-bg-strong);
+}
+/* Explicit placeholder color so the placeholder stays readable on the
+   now-lighter translucent (var(--glass-bg)) inactive background. Without
+   this, the browser default placeholder gray can fall below AA contrast
+   when the ambient field behind the input is one of the darker themes. */
+.search-premium::placeholder {
+  color: var(--text-soft);
+  opacity: 1;
 }
 /* HIDE the native browser-rendered clear (×) button on <input type="search">.
    WebKit/Chromium-based browsers (including Android Chrome) render a small

@@ -176,7 +176,7 @@ const SettingsPage: Component = () => {
               </span>
               <input
                 type="search"
-                class="settings-search-input focus-ring"
+                class="settings-search-input"
                 placeholder="Search settings…"
                 value={s.query()}
                 onInput={(e) => s.setQuery(e.currentTarget.value)}
