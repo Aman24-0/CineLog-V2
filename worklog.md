@@ -111,3 +111,56 @@ Stage Summary:
   3. Email matching — callback route rejects the connection if Trakt email ≠ CineLog email (case-insensitive)
   4. Data mapping — Trakt history's movie.ids.tmdb / show.ids.tmdb mapped directly to vault.tmdb_id; movie→media_type='movie', episode→media_type='tv'
 - Ready for Chunk 3 (frontend UI: Connect Trakt button, preview modal, execute progress, sync history row).
+
+---
+Task ID: phase-12-chunk-3
+Agent: main (Super Z)
+Task: Phase 12 Chunk 3 — Trakt Frontend (Wizard & Settings UI). Build the user-facing UI for the Trakt direct integration in Settings → Data & Sync. NO backend changes — purely frontend: connect/disconnect card, 3-step sync wizard modal, email-mismatch error banner.
+
+Work Log:
+- Audited post-Chunk-2 state: read SyncSection.tsx, all Glass UI components (GlassCard, GlassButton, GlassModal, GlassBadge, GlassSkeleton, GlassEmptyState), CloudStatusCard, JsonImportWizard (for modal pattern reference), CsvImportCard (for card pattern reference), SettingsState type bag, secondary.css (where sync styles live), color tokens. Confirmed no existing Trakt logo asset — would need to ship inline SVG.
+- Created src/features/sync/components/TraktLogo.tsx (~60 LOC): inline SVG of Trakt's signature red square + scan lines. No binary asset needed; inherits currentColor where possible. Configurable size + color.
+- Created src/features/sync/components/TraktSyncWizard.tsx (~570 LOC): GlassModal-based 3-step sync wizard.
+  - Step "loading": fetches /api/sync/trakt/preview on modal open (createEffect tracks props.open, fires on false→true edge). GlassSkeleton grid while loading.
+  - Step "preview": shows summary stat grid (New Movies, New Shows, Conflicts, Already in Vault) + sample titles (up to 5 each, scrollable list). Conflict explainer note when conflicts > 0. Empty case ("Nothing to import") when all 0.
+  - Step "executing": spinner with progress_activity icon (CSS spin animation), backdrop+ESC disabled.
+  - Step "success": green check + "Sync Complete!" + result stat grid (Imported, Updated, Skipped) + duration.
+  - Step "error": branches on error.kind — "not-connected" shows GlassEmptyState with "Connect Trakt" CTA, "trakt-down"/"unknown" show Retry button, "auth" shows just Close.
+  - handleClose defers state reset 250ms so the close animation isn't disturbed; next open starts fresh.
+  - onSuccess callback fires after execute returns ok (parent uses it to update "Last Synced" timestamp).
+  - onConnectionLost callback fires when preview returns 409 (parent uses it to flip card back to "unconnected" state and clear localStorage).
+  - createEffect watcher uses `let lastOpen = false` initializer (NOT `props.open`) to avoid untracked-reactive-read eslint warning.
+- Created src/features/sync/components/TraktIntegrationCard.tsx (~290 LOC): GlassCard with connect/disconnect UI.
+  - State: `connected`, `lastSynced`, `wizardOpen`, `emailMismatch`, `disconnecting` signals.
+  - URL state consumption on mount: reads ?trakt=connected, ?error=trakt_email_mismatch, ?error=trakt_state_mismatch from URL, then strips them via window.history.replaceState (so refresh doesn't re-trigger toasts/banners).
+  - localStorage persistence for `connected` flag (key: cinelog_trakt_connected) and `lastSyncedAt` timestamp (key: cinelog_trakt_last_synced_at). Both wrapped in try/catch for private-mode browsers.
+  - "Connect Trakt" button → window.location.href = "/api/auth/trakt" (server redirects to Trakt consent screen).
+  - "Sync Now" button → opens wizard modal.
+  - "Disconnect" link button → POST /api/auth/trakt/disconnect (route doesn't exist yet — handles 404/405 gracefully by updating UI optimistically + toast informing user server-side cleanup is pending).
+  - Email mismatch banner: red GlassCard-style banner with title, body, dismiss X button. Persistent until dismissed.
+  - State mismatch (CSRF failure): just a toast (transient — user just needs to retry).
+  - Last Synced formatting: "Today at 3:45 PM", "Yesterday at …", "Mar 4 at …" — relative date + time.
+- Updated src/features/settings/sections/SyncSection.tsx: added "Direct Integrations" subsection between Cloud Status and Sync Cadence, containing <TraktIntegrationCard />. Subsection follows existing pattern (setting-subsection + setting-subsection-label + setting-group).
+- Added ~510 LOC of CSS to src/styles/features/secondary.css (section 11, after existing sync styles):
+  - .trakt-integration-* — card layout, header (logo + title + badge), body, actions, disconnect-btn (subtle underline link), email-mismatch error banner (danger-bg/border tokens).
+  - .trakt-wizard-* — modal body layout, stat grid (2-col mobile → 4-col ≥480px), stat tiles with data-tone variants (primary/warning/muted), conflict-note (warning tokens), sample lists (scrollable, max-height 200px), nothing-to-import empty state, action row, executing spinner, success icon, error icon.
+  - All spacing/sizing uses var(--sp-*) with hardcoded fallbacks. All colors use design tokens (var(--p), var(--color-danger-text), var(--color-warning-bg), etc.) with hardcoded fallbacks.
+  - Mobile-first: stat grid wraps 2-col on mobile, action buttons flex-wrap.
+- Verification:
+  - npx tsc --noEmit → 0 errors
+  - npx vitest run → 55 files / 1412 tests pass (no regressions)
+  - npx eslint (on the 4 touched files) → 0 errors, 0 warnings (after fixing 2 initial issues: unused stateMismatch signal, untracked props.open read)
+- Two lint issues fixed during iteration:
+  1. TraktIntegrationCard had a `stateMismatch` signal that was set but never read → removed the signal, kept just the toast (state mismatch is transient, doesn't need a persistent banner).
+  2. TraktSyncWizard initialized `let lastOpen = props.open` which is an untracked reactive read → changed to `let lastOpen = false` (first effect run on mount treats open=true as a transition and fires fetchPreview correctly).
+
+Stage Summary:
+- 5 files: 3 new (TraktLogo, TraktSyncWizard, TraktIntegrationCard), 2 modified (SyncSection, secondary.css). ~1440 LOC added.
+- All 4 Phase 12 Chunk 3 critical rules honored:
+  1. Design System — exclusively uses GlassCard, GlassButton, GlassModal, GlassBadge, GlassSkeleton, GlassEmptyState. No custom UI primitives.
+  2. Mobile-First Responsive — stat grids wrap 2-col on mobile → 4-col on ≥480px, action buttons flex-wrap, modal size="md" (max-w-md = 448px, fits mobile), card padding uses GlassCard size="default".
+  3. Error Handling — ?error=trakt_email_mismatch shows persistent red banner with dismiss button + clear explanation. ?error=trakt_state_mismatch shows toast. Wizard handles 401/409/502/500 with distinct error UIs + retry options.
+  4. No Backend Changes — only frontend files touched. Disconnect calls a placeholder route (/api/auth/trakt/disconnect) which doesn't exist yet; UI handles 404/405 gracefully. Once the route is implemented server-side, the same client code will respect the real response.
+- Security: no tokens stored client-side. Connect button navigates to server OAuth init route. All Trakt API access proxied through /api/sync/trakt/preview and /api/sync/trakt/execute.
+- Connection state persistence: localStorage (cinelog_trakt_connected) — survives page reloads. If the server-side integration is ever revoked (token expired, refresh failed, manually deleted from DB), the next preview call returns 409 → wizard fires onConnectionLost → card flips back to "unconnected" + localStorage cleared.
+- Ready for Chunk 4 (potential: /api/auth/trakt/disconnect route, scheduled auto-sync, sync history log).

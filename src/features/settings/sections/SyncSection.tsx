@@ -31,6 +31,8 @@ import ImportHub from "~/features/sync/components/ImportHub";
 import CsvImportCard from "~/features/sync/components/CsvImportCard";
 import BackupCards from "~/features/sync/components/BackupCards";
 import CsvExportCard from "~/features/sync/components/CsvExportCard";
+// Direct integrations (Trakt OAuth + sync wizard).
+import TraktIntegrationCard from "~/features/sync/components/TraktIntegrationCard";
 
 // Global preference signal + setter — imported directly.
 import {
@@ -103,6 +105,16 @@ export function SyncSection(props: { state: SettingsState }) {
               {/* Cloud status */}
               <div class="setting-subsection">
                 <CloudStatusCard />
+              </div>
+
+              {/* Direct integrations — Trakt OAuth + sync */}
+              <div class="setting-subsection">
+                <p class="setting-subsection-label">
+                  Direct integrations
+                </p>
+                <div class="setting-group">
+                  <TraktIntegrationCard />
+                </div>
               </div>
 
               {/* Sync cadence */}

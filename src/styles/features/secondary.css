@@ -3162,3 +3162,510 @@ html[data-ss-hidden="true"] [data-rating-display] {
   opacity: 0.6;
   transition: filter var(--dur-fast) var(--ease-out);
 }
+
+/* ────────────────────────────────────────────────────────────────
+   11. TRAKT DIRECT INTEGRATION CARD + SYNC WIZARD
+   ────────────────────────────────────────────────────────────────
+
+   Two pieces of UI live here:
+
+   A) .trakt-integration-card — the GlassCard contents that sit
+      inside the Settings → Data & Sync → Direct Integrations
+      subsection. Shows connect/disconnect state, last-synced
+      timestamp, and an email-mismatch error banner.
+
+   B) .trakt-wizard-* — the contents of the TraktSyncWizard modal.
+      The modal surface itself is provided by GlassModal; these
+      classes style the body, stat grid, sample lists, and the
+      loading / executing / success / error states.
+
+   Mobile-first:
+     • Card padding collapses on narrow widths.
+     • Stat grid is 2-col on mobile, 4-col on ≥640px.
+     • Action buttons stack full-width on mobile, inline on ≥640px.
+   ──────────────────────────────────────────────────────────────── */
+
+.trakt-integration-wrap {
+  display: block;
+}
+
+.trakt-integration-card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 0.75rem);
+}
+
+/* ── Header: logo + titles + status badge ────────────────────── */
+
+.trakt-integration-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-3, 0.75rem);
+  flex-wrap: wrap;
+}
+
+.trakt-integration-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-3, 0.75rem);
+  min-width: 0;
+}
+
+.trakt-integration-titles {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.trakt-integration-title {
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.25rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.trakt-integration-subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+/* ── Body ────────────────────────────────────────────────────── */
+
+.trakt-integration-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 0.75rem);
+}
+
+.trakt-integration-desc {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.trakt-integration-last-synced {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-1, 0.25rem);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.trakt-integration-last-synced .material-symbols-outlined {
+  color: var(--p);
+}
+
+.trakt-integration-actions {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  flex-wrap: wrap;
+}
+
+/* Subtle "Disconnect" link-style button — sits next to the
+   primary "Sync Now" button but doesn't compete for attention. */
+.trakt-integration-disconnect-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  cursor: pointer;
+  padding: var(--sp-1, 0.25rem) var(--sp-2, 0.5rem);
+  border-radius: var(--radius-sm, 4px);
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.trakt-integration-disconnect-btn:hover:not(:disabled) {
+  color: var(--color-danger-text, #f87171);
+}
+
+.trakt-integration-disconnect-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ── Email mismatch error banner ─────────────────────────────── */
+
+.trakt-integration-error-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-3, 0.75rem) var(--sp-4, 1rem);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-danger-bg, rgba(248, 113, 113, 0.12));
+  border: 1px solid var(--color-danger-border, rgba(248, 113, 113, 0.3));
+}
+
+.trakt-integration-error-icon {
+  flex-shrink: 0;
+  font-size: 20px !important;
+  color: var(--color-danger-text, #f87171);
+  margin-top: 2px;
+}
+
+.trakt-integration-error-content {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.trakt-integration-error-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--color-danger-text, #f87171);
+  margin: 0;
+}
+
+.trakt-integration-error-body {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.trakt-integration-error-close {
+  flex-shrink: 0;
+  background: transparent;
+  border: none;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 2px;
+  border-radius: var(--radius-sm, 4px);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: color var(--dur-fast) var(--ease-out);
+}
+
+.trakt-integration-error-close:hover {
+  color: var(--text-strong);
+}
+
+/* ────────────────────────────────────────────────────────────────
+   B) TRAKT SYNC WIZARD (modal body)
+   ──────────────────────────────────────────────────────────────── */
+
+.trakt-wizard-body {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-4, 1rem);
+  padding: var(--sp-2, 0.5rem) 0;
+}
+
+.trakt-wizard-intro {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+}
+
+.trakt-wizard-intro strong {
+  color: var(--p);
+  font-weight: 700;
+}
+
+/* ── Skeleton (loading state) ────────────────────────────────── */
+
+.trakt-wizard-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-3, 0.75rem);
+}
+
+.trakt-wizard-skeleton-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--sp-2, 0.5rem);
+}
+
+@media (min-width: 480px) {
+  .trakt-wizard-skeleton-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* ── Stat grid (preview + success states) ────────────────────── */
+
+.trakt-wizard-stat-grid,
+.trakt-wizard-result-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: var(--sp-2, 0.5rem);
+}
+
+@media (min-width: 480px) {
+  .trakt-wizard-stat-grid,
+  .trakt-wizard-result-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.trakt-wizard-stat {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-2, 0.5rem) var(--sp-3, 0.75rem);
+  border-radius: var(--radius-md, 8px);
+  background: var(--tier-2, var(--surface, #0f0f16));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
+  min-width: 0;
+}
+
+.trakt-wizard-stat[data-tone="primary"] {
+  border-color: color-mix(in srgb, var(--p) 25%, transparent);
+  background: color-mix(in srgb, var(--p) 8%, var(--tier-2, var(--surface, #0f0f16)));
+}
+
+.trakt-wizard-stat[data-tone="primary"] .trakt-wizard-stat-icon,
+.trakt-wizard-stat[data-tone="primary"] .trakt-wizard-stat-value {
+  color: var(--p);
+}
+
+.trakt-wizard-stat[data-tone="warning"] {
+  border-color: var(--color-warning-border, rgba(251, 191, 36, 0.25));
+  background: var(--color-warning-bg, rgba(251, 191, 36, 0.08));
+}
+
+.trakt-wizard-stat[data-tone="warning"] .trakt-wizard-stat-icon,
+.trakt-wizard-stat[data-tone="warning"] .trakt-wizard-stat-value {
+  color: var(--color-warning-text, #fbbf24);
+}
+
+.trakt-wizard-stat[data-tone="muted"] .trakt-wizard-stat-icon,
+.trakt-wizard-stat[data-tone="muted"] .trakt-wizard-stat-value {
+  color: var(--text-soft);
+}
+
+.trakt-wizard-stat-icon {
+  font-size: 20px !important;
+  flex-shrink: 0;
+}
+
+.trakt-wizard-stat-text {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.trakt-wizard-stat-value {
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.02em;
+  color: var(--text-strong);
+}
+
+.trakt-wizard-stat-label {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5625rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Conflict note ───────────────────────────────────────────── */
+
+.trakt-wizard-conflict-note {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-3, 0.75rem);
+  border-radius: var(--radius-md, 8px);
+  background: var(--color-warning-bg, rgba(251, 191, 36, 0.08));
+  border: 1px solid var(--color-warning-border, rgba(251, 191, 36, 0.25));
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+}
+
+.trakt-wizard-conflict-note strong {
+  color: var(--color-warning-text, #fbbf24);
+  font-weight: 700;
+}
+
+/* ── Sample lists ────────────────────────────────────────────── */
+
+.trakt-wizard-sample {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2, 0.5rem);
+}
+
+.trakt-wizard-sample-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--text-muted);
+  margin: 0;
+}
+
+.trakt-wizard-sample-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.trakt-wizard-sample-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-1, 0.25rem) var(--sp-2, 0.5rem);
+  border-radius: var(--radius-sm, 4px);
+  background: var(--tier-2, var(--surface, #0f0f16));
+  border: 1px solid var(--hairline, rgba(255, 255, 255, 0.06));
+}
+
+.trakt-wizard-sample-item-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-strong);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+  flex: 1;
+}
+
+.trakt-wizard-sample-item-year {
+  color: var(--text-muted);
+  font-weight: 400;
+}
+
+.trakt-wizard-sample-more {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  font-style: italic;
+  padding: 0 var(--sp-2, 0.5rem);
+}
+
+/* ── "Nothing to import" empty state ─────────────────────────── */
+
+.trakt-wizard-nothing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-2, 0.5rem);
+  padding: var(--sp-4, 1rem);
+  text-align: center;
+}
+
+.trakt-wizard-nothing p {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  color: var(--text-soft);
+  margin: 0;
+  line-height: 1.5;
+}
+
+/* ── Action row ──────────────────────────────────────────────── */
+
+.trakt-wizard-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--sp-2, 0.5rem);
+  flex-wrap: wrap;
+  margin-top: var(--sp-2, 0.5rem);
+}
+
+/* ── Executing state ─────────────────────────────────────────── */
+
+.trakt-wizard-executing {
+  align-items: center;
+  text-align: center;
+  padding: var(--sp-5, 1.5rem) var(--sp-2, 0.5rem);
+}
+
+.trakt-wizard-spinner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-2, 0.5rem);
+}
+
+.trakt-wizard-status-title {
+  font-family: "Bebas Neue", cursive;
+  font-size: 1.5rem;
+  line-height: 1;
+  letter-spacing: 0.03em;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.trakt-wizard-status-body {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 360px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+/* ── Success state ───────────────────────────────────────────── */
+
+.trakt-wizard-success {
+  align-items: center;
+  text-align: center;
+}
+
+.trakt-wizard-success-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-2, 0.5rem);
+}
+
+/* ── Error state ─────────────────────────────────────────────── */
+
+.trakt-wizard-error {
+  align-items: center;
+  text-align: center;
+}
+
+.trakt-wizard-error-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: var(--sp-2, 0.5rem);
+}
+
