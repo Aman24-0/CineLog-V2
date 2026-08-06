@@ -191,3 +191,131 @@ export function getSupabaseAccessTokenFromRequest(
   const cookieHeader = request.headers.get("cookie") ?? "";
   return getSupabaseAccessToken(cookieHeader);
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Phase 13 Chunk 2 — Bug #3: HTTPS-Aware Admin Cookie Writer
+// ─────────────────────────────────────────────────────────────────────
+// PREVIOUSLY, `src/routes/api/admin/auth.ts` built the admin session
+// cookie with `Secure` HARDCODED into the Set-Cookie string:
+//
+//   `${name}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`
+//
+// On `http://localhost:3000` (the standard local dev URL), the
+// browser SILENTLY REJECTS any cookie marked `Secure`. The admin
+// login route would respond 200 OK with a Set-Cookie header, but
+// the cookie never made it into the browser's cookie jar. The next
+// request to `/api/admin/*` would arrive with no admin cookie →
+// `requireAdmin` returned 401 → the admin panel kept bouncing back
+// to the login screen.
+//
+// THE FIX:
+//   • Centralize the admin cookie builder HERE (in sessionCookie.ts,
+//     the same module that parses Supabase cookies) so there's one
+//     source of truth for cookie attributes.
+//   • Make `Secure` conditional on `isHttps` — true in production
+//     (Vercel terminates TLS at the edge and forwards as HTTPS via
+//     `X-Forwarded-Proto`), false on `http://localhost`.
+//   • Provide a single `isRequestHttps(request)` helper so every
+//     cookie-writing route uses the same detection logic.
+//
+// SECURITY:
+//   • `Secure` is ALWAYS set in production (HTTPS). The only
+//     environment where it's omitted is plain HTTP — which only a
+//     developer running `npm run dev` on localhost should ever see.
+//   • `HttpOnly` and `SameSite=Strict` are ALWAYS set, even on
+//     localhost — these protect against XSS and CSRF respectively,
+//     and there's no reason to relax them in dev.
+//   • The cookie is `Path=/` so it covers the entire origin.
+
+/**
+ * Determine if a request is over HTTPS.
+ *
+ * Vercel terminates TLS at the edge and forwards the request to the
+ * SolidStart server over plain HTTP. The original protocol is preserved
+ * in the `X-Forwarded-Proto` header. We check that header first, then
+ * fall back to the URL's protocol.
+ *
+ * Returns `true` for:
+ *   • `https://anything` (direct HTTPS)
+ *   • Any request with `X-Forwarded-Proto: https` (Vercel / proxy)
+ *
+ * Returns `false` for:
+ *   • `http://localhost:3000` (local dev)
+ *   • Any plain HTTP request without the forwarded-proto header
+ */
+export function isRequestHttps(request: Request): boolean {
+  const forwardedProto = request.headers.get("x-forwarded-proto");
+  if (forwardedProto && forwardedProto.split(",")[0].trim() === "https") {
+    return true;
+  }
+  try {
+    return new URL(request.url).protocol === "https:";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Build the `Set-Cookie` header value for the admin session cookie.
+ *
+ * Attributes:
+ *   • HttpOnly          — never readable by client-side JS (XSS hardening)
+ *   • SameSite=Strict   — never sent on cross-site requests (CSRF hardening)
+ *   • Path=/            — covers the entire origin
+ *   • Max-Age=<seconds> — session lifetime (matches the JWT's `exp` claim)
+ *   • Secure            — ONLY when `isHttps` is true. On localhost dev
+ *                         (http://), omitting `Secure` is required so the
+ *                         browser actually persists the cookie. In
+ *                         production (https://), `Secure` is always set
+ *                         so the cookie never leaks over plain HTTP.
+ *
+ * @param token   The signed admin JWT.
+ * @param isHttps Whether the originating request was over HTTPS.
+ *                Use `isRequestHttps(request)` to compute this.
+ * @param cookieName     The admin cookie name (from `adminCookieName()`).
+ * @param maxAgeSeconds  Cookie lifetime in seconds (from
+ *                       `adminTokenLifetime()` — defaults to 4 hours).
+ */
+export function buildAdminCookieHeader(
+  token: string,
+  isHttps: boolean,
+  cookieName: string = "cinelog_admin_session",
+  maxAgeSeconds: number = 4 * 60 * 60
+): string {
+  const parts = [
+    `${cookieName}=${token}`,
+    "HttpOnly",
+    "SameSite=Strict",
+    "Path=/",
+    `Max-Age=${maxAgeSeconds}`
+  ];
+  if (isHttps) parts.push("Secure");
+  return parts.join("; ");
+}
+
+/**
+ * Build the `Set-Cookie` header value that CLEARS the admin session
+ * cookie (sent on logout). Mirrors `buildAdminCookieHeader` — same
+ * attributes, but `Max-Age=0` and an empty value, which instructs
+ * the browser to delete the cookie immediately.
+ *
+ * The `Secure` attribute is conditional for the same reason as above:
+ * on localhost dev, a `Secure` clear-cookie would be ignored by the
+ * browser, so the cookie wouldn't actually be cleared (it'd persist
+ * until its natural expiry — 4 hours — which is confusing during
+ * local dev testing).
+ */
+export function buildAdminCookieClearHeader(
+  isHttps: boolean,
+  cookieName: string = "cinelog_admin_session"
+): string {
+  const parts = [
+    `${cookieName}=`,
+    "HttpOnly",
+    "SameSite=Strict",
+    "Path=/",
+    "Max-Age=0"
+  ];
+  if (isHttps) parts.push("Secure");
+  return parts.join("; ");
+}

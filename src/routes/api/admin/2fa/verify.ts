@@ -16,6 +16,32 @@
 // then call /verify with a code from their authenticator app.
 //
 // Auth: requires an active admin session (admin cookie).
+//
+// ─────────────────────────────────────────────────────────────────────
+// Phase 13 Chunk 2 — Bug #2 & #4: Rate Limiting + Replay Protection
+// ─────────────────────────────────────────────────────────────────────
+// RATE LIMITING (Bug #2):
+//   5 attempts per 5 minutes per admin. After the limit is hit, the
+//   account is locked out for 15 minutes (3x the window). This
+//   prevents brute-forcing the 6-digit TOTP code (1M possibilities
+//   → at 5 per 5 min, full search takes ~3.5 days, which gives the
+//   security team plenty of time to notice + lock the account).
+//
+//   The limit is enforced via the DB-backed `rate_limit_buckets`
+//   table (the in-memory Map limiters used in early phases were
+//   no-ops on Vercel serverless — every cold start reset the Map).
+//
+// TOTP REPLAY PROTECTION (Bug #4):
+//   The `admin_2fa_secrets` table has a `last_used_counter` column
+//   (migration 20260814_add_admin_2fa_replay_protection.sql). On
+//   every successful verification, we persist the time-step counter
+//   that produced the accepted code. Future verifications reject
+//   any code whose counter is <= `last_used_counter`.
+//
+//   This closes the 90-second replay window that RFC 6238's ±1 step
+//   drift tolerance creates: even if an attacker intercepts a valid
+//   code, they cannot reuse it within the window because the counter
+//   has already been recorded.
 
 import { isServer } from "solid-js/web";
 import {
@@ -24,7 +50,12 @@ import {
 } from "~/lib/supabase/admin/adminGuard";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
 import { logAdminAction } from "~/lib/supabase/admin/auditLog";
-import { decryptSecret, verifyTOTP } from "~/lib/server/totp";
+import { decryptSecret, verifyTOTPWithReplay } from "~/lib/server/totp";
+import {
+  isRateLimited,
+  recordFailure,
+  clearFailures
+} from "~/lib/server/rateLimiter";
 
 interface APIEvent extends AdminAPIEvent {}
 
@@ -45,6 +76,16 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * Build the rate-limit key for the 2FA verify bucket.
+ *
+ * Per-admin (NOT per-IP) so a NAT'd office of admins each get their
+ * own bucket — a single compromised account can't lock out everyone.
+ */
+function rateLimitKey(adminId: string): string {
+  return adminId;
+}
+
 export async function POST(event: APIEvent): Promise<Response> {
   if (!isServer) {
     return jsonResponse({ ok: false, error: "Server-only endpoint" }, 500);
@@ -55,6 +96,21 @@ export async function POST(event: APIEvent): Promise<Response> {
     return jsonResponse({ ok: false, error: "Unauthorized" } as ErrorResponse, 401);
   }
 
+  // ── Phase 13 Chunk 2 — Rate limit check (Bug #2) ──────────────────
+  // If the admin is currently locked out (after 5 failures in 5 min),
+  // short-circuit with a 429. We do this BEFORE any DB/TOTP work so
+  // a locked-out attacker can't even probe the system.
+  const rlKey = rateLimitKey(adminResult.admin.id);
+  if (await isRateLimited("admin2faVerify", rlKey)) {
+    return jsonResponse(
+      {
+        ok: false,
+        error: "Too many attempts. Please wait a few minutes before trying again."
+      } as ErrorResponse,
+      429
+    );
+  }
+
   try {
     const body = (await event.request.json().catch(() => ({}))) as {
       code?: unknown;
@@ -62,6 +118,9 @@ export async function POST(event: APIEvent): Promise<Response> {
     const code = typeof body.code === "string" ? body.code.trim() : "";
 
     if (!/^\d{6}$/.test(code)) {
+      // Format failure — count toward rate limit so a script that
+      // spams garbage doesn't get free attempts.
+      await recordFailure("admin2faVerify", rlKey);
       return jsonResponse(
         { ok: false, error: "Code must be exactly 6 digits." } as ErrorResponse,
         400
@@ -71,12 +130,14 @@ export async function POST(event: APIEvent): Promise<Response> {
     const supabase = createAdminClient();
     const { data: row, error: fetchError } = await supabase
       .from("admin_2fa_secrets")
-      .select("admin_id, secret_cipher, enabled_at")
+      .select("admin_id, secret_cipher, enabled_at, last_used_counter")
       .eq("admin_id", adminResult.admin.id)
       .single();
 
     if (fetchError || !row) {
       // No pending secret — the user hasn't called /enroll yet.
+      // Don't count toward rate limit (this is a state error, not
+      // a brute-force attempt).
       return jsonResponse(
         {
           ok: false,
@@ -97,19 +158,51 @@ export async function POST(event: APIEvent): Promise<Response> {
       );
     }
 
-    if (!verifyTOTP(secretBase32, code)) {
-      // Don't reveal whether the secret exists or not — return the
-      // same generic error as a wrong code.
+    // ── Phase 13 Chunk 2 — Replay-protected verification (Bug #4) ──
+    // `verifyTOTPWithReplay` returns BOTH the validity flag AND the
+    // time-step counter that matched. We persist the counter on
+    // success so future verifications reject codes whose counter is
+    // <= this value (closing the 90s replay window created by the
+    // ±1 step drift tolerance).
+    const lastUsedCounter =
+      typeof row.last_used_counter === "number" ? row.last_used_counter : null;
+    const totpResult = verifyTOTPWithReplay(
+      secretBase32,
+      code,
+      lastUsedCounter
+    );
+
+    if (!totpResult.valid) {
+      // Record the failure toward the rate-limit bucket.
+      await recordFailure("admin2faVerify", rlKey);
+      // Don't reveal whether the secret exists, the code was stale,
+      // or the code was just wrong — return the same generic error.
+      // (Logging at debug-level only — never expose in the response.)
+      if (totpResult.matchedCounter !== null) {
+        // The code MATCHED a step but was rejected due to replay
+        // protection — this is suspicious; log it for the security
+        // team but still return the generic "Invalid code" so we
+        // don't tip off an attacker that replay was the issue.
+        console.warn(
+          `[admin/2fa/verify] Replay rejected for admin ${adminResult.admin.id}: ` +
+            `counter ${totpResult.matchedCounter} <= last_used ${lastUsedCounter ?? 0}`
+        );
+      }
       return jsonResponse(
         { ok: false, error: "Invalid code. Try again." } as ErrorResponse,
         400
       );
     }
 
-    // Code is valid — enable 2FA.
+    // Code is valid AND not a replay — enable 2FA + persist the
+    // counter so this code can never be reused.
+    const nowIso = new Date().toISOString();
     const { error: updateError } = await supabase
       .from("admin_2fa_secrets")
-      .update({ enabled_at: new Date().toISOString() })
+      .update({
+        enabled_at: nowIso,
+        last_used_counter: totpResult.matchedCounter
+      })
       .eq("admin_id", adminResult.admin.id);
 
     if (updateError) {
@@ -119,6 +212,10 @@ export async function POST(event: APIEvent): Promise<Response> {
         500
       );
     }
+
+    // Successful verification — clear any accumulated failures so
+    // the admin starts the next window with a fresh counter.
+    await clearFailures("admin2faVerify", rlKey);
 
     await logAdminAction(event, adminResult.admin, {
       action: "2fa.enabled",

@@ -40,10 +40,15 @@
 //   instead of going direct to Supabase.
 //
 // SECURITY:
-//   • Public (no admin auth required) — mappings are global metadata,
-//     not user data. Any visitor can contribute a mapping, just like
-//     any visitor can read one. The admin can review + delete bad
-//     mappings via /admin/anime.
+//   • Phase 13 Chunk 2 (Bug #6): Authentication required. The route
+//     now resolves the Supabase session via the Bearer-header path
+//     (with cookie fallback for SSR) and rejects anonymous writes
+//     with 401. Previously this endpoint was completely public —
+//     any visitor (including bots) could inject mapping rows,
+//     polluting the global AniList↔TMDB mapping table. Mappings are
+//     idempotent (UNIQUE on tmdb_id) so a bot couldn't DOS the
+//     table, but bad mappings would degrade every anime fan's
+//     experience with wrong AniList links.
 //   • Strict input validation — only the documented fields are
 //     accepted, with type + range checks. Unknown fields are ignored.
 //   • Rate limiting is handled by Vercel's edge network at the
@@ -58,6 +63,7 @@
 //   upgraded to "high" by a later, better match).
 
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
+import { createServerClientFromRequest } from "~/lib/supabase/server";
 import { isServer } from "solid-js/web";
 
 interface APIEvent {
@@ -190,6 +196,31 @@ export async function POST(event: APIEvent): Promise<Response> {
   // function, but a misconfigured proxy could send other methods).
   if (event.request.method !== "POST") {
     return jsonResponse({ error: "Method not allowed" }, 405);
+  }
+
+  // ── Phase 13 Chunk 2 — Bug #6: Auth gate ────────────────────────
+  // Require an authenticated Supabase session. The browser sends the
+  // access token via `Authorization: Bearer <token>` (sessions live in
+  // localStorage, not cookies — see Phase 13 Chunk 1). Anonymous
+  // requests are rejected with 401.
+  let userId: string | null = null;
+  try {
+    const { client } = await createServerClientFromRequest(event.request);
+    const { data: sessionData, error: sessionError } =
+      await client.auth.getSession();
+    if (sessionError) {
+      console.warn(
+        "[anime-mappings] getSession error:",
+        sessionError.message
+      );
+    }
+    userId = sessionData.session?.user?.id ?? null;
+  } catch (err) {
+    console.error("[anime-mappings] Failed to read session:", err);
+    return jsonResponse({ error: "Failed to read session." }, 500);
+  }
+  if (!userId) {
+    return jsonResponse({ error: "Authentication required" }, 401);
   }
 
   // Parse + validate body.

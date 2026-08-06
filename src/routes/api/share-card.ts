@@ -43,15 +43,23 @@
 //
 // RATE LIMITING
 // -------------
-//   Headless Chromium is expensive (~50MB RAM per render). To prevent
-//   abuse, we apply a soft rate limit by checking the user's recent
-//   share-card generations from the `activity_log` table. If the user
-//   has generated more than 20 cards in the last 60 seconds, we
-//   return 429.
+//   Headless Chromium is expensive (~50MB RAM per render, ~1-2s per
+//   request). To prevent abuse, we apply a DB-backed per-user rate
+//   limit of 20 cards per hour (Phase 13 Chunk 2 — Bug #7).
 //
-//   This is a best-effort check — the `activity_log` may be missing
-//   or behind, in which case we allow the request through (fail-open
-//   is better than blocking legitimate users).
+//   The limit is keyed by user_id (NOT IP) so a NAT'd office of
+//   users each get their own bucket. The `rate_limit_buckets` table
+//   (migration 20260804_add_rate_limit_buckets.sql) holds the state;
+//   the atomic `bump_rate_limit` RPC does the increment-and-check
+//   in a single round-trip. On DB error we fail OPEN (allow the
+//   request) — a brief Supabase outage shouldn't block legitimate
+//   users, and the worst case is a few extra Chromium renders.
+//
+//   PREVIOUSLY this route had a "soft" rate limit that checked the
+//   `activity_log` table for >20 generations in the last 60 SECONDS
+//   — which is far too lenient (an attacker could render 20 cards
+//   every minute = 28,800/day). The new limit is 20/hour, enforced
+//   BEFORE Chromium is launched.
 //
 // CHROMIUM RUNTIME
 // ----------------
@@ -82,6 +90,7 @@ import {
   renderShareCardHtml,
   type ShareCardPayload
 } from "~/lib/shareCard/templates";
+import { checkAndIncrement } from "~/lib/server/rateLimiter";
 
 interface APIEvent {
   request: Request;
@@ -253,6 +262,30 @@ export async function POST(event: APIEvent): Promise<Response> {
 
   if (!userId) {
     return jsonResponse({ error: "Unauthorized" }, 401);
+  }
+
+  // ── Phase 13 Chunk 2 — Bug #7: DB-backed per-user rate limit ─────
+  // 20 cards per hour per user. Enforced BEFORE Chromium is launched
+  // so a rate-limited request doesn't waste the ~1-2s render cost.
+  // The check is atomic (single `bump_rate_limit` RPC) so concurrent
+  // requests can't race past the limit. Fails OPEN on DB error so a
+  // Supabase blip doesn't block legitimate users.
+  const rateLimit = await checkAndIncrement("shareCard", userId);
+  if (!rateLimit.allowed) {
+    const retryAfterSec = Math.ceil(rateLimit.retryAfterMs / 1000);
+    return new Response(
+      JSON.stringify({
+        error: "Rate limit exceeded. You can generate more share cards in a moment.",
+        retryAfterSeconds: retryAfterSec
+      }),
+      {
+        status: 429,
+        headers: {
+          "Content-Type": "application/json",
+          "Retry-After": String(retryAfterSec || 60)
+        }
+      }
+    );
   }
 
   // ── Parse + validate the request body ─────────────────────────────

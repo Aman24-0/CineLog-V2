@@ -335,9 +335,20 @@ export async function saveMapping(input: {
   // directly.
   if (!isServer) {
     try {
+      // Phase 13 Chunk 2 (Bug #6): the API endpoint now requires an
+      // authenticated Supabase session. Attach the access token via
+      // the Authorization header so the server can verify the caller.
+      // If no session is active (signed-out visitor), the fetch 401s
+      // — that's fine; we still populate the in-memory cache so the
+      // current session benefits, and the mapping will re-attempt on
+      // the next visit (when the user is signed in).
+      const { getAuthHeaders } = await import("~/lib/supabase/session");
       const resp = await fetch(getWriteEndpoint(), {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          ...(await getAuthHeaders())
+        },
         body: JSON.stringify({
           tmdbId: input.tmdbId,
           tmdbType: input.tmdbType ?? "tv",

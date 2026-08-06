@@ -22,6 +22,20 @@
 //   an attacker tricks the user into connecting the attacker's
 //   Trakt account.
 //
+// AUTHENTICATION (Phase 13 Chunk 2):
+//   The browser client stores sessions in localStorage (NOT cookies),
+//   so the browser never sends a Supabase auth cookie. The "Connect
+//   Trakt" button is a navigation (window.location.href), not a
+//   fetch() — so we cannot receive the access token via the
+//   `Authorization: Bearer` header either.
+//
+//   Instead, the frontend appends `?accessToken=<token>` to the
+//   navigation URL. We read it from the query string and verify it
+//   via `supabase.auth.getUser()`. If the query param is absent
+//   (e.g. a direct navigation, an SSR call, or a server-to-server
+//   ping), we fall back to the `Authorization` header, then the
+//   cookie — matching the resolution order used everywhere else.
+//
 // SECURITY:
 //   • No body parsing — this is a GET redirect.
 //   • The TRAKT_CLIENT_ID env var is exposed in the URL (it's a
@@ -31,6 +45,9 @@
 //   • The state cookie is httpOnly + Secure (on HTTPS) + SameSite=Lax
 //     so it survives the cross-site redirect to Trakt but can't be
 //     read by client-side JS.
+//   • The access token in the query param is consumed server-side
+//     and never appears in any log. It's used ONLY to identify the
+//     user starting the OAuth flow — it's not forwarded to Trakt.
 
 import { isServer } from "solid-js/web";
 import { buildTraktAuthorizeUrl } from "~/lib/server/trakt";
@@ -106,12 +123,49 @@ function isRequestHttps(request: Request): boolean {
  * wouldn't know which user_id to associate the Trakt tokens with.
  *
  * Returns the user_id on success, or null if not authenticated.
+ *
+ * Phase 13 Chunk 2 — Token resolution order:
+ *   1. `?accessToken=<token>` query param  ← browser navigation path
+ *   2. `Authorization: Bearer <token>` header  ← server-to-server
+ *   3. `sb-*-auth-token` cookie                ← SSR / legacy fallback
+ *
+ * The browser navigation path is the primary entry point: the
+ * "Connect Trakt" button does `window.location.href = "/api/auth/
+ * trakt?accessToken=<token>"` because navigations can't carry an
+ * Authorization header.
  */
 async function requireSignedInUser(
   request: Request
 ): Promise<{ userId: string; email: string } | null> {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const accessToken = getSupabaseAccessToken(cookieHeader);
+  // ── 1. accessToken query param (browser navigation) ──────────────
+  // Read from the URL — populated by TraktIntegrationCard's
+  // handleConnectClick(). The token is a JWT; URL-encoding is
+  // safe (it contains only base64url chars + dots, but the frontend
+  // encodes it anyway).
+  let accessToken: string | null = null;
+  try {
+    const url = new URL(request.url);
+    accessToken = url.searchParams.get("accessToken");
+  } catch {
+    // Malformed URL — fall through to other resolution paths.
+    accessToken = null;
+  }
+
+  // ── 2. Authorization: Bearer header (server-to-server) ───────────
+  if (!accessToken) {
+    const authHeader = request.headers.get("authorization") ?? "";
+    if (authHeader.startsWith("Bearer ")) {
+      const token = authHeader.slice("Bearer ".length).trim();
+      if (token.length > 0) accessToken = token;
+    }
+  }
+
+  // ── 3. Cookie fallback (SSR / legacy) ────────────────────────────
+  if (!accessToken) {
+    const cookieHeader = request.headers.get("cookie") ?? "";
+    accessToken = getSupabaseAccessToken(cookieHeader);
+  }
+
   if (!accessToken) return null;
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;

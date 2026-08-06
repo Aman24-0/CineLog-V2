@@ -23,6 +23,7 @@
  */
 
 import { createClient } from "@supabase/supabase-js";
+import { createServerClientFromRequest } from "~/lib/supabase/server";
 
 // ─── Type definitions ─────────────────────────────────────────────
 //
@@ -176,8 +177,52 @@ export async function GET(event: APIEvent) {
 // ─── POST /api/tmdb-cache ────────────────────────────────────────
 // Body: { entries: Array<{ key: string, tmdb_id: number, media_type: "movie"|"tv", data: object }> }
 // Returns: { upserted: number }
+//
+// ─────────────────────────────────────────────────────────────────────
+// Phase 13 Chunk 2 — Bug #5: Authentication Required
+// ─────────────────────────────────────────────────────────────────────
+// PREVIOUSLY this endpoint was completely unauthenticated — any
+// visitor (including anonymous bots) could POST arbitrary JSON to
+// populate the `tmdb_cache` table. Because the table is read by
+// every visitor's TMDB metadata lookup, a malicious actor could
+// inject fake metadata (e.g. swap a movie's poster URL to a
+// tracking pixel, change a title to spam, or worse).
+//
+// Now: the route requires an authenticated Supabase session,
+// resolved via the same Bearer-header path used everywhere else
+// (cookie fallback for SSR is still supported). Anonymous requests
+// are rejected with 401.
+//
+// We do NOT add rate limiting here — the POST is idempotent (the
+// unique constraint on `(media_type, tmdb_id)` means duplicate
+// writes are no-ops), and authenticated users writing metadata
+// they just fetched from TMDB is a normal access pattern (one
+// write per page load, not a hot path). The admin TMDB cache
+// route (`/api/admin/tmdb-cache`) is the proper place for
+// admin-side rate limiting.
 export async function POST(event: APIEvent) {
   try {
+    // ── Phase 13 Chunk 2 — Auth gate (Bug #5) ─────────────────────
+    // Reject anonymous writes. We don't read the user's identity
+    // beyond "is signed in" — the table is shared metadata, not
+    // per-user data, so any signed-in user can contribute.
+    const { client } = await createServerClientFromRequest(event.request);
+    const { data: sessionData, error: sessionError } =
+      await client.auth.getSession();
+    if (sessionError) {
+      console.warn("[tmdb-cache API] getSession error:", sessionError.message);
+    }
+    const userId = sessionData.session?.user?.id ?? null;
+    if (!userId) {
+      return new Response(
+        JSON.stringify({ error: "Authentication required" }),
+        {
+          status: 401,
+          headers: { "Content-Type": "application/json" }
+        }
+      );
+    }
+
     const body = (await event.request.json()) as {
       entries?: CacheUpsertEntry[];
     };

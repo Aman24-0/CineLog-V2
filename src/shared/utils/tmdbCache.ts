@@ -190,9 +190,19 @@ export async function cacheMetadataEntries(
   // Write to server API in the background (don't block the UI)
   // Use fire-and-forget so the user doesn't wait for cache writes
   try {
+    // Phase 13 Chunk 2 (Bug #5): the POST route now requires an
+    // authenticated session. We attach the Supabase access token
+    // via the Authorization header so the server can verify the
+    // caller. If no session is active (signed-out visitor), the
+    // fetch will 401 — that's fine; the LS cache still works for
+    // the next visit, and the server cache is just an optimization.
+    const { getAuthHeaders } = await import("~/lib/supabase/session");
     fetch("/api/tmdb-cache", {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeaders())
+      },
       body: JSON.stringify({ entries })
     }).catch((err) => {
       console.warn("[tmdbCache] Background cache write failed:", err);

@@ -84,6 +84,38 @@ export const RATE_LIMIT_CONFIGS: Record<string, RateLimitConfig> = {
   adminMutation: {
     maxAttempts: 60,
     windowMs: 60 * 1000
+  },
+
+  // ─── Phase 13 Chunk 2 — Bug #2: 2FA verify/disable rate limit ────
+  // 5 attempts per 5 minutes per admin. Per-admin (NOT per-IP) so a
+  // single compromised admin account can't brute-force the 6-digit
+  // TOTP code (which has only 1M possibilities — at 5 attempts per
+  // 5 min, exhaustively searching takes ~3.5 days, which is plenty
+  // of time for the security team to notice + lock the account).
+  //
+  // The limit is per-admin per action, so verify and disable have
+  // independent buckets (an admin can verify once + disable once
+  // within the same window without either affecting the other).
+  admin2faVerify: {
+    maxAttempts: 5,
+    windowMs: 5 * 60 * 1000,
+    lockoutMs: 15 * 60 * 1000 // 3x the window — slow brute force
+  },
+  admin2faDisable: {
+    maxAttempts: 5,
+    windowMs: 5 * 60 * 1000,
+    lockoutMs: 15 * 60 * 1000
+  },
+
+  // ─── Phase 13 Chunk 2 — Bug #5: share-card rate limit ────────────
+  // 20 share cards per hour per user. Headless Chromium is expensive
+  // (~50MB RAM per render), so we cap this well below the activity_log-
+  // based soft limit (which checked 20 in 60s — far too lenient).
+  // The per-user (NOT per-IP) limit means a NAT'd office of users
+  // each get their own bucket.
+  shareCard: {
+    maxAttempts: 20,
+    windowMs: 60 * 60 * 1000 // 1 hour
   }
 };
 

@@ -45,7 +45,12 @@ import {
   adminTokenLifetime,
   getClientIP
 } from "~/lib/supabase/admin";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import {
+  getSupabaseAccessToken,
+  isRequestHttps,
+  buildAdminCookieHeader,
+  buildAdminCookieClearHeader
+} from "~/lib/supabase/admin/sessionCookie";
 import {
   isRateLimited,
   recordFailure,
@@ -139,15 +144,25 @@ function jsonResponse(body: unknown, status = 200): Response {
   });
 }
 
-function setAdminCookie(token: string): string {
-  const name = adminCookieName();
-  const maxAge = adminTokenLifetime();
-  return `${name}=${token}; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=${maxAge}`;
+function setAdminCookie(token: string, isHttps: boolean): string {
+  // Phase 13 Chunk 2 — Bug #3: delegate to the shared HTTPS-aware
+  // builder in sessionCookie.ts. Previously this hardcoded `Secure`,
+  // which silently broke admin login on http://localhost (the browser
+  // rejected the cookie, so the admin panel bounced back to login).
+  return buildAdminCookieHeader(
+    token,
+    isHttps,
+    adminCookieName(),
+    adminTokenLifetime()
+  );
 }
 
-function clearAdminCookie(): string {
-  const name = adminCookieName();
-  return `${name}=; HttpOnly; Secure; SameSite=Strict; Path=/; Max-Age=0`;
+function clearAdminCookie(isHttps: boolean): string {
+  // Phase 13 Chunk 2 — Bug #3: same HTTPS-aware builder, used to
+  // clear the cookie. The `Secure` attribute must match the
+  // environment so the browser actually deletes the cookie on
+  // localhost (a Secure clear-cookie is ignored on http://).
+  return buildAdminCookieClearHeader(isHttps, adminCookieName());
 }
 
 // ─── Common post-auth logic ───────────────────────────────────────
@@ -175,8 +190,16 @@ async function verifyProfileAndIssueAdmin(args: {
   userAgent: string | null;
   loginMethod: "password" | "session";
   totpCode?: string;
+  /**
+   * Phase 13 Chunk 2 — Bug #3: HTTPS flag from the originating
+   * request. Used to decide whether the Set-Cookie header should
+   * carry the `Secure` attribute. On http://localhost, `Secure`
+   * causes the browser to silently reject the cookie, breaking
+   * admin login in local dev.
+   */
+  isHttps: boolean;
 }): Promise<IssueResult | IssueError> {
-  const { userId, email, pin, ip, userAgent, loginMethod, totpCode } = args;
+  const { userId, email, pin, ip, userAgent, loginMethod, totpCode, isHttps } = args;
 
   // 1. Look up the profile (service role bypasses RLS)
   const supabaseUrl = process.env.VITE_SUPABASE_URL;
@@ -387,7 +410,7 @@ async function verifyProfileAndIssueAdmin(args: {
         status: 200,
         headers: {
           "Content-Type": "application/json",
-          "Set-Cookie": setAdminCookie(token)
+          "Set-Cookie": setAdminCookie(token, isHttps)
         }
       }
     )
@@ -400,6 +423,10 @@ export async function POST(event: APIEvent) {
   try {
     const ip = getClientIP(event);
     const userAgent = event.request.headers.get("user-agent");
+    // Phase 13 Chunk 2 — Bug #3: compute once, reuse for any Set-Cookie
+    // the request produces. `Secure` is omitted on http://localhost so
+    // the browser actually persists the admin cookie in local dev.
+    const httpsFlag = isRequestHttps(event.request);
 
     // 1. Rate limit check
     if (await isRateLimited("adminAuth", ip ?? "")) {
@@ -503,7 +530,8 @@ export async function POST(event: APIEvent) {
         ip,
         userAgent,
         loginMethod: "session",
-        totpCode: totpCode || undefined
+        totpCode: totpCode || undefined,
+        isHttps: httpsFlag
       });
 
       return result.response;
@@ -539,7 +567,8 @@ export async function POST(event: APIEvent) {
       ip,
       userAgent,
       loginMethod: "password",
-      totpCode: totpCode || undefined
+      totpCode: totpCode || undefined,
+      isHttps: httpsFlag
     });
 
     return result.response;
@@ -602,7 +631,7 @@ export async function DELETE(event: APIEvent) {
     status: 200,
     headers: {
       "Content-Type": "application/json",
-      "Set-Cookie": clearAdminCookie()
+      "Set-Cookie": clearAdminCookie(isRequestHttps(event.request))
     }
   });
 }

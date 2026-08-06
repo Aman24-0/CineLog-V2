@@ -157,7 +157,7 @@ GRANT EXECUTE ON FUNCTION public.mark_weekly_recap_sent(UUID)
 -- pg_net) for HTTP requests. If pg_net is not installed, install it
 -- first via the Supabase dashboard → Database → Extensions → enable "pg_net".
 --
--- ─── SECRET RESOLUTION (Phase 1 audit fix) ───────────────────────────
+-- ─── SECRET RESOLUTION (Phase 1 audit fix + Phase 13 Chunk 2 hardening) ──
 --
 -- PREVIOUSLY this migration contained literal `<APP_URL>` and
 -- `<CRON_SECRET>` placeholders that an operator had to manually
@@ -190,6 +190,31 @@ GRANT EXECUTE ON FUNCTION public.mark_weekly_recap_sent(UUID)
 -- scheduled (the DO block raises a NOTICE and skips), so the
 -- migration is safe to run in any environment.
 --
+-- ─── Phase 13 Chunk 2 — Bug #14: Removed Hardcoded Secret ───────────
+--
+-- An earlier "fix" replaced the placeholder text with literal
+-- hardcoded values:
+--
+--   v_app_url    TEXT := 'https://cinelogv2.vercel.app';
+--   v_cron_secret TEXT := '1814ad6f0414470a8760f52d02ec7886635a0c4cbc0f4f849421474bfc3c6f64';
+--
+-- That committed a real production-looking secret to the public
+-- repo. Even though the value is "only" a cron-shared secret (not a
+-- DB password or Supabase service key), anyone reading the repo
+-- could call /api/cron/weekly-recap with that header and trigger
+-- the recap job on demand — wasting server resources + sending
+-- unsolicited push notifications to every user.
+--
+-- The migration now STRICTLY reads from `current_setting(...)`:
+--   • If `app.app_url` is unset → cron job is NOT scheduled (NOTICE).
+--   • If `app.cron_secret` is unset → cron job is NOT scheduled (NOTICE).
+--   • If both are set but the secret is <16 chars → NOTICE (sanity check).
+--
+-- Operators MUST set both GUCs out-of-band before running this
+-- migration for the cron job to be scheduled. This matches the
+-- original design intent of the file header — the hardcoded values
+-- were a regression.
+--
 -- The cron schedule runs EVERY day at 09:00 UTC. The endpoint filters
 -- by the user's preferred day, so only the right users get a recap on
 -- any given day. This lets users pick any day of the week for their
@@ -208,8 +233,12 @@ DECLARE
   -- the setting is not set, instead of raising an error". This lets
   -- the migration gracefully skip the cron.schedule call when the
   -- operator hasn't configured the secrets yet.
-  v_app_url    TEXT := 'https://cinelogv2.vercel.app';
-  v_cron_secret TEXT := '1814ad6f0414470a8760f52d02ec7886635a0c4cbc0f4f849421474bfc3c6f64';
+  --
+  -- Phase 13 Chunk 2 — Bug #14: NO hardcoded fallback. If the GUC is
+  -- not set, the value is NULL and the cron job is skipped (with a
+  -- NOTICE pointing the operator at the setup command).
+  v_app_url     TEXT := current_setting('app.app_url', true);
+  v_cron_secret TEXT := current_setting('app.cron_secret', true);
 BEGIN
   IF v_app_url IS NULL OR v_cron_secret IS NULL THEN
     RAISE NOTICE
