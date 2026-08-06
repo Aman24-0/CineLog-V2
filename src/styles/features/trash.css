@@ -67,7 +67,7 @@
 }
 .trash-back-btn:hover {
   color: var(--p);
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .trash-header-count {
@@ -125,7 +125,7 @@
   font-size: 0.625rem;
   font-weight: 700;
   color: var(--text-dim);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: 9999px;
   padding: 1px 8px;
@@ -162,7 +162,7 @@
   flex-shrink: 0;
   border-radius: var(--radius-sm, 4px);
   overflow: hidden;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -188,7 +188,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(135deg, var(--tier-3) 0%, var(--tier-2) 100%);
+  background: linear-gradient(135deg, var(--glass-bg) 0%, var(--glass-bg) 100%);
 }
 .trash-item-card-poster-fallback .material-symbols-outlined {
   font-size: 28px;
@@ -210,7 +210,7 @@
   background: linear-gradient(
     135deg,
     rgba(245, 197, 24, 0.08) 0%,
-    var(--tier-2) 100%
+    var(--glass-bg) 100%
   );
 }
 .trash-item-card-poster-folder
@@ -411,7 +411,7 @@
   width: 60px;
   height: 90px;
   border-radius: var(--radius-sm, 4px);
-  background: var(--tier-3);
+  background: var(--glass-bg);
   flex-shrink: 0;
   position: relative;
   overflow: hidden;
@@ -426,7 +426,7 @@
 .trash-skeleton-line {
   height: 12px;
   border-radius: 4px;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   position: relative;
   overflow: hidden;
 }
@@ -447,7 +447,7 @@
   flex: 1;
   height: 36px;
   border-radius: var(--radius-md);
-  background: var(--tier-3);
+  background: var(--glass-bg);
   position: relative;
   overflow: hidden;
 }

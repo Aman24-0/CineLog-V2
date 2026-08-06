@@ -145,7 +145,7 @@ const AuthModal: Component = () => {
         class="focus-ring absolute right-4 top-4"
         onClick={closeAuthModal}
         style={{
-          background: "var(--tier-1)",
+          background: "var(--glass-bg-strong)",
           border: "1px solid var(--hairline-2)",
           "border-radius": "50%",
           width: "32px",
@@ -159,12 +159,12 @@ const AuthModal: Component = () => {
         }}
         onMouseEnter={(e) => {
           e.currentTarget.style.color = "var(--text-strong)";
-          e.currentTarget.style.background = "var(--tier-3)";
+          e.currentTarget.style.background = "var(--glass-bg)";
           e.currentTarget.style.borderColor = "var(--hairline)";
         }}
         onMouseLeave={(e) => {
           e.currentTarget.style.color = "var(--text-muted)";
-          e.currentTarget.style.background = "var(--tier-1)";
+          e.currentTarget.style.background = "var(--glass-bg-strong)";
           e.currentTarget.style.borderColor = "var(--hairline-2)";
         }}
         aria-label="Close"
@@ -180,7 +180,7 @@ const AuthModal: Component = () => {
           style={{
             width: "56px",
             height: "56px",
-            background: "var(--tier-2)",
+            background: "var(--glass-bg)",
             border: "1px solid var(--p)",
             "box-shadow":
               "0 0 24px var(--p-glow), inset 0 1px 0 rgba(232, 183, 74, 0.2)",
@@ -276,7 +276,7 @@ const AuthModal: Component = () => {
               }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = "var(--p)";
-                e.currentTarget.style.background = "var(--tier-1)";
+                e.currentTarget.style.background = "var(--glass-bg-strong)";
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = "var(--hairline-2)";
@@ -316,7 +316,7 @@ const AuthModal: Component = () => {
               }}
               onFocus={(e) => {
                 e.currentTarget.style.borderColor = "var(--p)";
-                e.currentTarget.style.background = "var(--tier-1)";
+                e.currentTarget.style.background = "var(--glass-bg-strong)";
               }}
               onBlur={(e) => {
                 e.currentTarget.style.borderColor = "var(--hairline-2)";
@@ -401,7 +401,7 @@ const AuthModal: Component = () => {
         <span
           class="type-caption relative px-3"
           style={{
-            background: "var(--tier-2)", // Matches the surface gradient approx
+            background: "var(--glass-bg)", // Matches the surface gradient approx
             color: "var(--text-dim)"
           }}
         >
@@ -416,7 +416,7 @@ const AuthModal: Component = () => {
         disabled={loading()}
         class="focus-ring flex w-full items-center justify-center gap-3"
         style={{
-          background: "var(--tier-3)",
+          background: "var(--glass-bg)",
           border: "1px solid var(--hairline)",
           "border-radius": "var(--radius-lg)",
           color: "var(--text-strong)",
@@ -428,13 +428,13 @@ const AuthModal: Component = () => {
         }}
         onMouseEnter={(e) => {
           if (!loading()) {
-            e.currentTarget.style.background = "var(--tier-1)";
+            e.currentTarget.style.background = "var(--glass-bg-strong)";
             e.currentTarget.style.borderColor = "var(--hairline-2)";
           }
         }}
         onMouseLeave={(e) => {
           if (!loading()) {
-            e.currentTarget.style.background = "var(--tier-3)";
+            e.currentTarget.style.background = "var(--glass-bg)";
             e.currentTarget.style.borderColor = "var(--hairline)";
           }
         }}

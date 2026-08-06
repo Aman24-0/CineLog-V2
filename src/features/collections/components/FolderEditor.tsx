@@ -233,7 +233,7 @@ export default function FolderEditor(props: FolderEditorProps) {
               "border-radius": "var(--radius-md, 0.75rem)",
               overflow: "hidden",
               "margin-bottom": "var(--sp-3)",
-              background: "var(--tier-2)",
+              background: "var(--glass-bg)",
               border: "1px solid var(--hairline)"
             }}
           >

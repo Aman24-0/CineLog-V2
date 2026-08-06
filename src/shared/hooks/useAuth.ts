@@ -224,11 +224,78 @@ export function useAuth() {
  * This function is async but we don't await it — it updates the
  * module-level signals when it resolves, and the reactive system
  * picks up the change.
+ *
+ * COLD-START TIMEOUT (Phase 14 Chunk 8 fix):
+ *   On the first load of the day, Supabase's auth.getSession() can
+ *   hang for a long time (DNS lookup slow, supabase.co cold start,
+ *   flaky 3G, service worker intercepting the request, etc.). When
+ *   that happens `authReady` never becomes true, the top-level
+ *   <Suspense> in app.tsx keeps rendering the GlassLoadingState
+ *   spinner forever, and the user is forced to manually refresh.
+ *
+ *   To fix this, we race getBrowserSession() against an 8-second
+ *   timeout. Whichever resolves first wins:
+ *     • If the session resolves first → normal happy path.
+ *     • If the timeout fires first → we treat the user as signed-out
+ *       (set user(null) + authReady(true)). The onAuthStateChange
+ *       listener (registered in onMount) will still fire later if
+ *       Supabase eventually resolves, which updates the signals
+ *       again — so a slow session is recovered transparently
+ *       without the user ever seeing a stuck loader.
+ *
+ *   8 seconds is chosen because: it's long enough that a normal
+ *   warm session check (typically <500ms) never trips it; it's
+ *   short enough that a user staring at a stuck loader doesn't
+ *   give up and abandon the app. A11y testing shows sighted users
+ *   perceive anything >10s as "broken"; 8s reads as "slow but
+ *   working".
  */
 async function checkInitialSession() {
+  // 8-second cold-start timeout. See the doc comment above for the
+  // rationale. The race is implemented with Promise.race + a custom
+  // timeout promise (rather than AbortController) because
+  // supabase.auth.getSession() doesn't accept an AbortSignal — we
+  // can't actually cancel the underlying fetch, we just stop waiting
+  // for it. The dangling fetch will eventually settle in the
+  // background; if it succeeds, the onAuthStateChange listener will
+  // pick it up and update the signals.
+  const COLD_START_TIMEOUT_MS = 8000;
+
+  // Track whether the timeout has already fired so the real session
+  // resolution (if it arrives late) knows whether to bail out. This
+  // is NOT for correctness — the signals are idempotent — but it
+  // avoids a confusing double-log if a late session arrives after
+  // we've already declared "signed out".
+  let timedOut = false;
+
+  const timeoutPromise = new Promise<null>((resolve) => {
+    setTimeout(() => {
+      timedOut = true;
+      resolve(null);
+    }, COLD_START_TIMEOUT_MS);
+  });
+
   try {
     const { getBrowserSession } = await import("~/lib/supabase/session");
-    const session = await getBrowserSession();
+    // Race the session fetch against the cold-start timeout.
+    const session = await Promise.race([
+      getBrowserSession(),
+      timeoutPromise
+    ]);
+
+    if (timedOut) {
+      // The timeout fired before the session fetch resolved. Treat
+      // the user as signed-out so the UI unblocks. If the real
+      // session arrives later, onAuthStateChange will update the
+      // signals transparently.
+      console.warn(
+        `[useAuth] Initial session check timed out after ${COLD_START_TIMEOUT_MS / 1000}s — treating as signed-out. The onAuthStateChange listener will recover if Supabase resolves later.`
+      );
+      setUser(null);
+      setAuthReady(true);
+      return;
+    }
+
     setUser(mapSupabaseUser(session));
     setAuthReady(true);
     // Auto-populate display_name + username on initial session detection.

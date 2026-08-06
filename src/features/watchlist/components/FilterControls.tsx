@@ -174,7 +174,7 @@ export const GlassSelect: Component<{
         {/* TRIGGER — styled to match SortControl. NOT absolute. */}
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl border bg-[var(--tier-2)] px-3 py-2.5 text-[var(--text)]"
+          class="flex w-full items-center justify-between rounded-xl border bg-[var(--glass-bg)] px-3 py-2.5 text-[var(--text)]"
           style={{ "border-color": "var(--hairline)" }}
           onClick={() => setIsOpen(!isOpen())}
           aria-haspopup="listbox"
@@ -516,7 +516,7 @@ export const SortControl: Component<{
             a measurable height for the menu's `bottom-full` to anchor. */}
         <button
           type="button"
-          class="flex w-full items-center justify-between rounded-xl border bg-[var(--tier-2)] px-3 py-2.5 text-[var(--text)]"
+          class="flex w-full items-center justify-between rounded-xl border bg-[var(--glass-bg)] px-3 py-2.5 text-[var(--text)]"
           style={{ "border-color": "var(--hairline)" }}
           onClick={() => setIsOpen(!isOpen())}
           aria-haspopup="listbox"
@@ -590,7 +590,7 @@ export const SortControl: Component<{
           arrow_downward = desc, arrow_upward = asc. */}
       <button
         type="button"
-        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-[var(--tier-2)] text-[var(--text)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
+        class="flex h-11 w-11 flex-shrink-0 items-center justify-center rounded-xl border bg-[var(--glass-bg)] text-[var(--text)] transition-colors hover:bg-[rgba(255,255,255,0.05)]"
         style={{ "border-color": "var(--hairline)" }}
         onClick={() =>
           props.onChange({

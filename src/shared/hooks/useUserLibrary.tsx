@@ -215,11 +215,51 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    *
    * Safety-net: if loading is still true after 15 seconds (vault fetch
    * hung or auth never resolved), force loading=false so the UI unblocks.
+   *
+   * PHASE 14 CHUNK 8 FIX — Always-Arm Safety Timer:
+   *   The original safety timer was only armed INSIDE the
+   *   `if (authReady() && isSignedIn())` branch. That means it never
+   *   fired when auth itself was hung (e.g. supabase.auth.getSession()
+   *   hanging on a cold start). The result: the top-level <Suspense>
+   *   in app.tsx kept rendering the GlassLoadingState spinner forever,
+   *   which manifested as a "loading bar stuck at 60-70%" on the first
+   *   load of the day.
+   *
+   *   useAuth now has its own 8s cold-start timeout (see checkInitialSession),
+   *   so authReady(true) will eventually fire no matter what. But to be
+   *   doubly safe — in case the authReady signal gets stuck for ANY
+   *   reason — we now arm an unconditional safety timer on FIRST RUN
+   *   of the createEffect. If loading() is still true after 12s
+   *   regardless of auth state, we force it false. This guarantees
+   *   the loader NEVER stays up forever.
    */
   // Track the safety-net timer so it can be cleared when doFetch completes.
   let safetyTimerId: ReturnType<typeof setTimeout> | null = null;
+  // Track whether the unconditional safety timer has been armed for
+  // this provider instance. It only needs to fire once — if loading
+  // is still true 12s after the provider mounts, something is hung
+  // and we unblock the UI.
+  let unconditionalSafetyArmed = false;
 
   createEffect(() => {
+    // ── Phase 14 Chunk 8 — Always-arm the safety timer on first run ──
+    // This fires regardless of auth state, so it catches the case
+    // where auth itself is hung (the original safety timer was gated
+    // on authReady() && isSignedIn(), which never became true).
+    if (!unconditionalSafetyArmed) {
+      unconditionalSafetyArmed = true;
+      const UNCONDITIONAL_TIMEOUT_MS = 12000;
+      setTimeout(() => {
+        if (loading()) {
+          console.warn(
+            "[UserLibraryProvider] Loading still true after 12s — forcing unblock (auth or vault fetch hung)"
+          );
+          setLoading(false);
+          isFetching = false;
+        }
+      }, UNCONDITIONAL_TIMEOUT_MS);
+    }
+
     if (authReady() && isSignedIn()) {
       // Clear any previous safety timer before starting a new fetch
       if (safetyTimerId !== null) {
@@ -248,6 +288,9 @@ export const UserLibraryProvider: ParentComponent = (props) => {
         safetyTimerId = null;
       }
     }
+    // Note: when !authReady() (still resolving), we do nothing here.
+    // The unconditional safety timer above guarantees we unblock after
+    // 12s even if authReady never becomes true.
   });
 
   /**

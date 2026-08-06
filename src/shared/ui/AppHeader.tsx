@@ -193,7 +193,7 @@ const AppHeader: Component = () => {
       }}
       aria-label="Clear search"
       onMouseEnter={(e) => {
-        e.currentTarget.style.background = "var(--tier-3)";
+        e.currentTarget.style.background = "var(--glass-bg)";
         e.currentTarget.style.color = "var(--text-strong)";
       }}
       onMouseLeave={(e) => {

@@ -190,7 +190,7 @@
 
 /* PHASE 14 CHUNK 4 — TRUE FROSTED GLASS
    ─────────────────────────────────────────────────────────────────────
-   Previously used solid var(--tier-1) (#0d0d14) which blocked the
+   Previously used solid var(--glass-bg-strong) (#0d0d14) which blocked the
    ambient blobs from bleeding through. Now uses var(--glass-bg)
    (rgba(15,15,22,0.45) from Chunk 3) + backdrop-filter: blur so the
    vibrant ambient colors blur softly through each settings panel —
@@ -238,7 +238,7 @@
 }
 
 .settings-accordion-header:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .settings-accordion-icon {
@@ -486,7 +486,7 @@
   flex-direction: column;
   gap: var(--sp-1);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-radius: var(--radius-sm);
   font-family: "Söhne Mono", "Courier New", monospace;
 }
@@ -515,7 +515,7 @@
   width: 100%;
   max-width: 200px;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -551,7 +551,7 @@
   justify-content: space-between;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-sm);
 }
@@ -612,7 +612,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-sm);
   margin-bottom: var(--sp-2);
@@ -754,7 +754,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-radius: var(--radius-sm);
 }
 
@@ -860,7 +860,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-radius: var(--radius-sm);
 }
 
@@ -906,7 +906,7 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-radius: var(--radius-sm);
 }
 
@@ -944,7 +944,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: none;
   border-radius: var(--radius-sm);
   color: var(--text);
@@ -955,7 +955,7 @@
 }
 
 .admin-developer-link:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg);
 }
 
 .admin-developer-link > .material-symbols-outlined:first-child {
@@ -1081,7 +1081,7 @@
   flex-direction: column;
   gap: var(--sp-2);
   padding: var(--sp-2);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 2px solid var(--hairline-2);
   border-radius: var(--radius-md);
   cursor: pointer;

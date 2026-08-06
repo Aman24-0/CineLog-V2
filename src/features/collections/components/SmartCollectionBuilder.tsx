@@ -318,7 +318,7 @@ export default function SmartCollectionBuilder(
                 aria-label="Rule combinator"
                 style={{
                   display: "inline-flex",
-                  background: "var(--tier-2)",
+                  background: "var(--glass-bg)",
                   border: "1px solid var(--hairline)",
                   "border-radius": "999px",
                   padding: "2px"
@@ -541,7 +541,7 @@ export default function SmartCollectionBuilder(
                     width: "32px",
                     height: "48px",
                     "border-radius": "3px",
-                    background: "var(--tier-2)",
+                    background: "var(--glass-bg)",
                     border: "1px solid var(--hairline)",
                     display: "flex",
                     "align-items": "center",

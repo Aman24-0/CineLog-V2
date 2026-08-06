@@ -74,7 +74,7 @@
 
 .admin-anime-footnote {
   padding: var(--sp-3) var(--sp-4);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-radius: var(--radius-md);
   border: 1px solid var(--hairline);
   font-size: 0.75rem;
@@ -83,7 +83,7 @@
 }
 
 .admin-anime-footnote code {
-  background: var(--tier-3);
+  background: var(--glass-bg);
   padding: 1px 6px;
   border-radius: var(--radius-sm);
   font-size: 0.7rem;
@@ -217,7 +217,7 @@
   width: 44px;
   height: 24px;
   border-radius: 12px;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   cursor: pointer;
   transition: background-color 0.15s ease;
@@ -278,7 +278,7 @@
 .admin-anime-filter-chip {
   padding: var(--sp-1) var(--sp-3);
   border-radius: 999px;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   color: var(--text-muted);
   font-size: 0.78rem;
@@ -290,7 +290,7 @@
 }
 
 .admin-anime-filter-chip:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg);
   color: var(--text);
 }
 
@@ -347,7 +347,7 @@
 /* ─── Skeleton ──────────────────────────────────────────────────── */
 
 .admin-anime-skeleton {
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   animation: admin-anime-pulse 1.5s ease-in-out infinite;
@@ -375,7 +375,7 @@
   grid-template-columns: 110px 110px minmax(0, 1fr) 180px 140px;
   gap: var(--sp-2);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   font-size: 0.7rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -388,13 +388,13 @@
   grid-template-columns: 110px 110px minmax(0, 1fr) 180px 140px;
   gap: var(--sp-2);
   padding: var(--sp-3);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   align-items: center;
   font-size: 0.85rem;
 }
 
 .admin-anime-mapping-row:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .admin-anime-cell {
@@ -459,7 +459,7 @@
     padding: var(--sp-3);
     border-radius: var(--radius-md);
     border: 1px solid var(--hairline);
-    background: var(--tier-1);
+    background: var(--glass-bg-strong);
   }
 
   /* Each cell gets a label via data-label pseudo-element */
@@ -483,7 +483,7 @@
 /* ─── Icon buttons (table actions) ──────────────────────────────── */
 
 .admin-anime-icon-btn {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   width: 32px;
   height: 32px;
@@ -499,7 +499,7 @@
 }
 
 .admin-anime-icon-btn:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg);
   color: var(--text);
   border-color: var(--hairline-2);
 }
@@ -649,7 +649,7 @@
 
 .admin-anime-input {
   width: 100%;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);
@@ -663,7 +663,7 @@
 .admin-anime-input:focus {
   outline: none;
   border-color: var(--accent, #00d9a3);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
 }
 
 .admin-anime-input::placeholder {
@@ -703,7 +703,7 @@ select.admin-anime-input {
 }
 
 .admin-anime-modal-surface {
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-lg);
   max-width: 560px;

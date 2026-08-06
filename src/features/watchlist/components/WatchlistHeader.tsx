@@ -230,7 +230,7 @@ export default function WatchlistHeader(props: WatchlistHeaderProps) {
                   color: "var(--text-muted)",
                   padding: "0.375rem 0.625rem",
                   "border-radius": "var(--radius-pill)",
-                  background: "var(--tier-1)",
+                  background: "var(--glass-bg-strong)",
                   border: "1px solid var(--hairline)"
                 }}
                 aria-label={`${totalCount()} titles in your vault`}

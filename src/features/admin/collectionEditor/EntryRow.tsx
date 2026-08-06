@@ -131,7 +131,7 @@ const EntryRow: Component<Props> = (props) => {
   const numInputStyle = {
     width: "100px",
     padding: "var(--sp-1) var(--sp-2)",
-    background: "var(--tier-3, rgba(255,255,255,0.04))",
+    background: "var(--glass-bg, rgba(255,255,255,0.04))",
     border: "1px solid var(--hairline)",
     "border-radius": "var(--radius-sm)",
     color: "var(--text)",
@@ -156,7 +156,7 @@ const EntryRow: Component<Props> = (props) => {
         gap: "var(--sp-3)",
         padding: "var(--sp-3)",
         "border-radius": "var(--radius-md)",
-        background: "var(--tier-2, rgba(255,255,255,0.02))",
+        background: "var(--glass-bg, rgba(255,255,255,0.02))",
         border: "1px solid var(--hairline)",
         "align-items": "flex-start",
         transition: "background 0.1s ease, opacity 0.1s ease"
@@ -204,7 +204,7 @@ const EntryRow: Component<Props> = (props) => {
           "flex-shrink": 0,
           "border-radius": "var(--radius-sm)",
           overflow: "hidden",
-          background: "var(--tier-3, rgba(255,255,255,0.04))",
+          background: "var(--glass-bg, rgba(255,255,255,0.04))",
           display: "flex",
           "align-items": "center",
           "justify-content": "center",
@@ -333,7 +333,7 @@ const EntryRow: Component<Props> = (props) => {
                         style={{
                           padding: "1px 6px",
                           "border-radius": "3px",
-                          background: "var(--tier-3, rgba(255,255,255,0.04))",
+                          background: "var(--glass-bg, rgba(255,255,255,0.04))",
                           border: "1px solid var(--hairline)"
                         }}
                       >
@@ -389,7 +389,7 @@ const EntryRow: Component<Props> = (props) => {
                 style={{
                   width: "100%",
                   padding: "var(--sp-1) var(--sp-2)",
-                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  background: "var(--glass-bg, rgba(255,255,255,0.04))",
                   border: "1px solid var(--hairline)",
                   "border-radius": "var(--radius-sm)",
                   color: "var(--text)",
@@ -429,7 +429,7 @@ const EntryRow: Component<Props> = (props) => {
                   "min-height": "50px",
                   resize: "vertical",
                   padding: "var(--sp-1) var(--sp-2)",
-                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  background: "var(--glass-bg, rgba(255,255,255,0.04))",
                   border: "1px solid var(--hairline)",
                   "border-radius": "var(--radius-sm)",
                   color: "var(--text)",
@@ -449,7 +449,7 @@ const EntryRow: Component<Props> = (props) => {
                 style={{
                   width: "100%",
                   padding: "var(--sp-1) var(--sp-2)",
-                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  background: "var(--glass-bg, rgba(255,255,255,0.04))",
                   border: "1px solid var(--hairline)",
                   "border-radius": "var(--radius-sm)",
                   color: "var(--text)",
@@ -468,7 +468,7 @@ const EntryRow: Component<Props> = (props) => {
                 style={{
                   width: "100%",
                   padding: "var(--sp-1) var(--sp-2)",
-                  background: "var(--tier-3, rgba(255,255,255,0.04))",
+                  background: "var(--glass-bg, rgba(255,255,255,0.04))",
                   border: "1px solid var(--hairline)",
                   "border-radius": "var(--radius-sm)",
                   color: "var(--text)",
@@ -551,7 +551,7 @@ const EntryRow: Component<Props> = (props) => {
 // ─── Styles ─────────────────────────────────────────────────────────
 
 const iconBtnStyle = {
-  background: "var(--tier-3, rgba(255,255,255,0.04))",
+  background: "var(--glass-bg, rgba(255,255,255,0.04))",
   border: "1px solid var(--hairline)",
   width: "30px",
   height: "30px",

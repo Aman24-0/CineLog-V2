@@ -73,7 +73,7 @@
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   position: relative;
   contain: content;
   content-visibility: auto;
@@ -212,13 +212,13 @@
   width: 2.5rem;
   height: 2.5rem;
   border-radius: 50%;
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 2px solid var(--p);
   display: flex;
   align-items: center;
   justify-content: center;
   box-shadow:
-    0 0 0 4px var(--tier-1),
+    0 0 0 4px var(--glass-bg-strong),
     0 0 14px var(--p-glow),
     0 4px 12px rgba(0, 0, 0, 0.5);
   z-index: 10;
@@ -229,7 +229,7 @@
 .timeline-node:hover {
   transform: translateX(-50%) scale(1.08);
   box-shadow:
-    0 0 0 4px var(--tier-1),
+    0 0 0 4px var(--glass-bg-strong),
     0 0 22px var(--p-glow),
     0 6px 16px rgba(0, 0, 0, 0.6);
 }
@@ -268,7 +268,7 @@
 
    PHASE 14 CHUNK 5 FIX — AMBIENT GLASS AESTHETIC
    ------------------------------------------------------------
-   Previously used solid var(--tier-2) (#12121b) which blocked the
+   Previously used solid var(--glass-bg) (#12121b) which blocked the
    ambient blobs from bleeding through — the timeline view read as a
    stack of solid black slabs, visually disconnected from the rest of
    the redesigned app. Now uses var(--glass-bg) (rgba(15,15,22,0.45))
@@ -423,7 +423,7 @@
   box-shadow: 0 0 0 3px var(--p-dim);
 }
 .filter-select-premium option {
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   color: var(--text-strong);
 }
 
@@ -568,7 +568,7 @@
   border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   border: 1px solid var(--hairline-2);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   transition:
     border-color var(--dur-base) var(--ease-out),
     box-shadow var(--dur-base) var(--ease-out),
@@ -577,7 +577,7 @@
 .search-premium:focus-within {
   border-color: var(--p);
   box-shadow: 0 0 0 3px var(--p-dim);
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 /* HIDE the native browser-rendered clear (×) button on <input type="search">.
    WebKit/Chromium-based browsers (including Android Chrome) render a small
@@ -604,7 +604,7 @@
   padding: 3px;
   border-radius: var(--radius-pill);
   border: 1px solid var(--hairline-2);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   gap: 2px;
 }
 .view-toggle-btn {
@@ -997,7 +997,7 @@
   align-items: center;
   justify-content: center;
   border-radius: var(--radius-pill);
-  background: var(--tier-3);
+  background: var(--glass-bg);
   color: var(--text-muted);
   opacity: 0.8;
 }
@@ -1077,7 +1077,7 @@
   pointer-events: auto;
 }
 .scroll-to-top:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border-color: var(--p);
   color: var(--p);
   box-shadow:

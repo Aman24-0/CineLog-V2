@@ -101,7 +101,7 @@ export default function ConfirmRemoveSheet(props: ConfirmRemoveSheetProps) {
                   style={{
                     width: "80px",
                     height: "120px",
-                    background: "var(--tier-2)",
+                    background: "var(--glass-bg)",
                     border: "1px solid var(--hairline-2)"
                   }}
                 >

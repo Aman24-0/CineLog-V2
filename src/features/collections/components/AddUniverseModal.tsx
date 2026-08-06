@@ -176,7 +176,7 @@ const AddUniverseModal: Component<AddUniverseModalProps> = (props) => {
               style={{
                 padding: "10px 14px",
                 "border-radius": "999px",
-                background: "var(--tier-2, rgba(255,255,255,0.04))",
+                background: "var(--glass-bg, rgba(255,255,255,0.04))",
                 border: "1px solid var(--hairline)"
               }}
             >

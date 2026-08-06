@@ -175,16 +175,16 @@ export default function SearchResults(props: SearchResultsProps) {
                       padding: "10px 12px",
                       "border-radius": "12px",
                       border: "1px solid var(--hairline)",
-                      background: "var(--tier-1)",
+                      background: "var(--glass-bg-strong)",
                       cursor: "pointer",
                       "text-align": "left",
                       transition: "background 150ms ease-out"
                     }}
                     onMouseEnter={(e) => {
-                      e.currentTarget.style.background = "var(--tier-2)";
+                      e.currentTarget.style.background = "var(--glass-bg)";
                     }}
                     onMouseLeave={(e) => {
-                      e.currentTarget.style.background = "var(--tier-1)";
+                      e.currentTarget.style.background = "var(--glass-bg-strong)";
                     }}
                   >
                     {/* Profile image — 40×40 circle with fallback */}
@@ -196,7 +196,7 @@ export default function SearchResults(props: SearchResultsProps) {
                             width: "40px",
                             height: "40px",
                             "border-radius": "9999px",
-                            background: "var(--tier-3)",
+                            background: "var(--glass-bg)",
                             display: "flex",
                             "align-items": "center",
                             "justify-content": "center",

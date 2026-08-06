@@ -71,7 +71,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
           width: "5rem",
           height: "5rem",
           "border-radius": "1.5rem",
-          background: "var(--tier-2)",
+          background: "var(--glass-bg)",
           border: "1px solid var(--hairline-2)",
           "box-shadow":
             "var(--shadow-elevated), 0 0 24px rgba(248,113,113,0.18)",
@@ -182,7 +182,7 @@ function GlobalErrorFallback(props: GlobalErrorFallbackProps): JSX.Element {
             "text-align": "left",
             "white-space": "pre-wrap",
             "font-family": "'Azeret Mono', monospace",
-            background: "var(--tier-2)",
+            background: "var(--glass-bg)",
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-md)",
             padding: "var(--sp-3)"

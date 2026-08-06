@@ -201,7 +201,7 @@ const AdminTwoFactorPanel: Component = () => {
   return (
     <div
       style={{
-        background: "var(--tier-2)",
+        background: "var(--glass-bg)",
         border: "1px solid var(--hairline)",
         "border-radius": "var(--radius-lg)",
         padding: "var(--sp-5)"
@@ -410,7 +410,7 @@ const IdleState: Component<IdleStateProps> = (props) => {
             style={{
               flex: 1,
               padding: "var(--sp-2) var(--sp-3)",
-              background: "var(--tier-3)",
+              background: "var(--glass-bg)",
               border: "1px solid var(--hairline-2)",
               "border-radius": "var(--radius-md)",
               color: "var(--text)",
@@ -429,7 +429,7 @@ const IdleState: Component<IdleStateProps> = (props) => {
               padding: "var(--sp-2) var(--sp-4)",
               background:
                 props.actionLoading() || props.disableCode().length !== 6
-                  ? "var(--tier-3)"
+                  ? "var(--glass-bg)"
                   : "rgb(239, 68, 68)",
               color: "white",
               border: "none",
@@ -490,7 +490,7 @@ const IdleState: Component<IdleStateProps> = (props) => {
           disabled={props.actionLoading()}
           style={{
             padding: "var(--sp-2) var(--sp-5)",
-            background: props.actionLoading() ? "var(--tier-3)" : "var(--p)",
+            background: props.actionLoading() ? "var(--glass-bg)" : "var(--p)",
             color: props.actionLoading()
               ? "var(--text-muted)"
               : "var(--on-primary)",
@@ -526,7 +526,7 @@ const IdleState: Component<IdleStateProps> = (props) => {
           style={{
             "margin-top": "var(--sp-3)",
             padding: "var(--sp-2) var(--sp-5)",
-            background: props.actionLoading() ? "var(--tier-3)" : "var(--p)",
+            background: props.actionLoading() ? "var(--glass-bg)" : "var(--p)",
             color: props.actionLoading()
               ? "var(--text-muted)"
               : "var(--on-primary)",
@@ -620,7 +620,7 @@ const EnrollingState: Component<EnrollingStateProps> = (props) => {
             style={{
               display: "block",
               padding: "var(--sp-2) var(--sp-3)",
-              background: "var(--tier-3)",
+              background: "var(--glass-bg)",
               border: "1px solid var(--hairline-2)",
               "border-radius": "var(--radius-sm)",
               "font-family": "monospace",
@@ -665,7 +665,7 @@ const EnrollingState: Component<EnrollingStateProps> = (props) => {
               style={{
                 flex: 1,
                 padding: "var(--sp-2) var(--sp-3)",
-                background: "var(--tier-3)",
+                background: "var(--glass-bg)",
                 border: "1px solid var(--hairline-2)",
                 "border-radius": "var(--radius-md)",
                 color: "var(--text)",
@@ -684,7 +684,7 @@ const EnrollingState: Component<EnrollingStateProps> = (props) => {
                 padding: "var(--sp-2) var(--sp-4)",
                 background:
                   props.actionLoading() || props.verifyCode().length !== 6
-                    ? "var(--tier-3)"
+                    ? "var(--glass-bg)"
                     : "var(--p)",
                 color:
                   props.actionLoading() || props.verifyCode().length !== 6

@@ -473,7 +473,7 @@ const StatCard: Component<{
         ? {
             "border-color": "rgba(251, 191, 36, 0.45)",
             background:
-              "linear-gradient(180deg, rgba(251, 191, 36, 0.06) 0%, var(--tier-1) 100%)"
+              "linear-gradient(180deg, rgba(251, 191, 36, 0.06) 0%, var(--glass-bg-strong) 100%)"
           }
         : {})
     }}
@@ -538,7 +538,7 @@ const cardsGridStyle = {
 } as const;
 
 const statCardStyle = {
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-4)"
@@ -547,7 +547,7 @@ const statCardStyle = {
 const sparklineStyle = {
   width: "100%",
   height: "120px",
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-3)"
@@ -555,7 +555,7 @@ const sparklineStyle = {
 
 const tableWrapStyle = {
   "overflow-x": "auto",
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)"
 } as const;
@@ -586,7 +586,7 @@ const tdStyle = {
 };
 
 const codeStyle = {
-  background: "var(--tier-2)",
+  background: "var(--glass-bg)",
   padding: "0.125rem 0.375rem",
   "border-radius": "var(--radius-sm)",
   "font-size": "0.75rem",
@@ -598,7 +598,7 @@ const metaBarStyle = {
   "flex-wrap": "wrap" as const,
   gap: "var(--sp-4)",
   padding: "var(--sp-3) var(--sp-4)",
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   "margin-bottom": "var(--sp-6)",

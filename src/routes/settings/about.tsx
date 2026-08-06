@@ -175,7 +175,7 @@ const AboutRoute: Component = () => {
                   <div
                     style={{
                       padding: "var(--sp-3) var(--sp-5)",
-                      background: "var(--tier-1)",
+                      background: "var(--glass-bg-strong)",
                       "border-bottom": "1px solid var(--hairline)"
                     }}
                   >
@@ -320,7 +320,7 @@ const AboutRoute: Component = () => {
                   <div
                     style={{
                       padding: "var(--sp-3) var(--sp-5)",
-                      background: "var(--tier-1)",
+                      background: "var(--glass-bg-strong)",
                       "border-bottom": "1px solid var(--hairline)"
                     }}
                   >
@@ -423,7 +423,7 @@ const AboutRoute: Component = () => {
                       style={{
                         "border-bottom": "1px solid var(--hairline)",
                         padding: "var(--sp-3) var(--sp-5)",
-                        background: "var(--tier-2)"
+                        background: "var(--glass-bg)"
                       }}
                     >
                       <summary

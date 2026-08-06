@@ -397,7 +397,7 @@ const ResetConfirmSheet: Component<ResetConfirmSheetProps> = (props) => {
                 </Show>
                 <div
                   class="mt-4 h-1.5 w-full overflow-hidden rounded-full"
-                  style={{ background: "var(--tier-3)" }}
+                  style={{ background: "var(--glass-bg)" }}
                 >
                   <div
                     class="h-full rounded-full transition-all"

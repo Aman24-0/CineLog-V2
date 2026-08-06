@@ -433,7 +433,7 @@
     height: 72px;
     border-radius: var(--radius-sm, 6px);
     object-fit: cover;
-    background: var(--tier-3);
+    background: var(--glass-bg);
   }
 
   .watchlist-list-item__title {

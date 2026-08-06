@@ -223,7 +223,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
       `}</style>
       <div
         style={{
-          background: "var(--tier-1)",
+          background: "var(--glass-bg-strong)",
           border: "1px solid var(--hairline)",
           "border-radius": "var(--radius-lg)",
           width: "100%",
@@ -282,7 +282,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
             style={{
               width: "100%",
               padding: "var(--sp-3) var(--sp-4)",
-              background: "var(--tier-2)",
+              background: "var(--glass-bg)",
               border: "1px solid var(--hairline)",
               "border-radius": "var(--radius-md)",
               color: "var(--text)",
@@ -384,7 +384,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                     "border-radius": "var(--radius-md)",
                     border: "1px solid transparent",
                     background: isActive()
-                      ? "var(--tier-3, rgba(255,255,255,0.06))"
+                      ? "var(--glass-bg, rgba(255,255,255,0.06))"
                       : "transparent",
                     cursor: dup || isPicking() ? "not-allowed" : "pointer",
                     "text-align": "left",
@@ -401,7 +401,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                       "flex-shrink": 0,
                       "border-radius": "var(--radius-sm)",
                       overflow: "hidden",
-                      background: "var(--tier-3, rgba(255,255,255,0.04))",
+                      background: "var(--glass-bg, rgba(255,255,255,0.04))",
                       display: "flex",
                       "align-items": "center",
                       "justify-content": "center",
@@ -520,7 +520,7 @@ const TmdbSearchModal: Component<Props> = (props) => {
                           gap: "6px",
                           padding: "6px 12px",
                           "border-radius": "var(--radius-md)",
-                          background: "var(--tier-3, rgba(255,255,255,0.08))",
+                          background: "var(--glass-bg, rgba(255,255,255,0.08))",
                           color: "var(--text-muted)",
                           "font-size": "0.8rem",
                           "font-weight": "600",

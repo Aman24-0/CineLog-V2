@@ -46,7 +46,7 @@ export default function AdminCollectionEditorRoute() {
               type="button"
               onClick={() => reset()}
               style={{
-                background: "var(--tier-2)",
+                background: "var(--glass-bg)",
                 color: "var(--text)",
                 border: "1px solid var(--hairline)",
                 padding: "var(--sp-2) var(--sp-4)",

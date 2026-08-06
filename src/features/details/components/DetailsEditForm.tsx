@@ -280,7 +280,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                   props.setForm("watchDate", e.currentTarget.value);
                   setRewatchDate(0, e.currentTarget.value);
                 }}
-                class="type-metadata w-full rounded-xl border border-white/10 bg-[var(--tier-1)] p-3 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
+                class="type-metadata w-full rounded-xl border border-white/10 bg-[var(--glass-bg-strong)] p-3 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
               />
             </div>
           }
@@ -303,7 +303,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
                       onInput={(e) =>
                         setRewatchDate(index(), e.currentTarget.value)
                       }
-                      class="type-metadata flex-1 rounded-lg border border-white/10 bg-[var(--tier-1)] p-2.5 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
+                      class="type-metadata flex-1 rounded-lg border border-white/10 bg-[var(--glass-bg-strong)] p-2.5 text-white outline-none transition-all [color-scheme:dark] focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
                       aria-label={dateLabel(index())}
                     />
                   </div>
@@ -514,7 +514,7 @@ export default function DetailsEditForm(props: DetailsEditFormProps) {
           id="edit-notes"
           value={props.form().notes}
           onInput={(e) => props.setForm("notes", e.currentTarget.value)}
-          class="type-metadata w-full resize-none rounded-xl border border-white/10 bg-[var(--tier-1)] p-3 text-white outline-none transition-all focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
+          class="type-metadata w-full resize-none rounded-xl border border-white/10 bg-[var(--glass-bg-strong)] p-3 text-white outline-none transition-all focus:border-[var(--p)] focus:shadow-[0_0_0_3px_var(--p-dim)]"
           rows="3"
           placeholder="Write your thoughts, reactions, memorable quotes…"
           style={{ resize: "vertical", "min-height": "80px" }}

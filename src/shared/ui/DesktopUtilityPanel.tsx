@@ -81,7 +81,7 @@ const ITEM_POSTER_STYLE: JSX.CSSProperties = {
   height: "54px",
   "border-radius": "var(--radius-sm, 4px)",
   "object-fit": "cover",
-  background: "var(--tier-3)",
+  background: "var(--glass-bg)",
   "flex-shrink": 0
 };
 

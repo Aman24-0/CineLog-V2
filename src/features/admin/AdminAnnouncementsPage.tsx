@@ -528,7 +528,7 @@ const AdminAnnouncementsPage: Component = () => {
         >
           <div
             style={{
-              background: "var(--tier-1)",
+              background: "var(--glass-bg-strong)",
               border: "1px solid var(--hairline)",
               "border-radius": "var(--radius-lg)",
               "max-width": "560px",
@@ -809,7 +809,7 @@ function Field(props: { label: string; children: JSX.Element }) {
 // ─── Style constants ────────────────────────────────────────────────
 
 const cardStyle: JSX.CSSProperties = {
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   padding: "var(--sp-3) var(--sp-4)",
@@ -819,7 +819,7 @@ const cardStyle: JSX.CSSProperties = {
 };
 
 const skeletonCard: JSX.CSSProperties = {
-  background: "var(--tier-1)",
+  background: "var(--glass-bg-strong)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   animation: "pulse 1.5s ease-in-out infinite"
@@ -837,7 +837,7 @@ const alertError: JSX.CSSProperties = {
 
 const inputStyle: JSX.CSSProperties = {
   width: "100%",
-  background: "var(--tier-2)",
+  background: "var(--glass-bg)",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-2) var(--sp-3)",
@@ -870,7 +870,7 @@ const btnSecondary: JSX.CSSProperties = {
 };
 
 const iconBtn: JSX.CSSProperties = {
-  background: "var(--tier-2)",
+  background: "var(--glass-bg)",
   border: "1px solid var(--hairline)",
   width: "32px",
   height: "32px",
@@ -899,7 +899,7 @@ const toggleOn: JSX.CSSProperties = {
 };
 
 const toggleOff: JSX.CSSProperties = {
-  background: "var(--tier-2)",
+  background: "var(--glass-bg)",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",
   padding: "var(--sp-1) var(--sp-3)",

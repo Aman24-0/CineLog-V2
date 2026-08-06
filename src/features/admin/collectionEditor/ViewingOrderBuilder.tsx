@@ -252,7 +252,7 @@ const ViewingOrderBuilder: Component<ViewingOrderBuilderProps> = (props) => {
         style={{
           padding: "var(--sp-3)",
           "border-radius": "var(--radius-md)",
-          background: "var(--tier-2, rgba(255,255,255,0.02))",
+          background: "var(--glass-bg, rgba(255,255,255,0.02))",
           border: "1px solid var(--hairline)",
           "margin-bottom": "var(--sp-4)"
         }}
@@ -528,7 +528,7 @@ const ViewingOrderBuilder: Component<ViewingOrderBuilderProps> = (props) => {
                                     height: "42px",
                                     "object-fit": "cover",
                                     "border-radius": "3px",
-                                    background: "var(--tier-2)",
+                                    background: "var(--glass-bg)",
                                     "flex-shrink": 0
                                   }}
                                   onError={(e) => {

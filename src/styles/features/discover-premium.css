@@ -113,7 +113,7 @@
   max-height: 560px;
   min-height: 380px;
   border-radius: var(--radius-lg, 12px);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   position: relative;
   overflow: hidden;
 }
@@ -174,7 +174,7 @@
     /* Layer 1 — bottom fade (strong, cinematic, text legibility) */
     linear-gradient(
       to top,
-      var(--tier-1) 0%,
+      var(--glass-bg-strong) 0%,
       rgba(8, 8, 13, 0.95) 4%,
       rgba(8, 8, 13, 0.82) 12%,
       rgba(8, 8, 13, 0.58) 25%,
@@ -208,7 +208,7 @@
     background:
       linear-gradient(
         to top,
-        var(--tier-1) 0%,
+        var(--glass-bg-strong) 0%,
         rgba(8, 8, 13, 0.94) 4%,
         rgba(8, 8, 13, 0.72) 16%,
         rgba(8, 8, 13, 0.35) 38%,
@@ -668,7 +668,7 @@
   border-radius: var(--radius-card, 16px);
   overflow: hidden;
   border: 1px solid var(--glass-border-warm-strong);
-  background: var(--tier-3);
+  background: var(--glass-bg);
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.55),
     0 2px 8px rgba(0, 0, 0, 0.4),
@@ -1043,7 +1043,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   cursor: pointer;
   color: var(--text-soft);
@@ -1382,7 +1382,7 @@
   aspect-ratio: 2 / 1;
   border-radius: var(--radius-2xl, 24px);
   overflow: hidden;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:
     var(--shadow-glass-elevated),
@@ -1853,7 +1853,7 @@
   width: 100%;
   height: 560px;
   border-radius: var(--radius-lg);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   overflow: hidden;
   border: 1px solid var(--glass-border-warm-strong);
   box-shadow:

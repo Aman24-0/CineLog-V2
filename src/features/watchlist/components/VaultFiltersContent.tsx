@@ -272,7 +272,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                     <div
                       class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
                       style={{
-                        background: "var(--tier-1)",
+                        background: "var(--glass-bg-strong)",
                         border: "1px solid var(--hairline)"
                       }}
                     >
@@ -456,7 +456,7 @@ export default function VaultFiltersContent(props: VaultFiltersContentProps) {
                 <div
                   class="flex items-center justify-between gap-2 rounded-xl p-2.5 transition-all"
                   style={{
-                    background: "var(--tier-1)",
+                    background: "var(--glass-bg-strong)",
                     border: "1px solid var(--hairline)"
                   }}
                 >

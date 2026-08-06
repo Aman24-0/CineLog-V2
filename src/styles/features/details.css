@@ -80,7 +80,7 @@
     /* Bottom fade into content (the key to no hard cut-off) */
     linear-gradient(
       to top,
-      var(--tier-1) 0%,
+      var(--glass-bg-strong) 0%,
       rgba(8, 8, 13, 0.95) 8%,
       rgba(8, 8, 13, 0.7) 20%,
       rgba(8, 8, 13, 0.3) 40%,
@@ -183,7 +183,7 @@
   box-shadow:
     var(--shadow-premium),
     0 0 0 1px var(--hairline-2);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   transition: transform var(--dur-base) var(--ease-spring);
 }
 .floating-poster:hover {
@@ -621,7 +621,7 @@
   padding: 0 0.5rem;
   border-radius: var(--radius-md, 10px);
   border: 1px solid var(--hairline, var(--hairline-2));
-  background: var(--raised, var(--tier-2));
+  background: var(--raised, var(--glass-bg));
   font-family: "Azeret Mono", "Outfit", monospace;
   font-size: 1.125rem;
   font-weight: 700;
@@ -700,7 +700,7 @@
 
 /* Individual season accordion */
 .season-accordion {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   overflow: hidden;
@@ -814,7 +814,7 @@
   gap: var(--sp-3);
   padding: var(--sp-2);
   border-radius: var(--radius-md);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   transition:
     border-color var(--dur-fast) var(--ease-out),
@@ -827,11 +827,11 @@
 }
 .episode-card:hover {
   border-color: var(--hairline-2);
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 .episode-card-current {
   border-color: color-mix(in srgb, var(--p) 30%, transparent);
-  background: color-mix(in srgb, var(--p-dim) 50%, var(--tier-1));
+  background: color-mix(in srgb, var(--p-dim) 50%, var(--glass-bg-strong));
 }
 .episode-card-watched {
   opacity: 0.85;
@@ -844,7 +844,7 @@
   aspect-ratio: 16 / 9;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
 }
 .episode-card-still {
@@ -897,7 +897,7 @@
   height: 32px;
   border-radius: 50%;
   border: 1px solid var(--hairline-2);
-  background: var(--tier-3);
+  background: var(--glass-bg);
   color: var(--text-muted);
   cursor: pointer;
   transition: all var(--dur-fast) var(--ease-out);
@@ -906,7 +906,7 @@
 .episode-card-toggle:hover {
   border-color: var(--p);
   color: var(--p);
-  background: color-mix(in srgb, var(--p-dim) 50%, var(--tier-3));
+  background: color-mix(in srgb, var(--p-dim) 50%, var(--glass-bg));
 }
 .episode-card-toggle:active {
   transform: scale(0.92);
@@ -1700,7 +1700,7 @@
   overflow: hidden;
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-premium);
-  background: var(--tier-3);
+  background: var(--glass-bg);
 }
 .similar-title-poster-img {
   width: 100%;
@@ -1964,7 +1964,7 @@
   height: 100px;
   border-radius: 50%;
   overflow: hidden;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 2px solid var(--hairline-2);
   display: flex;
   align-items: center;
@@ -2064,7 +2064,7 @@
   gap: 0.5rem;
   padding: 0.75rem 1.25rem;
   border-bottom: 1px solid var(--hairline);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
 }
 
 @media (min-width: 640px) {
@@ -2179,7 +2179,7 @@
   aspect-ratio: 2 / 3;
   border-radius: 6px;
   overflow: hidden;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   display: flex;
   align-items: center;
@@ -2251,7 +2251,7 @@
   border-radius: var(--radius-md, 10px);
   overflow: hidden;
   cursor: pointer;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   transition:
     transform 180ms var(--ease-smooth, ease-out),
@@ -2295,8 +2295,8 @@
 .folder-tile-bg-gradient {
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--tier-3) 90%, transparent) 0%,
-    color-mix(in srgb, var(--tier-2) 95%, transparent) 100%
+    color-mix(in srgb, var(--glass-bg) 90%, transparent) 0%,
+    color-mix(in srgb, var(--glass-bg) 95%, transparent) 100%
   );
 }
 
@@ -2431,7 +2431,7 @@
   gap: var(--space-1);
   padding: var(--space-2) var(--space-1);
   border-radius: var(--radius-md);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   transition:
     border-color var(--dur-fast) var(--ease-out),
@@ -2535,7 +2535,7 @@
 .season-date-input {
   flex: 1;
   min-width: 0;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   padding: 0.5rem 0.625rem;
   border-radius: 0.5rem;

@@ -100,7 +100,7 @@
   width: 30px;
   height: 30px;
   border-radius: 50%;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   cursor: pointer;
   color: var(--text-soft);
@@ -230,7 +230,7 @@
   overflow: hidden;
   border: 1px solid var(--hairline);
   box-shadow: var(--shadow-premium);
-  background: var(--tier-3);
+  background: var(--glass-bg);
 }
 .search-rail-poster-img {
   width: 100%;
@@ -338,7 +338,7 @@
   height: 72px;
   border-radius: var(--radius-sm);
   overflow: hidden;
-  background: var(--tier-3);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   flex-shrink: 0;
 }

@@ -251,7 +251,7 @@ const GlassCard: ParentComponent<GlassCardProps> = (rawProps) => {
           class="absolute inset-0 z-overlay"
           style={{
             background:
-              "linear-gradient(90deg, transparent, var(--tier-3), transparent)",
+              "linear-gradient(90deg, transparent, var(--glass-bg), transparent)",
             "background-size": "200% 100%",
             animation: "shimmer 1.8s ease-in-out infinite"
           }}

@@ -247,7 +247,7 @@ const RichUniverseHub: Component<RichUniverseHubProps> = (props) => {
             "margin-top": "var(--sp-3)",
             padding: "var(--sp-3) var(--sp-4)",
             "border-radius": "var(--radius-md)",
-            background: `color-mix(in srgb, ${accent()} 6%, var(--tier-2, rgba(255,255,255,0.02)))`,
+            background: `color-mix(in srgb, ${accent()} 6%, var(--glass-bg, rgba(255,255,255,0.02)))`,
             border: `1px solid color-mix(in srgb, ${accent()} 18%, var(--hairline))`,
             "border-left": `3px solid ${accent()}`
           }}
@@ -386,7 +386,7 @@ const RichUniverseHub: Component<RichUniverseHubProps> = (props) => {
                 style={{
                   padding: "6px 10px",
                   "border-radius": "var(--radius-sm)",
-                  background: "var(--tier-2, rgba(255,255,255,0.02))",
+                  background: "var(--glass-bg, rgba(255,255,255,0.02))",
                   border: "1px solid var(--hairline)",
                   color: "var(--text)",
                   "font-size": "0.8rem",
@@ -526,7 +526,7 @@ function StatBox(props: { label: string; value: string; icon: string }) {
       style={{
         padding: "var(--sp-2) var(--sp-3)",
         "border-radius": "var(--radius-md)",
-        background: "var(--tier-2, rgba(255,255,255,0.02))",
+        background: "var(--glass-bg, rgba(255,255,255,0.02))",
         border: "1px solid var(--hairline)",
         display: "flex",
         "flex-direction": "column",
@@ -596,7 +596,7 @@ function RichEntryCard(props: {
         position: "relative",
         "border-radius": "var(--radius-md)",
         overflow: "hidden",
-        background: "var(--tier-2, rgba(255,255,255,0.02))",
+        background: "var(--glass-bg, rgba(255,255,255,0.02))",
         border: "1px solid var(--hairline)",
         cursor: "pointer",
         transition: "transform 0.15s ease, box-shadow 0.15s ease"
@@ -615,7 +615,7 @@ function RichEntryCard(props: {
       <div
         style={{
           "aspect-ratio": "2/3",
-          background: "var(--tier-3, rgba(255,255,255,0.04))",
+          background: "var(--glass-bg, rgba(255,255,255,0.04))",
           position: "relative",
           overflow: "hidden"
         }}
@@ -769,7 +769,7 @@ function RichEntryCard(props: {
                 "font-size": "0.6rem",
                 padding: "1px 5px",
                 "border-radius": "3px",
-                background: "var(--tier-3, rgba(255,255,255,0.04))",
+                background: "var(--glass-bg, rgba(255,255,255,0.04))",
                 border: "1px solid var(--hairline)",
                 color: "var(--text-muted)"
               }}

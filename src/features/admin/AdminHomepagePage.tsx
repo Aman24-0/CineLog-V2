@@ -537,7 +537,7 @@ const SortableSectionRow = (props: SortableSectionRowProps) => {
         props.section.enabled ? "" : "disabled-section"
       } ${props.isDragging ? "dragging" : ""}`}
       style={{
-        background: "var(--tier-1)",
+        background: "var(--glass-bg-strong)",
         border: "1px solid var(--hairline)",
         "border-radius": "var(--radius-md)"
       }}

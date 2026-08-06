@@ -67,7 +67,7 @@ const DateRangeSelector: Component<DateRangeSelectorProps> = (props) => {
           gap: "var(--sp-1)",
           padding: "3px",
           "border-radius": "9999px",
-          background: "var(--tier-1)",
+          background: "var(--glass-bg-strong)",
           border: "1px solid var(--hairline)",
           "align-self": "flex-start"
         }}

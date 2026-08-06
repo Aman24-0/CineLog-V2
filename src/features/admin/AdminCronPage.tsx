@@ -378,7 +378,7 @@ const AdminCronPage: Component = () => {
                   {/* Command */}
                   <div
                     style={{
-                      background: "var(--tier-2)",
+                      background: "var(--glass-bg)",
                       border: "1px solid var(--hairline)",
                       "border-radius": "var(--radius-sm)",
                       padding: "var(--sp-2) var(--sp-3)",
@@ -486,7 +486,7 @@ const AdminCronPage: Component = () => {
                 You are about to manually invoke the RPC{" "}
                 <code
                   style={{
-                    background: "var(--tier-3)",
+                    background: "var(--glass-bg)",
                     padding: "2px 6px",
                     "border-radius": "var(--radius-sm)",
                     "font-family": "'SF Mono', monospace",
@@ -498,7 +498,7 @@ const AdminCronPage: Component = () => {
                 with args{" "}
                 <code
                   style={{
-                    background: "var(--tier-3)",
+                    background: "var(--glass-bg)",
                     padding: "2px 6px",
                     "border-radius": "var(--radius-sm)",
                     "font-family": "'SF Mono', monospace",

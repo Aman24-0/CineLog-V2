@@ -320,7 +320,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                 overflow: "hidden",
                 border: "1px solid var(--hairline-2)",
                 "margin-bottom": "var(--sp-4)",
-                background: "var(--tier-2)",
+                background: "var(--glass-bg)",
                 position: "relative"
               }}
             >
@@ -332,7 +332,7 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
                       position: "absolute",
                       inset: "0",
                       background:
-                        "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--tier-3), var(--tier-1))"
+                        "radial-gradient(ellipse at 20% 30%, var(--p-glow) 0%, transparent 50%), radial-gradient(ellipse at 80% 70%, color-mix(in srgb, var(--p2) 18%, transparent) 0%, transparent 50%), linear-gradient(145deg, var(--glass-bg), var(--glass-bg-strong))"
                     }}
                   />
                 }

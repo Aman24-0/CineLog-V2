@@ -255,7 +255,7 @@ const AdminLoginPage: Component = () => {
   const inputStyle = {
     width: "100%",
     padding: "var(--sp-3) var(--sp-4)",
-    background: "var(--tier-2)",
+    background: "var(--glass-bg)",
     border: "1px solid var(--hairline-2)",
     "border-radius": "var(--radius-md)",
     color: "var(--text)",
@@ -292,7 +292,7 @@ const AdminLoginPage: Component = () => {
           style={{
             width: "100%",
             "max-width": "460px",
-            background: "var(--tier-1)",
+            background: "var(--glass-bg-strong)",
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-xl)",
             padding: "var(--sp-8)",
@@ -343,7 +343,7 @@ const AdminLoginPage: Component = () => {
             <Show when={session()?.email}>
               <div
                 style={{
-                  background: "var(--tier-2)",
+                  background: "var(--glass-bg)",
                   border: "1px solid var(--hairline-2)",
                   "border-radius": "var(--radius-md)",
                   padding: "var(--sp-3) var(--sp-4)",
@@ -429,7 +429,7 @@ const AdminLoginPage: Component = () => {
                   style={{
                     width: "100%",
                     padding: "var(--sp-3) var(--sp-4)",
-                    background: submitting() ? "var(--tier-3)" : "var(--p)",
+                    background: submitting() ? "var(--glass-bg)" : "var(--p)",
                     color: submitting()
                       ? "var(--text-muted)"
                       : "var(--on-primary)",
@@ -622,7 +622,7 @@ const AdminLoginPage: Component = () => {
                     style={{
                       width: "100%",
                       padding: "var(--sp-3) var(--sp-4)",
-                      background: submitting() ? "var(--tier-3)" : "var(--p)",
+                      background: submitting() ? "var(--glass-bg)" : "var(--p)",
                       color: submitting()
                         ? "var(--text-muted)"
                         : "var(--on-primary)",
@@ -740,7 +740,7 @@ const AdminLoginPage: Component = () => {
                       padding: "var(--sp-3) var(--sp-4)",
                       background:
                         submitting() || totpCode().length !== 6
-                          ? "var(--tier-3)"
+                          ? "var(--glass-bg)"
                           : "var(--p)",
                       color:
                         submitting() || totpCode().length !== 6

@@ -52,7 +52,7 @@ const LOADING_ICON_STYLE: JSX.CSSProperties = {
   "pointer-events": "none"
 };
 const FALLBACK_POSTER_STYLE: JSX.CSSProperties = {
-  background: "linear-gradient(145deg, var(--tier-3), var(--tier-2))",
+  background: "linear-gradient(145deg, var(--glass-bg), var(--glass-bg))",
   "z-index": "1"
 };
 const FALLBACK_ICON_STYLE: JSX.CSSProperties = {

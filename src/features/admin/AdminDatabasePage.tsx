@@ -299,7 +299,7 @@ const AdminDatabasePage: Component = () => {
                 }
                 style={{
                   padding: "var(--sp-2) var(--sp-3)",
-                  background: "var(--tier-2)",
+                  background: "var(--glass-bg)",
                   border: "1px solid var(--hairline-2)",
                   "border-radius": "var(--radius-md)",
                   color: "var(--text)",

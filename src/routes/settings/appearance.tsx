@@ -296,7 +296,7 @@ const AppearanceRoute: Component = () => {
                     style={{
                       background: isCustomActive()
                         ? customAccent()
-                        : "linear-gradient(135deg, var(--p) 0%, var(--p) 50%, var(--tier-3) 50%, var(--tier-3) 100%)"
+                        : "linear-gradient(135deg, var(--p) 0%, var(--p) 50%, var(--glass-bg) 50%, var(--glass-bg) 100%)"
                     }}
                     aria-hidden="true"
                   >

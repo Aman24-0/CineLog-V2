@@ -305,7 +305,7 @@ const AdminCollectionEditorPage: Component = () => {
           onClick={() => navigate("/admin/collections")}
           title="Back to admin collections list"
           style={{
-            background: "var(--tier-2, rgba(255,255,255,0.02))",
+            background: "var(--glass-bg, rgba(255,255,255,0.02))",
             color: "var(--text)",
             border: "1px solid var(--hairline)",
             "border-radius": "var(--radius-md)",
@@ -621,7 +621,7 @@ const AdminCollectionEditorPage: Component = () => {
                 "margin-top": "var(--sp-3)",
                 padding: "var(--sp-2) var(--sp-3)",
                 "border-radius": "var(--radius-md)",
-                background: "var(--tier-2, rgba(255,255,255,0.02))",
+                background: "var(--glass-bg, rgba(255,255,255,0.02))",
                 border: "1px solid var(--hairline)",
                 "font-size": "0.8rem",
                 color: "var(--text-muted)",
@@ -847,7 +847,7 @@ const AdminCollectionEditorPage: Component = () => {
             "margin-top": "var(--sp-6)",
             padding: "var(--sp-4)",
             "border-radius": "var(--radius-md)",
-            background: "var(--tier-2, rgba(255,255,255,0.02))",
+            background: "var(--glass-bg, rgba(255,255,255,0.02))",
             border: "1px dashed var(--hairline)",
             "font-size": "0.8rem",
             color: "var(--text-muted)",

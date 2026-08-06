@@ -108,7 +108,7 @@ export default function HeroContentCluster(props: HeroContentClusterProps) {
           fallback={
             <div
               class="flex h-full w-full items-center justify-center"
-              style={{ background: "var(--tier-3)" }}
+              style={{ background: "var(--glass-bg)" }}
               aria-hidden="true"
             >
               <span

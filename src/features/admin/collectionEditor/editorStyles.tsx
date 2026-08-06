@@ -79,7 +79,7 @@ export function toastStyle(success: boolean): JSX.CSSProperties {
 // ---------------------------------------------------------------------------
 
 export const cardStyle: JSX.CSSProperties = {
-  background: "var(--tier-1, rgba(255,255,255,0.04))",
+  background: "var(--glass-bg-strong, rgba(255,255,255,0.04))",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-lg)",
   display: "flex",
@@ -99,7 +99,7 @@ export const alertErrorStyle: JSX.CSSProperties = {
 
 export const inputStyle: JSX.CSSProperties = {
   width: "100%",
-  background: "var(--tier-2, rgba(255,255,255,0.02))",
+  background: "var(--glass-bg, rgba(255,255,255,0.02))",
   border: "1px solid var(--hairline)",
   "border-radius": "var(--radius-md)",
   padding: "var(--sp-2) var(--sp-3)",
@@ -132,7 +132,7 @@ export const btnSecondaryStyle: JSX.CSSProperties = {
 };
 
 export const sortBtn: JSX.CSSProperties = {
-  background: "var(--tier-2, rgba(255,255,255,0.02))",
+  background: "var(--glass-bg, rgba(255,255,255,0.02))",
   color: "var(--text-muted)",
   border: "1px solid var(--hairline)",
   padding: "var(--sp-1) var(--sp-3)",

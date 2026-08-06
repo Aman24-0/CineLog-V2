@@ -8,7 +8,7 @@
  *   • .admin-cron-page       — pg_cron job list + manual trigger
  *   • .admin-database-page   — Public-schema table inspector + RLS viewer
  *
- * All styles use design tokens (var(--tier-1), var(--accent), etc.) so they
+ * All styles use design tokens (var(--glass-bg-strong), var(--accent), etc.) so they
  * inherit the site theme automatically. Mobile-first: every layout is
  * single-column on phone and expands to multi-column on tablet+.
  *
@@ -97,7 +97,7 @@
   grid-template-columns: 1fr;
   gap: var(--sp-3);
   padding: var(--sp-4);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   margin-bottom: var(--sp-4);
@@ -140,7 +140,7 @@
 .admin-filter-field select {
   width: 100%;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   color: var(--text);
@@ -167,7 +167,7 @@
 
 .admin-logs-scroll {
   overflow-x: auto;
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
 }
@@ -188,7 +188,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.6875rem;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   white-space: nowrap;
 }
 
@@ -205,11 +205,11 @@
 }
 
 .admin-logs-table tbody tr:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .admin-logs-table tbody tr.selected-row {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border-left: 3px solid var(--accent, #00d9a3);
 }
 
@@ -261,7 +261,7 @@
   flex-direction: column;
   gap: 2px;
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-sm);
   min-width: 0;
@@ -291,7 +291,7 @@
 
 /* Syntax-highlighted JSON viewer */
 .admin-json-viewer {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   padding: var(--sp-3);
@@ -394,7 +394,7 @@
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-md);
   transition: border-color 0.15s ease;
@@ -589,7 +589,7 @@
 
 .admin-db-tables-scroll {
   overflow-x: auto;
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
 }
@@ -610,7 +610,7 @@
   text-transform: uppercase;
   letter-spacing: 0.05em;
   font-size: 0.6875rem;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   white-space: nowrap;
 }
 
@@ -627,11 +627,11 @@
 }
 
 .admin-db-table tbody tr:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .admin-db-table tbody tr.expanded {
-  background: var(--tier-2);
+  background: var(--glass-bg);
 }
 
 .admin-db-table .table-name-cell {
@@ -673,7 +673,7 @@
 
 /* RLS policy detail row (expandable) */
 .admin-db-policy-detail td {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-8);
   border-bottom: 1px solid var(--hairline);
 }
@@ -686,7 +686,7 @@
 
 .admin-db-policy-item {
   padding: var(--sp-2) var(--sp-3);
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-sm);
   font-size: 0.75rem;
@@ -776,7 +776,7 @@
 /* ─── Skeleton loading ─────────────────────────────────────────── */
 
 .admin-devtools-skeleton {
-  background: var(--tier-1);
+  background: var(--glass-bg-strong);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   padding: var(--sp-5);
