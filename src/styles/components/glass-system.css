@@ -31,8 +31,7 @@
    the token values in tokens/colors.css (which is imported earlier
    via tokens/index.css → globals.css). The winning values (0.72 /
    0.86) have been consolidated INTO tokens/colors.css as the single
-   source of truth. The light-theme overrides in tokens/preferences.css
-   continue to win for [data-theme-resolved="light"].
+   source of truth.
 
    The variables below (--shadow-glass-* and --glass-border-warm*) are
    NOT defined elsewhere — they are component-level variables specific
@@ -57,16 +56,32 @@
 
 /* ============================================================
    APP HEADER — premium sticky glass
-   Uses glass-medium variant: strong blur for navigation.
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 14 CHUNK 4 — TRUE FROSTED GLASS
+   ─────────────────────────────────────────────────────────────────────
+   Previously used --glass-medium-bg (rgba(13,13,20,0.82)) which was
+   too opaque — the vibrant ambient blobs (now 0.35 wrapper + 0.9 blob
+   opacity from Chunk 3) couldn't bleed through, so the header looked
+   like a flat dark bar floating over the ambient.
+
+   Now uses --glass-bg (rgba(15,15,22,0.45) from Chunk 3) +
+   backdrop-filter: blur(var(--glass-blur)) (32px). The result is
+   genuine frosted glass — the ambient blobs blur softly through the
+   header, matching the DULO.TV / Apple TV premium aesthetic where
+   every chrome surface is part of the ambient field rather than
+   overlaying it.
+
+   The border-bottom + shadow are kept for elevation cues so the
+   header still reads as "above content" without being opaque.
    ============================================================ */
 
 .app-header-glass {
-  background: var(--glass-medium-bg);
-  backdrop-filter: var(--glass-medium-blur) saturate(var(--glass-medium-saturate));
-  -webkit-backdrop-filter: var(--glass-medium-blur) saturate(var(--glass-medium-saturate));
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-medium-saturate));
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-medium-saturate));
   border-bottom: 1px solid var(--glass-medium-border);
   box-shadow:
-    var(--glass-medium-shadow),
+    0 4px 16px rgba(0, 0, 0, 0.25),
     var(--glass-highlight);
   padding-top: calc(0.875rem + env(safe-area-inset-top, 0px));
   padding-bottom: 0.875rem;

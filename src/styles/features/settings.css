@@ -178,8 +178,24 @@
   gap: var(--sp-3);
 }
 
+/* PHASE 14 CHUNK 4 — TRUE FROSTED GLASS
+   ─────────────────────────────────────────────────────────────────────
+   Previously used solid var(--tier-1) (#0d0d14) which blocked the
+   ambient blobs from bleeding through. Now uses var(--glass-bg)
+   (rgba(15,15,22,0.45) from Chunk 3) + backdrop-filter: blur so the
+   vibrant ambient colors blur softly through each settings panel —
+   matching the AppHeader / WatchlistHeader treatment and unifying
+   the chrome with the ambient field.
+
+   The accordion header's :hover background (var(--tier-2) below) is
+   kept as a subtle solid tint because hover on a frosted surface
+   needs MORE opacity, not less — the user expects a visible state
+   change. The tier-2 tint is dark enough to read as "hover" without
+   breaking the frosted-glass illusion of the parent. */
 .settings-accordion-section {
-  background: var(--tier-1);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   overflow: hidden;

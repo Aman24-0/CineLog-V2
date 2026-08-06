@@ -1,7 +1,8 @@
 // src/features/settings/sections/AppearanceSection.tsx
 //
-// Appearance section — theme, accent color (presets + dynamic),
-// density, font size, poster quality, spoilers, accessibility.
+// Appearance section — colour schemes (5 curated presets + Dynamic
+// accent), ambient intensity, density, font size, poster quality,
+// spoilers, accessibility.
 //
 // Pure JSX extractor: receives the `SettingsState` bag for local state
 // (dynamic accent, banner URL, etc.) and imports the global preference
@@ -11,8 +12,9 @@
 //   • The outer `<Show>` visibility filter.
 //   • The accordion header.
 //   • The inner panel:
-//       - Theme mode cards (Dark / Light / System)
-//       - Accent swatch grid (12 presets + 1 Dynamic)
+//       - Colour scheme swatch grid (5 curated presets + 1 Dynamic)
+//         [Phase 14 Chunk 4 — collapsed the old 12 accents into 5
+//          curated schemes that each repaint accent + ambient together]
 //       - Dynamic accent status line (3 states + Re-extract button)
 //       - Ambient intensity segmented control (Phase 14 Chunk 2)
 //       - Density segmented control
@@ -24,7 +26,6 @@
 
 import { Show, For } from "solid-js";
 import type { SettingsState } from "./types";
-import ThemeCard from "~/features/settings/components/ThemeCard";
 import AccentSwatch from "~/features/settings/components/AccentSwatch";
 import SectionResetButton from "~/features/settings/components/SectionResetButton";
 import {
@@ -34,8 +35,6 @@ import {
 
 // Global preference signals/setters — imported directly.
 import {
-  themeMode,
-  setThemeMode,
   density,
   setDensity,
   fontSize,
@@ -55,8 +54,6 @@ import {
 // Static option lists — single source of truth.
 import {
   THEMES_LIST,
-  THEME_MODE_OPTIONS,
-  THEME_MODE_PREVIEWS,
   DENSITY_OPTIONS,
   FONT_SIZE_OPTIONS,
   POSTER_QUALITY_OPTIONS,
@@ -114,34 +111,14 @@ export function AppearanceSection(props: { state: SettingsState }) {
             id="panel-appearance"
             class="settings-accordion-panel"
           >
-            {/* Theme mode — 3 visual cards */}
+            {/* Colour scheme — 5 curated swatches + 1 Dynamic.
+                Phase 14 Chunk 4: collapsed the old 12 accent presets
+                into 5 curated schemes. Each scheme sets BOTH the
+                accent (`--p`) AND the ambient blob colors
+                (`--ambient-color-1/2/3`), so picking a scheme repaints
+                the entire UI in lockstep. */}
             <div class="setting-subsection">
-              <p class="setting-subsection-label">Theme</p>
-              <div class="theme-card-grid">
-                <For each={THEME_MODE_OPTIONS}>
-                  {(opt) => (
-                    <ThemeCard
-                      id={opt.id}
-                      label={opt.label}
-                      desc={
-                        opt.id === "dark"
-                          ? "Always dark"
-                          : opt.id === "light"
-                          ? "Always light"
-                          : "Match system"
-                      }
-                      selected={themeMode() === opt.id}
-                      onSelect={() => setThemeMode(opt.id)}
-                      preview={THEME_MODE_PREVIEWS[opt.id]}
-                    />
-                  )}
-                </For>
-              </div>
-            </div>
-
-            {/* Accent color — 9 swatches */}
-            <div class="setting-subsection">
-              <p class="setting-subsection-label">Accent color</p>
+              <p class="setting-subsection-label">Colour scheme</p>
               <div class="accent-swatch-row">
                 <For each={THEMES_LIST}>
                   {(t) => (

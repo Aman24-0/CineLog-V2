@@ -17,14 +17,6 @@
 // Storage helpers (rarely imported directly by consumers)
 export { readStored, writeStored, applyDataAttr } from "./_storage";
 
-// Theme mode (dark / light / system)
-export {
-  themeMode,
-  setThemeMode,
-  effectiveThemeMode,
-  type ThemeMode
-} from "./themeMode";
-
 // Custom accent (overrides --p tokens)
 export {
   customAccent,

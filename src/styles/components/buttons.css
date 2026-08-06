@@ -160,16 +160,6 @@
   transform: scale(0.95);
 }
 
-/* Light mode — keep dark glass for readability over hero images */
-:root[data-theme-resolved="light"] .cinematic-close-btn {
-  background: rgba(0, 0, 0, 0.55);
-  border-color: rgba(255, 255, 255, 0.22);
-  color: var(--text-inverse);
-}
-:root[data-theme-resolved="light"] .cinematic-close-btn:hover {
-  background: rgba(0, 0, 0, 0.72);
-}
-
 /* Trailer close button */
 .cinematic-trailer-close {
   top: calc(env(safe-area-inset-top, 0px) + var(--sp-4)) !important;

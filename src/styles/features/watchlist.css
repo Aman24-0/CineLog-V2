@@ -2,14 +2,26 @@
    Glass cinema vault experience with warm gold accents,
    deeper shadows, and refined card styling. */
 
-/* Watchlist sticky header — stronger glass treatment */
+/* Watchlist sticky header — frosted glass treatment.
+   ─────────────────────────────────────────────────────────────────────
+   PHASE 14 CHUNK 4 — TRUE FROSTED GLASS
+   ─────────────────────────────────────────────────────────────────────
+   Previously used an opaque rgba(8,8,13,0.86) background that
+   blocked the ambient blobs from bleeding through. Now uses
+   var(--glass-bg) (rgba(15,15,22,0.45) from Chunk 3) +
+   backdrop-filter: blur(var(--glass-blur)) (32px) so the vibrant
+   ambient colors blur softly through the filter/control bar —
+   matching the AppHeader treatment and the DULO.TV aesthetic.
+
+   The border-bottom + soft shadow are kept so the bar still reads
+   as elevated above the vault grid, without being a flat dark slab. */
 .watchlist-header-glass {
-  background: rgba(8, 8, 13, 0.86);
-  backdrop-filter: blur(28px) saturate(160%);
-  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  background: var(--glass-bg);
+  backdrop-filter: blur(var(--glass-blur)) saturate(160%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(160%);
   border-bottom: 1px solid var(--glass-border-warm-strong);
   box-shadow:
-    0 4px 20px rgba(0, 0, 0, 0.45),
+    0 4px 16px rgba(0, 0, 0, 0.25),
     inset 0 -1px 0 rgba(232, 183, 74, 0.04);
 }
 
@@ -38,14 +50,28 @@
    cards, preventing layout recalculation of the entire grid
    when one card's state changes (hover, status badge, poster
    load). This is the primary INP optimization for large vaults.
-   content-visibility:auto skips offscreen cards entirely. */
+   content-visibility:auto skips offscreen cards entirely.
+
+   PHASE 14 CHUNK 4 — SOFTER CARD SHADOW
+   ─────────────────────────────────────────────────────────────────────
+   Previously used var(--shadow-premium) which stacked three dark
+   shadows up to 0.55 opacity — too heavy for the new vibrant ambient
+   background, made cards feel "stuck onto" the ambient rather than
+   floating over it.
+
+   Replaced with a single soft, larger, semi-transparent shadow
+   (0 8px 24px rgba(0,0,0,0.4)) that lets the ambient blobs bleed
+   through around the card edges. The card now reads as floating
+   gently above the color field — the DULO.TV / Apple TV premium
+   aesthetic. The hover state (below) keeps a slightly stronger
+   shadow + accent glow for elevation feedback. */
 .vault-card-inner {
   aspect-ratio: 2/3;
   border-radius: var(--radius-card);
   overflow: hidden;
   border: 1px solid var(--glass-border);
   box-shadow:
-    var(--shadow-premium),
+    0 8px 24px rgba(0, 0, 0, 0.4),
     inset 0 1px 0 rgba(255, 255, 255, 0.05);
   background: var(--tier-2);
   position: relative;
@@ -61,7 +87,7 @@
   box-shadow:
     0 0 0 1px color-mix(in srgb, var(--p) 35%, transparent),
     0 0 20px var(--p-glow),
-    0 16px 48px rgba(0, 0, 0, 0.85),
+    0 12px 32px rgba(0, 0, 0, 0.5),
     inset 0 1px 0 rgba(255, 255, 255, 0.06);
 }
 

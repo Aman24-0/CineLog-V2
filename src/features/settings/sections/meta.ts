@@ -35,12 +35,14 @@ export const SECTIONS: SectionMeta[] = [
   {
     id: "appearance",
     title: "Appearance",
-    desc: "Theme, accent, density, font",
+    desc: "Scheme, accent, density, font",
     icon: "palette",
     keywords: [
-      "dark", "light", "system", "accent", "color", "sage", "neon",
-      "crimson", "gold", "dynamic", "density", "compact", "spacious",
-      "font size", "poster quality", "spoilers", "animations", "contrast"
+      "scheme", "accent", "color", "cinematic", "gold", "cyberpunk",
+      "neon", "purple", "interstellar", "cyan", "emerald", "green",
+      "crimson", "red", "dynamic", "ambient", "intensity", "density",
+      "compact", "spacious", "font size", "poster quality", "spoilers",
+      "animations", "contrast"
     ]
   },
   {

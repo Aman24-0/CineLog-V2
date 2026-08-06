@@ -33,8 +33,6 @@
 import { isServer } from "solid-js/web";
 
 import {
-  themeMode,
-  setThemeMode,
   density,
   setDensity,
   fontSize,
@@ -78,7 +76,6 @@ import {
   type RatingScale,
   type SyncCadence,
   type VaultStatus,
-  type ThemeMode,
   type AmbientIntensity
 } from "~/core/preferences";
 
@@ -133,7 +130,6 @@ const DEFAULT_CAL_PREFS: CalendarPrefs = {
 
 const DEFAULT_SYNC_CADENCE: SyncCadence = "realtime";
 
-const DEFAULT_THEME_MODE: ThemeMode = "dark";
 const DEFAULT_THEME: Theme = "cinematic";
 const DEFAULT_DENSITY: Density = "comfortable";
 const DEFAULT_FONT_SIZE: FontSize = "medium";
@@ -159,12 +155,11 @@ const DEFAULT_CONTENT_RATING_CAP = "";
 
 /**
  * Reset the appearance section's preferences to their defaults.
- * Includes: themeMode, theme (accent preset), density, fontSize,
+ * Includes: theme (accent preset), density, fontSize,
  * posterQuality, hideSpoilers, reducedMotion, highContrast,
  * ambientIntensity (Phase 14 Chunk 2).
  */
 function resetAppearance(): void {
-  setThemeMode(DEFAULT_THEME_MODE);
   setTheme(DEFAULT_THEME);
   setDensity(DEFAULT_DENSITY);
   setFontSize(DEFAULT_FONT_SIZE);
@@ -286,7 +281,6 @@ export interface ExportedSettings {
  */
 function collectSnapshot(): PreferencesSnapshot {
   return {
-    themeMode: themeMode(),
     theme: theme(),
     density: density(),
     fontSize: fontSize(),
@@ -316,7 +310,6 @@ function collectSnapshot(): PreferencesSnapshot {
  * preferencesSync.ts.
  */
 function applyImportedSnapshot(snap: PreferencesSnapshot): void {
-  if (snap.themeMode) setThemeMode(snap.themeMode);
   if (snap.theme) setTheme(snap.theme);
   if (snap.density) setDensity(snap.density);
   if (snap.fontSize) setFontSize(snap.fontSize);

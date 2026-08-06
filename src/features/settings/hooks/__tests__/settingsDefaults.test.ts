@@ -11,7 +11,6 @@ import { describe, it, expect, vi, beforeEach } from "vitest";
 // --- Hoisted mocks for every preference signal ---
 
 const setters = vi.hoisted(() => ({
-  setThemeMode: vi.fn(),
   setTheme: vi.fn(),
   setDensity: vi.fn(),
   setFontSize: vi.fn(),
@@ -36,7 +35,6 @@ const setters = vi.hoisted(() => ({
 }));
 
 const getters = vi.hoisted(() => ({
-  themeMode: vi.fn(() => "light"),
   theme: vi.fn(() => "minimal"),
   density: vi.fn(() => "compact"),
   fontSize: vi.fn(() => "small"),
@@ -83,7 +81,6 @@ const getters = vi.hoisted(() => ({
 vi.mock("~/core/preferences", () => ({
   ...setters,
   ...getters,
-  themeMode: getters.themeMode,
   theme: getters.theme,
   density: getters.density,
   fontSize: getters.fontSize,
@@ -174,9 +171,8 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("resetSectionToDefaults — appearance", () => {
-  it("resets all 9 appearance preferences to their defaults", () => {
+  it("resets all 8 appearance preferences to their defaults", () => {
     expect(resetSectionToDefaults("appearance")).toBe(true);
-    expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
     expect(setters.setTheme).toHaveBeenCalledWith("cinematic");
     expect(setters.setDensity).toHaveBeenCalledWith("comfortable");
     expect(setters.setFontSize).toHaveBeenCalledWith("medium");
@@ -266,7 +262,6 @@ describe("resetSectionToDefaults — account + danger", () => {
   it("returns true for 'account' but calls no setters (no-op)", () => {
     expect(resetSectionToDefaults("account")).toBe(true);
     // No setters should be called.
-    expect(setters.setThemeMode).not.toHaveBeenCalled();
     expect(setters.setLanguage).not.toHaveBeenCalled();
     expect(setters.setNotifPrefs).not.toHaveBeenCalled();
   });
@@ -368,7 +363,6 @@ describe("exportSettingsToFile", () => {
       expect(parsed.version).toBe(1);
       expect(typeof parsed.exported_at).toBe("string");
       expect(parsed.preferences).toBeDefined();
-      expect(parsed.preferences.themeMode).toBe("light"); // from getter mock
       expect(parsed.preferences.language).toBe("fr");
     });
   });
@@ -389,7 +383,6 @@ describe("importSettingsFromFile", () => {
       exported_at: "2026-01-01T00:00:00.000Z",
       version: 1,
       preferences: {
-        themeMode: "dark",
         theme: "cinematic",
         density: "comfortable",
         fontSize: "medium",
@@ -400,10 +393,9 @@ describe("importSettingsFromFile", () => {
     const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
     expect(result.ok).toBe(true);
     if (result.ok) {
-      expect(result.applied).toBe(6); // 6 keys present in preferences
+      expect(result.applied).toBe(5); // 5 keys present in preferences
     }
     // Verify a few setters were called with the imported values.
-    expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
     expect(setters.setLanguage).toHaveBeenCalledWith("en");
     expect(setters.setNotifPrefs).toHaveBeenCalledWith({ newSeason: true });
   });
@@ -466,7 +458,7 @@ describe("importSettingsFromFile", () => {
       exported_at: "2026-01-01T00:00:00.000Z",
       version: 1,
       preferences: {
-        themeMode: "dark"
+        density: "compact"
         // Only one key — all others should be skipped, not error.
       }
     };
@@ -475,7 +467,7 @@ describe("importSettingsFromFile", () => {
     if (result.ok) {
       expect(result.applied).toBe(1);
     }
-    expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
+    expect(setters.setDensity).toHaveBeenCalledWith("compact");
     // Other setters should NOT have been called.
     expect(setters.setLanguage).not.toHaveBeenCalled();
     expect(setters.setNotifPrefs).not.toHaveBeenCalled();
@@ -486,15 +478,12 @@ describe("importSettingsFromFile", () => {
       magic: "cineLog.preferences.v1",
       version: 1,
       preferences: {
-        themeMode: null, // null is falsy → skipped
         hideSpoilers: false, // false is a valid boolean → applied
         highContrast: undefined // doesn't appear in JSON
       }
     };
     const result = await importSettingsFromFile(makeFile(JSON.stringify(payload)));
     expect(result.ok).toBe(true);
-    // themeMode should be skipped (null is falsy in the if-check).
-    expect(setters.setThemeMode).not.toHaveBeenCalled();
     // hideSpoilers=false should be applied (the if-check uses typeof === "boolean").
     expect(setters.setHideSpoilers).toHaveBeenCalledWith(false);
   });

@@ -50,11 +50,10 @@ import "@fontsource-variable/material-symbols-outlined/full.css";
 // (the root cause of "active state visibility is still broken").
 import { theme } from "./core/theme";
 // Side-effect import: wires the preferences module — applies data-attributes
-// to <html> for theme mode (dark/light/system), density, font-size, hide-
-// spoilers, reduced-motion, high-contrast, and persists all preferences to
-// localStorage. Reading the signals forces the createEffects to register.
+// to <html> for density, font-size, hide-spoilers, reduced-motion,
+// high-contrast, and persists all preferences to localStorage. Reading
+// the signals forces the createEffects to register.
 import {
-  themeMode,
   density,
   fontSize,
   hideSpoilers,
@@ -76,7 +75,6 @@ import { GlassLoadingState } from "~/shared/ui/glass";
 // Read the signals so the createEffects are tracked. The return values are
 // discarded — the effects are what matter.
 void theme;
-void themeMode;
 void density;
 void fontSize;
 void hideSpoilers;

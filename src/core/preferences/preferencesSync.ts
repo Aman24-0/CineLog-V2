@@ -11,9 +11,8 @@
 //   existed (with a `prefs_json` JSONB column for extended prefs) and
 //   the repository layer (settings.ts) had `getUserSettings` /
 //   `saveUserSettings` / `saveExtendedPreference` — but no code ever
-//   called them. A user who set "dark theme + reduced motion" on
-//   their laptop would see "light theme + default motion" on their
-//   phone.
+//   called them. A user who set "reduced motion" on
+//   their laptop would see "default motion" on their phone.
 //
 // DESIGN:
 //   localStorage remains the PRIMARY store (instant UI, offline-capable,
@@ -55,11 +54,6 @@ import {
   getUserSettings,
   saveUserSettings
 } from "~/lib/supabase/repositories/settings";
-import {
-  themeMode,
-  setThemeMode,
-  type ThemeMode
-} from "./themeMode";
 import { density, setDensity, type Density } from "./density";
 import { fontSize, setFontSize, type FontSize } from "./fontSize";
 import {
@@ -159,7 +153,6 @@ import { theme, setTheme, type Theme } from "~/core/theme";
  * other device they signed in on.
  */
 export interface PreferencesSnapshot {
-  themeMode?: ThemeMode;
   /** Phase 4 Task 7: accent preset (8 themes). Synced to prefs_json. */
   theme?: Theme;
   density?: Density;
@@ -218,7 +211,6 @@ function writeSyncedAt(ts: number): void {
  */
 function readSnapshot(): PreferencesSnapshot {
   return {
-    themeMode: themeMode(),
     // Phase 4 Task 7: include the accent theme in the snapshot.
     theme: theme(),
     density: density(),
@@ -253,7 +245,6 @@ function readSnapshot(): PreferencesSnapshot {
  * server has an older snapshot from before a new pref was added).
  */
 function applySnapshot(snap: PreferencesSnapshot): void {
-  if (snap.themeMode) setThemeMode(snap.themeMode);
   // Phase 4 Task 7: apply the accent theme from the server snapshot.
   // setTheme also writes to localStorage (`cinelog_theme`) and updates
   // the document's theme-* class, so the UI picks it up immediately.

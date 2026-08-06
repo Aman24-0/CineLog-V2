@@ -14,12 +14,11 @@
 // files are updated to import from here too. If you need to add a new
 // language, theme, or option, you make ONE change in this file.
 //
-// All option types (Theme, ThemeMode, Density, etc.) come from
+// All option types (Theme, Density, etc.) come from
 // `~/core/preferences` and `~/core/theme`, which remain the canonical
 // sources for the SIGNALS that store the user's current choice.
 
 import type { Theme } from "~/core/theme";
-import type { ThemePreview } from "~/features/settings/components/ThemeCard";
 import type {
   Density,
   FontSize,
@@ -33,7 +32,6 @@ import type {
   FirstDayOfWeek,
   TimeFormat,
   CalendarView,
-  ThemeMode,
   NotificationPrefs,
   AmbientIntensity
 } from "~/core/preferences";
@@ -42,50 +40,44 @@ import type {
 // Theme / appearance
 // ────────────────────────────────────────────────────────────────────
 
+// Phase 14 Chunk 4 — 5 curated Colour Schemes.
+// Each scheme sets both the accent (`--p`) AND the ambient blob colors
+// (`--ambient-color-1/2/3`), so picking a scheme repaints the entire UI
+// in lockstep — accent buttons, glow, ambient wash, frosted glass tint.
+// See `src/styles/tokens/colors.css` for the CSS variable definitions
+// and `src/core/theme/themes.ts` for the `Theme` union.
 export const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: string }[] = [
-  { id: "sage", name: "Sage", desc: "Soft green", swatch: "#a8ff78" },
-  { id: "matrix", name: "Neon Green", desc: "CineLog default", swatch: "#39ff14" },
-  { id: "netflix", name: "Crimson", desc: "Netflix red", swatch: "#ff2d55" },
-  { id: "interstellar", name: "Interstellar", desc: "Deep blue", swatch: "#00c2ff" },
-  { id: "neonhorizon", name: "Neon Horizon", desc: "Pink + cyan", swatch: "#ff2af0" },
-  { id: "vibranium", name: "Vibranium", desc: "Purple", swatch: "#9d4edd" },
-  { id: "cinematic", name: "Cinematic", desc: "Gold", swatch: "#FFD700" },
-  { id: "pearl", name: "Pearl", desc: "Minimal white", swatch: "#ffffff" },
-  // Phase 14 Chunk 2 — Frosted Glass accent presets.
-  // These four jewel tones are curated specifically to pop on the new
-  // translucent frosted glass cards (see .theme-* in colors.css).
-  { id: "neoncyan", name: "Neon Cyan", desc: "Electric blue", swatch: "#22d3ee" },
-  { id: "vibrupurple", name: "Vibrant Purple", desc: "Royal violet", swatch: "#a855f7" },
-  { id: "hotpink", name: "Hot Pink", desc: "Magenta pop", swatch: "#ec4899" },
-  { id: "emerald", name: "Emerald", desc: "Jungle green", swatch: "#10b981" }
-];
-
-export const THEME_MODE_OPTIONS: { id: ThemeMode; label: string }[] = [
-  { id: "dark", label: "Dark" },
-  { id: "light", label: "Light" },
-  { id: "system", label: "System" }
-];
-
-export const THEME_MODE_PREVIEWS: Record<ThemeMode, ThemePreview> = {
-  dark: {
-    bg: "#0a0a0c",
-    surface: "#1a1a1f",
-    text: "#e4e4e7",
-    accent: "var(--p)"
+  {
+    id: "cinematic",
+    name: "Cinematic Gold",
+    desc: "Gold + warm orange on deep black",
+    swatch: "#e8b74a"
   },
-  light: {
-    bg: "#f5f5f7",
-    surface: "#ffffff",
-    text: "#1a1a1f",
-    accent: "var(--p)"
+  {
+    id: "cyberpunk",
+    name: "Cyberpunk Neon",
+    desc: "Neon purple + hot pink on deep indigo",
+    swatch: "#a855f7"
   },
-  system: {
-    bg: "linear-gradient(135deg, #0a0a0c 0%, #0a0a0c 50%, #f5f5f7 50%, #f5f5f7 100%)",
-    surface: "linear-gradient(135deg, #1a1a1f 0%, #1a1a1f 50%, #ffffff 50%, #ffffff 100%)",
-    text: "linear-gradient(135deg, #e4e4e7 0%, #1a1a1f 100%)",
-    accent: "var(--p)"
+  {
+    id: "interstellar",
+    name: "Interstellar Cyan",
+    desc: "Cyan + teal on deep space blue",
+    swatch: "#22d3ee"
+  },
+  {
+    id: "emerald",
+    name: "Emerald Matrix",
+    desc: "Emerald + lime on deep black",
+    swatch: "#10b981"
+  },
+  {
+    id: "crimson",
+    name: "Crimson Dusk",
+    desc: "Crimson + sunset orange on dark maroon",
+    swatch: "#ef4444"
   }
-};
+];
 
 export const DENSITY_OPTIONS: { id: Density; label: string }[] = [
   { id: "compact", label: "Compact" },

@@ -2,14 +2,13 @@
 //
 // Appearance settings — the single source of truth for how CineLog looks.
 //
-// 9 controls, organized into 6 sections:
-//   1. Accent Color      — 8 curated presets + custom hex picker (9th tile)
-//   2. Theme Mode        — Dark / Light / System
-//   3. Display Density   — Compact / Comfortable / Spacious
-//   4. Typography        — Font Size: Small / Medium / Large
-//   5. Content           — Poster Quality, Hide Spoilers
-//   6. Localization      — Date Format
-//   7. Accessibility     — Reduced Motion, High Contrast
+// 8 controls, organized into 6 sections:
+//   1. Colour Scheme    — 5 curated schemes (accent + ambient) + custom hex picker (6th tile)
+//   2. Display Density  — Compact / Comfortable / Spacious
+//   3. Typography       — Font Size: Small / Medium / Large
+//   4. Content          — Poster Quality, Hide Spoilers
+//   5. Localization     — Date Format
+//   6. Accessibility    — Reduced Motion, High Contrast
 //
 // Every control is wired to a signal in src/core/preferences, which:
 //   • Persists to localStorage (cinelog_* prefix)
@@ -19,6 +18,11 @@
 // Design language: matches the rest of /settings/* — Bebas Neue title,
 // Azeret Mono eyebrow + section labels, glass surface preview card,
 // segmented controls for multi-option choices, iOS toggles for binary.
+//
+// Phase 14 Chunk 4: collapsed the old 12 accent presets into 5 curated
+// Colour Schemes that each repaint accent + ambient together. Also
+// removed the Theme Mode (Dark/Light/System) section since Light Mode
+// is no longer supported with the new vibrant ambient background.
 
 import { Title } from "@solidjs/meta";
 import { For, Show, createSignal, type Component } from "solid-js";
@@ -26,8 +30,6 @@ import PageContainer from "~/shared/ui/PageContainer";
 import { theme, setTheme } from "~/core/theme";
 import type { Theme } from "~/core/theme";
 import {
-  themeMode,
-  setThemeMode,
   customAccent,
   setCustomAccent,
   density,
@@ -48,7 +50,6 @@ import {
 } from "~/core/preferences";
 import {
   THEMES_LIST,
-  THEME_MODE_OPTIONS,
   DENSITY_OPTIONS,
   FONT_SIZE_OPTIONS,
   POSTER_QUALITY_OPTIONS,
@@ -97,7 +98,7 @@ const AppearanceRoute: Component = () => {
 
   const handleClearCustom = () => {
     setCustomAccent("");
-    setHexInput(theme() === "matrix" ? "#39ff14" : "#a8ff78");
+    setHexInput(theme() === "cinematic" ? "#e8b74a" : "#a855f7");
   };
 
   // ─── Segmented control renderer ───
@@ -260,9 +261,9 @@ const AppearanceRoute: Component = () => {
               </div>
             </section>
 
-            {/* ─── 1. Accent Color ─── */}
+            {/* ─── 1. Colour Scheme ─── */}
             <section class="sec-section">
-              <p class="sec-section-label">Accent Color</p>
+              <p class="sec-section-label">Colour Scheme</p>
               <div class="theme-grid">
                 <For each={THEMES_LIST}>
                   {(t) => (
@@ -351,26 +352,7 @@ const AppearanceRoute: Component = () => {
               </Show>
             </section>
 
-            {/* ─── 2. Theme Mode ─── */}
-            <section class="sec-section">
-              <p class="sec-section-label">Theme Mode</p>
-              <div class="setting-group">
-                {renderControlRow(
-                  "dark_mode",
-                  "Background theme",
-                  "Dark, light, or follow your system.",
-                  () =>
-                    renderSegmented(
-                      THEME_MODE_OPTIONS,
-                      themeMode,
-                      (id) => setThemeMode(id),
-                      "Theme mode"
-                    )
-                )}
-              </div>
-            </section>
-
-            {/* ─── 3. Display Density ─── */}
+            {/* ─── 2. Display Density ─── */}
             <section class="sec-section">
               <p class="sec-section-label">Display Density</p>
               <div class="setting-group">
@@ -389,7 +371,7 @@ const AppearanceRoute: Component = () => {
               </div>
             </section>
 
-            {/* ─── 4. Typography ─── */}
+            {/* ─── 3. Typography ─── */}
             <section class="sec-section">
               <p class="sec-section-label">Typography</p>
               <div class="setting-group">
@@ -408,7 +390,7 @@ const AppearanceRoute: Component = () => {
               </div>
             </section>
 
-            {/* ─── 5. Content ─── */}
+            {/* ─── 4. Content ─── */}
             <section class="sec-section">
               <p class="sec-section-label">Content</p>
               <div class="setting-group">
@@ -453,7 +435,7 @@ const AppearanceRoute: Component = () => {
               </div>
             </section>
 
-            {/* ─── 6. Localization ─── */}
+            {/* ─── 5. Localization ─── */}
             <section class="sec-section">
               <p class="sec-section-label">Localization</p>
               <div class="setting-group">
@@ -493,7 +475,7 @@ const AppearanceRoute: Component = () => {
               </div>
             </section>
 
-            {/* ─── 7. Accessibility ─── */}
+            {/* ─── 6. Accessibility ─── */}
             <section class="sec-section">
               <p class="sec-section-label">Accessibility</p>
               <div class="setting-group">
