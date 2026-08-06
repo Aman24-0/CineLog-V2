@@ -685,7 +685,24 @@
 
 /* ============================================================
    VAULT LIVING SHELVES
-   ============================================================ */
+   ============================================================
+   PHASE 14 CHUNK 5 — AMBLENT BLEND AUDIT
+   ------------------------------------------------------------
+   The shelf containers (.vault-shelf, .vault-shelf-header,
+   .vault-shelf-rail, .vault-shelf-grid) intentionally have NO
+   background and NO border. They are pure layout primitives
+   (display, gap, padding) so the AmbientBackground blobs bleed
+   through uninterrupted between shelves. Adding a solid background
+   or hairline border here would visually separate the shelves from
+   the ambient — the exact "slab" aesthetic the Phase 14 redesign
+   eliminates.
+
+   The only bordered element in a shelf is the .vault-shelf-action
+   button ("See All"), which uses a semi-transparent accent-tinted
+   border (rgba(232,183,74,0.2)) — soft, not harsh. The shelf title
+   icon gets a soft accent drop-shadow glow (filter: drop-shadow),
+   not a border. Both are intentional accents that read as "floating
+   chips" over the ambient field. */
 
 .vault-shelf {
   margin-top: var(--sp-6);

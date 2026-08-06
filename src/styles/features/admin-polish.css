@@ -36,7 +36,35 @@
  *      mobile hardening.
  *  10. Prefers-reduced-motion override — disable ALL admin
  *      animations when the user has reduced motion enabled.
+ *  11. Phase 14 Chunk 5 — Ambient glass stacking-context guarantee:
+ *      lift every direct child of .admin-shell EXCEPT the
+ *      .ambient-background layer to z-index: 1 so the vibrant blob
+ *      field never paints over admin chrome.
  */
+
+/* ─── 11. Ambient glass stacking-context guarantee ───────────────
+ * Phase 14 Chunk 5 — Admin Ambient Glass Migration.
+ *
+ * The admin-shell wrapper now mounts <AmbientBackground /> as its
+ * first child (mirrors the consumer AppShell pattern). The ambient
+ * layer is `position: fixed; z-index: 0` — it paints behind all
+ * statically-positioned siblings by default. But several admin
+ * chrome elements ARE positioned (sidebar is `position: fixed`,
+ * topbar is `position: sticky`, hamburger is `position: fixed`).
+ *
+ * To make the layering unambiguous regardless of DOM order or
+ * future refactors, we explicitly lift every direct child of
+ * .admin-shell EXCEPT .ambient-background to z-index: 1. This is
+ * a defensive rule — without it the current code already works,
+ * but the moment someone adds a new chrome element with
+ * `position: relative` and forgets z-index, the ambient blob
+ * would paint over it. Belt and suspenders, mirroring the
+ * `.app-shell-bg > *:not(.ambient-background)` rule in
+ * components/ambient-background.css. */
+.admin-shell > *:not(.ambient-background) {
+  position: relative;
+  z-index: 1;
+}
 
 /* ─── 1. Focus-visible baseline ────────────────────────────────
  * The global :focus-visible rule in base.css adds a 2px primary

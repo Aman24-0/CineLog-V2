@@ -59,7 +59,19 @@ export default function VaultFilters(props: VaultFiltersProps) {
           style={{
             "max-height":
               "calc(100dvh - var(--nav-total-height) - env(safe-area-inset-top, 0px) - var(--sp-4))",
-            "min-height": "0"
+            "min-height": "0",
+            // Phase 14 Chunk 5 — soften the sheet glass so the ambient
+            // blobs bleed through beautifully inside the filter sheet.
+            // The .glass-sheet-surface-premium class sets --glass-strong-bg
+            // (0.86 alpha) which is too opaque for the new ambient
+            // aesthetic. Override to --glass-bg (0.45) + --glass-blur
+            // (32px) so the vibrant ambient field stays visible through
+            // the sheet while the blur keeps text legible. The class is
+            // kept for its border, shadow, will-change, and transform
+            // rules — only the background + blur are overridden here.
+            background: "var(--glass-bg)",
+            "backdrop-filter": "blur(var(--glass-blur)) saturate(160%)",
+            "-webkit-backdrop-filter": "blur(var(--glass-blur)) saturate(160%)"
           }}
           onClick={(e) => e.stopPropagation()}
         >
@@ -121,16 +133,20 @@ export default function VaultFilters(props: VaultFiltersProps) {
 
           {/* Sticky footer — Apply / Clear buttons.
               The padding-bottom accounts for BOTH the iOS safe-area inset
-              AND the bottom nav height so buttons are always reachable. */}
+              AND the bottom nav height so buttons are always reachable.
+              Phase 14 Chunk 5 — softened from --glass-bg-strong (0.86)
+              to --glass-bg (0.45) + --glass-blur (32px) so the ambient
+              stays visible through the footer too, matching the sheet
+              body above. */}
           <div
             class="grid flex-shrink-0 grid-cols-2 gap-3 px-6 pb-4 pt-4"
             style={{
               "border-top": "1px solid var(--hairline)",
               "padding-bottom":
                 "calc(env(safe-area-inset-bottom, 0px) + var(--sp-5))",
-              background: "var(--glass-bg-strong)",
-              "backdrop-filter": "blur(20px)",
-              "-webkit-backdrop-filter": "blur(20px)"
+              background: "var(--glass-bg)",
+              "backdrop-filter": "blur(var(--glass-blur)) saturate(160%)",
+              "-webkit-backdrop-filter": "blur(var(--glass-blur)) saturate(160%)"
             }}
           >
             <button

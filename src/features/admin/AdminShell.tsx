@@ -61,6 +61,13 @@ import {
 import { useNavigate, useLocation, A } from "@solidjs/router";
 import { useAdminAuth } from "./hooks/useAdminAuth";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
+// Phase 14 Chunk 5 — Admin Ambient Glass Migration.
+// The admin panel now mounts the same AmbientBackground component
+// the consumer app uses, so the sidebar + topbar + content area all
+// float over the vibrant multi-color blob field. The admin-shell
+// wrapper switches from solid `bg-void` to translucent `--void-ambient`
+// so the blobs bleed through (mirrors the consumer AppShell pattern).
+import AmbientBackground from "~/shared/ui/AmbientBackground";
 
 // ─── Navigation Model ──────────────────────────────────────────
 
@@ -333,7 +340,7 @@ const AdminShell: ParentComponent = (props) => {
         <Show
           when={auth.adminReady()}
           fallback={
-            <div class="flex min-h-screen items-center justify-center bg-void text-text-muted">
+            <div class="flex min-h-screen items-center justify-center text-text-muted" style={{ background: "var(--void-ambient)" }}>
               <div class="text-center">
                 <span
                   class="material-symbols-outlined mx-auto mb-3 block text-4xl"
@@ -349,7 +356,7 @@ const AdminShell: ParentComponent = (props) => {
             </div>
           }
         >
-          <div class="flex min-h-screen items-center justify-center bg-void text-text-muted">
+          <div class="flex min-h-screen items-center justify-center text-text-muted" style={{ background: "var(--void-ambient)" }}>
             <div class="text-center">
               <span
                 class="material-symbols-outlined mx-auto mb-3 block text-4xl"
@@ -363,7 +370,23 @@ const AdminShell: ParentComponent = (props) => {
         </Show>
       }
     >
-      <div class="admin-shell flex min-h-screen bg-void text-text">
+      <div
+        class="admin-shell flex min-h-screen text-text"
+        style={{
+          // Phase 14 Chunk 5 — translucent void-ambient so the
+          // AmbientBackground blobs bleed through the admin chrome.
+          // Solid --void is now reserved for the body element + landing
+          // routes (which intentionally hide the ambient).
+          background: "var(--void-ambient)",
+          color: "var(--text)"
+        }}
+      >
+        {/* Phase 14 Chunk 5 — AmbientBackground: fixed, full-viewport,
+            non-interactive multi-color blob layer. MUST be the first
+            child so it paints below all admin chrome (sidebar, topbar,
+            content). Mirrors the consumer AppShell mounting pattern. */}
+        <AmbientBackground />
+
         {/* Skip-link for keyboard users — jumps focus past the sidebar
             nav directly into the page <main>. Visually hidden until
             focused. Phase 9 Chunk 8 accessibility pass. */}
