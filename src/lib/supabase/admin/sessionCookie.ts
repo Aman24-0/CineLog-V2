@@ -122,3 +122,72 @@ function parseAccessTokenFromSessionCookie(raw: string): string | null {
 
   return null;
 }
+
+// ─────────────────────────────────────────────────────────────────────
+// Phase 13 Chunk 1 — Authorization Bearer Header Support
+// ─────────────────────────────────────────────────────────────────────
+// The browser client stores sessions in `localStorage` (NOT cookies) —
+// see `src/lib/supabase/browser.ts` for the full rationale. As a
+// result, the browser NEVER sends a Supabase auth cookie, so the
+// legacy `getSupabaseAccessToken(cookieHeader)` helper returns null
+// for any request originating from the browser. All cookie-based
+// server-side auth therefore returns 401 for signed-in browser users,
+// breaking `/api/auth/trakt/*`, `/api/sync/trakt/*`, and any other
+// route that used the cookie path.
+//
+// The fix is to read the access token from the `Authorization: Bearer
+// <token>` header FIRST (the browser sends this header on every
+// authenticated fetch), and fall back to the cookie ONLY for backward
+// compatibility (e.g. pure SSR routes or server-to-server calls that
+// might still rely on cookies).
+//
+// This helper centralizes that extraction so every API route can
+// resolve the caller's access token via a single, consistent entry
+// point. The browser client itself is NOT changed — `localStorage`
+// remains the correct storage backend for the browser.
+
+/**
+ * Extract the Supabase access token from an incoming API Request.
+ *
+ * Resolution order (first non-empty wins):
+ *   1. `Authorization: Bearer <token>` header  ← browser path
+ *   2. `sb-*-auth-token` cookie                ← backward-compat / SSR
+ *
+ * Returns `null` when no token is present — the caller decides
+ * whether to return 401 or an empty "signed-out" response.
+ *
+ * SECURITY: The returned token must still be verified by calling
+ * `supabase.auth.getUser(accessToken)` — never trust the header/cookie
+ * payload directly, since headers can be tampered with by the client.
+ */
+export function getSupabaseAccessTokenFromRequest(
+  request: Request
+): string | null {
+  if (!isServer) return null;
+
+  // 1. Authorization: Bearer <token>
+  //
+  // The browser sends this header on every authenticated fetch (the
+  // frontend reads the token from `supabase.auth.getSession()` and
+  // attaches it via `headers: { Authorization: \`Bearer ${token}\` }`).
+  // This is the PRIMARY auth channel for browser-originated requests.
+  const authHeader = request.headers.get("authorization") ?? "";
+  if (authHeader.startsWith("Bearer ")) {
+    const token = authHeader.slice("Bearer ".length).trim();
+    if (token.length > 0) return token;
+  }
+
+  // 2. Cookie fallback (backward compatibility)
+  //
+  // Used by:
+  //   • Pure SSR routes that read the session from the Cookie header
+  //     (no Authorization header is sent during a navigation).
+  //   • Server-to-server calls that forward a captured cookie.
+  //   • Any future code path that legitimately uses cookie-based auth.
+  //
+  // For browser-originated fetches this will typically return null
+  // (no Supabase cookie is sent), which is correct — the Bearer path
+  // above already returned the token.
+  const cookieHeader = request.headers.get("cookie") ?? "";
+  return getSupabaseAccessToken(cookieHeader);
+}

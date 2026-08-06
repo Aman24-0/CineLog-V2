@@ -62,6 +62,7 @@ import {
 } from "solid-js";
 import { GlassCard, GlassButton, GlassBadge, GlassSkeleton } from "~/shared/ui/glass";
 import { useToast } from "~/shared/hooks/useToast";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import TraktLogo from "./TraktLogo";
 import TraktSyncWizard from "./TraktSyncWizard";
 
@@ -173,7 +174,11 @@ const TraktIntegrationCard: Component = () => {
       const res = await fetch("/api/auth/trakt/status", {
         method: "GET",
         credentials: "include",
-        headers: { Accept: "application/json" }
+        // Phase 13 Chunk 1: send the Supabase access token via the
+        // Authorization header — the browser stores sessions in
+        // localStorage (NOT cookies), so the server cannot read the
+        // session from the Cookie header.
+        headers: { Accept: "application/json", ...await getAuthHeaders() }
       });
 
       if (res.status === 401) {
@@ -263,9 +268,14 @@ const TraktIntegrationCard: Component = () => {
       const res = await fetch("/api/auth/trakt/disconnect", {
         method: "POST",
         credentials: "include",
+        // Phase 13 Chunk 1: send the Supabase access token via the
+        // Authorization header — sessions live in localStorage, not
+        // cookies, so the server needs the Bearer header to verify
+        // the caller.
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json"
+          Accept: "application/json",
+          ...await getAuthHeaders()
         }
       });
 

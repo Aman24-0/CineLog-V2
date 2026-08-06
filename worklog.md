@@ -244,3 +244,40 @@ Stage Summary:
   3. If env var missing, card is NOT rendered (entire subsection omitted) ✓
   4. tsc passes, committed + pushed via PAT ✓
 - To re-enable the Trakt UI in production: set VITE_TRAKT_CLIENT_ID=<your Trakt client_id> (same value as TRAKT_CLIENT_ID) in the deployment env vars and rebuild. The card will reappear automatically.
+
+---
+Task ID: 13-c1
+Agent: main (Super Z)
+Task: Phase 13 Chunk 1 — The CRITICAL Auth Split & Server Routes (Bug #1 fix)
+
+Work Log:
+- Cloned CineLog-V2@main (HEAD: 9c689b5) to /home/z/my-project/CineLog-V2.
+- Baseline verified: `npx tsc --noEmit` → 0 errors; `npx vitest run` → 1412/1412 tests pass.
+- Audited the auth-split bug: the browser client (`src/lib/supabase/browser.ts`) stores sessions in localStorage (NOT cookies) for mobile reliability, but server-side routes resolved sessions via `getSupabaseAccessToken(cookieHeader)` only — so every browser fetch returned 401 even for signed-in users. Confirmed the bug affects: `/api/auth/trakt/status`, `/api/auth/trakt/disconnect`, `/api/sync/trakt/preview`, `/api/sync/trakt/execute`, `/api/stats`, `/api/discover/taste`, `/api/share-card`.
+- Server helper changes:
+  • `src/lib/supabase/admin/sessionCookie.ts`: Added `getSupabaseAccessTokenFromRequest(request)` — checks `Authorization: Bearer <token>` header FIRST, falls back to cookie. Kept `getSupabaseAccessToken(cookieHeader)` unchanged for backward compat.
+  • `src/lib/supabase/server.ts`: Modified `createServerClientFromRequest` to be async + Bearer-aware. When the Authorization header is present, calls `client.auth.setSession({ access_token, refresh_token: "" })` to inject the session (mirrors the proven pattern in `trakt/preview.ts:loadUserVault`). Falls through to the cookie path otherwise. Errors are caught + logged — the caller's `getSession()` returns null → 401, which is the correct unauthenticated response.
+  • `src/middleware.ts`: Updated `onRequest` to async + `await createServerClientFromRequest`.
+- Frontend helper: Added `getAuthHeaders()` to `src/lib/supabase/session.ts` — reads the current session via `getBrowserSession()` and returns `{ Authorization: "Bearer <token>" }` (or `{}` if no session / on server). Re-exported from `src/lib/supabase/index.ts`.
+- Route updates (server-side): Replaced `getSupabaseAccessToken(cookieHeader)` with `getSupabaseAccessTokenFromRequest(request)` in 4 Trakt routes (status, disconnect, preview ×2, execute). Added `await` to `createServerClientFromRequest` in 3 SSR routes (stats, taste, share-card) + adjusted the `cookieJar` type to `Awaited<ReturnType<...>>`.
+- Frontend updates: Added `...await getAuthHeaders()` to the `headers` of every authenticated fetch in:
+  • `src/features/sync/components/TraktIntegrationCard.tsx` — /api/auth/trakt/status + /disconnect
+  • `src/features/sync/components/TraktSyncWizard.tsx` — /api/sync/trakt/preview + /execute
+  • `src/features/stats/hooks/useStatsData.ts` — /api/stats
+  • `src/features/discover/hooks/useDiscoverTaste.ts` — /api/discover/taste
+  • `src/features/details/ShareSheet.tsx` — /api/share-card
+  • `src/features/stats/components/StatsShareModal.tsx` — /api/share-card
+- Did NOT change the browser client auth storage (localStorage is correct per Phase 7 Task 15). Did NOT touch the OAuth init route (`/api/auth/trakt`) or callback — those are navigation-based, not fetch-based, and out of scope for this chunk.
+- Verified: `npx tsc --noEmit` → 0 errors. `npx vitest run` → 1412/1412 tests pass (55 files). `npx eslint` on modified files → 9 errors, ALL pre-existing on main (line numbers shifted by additions; confirmed via `git stash` baseline). No new lint errors introduced.
+
+Stage Summary:
+- Files modified (17):
+  Server helpers: src/lib/supabase/admin/sessionCookie.ts, src/lib/supabase/server.ts, src/lib/supabase/session.ts, src/lib/supabase/index.ts, src/middleware.ts
+  Server routes: src/routes/api/auth/trakt/status.ts, src/routes/api/auth/trakt/disconnect.ts, src/routes/api/sync/trakt/preview.ts, src/routes/api/sync/trakt/execute.ts, src/routes/api/stats.ts, src/routes/api/discover/taste.ts, src/routes/api/share-card.ts
+  Frontend callers: src/features/sync/components/TraktIntegrationCard.tsx, src/features/sync/components/TraktSyncWizard.tsx, src/features/stats/hooks/useStatsData.ts, src/features/discover/hooks/useDiscoverTaste.ts, src/features/details/ShareSheet.tsx, src/features/stats/components/StatsShareModal.tsx
+- Architectural decisions:
+  • Bearer header preferred over cookie (browser path), cookie kept as fallback (SSR / server-to-server backward compat).
+  • `createServerClientFromRequest` made async to accommodate `auth.setSession()`. Middleware + 3 SSR routes updated to `await`.
+  • Frontend uses a shared `getAuthHeaders()` helper to avoid duplicating session-reading logic across 6 call sites.
+  • `refresh_token: ""` in `setSession` is safe — the browser's `autoRefreshToken` keeps the access token fresh; if it's truly expired, `getUser()` fails, `getSession()` returns null, and the route returns 401 (correct behavior).
+- Bug #1 (auth split) is now fixed for all 4 affected features (Trakt sync, Stats, Discover taste, Share card). The OAuth init route (`/api/auth/trakt` navigation) still uses the cookie path — it's a navigation, not a fetch, and is out of scope per the chunk instructions.

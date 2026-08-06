@@ -48,6 +48,7 @@ import {
 } from "~/shared/ui/glass";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useToast } from "~/shared/hooks/useToast";
+import { getAuthHeaders } from "~/lib/supabase/session";
 
 // ─── Types (mirror server response shapes) ───────────────────────
 
@@ -151,7 +152,11 @@ const TraktSyncWizard: Component<TraktSyncWizardProps> = (props) => {
       const res = await fetch("/api/sync/trakt/preview", {
         method: "GET",
         credentials: "include",
-        headers: { Accept: "application/json" }
+        // Phase 13 Chunk 1: send the Supabase access token via the
+        // Authorization header — sessions live in localStorage, not
+        // cookies, so the server needs the Bearer header to verify
+        // the caller.
+        headers: { Accept: "application/json", ...await getAuthHeaders() }
       });
 
       if (res.status === 409) {
@@ -220,9 +225,14 @@ const TraktSyncWizard: Component<TraktSyncWizardProps> = (props) => {
       const res = await fetch("/api/sync/trakt/execute", {
         method: "POST",
         credentials: "include",
+        // Phase 13 Chunk 1: send the Supabase access token via the
+        // Authorization header — sessions live in localStorage, not
+        // cookies, so the server needs the Bearer header to verify
+        // the caller.
         headers: {
           "Content-Type": "application/json",
-          Accept: "application/json"
+          Accept: "application/json",
+          ...await getAuthHeaders()
         },
         // Default options — skip conflicts false, overwrite rating false.
         // The user gets a non-destructive import: new items are added,

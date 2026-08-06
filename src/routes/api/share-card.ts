@@ -231,10 +231,16 @@ export async function POST(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "This route is server-only." }, 500);
   }
 
-  // ── Authenticate via session cookie ───────────────────────────────
+  // ── Authenticate via session (Bearer header preferred, cookie fallback) ─
+  // Phase 13 Chunk 1: `createServerClientFromRequest` is now async and
+  // Bearer-aware. When the browser sends `Authorization: Bearer
+  // <token>`, the helper injects the session via `auth.setSession()`
+  // so the `getSession()` call below returns the signed-in user. If
+  // no Bearer header is present, it falls back to the legacy cookie
+  // path (for SSR or server-to-server calls).
   let userId: string | null = null;
   try {
-    const { client } = createServerClientFromRequest(event.request);
+    const { client } = await createServerClientFromRequest(event.request);
     const { data, error } = await client.auth.getSession();
     if (error) {
       console.warn("[api/share-card] getSession error:", error.message);

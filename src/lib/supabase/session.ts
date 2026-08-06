@@ -130,6 +130,49 @@ export async function getBrowserSession(): Promise<Session | null> {
 }
 
 // ---------------------------------------------------------------------------
+// Phase 13 Chunk 1 — Authorization Bearer Header Helper (browser-side)
+// ---------------------------------------------------------------------------
+
+/**
+ * Build the `Authorization` header for an authenticated browser fetch.
+ *
+ * The browser client stores sessions in `localStorage` (NOT cookies),
+ * so the browser NEVER sends a Supabase auth cookie. Server-side API
+ * routes therefore require the access token via the
+ * `Authorization: Bearer <token>` header.
+ *
+ * This helper reads the current session from the browser client and
+ * returns a headers object containing the `Authorization` header. If
+ * no session is active (signed-out, session expired, server-side
+ * render), it returns an empty object — so callers can spread it into
+ * their existing `headers` object without conditionals:
+ *
+ *   const resp = await fetch("/api/stats", {
+ *     headers: { Accept: "application/json", ...await getAuthHeaders() }
+ *   });
+ *
+ * Errors (e.g. supabase client throws) are caught + logged and an
+ * empty object is returned, so a flaky session read never crashes the
+ * caller — the downstream 401 from the server is the correct signal.
+ *
+ * @returns A Promise resolving to a headers object. Empty if no session.
+ */
+export async function getAuthHeaders(): Promise<Record<string, string>> {
+  if (isServer) return {};
+  try {
+    const session = await getBrowserSession();
+    if (!session?.access_token) return {};
+    return { Authorization: `Bearer ${session.access_token}` };
+  } catch (err) {
+    console.warn(
+      "[supabase] getAuthHeaders failed — returning empty headers:",
+      err instanceof Error ? err.message : String(err)
+    );
+    return {};
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Exports kept for callers that want the raw client factories
 // ---------------------------------------------------------------------------
 

@@ -68,6 +68,7 @@ import { createMemo, createResource, createSignal, type Accessor } from "solid-j
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { getStatsData, type AllStats } from "~/lib/supabase/repositories/stats";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import type { WatchlistItem } from "~/shared/types";
 
 /**
@@ -240,9 +241,17 @@ export function useStatsData(): UseStatsDataResult {
     // re-fetch after hydration.
     if (typeof window === "undefined") return null;
     try {
+      // Phase 13 Chunk 1: send the Supabase access token via the
+      // Authorization header. The browser stores sessions in
+      // localStorage (NOT cookies), so the server cannot read the
+      // session from the Cookie header — without this header the
+      // route returns 401 for every signed-in browser user.
       const resp = await fetch(
         `/api/stats?range=${encodeURIComponent(range)}`,
-        { credentials: "include" }
+        {
+          credentials: "include",
+          headers: { ...await getAuthHeaders() }
+        }
       );
       if (!resp.ok) {
         // 401 / 5xx → fall back to local stats. We log at warn level

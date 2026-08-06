@@ -95,15 +95,17 @@ export async function GET(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "This route is server-only." }, 500);
   }
 
-  // ── Authenticate via session cookie ───────────────────────────────
-  // The server client reads the access_token from the request's
-  // httpOnly cookies (Phase 7 Task 5). If the supabase client refreshes
-  // an expired token during this request, the new cookie values are
-  // collected in `cookieJar` and flushed to the Response below.
+  // ── Authenticate via session (Bearer header preferred, cookie fallback) ─
+  // Phase 13 Chunk 1: `createServerClientFromRequest` is now async and
+  // Bearer-aware. When the browser sends `Authorization: Bearer
+  // <token>`, the helper injects the session via `auth.setSession()`
+  // so the `getSession()` call below returns the signed-in user. If
+  // no Bearer header is present, it falls back to the legacy cookie
+  // path (for SSR or server-to-server calls).
   let userId: string | null = null;
-  let cookieJar: ReturnType<typeof createServerClientFromRequest>["cookies"] | null = null;
+  let cookieJar: Awaited<ReturnType<typeof createServerClientFromRequest>>["cookies"] | null = null;
   try {
-    const { client, cookies } = createServerClientFromRequest(event.request);
+    const { client, cookies } = await createServerClientFromRequest(event.request);
     cookieJar = cookies;
     const { data, error } = await client.auth.getSession();
     if (error) {

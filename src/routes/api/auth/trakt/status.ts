@@ -34,7 +34,7 @@
 import { isServer } from "solid-js/web";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
 
 interface APIEvent {
   request: Request;
@@ -64,15 +64,16 @@ function jsonResponse(body: unknown, status = 200): Response {
 /**
  * Verify the user is signed in. Returns the user_id on success.
  *
- * Mirrors the pattern in /api/sync/trakt/preview.ts — uses the anon-key
- * client + getUser(accessToken) so RLS is enforced and we prove the
- * token belongs to a real, currently-signed-in user.
+ * Phase 13 Chunk 1: the access token is now resolved via
+ * `getSupabaseAccessTokenFromRequest`, which checks the
+ * `Authorization: Bearer <token>` header FIRST (the browser path,
+ * since sessions live in localStorage) and falls back to the cookie
+ * for backward compatibility.
  */
 async function requireSignedInUser(
   request: Request
 ): Promise<string | null> {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const accessToken = getSupabaseAccessToken(cookieHeader);
+  const accessToken = getSupabaseAccessTokenFromRequest(request);
   if (!accessToken) return null;
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;

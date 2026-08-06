@@ -125,9 +125,14 @@ function isCookieDebugLoggingEnabled(): boolean {
  * renders the callback's default-export Solid component normally.
  */
 export default createMiddleware({
-  onRequest: (event) => {
+  onRequest: async (event) => {
     try {
-      const { client, cookies } = createServerClientFromRequest(
+      // Phase 13 Chunk 1: createServerClientFromRequest is now async
+      // because it may call `auth.setSession()` to inject a Bearer
+      // token from the Authorization header (the browser sends this
+      // header on every authenticated fetch since sessions live in
+      // localStorage, not cookies).
+      const { client, cookies } = await createServerClientFromRequest(
         event.request
       );
       event.locals.supabase = { client, cookieJar: cookies };

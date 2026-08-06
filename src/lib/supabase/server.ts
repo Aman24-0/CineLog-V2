@@ -306,14 +306,15 @@ function summarizeAuthCookies(
 
 /**
  * Create a server Supabase client bound to a specific Request's
- * cookies. Returns the client + a `CookieJar` that accumulates any
- * cookie writes the client makes (e.g. token refresh, session
- * exchange) so the caller can attach them to its Response.
+ * cookies (AND Authorization Bearer header). Returns the client + a
+ * `CookieJar` that accumulates any cookie writes the client makes
+ * (e.g. token refresh, session exchange) so the caller can attach
+ * them to its Response.
  *
- * Usage in an API route:
+ * USAGE in an API route:
  *
  *   export async function GET(event) {
- *     const { client, cookies } = createServerClientFromRequest(event.request);
+ *     const { client, cookies } = await createServerClientFromRequest(event.request);
  *     const { data } = await client.auth.getSession();
  *     ...
  *     const response = new Response(...);
@@ -325,6 +326,30 @@ function summarizeAuthCookies(
  *     }
  *     return response;
  *   }
+ *
+ * ─────────────────────────────────────────────────────────────────────
+ * Phase 13 Chunk 1 — Authorization Bearer Header Support
+ * ─────────────────────────────────────────────────────────────────────
+ * The browser client stores sessions in `localStorage` (NOT cookies),
+ * so the browser NEVER sends a Supabase auth cookie. Without the
+ * bearer-header path below, every `getSession()` call from a
+ * browser-originated request returns null, breaking `/api/stats`,
+ * `/api/discover/taste`, and `/api/share-card`.
+ *
+ * Resolution order (matches `getSupabaseAccessTokenFromRequest`):
+ *   1. `Authorization: Bearer <token>` header  → inject via setSession
+ *   2. `sb-*-auth-token` cookie                → existing cookie path
+ *
+ * When a Bearer token is present, we create the cookie-based client
+ * as usual (so the CookieJar machinery still works for any writes the
+ * client makes), then call `client.auth.setSession({ access_token,
+ * refresh_token: "" })` to inject the bearer as the active session.
+ * `setSession` internally calls `getUser(access_token)` to verify the
+ * token and populate the user object, so the caller's existing
+ * `data.session?.user?.id` lookup works unchanged.
+ *
+ * The function is async because `setSession` is async. Callers must
+ * `await` it. The middleware (`src/middleware.ts`) also awaits.
  *
  * Cookie parsing:
  *   The incoming `Cookie` header is parsed with the `cookie` package's
@@ -355,9 +380,9 @@ function summarizeAuthCookies(
  *   HTTP (localhost dev), `Secure` is omitted so the browser accepts
  *   the cookie.
  */
-export function createServerClientFromRequest(
+export async function createServerClientFromRequest(
   request: Request
-): { client: SupabaseClient; cookies: CookieJar } {
+): Promise<{ client: SupabaseClient; cookies: CookieJar }> {
   // ── Parse the incoming Cookie header ───────────────────────────
   // Use the `cookie` package's `parse()` for byte-identical decoding
   // with the browser client's `serialize()` writes.
@@ -455,6 +480,70 @@ export function createServerClientFromRequest(
   };
 
   const client = createServerClient(adapter);
+
+  // ── Phase 13 Chunk 1 — Authorization Bearer Header Injection ─────
+  // The browser client stores sessions in `localStorage` (NOT cookies),
+  // so the cookie adapter above sees no Supabase auth cookie for
+  // browser-originated requests. Without this injection, every
+  // `client.auth.getSession()` call returns null for signed-in browser
+  // users, breaking `/api/stats`, `/api/discover/taste`, and
+  // `/api/share-card`.
+  //
+  // When the Bearer token is present, we call `auth.setSession()` to
+  // inject it as the active session on the client. `setSession`:
+  //   • Internally calls `getUser(access_token)` to verify the token
+  //     with Supabase's auth server and populate the user object.
+  //   • Stores the session in the client's in-memory state so
+  //     subsequent `getSession()` calls return it (and
+  //     `data.session?.user?.id` works for the caller).
+  //   • Enables RLS-scoped queries on the same client (the access
+  //     token is attached to all subsequent Supabase REST calls).
+  //
+  // `refresh_token: ""` is intentional — we don't have the browser's
+  // refresh token (it lives in localStorage, never sent to the server).
+  // This is fine because:
+  //   • `setSession` uses the access_token for the immediate request.
+  //   • If the access_token is expired, `getUser()` will fail and
+  //     `setSession` returns an error — the caller's `getSession()`
+  //     then returns null, which the caller surfaces as a 401. The
+  //     browser's `autoRefreshToken` will have already refreshed the
+  //     token before it expires, so this only happens if the user has
+  //     been offline for >1 hour AND the token has truly expired.
+  //   • This mirrors the proven pattern in
+  //     `src/routes/api/sync/trakt/preview.ts:loadUserVault()`.
+  //
+  // Errors are caught + logged but do NOT throw — the caller's
+  // `getSession()` will simply return null and surface a 401, which
+  // is the correct behavior for an unauthenticated request.
+  const authHeader = request.headers.get("authorization") ?? "";
+  if (authHeader.startsWith("Bearer ")) {
+    const bearerToken = authHeader.slice("Bearer ".length).trim();
+    if (bearerToken.length > 0) {
+      try {
+        const { error: setSessionError } = await client.auth.setSession({
+          access_token: bearerToken,
+          refresh_token: ""
+        });
+        if (setSessionError) {
+          // Most common cause: the access_token has expired. The
+          // browser should have refreshed it, but if the user has
+          // been offline for a long time, the refresh may have failed
+          // silently. Log + fall through — getSession() will return
+          // null and the caller returns 401.
+          console.warn(
+            "[supabase-server] setSession failed for Bearer token:",
+            setSessionError.message
+          );
+        }
+      } catch (err) {
+        console.warn(
+          "[supabase-server] Failed to inject Bearer token session:",
+          err instanceof Error ? err.message : String(err)
+        );
+      }
+    }
+  }
+
   const cookies: CookieJar = {
     toSetCookieHeaders: () => [...setCookieHeaders],
     getResponseHeaders: () => ({ ...responseHeaders })

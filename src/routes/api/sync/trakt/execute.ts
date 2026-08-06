@@ -55,7 +55,7 @@
 import { isServer } from "solid-js/web";
 import { createClient } from "@supabase/supabase-js";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
-import { getSupabaseAccessToken } from "~/lib/supabase/admin/sessionCookie";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
 import {
   getNormalizedTraktHistory,
   type NormalizedTraktItem
@@ -101,12 +101,17 @@ function jsonResponse(body: unknown, status = 200): Response {
 
 /**
  * Verify the user is signed in. Returns the user_id on success.
+ *
+ * Phase 13 Chunk 1: the access token is now resolved via
+ * `getSupabaseAccessTokenFromRequest`, which checks the
+ * `Authorization: Bearer <token>` header FIRST (the browser path,
+ * since sessions live in localStorage) and falls back to the cookie
+ * for backward compatibility.
  */
 async function requireSignedInUser(
   request: Request
 ): Promise<string | null> {
-  const cookieHeader = request.headers.get("cookie") ?? "";
-  const accessToken = getSupabaseAccessToken(cookieHeader);
+  const accessToken = getSupabaseAccessTokenFromRequest(request);
   if (!accessToken) return null;
 
   const supabaseUrl = process.env.VITE_SUPABASE_URL;

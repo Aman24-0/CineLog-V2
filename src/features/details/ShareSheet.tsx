@@ -49,6 +49,7 @@ import {
   resolveReleaseDate,
   formatMdbRatingsLine
 } from "~/shared/utils/share";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import type { TMDBDetails, WatchlistItem } from "~/shared/types";
 import type { ShareCardPayload } from "~/lib/shareCard/templates";
 
@@ -301,7 +302,14 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
 
       const resp = await fetch("/api/share-card", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        // Phase 13 Chunk 1: send the Supabase access token via the
+        // Authorization header — sessions live in localStorage, not
+        // cookies, so the server needs the Bearer header to verify
+        // the caller.
+        headers: {
+          "Content-Type": "application/json",
+          ...await getAuthHeaders()
+        },
         body: JSON.stringify(payload),
         credentials: "include"
       });

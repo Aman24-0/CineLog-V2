@@ -37,6 +37,7 @@
 import { createMemo, createResource, type Accessor } from "solid-js";
 import type { WatchlistItem, TasteProfile } from "~/shared/types";
 import { computeTasteProfile } from "~/lib/discover/tasteProfile";
+import { getAuthHeaders } from "~/lib/supabase/session";
 
 interface UseDiscoverTasteArgs {
   watchlist: Accessor<WatchlistItem[]>;
@@ -56,8 +57,14 @@ async function fetchServerTaste(): Promise<TasteProfile | null> {
   // and the route would 401. The client re-fetches after hydration.
   if (typeof window === "undefined") return null;
   try {
+    // Phase 13 Chunk 1: send the Supabase access token via the
+    // Authorization header. The browser stores sessions in
+    // localStorage (NOT cookies), so the server cannot read the
+    // session from the Cookie header — without this header the
+    // route returns 401 for every signed-in browser user.
     const resp = await fetch("/api/discover/taste", {
-      credentials: "include"
+      credentials: "include",
+      headers: { ...await getAuthHeaders() }
     });
     if (!resp.ok) {
       if (resp.status !== 401) {

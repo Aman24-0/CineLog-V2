@@ -72,6 +72,7 @@ export {
   onSessionChange,
   getServerSession,
   getBrowserSession,
+  getAuthHeaders,
   requireSession,
   requireUser,
   SessionRequiredError
