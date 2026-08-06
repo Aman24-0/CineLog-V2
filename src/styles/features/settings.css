@@ -26,13 +26,22 @@
 
    ============================================================ */
 
-/* ─── Search bar ────────────────────────────────────────────────── */
+/* ─── Search bar ──────────────────────────────────────────────────
+   Phase 14 Chunk 5 fix — switched from solid --bg / --tier-1 to
+   var(--glass-bg) + backdrop-filter so the sticky search wrapper
+   and the input pill both let the ambient field bleed through.
+   The wrapper uses the stronger --glass-bg-strong because it's a
+   STICKY element that needs to visually obscure content scrolling
+   underneath; the inner input pill uses the lighter --glass-bg so
+   the wrapper's blur shows through it. */
 .settings-search-wrapper {
   margin: var(--sp-3) 0 var(--sp-5) 0;
   position: sticky;
   top: 0;
   z-index: 10;
-  background: var(--bg);
+  background: var(--glass-bg-strong);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   padding: var(--sp-2) 0;
 }
 
@@ -40,7 +49,7 @@
   display: flex;
   align-items: center;
   gap: var(--sp-2);
-  background: var(--tier-1);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   padding: var(--sp-2) var(--sp-3);
@@ -91,7 +100,7 @@
 }
 
 .settings-search-clear:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg-strong);
   color: var(--text);
 }
 
@@ -153,7 +162,8 @@
 }
 
 .settings-sidebar-link:hover {
-  background: var(--tier-1);
+  /* Phase 14 Chunk 5 fix — subtle accent tint instead of solid --tier-1. */
+  background: var(--p-dim);
   color: var(--text-strong);
 }
 
@@ -323,6 +333,12 @@
   gap: var(--sp-2);
   margin-top: var(--sp-3);
 }
+/* Phase 14 Chunk 5 fix — the actual buttons in SettingsPage.tsx now
+   use <GlassButton variant="primary"|"ghost">. This CSS rule is kept
+   for backward compatibility (in case any other code path still uses
+   the .settings-import-export-btn class) but now derives its colors
+   from the --p / --p-dim / --p-border tokens so it adapts to the
+   active accent theme instead of the hardcoded #f5c518 yellow. */
 .settings-import-export-btn {
   display: inline-flex;
   align-items: center;
@@ -331,15 +347,15 @@
   font-family: "Outfit", sans-serif;
   font-size: 0.75rem;
   font-weight: 600;
-  color: var(--p, #f5c518);
-  background: rgba(245, 197, 24, 0.08);
-  border: 1px solid rgba(245, 197, 24, 0.25);
+  color: var(--p);
+  background: var(--p-dim);
+  border: 1px solid var(--p-border);
   border-radius: 9999px;
   cursor: pointer;
   transition: background var(--dur-fast, 120ms);
 }
 .settings-import-export-btn:hover {
-  background: rgba(245, 197, 24, 0.16);
+  background: var(--p-hover);
 }
 .settings-import-export-btn .material-symbols-outlined {
   font-size: 14px !important;
@@ -386,10 +402,16 @@
   font-weight: 500;
 }
 
-/* ─── Expandable panel (Account page 2FA/Sessions/Login History) ─ */
+/* ─── Expandable panel (Account page 2FA/Sessions/Login History) ─
+   Phase 14 Chunk 5 fix — switched from solid --tier-1 to var(--glass-bg)
+   so the expandable sub-panels (2FA setup, sessions list, login history)
+   blend with the ambient field. No backdrop-filter — the parent
+   .settings-accordion-section already applies one; adding another here
+   would multiply GPU cost without visual benefit (the inner panel is
+   small and sits inside the already-blurred parent). */
 .settings-expandable-panel {
   padding: var(--sp-3) var(--sp-4) var(--sp-4) calc(var(--sp-4) + 28px);
-  background: var(--tier-1);
+  background: var(--glass-bg);
   border-top: 1px solid var(--hairline);
   border-bottom: 1px solid var(--hairline);
   animation: settingsPanelSlide 200ms var(--ease-out);
@@ -607,7 +629,8 @@
   justify-content: center;
   width: 36px;
   height: 36px;
-  background: var(--tier-1);
+  /* Phase 14 Chunk 5 fix — var(--p-dim) accent tint instead of solid --tier-1. */
+  background: var(--p-dim);
   border-radius: 50%;
   color: var(--p);
   flex-shrink: 0;
@@ -741,7 +764,8 @@
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: var(--tier-1);
+  /* Phase 14 Chunk 5 fix — translucent glass instead of solid --tier-1. */
+  background: var(--glass-bg);
   border-radius: 50%;
   color: var(--text-soft);
   flex-shrink: 0;
@@ -771,7 +795,8 @@
   font-family: "Söhne Mono", "Courier New", monospace;
   color: var(--text-muted);
   padding: 2px 6px;
-  background: var(--tier-1);
+  /* Phase 14 Chunk 5 fix — translucent glass instead of solid --tier-1. */
+  background: var(--glass-bg);
   border-radius: var(--radius-xs);
 }
 
@@ -798,7 +823,8 @@
 }
 
 .admin-developer-section {
-  background: var(--tier-1);
+  /* Phase 14 Chunk 5 fix — translucent glass instead of solid --tier-1. */
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   border-radius: var(--radius-md);
   padding: var(--sp-4);

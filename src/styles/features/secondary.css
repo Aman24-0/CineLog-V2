@@ -552,13 +552,20 @@
    SETTINGS SUB-PAGES
    ============================================================ */
 
-/* Setting row — shared across all settings sub-pages */
+/* Setting row — shared across all settings sub-pages.
+   Phase 14 Chunk 5 fix — switched from solid --tier-2 / --tier-3 to
+   var(--glass-bg) / var(--glass-bg-strong) so the rows blend with the
+   ambient field through the parent .settings-accordion-section's blur.
+   No backdrop-filter on the rows themselves — there can be 20+ rows
+   per section, so per-row blur would re-introduce the MovieCard
+   performance regression. The translucent tint alone is enough; the
+   parent's blur does the actual frosted-glass work. */
 .setting-row {
   display: flex;
   align-items: center;
   gap: var(--sp-3);
   padding: var(--sp-4) var(--sp-5);
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: none;
   cursor: pointer;
   text-align: left;
@@ -576,7 +583,7 @@
 }
 
 .setting-row:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg-strong);
 }
 
 .setting-row:active {
@@ -654,13 +661,15 @@
   background: rgba(248, 113, 113, 0.06);
 }
 
-/* Settings group — shared container */
-
-/* Settings group — shared container */
+/* Settings group — shared container.
+   Phase 14 Chunk 5 fix — translucent glass instead of solid --tier-2.
+   No backdrop-filter (parent .settings-accordion-section already
+   applies one; multiplying it here would be a GPU cost without visual
+   benefit since the group sits inside the already-blurred parent). */
 .setting-group {
   display: flex;
   flex-direction: column;
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   overflow: hidden;

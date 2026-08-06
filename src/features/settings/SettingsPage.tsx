@@ -44,6 +44,12 @@ import { For, Show, type Component } from "solid-js";
 import { Title } from "@solidjs/meta";
 import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
+// Phase 14 Chunk 5 fix — use GlassButton for the Export/Import actions
+// so they adapt to the active accent color (var(--p)) via the standard
+// variant system instead of the previous hardcoded #f5c518 yellow.
+// • Export  → variant="primary"  (filled accent, main action)
+// • Import  → variant="ghost"    (transparent w/ accent text, secondary)
+import { GlassButton } from "~/shared/ui/glass";
 
 // Account sheets (email/password changes, deactivate, sign-out).
 // These render at the page root so they overlay correctly — they're
@@ -123,38 +129,32 @@ const SettingsPage: Component = () => {
               Account, appearance, content, sync, and more — all in one place.
             </p>
 
-            {/* Phase 6 Part 3 — Task 3: Import / Export buttons */}
+            {/* Phase 6 Part 3 — Task 3: Import / Export buttons.
+                Phase 14 Chunk 5 fix — switched from custom
+                .settings-import-export-btn (hardcoded #f5c518 yellow)
+                to <GlassButton> variants that adapt to var(--p):
+                  • Export → variant="primary" (filled accent, main action)
+                  • Import → variant="ghost"   (transparent w/ accent text)
+                size="compact" matches the previous visual density. */}
             <div class="settings-import-export-row">
-              <button
-                type="button"
-                class="settings-import-export-btn focus-ring"
+              <GlassButton
+                variant="primary"
+                size="compact"
+                icon="download"
                 onClick={s.handleExportSettings}
                 aria-label="Export preferences to a JSON file"
               >
-                <span
-                  class="material-symbols-outlined"
-                  aria-hidden="true"
-                  style={{ "font-size": "16px" }}
-                >
-                  download
-                </span>
-                <span>Export</span>
-              </button>
-              <button
-                type="button"
-                class="settings-import-export-btn focus-ring"
+                Export
+              </GlassButton>
+              <GlassButton
+                variant="ghost"
+                size="compact"
+                icon="upload"
                 onClick={handleImportClick}
                 aria-label="Import preferences from a JSON file"
               >
-                <span
-                  class="material-symbols-outlined"
-                  aria-hidden="true"
-                  style={{ "font-size": "16px" }}
-                >
-                  upload
-                </span>
-                <span>Import</span>
-              </button>
+                Import
+              </GlassButton>
               <input
                 ref={importInputRef}
                 type="file"

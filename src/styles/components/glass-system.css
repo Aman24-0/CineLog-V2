@@ -286,6 +286,16 @@
 
 /* ============================================================
    SEARCH OVERLAY — independent results panel below the header
+   ============================================================
+   Phase 14 Chunk 5 fix:
+   • Background switched from solid var(--void) to var(--void-ambient)
+     + backdrop-filter so the ambient blob field stays visible through
+     the overlay (matches the rest of the redesigned chrome).
+   • Added .search-overlay-input-wrapper rule — the in-overlay search
+     input row (mobile path only). It's wrapped in a <Show> in
+     SearchOverlay.tsx so it never mounts on desktop, but we add a
+     CSS guard too (display: none on ≥1024px) so even if the Show
+     gate ever fails the desktop path stays clean.
    ============================================================ */
 
 .search-overlay {
@@ -295,7 +305,14 @@
   right: 0;
   bottom: 0;
   z-index: 25;
-  background: var(--void);
+  /* Phase 14 Chunk 5 fix — translucent void-ambient + blur so the
+     ambient blobs bleed through the overlay. The overlay is one
+     large surface (not many small ones), so a single backdrop-filter
+     here is fine — it does NOT cause the per-card GPU cost regression
+     that .glass-card did. */
+  background: var(--void-ambient);
+  backdrop-filter: blur(var(--glass-blur)) saturate(150%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   overflow-y: auto;
   animation: fadeIn 0.2s ease-out;
   /* Subtract bottom nav height on mobile so content isn't hidden */
@@ -315,6 +332,23 @@
   max-width: 720px;
   margin: 0 auto;
   padding: var(--sp-6, 1.5rem) var(--sp-5, 1.25rem);
+}
+
+/* In-overlay search input row — mobile path only.
+   Hidden on desktop because the desktop inline bar in AppHeader is
+   the input on that breakpoint. The <Show> in SearchOverlay.tsx
+   also gates this, but the CSS guard is a defensive belt-and-
+   suspenders measure. */
+@media (min-width: 1024px) {
+  .search-overlay-input-wrapper {
+    display: none !important;
+  }
+}
+
+/* Hide the native search input cancel button — we provide our own
+   close button in the overlay header row. */
+.search-overlay-input::-webkit-search-cancel-button {
+  display: none;
 }
 
 /* ============================================================

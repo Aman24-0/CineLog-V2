@@ -1,39 +1,36 @@
 // src/shared/ui/AppHeader.tsx
 //
 // Phase 10 Chunk 1 — Desktop View & UI Architecture Redesign
+// Phase 14 Chunk 5 fix — Mobile search opens the SearchOverlay.
 // ───────────────────────────────────────────────────────────
-// WHAT CHANGED:
-//   • Removed the duplicate mobile slide-down search bar
-//     (`app-header-search-mobile-bar`). It bound a SECOND GlassInput
-//     to the same `search.query()` signal as the desktop inline bar,
-//     so on desktop / tablet both inputs were mounted at once and
-//     ⌘K triggered a duplicate search bar to slide down BELOW the
-//     inline bar. The inline bar is now the single source of truth
-//     for search input on desktop; mobile users tap the search icon
-//     to navigate to /discover (which has its own search surface).
+// WHAT CHANGED (Phase 14 Chunk 5 fix):
+//   • The mobile search icon no longer navigates to /discover. It
+//     now calls `search.openSearch()` from the useGlobalSearch()
+//     hook, which sets `searchOpen = true` and triggers the
+//     SearchOverlay (rendered in AppShell) to mount. The overlay
+//     provides its own search input + results list, so mobile
+//     users get the same global search experience as desktop users
+//     without navigating away from the current page.
 //
-//   • Mobile search icon no longer toggles an overlay — it navigates
-//     to /discover. The toggle behaviour (search-open / search-close
-//     icon swap) was only there to drive the now-removed slide-down.
+//   • The SearchOverlay component was updated to render when
+//     `search.searchOpen()` is true (not just when `hasQuery()` is
+//     true). It now shows a search input field at the top so mobile
+//     users can type their query. The ⌘K desktop shortcut path is
+//     unchanged.
 //
-//   • Simplified the ⌘K handler — always focuses the desktop inline
-//     bar (no need to check `search.searchOpen()` since the overlay
-//     no longer exists).
-//
-//   • Removed `mobileSearchRef` and the createEffect that focused
-//     it — no mobile input to focus anymore.
+//   • There is NO duplication: on mobile, only the search icon
+//     button is visible (no inline bar). On desktop, only the
+//     inline search bar is visible (no icon button). Both paths
+//     drive the same SearchOverlay via the same search context.
 //
 // VISUAL STRUCTURE:
 //   MOBILE  (<1024px): [CINELOG] ........................ [🔍] [🔔]
-//                       (search icon → /discover)
+//                       (search icon → opens SearchOverlay)
 //
 //   DESKTOP (≥1024px): [CINELOG] [────── search ──────] [➕] [☁️] [🔔] [👤]
-//                       (inline expansive search bar)
+//                       (inline search bar → drives SearchOverlay via hasQuery)
 //
-// The breakpoint is 1024px (aligned with the desktop sidebar) — NOT
-// 640px as it was before. This prevents the "stretched mobile app"
-// feel on tablets where the desktop search bar showed without the
-// desktop sidebar.
+// The breakpoint is 1024px (aligned with the desktop sidebar).
 
 import {
   Show,
@@ -106,11 +103,15 @@ const SEARCH_CLEAR_BTN_STYLE: JSX.CSSProperties = {
  * AppHeader — sticky application header.
  *
  * MOBILE Layout  (<1024px): [CINELOG] .............. [🔍] [🔔]
- *   • Search icon navigates to /discover (no overlay).
+ *   • Search icon opens the global SearchOverlay (Phase 14 Chunk 5 fix).
+ *     The overlay renders its own search input + results, so users can
+ *     search from any page without navigating away.
  *   • BottomNavigation handles primary nav.
  *
  * DESKTOP Layout (≥1024px): [CINELOG] [search bar] [➕] [☁️] [🔔] [👤]
- *   • Inline expansive search bar (drives global SearchOverlay).
+ *   • Inline expansive search bar (drives global SearchOverlay via
+ *     `search.hasQuery()` — typing in the bar shows results in the
+ *     overlay below the header).
  *   • DesktopSidebar handles primary nav (left sidebar).
  *   • Quick Add + Cloud Sync + Avatar are desktop-only.
  *
@@ -164,12 +165,15 @@ const AppHeader: Component = () => {
     }
   };
 
-  // Mobile search icon — navigates to /discover where the full search
-  // experience lives. Previously this opened a slide-down overlay with
-  // its own GlassInput (the "dummy" duplicate search bar), which has
-  // been removed.
+  // Mobile search icon — opens the global SearchOverlay (Phase 14
+  // Chunk 5 fix). Previously this navigated to /discover, which was a
+  // jarring context switch (the user lost their place in the app).
+  // The overlay now renders its own search input + results list, so
+  // mobile users get the same global search experience as desktop
+  // users without leaving the current page. The overlay closes on
+  // Escape or on result click (handled by SearchOverlay itself).
   const handleMobileSearchClick = () => {
-    navigate("/discover");
+    search.openSearch();
   };
 
   const handleSearchSubmit = (e: Event) => {
@@ -278,7 +282,9 @@ const AppHeader: Component = () => {
           toggled by CSS at the 1024px breakpoint (see glass-system.css). */}
       <div class="flex items-center gap-1.5">
         {/* Mobile search icon — visible only on mobile/tablet (<1024px).
-            Navigates to /discover (no overlay). */}
+            Phase 14 Chunk 5 fix: opens the global SearchOverlay instead
+            of navigating to /discover. The overlay renders its own
+            search input + results list. */}
         <GlassIconButton
           class="app-header__search-mobile"
           variant="secondary"

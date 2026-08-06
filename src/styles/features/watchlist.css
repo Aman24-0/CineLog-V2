@@ -264,9 +264,27 @@
    — these force a full repaint of the card on every frame. With many
    timeline cards visible at once this caused 570ms+ render blocks on
    hover/scroll. Background/border/shadow now change instantly on hover
-   (still visible, just not animated). */
+   (still visible, just not animated).
+
+   PHASE 14 CHUNK 5 FIX — AMBIENT GLASS AESTHETIC
+   ------------------------------------------------------------
+   Previously used solid var(--tier-2) (#12121b) which blocked the
+   ambient blobs from bleeding through — the timeline view read as a
+   stack of solid black slabs, visually disconnected from the rest of
+   the redesigned app. Now uses var(--glass-bg) (rgba(15,15,22,0.45))
+   so the vibrant ambient field bleeds through each card.
+
+   NO backdrop-filter is applied here. The timeline can render 100+
+   cards at once; adding a per-card blur would re-introduce the
+   performance regression fixed in the .glass-card override
+   (see glass-system.css). The ambient blobs are large + soft enough
+   that the translucent tint alone reads as "frosted glass" against
+   them. The .timeline-card class is applied alongside <GlassCard>
+   in VaultCard.tsx — the GlassCard component supplies the structural
+   glass treatment, this rule layers the timeline-specific visual
+   identity on top. */
 .timeline-card {
-  background: var(--tier-2);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline);
   border-radius: var(--radius-lg);
   box-shadow:
@@ -292,7 +310,7 @@
   box-shadow: 0 0 8px var(--p-glow);
 }
 .timeline-card:hover {
-  background: var(--tier-3);
+  background: var(--glass-bg-strong);
   border-color: var(--hairline-3);
   box-shadow:
     var(--shadow-elevated),
@@ -620,14 +638,18 @@
   background: var(--p-dim);
 }
 
-/* Glass filter button */
+/* Glass filter button — Phase 14 Chunk 5 fix:
+   base background uses var(--glass-bg) so the ambient bleeds through
+   the pill when no filter is active. Hover bumps to the stronger
+   --glass-bg-strong. No backdrop-filter here — the pill is small and
+   sits on the sticky watchlist-header which already has its own blur. */
 .filter-button {
   display: inline-flex;
   align-items: center;
   gap: 0.5rem;
   padding: 0.5rem 1rem;
   border-radius: var(--radius-pill);
-  background: var(--tier-1);
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
   color: var(--text-soft);
   font-family: "Azeret Mono", monospace;
@@ -644,7 +666,7 @@
     transform var(--dur-fast) var(--ease-spring);
 }
 .filter-button:hover {
-  background: var(--tier-2);
+  background: var(--glass-bg-strong);
   border-color: var(--hairline-3);
   color: var(--text-strong);
 }
@@ -652,17 +674,38 @@
   transform: scale(0.95);
 }
 .filter-button[data-active="true"] {
-  background: var(--active-bg);
-  border-color: var(--active-border);
-  color: var(--active-text);
-  box-shadow: var(--active-glow);
+  /* Phase 14 Chunk 5 fix — use a SUBTLE ACCENT TINT + ACCENT TEXT
+     instead of a solid accent fill + theme-dependent white/dark text.
+     The previous rule used `var(--active-bg)` (= var(--p), a solid
+     accent fill) + `var(--active-text)` which is #ffffff on the
+     Cyberpunk + Crimson themes. White text on a translucent glass
+     background (when the solid accent fill didn't apply for any
+     reason) caused the visibility issue reported in the audit.
+
+     The new treatment adapts to ALL themes consistently:
+       • background: var(--p-dim) — a ~10% accent tint that reads
+         as "selected" without overpowering the ambient field.
+       • border-color: var(--p-border) — a 40% accent border that
+         frames the button clearly.
+       • color: var(--p) — the accent color itself for the text.
+         Always readable against the dark glass background because
+         the accent is by definition a high-saturation, high-luminance
+         color (#e8b74a gold, #a855f7 purple, #22d3ee cyan, etc.).
+       • box-shadow: accent glow + inset border for depth. */
+  background: var(--p-dim);
+  border-color: var(--p-border);
+  color: var(--p);
+  box-shadow:
+    0 0 12px var(--p-glow),
+    inset 0 0 0 1px var(--p-border);
   font-weight: 800;
 }
 .filter-button[data-active="true"]:hover {
-  background: var(--active-bg);
-  color: var(--active-text);
+  background: var(--p-hover);
+  color: var(--p);
   box-shadow:
-    var(--active-glow),
+    0 0 16px var(--p-glow),
+    inset 0 0 0 1px var(--p-border),
     0 4px 16px rgba(0, 0, 0, 0.4);
 }
 

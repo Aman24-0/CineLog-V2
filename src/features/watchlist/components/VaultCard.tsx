@@ -12,7 +12,11 @@ import { GlassCard } from "~/shared/ui/glass";
 // 100+ rows). Extracting these static styles keeps mount allocations
 // to a minimum.
 const POSTER_THUMB_STYLE: JSX.CSSProperties = {
-  background: "var(--tier-3)",
+  // Phase 14 Chunk 5 fix — use glass-bg so the poster thumbnail's
+  // letterbox area (visible when the poster fails to load or while
+  // loading) blends with the ambient field instead of reading as a
+  // solid black slab.
+  background: "var(--glass-bg)",
   "box-shadow": "var(--shadow-premium)"
 };
 const POSTER_FALLBACK_ICON_STYLE: JSX.CSSProperties = {
