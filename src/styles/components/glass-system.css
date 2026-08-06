@@ -984,6 +984,81 @@
 }
 
 /* ============================================================
+   PHASE 14 CHUNK 5 FIX — PERFORMANCE: NO BLUR ON REPEATED CARDS
+   ============================================================
+
+   ─────────────────────────────────────────────────────────────────────
+   PROBLEM
+   ─────────────────────────────────────────────────────────────────────
+   The GlassCard component (src/shared/ui/glass/GlassCard.tsx) applies
+   `bg-glass backdrop-blur-xl` (Tailwind utility = `backdrop-filter:
+   blur(24px)`) on every card via its variantClasses map. MovieCard
+   uses <GlassCard variant="glass">, so EVERY poster in the Discover
+   grid, Vault grid, Collections grid, Search results, etc. was
+   running its own backdrop-filter: blur(24px). With 100+ cards
+   visible on a typical page, that's 100+ separate GPU textures that
+   must be re-composited on every scroll frame — devastating scroll
+   FPS and INP on mid-range hardware, and noticeable even on desktop
+   GPUs.
+
+   ─────────────────────────────────────────────────────────────────────
+   FIX
+   ─────────────────────────────────────────────────────────────────────
+   Disable `backdrop-filter` entirely on `.glass-card` (the marker
+   class GlassCard applies to its root element). The translucent
+   background color (`var(--glass-bg)` = rgba(15, 15, 22, 0.45))
+   is KEPT — the card still reads as "frosted glass" against the
+   AmbientBackground blob field, just without the expensive per-card
+   GPU blur pass.
+
+   `!important` is required because the Tailwind `backdrop-blur-xl`
+   utility is also a single-class selector (specificity 0, 1, 0),
+   and the cascade would otherwise pick whichever rule comes last
+   — fragile across @layer ordering changes. `!important` makes the
+   override deterministic regardless of import order or future
+   refactors.
+
+   The `:hover` clause also catches the `hover:backdrop-blur-2xl`
+   class that GlassCard adds when `interactive` is true — we don't
+   want blur re-enabled on hover either, since hover happens
+   frequently during scroll on touch devices (touch hover sticks
+   until next tap).
+
+   ─────────────────────────────────────────────────────────────────────
+   SCOPE — WHAT KEEPS ITS BLUR
+   ─────────────────────────────────────────────────────────────────────
+   This rule ONLY affects elements with the `.glass-card` marker
+   class (i.e., GlassCard component instances — poster cards,
+   dashboard cards, list rows). The following surfaces KEEP their
+   backdrop-filter blur because they DON'T use `.glass-card`:
+
+     • App-level chrome — .app-header-glass (AppHeader.tsx), the
+       admin sidebar/topbar (AdminShell.tsx applies
+       `bg-glass backdrop-blur-xl` directly via Tailwind, NOT via
+       GlassCard), .bottom-nav-glass, .desktop-sidebar.
+     • Large modal/sheet surfaces — .sheet-glass-surface,
+       .modal-glass-surface, .glass-sheet-surface-premium,
+       .glass-panel. These represent one large GPU surface per
+       viewport (amortized cost) instead of 100+ small ones.
+     • Small chrome chips — .glass-chip, .glass-tab,
+       .glass-input-wrapper (excluded by the existing
+       `[class*="bg-glass"]:not(...)` rule on line 413).
+
+   The cost/benefit math: a single 24px blur on a 1280×800 header
+   is one texture; a 24px blur on 100 individual 200×300 cards is
+   100 textures, each of which must be re-composited when the
+   scroll position changes. The header blur amortizes; the card
+   blur multiplies.
+   ============================================================ */
+.glass-card,
+.glass-card:hover,
+.glass-card.glass-card-interactive:hover,
+.glass-card[class*="hover:"]:hover {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+
+/* ============================================================
    RATING CHIPS — premium glass treatment
    ============================================================ */
 

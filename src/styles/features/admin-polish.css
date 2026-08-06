@@ -37,31 +37,48 @@
  *  10. Prefers-reduced-motion override — disable ALL admin
  *      animations when the user has reduced motion enabled.
  *  11. Phase 14 Chunk 5 — Ambient glass stacking-context guarantee:
- *      lift every direct child of .admin-shell EXCEPT the
- *      .ambient-background layer to z-index: 1 so the vibrant blob
- *      field never paints over admin chrome.
+ *      lift ONLY the static .admin-main sibling above the .ambient-
+ *      background layer (z-index: 0) so the page content paints
+ *      above the vibrant blob field. Positioned chrome (.admin-
+ *      sidebar, .admin-topbar, .admin-hamburger, .admin-sidebar-
+ *      overlay, .admin-skip-link) already have explicit z-index
+ *      values and are intentionally NOT touched by this rule —
+ *      Chunk 5 fix prevents the broad `> *:not()` selector from
+ *      clobbering their `position: fixed`/`sticky` utilities.
  */
 
 /* ─── 11. Ambient glass stacking-context guarantee ───────────────
  * Phase 14 Chunk 5 — Admin Ambient Glass Migration.
+ * Phase 14 Chunk 5 FIX — scoped rule to avoid clobbering chrome.
  *
- * The admin-shell wrapper now mounts <AmbientBackground /> as its
- * first child (mirrors the consumer AppShell pattern). The ambient
- * layer is `position: fixed; z-index: 0` — it paints behind all
- * statically-positioned siblings by default. But several admin
- * chrome elements ARE positioned (sidebar is `position: fixed`,
- * topbar is `position: sticky`, hamburger is `position: fixed`).
+ * The admin-shell wrapper mounts <AmbientBackground /> as its first
+ * child. The ambient layer is `position: fixed; z-index: 0` — it
+ * paints above statically-positioned block-level siblings by default
+ * (positioned z-index:0 elements paint in layer 6 of the stacking
+ * order, while static blocks paint in layer 3). We therefore need
+ * to lift ONLY the static sibling — .admin-main — to z-index: 1 so
+ * the page content paints above the ambient blob field.
  *
- * To make the layering unambiguous regardless of DOM order or
- * future refactors, we explicitly lift every direct child of
- * .admin-shell EXCEPT .ambient-background to z-index: 1. This is
- * a defensive rule — without it the current code already works,
- * but the moment someone adds a new chrome element with
- * `position: relative` and forgets z-index, the ambient blob
- * would paint over it. Belt and suspenders, mirroring the
- * `.app-shell-bg > *:not(.ambient-background)` rule in
- * components/ambient-background.css. */
-.admin-shell > *:not(.ambient-background) {
+ * WHY NOT `> *:not(.ambient-background)`?
+ *   The original Chunk 5 rule used a broad child selector that
+ *   forced EVERY direct child of .admin-shell to
+ *   `position: relative; z-index: 1`. That rule has CSS specificity
+ *   (0, 2, 0) — it silently OVERRODE the Tailwind `fixed`/`sticky`/
+ *   `lg:sticky` utilities (specificity 0, 1, 0) on .admin-sidebar,
+ *   .admin-hamburger, and .admin-sidebar-overlay. The sidebar that
+ *   should be `position: fixed` (mobile off-canvas drawer) and
+ *   `position: sticky` (desktop sidebar) was forced to
+ *   `position: relative`, which broke the entire admin layout
+ *   (sidebar took up flex space, sticky topbar no longer stuck,
+ *   off-canvas drawer no longer slid over content).
+ *
+ * The fix is to target ONLY .admin-main — the one static sibling
+ * that actually needs the lift. The positioned chrome elements
+ * (.admin-sidebar at z-50, .admin-topbar at z-30, .admin-hamburger
+ * at z-[60], .admin-sidebar-overlay at z-40, .admin-skip-link at
+ * z-100) already have their own explicit z-index values that place
+ * them above the ambient; this rule does not touch them. */
+.admin-shell > .admin-main {
   position: relative;
   z-index: 1;
 }
