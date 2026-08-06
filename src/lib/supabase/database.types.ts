@@ -1468,6 +1468,59 @@ export type Database = {
         };
         Relationships: [];
       };
+      // ─── Phase 12 Chunk 2 — OAuth tokens for third-party providers ──
+      // Stores per-user OAuth access + refresh tokens for providers
+      // like Trakt. RLS is owner-only — the browser NEVER sees the
+      // token values; only the server (via the service-role client)
+      // reads them when proxying API calls. UNIQUE (user_id, provider)
+      // is enforced at the DB level so re-connecting upserts.
+      user_integrations: {
+        Row: {
+          id: string;
+          user_id: string;
+          provider: string;
+          access_token: string;
+          refresh_token: string | null;
+          provider_user_id: string | null;
+          provider_email: string | null;
+          expires_at: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          provider: string;
+          access_token: string;
+          refresh_token?: string | null;
+          provider_user_id?: string | null;
+          provider_email?: string | null;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          provider?: string;
+          access_token?: string;
+          refresh_token?: string | null;
+          provider_user_id?: string | null;
+          provider_email?: string | null;
+          expires_at?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: "user_integrations_user_id_fkey";
+            columns: ["user_id"];
+            isOneToOne: false;
+            referencedRelation: "profiles";
+            referencedColumns: ["id"];
+          }
+        ];
+      };
     };
     Views: {
       [_ in never]: never;
