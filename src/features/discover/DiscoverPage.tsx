@@ -95,6 +95,10 @@ import PageContainer from "~/shared/ui/PageContainer";
 import ScrollToTop from "~/shared/ui/ScrollToTop";
 import { useDiscoverTaste } from "./hooks/useDiscoverTaste";
 import { useSpotlight } from "./hooks/useSpotlight";
+// Phase 14 — Ambient Cinematic UI: reactive palette extraction for
+// the AmbientBackground. Watches the Spotlight pick and pushes a
+// 3-color palette to --ambient-color-* CSS variables on :root.
+import { useAmbientPalette } from "./hooks/useAmbientPalette";
 import { useDiscoverFeeds } from "./hooks/useDiscoverFeeds";
 import {
   usePersonalizedDiscover,
@@ -165,6 +169,17 @@ export default function DiscoverPage() {
     shuffle: shuffleSpotlight,
     retry: retrySpotlight
   } = useSpotlight({ taste, vault: watchlist, userId, authReady });
+
+  // Phase 14 — Ambient Cinematic UI: extract a 3-color palette from
+  // the Spotlight pick's backdrop and push it to the --ambient-color-*
+  // CSS variables on :root. The AmbientBackground (mounted in
+  // AppShell) reads these vars and morphs its blobs to match the
+  // Spotlight movie's palette. When the user shuffles or the daily
+  // rotation fires, the palette updates and the background smoothly
+  // transitions to the new colors over 1.5s. See
+  // src/features/discover/hooks/useAmbientPalette.ts for the full
+  // design (caching, SSR safety, failure-mode handling).
+  useAmbientPalette(spotlightPick);
 
   const feeds = useDiscoverFeeds(region);
   const { handleOpenTitle, addToVault, handleLogin } = useDiscoverActions({

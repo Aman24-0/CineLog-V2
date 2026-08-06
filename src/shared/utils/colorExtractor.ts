@@ -453,3 +453,251 @@ function rgbToHex(r: number, g: number, b: number): string {
 
 /** The fallback color used when extraction fails. */
 export const DYNAMIC_ACCENT_FALLBACK = FALLBACK_COLOR;
+
+// ─── Palette extraction (Phase 14 — Ambient Cinematic UI) ──────────
+//
+// extractPalette() returns up to `count` visually-distinct vibrant
+// colors from a single image, ranked by vibrancy score. It reuses the
+// same pixel-sampling + 6×6×6 quantization + HSL scoring pipeline as
+// extractDominantColor(), but instead of returning only the top bucket
+// it returns the top N buckets after deduping by hue.
+//
+// HUE DEDUP: two buckets whose average hues are within `HUE_DEDUP_THRESHOLD`
+// (0.12 on a 0-1 hue wheel ≈ 43°) are considered the "same color family"
+// and only the higher-scoring one is kept. This prevents the palette
+// from being three slightly-different shades of the same orange.
+//
+// GUARANTEES:
+//   • Always returns exactly `count` colors (default 3). If the image
+//     has fewer distinct vibrant buckets, the remaining slots are
+//     filled with FALLBACK_COLOR (#FFD700) so callers can destructure
+//     the result without bounds-checking.
+//   • Each color is run through adjustForVisibility() so it's visible
+//     on a dark theme (saturation ≥ 0.55, lightness in [0.5, 0.7]).
+//   • SSR-safe, CORS-safe, timeout-safe — same edge-case handling as
+//     extractDominantColor().
+
+/** Two hues within this distance (on a 0-1 wheel) are treated as the
+ *  same color family. 0.12 ≈ 43° — wide enough to keep "red" and
+ *  "orange" separate, narrow enough to collapse "warm orange" and
+ *  "warm orange slightly more saturated" into one entry. */
+const HUE_DEDUP_THRESHOLD = 0.12;
+
+/**
+ * Extract up to `count` visually-distinct vibrant colors from an image.
+ *
+ * @param imageUrl - The image URL (must allow CORS, or set crossOrigin)
+ * @param count    - How many distinct colors to return (default 3).
+ * @returns Promise<string[]> - Array of hex color strings, length
+ *          exactly `count`. Slots that couldn't be filled from the
+ *          image are populated with FALLBACK_COLOR.
+ *
+ * Returns an array of `count` FALLBACK_COLOR values if:
+ *   - We're in an SSR environment (no document/canvas)
+ *   - The image URL is empty / null / whitespace
+ *   - The image fails to load (CORS, 404, network error, timeout)
+ *   - The image is too small to sample (0×0)
+ *   - The canvas is tainted (CORS failed silently on a redirect)
+ *   - No valid pixels are found (all-transparent, all-black, all-white)
+ */
+export async function extractPalette(
+  imageUrl: string,
+  count: number = 3
+): Promise<string[]> {
+  // Clamp count to [1, 6] — more than 6 distinct buckets is rare in a
+  // 96×96 sample and the extra slots just slow the canvas read.
+  const target = Math.max(1, Math.min(6, Math.floor(count)));
+
+  // SSR guard — bail out if we're not in a browser.
+  if (typeof document === "undefined" || typeof Image === "undefined") {
+    return Array.from({ length: target }, () => FALLBACK_COLOR);
+  }
+
+  // Skip empty / null URLs.
+  if (!imageUrl || imageUrl.trim().length === 0) {
+    return Array.from({ length: target }, () => FALLBACK_COLOR);
+  }
+
+  try {
+    const img = await loadImageWithCORS(imageUrl);
+
+    if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+      console.warn(
+        "[colorExtractor.extractPalette] Image has zero dimensions, falling back to",
+        FALLBACK_COLOR,
+        "— URL:",
+        imageUrl
+      );
+      return Array.from({ length: target }, () => FALLBACK_COLOR);
+    }
+
+    const SAMPLE_SIZE = 96;
+    const canvas = document.createElement("canvas");
+    canvas.width = SAMPLE_SIZE;
+    canvas.height = SAMPLE_SIZE;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true });
+    if (!ctx) {
+      return Array.from({ length: target }, () => FALLBACK_COLOR);
+    }
+
+    ctx.drawImage(img, 0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+
+    let imageData: ImageData;
+    try {
+      imageData = ctx.getImageData(0, 0, SAMPLE_SIZE, SAMPLE_SIZE);
+    } catch (securityErr) {
+      console.warn(
+        "[colorExtractor.extractPalette] Canvas is tainted (CORS failure),",
+        "falling back to",
+        FALLBACK_COLOR,
+        "— URL:",
+        imageUrl,
+        "— error:",
+        securityErr
+      );
+      return Array.from({ length: target }, () => FALLBACK_COLOR);
+    }
+
+    return findVibrantPalette(imageData.data, target);
+  } catch (err) {
+    console.warn(
+      "[colorExtractor.extractPalette] Failed to extract palette:",
+      err,
+      "— falling back to",
+      FALLBACK_COLOR,
+      "— URL:",
+      imageUrl
+    );
+    return Array.from({ length: target }, () => FALLBACK_COLOR);
+  }
+}
+
+/**
+ * Find the top `target` visually-distinct vibrant colors in a pixel
+ * buffer. Reuses the same 6×6×6 quantization + HSL scoring as
+ * findVibrantColor(), but ranks ALL buckets and dedupes by hue.
+ */
+function findVibrantPalette(
+  pixels: Uint8ClampedArray,
+  target: number
+): string[] {
+  // Reuse the same Bucket type as findVibrantColor().
+  interface Bucket {
+    sumR: number;
+    sumG: number;
+    sumB: number;
+    count: number;
+    sumSat: number;
+    sumLight: number;
+    sumHue: number;
+  }
+  const buckets = new Map<number, Bucket>();
+  const quantize = (c: number): number => Math.min(5, Math.floor(c / 43));
+
+  for (let i = 0; i < pixels.length; i += 4) {
+    const r = pixels[i];
+    const g = pixels[i + 1];
+    const b = pixels[i + 2];
+    const a = pixels[i + 3];
+
+    if (a < 125) continue;
+    const avg = (r + g + b) / 3;
+    if (avg < 25 || avg > 240) continue;
+
+    const rBucket = quantize(r);
+    const gBucket = quantize(g);
+    const bBucket = quantize(b);
+    const bucketKey = rBucket * 36 + gBucket * 6 + bBucket;
+
+    const hsl = rgbToHsl(r, g, b);
+    const existing = buckets.get(bucketKey);
+    if (existing) {
+      existing.sumR += r;
+      existing.sumG += g;
+      existing.sumB += b;
+      existing.count += 1;
+      existing.sumSat += hsl[1];
+      existing.sumLight += hsl[2];
+      existing.sumHue += hsl[0];
+    } else {
+      buckets.set(bucketKey, {
+        sumR: r,
+        sumG: g,
+        sumB: b,
+        count: 1,
+        sumSat: hsl[1],
+        sumLight: hsl[2],
+        sumHue: hsl[0]
+      });
+    }
+  }
+
+  if (buckets.size === 0) {
+    return Array.from({ length: target }, () => FALLBACK_COLOR);
+  }
+
+  // Score every bucket and sort descending.
+  const scored: Array<{
+    avgHue: number;
+    avgSat: number;
+    avgLight: number;
+    avgR: number;
+    avgG: number;
+    avgB: number;
+    score: number;
+  }> = [];
+
+  for (const bucket of buckets.values()) {
+    if (bucket.count === 0) continue;
+    const avgSat = bucket.sumSat / bucket.count;
+    const avgLight = bucket.sumLight / bucket.count;
+    const lightnessFactor =
+      4 * avgLight * (1 - avgLight) * (1 - Math.abs(avgLight - 0.55) * 0.5);
+    const satFactor = Math.min(1, avgSat / 0.7);
+    const score =
+      bucket.count *
+      Math.max(0.15, satFactor) *
+      Math.max(0.1, lightnessFactor);
+
+    scored.push({
+      avgHue: bucket.sumHue / bucket.count,
+      avgSat,
+      avgLight,
+      avgR: bucket.sumR / bucket.count,
+      avgG: bucket.sumG / bucket.count,
+      avgB: bucket.sumB / bucket.count,
+      score
+    });
+  }
+
+  scored.sort((a, b) => b.score - a.score);
+
+  // Greedy hue-dedup: walk the sorted list and keep a color only if
+  // its hue is at least HUE_DEDUP_THRESHOLD away from every color
+  // we've already kept. This is O(kept × candidates) which is fine
+  // because `kept` ≤ `target` ≤ 6.
+  const kept: typeof scored = [];
+  for (const candidate of scored) {
+    if (kept.length >= target) break;
+    const tooClose = kept.some((c) => {
+      // Hue is circular — compute the shorter arc distance.
+      const d = Math.abs(candidate.avgHue - c.avgHue);
+      const circularDist = Math.min(d, 1 - d);
+      return circularDist < HUE_DEDUP_THRESHOLD;
+    });
+    if (!tooClose) kept.push(candidate);
+  }
+
+  // Adjust each kept color for visibility and convert to hex. If we
+  // didn't find `target` distinct colors, pad with FALLBACK_COLOR so
+  // callers can destructure without bounds-checking.
+  const result: string[] = kept.map((c) =>
+    adjustForVisibility(
+      Math.round(c.avgR),
+      Math.round(c.avgG),
+      Math.round(c.avgB)
+    )
+  );
+  while (result.length < target) result.push(FALLBACK_COLOR);
+  return result;
+}

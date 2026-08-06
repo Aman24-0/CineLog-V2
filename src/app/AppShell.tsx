@@ -15,6 +15,12 @@ import AuthModal from "~/shared/ui/AuthModal";
 import AnnouncementsBanner from "~/shared/ui/AnnouncementsBanner";
 import DesktopSidebar from "~/shared/ui/DesktopSidebar";
 import DesktopUtilityPanel from "~/shared/ui/DesktopUtilityPanel";
+// Phase 14 — Ambient Cinematic UI: the multi-color frosted glass
+// background. Mounted ONCE inside the consumer wrapper so it persists
+// across all consumer route changes (Discover → Watchlist → Profile).
+// Admin and Landing routes do NOT mount it (their wrappers keep solid
+// --void). See src/shared/ui/AmbientBackground.tsx for the full design.
+import AmbientBackground from "~/shared/ui/AmbientBackground";
 import { useModalState } from "~/shared/hooks/useModalState";
 import { useCollectionModal } from "~/shared/hooks/useCollectionModal";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
@@ -142,10 +148,21 @@ const AppShell: ParentComponent = (props) => {
               style={{
                 "padding-bottom":
                   "calc(var(--nav-total-height) + var(--nav-float-margin, 1rem) + 0.5rem)",
-                background: "var(--void)",
+                // Phase 14: switched from solid --void to translucent
+                // --void-ambient so the AmbientBackground blobs show
+                // through. Solid --void is still used by body + admin +
+                // landing routes where the ambient is hidden.
+                background: "var(--void-ambient)",
                 color: "var(--text)"
               }}
             >
+              {/* Phase 14 — AmbientBackground: fixed, full-viewport,
+                  non-interactive multi-color blob layer. MUST be the
+                  first child so it paints below all chrome. Its
+                  position:fixed + z-index:0 means it never participates
+                  in flow and never intercepts clicks. */}
+              <AmbientBackground />
+
               {/* Skip link (WCAG 2.4.1 — Bypass Blocks). First focusable
                   element in the DOM so keyboard users land on it before
                   the header. Visually hidden until focused (CSS in

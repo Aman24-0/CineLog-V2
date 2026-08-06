@@ -1,0 +1,268 @@
+/* src/styles/components/ambient-background.css
+   ──────────────────────────────────────────────────────────────────
+   Phase 14 — Ambient Cinematic UI Redesign (Chunk 1: The Ambient Engine)
+   ──────────────────────────────────────────────────────────────────
+   Replaces the flat #0a0a0a void with a premium, dynamic, multi-color
+   frosted glass ambient background — inspired by DULO.TV and Apple TV.
+
+   DESIGN PHILOSOPHY
+   ─────────────────
+   Three large, blurred radial-gradient blobs slowly drift across the
+   screen. Their colors are driven by CSS variables (--ambient-color-1/2/3)
+   that the Discover page updates reactively from the Spotlight movie's
+   backdrop palette. When the Spotlight changes, the blobs morph to the
+   new palette over 1.5s — the background feels alive and content-aware.
+
+   PERFORMANCE CONTRACT
+   ────────────────────
+   • 100% CSS-driven animation. NO JS rAF loops, NO JS gradient tweening.
+   • Animations use `transform: translate3d(...)` (GPU-composited) and
+     `will-change: transform`. The blobs are painted once and then
+     moved by the compositor — zero per-frame layout/paint cost.
+   • `filter: blur()` is the only expensive property, and it's static
+     (the blur radius never animates), so the browser caches the
+     blurred texture on the GPU.
+   • On mobile (max-width: 768px), blur radius is halved (80px → 40px)
+     and `will-change` is dropped — mobile GPUs struggle with large
+     blurred layers and `will-change` doubles the GPU memory cost.
+   • `prefers-reduced-motion: reduce` disables the float animation
+     entirely (accessibility — the blobs become a static gradient).
+
+   LAYER CAKE
+   ──────────
+     z-index: 0  → .ambient-background (this file)
+     z-index: 1+ → all app chrome (header, main, bottom nav, modals)
+   The AppShell consumer wrapper has `background: var(--void-ambient)`
+   (rgba(10,10,16,0.82)) — translucent enough for the blobs to show
+   through, opaque enough to keep text contrast above WCAG AA.
+
+   The .ambient-background element itself is `position: fixed; inset: 0;
+   pointer-events: none` — it never intercepts clicks, never causes
+   horizontal scroll, and never reflows on resize.
+*/
+
+@layer components {
+  /* The root container. Fixed, full-viewport, behind everything.
+     `pointer-events: none` so it never blocks interaction.
+     `z-index: 0` so app chrome (which is `z-index: 1+` via the
+     AppShell wrapper's stacking context) paints on top.
+     `contain: paint` tells the browser the element's contents don't
+     affect layout outside it — lets the compositor skip work on
+     scroll. */
+  .ambient-background {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+    overflow: hidden;
+    contain: paint;
+    /* The base tint — a near-black with a faint blue undertone that
+       reads as "cinematic" rather than "dead black". This sits ABOVE
+       the body's solid --void so unmounted areas still look right. */
+    background: #06060a;
+  }
+
+  /* Phase 14 — Stacking-context guarantee.
+     The AppShell consumer wrapper (.app-shell-bg) creates a stacking
+     context (it has `inert` toggling + inline styles). Inside it,
+     AmbientBackground is `position: fixed; z-index: 0`. All sibling
+     chrome (AppHeader, main, BottomNavigation, etc.) is statically
+     positioned by default, which means it would paint in DOM order
+     — and since AmbientBackground is the FIRST child, the chrome
+     already paints on top.
+
+     However, several chrome elements ARE positioned (DesktopSidebar
+     is `position: fixed; top: 0`, BottomNavigation is `position:
+     fixed; bottom: 0`, modals use Portal which escapes the wrapper).
+     To make the layering unambiguous regardless of DOM order or
+     future refactors, we explicitly lift every direct child of
+     .app-shell-bg EXCEPT .ambient-background to z-index: 1.
+
+     This is a defensive rule — without it the current code already
+     works, but the moment someone adds a new chrome element with
+     `position: relative` and forgets z-index, the ambient blob
+     would paint over it. Belt and suspenders. */
+  .app-shell-bg > *:not(.ambient-background) {
+    position: relative;
+    z-index: 1;
+  }
+
+  /* ─── The three blobs ────────────────────────────────────────────
+     Each blob is a radial gradient that fades to transparent at the
+     edge. The colors come from CSS variables so the Discover page
+     can swap them reactively.
+
+     Position / size / animation differ per blob so they never sync:
+       • blob-1: top-left,  60vw square, 40s float
+       • blob-2: top-right, 50vw square, 55s float (reverse direction)
+       • blob-3: bottom-center, 70vw square, 70s float
+     The differing durations (40/55/70s — prime-ish ratios) mean the
+     blobs never realign to the same position, so the background
+     never "loops" visibly. */
+
+  .ambient-blob {
+    position: absolute;
+    border-radius: 50%;
+    /* `will-change: transform` promotes the blob to its own GPU layer
+       so the float animation doesn't trigger layout/paint on the
+       parent. Dropped on mobile (see media query below). */
+    will-change: transform;
+    /* The blur is what makes the blob feel "frosted". 80px on desktop,
+       40px on mobile. Static — never animated — so the GPU caches the
+       blurred texture. */
+    filter: blur(80px);
+    /* Smooth color morph when the CSS variables change (e.g. when the
+       Spotlight movie changes and the Discover page pushes new colors
+       to --ambient-color-1/2/3). 1.5s ease-out matches the Spotlight
+       reroll crossfade so the background and hero transition together. */
+    transition: background 1.5s ease-out;
+    /* Opacity < 1 so the blobs blend rather than overpower. Even at
+       0.55, three overlapping blobs saturate the visible area. */
+    opacity: 0.55;
+    /* `mix-blend-mode: screen` makes overlapping blobs ADD light
+       rather than muddy it — two warm blobs overlapping create a
+       brighter warm, not a brown. This is the key to the "alive"
+       feel — the colors mix like light, not paint. */
+    mix-blend-mode: screen;
+  }
+
+  .ambient-blob-1 {
+    /* Top-left blob — the primary accent. */
+    top: -10vh;
+    left: -10vw;
+    width: 60vw;
+    height: 60vw;
+    background: radial-gradient(
+      circle at center,
+      var(--ambient-color-1) 0%,
+      transparent 70%
+    );
+    animation: ambient-float-1 40s ease-in-out infinite;
+  }
+
+  .ambient-blob-2 {
+    /* Top-right blob — the secondary accent. Offset from blob-1 so
+       their bright centers don't overlap (which would oversaturate). */
+    top: -15vh;
+    right: -15vw;
+    width: 50vw;
+    height: 50vw;
+    background: radial-gradient(
+      circle at center,
+      var(--ambient-color-2) 0%,
+      transparent 70%
+    );
+    animation: ambient-float-2 55s ease-in-out infinite;
+  }
+
+  .ambient-blob-3 {
+    /* Bottom-center blob — the tertiary accent, larger and slower so
+       it feels like the "base" the other two float over. */
+    bottom: -20vh;
+    left: 20vw;
+    width: 70vw;
+    height: 70vw;
+    background: radial-gradient(
+      circle at center,
+      var(--ambient-color-3) 0%,
+      transparent 70%
+    );
+    animation: ambient-float-3 70s ease-in-out infinite;
+  }
+
+  /* ─── Keyframes ──────────────────────────────────────────────────
+     Each blob gets its own keyframe with a different path. The
+     translate3d values are deliberately small (≤ 12% of viewport)
+     so the blobs drift "subtly" rather than slide across the screen.
+     Large motions would be distracting; small motions read as
+     "breathing" — the background feels alive without demanding
+     attention.
+
+     All three axes are animated (X + Y + slight Z via scale) so the
+     motion never feels mechanical (a single-axis float reads as a
+     "scrolling marquee"). The scale change (0.95 ↔ 1.05) makes the
+     blobs grow and shrink slightly, simulating a slow pulse. */
+
+  @keyframes ambient-float-1 {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    33% {
+      transform: translate3d(8vw, 6vh, 0) scale(1.05);
+    }
+    66% {
+      transform: translate3d(-4vw, 10vh, 0) scale(0.97);
+    }
+  }
+
+  @keyframes ambient-float-2 {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    33% {
+      transform: translate3d(-10vw, 8vh, 0) scale(0.95);
+    }
+    66% {
+      transform: translate3d(6vw, -4vh, 0) scale(1.05);
+    }
+  }
+
+  @keyframes ambient-float-3 {
+    0%,
+    100% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    33% {
+      transform: translate3d(5vw, -8vh, 0) scale(1.03);
+    }
+    66% {
+      transform: translate3d(-8vw, 4vh, 0) scale(0.97);
+    }
+  }
+}
+
+/* ─── Mobile: halve the blur, drop will-change ─────────────────────
+   Mobile GPUs have limited memory bandwidth. A 80px blur on a 60vw
+   element means the GPU has to keep a 60vw × 60vw texture with 80px
+   of border in VRAM — on a 390px-wide phone that's a 234×234 texture
+   per blob, × 3 blobs = ~165KB. Not catastrophic, but the will-change
+   hint DOUBLES that (the compositor pre-allocates a backing store).
+   On mobile we drop will-change and halve the blur — the visual
+   difference is barely perceptible but the memory + jank reduction
+   is significant on mid-range Android. */
+@media (max-width: 768px) {
+  .ambient-blob {
+    filter: blur(40px);
+    will-change: auto;
+    /* Slightly lower opacity on mobile — the smaller blur means the
+       colors are more concentrated, so we compensate by dimming. */
+    opacity: 0.45;
+  }
+}
+
+/* ─── Reduced motion: freeze the blobs ─────────────────────────────
+   Users with prefers-reduced-motion find slow drifting backgrounds
+   nauseating. We freeze the blobs at their starting position (the
+   `0%, 100%` keyframe state). The color morph (transition: background)
+   is KEPT because it's discrete (only fires on Spotlight change) and
+   communicates real state — it's not ambient motion. */
+@media (prefers-reduced-motion: reduce) {
+  .ambient-blob-1,
+  .ambient-blob-2,
+  .ambient-blob-3 {
+    animation: none;
+  }
+}
+
+/* ─── High-contrast: brighten the blobs ────────────────────────────
+   In forced-colors / high-contrast mode the user wants edges, not
+   ambient washes. We bump opacity to 0.8 so the colors are still
+   visible against the high-contrast background, but the blobs remain
+   non-interactive and behind content. */
+@media (prefers-contrast: more) {
+  .ambient-blob {
+    opacity: 0.8;
+  }
+}

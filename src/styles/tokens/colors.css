@@ -24,6 +24,26 @@
     --muted: rgba(240, 236, 226, 0.62);
     --dim: rgba(240, 236, 226, 0.5);
 
+    /* ─── Phase 14 — Ambient Cinematic UI ───────────────────────────
+       --void-ambient: a translucent version of --void used by the
+         AppShell consumer wrapper so the AmbientBackground blobs
+         show through. Solid --void is still used by body + admin +
+         landing routes where the ambient is hidden. The 0.82 alpha
+         is the sweet spot: high enough that text contrast stays
+         above WCAG AA on every tier, low enough that the blobs
+         read as "alive" rather than "muddy".
+
+       --ambient-color-1/2/3: the three blob colors. Defaults are
+         the CineLog brand palette (cinema gold + warm orange + cool
+         blue) so the ambient looks intentional even before the
+         Discover page extracts a content-aware palette. The Discover
+         page overrides these on :root via JS when the Spotlight
+         movie changes — see useAmbientPalette in DiscoverPage.tsx. */
+    --void-ambient: rgba(10, 10, 16, 0.82);
+    --ambient-color-1: #e8b74a; /* cinema gold (matches --p) */
+    --ambient-color-2: #ff6b35; /* warm orange (matches --p2) */
+    --ambient-color-3: #1e3a8a; /* cool blue (complementary) */
+
     /* ─── Semantic Color: Primary ─── */
     --color-primary: var(--p);
     --color-primary-secondary: var(--p2);
