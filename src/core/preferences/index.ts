@@ -70,6 +70,15 @@ export {
 // High contrast
 export { highContrast, setHighContrast } from "./highContrast";
 
+// Phase 14 Chunk 2 — Ambient intensity (Subtle / Normal / Vibrant).
+// Scales the opacity of the AmbientBackground blobs via a data-attribute
+// on <html>+<body> that drives the --ambient-intensity CSS var.
+export {
+  ambientIntensity,
+  setAmbientIntensity,
+  type AmbientIntensity
+} from "./ambientIntensity";
+
 // Language (UI + TMDB fallback)
 export {
   language,

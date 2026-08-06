@@ -19,6 +19,7 @@ const setters = vi.hoisted(() => ({
   setHideSpoilers: vi.fn(),
   setReducedMotion: vi.fn(),
   setHighContrast: vi.fn(),
+  setAmbientIntensity: vi.fn(),
   setLanguage: vi.fn(),
   setFallbackLanguage: vi.fn(),
   setDateFormat: vi.fn(),
@@ -44,6 +45,7 @@ const getters = vi.hoisted(() => ({
   dateFormat: vi.fn(() => "mdy"),
   reducedMotion: vi.fn(() => "always"),
   highContrast: vi.fn(() => true),
+  ambientIntensity: vi.fn(() => "vibrant"),
   language: vi.fn(() => "fr"),
   defaultVaultStatus: vi.fn(() => "Watching"),
   adultContentFilter: vi.fn(() => true),
@@ -90,6 +92,7 @@ vi.mock("~/core/preferences", () => ({
   dateFormat: getters.dateFormat,
   reducedMotion: getters.reducedMotion,
   highContrast: getters.highContrast,
+  ambientIntensity: getters.ambientIntensity,
   language: getters.language,
   defaultVaultStatus: getters.defaultVaultStatus,
   adultContentFilter: getters.adultContentFilter,
@@ -171,7 +174,7 @@ beforeEach(() => {
 // ---------------------------------------------------------------------------
 
 describe("resetSectionToDefaults — appearance", () => {
-  it("resets all 8 appearance preferences to their defaults", () => {
+  it("resets all 9 appearance preferences to their defaults", () => {
     expect(resetSectionToDefaults("appearance")).toBe(true);
     expect(setters.setThemeMode).toHaveBeenCalledWith("dark");
     expect(setters.setTheme).toHaveBeenCalledWith("cinematic");
@@ -181,6 +184,9 @@ describe("resetSectionToDefaults — appearance", () => {
     expect(setters.setHideSpoilers).toHaveBeenCalledWith(false);
     expect(setters.setReducedMotion).toHaveBeenCalledWith("system");
     expect(setters.setHighContrast).toHaveBeenCalledWith(false);
+    // Phase 14 Chunk 2 — ambientIntensity is part of the appearance
+    // section and resets to "normal" (the historical baseline).
+    expect(setters.setAmbientIntensity).toHaveBeenCalledWith("normal");
   });
 });
 

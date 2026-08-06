@@ -315,3 +315,68 @@ Stage Summary:
   • Cookie `Secure` attribute is HTTPS-conditional via a single shared `isRequestHttps(request)` helper — eliminates the localhost login bug without weakening production security.
   • Cron secret now strictly read from `current_setting(...)` — operators MUST set the GUC out-of-band. The migration is safe to run in any environment (skips scheduling with a NOTICE if GUCs are unset).
 - All 3 critical rules honored: (1) no new dependencies — used existing `bump_rate_limit` RPC, existing `crypto` module, existing `getAuthHeaders` helper; (2) no existing tests broken — 1412/1412 still pass; (3) SQL migrations are idempotent (`ADD COLUMN IF NOT EXISTS`, `CREATE INDEX IF NOT EXISTS`, no destructive ops).
+
+---
+Task ID: 14-c2
+Agent: main (Super Z)
+Task: Phase 14 Chunk 2 — True Frosted Glass & Appearance Settings
+
+Work Log:
+- Baseline verified: tsc → 0 errors; vitest → 55 files / 1412 tests pass.
+- Chunk 1 left the ambient background almost invisible: --void-ambient was 0.82 alpha (too opaque), blobs were at 0.55 opacity with no user control, and glass cards used 0.72 alpha + 24px blur (translucent panels, not true frosted glass).
+- Task 1 — Background opacity & vibrancy (colors.css):
+  • --void-ambient: rgba(10,10,16,0.82) → rgba(8,8,12,0.55). The wrapper now lets ~45% of the blob colors bleed through (vs ~18% before — 2.5x more visible).
+  • Added --ambient-intensity CSS var (default 0.7) so the AmbientBackground blobs can scale their opacity by a user preference.
+  • Added [data-ambient-intensity="subtle|normal|vibrant"] attribute selectors that set --ambient-intensity to 0.35 / 0.7 / 1.0.
+- Task 2 — Ambient blob opacity (ambient-background.css):
+  • .ambient-blob opacity: 0.55 → calc(0.7 * var(--ambient-intensity)). Base bumped to 0.7, multiplied by the user-controlled intensity var.
+  • Mobile opacity: 0.45 → calc(0.6 * var(--ambient-intensity)). Slightly lower base than desktop (smaller blur concentrates colors more).
+  • Added `transition: opacity 600ms ease-out` alongside the existing `background 1.5s ease-out` so toggling intensity feels smooth.
+  • prefers-contrast media query now sets --ambient-intensity: 1 (instead of the old hardcoded opacity: 0.8) so it respects the same calc() pipeline.
+- Task 3 — Frosted glass effect (colors.css):
+  • --glass-bg: rgba(15,15,22,0.72) → rgba(15,15,22,0.55). Cards now show the ambient colors blurred through them — true Apple-TV-style frosted glass instead of a tinted panel.
+  • --glass-blur: 24px → 32px. Within the user-specified "reasonable" range (20-40px); above 40px would hit mobile GPU limits.
+  • --glass-bg-strong kept at 0.86 — modals and dialogs MUST stay highly legible.
+  • The blur-* scale tokens in blur.css are unchanged (they're consumed by toasts, dropdowns, etc. that don't need this level of frost).
+- Task 4 — New accent presets (4 jewel tones for frosted glass):
+  • Added 4 entries to THEMES union in src/core/theme/themes.ts: "neoncyan", "vibrupurple", "hotpink", "emerald".
+  • Added 4 .theme-* class definitions in colors.css with --p / --p2 / --p-glow / --p-dim / --p-border / --p-hover / --active-text for each (Neon Cyan #22d3ee, Vibrant Purple #a855f7, Hot Pink #ec4899, Emerald #10b981).
+  • Added 4 entries to THEMES_LIST in src/shared/constants/settings.ts with display names + swatch hexes. Both the new SettingsPage AND the legacy /settings/appearance route pick them up automatically (both use <For each={THEMES_LIST}>).
+  • No changes needed to useSettingsState.tsx — the existing handlePresetClick / isPresetActive flow handles the new themes via the same setTheme(presetId) + clearAccentFromDocument() path.
+- Task 5 — Ambient Intensity preference (NEW signal):
+  • Created src/core/preferences/ambientIntensity.ts. Type: AmbientIntensity = "subtle" | "normal" | "vibrant". Default: "normal" (matches the historical 0.7 baseline so existing users see no visual change on upgrade).
+  • Re-exported from src/core/preferences/index.ts.
+  • The createEffect writes data-ambient-intensity to <html>+<body> via applyDataAttr, which the new CSS attribute selectors read to set --ambient-intensity.
+  • SSR-safe (no-op on server); same pattern as reducedMotion / highContrast.
+  • Wired into the cross-device sync: added ambientIntensity? field to PreferencesSnapshot in preferencesSync.ts (read + apply paths). Also added to collectSnapshot + applyImportedSnapshot in settingsDefaults.ts so JSON export/import includes it.
+- Task 6 — Appearance Settings UI:
+  • Added AMBIENT_INTENSITY_OPTIONS to src/shared/constants/settings.ts (3 entries: Subtle / Normal / Vibrant).
+  • Imported ambientIntensity + setAmbientIntensity signals + AMBIENT_INTENSITY_OPTIONS into AppearanceSection.tsx.
+  • Added a new "Ambient intensity" subsection (ControlRow + Segmented) right after the Accent color block. Icon: "blur_on". Label: "Background vibrance". Desc: "How strong the ambient color wash is."
+  • Added the new field to resetAppearance() in settingsDefaults.ts (resets to "normal").
+  • Updated the settingsDefaults.test.ts mock to include ambientIntensity + setAmbientIntensity in both setters and getters hoisted blocks, the mock factory, and the appearance reset assertion (now checks setAmbientIntensity was called with "normal"). Test description updated from "8 appearance preferences" to "9".
+- Verification:
+  • npx tsc --noEmit → 0 errors.
+  • npx vitest run → 55 files, 1412 tests pass. No regressions.
+  • npx eslint on the 8 modified TS/TSX files → 3 errors, ALL pre-existing on main (fallbackLanguage / contentRatingCap / streamingProviders unused imports in settingsDefaults.ts — confirmed via git stash baseline). No new lint errors introduced by Chunk 2.
+
+Stage Summary:
+- Files modified (8) + 1 new:
+  CSS tokens: src/styles/tokens/colors.css (--void-ambient 0.82→0.55, --glass-bg 0.72→0.55, --glass-blur 24px→32px, new --ambient-intensity var + data-attribute rules, 4 new .theme-* classes)
+  CSS component: src/styles/components/ambient-background.css (blob opacity 0.55→calc(0.7 * var), mobile 0.45→calc(0.6 * var), prefers-contrast refactor, opacity transition added)
+  Theme type: src/core/theme/themes.ts (4 new entries in THEMES union)
+  Settings constants: src/shared/constants/settings.ts (4 new THEMES_LIST entries, new AMBIENT_INTENSITY_OPTIONS list, AmbientIntensity type import)
+  Preferences: src/core/preferences/ambientIntensity.ts (NEW — signal + createEffect + applyDataAttr)
+  Preferences barrel: src/core/preferences/index.ts (re-export ambientIntensity + setAmbientIntensity + type)
+  Preferences sync: src/core/preferences/preferencesSync.ts (ambientIntensity added to PreferencesSnapshot interface + readSnapshot + applySnapshot)
+  Settings state: src/features/settings/settingsDefaults.ts (import signals, DEFAULT_AMBIENT_INTENSITY, resetAppearance, collectSnapshot, applyImportedSnapshot)
+  Settings UI: src/features/settings/sections/AppearanceSection.tsx (new Ambient intensity subsection)
+  Settings test: src/features/settings/hooks/__tests__/settingsDefaults.test.ts (mock updated, assertion added, test name updated)
+- Architectural decisions:
+  • Ambient intensity is wired via CSS calc() (0.7 * var) rather than per-blob opacity overrides — one var drives all three blobs, mobile vs desktop differ only by their base multiplier (0.6 vs 0.7).
+  • New accent presets are full Theme union members (not "accent-only" custom-accent shortcuts) — they get .theme-* classes, work with the existing handlePresetClick flow, and sync to Supabase via the existing theme field. No new "custom accent" code path needed.
+  • The ambientIntensity preference IS synced to Supabase (added to PreferencesSnapshot). Density and fontSize are already synced; treating ambientIntensity the same way is the consistent choice and avoids the "set Vibrant on laptop, reverts to Normal on phone" surprise.
+  • The CSS data-attribute approach (data-ambient-intensity on <html>+<body>) was chosen over inline style.setProperty because: (1) it survives hot-reloads cleanly, (2) it's discoverable in DevTools, (3) it matches the pattern used by reducedMotion / highContrast / density, (4) it lets the prefers-contrast media query override the intensity to 1 via the same --ambient-intensity var (no !important needed).
+- All 2 critical rules honored:
+  (1) No existing layouts broken — only CSS variable values + one new settings subsection added. tsc + vitest confirm zero regressions.
+  (2) Performance — blur radii kept in the 20-40px range (--glass-blur = 32px, ambient-blob blur = 80px desktop / 40px mobile unchanged from Chunk 1). The new opacity transition is GPU-composited (opacity is one of the cheapest properties to animate).

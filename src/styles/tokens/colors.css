@@ -28,10 +28,20 @@
        --void-ambient: a translucent version of --void used by the
          AppShell consumer wrapper so the AmbientBackground blobs
          show through. Solid --void is still used by body + admin +
-         landing routes where the ambient is hidden. The 0.82 alpha
-         is the sweet spot: high enough that text contrast stays
-         above WCAG AA on every tier, low enough that the blobs
-         read as "alive" rather than "muddy".
+         landing routes where the ambient is hidden.
+
+       PHASE 14 CHUNK 2 — TRUE FROSTED GLASS
+       The 0.82 alpha used in Chunk 1 turned out to be too opaque —
+       the ambient blobs were almost invisible behind the wrapper.
+       Lowered to 0.55 so the blob colors actually bleed through
+       the wrapper and paint the frosted glass cards from behind.
+       Text contrast on consumer routes stays above WCAG AA because:
+         • Text tokens (--text-strong, --text-body) are #fff8e8 /
+           #ede8da — luminance ratio vs. the new effective bg
+           (~#09090c blended) is still > 12:1, well above AA's 4.5:1.
+         • Glass cards layer ON TOP of the ambient at --glass-bg
+           (also lowered in this chunk to 0.55) — text on glass
+           sits on the glass tint, not directly on the ambient.
 
        --ambient-color-1/2/3: the three blob colors. Defaults are
          the CineLog brand palette (cinema gold + warm orange + cool
@@ -39,10 +49,27 @@
          Discover page extracts a content-aware palette. The Discover
          page overrides these on :root via JS when the Spotlight
          movie changes — see useAmbientPalette in DiscoverPage.tsx. */
-    --void-ambient: rgba(10, 10, 16, 0.82);
+    --void-ambient: rgba(8, 8, 12, 0.55);
     --ambient-color-1: #e8b74a; /* cinema gold (matches --p) */
     --ambient-color-2: #ff6b35; /* warm orange (matches --p2) */
     --ambient-color-3: #1e3a8a; /* cool blue (complementary) */
+
+    /* ─── Phase 14 Chunk 2 — Ambient Intensity ──────────────────────
+       --ambient-intensity: a multiplier (0…1) that scales the opacity
+         of every AmbientBackground blob. Driven by the user's
+         "Ambient Intensity" preference (Subtle / Normal / Vibrant),
+         which sets this var via a data attribute on <html>:
+
+           data-ambient-intensity="subtle"  → 0.35
+           data-ambient-intensity="normal"  → 0.70  (default)
+           data-ambient-intensity="vibrant" → 1.00
+
+       The .ambient-blob rule multiplies its own opacity (0.7) by
+       this var via `calc()`, so toggling the preference smoothly
+       scales how prominent the ambient colors are. Subtle is for
+       users who want a near-flat background; Vibrant is for users
+       who want the full DULO.TV-style color wash. */
+    --ambient-intensity: 0.7;
 
     /* ─── Semantic Color: Primary ─── */
     --color-primary: var(--p);
@@ -256,6 +283,65 @@
   --active-text: #08080d;
 }
 
+/* ─── Phase 14 Chunk 2 — Frosted Glass accent presets ──────────────
+   Four new accent presets curated specifically to pop on a frosted
+   glass background. Each is a saturated jewel tone that catches the
+   ambient blobs from behind and reads as a clean, modern accent on
+   translucent glass cards. Added to the THEMES union + THEMES_LIST
+   alongside the existing 8 presets. */
+.theme-neoncyan {
+  --p: #22d3ee;
+  --p2: #06b6d4;
+  --p-glow: rgba(34, 211, 238, 0.28);
+  --p-dim: rgba(34, 211, 238, 0.08);
+  --p-border: rgba(34, 211, 238, 0.4);
+  --p-hover: rgba(34, 211, 238, 0.12);
+  --active-text: #08080d;
+}
+.theme-vibrupurple {
+  --p: #a855f7;
+  --p2: #d946ef;
+  --p-glow: rgba(168, 85, 247, 0.28);
+  --p-dim: rgba(168, 85, 247, 0.08);
+  --p-border: rgba(168, 85, 247, 0.4);
+  --p-hover: rgba(168, 85, 247, 0.12);
+  --active-text: #ffffff;
+}
+.theme-hotpink {
+  --p: #ec4899;
+  --p2: #f43f5e;
+  --p-glow: rgba(236, 72, 153, 0.28);
+  --p-dim: rgba(236, 72, 153, 0.08);
+  --p-border: rgba(236, 72, 153, 0.4);
+  --p-hover: rgba(236, 72, 153, 0.12);
+  --active-text: #ffffff;
+}
+.theme-emerald {
+  --p: #10b981;
+  --p2: #34d399;
+  --p-glow: rgba(16, 185, 129, 0.28);
+  --p-dim: rgba(16, 185, 129, 0.08);
+  --p-border: rgba(16, 185, 129, 0.4);
+  --p-hover: rgba(16, 185, 129, 0.12);
+  --active-text: #08080d;
+}
+
+/* ─── Phase 14 Chunk 2 — Ambient Intensity data-attribute rules ────
+   The ambientIntensity preference (Subtle / Normal / Vibrant) sets
+   `data-ambient-intensity="<value>"` on <html> + <body>. These rules
+   scale the --ambient-intensity var that AmbientBackground's blobs
+   multiply their opacity by. Default ("normal") matches the :root
+   value so nothing changes for existing users. */
+[data-ambient-intensity="subtle"] {
+  --ambient-intensity: 0.35;
+}
+[data-ambient-intensity="normal"] {
+  --ambient-intensity: 0.7;
+}
+[data-ambient-intensity="vibrant"] {
+  --ambient-intensity: 1;
+}
+
 /* ============================================================
    PHASE 2.1 — DESIGN SYSTEM (Redesigned)
    Warm cinema depth — every tier has a warm undertone.
@@ -296,11 +382,31 @@
        overrode the token values here. The override is removed and the
        winning values (0.72 / 0.86) are consolidated here as the single
        source of truth. The light-theme overrides in tokens/preferences.css
-       still win for [data-theme-resolved="light"]. */
-    --glass-bg: rgba(15, 15, 22, 0.72);
+       still win for [data-theme-resolved="light"].
+
+       ─────────────────────────────────────────────────────────────────
+       PHASE 14 CHUNK 2 — TRUE FROSTED GLASS
+       ─────────────────────────────────────────────────────────────────
+       --glass-bg lowered from 0.72 → 0.55 so the ambient blobs bleed
+         through the cards. Combined with the increased --glass-blur
+         (24px → 32px), glass cards now look like TRUE frosted glass
+         rather than tinted translucent panels — the ambient colors
+         blur softly through the card body, creating the DULO.TV /
+         Apple TV premium aesthetic.
+       --glass-bg-strong kept at 0.86 — modals and dialogs MUST stay
+         highly legible (they sit at z-index ~999998+, far above the
+         ambient, and contain dense form fields + text).
+       --glass-blur raised to 32px — within the user-specified
+         "reasonable" range (20-40px). Above 40px we'd hit mobile
+         GPU limits (see ambient-background.css for the mobile blur
+         halving rationale); 32px is the sweet spot. The blur-* scale
+         tokens in blur.css are unchanged (they're consumed by other
+         components like toasts and dropdowns that don't need this
+         level of frost). */
+    --glass-bg: rgba(15, 15, 22, 0.55);
     --glass-bg-strong: rgba(13, 13, 20, 0.86);
     --glass-border: rgba(232, 183, 74, 0.06);
-    --glass-blur: 24px;
+    --glass-blur: 32px;
   }
 }
 

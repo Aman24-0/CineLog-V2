@@ -114,11 +114,26 @@
     /* Smooth color morph when the CSS variables change (e.g. when the
        Spotlight movie changes and the Discover page pushes new colors
        to --ambient-color-1/2/3). 1.5s ease-out matches the Spotlight
-       reroll crossfade so the background and hero transition together. */
-    transition: background 1.5s ease-out;
-    /* Opacity < 1 so the blobs blend rather than overpower. Even at
-       0.55, three overlapping blobs saturate the visible area. */
-    opacity: 0.55;
+       reroll crossfade so the background and hero transition together.
+       Also transitions opacity so toggling the Ambient Intensity
+       preference (Subtle / Normal / Vibrant) feels smooth instead of
+       stepwise. */
+    transition:
+      background 1.5s ease-out,
+      opacity 600ms ease-out;
+    /* PHASE 14 CHUNK 2 — True Frosted Glass + Ambient Intensity.
+       Base opacity bumped from 0.55 → 0.7 so the colors actually
+       pop now that the wrapper opacity has been lowered to 0.55.
+       The --ambient-intensity var (set by the user's preference on
+       <html data-ambient-intensity="...">) multiplies this base
+       value, so:
+         Subtle  (0.35) → effective 0.245 (barely-there wash)
+         Normal  (0.70) → effective 0.49  (default, balanced)
+         Vibrant (1.00) → effective 0.70  (full DULO.TV-style pop)
+       calc() with a unitless var works because both operands are
+       numbers — CSS multiplies 0.7 × var(--ambient-intensity) and
+       clamps to [0,1] for the opacity property. */
+    opacity: calc(0.7 * var(--ambient-intensity));
     /* `mix-blend-mode: screen` makes overlapping blobs ADD light
        rather than muddy it — two warm blobs overlapping create a
        brighter warm, not a brown. This is the key to the "alive"
@@ -231,14 +246,21 @@
    hint DOUBLES that (the compositor pre-allocates a backing store).
    On mobile we drop will-change and halve the blur — the visual
    difference is barely perceptible but the memory + jank reduction
-   is significant on mid-range Android. */
+   is significant on mid-range Android.
+
+   PHASE 14 CHUNK 2 — the mobile opacity base is lowered from 0.45
+   to 0.6 (i.e. the multiplier is 0.6 instead of 0.7) because the
+   smaller blur means colors are more concentrated; we still
+   multiply by --ambient-intensity so the Subtle/Normal/Vibrant
+   preference scales correctly on mobile too. */
 @media (max-width: 768px) {
   .ambient-blob {
     filter: blur(40px);
     will-change: auto;
-    /* Slightly lower opacity on mobile — the smaller blur means the
-       colors are more concentrated, so we compensate by dimming. */
-    opacity: 0.45;
+    /* Mobile base 0.6 × intensity multiplier. Slightly lower than
+       desktop's 0.7 because the smaller blur concentrates the
+       colors more. */
+    opacity: calc(0.6 * var(--ambient-intensity));
   }
 }
 
@@ -258,11 +280,12 @@
 
 /* ─── High-contrast: brighten the blobs ────────────────────────────
    In forced-colors / high-contrast mode the user wants edges, not
-   ambient washes. We bump opacity to 0.8 so the colors are still
-   visible against the high-contrast background, but the blobs remain
-   non-interactive and behind content. */
+   ambient washes. We override the intensity multiplier to 1 so the
+   blobs render at full base opacity (0.7 on desktop, 0.6 on mobile),
+   ensuring the colors are still visible against the high-contrast
+   background. The blobs remain non-interactive and behind content. */
 @media (prefers-contrast: more) {
   .ambient-blob {
-    opacity: 0.8;
+    --ambient-intensity: 1;
   }
 }

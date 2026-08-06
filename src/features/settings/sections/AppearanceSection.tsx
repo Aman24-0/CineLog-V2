@@ -12,8 +12,9 @@
 //   • The accordion header.
 //   • The inner panel:
 //       - Theme mode cards (Dark / Light / System)
-//       - Accent swatch grid (8 presets + 1 Dynamic)
+//       - Accent swatch grid (12 presets + 1 Dynamic)
 //       - Dynamic accent status line (3 states + Re-extract button)
+//       - Ambient intensity segmented control (Phase 14 Chunk 2)
 //       - Density segmented control
 //       - Font size segmented control
 //       - Poster quality segmented control
@@ -46,7 +47,9 @@ import {
   reducedMotion,
   setReducedMotion,
   highContrast,
-  setHighContrast
+  setHighContrast,
+  ambientIntensity,
+  setAmbientIntensity
 } from "~/core/preferences";
 
 // Static option lists — single source of truth.
@@ -57,7 +60,8 @@ import {
   DENSITY_OPTIONS,
   FONT_SIZE_OPTIONS,
   POSTER_QUALITY_OPTIONS,
-  REDUCED_MOTION_OPTIONS
+  REDUCED_MOTION_OPTIONS,
+  AMBIENT_INTENSITY_OPTIONS
 } from "~/shared/constants/settings";
 
 export function AppearanceSection(props: { state: SettingsState }) {
@@ -262,6 +266,40 @@ export function AppearanceSection(props: { state: SettingsState }) {
                   Extracting color from banner…
                 </p>
               </Show>
+            </div>
+
+            {/* ─── Phase 14 Chunk 2 — Ambient Intensity ──────────────
+                Controls how prominent the multi-color ambient blobs
+                behind the app content are. The preference sets a
+                data-attribute on <html>+<body> that drives the
+                --ambient-intensity CSS var, which the .ambient-blob
+                rule multiplies into its opacity (see
+                ambient-background.css + colors.css).
+
+                Subtle  → ~0.25 effective opacity (barely-there wash)
+                Normal  → ~0.49 effective opacity (default, balanced)
+                Vibrant → ~0.70 effective opacity (full color bleed)
+
+                The transition between levels is animated via the
+                `transition: opacity 600ms ease-out` rule on
+                .ambient-blob, so users see a smooth fade when they
+                toggle. */}
+            <div class="setting-subsection">
+              <p class="setting-subsection-label">Ambient intensity</p>
+              <div class="setting-group">
+                <ControlRow
+                  icon="blur_on"
+                  label="Background vibrance"
+                  desc="How strong the ambient color wash is."
+                >
+                  {s.renderSegmented(
+                    AMBIENT_INTENSITY_OPTIONS,
+                    ambientIntensity,
+                    (id) => setAmbientIntensity(id),
+                    "Ambient intensity"
+                  )}
+                </ControlRow>
+              </div>
             </div>
 
             {/* Density */}

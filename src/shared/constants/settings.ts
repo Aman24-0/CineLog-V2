@@ -34,7 +34,8 @@ import type {
   TimeFormat,
   CalendarView,
   ThemeMode,
-  NotificationPrefs
+  NotificationPrefs,
+  AmbientIntensity
 } from "~/core/preferences";
 
 // ────────────────────────────────────────────────────────────────────
@@ -49,7 +50,14 @@ export const THEMES_LIST: { id: Theme; name: string; desc: string; swatch: strin
   { id: "neonhorizon", name: "Neon Horizon", desc: "Pink + cyan", swatch: "#ff2af0" },
   { id: "vibranium", name: "Vibranium", desc: "Purple", swatch: "#9d4edd" },
   { id: "cinematic", name: "Cinematic", desc: "Gold", swatch: "#FFD700" },
-  { id: "pearl", name: "Pearl", desc: "Minimal white", swatch: "#ffffff" }
+  { id: "pearl", name: "Pearl", desc: "Minimal white", swatch: "#ffffff" },
+  // Phase 14 Chunk 2 — Frosted Glass accent presets.
+  // These four jewel tones are curated specifically to pop on the new
+  // translucent frosted glass cards (see .theme-* in colors.css).
+  { id: "neoncyan", name: "Neon Cyan", desc: "Electric blue", swatch: "#22d3ee" },
+  { id: "vibrupurple", name: "Vibrant Purple", desc: "Royal violet", swatch: "#a855f7" },
+  { id: "hotpink", name: "Hot Pink", desc: "Magenta pop", swatch: "#ec4899" },
+  { id: "emerald", name: "Emerald", desc: "Jungle green", swatch: "#10b981" }
 ];
 
 export const THEME_MODE_OPTIONS: { id: ThemeMode; label: string }[] = [
@@ -113,6 +121,15 @@ export const REDUCED_MOTION_OPTIONS: { id: ReducedMotionPref; label: string }[] 
   { id: "off", label: "Off" },
   { id: "on", label: "On" },
   { id: "system", label: "System" }
+];
+
+// Phase 14 Chunk 2 — Ambient intensity (controls AmbientBackground blob
+// opacity via the --ambient-intensity CSS var on <html>+<body>).
+// Three curated levels — see src/core/preferences/ambientIntensity.ts.
+export const AMBIENT_INTENSITY_OPTIONS: { id: AmbientIntensity; label: string }[] = [
+  { id: "subtle", label: "Subtle" },
+  { id: "normal", label: "Normal" },
+  { id: "vibrant", label: "Vibrant" }
 ];
 
 // ────────────────────────────────────────────────────────────────────

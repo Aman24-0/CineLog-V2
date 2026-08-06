@@ -47,6 +47,8 @@ import {
   setReducedMotion,
   highContrast,
   setHighContrast,
+  ambientIntensity,
+  setAmbientIntensity,
   language,
   setLanguage,
   defaultVaultStatus,
@@ -76,7 +78,8 @@ import {
   type RatingScale,
   type SyncCadence,
   type VaultStatus,
-  type ThemeMode
+  type ThemeMode,
+  type AmbientIntensity
 } from "~/core/preferences";
 
 import { theme, setTheme, type Theme } from "~/core/theme";
@@ -143,6 +146,10 @@ const DEFAULT_POSTER_QUALITY: PosterQuality = "high";
 const DEFAULT_HIDE_SPOILERS = false;
 const DEFAULT_REDUCED_MOTION: ReducedMotionPref = "system";
 const DEFAULT_HIGH_CONTRAST = false;
+// Phase 14 Chunk 2 — Ambient intensity default. "normal" matches the
+// historical baseline (0.7 base opacity) so existing users see no
+// visual change on first load after the upgrade.
+const DEFAULT_AMBIENT_INTENSITY: AmbientIntensity = "normal";
 const DEFAULT_LANGUAGE = "en";
 const DEFAULT_FALLBACK_LANGUAGE = "";
 const DEFAULT_VAULT_STATUS: VaultStatus = "Planned";
@@ -158,7 +165,8 @@ const DEFAULT_CONTENT_RATING_CAP = "";
 /**
  * Reset the appearance section's preferences to their defaults.
  * Includes: themeMode, theme (accent preset), density, fontSize,
- * posterQuality, hideSpoilers, reducedMotion, highContrast.
+ * posterQuality, hideSpoilers, reducedMotion, highContrast,
+ * ambientIntensity (Phase 14 Chunk 2).
  */
 function resetAppearance(): void {
   setThemeMode(DEFAULT_THEME_MODE);
@@ -169,6 +177,7 @@ function resetAppearance(): void {
   setHideSpoilers(DEFAULT_HIDE_SPOILERS);
   setReducedMotion(DEFAULT_REDUCED_MOTION);
   setHighContrast(DEFAULT_HIGH_CONTRAST);
+  setAmbientIntensity(DEFAULT_AMBIENT_INTENSITY);
 }
 
 /**
@@ -291,6 +300,8 @@ function collectSnapshot(): PreferencesSnapshot {
     dateFormat: dateFormat(),
     reducedMotion: reducedMotion(),
     highContrast: highContrast(),
+    // Phase 14 Chunk 2: include the ambient intensity in the export.
+    ambientIntensity: ambientIntensity(),
     language: language(),
     defaultVaultStatus: defaultVaultStatus(),
     adultContentFilter: adultContentFilter(),
@@ -319,6 +330,8 @@ function applyImportedSnapshot(snap: PreferencesSnapshot): void {
   if (snap.dateFormat) setDateFormat(snap.dateFormat);
   if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
   if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
+  // Phase 14 Chunk 2: apply ambient intensity from the imported file.
+  if (snap.ambientIntensity) setAmbientIntensity(snap.ambientIntensity);
   if (snap.language) setLanguage(snap.language);
   if (snap.defaultVaultStatus) setDefaultVaultStatus(snap.defaultVaultStatus);
   if (typeof snap.adultContentFilter === "boolean") {

@@ -79,6 +79,12 @@ import {
   type ReducedMotionPref
 } from "./reducedMotion";
 import { highContrast, setHighContrast } from "./highContrast";
+// Phase 14 Chunk 2 — Ambient intensity (Subtle / Normal / Vibrant).
+import {
+  ambientIntensity,
+  setAmbientIntensity,
+  type AmbientIntensity
+} from "./ambientIntensity";
 import {
   language,
   setLanguage,
@@ -163,6 +169,10 @@ export interface PreferencesSnapshot {
   dateFormat?: DateFormat;
   reducedMotion?: ReducedMotionPref;
   highContrast?: boolean;
+  /** Phase 14 Chunk 2: ambient intensity (Subtle / Normal / Vibrant).
+   *  Synced so the user's preferred background vibrance travels
+   *  across devices — same treatment as density / fontSize. */
+  ambientIntensity?: AmbientIntensity;
   language?: LanguageCode;
   /** Bug #28: TMDB overview fallback language (used when no overview
    *  exists in the primary `language`). Synced so users get the same
@@ -218,6 +228,8 @@ function readSnapshot(): PreferencesSnapshot {
     dateFormat: dateFormat(),
     reducedMotion: reducedMotion(),
     highContrast: highContrast(),
+    // Phase 14 Chunk 2: include the ambient intensity in the snapshot.
+    ambientIntensity: ambientIntensity(),
     language: language(),
     // Bug #28: include the three previously-unsynced prefs.
     fallbackLanguage: fallbackLanguage(),
@@ -253,6 +265,13 @@ function applySnapshot(snap: PreferencesSnapshot): void {
   if (snap.dateFormat) setDateFormat(snap.dateFormat);
   if (snap.reducedMotion) setReducedMotion(snap.reducedMotion);
   if (typeof snap.highContrast === "boolean") setHighContrast(snap.highContrast);
+  // Phase 14 Chunk 2: apply the ambient intensity from the snapshot.
+  // Truthy check is safe — the value is a non-empty string union
+  // ("subtle" | "normal" | "vibrant"), and the setter's createEffect
+  // ignores invalid values via the type guard in ambientIntensity.ts
+  // (the signal only accepts AmbientIntensity-typed values, so a
+  // malformed server snapshot can't sneak through).
+  if (snap.ambientIntensity) setAmbientIntensity(snap.ambientIntensity);
   if (snap.language) setLanguage(snap.language);
   // Bug #28: apply the three previously-unsynced prefs. Use strict
   // type guards rather than truthy checks because:
