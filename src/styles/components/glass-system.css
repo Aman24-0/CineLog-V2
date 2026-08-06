@@ -296,6 +296,19 @@
      SearchOverlay.tsx so it never mounts on desktop, but we add a
      CSS guard too (display: none on ≥1024px) so even if the Show
      gate ever fails the desktop path stays clean.
+   ============================================================
+   Phase 14 Chunk 5 hotfix (search legibility):
+   • Background reverted from --void-ambient (0.35 alpha) to
+     --glass-bg-strong (0.86 alpha). The 0.35 alpha was too
+     transparent — the search input text and result rows mixed
+     with the page content behind, making them unreadable. The
+     search overlay holds dense text (input, result titles,
+     metadata, "no results" messages, etc.) and must meet the
+     same legibility bar as modals/dialogs, which already use
+     --glass-bg-strong. The backdrop-filter blur is retained so
+     the ambient field is still softly visible at the edges, but
+     the surface itself is now solid enough for white text to be
+     perfectly readable.
    ============================================================ */
 
 .search-overlay {
@@ -305,12 +318,14 @@
   right: 0;
   bottom: 0;
   z-index: 25;
-  /* Phase 14 Chunk 5 fix — translucent void-ambient + blur so the
-     ambient blobs bleed through the overlay. The overlay is one
-     large surface (not many small ones), so a single backdrop-filter
-     here is fine — it does NOT cause the per-card GPU cost regression
-     that .glass-card did. */
-  background: var(--void-ambient);
+  /* Phase 14 Chunk 5 hotfix — solid glass background so white text
+     stays perfectly readable. The overlay holds dense text (input,
+     result titles, metadata), so it must meet the same legibility
+     bar as modals/dialogs (which use --glass-bg-strong). The blur
+     is kept so the ambient field is still softly visible at the
+     edges, but the surface itself is opaque enough that text no
+     longer mixes with the page content behind it. */
+  background: var(--glass-bg-strong);
   backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(150%);
   overflow-y: auto;
