@@ -43,7 +43,13 @@ type SettingsKey =
   // The Communication Hub → Notifications page is the SINGLE source
   // of truth for these values; they are NOT editable on
   // AdminSettingsPage (zero duplication).
-  | "notification_settings";
+  | "notification_settings"
+  // Phase 16 Chunk 1 — AI Integration (Groq): Control Center flags.
+  // The Admin AI Control Center (/admin/ai) is the SINGLE source of
+  // truth for these values; they are NOT editable on AdminSettingsPage
+  // (zero duplication). Server-side AI routes read these flags via
+  // checkAiSettings() in src/lib/server/groq.ts.
+  | "ai_settings";
 
 const ALL_KEYS: SettingsKey[] = [
   "site_settings",
@@ -51,7 +57,8 @@ const ALL_KEYS: SettingsKey[] = [
   "tmdb_settings",
   "maintenance_window",
   "retention_policy",
-  "notification_settings"
+  "notification_settings",
+  "ai_settings"
 ];
 
 interface SiteSettings {
@@ -134,6 +141,12 @@ interface NotificationSettings {
   };
 }
 
+interface AiSettings {
+  masterEnabled: boolean;
+  userRecommendationsEnabled: boolean;
+  adminAssistantEnabled: boolean;
+}
+
 interface AllSettings {
   site_settings: SiteSettings;
   rate_limits: RateLimits;
@@ -141,6 +154,7 @@ interface AllSettings {
   maintenance_window: MaintenanceWindow;
   retention_policy: RetentionPolicy;
   notification_settings: NotificationSettings;
+  ai_settings: AiSettings;
 }
 
 // ─── Default values (used if a key is missing from app_config) ────
@@ -199,6 +213,15 @@ const DEFAULTS: AllSettings = {
       recommendations: true,
       syncStatus: true
     }
+  },
+  // Phase 16 Chunk 1 — AI defaults: ALL OFF. AI must be explicitly
+  // opted-in via /admin/ai. This mirrors the seed in
+  // supabase/migrations/20260815_add_ai_settings.sql and the
+  // DEFAULT_AI_SETTINGS in src/lib/server/groq.ts.
+  ai_settings: {
+    masterEnabled: false,
+    userRecommendationsEnabled: false,
+    adminAssistantEnabled: false
   }
 };
 
@@ -420,13 +443,33 @@ function validateNotificationSettings(input: unknown): NotificationSettings {
   };
 }
 
+// Phase 16 Chunk 1 — AI settings validator.
+// Validates the shape of the ai_settings key. Unknown fields are
+// dropped; missing/non-boolean fields default to false. We NEVER
+// default a flag to true here — AI is off until an admin explicitly
+// turns it on. This matches the migration seed and the server-side
+// DEFAULT_AI_SETTINGS.
+function validateAiSettings(input: unknown): AiSettings {
+  if (typeof input !== "object" || input === null)
+    throw new Error("must be an object");
+  const obj = input as Record<string, unknown>;
+  const asBool = (v: unknown): boolean =>
+    typeof v === "boolean" ? v : false;
+  return {
+    masterEnabled: asBool(obj.masterEnabled),
+    userRecommendationsEnabled: asBool(obj.userRecommendationsEnabled),
+    adminAssistantEnabled: asBool(obj.adminAssistantEnabled)
+  };
+}
+
 const VALIDATORS: Record<SettingsKey, (input: unknown) => unknown> = {
   site_settings: validateSiteSettings,
   rate_limits: validateRateLimits,
   tmdb_settings: validateTmdbSettings,
   maintenance_window: validateMaintenanceWindow,
   retention_policy: validateRetentionPolicy,
-  notification_settings: validateNotificationSettings
+  notification_settings: validateNotificationSettings,
+  ai_settings: validateAiSettings
 };
 
 // ─── Helpers ─────────────────────────────────────────────────────

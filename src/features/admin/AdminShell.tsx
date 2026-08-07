@@ -164,7 +164,13 @@ const NAV_GROUPS: NavGroup[] = [
         href: "/admin/feature-flags",
         label: "Feature Flags",
         icon: "toggle_on"
-      }
+      },
+      // Phase 16 Chunk 1 — AI Control Center. Sits in the Configuration
+      // group because it's a global toggle surface (like Feature Flags),
+      // not a service integration. The "smart_toy" icon (a robot head)
+      // signals AI without overlapping the "tune" icon used for
+      // Notification Settings.
+      { href: "/admin/ai", label: "AI Control Center", icon: "smart_toy" }
     ]
   },
   {

@@ -380,3 +380,39 @@ Stage Summary:
 - All 2 critical rules honored:
   (1) No existing layouts broken — only CSS variable values + one new settings subsection added. tsc + vitest confirm zero regressions.
   (2) Performance — blur radii kept in the 20-40px range (--glass-blur = 32px, ambient-blob blur = 80px desktop / 40px mobile unchanged from Chunk 1). The new opacity transition is GPU-composited (opacity is one of the cheapest properties to animate).
+
+---
+Task ID: phase-16-chunk-1
+Agent: main (Super Z)
+Task: Phase 16 Chunk 1 — AI Integration (Groq). Build a strict AI Control Center to toggle features on/off instantly, and a secure server-side Groq client. Backend-only for GROQ_API_KEY; no new dependencies (use built-in fetch); all flags default OFF.
+
+Work Log:
+- Cloned repo via PAT; audited existing patterns: app_config schema (key/value/updated_at/updated_by + RLS public SELECT / admin write), /api/admin/settings.ts (SettingsKey type + ALL_KEYS + DEFAULTS + VALIDATORS pattern), /api/feature-flags.ts (anon-key public read with CDN cache), AdminShell.tsx (NAV_GROUPS Configuration group), AdminFeatureFlagsPage.tsx (Glass UI toggle pattern with `.admin-config-toggle` class + role="switch" + aria-checked), src/lib/server/trakt.ts (server-only module pattern using isServer guard from solid-js/web), createAdminClient() (service-role Supabase client). Confirmed project is SolidStart (not Next.js) — file-based routing under src/routes/, .tsx pages use Solid primitives (createSignal/Show/For).
+- Created supabase/migrations/20260815_add_ai_settings.sql: INSERT into app_config (key='ai_settings', value JSONB {masterEnabled:false, userRecommendationsEnabled:false, adminAssistantEnabled:false}) ON CONFLICT DO NOTHING (idempotent re-runs). Added a DO $$ verification block that warns if the row is missing post-insert. All flags OFF by default per spec.
+- Created src/lib/server/groq.ts (~340 LOC, server-only):
+  • isServer guard at top + in readGroqApiKey() — browser import throws immediately.
+  • callGroq(systemPrompt, userPrompt, model='llama-3.3-70b-versatile'): POST https://api.groq.com/openai/v1/chat/completions with Bearer GROQ_API_KEY. Validates inputs (non-empty strings), 30s AbortController timeout, parses GroqChatCompletionResponse, throws on non-2xx / empty choices / network error / timeout. Uses built-in fetch — NO new SDK dependency.
+  • checkAiSettings(): reads ai_settings row from app_config via createAdminClient(). Never throws — falls back to DEFAULT_AI_SETTINGS (all false) on DB error / missing row / malformed JSON. PGRST116 (no rows) is silent (migration not run yet); other DB errors are logged.
+  • isAiFeatureEnabled(featureKey): convenience helper combining master switch + feature flag (master is the global conjunction). Returns false when master is off, regardless of sub-flag.
+  • Exported AiSettings interface + DEFAULT_AI_SETTINGS constant so route handlers + tests can reference the canonical shape.
+- Created src/routes/api/ai/status.ts (public GET, no auth): returns {masterEnabled, userRecommendationsEnabled} ONLY — adminAssistantEnabled is intentionally NOT exposed (would leak internal config to anonymous browsers). Uses anon Supabase client (RLS allows public SELECT on app_config). Cache-Control: public, max-age=60, s-maxage=300 (mirrors /api/feature-flags). Always returns 200 with safe defaults on any error — never 500.
+- Extended src/routes/api/admin/settings.ts: added 'ai_settings' to SettingsKey union + ALL_KEYS array, added AiSettings interface, added DEFAULTS.ai_settings (all false), added validateAiSettings() validator (drops unknown fields, defaults missing/non-boolean to false — NEVER defaults a flag to true). Wired into VALIDATORS map. The existing PUT route now accepts {settings:{ai_settings:{...}}} payloads with full validation + audit logging — no new endpoint needed.
+- Created src/features/admin/AdminAiPage.tsx (~530 LOC, Solid component):
+  • Three Glass toggle cards using shared `.admin-config-toggle` CSS class (48×28px touch-friendly, role="switch", aria-checked). Reuses existing admin-config.css — no new CSS needed.
+  • Master AI Switch (bolt icon) — global kill. User Recommendations (recommendations icon) + Admin Assistant (smart_toy icon) — sub-toggles.
+  • Optimistic UI: toggle flips instantly, reverts on PUT failure, toast feedback. Mirrors AdminFeatureFlagsPage pattern.
+  • Master switch interaction: when OFF, sub-toggle cards grey to 0.55 opacity, buttons disabled, italic "Disabled because the Master AI Switch is OFF" hint. Sub-toggle stored values are preserved (not auto-flipped to false) — master is checked as a conjunction server-side, so sub values are simply irrelevant while master is off.
+  • Persists via PUT /api/admin/settings with body {settings:{ai_settings:{all three flags}}} — sends ALL three flags every time because the validator replaces the whole JSONB value (partial would wipe unchanged flags to false defaults).
+  • GlassBadge intent="default" for OFF state, intent="success" for ON state. Per-toggle "Saving…" indicator.
+- Created src/routes/admin/ai.tsx: thin route wrapper (mirrors feature-flags.tsx pattern) — mounts AdminShell + lazy-loads AdminAiPage. Title: "CineLog Admin — AI Control Center".
+- Updated src/features/admin/AdminShell.tsx: added {href:"/admin/ai", label:"AI Control Center", icon:"smart_toy"} to the Configuration NAV_GROUP (between Feature Flags and the next group). smart_toy icon chosen to avoid clashing with "tune" (Notification Settings) and "toggle_on" (Feature Flags).
+- Verified GlassBadge accepts intents: default | primary | success | warning | danger | info (caught + fixed an initial intent="neutral" typo → intent="default", 4 occurrences). Verified GlassCard extends JSX.HTMLAttributes<HTMLDivElement> so class + style props work.
+- Verified on disk: npx tsc --noEmit → 0 errors. npx vitest run → 55 files, 1412 tests, 0 failures (no regressions). npx eslint on all 6 touched files → 0 errors.
+
+Stage Summary:
+- Files created (5): supabase/migrations/20260815_add_ai_settings.sql, src/lib/server/groq.ts, src/routes/api/ai/status.ts, src/features/admin/AdminAiPage.tsx, src/routes/admin/ai.tsx.
+- Files modified (2): src/routes/api/admin/settings.ts (+49 lines: ai_settings key/validator/defaults), src/features/admin/AdminShell.tsx (+8 lines: sidebar nav item).
+- All 3 Phase 16 critical rules honored: (1) GROQ_API_KEY is server-only — isServer guards at module top + in readGroqApiKey(), key never logged, never in response payloads, never imported by client code (AdminAiPage inlines its own AiSettings type rather than importing from ~/lib/server/groq to avoid pulling the server module into the client bundle). (2) Control Center toggles update app_config.ai_settings via the existing /api/admin/settings PUT route — no redeploy needed, propagates within ~60s via /api/ai/status CDN cache. (3) No new dependencies — uses built-in fetch, no `openai` SDK installed.
+- All 3 flags default OFF. AI must be explicitly opted-in via /admin/ai.
+- Public /api/ai/status route exposes ONLY masterEnabled + userRecommendationsEnabled (never adminAssistantEnabled).
+- Chunk 2 will add the actual Groq-powered admin assistant chat UI + Discover recommendations rail — both gated by checkAiSettings() / isAiFeatureEnabled() which are already in place.
