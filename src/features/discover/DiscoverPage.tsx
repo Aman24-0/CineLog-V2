@@ -298,6 +298,19 @@ export default function DiscoverPage() {
       link.rel = "preload";
       link.as = "image";
       link.href = url;
+      // Phase 15 QA Bug #4 (round 3): crossorigin="anonymous" is
+      // REQUIRED for cross-origin image preloads (TMDB images are
+      // served from https://image.tmdb.org). Without it, the browser
+      // emits a console warning:
+      //   "A preload for 'https://image.tmdb.org/...' is found, but is
+      //    not used because the request credentials mode does not
+      //    match."
+      // The preload + the actual <img> tag must have matching CORS
+      // modes. The <img> tags use the default (no crossorigin), which
+      // the browser treats as "anonymous" for cross-origin requests.
+      // Setting crossorigin="anonymous" here makes the preload match,
+      // so the browser reuses the preloaded response for the <img>.
+      link.crossOrigin = "anonymous";
       // fetchpriority="high" tells the browser to prioritize this
       // image over other network requests in the queue.
       link.setAttribute("fetchpriority", "high");

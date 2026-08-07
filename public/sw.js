@@ -227,22 +227,45 @@ async function trimCache(cacheName, maxEntries) {
 self.addEventListener("install", (event) => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(CACHE_STATIC);
-      // Precache app shell URLs. Use addAll — if ANY URL fails, the
-      // whole install fails (intentional: we want a working shell).
-      // We catch per-URL so a missing /offline.html (added later)
-      // doesn't block the SW from installing.
-      await Promise.all(
-        APP_SHELL_URLS.map(async (url) => {
-          try {
-            await cache.add(new Request(url, { cache: "reload" }));
-          } catch (err) {
-            // Non-fatal: the runtime cache will populate on first
-            // navigation. We log so it's visible in devtools.
-            console.warn(`[SW] precache miss for ${url}:`, err);
-          }
-        })
-      );
+      // Phase 15 QA Bug #4 (round 3): wrap the ENTIRE precache body in
+      // a top-level try/catch so NO failure during install can crash
+      // the Service Worker installation. Previously, a failure in
+      // caches.open() (rare, but possible under storage pressure) or
+      // self.skipWaiting() would reject the event.waitUntil promise,
+      // leaving the SW in a "redundant" state and forcing the browser
+      // to retry on the next navigation. The per-URL try/catch below
+      // already handles the common case (a single URL failing to fetch),
+      // but this outer guard is belt-and-suspenders for any other
+      // unexpected failure. If anything throws, we log + still call
+      // skipWaiting() so the SW activates and the runtime cache
+      // populates on first navigation.
+      try {
+        const cache = await caches.open(CACHE_STATIC);
+        // Precache app shell URLs. Use addAll — if ANY URL fails, the
+        // whole install fails (intentional: we want a working shell).
+        // We catch per-URL so a missing /offline.html (added later)
+        // doesn't block the SW from installing.
+        await Promise.all(
+          APP_SHELL_URLS.map(async (url) => {
+            try {
+              await cache.add(new Request(url, { cache: "reload" }));
+            } catch (err) {
+              // Non-fatal: the runtime cache will populate on first
+              // navigation. We log so it's visible in devtools.
+              console.warn(`[SW] precache miss for ${url}:`, err);
+            }
+          })
+        );
+      } catch (err) {
+        // Top-level guard: caches.open() or Promise.all threw.
+        // Non-fatal — the SW can still install; the runtime cache
+        // (networkFirstHtml / cacheFirstStatic) will populate on
+        // first navigation. Log so it's debuggable.
+        console.warn("[SW] precache App Shell failed (non-fatal):", err);
+      }
+      // Always skipWaiting() so the new SW takes over immediately,
+      // even if precaching failed. The runtime cache will fill in
+      // any missing entries on the first navigation.
       self.skipWaiting();
     })()
   );

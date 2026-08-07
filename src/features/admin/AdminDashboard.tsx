@@ -15,7 +15,7 @@
 //   ├──────────────────────────────────────────────────────────────┤
 //   │ Key Metrics (4 GlassStatCards):                              │
 //   │   Total Users · Active Watchlist Entries ·                  │
-//   │   TMDB Cache Size · API Requests Today                      │
+//   │   TMDB Cache Size · Actions Today                           │
 //   ├──────────────────────────────────────────────────────────────┤
 //   │ Media Split (DonutChart) — Movies vs TV across all vaults    │
 //   ├──────────────────────────────────────────────────────────────┤
@@ -69,8 +69,13 @@ interface AdminStats {
   movies_vs_tv: { movies: number; tv_shows: number };
   tmdb_cache: { entries: number; expired: number; size_mb: number | null };
   api_request_count: number;
-  /** Phase 9 Chunk 1 — activity_log rows since UTC midnight. */
+  /** Phase 9 Chunk 1 — activity_log rows since UTC midnight.
+   *  Phase 15 QA Bug #3 (round 3): now counts activity_log + admin_actions.
+   *  Kept for backwards compat; the dashboard reads `actions_today` instead. */
   api_requests_today: number;
+  /** Phase 15 QA Bug #3 (round 3) — combined activity_log + admin_actions
+   *  count since UTC midnight. Backs the "Actions Today" GlassStatCard. */
+  actions_today: number;
   server_status: "online";
   database_size_mb: number | null;
   fetched_at: string;
@@ -604,7 +609,8 @@ const AdminDashboard: Component = () => {
                                          on the server, so "active" =
                                          "not soft-deleted")
             3. TMDB Cache Size         — stats.tmdb_cache.size_mb (estimated)
-            4. API Requests Today      — stats.api_requests_today (UTC day)
+            4. Actions Today           — stats.actions_today (UTC day,
+                                         activity_log + admin_actions combined)
 
           Other metrics returned by /api/admin/stats (active_users 7d/30d,
           movies_vs_tv counts, database size, server status) are
@@ -646,9 +652,9 @@ const AdminDashboard: Component = () => {
               variant="glass"
             />
             <GlassStatCard
-              value={formatNumber(s().api_requests_today)}
-              label="API Requests Today"
-              icon="trending_up"
+              value={formatNumber(s().actions_today)}
+              label="Actions Today"
+              icon="bolt"
               variant="glass"
             />
           </div>

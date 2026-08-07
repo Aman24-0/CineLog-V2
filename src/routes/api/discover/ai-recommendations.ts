@@ -209,9 +209,21 @@ function needsMoreRatingsMessage(scale: RatingScale): string {
 // This mirrors the pattern used by /api/sync/trakt/preview + execute.
 //
 // Returns { userId, accessToken, userClient } on success, or null on
-// failure. The userClient is a Supabase client with the user's session
-// set via auth.setSession() so RLS enforces row-level isolation — the
-// user can only read their own vault + user_preferences rows.
+// failure. The userClient is a Supabase client with the user's access
+// token injected via `global.headers.Authorization` so every request
+// (vault, user_preferences) is authenticated + RLS-enforced.
+//
+// PHASE 15 QA BUG #1 (round 3): the previous version used
+// `userClient.auth.setSession({ access_token, refresh_token: "" })`.
+// Supabase often REJECTS an empty refresh_token (the auth layer
+// validates the session shape and throws on a malformed refresh token),
+// which silently broke the subsequent vault query — it returned 0 rows
+// even for users with a full vault. The fix: inject the Bearer token
+// via `global.headers` instead. This is the supabase-js-recommended
+// way to authenticate a stateless server-side client — every PostgREST
+// request carries the Authorization header, RLS sees auth.uid(), and
+// no refresh token is needed (we only do SELECT/UPSERT, not token
+// refresh).
 async function requireSignedInUser(
   request: Request
 ): Promise<{
@@ -234,16 +246,25 @@ async function requireSignedInUser(
   const { data, error } = await verifyClient.auth.getUser(accessToken);
   if (error || !data?.user) return null;
 
-  // Build a user-scoped client for RLS-enforced queries. We set the
-  // session on the client so PostgREST sees the caller's auth.uid()
-  // in the RLS policies. refresh_token is not needed for SELECT /
-  // upsert — getUser() already verified the access token.
+  // Build a user-scoped client for RLS-enforced queries. We inject the
+  // access token via `global.headers.Authorization` so EVERY request
+  // this client makes (vault SELECT, user_preferences UPSERT, etc.)
+  // carries the Bearer token. PostgREST reads the JWT from the
+  // Authorization header, validates it, and sets auth.uid() for the
+  // RLS policies — exactly the same mechanism the browser client uses.
+  //
+  // This is preferable to `auth.setSession()` for a stateless server-
+  // side client because:
+  //   1. No refresh_token needed (we only do reads/writes, not token
+  //      refresh — getUser() already verified the access token above).
+  //   2. Supabase's setSession validates the session shape and can
+  //      reject an empty refresh_token, silently breaking downstream
+  //      queries (the Phase 15 QA round 3 bug).
+  //   3. The global.headers approach is documented in the supabase-js
+  //      README as the way to authenticate a server-side client.
   const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-    auth: { autoRefreshToken: false, persistSession: false }
-  });
-  await userClient.auth.setSession({
-    access_token: accessToken,
-    refresh_token: ""
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${accessToken}` } }
   });
 
   return { userId: data.user.id, accessToken, userClient };
@@ -531,6 +552,14 @@ export async function GET(event: APIEvent): Promise<Response> {
       .select("tmdb_id, media_type, rating")
       .eq("user_id", userId)
       .is("deleted_at", null)
+      // Phase 15 QA Bug #1 (round 3): filter to valid media types only
+      // ("movie" | "tv"). The vault table's media_type enum technically
+      // allows "series" too (legacy), but TMDB's /movie/{id} and /tv/{id}
+      // endpoints only accept "movie" | "tv". Without this filter, a
+      // "series" row would slip through and the downstream TMDB enrich
+      // (step 4b) + Groq recommendation fetch would 404. The .in() filter
+      // also future-proofs against any stray NULL media_type values.
+      .in("media_type", ["movie", "tv"])
       // Only items at/above the scale-aware threshold (we want true
       // favorites, not everything they've logged). This also filters
       // out NULL ratings.

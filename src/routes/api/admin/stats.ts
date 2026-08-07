@@ -48,8 +48,27 @@ interface AdminStats {
    * AdminDashboard's "API Requests Today" GlassStatCard so the metric
    * reflects today's traffic rather than the all-time total exposed by
    * `api_request_count` (which is retained for backwards compat).
+   *
+   * PHASE 15 QA BUG #3 (round 3): renamed to `actions_today` in the
+   * AdminDashboard UI. The field name `api_requests_today` is kept for
+   * backwards compat (any external consumer reading the JSON still gets
+   * a value). The value now counts BOTH `activity_log` AND
+   * `admin_actions` rows created today — previously it only counted
+   * `activity_log`, which showed 0 on days when no movies were added
+   * even though admins may have performed actions. The new name
+   * "Actions Today" accurately reflects the combined count.
    */
   api_requests_today: number;
+  /**
+   * Phase 15 QA Bug #3 (round 3) — alias for `api_requests_today`.
+   * The AdminDashboard reads this field for the "Actions Today"
+   * GlassStatCard. Same value as `api_requests_today` (both count
+   * activity_log + admin_actions for today). Kept as a separate field
+   * so the dashboard's intent is self-documenting + so we can diverge
+   * the two in the future if needed (e.g. if we want to exclude admin
+   * actions from the "API Requests" metric but keep them in "Actions").
+   */
+  actions_today: number;
   server_status: "online";
   database_size_mb: number | null;
   fetched_at: string;
@@ -102,7 +121,8 @@ export async function GET(event: APIEvent) {
       tmdbCacheCountResp,
       tmdbCacheExpiredResp,
       activityLogCountResp,
-      activityLogTodayResp
+      activityLogTodayResp,
+      adminActionsTodayResp
     ] = await Promise.all([
       // 1. Total users (non-deleted profiles)
       supabase
@@ -155,6 +175,18 @@ export async function GET(event: APIEvent) {
       supabase
         .from("activity_log")
         .select("id", { count: "exact", head: true })
+        .gte("created_at", isoStartOfToday),
+
+      // 8. Phase 15 QA Bug #3 (round 3) — admin_actions rows created
+      // since the start of today (UTC). Combined with #7 above to
+      // produce the "Actions Today" metric on the AdminDashboard.
+      // Previously the metric only counted activity_log, which showed
+      // 0 on days when no movies were added — even if admins performed
+      // actions (announcements, settings changes, etc.). Counting both
+      // tables gives a true picture of "activity today".
+      supabase
+        .from("admin_actions")
+        .select("id", { count: "exact", head: true })
         .gte("created_at", isoStartOfToday)
     ]);
 
@@ -206,6 +238,15 @@ export async function GET(event: APIEvent) {
     const tmdbCacheSizeMb =
       Math.round(((tmdbCacheEntries * 5) / 1024) * 100) / 100;
 
+    // Phase 15 QA Bug #3 (round 3) — "Actions Today" = activity_log
+    // rows today + admin_actions rows today. Both tables have a
+    // created_at column + are indexed for range queries. The combined
+    // count gives a true picture of "activity today" (user actions +
+    // admin actions) rather than just user-facing activity.
+    const activityLogToday = activityLogTodayResp.count ?? 0;
+    const adminActionsToday = adminActionsTodayResp.count ?? 0;
+    const actionsToday = activityLogToday + adminActionsToday;
+
     const stats: AdminStats = {
       total_users: totalUsersResp.count ?? 0,
       active_users: {
@@ -224,7 +265,11 @@ export async function GET(event: APIEvent) {
         size_mb: tmdbCacheSizeMb
       },
       api_request_count: activityLogCountResp.count ?? 0,
-      api_requests_today: activityLogTodayResp.count ?? 0,
+      // Both fields carry the combined count (activity_log + admin_actions
+      // for today). `api_requests_today` is kept for backwards compat;
+      // `actions_today` is the new canonical name the AdminDashboard reads.
+      api_requests_today: actionsToday,
+      actions_today: actionsToday,
       server_status: "online",
       database_size_mb: databaseSizeMb,
       fetched_at: isoNow

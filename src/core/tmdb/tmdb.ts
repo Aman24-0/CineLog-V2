@@ -51,6 +51,65 @@ export function isTmdb404(err: unknown): boolean {
   return err instanceof TMDBError && err.status === 404;
 }
 
+/**
+ * Module-level cache of TMDB IDs that have previously returned a 404.
+ *
+ * Phase 15 QA Bug #3 (round 3): browser network 404s are logged by the
+ * browser NATIVELY (in the Console + Network tabs) and CANNOT be
+ * silenced via JavaScript — the browser logs the failed fetch before
+ * our .catch() handler even runs. The only way to stop the red noise
+ * is to NOT MAKE THE REQUEST in the first place.
+ *
+ * This Set records every "{mediaType}/{id}" combination that has
+ * previously 404'd. `fetchTmdbMetadata` checks this Set BEFORE issuing
+ * the network request and short-circuits to null if the ID is known to
+ * be missing. This means:
+ *   • The FIRST 404 for a given ID still appears in the browser console
+ *     (unavoidable — we have to try once to discover it's missing).
+ *   • SUBSEQUENT fetches for the same ID (e.g. on the next page load,
+ *     or from a different component) are skipped entirely — no network
+ *     request, no 404, no console noise.
+ *
+ * The Set is module-level (not per-component) so the knowledge persists
+ * across navigations within the same page session. It's cleared on full
+ * page reload (module re-evaluates). This is the right scope: a TMDB
+ * entry that's missing now is very likely still missing 5 minutes later,
+ * but might be added back by TMDB eventually — a reload re-tries.
+ *
+ * The Set is bounded (MAX_FAILED_404_ENTRIES) to prevent unbounded
+ * memory growth in pathological cases (e.g. a script that iterates
+ * over thousands of stale IDs). When the cap is hit, the oldest
+ * entries are evicted (FIFO via Set insertion order).
+ */
+const MAX_FAILED_404_ENTRIES = 500;
+const failedTmdb404s = new Set<string>();
+
+/**
+ * Record a TMDB ID as known-missing (404). Called from fetchTmdbMetadata's
+ * catch block when a 404 is observed. Bounds the Set size by evicting the
+ * oldest entries when the cap is reached.
+ */
+function recordFailedTmdb404(key: string): void {
+  if (failedTmdb404s.has(key)) return;
+  // Evict oldest entries (Set preserves insertion order) when the cap
+  // is hit. This keeps memory bounded in pathological cases.
+  if (failedTmdb404s.size >= MAX_FAILED_404_ENTRIES) {
+    const firstKey = failedTmdb404s.values().next().value;
+    if (firstKey !== undefined) failedTmdb404s.delete(firstKey);
+  }
+  failedTmdb404s.add(key);
+}
+
+/** Build the cache key for a TMDB ID: "{mediaType}/{id}". */
+function tmdb404Key(mediaType: string, id: number | string): string {
+  return `${mediaType}/${id}`;
+}
+
+/** Check if a TMDB ID is known to 404 (so we skip the network request). */
+function isKnownTmdb404(mediaType: string, id: number | string): boolean {
+  return failedTmdb404s.has(tmdb404Key(mediaType, id));
+}
+
 const IMG_BASE = "https://image.tmdb.org/t/p";
 // All TMDB API calls now go through the server-side proxy at /api/media/*
 // which injects the API key server-side and adds caching/retry logic.
@@ -256,6 +315,17 @@ export async function fetchTmdbMetadata(
   mediaType: "movie" | "tv",
   id: number | string
 ): Promise<TMDBTitle | null> {
+  // Phase 15 QA Bug #3 (round 3): short-circuit if this TMDB ID is
+  // already known to 404. Browser network 404s are logged by the
+  // browser NATIVELY and cannot be silenced via JS — the only way to
+  // stop the red console noise is to NOT MAKE THE REQUEST. By checking
+  // the failedTmdb404s Set first, we skip the network fetch entirely
+  // for IDs that have previously returned 404 (e.g. stale AniList↔TMDB
+  // mappings that re-trigger on every Discover page load).
+  if (isKnownTmdb404(mediaType, id)) {
+    return null;
+  }
+
   try {
     // append_to_response=credits fetches cast + crew in the same request
     // so we can populate director + castList for vault search.
@@ -316,7 +386,15 @@ export async function fetchTmdbMetadata(
     //
     // Phase 15 QA Bug #3: uses the shared isTmdb404() helper so the
     // 404-detection logic is consistent across all TMDB callers.
+    //
+    // Phase 15 QA Bug #3 (round 3): record the 404'd ID in the
+    // failedTmdb404s Set so SUBSEQUENT fetches for the same ID are
+    // short-circuited at the top of this function — no network request,
+    // no browser 404, no console noise. The first 404 is unavoidable
+    // (we have to try once to discover it's missing), but repeat
+    // fetches (e.g. on the next Discover page load) are silenced.
     if (isTmdb404(err)) {
+      recordFailedTmdb404(tmdb404Key(mediaType, id));
       return null;
     }
     console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);
