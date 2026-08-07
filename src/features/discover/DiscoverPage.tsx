@@ -130,6 +130,11 @@ import type { TMDBTitle } from "~/shared/types";
 // the anime_settings.enabled flag is on (admin-controlled). Each
 // carousel is independent and uses cached AniList → TMDB mapping.
 import { useAnimeCarousels } from "./hooks/useAnimeCarousels";
+// Phase 16 Chunk 2 — AI Picks for You rail. Rendered as the ABSOLUTE
+// LAST section on the Discover page (below "Coming Soon"). The rail
+// self-hides when the AI feature is disabled or the user is a guest,
+// so mounting it is always safe.
+import AiRecommendationRail from "./components/AiRecommendationRail";
 
 export default function DiscoverPage() {
   const { watchlist, isGuest } = useUserLibrary();
@@ -828,6 +833,29 @@ export default function DiscoverPage() {
                   </Suspense>
                 </ErrorBoundary>
               </Show>
+
+              {/* 9. AI PICKS FOR YOU (Phase 16 Chunk 2 — Groq-powered).
+                  Rendered as the ABSOLUTE LAST discover section, below
+                  "Coming Soon". The component self-hides when:
+                    - The AI feature is disabled (via /api/ai/status).
+                    - The user is a guest (no vault → no recs).
+                    - The user has fewer than 3 rated vault items.
+                  It has its own ErrorBoundary so a failure here never
+                  breaks the rest of the Discover page. */}
+              <ErrorBoundary
+                fallback={() => (
+                  // Silent fallback — the AI rail is non-critical, so we
+                  // don't show an error card; we just hide it.
+                  <></>
+                )}
+              >
+                <Suspense fallback={<></>}>
+                  <AiRecommendationRail
+                    onSelect={handleOpenTitle}
+                    isGuest={isGuest()}
+                  />
+                </Suspense>
+              </ErrorBoundary>
 
               {/* Anime outage state — when AniList is down */}
               <Show when={animeCarousels.outage() && !animeCarousels.loading()}>

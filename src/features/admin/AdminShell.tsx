@@ -170,7 +170,16 @@ const NAV_GROUPS: NavGroup[] = [
       // not a service integration. The "smart_toy" icon (a robot head)
       // signals AI without overlapping the "tune" icon used for
       // Notification Settings.
-      { href: "/admin/ai", label: "AI Control Center", icon: "smart_toy" }
+      { href: "/admin/ai", label: "AI Control Center", icon: "smart_toy" },
+      // Phase 16 Chunk 2 — AI Assistant chat. Separate from the Control
+      // Center (which is the toggle surface). The "chat" icon signals
+      // conversational UI. Gated by the adminAssistantEnabled flag —
+      // the page renders a disabled banner if the flag is off.
+      {
+        href: "/admin/ai-assistant",
+        label: "AI Assistant",
+        icon: "chat"
+      }
     ]
   },
   {
