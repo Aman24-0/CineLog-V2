@@ -61,7 +61,8 @@
 //     prefs_json, never overwrites other prefs).
 
 import { isServer } from "solid-js/web";
-import { createServerClientFromRequest } from "~/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
 import { saveExtendedPreference } from "~/lib/supabase/repositories/settings";
 import {
   callGroq,
@@ -69,6 +70,7 @@ import {
 } from "~/lib/server/groq";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 interface APIEvent {
   request: Request;
@@ -128,6 +130,58 @@ const NUM_FAVORITES = 5;
 const NUM_RECOMMENDATIONS = 3;
 
 const GROQ_MODEL = "llama-3.3-70b-versatile";
+
+// ─── Auth helper (Bearer-header first, cookie fallback) ─────────
+//
+// Phase 15 QA Bug #1: the browser stores Supabase sessions in
+// localStorage (NOT cookies), so the previous cookie-only auth path
+// (createServerClientFromRequest + getSession) returned 401 for every
+// browser-originated request. We now use getSupabaseAccessTokenFromRequest,
+// which checks the `Authorization: Bearer <token>` header FIRST (the
+// browser path) and falls back to the cookie for backward compatibility.
+//
+// This mirrors the pattern used by /api/sync/trakt/preview + execute.
+//
+// Returns { userId, accessToken, userClient } on success, or null on
+// failure. The userClient is a Supabase client with the user's session
+// set via auth.setSession() so RLS enforces row-level isolation — the
+// user can only read their own vault + user_preferences rows.
+async function requireSignedInUser(
+  request: Request
+): Promise<{
+  userId: string;
+  accessToken: string;
+  userClient: SupabaseClient;
+} | null> {
+  const accessToken = getSupabaseAccessTokenFromRequest(request);
+  if (!accessToken) return null;
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  // Verify the token via getUser() — never trust the header payload
+  // directly since headers can be tampered with.
+  const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+  const { data, error } = await verifyClient.auth.getUser(accessToken);
+  if (error || !data?.user) return null;
+
+  // Build a user-scoped client for RLS-enforced queries. We set the
+  // session on the client so PostgREST sees the caller's auth.uid()
+  // in the RLS policies. refresh_token is not needed for SELECT /
+  // upsert — getUser() already verified the access token.
+  const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+  await userClient.auth.setSession({
+    access_token: accessToken,
+    refresh_token: ""
+  });
+
+  return { userId: data.user.id, accessToken, userClient };
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────
 
@@ -269,32 +323,29 @@ export async function GET(event: APIEvent): Promise<Response> {
     return jsonResponse({ error: "This route is server-only." }, 500);
   }
 
-  // ── 1. Authenticate via session ──────────────────────────────────
-  let userId: string | null = null;
-  let cookieJar: Awaited<
-    ReturnType<typeof createServerClientFromRequest>
-  >["cookies"] | null = null;
+  // ── 1. Authenticate via Bearer header (Phase 15 QA Bug #1 fix) ────
+  // The browser stores sessions in localStorage, so we resolve the
+  // access token from the Authorization header first (falling back to
+  // cookies for SSR / server-to-server). requireSignedInUser verifies
+  // the token + returns a user-scoped Supabase client for RLS queries.
+  let authResult: { userId: string; accessToken: string; userClient: SupabaseClient } | null;
   try {
-    const { client, cookies } = await createServerClientFromRequest(
-      event.request
-    );
-    cookieJar = cookies;
-    const { data, error } = await client.auth.getSession();
-    if (error) {
-      console.warn(
-        "[api/discover/ai-recommendations] getSession error:",
-        error.message
-      );
-    }
-    userId = data.session?.user?.id ?? null;
+    authResult = await requireSignedInUser(event.request);
   } catch (err) {
-    console.error("[api/discover/ai-recommendations] session read failed:", err);
+    console.error(
+      "[api/discover/ai-recommendations] session read failed:",
+      err
+    );
     return jsonResponse({ error: "Failed to read session." }, 500);
   }
 
-  if (!userId) {
+  if (!authResult) {
     return jsonResponse({ error: "Unauthorized" }, 401);
   }
+
+  const { userId, userClient } = authResult;
+  // Note: authResult.accessToken is also available but not needed here
+  // — userClient already has the session set for RLS-enforced queries.
 
   // ── 2. CRITICAL GATE — check the feature flag ────────────────────
   // This reads app_config.ai_settings via the service-role client
@@ -317,8 +368,7 @@ export async function GET(event: APIEvent): Promise<Response> {
   // so the user can only read their own cached recs.
   let cachedRecs: CachedAiRecs | null = null;
   try {
-    const { client } = await createServerClientFromRequest(event.request);
-    const { data: prefsData, error: prefsError } = await client
+    const { data: prefsData, error: prefsError } = await userClient
       .from("user_preferences")
       .select("prefs_json")
       .eq("user_id", userId)
@@ -366,8 +416,7 @@ export async function GET(event: APIEvent): Promise<Response> {
   // rating here and enrich with titles in step 4b.
   let favorites: VaultRowForRecs[] = [];
   try {
-    const { client } = await createServerClientFromRequest(event.request);
-    const { data: vaultRows, error: vaultError } = await client
+    const { data: vaultRows, error: vaultError } = await userClient
       .from("vault")
       .select("tmdb_id, media_type, rating")
       .eq("user_id", userId)
@@ -525,12 +574,9 @@ export async function GET(event: APIEvent): Promise<Response> {
   };
 
   try {
-    // We need a user-scoped client for the cache write (RLS: owner
-    // only). createServerClientFromRequest gives us one bound to the
-    // request's session.
-    const { client } = await createServerClientFromRequest(event.request);
+    // Reuse the user-scoped client from step 1 (RLS: owner only).
     // saveExtendedPreference accepts an optional client param.
-    await saveExtendedPreference(userId, "aiRecs", cachePayload, client);
+    await saveExtendedPreference(userId, "aiRecs", cachePayload, userClient);
   } catch (err) {
     // Cache write is best-effort — if it fails, we still return the
     // recommendations. The next request will just re-call Groq.
@@ -546,11 +592,6 @@ export async function GET(event: APIEvent): Promise<Response> {
     source: "fresh",
     generatedAt: cachePayload.generatedAt
   };
-
-  // cookieJar is unused for the response (no session refresh needed
-  // on a GET), but we pass it through for consistency with other
-  // user-authenticated routes.
-  void cookieJar;
 
   return jsonResponse(body, 200);
 }

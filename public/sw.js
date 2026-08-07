@@ -159,7 +159,7 @@
 // numeric-only versions (`cinelog-static-v11`) will be matched by
 // the `!key.endsWith("-v13-localstorage")` filter and deleted on
 // activate, which is exactly what we want.
-const CACHE_VERSION = "v14-html-timeout";
+const CACHE_VERSION = "v15-qa-hotfix";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
@@ -398,6 +398,22 @@ async function networkFirstHtml(req) {
   // race. This means even if we serve the cached app shell (because
   // the network was slow), the fresh network response will still
   // populate the cache for the NEXT visit.
+  //
+  // PHASE 15 QA BUG #3: the previous version had a subtle hang. When
+  // the timeout won the race, networkPromise kept running in the
+  // background. If it later rejected (network error), that rejection
+  // was UNHANDLED — the .catch() rethrew, but Promise.race had
+  // already settled on the timeout rejection, so nobody caught the
+  // late network rejection. This surfaced as an unhandled promise
+  // rejection AND, in some browsers, left the navigation fetch in a
+  // limbo state that kept the loading bar active.
+  //
+  // The fix: attach a terminal no-op .catch() to networkPromise so a
+  // late rejection is swallowed (the cache simply isn't updated).
+  // The background cache-population .then() still runs on success.
+  // We ALSO ensure the function NEVER throws — if every fallback
+  // misses, we return a synthetic offline Response instead of
+  // rethrowing, so the browser loading bar always finishes.
   const networkPromise = fetch(req)
     .then((resp) => {
       // Always cache a successful network response, even if the
@@ -411,9 +427,14 @@ async function networkFirstHtml(req) {
       return resp;
     })
     .catch((err) => {
-      // Network failed — re-throw so the catch block below can
-      // handle the offline fallback. The cache was not updated.
-      throw err;
+      // Network failed (offline / 5xx / DNS). Log + swallow — we do
+      // NOT rethrow because Promise.race may have already settled on
+      // the timeout, and a late rejection here would be unhandled.
+      // The cache was not updated; the catch block below serves a
+      // cached fallback. The error is logged for debugging but does
+      // not surface to the browser as an unhandled rejection.
+      console.warn("[sw] background network fetch failed (non-fatal):", err?.message || err);
+      return null;
     });
 
   const timeoutPromise = new Promise((_, reject) => {
@@ -427,9 +448,13 @@ async function networkFirstHtml(req) {
       networkPromise,
       timeoutPromise
     ]);
-    // The network won the race. The cache was already updated inside
-    // networkPromise's .then() handler, so we just return the response.
-    return networkResp;
+    // The network won the race. If networkResp is null, the background
+    // fetch already failed (caught above) — fall through to the catch
+    // block's cache fallback. Otherwise, the cache was already updated
+    // inside networkPromise's .then() handler, so we just return it.
+    if (networkResp) return networkResp;
+    // networkResp === null → network failed; throw to enter the catch.
+    throw new Error("HTML_NAV_NETWORK_FAILED");
   } catch (err) {
     // Either the network failed (offline / 5xx) OR the timeout fired.
     // In both cases, try to serve a cached response so the browser
@@ -441,28 +466,50 @@ async function networkFirstHtml(req) {
     // timeout fired) will update the cache for next time.
 
     // Try the cached version of this exact URL first (deep links).
-    const cached = await cache.match(req);
-    if (cached) return cached;
+    try {
+      const cached = await cache.match(req);
+      if (cached) return cached;
+    } catch (cacheErr) {
+      console.warn("[sw] cache.match(req) failed:", cacheErr?.message || cacheErr);
+    }
 
     // Then try the app shell (lets the SPA hydrate and route
     // client-side to the deep-linked path).
-    const shell = await cache.match("/");
-    if (shell) return shell;
+    try {
+      const shell = await cache.match("/");
+      if (shell) return shell;
+    } catch (cacheErr) {
+      console.warn("[sw] cache.match('/') failed:", cacheErr?.message || cacheErr);
+    }
 
     // If the timeout fired (not a network error) AND we have no
     // cache, we still want to let the network request continue —
     // but we can't hold the browser loading bar open forever. Fall
     // through to the offline page as a last resort; the user can
     // refresh to retry.
-    const offline = await caches.match("/offline.html");
-    if (offline) return offline;
+    try {
+      const offline = await caches.match("/offline.html");
+      if (offline) return offline;
+    } catch (cacheErr) {
+      console.warn("[sw] caches.match('/offline.html') failed:", cacheErr?.message || cacheErr);
+    }
 
-    // Nothing cached at all — rethrow so the browser shows its native
-    // offline page (better than a blank response). If the timeout
-    // fired (err.message === "HTML_NAV_TIMEOUT") the original network
-    // fetch is still in flight in the background; the next navigation
-    // will benefit from whatever it caches.
-    throw err;
+    // PHASE 15 QA BUG #3: previously this branch did `throw err`,
+    // which caused the SW to respond with an error and left the
+    // browser's native loading bar stuck. Instead, return a
+    // synthetic offline Response so the browser loading bar ALWAYS
+    // finishes. The user sees a clear "offline" message and can
+    // refresh to retry. This guarantees the function never throws
+    // and never leaves a pending navigation.
+    console.warn("[sw] networkFirstHtml: all fallbacks missed, returning synthetic offline response.", err?.message || err);
+    return new Response(
+      "<!DOCTYPE html><html><head><meta charset='utf-8'><meta name='viewport' content='width=device-width,initial-scale=1'><title>Offline — CineLog</title><style>body{font-family:system-ui,sans-serif;background:#0a0a0a;color:#e5e5e5;display:flex;align-items:center;justify-content:center;min-height:100vh;margin:0;padding:1rem;text-align:center}h1{font-size:1.25rem;margin:0 0 0.5rem}p{color:#9ca3af;margin:0 0 1.5rem;font-size:0.9rem}button{background:#00d9a3;color:#001a14;border:none;border-radius:0.5rem;padding:0.6rem 1.2rem;font-weight:600;cursor:pointer}</style></head><body><div><h1>You're offline</h1><p>CineLog couldn't reach the network and no cached copy is available. Check your connection and try again.</p><button onclick='location.reload()'>Retry</button></div></body></html>",
+      {
+        status: 503,
+        statusText: "Service Unavailable",
+        headers: { "Content-Type": "text/html; charset=utf-8" }
+      }
+    );
   }
 }
 

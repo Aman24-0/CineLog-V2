@@ -297,17 +297,31 @@ const AdminShell: ParentComponent = (props) => {
   });
 
   // Session gate — redirect to login if not authenticated
+  //
+  // PHASE 15 QA BUG #4: the previous version only checked at 0ms,
+  // 100ms, and 500ms. If the admin session check hung (network
+  // issue, SW intercepting), `adminReady()` stayed `false` at 500ms
+  // and `checkAuth` did nothing — the AdminShell stayed stuck on
+  // "Verifying admin session…" forever.
+  //
+  // The fix: useAdminAuth now races its fetch against a 5s timeout
+  // (see useAdminAuth.ts), so `adminReady` is GUARANTEED to flip to
+  // true within ~5s. We add a final `checkAuth` at 5.5s (just after
+  // that timeout) so the redirect to /admin/login fires even in the
+  // worst case. If `adminReady` resolved earlier (normal path), the
+  // 5.5s check is a harmless no-op (the Show has already switched).
   onMount(() => {
-    // Wait a tick for adminReady to resolve
     const checkAuth = () => {
       if (auth.adminReady() && !auth.isAdmin()) {
         navigate("/admin/login", { replace: true });
       }
     };
-    // Check now and again in 100ms (in case adminReady hasn't resolved yet)
+    // Check now and again at increasing intervals. The 5.5s final
+    // fallback is the safety net for the worst-case timeout path.
     checkAuth();
     setTimeout(checkAuth, 100);
     setTimeout(checkAuth, 500);
+    setTimeout(checkAuth, 5500);
   });
 
   const handleLogout = async () => {

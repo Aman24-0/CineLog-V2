@@ -288,20 +288,83 @@ export function useAdminAuth() {
 // only) so the admin UI can render the correct state as fast as
 // possible. The /admin route's index file gates rendering on
 // `adminReady()` to avoid a flash of the wrong content.
+//
+// PHASE 15 QA BUG #4: the previous version did a bare
+// `fetch("/api/admin/auth")` with NO timeout. If the network hung
+// (cold start, flaky connection, service worker intercepting), the
+// fetch never settled, `adminReady` stayed `false`, and the
+// AdminShell stayed stuck on "Verifying admin session…" forever —
+// the user had to manually refresh.
+//
+// The fix: race the fetch against a 5-second timeout. If the timeout
+// fires first, we treat the user as signed-out (admin=null,
+// adminReady=true) so the AdminShell redirects to /admin/login
+// instead of hanging. The underlying fetch is NOT aborted — it keeps
+// running in the background; if it eventually succeeds, a subsequent
+// navigation will pick up the admin cookie. This mirrors the
+// cold-start timeout pattern used in useAuth.checkInitialSession().
+//
+// 5 seconds is chosen because: it's long enough that a normal warm
+// session check (typically <300ms) never trips it; it's short enough
+// that a user staring at "Verifying admin session…" doesn't think
+// the app is broken. The AdminShell's onMount checkAuth runs at
+// 0ms/100ms/500ms, and its final fallback (added in this same QA
+// pass) fires at 5.5s — just after this timeout — so the redirect
+// to /admin/login is guaranteed.
+
+const ADMIN_SESSION_CHECK_TIMEOUT_MS = 5000;
 
 if (!isServer) {
   // Use a microtask to avoid blocking the first paint
   queueMicrotask(async () => {
+    // Build a timeout promise that resolves to a "timeout" sentinel.
+    // We resolve (rather than reject) so the Promise.race below always
+    // settles with a value — simpler than try/catch around a reject.
+    let timedOut = false;
+    const timeoutPromise = new Promise<Response>((resolve) => {
+      setTimeout(() => {
+        timedOut = true;
+        // Resolve with a synthetic 408-style Response so the .json()
+        // parse below yields { ok: false } and we fall through to
+        // setAdmin(null). The actual fetch is still in flight; this
+        // just stops us WAITING for it.
+        resolve(
+          new Response('{"ok":false}', {
+            status: 408,
+            headers: { "Content-Type": "application/json" }
+          })
+        );
+      }, ADMIN_SESSION_CHECK_TIMEOUT_MS);
+    });
+
     try {
-      const resp = (await fetch("/api/admin/auth", {
-        method: "GET",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" }
-      }).then((r) => r.json().catch(() => ({ ok: false })))) as {
+      // Race the real fetch against the timeout. Whichever settles
+      // first wins. The fetch is NOT aborted on timeout — it continues
+      // in the background and may set the admin cookie for the next
+      // navigation.
+      const resp = (await Promise.race([
+        fetch("/api/admin/auth", {
+          method: "GET",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" }
+        }),
+        timeoutPromise
+      ]).then((r) => r.json().catch(() => ({ ok: false })))) as {
         ok: boolean;
         admin?: AdminSession;
       };
-      if (resp?.ok && resp.admin) {
+
+      if (timedOut) {
+        // The timeout fired before the network responded. Treat as
+        // signed-out so the AdminShell redirects to login. The real
+        // fetch is still in flight; if it succeeds later, the admin
+        // cookie will be set and a subsequent navigation will
+        // authenticate transparently.
+        console.warn(
+          `[useAdminAuth] Session check timed out after ${ADMIN_SESSION_CHECK_TIMEOUT_MS / 1000}s — treating as signed-out. The real fetch is still in flight; a subsequent navigation will recover if it succeeds.`
+        );
+        setAdmin(null);
+      } else if (resp?.ok && resp.admin) {
         setAdmin(resp.admin);
       } else {
         setAdmin(null);
@@ -309,6 +372,9 @@ if (!isServer) {
     } catch {
       setAdmin(null);
     } finally {
+      // CRITICAL: adminReady MUST become true in ALL cases — success,
+      // failure, AND timeout. Without this, the AdminShell stays
+      // stuck on "Verifying admin session…" forever.
       setAdminReady(true);
     }
   });

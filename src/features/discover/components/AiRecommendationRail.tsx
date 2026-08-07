@@ -52,6 +52,7 @@ import {
 } from "solid-js";
 import DiscoverRail from "~/features/discover/components/DiscoverRail";
 import DiscoverEmptyState from "~/features/discover/components/DiscoverEmptyState";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import type { TMDBTitle } from "~/shared/types";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -79,7 +80,10 @@ interface AiRecommendationRailProps {
 
 // ─── Fetchers ────────────────────────────────────────────────────
 
-/** Fetch the public AI status. Returns null on any error (rail hides). */
+/** Fetch the public AI status. Returns null on any error (rail hides).
+ *  This endpoint is public (no auth required) — we still send credentials
+ *  so that an existing session cookie (if any) is forwarded, but the
+ *  route works fine without it. */
 async function fetchAiStatus(): Promise<AiStatus | null> {
   try {
     const resp = await fetch("/api/ai/status", { credentials: "include" });
@@ -103,11 +107,31 @@ type RecsResult =
 async function fetchAiRecs(): Promise<RecsResult> {
   let resp: Response;
   try {
+    // Phase 15 QA Bug #1: the browser stores Supabase sessions in
+    // localStorage (NOT cookies), so credentials:"include" alone is
+    // not enough — the server never sees a session cookie. We attach
+    // the Authorization: Bearer <token> header via getAuthHeaders()
+    // so the server's getSupabaseAccessTokenFromRequest() can resolve
+    // the caller. If no session is active, getAuthHeaders returns {}
+    // and the server responds 401 (handled below as "unavailable").
+    const authHeaders = await getAuthHeaders();
     resp = await fetch("/api/discover/ai-recommendations", {
-      credentials: "include"
+      credentials: "include",
+      headers: {
+        Accept: "application/json",
+        ...authHeaders
+      }
     });
   } catch {
     return { ok: false, reason: "network" };
+  }
+
+  // 401 = no valid session (signed-out, expired token, or the auth
+  // header was missing). The rail should hide entirely — a guest
+  // wouldn't have reached this fetch because the outer Show gates on
+  // !isGuest, but a session can expire between mount + fetch.
+  if (resp.status === 401) {
+    return { ok: false, reason: "unavailable", message: "Sign in to get AI recommendations." };
   }
 
   // 202 = "needs more ratings" — the user has <3 rated vault items.
