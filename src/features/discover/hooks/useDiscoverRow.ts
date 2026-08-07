@@ -18,6 +18,7 @@
 import { createSignal, createEffect, onCleanup, type Accessor } from "solid-js";
 import { isServer } from "solid-js/web";
 import type { TMDBTitle } from "~/shared/types";
+import { isTmdb404 } from "~/core/tmdb/tmdb";
 
 export interface DiscoverRow {
   titles: Accessor<TMDBTitle[]>;
@@ -73,7 +74,12 @@ export function useDiscoverRow<T>(
       })
       .catch((err: unknown) => {
         if (mySeq !== fetchSeq) return; // stale — discard
-        console.error("[useDiscoverRow] fetch failed:", err);
+        // Phase 15 QA Bug #3: 404s from TMDB are expected (stale AniList↔TMDB
+        // mappings, deleted entries) — silence them so the console isn't
+        // flooded with red noise. Only warn on real errors.
+        if (!isTmdb404(err)) {
+          console.warn("[useDiscoverRow] fetch failed:", err);
+        }
         setError(err instanceof Error ? err : new Error(String(err)));
         setTitles([]);
         setLoading(false);

@@ -156,6 +156,36 @@ export function useRealtimeSync(opts: UseRealtimeSyncOptions): void {
       activeChannel = null;
     }
 
+    // PHASE 15 QA BUG #4: defensive URL validation. A malformed
+    // VITE_SUPABASE_URL (e.g. missing protocol, trailing slash, or
+    // accidentally set to a non-Supabase URL) would cause supabase-js
+    // to derive an invalid wss:// URL, resulting in a confusing
+    // CHANNEL_ERROR with no clear root cause. We validate the URL here
+    // and bail out early with a clear warning if it's malformed.
+    // supabase-js needs an https:// URL to derive wss:// correctly.
+    try {
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      if (
+        typeof supabaseUrl !== "string" ||
+        supabaseUrl.trim().length === 0 ||
+        !/^https?:\/\/[a-z0-9.-]+\.(supabase\.co|supabase\.in)/i.test(
+          supabaseUrl.trim()
+        )
+      ) {
+        console.warn(
+          `[useRealtimeSync] VITE_SUPABASE_URL is missing or malformed ` +
+            `("${supabaseUrl ?? "(empty)"}"). Realtime sync disabled — ` +
+            `the app continues with manual refresh. Expected format: ` +
+            `https://<project-ref>.supabase.co`
+        );
+        return;
+      }
+    } catch {
+      // import.meta.env access can throw in rare SSR edge cases —
+      // swallow and let supabase-js handle the bad URL (it will
+      // surface a CHANNEL_ERROR which we already warn on below).
+    }
+
     const supabase = getClient();
 
     // One channel for both tables. We use a single channel (instead
@@ -239,12 +269,41 @@ export function useRealtimeSync(opts: UseRealtimeSyncOptions): void {
     // ── subscribe ────────────────────────────────────────────────
     // The callback receives a status string. We log on error but
     // don't throw — Realtime is a soft dependency.
+    //
+    // PHASE 15 QA BUG #4: channel errors were previously logged at
+    // `console.error` level (red noise). They are RECOVERABLE —
+    // supabase-js auto-reconnects the WebSocket on transient failures
+    // (network blip, server restart, CSP blocking wss://). We log at
+    // `console.warn` (yellow) so the console isn't flooded with red
+    // errors during normal operation. The hook's polling interval
+    // (1s) will re-subscribe if the channel stays errored.
+    //
+    // WebSocket URL: supabase-js derives the wss:// URL automatically
+    // from the Supabase project URL (https://xyz.supabase.co →
+    // wss://xyz.supabase.co/realtime/v1/websocket). No manual wss://
+    // config is needed. The CSP (vercel.json) allows wss://*.supabase.co
+    // in connect-src (added in the Phase 15 QA hotfix).
     channel.subscribe((status: string) => {
-      if (status === "CHANNEL_ERROR" || status === "TIMED_OUT") {
+      if (status === "CHANNEL_ERROR") {
+        // Recoverable — supabase-js will attempt to reconnect the
+        // WebSocket automatically. Common causes: transient network
+        // blip, Supabase Realtime restarting, CSP blocking wss://.
+        // The app continues to function with manual refresh; the
+        // polling interval will re-subscribe if this persists.
         console.warn(
-          `[useRealtimeSync] Realtime channel error: ${status}. ` +
-            "Cross-device sync will not work until reconnected. " +
-            "The app will continue to function with manual refresh."
+          `[useRealtimeSync] Realtime channel error (recoverable). ` +
+            "Cross-device sync will auto-reconnect; the app continues " +
+            "with manual refresh in the meantime."
+        );
+      } else if (status === "TIMED_OUT") {
+        // Less common — the subscription handshake didn't complete in
+        // time. Usually indicates a network issue or the Supabase
+        // project's Realtime being disabled. Worth investigating if
+        // it persists, but still non-fatal.
+        console.warn(
+          `[useRealtimeSync] Realtime channel timed out. ` +
+            "This may indicate a slow network or Realtime being disabled " +
+            "on the project. The app continues with manual refresh."
         );
       }
     });

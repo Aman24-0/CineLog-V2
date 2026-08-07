@@ -34,6 +34,7 @@ import {
   getUpcoming,
   discoverMovies
 } from "~/core/tmdb/discover";
+import { isTmdb404 } from "~/core/tmdb/tmdb";
 import { useDiscoverRegion } from "~/core/config/discoverRegion";
 
 export interface DiscoverFeeds {
@@ -82,13 +83,19 @@ export function useDiscoverFeeds(
         .then((v) => {
           setTrending(v);
         })
-        .catch((e) => console.error("[useDiscoverFeeds] trending:", e)),
+        .catch((e) => {
+          // Phase 15 QA Bug #3: 404s from TMDB are expected (stale IDs,
+          // deleted entries) — silence them. Only warn on real errors.
+          if (!isTmdb404(e)) console.warn("[useDiscoverFeeds] trending:", e);
+        }),
 
       getUpcoming(r)
         .then((v) => {
           setUpcoming(v);
         })
-        .catch((e) => console.error("[useDiscoverFeeds] upcoming:", e)),
+        .catch((e) => {
+          if (!isTmdb404(e)) console.warn("[useDiscoverFeeds] upcoming:", e);
+        }),
 
       // Hidden gems: high rating, low popularity
       discoverMovies({
@@ -103,7 +110,9 @@ export function useDiscoverFeeds(
           );
           setHiddenGems(sorted.slice(0, 20));
         })
-        .catch((e) => console.error("[useDiscoverFeeds] hiddenGems:", e))
+        .catch((e) => {
+          if (!isTmdb404(e)) console.warn("[useDiscoverFeeds] hiddenGems:", e);
+        })
     ];
 
     // Safety-net: force loading=false after 15 seconds regardless of

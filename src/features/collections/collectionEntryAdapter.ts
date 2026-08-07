@@ -28,6 +28,7 @@ import { getVaultRepository } from "~/lib/supabase/repositories";
 import type { VaultRow } from "~/lib/supabase/repositories";
 import type { CollectionEntry } from "~/shared/types";
 import type { TMDBTitle } from "~/shared/types";
+import { isTmdb404 } from "~/core/tmdb/tmdb";
 import { entryRowToCollectionEntry } from "./collectionMapper";
 
 // ---------------------------------------------------------------------------
@@ -116,7 +117,13 @@ export async function fetchEntriesForCollection(
       const { fetchTmdbMetadataBatch } = await import("~/core/tmdb/tmdb");
       tmdbMap = await fetchTmdbMetadataBatch(tmdbItems);
     } catch (err) {
-      console.error("[collectionEntryAdapter] TMDB batch fetch failed:", err);
+      // Phase 15 QA Bug #3: 404s from TMDB are EXPECTED (stale AniList↔TMDB
+      // mappings, deleted entries) — silently continue with an empty map.
+      // Only log non-404 errors, and as warnings (not red errors) so the
+      // console isn't flooded with noise from normal data drift.
+      if (!isTmdb404(err)) {
+        console.warn("[collectionEntryAdapter] TMDB batch fetch failed:", err);
+      }
       // Continue with empty map — entries will have undefined title/poster
     }
   }

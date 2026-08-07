@@ -63,7 +63,8 @@
 //   upgraded to "high" by a later, better match).
 
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
-import { createServerClientFromRequest } from "~/lib/supabase/server";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
+import { createClient } from "@supabase/supabase-js";
 import { isServer } from "solid-js/web";
 
 interface APIEvent {
@@ -203,18 +204,37 @@ export async function POST(event: APIEvent): Promise<Response> {
   // access token via `Authorization: Bearer <token>` (sessions live in
   // localStorage, not cookies — see Phase 13 Chunk 1). Anonymous
   // requests are rejected with 401.
+  //
+  // PHASE 15 QA BUG #2: the previous version used
+  // `createServerClientFromRequest` + `client.auth.getSession()`, which
+  // is the COOKIE-based path. The browser stores sessions in localStorage
+  // (NOT cookies), so the server never saw a session cookie → 401 for
+  // every browser request, even though the client-side saveMapping()
+  // correctly attached the Bearer header via getAuthHeaders(). The fix:
+  // read the Bearer token via getSupabaseAccessTokenFromRequest (header
+  // first, cookie fallback) and verify it via getUser(). This mirrors
+  // the pattern used by /api/sync/trakt/* and /api/discover/ai-recommendations.
   let userId: string | null = null;
   try {
-    const { client } = await createServerClientFromRequest(event.request);
-    const { data: sessionData, error: sessionError } =
-      await client.auth.getSession();
-    if (sessionError) {
-      console.warn(
-        "[anime-mappings] getSession error:",
-        sessionError.message
-      );
+    const accessToken = getSupabaseAccessTokenFromRequest(event.request);
+    if (accessToken) {
+      const supabaseUrl = process.env.VITE_SUPABASE_URL;
+      const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+      if (supabaseUrl && supabaseAnonKey) {
+        const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+          auth: { autoRefreshToken: false, persistSession: false }
+        });
+        const { data, error: sessionError } =
+          await verifyClient.auth.getUser(accessToken);
+        if (sessionError) {
+          console.warn(
+            "[anime-mappings] getUser error:",
+            sessionError.message
+          );
+        }
+        userId = data.user?.id ?? null;
+      }
     }
-    userId = sessionData.session?.user?.id ?? null;
   } catch (err) {
     console.error("[anime-mappings] Failed to read session:", err);
     return jsonResponse({ error: "Failed to read session." }, 500);

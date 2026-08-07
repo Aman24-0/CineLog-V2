@@ -131,6 +131,72 @@ const NUM_RECOMMENDATIONS = 3;
 
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
+// ─── Rating scale helpers (Phase 15 QA Bug #1) ───────────────────
+//
+// The user's `ratingScale` preference determines how ratings are
+// STORED in the vault table:
+//   • "5star"  → ratings are 1-5 (a 4 = "good", equivalent to 8/10)
+//   • "10star" → ratings are 1-10 (a 7 = "good")
+//   • "thumbs" → ratings are 1 (thumbs up) — any positive rating counts
+//
+// The old code hardcoded `rating >= 7`, which only worked for "10star"
+// users. 5-star users (max 5) never qualified, and thumbs users (max 1)
+// were excluded entirely. These helpers derive the correct threshold +
+// user-facing message from the scale.
+
+/** The user's rating scale preference. Mirrors the type in
+ *  src/core/preferences/ratingScale.ts — kept inline (not imported)
+ *  because importing the preference module would pull client-only
+ *  Solid signals into the server bundle. */
+type RatingScale = "5star" | "10star" | "thumbs";
+
+/**
+ * Derive the vault-rating threshold from the user's ratingScale.
+ *
+ *   • "5star"  → 3.5  (the midpoint of "good" on a 1-5 scale; 7/10 ÷ 2)
+ *   • "10star" → 7    (the original hardcoded threshold)
+ *   • "thumbs" → 1    (any thumbs-up is a positive signal — there's
+ *                      no gradient, so we accept all positively-rated
+ *                      items)
+ *
+ * The threshold is used in a `.gte("rating", threshold)` Supabase
+ * query, which also filters out NULL ratings (NULL >= N is NULL →
+ * excluded). This means unrated items never qualify, which is correct
+ * — we only want to recommend based on titles the user explicitly
+ * liked.
+ */
+function ratingThresholdForScale(scale: RatingScale): number {
+  if (scale === "5star") return 3.5;
+  if (scale === "thumbs") return 1;
+  return 7; // "10star" + safe default
+}
+
+/**
+ * Build the "needs more ratings" message for the 202 response, adapted
+ * to the user's rating scale so the instruction is actionable.
+ *
+ * Phase 15 QA Bug #1: the old message was
+ *   "Rate at least 3 movies (7★ or higher) to unlock AI recommendations.
+ *    You have 0 so far."
+ * Two problems:
+ *   1. "7★ or higher" is wrong for 5-star / thumbs users.
+ *   2. "You have 0 so far" was the count of items matching the
+ *      threshold, NOT the user's total rated count — misleading (a
+ *      user with 50 rated movies but 0 above 7 saw "You have 0").
+ * The new message is scale-aware and omits the misleading count. The
+ * UI (AiRecommendationRail) shows this string verbatim in its
+ * DiscoverEmptyState.
+ */
+function needsMoreRatingsMessage(scale: RatingScale): string {
+  const thresholdLabel =
+    scale === "5star"
+      ? "3.5★ or higher"
+      : scale === "thumbs"
+        ? "a thumbs-up"
+        : "7★ or higher";
+  return `Rate at least ${MIN_RATED_ITEMS} movies (${thresholdLabel}) to unlock AI recommendations.`;
+}
+
 // ─── Auth helper (Bearer-header first, cookie fallback) ─────────
 //
 // Phase 15 QA Bug #1: the browser stores Supabase sessions in
@@ -300,12 +366,26 @@ function buildRecsSystemPrompt(): string {
 /**
  * Build the user prompt — includes the user's 5 favorite movies with
  * their TMDB IDs + titles so the model can reason about taste.
+ *
+ * The rating label is scale-aware (Phase 15 QA Bug #1): a 5-star user's
+ * rating of 4 is shown as "4/5" (not "4/10"), and a thumbs-up is shown
+ * as "👍" (not "1/10"). This gives Groq accurate context about how
+ * strongly the user liked each title.
  */
-function buildRecsUserPrompt(favorites: EnrichedFavorite[]): string {
+function buildRecsUserPrompt(
+  favorites: EnrichedFavorite[],
+  scale: RatingScale
+): string {
+  const ratingLabel = (rating: number | null): string => {
+    if (!rating) return "";
+    if (scale === "5star") return ` (user rating: ${rating}/5)`;
+    if (scale === "thumbs") return ` (user rating: 👍)`;
+    return ` (user rating: ${rating}/10)`;
+  };
   const lines = favorites.map(
     (f, i) =>
       `${i + 1}. TMDB ID ${f.tmdb_id} — "${f.title || "Untitled"}"` +
-      (f.rating ? ` (user rating: ${f.rating}/10)` : "")
+      ratingLabel(f.rating)
   );
   return [
     "Here are my 5 favorite movies:",
@@ -366,7 +446,15 @@ export async function GET(event: APIEvent): Promise<Response> {
   // ── 3. Check the 24h cache in user_preferences.prefs_json.aiRecs ─
   // We use the user-scoped client (RLS-enforced) for the cache read
   // so the user can only read their own cached recs.
+  //
+  // We ALSO read the user's `ratingScale` preference from the same
+  // prefs_json row (Phase 15 QA Bug #1: the rating threshold must
+  // adapt to the user's scale — 1-5, 1-10, or thumbs — otherwise
+  // 5-star users never qualify because their max rating is 5, well
+  // below the old hardcoded `>= 7` threshold). Reading both from the
+  // same row avoids a second round-trip.
   let cachedRecs: CachedAiRecs | null = null;
+  let userRatingScale: RatingScale = "10star"; // safe default
   try {
     const { data: prefsData, error: prefsError } = await userClient
       .from("user_preferences")
@@ -376,6 +464,18 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     if (!prefsError && prefsData) {
       const prefs = prefsData.prefs_json as Record<string, unknown> | null;
+      // Read the ratingScale preference. It lives in prefs_json (synced
+      // from localStorage via preferencesSync). Valid values: "5star",
+      // "10star", "thumbs". Unknown/missing → default "10star".
+      const scaleRaw = prefs?.ratingScale;
+      if (
+        scaleRaw === "5star" ||
+        scaleRaw === "10star" ||
+        scaleRaw === "thumbs"
+      ) {
+        userRatingScale = scaleRaw;
+      }
+
       const aiRecs = prefs?.aiRecs as Partial<CachedAiRecs> | undefined;
       if (
         aiRecs &&
@@ -414,6 +514,16 @@ export async function GET(event: APIEvent): Promise<Response> {
   // NOTE: the vault table does NOT store the movie title (it's fetched
   // from TMDB at the client layer). We only select tmdb_id, media_type,
   // rating here and enrich with titles in step 4b.
+  //
+  // PHASE 15 QA BUG #1: the rating threshold is now scale-aware.
+  // Previously this was hardcoded `>= 7`, which only worked for
+  // "10star" users. 5-star users (max rating 5) never qualified, and
+  // thumbs users (rating 1 = thumbs up) were excluded entirely. The
+  // threshold is derived from the user's ratingScale preference:
+  //   • "5star"  → 3.5 (equivalent to 7/10 — the midpoint of "good")
+  //   • "10star" → 7   (the original threshold)
+  //   • "thumbs" → 1   (any thumbs-up counts as a positive signal)
+  const ratingThreshold = ratingThresholdForScale(userRatingScale);
   let favorites: VaultRowForRecs[] = [];
   try {
     const { data: vaultRows, error: vaultError } = await userClient
@@ -421,9 +531,10 @@ export async function GET(event: APIEvent): Promise<Response> {
       .select("tmdb_id, media_type, rating")
       .eq("user_id", userId)
       .is("deleted_at", null)
-      // Only items with a rating >= 7 (we want true favorites, not
-      // everything they've logged). This also filters out NULL ratings.
-      .gte("rating", 7)
+      // Only items at/above the scale-aware threshold (we want true
+      // favorites, not everything they've logged). This also filters
+      // out NULL ratings.
+      .gte("rating", ratingThreshold)
       .order("rating", { ascending: false })
       .limit(NUM_FAVORITES);
 
@@ -454,10 +565,17 @@ export async function GET(event: APIEvent): Promise<Response> {
   // make a meaningful recommendation. Return 202 with a reason the UI
   // can show. (202 = "accepted but not yet fulfild" — semantically
   // fits: we accepted the request but have nothing to return yet.)
+  //
+  // PHASE 15 QA BUG #1: the reason string no longer includes the
+  // "You have N so far" count — that count was the number of items
+  // matching the threshold, NOT the user's total rated count, so it
+  // was misleading (a user with 50 rated movies but 0 above the
+  // threshold saw "You have 0 so far"). The UI now shows a clean
+  // scale-aware message without the count.
   if (favorites.length < MIN_RATED_ITEMS) {
     const body: RecsResponse = {
       movies: [],
-      reason: `Rate at least ${MIN_RATED_ITEMS} movies (7★ or higher) to unlock AI recommendations. You have ${favorites.length} so far.`,
+      reason: needsMoreRatingsMessage(userRatingScale),
       source: "fresh",
       generatedAt: new Date().toISOString()
     };
@@ -490,7 +608,7 @@ export async function GET(event: APIEvent): Promise<Response> {
 
   // ── 5. Call Groq ─────────────────────────────────────────────────
   const systemPrompt = buildRecsSystemPrompt();
-  const userPrompt = buildRecsUserPrompt(enrichedFavorites);
+  const userPrompt = buildRecsUserPrompt(enrichedFavorites, userRatingScale);
 
   let groqReply: string;
   try {

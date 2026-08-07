@@ -26,6 +26,31 @@ import { fetchWithRetry, TMDBError } from "./fetchHelpers";
 // key remains in the client bundle for the About page diagnostic only.
 export const TMDB_KEY = import.meta.env.VITE_TMDB_API_KEY ?? "";
 
+/**
+ * Detect whether an error is an expected TMDB 404 (Not Found).
+ *
+ * Phase 15 QA Bug #3: 404s from TMDB are EXPECTED in several flows:
+ *   • Auto-mapped AniList↔TMDB IDs that point to deleted/stale TMDB entries.
+ *   • Collection detail pages where the collection was removed from TMDB.
+ *   • Season fetches for seasons that TMDB doesn't have metadata for.
+ *
+ * These 404s are NOT bugs — they're normal data drift. Logging them as
+ * red `console.error` floods the browser console and drowns out real
+ * errors. Callers should use this helper to detect 404s and silently
+ * skip them (return null / empty array) instead of logging.
+ *
+ * @example
+ *   try { return await fetchTmdbDetails(...); }
+ *   catch (err) {
+ *     if (isTmdb404(err)) return null; // expected — silent
+ *     console.warn("[my-feature] TMDB fetch failed:", err); // real error
+ *     return null;
+ *   }
+ */
+export function isTmdb404(err: unknown): boolean {
+  return err instanceof TMDBError && err.status === 404;
+}
+
 const IMG_BASE = "https://image.tmdb.org/t/p";
 // All TMDB API calls now go through the server-side proxy at /api/media/*
 // which injects the API key server-side and adds caching/retry logic.
@@ -288,7 +313,10 @@ export async function fetchTmdbMetadata(
     //
     // Other errors (5xx, network, timeout) are real failures and
     // should be logged so we can debug them.
-    if (err instanceof TMDBError && err.status === 404) {
+    //
+    // Phase 15 QA Bug #3: uses the shared isTmdb404() helper so the
+    // 404-detection logic is consistent across all TMDB callers.
+    if (isTmdb404(err)) {
       return null;
     }
     console.warn(`[tmdb] Failed to fetch ${mediaType}/${id}:`, err);

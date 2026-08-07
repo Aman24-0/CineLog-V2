@@ -343,7 +343,7 @@ const AiRecommendationRail: Component<AiRecommendationRailProps> = (props) => {
               message={
                 r().message ??
                 (r().reason === "needs_more_ratings"
-                  ? "Rate at least 3 movies (7★ or higher) to unlock AI recommendations."
+                  ? "Rate at least 3 movies you love to unlock AI recommendations."
                   : r().reason === "rate_limit"
                     ? "Rate limit hit — try again shortly."
                     : "AI recommendations are unavailable right now.")
