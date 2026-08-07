@@ -911,6 +911,42 @@
 }
 
 /* ============================================================
+   AI RECOMMENDATIONS GRID (Phase 16 upgrade)
+   6-item responsive grid for the "AI Picks for You" section.
+   Reuses .search-rail-card visual language but in a grid layout
+   (not a horizontal scroll) so all 6 genre-based recommendations
+   are visible at once.
+   ============================================================ */
+
+.ai-recs-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: var(--sp-3);
+  padding: 0 var(--sp-1);
+}
+
+@media (min-width: 640px) {
+  .ai-recs-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1024px) {
+  .ai-recs-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+    gap: var(--sp-4);
+  }
+}
+
+/* The search-rail-card class is designed for horizontal rails (fixed
+   width, flex-shrink: 0). In the grid, we want cards to fill their
+   grid cell, so we override the width + flex properties. */
+.ai-recs-grid .search-rail-card {
+  width: 100%;
+  flex: none;
+}
+
+/* ============================================================
    SEARCH BAR (merged into Discover) — STICKY below AppHeader
    The dedicated /search route is gone — search now lives at the
    top of /discover. We make the search bar sticky at

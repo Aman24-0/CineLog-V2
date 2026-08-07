@@ -69,6 +69,7 @@ import {
   isAiFeatureEnabled
 } from "~/lib/server/groq";
 import { fetchTmdbMetadata } from "~/core/tmdb/tmdb";
+import { normalizeGenres } from "~/shared/utils/genres";
 import type { TMDBTitle } from "~/shared/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -87,11 +88,14 @@ interface VaultRowForRecs {
   rating: number | null;
 }
 
-/** A favorite enriched with its TMDB title — what we send to Groq. */
+/** A favorite enriched with its TMDB title — used for genre extraction. */
 interface EnrichedFavorite {
   tmdb_id: number;
   title: string;
   rating: number | null;
+  /** Genre names extracted from TMDB metadata (e.g. ["Action", "Sci-Fi"]).
+   *  Populated by normalizeGenres() on the raw TMDB genres array. */
+  genres: string[];
 }
 
 /** Shape of the cached recommendation in prefs_json.aiRecs. */
@@ -123,11 +127,19 @@ const CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 /** Minimum number of rated vault items required to generate recs. */
 const MIN_RATED_ITEMS = 3;
 
-/** How many favorites to send to Groq as context. */
-const NUM_FAVORITES = 5;
+/** How many rated vault items to fetch for genre extraction. We fetch
+ *  more than the old 5 (which were sent directly to Groq) because we
+ *  now extract the user's top genres from this sample — a larger
+ *  sample gives a more accurate genre distribution. 20 is enough for
+ *  a stable top-6 genre list without being too expensive (TMDB enrich
+ *  is cached via apiCache). */
+const NUM_FAVORITES = 20;
 
-/** How many hidden gems to ask Groq for. */
-const NUM_RECOMMENDATIONS = 3;
+/** How many top genres to extract from the user's vault. */
+const NUM_TOP_GENRES = 6;
+
+/** How many hidden gems to ask Groq for (1 per top genre). */
+const NUM_RECOMMENDATIONS = 6;
 
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 
@@ -348,23 +360,27 @@ function parseTmdbIdsFromGroqReply(reply: string): number[] | null {
 }
 
 /**
- * Build the system prompt for the recommendations call.
+ * Build the system prompt for the genre-based recommendations call.
+ *
+ * Phase 16 upgrade: instead of sending 5 favorite movie titles + asking
+ * for 3 hidden gems, we now send the user's top 6 genres + ask for
+ * exactly 1 hidden gem PER genre (6 total). This gives a more diverse
+ * recommendation set that covers the breadth of the user's taste
+ * rather than clustering around their top-rated titles.
  *
  * The prompt is strict about output format because we parse the reply
  * programmatically. We explicitly tell the model:
- *   - Output ONLY a JSON array of numbers.
+ *   - Output ONLY a JSON array of exactly 6 TMDB movie IDs.
  *   - No prose, no markdown, no explanation.
- *   - Each number must be a real TMDB movie ID (not a TV id, not an
- *     IMDb id).
- *   - "Hidden gem" = high quality but low visibility (vote_count
- *     typically < 500 on TMDB, but we let the model decide based on
- *     its training data).
+ *   - Each ID must be a real TMDB movie ID (not a TV id, not an IMDb id).
+ *   - Each ID must correspond to a hidden gem in the respective genre.
+ *   - "Hidden gem" = high quality but low visibility.
  */
 function buildRecsSystemPrompt(): string {
   return [
     "You are a film recommendation engine for CineLog V2.",
-    "Given a user's 5 favorite movies (with TMDB IDs), suggest",
-    `${NUM_RECOMMENDATIONS} hidden gem movies they would enjoy.`,
+    "Given a user's top 6 favorite genres, suggest exactly 1 hidden",
+    "gem movie for EACH genre (6 movies total).",
     "",
     "A 'hidden gem' is a high-quality movie that is NOT mainstream",
     "or widely known — think festival favorites, cult classics, or",
@@ -372,49 +388,67 @@ function buildRecsSystemPrompt(): string {
     "already seen.",
     "",
     "OUTPUT FORMAT (CRITICAL):",
-    `- Return ONLY a JSON array of ${NUM_RECOMMENDATIONS} TMDB movie IDs.`,
+    `- Return ONLY a JSON array of exactly ${NUM_RECOMMENDATIONS} TMDB movie IDs.`,
+    "- The array MUST have exactly 6 elements, one per genre, in the",
+    "  SAME ORDER as the genres were listed.",
     "- Each ID must be a positive integer (the TMDB /movie/{id}).",
     "- Do NOT include TV series IDs — movies only.",
     "- Do NOT include any prose, markdown, or explanation.",
     "- Do NOT wrap the array in code fences.",
-    "- Example valid output: [12345, 67890, 24680]",
+    "- Example valid output: [12345, 67890, 24680, 13579, 86420, 97531]",
     "",
-    "If you cannot think of 3 good hidden gems, return as many as",
-    "you can (1 or 2 is acceptable). Never return more than 3."
+    "If you cannot think of a good hidden gem for a specific genre,",
+    "still return 6 IDs — pick the best you can. Never return more or",
+    "fewer than 6."
   ].join("\n");
 }
 
 /**
- * Build the user prompt — includes the user's 5 favorite movies with
- * their TMDB IDs + titles so the model can reason about taste.
+ * Build the user prompt — lists the user's top 6 genres so the model
+ * can suggest 1 hidden gem per genre.
  *
- * The rating label is scale-aware (Phase 15 QA Bug #1): a 5-star user's
- * rating of 4 is shown as "4/5" (not "4/10"), and a thumbs-up is shown
- * as "👍" (not "1/10"). This gives Groq accurate context about how
- * strongly the user liked each title.
+ * The genres are ordered by frequency in the user's vault (most-watched
+ * first), so the model knows which genres the user loves most.
  */
-function buildRecsUserPrompt(
-  favorites: EnrichedFavorite[],
-  scale: RatingScale
-): string {
-  const ratingLabel = (rating: number | null): string => {
-    if (!rating) return "";
-    if (scale === "5star") return ` (user rating: ${rating}/5)`;
-    if (scale === "thumbs") return ` (user rating: 👍)`;
-    return ` (user rating: ${rating}/10)`;
-  };
-  const lines = favorites.map(
-    (f, i) =>
-      `${i + 1}. TMDB ID ${f.tmdb_id} — "${f.title || "Untitled"}"` +
-      ratingLabel(f.rating)
-  );
+function buildRecsUserPrompt(topGenres: string[]): string {
+  const genreLines = topGenres
+    .slice(0, NUM_TOP_GENRES)
+    .map((g, i) => `${i + 1}. ${g}`);
   return [
-    "Here are my 5 favorite movies:",
+    `The user loves these ${NUM_TOP_GENRES} genres:`,
     "",
-    ...lines,
+    ...genreLines,
     "",
-    `Suggest ${NUM_RECOMMENDATIONS} hidden gem movies I'd love. Return ONLY the JSON array of TMDB movie IDs.`
+    `For EACH genre, suggest exactly 1 hidden gem movie. Return ONLY a JSON array of exactly ${NUM_RECOMMENDATIONS} TMDB movie IDs, one per genre, in the same order.`
   ].join("\n");
+}
+
+/**
+ * Extract the top N genres from the user's enriched favorites.
+ *
+ * Counts genre occurrences across all favorites (each favorite's
+ * genres array contributes +1 per genre). Returns the top N genre
+ * names sorted by count (descending). Ties are broken alphabetically
+ * for deterministic output.
+ *
+ * Uses normalizeGenres() to handle TMDB's multiple genre formats
+ * (objects from /movie/{id}, strings from /search, etc.).
+ */
+function extractTopGenres(
+  favorites: EnrichedFavorite[],
+  count: number
+): string[] {
+  const genreCounts: Record<string, number> = {};
+  for (const f of favorites) {
+    for (const g of f.genres) {
+      const name = g.trim();
+      if (name) genreCounts[name] = (genreCounts[name] || 0) + 1;
+    }
+  }
+  return Object.entries(genreCounts)
+    .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+    .slice(0, count)
+    .map(([name]) => name);
 }
 
 // ─── GET /api/discover/ai-recommendations ─────────────────────────
@@ -611,12 +645,15 @@ export async function GET(event: APIEvent): Promise<Response> {
     return jsonResponse(body, 202);
   }
 
-  // ── 4b. Enrich favorites with TMDB titles ────────────────────────
-  // Groq produces much better recommendations when it can read the
-  // movie titles, not just bare TMDB IDs. We fetch metadata for each
-  // favorite in parallel (Promise.allSettled — a 404 on one doesn't
-  // kill the batch). Favorites whose TMDB fetch fails are sent to
-  // Groq with the title "Untitled" so the prompt still has the ID.
+  // ── 4b. Enrich favorites with TMDB titles + genres ───────────────
+  // We fetch metadata for each favorite in parallel (Promise.allSettled
+  // — a 404 on one doesn't kill the batch). The metadata gives us:
+  //   • The title (for debugging / logging)
+  //   • The genres array (for extracting the user's top 6 genres)
+  //
+  // Phase 16 upgrade: we now extract genres from the enriched metadata
+  // to build a genre-based Groq prompt (1 hidden gem per top genre)
+  // instead of the old title-based prompt (3 hidden gems from 5 titles).
   const enrichedMetaResults = await Promise.allSettled(
     favorites.map((f) => fetchTmdbMetadata(f.media_type === "movie" ? "movie" : "tv", f.tmdb_id))
   );
@@ -624,20 +661,47 @@ export async function GET(event: APIEvent): Promise<Response> {
   const enrichedFavorites: EnrichedFavorite[] = favorites.map((f, i) => {
     const result = enrichedMetaResults[i];
     const meta = result.status === "fulfilled" ? result.value : null;
-    const title =
-      meta?.title ||
-      meta?.name ||
-      null;
+    const title = meta?.title || meta?.name || null;
+    // Extract genre names from the TMDB metadata. The /movie/{id} and
+    // /tv/{id} endpoints return genres as [{id, name}] objects.
+    // normalizeGenres() handles all TMDB genre formats (objects,
+    // strings, numbers) and returns a clean string[] of names.
+    const genres = normalizeGenres(
+      (meta as { genres?: unknown[] } | null)?.genres as unknown[] | undefined
+    );
     return {
       tmdb_id: f.tmdb_id,
       title: title ?? "Untitled",
-      rating: f.rating
+      rating: f.rating,
+      genres
     };
   });
 
-  // ── 5. Call Groq ─────────────────────────────────────────────────
+  // ── 4c. Extract the user's top 6 genres ──────────────────────────
+  // Count genre occurrences across all enriched favorites + take the
+  // top 6. If we can't extract 6 distinct genres (user has a narrow
+  // taste or many TMDB fetches failed), we proceed with whatever we
+  // have — Groq will still return recommendations, just fewer genres.
+  const topGenres = extractTopGenres(enrichedFavorites, NUM_TOP_GENRES);
+
+  if (topGenres.length === 0) {
+    // No genres could be extracted (all TMDB fetches failed or the
+    // favorites have no genre data). Return 503 so the UI shows a retry.
+    console.error(
+      "[api/discover/ai-recommendations] no genres extracted from favorites"
+    );
+    return jsonResponse(
+      {
+        error: "Couldn't determine your favorite genres.",
+        hint: "Try again in a moment — the metadata service may be temporarily unavailable."
+      } satisfies ErrorResponse,
+      503
+    );
+  }
+
+  // ── 5. Call Groq with the genre-based prompt ─────────────────────
   const systemPrompt = buildRecsSystemPrompt();
-  const userPrompt = buildRecsUserPrompt(enrichedFavorites, userRatingScale);
+  const userPrompt = buildRecsUserPrompt(topGenres);
 
   let groqReply: string;
   try {

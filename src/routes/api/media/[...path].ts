@@ -39,6 +39,49 @@ interface APIEvent {
   request: Request;
 }
 
+// ─── 404 short-circuit (Phase 16 upgrade) ─────────────────────────────
+//
+// The failedTmdb404s Set in src/core/tmdb/tmdb.ts records every
+// "{mediaType}/{id}" that has previously returned a 404 from TMDB.
+// fetchTmdbMetadata checks this Set BEFORE calling the proxy, so
+// repeat browser fetches are silenced. But the FIRST fetch still
+// goes through the proxy → the proxy fetches TMDB → TMDB returns 404
+// → the proxy returns 404 → the browser logs it in the Network tab.
+//
+// By importing the Set helpers into the proxy, we add a SECOND layer:
+// if the SERVER-side fetchTmdbMetadata (e.g. from the ai-recommendations
+// route) has already recorded a 404 for this ID, the proxy can
+// short-circuit BEFORE making the upstream TMDB request. This prevents
+// redundant TMDB API calls + prevents the browser from seeing the 404
+// in the Network tab for server-side calls that go through the proxy.
+//
+// The Set is module-level + shared between the proxy route and
+// fetchTmdbMetadata (same Node module instance on the server), so a 404
+// recorded by either code path is visible to both.
+
+import {
+  isKnownTmdb404,
+  recordFailedTmdb404,
+  tmdb404Key
+} from "~/core/tmdb/tmdb";
+
+/**
+ * Parse a TMDB path like "movie/550" or "tv/1399" into its
+ * { mediaType, id } components. Returns null if the path doesn't
+ * match the expected pattern (e.g. "discover/movie", "genre/movie/list",
+ * "search/multi" — these are list endpoints, not single-title fetches,
+ * so the 404 Set doesn't apply).
+ */
+function parseTmdbPathFor404Check(
+  tmdbPath: string
+): { mediaType: string; id: string } | null {
+  // Match paths like "movie/550", "tv/1399", "movie/550/season/1" (we
+  // only care about the first two segments). The ID must be numeric.
+  const match = tmdbPath.match(/^(movie|tv)\/(\d+)/);
+  if (!match) return null;
+  return { mediaType: match[1], id: match[2] };
+}
+
 // ─── Constants ─────────────────────────────────────────────────────────
 
 const TMDB_ORIGIN = "https://api.themoviedb.org/3";
@@ -159,6 +202,36 @@ export async function GET(event: APIEvent): Promise<Response> {
       });
     }
 
+    // ── Phase 16 upgrade: 404 short-circuit ────────────────────────
+    // Before making the upstream TMDB request, check if this ID is
+    // already known to 404 (recorded by a previous fetchTmdbMetadata
+    // call or a previous proxy request). If so, return a 404 response
+    // immediately WITHOUT calling TMDB. This prevents:
+    //   1. Redundant TMDB API calls for known-missing IDs.
+    //   2. The browser logging the 404 in the Network tab for
+    //      server-side calls that go through the proxy.
+    //
+    // We only short-circuit single-title fetches (movie/{id} or tv/{id}).
+    // List endpoints (discover, search, genre) are never short-circuited
+    // because they don't have a single ID to check.
+    const parsed = parseTmdbPathFor404Check(tmdbPath);
+    if (parsed && isKnownTmdb404(parsed.mediaType, parsed.id)) {
+      return new Response(
+        JSON.stringify({
+          status_message: "Resource not found (cached 404).",
+          success: false,
+          status_code: 34 // TMDB's standard "resource not found" code
+        }),
+        {
+          status: 404,
+          headers: {
+            "Content-Type": "application/json",
+            ...CACHE_HEADERS_ERROR
+          }
+        }
+      );
+    }
+
     // Strip any api_key the client might send — we inject our server-side key.
     // This prevents accidental key leakage through the proxy.
     url.searchParams.delete("api_key");
@@ -172,6 +245,16 @@ export async function GET(event: APIEvent): Promise<Response> {
 
     // Fetch with retry logic for 5xx errors
     const upstreamRes = await fetchWithRetry(upstreamUrl);
+
+    // ── Phase 16 upgrade: record 404s ──────────────────────────────
+    // If the upstream returned a 404 for a single-title fetch, record
+    // the ID in the failedTmdb404s Set so future requests (both from
+    // fetchTmdbMetadata AND from this proxy route) are short-circuited.
+    // This is the SERVER-SIDE recording path — it complements the
+    // client-side recording in fetchTmdbMetadata's catch block.
+    if (upstreamRes.status === 404 && parsed) {
+      recordFailedTmdb404(tmdb404Key(parsed.mediaType, parsed.id));
+    }
 
     // Read the response body
     const body = await upstreamRes.text();

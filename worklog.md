@@ -517,3 +517,42 @@ Work Log:
 Stage Summary:
 - Files modified (6): src/routes/api/discover/ai-recommendations.ts (global.headers Bearer client + media_type filter), src/core/tmdb/tmdb.ts (failedTmdb404s Set + check/record in fetchTmdbMetadata), src/routes/api/admin/stats.ts (admin_actions today query + actions_today field), src/features/admin/AdminDashboard.tsx (Actions Today label + actions_today field), src/features/discover/DiscoverPage.tsx (crossorigin=anonymous on preload links), public/sw.js (top-level precache try/catch + skipWaiting outside guard).
 - All 4 final QA bugs fixed at the root cause. No regressions. AI recommendations now return real results for users with a populated vault (setSession empty-refresh-token bug eliminated). TMDB 404 console noise silenced for repeat fetches (first fetch is unavoidable). Admin dashboard "Actions Today" now reflects all activity (user + admin). SW install never crashes on precache failure. Image preloads no longer waste the preloaded response due to CORS mode mismatch.
+
+---
+Task ID: phase-16-ai-recs-upgrade
+Agent: main (Super Z)
+Task: Upgrade AI Recommendations (3→6 by genre) + fix remaining TMDB CORS preload errors + silence TMDB 404 network errors in the media proxy route.
+
+Work Log:
+- BUG 1 (Upgrade AI Recs 3→6 by genre): src/routes/api/discover/ai-recommendations.ts — complete rewrite of the recommendation logic:
+  • Constants: NUM_FAVORITES 5→20 (for genre distribution), NUM_RECOMMENDATIONS 3→6, added NUM_TOP_GENRES=6.
+  • EnrichedFavorite interface: added `genres: string[]` field (extracted from TMDB metadata via normalizeGenres).
+  • Added normalizeGenres import from ~/shared/utils/genres (handles TMDB's multiple genre formats: [{id,name}] objects from /movie/{id}, strings from /search, numbers from /discover).
+  • Step 4b (enrichment): now extracts genres from each favorite's TMDB metadata using normalizeGenres(meta?.genres). The /movie/{id} and /tv/{id} endpoints return genres as [{id, name}] objects.
+  • Step 4c (NEW): extractTopGenres(enrichedFavorites, 6) — counts genre occurrences across all favorites, sorts by count (desc) with alphabetical tiebreak, takes top 6. Returns 503 if 0 genres extracted (all TMDB fetches failed).
+  • System prompt: rewritten from "Given 5 favorite movies, suggest 3 hidden gems" to "Given top 6 genres, suggest exactly 1 hidden gem PER genre (6 total)". Strict output format: JSON array of exactly 6 TMDB movie IDs, one per genre, in the same order.
+  • User prompt: rewritten from listing 5 favorite movie titles to listing 6 genre names ordered by vault frequency.
+  • Step 7 (metadata fetch): unchanged — already handles N IDs via Promise.allSettled. Just handles 6 instead of 3.
+  • Cache: unchanged — stores TMDBTitle[] (now 6 instead of 3).
+  • needsMoreRatingsMessage: unchanged — still uses MIN_RATED_ITEMS=3 + scale-aware threshold label. The genre extraction needs at least 3 rated items to have enough data.
+- BUG 1b (AiRecommendationRail grid): src/features/discover/components/AiRecommendationRail.tsx — replaced the horizontal DiscoverRail with a responsive 6-item grid:
+  • Removed DiscoverRail import, added tmdbImage import from ~/core/tmdb/tmdb.
+  • Loading skeleton: 3 cards → 6 cards.
+  • Success state: replaced <DiscoverRail> with a custom <div class="ai-recs-grid"> containing 6 clickable poster cards. Each card renders: poster image (tmdbImage w342) or fallback icon, title, year + star rating. Uses the existing .search-rail-card CSS class for visual consistency.
+  • Added .ai-recs-grid CSS to src/styles/features/discover.css: responsive grid (2 cols mobile, 3 cols tablet, 6 cols desktop). Overrides .search-rail-card width/flex for grid layout.
+- BUG 2 (Remove TMDB preload CORS errors): src/features/discover/DiscoverPage.tsx — removed the entire LCP image preload injection block (~95 lines):
+  • Removed: preloadedLinks variable, injectLcpPreloads function, createEffect that watched spotlightPick + row1Filtered, onCleanup that cleaned up links.
+  • Removed: tmdbImage import (no longer used in DiscoverPage).
+  • Removed: onCleanup import (no longer used).
+  • The CORS warnings were caused by TMDB's CDN rejecting cross-origin preload headers. The LCP impact is negligible (the <img> tags still load normally, just without the preload head-start) compared to the console spam. The browser's native lazy-loading + fetchpriority on the <img> tags is sufficient.
+- BUG 3 (Silence TMDB 404s in proxy): src/core/tmdb/tmdb.ts + src/routes/api/media/[...path].ts:
+  • tmdb.ts: exported the previously-private helpers: recordFailedTmdb404(), tmdb404Key(), isKnownTmdb404(). These were module-private; now exported so the media proxy route can use them. The failedTmdb404s Set itself remains module-private (accessed only via the helpers).
+  • media/[...path].ts: added import of isKnownTmdb404 + recordFailedTmdb404 + tmdb404Key from ~/core/tmdb/tmdb. Added parseTmdbPathFor404Check(tmdbPath) helper that regex-matches "movie/{id}" or "tv/{id}" patterns (returns null for list endpoints like discover/search/genre). Added 404 short-circuit BEFORE the upstream fetch: if the parsed ID is in failedTmdb404s, returns a synthetic 404 response immediately (no TMDB API call, no browser Network tab 404). Added 404 recording AFTER the upstream fetch: if TMDB returns 404 for a single-title path, records it via recordFailedTmdb404 so future requests (from both fetchTmdbMetadata AND the proxy) are short-circuited.
+  • The Set is module-level + shared between the proxy route and fetchTmdbMetadata (same Node module instance on the server), so a 404 recorded by either code path is visible to both. This gives TWO layers of 404 prevention: (1) fetchTmdbMetadata checks the Set before calling the proxy (client-side), (2) the proxy checks the Set before calling TMDB (server-side).
+- Verified on disk: npx tsc --noEmit → 0 errors. npx vitest run → 55 files, 1412 tests, 0 failures. npx eslint on all 5 changed TS/TSX files → 0 errors (fixed one unused onCleanup import in DiscoverPage after the preload removal).
+
+Stage Summary:
+- Files modified (6): src/routes/api/discover/ai-recommendations.ts (genre-based prompt + 6 recs), src/features/discover/components/AiRecommendationRail.tsx (6-item grid), src/features/discover/DiscoverPage.tsx (removed preload injection + unused imports), src/core/tmdb/tmdb.ts (exported 404 helpers), src/routes/api/media/[...path].ts (proxy 404 short-circuit + recording), src/styles/features/discover.css (ai-recs-grid CSS).
+- AI Recommendations now returns 6 genre-diverse hidden gems instead of 3 title-clustered ones. The user's top 6 genres are extracted from their rated vault items (TMDB-enriched), and Groq suggests exactly 1 hidden gem per genre. The UI shows all 6 in a responsive grid (2/3/6 cols).
+- TMDB image preload CORS warnings eliminated by removing the preload injection entirely.
+- TMDB 404 Network tab errors silenced by the proxy short-circuiting known-404 IDs before making the upstream TMDB request. First fetch is unavoidable; subsequent fetches for the same ID are fully silenced (no TMDB call, no browser 404 log).

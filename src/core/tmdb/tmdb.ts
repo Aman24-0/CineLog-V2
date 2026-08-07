@@ -88,8 +88,14 @@ const failedTmdb404s = new Set<string>();
  * Record a TMDB ID as known-missing (404). Called from fetchTmdbMetadata's
  * catch block when a 404 is observed. Bounds the Set size by evicting the
  * oldest entries when the cap is reached.
+ *
+ * Phase 16 upgrade: EXPORTED so the media proxy route
+ * (src/routes/api/media/[...path].ts) can also record 404s it observes
+ * at the proxy level — this gives the proxy a second layer of 404
+ * prevention for server-side fetchTmdbMetadata calls that go through
+ * the proxy.
  */
-function recordFailedTmdb404(key: string): void {
+export function recordFailedTmdb404(key: string): void {
   if (failedTmdb404s.has(key)) return;
   // Evict oldest entries (Set preserves insertion order) when the cap
   // is hit. This keeps memory bounded in pathological cases.
@@ -100,13 +106,17 @@ function recordFailedTmdb404(key: string): void {
   failedTmdb404s.add(key);
 }
 
-/** Build the cache key for a TMDB ID: "{mediaType}/{id}". */
-function tmdb404Key(mediaType: string, id: number | string): string {
+/** Build the cache key for a TMDB ID: "{mediaType}/{id}".
+ *  EXPORTED so the media proxy route can build the same key format. */
+export function tmdb404Key(mediaType: string, id: number | string): string {
   return `${mediaType}/${id}`;
 }
 
-/** Check if a TMDB ID is known to 404 (so we skip the network request). */
-function isKnownTmdb404(mediaType: string, id: number | string): boolean {
+/** Check if a TMDB ID is known to 404 (so we skip the network request).
+ *  EXPORTED so the media proxy route can short-circuit known-404 IDs
+ *  BEFORE making the upstream TMDB request — this prevents the browser
+ *  from logging the 404 in the Network tab. */
+export function isKnownTmdb404(mediaType: string, id: number | string): boolean {
   return failedTmdb404s.has(tmdb404Key(mediaType, id));
 }
 

@@ -50,9 +50,9 @@ import {
   For,
   type Component
 } from "solid-js";
-import DiscoverRail from "~/features/discover/components/DiscoverRail";
 import DiscoverEmptyState from "~/features/discover/components/DiscoverEmptyState";
 import { getAuthHeaders } from "~/lib/supabase/session";
+import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { TMDBTitle } from "~/shared/types";
 
 // ─── Types ───────────────────────────────────────────────────────
@@ -301,10 +301,10 @@ const AiRecommendationRail: Component<AiRecommendationRailProps> = (props) => {
           </Show>
         </div>
 
-        {/* Loading state — skeleton rail. */}
+        {/* Loading state — skeleton grid (6 cards). */}
         <Show when={loading()}>
-          <div class="search-rail">
-            <For each={Array.from({ length: 3 })}>
+          <div class="ai-recs-grid">
+            <For each={Array.from({ length: 6 })}>
               {() => (
                 <div class="search-rail-card" style={{ cursor: "default" }}>
                   <div class="search-rail-poster skeleton-base" />
@@ -314,17 +314,61 @@ const AiRecommendationRail: Component<AiRecommendationRailProps> = (props) => {
           </div>
         </Show>
 
-        {/* Success — render the 3 movies in a DiscoverRail.
+        {/* Success — render the 6 movies in a responsive grid.
             successRecs() narrows the discriminated union to the
-            `ok: true` branch, so r().data.movies is type-safe. */}
+            `ok: true` branch, so r().data.movies is type-safe.
+            Phase 16 upgrade: replaced the horizontal DiscoverRail with
+            a 6-item grid (2 cols mobile, 3 cols tablet, 6 cols desktop)
+            so all 6 genre-based recommendations are visible at once
+            without scrolling. */}
         <Show when={!loading() && successRecs()}>
           {(r) => (
-            <DiscoverRail
-              titles={r().data.movies}
-              onSelect={props.onSelect}
-              emptyText="No AI recommendations right now."
-              emptyIcon="auto_awesome"
-            />
+            <div class="ai-recs-grid">
+              <For each={r().data.movies}>
+                {(title) => (
+                  <button
+                    type="button"
+                    class="search-rail-card focus-ring"
+                    onClick={() => props.onSelect(title)}
+                    aria-label={`${title.title || title.name || "Untitled"} — open details`}
+                  >
+                    <div class="search-rail-poster">
+                      <Show
+                        when={title.poster_path}
+                        fallback={
+                          <div class="search-rail-poster-fallback">
+                            <span
+                              class="material-symbols-outlined"
+                              aria-hidden="true"
+                            >
+                              movie
+                            </span>
+                          </div>
+                        }
+                      >
+                        <img
+                          class="search-rail-poster-img"
+                          src={tmdbImage(title.poster_path, "w342")}
+                          alt={`${title.title || title.name || "Untitled"} poster`}
+                          loading="lazy"
+                        />
+                      </Show>
+                    </div>
+                    <p class="search-rail-title">
+                      {title.title || title.name || "Untitled"}
+                    </p>
+                    <Show when={title.release_date || title.first_air_date}>
+                      <p class="search-rail-meta">
+                        {(title.release_date || title.first_air_date || "").slice(0, 4)}
+                        <Show when={title.vote_average}>
+                          {" · ★ "}{Number(title.vote_average).toFixed(1)}
+                        </Show>
+                      </p>
+                    </Show>
+                  </button>
+                )}
+              </For>
+            </div>
           )}
         </Show>
 
