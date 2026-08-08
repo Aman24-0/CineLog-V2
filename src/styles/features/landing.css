@@ -1,29 +1,27 @@
-/* src/styles/features/landing.css — Phase 11
-   Landing Page & Marketing Site
+/* src/styles/features/landing.css — Phase 17 Chunk 2
+   Landing Page — Complete Content Redesign
 
-   A cinematic, glassmorphic marketing surface. The page is rendered
-   at `/` for logged-out users (see src/routes/index.tsx). AppShell
-   detects the `/` path and bypasses the consumer chrome (AppHeader,
-   BottomNavigation, DesktopSidebar, AnnouncementsBanner) so the
-   LandingPage has a clean canvas. AuthModal + ToastContainer remain
-   mounted by AppShell so the marketing CTAs work.
+   A premium product showcase for CineLog. Rendered at `/` for
+   logged-out users (see src/routes/index.tsx). AppShell detects
+   the `/` path and bypasses consumer chrome so the LandingPage
+   has a clean canvas. AuthModal + ToastContainer remain mounted.
 
    Design language:
-   - Full-bleed cinematic hero with TMDB backdrop + warm gradient.
-   - Glass cards (GlassCard variant="glass-strong") for feature pillars.
-   - Cinema gold (--p) accent throughout, with secondary purple/cyan
-     accents per feature card to add visual variety.
-   - Mobile-first: collapses to a single column on small screens,
-     scales to 3-column grids on desktop, and centers content on
-     ultra-wide monitors with max-width constraints.
+   - Full-bleed cinematic hero with CSS gradient mesh (no images).
+   - Trust bar — concise social proof.
+   - Differentiator — bold anti-competitor statement.
+   - How It Works — 3-step GlassCard grid.
+   - App preview — glassmorphic mockup with floating badges.
+   - Final CTA — second "Get Started Free" button.
+   - Cinema gold (--p) accent throughout, with purple/cyan accents
+     per How It Works card for visual variety.
+   - Mobile-first: collapses to single column on small screens,
+     scales to 3-column grids on desktop, centers on ultra-wide.
 
    Motion:
-   - Uses existing motion tokens (--transition-base, --transition-page,
-     --ease-smooth, --dur-page) for consistency with the rest of the app.
-   - Uses the existing .animate-fade-up keyframe class for staggered
-     entrance animations.
-   - All animations respect prefers-reduced-motion via base.css.
-*/
+   - Uses existing motion tokens for consistency.
+   - Uses .animate-fade-up for staggered entrances.
+   - All animations respect prefers-reduced-motion via base.css. */
 
 /* ============================================================
    ROOT
@@ -36,11 +34,9 @@
   background: var(--void);
   color: var(--text);
   overflow-x: hidden;
-  /* Smooth scrolling for the "Explore Features" CTA */
   scroll-behavior: smooth;
 }
 
-/* Respect reduced-motion: disable smooth scroll */
 @media (prefers-reduced-motion: reduce) {
   .landing-page {
     scroll-behavior: auto;
@@ -62,7 +58,6 @@
   left: 0;
   right: 0;
   z-index: 50;
-  /* Transparent by default — over the cinematic hero */
   background: transparent;
   border-bottom: 1px solid transparent;
   transition:
@@ -72,7 +67,6 @@
     box-shadow var(--transition-base);
 }
 
-/* Glass background once the user scrolls past the hero's first fold */
 .landing-header--scrolled {
   background: var(--glass-bg-strong);
   backdrop-filter: blur(20px) saturate(150%);
@@ -88,7 +82,6 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--sp-4);
-  /* Mobile: tight padding. Desktop: wider padding. */
   padding: 0.875rem 1rem;
   max-width: 1400px;
   margin: 0 auto;
@@ -171,52 +164,42 @@
 .landing-hero {
   position: relative;
   min-height: 100vh;
-  min-height: 100svh; /* Mobile-safe viewport */
+  min-height: 100svh;
   display: flex;
   align-items: center;
   justify-content: center;
   text-align: center;
   overflow: hidden;
-  /* Phase 17 Chunk 1 — No TMDB image. Gradient mesh renders instantly. */
   isolation: isolate;
 }
 
-/* Phase 17 Chunk 1 — Pure CSS cinematic gradient mesh.
-   No external TMDB image. The hero uses a multi-layered radial-gradient
-   composition: deep blacks blend into cinema gold (#E8B74A / --p) and
-   dark purple (#7B2FBE) to create a rich, atmospheric cinematic feel
-   with zero network cost (no 726 KB image download → LCP fixed). */
+/* Phase 17 — Pure CSS cinematic gradient mesh (5-layer). */
 .landing-hero__backdrop {
   position: absolute;
   inset: 0;
   background:
-    /* Layer 1: Warm gold spotlight — upper-center, cinematic key light */
     radial-gradient(
       ellipse 80% 60% at 50% 30%,
       rgba(232, 183, 74, 0.18) 0%,
       rgba(232, 183, 74, 0.06) 40%,
       transparent 70%
     ),
-    /* Layer 2: Deep purple ambient — lower-left, complements the gold */
     radial-gradient(
       ellipse 70% 50% at 25% 70%,
       rgba(123, 47, 190, 0.14) 0%,
       rgba(123, 47, 190, 0.04) 50%,
       transparent 80%
     ),
-    /* Layer 3: Cool indigo accent — lower-right, adds depth */
     radial-gradient(
       ellipse 60% 45% at 80% 65%,
       rgba(63, 81, 181, 0.10) 0%,
       transparent 60%
     ),
-    /* Layer 4: Soft gold wash — wide, subtle warmth across center */
     radial-gradient(
       ellipse 120% 80% at 50% 50%,
       rgba(232, 183, 74, 0.05) 0%,
       transparent 70%
     ),
-    /* Layer 5: Dark vignette base — cinematic darkness from edges */
     radial-gradient(
       ellipse 100% 100% at 50% 50%,
       rgba(18, 18, 22, 0.0) 20%,
@@ -224,7 +207,6 @@
       rgba(6, 6, 8, 1.0) 100%
     );
   z-index: -3;
-  /* Subtle entrance animation — gentle opacity fade to feel cinematic */
   opacity: 0;
   animation: landingHeroBackdrop 0.8s var(--ease-smooth) 0ms forwards;
 }
@@ -235,7 +217,7 @@
   }
 }
 
-/* Gradient overlay for legibility — darkens the bottom & edges */
+/* Gradient overlay for legibility */
 .landing-hero__gradient {
   position: absolute;
   inset: 0;
@@ -255,7 +237,7 @@
   z-index: -2;
 }
 
-/* Warm gold vignette — adds cinematic warmth */
+/* Warm gold vignette */
 .landing-hero__vignette {
   position: absolute;
   inset: 0;
@@ -281,10 +263,6 @@
   padding: 6rem 1.25rem 4rem;
   max-width: 900px;
   width: 100%;
-  /* Phase 17 Chunk 1 — Explicit centering for ultrawide (4K) monitors.
-     The parent .landing-hero uses justify-content: center, but adding
-     margin: 0 auto ensures centering even if the flex context is
-     disrupted by absolute-positioned siblings. */
   margin-inline: auto;
 }
 
@@ -302,33 +280,6 @@
   }
 }
 
-/* ─── Eyebrow Badge ─── */
-
-.landing-hero__eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.5rem 1rem;
-  border-radius: 999px;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px) saturate(140%);
-  -webkit-backdrop-filter: blur(12px) saturate(140%);
-  border: 1px solid var(--hairline-2);
-  color: var(--p);
-  font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  box-shadow:
-    0 2px 8px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
-}
-
-.landing-hero__eyebrow .material-symbols-outlined {
-  color: var(--p);
-}
-
 /* ─── Hero Title ─── */
 
 .landing-hero__title {
@@ -336,7 +287,6 @@
   font-weight: 400;
   letter-spacing: 0.02em;
   line-height: 1.05;
-  /* Responsive typography via clamp() — scales from mobile to ultra-wide */
   font-size: clamp(2.5rem, 8vw, 6rem);
   color: var(--text-strong);
   margin: 0;
@@ -355,7 +305,6 @@
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  /* Subtle gold glow */
   filter: drop-shadow(0 0 24px var(--p-glow));
 }
 
@@ -375,156 +324,207 @@
 
 .landing-hero__ctas {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 0.875rem;
+  gap: 1rem;
   margin-top: var(--sp-2);
 }
 
 @media (min-width: 640px) {
   .landing-hero__ctas {
-    gap: 1rem;
+    gap: 1.25rem;
   }
 }
 
-/* ─── Trust Strip ─── */
+/* ─── Scroll Link (anchor, NOT a modal trigger) ─── */
 
-.landing-hero__trust {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: center;
-  gap: 1rem 1.5rem;
-  margin-top: var(--sp-4);
-  padding-top: var(--sp-4);
-  border-top: 1px solid var(--hairline-2);
-  width: 100%;
-  max-width: 540px;
-}
-
-.landing-hero__trust-item {
+.landing-hero__scroll-link {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
   font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
-  color: var(--text-soft);
+  font-size: 0.875rem;
   font-weight: 500;
-}
-
-/* ─── Scroll Indicator ─── */
-
-.landing-hero__scroll {
-  position: absolute;
-  bottom: 1.5rem;
-  left: 50%;
-  transform: translateX(-50%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  background: var(--glass-bg);
-  backdrop-filter: blur(12px);
-  -webkit-backdrop-filter: blur(12px);
-  border: 1px solid var(--hairline-2);
   color: var(--text-soft);
+  text-decoration: none;
+  transition: color var(--transition-base);
   cursor: pointer;
-  transition:
-    color var(--transition-base),
-    background var(--transition-base),
-    border-color var(--transition-base),
-    transform var(--transition-base);
-  animation: landingScrollBob 2.4s var(--ease-smooth) infinite;
-  z-index: 2;
 }
 
-.landing-hero__scroll:hover {
+.landing-hero__scroll-link:hover {
   color: var(--p);
-  background: var(--glass-bg-strong);
-  border-color: var(--p-border);
-  transform: translateX(-50%) translateY(-2px);
+}
+
+.landing-hero__scroll-link .material-symbols-outlined {
+  animation: landingScrollBob 2.4s var(--ease-smooth) infinite;
 }
 
 @keyframes landingScrollBob {
   0%,
   100% {
-    transform: translateX(-50%) translateY(0);
+    transform: translateY(0);
   }
   50% {
-    transform: translateX(-50%) translateY(6px);
+    transform: translateY(4px);
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .landing-hero__scroll {
+  .landing-hero__scroll-link .material-symbols-outlined {
     animation: none;
   }
 }
 
 /* ============================================================
-   SECTION HEADERS (shared)
+   TRUST BAR
    ============================================================ */
 
-.landing-section-header {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  text-align: center;
-  gap: 0.875rem;
-  margin-bottom: var(--sp-10);
-  max-width: 720px;
-  margin-left: auto;
-  margin-right: auto;
-  padding: 0 1rem;
+.landing-trust {
+  position: relative;
+  padding: var(--sp-6) 1rem;
+  background: var(--void);
+  border-top: 1px solid var(--hairline-2);
+  border-bottom: 1px solid var(--hairline-2);
 }
 
-@media (min-width: 1024px) {
-  .landing-section-header {
-    gap: 1rem;
-    margin-bottom: var(--sp-12);
+.landing-trust__inner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1rem;
+  max-width: 900px;
+  margin: 0 auto;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text-soft);
+}
+
+.landing-trust__item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  white-space: nowrap;
+}
+
+.landing-trust__dot {
+  color: var(--text-dim);
+  font-size: 0.75rem;
+}
+
+@media (max-width: 639px) {
+  .landing-trust__dot {
+    display: none;
+  }
+  .landing-trust__inner {
+    gap: 0.75rem;
   }
 }
 
-.landing-section-eyebrow {
-  display: inline-block;
-  font-family: "Outfit", sans-serif;
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--p);
-  padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  background: var(--p-dim);
-  border: 1px solid var(--p-border);
-}
-
-.landing-section-title {
-  font-family: "Bebas Neue", cursive;
-  font-weight: 400;
-  font-size: clamp(1.875rem, 4.5vw, 3rem);
-  line-height: 1.1;
-  letter-spacing: 0.02em;
-  color: var(--text-strong);
-  margin: 0;
-}
-
-.landing-section-subtitle {
-  font-family: "Outfit", sans-serif;
-  font-size: clamp(0.9375rem, 1.6vw, 1.125rem);
-  line-height: 1.6;
-  color: var(--text-soft);
-  margin: 0;
+@media (min-width: 1024px) {
+  .landing-trust__inner {
+    font-size: 0.875rem;
+    gap: 0.75rem 1.5rem;
+  }
 }
 
 /* ============================================================
-   FEATURES GRID (3 Core Pillars)
+   THE DIFFERENTIATOR
    ============================================================ */
 
-.landing-features {
+.landing-differentiator {
+  position: relative;
+  padding: var(--sp-16) 1rem;
+  text-align: center;
+  overflow: hidden;
+  background: var(--void);
+}
+
+@media (min-width: 640px) {
+  .landing-differentiator {
+    padding: var(--sp-20) 1.5rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .landing-differentiator {
+    padding: var(--sp-24) 2rem;
+  }
+}
+
+.landing-differentiator__inner {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-4);
+  max-width: 720px;
+  margin: 0 auto;
+}
+
+/* Ambient gold glow behind the differentiator */
+.landing-differentiator__glow {
+  position: absolute;
+  inset: -60px;
+  z-index: 0;
+  background: radial-gradient(
+    ellipse 50% 50% at 50% 50%,
+    rgba(232, 183, 74, 0.06) 0%,
+    transparent 70%
+  );
+  pointer-events: none;
+}
+
+.landing-differentiator__title {
+  font-family: "Bebas Neue", cursive;
+  font-size: clamp(2rem, 5vw, 3.5rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+  color: var(--text-strong);
+  margin: 0;
+  text-shadow:
+    0 4px 24px rgba(0, 0, 0, 0.5),
+    0 0 40px rgba(232, 183, 74, 0.08);
+}
+
+.landing-differentiator__subtitle {
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(1.125rem, 2.8vw, 1.75rem);
+  font-weight: 600;
+  line-height: 1.4;
+  color: var(--text);
+  margin: 0;
+}
+
+.landing-differentiator__subtitle em {
+  font-style: normal;
+  background: linear-gradient(
+    135deg,
+    var(--p) 0%,
+    var(--p2) 100%
+  );
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+.landing-differentiator__body {
+  font-family: "Outfit", sans-serif;
+  font-size: clamp(0.9375rem, 1.6vw, 1.0625rem);
+  line-height: 1.7;
+  color: var(--text-soft);
+  margin: 0;
+  max-width: 600px;
+}
+
+/* ============================================================
+   HOW IT WORKS (3 STEPS)
+   ============================================================ */
+
+.landing-how {
   position: relative;
   padding: var(--sp-16) 1rem;
   background:
@@ -537,157 +537,181 @@
 }
 
 @media (min-width: 640px) {
-  .landing-features {
+  .landing-how {
     padding: var(--sp-20) 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
-  .landing-features {
+  .landing-how {
     padding: var(--sp-24) 2rem;
   }
 }
 
-.landing-features__inner {
+.landing-how__inner {
   max-width: 1280px;
   margin: 0 auto;
 }
 
 @media (min-width: 1536px) {
-  .landing-features__inner {
+  .landing-how__inner {
     max-width: 1400px;
   }
 }
 
-.landing-features__grid {
+.landing-how__grid {
   display: grid;
   grid-template-columns: 1fr;
   gap: 1.25rem;
 }
 
 @media (min-width: 640px) {
-  .landing-features__grid {
+  .landing-how__grid {
     grid-template-columns: repeat(2, 1fr);
     gap: 1.5rem;
   }
 }
 
 @media (min-width: 1024px) {
-  .landing-features__grid {
+  .landing-how__grid {
     grid-template-columns: repeat(3, 1fr);
     gap: 1.75rem;
   }
 }
 
-/* ─── Feature Card ─── */
+/* ─── Step Card ─── */
 
-.landing-feature-card {
+.landing-how__card {
+  position: relative;
   display: flex;
   flex-direction: column;
+  align-items: center;
+  text-align: center;
   gap: var(--sp-3);
-  height: 100%;
-  /* Subtle warm border glow on hover */
-  transition:
-    transform var(--transition-base),
-    box-shadow var(--transition-base),
-    border-color var(--transition-base);
+  padding: var(--sp-8) var(--sp-6);
 }
 
-.landing-feature-card:hover {
-  transform: translateY(-4px);
-  border-color: var(--p-border) !important;
-  box-shadow:
-    0 12px 40px rgba(0, 0, 0, 0.5),
-    0 0 32px var(--p-glow),
-    inset 0 1px 0 rgba(232, 183, 74, 0.08) !important;
+.landing-how__step-number {
+  position: absolute;
+  top: -12px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--p);
+  color: var(--void);
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+  box-shadow: 0 0 16px var(--p-glow);
+  z-index: 2;
 }
 
-.landing-feature-card__icon {
-  display: inline-flex;
+/* ─── Step Icons ─── */
+
+.landing-how__icon {
+  display: flex;
   align-items: center;
   justify-content: center;
   width: 56px;
   height: 56px;
-  border-radius: var(--radius-lg);
-  margin-bottom: var(--sp-2);
-  /* Default gold accent */
-  background: var(--p-dim);
-  border: 1px solid var(--p-border);
+  border-radius: 16px;
+  font-size: 28px;
+}
+
+.landing-how__icon .material-symbols-outlined {
+  font-size: 28px;
+}
+
+.landing-how__icon--gold {
+  background: rgba(232, 183, 74, 0.12);
   color: var(--p);
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(232, 183, 74, 0.1);
+  border: 1px solid rgba(232, 183, 74, 0.2);
 }
 
-.landing-feature-card__icon .material-symbols-outlined {
-  font-size: 28px !important;
+.landing-how__icon--purple {
+  background: rgba(123, 47, 190, 0.12);
+  color: #b47cff;
+  border: 1px solid rgba(123, 47, 190, 0.2);
 }
 
-/* Per-card accent variants */
-.landing-feature-card__icon--gold {
-  background: var(--p-dim);
-  border-color: var(--p-border);
-  color: var(--p);
-}
-
-.landing-feature-card__icon--purple {
-  background: rgba(192, 132, 252, 0.1);
-  border-color: rgba(192, 132, 252, 0.3);
-  color: #c084fc;
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(192, 132, 252, 0.1);
-}
-
-.landing-feature-card__icon--cyan {
-  background: rgba(56, 189, 248, 0.1);
-  border-color: rgba(56, 189, 248, 0.3);
+.landing-how__icon--cyan {
+  background: rgba(56, 189, 248, 0.10);
   color: #38bdf8;
-  box-shadow:
-    0 4px 16px rgba(0, 0, 0, 0.3),
-    inset 0 1px 0 rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
 }
 
-.landing-feature-card__title {
-  font-family: "Bebas Neue", cursive;
-  font-weight: 400;
-  font-size: 1.5rem;
-  letter-spacing: 0.02em;
+/* ─── Step Card Content ─── */
+
+.landing-how__card-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 1.125rem;
+  font-weight: 700;
+  line-height: 1.3;
   color: var(--text-strong);
   margin: 0;
-  line-height: 1.2;
 }
 
-.landing-feature-card__body {
+.landing-how__card-body {
   font-family: "Outfit", sans-serif;
-  font-size: 0.9375rem;
+  font-size: 0.875rem;
   line-height: 1.65;
   color: var(--text-soft);
   margin: 0;
 }
 
-.landing-feature-card__list {
-  list-style: none;
-  padding: 0;
-  margin: var(--sp-2) 0 0 0;
+/* ============================================================
+   SHARED SECTION HEADER
+   ============================================================ */
+
+.landing-section-header {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  align-items: center;
+  text-align: center;
+  gap: 0.875rem;
+  margin-bottom: var(--sp-10);
 }
 
-.landing-feature-card__list li {
-  display: flex;
-  align-items: flex-start;
-  gap: 0.5rem;
+.landing-section-eyebrow {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--p);
+}
+
+.landing-section-title {
+  font-family: "Bebas Neue", cursive;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
+  color: var(--text-strong);
+  margin: 0;
+}
+
+.landing-section-subtitle {
   font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
+  font-size: clamp(0.9375rem, 1.6vw, 1.0625rem);
+  line-height: 1.6;
   color: var(--text-soft);
-  line-height: 1.5;
+  margin: 0;
+  max-width: 720px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
-.landing-feature-card__list li .material-symbols-outlined {
-  flex-shrink: 0;
-  margin-top: 2px;
+@media (min-width: 640px) {
+  .landing-section-header {
+    margin-bottom: var(--sp-12);
+  }
 }
 
 /* ============================================================
@@ -697,14 +721,7 @@
 .landing-preview {
   position: relative;
   padding: var(--sp-16) 1rem;
-  background:
-    radial-gradient(
-      ellipse at center,
-      rgba(192, 132, 252, 0.03) 0%,
-      transparent 60%
-    ),
-    var(--void);
-  overflow: hidden;
+  background: var(--void);
 }
 
 @media (min-width: 640px) {
@@ -730,17 +747,14 @@
   }
 }
 
-/* ─── Mockup wrapper (contains floating badges + mockup card) ─── */
+/* ─── Mockup wrapper ─── */
 
 .landing-preview__mockup-wrap {
   position: relative;
   margin-top: var(--sp-8);
 }
 
-/* ─── Floating badges ───
-   Absolutely positioned around the mockup. Hidden on mobile (would
-   overlap the mockup awkwardly), visible from md+ where there's
-   enough whitespace around the mockup. */
+/* ─── Floating badges ─── */
 
 .landing-preview__floating-badge {
   position: absolute;
@@ -757,26 +771,26 @@
 
 .landing-preview__floating-badge--tl {
   top: -16px;
-  left: -16px;
-  animation-delay: 0s;
+  left: -8px;
+  animation-delay: 0ms;
 }
 
 .landing-preview__floating-badge--tr {
-  top: -16px;
-  right: -16px;
-  animation-delay: 1s;
+  top: -12px;
+  right: -8px;
+  animation-delay: 800ms;
 }
 
 .landing-preview__floating-badge--bl {
-  bottom: -16px;
-  left: -16px;
-  animation-delay: 2s;
+  bottom: 32px;
+  left: -12px;
+  animation-delay: 1600ms;
 }
 
 .landing-preview__floating-badge--br {
-  bottom: -16px;
-  right: -16px;
-  animation-delay: 3s;
+  bottom: 48px;
+  right: -12px;
+  animation-delay: 2400ms;
 }
 
 @keyframes landingFloatBadge {
@@ -798,84 +812,77 @@
 /* ─── Mockup card ─── */
 
 .landing-preview__mockup {
-  position: relative;
-  z-index: 2;
-  border-radius: 16px;
   overflow: hidden;
-  box-shadow:
-    0 24px 80px rgba(0, 0, 0, 0.6),
-    0 0 0 1px var(--hairline-2),
-    inset 0 1px 0 rgba(232, 183, 74, 0.06);
+  border-radius: 16px;
+  border: 1px solid var(--hairline-2);
 }
 
-/* Mock browser chrome — top bar with traffic lights + URL pill */
+/* ─── Browser chrome ─── */
+
 .landing-preview__chrome {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1rem;
-  background: var(--glass-bg);
+  gap: 6px;
+  padding: 0.625rem 0.875rem;
+  background: var(--glass-bg-strong);
   border-bottom: 1px solid var(--hairline-2);
 }
 
 .landing-preview__dot {
-  width: 12px;
-  height: 12px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
-  background: var(--tier-4);
+  background: var(--text-dim);
+  opacity: 0.5;
 }
 
-.landing-preview__dot:nth-child(1) {
-  background: rgba(248, 113, 113, 0.6);
+.landing-preview__dot:first-child {
+  background: #ef4444;
+  opacity: 0.7;
 }
 
 .landing-preview__dot:nth-child(2) {
-  background: rgba(251, 191, 36, 0.6);
+  background: #f59e0b;
+  opacity: 0.7;
 }
 
 .landing-preview__dot:nth-child(3) {
-  background: rgba(74, 222, 128, 0.6);
+  background: #22c55e;
+  opacity: 0.7;
 }
 
 .landing-preview__url {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 0.375rem;
-  margin-left: 0.75rem;
+  margin-left: auto;
   padding: 0.25rem 0.75rem;
-  border-radius: 999px;
-  background: var(--glass-bg-strong);
-  border: 1px solid var(--hairline-2);
+  border-radius: 6px;
+  background: var(--glass-bg);
   font-family: "Azeret Mono", monospace;
-  font-size: 0.75rem;
-  color: var(--text-muted);
+  font-size: 0.6875rem;
+  color: var(--text-dim);
+  letter-spacing: 0.02em;
 }
 
 /* ─── Mock app content ─── */
 
 .landing-preview__app {
   display: flex;
-  min-height: 420px;
-  background: var(--void);
+  min-height: 280px;
 }
 
-@media (min-width: 768px) {
-  .landing-preview__app {
-    min-height: 520px;
-  }
-}
-
-/* ─── Mock sidebar (desktop only) ─── */
+/* ── Sidebar ── */
 
 .landing-preview__sidebar {
   display: none;
   flex-direction: column;
   align-items: center;
-  gap: 0.5rem;
-  padding: 1rem 0.5rem;
-  width: 56px;
-  background: var(--glass-bg-strong);
+  gap: 0.75rem;
+  padding: 1rem 0.75rem;
+  background: var(--glass-bg);
   border-right: 1px solid var(--hairline-2);
+  width: 48px;
 }
 
 @media (min-width: 768px) {
@@ -885,86 +892,48 @@
 }
 
 .landing-preview__sidebar-logo {
+  padding-bottom: 0.5rem;
+  border-bottom: 1px solid var(--hairline-2);
+  width: 100%;
   display: flex;
-  align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  background: var(--p-dim);
-  border: 1px solid var(--p-border);
-  margin-bottom: 0.5rem;
 }
 
 .landing-preview__sidebar-icon {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--radius-md);
-  transition: background var(--transition-fast);
 }
 
-.landing-preview__sidebar-icon:first-of-type {
-  background: var(--p-dim);
-}
-
-/* ─── Mock content area ─── */
+/* ── Main content area ── */
 
 .landing-preview__content {
   flex: 1;
-  padding: 1rem;
   display: flex;
   flex-direction: column;
   gap: 1rem;
-  min-width: 0;
+  padding: 1rem;
+  overflow: hidden;
 }
 
-@media (min-width: 768px) {
-  .landing-preview__content {
-    padding: 1.25rem;
-    gap: 1.25rem;
-  }
-}
-
-/* ─── Mock spotlight ─── */
+/* ── Spotlight area ── */
 
 .landing-preview__spotlight {
   position: relative;
-  border-radius: var(--radius-lg);
+  border-radius: 12px;
+  padding: 1.5rem;
+  background: linear-gradient(
+    135deg,
+    rgba(232, 183, 74, 0.08) 0%,
+    var(--glass-bg) 100%
+  );
   overflow: hidden;
-  min-height: 200px;
-  background:
-    linear-gradient(
-      135deg,
-      rgba(232, 183, 74, 0.12) 0%,
-      rgba(192, 132, 252, 0.08) 50%,
-      rgba(56, 189, 248, 0.06) 100%
-    ),
-    radial-gradient(
-      ellipse at top right,
-      rgba(232, 183, 74, 0.15) 0%,
-      transparent 60%
-    ),
-    var(--glass-bg);
-  border: 1px solid var(--hairline-2);
-  display: flex;
-  align-items: center;
-  padding: 1.25rem;
-}
-
-@media (min-width: 768px) {
-  .landing-preview__spotlight {
-    min-height: 240px;
-    padding: 1.75rem;
-  }
 }
 
 .landing-preview__spotlight-text {
   display: flex;
   flex-direction: column;
-  gap: 0.625rem;
+  gap: 0.5rem;
   max-width: 70%;
 }
 
@@ -974,71 +943,71 @@
   margin-top: 0.5rem;
 }
 
-/* ─── Skeleton elements ─── */
+/* ── Skeleton elements (stylized mock UI) ── */
 
 .landing-preview__skeleton {
-  border-radius: 4px;
-  background: linear-gradient(
-    90deg,
-    rgba(232, 183, 74, 0.06) 0%,
-    rgba(232, 183, 74, 0.12) 50%,
-    rgba(232, 183, 74, 0.06) 100%
-  );
-  background-size: 200% 100%;
-  animation: shimmer 2s var(--ease-smooth) infinite;
+  border-radius: 6px;
+  background: var(--glass-bg);
 }
 
 .landing-preview__skeleton--badge {
-  width: 80px;
-  height: 18px;
-  border-radius: 999px;
-  background: var(--p-dim);
+  width: 60px;
+  height: 16px;
 }
 
 .landing-preview__skeleton--title {
-  width: 70%;
-  height: 28px;
+  width: 80%;
+  height: 20px;
   background: linear-gradient(
     90deg,
-    rgba(232, 183, 74, 0.2) 0%,
-    rgba(232, 183, 74, 0.4) 50%,
-    rgba(232, 183, 74, 0.2) 100%
+    var(--glass-bg) 25%,
+    rgba(232, 183, 74, 0.12) 50%,
+    var(--glass-bg) 75%
   );
   background-size: 200% 100%;
+  animation: shimmer 2s linear infinite;
 }
 
 .landing-preview__skeleton--line {
-  width: 100%;
+  width: 60%;
   height: 10px;
 }
 
 .landing-preview__skeleton--short {
-  width: 60%;
+  width: 40%;
 }
 
 .landing-preview__skeleton--button {
-  width: 100px;
-  height: 32px;
-  border-radius: var(--radius-md);
+  width: 80px;
+  height: 24px;
+  border-radius: 8px;
   background: var(--p);
-  box-shadow: 0 0 16px var(--p-glow);
+  opacity: 0.7;
 }
 
 .landing-preview__skeleton--button-secondary {
-  width: 80px;
-  height: 32px;
-  border-radius: var(--radius-md);
-  background: var(--glass-bg);
+  width: 60px;
+  height: 24px;
+  border-radius: 8px;
   border: 1px solid var(--hairline-2);
 }
 
 .landing-preview__skeleton--rail-title {
-  width: 140px;
-  height: 14px;
-  margin-bottom: 0.625rem;
+  width: 100px;
+  height: 12px;
+  margin-bottom: 0.5rem;
 }
 
-/* ─── Mock rails ─── */
+@keyframes shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+/* ── Rails ── */
 
 .landing-preview__rails {
   display: flex;
@@ -1047,47 +1016,46 @@
 }
 
 .landing-preview__rail-row {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
+  display: flex;
   gap: 0.5rem;
-}
-
-@media (min-width: 480px) {
-  .landing-preview__rail-row {
-    grid-template-columns: repeat(4, 1fr);
-    gap: 0.625rem;
-  }
-}
-
-@media (min-width: 768px) {
-  .landing-preview__rail-row {
-    grid-template-columns: repeat(6, 1fr);
-    gap: 0.75rem;
-  }
+  overflow: hidden;
 }
 
 .landing-preview__poster {
+  flex: 1;
+  min-width: 0;
   aspect-ratio: 2 / 3;
-  border-radius: var(--radius-md);
-  background: linear-gradient(
-    135deg,
-    var(--glass-bg) 0%,
-    var(--tier-4) 100%
-  );
+  border-radius: 6px;
+  background: var(--glass-bg);
   border: 1px solid var(--hairline-2);
-  /* Subtle glow on hover for interactivity feel */
-  transition: border-color var(--transition-fast), transform var(--transition-fast);
+  position: relative;
+  overflow: hidden;
 }
 
 .landing-preview__poster--accent {
-  background: linear-gradient(
-    135deg,
-    rgba(232, 183, 74, 0.3) 0%,
-    rgba(232, 183, 74, 0.15) 50%,
-    var(--glass-bg) 100%
-  );
   border-color: var(--p-border);
-  box-shadow: 0 0 16px var(--p-glow);
+  box-shadow: 0 0 12px var(--p-glow);
+}
+
+/* ── Poster shimmer overlay ── */
+
+.landing-preview__poster::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    180deg,
+    transparent 40%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
+}
+
+.landing-preview__poster--accent::after {
+  background: linear-gradient(
+    180deg,
+    rgba(232, 183, 74, 0.05) 0%,
+    rgba(0, 0, 0, 0.6) 100%
+  );
 }
 
 /* ============================================================
@@ -1145,29 +1113,39 @@
   inset: -40px;
   z-index: 0;
   background: radial-gradient(
-    ellipse at center,
-    var(--p-glow) 0%,
+    ellipse 60% 50% at 50% 50%,
+    rgba(232, 183, 74, 0.08) 0%,
     transparent 70%
   );
-  filter: blur(40px);
-  opacity: 0.6;
   pointer-events: none;
+  animation: glowPulse 4s var(--ease-smooth) infinite;
+}
+
+@keyframes glowPulse {
+  0%,
+  100% {
+    opacity: 0.7;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.05);
+  }
 }
 
 .landing-cta__title {
   font-family: "Bebas Neue", cursive;
+  font-size: clamp(1.75rem, 4vw, 2.75rem);
   font-weight: 400;
-  font-size: clamp(2rem, 5vw, 3.5rem);
-  line-height: 1.1;
-  letter-spacing: 0.02em;
+  letter-spacing: 0.04em;
+  line-height: 1.15;
   color: var(--text-strong);
   margin: 0;
-  text-shadow: 0 0 40px var(--p-glow);
 }
 
 .landing-cta__subtitle {
   font-family: "Outfit", sans-serif;
-  font-size: clamp(0.9375rem, 1.6vw, 1.125rem);
+  font-size: clamp(0.9375rem, 1.6vw, 1.0625rem);
   line-height: 1.6;
   color: var(--text-soft);
   margin: 0;
@@ -1176,18 +1154,14 @@
 
 .landing-cta__button {
   margin-top: var(--sp-2);
-  /* Extra emphasis on the final CTA */
-  box-shadow:
-    0 0 24px var(--p-glow),
-    inset 0 1px 0 rgba(255, 255, 255, 0.4) !important;
-  animation: glowPulse 3s ease-in-out infinite;
+  animation: glowPulse 4s var(--ease-smooth) infinite;
 }
 
 .landing-cta__footnote {
   font-family: "Outfit", sans-serif;
-  font-size: 0.8125rem;
+  font-size: 0.75rem;
   color: var(--text-dim);
-  margin: 0;
+  margin: var(--sp-2) 0 0 0;
 }
 
 /* ============================================================
@@ -1195,9 +1169,10 @@
    ============================================================ */
 
 .landing-footer {
-  background: var(--void);
-  border-top: 1px solid var(--hairline-2);
   padding: var(--sp-10) 1rem var(--sp-8);
+  text-align: center;
+  border-top: 1px solid var(--hairline-2);
+  background: var(--void);
 }
 
 .landing-footer__inner {
@@ -1233,36 +1208,35 @@
 
 .landing-footer__tagline {
   font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
-  color: var(--text-muted);
+  font-size: 0.8125rem;
+  color: var(--text-soft);
   margin: 0;
 }
 
 .landing-footer__links {
   display: flex;
   align-items: center;
-  gap: 0.625rem;
-  margin-top: 0.25rem;
+  gap: 0.75rem;
 }
 
 .landing-footer__link {
   font-family: "Outfit", sans-serif;
-  font-size: 0.875rem;
-  color: var(--text-soft);
+  font-size: 0.8125rem;
+  color: var(--p);
   text-decoration: none;
-  cursor: pointer;
-  background: none;
-  border: none;
-  padding: 0;
-  transition: color var(--transition-fast);
+  transition: opacity var(--transition-fast);
 }
 
 .landing-footer__link:hover {
-  color: var(--p);
+  opacity: 0.8;
 }
 
 .landing-footer__link--button {
-  font-family: inherit;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 0;
+  font: inherit;
 }
 
 .landing-footer__divider {
@@ -1278,11 +1252,7 @@
 
 /* ============================================================
    REDUCED MOTION
-   ============================================================
-   The base.css baseline already handles prefers-reduced-motion for
-   the .animate-* classes. Here we just disable the decorative
-   infinite animations (scroll bob, floating badges, glow pulse)
-   for users who prefer reduced motion. */
+   ============================================================ */
 
 @media (prefers-reduced-motion: reduce) {
   .landing-cta__button {
@@ -1291,5 +1261,11 @@
   .landing-hero__backdrop {
     animation: none;
     opacity: 1;
+  }
+  .landing-cta__glow {
+    animation: none;
+  }
+  .landing-preview__floating-badge {
+    animation: none;
   }
 }
