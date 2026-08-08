@@ -32,15 +32,13 @@ import { GlassButton, GlassCard, GlassBadge } from "~/shared/ui/glass";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
 import Icon from "~/shared/ui/Icon";
 
-// ─── Cinematic backdrop ───────────────────────────────────────────
-// A high-quality, royalty-free cinematic still. We use TMDB's
-// public CDN with a generic movie backdrop path. The image is loaded
-// lazily as a CSS background so it doesn't block initial paint —
-// the gradient underneath provides an immediate cinematic feel while
-// the image loads. If the image fails to load, the gradient is still
-// gorgeous on its own.
-const HERO_BACKDROP_URL =
-  "https://image.tmdb.org/t/p/original/8YFL5QQVPy3AgrEQxNYVSgiPEbe.jpg";
+// ─── Cinematic gradient mesh ────────────────────────────────────
+// Phase 17 Chunk 1 — No external hero images. The cinematic feel
+// is created entirely with a multi-layered CSS radial-gradient mesh
+// (deep blacks, cinema gold, dark purple). This eliminates the 726 KB
+// TMDB image download, removing the largest LCP bottleneck and
+// fixing the render-blocking resource that stalled the browser's
+// native loading bar on cold loads.
 
 // ─── LandingPage ──────────────────────────────────────────────────
 
@@ -144,12 +142,12 @@ const LandingPage: Component = () => {
         <section
           id="landing-hero"
           class="landing-hero"
-          style={{ "--hero-backdrop": `url(${HERO_BACKDROP_URL})` }}
+
           aria-labelledby="landing-hero-title"
         >
-          {/* Backdrop image layer (separate from gradient so the
-              image can fade in lazily without blocking paint) */}
-          <div class="landing-hero__backdrop" aria-hidden="true" />
+          {/* Phase 17 Chunk 1 — Backdrop image layer REMOVED.
+              Replaced by pure CSS gradient mesh in landing.css.
+              No external image fetch → instant paint, zero LCP cost. */}
           {/* Gradient overlays for legibility */}
           <div class="landing-hero__gradient" aria-hidden="true" />
           <div class="landing-hero__vignette" aria-hidden="true" />

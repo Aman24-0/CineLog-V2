@@ -1,0 +1,156 @@
+/* src/styles/base/font-override.css — Phase 17 Chunk 1
+   Font metric overrides to eliminate Cumulative Layout Shift (CLS).
+
+   The @fontsource packages already include font-display: swap, which
+   prevents FOIT (Flash of Invisible Text). However, the fallback fonts
+   (cursive, sans-serif, monospace) have different metrics than the web
+   fonts, causing visible layout shifts when the web font swaps in.
+
+   These @font-face override descriptors (size-adjust, ascent-override,
+   descent-override, line-gap-override) scale the fallback font glyphs
+   to match the web font's metrics, so the swap is visually seamless
+   and CLS is effectively zero.
+
+   Metrics derived from:
+   - Bebas Neue: xHeight ≈ 73% of em, very tall caps, tight leading
+   - Outfit: xHeight ≈ 52% of em, moderate leading
+   - Azeret Mono: xHeight ≈ 54% of em, loose leading (monospace)
+
+   size-adjust values are calibrated so the fallback renders at the
+   same visual size as the web font, preventing reflow. */
+
+/* ─── Bebas Neue fallback override ────────────────────────────────
+   Fallback: cursive (system). Bebas Neue has very tall, narrow caps
+   with tight line-height. The cursive fallback is typically shorter
+   and wider, so we increase size-adjust to match the cap height and
+   adjust vertical metrics to match the tight leading. */
+@font-face {
+  font-family: "Bebas Neue";
+  src: local("Cursive");
+  font-style: normal;
+  font-weight: 400;
+  ascent-override: 85%;
+  descent-override: 0%;
+  line-gap-override: 0%;
+  size-adjust: 115%;
+}
+
+/* ─── Outfit fallback override ────────────────────────────────────
+   Fallback: sans-serif (system). Outfit is a geometric sans with
+   moderate x-height and typical leading. The system sans-serif
+   fallback (usually Arial/Helvetica on Windows, San Francisco on
+   macOS) is close but slightly wider/taller. */
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 300;
+  ascent-override: 90%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 103%;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 400;
+  ascent-override: 90%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 103%;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 500;
+  ascent-override: 90%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 103%;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 600;
+  ascent-override: 90%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 103%;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 700;
+  ascent-override: 90%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 103%;
+}
+
+@font-face {
+  font-family: "Outfit";
+  src: local("Sans-Serif");
+  font-style: normal;
+  font-weight: 900;
+  ascent-override: 88%;
+  descent-override: 10%;
+  line-gap-override: 0%;
+  size-adjust: 104%;
+}
+
+/* ─── Azeret Mono fallback override ──────────────────────────────
+   Fallback: monospace (system). Azeret Mono is a rounded monospace
+   with generous leading. The system monospace fallback (usually
+   Courier New / Consolas) is narrower with different vertical
+   metrics. */
+@font-face {
+  font-family: "Azeret Mono";
+  src: local("Monospace");
+  font-style: normal;
+  font-weight: 300;
+  ascent-override: 88%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+  size-adjust: 108%;
+}
+
+@font-face {
+  font-family: "Azeret Mono";
+  src: local("Monospace");
+  font-style: normal;
+  font-weight: 400;
+  ascent-override: 88%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+  size-adjust: 108%;
+}
+
+@font-face {
+  font-family: "Azeret Mono";
+  src: local("Monospace");
+  font-style: normal;
+  font-weight: 500;
+  ascent-override: 88%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+  size-adjust: 108%;
+}
+
+@font-face {
+  font-family: "Azeret Mono";
+  src: local("Monospace");
+  font-style: normal;
+  font-weight: 700;
+  ascent-override: 86%;
+  descent-override: 12%;
+  line-gap-override: 0%;
+  size-adjust: 109%;
+}

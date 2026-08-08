@@ -10,8 +10,10 @@
    1. reset.css — minimal reset (currently empty; Tailwind provides reset)
    2. base.css — body, scrollbar, material-symbols, safe-area
    3. typography.css — type-* classes, font-* classes
-   4. forms.css — form element defaults (currently empty)
-   5. accessibility.css — prefers-reduced-motion overrides. The universal
+   4. font-override.css — Phase 17: @font-face metric overrides (size-adjust,
+      ascent-override, etc.) to eliminate CLS from font swap
+   5. forms.css — form element defaults (currently empty)
+   6. accessibility.css — prefers-reduced-motion overrides. The universal
       `*, *::before, *::after { animation-duration: 0.01ms !important; ... }`
       rule wins against all non-`!important` component-level motion
       declarations (regardless of source order, because `!important` in
@@ -24,5 +26,6 @@
 @import "./reset.css";
 @import "./base.css";
 @import "./typography.css";
+@import "./font-override.css";
 @import "./forms.css";
 @import "./accessibility.css";

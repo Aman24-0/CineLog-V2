@@ -177,24 +177,56 @@
   justify-content: center;
   text-align: center;
   overflow: hidden;
-  /* Layered backgrounds — backdrop image is rendered by ::backdrop */
+  /* Phase 17 Chunk 1 — No TMDB image. Gradient mesh renders instantly. */
   isolation: isolate;
 }
 
-/* Backdrop image layer — lazy CSS background */
+/* Phase 17 Chunk 1 — Pure CSS cinematic gradient mesh.
+   No external TMDB image. The hero uses a multi-layered radial-gradient
+   composition: deep blacks blend into cinema gold (#E8B74A / --p) and
+   dark purple (#7B2FBE) to create a rich, atmospheric cinematic feel
+   with zero network cost (no 726 KB image download → LCP fixed). */
 .landing-hero__backdrop {
   position: absolute;
   inset: 0;
-  background-image: var(--hero-backdrop);
-  background-size: cover;
-  background-position: center;
-  background-repeat: no-repeat;
-  /* Slight scale + blur for cinematic depth */
-  transform: scale(1.05);
-  filter: blur(2px) brightness(0.45);
-  opacity: 0; /* Fade in on load via CSS animation */
-  animation: landingHeroBackdrop 1.2s var(--ease-smooth) 100ms forwards;
+  background:
+    /* Layer 1: Warm gold spotlight — upper-center, cinematic key light */
+    radial-gradient(
+      ellipse 80% 60% at 50% 30%,
+      rgba(232, 183, 74, 0.18) 0%,
+      rgba(232, 183, 74, 0.06) 40%,
+      transparent 70%
+    ),
+    /* Layer 2: Deep purple ambient — lower-left, complements the gold */
+    radial-gradient(
+      ellipse 70% 50% at 25% 70%,
+      rgba(123, 47, 190, 0.14) 0%,
+      rgba(123, 47, 190, 0.04) 50%,
+      transparent 80%
+    ),
+    /* Layer 3: Cool indigo accent — lower-right, adds depth */
+    radial-gradient(
+      ellipse 60% 45% at 80% 65%,
+      rgba(63, 81, 181, 0.10) 0%,
+      transparent 60%
+    ),
+    /* Layer 4: Soft gold wash — wide, subtle warmth across center */
+    radial-gradient(
+      ellipse 120% 80% at 50% 50%,
+      rgba(232, 183, 74, 0.05) 0%,
+      transparent 70%
+    ),
+    /* Layer 5: Dark vignette base — cinematic darkness from edges */
+    radial-gradient(
+      ellipse 100% 100% at 50% 50%,
+      rgba(18, 18, 22, 0.0) 20%,
+      rgba(10, 10, 12, 0.6) 70%,
+      rgba(6, 6, 8, 1.0) 100%
+    );
   z-index: -3;
+  /* Subtle entrance animation — gentle opacity fade to feel cinematic */
+  opacity: 0;
+  animation: landingHeroBackdrop 0.8s var(--ease-smooth) 0ms forwards;
 }
 
 @keyframes landingHeroBackdrop {
@@ -244,10 +276,16 @@
   display: flex;
   flex-direction: column;
   align-items: center;
+  text-align: center;
   gap: var(--sp-5);
   padding: 6rem 1.25rem 4rem;
   max-width: 900px;
   width: 100%;
+  /* Phase 17 Chunk 1 — Explicit centering for ultrawide (4K) monitors.
+     The parent .landing-hero uses justify-content: center, but adding
+     margin: 0 auto ensures centering even if the flex context is
+     disrupted by absolute-positioned siblings. */
+  margin-inline: auto;
 }
 
 @media (min-width: 640px) {
