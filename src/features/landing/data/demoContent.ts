@@ -83,7 +83,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.8,
     genres: ["Sci-Fi", "Action", "Thriller"],
-    posterPath: "/ljsnlTgGWIjpJkM9pNwVRXgOSkC.jpg",
+    posterPath: "/xlaY2zyzMfkhk0HSC5VUwzoZPU1.jpg",
   },
   {
     title: "The Dark Knight",
@@ -91,7 +91,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 9.0,
     genres: ["Action", "Crime", "Drama"],
-    posterPath: "/qJ2t4NwMDM7hHO9jQ3W5JmQ4W5R2.jpg",
+    posterPath: "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
   },
   {
     title: "Interstellar",
@@ -99,7 +99,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.7,
     genres: ["Sci-Fi", "Drama", "Adventure"],
-    posterPath: "/gEU2Qti3QKJ6VNcLh2v7mR4f7fV2.jpg",
+    posterPath: "/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
   },
   {
     title: "Parasite",
@@ -107,7 +107,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.5,
     genres: ["Thriller", "Drama", "Comedy"],
-    posterPath: "/7IiQgUk9NQo1Rq8h1h1W9l1b1l1.jpg",
+    posterPath: "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
   },
   {
     title: "Dune",
@@ -115,7 +115,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.0,
     genres: ["Sci-Fi", "Adventure", "Drama"],
-    posterPath: "/d5NXV5hUbHlQJRmC5P3XkZ5Z5Z5.jpg",
+    posterPath: "/v1tRXZ4JtD2Iv6fjkPvT4GiwslV.jpg",
   },
   {
     title: "The Shawshank Redemption",
@@ -123,7 +123,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 9.3,
     genres: ["Drama"],
-    posterPath: "/q6L0J3R2l2l1m1p1R3r1Q1L2k3.jpg",
+    posterPath: "/9cqNxx0GxF0bflZmeSMuL5tnGzr.jpg",
   },
   {
     title: "Pulp Fiction",
@@ -131,7 +131,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.9,
     genres: ["Crime", "Drama"],
-    posterPath: "/dA1pl6j2t6iJ2r1Q0R3t1e3W1.jpg",
+    posterPath: "/vQWk5YBFWF4bZaofAbv0tShwBvQ.jpg",
   },
   {
     title: "The Matrix",
@@ -139,7 +139,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.7,
     genres: ["Sci-Fi", "Action"],
-    posterPath: "/f4Q0Q3f3h3e3T3r1R1p1W1e3.jpg",
+    posterPath: "/dXNAPwY7VrqMAo51EKhhCJfaGb5.jpg",
   },
   {
     title: "Blade Runner 2049",
@@ -147,7 +147,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.0,
     genres: ["Sci-Fi", "Drama", "Mystery"],
-    posterPath: "/b1R2V3s3e3f3A1m1p1Q1W1e3.jpg",
+    posterPath: "/gajva2L0rPYkEWjzgFlBXCAVBE5.jpg",
   },
   {
     title: "Mad Max: Fury Road",
@@ -155,7 +155,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.1,
     genres: ["Action", "Adventure", "Sci-Fi"],
-    posterPath: "/8t3t1R3h3e3T1r1p1Q1W1e3.jpg",
+    posterPath: "/ulcAi4dKpAjHwYGS08vNyx9H6I9.jpg",
   },
   {
     title: "Spirited Away",
@@ -163,7 +163,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.6,
     genres: ["Animation", "Adventure", "Fantasy"],
-    posterPath: "",
+    posterPath: "/39wmItIWsg5sZMyRUHLkWBcuVCM.jpg",
   },
   {
     title: "Whiplash",
@@ -171,7 +171,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.5,
     genres: ["Drama", "Music"],
-    posterPath: "",
+    posterPath: "/7fn624j5lj3xTme2SgiLCeuedmO.jpg",
   },
   {
     title: "The Grand Budapest Hotel",
@@ -179,7 +179,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.1,
     genres: ["Comedy", "Drama", "Adventure"],
-    posterPath: "",
+    posterPath: "/eWdyYQreja6JGCzqHWXpWHDrrPo.jpg",
   },
   {
     title: "Arrival",
@@ -187,7 +187,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 7.9,
     genres: ["Sci-Fi", "Drama", "Mystery"],
-    posterPath: "",
+    posterPath: "/x2FJsf1ElAgr63Y3PNPtJrcmpoe.jpg",
   },
   {
     title: "Everything Everywhere All at Once",
@@ -195,7 +195,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 7.8,
     genres: ["Action", "Adventure", "Comedy"],
-    posterPath: "",
+    posterPath: "/u68AjlvlutfEIcpmbYpKcdi09ut.jpg",
   },
   {
     title: "Oppenheimer",
@@ -203,7 +203,7 @@ export const DEMO_MOVIES: readonly DemoTitle[] = [
     type: "movie",
     rating: 8.3,
     genres: ["Drama", "History", "Biography"],
-    posterPath: "",
+    posterPath: "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
   },
 ] as const;
 
@@ -218,7 +218,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 9.5,
     genres: ["Crime", "Drama", "Thriller"],
-    posterPath: "/ztkUQ_fl6B1l2l1p1R3r1Q1L2k3.jpg",
+    posterPath: "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
   },
   {
     title: "Game of Thrones",
@@ -226,7 +226,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 9.2,
     genres: ["Fantasy", "Drama", "Action"],
-    posterPath: "/7Wj2Q3f3h3e3T3r1R1p1W1e3.jpg",
+    posterPath: "/1XS1oqL89opfnbLl8WnZY1O1uJx.jpg",
   },
   {
     title: "Stranger Things",
@@ -234,7 +234,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 8.7,
     genres: ["Sci-Fi", "Horror", "Drama"],
-    posterPath: "",
+    posterPath: "/uOOtwVbSr4QDjAGIifLDwpb2Pdl.jpg",
   },
   {
     title: "The Crown",
@@ -242,7 +242,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 8.3,
     genres: ["Drama", "History", "Biography"],
-    posterPath: "",
+    posterPath: "/1M876KPjulVwppEpldhdc8V4o68.jpg",
   },
   {
     title: "Chernobyl",
@@ -250,7 +250,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 9.4,
     genres: ["Drama", "History"],
-    posterPath: "",
+    posterPath: "/hlLXt2tOPT6RRnjiUmoxyG1LTFi.jpg",
   },
   {
     title: "The Last of Us",
@@ -258,7 +258,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 8.8,
     genres: ["Drama", "Action", "Horror"],
-    posterPath: "",
+    posterPath: "/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg",
   },
   {
     title: "Severance",
@@ -266,7 +266,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 8.7,
     genres: ["Sci-Fi", "Thriller", "Drama"],
-    posterPath: "",
+    posterPath: "/lAC6gf6iemJ8Xp5dW2VbZeexj7J.jpg",
   },
   {
     title: "Shōgun",
@@ -274,7 +274,7 @@ export const DEMO_TV_SHOWS: readonly DemoTitle[] = [
     type: "tv",
     rating: 8.6,
     genres: ["Drama", "History", "War"],
-    posterPath: "",
+    posterPath: "/chmS6SkuwzGitf2fjgaLIQwlFUY.jpg",
   },
 ] as const;
 
@@ -289,7 +289,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 9.0,
     genres: ["Action", "Drama", "Fantasy"],
-    posterPath: "/hTPN3R1Q3m3e3T3r1R1p1W1e3.jpg",
+    posterPath: "/hTP1DtLGFamjfu8WqjnuQdP1n4i.jpg",
   },
   {
     title: "Demon Slayer",
@@ -297,7 +297,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.5,
     genres: ["Action", "Fantasy", "Adventure"],
-    posterPath: "/xUHJ3R1Q3m3e3T3r1R1p1W1e3.jpg",
+    posterPath: "/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",
   },
   {
     title: "One Piece",
@@ -305,7 +305,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.7,
     genres: ["Action", "Adventure", "Comedy"],
-    posterPath: "/cMDN3R1Q3m3e3T3r1R1p1W1e3.jpg",
+    posterPath: "/dB4EDhre2dsC2kxYDavyKWqLQwi.jpg",
   },
   {
     title: "Fullmetal Alchemist: Brotherhood",
@@ -313,7 +313,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 9.1,
     genres: ["Action", "Adventure", "Fantasy"],
-    posterPath: "",
+    posterPath: "/5ZFUEOULaVml7pQuXxhpR2SmVUw.jpg",
   },
   {
     title: "Steins;Gate",
@@ -321,7 +321,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.8,
     genres: ["Sci-Fi", "Thriller", "Drama"],
-    posterPath: "",
+    posterPath: "/96R4bV7dB8ramaWceNKsxvJgCUd.jpg",
   },
   {
     title: "Death Note",
@@ -329,7 +329,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.6,
     genres: ["Thriller", "Mystery", "Supernatural"],
-    posterPath: "",
+    posterPath: "/tCZFfYTIwrR7n94J6G14Y4hAFU6.jpg",
   },
   {
     title: "Cowboy Bebop",
@@ -337,7 +337,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.8,
     genres: ["Action", "Sci-Fi", "Drama"],
-    posterPath: "",
+    posterPath: "/xDiXDfZwC6XYC6fxHI1jl3A3Ill.jpg",
   },
   {
     title: "Jujutsu Kaisen",
@@ -345,7 +345,7 @@ export const DEMO_ANIME: readonly DemoTitle[] = [
     type: "anime",
     rating: 8.4,
     genres: ["Action", "Supernatural", "Fantasy"],
-    posterPath: "",
+    posterPath: "/sOow1zTzjsYSvqoCjwJa5sAiiPa.jpg",
   },
 ] as const;
 
@@ -359,8 +359,8 @@ export const DEMO_SPOTLIGHT: DemoSpotlight = {
   tagline: "Long live the fighters",
   rating: 8.6,
   genres: ["Sci-Fi", "Adventure", "Drama"],
-  posterPath: "",
-  backdropPath: "",
+  posterPath: "/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg",
+  backdropPath: "/eZ239CUp1d6OryZEBPnO2n87gMG.jpg",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -374,7 +374,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "tv",
     rating: 8.8,
     genres: ["Drama", "Action", "Horror"],
-    posterPath: "",
+    posterPath: "/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg",
     status: "watching",
     episodeProgress: { current: 6, total: 9 },
   },
@@ -384,7 +384,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "anime",
     rating: 8.4,
     genres: ["Action", "Supernatural", "Fantasy"],
-    posterPath: "",
+    posterPath: "/sOow1zTzjsYSvqoCjwJa5sAiiPa.jpg",
     status: "watching",
     episodeProgress: { current: 18, total: 24 },
   },
@@ -394,7 +394,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "tv",
     rating: 8.7,
     genres: ["Sci-Fi", "Thriller", "Drama"],
-    posterPath: "",
+    posterPath: "/lAC6gf6iemJ8Xp5dW2VbZeexj7J.jpg",
     status: "watching",
     episodeProgress: { current: 3, total: 9 },
   },
@@ -404,7 +404,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "tv",
     rating: 9.5,
     genres: ["Crime", "Drama", "Thriller"],
-    posterPath: "/ztkUQ_fl6B1l2l1p1R3r1Q1L2k3.jpg",
+    posterPath: "/anFx9aTOOYqgS3v7x3R84Kz67ly.jpg",
     status: "completed",
   },
   {
@@ -413,7 +413,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "movie",
     rating: 9.0,
     genres: ["Action", "Crime", "Drama"],
-    posterPath: "/qJ2t4NwMDM7hHO9jQ3W5JmQ4W5R2.jpg",
+    posterPath: "/qJ2tW6WMUDux911r6m7haRef0WH.jpg",
     status: "completed",
   },
   {
@@ -422,7 +422,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "movie",
     rating: 8.5,
     genres: ["Thriller", "Drama", "Comedy"],
-    posterPath: "/7IiQgUk9NQo1Rq8h1h1W9l1b1l1.jpg",
+    posterPath: "/7IiTTgloJzvGI1TAYymCfbfl3vT.jpg",
     status: "completed",
   },
   {
@@ -431,7 +431,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "anime",
     rating: 9.1,
     genres: ["Action", "Adventure", "Fantasy"],
-    posterPath: "",
+    posterPath: "/5ZFUEOULaVml7pQuXxhpR2SmVUw.jpg",
     status: "completed",
   },
   {
@@ -440,7 +440,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "movie",
     rating: 8.6,
     genres: ["Sci-Fi", "Adventure", "Drama"],
-    posterPath: "",
+    posterPath: "/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg",
     status: "planned",
   },
   {
@@ -449,7 +449,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "tv",
     rating: 8.6,
     genres: ["Drama", "History", "War"],
-    posterPath: "",
+    posterPath: "/chmS6SkuwzGitf2fjgaLIQwlFUY.jpg",
     status: "planned",
   },
   {
@@ -458,7 +458,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "anime",
     rating: 8.8,
     genres: ["Sci-Fi", "Thriller", "Drama"],
-    posterPath: "",
+    posterPath: "/96R4bV7dB8ramaWceNKsxvJgCUd.jpg",
     status: "planned",
   },
   {
@@ -467,7 +467,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "tv",
     rating: 8.3,
     genres: ["Drama", "History", "Biography"],
-    posterPath: "",
+    posterPath: "/1M876KPjulVwppEpldhdc8V4o68.jpg",
     status: "dropped",
   },
   {
@@ -476,7 +476,7 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
     type: "anime",
     rating: 8.6,
     genres: ["Thriller", "Mystery", "Supernatural"],
-    posterPath: "",
+    posterPath: "/tCZFfYTIwrR7n94J6G14Y4hAFU6.jpg",
     status: "dropped",
   },
 ] as const;
@@ -610,37 +610,37 @@ export const DEMO_UPCOMING: readonly DemoUpcoming[] = [
     title: "The Fantastic Four: First Steps",
     date: "2025-07-25",
     type: "movie",
-    posterPath: "",
+    posterPath: "/nf5qaSEvyYSNeFH0YhSs5EsBLX9.jpg",
   },
   {
     title: "Thunderbolts*",
     date: "2025-05-02",
     type: "movie",
-    posterPath: "",
+    posterPath: "/hqcexYHbiTBfDIdDWxrxPtVndBX.jpg",
   },
   {
     title: "One Piece Season 2",
     date: "2025-06-15",
     type: "anime",
-    posterPath: "",
+    posterPath: "/m9E2IVdXpcsoQCmY8eAjXWC4YV7.jpg",
   },
   {
     title: "The Witcher S4",
     date: "2025-09-01",
     type: "tv",
-    posterPath: "",
+    posterPath: "/AoGsDM02UVt0npBA8OvpDcZbaMi.jpg",
   },
   {
     title: "Mission: Impossible – The Final Reckoning",
     date: "2025-05-23",
     type: "movie",
-    posterPath: "",
+    posterPath: "/iKPsC9EFUafRP9SrUznI61getVP.jpg",
   },
   {
     title: "Chainsaw Man Season 2",
     date: "2025-10-01",
     type: "anime",
-    posterPath: "",
+    posterPath: "/iFM1dyFi0rByvEomEkmm7NpQeeb.jpg",
   },
 ] as const;
 

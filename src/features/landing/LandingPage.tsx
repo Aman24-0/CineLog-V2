@@ -1,26 +1,20 @@
 // src/features/landing/LandingPage.tsx
 //
-// CineLog V2 — Landing Page Redesign
-// ------------------------------------
-// A premium cinematic product website for a serious movie/TV/anime
-// tracking application. Renders at `/` for logged-out users.
+// CineLog V2 — Landing Page
+// --------------------------
+// A premium cinematic product website. 6 sections only.
+// The page communicates WHAT CineLog is, WHY it matters,
+// and HOW IT FEELS — through visuals, not feature lists.
 //
 // Sections:
-//   1.  Premium navigation (sticky, glass on scroll)
-//   2.  Cinematic hero — product UI with real poster rail
-//   3.  Media intro — Movies / Shows / Anime scope
-//   4.  Discover — major product showcase
-//   5.  Watchlist / Vault — organized watch life
-//   6.  Cinematic Universes — franchise timelines
-//   7.  Statistics + Your Story — viewing habits
-//   8.  Upcoming + Reminders — never miss what's next
-//   9.  Import / Sync — bring your history
-//  10.  Personalization — theme strip
-//  11.  Cross-Device / PWA — compact visual
-//  12.  Final CTA — closing scene
-//  13.  Minimal footer
+//   1. Navigation
+//   2. Hero
+//   3. Everything You Watch (poster composition)
+//   4. Three Core Experiences (Track / Discover / Explore)
+//   5. More Than a Watchlist (one strong product showcase)
+//   6. Final CTA + Footer
 //
-// CTA discipline (CRITICAL):
+// CTA discipline:
 //   Exactly TWO buttons open AuthModal:
 //     1. "Get Started Free" (primary) — header + hero + final CTA.
 //     2. "Login" (ghost) — header only.
@@ -28,39 +22,28 @@
 
 import { Component, createSignal, onCleanup, onMount, For } from "solid-js";
 import { A } from "@solidjs/router";
-import { GlassButton, GlassCard, GlassBadge, GlassStatCard } from "~/shared/ui/glass";
+import { GlassButton } from "~/shared/ui/glass";
 import { useAuthModal } from "~/shared/hooks/useAuthModal";
-import Icon from "~/shared/ui/Icon";
 import { tmdbImage } from "~/core/tmdb/tmdb";
+import SafeImage from "~/shared/ui/SafeImage";
 import {
   DEMO_MOVIES,
   DEMO_TV_SHOWS,
   DEMO_ANIME,
-  DEMO_UPCOMING,
-  DEMO_STATS,
-  DEMO_STAT_CARDS,
-  DEMO_GENRE_BARS,
-  DEMO_TYPE_SPLIT,
+  DEMO_VAULT_ITEMS,
+  DEMO_FRANCHISES,
 } from "./data/demoContent";
-import DemoPosterRail from "./components/DemoPosterRail";
-import DemoDiscoverShowcase from "./components/DemoDiscoverShowcase";
-import DemoVaultShowcase from "./components/DemoVaultShowcase";
-import DemoTimeline from "./components/DemoTimeline";
-import DemoStatsShowcase from "./components/DemoStatsShowcase";
-import ImportFlow from "./components/ImportFlow";
-import ThemeStrip from "./components/ThemeStrip";
 
 // ─── LandingPage ──────────────────────────────────────────────────
 
 const LandingPage: Component = () => {
   const { openAuthModal } = useAuthModal();
 
-  // Track scroll position to toggle the header's glass effect.
   const [scrolled, setScrolled] = createSignal(false);
 
   const handleScroll = () => {
     if (typeof window !== "undefined") {
-      setScrolled(window.scrollY > 80);
+      setScrolled(window.scrollY > 60);
     }
   };
 
@@ -75,475 +58,363 @@ const LandingPage: Component = () => {
     }
   });
 
-  // Smooth-scroll anchor — browser-only (called from onClick).
-  const scrollToSection = (id: string) => () => {
+  const scrollTo = (id: string) => () => {
     if (typeof document !== "undefined") {
-      document
-        .getElementById(id)
-        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     }
   };
 
-  // SSR-safe current year
-  const currentYear = typeof window !== "undefined" ? new Date().getFullYear() : 2026;
+  const year = typeof window !== "undefined" ? new Date().getFullYear() : 2026;
+
+  // Mix of movies + TV + anime for the "Everything You Watch" poster rail
+  const allMedia = [
+    ...DEMO_MOVIES.slice(0, 4),
+    ...DEMO_TV_SHOWS.slice(0, 3),
+    ...DEMO_ANIME.slice(0, 3),
+  ];
+
+  // Vault items for the "More Than a Watchlist" section — just the first 6
+  const vaultPreview = DEMO_VAULT_ITEMS.slice(0, 6);
+
+  // MCU phases for the Explore experience
+  const mcu = DEMO_FRANCHISES[0];
 
   return (
     <div class="landing-page">
-      {/* Skip Link — WCAG 2.4.1 */}
-      <a href="#landing-hero" class="skip-link">
-        Skip to content
-      </a>
+      <a href="#landing-hero" class="skip-link">Skip to content</a>
 
-      {/* ─── 1. Sticky Navigation ────────────────────────────── */}
+      {/* ─── 1. Navigation ──────────────────────────────────── */}
       <header
         class="landing-header"
         classList={{ "landing-header--scrolled": scrolled() }}
         role="banner"
       >
         <div class="landing-header__inner">
-          {/* Logo */}
           <A
             href="/"
             class="landing-logo"
             aria-label="CineLog home"
             onClick={(e) => {
               e.preventDefault();
-              if (typeof window !== "undefined") {
-                window.scrollTo({ top: 0, behavior: "smooth" });
-              }
+              if (typeof window !== "undefined") window.scrollTo({ top: 0, behavior: "smooth" });
             }}
           >
-            <span
-              class="material-symbols-outlined landing-logo__icon"
-              aria-hidden="true"
-              style={{ "font-variation-settings": "'FILL' 1" }}
-            >
-              movie
-            </span>
+            <span class="material-symbols-outlined landing-logo__icon" aria-hidden="true"
+              style={{ "font-variation-settings": "'FILL' 1" }}>movie</span>
             <span class="landing-logo__text">CineLog</span>
           </A>
 
-          {/* Desktop nav links */}
           <nav class="landing-header__nav" aria-label="Main navigation">
-            <a
-              href="#landing-discover"
-              class="landing-header__link"
-              onClick={(e) => { e.preventDefault(); scrollToSection("landing-discover")(); }}
-            >
-              Explore
-            </a>
-            <a
-              href="#landing-features"
-              class="landing-header__link"
-              onClick={(e) => { e.preventDefault(); scrollToSection("landing-features")(); }}
-            >
-              Features
-            </a>
+            <a href="#landing-experiences" class="landing-header__link"
+              onClick={(e) => { e.preventDefault(); scrollTo("landing-experiences")(); }}>Explore</a>
           </nav>
 
-          {/* Header CTAs — exactly: Login (ghost) + Get Started Free (primary) */}
           <div class="landing-header__actions">
-            <GlassButton
-              variant="ghost"
-              size="compact"
-              onClick={() => openAuthModal()}
-              aria-label="Log in to your account"
-            >
-              Login
-            </GlassButton>
-            <GlassButton
-              variant="primary"
-              size="compact"
-              onClick={() => openAuthModal()}
-              aria-label="Create a new CineLog account"
-            >
-              Get Started
-            </GlassButton>
+            <GlassButton variant="ghost" size="compact" onClick={() => openAuthModal()}
+              aria-label="Log in">Login</GlassButton>
+            <GlassButton variant="primary" size="compact" onClick={() => openAuthModal()}
+              aria-label="Create a new account">Get Started</GlassButton>
           </div>
         </div>
       </header>
 
       {/* ─── Main ────────────────────────────────────────────── */}
-      <main id="main-content" class="landing-main">
+      <main class="landing-main">
 
-        {/* ─── 2. Cinematic Hero ────────────────────────────── */}
-        <section
-          id="landing-hero"
-          class="landing-hero"
-          aria-labelledby="landing-hero-title"
-        >
+        {/* ─── 2. Hero ─────────────────────────────────────── */}
+        <section id="landing-hero" class="landing-hero" aria-labelledby="hero-title">
           <div class="landing-hero__backdrop" aria-hidden="true" />
           <div class="landing-hero__gradient" aria-hidden="true" />
-          <div class="landing-hero__vignette" aria-hidden="true" />
 
           <div class="landing-hero__content">
-            <h1
-              id="landing-hero-title"
-              class="landing-hero__title animate-fade-up"
-            >
-              Everything you watch.{" "}
+            <h1 id="hero-title" class="landing-hero__title">
+              Everything you watch.<br />
               <span class="landing-hero__title-accent">One cinematic vault.</span>
             </h1>
-
-            <p
-              class="landing-hero__subtitle animate-fade-up"
-              style={{ "animation-delay": "60ms" }}
-            >
-              Track movies, TV shows and anime, discover what to watch next,
-              organize your collections, and understand your taste — all in one
-              beautiful place.
+            <p class="landing-hero__subtitle">
+              Track movies, shows, and anime. Discover what to watch next,
+              organize your collection, and build your own cinematic universe.
             </p>
-
-            <div
-              class="landing-hero__ctas animate-fade-up"
-              style={{ "animation-delay": "120ms" }}
-            >
-              <GlassButton
-                variant="primary"
-                size="large"
-                icon="rocket_launch"
+            <div class="landing-hero__ctas">
+              <GlassButton variant="primary" size="large" icon="rocket_launch"
                 onClick={() => openAuthModal()}
-                aria-label="Get started for free — create an account"
-              >
-                Get Started Free
-              </GlassButton>
-              <a
-                href="#landing-discover"
-                class="landing-hero__scroll-link"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToSection("landing-discover")();
-                }}
-              >
+                aria-label="Get started for free">Get Started Free</GlassButton>
+              <button class="landing-hero__scroll-btn"
+                onClick={scrollTo("landing-media")}>
                 Explore CineLog
-                <span
-                  class="material-symbols-outlined"
-                  aria-hidden="true"
-                  style={{ "font-size": "20px" }}
-                >
-                  keyboard_arrow_down
-                </span>
-              </a>
+                <span class="material-symbols-outlined" aria-hidden="true"
+                  style={{ "font-size": "18px" }}>keyboard_arrow_down</span>
+              </button>
             </div>
           </div>
 
-          {/* Hero product UI — real poster rail */}
-          <div class="landing-hero__product animate-fade-up" style={{ "animation-delay": "200ms" }}>
-            <DemoPosterRail
-              titles={DEMO_MOVIES.slice(0, 10)}
-              showRating
-            />
-          </div>
-        </section>
-
-        {/* ─── 3. Media Intro ──────────────────────────────── */}
-        <section class="landing-media-intro" aria-labelledby="media-intro-title">
-          <div class="landing-media-intro__inner">
-            <h2 id="media-intro-title" class="landing-media-intro__title animate-fade-up">
-              Movies. Shows. Anime.{" "}
-              <span class="landing-media-intro__title-accent">One place to keep them all.</span>
-            </h2>
-            <div class="landing-media-intro__rails">
-              <div class="landing-media-intro__rail-group">
-                <DemoPosterRail titles={DEMO_MOVIES.slice(0, 8)} title="Movies" />
+          {/* Hero product composition — one large CineLog interface */}
+          <div class="landing-hero__product">
+            <div class="landing-hero__product-frame">
+              {/* Mock Discover Spotlight — one large backdrop + 5 small posters */}
+              <div class="landing-hero__spotlight">
+                <SafeImage
+                  src={tmdbImage(DEMO_MOVIES[0].posterPath, "w780")}
+                  alt="Inception"
+                  class="landing-hero__spotlight-img"
+                  fallback={<div class="landing-hero__spotlight-fallback" />}
+                  loading="eager"
+                />
+                <div class="landing-hero__spotlight-overlay" />
+                <div class="landing-hero__spotlight-info">
+                  <span class="landing-hero__spotlight-year">{DEMO_MOVIES[0].year}</span>
+                  <span class="landing-hero__spotlight-title">{DEMO_MOVIES[0].title}</span>
+                  <span class="landing-hero__spotlight-rating">★ {DEMO_MOVIES[0].rating}</span>
+                </div>
               </div>
-              <div class="landing-media-intro__rail-group">
-                <DemoPosterRail titles={DEMO_TV_SHOWS.slice(0, 6)} title="TV Shows" />
-              </div>
-              <div class="landing-media-intro__rail-group">
-                <DemoPosterRail titles={DEMO_ANIME.slice(0, 6)} title="Anime" />
-              </div>
-            </div>
-          </div>
-        </section>
-
-        {/* ─── 4. Discover ─────────────────────────────────── */}
-        <section
-          id="landing-discover"
-          class="landing-section landing-discover-section"
-          aria-labelledby="discover-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header">
-              <span class="landing-section-eyebrow">Discover</span>
-              <h2 id="discover-title" class="landing-section-title">
-                Know what to watch next.
-              </h2>
-              <p class="landing-section-subtitle">
-                CineLog learns from what you watch to make discovery feel personal.
-                Spotlight picks, genre-deep dives, hidden gems — every visit surfaces
-                something you'll love.
-              </p>
-            </div>
-            <DemoDiscoverShowcase />
-          </div>
-        </section>
-
-        {/* ─── 5. Watchlist / Vault ────────────────────────── */}
-        <section
-          class="landing-section landing-vault-section"
-          aria-labelledby="vault-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header landing-section-header--right">
-              <span class="landing-section-eyebrow">Your Vault</span>
-              <h2 id="vault-title" class="landing-section-title">
-                Your entire watch life.{" "}
-                <span class="landing-section-title-accent">Organized.</span>
-              </h2>
-              <p class="landing-section-subtitle">
-                One-tap logging, smart continue-watching, status filters,
-                tags, episode progress, and ratings — everything about your
-                watching in a single, beautiful interface.
-              </p>
-            </div>
-            <DemoVaultShowcase />
-          </div>
-        </section>
-
-        {/* ─── 6. Cinematic Universes ─────────────────────── */}
-        <section
-          id="landing-features"
-          class="landing-section landing-universe-section"
-          aria-labelledby="universe-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header">
-              <span class="landing-section-eyebrow">Cinematic Universes</span>
-              <h2 id="universe-title" class="landing-section-title">
-                Watch the universe{" "}
-                <span class="landing-section-title-accent">your way.</span>
-              </h2>
-              <p class="landing-section-subtitle">
-                Dive into the MCU, Star Wars, and 50+ franchises with
-                interactive timelines, phases, and custom viewing orders.
-                Build your own canon with Smart Collections.
-              </p>
-            </div>
-            <DemoTimeline />
-          </div>
-        </section>
-
-        {/* ─── 7. Statistics + Your Story ──────────────────── */}
-        <section
-          class="landing-section landing-stats-section"
-          aria-labelledby="stats-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header landing-section-header--right">
-              <span class="landing-section-eyebrow">Your Story</span>
-              <h2 id="stats-title" class="landing-section-title">
-                Your watching habits have{" "}
-                <span class="landing-section-title-accent">a story.</span>
-              </h2>
-              <p class="landing-section-subtitle">
-                CineLog turns your viewing history into a personal cinematic
-                reflection. Genre breakdowns, rating distributions, watch pace
-                trends, and a narrative only your library can tell.
-              </p>
-            </div>
-            <DemoStatsShowcase />
-          </div>
-        </section>
-
-        {/* ─── 8. Upcoming + Reminders ────────────────────── */}
-        <section
-          class="landing-section landing-upcoming-section"
-          aria-labelledby="upcoming-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header">
-              <span class="landing-section-eyebrow">Upcoming</span>
-              <h2 id="upcoming-title" class="landing-section-title">
-                Never miss{" "}
-                <span class="landing-section-title-accent">what's next.</span>
-              </h2>
-              <p class="landing-section-subtitle">
-                Track upcoming releases, set reminders, and get notified
-                when new episodes or films drop. Calendar view, countdown
-                badges, and a notification center that keeps you in the loop.
-              </p>
-            </div>
-            <div class="landing-upcoming-grid">
-              <For each={DEMO_UPCOMING}>
-                {(item, idx) => (
-                  <GlassCard
-                    variant="glass"
-                    size="compact"
-                    hoverable
-                    class="landing-upcoming__card animate-fade-up"
-                    style={{ "animation-delay": `${idx() * 60}ms` }}
-                  >
-                    <div class="landing-upcoming__poster">
-                      <Icon name="movie" fill style={{ "font-size": "28px", color: "var(--text-dim)" }} />
-                    </div>
-                    <div class="landing-upcoming__info">
-                      <span class="landing-upcoming__title">{item.title}</span>
-                      <GlassBadge
-                        intent={item.type === "anime" ? "warning" : item.type === "tv" ? "info" : "primary"}
-                        label={item.type === "anime" ? "Anime" : item.type === "tv" ? "TV" : "Movie"}
-                        size="compact"
-                        glass
+              <div class="landing-hero__poster-row">
+                <For each={DEMO_MOVIES.slice(1, 6)}>
+                  {(m) => (
+                    <div class="landing-hero__poster-item">
+                      <SafeImage
+                        src={tmdbImage(m.posterPath, "w342")}
+                        alt={m.title}
+                        class="landing-hero__poster-img"
+                        fallback={<div class="landing-hero__poster-fallback" />}
+                        loading="lazy"
                       />
-                      <span class="landing-upcoming__date">
-                        <Icon name="calendar_today" style={{ "font-size": "14px" }} />
-                        {new Date(item.date).toLocaleDateString("en-US", {
-                          month: "short",
-                          day: "numeric",
-                          year: "numeric",
-                        })}
-                      </span>
                     </div>
-                  </GlassCard>
+                  )}
+                </For>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* ─── 3. Everything You Watch ─────────────────────── */}
+        <section id="landing-media" class="landing-media" aria-labelledby="media-title">
+          <div class="landing-media__inner">
+            <h2 id="media-title" class="landing-media__title">
+              Movies. Shows. Anime.
+              <span class="landing-media__title-accent">One place for all of them.</span>
+            </h2>
+            <p class="landing-media__subtitle">
+              Your entire watch life, organized in one cinematic vault.
+            </p>
+            <div class="landing-media__posters">
+              <For each={allMedia}>
+                {(item) => (
+                  <div class="landing-media__poster">
+                    <SafeImage
+                      src={tmdbImage(item.posterPath, "w342")}
+                      alt={item.title}
+                      class="landing-media__poster-img"
+                      fallback={<div class="landing-media__poster-fallback" />}
+                      loading="lazy"
+                    />
+                  </div>
                 )}
               </For>
             </div>
           </div>
         </section>
 
-        {/* ─── 9. Import / Sync ────────────────────────────── */}
-        <section
-          class="landing-section landing-import-section"
-          aria-labelledby="import-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header landing-section-header--right">
-              <span class="landing-section-eyebrow">Import & Sync</span>
-              <h2 id="import-title" class="landing-section-title">
-                Already have a watch history?{" "}
-                <span class="landing-section-title-accent">Bring it with you.</span>
-              </h2>
-              <p class="landing-section-subtitle">
-                Import from Trakt, Letterboxd, IMDb, and more. Export and back
-                up anytime. Your library syncs across every device in real time.
-              </p>
+        {/* ─── 4. Three Core Experiences ───────────────────── */}
+        <section id="landing-experiences" class="landing-experiences" aria-labelledby="exp-title">
+          <div class="landing-experiences__inner">
+
+            {/* TRACK */}
+            <div class="landing-exp landing-exp--track">
+              <div class="landing-exp__visual landing-exp__visual--track">
+                <div class="landing-exp__vault-mock">
+                  <For each={vaultPreview.slice(0, 4)}>
+                    {(item) => (
+                      <div class="landing-exp__vault-item">
+                        <SafeImage
+                          src={tmdbImage(item.posterPath, "w185")}
+                          alt={item.title}
+                          class="landing-exp__vault-poster"
+                          fallback={<div class="landing-exp__vault-fallback"><span class="material-symbols-outlined" aria-hidden="true">movie</span></div>}
+                          loading="lazy"
+                        />
+                        <div class="landing-exp__vault-meta">
+                          <span class="landing-exp__vault-name">{item.title}</span>
+                          <span class={`landing-exp__vault-status landing-exp__vault-status--${item.status}`} />
+                        </div>
+                      </div>
+                    )}
+                  </For>
+                </div>
+              </div>
+              <div class="landing-exp__text">
+                <span class="landing-exp__label">Track</span>
+                <h3 class="landing-exp__heading">Your watch life, organized.</h3>
+                <p class="landing-exp__desc">
+                  Track what you're watching, what you've finished, and exactly where you left off.
+                </p>
+              </div>
             </div>
-            <ImportFlow />
-            <div class="landing-import__features">
-              <GlassCard variant="glass" size="compact" class="landing-import__feature">
-                <Icon name="cloud_sync" fill style={{ "font-size": "24px", color: "var(--p)" }} />
-                <span>Realtime cross-device sync</span>
-              </GlassCard>
-              <GlassCard variant="glass" size="compact" class="landing-import__feature">
-                <Icon name="download" fill style={{ "font-size": "24px", color: "var(--p)" }} />
-                <span>Export & backup anytime</span>
-              </GlassCard>
-              <GlassCard variant="glass" size="compact" class="landing-import__feature">
-                <Icon name="install_mobile" fill style={{ "font-size": "24px", color: "var(--p)" }} />
-                <span>Installable PWA</span>
-              </GlassCard>
+
+            {/* DISCOVER */}
+            <div class="landing-exp landing-exp--discover">
+              <div class="landing-exp__text">
+                <span class="landing-exp__label">Discover</span>
+                <h3 class="landing-exp__heading">Always know what to watch next.</h3>
+                <p class="landing-exp__desc">
+                  Explore movies, shows, and anime through a discovery experience shaped around your taste.
+                </p>
+              </div>
+              <div class="landing-exp__visual landing-exp__visual--discover">
+                <div class="landing-exp__discover-mock">
+                  <div class="landing-exp__discover-spotlight">
+                    <SafeImage
+                      src={tmdbImage(DEMO_TV_SHOWS[0].posterPath, "w780")}
+                      alt="Breaking Bad"
+                      class="landing-exp__discover-img"
+                      fallback={<div class="landing-exp__discover-fallback" />}
+                      loading="lazy"
+                    />
+                    <div class="landing-exp__discover-overlay" />
+                    <div class="landing-exp__discover-label">
+                      <span class="landing-exp__discover-tag">Spotlight</span>
+                      <span class="landing-exp__discover-name">{DEMO_TV_SHOWS[0].title}</span>
+                    </div>
+                  </div>
+                  <div class="landing-exp__discover-rail">
+                    <For each={DEMO_MOVIES.slice(2, 6)}>
+                      {(m) => (
+                        <SafeImage
+                          src={tmdbImage(m.posterPath, "w185")}
+                          alt={m.title}
+                          class="landing-exp__rail-img"
+                          fallback={<div class="landing-exp__rail-fallback" />}
+                          loading="lazy"
+                        />
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </div>
             </div>
+
+            {/* EXPLORE */}
+            <div class="landing-exp landing-exp--explore">
+              <div class="landing-exp__visual landing-exp__visual--explore">
+                <div class="landing-exp__timeline">
+                  <span class="landing-exp__timeline-label">{mcu.name}</span>
+                  <div class="landing-exp__timeline-track">
+                    <For each={mcu.phases}>
+                      {(phase) => (
+                        <div class="landing-exp__phase">
+                          <div class="landing-exp__phase-dot" />
+                          <span class="landing-exp__phase-name">{phase.name}</span>
+                          <span class="landing-exp__phase-years">{phase.years}</span>
+                        </div>
+                      )}
+                    </For>
+                  </div>
+                </div>
+              </div>
+              <div class="landing-exp__text">
+                <span class="landing-exp__label">Explore</span>
+                <h3 class="landing-exp__heading">Go deeper into the worlds you love.</h3>
+                <p class="landing-exp__desc">
+                  Explore cinematic universes, collections, timelines, and viewing orders.
+                </p>
+              </div>
+            </div>
+
           </div>
         </section>
 
-        {/* ─── 10. Personalization ─────────────────────────── */}
-        <section
-          class="landing-section landing-personalization-section"
-          aria-labelledby="personalization-title"
-        >
-          <div class="landing-section__inner">
-            <div class="landing-section-header">
-              <span class="landing-section-eyebrow">Personalization</span>
-              <h2 id="personalization-title" class="landing-section-title">
-                Make CineLog feel like{" "}
-                <span class="landing-section-title-accent">yours.</span>
-              </h2>
-            </div>
-            <ThemeStrip />
-          </div>
-        </section>
-
-        {/* ─── 11. Cross-Device / PWA ─────────────────────── */}
-        <section class="landing-crossdevice" aria-labelledby="crossdevice-title">
-          <div class="landing-crossdevice__inner">
-            <h2 id="crossdevice-title" class="landing-crossdevice__title">
-              Designed to travel with you.
+        {/* ─── 5. More Than a Watchlist ────────────────────── */}
+        <section class="landing-more" aria-labelledby="more-title">
+          <div class="landing-more__inner">
+            <h2 id="more-title" class="landing-more__title">
+              More than a watchlist.
             </h2>
-            <p class="landing-crossdevice__subtitle">
-              Phone, desktop, or installed as a PWA — CineLog is
-              built to go wherever you go.
+            <p class="landing-more__subtitle">
+              From your next watch to your entire viewing history, CineLog keeps your cinematic life in one place.
             </p>
-            <div class="landing-crossdevice__devices">
-              <div class="landing-crossdevice__device">
-                <Icon name="smartphone" fill style={{ "font-size": "32px", color: "var(--p)" }} />
-                <span>Phone</span>
+
+            {/* Main vault interface */}
+            <div class="landing-more__vault">
+              <div class="landing-more__vault-header">
+                <span class="landing-more__vault-label">Your Vault</span>
+                <div class="landing-more__vault-tabs">
+                  <span class="landing-more__tab landing-more__tab--active">All</span>
+                  <span class="landing-more__tab">Watching</span>
+                  <span class="landing-more__tab">Completed</span>
+                </div>
               </div>
-              <div class="landing-crossdevice__arrow" aria-hidden="true">
-                <Icon name="arrow_forward" style={{ "font-size": "20px", color: "var(--text-dim)" }} />
-              </div>
-              <div class="landing-crossdevice__device">
-                <Icon name="desktop_windows" fill style={{ "font-size": "32px", color: "var(--p)" }} />
-                <span>Desktop</span>
-              </div>
-              <div class="landing-crossdevice__arrow" aria-hidden="true">
-                <Icon name="arrow_forward" style={{ "font-size": "20px", color: "var(--text-dim)" }} />
-              </div>
-              <div class="landing-crossdevice__device">
-                <Icon name="install_desktop" fill style={{ "font-size": "32px", color: "var(--p)" }} />
-                <span>Installed PWA</span>
+              <div class="landing-more__vault-grid">
+                <For each={vaultPreview}>
+                  {(item) => (
+                    <div class="landing-more__item">
+                      <SafeImage
+                        src={tmdbImage(item.posterPath, "w342")}
+                        alt={item.title}
+                        class="landing-more__item-img"
+                        fallback={<div class="landing-more__item-fallback"><span class="material-symbols-outlined" aria-hidden="true">movie</span></div>}
+                        loading="lazy"
+                      />
+                      <div class="landing-more__item-info">
+                        <span class="landing-more__item-title">{item.title}</span>
+                        <span class="landing-more__item-year">{item.year}</span>
+                      </div>
+                    </div>
+                  )}
+                </For>
               </div>
             </div>
+
+            {/* Small supporting details */}
+            <div class="landing-more__details">
+              <div class="landing-more__stats">
+                <span class="landing-more__stat-value">247</span>
+                <span class="landing-more__stat-label">Titles</span>
+              </div>
+              <div class="landing-more__stats">
+                <span class="landing-more__stat-value">1,842</span>
+                <span class="landing-more__stat-label">Hours</span>
+              </div>
+              <div class="landing-more__stats">
+                <span class="landing-more__stat-value">7.9</span>
+                <span class="landing-more__stat-label">Avg Rating</span>
+              </div>
+            </div>
+
+            {/* Import mention */}
+            <p class="landing-more__import-note">
+              Bring your existing history with you.{' '}
+              <span class="landing-more__import-sources">Trakt · Letterboxd · IMDb · TV Time · CSV</span>
+            </p>
           </div>
         </section>
 
-        {/* ─── 12. Final CTA ─────────────────────────────────── */}
+        {/* ─── 6. Final CTA + Footer ───────────────────────── */}
         <section class="landing-cta" aria-labelledby="cta-title">
-          <div class="landing-cta__inner">
-            <div class="landing-cta__glow" aria-hidden="true" />
-            <h2 id="cta-title" class="landing-cta__title">
-              Your cinematic universe starts here.
-            </h2>
-            <p class="landing-cta__subtitle">
-              Track what you love. Discover what comes next.
-            </p>
-            <div class="landing-cta__buttons">
-              <GlassButton
-                variant="primary"
-                size="large"
-                icon="rocket_launch"
-                onClick={() => openAuthModal()}
-                aria-label="Get started for free — create an account"
-              >
-                Get Started Free
-              </GlassButton>
-              <a
-                href="#landing-discover"
-                class="landing-cta__secondary"
-                onClick={(e) => {
-                  e.preventDefault();
-                  scrollToSection("landing-discover")();
-                }}
-              >
-                Explore CineLog
-              </a>
-            </div>
-          </div>
+          <div class="landing-cta__glow" aria-hidden="true" />
+          <h2 id="cta-title" class="landing-cta__title">
+            Your cinematic universe starts here.
+          </h2>
+          <p class="landing-cta__subtitle">
+            Track what you love.<br />Discover what comes next.
+          </p>
+          <GlassButton variant="primary" size="large" icon="rocket_launch"
+            onClick={() => openAuthModal()}
+            aria-label="Get started for free">Get Started Free</GlassButton>
         </section>
 
-        {/* ─── 13. Footer ────────────────────────────────────── */}
         <footer class="landing-footer" role="contentinfo">
           <div class="landing-footer__inner">
             <div class="landing-footer__brand">
-              <span
-                class="material-symbols-outlined"
-                aria-hidden="true"
-                style={{
-                  "font-size": "24px",
-                  color: "var(--p)",
-                  "font-variation-settings": "'FILL' 1",
-                }}
-              >
-                movie
-              </span>
+              <span class="material-symbols-outlined" aria-hidden="true"
+                style={{ "font-size": "20px", color: "var(--p)", "font-variation-settings": "'FILL' 1" }}>movie</span>
               <span class="landing-footer__brand-text">CineLog</span>
             </div>
+            <p class="landing-footer__tagline">Your cinematic universe, perfected.</p>
             <nav class="landing-footer__links" aria-label="Footer navigation">
-              <A href="/discover" class="landing-footer__link">Discover</A>
-              <a href="https://github.com/Aman24-0/CineLog-V2" class="landing-footer__link" target="_blank" rel="noopener noreferrer">GitHub</a>
+              <A href="/discover" class="landing-footer__link">Explore</A>
+              <a href="#" class="landing-footer__link"
+                onClick={(e) => { e.preventDefault(); openAuthModal(); }}>Sign in</a>
             </nav>
-            <p class="landing-footer__copyright">
-              &copy; {currentYear} CineLog. Crafted for cinephiles.
-            </p>
+            <p class="landing-footer__copy">&copy; {year} CineLog</p>
           </div>
         </footer>
       </main>
