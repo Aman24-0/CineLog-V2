@@ -1,5 +1,5 @@
-/* src/styles/features/landing.css — Phase 17 Chunk 2
-   Landing Page — Complete Content Redesign
+/* src/styles/features/landing.css — Phase 17 Chunk 3
+   Landing Page — SSR Fix & Ambient Visual Polish
 
    A premium product showcase for CineLog. Rendered at `/` for
    logged-out users (see src/routes/index.tsx). AppShell detects
@@ -8,6 +8,7 @@
 
    Design language:
    - Full-bleed cinematic hero with CSS gradient mesh (no images).
+   - Ambient blurred gradient blobs behind all sections — no flat black.
    - Trust bar — concise social proof.
    - Differentiator — bold anti-competitor statement.
    - How It Works — 3-step GlassCard grid.
@@ -37,6 +38,52 @@
   scroll-behavior: smooth;
 }
 
+/* Phase 17 Chunk 3 — Page-level ambient blobs.
+   Three large, heavily blurred, overlapping radial-gradient blobs
+   positioned at different vertical offsets to create a vibrant,
+   premium cinema atmosphere that eliminates flat black. These blobs
+   bleed through the GlassCard components (which use backdrop-filter)
+   giving the entire page a layered, dimensional feel.
+   The blobs are GPU-composited (will-change: transform) for perf. */
+.landing-page::before,
+.landing-page::after {
+  content: "";
+  position: fixed;
+  pointer-events: none;
+  z-index: 0;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+}
+
+/* Gold blob — upper-right area, warm cinematic key light */
+.landing-page::before {
+  width: 60vw;
+  height: 60vh;
+  top: -10vh;
+  right: -15vw;
+  background: radial-gradient(
+    circle at center,
+    rgba(232, 183, 74, 0.08) 0%,
+    rgba(232, 183, 74, 0.02) 50%,
+    transparent 80%
+  );
+}
+
+/* Purple blob — center-left area, deep ambient warmth */
+.landing-page::after {
+  width: 50vw;
+  height: 50vh;
+  top: 40vh;
+  left: -10vw;
+  background: radial-gradient(
+    circle at center,
+    rgba(123, 47, 190, 0.06) 0%,
+    rgba(123, 47, 190, 0.01) 50%,
+    transparent 80%
+  );
+}
+
 @media (prefers-reduced-motion: reduce) {
   .landing-page {
     scroll-behavior: auto;
@@ -46,6 +93,30 @@
 .landing-main {
   position: relative;
   z-index: 1;
+}
+
+/* Phase 17 Chunk 3 — Third ambient blob (dark cyan/teal).
+   Placed in the lower portion of the page via a pseudo-element
+   on .landing-main so it scrolls with content. This creates a
+   cool accent in the How It Works / App Preview area. */
+.landing-main::after {
+  content: "";
+  position: absolute;
+  pointer-events: none;
+  z-index: -1;
+  width: 55vw;
+  height: 50vh;
+  bottom: 20vh;
+  right: -8vw;
+  border-radius: 50%;
+  filter: blur(80px);
+  will-change: transform;
+  background: radial-gradient(
+    circle at center,
+    rgba(56, 189, 248, 0.04) 0%,
+    rgba(56, 189, 248, 0.01) 50%,
+    transparent 80%
+  );
 }
 
 /* ============================================================
@@ -173,33 +244,54 @@
   isolation: isolate;
 }
 
-/* Phase 17 — Pure CSS cinematic gradient mesh (5-layer). */
+/* Phase 17 — Pure CSS cinematic gradient mesh (7-layer).
+   Enhanced in Chunk 3 with 2 additional large blurred blobs
+   (deep purple + dark cyan) for richer ambient depth. */
 .landing-hero__backdrop {
   position: absolute;
   inset: 0;
   background:
+    /* Layer 1: Warm gold spotlight — upper-center, cinematic key light */
     radial-gradient(
       ellipse 80% 60% at 50% 30%,
       rgba(232, 183, 74, 0.18) 0%,
       rgba(232, 183, 74, 0.06) 40%,
       transparent 70%
     ),
+    /* Layer 2: Deep purple ambient — lower-left, complements the gold */
     radial-gradient(
       ellipse 70% 50% at 25% 70%,
       rgba(123, 47, 190, 0.14) 0%,
       rgba(123, 47, 190, 0.04) 50%,
       transparent 80%
     ),
+    /* Layer 3: Cool indigo accent — lower-right, adds depth */
     radial-gradient(
       ellipse 60% 45% at 80% 65%,
       rgba(63, 81, 181, 0.10) 0%,
       transparent 60%
     ),
+    /* Layer 4: Soft gold wash — wide, subtle warmth across center */
     radial-gradient(
       ellipse 120% 80% at 50% 50%,
       rgba(232, 183, 74, 0.05) 0%,
       transparent 70%
     ),
+    /* Layer 5 (Chunk 3): Large blurred purple blob — right side */
+    radial-gradient(
+      ellipse 50% 80% at 85% 50%,
+      rgba(123, 47, 190, 0.08) 0%,
+      rgba(123, 47, 190, 0.02) 40%,
+      transparent 70%
+    ),
+    /* Layer 6 (Chunk 3): Large blurred cyan blob — left-bottom */
+    radial-gradient(
+      ellipse 45% 60% at 15% 80%,
+      rgba(56, 189, 248, 0.06) 0%,
+      rgba(56, 189, 248, 0.01) 40%,
+      transparent 70%
+    ),
+    /* Layer 7: Dark vignette base — cinematic darkness from edges */
     radial-gradient(
       ellipse 100% 100% at 50% 50%,
       rgba(18, 18, 22, 0.0) 20%,
@@ -464,16 +556,23 @@
   margin: 0 auto;
 }
 
-/* Ambient gold glow behind the differentiator */
+/* Ambient gold + purple glow behind the differentiator.
+   Chunk 3 — Enhanced with a purple blob for richer depth. */
 .landing-differentiator__glow {
   position: absolute;
   inset: -60px;
   z-index: 0;
-  background: radial-gradient(
-    ellipse 50% 50% at 50% 50%,
-    rgba(232, 183, 74, 0.06) 0%,
-    transparent 70%
-  );
+  background:
+    radial-gradient(
+      ellipse 50% 50% at 40% 50%,
+      rgba(232, 183, 74, 0.07) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 40% 50% at 65% 50%,
+      rgba(123, 47, 190, 0.05) 0%,
+      transparent 60%
+    );
   pointer-events: none;
 }
 
@@ -527,10 +626,23 @@
 .landing-how {
   position: relative;
   padding: var(--sp-16) 1rem;
+  /* Chunk 3 — Enhanced ambient: gold top glow + purple side glow +
+     cyan bottom glow for a vibrant 3-color atmosphere that bleeds
+     through the GlassCard components. */
   background:
     radial-gradient(
-      ellipse at top,
-      rgba(232, 183, 74, 0.04) 0%,
+      ellipse 80% 40% at 50% 0%,
+      rgba(232, 183, 74, 0.06) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 50% 60% at 80% 50%,
+      rgba(123, 47, 190, 0.05) 0%,
+      transparent 60%
+    ),
+    radial-gradient(
+      ellipse 50% 40% at 20% 100%,
+      rgba(56, 189, 248, 0.04) 0%,
       transparent 60%
     ),
     var(--void);
@@ -1267,5 +1379,13 @@
   }
   .landing-preview__floating-badge {
     animation: none;
+  }
+  /* Chunk 3 — Disable heavy blur on ambient blobs for reduced-motion
+     users to minimize GPU compositing and vestibular discomfort. */
+  .landing-page::before,
+  .landing-page::after,
+  .landing-main::after {
+    filter: none;
+    will-change: auto;
   }
 }

@@ -36,8 +36,15 @@ const LandingPage: Component = () => {
   // Track scroll position to toggle the header's glass effect.
   const [scrolled, setScrolled] = createSignal(false);
 
+  // Phase 17 Chunk 3 — SSR safety: all browser APIs (window, document)
+  // MUST be inside onMount or event handlers. The handleScroll closure
+  // references window.scrollY, so it must only be called in the browser.
+  // onCleanup runs on the server during SSR teardown, so we guard it
+  // with typeof window !== "undefined".
   const handleScroll = () => {
-    setScrolled(window.scrollY > 80);
+    if (typeof window !== "undefined") {
+      setScrolled(window.scrollY > 80);
+    }
   };
 
   onMount(() => {
@@ -46,15 +53,20 @@ const LandingPage: Component = () => {
   });
 
   onCleanup(() => {
-    window.removeEventListener("scroll", handleScroll);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("scroll", handleScroll);
+    }
   });
 
   // Smooth-scroll to the features section. "Explore Features" is
   // an anchor link — it does NOT open the AuthModal.
+  // SSR safe: only called from onClick handlers (browser-only).
   const scrollToFeatures = () => {
-    document
-      .getElementById("how-it-works")
-      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    if (typeof document !== "undefined") {
+      document
+        .getElementById("how-it-works")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
   };
 
   return (
@@ -78,7 +90,9 @@ const LandingPage: Component = () => {
             aria-label="CineLog home"
             onClick={(e) => {
               e.preventDefault();
-              window.scrollTo({ top: 0, behavior: "smooth" });
+              if (typeof window !== "undefined") {
+                window.scrollTo({ top: 0, behavior: "smooth" });
+              }
             }}
           >
             <span
