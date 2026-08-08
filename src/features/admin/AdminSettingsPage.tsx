@@ -61,9 +61,10 @@ interface SiteSettings {
   privacy_url: string;
   terms_url: string;
   social_links: {
-    twitter: string;
+    facebook: string;
     instagram: string;
-    github: string;
+    twitter: string;
+    discord: string;
   };
 }
 
@@ -389,12 +390,12 @@ const AdminSettingsPage: Component = () => {
             </label>
             <div class="admin-config-field-grid two-col">
               <div class="admin-config-field">
-                <label>Twitter</label>
+                <label>Facebook</label>
                 <input
                   type="url"
-                  value={site()!.social_links.twitter}
-                  placeholder="https://twitter.com/cinelog"
-                  onInput={(e) => updateSocial("twitter", e.currentTarget.value)}
+                  value={site()!.social_links.facebook}
+                  placeholder="https://facebook.com/cinelog"
+                  onInput={(e) => updateSocial("facebook", e.currentTarget.value)}
                 />
               </div>
               <div class="admin-config-field">
@@ -409,12 +410,21 @@ const AdminSettingsPage: Component = () => {
                 />
               </div>
               <div class="admin-config-field">
-                <label>GitHub</label>
+                <label>Twitter / X</label>
                 <input
                   type="url"
-                  value={site()!.social_links.github}
-                  placeholder="https://github.com/cinelog"
-                  onInput={(e) => updateSocial("github", e.currentTarget.value)}
+                  value={site()!.social_links.twitter}
+                  placeholder="https://x.com/cinelog"
+                  onInput={(e) => updateSocial("twitter", e.currentTarget.value)}
+                />
+              </div>
+              <div class="admin-config-field">
+                <label>Discord</label>
+                <input
+                  type="url"
+                  value={site()!.social_links.discord}
+                  placeholder="https://discord.gg/cinelog"
+                  onInput={(e) => updateSocial("discord", e.currentTarget.value)}
                 />
               </div>
             </div>

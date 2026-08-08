@@ -69,9 +69,10 @@ interface SiteSettings {
   privacy_url: string;
   terms_url: string;
   social_links: {
-    twitter: string;
+    facebook: string;
     instagram: string;
-    github: string;
+    twitter: string;
+    discord: string;
   };
 }
 
@@ -167,7 +168,7 @@ const DEFAULTS: AllSettings = {
     support_url: "",
     privacy_url: "",
     terms_url: "",
-    social_links: { twitter: "", instagram: "", github: "" }
+    social_links: { facebook: "", instagram: "", twitter: "", discord: "" }
   },
   rate_limits: {
     api_per_min: 60,
@@ -260,14 +261,16 @@ function validateSiteSettings(input: unknown): SiteSettings {
     terms_url:
       typeof obj.terms_url === "string" ? obj.terms_url.slice(0, 500) : "",
     social_links: {
-      twitter:
-        typeof social.twitter === "string" ? social.twitter.slice(0, 200) : "",
+      facebook:
+        typeof social.facebook === "string" ? social.facebook.slice(0, 200) : "",
       instagram:
         typeof social.instagram === "string"
           ? social.instagram.slice(0, 200)
           : "",
-      github:
-        typeof social.github === "string" ? social.github.slice(0, 200) : ""
+      twitter:
+        typeof social.twitter === "string" ? social.twitter.slice(0, 200) : "",
+      discord:
+        typeof social.discord === "string" ? social.discord.slice(0, 200) : ""
     }
   };
 }

@@ -486,12 +486,12 @@ export const DEMO_VAULT_ITEMS: readonly DemoVaultItem[] = [
 // ---------------------------------------------------------------------------
 
 export const DEMO_STATS: DemoStats = {
-  totalTitles: 247,
+  totalTitles: 500,
   totalHours: 1842,
   avgRating: 7.9,
   completed: 163,
   topGenres: ["Drama", "Action", "Sci-Fi", "Thriller", "Comedy", "Fantasy"],
-  moviesVsSeries: { movies: 142, series: 105 },
+  moviesVsSeries: { movies: 247, series: 253 },
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -708,3 +708,88 @@ export const DEMO_TYPE_SPLIT = {
   movies: 58,
   series: 42,
 } as const;
+
+// ---------------------------------------------------------------------------
+// DEMO_TIMELINE_ENTRIES — for the landing page Timeline preview
+// ---------------------------------------------------------------------------
+
+export interface DemoTimelineEntry {
+  title: string;
+  year: number;
+  type: "movie" | "tv" | "anime";
+  rating: number;
+  posterPath: string;
+  status: "watching" | "completed" | "planned" | "dropped";
+  userRating?: number;
+  date: string; // ISO date string like "2026-08-07"
+  runtime?: string; // e.g. "1h 36m"
+}
+
+export const DEMO_TIMELINE_ENTRIES: readonly DemoTimelineEntry[] = [
+  {
+    title: "Interstellar",
+    year: 2014,
+    type: "movie",
+    rating: 8.7,
+    posterPath: "/yQvGrMoipbRoddT0ZR8tPoR7NfX.jpg",
+    status: "completed",
+    userRating: 9,
+    date: "2026-08-07",
+    runtime: "2h 49m",
+  },
+  {
+    title: "Demon Slayer: Infinity Castle",
+    year: 2025,
+    type: "anime",
+    rating: 8.5,
+    posterPath: "/xUfRZu2mi8jH6SzQEJGP6tjBuYj.jpg",
+    status: "completed",
+    userRating: 7,
+    date: "2026-08-07",
+    runtime: "2h 36m",
+  },
+  {
+    title: "The Last of Us",
+    year: 2023,
+    type: "tv",
+    rating: 8.8,
+    posterPath: "/dmo6TYuuJgaYinXBPjrgG9mB5od.jpg",
+    status: "watching",
+    userRating: 9,
+    date: "2026-07-27",
+    runtime: "9h 20m",
+  },
+  {
+    title: "Dune: Part Two",
+    year: 2024,
+    type: "movie",
+    rating: 8.6,
+    posterPath: "/6izwz7rsy95ARzTR3poZ8H6c5pp.jpg",
+    status: "completed",
+    userRating: 8,
+    date: "2026-07-15",
+    runtime: "2h 46m",
+  },
+  {
+    title: "Severance",
+    year: 2022,
+    type: "tv",
+    rating: 8.7,
+    posterPath: "/lAC6gf6iemJ8Xp5dW2VbZeexj7J.jpg",
+    status: "watching",
+    userRating: 9,
+    date: "2026-07-03",
+    runtime: "6h 45m",
+  },
+  {
+    title: "Oppenheimer",
+    year: 2023,
+    type: "movie",
+    rating: 8.3,
+    posterPath: "/8Gxv8gSFCU0XGDykEGv7zR1n2ua.jpg",
+    status: "completed",
+    userRating: 8,
+    date: "2026-06-21",
+    runtime: "3h 00m",
+  },
+] as const;
