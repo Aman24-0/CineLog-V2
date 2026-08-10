@@ -241,11 +241,11 @@ function validateSiteSettings(input: unknown): SiteSettings {
   const obj = input as Record<string, unknown>;
   const defaults = DEFAULTS.site_settings;
 
-  // Validate social_links — supports new dynamic array format
-  // and migrates legacy { facebook, instagram, twitter, discord } format
+  // Validate social_links — only the dynamic array format is supported.
+  // Legacy { facebook, instagram, twitter, discord } format is no longer
+  // recognized. The migration has been completed.
   let socialLinks: SocialLink[] = [];
   if (Array.isArray(obj.social_links)) {
-    // New dynamic format: array of SocialLink objects
     socialLinks = obj.social_links
       .filter((item: unknown) => typeof item === "object" && item !== null)
       .map((item: unknown, idx: number) => {
@@ -279,30 +279,9 @@ function validateSiteSettings(input: unknown): SiteSettings {
       })
       // Cap at 20 social links to prevent abuse
       .slice(0, 20);
-  } else if (obj.social_links && typeof obj.social_links === "object") {
-    // Legacy format: { facebook, instagram, twitter, discord }
-    // Migrate to dynamic array
-    const legacy = obj.social_links as Record<string, unknown>;
-    const legacyMap: Array<{ key: string; name: string }> = [
-      { key: "facebook", name: "Facebook" },
-      { key: "instagram", name: "Instagram" },
-      { key: "twitter", name: "Twitter" },
-      { key: "discord", name: "Discord" },
-    ];
-    legacyMap.forEach(({ key, name }, idx) => {
-      const val = typeof legacy[key] === "string" ? (legacy[key] as string).slice(0, 200) : "";
-      if (val) {
-        socialLinks.push({
-          id: key,
-          name,
-          url: val,
-          iconUrl: "",
-          enabled: true,
-          order: idx,
-        });
-      }
-    });
   }
+  // If social_links is not an array (e.g. legacy object format or null),
+  // it becomes an empty array — admin must re-add links in dynamic format.
 
   return {
     site_name:

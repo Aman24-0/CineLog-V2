@@ -3,26 +3,31 @@
 -- CineLog V2 — Create the `social-icons` Storage Bucket
 -- ─────────────────────────────────────────────────────────────────
 -- The dynamic social links feature allows admins to upload custom SVG
--- icons for each social link. These icons are stored in a public
+-- or PNG icons for each social link. These icons are stored in a public
 -- Storage bucket named `social-icons`.
 --
 -- RLS policies:
 --   • Public read (icons are visible on the landing page footer)
 --   • Service-role write only (admin API uploads via service_role client)
 --
--- The bucket accepts SVG files up to 100KB. SVGs are sanitized
+-- The bucket accepts SVG and PNG files up to 100KB. SVGs are sanitized
 -- client-side before upload (src/shared/utils/svgSanitize.ts) to
--- strip <script>, event handlers, and dangerous URLs.
+-- strip <script>, event handlers, and dangerous URLs. PNGs are passed
+-- through as-is (binary raster format, no executable content possible).
 
 -- ─── 1. Create the bucket ────────────────────────────────────────
+-- First drop the old bucket config if it exists (to update MIME types),
+-- then re-create with the full set of allowed types.
+
+DELETE FROM storage.buckets WHERE id = 'social-icons';
 
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
 VALUES (
   'social-icons',
   'social-icons',
   true,  -- public read — icons appear on the public landing page
-  102400,  -- 100 KB file size limit (SVGs are typically 1-5KB)
-  ARRAY['image/svg+xml', 'image/svg']
+  102400,  -- 100 KB file size limit (SVGs are typically 1-5KB, PNGs up to 50KB)
+  ARRAY['image/svg+xml', 'image/svg', 'image/png']
 )
 ON CONFLICT (id) DO NOTHING;
 
@@ -71,4 +76,5 @@ CREATE POLICY "social_icons_authenticated_delete"
 -- Done. The social-icons bucket exists with proper RLS policies.
 -- Admin API routes use the service_role client to upload/delete icons.
 -- The landing page footer reads icon URLs directly from the public bucket.
+-- Supports both SVG and PNG icon uploads.
 -- ============================================================================

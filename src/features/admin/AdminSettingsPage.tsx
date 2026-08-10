@@ -12,16 +12,17 @@
 //
 // SOCIAL LINKS:
 //   Dynamic — admin can add any number of social links with custom
-//   name, URL, and uploaded SVG icon. No hardcoded platforms.
+//   name, URL, and uploaded SVG or PNG icon. No hardcoded platforms.
 //   Data structure: SocialLink[] (see src/shared/types/index.ts)
 //
 // DATA FLOW:
 //   • GET /api/admin/settings → { settings: { key: { value, updated_at } } }
 //   • PUT /api/admin/settings with { settings: { key: newValue } }
 //
-// SVG ICON UPLOAD:
-//   • Admin selects an SVG file
-//   • Client-side sanitization strips <script>, event handlers, etc.
+// ICON UPLOAD:
+//   • Admin selects an SVG or PNG file
+//   • SVG: client-side sanitization strips <script>, event handlers, etc.
+//   • PNG: passed through as-is (binary raster, no executable content)
 //   • Uploaded to Supabase Storage `social-icons` bucket
 //   • Public URL stored in SocialLink.iconUrl
 //   • Landing page footer renders the icon via <img> with object-contain
@@ -38,7 +39,7 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
-import { sanitizeSvg, isValidSvg } from "~/shared/utils/svgSanitize";
+import { sanitizeSvg } from "~/shared/utils/svgSanitize";
 import type { SocialLink } from "~/shared/types";
 
 // ─── Types ─────────────────────────────────────────────────────────
@@ -96,8 +97,8 @@ const AdminSettingsPage: Component = () => {
   const [origLimits, setOrigLimits] = createSignal<string>("");
   const [origRetention, setOrigRetention] = createSignal<string>("");
 
-  // SVG upload state
-  const [uploadingIcon, setUploadingIcon] = createSignal<string | null>(null); // id of link being uploaded
+  // Icon upload state (id of link being uploaded)
+  const [uploadingIcon, setUploadingIcon] = createSignal<string | null>(null);
 
   const fetchSettings = async () => {
     setLoading(true);
@@ -114,14 +115,16 @@ const AdminSettingsPage: Component = () => {
       }
       const data = (await resp.json()) as SettingsResponse;
 
-      // The API may return social_links in either the new array format
-      // or the legacy { facebook, instagram, twitter, discord } format.
-      // We normalize to the array format here.
       const rawSite = data.settings.site_settings.value as Record<string, unknown>;
       const r = data.settings.rate_limits.value as RateLimits;
       const ret = data.settings.retention_policy.value as RetentionPolicy;
 
-      // Build a clean SiteSettings object with array social_links
+      // Build a clean SiteSettings object
+      // social_links is always an array in the new dynamic format
+      const socialLinks: SocialLink[] = Array.isArray(rawSite.social_links)
+        ? (rawSite.social_links as SocialLink[])
+        : []; // Legacy format not supported — empty array
+
       const s: SiteSettings = {
         site_name: typeof rawSite.site_name === "string" ? rawSite.site_name : "CineLog",
         tagline: typeof rawSite.tagline === "string" ? rawSite.tagline : "",
@@ -129,9 +132,7 @@ const AdminSettingsPage: Component = () => {
         support_url: typeof rawSite.support_url === "string" ? rawSite.support_url : "",
         privacy_url: typeof rawSite.privacy_url === "string" ? rawSite.privacy_url : "",
         terms_url: typeof rawSite.terms_url === "string" ? rawSite.terms_url : "",
-        social_links: Array.isArray(rawSite.social_links)
-          ? (rawSite.social_links as SocialLink[])
-          : migrateLegacySocialLinks(rawSite.social_links),
+        social_links: socialLinks,
       };
 
       setSite(s);
@@ -260,6 +261,7 @@ const AdminSettingsPage: Component = () => {
   /** Delete a social link by id */
   const deleteSocialLink = (id: string) => {
     const current = site() as SiteSettings;
+    const linkToDelete = current.social_links.find((l) => l.id === id);
     const updated = current.social_links
       .filter((link) => link.id !== id)
       .map((link, idx) => ({ ...link, order: idx })); // Re-index order
@@ -267,6 +269,16 @@ const AdminSettingsPage: Component = () => {
       ...current,
       social_links: updated,
     });
+
+    // Try to delete the icon file from storage (best-effort, don't block UI)
+    if (linkToDelete?.iconUrl) {
+      fetch("/api/admin/social-icon-upload", {
+        method: "DELETE",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ linkId: id }),
+      }).catch(() => { /* best-effort */ });
+    }
   };
 
   /** Move a social link up in order */
@@ -295,30 +307,45 @@ const AdminSettingsPage: Component = () => {
     setSite({ ...current, social_links: reindexed });
   };
 
-  /** Handle SVG file selection and upload */
+  /** Handle icon file selection and upload (SVG or PNG) */
   const handleIconUpload = async (linkId: string, file: File) => {
-    // Validate file type
-    if (!file.name.endsWith(".svg") && file.type !== "image/svg+xml") {
-      toast.show("Only SVG files are allowed", "error");
+    // Validate file type (SVG or PNG)
+    const isSvg = file.name.endsWith(".svg") || file.type === "image/svg+xml" || file.type === "image/svg";
+    const isPng = file.name.endsWith(".png") || file.type === "image/png";
+
+    if (!isSvg && !isPng) {
+      toast.show("Only SVG or PNG files are allowed", "error");
       return;
     }
 
-    // Read and sanitize the SVG
-    const rawText = await file.text();
-    const sanitized = sanitizeSvg(rawText);
-    if (!sanitized) {
-      toast.show("Invalid or unsafe SVG file", "error");
+    // Validate file size (max 100KB)
+    if (file.size > 100 * 1024) {
+      toast.show("File too large (max 100KB)", "error");
       return;
     }
 
     setUploadingIcon(linkId);
 
     try {
-      // Upload to Supabase Storage via the admin API
-      // We use a dedicated endpoint for social icon uploads
       const formData = new FormData();
-      formData.append("svg", new Blob([sanitized], { type: "image/svg+xml" }), `${linkId}.svg`);
+
+      if (isSvg) {
+        // SVG: sanitize before upload
+        const rawText = await file.text();
+        const sanitized = sanitizeSvg(rawText);
+        if (!sanitized) {
+          toast.show("Invalid or unsafe SVG file", "error");
+          setUploadingIcon(null);
+          return;
+        }
+        formData.append("file", new Blob([sanitized], { type: "image/svg+xml" }), `${linkId}.svg`);
+      } else {
+        // PNG: pass through as-is
+        formData.append("file", file, `${linkId}.png`);
+      }
+
       formData.append("linkId", linkId);
+      formData.append("fileName", file.name);
 
       const resp = await fetch("/api/admin/social-icon-upload", {
         method: "POST",
@@ -340,6 +367,18 @@ const AdminSettingsPage: Component = () => {
     } finally {
       setUploadingIcon(null);
     }
+  };
+
+  /** Remove an icon from a social link (clear iconUrl + delete from storage) */
+  const removeIcon = (linkId: string) => {
+    updateSocialLink(linkId, { iconUrl: "" });
+    // Try to delete the file from storage (best-effort)
+    fetch("/api/admin/social-icon-upload", {
+      method: "DELETE",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ linkId }),
+    }).catch(() => { /* best-effort */ });
   };
 
   // ─── Render ──────────────────────────────────────────────────
@@ -510,7 +549,7 @@ const AdminSettingsPage: Component = () => {
             </div>
 
             <p class="admin-config-field-hint" style={{ "margin-bottom": "var(--sp-3)" }}>
-              Add custom social links with any name, URL, and SVG icon.
+              Add custom social links with any name, URL, and SVG or PNG icon.
               These appear in the landing page footer. Drag to reorder.
             </p>
 
@@ -609,7 +648,7 @@ const AdminSettingsPage: Component = () => {
                             <input
                               type="text"
                               value={link.name}
-                              placeholder="Instagram"
+                              placeholder="GitHub"
                               onInput={(e) => updateSocialLink(link.id, { name: e.currentTarget.value })}
                               maxlength={60}
                             />
@@ -622,7 +661,7 @@ const AdminSettingsPage: Component = () => {
                             <input
                               type="url"
                               value={link.url}
-                              placeholder="https://instagram.com/cinelog"
+                              placeholder="https://github.com/cinelog"
                               onInput={(e) => updateSocialLink(link.id, { url: e.currentTarget.value })}
                             />
                             <span class="admin-config-field-hint">
@@ -632,20 +671,20 @@ const AdminSettingsPage: Component = () => {
                         </div>
 
                         <div class="admin-config-field-grid two-col" style={{ "margin-top": "var(--sp-2)" }}>
-                          {/* SVG Icon Upload */}
+                          {/* Icon Upload (SVG or PNG) */}
                           <div class="admin-config-field">
-                            <label>Icon (SVG)</label>
+                            <label>Icon (SVG / PNG)</label>
                             <div style={{ display: "flex", gap: "var(--sp-2)", "align-items": "center" }}>
                               <label class="social-link-upload-btn">
                                 <Show
                                   when={uploadingIcon() === link.id}
-                                  fallback={link.iconUrl ? "Replace" : "Upload SVG"}
+                                  fallback={link.iconUrl ? "Replace" : "Upload Icon"}
                                 >
                                   Uploading…
                                 </Show>
                                 <input
                                   type="file"
-                                  accept=".svg,image/svg+xml"
+                                  accept=".svg,.png,image/svg+xml,image/png"
                                   style={{ display: "none" }}
                                   disabled={uploadingIcon() === link.id}
                                   onChange={(e) => {
@@ -657,7 +696,7 @@ const AdminSettingsPage: Component = () => {
                               <Show when={link.iconUrl}>
                                 <button
                                   class="social-link-action-btn"
-                                  onClick={() => updateSocialLink(link.id, { iconUrl: "" })}
+                                  onClick={() => removeIcon(link.id)}
                                   title="Remove icon"
                                 >
                                   Remove
@@ -665,7 +704,7 @@ const AdminSettingsPage: Component = () => {
                               </Show>
                             </div>
                             <span class="admin-config-field-hint">
-                              Upload a custom SVG icon. Sanitized for security.
+                              Upload a custom SVG or PNG icon. SVGs are sanitized for security.
                             </span>
                           </div>
 
@@ -894,27 +933,6 @@ const AdminSettingsPage: Component = () => {
     </div>
   );
 };
-
-// ─── Legacy social links migration helper ─────────────────────────
-
-function migrateLegacySocialLinks(legacy: unknown): SocialLink[] {
-  if (!legacy || typeof legacy !== "object") return [];
-  const obj = legacy as Record<string, unknown>;
-  const result: SocialLink[] = [];
-  const order: Array<{ key: string; name: string }> = [
-    { key: "facebook", name: "Facebook" },
-    { key: "instagram", name: "Instagram" },
-    { key: "twitter", name: "Twitter" },
-    { key: "discord", name: "Discord" },
-  ];
-  order.forEach(({ key, name }, idx) => {
-    const val = typeof obj[key] === "string" ? (obj[key] as string) : "";
-    if (val) {
-      result.push({ id: key, name, url: val, iconUrl: "", enabled: true, order: idx });
-    }
-  });
-  return result;
-}
 
 // ─── Toast helper ──────────────────────────────────────────────────
 

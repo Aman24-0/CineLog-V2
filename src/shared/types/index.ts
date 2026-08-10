@@ -1235,7 +1235,7 @@ export interface SmartRule {
  * A single social link configured by the admin.
  *
  * The admin can create any number of these with custom names, URLs,
- * and uploaded SVG icons. The landing page footer automatically
+ * and uploaded SVG or PNG icons. The landing page footer automatically
  * renders all enabled links in order.
  *
  * Previously, social links were hardcoded as
@@ -1245,11 +1245,11 @@ export interface SmartRule {
 export interface SocialLink {
   /** Unique ID for this link (e.g. crypto.randomUUID() or a short slug). */
   id: string;
-  /** Display name — e.g. "Instagram", "My Discord", "Telegram". */
+  /** Display name — e.g. "GitHub", "My Discord", "Telegram". */
   name: string;
-  /** Full URL — e.g. "https://instagram.com/cinelog". */
+  /** Full URL — e.g. "https://github.com/cinelog". */
   url: string;
-  /** Public URL of the uploaded SVG icon in Supabase Storage, or empty string. */
+  /** Public URL of the uploaded SVG or PNG icon in Supabase Storage, or empty string. */
   iconUrl: string;
   /** Whether this link is shown on the landing page footer. */
   enabled: boolean;

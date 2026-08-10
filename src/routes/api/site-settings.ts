@@ -7,24 +7,24 @@
 // terms/privacy URLs).
 //
 // This endpoint is PUBLIC (no auth required) — the data it returns
-// is not secret. The landing page calls this on load and caches the
-// result.
+// is not secret. The landing page calls this on load.
 //
 // Why a separate endpoint from /api/admin/settings?
 //   - The admin endpoint requires admin auth and returns ALL settings
 //     (rate limits, TMDB config, retention policy, etc.).
 //   - This endpoint is anon-accessible and returns only the subset
 //     that the public UI needs.
-//   - This endpoint is heavily cached (5 minutes at the CDN).
 //
 // SOCIAL LINKS FORMAT:
 //   social_links is an array of SocialLink objects:
 //     { id, name, url, iconUrl, enabled, order }
 //   The landing page footer renders enabled links in order.
 //
-//   For backward compatibility, if the database still contains the
-//   legacy format { facebook, instagram, twitter, discord }, this
-//   endpoint migrates it to the new array format before returning.
+// CACHING:
+//   We use no-store to prevent stale social links from being served
+//   after admin updates. The landing page must always reflect the
+//   current configuration. The fetch on the landing page also uses
+//   cache: 'no-store' as a belt-and-suspenders approach.
 
 import { createClient } from "@supabase/supabase-js";
 
@@ -61,39 +61,25 @@ const DEFAULTS: SiteSettingsPublic = {
 
 // ─── Helper ─────────────────────────────────────────────────────
 
-function jsonResponse(body: unknown, status = 200, cacheControl = "public, max-age=60, s-maxage=300"): Response {
+function jsonResponse(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
     status,
     headers: {
       "Content-Type": "application/json",
-      "Cache-Control": cacheControl
+      // No caching — admin settings must be reflected immediately.
+      // Previously used max-age=60, s-maxage=300 which caused deleted
+      // social links to persist on the landing page for up to 5 minutes.
+      "Cache-Control": "no-store, no-cache, must-revalidate",
+      "Pragma": "no-cache",
     }
   });
-}
-
-/**
- * Migrate legacy { facebook, instagram, twitter, discord } format
- * to the new dynamic SocialLink[] array format.
- */
-function migrateLegacySocialLinks(legacy: Record<string, unknown>): SocialLink[] {
-  const result: SocialLink[] = [];
-  const order: Array<{ key: string; name: string }> = [
-    { key: "facebook", name: "Facebook" },
-    { key: "instagram", name: "Instagram" },
-    { key: "twitter", name: "Twitter" },
-    { key: "discord", name: "Discord" },
-  ];
-  order.forEach(({ key, name }, idx) => {
-    const val = typeof legacy[key] === "string" ? (legacy[key] as string) : "";
-    if (val) {
-      result.push({ id: key, name, url: val, iconUrl: "", enabled: true, order: idx });
-    }
-  });
-  return result;
 }
 
 /**
  * Validate and clean a dynamic SocialLink array.
+ * Only the new dynamic array format is supported.
+ * Legacy { facebook, instagram, twitter, discord } format is NOT
+ * recognized — the migration has been completed.
  */
 function validateSocialLinksArray(arr: unknown[]): SocialLink[] {
   return arr
@@ -137,15 +123,14 @@ export async function GET(_event: APIEvent) {
 
     const v = data.value as Record<string, unknown>;
 
-    // Determine social_links format
+    // Parse social_links — only the dynamic array format is supported
     let socialLinks: SocialLink[] = [];
     if (Array.isArray(v.social_links)) {
-      // New dynamic format
       socialLinks = validateSocialLinksArray(v.social_links);
-    } else if (v.social_links && typeof v.social_links === "object") {
-      // Legacy format — migrate
-      socialLinks = migrateLegacySocialLinks(v.social_links as Record<string, unknown>);
     }
+    // Legacy object format is intentionally NOT recognized.
+    // If the DB still has old-format data, social_links will be empty
+    // and the admin should re-add links in the new dynamic format.
 
     const settings: SiteSettingsPublic = {
       site_name:

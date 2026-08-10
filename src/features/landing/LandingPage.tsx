@@ -50,15 +50,10 @@ import type { DemoVaultItem, DemoTimelineEntry, WatchStatus } from "./data/demoC
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES — Dynamic Social Links
 // ═══════════════════════════════════════════════════════════════════════════
+// SocialLink is imported from the shared types to ensure single source of truth.
+// The landing page footer renders only enabled links from the dynamic config.
 
-interface SocialLink {
-  id: string;
-  name: string;
-  url: string;
-  iconUrl: string;
-  enabled: boolean;
-  order: number;
-}
+import type { SocialLink } from "~/shared/types";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // CONSTANTS
@@ -911,42 +906,28 @@ const FinalCTA: Component = () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 const Footer: Component = () => {
-  // Dynamic social links — fetched from the public site-settings endpoint
+  // Dynamic social links — fetched from the public site-settings endpoint.
+  // No caching: we use cache: 'no-store' to ensure the landing page always
+  // reflects the current admin configuration (no stale deleted links).
   const [socialLinks, setSocialLinks] = createSignal<SocialLink[]>([]);
 
   onMount(() => {
     if (typeof window !== "undefined") {
-      fetch("/api/site-settings")
+      fetch("/api/site-settings", { cache: "no-store" })
         .then((res) => {
           if (!res.ok) throw new Error("No public settings endpoint");
           return res.json();
         })
-        .then((data: { social_links?: SocialLink[] | { facebook?: string; instagram?: string; twitter?: string; discord?: string } }) => {
-          // Support new dynamic format: social_links is an array of SocialLink objects
+        .then((data: { social_links?: SocialLink[] }) => {
+          // Only the dynamic array format is supported.
+          // Legacy format is NOT recognized — no hardcoded fallback.
           if (Array.isArray(data.social_links)) {
             const enabled = data.social_links
               .filter((link: SocialLink) => link.enabled && link.url)
               .sort((a: SocialLink, b: SocialLink) => a.order - b.order);
             setSocialLinks(enabled);
-          } else if (data.social_links && typeof data.social_links === "object") {
-            // Legacy format: migrate hardcoded { facebook, instagram, twitter, discord } to dynamic array
-            const legacy = data.social_links as Record<string, string>;
-            const migrated: SocialLink[] = [];
-            const order = ["facebook", "instagram", "twitter", "discord"];
-            order.forEach((key, idx) => {
-              if (legacy[key]) {
-                migrated.push({
-                  id: key,
-                  name: key.charAt(0).toUpperCase() + key.slice(1),
-                  url: legacy[key],
-                  iconUrl: "",
-                  enabled: true,
-                  order: idx,
-                });
-              }
-            });
-            setSocialLinks(migrated);
           }
+          // If not an array or empty → socialLinks stays empty → no icons shown
         })
         .catch(() => {
           // Endpoint not available — keep empty array (no social icons shown)
@@ -974,7 +955,7 @@ const Footer: Component = () => {
           <p class="text-sm text-white/40">Your cinematic universe, perfected.</p>
         </div>
 
-        {/* Dynamic social icons — only rendered when links are configured */}
+        {/* Dynamic social icons — only rendered when enabled links exist */}
         <Show when={socialLinks().length > 0}>
           <div class="flex items-center justify-center gap-5 mb-8">
             <For each={socialLinks()}>
@@ -983,33 +964,54 @@ const Footer: Component = () => {
                   href={link.url}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="text-white/40 hover:text-white transition-colors"
+                  class="inline-flex items-center justify-center text-white/40 hover:text-white transition-colors"
                   aria-label={link.name}
                   title={link.name}
                 >
                   <Show
                     when={link.iconUrl}
                     fallback={
-                      /* Fallback: first letter of name in a circle */
-                      <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] font-bold text-white/60">
-                        {link.name.charAt(0).toUpperCase()}
+                      /* Generic fallback: globe icon (Material Symbol "public") */
+                      <span
+                        class="material-symbols-outlined text-[20px]"
+                        style={{ "font-variation-settings": "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24" }}
+                      >
+                        public
                       </span>
                     }
                   >
-                    <img
-                      src={link.iconUrl}
-                      alt={link.name}
-                      class="w-5 h-5 object-contain"
-                      style={{ "max-width": "1.25rem", "max-height": "1.25rem" }}
-                      onError={(e) => {
-                        // If the icon fails to load, replace with a letter fallback
-                        const img = e.currentTarget;
-                        const span = document.createElement("span");
-                        span.className = "inline-flex items-center justify-center w-5 h-5 rounded-full bg-white/10 text-[10px] font-bold text-white/60";
-                        span.textContent = link.name.charAt(0).toUpperCase();
-                        img.parentNode?.replaceChild(span, img);
+                    <div
+                      class="inline-flex items-center justify-center"
+                      style={{
+                        width: "1.25rem",
+                        height: "1.25rem",
+                        "min-width": "1.25rem",
+                        "min-height": "1.25rem",
+                        overflow: "hidden",
                       }}
-                    />
+                    >
+                      <img
+                        src={link.iconUrl}
+                        alt={link.name}
+                        style={{
+                          width: "100%",
+                          height: "100%",
+                          "object-fit": "contain",
+                          "object-position": "center",
+                          display: "block",
+                        }}
+                        onError={(e) => {
+                          // If the icon fails to load, replace with globe fallback
+                          const img = e.currentTarget;
+                          const span = document.createElement("span");
+                          span.className = "material-symbols-outlined";
+                          span.style.fontSize = "20px";
+                          span.style.fontVariationSettings = "'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24";
+                          span.textContent = "public";
+                          img.parentNode?.replaceChild(span, img);
+                        }}
+                      />
+                    </div>
                   </Show>
                 </a>
               )}
