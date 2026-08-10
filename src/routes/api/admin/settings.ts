@@ -61,6 +61,15 @@ const ALL_KEYS: SettingsKey[] = [
   "ai_settings"
 ];
 
+interface SocialLink {
+  id: string;
+  name: string;
+  url: string;
+  iconUrl: string;
+  enabled: boolean;
+  order: number;
+}
+
 interface SiteSettings {
   site_name: string;
   tagline: string;
@@ -68,12 +77,7 @@ interface SiteSettings {
   support_url: string;
   privacy_url: string;
   terms_url: string;
-  social_links: {
-    facebook: string;
-    instagram: string;
-    twitter: string;
-    discord: string;
-  };
+  social_links: SocialLink[];
 }
 
 interface RateLimits {
@@ -168,7 +172,7 @@ const DEFAULTS: AllSettings = {
     support_url: "",
     privacy_url: "",
     terms_url: "",
-    social_links: { facebook: "", instagram: "", twitter: "", discord: "" }
+    social_links: []
   },
   rate_limits: {
     api_per_min: 60,
@@ -236,11 +240,70 @@ function validateSiteSettings(input: unknown): SiteSettings {
     throw new Error("must be an object");
   const obj = input as Record<string, unknown>;
   const defaults = DEFAULTS.site_settings;
-  const social = (
-    obj.social_links && typeof obj.social_links === "object"
-      ? obj.social_links
-      : {}
-  ) as Record<string, unknown>;
+
+  // Validate social_links — supports new dynamic array format
+  // and migrates legacy { facebook, instagram, twitter, discord } format
+  let socialLinks: SocialLink[] = [];
+  if (Array.isArray(obj.social_links)) {
+    // New dynamic format: array of SocialLink objects
+    socialLinks = obj.social_links
+      .filter((item: unknown) => typeof item === "object" && item !== null)
+      .map((item: unknown, idx: number) => {
+        const link = item as Record<string, unknown>;
+        return {
+          id:
+            typeof link.id === "string" && link.id.length > 0
+              ? link.id.slice(0, 64)
+              : `link-${idx}`,
+          name:
+            typeof link.name === "string"
+              ? link.name.slice(0, 60)
+              : "",
+          url:
+            typeof link.url === "string"
+              ? link.url.slice(0, 500)
+              : "",
+          iconUrl:
+            typeof link.iconUrl === "string"
+              ? link.iconUrl.slice(0, 500)
+              : "",
+          enabled:
+            typeof link.enabled === "boolean"
+              ? link.enabled
+              : true,
+          order:
+            typeof link.order === "number" && Number.isFinite(link.order)
+              ? Math.floor(link.order)
+              : idx,
+        };
+      })
+      // Cap at 20 social links to prevent abuse
+      .slice(0, 20);
+  } else if (obj.social_links && typeof obj.social_links === "object") {
+    // Legacy format: { facebook, instagram, twitter, discord }
+    // Migrate to dynamic array
+    const legacy = obj.social_links as Record<string, unknown>;
+    const legacyMap: Array<{ key: string; name: string }> = [
+      { key: "facebook", name: "Facebook" },
+      { key: "instagram", name: "Instagram" },
+      { key: "twitter", name: "Twitter" },
+      { key: "discord", name: "Discord" },
+    ];
+    legacyMap.forEach(({ key, name }, idx) => {
+      const val = typeof legacy[key] === "string" ? (legacy[key] as string).slice(0, 200) : "";
+      if (val) {
+        socialLinks.push({
+          id: key,
+          name,
+          url: val,
+          iconUrl: "",
+          enabled: true,
+          order: idx,
+        });
+      }
+    });
+  }
+
   return {
     site_name:
       typeof obj.site_name === "string"
@@ -260,18 +323,7 @@ function validateSiteSettings(input: unknown): SiteSettings {
       typeof obj.privacy_url === "string" ? obj.privacy_url.slice(0, 500) : "",
     terms_url:
       typeof obj.terms_url === "string" ? obj.terms_url.slice(0, 500) : "",
-    social_links: {
-      facebook:
-        typeof social.facebook === "string" ? social.facebook.slice(0, 200) : "",
-      instagram:
-        typeof social.instagram === "string"
-          ? social.instagram.slice(0, 200)
-          : "",
-      twitter:
-        typeof social.twitter === "string" ? social.twitter.slice(0, 200) : "",
-      discord:
-        typeof social.discord === "string" ? social.discord.slice(0, 200) : ""
-    }
+    social_links: socialLinks,
   };
 }
 

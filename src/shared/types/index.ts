@@ -1226,3 +1226,33 @@ export interface SmartRule {
   operator: "is" | "is_not" | "contains" | "gte" | "lte" | "between";
   value: string | number | [number, number];
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// Dynamic Social Link — used by Admin Settings & Landing Page Footer
+// ═══════════════════════════════════════════════════════════════════════════
+
+/**
+ * A single social link configured by the admin.
+ *
+ * The admin can create any number of these with custom names, URLs,
+ * and uploaded SVG icons. The landing page footer automatically
+ * renders all enabled links in order.
+ *
+ * Previously, social links were hardcoded as
+ *   { facebook, instagram, twitter, discord }
+ * This dynamic structure replaces that.
+ */
+export interface SocialLink {
+  /** Unique ID for this link (e.g. crypto.randomUUID() or a short slug). */
+  id: string;
+  /** Display name — e.g. "Instagram", "My Discord", "Telegram". */
+  name: string;
+  /** Full URL — e.g. "https://instagram.com/cinelog". */
+  url: string;
+  /** Public URL of the uploaded SVG icon in Supabase Storage, or empty string. */
+  iconUrl: string;
+  /** Whether this link is shown on the landing page footer. */
+  enabled: boolean;
+  /** Sort order (0-based, ascending). */
+  order: number;
+}

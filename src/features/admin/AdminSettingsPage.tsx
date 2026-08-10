@@ -1,42 +1,30 @@
 // src/features/admin/AdminSettingsPage.tsx
 //
-// CineLog V2 — Admin Settings Page (Phase 9 Chunk 6 rewrite)
+// CineLog V2 — Admin Settings Page
 // ---------------------------------------------------------------------
 // The single admin surface for site-wide, non-service, non-feature,
-// non-communication settings. Phase 9 Chunk 6 enforces the
-// zero-duplication rule:
+// non-communication settings.
 //
 //   KEYS ON THIS PAGE (3):
 //     1. site_settings      — site name, tagline, contact, social links
 //     2. rate_limits        — per-min / per-hour / per-day caps
 //     3. retention_policy   — how long to keep soft-deleted rows, logs
 //
-//   KEYS REMOVED FROM THIS PAGE (Phase 9 Chunk 6):
-//     • maintenance_window — MOVED to /admin/maintenance. The maintenance
-//       page now owns the scheduling UI (start/end date + message) for
-//       the same backing key. Editing it on both pages would drift.
-//     • tmdb_settings       — on /admin/services/tmdb (Chunk 2).
-//     • notification_settings — on /admin/communication (Chunk 4).
-//     • feature_flags       — on /admin/feature-flags (separate page).
-//
-// USER-SIDE MAPPING (Strict — every field maps to a real consumer):
-//   • site_settings.site_name → header logo text, <title>, email templates
-//   • site_settings.tagline → footer + meta description
-//   • site_settings.contact_email → "Contact us" links in footer + emails
-//   • site_settings.{support,privacy,terms}_url → footer links
-//   • site_settings.social_links → footer social icons
-//   • rate_limits.api_per_min → API rate-limit middleware
-//   • rate_limits.auth_attempts_per_hr → auth throttle
-//   • rate_limits.upload_mb_per_day → upload limiter
-//   • retention_policy.* → default days cutoff for maintenance purge ops
+// SOCIAL LINKS:
+//   Dynamic — admin can add any number of social links with custom
+//   name, URL, and uploaded SVG icon. No hardcoded platforms.
+//   Data structure: SocialLink[] (see src/shared/types/index.ts)
 //
 // DATA FLOW:
 //   • GET /api/admin/settings → { settings: { key: { value, updated_at } } }
 //   • PUT /api/admin/settings with { settings: { key: newValue } }
 //
-// MOBILE-FIRST: Single-column on phone; two-column field grids on
-// tablet+ (540px breakpoint). Each section is a GlassCard with a
-// clear heading.
+// SVG ICON UPLOAD:
+//   • Admin selects an SVG file
+//   • Client-side sanitization strips <script>, event handlers, etc.
+//   • Uploaded to Supabase Storage `social-icons` bucket
+//   • Public URL stored in SocialLink.iconUrl
+//   • Landing page footer renders the icon via <img> with object-contain
 
 import {
   createSignal,
@@ -50,6 +38,8 @@ import { GlassCard } from "~/shared/ui/glass/GlassCard";
 import { GlassButton } from "~/shared/ui/glass/GlassButton";
 import { GlassBadge } from "~/shared/ui/glass/GlassBadge";
 import { GlassSkeleton } from "~/shared/ui/glass/GlassSkeleton";
+import { sanitizeSvg, isValidSvg } from "~/shared/utils/svgSanitize";
+import type { SocialLink } from "~/shared/types";
 
 // ─── Types ─────────────────────────────────────────────────────────
 
@@ -60,12 +50,7 @@ interface SiteSettings {
   support_url: string;
   privacy_url: string;
   terms_url: string;
-  social_links: {
-    facebook: string;
-    instagram: string;
-    twitter: string;
-    discord: string;
-  };
+  social_links: SocialLink[];
 }
 
 interface RateLimits {
@@ -111,6 +96,9 @@ const AdminSettingsPage: Component = () => {
   const [origLimits, setOrigLimits] = createSignal<string>("");
   const [origRetention, setOrigRetention] = createSignal<string>("");
 
+  // SVG upload state
+  const [uploadingIcon, setUploadingIcon] = createSignal<string | null>(null); // id of link being uploaded
+
   const fetchSettings = async () => {
     setLoading(true);
     try {
@@ -126,9 +114,25 @@ const AdminSettingsPage: Component = () => {
       }
       const data = (await resp.json()) as SettingsResponse;
 
-      const s = data.settings.site_settings.value as SiteSettings;
+      // The API may return social_links in either the new array format
+      // or the legacy { facebook, instagram, twitter, discord } format.
+      // We normalize to the array format here.
+      const rawSite = data.settings.site_settings.value as Record<string, unknown>;
       const r = data.settings.rate_limits.value as RateLimits;
       const ret = data.settings.retention_policy.value as RetentionPolicy;
+
+      // Build a clean SiteSettings object with array social_links
+      const s: SiteSettings = {
+        site_name: typeof rawSite.site_name === "string" ? rawSite.site_name : "CineLog",
+        tagline: typeof rawSite.tagline === "string" ? rawSite.tagline : "",
+        contact_email: typeof rawSite.contact_email === "string" ? rawSite.contact_email : "",
+        support_url: typeof rawSite.support_url === "string" ? rawSite.support_url : "",
+        privacy_url: typeof rawSite.privacy_url === "string" ? rawSite.privacy_url : "",
+        terms_url: typeof rawSite.terms_url === "string" ? rawSite.terms_url : "",
+        social_links: Array.isArray(rawSite.social_links)
+          ? (rawSite.social_links as SocialLink[])
+          : migrateLegacySocialLinks(rawSite.social_links),
+      };
 
       setSite(s);
       setLimits(r);
@@ -215,20 +219,127 @@ const AdminSettingsPage: Component = () => {
     setSite({ ...(site() as SiteSettings), ...patch });
   };
 
-  const updateSocial = (key: keyof SiteSettings["social_links"], val: string) => {
-    const current = site() as SiteSettings;
-    setSite({
-      ...current,
-      social_links: { ...current.social_links, [key]: val }
-    });
-  };
-
   const updateLimit = (key: keyof RateLimits, val: number) => {
     setLimits({ ...(limits() as RateLimits), [key]: val });
   };
 
   const updateRetention = (key: keyof RetentionPolicy, val: number) => {
     setRetention({ ...(retention() as RetentionPolicy), [key]: val });
+  };
+
+  // ─── Social Links CRUD ────────────────────────────────────────
+
+  /** Add a new empty social link */
+  const addSocialLink = () => {
+    const current = site() as SiteSettings;
+    const newLink: SocialLink = {
+      id: crypto.randomUUID(),
+      name: "",
+      url: "",
+      iconUrl: "",
+      enabled: true,
+      order: current.social_links.length,
+    };
+    setSite({
+      ...current,
+      social_links: [...current.social_links, newLink],
+    });
+  };
+
+  /** Update a single social link by id */
+  const updateSocialLink = (id: string, patch: Partial<SocialLink>) => {
+    const current = site() as SiteSettings;
+    setSite({
+      ...current,
+      social_links: current.social_links.map((link) =>
+        link.id === id ? { ...link, ...patch } : link
+      ),
+    });
+  };
+
+  /** Delete a social link by id */
+  const deleteSocialLink = (id: string) => {
+    const current = site() as SiteSettings;
+    const updated = current.social_links
+      .filter((link) => link.id !== id)
+      .map((link, idx) => ({ ...link, order: idx })); // Re-index order
+    setSite({
+      ...current,
+      social_links: updated,
+    });
+  };
+
+  /** Move a social link up in order */
+  const moveSocialLinkUp = (id: string) => {
+    const current = site() as SiteSettings;
+    const links = [...current.social_links];
+    const idx = links.findIndex((l) => l.id === id);
+    if (idx <= 0) return;
+    // Swap with previous
+    [links[idx - 1], links[idx]] = [links[idx], links[idx - 1]];
+    // Re-index order
+    const reindexed = links.map((link, i) => ({ ...link, order: i }));
+    setSite({ ...current, social_links: reindexed });
+  };
+
+  /** Move a social link down in order */
+  const moveSocialLinkDown = (id: string) => {
+    const current = site() as SiteSettings;
+    const links = [...current.social_links];
+    const idx = links.findIndex((l) => l.id === id);
+    if (idx < 0 || idx >= links.length - 1) return;
+    // Swap with next
+    [links[idx], links[idx + 1]] = [links[idx + 1], links[idx]];
+    // Re-index order
+    const reindexed = links.map((link, i) => ({ ...link, order: i }));
+    setSite({ ...current, social_links: reindexed });
+  };
+
+  /** Handle SVG file selection and upload */
+  const handleIconUpload = async (linkId: string, file: File) => {
+    // Validate file type
+    if (!file.name.endsWith(".svg") && file.type !== "image/svg+xml") {
+      toast.show("Only SVG files are allowed", "error");
+      return;
+    }
+
+    // Read and sanitize the SVG
+    const rawText = await file.text();
+    const sanitized = sanitizeSvg(rawText);
+    if (!sanitized) {
+      toast.show("Invalid or unsafe SVG file", "error");
+      return;
+    }
+
+    setUploadingIcon(linkId);
+
+    try {
+      // Upload to Supabase Storage via the admin API
+      // We use a dedicated endpoint for social icon uploads
+      const formData = new FormData();
+      formData.append("svg", new Blob([sanitized], { type: "image/svg+xml" }), `${linkId}.svg`);
+      formData.append("linkId", linkId);
+
+      const resp = await fetch("/api/admin/social-icon-upload", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      const body = await resp.json().catch(() => ({}));
+      if (!resp.ok || body.error) {
+        toast.show(body.error || "Upload failed", "error");
+        return;
+      }
+
+      // Update the social link with the new iconUrl
+      updateSocialLink(linkId, { iconUrl: body.iconUrl });
+      toast.show("Icon uploaded", "success");
+    } catch {
+      toast.show("Upload failed", "error");
+    } finally {
+      setUploadingIcon(null);
+    }
   };
 
   // ─── Render ──────────────────────────────────────────────────
@@ -368,6 +479,7 @@ const AdminSettingsPage: Component = () => {
             </div>
           </div>
 
+          {/* ─── Dynamic Social Links Manager ─────────────────── */}
           <div
             style={{
               "margin-top": "var(--sp-4)",
@@ -375,59 +487,209 @@ const AdminSettingsPage: Component = () => {
               "border-top": "1px solid var(--hairline)"
             }}
           >
-            <label
-              style={{
-                display: "block",
-                "font-size": "0.75rem",
-                "font-weight": "600",
-                "text-transform": "uppercase",
-                "letter-spacing": "0.05em",
-                color: "var(--text-secondary)",
-                "margin-bottom": "var(--sp-3)"
-              }}
-            >
-              Social Links
-            </label>
-            <div class="admin-config-field-grid two-col">
-              <div class="admin-config-field">
-                <label>Facebook</label>
-                <input
-                  type="url"
-                  value={site()!.social_links.facebook}
-                  placeholder="https://facebook.com/cinelog"
-                  onInput={(e) => updateSocial("facebook", e.currentTarget.value)}
-                />
-              </div>
-              <div class="admin-config-field">
-                <label>Instagram</label>
-                <input
-                  type="url"
-                  value={site()!.social_links.instagram}
-                  placeholder="https://instagram.com/cinelog"
-                  onInput={(e) =>
-                    updateSocial("instagram", e.currentTarget.value)
-                  }
-                />
-              </div>
-              <div class="admin-config-field">
-                <label>Twitter / X</label>
-                <input
-                  type="url"
-                  value={site()!.social_links.twitter}
-                  placeholder="https://x.com/cinelog"
-                  onInput={(e) => updateSocial("twitter", e.currentTarget.value)}
-                />
-              </div>
-              <div class="admin-config-field">
-                <label>Discord</label>
-                <input
-                  type="url"
-                  value={site()!.social_links.discord}
-                  placeholder="https://discord.gg/cinelog"
-                  onInput={(e) => updateSocial("discord", e.currentTarget.value)}
-                />
-              </div>
+            <div style={{ display: "flex", "align-items": "center", "justify-content": "space-between", "margin-bottom": "var(--sp-3)" }}>
+              <label
+                style={{
+                  "font-size": "0.75rem",
+                  "font-weight": "600",
+                  "text-transform": "uppercase",
+                  "letter-spacing": "0.05em",
+                  color: "var(--text-secondary)",
+                }}
+              >
+                Social Links
+              </label>
+              <GlassButton
+                variant="ghost"
+                size="compact"
+                onClick={addSocialLink}
+                icon="add"
+              >
+                Add Link
+              </GlassButton>
             </div>
+
+            <p class="admin-config-field-hint" style={{ "margin-bottom": "var(--sp-3)" }}>
+              Add custom social links with any name, URL, and SVG icon.
+              These appear in the landing page footer. Drag to reorder.
+            </p>
+
+            <Show
+              when={site()!.social_links.length > 0}
+              fallback={
+                <div style={{
+                  padding: "var(--sp-4)",
+                  "text-align": "center",
+                  color: "var(--text-secondary)",
+                  "font-size": "0.875rem",
+                  background: "rgba(255,255,255,0.02)",
+                  "border-radius": "var(--radius-lg)",
+                  border: "1px dashed var(--hairline)",
+                }}>
+                  No social links configured. Click "Add Link" to create one.
+                </div>
+              }
+            >
+              <div class="social-links-list">
+                <For each={site()!.social_links}>
+                  {(link, idx) => (
+                    <div class="social-link-item">
+                      {/* Row header: icon preview + name + controls */}
+                      <div class="social-link-item-header">
+                        {/* Icon preview */}
+                        <div class="social-link-icon-preview">
+                          <Show
+                            when={link.iconUrl}
+                            fallback={
+                              <span class="social-link-icon-placeholder">
+                                {link.name ? link.name.charAt(0).toUpperCase() : "?"}
+                              </span>
+                            }
+                          >
+                            <img
+                              src={link.iconUrl}
+                              alt={link.name}
+                              class="social-link-icon-img"
+                            />
+                          </Show>
+                        </div>
+
+                        {/* Name display */}
+                        <span class="social-link-name">
+                          {link.name || "Unnamed link"}
+                        </span>
+
+                        {/* Enabled badge */}
+                        <span
+                          class="social-link-enabled-badge"
+                          classList={{
+                            enabled: link.enabled,
+                            disabled: !link.enabled,
+                          }}
+                        >
+                          {link.enabled ? "On" : "Off"}
+                        </span>
+
+                        {/* Spacer */}
+                        <div style={{ flex: 1 }} />
+
+                        {/* Reorder buttons */}
+                        <button
+                          class="social-link-action-btn"
+                          onClick={() => moveSocialLinkUp(link.id)}
+                          disabled={idx() === 0}
+                          title="Move up"
+                        >
+                          ▲
+                        </button>
+                        <button
+                          class="social-link-action-btn"
+                          onClick={() => moveSocialLinkDown(link.id)}
+                          disabled={idx() === site()!.social_links.length - 1}
+                          title="Move down"
+                        >
+                          ▼
+                        </button>
+
+                        {/* Delete */}
+                        <button
+                          class="social-link-action-btn danger"
+                          onClick={() => deleteSocialLink(link.id)}
+                          title="Delete"
+                        >
+                          ✕
+                        </button>
+                      </div>
+
+                      {/* Expandable fields */}
+                      <div class="social-link-item-fields">
+                        <div class="admin-config-field-grid two-col">
+                          <div class="admin-config-field">
+                            <label>Name</label>
+                            <input
+                              type="text"
+                              value={link.name}
+                              placeholder="Instagram"
+                              onInput={(e) => updateSocialLink(link.id, { name: e.currentTarget.value })}
+                              maxlength={60}
+                            />
+                            <span class="admin-config-field-hint">
+                              Display name for the link.
+                            </span>
+                          </div>
+                          <div class="admin-config-field">
+                            <label>URL</label>
+                            <input
+                              type="url"
+                              value={link.url}
+                              placeholder="https://instagram.com/cinelog"
+                              onInput={(e) => updateSocialLink(link.id, { url: e.currentTarget.value })}
+                            />
+                            <span class="admin-config-field-hint">
+                              Full URL opened when the icon is clicked.
+                            </span>
+                          </div>
+                        </div>
+
+                        <div class="admin-config-field-grid two-col" style={{ "margin-top": "var(--sp-2)" }}>
+                          {/* SVG Icon Upload */}
+                          <div class="admin-config-field">
+                            <label>Icon (SVG)</label>
+                            <div style={{ display: "flex", gap: "var(--sp-2)", "align-items": "center" }}>
+                              <label class="social-link-upload-btn">
+                                <Show
+                                  when={uploadingIcon() === link.id}
+                                  fallback={link.iconUrl ? "Replace" : "Upload SVG"}
+                                >
+                                  Uploading…
+                                </Show>
+                                <input
+                                  type="file"
+                                  accept=".svg,image/svg+xml"
+                                  style={{ display: "none" }}
+                                  disabled={uploadingIcon() === link.id}
+                                  onChange={(e) => {
+                                    const file = e.currentTarget.files?.[0];
+                                    if (file) handleIconUpload(link.id, file);
+                                  }}
+                                />
+                              </label>
+                              <Show when={link.iconUrl}>
+                                <button
+                                  class="social-link-action-btn"
+                                  onClick={() => updateSocialLink(link.id, { iconUrl: "" })}
+                                  title="Remove icon"
+                                >
+                                  Remove
+                                </button>
+                              </Show>
+                            </div>
+                            <span class="admin-config-field-hint">
+                              Upload a custom SVG icon. Sanitized for security.
+                            </span>
+                          </div>
+
+                          {/* Enable/Disable toggle */}
+                          <div class="admin-config-field">
+                            <label>Visibility</label>
+                            <label class="social-link-toggle">
+                              <input
+                                type="checkbox"
+                                checked={link.enabled}
+                                onChange={(e) => updateSocialLink(link.id, { enabled: e.currentTarget.checked })}
+                              />
+                              <span class="social-link-toggle-label">
+                                {link.enabled ? "Visible on landing page" : "Hidden"}
+                              </span>
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </For>
+              </div>
+            </Show>
           </div>
         </GlassCard>
 
@@ -632,6 +894,27 @@ const AdminSettingsPage: Component = () => {
     </div>
   );
 };
+
+// ─── Legacy social links migration helper ─────────────────────────
+
+function migrateLegacySocialLinks(legacy: unknown): SocialLink[] {
+  if (!legacy || typeof legacy !== "object") return [];
+  const obj = legacy as Record<string, unknown>;
+  const result: SocialLink[] = [];
+  const order: Array<{ key: string; name: string }> = [
+    { key: "facebook", name: "Facebook" },
+    { key: "instagram", name: "Instagram" },
+    { key: "twitter", name: "Twitter" },
+    { key: "discord", name: "Discord" },
+  ];
+  order.forEach(({ key, name }, idx) => {
+    const val = typeof obj[key] === "string" ? (obj[key] as string) : "";
+    if (val) {
+      result.push({ id: key, name, url: val, iconUrl: "", enabled: true, order: idx });
+    }
+  });
+  return result;
+}
 
 // ─── Toast helper ──────────────────────────────────────────────────
 

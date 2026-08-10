@@ -1165,6 +1165,17 @@
   height: 18px;
 }
 
+/* Dynamic social icon images — uploaded SVGs rendered as <img> */
+.landing-footer__social-icon img {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  /* Ensure any viewBox size is contained within the fixed 18x18 box.
+     Wide, tall, square, and unusual SVGs all render consistently. */
+  max-width: 100%;
+  max-height: 100%;
+}
+
 .landing-footer__links {
   display: flex;
   gap: 16px;
