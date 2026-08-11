@@ -95,20 +95,42 @@ export function useDiscoverTaste(args: UseDiscoverTasteArgs) {
   });
 
   // ── Server profile (preferred, async) ────────────────────────────
-  // We use a `createResource` with a static source (`true`) so the
-  // fetch fires ONCE on mount. We don't want it to re-fire on every
-  // vault change (that would defeat the purpose of moving the
-  // computation server-side — we'd be making the server do the work
-  // AND re-fetching on every rating). Instead, the server profile is
-  // a "snapshot" that's refreshed on the next mount (or manually).
+  // We use a `createResource` with a source signal that returns `true`
+  // only when the user is signed in (NOT a guest). This is the Phase 18
+  // deep fix for the 401-on-mount bug:
   //
-  // The local memo continues to update reactively for instant UI
-  // feedback, and the server profile replaces it when it arrives.
-  // On the NEXT mount, the local memo starts fresh and the server
-  // fetch fires again with the latest vault.
+  //   ROOT CAUSE: the old code used `() => true` as the source, so the
+  //   fetch fired IMMEDIATELY on mount — before the Supabase session
+  //   had finished loading from localStorage. At that moment,
+  //   getAuthHeaders() returned `{}` (no session yet), so the request
+  //   went out with no Authorization header → 401. The 401 was logged
+  //   to the console as a warning, flooding the console on every page
+  //   load with a spurious auth error.
+  //
+  //   FIX: gate the source on `!isGuest()`. The isGuest accessor flips
+  //   to false only AFTER authReady resolves (see useAuth). So the
+  //   fetch only fires once we actually have a session, and the
+  //   Authorization header is always populated. The 401 is gone.
+  //
+  //   For guests, the source returns false → the fetch never fires →
+  //   serverProfile stays undefined → the local profile (which handles
+  //   the guest case via computeTasteProfile) is used.
+  //
+  // We don't want it to re-fire on every vault change (that would
+  // defeat the purpose of moving the computation server-side — we'd
+  // be making the server do the work AND re-fetching on every rating).
+  // Instead, the server profile is a "snapshot" that's refreshed on
+  // the next mount (or manually). The local memo continues to update
+  // reactively for instant UI feedback, and the server profile
+  // replaces it when it arrives. On the NEXT mount, the local memo
+  // starts fresh and the server fetch fires again with the latest
+  // vault.
   const [serverProfile] = createResource<TasteProfile | null, boolean>(
-    () => true,
-    fetchServerTaste
+    () => !args.isGuest(),
+    async (shouldFetch) => {
+      if (!shouldFetch) return null;
+      return fetchServerTaste();
+    }
   );
 
   // ── Public profile accessor ──────────────────────────────────────

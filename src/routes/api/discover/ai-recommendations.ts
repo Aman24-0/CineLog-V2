@@ -787,12 +787,37 @@ export async function GET(event: APIEvent): Promise<Response> {
   try {
     // Reuse the user-scoped client from step 1 (RLS: owner only).
     // saveExtendedPreference accepts an optional client param.
-    await saveExtendedPreference(userId, "aiRecs", cachePayload, userClient);
+    //
+    // Phase 18 deep fix: saveExtendedPreference returns { error } and
+    // does NOT throw. The old try/catch here never triggered on a
+    // cache-write failure — the error was silently swallowed, so every
+    // subsequent request hit the slow path (re-call Groq + re-fetch
+    // TMDB) because the cache was never actually written. This is the
+    // root cause of the "AI picks differ between browsers" bug: the
+    // cache was never persisted, so every browser generated its own
+    // fresh recommendations on every load.
+    //
+    // Fix: check the returned `error` field and log it as an error so
+    // we can actually diagnose cache-write failures. The user still
+    // gets their recommendations (best-effort), but now we have
+    // visibility into why the cache might not be working.
+    const { error: cacheWriteError } = await saveExtendedPreference(
+      userId,
+      "aiRecs",
+      cachePayload,
+      userClient
+    );
+    if (cacheWriteError) {
+      console.error(
+        "[api/discover/ai-recommendations] cache write failed (non-blocking, but recommendations will re-generate next time):",
+        cacheWriteError.message
+      );
+    }
   } catch (err) {
-    // Cache write is best-effort — if it fails, we still return the
-    // recommendations. The next request will just re-call Groq.
-    console.warn(
-      "[api/discover/ai-recommendations] cache write failed (non-blocking):",
+    // Defensive: saveExtendedPreference shouldn't throw (it catches
+    // internally), but if it ever does, we still want to surface it.
+    console.error(
+      "[api/discover/ai-recommendations] cache write threw (non-blocking):",
       err
     );
   }

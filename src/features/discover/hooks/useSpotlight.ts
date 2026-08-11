@@ -70,8 +70,10 @@ import {
   getCachedSpotlight,
   setCachedSpotlight,
   clearCachedSpotlight,
-  todayKey
+  todayKey,
+  getSeenTitles
 } from "~/shared/utils/seenTitles";
+import { getAuthHeaders } from "~/lib/supabase/session";
 
 interface UseSpotlightArgs {
   taste: Accessor<TasteProfile>;
@@ -334,23 +336,139 @@ export function useSpotlight(args: UseSpotlightArgs) {
     const uid = args.userId();
     setCachedSpotlight(uid, next);
     addSeenTitle(uid, next.title.media_type, next.title.id);
+    void persistPickToServer(uid, next);
+  };
+
+  /**
+   * Phase 18 deep fix: persist today's pick to the DB so other browsers
+   * signed in as the same user see the same pick. Fire-and-forget —
+   * errors are logged but never surface to the user (the localStorage
+   * cache is the primary, this is a secondary sync).
+   */
+  const persistPickToServer = async (
+    uid: string | null,
+    pick: SpotlightPick
+  ): Promise<void> => {
+    if (!uid) return; // guests have no DB row
+    try {
+      // Include the seen-titles map so other browsers also exclude
+      // these titles from future picks. This makes the 30-day no-repeat
+      // rule work ACROSS browsers, not just within a single browser.
+      const seenMap = getSeenTitles(uid);
+      const seen: Record<string, number> = {};
+      seenMap.forEach((ts, key) => {
+        seen[key] = ts;
+      });
+      await fetch("/api/discover/spotlight", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...await getAuthHeaders()
+        },
+        body: JSON.stringify({
+          date: todayKey(),
+          pick,
+          seen: Object.keys(seen).length > 0 ? seen : undefined
+        })
+      });
+    } catch (err) {
+      // Best-effort — log but don't surface. The localStorage cache is
+      // still the primary; this is just cross-browser sync.
+      console.warn("[useSpotlight] failed to persist pick to server:", err);
+    }
+  };
+
+  /**
+   * Phase 18 deep fix: read today's pick from the DB. If another
+   * browser already generated today's pick, the client reuses it
+   * instead of generating a fresh one — this is what makes the
+   * Spotlight consistent across browsers signed in as the same user.
+   *
+   * Returns the cached pick, or null if no pick is cached for today
+   * (or the fetch fails — best-effort).
+   */
+  const readPickFromServer = async (
+    uid: string | null
+  ): Promise<SpotlightPick | null> => {
+    if (!uid) return null; // guests have no DB row
+    try {
+      const resp = await fetch("/api/discover/spotlight", {
+        headers: {
+          Accept: "application/json",
+          ...await getAuthHeaders()
+        }
+      });
+      if (!resp.ok && resp.status !== 404) {
+        console.warn(
+          "[useSpotlight] server cache read returned",
+          resp.status
+        );
+        return null;
+      }
+      if (resp.status === 404) return null; // no cached pick for today
+      const body = (await resp.json()) as {
+        spotlight: {
+          date: string;
+          pick: SpotlightPick;
+          seen?: Record<string, number>;
+        } | null;
+      };
+      const cached = body?.spotlight;
+      if (!cached || cached.date !== todayKey()) return null;
+
+      // Merge the seen-titles map from the server into localStorage so
+      // the 30-day no-repeat rule is consistent across browsers. We
+      // only add entries that aren't already present (we don't
+      // overwrite local timestamps — the local map is the source of
+      // truth for the local browser's recent activity).
+      if (cached.seen && typeof cached.seen === "object") {
+        for (const [key, ts] of Object.entries(cached.seen)) {
+          if (typeof ts === "number") {
+            // Parse the key format "mediaType:tmdbId"
+            const sep = key.indexOf(":");
+            if (sep > 0) {
+              const mediaType = key.slice(0, sep);
+              const tmdbId = Number(key.slice(sep + 1));
+              if (Number.isFinite(tmdbId) && tmdbId > 0) {
+                // Only add if not already seen locally (don't overwrite)
+                if (!isTitleSeen(uid, mediaType, tmdbId)) {
+                  addSeenTitle(uid, mediaType, tmdbId, ts);
+                }
+              }
+            }
+          }
+        }
+      }
+
+      return cached.pick;
+    } catch (err) {
+      console.warn("[useSpotlight] server cache read failed:", err);
+      return null;
+    }
   };
 
   /**
    * Initial load — runs once on mount.
    *
    * Flow:
-   *   1. Check the per-user daily cache. If today's pick is cached
-   *      AND still eligible (not in vault since being cached), use it
-   *      directly. This makes a page refresh instant — no API call.
-   *   2. Otherwise, fetch a fresh pick via the strategy chain.
-   *   3. If we got a pick, persist it (cache + seen list).
-   *   4. If we didn't, set an error so the UI shows the retry state.
+   *   1. Check the per-user daily LOCAL cache (localStorage). If today's
+   *      pick is cached AND still eligible (not in vault since being
+   *      cached), use it directly. This makes a page refresh instant —
+   *      no API call.
+   *   2. Phase 18 deep fix: if the local cache missed, check the DB
+   *      cache (/api/discover/spotlight). Another browser signed in as
+   *      the same user may have already generated today's pick — if so,
+   *      reuse it so the Spotlight is consistent across browsers. The
+   *      DB-cached pick is also validated for vault eligibility.
+   *   3. If both caches missed (or were ineligible), fetch a fresh pick
+   *      via the strategy chain.
+   *   4. If we got a pick, persist it (local cache + seen list + DB).
+   *   5. If we didn't, set an error so the UI shows the retry state.
    */
   const loadInitial = async (): Promise<void> => {
     const uid = args.userId();
 
-    // 1. Try the cached daily pick
+    // 1. Try the cached daily pick (LOCAL — localStorage)
     const cached = getCachedSpotlight(uid);
     if (cached && cached.date === todayKey()) {
       // Validate the cached pick is still eligible (the user may have
@@ -366,7 +484,26 @@ export function useSpotlight(args: UseSpotlightArgs) {
       clearCachedSpotlight(uid);
     }
 
-    // 2. Fetch a fresh pick
+    // 2. Phase 18 deep fix: try the DB cache (cross-browser sync).
+    // If another browser generated today's pick, reuse it so the
+    // Spotlight is consistent across browsers.
+    const serverPick = await readPickFromServer(uid);
+    if (serverPick) {
+      // Validate the DB-cached pick is still eligible (vault + seen).
+      const inVault = vaultKeys();
+      const serverKey = `${serverPick.title.media_type}/${serverPick.title.id}`;
+      if (!inVault.has(serverKey)) {
+        setPick(serverPick);
+        // Mirror to the local cache so the next refresh is instant.
+        setCachedSpotlight(uid, serverPick);
+        setLoading(false);
+        return;
+      }
+      // DB-cached pick is now in vault — invalidate the DB cache by
+      // overwriting it with the next fresh pick we generate below.
+    }
+
+    // 3. Fetch a fresh pick
     setLoading(true);
     setError(null);
     const fresh = await fetchSpotlight();

@@ -6,6 +6,7 @@ import {
   compressBannerImage,
   uploadBannerToSupabase
 } from "~/shared/utils/imageCompress";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import type { ProfileData } from "../useProfileData";
 
 export type BannerType = "upload" | "url" | "favorite_movie" | "default";
@@ -180,9 +181,45 @@ const BannerEditor: Component<BannerEditorProps> = (props) => {
           return;
         }
       } else if (preview.type === "url") {
-        const ok = await props.onSave("url", preview.url);
-        if (!ok) {
-          setError("Failed to save banner. Try again.");
+        // Phase 18 deep fix: proxy the external image through our
+        // server-side route, which fetches it server-side (no CORS /
+        // CORB restrictions) and uploads it to Supabase Storage. The
+        // resulting same-origin Storage URL is then stored in
+        // profiles.banner_url, so the banner loads reliably in every
+        // browser (Chrome, Lemur, Safari, Firefox) without being
+        // blocked by the external host's response headers.
+        //
+        // The previous behavior (storing the raw external URL) caused
+        // the banner to fail in browsers that enforce CORP/CORB on
+        // cross-origin images — notably wallpaperflare.com URLs in the
+        // Lemur browser.
+        try {
+          const resp = await fetch("/api/profile/banner-from-url", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              ...await getAuthHeaders()
+            },
+            body: JSON.stringify({ url: preview.url })
+          });
+          if (!resp.ok) {
+            const body = (await resp.json().catch(() => ({}))) as { error?: string; hint?: string };
+            setError(body.error ?? `Failed to fetch image (HTTP ${resp.status}).`);
+            return;
+          }
+          const body = (await resp.json()) as { url: string };
+          const ok = await props.onSave("upload", body.url);
+          if (!ok) {
+            setError("Failed to save banner. Try again.");
+            return;
+          }
+        } catch (err) {
+          console.error("[BannerEditor] banner-from-url proxy failed:", err);
+          setError(
+            err instanceof Error
+              ? `Image fetch failed: ${err.message}`
+              : "Image fetch failed. Try again or upload the image directly."
+          );
           return;
         }
       } else {

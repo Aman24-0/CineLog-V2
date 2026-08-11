@@ -159,7 +159,7 @@
 // numeric-only versions (`cinelog-static-v11`) will be matched by
 // the `!key.endsWith("-v13-localstorage")` filter and deleted on
 // activate, which is exactly what we want.
-const CACHE_VERSION = "v15-qa-hotfix";
+const CACHE_VERSION = "v16-phase18-deep-fix";
 const CACHE_STATIC = `cinelog-static-${CACHE_VERSION}`;
 const CACHE_HTML = `cinelog-html-${CACHE_VERSION}`;
 const CACHE_RUNTIME = `cinelog-runtime-${CACHE_VERSION}`;
@@ -443,9 +443,21 @@ async function networkFirstHtml(req) {
       // timeout already fired and we served a cached fallback to
       // the page. This keeps the cache fresh for the next visit.
       if (resp && resp.ok && resp.status === 200) {
-        cache.put(req, resp.clone()).then(() =>
-          trimCache(CACHE_HTML, MAX_HTML_ENTRIES)
-        );
+        // Phase 18 deep fix: wrap cache.put in its own .catch() so a
+        // rejection (e.g. QuotaExceededError, or the response is an
+        // opaque response that can't be stored) doesn't become an
+        // unhandled promise rejection. The user's navigation is
+        // already served from the race winner; this cache update is
+        // purely best-effort.
+        cache
+          .put(req, resp.clone())
+          .then(() => trimCache(CACHE_HTML, MAX_HTML_ENTRIES))
+          .catch((err) => {
+            console.warn(
+              "[sw] cache.put failed for HTML (non-fatal):",
+              err?.message || err
+            );
+          });
       }
       return resp;
     })
@@ -556,7 +568,16 @@ async function cacheFirstStatic(req) {
   try {
     const networkResp = await fetch(req);
     if (networkResp && networkResp.ok) {
-      cache.put(req, networkResp.clone());
+      // Phase 18 deep fix: wrap cache.put in its own .catch() so a
+      // rejection doesn't become an unhandled promise rejection. The
+      // response is already being returned to the caller; this cache
+      // update is purely best-effort.
+      cache.put(req, networkResp.clone()).catch((err) => {
+        console.warn(
+          "[sw] cache.put failed for static asset (non-fatal):",
+          err?.message || err
+        );
+      });
       trimCache(CACHE_STATIC, MAX_STATIC_ENTRIES);
     }
     return networkResp;
@@ -599,7 +620,16 @@ async function staleWhileRevalidate(req) {
   const revalidate = fetch(req)
     .then((networkResp) => {
       if (networkResp && networkResp.ok && networkResp.status === 200) {
-        cache.put(req, networkResp.clone());
+        // Phase 18 deep fix: wrap cache.put in its own .catch() so a
+        // rejection doesn't become an unhandled promise rejection.
+        // Opaque / CORS-blocked responses can throw on cache.put; we
+        // swallow + log so the SW doesn't emit console errors.
+        cache.put(req, networkResp.clone()).catch((err) => {
+          console.warn(
+            "[sw] cache.put failed for runtime asset (non-fatal):",
+            err?.message || err
+          );
+        });
         trimCache(CACHE_RUNTIME, MAX_RUNTIME_ENTRIES);
       }
       return networkResp;

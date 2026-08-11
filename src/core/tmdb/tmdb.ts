@@ -80,9 +80,127 @@ export function isTmdb404(err: unknown): boolean {
  * memory growth in pathological cases (e.g. a script that iterates
  * over thousands of stale IDs). When the cap is hit, the oldest
  * entries are evicted (FIFO via Set insertion order).
+ *
+ * Phase 18 deep fix: the Set is now BACKED by localStorage so the
+ * 404 knowledge persists across full page reloads + browser restarts.
+ * The previous version (module-level only) lost all 404 knowledge on
+ * every reload, so the FIRST page load after a reload re-issued 20+
+ * 404s for stale AniList↔TMDB mappings — flooding the Network tab
+ * with red on every fresh visit. The localStorage layer has a 7-day
+ * TTL: after 7 days, a 404'd ID is re-tried (TMDB may have re-added
+ * it). The localStorage layer is best-effort + SSR-safe (no-op on the
+ * server).
  */
 const MAX_FAILED_404_ENTRIES = 500;
 const failedTmdb404s = new Set<string>();
+
+/** localStorage key for the persistent 404 cache.
+ *  The value is a JSON object: { "<mediaType>/<id>": <timestamp-ms> }. */
+const FAILED_404_LS_KEY = "cinelog:tmdb:failed404";
+/** 7-day TTL for the persistent 404 cache (ms). */
+const FAILED_404_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+
+/** True when running in a browser with localStorage access. */
+function hasLocalStorage(): boolean {
+  return (
+    typeof window !== "undefined" &&
+    typeof window.localStorage !== "undefined"
+  );
+}
+
+/** True when running in a browser with localStorage access. */
+function hasLocalStorageSafe(): boolean {
+  return hasLocalStorage();
+}
+
+/**
+ * Load the persistent 404 cache from localStorage, pruning entries
+ * older than FAILED_404_TTL_MS. Returns a Map of key → timestamp.
+ * SSR-safe (returns an empty Map on the server).
+ *
+ * Side-effect: if any expired entries were found, the pruned map is
+ * written back to localStorage so we don't repeatedly re-read stale
+ * entries on every load.
+ */
+function loadPersistent404Cache(): Map<string, number> {
+  if (!hasLocalStorageSafe()) return new Map();
+  try {
+    const raw = window.localStorage.getItem(FAILED_404_LS_KEY);
+    if (!raw) return new Map();
+    const parsed = JSON.parse(raw) as Record<string, unknown>;
+    if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) {
+      return new Map();
+    }
+    const now = Date.now();
+    const result = new Map<string, number>();
+    let pruned = false;
+    for (const [key, ts] of Object.entries(parsed)) {
+      if (typeof ts !== "number") {
+        pruned = true;
+        continue;
+      }
+      if (now - ts < FAILED_404_TTL_MS) {
+        result.set(key, ts);
+      } else {
+        pruned = true;
+      }
+    }
+    if (pruned) {
+      writePersistent404Cache(result);
+    }
+    return result;
+  } catch {
+    return new Map();
+  }
+}
+
+/** Serialize + write the persistent 404 cache to localStorage. */
+function writePersistent404Cache(map: Map<string, number>): void {
+  if (!hasLocalStorageSafe()) return;
+  try {
+    const obj: Record<string, number> = {};
+    map.forEach((ts, key) => {
+      obj[key] = ts;
+    });
+    window.localStorage.setItem(FAILED_404_LS_KEY, JSON.stringify(obj));
+  } catch (err) {
+    // Quota exceeded or serialization error — non-fatal. The in-memory
+    // Set still works for this session; we just won't persist across
+    // reloads.
+    console.warn("[tmdb] Failed to persist 404 cache:", err);
+  }
+}
+
+/**
+ * Hydrate the in-memory Set from localStorage on module init. This
+ * runs ONCE per page load (module evaluation) so the first fetch
+ * after a reload already knows about 404'd IDs from previous sessions.
+ *
+ * We hydrate the timestamp map into the Set (the Set is what
+ * isKnownTmdb404() checks). We keep the timestamps in localStorage
+ * for TTL pruning, but the in-memory Set is the hot-path lookup.
+ */
+function hydrateFromPersistentCache(): void {
+  const persistent = loadPersistent404Cache();
+  if (persistent.size === 0) return;
+  // Insert in insertion order (Map preserves it) so the FIFO eviction
+  // in recordFailedTmdb404() matches the oldest-first order from
+  // localStorage.
+  for (const key of persistent.keys()) {
+    failedTmdb404s.add(key);
+  }
+  // If the persistent cache had more entries than the in-memory cap
+  // (shouldn't happen, but defensive), trim the in-memory Set.
+  while (failedTmdb404s.size > MAX_FAILED_404_ENTRIES) {
+    const firstKey = failedTmdb404s.values().next().value;
+    if (firstKey === undefined) break;
+    failedTmdb404s.delete(firstKey);
+  }
+}
+
+// Hydrate on module init. This is a no-op on the server (loadPersistent404Cache
+// returns an empty Map when hasLocalStorage() is false).
+hydrateFromPersistentCache();
 
 /**
  * Record a TMDB ID as known-missing (404). Called from fetchTmdbMetadata's
@@ -94,6 +212,12 @@ const failedTmdb404s = new Set<string>();
  * at the proxy level — this gives the proxy a second layer of 404
  * prevention for server-side fetchTmdbMetadata calls that go through
  * the proxy.
+ *
+ * Phase 18 deep fix: also persists the 404 to localStorage so it
+ * survives page reloads. We merge the new entry into the existing
+ * persistent map + write it back. The write is throttled implicitly
+ * (we only write when a NEW entry is added, not when the entry is
+ * already known).
  */
 export function recordFailedTmdb404(key: string): void {
   if (failedTmdb404s.has(key)) return;
@@ -104,6 +228,26 @@ export function recordFailedTmdb404(key: string): void {
     if (firstKey !== undefined) failedTmdb404s.delete(firstKey);
   }
   failedTmdb404s.add(key);
+
+  // Phase 18 deep fix: persist to localStorage so the 404 knowledge
+  // survives page reloads. Best-effort — if the write fails (quota),
+  // the in-memory Set still works for this session.
+  if (hasLocalStorageSafe()) {
+    try {
+      const persistent = loadPersistent404Cache();
+      persistent.set(key, Date.now());
+      // If the persistent cache grew beyond the cap, trim it (oldest
+      // first, by Map insertion order).
+      while (persistent.size > MAX_FAILED_404_ENTRIES) {
+        const firstKey = persistent.keys().next().value;
+        if (firstKey === undefined) break;
+        persistent.delete(firstKey);
+      }
+      writePersistent404Cache(persistent);
+    } catch (err) {
+      console.warn("[tmdb] Failed to persist 404 cache entry:", err);
+    }
+  }
 }
 
 /** Build the cache key for a TMDB ID: "{mediaType}/{id}".
