@@ -344,6 +344,12 @@ export function useSpotlight(args: UseSpotlightArgs) {
    * signed in as the same user see the same pick. Fire-and-forget —
    * errors are logged but never surface to the user (the localStorage
    * cache is the primary, this is a secondary sync).
+   *
+   * Phase 18 deep-fix v2: skip the fetch entirely if there's no
+   * Authorization header available (session still loading, expired,
+   * etc.). This prevents the browser from logging a spurious 401 to
+   * the console on every page load. The next render with a valid
+   * session will fire the POST and persist the pick.
    */
   const persistPickToServer = async (
     uid: string | null,
@@ -351,6 +357,9 @@ export function useSpotlight(args: UseSpotlightArgs) {
   ): Promise<void> => {
     if (!uid) return; // guests have no DB row
     try {
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders.Authorization) return; // no session yet — skip silently
+
       // Include the seen-titles map so other browsers also exclude
       // these titles from future picks. This makes the 30-day no-repeat
       // rule work ACROSS browsers, not just within a single browser.
@@ -363,7 +372,7 @@ export function useSpotlight(args: UseSpotlightArgs) {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...await getAuthHeaders()
+          ...authHeaders
         },
         body: JSON.stringify({
           date: todayKey(),
@@ -386,16 +395,26 @@ export function useSpotlight(args: UseSpotlightArgs) {
    *
    * Returns the cached pick, or null if no pick is cached for today
    * (or the fetch fails — best-effort).
+   *
+   * Phase 18 deep-fix v2: skip the fetch if there's no Authorization
+   * header available. This prevents a spurious 401 console error when
+   * the session is still loading. The hook falls back to generating a
+   * fresh pick locally; once the session is ready, the next render
+   * will hit the DB cache and (if another browser already generated
+   * today's pick) replace the local pick with the canonical one.
    */
   const readPickFromServer = async (
     uid: string | null
   ): Promise<SpotlightPick | null> => {
     if (!uid) return null; // guests have no DB row
     try {
+      const authHeaders = await getAuthHeaders();
+      if (!authHeaders.Authorization) return null; // no session yet — skip silently
+
       const resp = await fetch("/api/discover/spotlight", {
         headers: {
           Accept: "application/json",
-          ...await getAuthHeaders()
+          ...authHeaders
         }
       });
       if (!resp.ok && resp.status !== 404) {

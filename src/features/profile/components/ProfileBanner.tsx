@@ -148,6 +148,16 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
           decoding="async"
           alt=""
           aria-hidden="true"
+          // Phase 18 deep-fix v2: crossorigin="anonymous" so the
+          // browser's preload scanner matches the actual <img> fetch's
+          // credentials mode. Without this, the browser logs a
+          // spurious "A preload for '<URL>' is found, but is not used
+          // because the request credentials mode does not match"
+          // warning for cross-origin images (e.g. Supabase Storage
+          // URLs). The anonymous mode is correct because we never
+          // send cookies to the image host — Supabase Storage is a
+          // public bucket that doesn't need them.
+          crossorigin="anonymous"
           onLoad={() => setImgLoaded(true)}
           onError={() => {
             if (!imgError()) {

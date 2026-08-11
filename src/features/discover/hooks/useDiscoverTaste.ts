@@ -51,20 +51,44 @@ interface UseDiscoverTasteArgs {
  * caller falls back to the local computation. Errors are logged at
  * warn level — they're expected during development (the route may not
  * be running) and shouldn't spam production error tracking.
+ *
+ * Phase 18 deep-fix v2 — eliminate the spurious 401:
+ *   The previous code fired `fetch("/api/discover/taste")` as soon as
+ *   `isGuest()` flipped to false (i.e. `user()` became non-null). But
+ *   in some race conditions (initial session restore from localStorage
+ *   on Lemur / hardened browsers, expired tokens, slow Supabase cold
+ *   start), `getAuthHeaders()` returned `{}` at that exact moment —
+ *   no Authorization header was sent, the route returned 401, and the
+ *   browser logged "Failed to load resource: 401" to the console.
+ *   The 401 itself was harmless (the local fallback kicked in), but
+ *   it polluted the console with a red error on every page load.
+ *
+ *   Fix: call `getAuthHeaders()` FIRST. If there's no Authorization
+ *   header, don't fire the fetch at all — return null immediately
+ *   and let the local computation handle this render. The next render
+ *   (after the session is fully ready) will fire the fetch with a
+ *   valid token. No 401, no console error, same behavior.
  */
 async function fetchServerTaste(): Promise<TasteProfile | null> {
   // Skip fetch on the server (SSR) — there's no session cookie yet,
   // and the route would 401. The client re-fetches after hydration.
   if (typeof window === "undefined") return null;
+
+  // Phase 18 deep-fix v2: read the auth headers FIRST. If no session
+  // is active (no access token in localStorage), DON'T fire the
+  // request — the route would 401 and the browser would log a red
+  // "Failed to load resource" error to the console. The local
+  // computation handles this render; the next render after the
+  // session is ready will fire the fetch with a valid token.
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders.Authorization) {
+    return null;
+  }
+
   try {
-    // Phase 13 Chunk 1: send the Supabase access token via the
-    // Authorization header. The browser stores sessions in
-    // localStorage (NOT cookies), so the server cannot read the
-    // session from the Cookie header — without this header the
-    // route returns 401 for every signed-in browser user.
     const resp = await fetch("/api/discover/taste", {
       credentials: "include",
-      headers: { ...await getAuthHeaders() }
+      headers: { ...authHeaders }
     });
     if (!resp.ok) {
       if (resp.status !== 401) {

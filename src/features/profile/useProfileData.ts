@@ -25,9 +25,150 @@ import { useAuth } from "~/shared/hooks/useAuth";
 import { useProfile } from "~/lib/supabase/hooks/useProfile";
 import { useUserLibrary } from "~/shared/hooks/useUserLibrary";
 import { fetchTmdbMetadata, fetchPersonDetails } from "~/core/tmdb/tmdb";
+import { getAuthHeaders } from "~/lib/supabase/session";
 import type { ProfileRow } from "~/lib/supabase/repositories";
 import type { TMDBTitle } from "~/shared/types";
 import type { UpdateProfilePayload } from "~/lib/supabase/repositories/profile";
+
+// ---------------------------------------------------------------------------
+// Banner self-healing helpers (Phase 18 deep-fix v2)
+// ---------------------------------------------------------------------------
+
+/**
+ * Detect whether a banner URL points to our own Supabase Storage bucket
+ * (the CORS-permissive, same-origin CDN we control) vs. an arbitrary
+ * external host (wallpaperflare, etc.).
+ *
+ * Supabase Storage public URLs look like:
+ *   https://<project-ref>.supabase.co/storage/v1/object/public/<bucket>/<path>
+ *
+ * We accept either the canonical `/storage/v1/object/public/` path or
+ * the legacy `/storage/v1/render/image/public/` (signed image-rendering
+ * endpoint). Anything else is treated as an external URL that must be
+ * proxied through our server before being handed to an <img> tag —
+ * otherwise browsers that enforce CORP/CORB (Lemur, hardened Safari)
+ * block the image with `net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin`.
+ */
+function isSupabaseStorageUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    if (parsed.hostname.endsWith(".supabase.co")) {
+      const p = parsed.pathname;
+      return (
+        p.includes("/storage/v1/object/public/") ||
+        p.includes("/storage/v1/render/image/public/")
+      );
+    }
+    return false;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Phase 18 deep-fix v2: transparently migrate a legacy external banner
+ * URL to a same-origin Supabase Storage URL.
+ *
+ * BEFORE this fix, the BannerEditor saved `banner_type='url'` with the
+ * raw external URL stored in `profiles.banner_url`. The <img> tag then
+ * loaded the URL directly from the external host. In browsers that
+ * enforce Cross-Origin-Resource-Policy / CORB (Lemur, hardened Safari,
+ * some Chrome enterprise configs), the image host's response headers
+ * cause `net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin` and the banner
+ * renders blank.
+ *
+ * The previous deep fix (commit f81bbfb) updated the BannerEditor to
+ * proxy NEW URL saves through `/api/profile/banner-from-url` and store
+ * the resulting Storage URL as `banner_type='upload'`. But that fix
+ * did NOT migrate users who had ALREADY saved an external URL before
+ * the fix was deployed — those users still have `banner_type='url'`
+ * with the blocked external URL, and the banner still doesn't render.
+ *
+ * THIS fix self-heals those legacy profiles: when the profile is
+ * loaded and we detect `banner_type='url'` with a non-Supabase
+ * Storage URL, we transparently:
+ *   1. Call `/api/profile/banner-from-url` to fetch the image
+ *      server-side and upload it to Supabase Storage.
+ *   2. Update the profile to `banner_type='upload'` with the
+ *      resulting same-origin Storage URL.
+ *   3. Return the updated profile so the UI renders the proxied URL.
+ *
+ * This migration runs ONCE per legacy user — after the first
+ * successful migration, the profile has `banner_type='upload'` and the
+ * self-heal check is a no-op. Failures are logged but non-fatal: the
+ * UI still shows the external URL (which may work in some browsers).
+ */
+async function selfHealLegacyBannerUrl(
+  userId: string,
+  profile: ProfileRow,
+  updateProfile: (
+    id: string,
+    payload: UpdateProfilePayload
+  ) => Promise<{ error: Error | null }>
+): Promise<ProfileRow> {
+  if (profile.banner_type !== "url" || !profile.banner_url) {
+    return profile;
+  }
+  if (isSupabaseStorageUrl(profile.banner_url)) {
+    // Already migrated — someone else (another browser) may have
+    // already self-healed this profile. Patch the type to 'upload'
+    // so the BannerEditor treats it as a Storage URL going forward,
+    // but don't re-proxy.
+    return profile;
+  }
+
+  // External URL detected — proxy it through our server-side route.
+  try {
+    const resp = await fetch("/api/profile/banner-from-url", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(await getAuthHeaders())
+      },
+      body: JSON.stringify({ url: profile.banner_url })
+    });
+    if (!resp.ok) {
+      console.warn(
+        `[useProfileData] banner self-heal: proxy returned HTTP ${resp.status} for`,
+        profile.banner_url
+      );
+      return profile;
+    }
+    const body = (await resp.json()) as { url?: string };
+    if (!body.url || !isSupabaseStorageUrl(body.url)) {
+      console.warn(
+        "[useProfileData] banner self-heal: proxy returned an unexpected URL:",
+        body.url
+      );
+      return profile;
+    }
+
+    // Persist the migration so every future load (and every other
+    // browser) sees the same Storage URL.
+    const { error: updateError } = await updateProfile(userId, {
+      bannerType: "upload",
+      bannerUrl: body.url
+    });
+    if (updateError) {
+      console.warn(
+        "[useProfileData] banner self-heal: profile update failed:",
+        updateError.message
+      );
+      // Return the migrated profile anyway — the local UI can render
+      // the proxied URL even if the DB write failed (it'll retry on
+      // the next load).
+      return { ...profile, banner_type: "upload", banner_url: body.url };
+    }
+
+    return { ...profile, banner_type: "upload", banner_url: body.url };
+  } catch (err) {
+    console.warn(
+      "[useProfileData] banner self-heal failed (non-fatal):",
+      err instanceof Error ? err.message : String(err)
+    );
+    return profile;
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Types
@@ -94,24 +235,36 @@ export function useProfileData() {
         favoriteDirector: null
       };
 
+    // Phase 18 deep-fix v2: self-heal legacy external banner URLs.
+    // Runs BEFORE the favorites enrichment so the returned profile has
+    // the migrated Storage URL — the ProfileBanner renders immediately
+    // with the proxied URL instead of flashing the broken external
+    // URL first. The migration is a no-op for profiles that already
+    // have `banner_type='upload'` or a Supabase Storage URL.
+    const healedProfile = await selfHealLegacyBannerUrl(
+      id,
+      profile,
+      profileRepo.updateProfile
+    );
+
     // Enrich favorites in parallel — each is independent and may fail
     // silently (the tile shows an empty state if enrichment fails).
     const [movie, series, director] = await Promise.all([
-      profile.favorite_movie_id
-        ? fetchTmdbMetadata("movie", profile.favorite_movie_id).catch(
+      healedProfile.favorite_movie_id
+        ? fetchTmdbMetadata("movie", healedProfile.favorite_movie_id).catch(
             () => null
           )
         : Promise.resolve(null),
-      profile.favorite_series_id
-        ? fetchTmdbMetadata("tv", profile.favorite_series_id).catch(() => null)
+      healedProfile.favorite_series_id
+        ? fetchTmdbMetadata("tv", healedProfile.favorite_series_id).catch(() => null)
         : Promise.resolve(null),
-      profile.favorite_director_id
-        ? fetchFavoriteDirector(profile.favorite_director_id).catch(() => null)
+      healedProfile.favorite_director_id
+        ? fetchFavoriteDirector(healedProfile.favorite_director_id).catch(() => null)
         : Promise.resolve(null)
     ]);
 
     return {
-      profile,
+      profile: healedProfile,
       favoriteMovie: movie,
       favoriteSeries: series,
       favoriteDirector: director

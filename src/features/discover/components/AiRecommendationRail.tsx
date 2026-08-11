@@ -105,16 +105,22 @@ type RecsResult =
   | { ok: false; reason: "rate_limit" | "unavailable" | "needs_more_ratings" | "network"; message?: string };
 
 async function fetchAiRecs(): Promise<RecsResult> {
+  // Phase 18 deep-fix v2: read the auth headers FIRST. If no session
+  // is active (no access token in localStorage), DON'T fire the
+  // request — the route would 401 and the browser would log a red
+  // "Failed to load resource: 401" error to the console. The rail
+  // hides itself in this case (the parent Show gates on !isGuest,
+  // but a session can expire between mount + fetch). Returning
+  // "unavailable" is correct: the rail stays hidden, no console
+  // error, no UI flicker. The next render with a valid session will
+  // fire the fetch properly.
+  const authHeaders = await getAuthHeaders();
+  if (!authHeaders.Authorization) {
+    return { ok: false, reason: "unavailable", message: "Sign in to get AI recommendations." };
+  }
+
   let resp: Response;
   try {
-    // Phase 15 QA Bug #1: the browser stores Supabase sessions in
-    // localStorage (NOT cookies), so credentials:"include" alone is
-    // not enough — the server never sees a session cookie. We attach
-    // the Authorization: Bearer <token> header via getAuthHeaders()
-    // so the server's getSupabaseAccessTokenFromRequest() can resolve
-    // the caller. If no session is active, getAuthHeaders returns {}
-    // and the server responds 401 (handled below as "unavailable").
-    const authHeaders = await getAuthHeaders();
     resp = await fetch("/api/discover/ai-recommendations", {
       credentials: "include",
       headers: {
