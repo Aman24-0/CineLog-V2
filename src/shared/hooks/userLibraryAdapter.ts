@@ -255,16 +255,31 @@ function computeRuntimeMinutes(
  * that on a warm cache, step 3 is skipped entirely — load time drops
  * from 15-32 seconds to 2-3 seconds.
  *
+ * @param userId    The Supabase auth uid of the current user.
+ * @param abortSignal Optional AbortSignal. When aborted, the underlying
+ *                    Supabase query is cancelled via `supabase.from(...).abortSignal(signal)`,
+ *                    which rejects the in-flight promise with an AbortError.
+ *                    This is plumbed in from `useUserLibrary`'s safety timer
+ *                    so the browser's native loading indicator clears
+ *                    immediately when the fetch is cancelled (rather than
+ *                    staying stuck until the network layer times out).
  * @returns Array of WatchlistItem (empty if no items or error).
  */
 export async function fetchUserLibrary(
-  userId: string
+  userId: string,
+  abortSignal?: AbortSignal
 ): Promise<WatchlistItem[]> {
   const repo = getDashboardRepository();
 
   // 1. Fetch all vault items (single query)
-  const { data: vaultRows, error: vaultError } =
-    await repo.getAllVaultItems(userId);
+  // PHASE 18 BUG FIX: pass the abort signal so the Supabase query can
+  // be cancelled when the safety timer fires. Without this, the HTTP
+  // request hangs in the network stack and the browser loading bar
+  // stays stuck even after we set loading=false.
+  const { data: vaultRows, error: vaultError } = await repo.getAllVaultItems(
+    userId,
+    abortSignal
+  );
   if (vaultError) {
     console.error(
       "[userLibraryAdapter] Error fetching vault items:",
@@ -275,6 +290,12 @@ export async function fetchUserLibrary(
   const rows = vaultRows ?? [];
 
   if (rows.length === 0) return [];
+
+  // If the fetch was aborted mid-flight, bail out before kicking off the
+  // parallel episode-progress + TMDB enrichment (which would be wasted work).
+  if (abortSignal?.aborted) {
+    throw new DOMException("Vault fetch aborted", "AbortError");
+  }
 
   // 2. PARALLEL: Episode progress + tmdb_cache lookup
   //    These have NO dependency on each other — both only need vault rows.

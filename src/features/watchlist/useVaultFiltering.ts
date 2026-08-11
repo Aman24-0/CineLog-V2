@@ -114,6 +114,18 @@ export function useVaultFiltering(
     }, 120);
   };
 
+  // PHASE 18 BUG FIX — clear the debounce timer on unmount.
+  // Without this, navigating away within the 120ms debounce window
+  // leaves the timer pending; when it fires it calls setSearch() on
+  // a stale signal from an unmounted component, contributing to the
+  // "hidden errors accumulating per page navigation" symptom.
+  onCleanup(() => {
+    if (searchTimer) {
+      clearTimeout(searchTimer);
+      searchTimer = null;
+    }
+  });
+
   const clearSearch = () => {
     if (searchTimer) {
       clearTimeout(searchTimer);

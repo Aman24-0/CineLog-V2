@@ -206,11 +206,21 @@ export async function getCompletedRecently(
  * page returns fewer rows than requested, which means we've reached the
  * end. This handles vaults of any size without hitting the limit.
  *
+ * ── ABORT SUPPORT (Phase 18 bug fix) ───────────────────────────────
+ * The optional `abortSignal` is passed to each Supabase query via
+ * `.abortSignal(signal)`. When aborted, the in-flight HTTP request is
+ * cancelled (rejecting with an AbortError) AND we stop fetching
+ * subsequent pages. This is plumbed in from `useUserLibrary`'s safety
+ * timer so the browser's native loading indicator clears immediately
+ * when the fetch is cancelled, rather than staying stuck until the
+ * network layer times out (~5min default).
+ *
  * @returns All vault rows (empty if none or error).
  */
 export async function getAllVaultItems(
   supabase: TypedSupabaseClient,
-  userId: string
+  userId: string,
+  abortSignal?: AbortSignal
 ): Promise<DashboardListResult<VaultRow>> {
   const PAGE_SIZE = 1000; // matches PostgREST max_rows default
   const allRows: VaultRow[] = [];
@@ -222,15 +232,31 @@ export async function getAllVaultItems(
   // to prevent infinite loops if something goes wrong.
   const MAX_PAGES = 50;
   for (let page = 0; page < MAX_PAGES; page++) {
+    // If the fetch was aborted between pages, stop paginating.
+    // The caller (fetchUserLibrary) will throw an AbortError based on
+    // this signal, so we don't need to throw here — just break and
+    // return whatever rows we've collected so far (which the caller
+    // will discard anyway because of the abort check).
+    if (abortSignal?.aborted) {
+      break;
+    }
+
     const from = offset;
     const to = offset + PAGE_SIZE - 1;
-    const { data, error: pageError } = await supabase
+    // Build the query. If an abortSignal is provided, attach it via
+    // supabase-js's `.abortSignal(signal)` builder method so the
+    // underlying fetch is actually cancelled (not just ignored).
+    let query = supabase
       .from(VAULT_TABLE)
       .select(VAULT_DASHBOARD_COLUMNS)
       .eq("user_id", userId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(from, to);
+    if (abortSignal) {
+      query = query.abortSignal(abortSignal);
+    }
+    const { data, error: pageError } = await query;
 
     if (pageError) {
       error = toError(pageError);

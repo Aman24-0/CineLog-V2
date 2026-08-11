@@ -28,6 +28,7 @@ import {
   createContext,
   createSignal,
   onMount,
+  onCleanup,
   createEffect,
   useContext,
   type Accessor,
@@ -161,7 +162,24 @@ export const CuratedUniversesProvider: ParentComponent = (props) => {
       const subscription = onSessionChange(() => {
         doFetch();
       });
-      void subscription;
+      // PHASE 18 BUG FIX — Memory Leak:
+      // Previously the subscription handle was discarded via `void subscription;`
+      // and NEVER unsubscribed. Every time CuratedUniversesProvider mounted
+      // (i.e. on every full app navigation that re-runs the root layout),
+      // a new Supabase `onAuthStateChange` listener was added to the global
+      // auth client. Supabase fires INITIAL_SESSION, TOKEN_REFRESHED (hourly),
+      // SIGNED_IN, SIGNED_OUT, USER_UPDATED, etc. — each one triggering
+      // `doFetch()` on every leaked listener, producing cascading network
+      // requests + state-update warnings on unmounted components. This was
+      // the primary source of the "348 hidden errors accumulating per page
+      // navigation" symptom reported during Phase 18 manual QA.
+      onCleanup(() => {
+        try {
+          subscription.unsubscribe();
+        } catch {
+          // Subscription may already be torn down — swallow.
+        }
+      });
     } catch (err) {
       console.error(
         "[useCuratedUniverses] Auth subscription failed:",

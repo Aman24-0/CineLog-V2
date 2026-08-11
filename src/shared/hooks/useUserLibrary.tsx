@@ -28,6 +28,7 @@ import {
   createSignal,
   createMemo,
   createEffect,
+  onCleanup,
   ParentComponent
 } from "solid-js";
 import { fetchUserLibrary, getUserId } from "./userLibraryAdapter";
@@ -148,6 +149,20 @@ export const UserLibraryProvider: ParentComponent = (props) => {
   // the user changed while a fetch was in-flight (sign-out + sign-in).
   let fetchUid: string | null = null;
 
+  // ── PHASE 18 BUG FIX — AbortController for hung fetches ──────────
+  // Previously the safety timer fired `setLoading(false)` but the
+  // underlying Supabase fetch was NOT aborted. The browser's native
+  // loading indicator (the spinner in the tab) stayed stuck until the
+  // fetch eventually timed out at the network layer (~5min default).
+  // The user reported this as "browser's site loading bar is stuck".
+  //
+  // We now create an AbortController per fetch and abort it when the
+  // safety timer fires. The signal is plumbed through fetchUserLibrary
+  // → getAllVaultItems → supabase.from(...).abortSignal(signal), which
+  // cancels the in-flight HTTP request and resolves the pending promise
+  // with an AbortError. The browser loading bar clears immediately.
+  let activeAbort: AbortController | null = null;
+
   /**
    * The ONE fetch function. Called on auth state change and by
    * consumers via `refresh()`. Only fetches when auth is ready
@@ -164,13 +179,27 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       return;
     }
 
+    // Abort any previous in-flight fetch (defensive — isFetching guard
+    // should prevent this, but the safety timer can force isFetching=false
+    // while the previous fetch's promise is still pending).
+    if (activeAbort) {
+      try {
+        activeAbort.abort();
+      } catch {
+        // ignore
+      }
+      activeAbort = null;
+    }
+    const abortCtrl = new AbortController();
+    activeAbort = abortCtrl;
+
     // Record the uid so we can discard stale results.
     const currentFetchUid = userId;
     fetchUid = currentFetchUid;
     setLoading(true);
     setError(null);
     try {
-      const items = await fetchUserLibrary(userId);
+      const items = await fetchUserLibrary(userId, abortCtrl.signal);
       // Discard if user changed while fetch was in-flight
       if (fetchUid !== currentFetchUid) {
         isFetching = false;
@@ -179,16 +208,30 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       setWatchlist(items);
       setLoading(false);
     } catch (err) {
-      console.error("[UserLibraryProvider] Fetch error:", err);
+      // AbortError is expected when the safety timer fires — don't log
+      // it as an error (it's our own cancellation, not a real failure).
+      const isAbort =
+        err instanceof DOMException && err.name === "AbortError";
+      if (!isAbort) {
+        console.error("[UserLibraryProvider] Fetch error:", err);
+      }
       // Discard if user changed while fetch was in-flight
       if (fetchUid !== currentFetchUid) {
         isFetching = false;
         return;
       }
-      setError("Failed to load your library.");
+      // On abort, clear loading but DON'T set an error message — the
+      // user didn't do anything wrong, the fetch just took too long.
+      // Show whatever data we already have (could be empty on first load).
+      if (!isAbort) {
+        setError("Failed to load your library.");
+      }
       setLoading(false);
     } finally {
       isFetching = false;
+      if (activeAbort === abortCtrl) {
+        activeAbort = null;
+      }
       // Clear the safety-net timer since the fetch completed (success or error)
       if (safetyTimerId !== null) {
         clearTimeout(safetyTimerId);
@@ -235,28 +278,71 @@ export const UserLibraryProvider: ParentComponent = (props) => {
    */
   // Track the safety-net timer so it can be cleared when doFetch completes.
   let safetyTimerId: ReturnType<typeof setTimeout> | null = null;
+  // Track the unconditional (auth-hang) safety timer so it can be
+  // cleared on unmount.
+  let unconditionalTimerId: ReturnType<typeof setTimeout> | null = null;
   // Track whether the unconditional safety timer has been armed for
-  // this provider instance. It only needs to fire once — if loading
-  // is still true 12s after the provider mounts, something is hung
+  // this provider instance. It only needs to fire once — if auth is
+  // still not ready 12s after the provider mounts, something is hung
   // and we unblock the UI.
   let unconditionalSafetyArmed = false;
 
+  // PHASE 18 BUG FIX — clean up both timers + any in-flight abort on unmount.
+  // Without this, navigating away from the app leaves a dangling 12s timer
+  // and a pending Supabase fetch that keeps the browser loading bar stuck.
+  onCleanup(() => {
+    if (safetyTimerId !== null) {
+      clearTimeout(safetyTimerId);
+      safetyTimerId = null;
+    }
+    if (unconditionalTimerId !== null) {
+      clearTimeout(unconditionalTimerId);
+      unconditionalTimerId = null;
+    }
+    if (activeAbort) {
+      try {
+        activeAbort.abort();
+      } catch {
+        // ignore
+      }
+      activeAbort = null;
+    }
+  });
+
   createEffect(() => {
     // ── Phase 14 Chunk 8 — Always-arm the safety timer on first run ──
-    // This fires regardless of auth state, so it catches the case
-    // where auth itself is hung (the original safety timer was gated
-    // on authReady() && isSignedIn(), which never became true).
+    // PHASE 18 BUG FIX: The original implementation fired this timer
+    // whenever `loading()` was true after 12s — including during normal
+    // (just slow) vault fetches AFTER login. The flow that triggered
+    // the spurious warning was:
+    //   t=0s  : landing page mounts UserLibraryProvider, timer armed
+    //   t=3s  : user clicks "Login", auth resolves, doFetch() starts,
+    //           loading=true, 15s per-fetch timer armed
+    //   t=12s : UNCONDITIONAL timer fires, sees loading=true (doFetch
+    //           in progress), forces loading=false + logs warning
+    //   t=15s : per-fetch timer would have fired (but isFetching=false)
+    //
+    // The user saw "Loading still true after 12s — forcing unblock"
+    // even though doFetch was progressing normally. The fix: only fire
+    // the unconditional timer when auth itself is still hung (the case
+    // it was originally designed for). When auth IS ready, the per-fetch
+    // 15s safety timer handles doFetch hangs (and now also aborts the
+    // in-flight fetch via AbortController, clearing the browser bar).
     if (!unconditionalSafetyArmed) {
       unconditionalSafetyArmed = true;
       const UNCONDITIONAL_TIMEOUT_MS = 12000;
-      setTimeout(() => {
-        if (loading()) {
+      unconditionalTimerId = setTimeout(() => {
+        // Only force-unblock if auth itself is hung (the original
+        // intent of this timer). If auth resolved but doFetch is slow,
+        // the per-fetch safety timer handles it (and aborts the fetch).
+        if (loading() && !authReady()) {
           console.warn(
-            "[UserLibraryProvider] Loading still true after 12s — forcing unblock (auth or vault fetch hung)"
+            "[UserLibraryProvider] Auth not ready after 12s — forcing unblock (auth hung)"
           );
           setLoading(false);
           isFetching = false;
         }
+        unconditionalTimerId = null;
       }, UNCONDITIONAL_TIMEOUT_MS);
     }
 
@@ -268,11 +354,25 @@ export const UserLibraryProvider: ParentComponent = (props) => {
       }
       doFetch();
       // Safety-net: unblock UI if the vault fetch hangs (network issues, etc.)
+      // PHASE 18 BUG FIX: also abort the in-flight fetch so the browser's
+      // native loading indicator clears immediately (previously it stayed
+      // stuck until the network layer timed out ~5min later).
       safetyTimerId = setTimeout(() => {
         if (isFetching) {
           console.warn(
-            "[UserLibraryProvider] Vault fetch timed out after 15s — unblocking UI"
+            "[UserLibraryProvider] Vault fetch timed out after 15s — aborting fetch and unblocking UI"
           );
+          // Abort the in-flight fetch first — this cancels the HTTP
+          // request, which clears the browser loading bar.
+          if (activeAbort) {
+            try {
+              activeAbort.abort();
+            } catch {
+              // ignore
+            }
+            // activeAbort is cleared in doFetch's finally block when
+            // the aborted promise resolves. Don't null it here.
+          }
           setLoading(false);
           isFetching = false;
         }

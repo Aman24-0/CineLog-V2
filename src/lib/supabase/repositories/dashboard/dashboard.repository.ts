@@ -95,8 +95,11 @@ export class DashboardRepository {
   // ---- All vault items (single source for dashboard derivation) --------
 
   /** Fetch ALL non-deleted vault items for the dashboard (single source). */
-  getAllVaultItems(userId: string): Promise<DashboardListResult<VaultRow>> {
-    return getAllVaultItems(this.supabase, userId);
+  getAllVaultItems(
+    userId: string,
+    abortSignal?: AbortSignal
+  ): Promise<DashboardListResult<VaultRow>> {
+    return getAllVaultItems(this.supabase, userId, abortSignal);
   }
 
   // ---- Continue Watching (Bible §03 rules) ----------------------------
