@@ -336,9 +336,15 @@ const AppShell: ParentComponent = (props) => {
               AuthModal + ToastContainer must be mounted so the marketing
               CTAs ("Get Started" / "Login") open the auth modal and auth
               success/error toasts can fire. The LandingPage component
-              provides its own <main> landmark and skip link target. */}
+              provides its own <main> landmark and skip link target.
+              
+              IMPORTANT: Uses app-shell-landing (NOT app-shell-bg) to avoid
+              the desktop-workspace.css grid layout that breaks the full-width
+              landing page at ≥1024px. The workspace grid is designed for the
+              consumer app's 3-column layout (sidebar/main/utility), not the
+              marketing landing page. */}
           <div
-            class="app-shell-bg min-h-screen w-full"
+            class="app-shell-landing min-h-screen w-full"
             inert={anyModalOpen() ? true : undefined}
             style={{
               background: "var(--void)",

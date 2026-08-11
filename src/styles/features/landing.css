@@ -8,6 +8,31 @@
 
 
 /* ============================================================
+   0. LANDING SHELL — Full-width wrapper (NOT the desktop workspace grid)
+   ============================================================ */
+
+/* The landing route uses .app-shell-landing instead of .app-shell-bg
+   to avoid the 3-column workspace grid that desktop-workspace.css
+   applies at ≥1024px. This ensures the landing page renders as a
+   single full-width column at all screen sizes. */
+.app-shell-landing {
+  position: relative;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-x: hidden;
+  background: var(--void);
+  color: var(--text);
+}
+
+/* Ambient background works the same way as .app-shell-bg */
+.app-shell-landing > *:not(.ambient-background) {
+  position: relative;
+  z-index: 1;
+}
+
+
+/* ============================================================
    1. ROOT + AMBIENT
    ============================================================ */
 

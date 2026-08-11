@@ -96,6 +96,12 @@ export function initSentry(): void {
         blockAllMedia: true
       })
     ],
+    // Session replay sample rates — required to suppress the
+    // "Replay is disabled because neither replaysSessionSampleRate
+    // nor replaysOnErrorSampleRate are set" console warning.
+    // 10% of normal sessions, 100% of sessions with errors.
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
     beforeSend(event) {
       // Strip noisy non-fatal browser errors that are already handled
       // in-app and would just pollute the Sentry inbox.
