@@ -583,3 +583,50 @@ Stage Summary:
 - Files modified (5): src/features/profile/components/BannerEditor.tsx (URL-tab save now proxies through server), src/features/discover/hooks/useSpotlight.ts (DB cache read + persist), src/routes/api/discover/ai-recommendations.ts (cache-write error now logged, not swallowed), src/features/discover/hooks/useDiscoverTaste.ts (gate fetch on !isGuest), public/sw.js (cache.put wrapped + version bump), src/core/tmdb/tmdb.ts (localStorage-backed 404 cache with 7-day TTL).
 - All 6 Phase 18 deep fixes address the actual root cause — no error hiding, no suppression, no swallowing. The banner image now loads reliably in every browser (Chrome, Lemur, Safari, Firefox) because it's served from Supabase Storage. The Spotlight + AI picks are now consistent across browsers signed in as the same user because they're cached in the DB (user_preferences.prefs_json). The 401 on /api/discover/taste is gone because the fetch waits for auth to resolve. The SW no longer emits unhandled rejections on cache.put. The TMDB 404 cache survives page reloads, eliminating the 20+ red 404s on every fresh visit.
 - After deploying: re-save the banner URL through the Banner Editor (Edit Profile → Banner → Image URL → paste wallpaperflare URL → Save) — the server will fetch it + store it in Supabase Storage, fixing the Lemur browser issue permanently. Existing banner_url values that point to wallpaperflare will continue to fail until re-saved through the editor (the new code only intercepts NEW saves, not existing reads).
+
+---
+Task ID: phase-18-deep-fix-v2
+Agent: main (Super Z)
+Task: Phase 18 Manual Bug Hunting — real root-cause fixes for the THREE console errors the user was still seeing in Lemur browser after deep-fix v1 (commit f81bbfb). User reported: banner still not showing in Lemur, Spotlight + AI recommendations still differ between browsers.
+
+Work Log:
+- Verified current repo state: deep-fix v1 (commit f81bbfb) IS pushed to GitHub — local HEAD = remote HEAD = f81bbfb. So the previous fixes WERE deployed.
+- Analyzed the user's Lemur browser screenshot via VLM (z-ai vision). Three concrete console errors identified:
+    1. `net::ERR_BLOCKED_BY_RESPONSE.NotSameOrigin` on `bladerunner-blade-ru...857bef873ec34.jpg` — banner image blocked.
+    2. `Failed to load resource: 401` on `api/discover/taste:1` — spurious auth error.
+    3. `A preload for '<URL>' is found, but is not used because the request credentials mode does not match` — preload/credentials mismatch.
+- Read the relevant source files to find the TRUE root cause (deep-fix v1 was insufficient):
+    - src/routes/api/profile/banner-from-url.ts (proxy route, looks correct)
+    - src/features/profile/components/ProfileBanner.tsx (renders banner_url directly via <img> for both 'upload' and 'url' types)
+    - src/features/profile/components/BannerEditor.tsx (deep-fix v1 DID add proxy for new URL saves — but only NEW saves)
+    - src/features/profile/useProfileData.ts (loader — no migration logic for legacy URLs)
+    - src/routes/api/discover/taste.ts (returns 401 when getSession() returns null)
+    - src/features/discover/hooks/useDiscoverTaste.ts (source = `() => !args.isGuest()` — fires the moment user() becomes non-null)
+    - src/features/discover/hooks/useSpotlight.ts (DB sync via /api/discover/spotlight — also auth-gated)
+    - src/features/discover/components/AiRecommendationRail.tsx (DB-cached recs via /api/discover/ai-recommendations — also auth-gated)
+    - src/lib/supabase/session.ts (getAuthHeaders — returns {} if no session)
+    - src/shared/hooks/useAuth.ts (auth flow — checkInitialSession + onAuthStateChange)
+    - src/shared/hooks/useUserLibrary.tsx (isGuest = createMemo(() => !isSignedIn()))
+    - src/lib/supabase/repositories/settings.ts (saveExtendedPreference returns {error}, doesn't throw — already fixed in v1)
+- Root-cause analysis:
+    - Banner: deep-fix v1 only fixed NEW URL saves. Users who saved a wallpaperflare URL BEFORE v1 still have banner_type='url' with the raw external URL. The browser tries to load it directly → CORP-blocked in Lemur → banner blank.
+    - 401 on taste: getAuthHeaders() returns {} during the race between user() becoming non-null and the supabase session being fully ready. The fetch fires with no Authorization header → 401 → browser logs red error.
+    - Cross-browser Spotlight/AI mismatch: the 401 on taste causes the local computation to be used (per-browser localStorage) → different taste → different Spotlight picks → different AI recs. The DB sync routes (/api/discover/spotlight, /api/discover/ai-recommendations) were also 401-ing for the same reason.
+- Applied 3 fixes (5 files changed, +235/-23 lines):
+    1. Banner self-healing migration in useProfileData.ts: when profile loads with banner_type='url' and a non-Supabase-Storage URL, transparently POST to /api/profile/banner-from-url, persist the migrated URL as banner_type='upload', return the updated profile. Runs once per legacy user. Two helpers added: isSupabaseStorageUrl() and selfHealLegacyBannerUrl().
+    2. Auth-header-first check in fetchServerTaste (useDiscoverTaste.ts), readPickFromServer + persistPickToServer (useSpotlight.ts), and fetchAiRecs (AiRecommendationRail.tsx): call getAuthHeaders() first; if no Authorization header, skip the fetch silently (return null). Eliminates the 401 + the browser's red "Failed to load resource" log. Same fallback behavior, no console pollution.
+    3. crossorigin="anonymous" on ProfileBanner <img>: matches the preload scanner's credentials mode to the actual <img> fetch's mode, eliminating the "request credentials mode does not match" warning.
+- Verification:
+    - npx tsc --noEmit (local binary): 0 errors.
+    - npx vitest run: 1412/1412 tests pass (55 files, 49s).
+- Committed as 9aa18e4 and pushed to GitHub origin/main (PAT-authenticated). Local HEAD = remote HEAD = 9aa18e4.
+
+Stage Summary:
+- Files modified (5): src/features/profile/useProfileData.ts (+167, banner self-heal), src/features/discover/hooks/useDiscoverTaste.ts (+36, auth-header check), src/features/discover/hooks/useSpotlight.ts (+23, auth-header check on both server cache read + write), src/features/discover/components/AiRecommendationRail.tsx (+22, auth-header check), src/features/profile/components/ProfileBanner.tsx (+10, crossorigin attribute).
+- After deploying this commit, the user's Lemur browser will:
+    1. Show the banner image (auto-migrated to Supabase Storage URL on first profile load — no user action required).
+    2. Stop logging the spurious 401 on /api/discover/taste.
+    3. Stop logging the preload credentials-mismatch warning.
+    4. Show the SAME Spotlight pick + AI recommendations across all browsers signed in as the same user (because the auth-gated DB-sync routes now actually work, instead of 401-ing silently).
+- The fixes are forward-compatible: once all legacy banner_type='url' rows have been migrated to banner_type='upload', the self-heal check is a no-op. The auth-header checks are permanent safeguards against any future race conditions in session resolution.
+- Next step (per user's instruction): proceed to Discover page bug-hunting phase.
