@@ -16,7 +16,7 @@
         { "key": "X-DNS-Prefetch-Control", "value": "on" },
         {
           "key": "Content-Security-Policy",
-          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://vercel.live; img-src 'self' data: https: blob: https://image.tmdb.org; media-src 'self' https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.themoviedb.org https://www.omdbapi.com https://image.tmdb.org https://api.groq.com https://vercel.live https://*.ingest.sentry.io; worker-src 'self' blob:; frame-src 'self' https://vercel.live https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; manifest-src 'self'"
+          "value": "default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://vercel.live; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com https://vercel.live; img-src 'self' data: https: blob: https://image.tmdb.org; media-src 'self' https:; connect-src 'self' https://*.supabase.co wss://*.supabase.co https://api.themoviedb.org https://www.omdbapi.com https://image.tmdb.org https://api.groq.com https://vercel.live https://*.ingest.sentry.io https://*.ingest.de.sentry.io; worker-src 'self' blob:; frame-src 'self' https://vercel.live https://www.youtube-nocookie.com https://www.youtube.com; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; object-src 'none'; manifest-src 'self'"
         }
       ]
     },
