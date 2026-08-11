@@ -1019,13 +1019,29 @@ const Footer: Component = () => {
           </div>
         </Show>
 
-        {/* Bottom row: Terms/Privacy links + copyright */}
+        {/* Bottom row: Terms/Privacy links + copyright + data source */}
         <div class="flex flex-col sm:flex-row items-center justify-center gap-4 text-xs text-white/30">
           <a href="/terms" class="hover:text-white/50 transition-colors">Terms</a>
           <span class="hidden sm:inline">·</span>
           <a href="/privacy" class="hover:text-white/50 transition-colors">Privacy</a>
           <span class="hidden sm:inline">·</span>
           <span>&copy; 2026 CineLog</span>
+          <span class="hidden sm:inline">·</span>
+          <a
+            href="https://www.themoviedb.org"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-1.5 hover:text-white/50 transition-colors"
+            aria-label="Data from The Movie Database (TMDB)"
+          >
+            <span>Data From</span>
+            <img
+              src="/tmdb-logo.svg"
+              alt="TMDB"
+              class="inline-block"
+              style={{ height: "0.75rem", width: "auto" }}
+            />
+          </a>
         </div>
       </div>
     </footer>
