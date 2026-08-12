@@ -283,7 +283,7 @@ export async function removeEntryFromCollectionByTmdbId(
  * where vault_id matches, then hard-delete them in one batch.
  */
 export async function removeVaultItemFromAllCollections(
-  userId: string,
+  _userId: string,
   vaultId: string
 ): Promise<boolean> {
   try {

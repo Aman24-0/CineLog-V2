@@ -338,7 +338,7 @@ const AdminLogsPage: Component = () => {
 
     return json.replace(
       tokenRegex,
-      (match, key, str, num, bool, nul, punct) => {
+      (_match, key, str, num, bool, nul, punct) => {
         if (key) {
           return `<span class="json-key">${escapeHtml(key)}</span>`;
         }

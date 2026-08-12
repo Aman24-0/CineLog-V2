@@ -115,7 +115,7 @@ export function sanitizeSvg(svgText: string): string | null {
   // Match any attribute-like pattern: name="value" or name='value' or name=value
   cleaned = cleaned.replace(
     /(<[a-zA-Z][a-zA-Z0-9]*)\s+([^>]*)(>)/g,
-    (match, openTag, attrsStr, closeTag) => {
+    (_match, openTag, attrsStr, closeTag) => {
       // Parse and filter attributes
       const safeAttrs = filterAttributes(attrsStr);
       return `${openTag}${safeAttrs ? " " + safeAttrs : ""}${closeTag}`;
