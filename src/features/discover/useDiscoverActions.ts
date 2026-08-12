@@ -92,7 +92,7 @@ export function useDiscoverActions(
           media_type: title.media_type,
           data: title
         }
-      ]).catch(() => {});
+      ]).catch((err) => { if (import.meta.env.DEV) console.warn("[discover] cache write failed:", err); });
       const name = title.title || title.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {

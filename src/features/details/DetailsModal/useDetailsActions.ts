@@ -227,7 +227,7 @@ export function useDetailsActions(
           media_type: b.media_type,
           data: cacheData
         }
-      ]).catch(() => {});
+      ]).catch((err) => { if (import.meta.env.DEV) console.warn("[details] cache write failed:", err); });
       const name = b.title || b.name || "Title";
       showToast(`Added "${name}" to your vault`, "success", 1800);
     } catch (err) {

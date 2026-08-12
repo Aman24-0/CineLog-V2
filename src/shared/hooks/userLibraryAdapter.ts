@@ -360,7 +360,7 @@ export async function fetchUserLibrary(
       }
     );
     // Don't await — cache writes are best-effort and shouldn't block the UI
-    cacheMetadataEntries(cacheEntries).catch(() => {});
+    cacheMetadataEntries(cacheEntries).catch((err) => { if (import.meta.env.DEV) console.warn("[userLibraryAdapter] cache write failed:", err); });
   }
 
   // 4. Map to WatchlistItem with episode progress + TMDB metadata enrichment
