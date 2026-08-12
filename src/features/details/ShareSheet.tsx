@@ -802,7 +802,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
                 close
               </span>
             </button>
-            <img src={qrDataUrl()!} alt="QR Code" />
+            <img src={qrDataUrl()!} alt="QR Code" width="200" height="200" />
             <p style="color: var(--text-soft); font-size: 0.875rem; text-align: center; word-break: break-all;">
               {shareUrl()}
             </p>
