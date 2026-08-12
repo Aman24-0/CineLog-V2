@@ -355,7 +355,7 @@ const AdminCollectionEditorPage: Component = () => {
             <A
               href={`/collections/${universe()!.slug}`}
               target="_blank"
-              rel="noopener"
+              rel="noopener noreferrer"
               title="Open the consumer view in a new tab (read-only preview)"
               style={{
                 ...btnSecondaryStyle,

@@ -225,7 +225,7 @@ const SupabaseServicePage: Component = () => {
         <a
           href={`${supabaseDashboardUrl}/storage/buckets`}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary no-underline hover:underline"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">
@@ -284,7 +284,7 @@ const SupabaseServicePage: Component = () => {
         <a
           href={`${supabaseDashboardUrl}/database/extensions`}
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
           class="mt-3 inline-flex items-center gap-1 text-xs font-semibold text-primary no-underline hover:underline"
         >
           <span class="material-symbols-outlined text-sm" aria-hidden="true">

@@ -166,7 +166,7 @@ const VercelServicePage: Component = () => {
           <a
             href="https://vercel.com/account/tokens"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             class="text-primary no-underline hover:underline"
           >
             vercel.com/account/tokens
@@ -243,7 +243,7 @@ const VercelServicePage: Component = () => {
           <a
             href={vercelProjectDashboard}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             class="inline-flex flex-shrink-0 items-center gap-1 rounded-md border border-glass-border bg-glass px-3 py-2 text-xs font-semibold text-primary no-underline backdrop-blur-xl transition-[background-color] hover:bg-glass-strong"
           >
             <span class="material-symbols-outlined text-sm" aria-hidden="true">
