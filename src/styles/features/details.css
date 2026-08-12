@@ -2934,3 +2934,397 @@
     grid-template-columns: repeat(3, 1fr);
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+   Audio Language Modal
+   ─────────────────────────────────────────────────────────────────────
+   Opened when the user taps the "Language" cell in MetadataGrid.
+   Two stacked sections: ORIGINAL / SPOKEN (from TMDB) and DUBBED AUDIO
+   (from the audio-language worker). The dubbed section has loading /
+   no-data / error states. Matches the existing GlassModal visual
+   language (gold hairlines, mono labels, Outfit body). */
+
+.audio-lang-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  padding: 0.25rem 0;
+}
+
+.audio-lang-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+}
+
+.audio-lang-section-dubbed {
+  /* Subtle divider from the original-languages section above */
+  padding-top: 1rem;
+  border-top: 1px solid var(--hairline, rgba(232, 183, 74, 0.18));
+}
+
+.audio-lang-section-header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.audio-lang-section-title {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8a8a8a);
+  margin: 0;
+}
+
+.audio-lang-section-subtitle {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8a8a8a);
+  opacity: 0.75;
+}
+
+.audio-lang-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 0.5rem;
+}
+@media (max-width: 480px) {
+  .audio-lang-list {
+    grid-template-columns: 1fr;
+  }
+}
+
+.audio-lang-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 0.55rem 0.75rem;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--hairline, rgba(232, 183, 74, 0.18));
+  background: rgba(232, 183, 74, 0.02);
+  min-height: 2.5rem;
+}
+
+.audio-lang-item-original {
+  background: rgba(232, 183, 74, 0.05);
+  border-color: rgba(232, 183, 74, 0.3);
+}
+
+.audio-lang-item-name {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-body, #e8e8e8);
+  line-height: 1.2;
+}
+
+.audio-lang-item-code {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8a8a8a);
+  opacity: 0.8;
+}
+
+/* ── Confidence indicator (per dubbed language) ────────────────────── */
+
+.audio-lang-confidence {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 0.15rem 0.4rem;
+  border-radius: 9999px;
+  border: 1px solid transparent;
+}
+
+.audio-lang-confidence-icon {
+  font-size: 0.75rem !important;
+  line-height: 1;
+}
+
+.audio-lang-verified {
+  /* Multiple sources agree — high confidence */
+  color: #4ade80;
+  background: rgba(74, 222, 128, 0.1);
+  border-color: rgba(74, 222, 128, 0.3);
+}
+
+.audio-lang-confirmed {
+  /* One reliable source confirms the audio language */
+  color: #60a5fa;
+  background: rgba(96, 165, 250, 0.1);
+  border-color: rgba(96, 165, 250, 0.3);
+}
+
+.audio-lang-detected {
+  /* Inferred from less reliable metadata (e.g. TMDB translations) */
+  color: #fbbf24;
+  background: rgba(251, 191, 36, 0.08);
+  border-color: rgba(251, 191, 36, 0.25);
+}
+
+/* ── Loading skeleton ──────────────────────────────────────────────── */
+
+.audio-lang-item-skeleton {
+  pointer-events: none;
+}
+
+.audio-lang-skeleton-name {
+  width: 70%;
+  height: 0.75rem;
+  border-radius: 4px;
+  background: linear-gradient(
+    90deg,
+    rgba(232, 183, 74, 0.05) 0%,
+    rgba(232, 183, 74, 0.15) 50%,
+    rgba(232, 183, 74, 0.05) 100%
+  );
+  background-size: 200% 100%;
+  animation: audio-lang-shimmer 1.4s ease-in-out infinite;
+}
+
+.audio-lang-skeleton-meta {
+  width: 1.5rem;
+  height: 0.75rem;
+  border-radius: 4px;
+  background: rgba(232, 183, 74, 0.08);
+}
+
+@keyframes audio-lang-shimmer {
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
+}
+
+.audio-lang-loading-text {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-muted, #8a8a8a);
+  text-align: center;
+  margin: 0.5rem 0 0;
+}
+
+/* ── Empty / no-data / error states ────────────────────────────────── */
+
+.audio-lang-empty {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.8125rem;
+  color: var(--text-muted, #8a8a8a);
+  margin: 0;
+  font-style: italic;
+  opacity: 0.7;
+}
+
+.audio-lang-state {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.875rem;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--hairline, rgba(232, 183, 74, 0.18));
+  align-items: flex-start;
+}
+
+.audio-lang-state-icon {
+  font-size: 1.25rem !important;
+  flex-shrink: 0;
+  margin-top: 0.1rem;
+}
+
+.audio-lang-state-error {
+  background: rgba(248, 113, 113, 0.05);
+  border-color: rgba(248, 113, 113, 0.25);
+}
+.audio-lang-state-error .audio-lang-state-icon {
+  color: #f87171;
+}
+
+.audio-lang-state-nodata {
+  background: rgba(96, 165, 250, 0.04);
+  border-color: rgba(96, 165, 250, 0.2);
+}
+.audio-lang-state-nodata .audio-lang-state-icon {
+  color: #60a5fa;
+}
+
+.audio-lang-state-text {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.audio-lang-state-title {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--text-body, #e8e8e8);
+  margin: 0;
+  line-height: 1.3;
+}
+
+.audio-lang-state-hint {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+  color: var(--text-muted, #8a8a8a);
+  margin: 0;
+  line-height: 1.4;
+}
+
+.audio-lang-retry {
+  align-self: flex-start;
+  margin-top: 0.5rem;
+  padding: 0.35rem 0.8rem;
+  border-radius: 9999px;
+  border: 1px solid rgba(74, 222, 128, 0.4);
+  background: rgba(74, 222, 128, 0.1);
+  color: #4ade80;
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.audio-lang-retry:hover {
+  background: rgba(74, 222, 128, 0.18);
+  border-color: rgba(74, 222, 128, 0.6);
+}
+
+/* ── Per-season availability (series only) ─────────────────────────── */
+
+.audio-lang-seasons {
+  margin-top: 0.5rem;
+  border-radius: var(--radius-md, 12px);
+  border: 1px solid var(--hairline, rgba(232, 183, 74, 0.18));
+  background: rgba(232, 183, 74, 0.02);
+  padding: 0.5rem 0.75rem;
+}
+
+.audio-lang-seasons-summary {
+  cursor: pointer;
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.55rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8a8a8a);
+  padding: 0.25rem 0;
+}
+
+.audio-lang-seasons-list {
+  list-style: none;
+  padding: 0.5rem 0 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.audio-lang-seasons-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  font-family: "Outfit", sans-serif;
+  font-size: 0.75rem;
+}
+
+.audio-lang-seasons-label {
+  color: var(--text-body, #e8e8e8);
+  font-weight: 600;
+}
+
+.audio-lang-seasons-codes {
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.55rem;
+  letter-spacing: 0.08em;
+  color: var(--text-muted, #8a8a8a);
+  text-align: right;
+  text-transform: uppercase;
+}
+
+/* ── Footer (last-checked + region) ────────────────────────────────── */
+
+.audio-lang-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--hairline, rgba(232, 183, 74, 0.12));
+  font-family: "Azeret Mono", monospace;
+  font-size: 0.5rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-muted, #8a8a8a);
+  opacity: 0.8;
+}
+
+.audio-lang-footer-region {
+  font-family: "Outfit", sans-serif;
+  font-size: 0.7rem;
+  letter-spacing: 0.04em;
+  text-transform: none;
+}
+
+/* ── Language cell clickability (in MetadataGrid) ──────────────────── */
+
+.metadata-cell-language {
+  cursor: pointer;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  width: 100%;
+  transition:
+    border-color 0.15s ease,
+    background 0.15s ease,
+    transform 0.1s ease;
+  position: relative;
+}
+.metadata-cell-language:hover {
+  border-color: var(--p, #4ade80);
+  background: rgba(74, 222, 128, 0.06);
+}
+.metadata-cell-language:active {
+  transform: scale(0.98);
+}
+.metadata-cell-language:focus-visible {
+  outline: 2px solid var(--p, #4ade80);
+  outline-offset: 1px;
+}
+
+.metadata-cell-language-icon {
+  display: inline-block;
+  vertical-align: middle;
+  margin-left: 0.25rem;
+  color: var(--p, #4ade80);
+  opacity: 0.6;
+  font-size: 11px !important;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+}
+.metadata-cell-language:hover .metadata-cell-language-icon {
+  opacity: 1;
+  transform: translateX(2px);
+}
+
