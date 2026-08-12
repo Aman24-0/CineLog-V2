@@ -392,8 +392,36 @@ export default function MetadataGrid(props: MetadataGridProps) {
     }
 
     // Language
+    //
+    // Shows up to 2 spoken languages for the title. TMDB returns
+    // `spoken_languages` as an array of { english_name, iso_639_1, name }
+    // in arbitrary order — the original language is NOT guaranteed to be
+    // first. For example, Captain America: The First Avenger returns
+    // [French, Norwegian, English] because characters speak French and
+    // Norwegian in some scenes, even though English is the original
+    // language.
+    //
+    // BUG (previously): `langs.slice(0, 2)` showed the FIRST 2 entries,
+    // which for many US movies was [French, Norwegian] — cutting off
+    // English entirely. The LANGUAGE card then displayed "French,
+    // Norwegian" for an English-language movie, which confused users.
+    //
+    // FIX: sort the languages so the `original_language` appears FIRST,
+    // then take the first 2. This guarantees the original language is
+    // always shown (e.g. "English, French" instead of "French,
+    // Norwegian"). The full list (including all spoken languages) is
+    // still available by tapping the cell to open the AudioLanguageModal.
     if (d?.spoken_languages && d.spoken_languages.length > 0) {
-      const langs = d.spoken_languages
+      const origLang = d.original_language;
+      const sorted = [...d.spoken_languages].sort((a, b) => {
+        // Original language sorts first.
+        const aIsOrig = a.iso_639_1 === origLang ? 0 : 1;
+        const bIsOrig = b.iso_639_1 === origLang ? 0 : 1;
+        if (aIsOrig !== bIsOrig) return aIsOrig - bIsOrig;
+        // Otherwise preserve TMDB's order (stable sort).
+        return 0;
+      });
+      const langs = sorted
         .map((l) => l.english_name)
         .filter(Boolean);
       if (langs.length > 0) {

@@ -228,18 +228,41 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
   // worker loads in the background.
   const originalLanguages = () => buildOriginalLanguages(props.details);
 
-  // ESC to close (extra safety net on top of GlassModal's built-in ESC).
+  // ESC to close — but ONLY this modal, not the DetailsModal behind it.
+  //
+  // CHALLENGE: the DetailsModal also listens for ESC on `window` and
+  // was mounted BEFORE this modal, so its listener fires FIRST in the
+  // bubble phase. A simple `e.stopPropagation()` in our bubble-phase
+  // handler would be too late — the DetailsModal's handler has already
+  // run by then.
+  //
+  // FIX: register our handler in the CAPTURE phase. Capture-phase
+  // listeners run BEFORE any bubble-phase listeners on the same target
+  // tree, so we get the first chance to handle ESC. We then call
+  // `e.stopImmediatePropagation()` to prevent the DetailsModal's
+  // bubble-phase ESC handler from firing at all.
+  //
+  // Without this fix, pressing ESC on the language modal would close
+  // BOTH modals (the language modal AND the underlying DetailsModal),
+  // which is jarring — the user expects ESC to close only the topmost
+  // modal.
   const onKey = (e: KeyboardEvent) => {
-    if (e.key === "Escape" && props.open) props.onClose();
+    if (e.key === "Escape" && props.open) {
+      e.stopImmediatePropagation();
+      e.stopPropagation();
+      props.onClose();
+    }
   };
   onMount(() => {
     if (typeof window !== "undefined") {
-      window.addEventListener("keydown", onKey);
+      // `true` → capture phase: fires before bubble-phase listeners
+      // (including the DetailsModal's ESC handler).
+      window.addEventListener("keydown", onKey, true);
     }
   });
   onCleanup(() => {
     if (typeof window !== "undefined") {
-      window.removeEventListener("keydown", onKey);
+      window.removeEventListener("keydown", onKey, true);
     }
   });
 
@@ -254,6 +277,16 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
 
   // ─── Render ─────────────────────────────────────────────────────────
 
+  // zIndexBase — the AudioLanguageModal is rendered INSIDE the
+  // DetailsModal (via MetadataGrid). The DetailsModal uses z-index
+  // 999999 (see DetailsModal.tsx). GlassModal's default zIndexBase is
+  // 999990, which would put this modal's surface at 999991 — BELOW
+  // the DetailsModal. That causes the language modal to open behind
+  // the detail modal (invisible to the user).
+  //
+  // Fix: bump the zIndexBase well above 999999 so the language modal
+  // always renders on top of the DetailsModal. We use 1_000_000 so
+  // the backdrop is at 1_000_000 and the modal surface at 1_000_001.
   return (
     <GlassModal
       open={props.open}
@@ -263,6 +296,7 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
       size="md"
       showCloseButton
       id="audio-language-modal"
+      zIndexBase={1_000_000}
     >
       <div class="audio-lang-modal-body">
         {/* ─── ORIGINAL / SPOKEN ─────────────────────────────────── */}
