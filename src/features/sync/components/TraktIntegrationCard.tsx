@@ -48,16 +48,12 @@
 //
 // SECURITY
 //   • No tokens are stored client-side.
-//   • The "Connect Trakt" button navigates to
-//     /api/auth/trakt?accessToken=<token> — the server handles the
-//     entire OAuth flow. The access token is appended as a query
-//     param because `window.location.href` is a navigation (not a
-//     fetch), so we cannot set the `Authorization` header here.
-//     The OAuth init route reads the token from the query param and
-//     verifies the session before redirecting to Trakt. The token
-//     never appears in any server log (it's only read into a local
-//     variable on the server) and is dropped the moment the redirect
-//     to Trakt leaves our origin.
+//   • The "Connect Trakt" button POSTs to /api/auth/trakt with the
+//     access token in the request body (NOT in the URL query string).
+//     The server verifies the session, generates a CSRF state cookie,
+//     and returns the Trakt authorize URL. The client then navigates
+//     to that URL to complete the OAuth flow. The token never appears
+//     in any URL, server log, or browser history.
 //   • The "Disconnect" button POSTs to /api/auth/trakt/disconnect,
 //     which deletes the user_integrations row server-side. On
 //     success, the card flips back to the "unconnected" state.
@@ -258,20 +254,14 @@ const TraktIntegrationCard: Component = () => {
   // ─── Handlers ────────────────────────────────────────────────
 
   const handleConnectClick = async () => {
-    // Navigate to the OAuth init route — the server redirects to
-    // Trakt's consent screen. We use window.location (not useNavigate)
-    // because /api/auth/trakt is a server route, not a client route.
+    // POST to the OAuth init route with the access token in the
+    // request body (NOT in the URL query string). The server verifies
+    // the session, generates a CSRF state cookie, and returns the
+    // Trakt authorize URL. We then navigate to that URL to complete
+    // the OAuth flow.
     //
-    // Phase 13 Chunk 2: Because this is a navigation (not a fetch),
-    // we cannot attach the `Authorization: Bearer <token>` header
-    // the way we do for fetch calls. Instead, we append the access
-    // token as a `accessToken` query param. The OAuth init route
-    // reads it from the URL and verifies the session before
-    // redirecting to Trakt.
-    //
-    // The token never reaches Trakt — it's consumed server-side,
-    // used only to identify the user starting the OAuth flow, then
-    // dropped before the 302 to Trakt leaves our origin.
+    // This avoids exposing the access token in the URL, which would
+    // leak into browser history, server logs, and Referer headers.
     const headers = await getAuthHeaders();
     const accessToken = headers.Authorization?.startsWith("Bearer ")
       ? headers.Authorization.slice("Bearer ".length)
@@ -284,11 +274,35 @@ const TraktIntegrationCard: Component = () => {
       );
       return;
     }
-    // URL-encode the token to be safe (JWTs contain only base64url
-    // chars + dots, but encode anyway in case Supabase ever changes
-    // the format).
-    window.location.href =
-      "/api/auth/trakt?accessToken=" + encodeURIComponent(accessToken);
+    try {
+      const res = await fetch("/api/auth/trakt", {
+        method: "POST",
+        credentials: "include",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json"
+        },
+        body: JSON.stringify({ accessToken })
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        showToast(
+          (data as { error?: string }).error ?? "Failed to start Trakt connection.",
+          "error",
+          4000
+        );
+        return;
+      }
+      const data = (await res.json()) as { redirectUrl?: string };
+      if (data.redirectUrl) {
+        window.location.href = data.redirectUrl;
+      } else {
+        showToast("Unexpected response from server.", "error", 4000);
+      }
+    } catch (err) {
+      console.error("[trakt] connect POST failed:", err);
+      showToast("Network error. Please try again.", "error", 4000);
+    }
   };
 
   const handleSyncNowClick = () => {

@@ -22,22 +22,33 @@
 //   an attacker tricks the user into connecting the attacker's
 //   Trakt account.
 //
-// AUTHENTICATION (Phase 13 Chunk 2):
+// AUTHENTICATION (Phase 13 Chunk 2 → security fix):
 //   The browser client stores sessions in localStorage (NOT cookies),
 //   so the browser never sends a Supabase auth cookie. The "Connect
-//   Trakt" button is a navigation (window.location.href), not a
-//   fetch() — so we cannot receive the access token via the
-//   `Authorization: Bearer` header either.
+//   Trakt" button now POSTs to this route with the access token in
+//   the request body (NOT in the URL query string), avoiding token
+//   leakage into browser history, server logs, and Referer headers.
 //
-//   Instead, the frontend appends `?accessToken=<token>` to the
-//   navigation URL. We read it from the query string and verify it
-//   via `supabase.auth.getUser()`. If the query param is absent
-//   (e.g. a direct navigation, an SSR call, or a server-to-server
-//   ping), we fall back to the `Authorization` header, then the
-//   cookie — matching the resolution order used everywhere else.
+//   The POST handler reads the token from the JSON body and verifies
+//   it via `supabase.auth.getUser()`. If the body is absent or the
+//   token is invalid, we fall back to the `Authorization` header,
+//   then the cookie — matching the resolution order used everywhere
+//   else.
+//
+//   On success, the POST handler returns `{ redirectUrl }` as JSON.
+//   The client then navigates to that URL to complete the OAuth flow.
+//
+//   A GET handler is retained for backward compatibility (e.g. direct
+//   URL navigation), but the accessToken query param is no longer
+//   read from GET requests — use POST instead.
 //
 // SECURITY:
-//   • No body parsing — this is a GET redirect.
+//   • POST is the primary entry point — the access token is sent in
+//     the request body (NOT in the URL query string), so it never
+//     appears in browser history, server logs, or Referer headers.
+//   • GET is retained for backward compatibility but no longer reads
+//     accessToken from query params — use POST instead.
+//   • No body parsing on GET — it is a redirect-only path.
 //   • The TRAKT_CLIENT_ID env var is exposed in the URL (it's a
 //     public OAuth client_id, designed to be visible in the browser).
 //   • The TRAKT_CLIENT_SECRET is NEVER exposed — it's only used in
@@ -45,7 +56,7 @@
 //   • The state cookie is httpOnly + Secure (on HTTPS) + SameSite=Lax
 //     so it survives the cross-site redirect to Trakt but can't be
 //     read by client-side JS.
-//   • The access token in the query param is consumed server-side
+//   • The access token in the POST body is consumed server-side
 //     and never appears in any log. It's used ONLY to identify the
 //     user starting the OAuth flow — it's not forwarded to Trakt.
 
@@ -124,30 +135,32 @@ function isRequestHttps(request: Request): boolean {
  *
  * Returns the user_id on success, or null if not authenticated.
  *
- * Phase 13 Chunk 2 — Token resolution order:
- *   1. `?accessToken=<token>` query param  ← browser navigation path
+ * Security fix — Token resolution order:
+ *   1. Request body `accessToken` field (POST from browser) ← primary
  *   2. `Authorization: Bearer <token>` header  ← server-to-server
  *   3. `sb-*-auth-token` cookie                ← SSR / legacy fallback
  *
- * The browser navigation path is the primary entry point: the
- * "Connect Trakt" button does `window.location.href = "/api/auth/
- * trakt?accessToken=<token>"` because navigations can't carry an
- * Authorization header.
+ * The POST body path is the primary entry point: the "Connect
+ * Trakt" button POSTs with the access token in the JSON body to
+ * avoid leaking it into the URL.
  */
 async function requireSignedInUser(
   request: Request
 ): Promise<{ userId: string; email: string } | null> {
-  // ── 1. accessToken query param (browser navigation) ──────────────
-  // Read from the URL — populated by TraktIntegrationCard's
-  // handleConnectClick(). The token is a JWT; URL-encoding is
-  // safe (it contains only base64url chars + dots, but the frontend
-  // encodes it anyway).
+  // ── 1. accessToken from POST body (browser) ─────────────────────
   let accessToken: string | null = null;
   try {
-    const url = new URL(request.url);
-    accessToken = url.searchParams.get("accessToken");
+    // Clone the request so we can read the body without consuming it
+    // for downstream handlers. Only try JSON parse for POST requests.
+    if (request.method === "POST") {
+      const cloned = request.clone();
+      const body = await cloned.json().catch(() => null);
+      if (body && typeof body.accessToken === "string" && body.accessToken.length > 0) {
+        accessToken = body.accessToken;
+      }
+    }
   } catch {
-    // Malformed URL — fall through to other resolution paths.
+    // Malformed body — fall through to other resolution paths.
     accessToken = null;
   }
 
@@ -187,35 +200,29 @@ async function requireSignedInUser(
   return { userId: data.user.id, email };
 }
 
-export async function GET(event: APIEvent): Promise<Response> {
-  if (!isServer) {
-    return new Response(JSON.stringify({ error: "Server-only endpoint" }), {
-      status: 500,
-      headers: { "Content-Type": "application/json" }
-    });
-  }
-
+/**
+ * Core OAuth init logic shared by GET and POST handlers.
+ * Verifies the user is signed in, generates CSRF state, and returns
+ * the Trakt authorize URL + state cookie.
+ */
+async function initiateOAuth(
+  request: Request
+): Promise<{ redirectUrl: string; stateCookie: string } | Response> {
   // ─── 1. Verify the user is signed in ─────────────────────────────
-  // The Trakt OAuth flow can only proceed if we have a CineLog session
-  // to associate the tokens with. If the user isn't signed in, redirect
-  // them to the home page where the auth modal will prompt them.
-  const user = await requireSignedInUser(event.request);
+  const user = await requireSignedInUser(request);
   if (!user) {
-    return new Response(null, {
-      status: 302,
-      headers: {
-        Location: "/?auth=required",
-        "Cache-Control": "no-store"
-      }
+    return new Response(JSON.stringify({ error: "Not authenticated" }), {
+      status: 401,
+      headers: { "Content-Type": "application/json" }
     });
   }
 
   // ─── 2. Generate + store the CSRF state token ────────────────────
   const state = generateStateToken();
-  const isHttps = isRequestHttps(event.request);
+  const isHttps = isRequestHttps(request);
   const stateCookie = buildStateCookie(state, isHttps);
 
-  // ─── 3. Redirect to Trakt's authorize page ───────────────────────
+  // ─── 3. Build Trakt's authorize URL ──────────────────────────────
   let authorizeUrl: string;
   try {
     authorizeUrl = buildTraktAuthorizeUrl(state);
@@ -237,23 +244,58 @@ export async function GET(event: APIEvent): Promise<Response> {
     );
   }
 
+  return { redirectUrl: authorizeUrl, stateCookie };
+}
+
+export async function GET(event: APIEvent): Promise<Response> {
+  if (!isServer) {
+    return new Response(JSON.stringify({ error: "Server-only endpoint" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  // GET path: verify session, then redirect directly (backward compat)
+  // This no longer reads accessToken from query params — use POST instead.
+  const result = await initiateOAuth(event.request);
+  if (result instanceof Response) return result;
+
   return new Response(null, {
     status: 302,
     headers: {
-      Location: authorizeUrl,
-      "Set-Cookie": stateCookie,
+      Location: result.redirectUrl,
+      "Set-Cookie": result.stateCookie,
       "Cache-Control": "no-store"
     }
   });
 }
 
-// Reject POST / other methods.
-export async function POST(): Promise<Response> {
+// POST /api/auth/trakt — primary entry point for browser clients.
+// Reads accessToken from request body, returns { redirectUrl } as JSON.
+// The client then navigates to redirectUrl to complete the OAuth flow.
+export async function POST(event: APIEvent): Promise<Response> {
+  if (!isServer) {
+    return new Response(JSON.stringify({ error: "Server-only endpoint" }), {
+      status: 500,
+      headers: { "Content-Type": "application/json" }
+    });
+  }
+
+  const result = await initiateOAuth(event.request);
+  if (result instanceof Response) return result;
+
+  // Return the redirect URL as JSON so the client can navigate to it.
+  // Set the state cookie on this response so it's stored before the
+  // client navigates to Trakt.
   return new Response(
-    JSON.stringify({ error: "Method not allowed. Use GET to start OAuth." }),
+    JSON.stringify({ redirectUrl: result.redirectUrl }),
     {
-      status: 405,
-      headers: { "Content-Type": "application/json", Allow: "GET" }
+      status: 200,
+      headers: {
+        "Content-Type": "application/json",
+        "Set-Cookie": result.stateCookie,
+        "Cache-Control": "no-store"
+      }
     }
   );
 }
