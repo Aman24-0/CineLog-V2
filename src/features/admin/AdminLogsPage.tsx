@@ -336,7 +336,7 @@ const AdminLogsPage: Component = () => {
     const tokenRegex =
       /("(?:\\.|[^"\\])*"\s*:)|("(?:\\.|[^"\\])*")|(\b-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?\b)|(\btrue\b|\bfalse\b)|(\bnull\b)|([{}[\],])/g;
 
-    return json.replace(
+    const highlighted = json.replace(
       tokenRegex,
       (_match, key, str, num, bool, nul, punct) => {
         if (key) {
@@ -357,6 +357,26 @@ const AdminLogsPage: Component = () => {
         return escapeHtml(punct);
       }
     );
+
+    // Second-pass escapeHtml on the ENTIRE output as a safety net.
+    // If the regex tokenizer ever fails to match a token (e.g. an
+    // unexpected JSON construct like a BigInt or unquoted string),
+    // that token passes through unescaped — which could allow XSS
+    // if the payload contains a crafted <script> tag. By escaping
+    // the full result, any HTML that survived the tokenizer is
+    // neutralized. This is safe because the tokenizer's output only
+    // contains our own <span> tags (which are already well-formed)
+    // and escaped text content — a second escape only affects any
+    // raw < or > that slipped through, which is exactly what we want.
+    //
+    // We must do this AFTER the tokenizer so our own <span> tags
+    // are preserved. The approach: split on our known safe tags,
+    // escape the text segments between them, then rejoin.
+    const safeTagRegex = /(<\/?span class="json-[a-z]+">)/g;
+    const parts = highlighted.split(safeTagRegex);
+    return parts
+      .map((part) => (safeTagRegex.test(part) ? part : escapeHtml(part)))
+      .join("");
   });
 
   // ─── Render ───────────────────────────────────────────────────
