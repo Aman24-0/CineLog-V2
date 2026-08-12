@@ -249,8 +249,7 @@ export default function VaultCard(props: VaultCardProps) {
                 e.currentTarget.classList.add("img-loaded");
                 e.currentTarget.previousElementSibling?.classList.add("hidden");
               }}
-              alt=""
-              aria-hidden="true"
+              alt={props.item.title || props.item.name || "Poster"}
             />
           </Show>
 

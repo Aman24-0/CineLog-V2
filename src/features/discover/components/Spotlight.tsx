@@ -195,8 +195,7 @@ const Spotlight: Component<SpotlightProps> = (props) => {
             decoding="async"
             {...({ fetchpriority: "high" } as Record<string, string>)}
             onLoad={() => setBackdropLoaded(true)}
-            alt=""
-            aria-hidden="true"
+            alt={`${title()} backdrop`}
           />
         </Show>
 

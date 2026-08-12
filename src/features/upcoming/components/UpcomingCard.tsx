@@ -193,7 +193,7 @@ const UpcomingCard: Component<UpcomingCardProps> = (props) => {
             class="upcoming-card-poster-img"
             loading="lazy"
             decoding="async"
-            alt=""
+            alt={`${title()} poster`}
             onError={() => setPosterBroken(true)}
           />
         </Show>

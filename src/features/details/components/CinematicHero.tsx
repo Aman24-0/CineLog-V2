@@ -137,8 +137,7 @@ export default function CinematicHero(props: CinematicHeroProps) {
           {...({ fetchpriority: "high" } as Record<string, string>)}
           onLoad={() => setBackdropLoaded(true)}
           onError={() => setBackdropError(true)}
-          alt=""
-          aria-hidden="true"
+          alt={props.baseItem?.title || props.baseItem?.name || props.details?.name || "Movie backdrop"}
         />
       </Show>
 

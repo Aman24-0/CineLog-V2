@@ -425,8 +425,7 @@ const MovieCard: Component<MovieCardProps> = (props) => {
             decoding="async"
             width={posterSize() === "w342" ? 342 : 500}
             height={posterSize() === "w342" ? 513 : 750}
-            alt=""
-            aria-hidden="true"
+            alt={props.movie.title || props.movie.name || "Movie poster"}
             onLoad={(e) => {
               setImgLoaded(true);
               e.currentTarget.classList.add("img-loaded");

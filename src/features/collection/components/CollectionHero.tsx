@@ -51,8 +51,7 @@ export default function CollectionHero(props: CollectionHeroProps) {
           loading="eager"
           decoding="async"
           {...({ fetchpriority: "high" } as Record<string, string>)}
-          alt=""
-          aria-hidden="true"
+          alt={props.franchiseName() ? `${props.franchiseName()} collection backdrop` : "Collection backdrop"}
         />
       </Show>
       <div class="collection-hero-overlay" aria-hidden="true" />

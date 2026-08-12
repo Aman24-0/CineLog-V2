@@ -57,8 +57,7 @@ export default function SearchResultRow(props: SearchResultRowProps) {
               class="search-result-poster-img"
               loading="lazy"
               decoding="async"
-              alt=""
-              aria-hidden="true"
+              alt={titleOf(props.title) || "Poster"}
             />
           </Show>
         </div>

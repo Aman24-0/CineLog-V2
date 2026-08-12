@@ -30,7 +30,7 @@ const defaultProps: Required<
 > & { imageAlt?: string } = {
   loading: false,
   selected: false,
-  imageAlt: ""
+  imageAlt: undefined
 };
 
 // ─── Component ─────────────────────────────────────────────────
@@ -84,7 +84,7 @@ const GlassPosterCard: Component<GlassPosterCardProps> = (rawProps) => {
         <Show when={!local.loading && local.imageUrl}>
           <img
             src={local.imageUrl}
-            alt={local.imageAlt || ""}
+            alt={local.imageAlt || local.title || "Poster"}
             class="absolute inset-0 h-full w-full object-cover transition-transform duration-base ease-smooth group-hover:scale-[1.04]"
             loading="lazy"
             decoding="async"

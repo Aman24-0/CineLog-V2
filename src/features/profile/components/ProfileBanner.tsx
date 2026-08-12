@@ -146,8 +146,7 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
           class={`profile-banner-img${imgLoaded() ? " img-loaded" : ""}`}
           loading="eager"
           decoding="async"
-          alt=""
-          aria-hidden="true"
+          alt="Profile banner"
           // Phase 18 deep-fix v2: crossorigin="anonymous" so the
           // browser's preload scanner matches the actual <img> fetch's
           // credentials mode. Without this, the browser logs a

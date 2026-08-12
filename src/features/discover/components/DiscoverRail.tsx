@@ -167,8 +167,7 @@ const DiscoverRail: Component<DiscoverRailProps> = (props) => {
                       decoding="async"
                       width={342}
                       height={513}
-                      alt=""
-                      aria-hidden="true"
+                      alt={title.title || title.name || "Poster"}
                       onError={(e) => {
                         e.currentTarget.style.display = "none";
                       }}
