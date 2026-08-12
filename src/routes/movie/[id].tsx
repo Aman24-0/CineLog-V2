@@ -288,6 +288,35 @@ export default function MovieDeepLinkRoute() {
         <Meta name="twitter:image:alt" content={ogImageAlt()} />
       </Show>
 
+      {/* JSON-LD structured data — schema.org Movie type.
+          Helps Google show rich results (rating stars, release date,
+          genre) in search. Rendered server-side because deferStream
+          ensures meta() is resolved before HTML is sent. */}
+      <Show when={meta()}>
+        <script
+          type="application/ld+json"
+          innerHTML={JSON.stringify({
+            "@context": "https://schema.org",
+            "@type": "Movie",
+            name: meta()!.title ?? meta()!.name,
+            description: meta()!.overview ?? undefined,
+            image: ogImage() || undefined,
+            datePublished: meta()!.release_date ?? undefined,
+            genre: meta()!.genres?.length ? meta()!.genres : undefined,
+            ...(meta()!.vote_average != null && meta()!.vote_count > 0
+              ? {
+                  aggregateRating: {
+                    "@type": "AggregateRating",
+                    ratingValue: meta()!.vote_average,
+                    bestRating: 10,
+                    ratingCount: meta()!.vote_count
+                  }
+                }
+              : {})
+          })}
+        />
+      </Show>
+
       {/* The deep-link route uses a <div role="region"> (NOT <main>) so
           there is exactly ONE <main> landmark per page — provided by
           the AppShell root layout. The region shows a loading state
