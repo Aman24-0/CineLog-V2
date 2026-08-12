@@ -39,6 +39,50 @@
         { "key": "Content-Type", "value": "text/plain" },
         { "key": "Cache-Control", "value": "public, max-age=3600" }
       ]
+    },
+    {
+      "source": "/api/discover/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" },
+        { "key": "Vary", "value": "Accept-Encoding, Cookie" }
+      ]
+    },
+    {
+      "source": "/api/spotlight",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" },
+        { "key": "Vary", "value": "Accept-Encoding, Cookie" }
+      ]
+    },
+    {
+      "source": "/api/taste",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=60, stale-while-revalidate=300" },
+        { "key": "Vary", "value": "Accept-Encoding, Cookie" }
+      ]
+    },
+    {
+      "source": "/api/media/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=86400, stale-while-revalidate=604800" },
+        { "key": "Vary", "value": "Accept-Encoding" }
+      ]
+    },
+    {
+      "source": "/api/tmdb-cache/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=3600, stale-while-revalidate=86400" },
+        { "key": "Vary", "value": "Accept-Encoding, Cookie" }
+      ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        { "key": "Cache-Control", "value": "public, s-maxage=1, stale-while-revalidate=59" }
+      ],
+      "has": [
+        { "type": "header", "key": "Accept", "value": "text/html" }
+      ]
     }
   ]
 }
