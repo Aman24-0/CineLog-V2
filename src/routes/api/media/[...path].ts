@@ -31,6 +31,70 @@
  * for smooth migration from the old client-side model.
  */
 
+// ─── Helper: origin validation for CORS ───────────────────────────────
+
+/**
+ * Determine the allowed CORS origin for a request.
+ *
+ * Returns the request's Origin header if it matches the app's domain,
+ * otherwise returns null (which means no Access-Control-Allow-Origin header
+ * should be set, and the browser will block the cross-origin request).
+ *
+ * This replaces the previous `Access-Control-Allow-Origin: *` wildcard,
+ * which allowed any third-party site to call these API routes.
+ */
+function getAllowedOrigin(request: Request): string | null {
+  const origin = request.headers.get("origin");
+  if (!origin) return null;
+
+  // Allow the app's own domain(s). VITE_APP_BASE_URL is the primary
+  // domain (e.g. https://cinelogv2.vercel.app). We also allow
+  // localhost for local development.
+  let appBaseUrl: string;
+  try {
+    appBaseUrl =
+      (import.meta as ImportMeta & { env?: Record<string, string> }).env
+        ?.VITE_APP_BASE_URL ?? "https://cinelogv2.vercel.app";
+  } catch {
+    appBaseUrl = "https://cinelogv2.vercel.app";
+  }
+  appBaseUrl = appBaseUrl.replace(/\/+$/, "");
+
+  const allowedOrigins = [appBaseUrl];
+  // Allow Vercel preview deployments and local dev
+  if (appBaseUrl.includes("vercel.app")) {
+    // Allow *.vercel.app for preview deploys
+    try {
+      const url = new URL(origin);
+      if (url.hostname.endsWith(".vercel.app")) return origin;
+    } catch { /* ignore */ }
+  }
+  if (
+    appBaseUrl.includes("localhost") ||
+    origin.startsWith("http://localhost:") ||
+    origin === "http://localhost:3000"
+  ) {
+    allowedOrigins.push("http://localhost:3000");
+    if (origin.startsWith("http://localhost:")) return origin;
+  }
+
+  if (allowedOrigins.includes(origin)) return origin;
+  return null;
+}
+
+// ─── Helper: build CORS headers for a request ────────────────────────
+
+function buildCorsHeaders(request: Request): Record<string, string> {
+  const origin = getAllowedOrigin(request);
+  if (!origin) return {};
+  return {
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "GET, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    Vary: "Origin"
+  };
+}
+
 // ─── Types ────────────────────────────────────────────────────────────
 // SolidStart/Nitro passes a H3Event-shaped object to route handlers.
 // We define a minimal structural type for type safety without importing h3.
@@ -266,10 +330,8 @@ export async function GET(event: APIEvent): Promise<Response> {
     // Build response headers: preserve upstream Content-Type + add our cache headers
     const headers: Record<string, string> = {
       "Content-Type": contentType,
-      // Add CORS headers so the browser can call /api/media/ directly
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type"
+      // Add CORS headers restricted to the app's own domain
+      ...buildCorsHeaders(event.request)
     };
 
     // Add cache headers based on response status
@@ -298,13 +360,12 @@ export async function GET(event: APIEvent): Promise<Response> {
 
 // ─── OPTIONS handler (CORS preflight) ─────────────────────────────────
 
-export async function OPTIONS(): Promise<Response> {
+export async function OPTIONS(event: APIEvent): Promise<Response> {
+  const corsHeaders = buildCorsHeaders(event.request);
   return new Response(null, {
     status: 204,
     headers: {
-      "Access-Control-Allow-Origin": "*",
-      "Access-Control-Allow-Methods": "GET, OPTIONS",
-      "Access-Control-Allow-Headers": "Content-Type",
+      ...corsHeaders,
       "Access-Control-Max-Age": "86400" // 24h — browsers cache preflight results
     }
   });
