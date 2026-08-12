@@ -106,27 +106,3 @@ export function useCollectionModal() {
     closeCollection
   };
 }
-
-/**
- * Test-only reset hook (Phase 8 Chunk 1).
- *
- * `useCollectionModal` holds module-level state (`collectionSelectedItem`
- * signal AND the private `collectionHistoryEntryOurs` flag). Vitest reuses
- * the module instance across tests, so a test that opens the Collection
- * modal and doesn't close it leaves `collectionHistoryEntryOurs = true`
- * for the next test — meaning a subsequent `closeCollection()` call would
- * erroneously call `window.history.back()`.
- *
- * This function clears BOTH the signal and the history flag, and removes
- * the popstate listener registered by `pushHistoryForCollectionModal` so
- * a stale listener doesn't fire during the next test.
- *
- * Must NOT be called from production code.
- */
-export function __resetForTest(): void {
-  if (typeof window !== "undefined") {
-    window.removeEventListener("popstate", handleCollectionPopState);
-  }
-  collectionHistoryEntryOurs = false;
-  setCollectionSelectedItem(null);
-}

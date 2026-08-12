@@ -64,20 +64,6 @@ let listenerCount = 0;
 let initialSessionChecked = false;
 
 /**
- * Reset module-level auth state. Used in tests to ensure isolation
- * between test runs. NOT for production use.
- * @internal
- */
-export function _resetAuthStateForTesting(): void {
-  initialSessionChecked = false;
-  listenerCount = 0;
-  if (unsub) {
-    unsub();
-    unsub = null;
-  }
-}
-
-/**
  * Map a Supabase `Session.user` to the application's `User` shape.
  *
  * The app's `User` type has `{ uid, displayName, email, photoURL }` —
@@ -509,17 +495,6 @@ async function logLoginForUser(uid: string): Promise<void> {
  */
 export function getCurrentUid(): string | null {
   return user()?.uid ?? null;
-}
-
-/**
- * getCurrentUser — synchronous accessor for the full current user
- * object. Same source as {@link getCurrentUid} but returns the
- * complete `{ uid, displayName, email, photoURL }` shape.
- *
- * Returns `null` when no user is signed in.
- */
-export function getCurrentUser(): User | null {
-  return user();
 }
 
 /**

@@ -137,21 +137,3 @@ export function useToast() {
   };
 }
 
-/**
- * Test-only reset hook (Phase 8 Chunk 1).
- *
- * `useToast` holds module-level state (`toasts` signal, `toastIdSeq` counter,
- * `lastToastSignature` / `lastToastAt` dedup window) that persists across
- * tests because Vitest reuses the same module instance within a single
- * worker. Without a reset, a toast shown by one test leaks into the next
- * test's `useToast().toasts()` read — flaky failures.
- *
- * `test/resetModuleState.ts` calls this in `beforeEach`. It must NOT be
- * called from production code.
- */
-export function __resetForTest(): void {
-  setToasts([]);
-  toastIdSeq = 0;
-  lastToastSignature = null;
-  lastToastAt = 0;
-}
