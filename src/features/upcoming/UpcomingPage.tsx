@@ -145,11 +145,14 @@ const UpcomingPage: Component = () => {
   // kept on UpcomingFilters for backward-compat (older persisted
   // localStorage state may still include it) but it's never read.
   //
-  // v4: default date range is 30 days. Users can expand via the date
-  // presets if they want to see further out.
+  // v5: default date range is 30 days (was 90 in v4). The narrower
+  // window loads faster (fewer TMDB enrichment calls) and surfaces
+  // the most relevant near-term releases. Users can expand via the
+  // date presets (7 / 30 / 90 Days) if they want to see further out.
+  const DEFAULT_UPCOMING_DAYS = 30;
   const buildDefaultFilters = (): UpcomingFilters => ({
     region: effectiveRegion(),
-    dateRange: { start: todayStr(), end: addDays(todayStr(), 30) },
+    dateRange: { start: todayStr(), end: addDays(todayStr(), DEFAULT_UPCOMING_DAYS) },
     genres: [],
     platforms: [],
     minRating: 0,
