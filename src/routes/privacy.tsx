@@ -1,11 +1,12 @@
 // src/routes/privacy.tsx
-import { Title } from "@solidjs/meta";
+import { Title, Meta } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 
 export default function PrivacyPage() {
   return (
     <div class="legal-page">
       <Title>Privacy Policy — CineLog</Title>
+      <Meta name="description" content="CineLog privacy policy - how we handle your data." />
       <div class="legal-page__inner">
         <A href="/" class="legal-page__back">
           <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>

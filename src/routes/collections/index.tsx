@@ -1,6 +1,6 @@
 // src/routes/collections/index.tsx
 import { lazy, ErrorBoundary, Suspense } from "solid-js";
-import { Title, Link } from "@solidjs/meta";
+import { Title, Link, Meta } from "@solidjs/meta";
 import { GlassSkeleton } from "~/shared/ui/glass";
 const CollectionsPage = lazy(
   () => import("~/features/collections/CollectionsPage")
@@ -21,6 +21,7 @@ export default function CollectionsRoute() {
     <>
       <Title>CineLog — Collections</Title>
       <Link rel="canonical" href="https://cinelog.app/collections" />
+      <Meta name="description" content="Create and manage curated movie and TV show collections on CineLog." />
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>

@@ -1,11 +1,12 @@
 // src/routes/terms.tsx
-import { Title } from "@solidjs/meta";
+import { Title, Meta } from "@solidjs/meta";
 import { A } from "@solidjs/router";
 
 export default function TermsPage() {
   return (
     <div class="legal-page">
       <Title>Terms of Service — CineLog</Title>
+      <Meta name="description" content="CineLog terms of service." />
       <div class="legal-page__inner">
         <A href="/" class="legal-page__back">
           <span class="material-symbols-outlined" aria-hidden="true">arrow_back</span>

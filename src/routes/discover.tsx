@@ -1,6 +1,6 @@
 // src/routes/discover.tsx
 import { lazy, Suspense, ErrorBoundary } from "solid-js";
-import { Title, Link } from "@solidjs/meta";
+import { Title, Link, Meta } from "@solidjs/meta";
 import { GlassSkeleton } from "~/shared/ui/glass";
 
 const DiscoverPage = lazy(() => import("~/features/discover/DiscoverPage"));
@@ -23,6 +23,7 @@ export default function DiscoverRoute() {
     <>
       <Title>CineLog — Discover</Title>
       <Link rel="canonical" href="https://cinelog.app/discover" />
+      <Meta name="description" content="Discover movies and TV shows tailored to your taste with CineLog's AI-powered recommendations." />
       <ErrorBoundary
         fallback={(error, reset) => (
           <div class="sec-page" style={{ padding: "var(--sp-12) var(--sp-5)" }}>

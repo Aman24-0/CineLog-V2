@@ -25,7 +25,7 @@
 
 import { lazy, Suspense, Show } from "solid-js";
 import { Navigate } from "@solidjs/router";
-import { Title, Link } from "@solidjs/meta";
+import { Title, Link, Meta } from "@solidjs/meta";
 import { useAuth } from "~/shared/hooks/useAuth";
 import { GlassSkeleton } from "~/shared/ui/glass";
 
@@ -56,6 +56,7 @@ export default function HomeRoute() {
     <>
       <Title>CineLog — Your Cinematic Universe, Perfected</Title>
       <Link rel="canonical" href="https://cinelog.app/" />
+      <Meta name="description" content="CineLog — track your movies and TV shows, discover new favorites, and build curated collections. A modern watchlist app for cinephiles." />
       <Suspense fallback={<LandingRouteFallback />}>
         <Show when={isSignedIn()} fallback={<LandingPage />}>
           <Navigate href="/discover" />

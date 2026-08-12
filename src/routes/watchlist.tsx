@@ -1,6 +1,6 @@
 // src/routes/watchlist.tsx
 import { lazy, Suspense } from "solid-js";
-import { Title, Link } from "@solidjs/meta";
+import { Title, Link, Meta } from "@solidjs/meta";
 import { GlassSkeleton } from "~/shared/ui/glass";
 
 const WatchlistView = lazy(() => import("~/features/watchlist/WatchlistView"));
@@ -23,6 +23,7 @@ export default function WatchlistRoute() {
     <>
       <Title>CineLog — Watchlist</Title>
       <Link rel="canonical" href="https://cinelog.app/watchlist" />
+      <Meta name="description" content="Track and organize your movie and TV show watchlist with CineLog." />
       <Suspense fallback={<WatchlistRouteFallback />}>
         <WatchlistView />
       </Suspense>
