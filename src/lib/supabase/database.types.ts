@@ -592,16 +592,21 @@ export type Database = {
         };
         Relationships: [];
       };
-      // ── Audio-language cache (added by 20260816_audio_languages_cache.sql) ──
+      // ── Audio-language cache ──
+      // Added by 20260816_audio_languages_cache.sql, extended by
+      // 20260817_audio_languages_cache_add_region.sql.
       // Stores per-title dubbed-audio language information. Composite key
-      // (media_type, tmdb_id). `data` is the full AudioLanguageResult JSON.
-      // Reads are world-readable (RLS policy); writes go through the
-      // service role.
+      // (media_type, tmdb_id, region) — region is included because
+      // JustWatch offer.audioLanguages is region-specific (a cache entry
+      // for "IN" must never be returned for a "DE" request). `data` is
+      // the full AudioLanguageResult JSON. Reads are world-readable
+      // (RLS policy); writes go through the service role.
       audio_languages_cache: {
         Row: {
           id: string;
           media_type: string; // "movie" | "tv" (text check constraint)
           tmdb_id: number;
+          region: string; // ISO 3166-1 alpha-2 (e.g. "IN", "US", "DE")
           data: Json;
           expires_at: string;
           fetched_at: string;
@@ -612,6 +617,7 @@ export type Database = {
           id?: string;
           media_type: string;
           tmdb_id: number;
+          region?: string; // defaults to 'US' at the DB level
           data: Json;
           expires_at: string;
           fetched_at?: string;
@@ -622,6 +628,7 @@ export type Database = {
           id?: string;
           media_type?: string;
           tmdb_id?: number;
+          region?: string;
           data?: Json;
           expires_at?: string;
           fetched_at?: string;

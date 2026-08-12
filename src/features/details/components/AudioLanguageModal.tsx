@@ -147,16 +147,12 @@ function confidenceMeta(c: DubbedLanguageApi["confidence"]): {
   }
 }
 
-/** Region code → flag emoji (cosmetic only — uses regional indicator symbols). */
-function regionFlag(code: string): string {
-  if (!code || code.length !== 2) return "";
-  const A = 0x1f1e6;
-  const base = "A".charCodeAt(0);
-  return String.fromCodePoint(
-    A + (code.charCodeAt(0) - base),
-    A + (code.charCodeAt(1) - base)
-  );
-}
+// NOTE: The previous flag-emoji + region display has been removed per
+// spec §5 / §13 ("FINAL DATA & REGION CORRECTION"). The Language modal
+// must NOT show a country/region label — the region is an internal
+// detail (used by the cache + JustWatch source) and is retained in the
+// API response only for debugging. Showing it in the UI misled users
+// into thinking the language list was limited to one country.
 
 // ─── Component ────────────────────────────────────────────────────────
 
@@ -171,8 +167,12 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
     if (!id) return null;
     // Force type=movie for non-tv to keep TS happy — the route also
     // defaults to movie.
+    //
+    // We do NOT send `region` in the query string. The API endpoint
+    // reads the signed-in user's profile.country server-side (spec §7:
+    // use profile country dynamically, do not hard-code "IN").
     const type = props.type === "tv" ? "tv" : "movie";
-    const url = `/api/audio-languages/${encodeURIComponent(String(id))}?type=${type}&region=IN&_r=${retryTick()}`;
+    const url = `/api/audio-languages/${encodeURIComponent(String(id))}?type=${type}&_r=${retryTick()}`;
     try {
       const res = await fetch(url, {
         headers: { Accept: "application/json" }
@@ -187,7 +187,7 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
           dubbedLanguages: [],
           status: "error",
           checkedAt: new Date().toISOString(),
-          region: "IN",
+          region: "",
           noData: false,
           error: true,
           message: `HTTP ${res.status}`,
@@ -205,7 +205,7 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
         dubbedLanguages: [],
         status: "error",
         checkedAt: new Date().toISOString(),
-        region: "IN",
+        region: "",
         noData: false,
         error: true,
         message: err instanceof Error ? err.message : String(err),
@@ -333,11 +333,14 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
         <section class="audio-lang-section audio-lang-section-dubbed">
           <header class="audio-lang-section-header">
             <h3 class="audio-lang-section-title">Dubbed Audio</h3>
-            <Show when={data()}>
+            {/* Per spec §5 / §13: NO country/region label here. The
+                region is an internal detail and must not be rendered.
+                We optionally show the number of genuine audio sources
+                (spec §9) — only sources that actually contributed
+                audio-track data are counted. */}
+            <Show when={data() && !data()!.error && !data()!.noData && data()!.sourceCount > 0}>
               <span class="audio-lang-section-subtitle">
-                {data()!.region ? `${regionFlag(data()!.region)} ${data()!.region}` : ""}
-                {" · "}
-                {data()!.sourceCount} source{data()!.sourceCount === 1 ? "" : "s"}
+                {data()!.sourceCount} verified source{data()!.sourceCount === 1 ? "" : "s"}
               </span>
             </Show>
           </header>
@@ -400,9 +403,8 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
                 </p>
                 <p class="audio-lang-state-hint">
                   None of the available sources reported audio-track
-                  information for this title in the {data()?.region ?? "IN"}{" "}
-                  region. This does not mean no dubs exist — just that we
-                  can't confirm any.
+                  information for this title. This does not mean no dubs
+                  exist — just that we can't confirm any.
                 </p>
               </div>
             </div>
@@ -505,15 +507,15 @@ export default function AudioLanguageModal(props: AudioLanguageModalProps) {
         </section>
 
         {/* ─── Footer ───────────────────────────────────────────── */}
+        {/* Per spec §5 / §13: NO region label in the footer. The
+            region is internal — the footer only shows when the data
+            was last checked, plus a refreshing indicator when stale. */}
         <Show when={data() && !data()!.error}>
           <footer class="audio-lang-footer">
             <span class="audio-lang-footer-text">
               {data()?.fromCache ? "Cached" : "Checked"}{" "}
               {formatRelativeTime(data()!.checkedAt)}
               {data()?.stale ? " · refreshing…" : ""}
-            </span>
-            <span class="audio-lang-footer-region">
-              {regionFlag(data()?.region ?? "IN")} {data()?.region ?? "IN"}
             </span>
           </footer>
         </Show>
