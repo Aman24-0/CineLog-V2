@@ -3611,7 +3611,7 @@
   right: 0;
   top: calc(100% + 8px);
   min-width: 180px;
-  z-index: 50;
+  z-index: var(--z-overlay-high);
   padding: 6px;
   border-radius: var(--radius-md, 0.75rem);
   background: var(--glass-bg-strong, rgba(20, 20, 28, 0.92));
@@ -3803,7 +3803,7 @@
   left: 0;
   top: calc(100% + 6px);
   min-width: 180px;
-  z-index: 50;
+  z-index: var(--z-overlay-high);
   padding: 6px;
   border-radius: var(--radius-md, 0.75rem);
   background: var(--glass-bg-strong, rgba(20, 20, 28, 0.92));
@@ -4188,7 +4188,7 @@
 .add-titles-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999990;
+  z-index: var(--z-max);
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -4503,7 +4503,7 @@
 .reorder-modal-overlay {
   position: fixed;
   inset: 0;
-  z-index: 999991;
+  z-index: var(--z-max);
   display: flex;
   align-items: flex-end;
   justify-content: center;
