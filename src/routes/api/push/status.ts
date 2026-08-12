@@ -50,6 +50,8 @@
 import { isServer } from "solid-js/web";
 import webPush from "web-push";
 import { createAdminClient } from "~/lib/supabase/admin/adminClient";
+import { createClient } from "@supabase/supabase-js";
+import { getSupabaseAccessTokenFromRequest } from "~/lib/supabase/admin/sessionCookie";
 import { checkAndIncrement } from "~/lib/server/rateLimiter";
 
 interface APIEvent {
@@ -67,6 +69,33 @@ interface APIEvent {
 //
 // Fails OPEN on DB error — a Supabase outage shouldn't block the
 // diagnostic endpoint entirely.
+
+// ─── Authentication ──────────────────────────────────────────────────
+//
+// This endpoint exposes VAPID key details (partial previews) and
+// internal configuration state. While the public key is already
+// available via the subscribe() flow, the diagnostic details
+// (private key presence/length, app_config state, subscription counts)
+// should only be visible to authenticated users.
+
+async function requireSignedInUser(
+  request: Request
+): Promise<string | null> {
+  const accessToken = getSupabaseAccessTokenFromRequest(request);
+  if (!accessToken) return null;
+
+  const supabaseUrl = process.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = process.env.VITE_SUPABASE_ANON_KEY;
+  if (!supabaseUrl || !supabaseAnonKey) return null;
+
+  const verifyClient = createClient(supabaseUrl, supabaseAnonKey, {
+    auth: { autoRefreshToken: false, persistSession: false }
+  });
+
+  const { data, error } = await verifyClient.auth.getUser(accessToken);
+  if (error || !data?.user) return null;
+  return data.user.id;
+}
 
 // ─── Helpers ──────────────────────────────────────────────────────────
 
@@ -208,6 +237,14 @@ function checkVapidConfig(): {
 export async function GET(event: APIEvent): Promise<Response> {
   if (!isServer) {
     return jsonResponse({ error: "Server-only endpoint" }, 500);
+  }
+
+  // ─── Authentication check ─────────────────────────────────────────
+  // Require a valid session — this endpoint leaks VAPID key details
+  // that should not be visible to anonymous callers.
+  const userId = await requireSignedInUser(event.request);
+  if (!userId) {
+    return jsonResponse({ error: "Not authenticated" }, 401);
   }
 
   // ─── Rate limit ─────────────────────────────────────────────────────
