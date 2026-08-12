@@ -47,7 +47,6 @@ export { hideSpoilers, setHideSpoilers } from "./hideSpoilers";
 export {
   dateFormat,
   setDateFormat,
-  formatDateUser,
   type DateFormat
 } from "./dateFormat";
 
@@ -78,7 +77,6 @@ export {
   fallbackLanguage,
   setFallbackLanguage,
   effectiveTMDBLanguage,
-  pickOverview,
   type LanguageCode
 } from "./language";
 
@@ -138,7 +136,6 @@ export {
   calPrefs,
   setCalPrefs,
   updateCalPref,
-  formatTimeUser,
   type CalendarPrefs,
   type FirstDayOfWeek,
   type TimeFormat,
