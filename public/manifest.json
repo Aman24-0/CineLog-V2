@@ -5,8 +5,9 @@
   "start_url": "/",
   "display": "standalone",
   "orientation": "portrait",
-  "background_color": "#0f0f0f",
+  "background_color": "#0a0a0a",
   "theme_color": "#0a0a0a",
+  "categories": ["entertainment", "lifestyle"],
   "icons": [
     {
       "src": "/icon-192.png",
