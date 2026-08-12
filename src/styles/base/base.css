@@ -37,6 +37,10 @@
     color: var(--text);
     margin: 0;
     font-family: "Outfit", sans-serif;
+    /* a11y: removing default tap highlight is safe because all interactive
+       elements provide a visible :focus-visible ring (see components.css
+       and utility focus-ring class). If focus indicators are ever removed,
+       this must be reverted to restore the platform's default highlight. */
     -webkit-tap-highlight-color: transparent;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;

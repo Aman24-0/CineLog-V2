@@ -818,6 +818,7 @@ export default function DiscoverPage() {
                     you love.
                   </p>
                   <button
+                    type="button"
                     class="btn-primary focus-ring"
                     onClick={handleLogin}
                     style={{ margin: "0 auto", display: "flex" }}
