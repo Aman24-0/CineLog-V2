@@ -60,14 +60,12 @@ export function initSentry(): void {
   if (initialized) return;
 
   // Skip entirely in Vitest — we never want network calls during tests.
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  if ((import.meta as any).env?.VITEST) {
+  if (import.meta.env.VITEST) {
     initialized = true;
     return;
   }
 
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const dsn = (import.meta as any).env?.VITE_SENTRY_DSN as string | undefined;
+  const dsn = import.meta.env.VITE_SENTRY_DSN;
   if (!dsn) {
     // No DSN configured — leave Sentry uninitialized. captureException
     // will fall back to console.error.
@@ -77,10 +75,8 @@ export function initSentry(): void {
 
   Sentry.init({
     dsn,
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    environment: (import.meta as any).env?.MODE ?? "production",
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    release: (import.meta as any).env?.VITE_SENTRY_RELEASE,
+    environment: import.meta.env.MODE ?? "production",
+    release: import.meta.env.VITE_SENTRY_RELEASE,
     // 100% of errors — CineLog is a solo project, we want them all.
     sampleRate: 1.0,
     // 10% of traces — nice-to-have, stays within free-tier quota.
