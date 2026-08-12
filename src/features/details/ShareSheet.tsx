@@ -25,7 +25,8 @@ import { Portal } from "solid-js/web";
 // Phase 7 Task 6: html2canvas (~300KB) has been REMOVED from the
 // client bundle. Share-card PNG generation now happens server-side
 // via the /api/share-card route, which uses headless Chromium.
-import QRCode from "qrcode";
+// qrcode (~42KB) is lazily imported on user interaction to keep the
+// initial bundle small. See handleGenerateQR below.
 import { GlassSheet } from "~/shared/ui/glass/GlassSheet";
 import { useToast } from "~/shared/hooks/useToast";
 import {
@@ -382,6 +383,7 @@ const ShareSheet: Component<ShareSheetProps> = (props) => {
     if (isGeneratingQR()) return;
     setIsGeneratingQR(true);
     try {
+      const { default: QRCode } = await import("qrcode");
       const url = await QRCode.toDataURL(shareUrl(), {
         width: 256,
         margin: 2,

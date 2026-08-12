@@ -42,7 +42,8 @@ import {
   For,
   type Component
 } from "solid-js";
-import QRCode from "qrcode";
+// qrcode (~42KB) is lazily imported on user interaction to keep the
+// initial bundle small. See startEnrollment below.
 import { getClient } from "~/lib/supabase/client";
 import { useToast } from "~/shared/hooks/useToast";
 import type { MfaFactorInfo } from "~/lib/supabase/repositories/sessions";
@@ -119,6 +120,7 @@ const TwoFactorSetup: Component = () => {
         // built-in `qr_code` SVG string.
         let qrDataUrl = "";
         try {
+          const { default: QRCode } = await import("qrcode");
           qrDataUrl = await QRCode.toDataURL(data.totp.uri, {
             margin: 1,
             width: 200,
