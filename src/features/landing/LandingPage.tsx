@@ -43,9 +43,8 @@ import {
   DEMO_FRANCHISES,
   DEMO_TIMELINE_ENTRIES,
   DEMO_SPOTLIGHT,
-  DEMO_STATS,
 } from "./data/demoContent";
-import type { DemoVaultItem, DemoTimelineEntry, WatchStatus } from "./data/demoContent";
+import type { DemoVaultItem, WatchStatus } from "./data/demoContent";
 
 // ═══════════════════════════════════════════════════════════════════════════
 // TYPES — Dynamic Social Links
@@ -687,7 +686,7 @@ const Collections: Component = () => {
 
           <div class="space-y-10">
             <For each={MCU_FRANCHISE.phases}>
-              {(phase, i) => (
+              {(phase) => (
                 <div class="relative pl-16">
                   {/* Glowing node */}
                   <div

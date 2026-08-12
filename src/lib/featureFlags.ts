@@ -105,11 +105,3 @@ export function useFeatureFlags(): FeatureFlagsHook {
     }
   };
 }
-
-/**
- * Server-side accessor for SSR rendering.
- * Returns the default flag values (since we can't fetch on the server).
- */
-export function getServerFeatureFlags(): Record<string, boolean> {
-  return { ...DEFAULT_FEATURE_FLAGS };
-}

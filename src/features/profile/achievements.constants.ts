@@ -228,6 +228,3 @@ export const ACHIEVEMENTS: AchievementDef[] = [
   }
 ];
 
-/** Total achievement count — convenience export so consumers don't
- *  reach into the array. */
-export const ACHIEVEMENTS_TOTAL = ACHIEVEMENTS.length;
