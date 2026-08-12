@@ -518,11 +518,13 @@ export async function POST(event: APIEvent): Promise<Response> {
     trakt_username: integration.username
   };
 
-  console.log(
-    `[trakt/execute] User ${userId} synced Trakt: imported=${result.imported}, ` +
-      `updated=${result.updated}, skipped=${result.skipped}, ` +
-      `duration=${response.duration_ms}ms`
-  );
+  if (process.env.NODE_ENV !== "production") {
+    console.log(
+      `[trakt/execute] User ${userId} synced Trakt: imported=${result.imported}, ` +
+        `updated=${result.updated}, skipped=${result.skipped}, ` +
+        `duration=${response.duration_ms}ms`
+    );
+  }
 
   return jsonResponse(response);
 }

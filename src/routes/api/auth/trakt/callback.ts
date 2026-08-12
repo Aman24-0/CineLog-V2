@@ -304,9 +304,11 @@ export async function GET(event: APIEvent): Promise<Response> {
       );
     }
 
-    console.log(
-      `[trakt/oauth-callback] Successfully connected Trakt for user ${user.userId} (trakt_username=${traktProfile.username}).`
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `[trakt/oauth-callback] Successfully connected Trakt for user ${user.userId} (trakt_username=${traktProfile.username}).`
+      );
+    }
 
     return redirectWithClearedCookie(SUCCESS_REDIRECT);
   } catch (err) {

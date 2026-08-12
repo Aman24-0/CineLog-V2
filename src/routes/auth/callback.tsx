@@ -202,14 +202,16 @@ const AuthCallback: Component = () => {
     // both timing windows.
     const { data: authListener } = supabase.auth.onAuthStateChange(
       (event: AuthChangeEvent, session: Session | null) => {
-        console.log(
-          "[auth/callback] onAuthStateChange — event:",
-          event,
-          "| session present:",
-          !!session,
-          "| user present:",
-          !!session?.user
-        );
+        if (import.meta.env?.MODE === "development") {
+          console.log(
+            "[auth/callback] onAuthStateChange — event:",
+            event,
+            "| session present:",
+            !!session,
+            "| user present:",
+            !!session?.user
+          );
+        }
 
         if (
           (event === "SIGNED_IN" || event === "INITIAL_SESSION") &&
@@ -220,11 +222,13 @@ const AuthCallback: Component = () => {
             clearTimeout(timeoutId);
             timeoutId = undefined;
           }
-          console.info(
-            "[auth/callback] Session detected via",
-            event,
-            "— redirecting to /discover"
-          );
+          if (import.meta.env?.MODE === "development") {
+            console.info(
+              "[auth/callback] Session detected via",
+              event,
+              "— redirecting to /discover"
+            );
+          }
           // Use `replace: true` so the callback URL isn't in the
           // browser history — pressing Back doesn't re-trigger the
           // exchange.

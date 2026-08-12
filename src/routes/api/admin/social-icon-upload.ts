@@ -58,7 +58,9 @@ async function ensureBucketExists(supabase: ReturnType<typeof createAdminClient>
     }
 
     // Bucket doesn't exist — create it
-    console.log(`[social-icon-upload] Bucket '${BUCKET_NAME}' not found. Creating it...`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[social-icon-upload] Bucket '${BUCKET_NAME}' not found. Creating it...`);
+    }
     const { error: createError } = await supabase.storage.createBucket(BUCKET_NAME, {
       public: true,
       fileSizeLimit: MAX_FILE_SIZE,
@@ -70,7 +72,9 @@ async function ensureBucketExists(supabase: ReturnType<typeof createAdminClient>
       return false;
     }
 
-    console.log(`[social-icon-upload] Bucket '${BUCKET_NAME}' created successfully.`);
+    if (process.env.NODE_ENV !== "production") {
+      console.log(`[social-icon-upload] Bucket '${BUCKET_NAME}' created successfully.`);
+    }
     bucketEnsured = true;
     return true;
   } catch (err) {

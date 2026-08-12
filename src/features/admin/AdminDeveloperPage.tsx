@@ -119,7 +119,7 @@ const AdminDeveloperPage: Component = () => {
 
   function copyToClipboard(text: string) {
     navigator.clipboard?.writeText(text).then(
-      () => console.log("[dev] copied to clipboard"),
+      () => { /* success — no production log needed */ },
       (err) => console.warn("[dev] clipboard failed:", err)
     );
   }

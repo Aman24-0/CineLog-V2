@@ -420,7 +420,7 @@ export async function createServerClientFromRequest(
 
   const adapter: ServerCookieAdapter = {
     getAll: () => {
-      if (debug) {
+      if (debug && process.env.NODE_ENV !== "production") {
         console.log(
           "[supabase-server-cookies] getAll() →",
           incomingCookies.length,
@@ -458,7 +458,7 @@ export async function createServerClientFromRequest(
           mergedOptions as any
         );
         setCookieHeaders.push(serialized);
-        if (debug) {
+        if (debug && process.env.NODE_ENV !== "production") {
           console.log(
             "[supabase-server-cookies] setAll() → queued",
             name,

@@ -157,10 +157,12 @@ export async function POST(event: APIEvent) {
 
   if (!apiKey) {
     // Mock mode — log to console and return success.
-    console.log(
-      `[admin/communication/email/test] MOCK MODE — RESEND_API_KEY not set.\n` +
-        `To: ${to}\nSubject: ${subject}\nLength: ${html.length} chars`
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `[admin/communication/email/test] MOCK MODE — RESEND_API_KEY not set.\n` +
+          `To: ${to}\nSubject: ${subject}\nLength: ${html.length} chars`
+      );
+    }
     return jsonResponse({
       ok: true,
       mock: true,

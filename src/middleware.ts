@@ -139,11 +139,13 @@ export default createMiddleware({
       event.locals.supabase = { client, cookieJar: cookies };
 
       if (isCookieDebugLoggingEnabled()) {
-        console.log(
-          "[middleware] Supabase client initialized for",
-          new URL(event.request.url).pathname,
-          "— event.locals.supabase is set."
-        );
+        if (process.env.NODE_ENV !== "production") {
+          console.log(
+            "[middleware] Supabase client initialized for",
+            new URL(event.request.url).pathname,
+            "— event.locals.supabase is set."
+          );
+        }
       }
     } catch (err) {
       // Don't crash the request — log and let downstream routes handle

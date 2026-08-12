@@ -491,15 +491,17 @@ export async function POST(event: APIEvent): Promise<Response> {
     // console so a developer can see what WOULD have been sent,
     // then return success. This lets the full notification flow
     // work end-to-end in dev without a real Resend account.
-    console.log(
-      "[api/email/send] 🔸 MOCK MODE — RESEND_API_KEY not set. Would have sent:"
-    );
-    console.log(`  To:      ${to}`);
-    console.log(`  From:    ${fromEmail}`);
-    console.log(`  Subject: ${subject}`);
-    console.log(
-      `  Body:    ${html.substring(0, 200)}${html.length > 200 ? "..." : ""}`
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        "[api/email/send] MOCK MODE — RESEND_API_KEY not set. Would have sent:"
+      );
+      console.log(`  To:      ${to}`);
+      console.log(`  From:    ${fromEmail}`);
+      console.log(`  Subject: ${subject}`);
+      console.log(
+        `  Body:    ${html.substring(0, 200)}${html.length > 200 ? "..." : ""}`
+      );
+    }
     return jsonResponse({
       success: true,
       mock: true,

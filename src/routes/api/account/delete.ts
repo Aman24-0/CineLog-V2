@@ -279,9 +279,11 @@ export async function POST(event: APIEvent): Promise<Response> {
     // Log to stderr for the audit trail (we can't write to admin_actions
     // because the user_id FK just got SET NULL'd, and the user isn't
     // an admin anyway — admin_actions is admin-only INSERT now).
-    console.log(
-      `[account/delete] Successfully deleted user ${userId} (email=${userEmail}, ip=${ip ?? "unknown"})`
-    );
+    if (process.env.NODE_ENV !== "production") {
+      console.log(
+        `[account/delete] Successfully deleted user ${userId} (email=${userEmail}, ip=${ip ?? "unknown"})`
+      );
+    }
 
     return jsonResponse({ ok: true });
   } catch (err) {
