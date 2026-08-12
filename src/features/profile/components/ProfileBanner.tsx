@@ -147,6 +147,8 @@ const ProfileBanner: Component<ProfileBannerProps> = (props) => {
           loading="eager"
           decoding="async"
           alt="Profile banner"
+          width="1200"
+          height="400"
           // Phase 18 deep-fix v2: crossorigin="anonymous" so the
           // browser's preload scanner matches the actual <img> fetch's
           // credentials mode. Without this, the browser logs a
