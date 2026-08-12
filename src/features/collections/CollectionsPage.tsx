@@ -511,7 +511,7 @@ export default function CollectionsPage() {
             Universe unsubscribe was moved to the universe detail page's
             action bar — no inline unsubscribe on grid cards anymore. */}
         <Show when={showAddUniverse()}>
-          <Suspense fallback={null}>
+          <Suspense fallback={<div class="v2-card h-24 animate-pulse" />}>
             <AddUniverseModal onClose={() => setShowAddUniverse(false)} />
           </Suspense>
         </Show>

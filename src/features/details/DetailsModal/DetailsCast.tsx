@@ -413,7 +413,7 @@ const DetailsCast: Component<DetailsCastProps> = (props) => {
       </DetailSection>
 
       <Show when={selectedPerson()}>
-        <Suspense fallback={null}>
+        <Suspense fallback={<div class="v2-card h-24 animate-pulse" />}>
           <PersonModal
             personId={selectedPerson()!.id}
             personName={selectedPerson()!.name}
