@@ -145,13 +145,11 @@ const UpcomingPage: Component = () => {
   // kept on UpcomingFilters for backward-compat (older persisted
   // localStorage state may still include it) but it's never read.
   //
-  // v4: default date range is now 90 days (was 30). The wider default
-  // surfaces more upcoming series — many prestige shows (e.g. HotD)
-  // have episodes airing 30-60 days out, and the 30-day default was
-  // hiding them. Users can still narrow via the date presets.
+  // v4: default date range is 30 days. Users can expand via the date
+  // presets if they want to see further out.
   const buildDefaultFilters = (): UpcomingFilters => ({
     region: effectiveRegion(),
-    dateRange: { start: todayStr(), end: addDays(todayStr(), 90) },
+    dateRange: { start: todayStr(), end: addDays(todayStr(), 30) },
     genres: [],
     platforms: [],
     minRating: 0,
@@ -324,7 +322,7 @@ const UpcomingPage: Component = () => {
       // TMDBTitle uses "movie" | "tv". Map here so the repo stays clean.
       const reminderType: "movie" | "series" =
         title.media_type === "tv" ? "series" : "movie";
-      await notif.scheduleReminder(id, reminderType, releaseDate, name);
+      await notif.scheduleReminder(id, reminderType, releaseDate, name, title.poster_path ?? null);
     }
   };
 
@@ -510,6 +508,21 @@ const UpcomingPage: Component = () => {
                 value={filters().dateRange}
                 onChange={handleDateRangeChange}
               />
+              {/* Media type filter chips — All / Movies / Series */}
+              <div class="upcoming-media-type-chips" role="group" aria-label="Media type filter">
+                <For each={(["all", "movie", "tv"] as const)}>
+                  {(mt) => (
+                    <button
+                      type="button"
+                      class={`upcoming-media-type-chip ${filters().mediaType === mt ? "is-active" : ""}`}
+                      onClick={() => setFilters((prev) => ({ ...prev, mediaType: mt }))}
+                      aria-pressed={filters().mediaType === mt}
+                    >
+                      {mt === "all" ? "All" : mt === "movie" ? "Movies" : "Series"}
+                    </button>
+                  )}
+                </For>
+              </div>
             </div>
             <div class="upcoming-toolbar-right">
               <SortDropdown value={sort} onChange={handleSortChange} />

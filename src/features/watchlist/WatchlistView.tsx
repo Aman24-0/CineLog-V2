@@ -36,6 +36,7 @@ export default function WatchlistView() {
   const { watchlist, loading, isGuest, error, presets, savePreset, deletePreset } = useVault();
 
   const [showFilter, setShowFilter] = createSignal(false);
+  const [filterCollapsed, setFilterCollapsed] = createSignal(false);
   const [displayLimit, setDisplayLimit] = createSignal(20);
   const [viewMode, setViewModeInternal] = createSignal<"grid" | "timeline">(
     "grid"
@@ -142,46 +143,72 @@ export default function WatchlistView() {
             existing bottom-sheet VaultFilters (via WatchlistDialogs)
             handles filter UX. */}
         <Show when={!isGuest()}>
-          <aside class="vault-filters-sidebar" aria-label="Advanced filters">
+          <aside
+            class={`vault-filters-sidebar${filterCollapsed() ? " vault-filter-sidebar--collapsed" : ""}`}
+            aria-label="Advanced filters"
+          >
             <div class="vault-filters-sidebar-header">
-              <span
-                class="material-symbols-outlined"
-                style={{ "font-size": "18px", color: "var(--p)" }}
-                aria-hidden="true"
-              >
-                tune
-              </span>
-              <h3 class="type-headline vault-filters-sidebar-title">
-                Filters
-              </h3>
-            </div>
-            <VaultFiltersContent
-              filters={filters()}
-              setFilters={(v) => {
-                setFilters(v);
-                setDisplayLimit(20);
-              }}
-              uniqueGenres={uniqueGenres()}
-              uniquePlatforms={uniquePlatforms()}
-              uniqueTags={uniqueTags()}
-              uniqueTagsPlus={uniqueTagsPlus()}
-              refreshTagVocab={refreshTagVocab}
-              presets={presets}
-              onSavePreset={(name) => savePreset(name, filters())}
-              onDeletePreset={(id) => deletePreset(id)}
-            />
-            <div class="vault-filters-sidebar-actions">
+              <Show when={!filterCollapsed()}>
+                <span
+                  class="material-symbols-outlined"
+                  style={{ "font-size": "18px", color: "var(--p)" }}
+                  aria-hidden="true"
+                >
+                  tune
+                </span>
+                <h3 class="type-headline vault-filters-sidebar-title">
+                  Filters
+                </h3>
+              </Show>
               <button
                 type="button"
-                class="btn-ghost"
-                onClick={() => {
-                  clearFilters();
-                  setDisplayLimit(20);
-                }}
+                class="vault-filter-sidebar__toggle"
+                onClick={() => setFilterCollapsed(!filterCollapsed())}
+                aria-label={filterCollapsed() ? "Expand filters" : "Collapse filters"}
+                title={filterCollapsed() ? "Expand filters" : "Collapse filters"}
               >
-                Clear All
+                <span
+                  class="material-symbols-outlined"
+                  style={{
+                    "font-size": "18px",
+                    transform: filterCollapsed() ? "rotate(180deg)" : "rotate(0deg)",
+                    transition: "transform var(--dur-base) var(--ease-out)"
+                  }}
+                  aria-hidden="true"
+                >
+                  chevron_left
+                </span>
               </button>
             </div>
+            <Show when={!filterCollapsed()}>
+              <VaultFiltersContent
+                filters={filters()}
+                setFilters={(v) => {
+                  setFilters(v);
+                  setDisplayLimit(20);
+                }}
+                uniqueGenres={uniqueGenres()}
+                uniquePlatforms={uniquePlatforms()}
+                uniqueTags={uniqueTags()}
+                uniqueTagsPlus={uniqueTagsPlus()}
+                refreshTagVocab={refreshTagVocab}
+                presets={presets}
+                onSavePreset={(name) => savePreset(name, filters())}
+                onDeletePreset={(id) => deletePreset(id)}
+              />
+              <div class="vault-filters-sidebar-actions">
+                <button
+                  type="button"
+                  class="btn-ghost"
+                  onClick={() => {
+                    clearFilters();
+                    setDisplayLimit(20);
+                  }}
+                >
+                  Clear All
+                </button>
+              </div>
+            </Show>
           </aside>
         </Show>
 

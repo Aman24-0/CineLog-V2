@@ -135,7 +135,7 @@
   display: none;
   flex: 1;
   max-width: 560px;
-  margin: 0 1rem;
+  margin: 0 auto;
 }
 @media (min-width: 1024px) {
   .app-header__search-desktop {
@@ -361,8 +361,9 @@
 }
 
 /* Hide the native search input cancel button — we provide our own
-   close button in the overlay header row. */
-.search-overlay-input::-webkit-search-cancel-button {
+   close button in the overlay header row and the desktop inline bar. */
+.search-overlay-input::-webkit-search-cancel-button,
+.app-header-search-form input[type="search"]::-webkit-search-cancel-button {
   display: none;
 }
 

@@ -34,6 +34,7 @@ import {
   Match,
   For,
   createMemo,
+  createSignal,
   type Component,
   type JSX
 } from "solid-js";
@@ -46,6 +47,12 @@ import { GlassCard, GlassEmptyState } from "~/shared/ui/glass";
 import { tmdbImage } from "~/core/tmdb/tmdb";
 import type { WatchlistItem } from "~/shared/types";
 import type { UserReminderRow } from "~/lib/supabase/repositories/upcoming";
+
+// Helper to get TMDB image URL for a reminder poster
+const reminderPosterUrl = (r: UserReminderRow): string | null => {
+  if (r.poster_path) return tmdbImage(r.poster_path, "w92");
+  return null;
+};
 
 // ─── Style constants ──────────────────────────────────────────────
 const SECTION_HEADING_STYLE: JSX.CSSProperties = {
@@ -141,6 +148,7 @@ const DesktopUtilityPanel: Component = () => {
   const { watchlist } = useUserLibrary();
   const notif = useNotifications();
   const { openTitle } = useModalState();
+  const [panelCollapsed, setPanelCollapsed] = createSignal(false);
 
   // ── Continue Watching: top 5 by recent progress ──────────────
   const continueWatching = createMemo<WatchlistItem[]>(() => {
@@ -226,11 +234,32 @@ const DesktopUtilityPanel: Component = () => {
   // ── Render ────────────────────────────────────────────────────
   return (
     <aside
-      class="desktop-utility-panel"
+      class={`desktop-utility-panel${panelCollapsed() ? " desktop-utility-panel--collapsed" : ""}`}
       role="complementary"
       aria-label="Continue watching and upcoming reminders"
     >
-      <Switch>
+      {/* Collapse toggle */}
+      <button
+        type="button"
+        class="desktop-utility-panel__toggle"
+        onClick={() => setPanelCollapsed(!panelCollapsed())}
+        aria-label={panelCollapsed() ? "Expand panel" : "Collapse panel"}
+        title={panelCollapsed() ? "Expand panel" : "Collapse panel"}
+      >
+        <span
+          class="material-symbols-outlined"
+          style={{
+            "font-size": "18px",
+            transform: panelCollapsed() ? "rotate(180deg)" : "rotate(0deg)",
+            transition: "transform var(--dur-base) var(--ease-out)"
+          }}
+          aria-hidden="true"
+        >
+          chevron_right
+        </span>
+      </button>
+      <Show when={!panelCollapsed()}>
+        <Switch>
         {/* ── Signed-out: show a single sign-in prompt ──────── */}
         <Match when={!isSignedIn()}>
           <GlassCard variant="glass" size="default" padding="default">
@@ -294,6 +323,7 @@ const DesktopUtilityPanel: Component = () => {
           </Show>
         </Match>
       </Switch>
+      </Show>
     </aside>
   );
 };
@@ -452,26 +482,41 @@ function RemindersSection(props: RemindersProps) {
                 onMouseLeave={(e) => {
                   e.currentTarget.style.background = "transparent";
                 }}
-                aria-label={`Open reminder for ${r.title_type}`}
+                aria-label={`Open reminder for ${r.title_name || r.title_type}`}
               >
-                <span
-                  style={{
-                    ...ITEM_POSTER_STYLE,
-                    background: "var(--p-dim)",
-                    display: "flex",
-                    "align-items": "center",
-                    "justify-content": "center",
-                    color: "var(--p)"
-                  }}
-                  aria-hidden="true"
+                <Show
+                  when={reminderPosterUrl(r)}
+                  fallback={
+                    <span
+                      style={{
+                        ...ITEM_POSTER_STYLE,
+                        background: "var(--p-dim)",
+                        display: "flex",
+                        "align-items": "center",
+                        "justify-content": "center",
+                        color: "var(--p)"
+                      }}
+                      aria-hidden="true"
+                    >
+                      <span
+                        class="material-symbols-outlined"
+                        style={{ "font-size": "18px" }}
+                      >
+                        {r.title_type === "series" ? "tv" : "movie"}
+                      </span>
+                    </span>
+                  }
                 >
-                  <span
-                    class="material-symbols-outlined"
-                    style={{ "font-size": "18px" }}
-                  >
-                    {r.title_type === "series" ? "tv" : "movie"}
-                  </span>
-                </span>
+                  {(url) => (
+                    <img
+                      src={url()}
+                      alt=""
+                      style={ITEM_POSTER_STYLE}
+                      loading="lazy"
+                      decoding="async"
+                    />
+                  )}
+                </Show>
                 <span
                   style={{
                     display: "flex",
@@ -481,7 +526,7 @@ function RemindersSection(props: RemindersProps) {
                   }}
                 >
                   <span style={ITEM_TITLE_STYLE}>
-                    {r.title_type === "series" ? "Series" : "Movie"} · #{r.tmdb_id}
+                    {r.title_name || `${r.title_type === "series" ? "Series" : "Movie"} · #${r.tmdb_id}`}
                   </span>
                   <span style={ITEM_META_STYLE}>{r.release_date}</span>
                 </span>

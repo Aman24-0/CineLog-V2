@@ -58,6 +58,8 @@ export interface UserReminderRow {
   user_id: string;
   tmdb_id: string;
   title_type: "movie" | "series";
+  title_name: string;
+  poster_path: string | null;
   release_date: string;
   is_scheduled: boolean;
   notification_sent: boolean;
@@ -1111,7 +1113,8 @@ export async function scheduleReminder(
   tmdbId: string | number,
   titleType: "movie" | "series",
   releaseDate: string,
-  titleName: string
+  titleName: string,
+  posterPath: string | null = null
 ): Promise<boolean> {
   try {
     const supabase = getClient();
@@ -1126,6 +1129,8 @@ export async function scheduleReminder(
           user_id: userId,
           tmdb_id: idStr,
           title_type: titleType,
+          title_name: titleName,
+          poster_path: posterPath,
           release_date: releaseDate,
           is_scheduled: true,
           notification_sent: false
