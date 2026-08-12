@@ -119,8 +119,6 @@ if (
     navigator.serviceWorker
       .register("/sw.js", { scope: "/" })
       .then((registration) => {
-        //console.log("[SW] Registered with scope:", registration.scope);
-
         // Watch for a new SW waiting to take over. When a new version
         // is installed (e.g. after a deploy), skipWaiting() so it
         // activates immediately on the next navigation.
